@@ -1,4 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VibeAge
+
+A 3D browser-based MMORPG inspired by Lineage 2, built with modern web technologies. The name combines "vibe coding" philosophy with the legacy of classic MMORPGs.
+
+## Current State: Single Player Proof of Concept
+
+Currently implemented features:
+- 3D world with dynamic zones and environments
+- Character creation and progression
+- Combat system with various skills and abilities
+- Status effects and damage over time mechanics
+- Zone-based enemy spawning and respawn system
+- Level progression and experience system
+
+## Roadmap to MMORPG
+
+### Phase 1: Infrastructure
+- [ ] Server-side state management
+- [ ] Player data persistence
+- [ ] Authentication system
+- [ ] Basic chat system
+
+### Phase 2: Multiplayer Core
+- [ ] Real-time player synchronization
+- [ ] Player-to-player interaction
+- [ ] Improved zone management for multiple players
+- [ ] Basic party system
+
+### Phase 3: MMORPG Features
+- [ ] Enhanced chat (global, zone, party, private)
+- [ ] Trading system
+- [ ] Group content (dungeons, raids)
+- [ ] Guild system
+- [ ] Player economy
+
+## Tech Stack
+
+- **Frontend**: Next.js, Three.js, React Three Fiber
+- **State Management**: Zustand
+- **Physics**: Rapier
+- **3D UI**: React Three Drei
 
 ## Getting Started
 
@@ -8,29 +48,14 @@ First, run the development server:
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to play the game.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Contributing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+We welcome contributions! Feel free to submit issues and pull requests.
 
-## Learn More
+## License
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is MIT licensed.

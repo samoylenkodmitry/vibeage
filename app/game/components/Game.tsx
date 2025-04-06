@@ -127,10 +127,10 @@ export default function Game() {
       <div className="w-full h-screen flex items-center justify-center bg-black">
         <div className="bg-gray-900 p-8 rounded-lg max-w-md w-full">
           <h1 className="text-4xl font-bold mb-6 text-purple-500">
-            3D MMORPG Adventure
+            VibeAge
           </h1>
           <p className="text-gray-300 mb-6">
-            Enter the world of magic and combat. Defeat enemies, level up, and unlock powerful spells!
+            Enter the world of magic and combat. Defeat enemies, level up, and unlock powerful spells in this Lineage-inspired MMORPG!
           </p>
           <div className="mb-4">
             <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
