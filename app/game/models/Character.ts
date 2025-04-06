@@ -23,7 +23,7 @@ export const createCharacter = (name: string): Character => {
     maxHealth: 100,
     mana: 50,
     maxMana: 50,
-    skills: ['fireball'], // Start with fireball skill
+    skills: ['fireball'],
     activeSkill: 'fireball'
   };
 };

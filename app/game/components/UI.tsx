@@ -99,7 +99,6 @@ export default function UI() {
   const castingProgress = useGameStore(state => state.castingProgress);
   const castSkill = useGameStore(state => state.castSkill);
   
-  // State to determine if user is admin (for demo purposes)
   const [isAdmin, setIsAdmin] = useState(false);
   
   // Find selected target from enemies array
@@ -157,77 +156,6 @@ export default function UI() {
       
       {/* Bottom UI - Player stats and skills */}
       <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-3xl px-5">
-        {/* Player Info */}
-        <div className="bg-gray-900/80 p-3 rounded-lg mb-3">
-          <div className="flex justify-between items-center mb-2">
-            <div className="text-white font-bold">{player.name} (Level {player.level})</div>
-            <div className="text-gray-300 text-sm">
-              XP: {experience}/{experienceToNextLevel}
-            </div>
-          </div>
-          
-          {/* Experience Bar */}
-          <div className="mb-2">
-            <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-yellow-500"
-                style={{ width: `${(experience / experienceToNextLevel) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* Health Bar */}
-          <div className="mb-2">
-            <div className="flex justify-between text-sm text-white mb-1">
-              <div>Health</div>
-              <div>{Math.floor(player.health)}/{player.maxHealth}</div>
-            </div>
-            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-red-600"
-                style={{ width: `${(player.health / player.maxHealth) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* Mana Bar */}
-          <div>
-            <div className="flex justify-between text-sm text-white mb-1">
-              <div>Mana</div>
-              <div>{Math.floor(player.mana)}/{player.maxMana}</div>
-            </div>
-            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-600"
-                style={{ width: `${(player.mana / player.maxMana) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* Player status effects */}
-          <div className="mt-2">
-            <StatusEffects targetId="player" inline={true} />
-          </div>
-        </div>
-        
-        {/* Skills */}
-        <div className="bg-gray-900/80 p-3 rounded-lg">
-          <div className="text-white font-bold mb-2">Skills</div>
-          <div className="flex space-x-3">
-            {availableSkills.map((skill) => (
-              <SkillButton 
-                key={skill.id}
-                skill={skill}
-                cooldown={skillCooldowns[skill.id] || 0}
-                isCasting={castingSkill === skill.id}
-                castProgress={castingProgress}
-                onClick={handleSkillClick(skill.id)}
-                selectedTarget={selectedTarget}
-              />
-            ))}
-          </div>
-        </div>
-        
         {/* Casting Bar */}
         {castingSkill && (
           <div className="mt-3 bg-gray-900/80 p-3 rounded-lg">
@@ -245,6 +173,76 @@ export default function UI() {
             </div>
           </div>
         )}
+        {/* Player Info */}
+        <div className="bg-gray-900/80 p-3 rounded-lg mb-3">
+          <div className="flex justify-between items-center mb-2">
+            <div className="text-white font-bold">{player.name} {player.level}</div>
+            <div className="text-gray-300 text-sm">
+              XP: {experience}/{experienceToNextLevel}
+            </div>
+          </div>
+          
+          {/* Experience Bar */}
+          <div className="mb-2">
+            <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gray-400"
+                style={{ width: `${(experience / experienceToNextLevel) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Health Bar */}
+          <div className="mb-2">
+            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-red-600"
+                style={{ width: `${(player.health / player.maxHealth) * 100}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-sm text-white mt-1">
+              <div>HP</div>
+              <div>{Math.floor(player.health)}/{player.maxHealth}</div>
+            </div>
+          </div>
+          
+          {/* Mana Bar */}
+          <div>
+            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600"
+                style={{ width: `${(player.mana / player.maxMana) * 100}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-sm text-white mt-1">
+              <div>MP</div>
+              <div>{Math.floor(player.mana)}/{player.maxMana}</div>
+            </div>
+          </div>
+          
+          {/* Player status effects */}
+          <div className="mt-2">
+            <StatusEffects targetId="player" inline={true} />
+          </div>
+        </div>
+        
+        {/* Skills */}
+        <div className="bg-gray-900/80 p-3 rounded-lg">
+          <div className="flex space-x-3">
+            {availableSkills.map((skill) => (
+              <SkillButton 
+                key={skill.id}
+                skill={skill}
+                cooldown={skillCooldowns[skill.id] || 0}
+                isCasting={castingSkill === skill.id}
+                castProgress={castingProgress}
+                onClick={handleSkillClick(skill.id)}
+                selectedTarget={selectedTarget}
+              />
+            ))}
+          </div>
+        </div>
+        
       </div>
     </div>
   );
