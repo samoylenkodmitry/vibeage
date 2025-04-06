@@ -28,7 +28,8 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
   const totalMultiplier = xpInfo.total;
   
   // Handler for donation boost
-  const handleDonationBoost = useCallback((amount: number, duration: number) => {
+  const handleDonationBoost = useCallback((amount: number, duration: number, event: React.MouseEvent) => {
+    event.stopPropagation();
     applyDonationBoost(amount, duration);
   }, [applyDonationBoost]);
   
@@ -65,19 +66,19 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
         <div className="flex gap-2 justify-center">
           <button
             className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={() => handleDonationBoost(0.5, 60)}
+            onClick={(e) => handleDonationBoost(0.5, 60, e)}
           >
             +50% (1h) $5
           </button>
           <button
             className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={() => handleDonationBoost(1.0, 120)}
+            onClick={(e) => handleDonationBoost(1.0, 120, e)}
           >
             +100% (2h) $10
           </button>
           <button
             className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={() => handleDonationBoost(2.0, 240)}
+            onClick={(e) => handleDonationBoost(2.0, 240, e)}
           >
             +200% (4h) $20
           </button>
@@ -91,13 +92,19 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
           <div className="flex gap-2">
             <button
               className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-              onClick={() => toggleXpEvent(!bonusXpEventActive, 2.0)}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleXpEvent(!bonusXpEventActive, 2.0)
+              }}
             >
               {bonusXpEventActive ? 'End XP Event' : 'Start XP Event (2x)'}
             </button>
             <button
               className="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-              onClick={() => clearDonationBoost()}
+              onClick={(e) => {
+                e.stopPropagation();
+                clearDonationBoost();
+              }}
             >
               Clear Donation Boost
             </button>
@@ -132,6 +139,9 @@ export default function UI() {
   
   // Direct cast handler for when skill buttons are clicked
   const handleSkillClick = (skillId: string) => {
+    // Stop event propagation
+    event.stopPropagation();
+    
     // First try regular skill casting through the game store
     castSkill(skillId);
     
@@ -318,6 +328,14 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
   // Check if skill is usable (has valid target)
   const isUsable = Boolean(selectedTarget) && !isOnCooldown;
   
+  // Handle click with stopPropagation
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isUsable) {
+      onClick();
+    }
+  };
+  
   // Update button style on hover
   useEffect(() => {
     if (!buttonRef.current) return;
@@ -362,7 +380,7 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
           !selectedTarget ? 'bg-gray-500 opacity-50' :
           'bg-gray-800 hover:bg-gray-700'
         } flex items-center justify-center pointer-events-auto focus:outline-none`}
-        onClick={isUsable ? onClick : undefined}
+        onClick={handleClick}
         disabled={!isUsable}
         style={{ transition: 'transform 0.2s, box-shadow 0.2s' }}
       >

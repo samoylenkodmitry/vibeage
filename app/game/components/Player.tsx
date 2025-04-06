@@ -56,6 +56,13 @@ export default function Player() {
     // Skip if right mouse button or if we're rotating
     if (e.button !== 0 || isRotating) return;
     
+    // Check if the click originated from an element with pointer-events-auto class
+    // This indicates it's a UI element and we should ignore the click for world interaction
+    if ((e.target as HTMLElement).closest('.pointer-events-auto')) {
+      console.log('Click on UI element detected, ignoring world interaction');
+      return;
+    }
+    
     // Calculate intersection with ground plane
     const mouse = new Vector2(
       (e.clientX / window.innerWidth) * 2 - 1,
