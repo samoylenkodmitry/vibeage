@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Color, MathUtils } from 'three';
@@ -8,7 +9,7 @@ interface WaterSplashProps {
   onComplete: () => void;
 }
 
-export function WaterSplash({ position, radius = 3, onComplete }: WaterSplashProps) {
+export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashProps) {
   const [lifetime, setLifetime] = useState(2.0);
   const rippleRef = useRef<THREE.Mesh>(null);
   const isCompletingRef = useRef(false);

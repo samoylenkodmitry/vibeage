@@ -32,6 +32,7 @@ export const GameConfig = {
 // Calculate the final experience value with all multipliers applied
 export const calculateExperienceValue = (baseExp: number, level: number): number => {
   const { baseMultiplier, levelScaling, donationBoost, bonusEvents } = GameConfig.experience;
+  // TODO this should involve current player level
   
   // Apply base multiplier
   let expValue = baseExp * baseMultiplier;

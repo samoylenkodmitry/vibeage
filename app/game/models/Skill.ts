@@ -60,7 +60,7 @@ export const SKILLS: Record<string, Skill> = {
     manaCost: 15,
     cooldown: 3,
     range: 10,
-    areaOfEffect: 3,
+    areaOfEffect: 20, 
     levelRequired: 2,
     castTime: 0.8,
     effects: [

@@ -1,8 +1,8 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import { useGameStore, StatusEffect } from '../systems/gameStore';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
 
 interface StatusEffectsProps {
   targetId: string | 'player';
@@ -10,7 +10,7 @@ interface StatusEffectsProps {
   inline?: boolean;
 }
 
-export default function StatusEffects({ targetId, position = 'top', inline = false }: StatusEffectsProps) {
+const StatusEffects = React.forwardRef<HTMLDivElement, StatusEffectsProps>(({ targetId, position = 'top', inline = false }, ref) => {
   const getStatusEffects = useGameStore(state => state.getStatusEffects);
   const [effects, setEffects] = useState<StatusEffect[]>([]);
 
@@ -86,4 +86,8 @@ export default function StatusEffects({ targetId, position = 'top', inline = fal
       })}
     </div>
   );
-}
+});
+
+StatusEffects.displayName = 'StatusEffects';
+
+export default StatusEffects;

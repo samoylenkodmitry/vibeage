@@ -63,54 +63,7 @@ export default function Game() {
     
     const animationFrame = requestAnimationFrame(gameLoop);
     
-    // Debug: Add keypress handlers to test status effects
     const handleDebugKeys = (e: KeyboardEvent) => {
-      // If Shift+D is pressed, apply debug effects to selected target
-      if (e.shiftKey && e.key === 'D') {
-        const state = useGameStore.getState();
-        const selectedTargetId = state.selectedTargetId;
-        
-        if (selectedTargetId) {
-          console.log('Applying debug status effects to target:', selectedTargetId);
-          
-          // Apply burn effect
-          state.applyStatusEffect(selectedTargetId, {
-            id: `burn-debug-${Date.now()}`,
-            type: 'burn',
-            value: 1,
-            duration: 5,
-            startTime: Date.now(),
-            sourceSkill: 'fireball',
-            icon: '/skills/burn.png'
-          });
-          
-          // Apply poison effect
-          setTimeout(() => {
-            state.applyStatusEffect(selectedTargetId, {
-              id: `poison-debug-${Date.now()}`,
-              type: 'poison',
-              value: 0.5,
-              duration: 10,
-              startTime: Date.now(),
-              sourceSkill: 'icebolt',
-              icon: '/skills/poison.png'
-            });
-          }, 500);
-          
-          // Apply stun effect
-          setTimeout(() => {
-            state.applyStatusEffect(selectedTargetId, {
-              id: `stun-debug-${Date.now()}`,
-              type: 'stun',
-              value: 100,
-              duration: 2,
-              startTime: Date.now(),
-              sourceSkill: 'petrify',
-              icon: '/skills/stun.png'
-            });
-          }, 1000);
-        }
-      }
     };
     
     window.addEventListener('keydown', handleDebugKeys);

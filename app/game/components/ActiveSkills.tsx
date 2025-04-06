@@ -19,6 +19,15 @@ interface SkillEffect {
   createdAt: number;
 }
 
+declare global {
+  interface Window {
+    castFireball?: () => void;
+    castIceBolt?: () => void;
+    castWater?: () => void;
+    castPetrify?: () => void;
+  }
+}
+
 export default function ActiveSkills() {
   const player = useGameStore(state => state.player);
   const enemies = useGameStore(state => state.enemies);
@@ -114,28 +123,45 @@ export default function ActiveSkills() {
   
   // Handle the visual effect reaching its target
   const handleEffectHit = (effectId: string, targetId: string, skillId: string) => {
-    // Apply the skill effect to the target
     if (targetId) {
       const skill = SKILLS[skillId];
       if (skill) {
         // For water splash, apply effects to all enemies in the area
-        if (skillId === 'water' && skill.areaOfEffect) {
+        if (skillId === 'water') {
           const targetEnemy = enemies.find(e => e.id === targetId);
           if (targetEnemy) {
-            const areaRange = skill.areaOfEffect;
+            // Get the area of effect radius from skill config
+            const areaRange = skill.areaOfEffect || 5;
+            
             // Find all enemies in the area of effect range
             const affectedEnemies = enemies.filter(enemy => {
               if (!enemy.isAlive) return false;
+              
               const dx = enemy.position.x - targetEnemy.position.x;
               const dz = enemy.position.z - targetEnemy.position.z;
-              // Calculate distance in the horizontal plane
               const distance = Math.sqrt(dx * dx + dz * dz);
+              
               return distance <= areaRange;
             });
             
-            // Apply the effect to all enemies in the area
+            console.log(`Water splash hitting ${affectedEnemies.length} enemies in range ${areaRange}`);
+            
+            // Apply effects to all enemies in range
             affectedEnemies.forEach(enemy => {
-              applySkillEffect(enemy.id, skill.effects);
+              skill.effects.forEach(effect => {
+                // If it's damage, scale it based on distance from center
+                if (effect.type === 'damage') {
+                  const dx = enemy.position.x - targetEnemy.position.x;
+                  const dz = enemy.position.z - targetEnemy.position.z;
+                  const distance = Math.sqrt(dx * dx + dz * dz);
+                  const falloff = Math.max(0, 1 - (distance / areaRange));
+                  const scaledEffect = { ...effect, value: Math.floor(effect.value * falloff) };
+                  applySkillEffect(enemy.id, [scaledEffect]);
+                } else {
+                  // For non-damage effects (like waterWeakness), apply them at full strength
+                  applySkillEffect(enemy.id, [effect]);
+                }
+              });
             });
           }
         } else {
