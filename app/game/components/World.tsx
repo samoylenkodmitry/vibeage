@@ -65,6 +65,8 @@ export default function World() {
               outlineWidth={0.3}
               outlineColor="black"
               textAlign="center"
+              material-transparent
+              material-opacity={0.7}
             >
               {zone.name}
               {`\nLevel ${zone.minLevel}-${zone.maxLevel}`}
