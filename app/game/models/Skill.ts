@@ -85,17 +85,19 @@ export const SKILLS: Record<string, Skill> = {
   'petrify': {
     id: 'petrify',
     name: 'Petrify',
-    description: 'Temporarily turns an enemy to stone, making them unable to move or attack',
+    description: 'Turns an enemy to stone, immobilizing them and increasing damage taken',
     icon: '/skills/petrify.png',
-    damage: 10,
+    damage: 20, // Increased from 10
     manaCost: 30,
     cooldown: 10,
     range: 8,
     levelRequired: 4,
     castTime: 1.5,
+    projectileSpeed: 12, // Added projectile speed
     effects: [
-      { type: 'damage', value: 10 },
-      { type: 'transform', value: 0, duration: 2 } // Transforms target to stone for 2 seconds
+      { type: 'damage', value: 20 }, // Increased damage
+      { type: 'transform', value: 100, duration: 4 }, // Extended duration from 2 to 4 seconds, 100% transform effect
+      { type: 'slow', value: 100, duration: 4 } // Added complete immobilization effect
     ]
   }
 };

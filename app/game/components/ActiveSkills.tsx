@@ -7,6 +7,7 @@ import { useGameStore } from '../systems/gameStore';
 import { FireballProjectile } from '../skills/Fireball';
 import { IceBoltProjectile } from '../skills/IceBolt';
 import { WaterSplash } from '../skills/WaterSplash';
+import { PetrifyProjectile } from '../skills/Petrify';
 import { SKILLS } from '../models/Skill';
 
 interface SkillEffect {
@@ -161,6 +162,15 @@ export default function ActiveSkills() {
             }}
           />
         );
+      case 'petrify':
+        return (
+          <PetrifyProjectile
+            key={id}
+            startPosition={startPosition}
+            targetPosition={targetPosition}
+            onHit={() => handleEffectHit(id, targetId, skillId)}
+          />
+        );
       // Add cases for other skills as they are implemented
       default:
         return null;
@@ -172,6 +182,7 @@ export default function ActiveSkills() {
     window.castFireball = () => handleSkillCast('fireball');
     window.castIceBolt = () => handleSkillCast('icebolt');
     window.castWater = () => handleSkillCast('water');
+    window.castPetrify = () => handleSkillCast('petrify');
   }, []);
   
   return (
