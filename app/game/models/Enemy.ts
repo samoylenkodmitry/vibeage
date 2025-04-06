@@ -4,6 +4,7 @@ export interface Enemy {
   name: string;
   level: number;
   position: { x: number; y: number; z: number };
+  spawnPosition: { x: number; y: number; z: number }; // Track original spawn position
   rotation: { x: number; y: number; z: number };
   health: number;
   maxHealth: number;
@@ -112,6 +113,7 @@ export const createEnemy = (
     name: `${type.charAt(0).toUpperCase() + type.slice(1)} Lvl ${level}`,
     level,
     position,
+    spawnPosition: { ...position }, // Store initial spawn position
     rotation: { x: 0, y: 0, z: 0 },
     health: Math.floor(typeData.health * levelMultiplier),
     maxHealth: Math.floor(typeData.health * levelMultiplier),

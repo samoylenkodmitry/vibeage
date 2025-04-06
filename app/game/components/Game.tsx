@@ -10,6 +10,17 @@ import Enemies from './Enemies';
 import UI from './UI';
 import ActiveSkills from './ActiveSkills';
 import { useGameStore } from '../systems/gameStore';
+import { GAME_ZONES } from '../systems/zoneSystem';
+import { KeyboardControls } from '@react-three/drei';
+
+// Define keyboard controls
+const controls = [
+  { name: 'forward', keys: ['ArrowUp', 'KeyW'] },
+  { name: 'backward', keys: ['ArrowDown', 'KeyS'] },
+  { name: 'left', keys: ['ArrowLeft', 'KeyA'] },
+  { name: 'right', keys: ['ArrowRight', 'KeyD'] },
+  { name: 'jump', keys: ['Space'] },
+];
 
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
@@ -24,12 +35,43 @@ export default function Game() {
 
   useEffect(() => {
     if (isGameStarted) {
-      // Spawn some initial enemies when game starts
-      spawnEnemy('goblin', 1, { x: 5, y: 0, z: 5 });
-      spawnEnemy('wolf', 1, { x: -5, y: 0, z: -5 });
-      spawnEnemy('skeleton', 2, { x: 10, y: 0, z: -8 });
+      // Initialize player
+      initializePlayer(playerName);
+
+      // Initialize enemies in each zone
+      GAME_ZONES.forEach(zone => {
+        // For each mob type in the zone
+        zone.mobs.forEach(mobConfig => {
+          // Calculate random count between min and max
+          const count = Math.floor(
+            mobConfig.minCount + 
+            Math.random() * (mobConfig.maxCount - mobConfig.minCount)
+          );
+
+          // Spawn mobs
+          for (let i = 0; i < count; i++) {
+            // Get random position within zone
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * zone.radius * 0.8; // Keep within 80% of radius
+            const position = {
+              x: zone.position.x + Math.cos(angle) * distance,
+              y: 0,
+              z: zone.position.z + Math.sin(angle) * distance
+            };
+
+            // Get random level within zone range
+            const level = Math.floor(
+              zone.minLevel + 
+              Math.random() * (zone.maxLevel - zone.minLevel + 1)
+            );
+
+            // Spawn the enemy
+            spawnEnemy(mobConfig.type, level, position, zone.id);
+          }
+        });
+      });
     }
-  }, [isGameStarted, spawnEnemy]);
+  }, [isGameStarted, playerName, initializePlayer, spawnEnemy]);
   
   // Handle game loop for skill casting, enemy AI, etc.
   useEffect(() => {
@@ -76,7 +118,6 @@ export default function Game() {
 
   const handleStartGame = () => {
     if (playerName.trim()) {
-      initializePlayer(playerName);
       setGameStarted(true);
     }
   };
@@ -116,31 +157,33 @@ export default function Game() {
   }
 
   return (
-    <>
-      <Canvas className="w-full h-screen" shadows>
-        <fog attach="fog" args={['#202060', 0, 100]} />
-        <ambientLight intensity={0.5} />
-        <directionalLight 
-          position={[10, 10, 5]} 
-          intensity={1} 
-          castShadow 
-          shadow-mapSize-width={1024} 
-          shadow-mapSize-height={1024} 
-        />
-        <Physics 
-          gravity={[0, -20, 0]} 
-          timeStep="vary"
-          interpolate={true}
-          colliders={false}
-        >
-          <Player />
-          <Enemies />
-          <World />
-          <ActiveSkills />
-        </Physics>
-        <Sky sunPosition={[100, 10, 100]} />
-      </Canvas>
+    <div className="relative w-full h-full">
+      <KeyboardControls map={controls}>
+        <Canvas className="w-full h-screen" shadows>
+          <fog attach="fog" args={['#202060', 0, 100]} />
+          <ambientLight intensity={0.5} />
+          <directionalLight 
+            position={[10, 10, 5]} 
+            intensity={1} 
+            castShadow 
+            shadow-mapSize-width={1024} 
+            shadow-mapSize-height={1024} 
+          />
+          <Physics 
+            gravity={[0, -20, 0]} 
+            timeStep="vary"
+            interpolate={true}
+            colliders={false}
+          >
+            <Player />
+            <Enemies />
+            <World />
+            <ActiveSkills />
+          </Physics>
+          <Sky sunPosition={[100, 10, 100]} />
+        </Canvas>
+      </KeyboardControls>
       <UI />
-    </>
+    </div>
   );
 }

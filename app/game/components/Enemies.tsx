@@ -5,7 +5,9 @@ import { useFrame } from '@react-three/fiber';
 import { RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import { Vector3 } from 'three';
+import * as THREE from 'three';
 import { useGameStore } from '../systems/gameStore';
+import { zoneManager } from '../systems/zoneSystem';
 
 export default function Enemies() {
   const enemies = useGameStore(state => state.enemies);
@@ -42,8 +44,10 @@ interface EnemyProps {
 
 function Enemy({ enemy, isSelected, onSelect, playerPosition }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { id, type, position, health, maxHealth, isAlive, name } = enemy;
+  const { id, type, position, health, maxHealth, isAlive, name, level } = enemy;
   const [isHovered, setIsHovered] = useState(false);
+  const originalPosition = useRef(new Vector3(enemy.position.x, enemy.position.y, enemy.position.z));
+  const currentZone = useRef(zoneManager.getZoneAtPosition(enemy.position));
   
   // Different models for different enemy types
   const getEnemyModel = () => {
@@ -58,17 +62,13 @@ function Enemy({ enemy, isSelected, onSelect, playerPosition }: EnemyProps) {
         return <DefaultEnemyModel isSelected={isSelected} isHovered={isHovered} />;
     }
   };
-  
-  // Check if player is close enough to interact with this enemy
-  const isInRange = () => {
-    const distance = Math.sqrt(
-      Math.pow(position.x - playerPosition.x, 2) + 
-      Math.pow(position.z - playerPosition.z, 2)
-    );
-    return distance < 20; // Detection range
-  };
-  
+
   if (!isAlive) return null;
+  
+  // Get proper capitalized mob name
+  const getMobName = (type: string) => {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
   
   return (
     <RigidBody type="fixed" position={[position.x, position.y, position.z]}>
@@ -77,9 +77,7 @@ function Enemy({ enemy, isSelected, onSelect, playerPosition }: EnemyProps) {
         ref={meshRef}
         onClick={(e) => {
           e.stopPropagation();
-          if (isInRange()) {
-            onSelect();
-          }
+          onSelect();
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
@@ -103,7 +101,7 @@ function Enemy({ enemy, isSelected, onSelect, playerPosition }: EnemyProps) {
       <Html position={[0, 2.5, 0]} center sprite>
         <div className="flex flex-col items-center pointer-events-none">
           <div className={`text-white text-xs font-medium bg-black/50 px-2 py-1 rounded mb-1 ${isSelected ? 'ring-2 ring-red-500' : ''}`}>
-            {name}
+            {`${getMobName(type)} Lv.${level}`}
           </div>
           <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
             <div
@@ -208,4 +206,22 @@ function DefaultEnemyModel({ isSelected, isHovered }: ModelProps) {
       <meshStandardMaterial color={color} />
     </mesh>
   );
+}
+
+// Helper function to get health bar color based on percentage
+function getHealthColor(percentage: number): string {
+  if (percentage > 0.6) return '#00ff00';
+  if (percentage > 0.3) return '#ffff00';
+  return '#ff0000';
+}
+
+// Helper function to get zone indicator color
+function getZoneColor(zoneId: string): string {
+  const colors: { [key: string]: string } = {
+    starter_meadow: '#90EE90', // Light green
+    dark_forest: '#228B22',    // Forest green
+    rocky_highlands: '#A0522D', // Brown
+    misty_lake: '#4682B4'      // Steel blue
+  };
+  return colors[zoneId] || '#FFFFFF';
 }

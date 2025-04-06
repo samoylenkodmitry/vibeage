@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { Character, createCharacter } from '../models/Character';
 import { Enemy, createEnemy, setDonationBoost, toggleBonusEvent, GameConfig, calculateExperienceValue } from '../models/Enemy';
 import { SKILLS, Skill, SkillEffect } from '../models/Skill';
+import { zoneManager, GAME_ZONES } from './zoneSystem';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -52,7 +53,7 @@ interface GameState {
   updateSkillCooldowns: (delta: number) => void;
   
   // Enemy management
-  spawnEnemy: (type: string, level: number, position: {x: number, y: number, z: number}) => void;
+  spawnEnemy: (type: string, level: number, position: {x: number, y: number, z: number}, zoneId?: string) => void;
   updateEnemies: (delta: number) => void;
   damageEnemy: (enemyId: string, damage: number) => void;
   respawnDeadEnemies: (delta: number) => void;
@@ -76,6 +77,12 @@ interface GameState {
 
   // New function to get entities within a radius
   getEntitiesWithinRadius: (position: {x: number, y: number, z: number}, radius: number) => Enemy[];
+
+  // Add new zone-related state
+  currentZoneId: string | null;
+  
+  // Update existing actions
+  updatePlayerZone: () => void;
 }
 
 // Helper function to calculate XP needed for next level
@@ -104,6 +111,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Status effect initial state
   playerStatusEffects: [],
   enemyStatusEffects: {},
+
+  currentZoneId: null,
   
   // Actions
   initializePlayer: (name: string) => {
@@ -138,8 +147,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => {
       const newLevel = state.player.level + 1;
       const newSkills = [...state.player.skills];
-      
-      // Unlock new skills based on level
       // Make sure skill IDs match exactly the ones defined in Skill.ts
       if (newLevel === 2 && !newSkills.includes('water')) {
         newSkills.push('water'); // This is correct - matches the ID in Skill.ts
@@ -149,39 +156,17 @@ export const useGameStore = create<GameState>((set, get) => ({
         newSkills.push('petrify');
       }
 
-      // Update state immediately with new level and reset XP
-      const newState = {
+      return {
         player: {
           ...state.player,
           level: newLevel,
-          maxHealth: Math.floor(state.player.maxHealth * 1.1),
-          health: Math.floor(state.player.maxHealth * 1.1),
-          maxMana: Math.floor(state.player.maxMana * 1.1),
-          mana: Math.floor(state.player.maxMana * 1.1),
-          skills: newSkills
+          maxHealth: state.player.maxHealth + 10,
+          maxMana: state.player.maxMana + 5,
+          skills: newSkills,
         },
         experience: 0,
         experienceToNextLevel: calculateExperienceForLevel(newLevel)
       };
-
-      // Spawn higher level enemies after a delay
-      setTimeout(() => {
-        const enemyCount = Math.min(newLevel * 5, 20);
-        for (let i = 0; i < enemyCount; i++) {
-          const enemyLevel = Math.random() < 0.7 ? newLevel : newLevel + 1;
-          const enemyType = getRandomEnemyType(enemyLevel);
-          const distance = 40 + (enemyLevel - newLevel) * 15 + Math.random() * 30;
-          const angle = Math.random() * Math.PI * 2;
-          const randomPosition = {
-            x: state.player.position.x + Math.cos(angle) * distance,
-            y: 0,
-            z: state.player.position.z + Math.sin(angle) * distance
-          };
-          get().spawnEnemy(enemyType, enemyLevel, randomPosition);
-        }
-      }, 1000);
-
-      return newState;
     });
   },
   
@@ -477,10 +462,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
   
-  spawnEnemy: (type: string, level: number, position: {x: number, y: number, z: number}) => {
-    set(state => ({
-      enemies: [...state.enemies, createEnemy(type, level, position)]
-    }));
+  spawnEnemy: (type: string, level: number, position: {x: number, y: number, z: number}, zoneId?: string) => {
+    set(state => {
+      const enemy = createEnemy(type, level, position);
+      // Update both gameStore and zoneManager
+      const newState = {
+        enemies: [...state.enemies, enemy]
+      };
+      
+      if (zoneId) {
+        const zoneEnemies = state.enemies.filter(e => {
+          const enemyZone = zoneManager.getZoneAtPosition(e.position);
+          return enemyZone?.id === zoneId;
+        });
+        zoneManager.updateZoneMobs(zoneId, [...zoneEnemies, enemy].map(e => ({
+          id: e.id,
+          type: e.type,
+          level: e.level,
+          position: e.position
+        })));
+      }
+      
+      return newState;
+    });
   },
   
   updateEnemies: (delta: number) => {
@@ -543,52 +547,92 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (!state.enemies.some(enemy => !enemy.isAlive)) {
         return state;
       }
-      
-      // Find dead enemies and respawn them with a 50% chance each second (up from 30%)
+
+      // Group dead enemies strictly by their original zones
+      const deadEnemiesByZone = new Map<string, typeof state.enemies>();
+      state.enemies.filter(e => !e.isAlive).forEach(enemy => {
+        const zone = zoneManager.getZoneAtPosition(enemy.spawnPosition || enemy.position);
+        if (zone) {
+          const zoneEnemies = deadEnemiesByZone.get(zone.id) || [];
+          deadEnemiesByZone.set(zone.id, [...zoneEnemies, enemy]);
+        }
+      });
+
+      // Process respawns by zone
       const respawnChance = delta * 0.5;
       let hasRespawned = false;
-      const updatedEnemies = state.enemies.map(enemy => {
-        // Only process dead enemies
-        if (enemy.isAlive) return enemy;
-        
-        // Random chance to respawn
-        if (Math.random() < respawnChance) {
-          console.log(`Respawning ${enemy.type} at random position`);
-          hasRespawned = true;
-          
-          // Generate a random position, closer for higher density
-          const distance = 50 + Math.random() * 50; // Between 50-100 units from player (was 100-200)
-          const angle = Math.random() * Math.PI * 2; // Random angle in radians
-          
-          const randomPosition = {
-            x: state.player.position.x + Math.cos(angle) * distance,
-            y: 0,
-            z: state.player.position.z + Math.sin(angle) * distance
-          };
-          
-          // Randomly scale the level when respawning
-          const newLevel = Math.max(1, 
-            enemy.level + (Math.random() > 0.7 ? 1 : Math.random() > 0.7 ? -1 : 0)
-          );
-          
-          // Create a new enemy of the same type at random position
-          return createEnemy(
-            enemy.type,
-            newLevel, 
-            randomPosition
-          );
-        }
-        
-        return enemy;
+      const updatedEnemies = [...state.enemies];
+
+      deadEnemiesByZone.forEach((deadEnemies, zoneId) => {
+        // Get the zone configuration
+        const zoneConfig = GAME_ZONES.find(z => z.id === zoneId);
+        if (!zoneConfig) return;
+
+        // For each mob type in the zone config
+        zoneConfig.mobs.forEach(mobConfig => {
+          // Count current alive mobs of this type in the zone
+          const aliveMobsCount = updatedEnemies.filter(e => 
+            e.isAlive && 
+            e.type === mobConfig.type &&
+            zoneManager.getZoneAtPosition(e.position)?.id === zoneId
+          ).length;
+
+          // Calculate how many we need to spawn to reach minimum
+          const neededSpawns = Math.max(0, mobConfig.minCount - aliveMobsCount);
+
+          // Try to respawn needed mobs
+          for (let i = 0; i < neededSpawns; i++) {
+            if (Math.random() < respawnChance) {
+              // Find a dead enemy of the same type in this zone to replace
+              const deadEnemyIndex = updatedEnemies.findIndex(e => 
+                !e.isAlive && 
+                zoneManager.getZoneAtPosition(e.spawnPosition || e.position)?.id === zoneId &&
+                (!mobConfig.type || e.type === mobConfig.type)
+              );
+
+              if (deadEnemyIndex >= 0) {
+                // Get random position within zone
+                const newPos = zoneManager.getRandomPositionInZone(zoneId);
+                if (newPos) {
+                  // Get appropriate level for this zone
+                  const level = Math.floor(
+                    zoneConfig.minLevel + 
+                    Math.random() * (zoneConfig.maxLevel - zoneConfig.minLevel + 1)
+                  );
+
+                  // Create new enemy with correct type and level
+                  const newEnemy = createEnemy(mobConfig.type, level, newPos);
+                  // Store original spawn position for zone tracking
+                  newEnemy.spawnPosition = { ...newPos };
+                  
+                  updatedEnemies[deadEnemyIndex] = newEnemy;
+                  hasRespawned = true;
+                }
+              }
+            }
+          }
+        });
       });
-      
+
       // Only update state if at least one enemy was respawned
       if (hasRespawned) {
-        return {
-          enemies: updatedEnemies
-        };
+        // Update zone mob counts
+        zoneManager.getAllZones().forEach(zone => {
+          const zoneEnemies = updatedEnemies.filter(e => {
+            const enemyZone = zoneManager.getZoneAtPosition(e.position);
+            return enemyZone?.id === zone.id;
+          });
+          zoneManager.updateZoneMobs(zone.id, zoneEnemies.map(e => ({
+            id: e.id,
+            type: e.type,
+            level: e.level,
+            position: e.position
+          })));
+        });
+
+        return { enemies: updatedEnemies };
       }
-      
+
       return state;
     });
   },
@@ -775,6 +819,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       const dz = enemy.position.z - position.z;
       return dx * dx + dz * dz <= radiusSquared;
     });
+  },
+
+  updatePlayerZone: () => {
+    const state = get();
+    const currentZone = zoneManager.getZoneAtPosition(state.player.position);
+    if (currentZone?.id !== state.currentZoneId) {
+      set({ currentZoneId: currentZone?.id || null });
+      console.log(`Player entered zone: ${currentZone?.name || 'wilderness'}`);
+    }
   },
 }));
 

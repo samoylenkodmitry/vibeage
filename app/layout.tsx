@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Visual Showcase",
-  description: "An impressive interactive web experience",
+  title: "Vibeage",
+  description: " 3D MMORPG Adventure",
 };
 
 export default function RootLayout({

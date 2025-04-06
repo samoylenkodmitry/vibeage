@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, Skill } from '../models/Skill';
 import StatusEffects from './StatusEffects';
+import { GAME_ZONES } from '../systems/zoneSystem';
 
 // Add explicit global window typings for our custom method
 declare global {
@@ -126,6 +127,10 @@ export default function UI() {
       }
     }
   };
+
+  // Get current zone from game store
+  const currentZoneId = useGameStore(state => state.currentZoneId);
+  const currentZone = GAME_ZONES.find(zone => zone.id === currentZoneId);
   
   return (
     <div className="fixed inset-0 pointer-events-none">
@@ -243,6 +248,19 @@ export default function UI() {
           </div>
         </div>
         
+      </div>
+
+      {/* Zone indicator */}
+      <div className="absolute top-4 left-4 bg-black/50 text-white p-4 rounded-lg">
+        <h2 className="text-xl font-bold">
+          {currentZone?.name || 'Wilderness'}
+        </h2>
+        {currentZone && (
+          <div className="text-sm opacity-80">
+            <p>{currentZone.description}</p>
+            <p className="mt-1">Level {currentZone.minLevel}-{currentZone.maxLevel}</p>
+          </div>
+        )}
       </div>
     </div>
   );

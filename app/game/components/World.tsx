@@ -1,10 +1,21 @@
 'use client';
 
 import { RigidBody } from '@react-three/rapier';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Billboard, Text } from '@react-three/drei';
+import { useGameStore } from '../systems/gameStore';
+import { zoneManager, GAME_ZONES } from '../systems/zoneSystem';
+import * as THREE from 'three';
 
 export default function World() {
   const terrainRef = useRef<THREE.Mesh>(null);
+  const updatePlayerZone = useGameStore(state => state.updatePlayerZone);
+  
+  // Update player's current zone
+  useFrame(() => {
+    updatePlayerZone();
+  });
   
   return (
     <>
@@ -24,90 +35,132 @@ export default function World() {
         </mesh>
       </RigidBody>
       
-      {/* Environmental Objects - Trees, Rocks, etc - Distributed across larger area */}
+      {/* Zone Markers */}
+      {GAME_ZONES.map(zone => (
+        <group key={zone.id}>
+          {/* Zone boundary indicator - semi-transparent circle */}
+          <mesh 
+            position={[zone.position.x, 0.1, zone.position.z]} 
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <circleGeometry args={[zone.radius, 32]} />
+            <meshBasicMaterial 
+              color={getZoneColor(zone.id)} 
+              transparent 
+              opacity={0.1} 
+            />
+          </mesh>
+          
+          {/* Zone name text - Raised higher and made smaller */}
+          <Billboard 
+            position={[zone.position.x, 8, zone.position.z]}
+            follow={true}
+            lockX={false}
+            lockY={false}
+            lockZ={false}
+          >
+            <Text
+              color="white"
+              fontSize={3}
+              outlineWidth={0.3}
+              outlineColor="black"
+              textAlign="center"
+            >
+              {zone.name}
+              {`\nLevel ${zone.minLevel}-${zone.maxLevel}`}
+            </Text>
+          </Billboard>
+        </group>
+      ))}
+      
+      {/* Environmental Objects */}
       <group>
-        {/* Forest areas - More forests with higher density */}
-        <Forest position={[150, 0, 150]} count={40} spread={50} />
-        <Forest position={[-150, 0, -150]} count={35} spread={40} />
-        <Forest position={[200, 0, -200]} count={50} spread={60} />
-        <Forest position={[-200, 0, 200]} count={35} spread={45} />
-        <Forest position={[0, 0, 300]} count={45} spread={70} />
-        <Forest position={[-300, 0, 0]} count={40} spread={55} />
-        <Forest position={[300, 0, -300]} count={38} spread={50} />
-        <Forest position={[-250, 0, -350]} count={40} spread={60} />
-        <Forest position={[100, 0, -50]} count={30} spread={40} />
-        <Forest position={[-80, 0, 80]} count={25} spread={30} />
-        <Forest position={[40, 0, 120]} count={20} spread={25} />
-        
-        {/* Dense forest patches - very high tree density */}
-        <Forest position={[75, 0, 75]} count={25} spread={15} />
-        <Forest position={[-180, 0, -90]} count={30} spread={20} />
-        
-        {/* Rocks - More rock formations across the map */}
-        <Rocks position={[50, 0, -100]} count={15} spread={30} />
-        <Rocks position={[-80, 0, 120]} count={12} spread={25} />
-        <Rocks position={[180, 0, 220]} count={18} spread={40} />
-        <Rocks position={[-220, 0, -180]} count={14} spread={35} />
-        <Rocks position={[350, 0, 100]} count={20} spread={45} />
-        <Rocks position={[-100, 0, 350]} count={16} spread={38} />
-        <Rocks position={[0, 0, 0]} count={8} spread={25} />
-        <Rocks position={[120, 0, -160]} count={10} spread={20} />
-        <Rocks position={[-300, 0, 150]} count={12} spread={30} />
-        
-        {/* Rock clusters - tightly grouped stones */}
-        <Rocks position={[25, 0, 60]} count={6} spread={5} />
-        <Rocks position={[-120, 0, -80]} count={8} spread={8} />
-        <Rocks position={[200, 0, -50]} count={7} spread={6} />
-        
-        {/* Boulder fields */}
-        <BoulderField position={[100, 0, 200]} count={15} spread={40} />
-        <BoulderField position={[-150, 0, -250]} count={12} spread={35} />
-        
-        {/* Bushes and small vegetation */}
-        <Bushes position={[30, 0, 80]} count={30} spread={40} />
-        <Bushes position={[-70, 0, -40]} count={25} spread={35} />
-        <Bushes position={[120, 0, -90]} count={35} spread={50} />
-        <Bushes position={[-200, 0, 150]} count={40} spread={60} />
-        <Bushes position={[180, 0, 80]} count={20} spread={30} />
-        
-        {/* Fallen logs */}
-        <FallenLogs position={[60, 0, 120]} count={8} spread={40} />
-        <FallenLogs position={[-100, 0, -150]} count={10} spread={50} />
+        {/* Distribute environmental objects based on zones */}
+        {GAME_ZONES.map(zone => (
+          <group key={`env-${zone.id}`}>
+            {zone.id === 'dark_forest' && (
+              <Forest 
+                position={[zone.position.x, 0, zone.position.z]} 
+                count={50} 
+                spread={zone.radius * 0.8} 
+              />
+            )}
+            
+            {zone.id === 'rocky_highlands' && (
+              <>
+                <Rocks 
+                  position={[zone.position.x, 0, zone.position.z]} 
+                  count={20} 
+                  spread={zone.radius * 0.7} 
+                />
+                <BoulderField 
+                  position={[zone.position.x, 0, zone.position.z]} 
+                  count={15} 
+                  spread={zone.radius * 0.6} 
+                />
+              </>
+            )}
+            
+            {zone.id === 'misty_lake' && (
+              <>
+                <mesh 
+                  position={[zone.position.x, -0.2, zone.position.z]} 
+                  rotation={[-Math.PI / 2, 0, 0]}
+                >
+                  <circleGeometry args={[zone.radius * 0.6, 32]} />
+                  <meshStandardMaterial 
+                    color="#0077be" 
+                    transparent 
+                    opacity={0.8} 
+                  />
+                </mesh>
+                <Bushes 
+                  position={[zone.position.x, 0, zone.position.z]} 
+                  count={30} 
+                  spread={zone.radius * 0.8} 
+                />
+              </>
+            )}
+            
+            {zone.id === 'starter_meadow' && (
+              <>
+                <Forest 
+                  position={[zone.position.x, 0, zone.position.z]} 
+                  count={20} 
+                  spread={zone.radius * 0.7} 
+                />
+                <Bushes 
+                  position={[zone.position.x, 0, zone.position.z]} 
+                  count={40} 
+                  spread={zone.radius * 0.8} 
+                />
+                <FallenLogs 
+                  position={[zone.position.x, 0, zone.position.z]} 
+                  count={8} 
+                  spread={zone.radius * 0.6} 
+                />
+              </>
+            )}
+          </group>
+        ))}
       </group>
-      
-      {/* Water bodies - Larger lakes and more of them */}
-      <mesh position={[200, -0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#0077be" transparent opacity={0.8} />
-      </mesh>
-      
-      <mesh position={[-150, -0.2, 250]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[120, 80]} />
-        <meshStandardMaterial color="#0077be" transparent opacity={0.8} />
-      </mesh>
-      
-      <mesh position={[300, -0.2, -280]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[150, 150]} />
-        <meshStandardMaterial color="#0077be" transparent opacity={0.8} />
-      </mesh>
-      
-      {/* Small ponds */}
-      <mesh position={[50, -0.25, 100]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[20, 24]} />
-        <meshStandardMaterial color="#0077be" transparent opacity={0.8} />
-      </mesh>
-      
-      <mesh position={[-80, -0.25, -70]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[15, 24]} />
-        <meshStandardMaterial color="#0077be" transparent opacity={0.8} />
-      </mesh>
-      
-      {/* Hills/Elevation changes */}
-      <Hill position={[120, 0, 80]} radius={50} height={15} />
-      <Hill position={[-180, 0, -120]} radius={60} height={20} />
-      <Hill position={[250, 0, -150]} radius={40} height={10} />
     </>
   );
+}
+
+// Helper function to get color for zone visualization
+function getZoneColor(zoneId: string): string {
+  const colors: { [key: string]: string } = {
+    starter_meadow: '#90EE90',    // Light green
+    dark_forest: '#228B22',       // Forest green
+    rocky_highlands: '#A0522D',   // Brown
+    misty_lake: '#4682B4',        // Steel blue
+    cursed_ruins: '#800080',      // Purple
+    dragon_peaks: '#FF4500',      // Red-Orange
+    shadow_valley: '#483D8B',     // Dark slate blue
+    crystal_caverns: '#00CED1'    // Turquoise
+  };
+  return colors[zoneId] || '#FFFFFF';
 }
 
 // Helper component to create a forest with customizable spread
@@ -250,7 +303,8 @@ function FallenLogs({ position = [0, 0, 0], count = 5, spread = 30 }) {
         <group rotation={[0, rotationY, Math.random() * 0.3 - 0.15]}>
           {/* Log body */}
           <mesh position={[0, 0.5 * scaleZ, 0]} castShadow>
-            <cylinderGeometry args={[scaleX, scaleX, length, 8]} rotation={[0, 0, Math.PI / 2]} />
+            <cylinderGeometry args={[scaleX, scaleX, length, 8]} />
+            <mesh rotation={[0, 0, Math.PI / 2]} />
             <meshStandardMaterial color="#654321" roughness={0.9} />
           </mesh>
           
@@ -275,7 +329,7 @@ function FallenLogs({ position = [0, 0, 0], count = 5, spread = 30 }) {
 // Hills and elevated terrain
 function Hill({ position = [0, 0, 0], radius = 30, height = 10 }) {
   return (
-    <RigidBody type="fixed" position={position}>
+    <RigidBody type="fixed" position={[position[0], position[1], position[2]]}>
       <mesh castShadow receiveShadow>
         <coneGeometry args={[radius, height, 32]} />
         <meshStandardMaterial color="#4a8f5c" roughness={0.8} />
