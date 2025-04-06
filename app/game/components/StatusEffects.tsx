@@ -52,70 +52,38 @@ export default function StatusEffects({ targetId, position = 'top', inline = fal
     }
   };
 
-  // Get icon based on effect type
-  const getEffectIcon = (effect: StatusEffect) => {
-    // Use custom icons if provided
-    if (effect.icon) {
-      return effect.icon;
-    }
-
-    // Fallback to simple colored backgrounds based on effect type
-    switch (effect.type) {
-      case 'burn':
-        return "🔥";
-      case 'poison':
-        return "☠️";
-      case 'slow':
-        return "🐢";
-      case 'freeze':
-        return "❄️";
-      case 'stun':
-        return "⚡";
-      case 'transform':
-        return "🗿";
-      case 'waterWeakness':
-        return "💧";
-      default:
-        return "⚠️";
-    }
-  };
-
-  // Get background color based on effect type
-  const getEffectColor = (effect: StatusEffect) => {
-    switch (effect.type) {
-      case 'burn':
-        return "bg-red-700";
-      case 'poison':
-        return "bg-green-700";
-      case 'slow':
-        return "bg-blue-700";
-      case 'freeze':
-        return "bg-blue-400";
-      case 'stun':
-        return "bg-yellow-600";
-      case 'transform':
-        return "bg-gray-700";
-      case 'waterWeakness':
-        return "bg-cyan-700";
-      default:
-        return "bg-purple-700";
-    }
-  };
-
   return (
     <div className={getPositionClasses()}>
-      {effects.map(effect => (
-        <div 
-          key={effect.id} 
-          className={`${getEffectColor(effect)} w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white relative`}
-          title={`${effect.type}: ${effect.value}% - ${formatTimeRemaining(effect)}s remaining`}
-        >
-          <div>{getEffectIcon(effect)}</div>
-          <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-[10px] bg-black/50 px-1 rounded">
-            {formatTimeRemaining(effect)}s
+      {effects.map(effect => {
+        const effectClassName = `effect-${effect.type}`;
+        
+        return (
+          <div 
+            key={effect.id} 
+            className={`bg-gray-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white relative overflow-hidden ${effectClassName}`}
+            title={`${effect.type}: ${effect.value}% - ${formatTimeRemaining(effect)}s remaining`}
+            style={{
+              // Set background color through CSS variable, fall back to a gray
+              backgroundColor: `var(--effect-${effect.type}-color, #6b7280)`
+            }}
+          >
+            <img 
+              src={`/game/skills/effect_${effect.type}.png`} 
+              alt={effect.type} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // If image fails to load, use the first letter of the effect type
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = effect.type.charAt(0).toUpperCase();
+              }}
+            />
+            {/* Show only the timer without text labels */}
+            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-[10px] bg-black/50 px-1 rounded">
+              {formatTimeRemaining(effect)}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

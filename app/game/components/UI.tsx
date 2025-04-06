@@ -88,7 +88,6 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
       {/* Admin panel - only visible when isAdmin is true */}
       {isAdmin && (
         <div className="border-t border-gray-700 pt-2">
-          <div className="text-white text-xs mb-1">Admin Controls</div>
           <div className="flex gap-2">
             <button
               className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
@@ -138,7 +137,7 @@ export default function UI() {
     .filter(skill => skill && player.level >= skill.levelRequired);
   
   // Direct cast handler for when skill buttons are clicked
-  const handleSkillClick = (skillId: string) => {
+  const handleSkillClick = (skillId: string) => (event: React.MouseEvent) => {
     // Stop event propagation
     event.stopPropagation();
     
@@ -261,7 +260,7 @@ export default function UI() {
                 cooldown={skillCooldowns[skill.id] || 0}
                 isCasting={castingSkill === skill.id}
                 castProgress={castingProgress}
-                onClick={() => handleSkillClick(skill.id)}
+                onClick={handleSkillClick(skill.id)}
                 selectedTarget={selectedTarget}
               />
             ))}
@@ -295,7 +294,7 @@ interface SkillButtonProps {
   cooldown: number;
   isCasting: boolean;
   castProgress: number;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent) => void;
   selectedTarget: any;
 }
 
@@ -332,7 +331,7 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isUsable) {
-      onClick();
+      onClick(e);
     }
   };
   
@@ -369,7 +368,7 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
   const debuffEffects = skill.effects.filter(effect => 
     effect.type !== 'damage' && effect.type !== 'dot'
   );
-  
+
   return (
     <div className="flex flex-col items-center">
       <button
@@ -379,13 +378,22 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
           isOnCooldown ? 'bg-gray-600' : 
           !selectedTarget ? 'bg-gray-500 opacity-50' :
           'bg-gray-800 hover:bg-gray-700'
-        } flex items-center justify-center pointer-events-auto focus:outline-none`}
+        } flex items-center justify-center pointer-events-auto focus:outline-none overflow-hidden`}
         onClick={handleClick}
         disabled={!isUsable}
         style={{ transition: 'transform 0.2s, box-shadow 0.2s' }}
       >
-        {/* Placeholder icon */}
-        <div className="text-lg text-white">{skill.id.charAt(0).toUpperCase()}</div>
+        {/* Skill icon - using dynamic path */}
+        <img 
+          src={`/game/skills/skill_${skill.id}.png`}
+          alt={skill.name} 
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            // If image fails to load, show fallback
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.parentElement!.innerHTML = skill.id.charAt(0).toUpperCase();
+          }}
+        />
         
         {/* Cooldown overlay */}
         {isOnCooldown && (
@@ -433,41 +441,39 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
         </div>
       </button>
       
-      {/* Debuff effects indicators */}
+      {/* Debuff effects indicators - icons only, no labels */}
       {debuffEffects.length > 0 && (
         <div className="mt-1 flex space-x-1 justify-center">
           {debuffEffects.map((effect, index) => {
-            // Get effect color
-            let bgColor = "bg-purple-600";
-            switch(effect.type) {
-              case 'burn': bgColor = "bg-red-600"; break;
-              case 'poison': bgColor = "bg-green-600"; break;
-              case 'slow': bgColor = "bg-blue-600"; break;
-              case 'freeze': bgColor = "bg-cyan-500"; break;
-              case 'stun': bgColor = "bg-yellow-500"; break;
-              case 'transform': bgColor = "bg-gray-600"; break;
-              case 'waterWeakness': bgColor = "bg-blue-400"; break;
-            }
+            // Generic emoji mapping for fallbacks (if needed)
+            const defaultEmojis: Record<string, string> = {
+              default: "⚠️"  // Default fallback
+            };
             
-            // Get effect icon
-            let icon = "⚡";
-            switch(effect.type) {
-              case 'burn': icon = "🔥"; break;
-              case 'poison': icon = "☠️"; break;
-              case 'slow': icon = "🐢"; break;
-              case 'freeze': icon = "❄️"; break;
-              case 'stun': icon = "⚡"; break;
-              case 'transform': icon = "🗿"; break; 
-              case 'waterWeakness': icon = "💧"; break;
-            }
+            // Generate colored background dynamically based on effect type
+            const effectClassName = `effect-${effect.type}`;
             
             return (
               <div
                 key={index}
-                className={`${bgColor} w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white`}
+                className={`bg-gray-600 w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white overflow-hidden ${effectClassName}`}
                 title={`${effect.type}: ${effect.value}%${effect.duration ? ` for ${effect.duration}s` : ''}`}
+                style={{
+                  // Dynamic background color based on effect type
+                  backgroundColor: `var(--effect-${effect.type}-color, #6b7280)`
+                }}
               >
-                {icon}
+                <img 
+                  src={`/game/skills/effect_${effect.type}.png`}
+                  alt={effect.type} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // If image fails to load, use first character of effect type
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.innerHTML = defaultEmojis[effect.type] || 
+                      effect.type.charAt(0).toUpperCase();
+                  }}
+                />
               </div>
             );
           })}
