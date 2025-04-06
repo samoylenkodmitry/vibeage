@@ -18,6 +18,7 @@ export default function Game() {
   const spawnEnemy = useGameStore(state => state.spawnEnemy);
   const updateCastingProgress = useGameStore(state => state.updateCastingProgress);
   const updateSkillCooldowns = useGameStore(state => state.updateSkillCooldowns);
+  const updateStatusEffects = useGameStore(state => state.updateStatusEffects);
   const regenerateMana = useGameStore(state => state.regenerateMana);
   const respawnDeadEnemies = useGameStore(state => state.respawnDeadEnemies);
 
@@ -47,6 +48,9 @@ export default function Game() {
       // Update skill cooldowns
       updateSkillCooldowns(deltaTime);
       
+      // Update status effects
+      updateStatusEffects(deltaTime);
+      
       // Regenerate mana over time
       regenerateMana(deltaTime);
       
@@ -58,8 +62,64 @@ export default function Game() {
     };
     
     const animationFrame = requestAnimationFrame(gameLoop);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [isGameStarted, updateCastingProgress, updateSkillCooldowns, regenerateMana, respawnDeadEnemies]);
+    
+    // Debug: Add keypress handlers to test status effects
+    const handleDebugKeys = (e: KeyboardEvent) => {
+      // If Shift+D is pressed, apply debug effects to selected target
+      if (e.shiftKey && e.key === 'D') {
+        const state = useGameStore.getState();
+        const selectedTargetId = state.selectedTargetId;
+        
+        if (selectedTargetId) {
+          console.log('Applying debug status effects to target:', selectedTargetId);
+          
+          // Apply burn effect
+          state.applyStatusEffect(selectedTargetId, {
+            id: `burn-debug-${Date.now()}`,
+            type: 'burn',
+            value: 1,
+            duration: 5,
+            startTime: Date.now(),
+            sourceSkill: 'fireball',
+            icon: '/skills/burn.png'
+          });
+          
+          // Apply poison effect
+          setTimeout(() => {
+            state.applyStatusEffect(selectedTargetId, {
+              id: `poison-debug-${Date.now()}`,
+              type: 'poison',
+              value: 0.5,
+              duration: 10,
+              startTime: Date.now(),
+              sourceSkill: 'icebolt',
+              icon: '/skills/poison.png'
+            });
+          }, 500);
+          
+          // Apply stun effect
+          setTimeout(() => {
+            state.applyStatusEffect(selectedTargetId, {
+              id: `stun-debug-${Date.now()}`,
+              type: 'stun',
+              value: 100,
+              duration: 2,
+              startTime: Date.now(),
+              sourceSkill: 'petrify',
+              icon: '/skills/stun.png'
+            });
+          }, 1000);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleDebugKeys);
+    
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener('keydown', handleDebugKeys);
+    };
+  }, [isGameStarted, updateCastingProgress, updateSkillCooldowns, updateStatusEffects, regenerateMana, respawnDeadEnemies]);
 
   const handleStartGame = () => {
     if (playerName.trim()) {
@@ -138,6 +198,14 @@ export default function Game() {
           <li>Left Click on Enemy: Select target</li>
           <li>Space: Jump</li>
         </ul>
+        <h3 className="font-bold mt-2 mb-1">Skill Debuffs:</h3>
+        <ul>
+          <li>Fireball: 🔥 Burn (1% damage/sec, 5s)</li> 
+          <li>Ice Bolt: ☠️ Poison (0.5% damage/sec, 10s)</li>
+          <li>Petrify: ⚡ Stun (2 seconds)</li>
+          <li>Water: 💧 Water Weakness (+30% dmg, 5s)</li>
+        </ul>
+        <div className="text-xs mt-2 text-yellow-300">Press Shift+D to test effects on target</div>
       </div>
     </>
   );

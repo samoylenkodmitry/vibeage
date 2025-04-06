@@ -118,7 +118,30 @@ export default function ActiveSkills() {
     if (targetId) {
       const skill = SKILLS[skillId];
       if (skill) {
-        applySkillEffect(targetId, skill.effects);
+        // For water splash, apply effects to all enemies in the area
+        if (skillId === 'water' && skill.areaOfEffect) {
+          const targetEnemy = enemies.find(e => e.id === targetId);
+          if (targetEnemy) {
+            const areaRange = skill.areaOfEffect;
+            // Find all enemies in the area of effect range
+            const affectedEnemies = enemies.filter(enemy => {
+              if (!enemy.isAlive) return false;
+              const dx = enemy.position.x - targetEnemy.position.x;
+              const dz = enemy.position.z - targetEnemy.position.z;
+              // Calculate distance in the horizontal plane
+              const distance = Math.sqrt(dx * dx + dz * dz);
+              return distance <= areaRange;
+            });
+            
+            // Apply the effect to all enemies in the area
+            affectedEnemies.forEach(enemy => {
+              applySkillEffect(enemy.id, skill.effects);
+            });
+          }
+        } else {
+          // For all other skills, just apply to the target
+          applySkillEffect(targetId, skill.effects);
+        }
       }
     }
     
@@ -156,6 +179,7 @@ export default function ActiveSkills() {
           <WaterSplash
             key={id}
             position={targetPosition}
+            radius={SKILLS[skillId].areaOfEffect || 3} // Use the area of effect value from the skill
             onComplete={() => {
               // Apply the effect immediately and then clean up
               handleEffectHit(id, targetId, skillId);

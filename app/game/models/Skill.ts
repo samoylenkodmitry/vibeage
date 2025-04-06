@@ -20,6 +20,9 @@ export type SkillEffectType =
   | 'stun' 
   | 'slow' 
   | 'dot' // damage over time
+  | 'burn' // burn damage over time
+  | 'poison' // poison damage over time
+  | 'waterWeakness' // increases water damage taken
   | 'freeze' 
   | 'transform'; // for stone conversion
 
@@ -34,7 +37,7 @@ export const SKILLS: Record<string, Skill> = {
   'fireball': {
     id: 'fireball',
     name: 'Fireball',
-    description: 'Launches a ball of fire that deals damage on impact',
+    description: 'Launches a ball of fire that deals damage and applies a burn effect',
     icon: '/skills/fireball.png',
     damage: 20,
     manaCost: 10,
@@ -44,7 +47,8 @@ export const SKILLS: Record<string, Skill> = {
     castTime: 0.5,
     projectileSpeed: 20,
     effects: [
-      { type: 'damage', value: 20 }
+      { type: 'damage', value: 20 },
+      { type: 'burn', value: 1, duration: 5 } // Burns enemy for 1% damage for 5 seconds
     ]
   },
   'water': {
@@ -61,13 +65,13 @@ export const SKILLS: Record<string, Skill> = {
     castTime: 0.8,
     effects: [
       { type: 'damage', value: 15 },
-      { type: 'slow', value: 30, duration: 2 } // Slows enemy by 30% for 2 seconds
+      { type: 'waterWeakness', value: 30, duration: 5 } // Makes enemy take 30% more damage from water attacks
     ]
   },
   'icebolt': {
     id: 'icebolt',
     name: 'Ice Bolt',
-    description: 'Fires a bolt of ice that damages and slows enemies with a chance to freeze',
+    description: 'Fires a bolt of ice that poisons enemies and slows their movement',
     icon: '/skills/icebolt.png',
     damage: 25,
     manaCost: 20,
@@ -78,26 +82,25 @@ export const SKILLS: Record<string, Skill> = {
     projectileSpeed: 15,
     effects: [
       { type: 'damage', value: 25 },
-      { type: 'slow', value: 50, duration: 3 }, // Slows enemy by 50% for 3 seconds
-      { type: 'freeze', value: 0, duration: 1 } // Has chance to freeze enemy for 1 second
+      { type: 'poison', value: 0.5, duration: 10 }, // Poisons enemy for 0.5% damage for 10 seconds
+      { type: 'slow', value: 50, duration: 10 } // Slows enemy by 50% for 10 seconds
     ]
   },
   'petrify': {
     id: 'petrify',
     name: 'Petrify',
-    description: 'Turns an enemy to stone, immobilizing them and increasing damage taken',
+    description: 'Temporarily stuns an enemy, preventing them from moving or attacking',
     icon: '/skills/petrify.png',
-    damage: 20, // Increased from 10
+    damage: 20,
     manaCost: 30,
     cooldown: 10,
     range: 8,
     levelRequired: 4,
     castTime: 1.5,
-    projectileSpeed: 12, // Added projectile speed
+    projectileSpeed: 12,
     effects: [
-      { type: 'damage', value: 20 }, // Increased damage
-      { type: 'transform', value: 100, duration: 4 }, // Extended duration from 2 to 4 seconds, 100% transform effect
-      { type: 'slow', value: 100, duration: 4 } // Added complete immobilization effect
+      { type: 'damage', value: 20 },
+      { type: 'stun', value: 100, duration: 2 } // Stuns enemy completely for 2 seconds
     ]
   }
 };

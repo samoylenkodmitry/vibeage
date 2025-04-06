@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, Skill } from '../models/Skill';
+import StatusEffects from './StatusEffects';
 
 // Add explicit global window typings for our custom method
 declare global {
@@ -172,6 +173,10 @@ export default function UI() {
           <div className="text-white text-sm">
             {selectedTarget.health}/{selectedTarget.maxHealth} HP
           </div>
+          {/* Display debuffs on target */}
+          <div className="relative pl-2">
+            <StatusEffects targetId={selectedTarget.id} position="right" />
+          </div>
         </div>
       )}
       
@@ -227,6 +232,11 @@ export default function UI() {
                 style={{ width: `${(player.mana / player.maxMana) * 100}%` }}
               ></div>
             </div>
+          </div>
+          
+          {/* Player status effects */}
+          <div className="mt-2">
+            <StatusEffects targetId="player" inline={true} />
           </div>
         </div>
         
@@ -337,46 +347,114 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
     };
   }, [isUsable]);
   
+  // Extract debuff effects from the skill
+  const debuffEffects = skill.effects.filter(effect => 
+    effect.type !== 'damage' && effect.type !== 'dot'
+  );
+  
   return (
-    <button
-      ref={buttonRef}
-      className={`relative w-12 h-12 rounded transition-all duration-200 ${
-        isCasting ? 'bg-purple-700 ring-2 ring-purple-300' :
-        isOnCooldown ? 'bg-gray-600' : 
-        !selectedTarget ? 'bg-gray-500 opacity-50' :
-        'bg-gray-800 hover:bg-gray-700'
-      } flex items-center justify-center pointer-events-auto focus:outline-none`}
-      onClick={isUsable ? onClick : undefined}
-      disabled={!isUsable}
-      style={{ transition: 'transform 0.2s, box-shadow 0.2s' }}
-    >
-      {/* Placeholder icon */}
-      <div className="text-lg text-white">{skill.id.charAt(0).toUpperCase()}</div>
+    <div className="flex flex-col items-center">
+      <button
+        ref={buttonRef}
+        className={`relative w-12 h-12 rounded transition-all duration-200 ${
+          isCasting ? 'bg-purple-700 ring-2 ring-purple-300' :
+          isOnCooldown ? 'bg-gray-600' : 
+          !selectedTarget ? 'bg-gray-500 opacity-50' :
+          'bg-gray-800 hover:bg-gray-700'
+        } flex items-center justify-center pointer-events-auto focus:outline-none`}
+        onClick={isUsable ? onClick : undefined}
+        disabled={!isUsable}
+        style={{ transition: 'transform 0.2s, box-shadow 0.2s' }}
+      >
+        {/* Placeholder icon */}
+        <div className="text-lg text-white">{skill.id.charAt(0).toUpperCase()}</div>
+        
+        {/* Cooldown overlay */}
+        {isOnCooldown && (
+          <>
+            <div 
+              className="absolute inset-0 bg-gray-800 opacity-70"
+              style={{ 
+                clipPath: `inset(${(1 - remainingCooldown / skill.cooldown) * 100}% 0 0 0)` 
+              }}
+            ></div>
+            <div className="absolute text-white font-bold text-sm">
+              {remainingCooldown.toFixed(1)}
+            </div>
+          </>
+        )}
+        
+        {/* Tooltip */}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-gray-800 p-2 rounded text-xs text-white opacity-0 hover:opacity-100 transition-opacity z-50 pointer-events-none">
+          <div className="font-bold">{skill.name}</div>
+          <div className="mt-1">{skill.description}</div>
+          <div className="mt-1">Mana: {skill.manaCost}</div>
+          <div>Cooldown: {skill.cooldown}s</div>
+          {skill.castTime > 0 && <div>Cast Time: {skill.castTime}s</div>}
+          {skill.damage && <div>Damage: {skill.damage}</div>}
+          
+          {/* Show skill effects in tooltip */}
+          {debuffEffects.length > 0 && (
+            <div className="mt-1 pt-1 border-t border-gray-600">
+              <div className="font-bold text-yellow-300">Effects:</div>
+              <ul className="list-disc list-inside">
+                {debuffEffects.map((effect, index) => (
+                  <li key={index}>
+                    {effect.type.charAt(0).toUpperCase() + effect.type.slice(1)}: 
+                    {effect.type === 'burn' || effect.type === 'poison' ? 
+                      ` ${effect.value}% damage over time` : 
+                      effect.type === 'slow' || effect.type === 'waterWeakness' ? 
+                      ` ${effect.value}%` : 
+                      ` ${effect.value}`}
+                    {effect.duration ? ` for ${effect.duration}s` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </button>
       
-      {/* Cooldown overlay */}
-      {isOnCooldown && (
-        <>
-          <div 
-            className="absolute inset-0 bg-gray-800 opacity-70"
-            style={{ 
-              clipPath: `inset(${(1 - remainingCooldown / skill.cooldown) * 100}% 0 0 0)` 
-            }}
-          ></div>
-          <div className="absolute text-white font-bold text-sm">
-            {remainingCooldown.toFixed(1)}
-          </div>
-        </>
+      {/* Debuff effects indicators */}
+      {debuffEffects.length > 0 && (
+        <div className="mt-1 flex space-x-1 justify-center">
+          {debuffEffects.map((effect, index) => {
+            // Get effect color
+            let bgColor = "bg-purple-600";
+            switch(effect.type) {
+              case 'burn': bgColor = "bg-red-600"; break;
+              case 'poison': bgColor = "bg-green-600"; break;
+              case 'slow': bgColor = "bg-blue-600"; break;
+              case 'freeze': bgColor = "bg-cyan-500"; break;
+              case 'stun': bgColor = "bg-yellow-500"; break;
+              case 'transform': bgColor = "bg-gray-600"; break;
+              case 'waterWeakness': bgColor = "bg-blue-400"; break;
+            }
+            
+            // Get effect icon
+            let icon = "⚡";
+            switch(effect.type) {
+              case 'burn': icon = "🔥"; break;
+              case 'poison': icon = "☠️"; break;
+              case 'slow': icon = "🐢"; break;
+              case 'freeze': icon = "❄️"; break;
+              case 'stun': icon = "⚡"; break;
+              case 'transform': icon = "🗿"; break; 
+              case 'waterWeakness': icon = "💧"; break;
+            }
+            
+            return (
+              <div
+                key={index}
+                className={`${bgColor} w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white`}
+                title={`${effect.type}: ${effect.value}%${effect.duration ? ` for ${effect.duration}s` : ''}`}
+              >
+                {icon}
+              </div>
+            );
+          })}
+        </div>
       )}
-      
-      {/* Tooltip */}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-40 bg-gray-800 p-2 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-        <div className="font-bold">{skill.name}</div>
-        <div className="mt-1">{skill.description}</div>
-        <div className="mt-1">Mana: {skill.manaCost}</div>
-        <div>Cooldown: {skill.cooldown}s</div>
-        {skill.castTime > 0 && <div>Cast Time: {skill.castTime}s</div>}
-        {skill.damage && <div>Damage: {skill.damage}</div>}
-      </div>
-    </button>
+    </div>
   );
 }

@@ -5,6 +5,17 @@ import { Character, createCharacter } from '../models/Character';
 import { Enemy, createEnemy, setDonationBoost, toggleBonusEvent, GameConfig, calculateExperienceValue } from '../models/Enemy';
 import { SKILLS, Skill, SkillEffect } from '../models/Skill';
 
+// Define a StatusEffect interface for tracking active effects
+export interface StatusEffect {
+  id: string;
+  type: string;
+  value: number;
+  duration: number;
+  startTime: number;
+  sourceSkill: string;
+  icon?: string; // For displaying appropriate icon
+}
+
 interface GameState {
   // Player state
   player: Character;
@@ -16,6 +27,10 @@ interface GameState {
   enemies: Enemy[];
   activeProjectiles: any[];
   activeEffects: any[];
+  
+  // Status effect tracking
+  playerStatusEffects: StatusEffect[];
+  enemyStatusEffects: Record<string, StatusEffect[]>;
   
   // Skill system
   skillCooldowns: Record<string, number>;
@@ -53,6 +68,12 @@ interface GameState {
   clearDonationBoost: () => void;
   toggleXpEvent: (active: boolean, multiplier?: number) => void;
   getXpMultiplierInfo: () => { total: number, base: number, donation: number, event: number };
+
+  // Status effect actions
+  applyStatusEffect: (targetId: string | 'player', effect: StatusEffect) => void;
+  removeStatusEffect: (targetId: string | 'player', effectId: string) => void;
+  updateStatusEffects: (delta: number) => void;
+  getStatusEffects: (targetId: string | 'player') => StatusEffect[];
 }
 
 // Helper function to calculate XP needed for next level
@@ -77,6 +98,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   donationXpBoost: 0,
   bonusXpEventActive: false,
   bonusXpMultiplier: 1.0,
+
+  // Status effect initial state
+  playerStatusEffects: [],
+  enemyStatusEffects: {},
   
   // Actions
   initializePlayer: (name: string) => {
@@ -400,7 +425,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         
         console.log(`Applying ${scaledDamage} damage (base: ${effect.value}, player level bonus: ${levelMultiplier.toFixed(1)}x, skill level bonus: ${skillLevelBonus.toFixed(1)}x)`);
         get().damageEnemy(targetId, scaledDamage);
-      } else if (effect.type === 'slow' || effect.type === 'freeze' || effect.type === 'transform') {
+      } else if (effect.type === 'burn' || effect.type === 'poison' || effect.type === 'slow' || 
+                effect.type === 'freeze' || effect.type === 'transform' || effect.type === 'stun' ||
+                effect.type === 'waterWeakness') {
         // Duration effects also scale with level
         const skill = state.castingSkill ? SKILLS[state.castingSkill] : null;
         const levelRequirement = skill?.levelRequired || 1;
@@ -411,7 +438,27 @@ export const useGameStore = create<GameState>((set, get) => ({
         const scaledDuration = effect.duration ? effect.duration * durationMultiplier : 0;
         
         console.log(`Applying ${effect.type} effect with duration: ${scaledDuration.toFixed(1)}s (base: ${effect.duration}s, multiplier: ${durationMultiplier.toFixed(1)}x)`);
-        // Implementation for status effects would go here
+        
+        // Create a status effect
+        const statusEffect: StatusEffect = {
+          id: `${effect.type}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          type: effect.type,
+          value: effect.value,
+          duration: scaledDuration,
+          startTime: Date.now(),
+          sourceSkill: state.castingSkill || 'unknown',
+          icon: getStatusEffectIcon(effect.type)
+        };
+        
+        // Apply the status effect to the target
+        get().applyStatusEffect(targetId, statusEffect);
+        
+        // Apply DOT effects immediately for the first tick
+        if (effect.type === 'burn' || effect.type === 'poison') {
+          const dotDamage = Math.floor(targetEnemy.maxHealth * (effect.value / 100));
+          console.log(`Applying ${effect.type} DOT: ${dotDamage} damage (${effect.value}% of max health)`);
+          get().damageEnemy(targetId, dotDamage);
+        }
       }
     });
   },
@@ -582,6 +629,124 @@ export const useGameStore = create<GameState>((set, get) => ({
       total: config.baseMultiplier * (1 + config.donationBoost) * (config.bonusEvents.active ? config.bonusEvents.multiplier : 1)
     };
   },
+
+  // Status effect actions
+  applyStatusEffect: (targetId: string | 'player', effect: StatusEffect) => {
+    set(state => {
+      if (targetId === 'player') {
+        return {
+          playerStatusEffects: [...state.playerStatusEffects, effect]
+        };
+      } else {
+        const targetEffects = state.enemyStatusEffects[targetId] || [];
+        return {
+          enemyStatusEffects: {
+            ...state.enemyStatusEffects,
+            [targetId]: [...targetEffects, effect]
+          }
+        };
+      }
+    });
+  },
+  
+  removeStatusEffect: (targetId: string | 'player', effectId: string) => {
+    set(state => {
+      if (targetId === 'player') {
+        return {
+          playerStatusEffects: state.playerStatusEffects.filter(effect => effect.id !== effectId)
+        };
+      } else {
+        const targetEffects = state.enemyStatusEffects[targetId] || [];
+        return {
+          enemyStatusEffects: {
+            ...state.enemyStatusEffects,
+            [targetId]: targetEffects.filter(effect => effect.id !== effectId)
+          }
+        };
+      }
+    });
+  },
+  
+  updateStatusEffects: (delta: number) => {
+    const state = get();
+    const currentTime = Date.now();
+    
+    // Process enemy status effects
+    Object.entries(state.enemyStatusEffects).forEach(([enemyId, effects]) => {
+      // Only process effects for enemies that exist and are alive
+      const enemy = state.enemies.find(e => e.id === enemyId && e.isAlive);
+      if (!enemy) return;
+      
+      effects.forEach(effect => {
+        const elapsedTime = (currentTime - effect.startTime) / 1000;
+        const remainingTime = effect.duration - elapsedTime;
+        
+        if (remainingTime <= 0) {
+          // Effect expired, remove it
+          get().removeStatusEffect(enemyId, effect.id);
+          return;
+        }
+        
+        // Process damage over time effects every second
+        if ((effect.type === 'burn' || effect.type === 'poison') && 
+            Math.floor(elapsedTime) > Math.floor(elapsedTime - delta)) {
+          // Calculate damage as a percentage of max health
+          const dotDamage = Math.floor(enemy.maxHealth * (effect.value / 100));
+          console.log(`${effect.type} tick: ${dotDamage} damage to ${enemy.name}`);
+          get().damageEnemy(enemyId, dotDamage);
+        }
+      });
+    });
+    
+    // Process player status effects
+    state.playerStatusEffects.forEach(effect => {
+      const elapsedTime = (currentTime - effect.startTime) / 1000;
+      const remainingTime = effect.duration - elapsedTime;
+      
+      if (remainingTime <= 0) {
+        // Effect expired, remove it
+        get().removeStatusEffect('player', effect.id);
+        return;
+      }
+      
+      // Process effects on player (in a real game, would add logic for player debuffs)
+    });
+    
+    // Clean up any expired effects
+    set(state => {
+      const updatedPlayerEffects = state.playerStatusEffects.filter(effect => {
+        const elapsedTime = (currentTime - effect.startTime) / 1000;
+        return elapsedTime < effect.duration;
+      });
+      
+      const updatedEnemyEffects: Record<string, StatusEffect[]> = {};
+      // Only keep entries for enemies that still have effects
+      Object.entries(state.enemyStatusEffects).forEach(([enemyId, effects]) => {
+        const updatedEffects = effects.filter(effect => {
+          const elapsedTime = (currentTime - effect.startTime) / 1000;
+          return elapsedTime < effect.duration;
+        });
+        
+        if (updatedEffects.length > 0) {
+          updatedEnemyEffects[enemyId] = updatedEffects;
+        }
+      });
+      
+      return {
+        playerStatusEffects: updatedPlayerEffects,
+        enemyStatusEffects: updatedEnemyEffects
+      };
+    });
+  },
+  
+  getStatusEffects: (targetId: string | 'player') => {
+    const state = get();
+    if (targetId === 'player') {
+      return state.playerStatusEffects;
+    } else {
+      return state.enemyStatusEffects[targetId] || [];
+    }
+  },
 }));
 
 // Helper function to get random enemy type appropriate for level
@@ -602,4 +767,26 @@ function getRandomEnemyType(level: number): string {
   
   // Return random enemy from available pool
   return availableEnemies[Math.floor(Math.random() * availableEnemies.length)];
+}
+
+// Helper function to get status effect icon
+function getStatusEffectIcon(effectType: string): string {
+  switch (effectType) {
+    case 'burn':
+      return '/skills/burn.png'; // Replace with actual icon path
+    case 'poison':
+      return '/skills/poison.png';
+    case 'slow':
+      return '/skills/slow.png';
+    case 'stun':
+      return '/skills/stun.png';
+    case 'freeze':
+      return '/skills/freeze.png';
+    case 'transform':
+      return '/skills/transform.png';
+    case 'waterWeakness':
+      return '/skills/water_weakness.png';
+    default:
+      return '/skills/generic_effect.png';
+  }
 }

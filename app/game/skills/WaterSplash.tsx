@@ -4,10 +4,11 @@ import { Vector3, Color, MathUtils } from 'three';
 
 interface WaterSplashProps {
   position: Vector3;
+  radius?: number; // Area of effect radius
   onComplete: () => void;
 }
 
-export function WaterSplash({ position, onComplete }: WaterSplashProps) {
+export function WaterSplash({ position, radius = 3, onComplete }: WaterSplashProps) {
   const [lifetime, setLifetime] = useState(2.0);
   const rippleRef = useRef<THREE.Mesh>(null);
   const isCompletingRef = useRef(false);
@@ -18,9 +19,9 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
     return Array.from({ length: particleCount }, () => ({
       position: position.clone().add(
         new Vector3(
-          (Math.random() - 0.5) * 1,
+          (Math.random() - 0.5) * radius * 0.6, // Spread particles based on radius
           Math.random() * 0.5,
-          (Math.random() - 0.5) * 1
+          (Math.random() - 0.5) * radius * 0.6  // Spread particles based on radius
         )
       ),
       initialY: position.y,
@@ -57,10 +58,14 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
     // Clear existing mist particles to prevent duplicates
     mistParticles.current = [];
     
-    for (let i = 0; i < 25; i++) {
+    // Create more mist particles for larger radius
+    const mistCount = Math.floor(25 * (radius / 3));
+    
+    for (let i = 0; i < mistCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const height = Math.random() * 0.5;
-      const distance = 0.5 + Math.random() * 1;
+      // Distribute mist particles across the full radius
+      const distance = (0.3 + Math.random() * 0.7) * radius;
       const maxLifetime = 0.5 + Math.random() * 1.5;
       
       mistParticles.current.push({
@@ -89,14 +94,14 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
       mistParticles.current = [];
     };
     
-  }, [position]);
+  }, [position, radius]);
 
   useFrame((state, delta) => {
     // Use a smaller delta cap to prevent large time steps that can cause visual glitches
     const cappedDelta = Math.min(delta, 0.1);
     
-    // Create time-based ripple
-    const rippleScale = MathUtils.lerp(0.2, 6, 1 - lifetime / 2.0);
+    // Create time-based ripple with radius reflecting the area of effect
+    const rippleScale = MathUtils.lerp(0.2, radius * 2, 1 - lifetime / 2.0);
     const rippleOpacity = MathUtils.lerp(0, 0.6, lifetime / 2.0);
     
     if (rippleRef.current) {
@@ -142,8 +147,15 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
               const angle = Math.random() * Math.PI * 2;
               const maxLifetime = 0.3 + Math.random() * 0.6;
               
+              // Distribute splash particles throughout the area of effect
+              const splashDistance = Math.random() * radius * 0.8;
+              
               mistParticles.current.push({
-                position: particle.position.clone().add(new Vector3(0, 0.1, 0)),
+                position: particle.position.clone().add(new Vector3(
+                  Math.cos(angle) * splashDistance,
+                  0.1,
+                  Math.sin(angle) * splashDistance
+                )),
                 scale: 0.2 + Math.random() * 0.2,
                 opacity: 0.3 + Math.random() * 0.2,
                 velocity: new Vector3(
@@ -230,7 +242,7 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
     <group>
       {/* Initial splash burst */}
       <mesh position={position}>
-        <sphereGeometry args={[0.8, 16, 16]} />
+        <sphereGeometry args={[radius * 0.3, 16, 16]} />
         <meshStandardMaterial
           key={`splash-${position.x}-${position.z}`}
           color="#80c0ff"
@@ -242,12 +254,12 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
         <pointLight
           color="#60a0ff"
           intensity={Math.min(2, lifetime * 5)}
-          distance={5}
+          distance={radius * 2}
           decay={2}
         />
       </mesh>
 
-      {/* Ripple on ground */}
+      {/* Area of effect indicator on ground */}
       <mesh ref={rippleRef} position={[position.x, 0.05, position.z]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.3, 1, 32]} />
         <meshStandardMaterial
@@ -261,8 +273,8 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
         />
       </mesh>
 
-      {/* Water column base */}
-      <mesh position={[position.x, position.y * 0.5, position.z]} scale={[1, Math.min(1.5, lifetime * 4), 1]}>
+      {/* Water column base - scale with radius */}
+      <mesh position={[position.x, position.y * 0.5, position.z]} scale={[radius * 0.4, Math.min(1.5, lifetime * 4), radius * 0.4]}>
         <cylinderGeometry args={[0.4, 0.7, 0.5, 16]} />
         <meshStandardMaterial
           key={`column-${position.x}-${position.z}`}
@@ -311,6 +323,17 @@ export function WaterSplash({ position, onComplete }: WaterSplashProps) {
           />
         </mesh>
       ))}
+      
+      {/* Area of effect indicator */}
+      <mesh position={[position.x, 0.1, position.z]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[radius * 0.9, radius, 32]} />
+        <meshBasicMaterial
+          color="#40a0ff"
+          transparent={true}
+          opacity={lifetime * 0.3}
+          depthWrite={false}
+        />
+      </mesh>
     </group>
   );
 }
