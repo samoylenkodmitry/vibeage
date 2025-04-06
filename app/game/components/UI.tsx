@@ -5,6 +5,7 @@ import { useGameStore } from '../systems/gameStore';
 import { SKILLS, Skill } from '../models/Skill';
 import StatusEffects from './StatusEffects';
 import { GAME_ZONES } from '../systems/zoneSystem';
+import Image from 'next/image';
 
 // Add explicit global window typings for our custom method
 declare global {
@@ -361,9 +362,11 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
         style={{ transition: 'transform 0.2s, box-shadow 0.2s' }}
       >
         {/* Skill icon - using dynamic path */}
-        <img 
+        <Image 
           src={`/game/skills/skill_${skill.id}.png`}
           alt={skill.name} 
+          width={48}
+          height={48}
           className="w-full h-full object-cover"
           onError={(e) => {
             // If image fails to load, show fallback
@@ -440,9 +443,11 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
                   backgroundColor: `var(--effect-${effect.type}-color, #6b7280)`
                 }}
               >
-                <img 
+                <Image 
                   src={`/game/skills/effect_${effect.type}.png`}
                   alt={effect.type} 
+                  width={16}
+                  height={16}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     // If image fails to load, use first character of effect type

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { useState, useRef } from 'react';
 import { RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import { Vector3 } from 'three';
@@ -9,17 +9,21 @@ import * as THREE from 'three';
 import { useGameStore } from '../systems/gameStore';
 import { zoneManager } from '../systems/zoneSystem';
 
+interface Position {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export default function Enemies() {
   const enemies = useGameStore(state => state.enemies);
   const selectedTargetId = useGameStore(state => state.selectedTargetId);
   const selectTarget = useGameStore(state => state.selectTarget);
-  const playerPosition = useGameStore(state => state.player.position);
-  
-  useFrame((state, delta) => {
-    // We could implement enemy AI and movement here
-    // For now, enemies will just stay in position
+
+  useFrame(() => {
+    // Enemy AI and movement logic here
   });
-  
+
   return (
     <group>
       {enemies.map((enemy) => (
@@ -28,7 +32,6 @@ export default function Enemies() {
           enemy={enemy}
           isSelected={selectedTargetId === enemy.id}
           onSelect={() => selectTarget(enemy.id)}
-          playerPosition={playerPosition}
         />
       ))}
     </group>
@@ -39,10 +42,9 @@ interface EnemyProps {
   enemy: any;
   isSelected: boolean;
   onSelect: () => void;
-  playerPosition: { x: number; y: number; z: number };
 }
 
-function Enemy({ enemy, isSelected, onSelect, playerPosition }: EnemyProps) {
+function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { id, type, position, health, maxHealth, isAlive, name, level } = enemy;
   const [isHovered, setIsHovered] = useState(false);

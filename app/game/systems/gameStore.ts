@@ -83,6 +83,12 @@ interface GameState {
   
   // Update existing actions
   updatePlayerZone: () => void;
+
+  // New properties
+  playerSkills: string[];
+  selectedSkill: string | null;
+  handleSkillCast: (skillId: string) => void;
+  setSelectedSkill: (skillId: string | null) => void;
 }
 
 // Helper function to calculate XP needed for next level
@@ -102,6 +108,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   skillCooldowns: {},
   castingSkill: null,
   castingProgress: 0,
+  playerSkills: ['fireball'], // Start with fireball as the basic skill
+  selectedSkill: null,
   
   // New XP boost initial state
   donationXpBoost: 0,
@@ -828,6 +836,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({ currentZoneId: currentZone?.id || null });
       console.log(`Player entered zone: ${currentZone?.name || 'wilderness'}`);
     }
+  },
+
+  // Skill management
+  handleSkillCast: (skillId: string) => {
+    const state = get();
+    if (state.playerSkills.includes(skillId)) {
+      get().castSkill(skillId);
+    }
+  },
+  
+  setSelectedSkill: (skillId: string | null) => {
+    set({ selectedSkill: skillId });
   },
 }));
 

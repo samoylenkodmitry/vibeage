@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGameStore } from '../systems/gameStore';
@@ -96,7 +96,7 @@ export default function ActiveSkills() {
   }, [completedCasts, enemies, selectedTargetId, player]);
   
   // Handle skill buttons being clicked directly (for testing or instant cast)
-  const handleSkillCast = (skillId: string) => {
+  const handleDirectSkillCast = useCallback((skillId: string) => {
     const targetEnemy = enemies.find(e => e.id === selectedTargetId);
     if (!targetEnemy || !SKILLS[skillId]) return;
     
@@ -119,8 +119,8 @@ export default function ActiveSkills() {
     };
     
     setActiveEffects(prev => [...prev, newEffect]);
-  };
-  
+  }, [enemies, player, selectedTargetId]);
+
   // Handle the visual effect reaching its target
   const handleEffectHit = (effectId: string, targetId: string, skillId: string) => {
     if (targetId) {
@@ -229,11 +229,18 @@ export default function ActiveSkills() {
   
   // For debugging
   useEffect(() => {
-    window.castFireball = () => handleSkillCast('fireball');
-    window.castIceBolt = () => handleSkillCast('icebolt');
-    window.castWater = () => handleSkillCast('water');
-    window.castPetrify = () => handleSkillCast('petrify');
-  }, []);
+    window.castFireball = () => handleDirectSkillCast('fireball');
+    window.castIceBolt = () => handleDirectSkillCast('icebolt');
+    window.castWater = () => handleDirectSkillCast('water');
+    window.castPetrify = () => handleDirectSkillCast('petrify');
+    
+    return () => {
+      window.castFireball = undefined;
+      window.castIceBolt = undefined;
+      window.castWater = undefined;
+      window.castPetrify = undefined;
+    };
+  }, [handleDirectSkillCast]);
   
   return (
     <group>

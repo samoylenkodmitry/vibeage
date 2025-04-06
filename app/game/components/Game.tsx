@@ -105,7 +105,7 @@ export default function Game() {
     
     const animationFrame = requestAnimationFrame(gameLoop);
     
-    const handleDebugKeys = (e: KeyboardEvent) => {
+    const handleDebugKeys = () => {
     };
     
     window.addEventListener('keydown', handleDebugKeys);

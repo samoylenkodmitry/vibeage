@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
+import * as THREE from 'three';
 import { SKILLS } from '../models/Skill';
 
 interface PetrifyProps {
