@@ -84,32 +84,6 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
           </button>
         </div>
       </div>
-      
-      {/* Admin panel - only visible when isAdmin is true */}
-      {isAdmin && (
-        <div className="border-t border-gray-700 pt-2">
-          <div className="flex gap-2">
-            <button
-              className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleXpEvent(!bonusXpEventActive, 2.0)
-              }}
-            >
-              {bonusXpEventActive ? 'End XP Event' : 'Start XP Event (2x)'}
-            </button>
-            <button
-              className="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                clearDonationBoost();
-              }}
-            >
-              Clear Donation Boost
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -153,19 +127,6 @@ export default function UI() {
       }
     }
   };
-  
-  // Toggle admin mode on Alt+A keypress
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && e.key === 'a') {
-        setIsAdmin(prev => !prev);
-        console.log('Admin mode:', !isAdmin);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAdmin]);
   
   return (
     <div className="fixed inset-0 pointer-events-none">

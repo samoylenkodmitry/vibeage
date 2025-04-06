@@ -188,25 +188,6 @@ export default function Game() {
         <Sky sunPosition={[100, 10, 100]} />
       </Canvas>
       <UI />
-      
-      {/* Instructions overlay */}
-      <div className="fixed top-4 right-4 bg-black/50 p-3 rounded text-white text-sm pointer-events-none">
-        <h3 className="font-bold mb-1">Controls:</h3>
-        <ul>
-          <li>Left Click: Move character</li>
-          <li>Right Click + Drag: Rotate camera</li>
-          <li>Left Click on Enemy: Select target</li>
-          <li>Space: Jump</li>
-        </ul>
-        <h3 className="font-bold mt-2 mb-1">Skill Debuffs:</h3>
-        <ul>
-          <li>Fireball: 🔥 Burn (1% damage/sec, 5s)</li> 
-          <li>Ice Bolt: ☠️ Poison (0.5% damage/sec, 10s)</li>
-          <li>Petrify: ⚡ Stun (2 seconds)</li>
-          <li>Water: 💧 Water Weakness (+30% dmg, 5s)</li>
-        </ul>
-        <div className="text-xs mt-2 text-yellow-300">Press Shift+D to test effects on target</div>
-      </div>
     </>
   );
 }
