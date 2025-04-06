@@ -1,4 +1,5 @@
 # VibeAge
+[vibeage.webm](https://github.com/user-attachments/assets/662862c7-b0f9-4b95-9c23-8c3317b3be8d)
 
 A 3D browser-based MMORPG inspired by Lineage 2, built with modern web technologies. The name combines "vibe coding" philosophy with the legacy of classic MMORPGs.
 
