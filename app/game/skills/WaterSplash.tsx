@@ -10,7 +10,7 @@ interface WaterSplashProps {
 }
 
 export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashProps) {
-  const [lifetime, setLifetime] = useState(2.0);
+  const [lifetimeMs, setLifetimeMs] = useState(3500);
   const rippleRef = useRef<THREE.Mesh>(null);
   const isCompletingRef = useRef(false);
   
@@ -50,8 +50,8 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
     scale: number;
     opacity: number;
     velocity: Vector3;
-    lifetime: number;
-    maxLifetime: number;
+    lifetimeMs: number;
+    maxLifetimeMs: number;
   }>>([]);
 
   // Create initial mist particles
@@ -65,10 +65,8 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
     for (let i = 0; i < mistCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const height = Math.random() * 0.5;
-      // Distribute mist particles across the full radius
       const distance = (0.3 + Math.random() * 0.7) * radius;
-      const maxLifetime = 0.5 + Math.random() * 1.5;
-      
+      const maxLifetimeMs = 500 + Math.random() * 1500;
       mistParticles.current.push({
         position: position.clone().add(new Vector3(
           Math.cos(angle) * distance * 0.7,
@@ -82,8 +80,8 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
           0.7 + Math.random() * 0.5,
           Math.sin(angle) * (0.5 + Math.random())
         ),
-        lifetime: maxLifetime,
-        maxLifetime
+        lifetimeMs: maxLifetimeMs,
+        maxLifetimeMs
       });
     }
     
@@ -102,8 +100,8 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
     const cappedDelta = Math.min(delta, 0.1);
     
     // Create time-based ripple with radius reflecting the area of effect
-    const rippleScale = MathUtils.lerp(0.2, radius * 2, 1 - lifetime / 2.0);
-    const rippleOpacity = MathUtils.lerp(0, 0.6, lifetime / 2.0);
+    const rippleScale = MathUtils.lerp(0.2, radius * 2, 1 - lifetimeMs / 3500);
+    const rippleOpacity = MathUtils.lerp(0, 0.6, lifetimeMs / 3500);
     
     if (rippleRef.current) {
       rippleRef.current.scale.set(rippleScale, 1, rippleScale);
@@ -146,7 +144,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
           if (-particle.velocity.y > 8) {
             for (let i = 0; i < 2; i++) {
               const angle = Math.random() * Math.PI * 2;
-              const maxLifetime = 0.3 + Math.random() * 0.6;
+              const maxLifetimeMs = 300 + Math.random() * 600;
               
               // Distribute splash particles throughout the area of effect
               const splashDistance = Math.random() * radius * 0.8;
@@ -164,8 +162,8 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
                   0.3 + Math.random() * 0.4,
                   Math.sin(angle) * (0.3 + Math.random() * 0.7)
                 ),
-                lifetime: maxLifetime,
-                maxLifetime
+                lifetimeMs: maxLifetimeMs,
+                maxLifetimeMs
               });
             }
           }
@@ -184,7 +182,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
         // Update opacity based on lifetime and altitude
         // Water droplets fade as they reach maximum height or as lifetime ends
         const heightFactor = Math.max(0, 1 - Math.abs(particle.position.y - particle.initialY) / 6);
-        particle.opacity = Math.min(lifetime / 1.0, heightFactor) * 0.9;
+        particle.opacity = Math.min(lifetimeMs / 1000, heightFactor) * 0.9;
 
         return particle;
       })
@@ -193,51 +191,36 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
     // Update mist particles
     for (let i = mistParticles.current.length - 1; i >= 0; i--) {
       const mist = mistParticles.current[i];
-      mist.lifetime -= cappedDelta;
-      
-      // Move mist
+      mist.lifetimeMs -= cappedDelta * 1000;
       mist.position.addScaledVector(mist.velocity, cappedDelta);
-      
-      // Slow down over time
       mist.velocity.multiplyScalar(0.97);
-      
-      // Gradually expand and fade
       mist.scale = MathUtils.lerp(
         mist.scale,
         mist.scale * 1.1,
         cappedDelta * 2
       );
-      
-      // Opacity follows a curve - increases slightly then decreases
-      const normalizedLife = mist.lifetime / mist.maxLifetime;
+      const normalizedLife = mist.lifetimeMs / mist.maxLifetimeMs;
       mist.opacity = Math.sin(normalizedLife * Math.PI) * 0.5;
-      
-      // Remove dead particles
-      if (mist.lifetime <= 0) {
+      if (mist.lifetimeMs <= 0) {
         mistParticles.current.splice(i, 1);
       }
     }
 
-    // Update lifetime
-    setLifetime(prev => {
-      const newLifetime = Math.max(0, prev - cappedDelta);
-      
-      // Handle the completion once when lifetime ends
+    // Update lifetime more slowly
+    setLifetimeMs(prev => {
+      const newLifetime = Math.max(0, prev - cappedDelta * 800);
       if (newLifetime <= 0 && !isCompletingRef.current) {
         isCompletingRef.current = true;
-        
-        // Small delay before calling onComplete to ensure cleanup
         setTimeout(() => {
           onComplete();
         }, 50);
       }
-      
       return newLifetime;
     });
   });
 
   // If no lifetime left, don't render anything
-  if (lifetime <= 0) return null;
+  if (lifetimeMs <= 0) return null;
 
   return (
     <group>
@@ -250,11 +233,11 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
           emissive="#4080ff"
           emissiveIntensity={0.5}
           transparent={true}
-          opacity={Math.min(0.7, lifetime * 2)}
+          opacity={Math.min(0.7, lifetimeMs * 2 / 1000)}
         />
         <pointLight
           color="#60a0ff"
-          intensity={Math.min(2, lifetime * 5)}
+          intensity={Math.min(2, lifetimeMs * 5 / 1000)}
           distance={radius * 2}
           decay={2}
         />
@@ -275,7 +258,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
       </mesh>
 
       {/* Water column base - scale with radius */}
-      <mesh position={[position.x, position.y * 0.5, position.z]} scale={[radius * 0.4, Math.min(1.5, lifetime * 4), radius * 0.4]}>
+      <mesh position={[position.x, position.y * 0.5, position.z]} scale={[radius * 0.4, Math.min(1.5, lifetimeMs * 4 / 1000), radius * 0.4]}>
         <cylinderGeometry args={[0.4, 0.7, 0.5, 16]} />
         <meshStandardMaterial
           key={`column-${position.x}-${position.z}`}
@@ -283,7 +266,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
           emissive="#4080ff"
           emissiveIntensity={0.3}
           transparent={true}
-          opacity={Math.min(0.8, lifetime * 2)}
+          opacity={Math.min(0.8, lifetimeMs * 2 / 1000)}
         />
       </mesh>
 
@@ -331,7 +314,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
         <meshBasicMaterial
           color="#40a0ff"
           transparent={true}
-          opacity={lifetime * 0.3}
+          opacity={lifetimeMs * 0.3 / 1000}
           depthWrite={false}
         />
       </mesh>

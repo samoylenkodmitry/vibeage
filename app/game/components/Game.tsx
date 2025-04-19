@@ -2,16 +2,15 @@
 
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Sky } from '@react-three/drei';
-import { useEffect, useState } from 'react';
+import { Sky, KeyboardControls } from '@react-three/drei';
+import { useEffect, useState, useCallback } from 'react';
 import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
 import UI from './UI';
 import ActiveSkills from './ActiveSkills';
 import { useGameStore } from '../systems/gameStore';
-import { GAME_ZONES } from '../systems/zoneSystem';
-import { KeyboardControls } from '@react-three/drei';
+import SocketManager from '../systems/SocketManager';
 
 // Define keyboard controls
 const controls = [
@@ -20,107 +19,38 @@ const controls = [
   { name: 'left', keys: ['ArrowLeft', 'KeyA'] },
   { name: 'right', keys: ['ArrowRight', 'KeyD'] },
   { name: 'jump', keys: ['Space'] },
+  { name: 'fireball', keys: ['Digit1', 'KeyQ'] },
+  { name: 'icebolt', keys: ['Digit2', 'KeyE'] },
+  { name: 'waterSplash', keys: ['Digit3', 'KeyR'] },
+  { name: 'petrify', keys: ['Digit4', 'KeyF'] },
 ];
 
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
   const [playerName, setPlayerName] = useState('');
-  const initializePlayer = useGameStore(state => state.initializePlayer);
-  const spawnEnemy = useGameStore(state => state.spawnEnemy);
-  const updateCastingProgress = useGameStore(state => state.updateCastingProgress);
-  const updateSkillCooldowns = useGameStore(state => state.updateSkillCooldowns);
-  const updateStatusEffects = useGameStore(state => state.updateStatusEffects);
-  const regenerateMana = useGameStore(state => state.regenerateMana);
-  const respawnDeadEnemies = useGameStore(state => state.respawnDeadEnemies);
+  const [joiningError, setJoiningError] = useState<string | null>(null);
+  const isConnected = useGameStore(state => state.isConnected);
+  const socket = useGameStore(state => state.socket);
 
+  // Effect to join the game when both conditions are met:
+  // 1. We've indicated we want to start (isGameStarted is true)
+  // 2. The socket is connected and available
   useEffect(() => {
-    if (isGameStarted) {
-      // Initialize player
-      initializePlayer(playerName);
-
-      // Initialize enemies in each zone
-      GAME_ZONES.forEach(zone => {
-        // For each mob type in the zone
-        zone.mobs.forEach(mobConfig => {
-          // Calculate random count between min and max
-          const count = Math.floor(
-            mobConfig.minCount + 
-            Math.random() * (mobConfig.maxCount - mobConfig.minCount)
-          );
-
-          // Spawn mobs
-          for (let i = 0; i < count; i++) {
-            // Get random position within zone
-            const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * zone.radius * 0.8; // Keep within 80% of radius
-            const position = {
-              x: zone.position.x + Math.cos(angle) * distance,
-              y: 0,
-              z: zone.position.z + Math.sin(angle) * distance
-            };
-
-            // Get random level within zone range
-            const level = Math.floor(
-              zone.minLevel + 
-              Math.random() * (zone.maxLevel - zone.minLevel + 1)
-            );
-
-            // Spawn the enemy
-            spawnEnemy(mobConfig.type, level, position, zone.id);
-          }
-        });
-      });
+    if (isGameStarted && socket && isConnected && playerName.trim()) {
+      console.log('Joining game with player name:', playerName);
+      socket.emit('joinGame', playerName);
+      setJoiningError(null);
     }
-  }, [isGameStarted, playerName, initializePlayer, spawnEnemy]);
-  
-  // Handle game loop for skill casting, enemy AI, etc.
-  useEffect(() => {
-    if (!isGameStarted) return;
-    
-    let lastTime = Date.now();
-    
-    const gameLoop = () => {
-      const currentTime = Date.now();
-      const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-      lastTime = currentTime;
-      
-      // Update casting progress if actively casting
-      updateCastingProgress(deltaTime);
-      
-      // Update skill cooldowns
-      updateSkillCooldowns(deltaTime);
-      
-      // Update status effects
-      updateStatusEffects(deltaTime);
-      
-      // Regenerate mana over time
-      regenerateMana(deltaTime);
-      
-      // Handle respawning dead enemies
-      respawnDeadEnemies(deltaTime);
-      
-      // Schedule next frame
-      requestAnimationFrame(gameLoop);
-    };
-    
-    const animationFrame = requestAnimationFrame(gameLoop);
-    
-    const handleDebugKeys = () => {
-    };
-    
-    window.addEventListener('keydown', handleDebugKeys);
-    
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      window.removeEventListener('keydown', handleDebugKeys);
-    };
-  }, [isGameStarted, updateCastingProgress, updateSkillCooldowns, updateStatusEffects, regenerateMana, respawnDeadEnemies]);
+  }, [isGameStarted, socket, isConnected, playerName]);
 
-  const handleStartGame = () => {
+  const handleStartGame = useCallback(() => {
     if (playerName.trim()) {
+      if (!isConnected) {
+        setJoiningError('Waiting for server connection...');
+      }
       setGameStarted(true);
     }
-  };
+  }, [playerName, isConnected]);
 
   if (!isGameStarted) {
     return (
@@ -158,29 +88,28 @@ export default function Game() {
 
   return (
     <div className="relative w-full h-full">
+      <SocketManager />
       <KeyboardControls map={controls}>
-        <Canvas className="w-full h-screen" shadows>
+        <Canvas 
+          className="w-full h-screen"
+          shadows
+          frameloop="always"
+          performance={{ min: 0.5 }}
+        >
           <fog attach="fog" args={['#202060', 0, 100]} />
           <ambientLight intensity={0.5} />
-          <directionalLight 
-            position={[10, 10, 5]} 
-            intensity={1} 
-            castShadow 
-            shadow-mapSize-width={1024} 
-            shadow-mapSize-height={1024} 
+          <directionalLight
+            position={[10, 10, 10]}
+            intensity={0.8}
+            castShadow
+            shadow-mapSize={[2048, 2048]}
           />
-          <Physics 
-            gravity={[0, -20, 0]} 
-            timeStep="vary"
-            interpolate={true}
-            colliders={false}
-          >
+          <Physics>
+            <World />
             <Player />
             <Enemies />
-            <World />
             <ActiveSkills />
           </Physics>
-          <Sky sunPosition={[100, 10, 100]} />
         </Canvas>
       </KeyboardControls>
       <UI />

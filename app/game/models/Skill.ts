@@ -5,14 +5,14 @@ export interface Skill {
   icon: string; // Path to icon image
   damage?: number;
   manaCost: number;
-  cooldown: number; // in seconds
+  cooldownMs: number; // time in milliseconds
   range: number;
   areaOfEffect?: number;
   levelRequired: number;
   effects: SkillEffect[];
-  castTime: number; // in seconds, 0 for instant cast
+  castTimeMs: number; // 0 for instant cast, in ms
   projectileSpeed?: number; // for projectile-based skills
-  duration?: number; // for skills with duration effects
+  durationMs?: number; // for skills with duration effects, in ms
 }
 
 export type SkillEffectType = 
@@ -29,7 +29,7 @@ export type SkillEffectType =
 export interface SkillEffect {
   type: SkillEffectType;
   value: number; // damage amount, stun duration, slow percentage, etc.
-  duration?: number; // how long effect lasts in seconds
+  durationMs?: number; // how long the effect lasts, in ms
 }
 
 // Define all skills available in the game
@@ -41,14 +41,14 @@ export const SKILLS: Record<string, Skill> = {
     icon: '/skills/fireball.png',
     damage: 20,
     manaCost: 10,
-    cooldown: 2,
+    cooldownMs: 2000,
     range: 15,
     levelRequired: 1,
-    castTime: 0.5,
+    castTimeMs: 500,
     projectileSpeed: 20,
     effects: [
       { type: 'damage', value: 20 },
-      { type: 'burn', value: 1, duration: 5 } // Burns enemy for 1% damage for 5 seconds
+      { type: 'burn', value: 1, durationMs: 5000 } // 5 seconds
     ]
   },
   'water': {
@@ -58,14 +58,14 @@ export const SKILLS: Record<string, Skill> = {
     icon: '/skills/water.png',
     damage: 15,
     manaCost: 15,
-    cooldown: 3,
+    cooldownMs: 3000,
     range: 10,
     areaOfEffect: 20, 
     levelRequired: 2,
-    castTime: 0.8,
+    castTimeMs: 800,
     effects: [
       { type: 'damage', value: 15 },
-      { type: 'waterWeakness', value: 30, duration: 5 } // Makes enemy take 30% more damage from water attacks
+      { type: 'waterWeakness', value: 30, durationMs: 5000 } // Makes enemy take 30% more damage from water attacks
     ]
   },
   'icebolt': {
@@ -75,15 +75,15 @@ export const SKILLS: Record<string, Skill> = {
     icon: '/skills/icebolt.png',
     damage: 25,
     manaCost: 20,
-    cooldown: 4,
+    cooldownMs: 4000,
     range: 12,
     levelRequired: 3,
-    castTime: 1.0,
+    castTimeMs: 1000,
     projectileSpeed: 15,
     effects: [
       { type: 'damage', value: 25 },
-      { type: 'poison', value: 0.5, duration: 10 }, // Poisons enemy for 0.5% damage for 10 seconds
-      { type: 'slow', value: 50, duration: 10 } // Slows enemy by 50% for 10 seconds
+      { type: 'poison', value: 0.5, durationMs: 10000 }, // Poisons enemy for 0.5% damage for 10 seconds
+      { type: 'slow', value: 50, durationMs: 10000 } // Slows enemy by 50% for 10 seconds
     ]
   },
   'petrify': {
@@ -93,14 +93,14 @@ export const SKILLS: Record<string, Skill> = {
     icon: '/skills/petrify.png',
     damage: 20,
     manaCost: 30,
-    cooldown: 10,
+    cooldownMs: 10000,
     range: 8,
     levelRequired: 4,
-    castTime: 1.5,
+    castTimeMs: 1500,
     projectileSpeed: 12,
     effects: [
       { type: 'damage', value: 20 },
-      { type: 'stun', value: 100, duration: 2 } // Stuns enemy completely for 2 seconds
+      { type: 'stun', value: 100, durationMs: 2000 } // Stuns enemy completely for 2 seconds
     ]
   }
 };

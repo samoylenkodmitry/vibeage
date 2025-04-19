@@ -1,3 +1,5 @@
+import { StatusEffect } from '../systems/gameStore';
+
 export interface Character {
   id: string;
   name: string;
@@ -10,6 +12,10 @@ export interface Character {
   maxMana: number;
   skills: string[]; // IDs of skills the character has unlocked
   activeSkill: string | null; // ID of currently selected skill
+  isAlive?: boolean; // Character alive status
+  experience?: number; // Current experience points
+  experienceToNextLevel?: number; // Experience needed for next level
+  statusEffects?: StatusEffect[]; // Active status effects
 }
 
 export const createCharacter = (name: string): Character => {

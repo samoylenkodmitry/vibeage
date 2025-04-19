@@ -26,7 +26,7 @@ export function PetrifyProjectile({ startPosition, targetPosition, onHit }: Petr
     position: Vector3;
     scale: number;
     opacity: number;
-    lifetime: number;
+    lifetimeMs: number;
     orbitSpeed: number;
     orbitRadius: number;
     orbitOffset: number;
@@ -45,7 +45,7 @@ export function PetrifyProjectile({ startPosition, targetPosition, onHit }: Petr
         position: new Vector3(),
         scale: 0.05 + Math.random() * 0.12,
         opacity: 0.7 + Math.random() * 0.3,
-        lifetime: 1.0,
+        lifetimeMs: 1000,
         orbitSpeed: 1.0 + Math.random() * 2.0,
         orbitRadius: 0.3 + Math.random() * 0.4,
         orbitOffset: Math.random() * Math.PI * 2,
@@ -200,7 +200,7 @@ interface ImpactProps {
 }
 
 function PetrifyImpact({ position }: ImpactProps) {
-  const [lifetime, setLifetime] = useState(2.5);
+  const [lifetimeMs, setLifetimeMs] = useState(4000);
   const waveRef = useRef<THREE.Mesh>(null);
   const crystalsRef = useRef<THREE.Group>(null);
   const centralPillarRef = useRef<THREE.Mesh>(null);
@@ -215,7 +215,7 @@ function PetrifyImpact({ position }: ImpactProps) {
     currentScale: number;
     velocity: Vector3;
     rotationSpeed: Vector3;
-    riseDelay: number;
+    riseDelayMs: number;
     lifetime: number;
     retreating: boolean;
   }>>([]);
@@ -229,8 +229,8 @@ function PetrifyImpact({ position }: ImpactProps) {
     velocity: Vector3;
     rotationSpeed: Vector3;
     rotation: Vector3;
-    lifetime: number;
-    maxLifetime: number;
+    lifetimeMs: number;
+    maxLifetimeMs: number;
   }>>([]);
 
   useEffect(() => {
@@ -260,7 +260,7 @@ function PetrifyImpact({ position }: ImpactProps) {
           Math.random() * 0.5,
           Math.random() * 0.5
         ),
-        riseDelay: delay,
+        riseDelayMs: delay,
         lifetime: 2.5,
         retreating: false
       });
@@ -301,76 +301,73 @@ function PetrifyImpact({ position }: ImpactProps) {
           Math.random() * Math.PI * 2,
           Math.random() * Math.PI * 2
         ),
-        lifetime: maxLifetime,
-        maxLifetime: maxLifetime
+        lifetimeMs: maxLifetime,
+        maxLifetimeMs: maxLifetime
       });
     }
     
   }, [position]);
   
   useFrame((state, delta) => {
-    const cappedDelta = Math.min(delta, 0.1); // Prevent large jumps in animation
-    
-    // Update lifetime
-    setLifetime(prev => Math.max(0, prev - cappedDelta));
+    const cappedDeltaMs = Math.min(delta, 0.1) * 1000;
+    setLifetimeMs(prev => Math.max(0, prev - cappedDeltaMs));
     
     // Expand stone wave on ground
     if (waveRef.current) {
       // Calculate wave scale based on lifetime (grows quickly, then slows)
-      const waveProgress = 1 - (lifetime / 2.5);
+      const waveProgress = 1 - (lifetimeMs / 4000);
       const waveScale = Math.min(4, waveProgress * 5);
       waveRef.current.scale.set(waveScale, 1, waveScale);
       
       // Adjust opacity to fade out over time
       if (waveRef.current.material instanceof THREE.Material) {
-        (waveRef.current.material as THREE.MeshStandardMaterial).opacity = Math.max(0, lifetime * 0.4);
+        (waveRef.current.material as THREE.MeshStandardMaterial).opacity = Math.max(0, lifetimeMs * 0.4 / 1600);
       }
     }
     
     // Rise and rotate central pillar
     if (centralPillarRef.current) {
-      if (lifetime > 1.5) {
-        // Rise from ground during first part of animation
-        const riseProgress = (2.5 - lifetime) * 2; // 0 to 2
+      if (lifetimeMs > 2400) {
+        const riseProgress = (4000 - lifetimeMs) * 2 / 1600;
         const targetHeight = Math.min(0.8, riseProgress * 0.5);
-        
-        // Move position up
         centralPillarRef.current.position.y = targetHeight / 2;
-        // Scale the height
         centralPillarRef.current.scale.y = targetHeight;
+      } else if (lifetimeMs > 800) {
+        // Hold the pillar up for longer
+        centralPillarRef.current.position.y = 0.4;
+        centralPillarRef.current.scale.y = 0.8;
       } else {
-        // Sink back into the ground during second part of animation
-        const sinkProgress = (lifetime / 1.5); // 1 to 0
+        // Sink back down in final phase
+        const sinkProgress = (lifetimeMs / 800);
         const targetHeight = Math.max(0, sinkProgress * 0.8);
-        
-        // Move position down
         centralPillarRef.current.position.y = targetHeight / 2;
-        // Scale the height
         centralPillarRef.current.scale.y = targetHeight;
       }
       
       // Rotate slowly
-      centralPillarRef.current.rotation.y += cappedDelta * 0.8;
+      centralPillarRef.current.rotation.y += cappedDeltaMs * 0.5;
     }
     
     // Animate central crystals
     if (crystalsRef.current) {
-      // Rotate crystal group
-      crystalsRef.current.rotation.y += cappedDelta * 1.2;
+      // Rotate crystal group, but slower for longer effect
+      crystalsRef.current.rotation.y += cappedDeltaMs * 0.6;
       
       // Pulse scale
-      const pulsePhase = Math.sin(state.clock.elapsedTime * 3) * 0.1 + 0.9;
+      const pulsePhase = Math.sin(state.clock.elapsedTime * 2) * 0.1 + 0.9;
       
       // Scale based on lifetime
       let scaleMultiplier;
-      if (lifetime > 1.5) {
-        // Growing
-        scaleMultiplier = ((2.5 - lifetime) / 1.0) * pulsePhase;
+      if (lifetimeMs > 2400) {
+        // Growing phase - slower growth for longer duration
+        scaleMultiplier = ((4000 - lifetimeMs) / 1600) * pulsePhase;
+      } else if (lifetimeMs > 800) {
+        // Maintain full size during middle of animation
+        scaleMultiplier = pulsePhase;
       } else {
-        // Shrinking
-        scaleMultiplier = (lifetime / 1.5) * pulsePhase;
+        // Shrinking phase at the end
+        scaleMultiplier = (lifetimeMs / 800) * pulsePhase;
       }
-      
       crystalsRef.current.scale.set(
         scaleMultiplier, 
         scaleMultiplier, 
@@ -381,51 +378,51 @@ function PetrifyImpact({ position }: ImpactProps) {
     // Update stone fragments
     for (const fragment of fragments.current) {
       // Handle delay
-      if (fragment.riseDelay > 0) {
-        fragment.riseDelay -= cappedDelta;
+      if (fragment.riseDelayMs > 0) {
+        fragment.riseDelayMs -= cappedDeltaMs;
         continue;
       }
       
       if (!fragment.retreating) {
         // Rising from the ground
         if (fragment.position.y < (0.3 + Math.random() * 0.3)) {
-          fragment.position.addScaledVector(fragment.velocity, cappedDelta * 0.7);
+          fragment.position.addScaledVector(fragment.velocity, cappedDeltaMs * 0.4); // Slower rise
           
           // Gradually grow to target size
           fragment.currentScale = MathUtils.lerp(
             fragment.currentScale,
             fragment.targetScale,
-            cappedDelta * 5
+            cappedDeltaMs * 2.5 // Slower scaling
           );
         } else {
           // Hover and rotate at peak
-          fragment.position.y += Math.sin(state.clock.elapsedTime * 2) * cappedDelta * 0.05;
+          fragment.position.y += Math.sin(state.clock.elapsedTime * 1.5) * cappedDeltaMs * 0.03;
         }
         
         // Start retreating when lifetime is below threshold
-        if (lifetime < 1.2) {
+        if (lifetimeMs < 1500) { // Later retreat time
           fragment.retreating = true;
           // Reverse velocity for retreat
-          fragment.velocity.multiplyScalar(-0.5);
+          fragment.velocity.multiplyScalar(-0.3); // Slower retreat
         }
       } else {
         // Retreating back into ground
         if (fragment.position.y > 0) {
-          fragment.position.addScaledVector(fragment.velocity, cappedDelta * 1.5);
+          fragment.position.addScaledVector(fragment.velocity, cappedDeltaMs * 0.8); // Slower descent
           
           // Shrink as it retreats
           fragment.currentScale = MathUtils.lerp(
             fragment.currentScale,
             0,
-            cappedDelta * 4
+            cappedDeltaMs * 4
           );
         }
       }
       
       // Apply rotation
-      fragment.rotation.x += fragment.rotationSpeed.x * cappedDelta;
-      fragment.rotation.y += fragment.rotationSpeed.y * cappedDelta;
-      fragment.rotation.z += fragment.rotationSpeed.z * cappedDelta;
+      fragment.rotation.x += fragment.rotationSpeed.x * cappedDeltaMs;
+      fragment.rotation.y += fragment.rotationSpeed.y * cappedDeltaMs;
+      fragment.rotation.z += fragment.rotationSpeed.z * cappedDeltaMs;
     }
     
     // Update dust particles
@@ -433,30 +430,28 @@ function PetrifyImpact({ position }: ImpactProps) {
       const dust = dustParticles.current[i];
       
       // Apply gravity
-      dust.velocity.y -= cappedDelta * 3;
+      dust.velocity.y -= cappedDeltaMs * 3;
       
       // Update position
-      dust.position.addScaledVector(dust.velocity, cappedDelta);
+      dust.position.addScaledVector(dust.velocity, cappedDeltaMs);
       
       // Update rotation
-      dust.rotation.x += dust.rotationSpeed.x * cappedDelta;
-      dust.rotation.y += dust.rotationSpeed.y * cappedDelta;
-      dust.rotation.z += dust.rotationSpeed.z * cappedDelta;
+      dust.rotation.x += dust.rotationSpeed.x * cappedDeltaMs;
+      dust.rotation.y += dust.rotationSpeed.y * cappedDeltaMs;
+      dust.rotation.z += dust.rotationSpeed.z * cappedDeltaMs;
       
       // Update lifetime
-      dust.lifetime -= cappedDelta;
-      
-      // Update opacity based on lifetime
-      dust.opacity = Math.max(0, dust.lifetime / dust.maxLifetime) * 0.5;
+      dust.lifetimeMs -= cappedDeltaMs;
+      dust.opacity = Math.max(0, dust.lifetimeMs / dust.maxLifetimeMs) * 0.5;
       
       // Remove dead particles
-      if (dust.lifetime <= 0) {
+      if (dust.lifetimeMs <= 0) {
         dustParticles.current.splice(i, 1);
       }
     }
   });
   
-  if (lifetime <= 0) return null;
+  if (lifetimeMs <= 0) return null;
   
   return (
     <group>
@@ -536,9 +531,9 @@ function PetrifyImpact({ position }: ImpactProps) {
           emissiveIntensity={2}
           color="#aaaaaa"
           transparent={true}
-          opacity={Math.min(1, lifetime * 5)}
+          opacity={Math.min(1, lifetimeMs * 5 / 1000)}
         />
-        <pointLight color="#ffffff" intensity={Math.min(3, lifetime * 10)} distance={5} decay={2} />
+        <pointLight color="#ffffff" intensity={Math.min(3, lifetimeMs * 10 / 1000)} distance={5} decay={2} />
       </mesh>
       
       {/* Stone fragments rising from ground */}

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "./dist",
+    "noEmit": false,
+    "isolatedModules": false,
+    "esModuleInterop": true,
+    "allowJs": true,
+    "baseUrl": ".",
+    "rootDir": "."
+  },
+  "include": ["server/**/*", "shared/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

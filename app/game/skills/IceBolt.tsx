@@ -29,7 +29,7 @@ export function IceBoltProjectile({ startPosition, targetPosition, onHit }: IceB
     position: Vector3;
     scale: number;
     opacity: number;
-    lifetime: number;
+    lifetimeMs: number;
     rotation: { x: number, y: number, z: number };
   }>>([]);
   
@@ -100,7 +100,7 @@ export function IceBoltProjectile({ startPosition, targetPosition, onHit }: IceB
         ),
         scale: 0.05 + Math.random() * 0.15,
         opacity: 0.9,
-        lifetime: 0.4 + Math.random() * 0.3,
+        lifetimeMs: 700 + Math.random() * 300, // 0.4 + 0.3 seconds in ms
         rotation: {
           x: Math.random() * Math.PI,
           y: Math.random() * Math.PI,
@@ -112,13 +112,10 @@ export function IceBoltProjectile({ startPosition, targetPosition, onHit }: IceB
     // Update trail crystals
     for (let i = crystals.current.length - 1; i >= 0; i--) {
       const crystal = crystals.current[i];
-      crystal.lifetime -= delta;
-      crystal.opacity = Math.max(0, crystal.lifetime * 2.2);
-      
-      // Gradually fade and scale down
+      crystal.lifetimeMs -= delta * 1000;
+      crystal.opacity = Math.max(0, crystal.lifetimeMs / 450); // fade out over 0.45s
       crystal.scale *= 0.97;
-      
-      if (crystal.lifetime <= 0) {
+      if (crystal.lifetimeMs <= 0) {
         crystals.current.splice(i, 1);
       }
     }
@@ -219,7 +216,7 @@ interface ImpactProps {
 }
 
 function IceBoltImpact({ position }: ImpactProps) {
-  const [lifetime, setLifetime] = useState(1.5);
+  const [lifetimeMs, setLifetimeMs] = useState(3000);
   const mainImpactRef = useRef<THREE.Mesh>(null);
   const iceCrystalsRef = useRef<Array<{
     position: Vector3;
@@ -259,39 +256,37 @@ function IceBoltImpact({ position }: ImpactProps) {
   }, [position]);
   
   useFrame((state, delta) => {
-    // Update lifetime
-    setLifetime(prev => Math.max(0, prev - delta));
+    // Update lifetime at a slower rate
+    setLifetimeMs(prev => Math.max(0, prev - delta * 800));
     
     // Expand the main impact effect
     if (mainImpactRef.current) {
-      const expansionScale = Math.min(2, 0.5 + (1 - lifetime / 1.5) * 3); 
+      const expansionScale = Math.min(2, 0.5 + (1 - lifetimeMs / 3000) * 3); 
       mainImpactRef.current.scale.set(expansionScale, expansionScale, expansionScale);
       
       if (mainImpactRef.current.material instanceof THREE.Material) {
-        (mainImpactRef.current.material as THREE.MeshStandardMaterial).opacity = Math.min(1, lifetime);
+        (mainImpactRef.current.material as THREE.MeshStandardMaterial).opacity = Math.min(1, lifetimeMs / 600);
       }
-    }
-    
-    // Update crystal fragments
+    }      // Update crystal fragments
     for (const crystal of iceCrystalsRef.current) {
-      // Apply movement and some gravity
-      crystal.velocity.y -= delta * 2; // Gentle gravity
-      crystal.position.addScaledVector(crystal.velocity, delta);
+      // Apply movement and some gravity, but slower
+      crystal.velocity.y -= delta * 1.5; // Gentler gravity
+      crystal.position.addScaledVector(crystal.velocity, delta * 0.7); // Slower movement
       
-      // Add some rotation
-      crystal.rotation.x += delta * (Math.random() + 0.5);
-      crystal.rotation.y += delta * (Math.random() + 0.5);
-      crystal.rotation.z += delta * (Math.random() + 0.5);
+      // Add some rotation, slightly slower
+      crystal.rotation.x += delta * (Math.random() * 0.3 + 0.3);
+      crystal.rotation.y += delta * (Math.random() * 0.3 + 0.3);
+      crystal.rotation.z += delta * (Math.random() * 0.3 + 0.3);
       
-      // Set opacity based on lifetime
-      crystal.opacity = Math.max(0, lifetime / 1.5);
+      // Set opacity based on lifetime, slower fade-out
+      crystal.opacity = Math.max(0, lifetimeMs * 0.6 / 3000);
       
-      // Slowly shrink
-      crystal.scale *= 0.99;
+      // Shrink more gradually
+      crystal.scale *= 0.995;
     }
   });
   
-  if (lifetime <= 0) return null;
+  if (lifetimeMs <= 0) return null;
   
   return (
     <group>
@@ -303,7 +298,7 @@ function IceBoltImpact({ position }: ImpactProps) {
           emissiveIntensity={3}
           color="#88cfff"
           transparent
-          opacity={Math.min(1, lifetime * 5)}
+          opacity={Math.min(1, lifetimeMs / 300)}
         />
       </mesh>
       
@@ -315,20 +310,20 @@ function IceBoltImpact({ position }: ImpactProps) {
           emissiveIntensity={2}
           color="#ffffff"
           transparent
-          opacity={lifetime * 0.7}
+          opacity={lifetimeMs * 0.7 / 1000}
         />
-        <pointLight color="#88cfff" intensity={2 * lifetime} distance={8} />
+        <pointLight color="#88cfff" intensity={2 * (lifetimeMs / 1000)} distance={8} />
       </mesh>
       
       {/* Frost ring */}
-      <mesh position={position} rotation={[Math.PI / 2, 0, 0]} scale={0.3 + (1 - lifetime / 1.5) * 2.5}>
+      <mesh position={position} rotation={[Math.PI / 2, 0, 0]} scale={0.3 + (1 - lifetimeMs / 1500) * 2.5}>
         <torusGeometry args={[1, 0.1, 16, 36]} />
         <meshStandardMaterial
           emissive="#88cfff"
           emissiveIntensity={1}
           color="#ffffff"
           transparent
-          opacity={Math.max(0, lifetime * 0.7)}
+          opacity={Math.max(0, lifetimeMs * 0.7 / 1000)}
         />
       </mesh>
       
@@ -352,14 +347,14 @@ function IceBoltImpact({ position }: ImpactProps) {
       ))}
       
       {/* Ground frost effect (appears to spread on ground) */}
-      <mesh position={[position.x, 0.05, position.z]} rotation={[-Math.PI / 2, 0, 0]} scale={1 + (1 - lifetime / 1.5) * 3}>
+      <mesh position={[position.x, 0.05, position.z]} rotation={[-Math.PI / 2, 0, 0]} scale={1 + (1 - lifetimeMs / 1500) * 3}>
         <circleGeometry args={[1, 32]} />
         <meshStandardMaterial
           emissive="#88cfff"
           emissiveIntensity={0.5}
           color="#ffffff"
           transparent
-          opacity={Math.max(0, lifetime * 0.4)}
+          opacity={Math.max(0, lifetimeMs * 0.4 / 1000)}
         />
       </mesh>
     </group>

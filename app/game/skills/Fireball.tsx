@@ -28,12 +28,19 @@ export function FireballProjectile({ startPosition, targetPosition, onHit }: Fir
     position: Vector3;
     scale: number;
     opacity: number;
-    lifetime: number;
+    lifetimeMs: number;
     rotationSpeed: Vector3;
   }>>([]);
   
   useEffect(() => {
     console.log("Fireball created: From", startPosition, "To", targetPosition);
+    
+    // Immediately set the initial position when the component mounts
+    if (meshRef.current) {
+      meshRef.current.position.copy(startPosition);
+      initialPositionSet.current = true;
+    }
+    
     // Clean up particles when component unmounts
     return () => {
       particles.current = [];
@@ -83,7 +90,7 @@ export function FireballProjectile({ startPosition, targetPosition, onHit }: Fir
         ),
         scale: 0.1 + Math.random() * 0.3,
         opacity: 0.8,
-        lifetime: 0.5 + Math.random() * 0.3,
+        lifetimeMs: 800 + Math.random() * 300, // 0.5 + 0.3 seconds in ms
         rotationSpeed: new Vector3(
           (Math.random() - 0.5) * 2,
           (Math.random() - 0.5) * 2,
@@ -95,11 +102,10 @@ export function FireballProjectile({ startPosition, targetPosition, onHit }: Fir
     // Update trail particles
     for (let i = particles.current.length - 1; i >= 0; i--) {
       const particle = particles.current[i];
-      particle.lifetime -= delta;
-      particle.opacity = Math.max(0, particle.lifetime * 1.6);
-      particle.scale *= 0.97; // Gradually shrink
-      
-      if (particle.lifetime <= 0) {
+      particle.lifetimeMs -= delta * 1000;
+      particle.opacity = Math.max(0, particle.lifetimeMs / 500); // fade out over 0.5s
+      particle.scale *= 0.97;
+      if (particle.lifetimeMs <= 0) {
         particles.current.splice(i, 1);
       }
     }
@@ -172,7 +178,7 @@ interface ImpactProps {
 }
 
 function FireballImpact({ position }: ImpactProps) {
-  const [lifetime, setLifetime] = useState(1.0);
+  const [lifetimeMs, setLifetimeMs] = useState(2500);
   const meshRef = useRef<THREE.Mesh>(null);
   const fragments = useRef<Array<{
     position: Vector3;
@@ -209,14 +215,21 @@ function FireballImpact({ position }: ImpactProps) {
   }, [position]);
   
   useFrame((state, delta) => {
+    // Cap delta to prevent large jumps with low frame rates
+    const cappedDelta = Math.min(delta, 0.1);
+    
     if (meshRef.current) {
-      // Expand impact with some turbulence
-      const expansionSpeed = 5 + Math.sin(state.clock.elapsedTime * 20) * 0.5;
-      meshRef.current.scale.addScalar(delta * expansionSpeed);
+      // Expand impact with controlled scaling instead of additive
+      const maxScale = 5.0;
+      const currentProgress = 1 - (lifetimeMs / 2500);
+      const targetScale = 1 + (maxScale * currentProgress);
       
-      // Decrease opacity over time
+      // Use lerp for smoother scaling regardless of frame rate
+      meshRef.current.scale.set(targetScale, targetScale, targetScale);
+      
+      // Decrease opacity over time matched to the new lifetime
       if (meshRef.current.material instanceof THREE.Material) {
-        (meshRef.current.material as THREE.MeshStandardMaterial).opacity = lifetime;
+        (meshRef.current.material as THREE.MeshStandardMaterial).opacity = lifetimeMs / 2500;
       }
     }
     
@@ -228,18 +241,18 @@ function FireballImpact({ position }: ImpactProps) {
       // Update position
       fragment.position.addScaledVector(fragment.velocity, delta);
       
-      // Fade out
-      fragment.opacity = Math.max(0, fragment.opacity - delta * 1.5);
+      // Fade out more slowly
+      fragment.opacity = Math.max(0, fragment.opacity - delta * 0.7);
       
-      // Shrink slightly
-      fragment.scale *= 0.98;
+      // Shrink slightly, but more slowly
+      fragment.scale *= 0.99;
     }
     
-    // Update lifetime
-    setLifetime(prev => Math.max(0, prev - delta));
+    // Update lifetime at a slower rate
+    setLifetimeMs(prev => Math.max(0, prev - delta * 800));
   });
   
-  if (lifetime <= 0) return null;
+  if (lifetimeMs <= 0) return null;
   
   return (
     <group>
@@ -251,20 +264,20 @@ function FireballImpact({ position }: ImpactProps) {
           emissiveIntensity={2}
           color="#ff4500"
           transparent
-          opacity={lifetime}
+          opacity={lifetimeMs / 2500}
         />
-        <pointLight color="#ff6600" intensity={4 * lifetime} distance={10} />
+        <pointLight color="#ff6600" intensity={4 * (lifetimeMs / 2500)} distance={10} />
       </mesh>
       
       {/* Secondary flash */}
-      <mesh position={position} scale={lifetime < 0.5 ? lifetime * 2 : 1}>
+      <mesh position={position} scale={lifetimeMs < 500 ? (lifetimeMs / 500) * 2 : 1}>
         <sphereGeometry args={[0.8, 12, 12]} />
         <meshStandardMaterial
           emissive="#ffff00"
           emissiveIntensity={3}
           color="#ffcc00"
           transparent
-          opacity={Math.min(1, lifetime * 3)}
+          opacity={Math.min(1, (lifetimeMs / 833))}
         />
       </mesh>
       

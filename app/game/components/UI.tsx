@@ -1,11 +1,25 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, Skill } from '../models/Skill';
 import StatusEffects from './StatusEffects';
+import ConnectionStatus from './ConnectionStatus';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
+
+interface PlayerState {
+  id: string;
+  name: string;
+  level: number;
+  experience: number;
+  experienceToNextLevel: number;
+  health: number;
+  maxHealth: number;
+  mana: number;
+  maxMana: number;
+  skills: string[];
+}
 
 // Add explicit global window typings for our custom method
 declare global {
@@ -30,9 +44,9 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
   const totalMultiplier = xpInfo.total;
   
   // Handler for donation boost
-  const handleDonationBoost = useCallback((amount: number, duration: number, event: React.MouseEvent) => {
+  const handleDonationBoost = useCallback((amount: number, durationMinutes: number, event: React.MouseEvent) => {
     event.stopPropagation();
-    applyDonationBoost(amount, duration);
+    applyDonationBoost(amount, durationMinutes);
   }, [applyDonationBoost]);
   
   return (
@@ -90,262 +104,76 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
   );
 }
 
-export default function UI() {
-  const player = useGameStore(state => state.player);
-  const enemies = useGameStore(state => state.enemies);
-  const selectedTargetId = useGameStore(state => state.selectedTargetId);
-  const experience = useGameStore(state => state.experience);
-  const experienceToNextLevel = useGameStore(state => state.experienceToNextLevel);
-  const skillCooldowns = useGameStore(state => state.skillCooldowns);
-  const castingSkill = useGameStore(state => state.castingSkill);
-  const castingProgress = useGameStore(state => state.castingProgress);
-  const castSkill = useGameStore(state => state.castSkill);
-  
-  const [isAdmin, setIsAdmin] = useState(false);
-  
-  // Find selected target from enemies array
-  const selectedTarget = enemies.find(enemy => enemy.id === selectedTargetId);
-  
-  // Filter skills based on player level
-  const availableSkills = player.skills
-    .map(skillId => SKILLS[skillId])
-    .filter(skill => skill && player.level >= skill.levelRequired);
-  
-  // Direct cast handler for when skill buttons are clicked
-  const handleSkillClick = (skillId: string) => (event: React.MouseEvent) => {
-    // Stop event propagation
-    event.stopPropagation();
-    
-    // First try regular skill casting through the game store
-    castSkill(skillId);
-    
-    // If the skill has 0 cast time, also trigger the fireball effect directly
-    // This ensures immediate visual feedback 
-    if (SKILLS[skillId]?.castTime === 0) {
-      // Use the debug function to cast the skill immediately
-      if (skillId === 'fireball' && window.castFireball) {
-        setTimeout(() => window.castFireball?.(), 50);
-      }
-    }
-  };
-
-  // Get current zone from game store
-  const currentZoneId = useGameStore(state => state.currentZoneId);
-  const currentZone = GAME_ZONES.find(zone => zone.id === currentZoneId);
-  
-  return (
-    <div className="fixed inset-0 pointer-events-none">
-      {/* Top UI - Target info */}
-      {selectedTarget && (
-        <div className="absolute top-5 left-1/2 transform -translate-x-1/2 bg-gray-900/80 p-3 rounded-lg flex items-center space-x-4">
-          <div className="text-white font-bold">{selectedTarget.name}</div>
-          <div className="w-48 h-2 bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-red-600"
-              style={{ width: `${(selectedTarget.health / selectedTarget.maxHealth) * 100}%` }}
-            ></div>
-          </div>
-          <div className="text-white text-sm">
-            {selectedTarget.health}/{selectedTarget.maxHealth} HP
-          </div>
-          {/* Display debuffs on target */}
-          <div className="relative pl-2">
-            <StatusEffects targetId={selectedTarget.id} position="right" />
-          </div>
-        </div>
-      )}
-      
-      {/* Right UI - XP Boost Panel */}
-      <div className="absolute top-20 right-5 w-64">
-        <XPBoostPanel isAdmin={isAdmin} />
-      </div>
-      
-      {/* Bottom UI - Player stats and skills */}
-      <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-3xl px-5">
-        {/* Casting Bar */}
-        {castingSkill && (
-          <div className="mt-3 bg-gray-900/80 p-3 rounded-lg">
-            <div className="flex justify-between text-sm text-white mb-1">
-              <div>Casting: {SKILLS[castingSkill]?.name}</div>
-              <div>{castingProgress.toFixed(1)}s / {SKILLS[castingSkill]?.castTime}s</div>
-            </div>
-            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-purple-600"
-                style={{ 
-                  width: `${(castingProgress / SKILLS[castingSkill]?.castTime) * 100}%` 
-                }}
-              ></div>
-            </div>
-          </div>
-        )}
-        {/* Player Info */}
-        <div className="bg-gray-900/80 p-3 rounded-lg mb-3">
-          <div className="flex justify-between items-center mb-2">
-            <div className="text-white font-bold">{player.name} {player.level}</div>
-            <div className="text-gray-300 text-sm">
-              XP: {experience}/{experienceToNextLevel}
-            </div>
-          </div>
-          
-          {/* Experience Bar */}
-          <div className="mb-2">
-            <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gray-400"
-                style={{ width: `${(experience / experienceToNextLevel) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* Health Bar */}
-          <div className="mb-2">
-            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-red-600"
-                style={{ width: `${(player.health / player.maxHealth) * 100}%` }}
-              ></div>
-            </div>
-            <div className="flex justify-between text-sm text-white mt-1">
-              <div>HP</div>
-              <div>{Math.floor(player.health)}/{player.maxHealth}</div>
-            </div>
-          </div>
-          
-          {/* Mana Bar */}
-          <div>
-            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-600"
-                style={{ width: `${(player.mana / player.maxMana) * 100}%` }}
-              ></div>
-            </div>
-            <div className="flex justify-between text-sm text-white mt-1">
-              <div>MP</div>
-              <div>{Math.floor(player.mana)}/{player.maxMana}</div>
-            </div>
-          </div>
-          
-          {/* Player status effects */}
-          <div className="mt-2">
-            <StatusEffects targetId="player" inline={true} />
-          </div>
-        </div>
-        
-        {/* Skills */}
-        <div className="bg-gray-900/80 p-3 rounded-lg">
-          <div className="flex space-x-3">
-            {availableSkills.map((skill) => (
-              <SkillButton 
-                key={skill.id}
-                skill={skill}
-                cooldown={skillCooldowns[skill.id] || 0}
-                isCasting={castingSkill === skill.id}
-                castProgress={castingProgress}
-                onClick={handleSkillClick(skill.id)}
-                selectedTarget={selectedTarget}
-              />
-            ))}
-          </div>
-        </div>
-        
-      </div>
-
-      {/* Zone indicator */}
-      <div className="absolute top-4 left-4 bg-black/50 text-white p-4 rounded-lg">
-        <h2 className="text-xl font-bold">
-          {currentZone?.name || 'Wilderness'}
-        </h2>
-        {currentZone && (
-          <div className="text-sm opacity-80">
-            <p>{currentZone.description}</p>
-            <p className="mt-1">Level {currentZone.minLevel}-{currentZone.maxLevel}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 interface SkillButtonProps {
   skill: Skill;
-  cooldown: number;
+  cooldownMs: number; // time in milliseconds
   isCasting: boolean;
-  castProgress: number;
+  castProgressMs: number;
   onClick: (event: React.MouseEvent) => void;
   selectedTarget: any;
 }
 
-function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, selectedTarget }: SkillButtonProps) {
-  const [remainingCooldown, setRemainingCooldown] = useState(cooldown);
+// Memoize SkillButton to prevent unnecessary re-renders
+const SkillButton = React.memo(({ skill, cooldownMs, isCasting, castProgressMs, onClick, selectedTarget }: SkillButtonProps) => {
+  const [remainingCooldownMs, setRemainingCooldownMs] = useState(cooldownMs);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
-  // Update cooldown timer
   useEffect(() => {
-    setRemainingCooldown(cooldown);
-    
-    if (cooldown <= 0) return;
+    setRemainingCooldownMs(cooldownMs);
+    if (cooldownMs <= 0) return;
     
     const interval = setInterval(() => {
-      setRemainingCooldown(prev => {
-        const newValue = Math.max(0, prev - 0.1);
-        if (newValue <= 0) {
-          clearInterval(interval);
-        }
+      setRemainingCooldownMs(prev => {
+        const newValue = Math.max(0, prev - 100); // Subtract 100ms each tick
+        if (newValue <= 0) clearInterval(interval);
         return newValue;
       });
     }, 100);
     
     return () => clearInterval(interval);
-  }, [cooldown]);
+  }, [cooldownMs]);
   
-  // Check if skill is on cooldown
-  const isOnCooldown = remainingCooldown > 0;
-  
-  // Check if skill is usable (has valid target)
+  const isOnCooldown = remainingCooldownMs > 0;
   const isUsable = Boolean(selectedTarget) && !isOnCooldown;
   
   // Handle click with stopPropagation
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (isUsable) {
       onClick(e);
     }
-  };
+  }, [isUsable, onClick]);
   
-  // Update button style on hover
+  // Extract debuff effects from the skill
+  const debuffEffects = useMemo(() => 
+    skill.effects.filter(effect => effect.type !== 'damage' && effect.type !== 'dot'),
+    [skill.effects]
+  );
+
   useEffect(() => {
-    if (!buttonRef.current) return;
+    const button = buttonRef.current;
+    if (!button) return;
     
     const handleMouseEnter = () => {
       if (isUsable) {
-        buttonRef.current!.style.transform = 'scale(1.1)';
-        buttonRef.current!.style.boxShadow = '0 0 10px #9945FF';
+        button.style.transform = 'scale(1.1)';
+        button.style.boxShadow = '0 0 10px #9945FF';
       }
     };
     
     const handleMouseLeave = () => {
-      if (buttonRef.current) {
-        buttonRef.current.style.transform = 'scale(1)';
-        buttonRef.current.style.boxShadow = 'none';
-      }
+      button.style.transform = 'scale(1)';
+      button.style.boxShadow = 'none';
     };
     
-    buttonRef.current.addEventListener('mouseenter', handleMouseEnter);
-    buttonRef.current.addEventListener('mouseleave', handleMouseLeave);
+    button.addEventListener('mouseenter', handleMouseEnter);
+    button.addEventListener('mouseleave', handleMouseLeave);
     
     return () => {
-      if (buttonRef.current) {
-        buttonRef.current.removeEventListener('mouseenter', handleMouseEnter);
-        buttonRef.current.removeEventListener('mouseleave', handleMouseLeave);
-      }
+      button.removeEventListener('mouseenter', handleMouseEnter);
+      button.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [isUsable]);
-  
-  // Extract debuff effects from the skill
-  const debuffEffects = skill.effects.filter(effect => 
-    effect.type !== 'damage' && effect.type !== 'dot'
-  );
 
   return (
     <div className="flex flex-col items-center">
@@ -381,11 +209,12 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
             <div 
               className="absolute inset-0 bg-gray-800 opacity-70"
               style={{ 
-                clipPath: `inset(${(1 - remainingCooldown / skill.cooldown) * 100}% 0 0 0)` 
+                // Reveal skill icon from top to bottom as cooldown progresses
+                clipPath: `inset(${(1 - remainingCooldownMs / skill.cooldownMs) * 100}% 0 0 0)` 
               }}
             ></div>
             <div className="absolute text-white font-bold text-sm">
-              {remainingCooldown.toFixed(1)}
+              {remainingCooldownMs}ms
             </div>
           </>
         )}
@@ -395,8 +224,8 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
           <div className="font-bold">{skill.name}</div>
           <div className="mt-1">{skill.description}</div>
           <div className="mt-1">Mana: {skill.manaCost}</div>
-          <div>Cooldown: {skill.cooldown}s</div>
-          {skill.castTime > 0 && <div>Cast Time: {skill.castTime}s</div>}
+          <div>Cooldown: {skill.cooldownMs}ms</div>
+          {skill.castTimeMs > 0 && <div>Cast Time: {skill.castTimeMs}ms</div>}
           {skill.damage && <div>Damage: {skill.damage}</div>}
           
           {/* Show skill effects in tooltip */}
@@ -407,12 +236,12 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
                 {debuffEffects.map((effect, index) => (
                   <li key={index}>
                     {effect.type.charAt(0).toUpperCase() + effect.type.slice(1)}: 
-                    {effect.type === 'burn' || effect.type === 'poison' ? 
+                    {                    effect.type === 'burn' || effect.type === 'poison' ? 
                       ` ${effect.value}% damage over time` : 
                       effect.type === 'slow' || effect.type === 'waterWeakness' ? 
                       ` ${effect.value}%` : 
                       ` ${effect.value}`}
-                    {effect.duration ? ` for ${effect.duration}s` : ''}
+                    {effect.durationMs ? ` for ${effect.durationMs / 1000}s` : ''}
                   </li>
                 ))}
               </ul>
@@ -437,7 +266,7 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
               <div
                 key={index}
                 className={`bg-gray-600 w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white overflow-hidden ${effectClassName}`}
-                title={`${effect.type}: ${effect.value}%${effect.duration ? ` for ${effect.duration}s` : ''}`}
+                title={`${effect.type}: ${effect.value}%${effect.durationMs ? ` for ${effect.durationMs / 1000}s` : ''}`}
                 style={{
                   // Dynamic background color based on effect type
                   backgroundColor: `var(--effect-${effect.type}-color, #6b7280)`
@@ -463,4 +292,214 @@ function SkillButton({ skill, cooldown, isCasting, castProgress, onClick, select
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  return prevProps.skill.id === nextProps.skill.id &&
+    prevProps.cooldownMs === nextProps.cooldownMs &&
+    prevProps.isCasting === nextProps.isCasting &&
+    prevProps.castProgressMs === nextProps.castProgressMs &&
+    prevProps.selectedTarget?.id === nextProps.selectedTarget?.id;
+});
+
+SkillButton.displayName = 'SkillButton';
+
+export default React.memo(function UI() {
+  const player = useGameStore((state) => state.getMyPlayer());
+  const enemies = useGameStore((state) => state.enemies);
+  const selectedTargetId = useGameStore((state) => state.selectedTargetId);
+  const skillCooldownsMs = player?.skillCooldownsMs ?? {};
+  const castingSkill = player?.castingSkill ?? null;
+  const castingProgressMs = player?.castingProgressMs ?? 0;
+  const socket = useGameStore(state => state.socket);
+  const currentZoneId = useGameStore(state => state.currentZoneId);
+  
+  const [isAdmin] = useState(false);
+  
+  // Memoize selected target lookup
+  const selectedTarget = useMemo(() => 
+    selectedTargetId ? enemies[selectedTargetId] : null,
+    [selectedTargetId, enemies]
+  );
+  
+  // Memoize available skills filtering
+  const availableSkills = useMemo(() => {
+    const skills = player?.skills
+      ? player.skills
+          .map((skillId: string) => SKILLS[skillId])
+          .filter((skill: Skill | undefined): skill is Skill => 
+            Boolean(skill && player.level >= (skill.levelRequired ?? 0)))
+      : [];
+    console.log('Available skills:', {
+      playerSkills: player?.skills,
+      mappedSkills: skills.map(s => s.id),
+      playerLevel: player?.level
+    });
+    return skills;
+  }, [player?.skills, player?.level]);
+
+  // Debug log when skills panel renders
+  useEffect(() => {
+    console.log('Skills panel render:', {
+      skillCount: availableSkills.length,
+      skillIds: availableSkills.map(s => s.id),
+      hasPlayer: !!player,
+      selectedTargetId
+    });
+  }, [availableSkills, player, selectedTargetId]);
+  
+  const currentZone = useMemo(() => 
+    GAME_ZONES.find(zone => zone.id === currentZoneId),
+    [currentZoneId]
+  );
+  
+  const handleSkillClick = useCallback((skillId: string) => (event: React.MouseEvent) => {
+    event.stopPropagation();
+    console.log('Attempting to cast skill:', {
+      skillId,
+      targetId: selectedTargetId,
+      hasSocket: !!socket
+    });
+    if (socket && selectedTargetId) {
+      console.log('Emitting castSkillRequest event');
+      socket.emit('castSkillRequest', { skillId, targetId: selectedTargetId });
+    } else {
+      console.warn('Cannot cast skill:', !socket ? 'No socket connection' : 'No target selected');
+    }
+  }, [socket, selectedTargetId]);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none">
+      {/* Top UI - Target info */}
+      {selectedTarget && (
+        <div className="absolute top-5 left-1/2 transform -translate-x-1/2 bg-gray-900/80 p-3 rounded-lg flex items-center space-x-4">
+          <div className="text-white font-bold">{selectedTarget.name}</div>
+          <div className="w-48 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-red-600"
+              style={{ width: `${(selectedTarget.health / selectedTarget.maxHealth) * 100}%` }}
+            ></div>
+          </div>
+          <div className="text-white text-sm">
+            {selectedTarget.health}/{selectedTarget.maxHealth} HP
+          </div>
+          {/* Display debuffs on target */}
+          <div className="relative pl-2">
+            <StatusEffects targetId={selectedTarget.id} position="right" />
+          </div>
+        </div>
+      )}
+      
+      {/* Right UI - XP Boost Panel */}
+      <div className="absolute top-20 right-5 w-64">
+        <XPBoostPanel isAdmin={isAdmin} />
+      </div>
+      
+      {/* Bottom UI - Player stats and skills */}
+      <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-3xl px-5">
+        {/* Casting Bar */}
+        {castingSkill && (
+          <div className="mt-3 bg-gray-900/80 p-3 rounded-lg">
+            <div className="flex justify-between text-sm text-white mb-1">
+              <div>Casting: {SKILLS[castingSkill]?.name}</div>
+              <div>{castingProgressMs}ms / {SKILLS[castingSkill]?.castTimeMs}ms</div>
+            </div>
+            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-purple-600"
+                style={{ 
+                  width: `${(castingProgressMs / SKILLS[castingSkill]?.castTimeMs) * 100}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+        )}
+        {/* Player Info */}
+        <div className="bg-gray-900/80 p-3 rounded-lg mb-3">
+          <div className="flex justify-between items-center mb-2">
+            <div className="text-white font-bold">{player?.name || 'Player'} {player?.level || 1}</div>
+            <div className="text-gray-300 text-sm">
+              XP: {player?.experience || 0}/{player?.experienceToNextLevel || 100}
+            </div>
+          </div>
+          
+          {/* Experience Bar */}
+          <div className="mb-2">
+            <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gray-400"
+                style={{ width: `${player?.experience && player?.experienceToNextLevel ? (player.experience / player.experienceToNextLevel) * 100 : 0}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Health Bar */}
+          <div className="mb-2">
+            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-red-600"
+                style={{ width: `${player?.health && player?.maxHealth ? (player.health / player.maxHealth) * 100 : 0}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-sm text-white mt-1">
+              <div>HP</div>
+              <div>{player ? Math.floor(player.health) : 0}/{player?.maxHealth || 100}</div>
+            </div>
+          </div>
+          
+          {/* Mana Bar */}
+          <div>
+            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600"
+                style={{ width: `${player?.mana && player?.maxMana ? (player.mana / player.maxMana) * 100 : 0}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-sm text-white mt-1">
+              <div>MP</div>
+              <div>{player ? Math.floor(player.mana) : 0}/{player?.maxMana || 100}</div>
+            </div>
+          </div>
+          
+          {/* Player status effects */}
+          <div className="mt-2">
+            <StatusEffects targetId="player" inline={true} />
+          </div>
+        </div>
+        
+        {/* Skills */}
+        <div className="bg-gray-900/80 p-3 rounded-lg">
+          <div className="flex space-x-3">
+            {availableSkills.map((skill) => (
+              <SkillButton 
+                key={skill.id}
+                skill={skill}
+                cooldownMs={skillCooldownsMs[skill.id] || 0}
+                isCasting={castingSkill === skill.id}
+                castProgressMs={castingProgressMs}
+                onClick={handleSkillClick(skill.id)}
+                selectedTarget={selectedTarget}
+              />
+            ))}
+          </div>
+        </div>
+        
+      </div>
+
+      {/* Zone indicator */}
+      <div className="absolute top-4 left-4 bg-black/50 text-white p-4 rounded-lg">
+        <h2 className="text-xl font-bold">
+          {currentZone?.name || 'Wilderness'}
+        </h2>
+        {currentZone && (
+          <div className="text-sm opacity-80">
+            <p>{currentZone.description}</p>
+            <p className="mt-1">Level {currentZone.minLevel}-{currentZone.maxLevel}</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Connection status indicator */}
+      <ConnectionStatus />
+    </div>
+  );
+});

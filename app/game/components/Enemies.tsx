@@ -20,13 +20,16 @@ export default function Enemies() {
   const selectedTargetId = useGameStore(state => state.selectedTargetId);
   const selectTarget = useGameStore(state => state.selectTarget);
 
+  // Convert enemies object to array
+  const enemiesArray = Object.values(enemies);
+
   useFrame(() => {
     // Enemy AI and movement logic here
   });
 
   return (
     <group>
-      {enemies.map((enemy) => (
+      {enemiesArray.map((enemy) => (
         <Enemy 
           key={enemy.id}
           enemy={enemy}
