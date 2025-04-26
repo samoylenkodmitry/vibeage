@@ -13,7 +13,22 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const playerState = useGameStore(selectPlayer(playerId));
   const sendPlayerMove = useGameStore(selectSendPlayerMove);
   const lastUpdateTimeTs = useRef<number | null>(null);
+  const socket = useGameStore(state => state.socket);
 
+  // --- Remote Player Interpolation ---
+  const previousPositionRef = useRef(new Vector3());
+  const targetPositionRef = useRef(new Vector3());
+  const previousRotationRef = useRef(0);
+  const targetRotationRef = useRef(0);
+  const lastPositionUpdateTimeRef = useRef(0);
+  const interpolationAlphaRef = useRef(0);
+  
+  // --- Controlled Player Reconciliation ---
+  const pendingCorrectionRef = useRef(false);
+  const serverCorrectionPositionRef = useRef(new Vector3());
+  const correctionStartTimeRef = useRef(0);
+  const correctionDurationRef = useRef(300); // ms
+  
   // --- Hooks and State specific to the controlled player ---
   const { camera, gl, raycaster } = useThree();
   const { rapier, world } = useRapier();
@@ -273,32 +288,234 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       );
       camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
     } else {
-      // Optimize non-controlled player updates
-      const serverPos = playerState.position;
-      const serverRotY = playerState.rotation.y;
-
-      // Only update if position has changed significantly
-      const currentPos = playerRef.current.translation();
-      const positionDiff = new Vector3(
-        serverPos.x - currentPos.x,
-        serverPos.y - currentPos.y,
-        serverPos.z - currentPos.z
-      ).length();
-
-      if (positionDiff > 0.01) {
-        playerRef.current.setTranslation(serverPos, true);
-        playerRef.current.setRotation({
-          x: 0,
-          y: Math.sin(serverRotY / 2),
-          z: 0,
-          w: Math.cos(serverRotY / 2)
-        }, true);
+      // Remote player smooth interpolation
+      const now = performance.now();
+      const timeSinceUpdate = now - lastPositionUpdateTimeRef.current;
+      
+      // Smoothly interpolate between previous and target position
+      // The interpolation speed varies based on update frequency
+      const interpolationDuration = 100; // ms - adjust for smoothness
+      interpolationAlphaRef.current = Math.min(timeSinceUpdate / interpolationDuration, 1);
+      
+      // Calculate interpolated position
+      const interpolatedPosition = new Vector3().lerpVectors(
+        previousPositionRef.current,
+        targetPositionRef.current,
+        interpolationAlphaRef.current
+      );
+      
+      // Calculate interpolated rotation (handle angle wrapping)
+      let angleDiff = targetRotationRef.current - previousRotationRef.current;
+      // Ensure we rotate the shortest way around
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+      
+      const interpolatedRotation = previousRotationRef.current + angleDiff * interpolationAlphaRef.current;
+      
+      // Apply interpolated position and rotation
+      playerRef.current.setTranslation(interpolatedPosition, true);
+      playerRef.current.setRotation({
+        x: 0,
+        y: Math.sin(interpolatedRotation / 2),
+        z: 0,
+        w: Math.cos(interpolatedRotation / 2)
+      }, true);
+    }
+    
+    // Handle server-side correction for controlled player
+    if (isControlledPlayer && pendingCorrectionRef.current) {
+      const now = performance.now();
+      const correctionProgress = Math.min(
+        (now - correctionStartTimeRef.current) / correctionDurationRef.current, 
+        1
+      );
+      
+      if (correctionProgress < 1) {
+        // Get current position
+        const currentPos = playerRef.current.translation();
+        // Create a vector from current position to server position
+        const correctionVector = new Vector3().subVectors(
+          serverCorrectionPositionRef.current,
+          new Vector3(currentPos.x, currentPos.y, currentPos.z)
+        );
+        // Apply a fraction of the correction each frame
+        correctionVector.multiplyScalar(delta * 10); // Adjust speed factor as needed
+        
+        // Apply partial correction
+        const newPos = new Vector3(
+          currentPos.x + correctionVector.x,
+          currentPos.y + correctionVector.y,
+          currentPos.z + correctionVector.z
+        );
+        playerRef.current.setTranslation(newPos);
+      } else {
+        // Correction completed
+        pendingCorrectionRef.current = false;
       }
     }
   });
 
+  // --- Effect to handle server position updates for interpolation ---
+  useEffect(() => {
+    if (!playerState) return;
+    
+    // Handle remote player interpolation
+    if (!isControlledPlayer) {
+      const now = performance.now();
+      // If this is the first update or there's a big time gap, just snap to the new position
+      if (lastPositionUpdateTimeRef.current === 0 || now - lastPositionUpdateTimeRef.current > 1000) {
+        previousPositionRef.current.set(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
+        );
+        targetPositionRef.current.set(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
+        );
+        previousRotationRef.current = playerState.rotation.y;
+        targetRotationRef.current = playerState.rotation.y;
+      } else {
+        // Otherwise, set previous to current target, and update target
+        previousPositionRef.current.copy(targetPositionRef.current);
+        targetPositionRef.current.set(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
+        );
+        previousRotationRef.current = targetRotationRef.current;
+        targetRotationRef.current = playerState.rotation.y;
+        interpolationAlphaRef.current = 0; // Reset interpolation progress
+      }
+      lastPositionUpdateTimeRef.current = now;
+    }
+  }, [playerState, isControlledPlayer]);
+
+  // --- Effect to handle server corrections for controlled player ---
+  useEffect(() => {
+    if (!isControlledPlayer || !socket) return;
+
+    const handlePlayerUpdated = (data: { id: string; position?: { x: number; y: number; z: number }; rotation: { y: number } }) => {
+      if (data.id !== playerId) return;
+      if (!data.position) {
+        console.warn(`Player update received without position data:`, data);
+        return;
+      }
+      // Server is correcting our position
+      const currentPosition = playerRef.current?.translation();
+      if (!currentPosition) return;
+      
+      const serverPosition = new Vector3(data.position.x, data.position.y, data.position.z);
+      const distance = new Vector3(
+        serverPosition.x - currentPosition.x,
+        serverPosition.y - currentPosition.y,
+        serverPosition.z - currentPosition.z
+      ).length();
+      
+      // Only apply correction if the difference is significant
+      if (distance > 0.5) {
+        console.log(`Server correction: ${distance.toFixed(2)} units`);
+        pendingCorrectionRef.current = true;
+        serverCorrectionPositionRef.current.copy(serverPosition);
+        correctionStartTimeRef.current = performance.now();
+      }
+    };
+
+    socket.on('playerUpdated', handlePlayerUpdated);
+    
+    return () => {
+      socket.off('playerUpdated', handlePlayerUpdated);
+    };
+  }, [isControlledPlayer, playerId, socket]);
+
+  // --- Effect to handle skill effect visualization ---
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSkillEffect = (data: { skillId: string, sourceId: string, targetId: string }) => {
+      // Debug skill effect origin
+      if (data.sourceId === playerId && isControlledPlayer) {
+        const currentPosition = playerRef.current?.translation();
+        if (currentPosition) {
+          console.log('Skill origin check:', {
+            skill: data.skillId,
+            playerPosition: {
+              x: currentPosition.x.toFixed(2),
+              y: currentPosition.y.toFixed(2),
+              z: currentPosition.z.toFixed(2)
+            },
+            serverPosition: {
+              x: playerState?.position.x.toFixed(2),
+              y: playerState?.position.y.toFixed(2),
+              z: playerState?.position.z.toFixed(2)
+            },
+            positionDiff: new Vector3(
+              currentPosition.x - (playerState?.position.x || 0),
+              currentPosition.y - (playerState?.position.y || 0),
+              currentPosition.z - (playerState?.position.z || 0)
+            ).length().toFixed(2)
+          });
+        }
+      }
+    };
+
+    socket.on('skillEffect', handleSkillEffect);
+    
+    return () => {
+      socket.off('skillEffect', handleSkillEffect);
+    };
+  }, [socket, playerId, isControlledPlayer, playerState]);
+
+  // --- Listen for player position requests from skill effects ---
+  useEffect(() => {
+    if (!isControlledPlayer || !playerRef.current) return;
+
+    const handleRequestPosition = (e: CustomEvent) => {
+      const { effectId, callback } = e.detail;
+      if (playerRef.current) {
+        const currentPosition = playerRef.current.translation();
+        // Provide the accurate client-side position for skill effects
+        callback({
+          x: currentPosition.x,
+          y: currentPosition.y,
+          z: currentPosition.z
+        });
+      }
+    };
+
+    window.addEventListener('requestPlayerPosition', handleRequestPosition as EventListener);
+    
+    return () => {
+      window.removeEventListener('requestPlayerPosition', handleRequestPosition as EventListener);
+    };
+  }, [isControlledPlayer]);
+
+  // Log player state on mount
+  useEffect(() => {
+    console.log(`PlayerCharacter mounting: id=${playerId}, isControlled=${isControlledPlayer}`, {
+      position: playerState?.position,
+      playerStateExists: !!playerState,
+      allPlayers: Object.keys(useGameStore.getState().players)
+    });
+
+    return () => {
+      console.log(`PlayerCharacter unmounting: id=${playerId}, isControlled=${isControlledPlayer}`);
+    };
+  }, [playerId, isControlledPlayer, playerState]);
+
   // Render the player model
   if (!playerState) return null; // Don't render if state doesn't exist yet
+
+  console.log(`Rendering 3D player object: id=${playerId}, controlled=${isControlledPlayer}`, {
+    position: {
+      x: playerState.position.x.toFixed(2),
+      y: playerState.position.y.toFixed(2),
+      z: playerState.position.z.toFixed(2)
+    },
+    physicsType: isControlledPlayer ? "dynamic" : "kinematicPosition",
+    renderTimestamp: new Date().toISOString()
+  });
 
   return (
     <RigidBody
@@ -306,14 +523,14 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       position={[playerState.position.x, playerState.position.y, playerState.position.z]} // Initial position from store
       enabledRotations={[false, true, false]} // Allow Y rotation for facing direction
       colliders={false}
-      mass={10}
-      type="dynamic"
+      mass={isControlledPlayer ? 10 : 1}
+      type={isControlledPlayer ? "dynamic" : "kinematicPosition"}
       lockRotations={!isControlledPlayer} // Lock rotation for non-controlled players if needed
-      linearDamping={0.5}
-      angularDamping={0.95}
-      friction={0.2}
+      linearDamping={isControlledPlayer ? 0.5 : 0}
+      angularDamping={isControlledPlayer ? 0.95 : 0}
+      friction={isControlledPlayer ? 0.2 : 0}
       restitution={0.0}
-      gravityScale={isControlledPlayer ? 2 : 0} // Disable gravity for remote players if server handles position
+      gravityScale={isControlledPlayer ? 2 : 0} // Disable gravity for remote players
       ccd={true}
       key={playerId} // Important for React to identify elements correctly
       userData={{ type: 'player', id: playerId }} // Add userData for identification
@@ -355,6 +572,21 @@ export default function Players() {
   );
   const [targetPosition, setTargetPosition] = useState<Vector3 | null>(null);
 
+  // Debug logging for player store state
+  useEffect(() => {
+    // Log current state of players in store
+    const allPlayers = useGameStore.getState().players;
+    console.log('DEBUG - Player store state:', {
+      playerIds,
+      myPlayerId,
+      allPlayerCount: Object.keys(allPlayers).length,
+      timestamp: new Date().toISOString(),
+      duplicatePlayerCheck: Object.values(allPlayers).filter(p => p.id === myPlayerId).length > 1 ? 'DUPLICATE DETECTED' : 'No duplicates',
+      allPlayerIds: Object.values(allPlayers).map(p => p.id),
+      allSocketIds: Object.values(allPlayers).map(p => p.socketId),
+    });
+  }, [playerIds, myPlayerId]);
+
   // Subscribe to the targetPosition from the controlled player character
   useEffect(() => {
     if (!controlledPlayer) return;
@@ -375,17 +607,48 @@ export default function Players() {
 
   // Check for duplicate playerIds to prevent rendering the same player twice
   const uniquePlayerIds = [...new Set(playerIds)];
+  
+  // Direct and aggressive approach to ensure we render exactly one instance of each player
+  const filteredPlayerIds = React.useMemo(() => {
+    const allPlayers = useGameStore.getState().players;
+    const seenPlayers = new Set<string>();
+    const result: string[] = [];
+    
+    // First, ensure our player is included if it exists
+    if (myPlayerId && allPlayers[myPlayerId]) {
+      result.push(myPlayerId);
+      seenPlayers.add(myPlayerId);
+      console.log('Added controlled player to render list:', myPlayerId);
+    }
+    
+    // Then add other unique players (but never add duplicates of our player)
+    Object.values(allPlayers).forEach(player => {
+      // Skip our own player (already added) and any players we've already seen
+      if (player.id !== myPlayerId && !seenPlayers.has(player.id)) {
+        result.push(player.id);
+        seenPlayers.add(player.id);
+      }
+    });
+    
+    console.log('Final filtered player IDs for rendering:', {
+      myPlayerId,
+      filteredCount: result.length,
+      filteredIds: result
+    });
+    
+    return result;
+  }, [uniquePlayerIds, myPlayerId]);
 
   // Memoize player creation
   const playerComponents = React.useMemo(() => 
-    uniquePlayerIds.map(id => (
+    filteredPlayerIds.map(id => (
       <PlayerCharacter 
         key={id}
         playerId={id}
         isControlledPlayer={id === myPlayerId}
       />
     ))
-  , [uniquePlayerIds, myPlayerId]); // Only recreate when IDs or controlled player changes
+  , [filteredPlayerIds, myPlayerId]); // Only recreate when IDs or controlled player changes
 
   return (
     <>

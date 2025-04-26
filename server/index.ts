@@ -20,7 +20,7 @@ interface PlayerState {
   mana: number;
   maxMana: number;
   skills: SkillType[];
-  skillCooldownsMs: Record<string, number>;
+  skillCooldownEndTs: Record<string, number>;
   statusEffects: StatusEffect[];
   level: number;
   experience: number;
@@ -29,6 +29,7 @@ interface PlayerState {
   castingProgressMs: number;
   isAlive: boolean;
   deathTimeTs?: number;
+  lastUpdateTime?: number;
 }
 
 // Initialize game state
@@ -48,9 +49,9 @@ const io = new Server(httpServer, {
     credentials: true
   },
   transports: ['websocket', 'polling'],
-  pingTimeoutMs: 60000,
-  pingIntervalMs: 25000,
-  connectTimeoutMs: 45000,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 45000,
   allowEIO3: true,
   maxHttpBufferSize: 1e8,
   path: '/socket.io/'
@@ -117,12 +118,12 @@ io.on('connection', (socket: Socket) => {
       experience: 0,
       experienceToNextLevel: 100,
       statusEffects: [],
-      skillCooldownsMs: {},
+      skillCooldownEndTs: {},
       castingSkill: null,
       castingProgressMs: 0,
       isAlive: true,
       // Add initial skills
-      skills: ['fireball', 'icebolt', 'waterSplash', 'petrify']
+      skills: ['fireball', 'iceBolt', 'waterSplash', 'petrify']
     };
 
     console.log('Created new player with skills:', player.skills);
@@ -154,10 +155,25 @@ io.on('connection', (socket: Socket) => {
     const player = Object.values(gameState.players).find(p => p.socketId === socket.id);
     if (!player) return;
 
+    const MAX_ALLOWED_SPEED = 15; // units per second
+    const now = Date.now();
+    const deltaTime = (now - (player.lastUpdateTime || now)) / 1000; // seconds
+
+    const dx = position.x - player.position.x;
+    const dz = position.z - player.position.z;
+    const distanceMoved = Math.sqrt(dx * dx + dz * dz);
+
+    if (distanceMoved / deltaTime > MAX_ALLOWED_SPEED) {
+      console.warn(`Player ${player.id} moved too fast: ${distanceMoved / deltaTime} units/sec`);
+      // Reject or correct the position
+      socket.emit('playerUpdated', { id: player.id, position: player.position, rotation: player.rotation });
+      return;
+    }
+
     player.position = position;
     player.rotation.y = rotationY;
+    player.lastUpdateTime = now;
 
-    // Broadcast player movement to all other clients
     socket.broadcast.emit('playerUpdated', {
       id: player.id,
       position,
@@ -237,7 +253,7 @@ io.on('connection', (socket: Socket) => {
     }
 
     // Check cooldown
-    const cooldownEnd = player.skillCooldownsMs[skillId] || 0;
+    const cooldownEnd = player.skillCooldownEndTs[skillId] || 0;
     const now = Date.now();
     console.log('[SKILL] Checking cooldown:', {
       skillId,
@@ -263,7 +279,7 @@ io.on('connection', (socket: Socket) => {
     // Apply skill effects
     player.mana -= skill.manaCost;
     // Set cooldown end time using the already-in-milliseconds cooldown value
-    player.skillCooldownsMs[skillId] = now + skill.cooldownMs;
+    player.skillCooldownEndTs[skillId] = now + skill.cooldownMs;
 
     // Apply damage
     if (skill.damage) {

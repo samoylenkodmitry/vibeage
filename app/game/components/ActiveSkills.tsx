@@ -35,7 +35,7 @@ export default function ActiveSkills() {
   const selectedTargetId = useGameStore(state => state.selectedTargetId);
   const castingSkill = useGameStore(state => state.castingSkill);
   const castingProgressMs = useGameStore(state => state.castingProgressMs);
-  const skillCooldownsMs = useGameStore(state => state.skillCooldownsMs);
+  const skillCooldownEndTs = useGameStore(state => state.skillCooldownEndTs);
   // Remove the reference to the non-existent applySkillEffect function
   // const applySkillEffect = useGameStore(state => state.applySkillEffect);
   
@@ -117,6 +117,28 @@ export default function ActiveSkills() {
           targetId,
           createdAtTs: Date.now()
         };
+        
+        // If this is the local player, use an event to get the accurate client position
+        if (sourceId === useGameStore.getState().myPlayerId) {
+          // Dispatch an event to request accurate client position
+          window.dispatchEvent(new CustomEvent('requestPlayerPosition', {
+            detail: {
+              effectId: newEffect.id,
+              callback: (clientPosition: {x: number, y: number, z: number}) => {
+                console.log('Using client position for skill effect:', clientPosition);
+                newEffect.startPosition = new Vector3(
+                  clientPosition.x,
+                  clientPosition.y + 1.5, // Cast from shoulder height
+                  clientPosition.z
+                );
+                // Add the visual effect with corrected position
+                setActiveEffects(prev => [...prev, newEffect]);
+              }
+            }
+          }));
+          // Return early as we'll add the effect in the callback
+          return;
+        }
         
         console.log('Creating skill effect with positions:', {
           start: {...newEffect.startPosition},

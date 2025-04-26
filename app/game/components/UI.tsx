@@ -106,7 +106,7 @@ function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
 
 interface SkillButtonProps {
   skill: Skill;
-  cooldownMs: number; // time in milliseconds
+  cooldownEndMs: number; // timestamp in milliseconds when cooldown ends
   isCasting: boolean;
   castProgressMs: number;
   onClick: (event: React.MouseEvent) => void;
@@ -114,24 +114,22 @@ interface SkillButtonProps {
 }
 
 // Memoize SkillButton to prevent unnecessary re-renders
-const SkillButton = React.memo(({ skill, cooldownMs, isCasting, castProgressMs, onClick, selectedTarget }: SkillButtonProps) => {
-  const [remainingCooldownMs, setRemainingCooldownMs] = useState(cooldownMs);
+const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget }: SkillButtonProps) => {
+  const initial = Math.max(0, cooldownEndMs - Date.now());
+  const [remainingCooldownMs, setRemainingCooldownMs] = useState(initial);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
   useEffect(() => {
-    setRemainingCooldownMs(cooldownMs);
-    if (cooldownMs <= 0) return;
+    const update = () => 
+      setRemainingCooldownMs(Math.max(0, cooldownEndMs - Date.now()));
     
-    const interval = setInterval(() => {
-      setRemainingCooldownMs(prev => {
-        const newValue = Math.max(0, prev - 100); // Subtract 100ms each tick
-        if (newValue <= 0) clearInterval(interval);
-        return newValue;
-      });
-    }, 100);
+    update(); // Update immediately
+    if (cooldownEndMs <= Date.now()) return; // Already over
+    
+    const interval = setInterval(update, 100); // Keep in sync
     
     return () => clearInterval(interval);
-  }, [cooldownMs]);
+  }, [cooldownEndMs]);
   
   const isOnCooldown = remainingCooldownMs > 0;
   const isUsable = Boolean(selectedTarget) && !isOnCooldown;
@@ -295,7 +293,7 @@ const SkillButton = React.memo(({ skill, cooldownMs, isCasting, castProgressMs, 
 }, (prevProps, nextProps) => {
   // Custom comparison function for memo
   return prevProps.skill.id === nextProps.skill.id &&
-    prevProps.cooldownMs === nextProps.cooldownMs &&
+    prevProps.cooldownEndMs === nextProps.cooldownEndMs &&
     prevProps.isCasting === nextProps.isCasting &&
     prevProps.castProgressMs === nextProps.castProgressMs &&
     prevProps.selectedTarget?.id === nextProps.selectedTarget?.id;
@@ -307,7 +305,7 @@ export default React.memo(function UI() {
   const player = useGameStore((state) => state.getMyPlayer());
   const enemies = useGameStore((state) => state.enemies);
   const selectedTargetId = useGameStore((state) => state.selectedTargetId);
-  const skillCooldownsMs = player?.skillCooldownsMs ?? {};
+  const skillCooldownEndTs = player?.skillCooldownEndTs ?? {};
   const castingSkill = player?.castingSkill ?? null;
   const castingProgressMs = player?.castingProgressMs ?? 0;
   const socket = useGameStore(state => state.socket);
@@ -473,7 +471,7 @@ export default React.memo(function UI() {
               <SkillButton 
                 key={skill.id}
                 skill={skill}
-                cooldownMs={skillCooldownsMs[skill.id] || 0}
+                cooldownEndMs={skillCooldownEndTs[skill.id] || 0}
                 isCasting={castingSkill === skill.id}
                 castProgressMs={castingProgressMs}
                 onClick={handleSkillClick(skill.id)}

@@ -50,9 +50,8 @@ export default function SocketManager() {
       console.log('Connected to game server, setting socket in game store');
       setConnectionStatus(true);
       setSocket(socket);  // Make sure we set the socket in the game store
-      
-      // Join game with player name
-      socket.emit('joinGame', 'Player' + Math.floor(Math.random() * 1000));
+
+      // Removed automatic joinGame emission to prevent duplicate player IDs
 
       // Set up skill-related event handlers
       socket.on('skillEffect', (data: { skillId: string, sourceId: string, targetId: string }) => {
@@ -87,10 +86,11 @@ export default function SocketManager() {
 
       // Handle existing events...
       socket.on('gameState', (gameState: any) => {
+        const myPlayerId = useGameStore.getState().myPlayerId;
         console.log('Received game state:', {
           enemyCount: Object.keys(gameState.enemies || {}).length,
           playerCount: Object.keys(gameState.players || {}).length,
-          playerSkills: gameState.players[useGameStore.getState().myPlayerId]?.skills
+          playerSkills: myPlayerId ? gameState.players[myPlayerId]?.skills : []
         });
         setGameState(gameState);
       });
@@ -136,6 +136,42 @@ export default function SocketManager() {
       }
     };
   }, [handleConnect]);
+
+  // Add debugging to socket updates
+  useEffect(() => {
+    // Get the current socket from the game store
+    const socket = useGameStore.getState().socket;
+    if (!socket) return;
+    
+    const debugSocketEvents = (eventName: string) => {
+      const originalOn = socket.on.bind(socket);
+      socket.on = function(event: string, callback: Function) {
+        if (event === eventName) {
+          const wrappedCallback = function(this: any, ...args: any[]) {
+            console.log(`[Socket] ${event} received:`, ...args);
+            return callback.apply(this, args);
+          };
+          return originalOn(event, wrappedCallback);
+        }
+        return originalOn(event, callback);
+      };
+    };
+    
+    // Debug specific events
+    debugSocketEvents('playerJoined');
+    debugSocketEvents('playerUpdated');
+    debugSocketEvents('gameState');
+    
+    // Log skill events with detailed position info
+    const originalSkillEmit = socket.emit.bind(socket);
+    socket.emit = function(event: string, ...args: any[]) {
+      if (event === 'castSkillRequest' || event === 'playerMove') {
+        console.log(`[Socket] Emitting ${event}:`, args);
+      }
+      return originalSkillEmit(event, ...args);
+    };
+    
+  }, []);
 
   return null;
 }

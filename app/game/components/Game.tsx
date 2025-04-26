@@ -3,7 +3,7 @@
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { Sky, KeyboardControls } from '@react-three/drei';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
@@ -31,17 +31,17 @@ export default function Game() {
   const [joiningError, setJoiningError] = useState<string | null>(null);
   const isConnected = useGameStore(state => state.isConnected);
   const socket = useGameStore(state => state.socket);
+  const hasJoinedGame = useGameStore(state => state.hasJoinedGame);
+  const setHasJoinedGame = useGameStore(state => state.setHasJoinedGame);
 
-  // Effect to join the game when both conditions are met:
-  // 1. We've indicated we want to start (isGameStarted is true)
-  // 2. The socket is connected and available
   useEffect(() => {
-    if (isGameStarted && socket && isConnected && playerName.trim()) {
+    if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame) {
       console.log('Joining game with player name:', playerName);
       socket.emit('joinGame', playerName);
       setJoiningError(null);
+      setHasJoinedGame(true);
     }
-  }, [isGameStarted, socket, isConnected, playerName]);
+  }, [isGameStarted, socket, isConnected, playerName, hasJoinedGame, setHasJoinedGame]);
 
   const handleStartGame = useCallback(() => {
     if (playerName.trim()) {

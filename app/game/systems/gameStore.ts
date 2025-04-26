@@ -21,7 +21,7 @@ interface PlayerState extends Character {
   experience: number;
   experienceToNextLevel: number;
   statusEffects: StatusEffect[];
-  skillCooldownsMs: Record<string, number>;
+  skillCooldownEndTs: Record<string, number>;
   castingSkill: string | null;
   castingProgressMs: number;
   isAlive: boolean;
@@ -47,12 +47,13 @@ interface GameState {
   player: PlayerState | null;
   experience: number;
   experienceToNextLevel: number;
-  skillCooldownsMs: Record<string, number>;
+  skillCooldownEndTs: Record<string, number>;
   castingSkill: string | null;
   castingProgressMs: number;
   isConnected: boolean;
   lastConnectionChangeTs: number;
   socket: any | null;
+  hasJoinedGame: boolean;
 
   // --- Methods ---
   setSocket: (socket: any) => void;
@@ -77,6 +78,7 @@ interface GameState {
   toggleXpEvent: () => void;
   updatePlayerZone: () => void;
   applySkillEffect: (targetId: string, effects: any[]) => void;
+  setHasJoinedGame: (joined: boolean) => void;
 }
 
 // --- Memoized selectors ---
@@ -144,218 +146,217 @@ export {
   selectStatusEffects,
 };
 
-export const useGameStore = create<GameState>((set, get) => {
-  // Socket.io connection reference
-  let socket: any = null;
-  
-  return {
-    // --- Initial State ---
-    myPlayerId: null,
-    players: {},
-    enemies: {},
-    selectedTargetId: null,
-    selectedSkill: null,
-    currentZoneId: null,
-    donationXpBoost: 0,
-    donationBoostEndTimeTs: null,
-    bonusXpEventActive: false,
-    player: null,
-    experience: 0,
-    experienceToNextLevel: 100,
-    skillCooldownsMs: {},
-    castingSkill: null,
-    castingProgressMs: 0,
-    isConnected: false,
-    lastConnectionChangeTs: Date.now(),
-    socket: null,
+export const useGameStore = create<GameState>((set, get) => ({
+  // --- Initial State ---
+  myPlayerId: null,
+  players: {},
+  enemies: {},
+  selectedTargetId: null,
+  selectedSkill: null,
+  currentZoneId: null,
+  donationXpBoost: 0,
+  donationBoostEndTimeTs: null,
+  bonusXpEventActive: false,
+  player: null,
+  experience: 0,
+  experienceToNextLevel: 100,
+  skillCooldownEndTs: {},
+  castingSkill: null,
+  castingProgressMs: 0,
+  isConnected: false,
+  lastConnectionChangeTs: Date.now(),
+  socket: null,
+  hasJoinedGame: false,
 
-    // --- Methods ---
-    setSocket: (socketInstance: any) => {
-      socket = socketInstance;
-      set({ socket: socketInstance });
-    },
+  // --- Methods ---
+  setSocket: (socketInstance: any) => {
+    set({ socket: socketInstance });
+  },
 
-    setGameState: (newState: ServerGameState) => {
-      set({ 
-        players: newState.players,
-        enemies: newState.enemies,
-        selectedTargetId: newState.enemies[get().selectedTargetId ?? ''] ? get().selectedTargetId : null,
-      });
-    },
+  setGameState: (newState: ServerGameState) => {
+    set({ 
+      players: newState.players,
+      enemies: newState.enemies,
+      selectedTargetId: newState.enemies[get().selectedTargetId ?? ''] ? get().selectedTargetId : null,
+    });
+  },
 
-    setMyPlayerId: (id: string) => {
-      set({ myPlayerId: id });
-    },
+  setMyPlayerId: (id: string) => {
+    set({ myPlayerId: id });
+  },
 
-    addPlayer: (player: PlayerState) => {
-      set(state => ({
-        players: { ...state.players, [player.id]: player }
-      }));
-    },
+  addPlayer: (player: PlayerState) => {
+    set(state => ({
+      players: { ...state.players, [player.id]: player }
+    }));
+  },
 
-    removePlayer: (playerId: string) => {
-      set(state => {
-        const newPlayers = { ...state.players };
-        delete newPlayers[playerId];
-        return { players: newPlayers };
-      });
-    },
+  removePlayer: (playerId: string) => {
+    set(state => {
+      const newPlayers = { ...state.players };
+      delete newPlayers[playerId];
+      return { players: newPlayers };
+    });
+  },
 
-    updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => {
-      set(state => {
-        const currentPlayer = state.players[playerData.id];
-        if (!currentPlayer) return state;
-        
-        // Check if any values are actually different before updating
-        const hasChanges = Object.keys(playerData).some(key => 
-          playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
-        );
-        
-        if (!hasChanges) return state;
-        
-        return {
-          players: {
-            ...state.players,
-            [playerData.id]: { ...currentPlayer, ...playerData }
-          }
-        };
-      });
-    },
-
-    updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => {
-      set(state => {
-        if (!state.enemies[enemyData.id]) return state;
-        return {
-          enemies: {
-            ...state.enemies,
-            [enemyData.id]: { ...state.enemies[enemyData.id], ...enemyData }
-          }
-        };
-      });
-    },
-
-    sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => {
-      if (!socket) {
-        console.warn('Cannot send player move: Socket not connected');
-        return;
-      }
-      socket.emit('playerMove', { position, rotationY });
-    },
-
-    sendSelectTarget: (targetId: string | null) => {
-      if (!socket) {
-        console.warn('Cannot select target: Socket not connected');
-        return;
-      }
-      socket.emit('selectTargetRequest', targetId);
-      get().selectTarget(targetId);
-    },
-
-    // --- Actions ---
-    castSkill: (skillId: string) => {
-      const state = get();
-      if (!state.socket || !state.selectedTargetId) return;
+  updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => {
+    set(state => {
+      const currentPlayer = state.players[playerData.id];
+      if (!currentPlayer) return state;
       
-      state.socket.emit('castSkillRequest', {
-        skillId,
-        targetId: state.selectedTargetId
-      });
-    },
-
-    cancelCast: () => {
-      const state = get();
-      if (!state.socket) return;
-      state.socket.emit('cancelCastRequest');
-    },
-
-    selectTarget: (targetId: string | null) => {
-      if (targetId === null || get().enemies[targetId]) {
-        set({ selectedTargetId: targetId });
-      } else {
-        set({ selectedTargetId: null });
-      }
-    },
-
-    setSelectedSkill: (skillId: string | null) => {
-      set({ selectedSkill: skillId });
-    },
-
-    getMyPlayer: () => {
-      const state = get();
-      return state.myPlayerId ? state.players[state.myPlayerId] : null;
-    },
-
-    getSelectedTarget: () => {
-      const state = get();
-      return state.selectedTargetId ? state.enemies[state.selectedTargetId] : null;
-    },
-
-    getStatusEffects: (targetId: string | 'player') => {
-      const state = get();
-      if (targetId === 'player') {
-        const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
-        return player?.statusEffects || [];
-      }
-      const enemy = state.enemies[targetId];
-      return enemy?.statusEffects || [];
-    },
-
-    getXpMultiplierInfo: () => {
-      const state = get();
-      const base = 1.0;
-      const donation = state.donationXpBoost > 0 && state.donationBoostEndTimeTs !== null && state.donationBoostEndTimeTs > Date.now() ? state.donationXpBoost : 0;
-      const event = state.bonusXpEventActive ? 0.5 : 0;
-      return { base, donation, event, total: base + donation + event };
-    },
-
-    applyDonationBoost: (amount: number, durationMinutes: number) => {
-      set({
-        donationXpBoost: amount,
-        donationBoostEndTimeTs: Date.now() + (durationMinutes * 60 * 1000)
-      });
-    },
-
-    clearDonationBoost: () => {
-      set({
-        donationXpBoost: 0,
-        donationBoostEndTimeTs: null
-      });
-    },
-
-    toggleXpEvent: () => {
-      set(state => ({ bonusXpEventActive: !state.bonusXpEventActive }));
-    },
-
-    updatePlayerZone: () => {
-      // Placeholder to be implemented when zones are added
-    },
-    
-    applySkillEffect: (targetId: string, effects: any[]) => {
-      // Get the socket to communicate with the server
-      const socket = get().socket;
-      if (!socket) return;
+      // Check if any values are actually different before updating
+      const hasChanges = Object.keys(playerData).some(key => 
+        playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
+      );
       
-      // Send the effects to be applied on the server
-      socket.emit('applyEffects', { targetId, effects });
+      if (!hasChanges) return state;
       
-      console.log('Applying skill effects to target:', targetId, effects);
-      
-      // For client-side feedback, we could also update the local state
-      // This is optional as the server will broadcast the updated state anyway
-      const enemy = get().enemies[targetId];
-      if (enemy) {
-        // For visual feedback only - the server will handle the actual logic
-        set(state => ({
-          enemies: {
-            ...state.enemies,
-            [targetId]: {
-              ...enemy,
-              // You might want to add a temporary visual effect here
-              // This is just for immediate feedback while waiting for the server update
-            }
-          }
-        }));
-      }
+      return {
+        players: {
+          ...state.players,
+          [playerData.id]: { ...currentPlayer, ...playerData }
+        }
+      };
+    });
+  },
+
+  updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => {
+    set(state => {
+      if (!state.enemies[enemyData.id]) return state;
+      return {
+        enemies: {
+          ...state.enemies,
+          [enemyData.id]: { ...state.enemies[enemyData.id], ...enemyData }
+        }
+      };
+    });
+  },
+
+  sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => {
+    const socket = get().socket;
+    if (!socket) {
+      console.warn('Cannot send player move: Socket not connected');
+      return;
     }
-  };
-});
+    socket.emit('playerMove', { position, rotationY });
+  },
+
+  sendSelectTarget: (targetId: string | null) => {
+    const socket = get().socket;
+    if (!socket) {
+      console.warn('Cannot select target: Socket not connected');
+      return;
+    }
+    socket.emit('selectTargetRequest', targetId);
+    get().selectTarget(targetId);
+  },
+
+  // --- Actions ---
+  castSkill: (skillId: string) => {
+    const state = get();
+    if (!state.socket || !state.selectedTargetId) return;
+    
+    state.socket.emit('castSkillRequest', {
+      skillId,
+      targetId: state.selectedTargetId
+    });
+  },
+
+  cancelCast: () => {
+    const state = get();
+    if (!state.socket) return;
+    state.socket.emit('cancelCastRequest');
+  },
+
+  selectTarget: (targetId: string | null) => {
+    if (targetId === null || get().enemies[targetId]) {
+      set({ selectedTargetId: targetId });
+    } else {
+      set({ selectedTargetId: null });
+    }
+  },
+
+  setSelectedSkill: (skillId: string | null) => {
+    set({ selectedSkill: skillId });
+  },
+
+  getMyPlayer: () => {
+    const state = get();
+    return state.myPlayerId ? state.players[state.myPlayerId] : null;
+  },
+
+  getSelectedTarget: () => {
+    const state = get();
+    return state.selectedTargetId ? state.enemies[state.selectedTargetId] : null;
+  },
+
+  getStatusEffects: (targetId: string | 'player') => {
+    const state = get();
+    if (targetId === 'player') {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      return player?.statusEffects || [];
+    }
+    const enemy = state.enemies[targetId];
+    return enemy?.statusEffects || [];
+  },
+
+  getXpMultiplierInfo: () => {
+    const state = get();
+    const base = 1.0;
+    const donation = state.donationXpBoost > 0 && state.donationBoostEndTimeTs !== null && state.donationBoostEndTimeTs > Date.now() ? state.donationXpBoost : 0;
+    const event = state.bonusXpEventActive ? 0.5 : 0;
+    return { base, donation, event, total: base + donation + event };
+  },
+
+  applyDonationBoost: (amount: number, durationMinutes: number) => {
+    set({
+      donationXpBoost: amount,
+      donationBoostEndTimeTs: Date.now() + (durationMinutes * 60 * 1000)
+    });
+  },
+
+  clearDonationBoost: () => {
+    set({
+      donationXpBoost: 0,
+      donationBoostEndTimeTs: null
+    });
+  },
+
+  toggleXpEvent: () => {
+    set(state => ({ bonusXpEventActive: !state.bonusXpEventActive }));
+  },
+
+  updatePlayerZone: () => {
+    // Placeholder to be implemented when zones are added
+  },
+  
+  applySkillEffect: (targetId: string, effects: any[]) => {
+    // Get the socket to communicate with the server
+    const socket = get().socket;
+    if (!socket) return;
+    
+    // Send the effects to be applied on the server
+    socket.emit('applyEffects', { targetId, effects });
+    
+    console.log('Applying skill effects to target:', targetId, effects);
+    
+    // For client-side feedback, we could also update the local state
+    // This is optional as the server will broadcast the updated state anyway
+    const enemy = get().enemies[targetId];
+    if (enemy) {
+      // For visual feedback only - the server will handle the actual logic
+      set(state => ({
+        enemies: {
+          ...state.enemies,
+          [targetId]: {
+            ...enemy,
+            // You might want to add a temporary visual effect here
+            // This is just for immediate feedback while waiting for the server update
+          }
+        }
+      }));
+    }
+  },
+
+  setHasJoinedGame: (joined: boolean) => set({ hasJoinedGame: joined }),
+}));
