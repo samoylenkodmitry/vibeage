@@ -84,10 +84,8 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       // Set the target position in the component state
       setTargetPosition(newTarget);
       
-      // Dispatch an event so the main Players component can render the target marker
-      window.dispatchEvent(new CustomEvent('targetPositionUpdate', {
-        detail: { targetPosition: newTarget }
-      }));
+      // Store the target position globally
+      useGameStore.getState().setTargetWorldPos(newTarget);
     }
   }, [isControlledPlayer, isRotating, camera, raycaster, groundPlane, gl]);
 
@@ -200,66 +198,47 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
         playerRef.current.setLinvel(physicsUpdates.velocity);
       }
 
-      // Click-to-move with optimized updates
-      let calculatedVelocity = { x: 0, y: currentVelocity.y, z: 0 };
+      // Click-to-move with kinematic position updates
       if (targetPosition && isGrounded) {
-        const direction = new Vector3().subVectors(targetPosition, currentPosition);
-        direction.y = 0;
-        const distanceToTarget = direction.length();
+        const dir = new Vector3()
+          .subVectors(targetPosition, currentPosition)
+          .setY(0);
 
-        if (distanceToTarget > MOVEMENT_PRECISION && stuckCounter.current < 60) {
-          direction.normalize();
-          const speedMultiplier = Math.min(distanceToTarget, 1.5);
-          calculatedVelocity.x = direction.x * playerSpeed * speedMultiplier;
-          calculatedVelocity.z = direction.z * playerSpeed * speedMultiplier;
-
-          // Batch rotation updates
-          playerRef.current.setRotation({ w: 1.0, x: 0.0, y: 0.0, z: 0.0 });
-          playerRef.current.applyImpulse({ x: 0, y: 0, z: 0 }, true);
-          playerRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
-
-          const targetRotation = Math.atan2(direction.x, direction.z);
-          playerRef.current.setNextKinematicRotation({
-            x: 0,
-            y: Math.sin(targetRotation / 2),
-            z: 0,
-            w: Math.cos(targetRotation / 2)
-          });
-
-          lastDistanceToTarget.current = distanceToTarget;
+        const dist = dir.length();
+        if (dist > TARGET_REACHED_THRESHOLD) {
+            dir.normalize().multiplyScalar(playerSpeed * delta);
+            // Prevent overshoot
+            const step = dist < dir.length() ? dist : dir.length();
+            playerRef.current.setNextKinematicTranslation({
+                x: currentPosition.x + dir.x * step,
+                y: GROUND_POSITION_Y,
+                z: currentPosition.z + dir.z * step,
+            });
+            
+            // Update rotation to face direction of movement
+            const targetRotation = Math.atan2(dir.x, dir.z);
+            playerRef.current.setNextKinematicRotation({
+              x: 0,
+              y: Math.sin(targetRotation / 2),
+              z: 0,
+              w: Math.cos(targetRotation / 2)
+            });
         } else {
-          // Optimize stopping logic
-          const currentSpeed = new Vector3(currentVelocity.x, 0, currentVelocity.z).length();
-          if (currentSpeed > 0.1) {
-            calculatedVelocity.x = currentVelocity.x * 0.8;
-            calculatedVelocity.z = currentVelocity.z * 0.8;
-          } else {
-            calculatedVelocity.x = 0;
-            calculatedVelocity.z = 0;
-          }
-
-          if (distanceToTarget <= TARGET_REACHED_THRESHOLD) {
-            playerRef.current.setTranslation({ 
-              x: targetPosition.x,
-              y: GROUND_POSITION_Y,
-              z: targetPosition.z
+            playerRef.current.setNextKinematicTranslation({
+                x: targetPosition.x,
+                y: GROUND_POSITION_Y,
+                z: targetPosition.z,
             });
             setTargetPosition(null);
-            calculatedVelocity = { x: 0, y: currentVelocity.y, z: 0 };
-          }
+            useGameStore.getState().setTargetWorldPos(null);
         }
-      } else if (isGrounded) {
-        calculatedVelocity = { x: 0, y: currentVelocity.y, z: 0 };
       }
 
       // Apply jump velocity if needed
       if (moveDirection.current.jump && isGrounded && !hasJumped) {
-        calculatedVelocity.y = jumpForce;
+        playerRef.current.setLinvel({ x: 0, y: jumpForce, z: 0 });
         moveDirection.current.jump = false;
       }
-
-      // Batch physics updates
-      playerRef.current.setLinvel(calculatedVelocity);
 
       // Throttle position updates to server
       const now = Date.now();
@@ -513,7 +492,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       y: playerState.position.y.toFixed(2),
       z: playerState.position.z.toFixed(2)
     },
-    physicsType: isControlledPlayer ? "dynamic" : "kinematicPosition",
+    physicsType: isControlledPlayer ? "kinematicPosition" : "kinematicPosition",
     renderTimestamp: new Date().toISOString()
   });
 
@@ -524,7 +503,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       enabledRotations={[false, true, false]} // Allow Y rotation for facing direction
       colliders={false}
       mass={isControlledPlayer ? 10 : 1}
-      type={isControlledPlayer ? "dynamic" : "kinematicPosition"}
+      type={isControlledPlayer ? "kinematicPosition" : "kinematicPosition"}
       lockRotations={!isControlledPlayer} // Lock rotation for non-controlled players if needed
       linearDamping={isControlledPlayer ? 0.5 : 0}
       angularDamping={isControlledPlayer ? 0.95 : 0}
@@ -549,13 +528,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           <meshStandardMaterial color="#f5deb3" />
         </mesh>
       </group>
-      {/* Target marker only for controlled player */}
-      {isControlledPlayer && targetPosition && (
-        <mesh position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.3, 0.5, 16]} />
-          <meshBasicMaterial color="#ffff00" transparent opacity={0.6} />
-        </mesh>
-      )}
     </RigidBody>
   );
 }
@@ -566,12 +538,6 @@ export default function Players() {
   const playerIds = useGameStore(selectPlayerIds);
   const myPlayerId = useGameStore(selectMyPlayerId);
   
-  // Get target position for the controlled player
-  const controlledPlayer = useGameStore(state => 
-    state.myPlayerId ? state.players[state.myPlayerId] : null
-  );
-  const [targetPosition, setTargetPosition] = useState<Vector3 | null>(null);
-
   // Debug logging for player store state
   useEffect(() => {
     // Log current state of players in store
@@ -586,24 +552,6 @@ export default function Players() {
       allSocketIds: Object.values(allPlayers).map(p => p.socketId),
     });
   }, [playerIds, myPlayerId]);
-
-  // Subscribe to the targetPosition from the controlled player character
-  useEffect(() => {
-    if (!controlledPlayer) return;
-    
-    // Create a custom event to listen for target position updates
-    const handleTargetPositionUpdate = (e: CustomEvent) => {
-      setTargetPosition(e.detail.targetPosition);
-    };
-    
-    // Add event listener
-    window.addEventListener('targetPositionUpdate', handleTargetPositionUpdate as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('targetPositionUpdate', handleTargetPositionUpdate as EventListener);
-    };
-  }, [controlledPlayer]);
 
   // Check for duplicate playerIds to prevent rendering the same player twice
   const uniquePlayerIds = [...new Set(playerIds)];
@@ -650,17 +598,6 @@ export default function Players() {
     ))
   , [filteredPlayerIds, myPlayerId]); // Only recreate when IDs or controlled player changes
 
-  return (
-    <>
-      {playerComponents}
-      
-      {/* Render target marker in world space, not relative to player */}
-      {targetPosition && (
-        <mesh position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.3, 0.5, 16]} />
-          <meshBasicMaterial color="#ffff00" transparent opacity={0.6} />
-        </mesh>
-      )}
-    </>
-  );
+  // Render just the players, no target marker (moved to the TargetRing component)
+  return <>{playerComponents}</>;
 }

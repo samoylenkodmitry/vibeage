@@ -54,6 +54,7 @@ interface GameState {
   lastConnectionChangeTs: number;
   socket: any | null;
   hasJoinedGame: boolean;
+  targetWorldPos: { x: number, y: number, z: number } | null;
 
   // --- Methods ---
   setSocket: (socket: any) => void;
@@ -69,6 +70,7 @@ interface GameState {
   sendCancelCast: () => void;
   selectTarget: (targetId: string | null) => void;
   setSelectedSkill: (skillId: string | null) => void;
+  setTargetWorldPos: (pos: { x: number, y: number, z: number } | null) => void;
   getMyPlayer: () => PlayerState | null;
   getSelectedTarget: () => Enemy | null;
   getStatusEffects: (targetId: string | 'player') => StatusEffect[];
@@ -167,6 +169,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastConnectionChangeTs: Date.now(),
   socket: null,
   hasJoinedGame: false,
+  targetWorldPos: null,
 
   // --- Methods ---
   setSocket: (socketInstance: any) => {
@@ -278,6 +281,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setSelectedSkill: (skillId: string | null) => {
     set({ selectedSkill: skillId });
+  },
+
+  setTargetWorldPos: (pos: { x: number, y: number, z: number } | null) => {
+    set({ targetWorldPos: pos });
   },
 
   getMyPlayer: () => {

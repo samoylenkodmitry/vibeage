@@ -9,6 +9,7 @@ import Player from './Player';
 import Enemies from './Enemies';
 import UI from './UI';
 import ActiveSkills from './ActiveSkills';
+import TargetRing from './TargetRing';
 import { useGameStore } from '../systems/gameStore';
 import SocketManager from '../systems/SocketManager';
 
@@ -109,6 +110,7 @@ export default function Game() {
             <Player />
             <Enemies />
             <ActiveSkills />
+            <TargetRing />
           </Physics>
         </Canvas>
       </KeyboardControls>
