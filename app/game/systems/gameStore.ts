@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
 import { Skill } from '../models/Skill';
+import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -25,6 +26,7 @@ interface PlayerState extends Character {
   castingSkill: string | null;
   castingProgressMs: number;
   isAlive: boolean;
+  movement?: PlayerMovementState;
 }
 
 // Define the structure for the overall game state received from the server
@@ -65,7 +67,12 @@ interface GameState {
   removePlayer: (playerId: string) => void;
   updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => void;
   updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => void;
+  // Legacy movement
   sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => void;
+  // Intent-based movement
+  sendMoveStart: (from: VecXZ, to: VecXZ, speed: number) => void;
+  sendMoveStop: (pos: VecXZ) => void;
+  // Other methods
   sendSelectTarget: (targetId: string | null) => void;
   sendCastSkill: (skillId: string, targetId: string | null) => void;
   sendCancelCast: () => void;
@@ -268,7 +275,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  // Legacy movement method - keep for compatibility but mark as deprecated
   sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => {
+    console.warn('sendPlayerMove is deprecated. Use intent-based movement instead.');
     const socket = get().socket;
     if (!socket) {
       console.warn('Cannot send player move: Socket not connected');
@@ -288,6 +297,43 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ lastMoveSentTimeMs: now });
     
     socket.emit('playerMove', { position, rotationY });
+  },
+
+  // New intent-based movement methods
+  sendMoveStart: (from: VecXZ, to: VecXZ, speed: number) => {
+    const socket = get().socket;
+    const myPlayerId = get().myPlayerId;
+    
+    if (!socket || !myPlayerId) {
+      console.warn('Cannot send move start: Socket not connected or player ID unknown');
+      return;
+    }
+    
+    socket.emit('moveStart', {
+      type: 'moveStart',
+      id: myPlayerId,
+      from,
+      to,
+      speed,
+      ts: Date.now()
+    });
+  },
+  
+  sendMoveStop: (pos: VecXZ) => {
+    const socket = get().socket;
+    const myPlayerId = get().myPlayerId;
+    
+    if (!socket || !myPlayerId) {
+      console.warn('Cannot send move stop: Socket not connected or player ID unknown');
+      return;
+    }
+    
+    socket.emit('moveStop', {
+      type: 'moveStop',
+      id: myPlayerId,
+      pos,
+      ts: Date.now()
+    });
   },
 
   sendSelectTarget: (targetId: string | null) => {

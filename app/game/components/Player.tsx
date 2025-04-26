@@ -2,16 +2,18 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier';
 import { Vector3, Euler, Raycaster, Plane, Mesh, Vector2 } from 'three';
-import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer, selectSendPlayerMove } from '../systems/gameStore';
+import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
+import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
+import { MoveStartMsg, MoveStopMsg, VecXZ } from '../../../shared/types';
 
-// Define GROUND_POSITION_Y constant
-const GROUND_POSITION_Y = 0.5;
+// Movement constants
+const BASE_SPEED = 20;
+const SPRINT_MUL = 1.5;
 
 // Individual Player Component
 function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
   const playerRef = useRef<any>(null);
   const playerState = useGameStore(selectPlayer(playerId));
-  const sendPlayerMove = useGameStore(selectSendPlayerMove);
   const lastUpdateTimeTs = useRef<number | null>(null);
   const socket = useGameStore(state => state.socket);
 
@@ -42,19 +44,22 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
   const cameraInitialized = useRef(false);
-  const groundPlane = new Plane(new Vector3(0, 1, 0), -GROUND_POSITION_Y);
+  const groundPlane = new Plane(new Vector3(0, 1, 0), -GROUND_Y);
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
+  
+  // Keyboard state for determining if shift is pressed (sprinting)
+  const [keys, setKeys] = useState({ shift: false });
 
   // --- Constants ---
-  const playerSpeed = 20;
   const jumpForce = 8;
   const MOVEMENT_PRECISION = 0.1;
-  const TARGET_REACHED_THRESHOLD = 0.3;
+  const TARGET_REACHED_THRESHOLD = 0.05; // Smaller threshold for more precise stopping
 
   // --- Callbacks for Controlled Player Input ---
   const handleMouseClick = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || e.button !== 0 || isRotating) return;
     if ((e.target as HTMLElement).closest('.pointer-events-auto')) return;
+    if (!socket || !playerState) return;
 
     // Make sure we're using the correct canvas dimensions for accurate clicking
     const canvasRect = gl.domElement.getBoundingClientRect();
@@ -79,15 +84,54 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       stuckCounter.current = 0;
       
       // Create target position, ensuring Y is at ground level
-      const newTarget = new Vector3(intersectPoint.x, GROUND_POSITION_Y, intersectPoint.z);
+      const newTarget = new Vector3(intersectPoint.x, GROUND_Y, intersectPoint.z);
       
-      // Set the target position in the component state
+      // Stop any previous movement
+      if (playerState.movement?.dest) {
+        emitMoveStop(playerRef.current.translation());
+      }
+      
+      // Create movement start message
+      const currentPos = playerRef.current.translation();
+      const moveStartMsg: MoveStartMsg = {
+        type: 'moveStart',
+        id: playerId,
+        from: { x: currentPos.x, z: currentPos.z },
+        to: { x: newTarget.x, z: newTarget.z },
+        speed: BASE_SPEED * (keys.shift ? SPRINT_MUL : 1),
+        ts: Date.now()
+      };
+      
+      // Send move start to server
+      socket.emit('moveStart', moveStartMsg);
+      
+      // Set the target position in the component state (for local simulation)
       setTargetPosition(newTarget);
       
       // Store the target position globally
       useGameStore.getState().setTargetWorldPos(newTarget);
     }
-  }, [isControlledPlayer, isRotating, camera, raycaster, groundPlane, gl]);
+  }, [isControlledPlayer, isRotating, camera, raycaster, groundPlane, gl, socket, playerState, playerId, keys]);
+
+  // Function to emit movement stop
+  const emitMoveStop = useCallback((position: any) => {
+    if (!socket || !playerState) return;
+    
+    // Create stop message with current position
+    const moveStopMsg: MoveStopMsg = {
+      type: 'moveStop',
+      id: playerId,
+      pos: { x: position.x, z: position.z },
+      ts: Date.now()
+    };
+    
+    // Send to server
+    socket.emit('moveStop', moveStopMsg);
+    
+    // Clear local target
+    setTargetPosition(null);
+    useGameStore.getState().setTargetWorldPos(null);
+  }, [socket, playerState, playerId]);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || e.button !== 2) return;
@@ -118,24 +162,41 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   }, [isControlledPlayer]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!isControlledPlayer || e.code !== 'Space' || !isGrounded || hasJumped) return;
-    moveDirection.current.jump = true;
-    setHasJumped(true);
-  }, [isControlledPlayer, isGrounded, hasJumped]);
+    if (!isControlledPlayer) return;
+    
+    // Handle space for jumping
+    if (e.code === 'Space' && !hasJumped && isGrounded) {
+      moveDirection.current.jump = true;
+      setHasJumped(true);
+    }
+    
+    // Handle shift for sprint
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      setKeys(prev => ({ ...prev, shift: true }));
+    }
+    
+    // Handle S key for force stop
+    if (e.code === 'KeyS' && playerState?.movement?.dest) {
+      if (playerRef.current) {
+        emitMoveStop(playerRef.current.translation());
+      }
+    }
+    
+  }, [isControlledPlayer, hasJumped, isGrounded, playerState, emitMoveStop]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    if (!isControlledPlayer || e.code !== 'Space') return;
-    moveDirection.current.jump = false;
+    if (!isControlledPlayer) return;
+    
+    // Handle shift for sprint
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      setKeys(prev => ({ ...prev, shift: false }));
+    }
+    
   }, [isControlledPlayer]);
 
-  // --- Input Listener Effect (only for controlled player) ---
+  // --- Register event listeners for controlled player ---
   useEffect(() => {
     if (!isControlledPlayer) return;
-
-    if (!cameraInitialized.current) {
-      cameraAngleRef.current = Math.PI;
-      cameraInitialized.current = true;
-    }
 
     window.addEventListener('click', handleMouseClick);
     window.addEventListener('mousedown', handleMouseDown);
@@ -144,6 +205,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+
     document.body.style.cursor = 'default';
 
     return () => {
@@ -170,7 +232,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       const origin = { x: currentPosition.x, y: currentPosition.y + 0.1, z: currentPosition.z };
       const ray = new rapier.Ray(origin, { x: 0, y: -1, z: 0 });
       const hit = world.castRay(ray, 0.8, true);
-      const isNearGround = Math.abs(currentPosition.y - GROUND_POSITION_Y) < 0.2;
+      const isNearGround = Math.abs(currentPosition.y - GROUND_Y) < 0.2;
       const isNotRising = currentVelocity.y <= 0.01;
       const nowGrounded = (hit !== null || isNearGround) && isNotRising;
 
@@ -190,47 +252,36 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           position: currentPosition
         };
 
-        if (Math.abs(currentPosition.y - GROUND_POSITION_Y) > 0.01) {
-          physicsUpdates.position = { ...currentPosition, y: GROUND_POSITION_Y };
+        if (Math.abs(currentPosition.y - GROUND_Y) > 0.01) {
+          physicsUpdates.position = { ...currentPosition, y: GROUND_Y };
           playerRef.current.setTranslation(physicsUpdates.position);
         }
         
         playerRef.current.setLinvel(physicsUpdates.velocity);
       }
 
-      // Click-to-move with kinematic position updates
-      if (targetPosition && isGrounded) {
-        const dir = new Vector3()
-          .subVectors(targetPosition, currentPosition)
-          .setY(0);
-
-        const dist = dir.length();
-        if (dist > TARGET_REACHED_THRESHOLD) {
-            dir.normalize().multiplyScalar(playerSpeed * delta);
-            // Prevent overshoot
-            const step = dist < dir.length() ? dist : dir.length();
-            playerRef.current.setNextKinematicTranslation({
-                x: currentPosition.x + dir.x * step,
-                y: GROUND_POSITION_Y,
-                z: currentPosition.z + dir.z * step,
-            });
-            
-            // Update rotation to face direction of movement
-            const targetRotation = Math.atan2(dir.x, dir.z);
-            playerRef.current.setNextKinematicRotation({
-              x: 0,
-              y: Math.sin(targetRotation / 2),
-              z: 0,
-              w: Math.cos(targetRotation / 2)
-            });
+      // Intent-based movement simulation for controlled player
+      if (isGrounded && playerState.movement?.dest) {
+        // Use the server-determined parameters for simulation
+        const dest = playerState.movement.dest;
+        const speed = playerState.movement.speed;
+        
+        // Simulate the movement
+        const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
+        
+        if (!isMoving) {
+          // We've arrived at destination - notify server
+          emitMoveStop(playerRef.current.translation());
         } else {
-            playerRef.current.setNextKinematicTranslation({
-                x: targetPosition.x,
-                y: GROUND_POSITION_Y,
-                z: targetPosition.z,
-            });
-            setTargetPosition(null);
-            useGameStore.getState().setTargetWorldPos(null);
+          // Update rotation to face direction of movement
+          const dir = new Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
+          const targetRotation = Math.atan2(dir.x, dir.z);
+          playerRef.current.setNextKinematicRotation({
+            x: 0,
+            y: Math.sin(targetRotation / 2),
+            z: 0,
+            w: Math.cos(targetRotation / 2)
+          });
         }
       }
 
@@ -238,23 +289,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       if (moveDirection.current.jump && isGrounded && !hasJumped) {
         playerRef.current.setLinvel({ x: 0, y: jumpForce, z: 0 });
         moveDirection.current.jump = false;
-      }
-
-      // Throttle position updates to server
-      // Now handled by gameStore throttling
-      const now = Date.now();
-      if (!lastUpdateTimeTs.current || now - lastUpdateTimeTs.current >= 50) {
-        // Normalize position values to avoid floating point precision issues
-        const position = playerRef.current.translation();
-        const normalizedPosition = {
-          x: parseFloat(position.x.toFixed(2)),
-          y: parseFloat(position.y.toFixed(2)),
-          z: parseFloat(position.z.toFixed(2))
-        };
-        
-        // Send normalized position to server - throttling handled in gameStore
-        sendPlayerMove(normalizedPosition, cameraAngleRef.current);
-        lastUpdateTimeTs.current = now;
       }
 
       // Update camera position
@@ -268,38 +302,47 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       );
       camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
     } else {
-      // Remote player smooth interpolation
-      const now = performance.now();
-      const timeSinceUpdate = now - lastPositionUpdateTimeRef.current;
-      
-      // Smoothly interpolate between previous and target position
-      // The interpolation speed varies based on update frequency
-      const interpolationDuration = 100; // ms - adjust for smoothness
-      interpolationAlphaRef.current = Math.min(timeSinceUpdate / interpolationDuration, 1);
-      
-      // Calculate interpolated position
-      const interpolatedPosition = new Vector3().lerpVectors(
-        previousPositionRef.current,
-        targetPositionRef.current,
-        interpolationAlphaRef.current
-      );
-      
-      // Calculate interpolated rotation (handle angle wrapping)
-      let angleDiff = targetRotationRef.current - previousRotationRef.current;
-      // Ensure we rotate the shortest way around
-      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-      
-      const interpolatedRotation = previousRotationRef.current + angleDiff * interpolationAlphaRef.current;
-      
-      // Apply interpolated position and rotation
-      playerRef.current.setTranslation(interpolatedPosition, true);
-      playerRef.current.setRotation({
-        x: 0,
-        y: Math.sin(interpolatedRotation / 2),
-        z: 0,
-        w: Math.cos(interpolatedRotation / 2)
-      }, true);
+      // Remote player movement simulation
+      if (playerState.movement?.dest) {
+        // Use the server-provided movement parameters to simulate remote players
+        simulateMovement(
+          playerRef.current, 
+          playerState.movement.dest, 
+          playerState.movement.speed, 
+          delta
+        );
+      } else {
+        // If there's no movement data, fall back to traditional interpolation
+        const now = performance.now();
+        const timeSinceUpdate = now - lastPositionUpdateTimeRef.current;
+        
+        // Smoothly interpolate between previous and target position
+        const interpolationDuration = 100; // ms
+        interpolationAlphaRef.current = Math.min(timeSinceUpdate / interpolationDuration, 1);
+        
+        // Calculate interpolated position
+        const interpolatedPosition = new Vector3().lerpVectors(
+          previousPositionRef.current,
+          targetPositionRef.current,
+          interpolationAlphaRef.current
+        );
+        
+        // Calculate interpolated rotation (handle angle wrapping)
+        let angleDiff = targetRotationRef.current - previousRotationRef.current;
+        if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        
+        const interpolatedRotation = previousRotationRef.current + angleDiff * interpolationAlphaRef.current;
+        
+        // Apply interpolated position and rotation
+        playerRef.current.setTranslation(interpolatedPosition, true);
+        playerRef.current.setRotation({
+          x: 0,
+          y: Math.sin(interpolatedRotation / 2),
+          z: 0,
+          w: Math.cos(interpolatedRotation / 2)
+        }, true);
+      }
     }
     
     // Handle server-side correction for controlled player
@@ -342,8 +385,20 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     // Handle remote player interpolation
     if (!isControlledPlayer) {
       const now = performance.now();
-      // If this is the first update or there's a big time gap, just snap to the new position
-      if (lastPositionUpdateTimeRef.current === 0 || now - lastPositionUpdateTimeRef.current > 1000) {
+      // If movement just stopped, snap interpolation refs to stop position
+      if (!playerState.movement?.dest) {
+        previousPositionRef.current.set(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
+        );
+        targetPositionRef.current.set(
+          playerState.position.x,
+          playerState.position.y,
+          playerState.position.z
+        );
+        interpolationAlphaRef.current = 0;
+      } else if (lastPositionUpdateTimeRef.current === 0 || now - lastPositionUpdateTimeRef.current > 1000) {
         previousPositionRef.current.set(
           playerState.position.x,
           playerState.position.y,
@@ -486,16 +541,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 
   // Render the player model
   if (!playerState) return null; // Don't render if state doesn't exist yet
-
-  console.log(`Rendering 3D player object: id=${playerId}, controlled=${isControlledPlayer}`, {
-    position: {
-      x: playerState.position.x.toFixed(2),
-      y: playerState.position.y.toFixed(2),
-      z: playerState.position.z.toFixed(2)
-    },
-    physicsType: isControlledPlayer ? "kinematicPosition" : "kinematicPosition",
-    renderTimestamp: new Date().toISOString()
-  });
 
   return (
     <RigidBody

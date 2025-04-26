@@ -1,8 +1,9 @@
 import { createServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 import { ZoneManager, GAME_ZONES } from '../shared/zoneSystem';
-import { Enemy, StatusEffect } from '../shared/types';
+import { Enemy, StatusEffect, MoveStartMsg, MoveStopMsg, VecXZ, PlayerMovementState } from '../shared/types';
 import { SKILLS, SkillType } from './types';
+import { isPathBlocked, findValidDestination } from './collision';
 
 interface GameState {
   players: Record<string, PlayerState>;
@@ -30,6 +31,7 @@ interface PlayerState {
   isAlive: boolean;
   deathTimeTs?: number;
   lastUpdateTime?: number;
+  movement?: PlayerMovementState; // Intent-based movement state
 }
 
 // Initialize game state
@@ -122,6 +124,8 @@ io.on('connection', (socket: Socket) => {
       castingSkill: null,
       castingProgressMs: 0,
       isAlive: true,
+      // Initialize with no movement intent
+      movement: { dest: null, speed: 0, startTs: 0 },
       // Add initial skills
       skills: ['fireball', 'iceBolt', 'waterSplash', 'petrify']
     };
@@ -150,7 +154,94 @@ io.on('connection', (socket: Socket) => {
     socket.emit('gameState', gameState);
   });
 
-  // Handle player movement
+  // Handle movement start (intent-based protocol)
+  socket.on('moveStart', (m: MoveStartMsg) => {
+    const player = gameState.players[m.id];
+    if (!player || player.socketId !== socket.id) return;
+
+    // Get player max speed (could be adjusted based on status effects, items, etc.)
+    const getPlayerMaxSpeed = (p: PlayerState) => {
+      const baseSpeed = 20;
+      const sprintMultiplier = 1.5;
+      return baseSpeed * sprintMultiplier; // Maximum possible speed
+    };
+
+    // Validate speed
+    const maxSpeed = getPlayerMaxSpeed(player);
+    if (m.speed > maxSpeed) {
+      console.warn(`Player ${player.id} tried to move too fast: ${m.speed} (max: ${maxSpeed})`);
+      return; // Ignore invalid speed requests
+    }
+
+    // Wall/collision validation
+    let dest = m.to;
+    if (isPathBlocked({ x: player.position.x, z: player.position.z }, m.to)) {
+      dest = findValidDestination({ x: player.position.x, z: player.position.z }, m.to);
+      if (dest.x === player.position.x && dest.z === player.position.z) {
+        // No valid path at all
+        console.warn(`Player ${player.id} tried to move through an impassable area.`);
+        return;
+      }
+    }
+
+    // Set movement in player state
+    player.movement = {
+      dest,
+      speed: m.speed,
+      startTs: Date.now()
+    };
+
+    // Update player position to destination for intent-based protocol
+    player.position.x = dest.x;
+    player.position.z = dest.z;
+
+    // Broadcast to others and to the moving player
+    socket.broadcast.emit('playerMoveStart', { 
+      id: player.id, 
+      to: dest, 
+      speed: m.speed 
+    });
+    socket.emit('playerMoveStart', { 
+      id: player.id, 
+      to: dest, 
+      speed: m.speed 
+    });
+  });
+
+  // Handle movement stop
+  socket.on('moveStop', (m: MoveStopMsg) => {
+    const player = gameState.players[m.id];
+    if (!player || player.socketId !== socket.id) return;
+    
+    // Simple validation - check if reported position is reasonable
+    const dx = m.pos.x - player.position.x;
+    const dz = m.pos.z - player.position.z;
+    const error = Math.hypot(dx, dz);
+    
+    if (error > 1.0) {
+      console.warn(`Player ${player.id} reported suspicious stop position, error: ${error}`);
+      return; // Ignore suspicious position reports
+    }
+    
+    // Update player position
+    player.position.x = m.pos.x;
+    player.position.z = m.pos.z;
+    
+    // Clear movement state
+    player.movement = { dest: null, speed: 0, startTs: 0 };
+    
+    // Broadcast to others and to the moving player
+    socket.broadcast.emit('playerMoveStop', { 
+      id: player.id, 
+      pos: m.pos 
+    });
+    socket.emit('playerMoveStop', { 
+      id: player.id, 
+      pos: m.pos 
+    });
+  });
+
+  // Legacy player movement handler (keep for compatibility)
   socket.on('playerMove', ({ position, rotationY }) => {
     const player = Object.values(gameState.players).find(p => p.socketId === socket.id);
     if (!player) return;
@@ -516,7 +607,7 @@ setInterval(() => {
           }
           return nearest;
         }, null as { player: PlayerState; distanceSquared: number } | null);
-
+        
       if (nearestPlayer) {
         enemy.targetId = nearestPlayer.player.id;
         io.emit('enemyUpdated', enemy);

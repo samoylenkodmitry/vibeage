@@ -3,6 +3,8 @@
 import { useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
+import { GROUND_Y } from './moveSimulation';
+import { MoveStartMsg, MoveStopMsg } from '../../../shared/types';
 
 export default function SocketManager() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -52,6 +54,35 @@ export default function SocketManager() {
       player.rotation.y = moveData.ry;
     }
   }, []);
+
+  // Handle movement start events from server
+  const handlePlayerMoveStart = useCallback((data: {id: string, to: {x: number, z: number}, speed: number}) => {
+    updatePlayer({ 
+      id: data.id, 
+      movement: { 
+        dest: data.to, 
+        speed: data.speed, 
+        startTs: performance.now() 
+      } 
+    });
+  }, [updatePlayer]);
+
+  // Handle movement stop events from server
+  const handlePlayerMoveStop = useCallback((data: {id: string, pos: {x: number, z: number}}) => {
+    updatePlayer({ 
+      id: data.id, 
+      movement: { 
+        dest: null, 
+        speed: 0, 
+        startTs: 0 
+      },
+      position: { 
+        x: data.pos.x, 
+        y: GROUND_Y, 
+        z: data.pos.z 
+      } 
+    });
+  }, [updatePlayer]);
 
   const handleEnemyUpdated = useCallback((enemyData: any) => {
     updateEnemy(enemyData);
@@ -141,16 +172,31 @@ export default function SocketManager() {
         addPlayer(player);
       });
 
+      // Register new movement protocol handlers
+      socket.on('playerMoveStart', handlePlayerMoveStart);
+      socket.on('playerMoveStop', handlePlayerMoveStop);
+      
+      // Keep old handlers for compatibility
       socket.on('playerLeft', handlePlayerLeft);
       socket.on('playerUpdated', handlePlayerUpdated);
       socket.on('enemyUpdated', handleEnemyUpdated);
-      
-      // Add handler for the new lightweight playerMoved event
       socket.on('playerMoved', handlePlayerMoved);
     });
 
     return socket;
-  }, [setSocket, setMyPlayerId, setGameState, addPlayer, handlePlayerLeft, handlePlayerUpdated, handlePlayerMoved, handleEnemyUpdated, setConnectionStatus]);
+  }, [
+    setSocket, 
+    setMyPlayerId, 
+    setGameState, 
+    addPlayer, 
+    handlePlayerLeft, 
+    handlePlayerUpdated, 
+    handlePlayerMoved, 
+    handleEnemyUpdated, 
+    handlePlayerMoveStart, 
+    handlePlayerMoveStop, 
+    setConnectionStatus
+  ]);
 
   useEffect(() => {
     const socket = handleConnect();
@@ -187,11 +233,14 @@ export default function SocketManager() {
     debugSocketEvents('playerJoined');
     debugSocketEvents('playerUpdated');
     debugSocketEvents('gameState');
+    debugSocketEvents('playerMoveStart');
+    debugSocketEvents('playerMoveStop');
     
     // Log skill events with detailed position info
     const originalSkillEmit = socket.emit.bind(socket);
     socket.emit = function(event: string, ...args: any[]) {
-      if (event === 'castSkillRequest' || event === 'playerMove') {
+      if (event === 'castSkillRequest' || event === 'playerMove' || 
+          event === 'moveStart' || event === 'moveStop') {
         console.log(`[Socket] Emitting ${event}:`, args);
       }
       return originalSkillEmit(event, ...args);
