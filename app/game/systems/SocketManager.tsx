@@ -30,6 +30,29 @@ export default function SocketManager() {
     updatePlayer(playerData);
   }, [updatePlayer]);
 
+  // Add a more efficient player move handler that directly updates player positions
+  // without triggering full state updates
+  const handlePlayerMoved = useCallback((moveData: { 
+    id: string; 
+    x: number; 
+    y: number; 
+    z: number; 
+    ry: number;
+  }) => {
+    // Get current state and players
+    const state = useGameStore.getState();
+    const players = state.players;
+    const player = players[moveData.id];
+    
+    if (player) {
+      // Directly update the position and rotation without triggering a full state update
+      player.position.x = moveData.x;
+      player.position.y = moveData.y;
+      player.position.z = moveData.z;
+      player.rotation.y = moveData.ry;
+    }
+  }, []);
+
   const handleEnemyUpdated = useCallback((enemyData: any) => {
     updateEnemy(enemyData);
   }, [updateEnemy]);
@@ -121,10 +144,13 @@ export default function SocketManager() {
       socket.on('playerLeft', handlePlayerLeft);
       socket.on('playerUpdated', handlePlayerUpdated);
       socket.on('enemyUpdated', handleEnemyUpdated);
+      
+      // Add handler for the new lightweight playerMoved event
+      socket.on('playerMoved', handlePlayerMoved);
     });
 
     return socket;
-  }, [setSocket, setMyPlayerId, setGameState, addPlayer, handlePlayerLeft, handlePlayerUpdated, handleEnemyUpdated, setConnectionStatus]);
+  }, [setSocket, setMyPlayerId, setGameState, addPlayer, handlePlayerLeft, handlePlayerUpdated, handlePlayerMoved, handleEnemyUpdated, setConnectionStatus]);
 
   useEffect(() => {
     const socket = handleConnect();

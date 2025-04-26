@@ -55,6 +55,7 @@ interface GameState {
   socket: any | null;
   hasJoinedGame: boolean;
   targetWorldPos: { x: number, y: number, z: number } | null;
+  lastMoveSentTimeMs: number | null; // Track the last time we sent a movement update
 
   // --- Methods ---
   setSocket: (socket: any) => void;
@@ -170,6 +171,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   socket: null,
   hasJoinedGame: false,
   targetWorldPos: null,
+  lastMoveSentTimeMs: null,
 
   // --- Methods ---
   setSocket: (socketInstance: any) => {
@@ -207,6 +209,37 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentPlayer = state.players[playerData.id];
       if (!currentPlayer) return state;
       
+      // Check if this is the locally controlled player
+      const isSelf = playerData.id === state.myPlayerId;
+      
+      if (isSelf && playerData.position) {
+        // For self-controlled player, only accept server position corrections 
+        // when the error is significant (> 0.5 units)
+        const dx = currentPlayer.position.x - playerData.position.x;
+        const dz = currentPlayer.position.z - playerData.position.z;
+        const error = Math.sqrt(dx * dx + dz * dz);
+        
+        // Ignore minor position updates from server for self-controlled player
+        if (error < 0.5) {
+          // Still update other properties, just not position
+          const { position, ...otherProps } = playerData;
+          
+          // If we only had position update, return unchanged state
+          if (Object.keys(otherProps).length === 1) { // Only 'id' remains
+            return state;
+          }
+          
+          // Update other properties
+          return {
+            players: {
+              ...state.players,
+              [playerData.id]: { ...currentPlayer, ...otherProps }
+            }
+          };
+        }
+      }
+      
+      // For other players or significant corrections, process normally
       // Check if any values are actually different before updating
       const hasChanges = Object.keys(playerData).some(key => 
         playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
@@ -241,6 +274,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       console.warn('Cannot send player move: Socket not connected');
       return;
     }
+    
+    // Throttle outbound messages to reduce network traffic
+    const now = performance.now();
+    const lastSent = get().lastMoveSentTimeMs || 0;
+    
+    // Limit to 13Hz (roughly 75ms between updates)
+    if (now - lastSent < 75) {
+      return;
+    }
+    
+    // Update the last sent timestamp
+    set({ lastMoveSentTimeMs: now });
+    
     socket.emit('playerMove', { position, rotationY });
   },
 

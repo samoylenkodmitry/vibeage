@@ -46,7 +46,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
 
   // --- Constants ---
-  const playerSpeed = 10;
+  const playerSpeed = 20;
   const jumpForce = 8;
   const MOVEMENT_PRECISION = 0.1;
   const TARGET_REACHED_THRESHOLD = 0.3;
@@ -241,8 +241,9 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       }
 
       // Throttle position updates to server
+      // Now handled by gameStore throttling
       const now = Date.now();
-      if (!lastUpdateTimeTs.current || now - lastUpdateTimeTs.current >= 50) { // 20 updates per second
+      if (!lastUpdateTimeTs.current || now - lastUpdateTimeTs.current >= 50) {
         // Normalize position values to avoid floating point precision issues
         const position = playerRef.current.translation();
         const normalizedPosition = {
@@ -251,7 +252,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           z: parseFloat(position.z.toFixed(2))
         };
         
-        // Send normalized position to server
+        // Send normalized position to server - throttling handled in gameStore
         sendPlayerMove(normalizedPosition, cameraAngleRef.current);
         lastUpdateTimeTs.current = now;
       }

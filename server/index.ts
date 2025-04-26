@@ -48,9 +48,9 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['websocket', 'polling'],
+  transports: ['websocket'], // Prefer WebSocket only for better performance
   pingTimeout: 60000,
-  pingInterval: 25000,
+  pingInterval: 30000, // Increased to avoid conflict with our 20Hz update rate
   connectTimeout: 45000,
   allowEIO3: true,
   maxHttpBufferSize: 1e8,
@@ -155,7 +155,7 @@ io.on('connection', (socket: Socket) => {
     const player = Object.values(gameState.players).find(p => p.socketId === socket.id);
     if (!player) return;
 
-    const MAX_ALLOWED_SPEED = 15; // units per second
+    const MAX_ALLOWED_SPEED = 55; // units per second
     const now = Date.now();
     const deltaTime = (now - (player.lastUpdateTime || now)) / 1000; // seconds
 
@@ -174,10 +174,13 @@ io.on('connection', (socket: Socket) => {
     player.rotation.y = rotationY;
     player.lastUpdateTime = now;
 
-    socket.broadcast.emit('playerUpdated', {
+    // Send lightweight position updates instead of full player state
+    socket.broadcast.emit('playerMoved', {
       id: player.id,
-      position,
-      rotation: { x: 0, y: rotationY, z: 0 }
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      ry: rotationY
     });
   });
 
