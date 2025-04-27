@@ -27,7 +27,6 @@ interface PlayerState extends Character {
   castingProgressMs: number;
   isAlive: boolean;
   movement?: PlayerMovementState;
-  velocity?: { x: number; z: number }; // Add velocity vector for interpolation
 }
 
 // Define the structure for the overall game state received from the server
@@ -527,7 +526,6 @@ export const useGameStore = create<GameState>((set, get) => ({
               speed: 0,
               startTs: 0
             },
-            velocity: { x: 0, z: 0 },
             position: { 
               ...player.position,
               x: pos.x, 

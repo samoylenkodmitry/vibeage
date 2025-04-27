@@ -5,12 +5,7 @@ import { Vector3, Euler, Raycaster, Plane, Mesh, Vector2 } from 'three';
 import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
 import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
 import { VecXZ } from '../../../shared/messages';
-
-// Interface for remote player position snapshots
-interface RemoteSnap {
-  pos: Vector3;
-  ts: number;
-}
+import { SnapBuffer } from '../systems/interpolation';
 
 // Movement constants
 const BASE_SPEED = 20;
@@ -31,10 +26,8 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const lastPositionUpdateTimeRef = useRef(0);
   const interpolationAlphaRef = useRef(0);
   
-  // --- New snapshot interpolation refs ---
-  const prevSnapRef = useRef<RemoteSnap | null>(null);
-  const nextSnapRef = useRef<RemoteSnap | null>(null);
-  const snapTRef = useRef(0);
+  // --- Snapshot interpolation with SnapBuffer ---
+  const snapBufferRef = useRef<SnapBuffer | null>(null);
   
   // --- Controlled Player Reconciliation ---
   const pendingCorrectionRef = useRef(false);
@@ -267,33 +260,27 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       );
       camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
     } else {
-      // Remote player: Use snapshot interpolation
-      if (prevSnapRef.current && nextSnapRef.current) {
-        // Increment interpolation factor based on time
-        snapTRef.current += delta * 0.01 * (nextSnapRef.current.ts - prevSnapRef.current.ts);
+      // Remote player: Use SnapBuffer for interpolation
+      if (snapBufferRef.current && !isControlledPlayer) {
+        const INTERP_LAG = 120; // ms
+        const renderTs = performance.now() - INTERP_LAG;
+        const sample = snapBufferRef.current.sample(renderTs, playerState.movement?.speed || 25);
         
-        // Calculate interpolated position
-        const p = new Vector3().lerpVectors(
-          prevSnapRef.current.pos,
-          nextSnapRef.current.pos,
-          Math.min(snapTRef.current, 1)
-        );
-        
-        // Apply interpolated position
-        playerRef.current.setTranslation(p, true);
-        
-        // Calculate and apply rotation to face movement direction
-        if (p.distanceToSquared(currentPosition) > 0.001) {
-          const dir = new Vector3().subVectors(p, currentPosition).normalize();
-          if (dir.lengthSq() > 0.001) {
-            const targetRotation = Math.atan2(dir.x, dir.z);
-            playerRef.current.setRotation({
-              x: 0,
-              y: Math.sin(targetRotation / 2),
-              z: 0,
-              w: Math.cos(targetRotation / 2)
-            }, true);
-          }
+        if (sample) {
+          // Apply interpolated position
+          playerRef.current.setTranslation({
+            x: sample.x,
+            y: GROUND_Y,
+            z: sample.z
+          }, true);
+          
+          // Apply interpolated rotation
+          playerRef.current.setRotation({
+            x: 0,
+            y: Math.sin(sample.rot/2),
+            z: 0,
+            w: Math.cos(sample.rot/2)
+          }, true);
         }
       } else if (playerState.position) {
         // Fallback when we don't have snapshots yet
@@ -419,22 +406,14 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           correctionStartTimeRef.current = performance.now();
         }
       } else {
-        // For remote players: update interpolation snapshots
-        const newSnap: RemoteSnap = {
-          pos: new Vector3(thisPlayerSnap.pos.x, GROUND_Y, thisPlayerSnap.pos.z),
-          ts: thisPlayerSnap.ts
-        };
-        
-        // Update snapshot refs for interpolation
-        if (!prevSnapRef.current) {
-          // First snapshot received
-          prevSnapRef.current = newSnap;
-          nextSnapRef.current = newSnap;
-        } else {
-          // Shift snapshots and add new one
-          prevSnapRef.current = nextSnapRef.current;
-          nextSnapRef.current = newSnap;
-          snapTRef.current = 0; // Reset interpolation progress
+        // For remote players: use SnapBuffer for interpolation
+        if (snapBufferRef.current) {
+          snapBufferRef.current.push({
+            pos: thisPlayerSnap.pos,
+            vel: thisPlayerSnap.vel,
+            rot: playerState?.rotation?.y || 0,
+            snapTs: thisPlayerSnap.ts
+          });
         }
       }
     };
@@ -507,6 +486,13 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     return () => {
       window.removeEventListener('requestPlayerPosition', handleRequestPosition as EventListener);
     };
+  }, [isControlledPlayer]);
+
+  // Initialize the interpolation buffer on component mount
+  useEffect(() => {
+    if (!isControlledPlayer) {
+      snapBufferRef.current = new SnapBuffer();
+    }
   }, [isControlledPlayer]);
 
   // Log player state on mount

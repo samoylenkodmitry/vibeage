@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
+import { SnapBuffer } from './interpolation';
 import { 
   MoveStart, 
   MoveSync, 
@@ -11,7 +12,8 @@ import {
   PosSnap, 
   CastStart, 
   CastEnd,
-  VecXZ
+  VecXZ,
+  SkillId
 } from '../../../shared/messages';
 
 export default function SocketManager() {
@@ -23,6 +25,10 @@ export default function SocketManager() {
   const removePlayer = useGameStore(state => state.removePlayer);
   const updatePlayer = useGameStore(state => state.updatePlayer);
   const updateEnemy = useGameStore(state => state.updateEnemy);
+  
+  // Add snapBuffers for each remote player
+  const snapBuffers = useRef<Record<string, SnapBuffer>>({});
+  
   // Get connection status update functions
   const setConnectionStatus = useCallback((isConnected: boolean) => {
     useGameStore.setState({ 
@@ -79,30 +85,28 @@ export default function SocketManager() {
 
   // Handle position snapshot from server
   const handlePosSnap = useCallback((data: { snaps: PosSnap[] }) => {
-    data.snaps.forEach(snap => {
+    data.snaps.forEach(s => {
       const state = useGameStore.getState();
-      const player = state.players[snap.id];
+      const player = state.players[s.id];
       
       if (player) {
-        // Update player position and velocity
-        updatePlayer({
-          id: snap.id,
-          position: { 
-            x: snap.pos.x, 
-            y: GROUND_Y, 
-            z: snap.pos.z 
-          },
-          velocity: snap.vel
+        // Store in snap buffer
+        if (!snapBuffers.current[s.id]) snapBuffers.current[s.id] = new SnapBuffer();
+        snapBuffers.current[s.id].push({
+          pos: s.pos,
+          vel: s.vel,
+          rot: player.rotation?.y || 0,
+          snapTs: s.snapTs
         });
       }
     });
-  }, [updatePlayer]);
+  }, []);
 
   // Handle skill cast start
   const handleCastStart = useCallback((data: CastStart) => {
     updatePlayer({
       id: data.id,
-      castingSkill: data.skillId,
+      castingSkill: data.skillId as string,
       castingProgressMs: data.castMs
     });
   }, [updatePlayer]);
@@ -154,7 +158,7 @@ export default function SocketManager() {
           window.dispatchEvent(new CustomEvent('skillTriggered', { 
             detail: {
               id: `effect-${Math.random().toString(36).substring(2, 9)}`,
-              skillId: data.skillId,
+              skillId: data.skillId as string,
               sourceId: data.sourceId,
               targetId: data.targetId,
               startPosition: sourcePlayer.position,
@@ -363,7 +367,7 @@ export default function SocketManager() {
     const castReq: CastReq = {
       type: 'CastReq',
       id: myPlayerId,
-      skillId,
+      skillId: skillId as SkillId, // Cast to SkillId
       targetId,
       targetPos,
       clientTs: Date.now()

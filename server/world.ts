@@ -214,7 +214,7 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
         id: playerId,
         pos,
         vel,
-        ts: timestamp
+        snapTs: Date.now()
       });
       
       // Clear the dirty flag after including in snapshot
@@ -299,11 +299,9 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
     z: dir.z * msg.speed
   };
   
-  // Broadcast to all clients
-  socket.server.emit('msg', {
-    type: 'MoveStart',
-    ...msg
-  });
+  // Broadcast to all clients using the io instance (which we need to get from somewhere)
+  // Since we can't access socket.server directly, we'll need to use the io instance passed to the function
+  socket.server.emit('msg', msg);
 }
 
 /**
@@ -335,7 +333,7 @@ function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
         id: playerId,
         pos: serverPos,
         vel: player.velocity || { x: 0, z: 0 },
-        ts: Date.now()
+        snapTs: Date.now()
       }]
     });
   } 
