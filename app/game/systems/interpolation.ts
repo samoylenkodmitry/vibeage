@@ -4,57 +4,77 @@ export class SnapBuffer {
   private buf: Snap[] = [];
   
   push(s:Snap){ 
+    // Skip invalid entries
+    if (s === null || s === undefined || isNaN(s.snapTs)) {
+      console.warn("Skipping invalid snap entry:", s);
+      return;
+    }
+    
     this.buf.push(s); 
     while(this.buf.length > 20) this.buf.shift(); 
   }
   
   /**
-   * Returns interpolated {x,z,rot} for given renderTs; may extrapolate 
+   * Returns interpolated {x,z,rot} or extrapolated position if we're outside range 
    */
   sample(renderTs:number, speedCap:number){
-    // If buffer is empty, return null
-    if(this.buf.length === 0) return null;
-    
-    // Find two snaps surrounding renderTs
-    let i = this.buf.findIndex(s => s.snapTs > renderTs);
-    if(i <= 0){ 
-      i = 0; // too new -> extrapolate
+    try {
+      if(this.buf.length===0) return null;
+  
+      // Safety check for NaN values
+      if (isNaN(renderTs)) {
+        console.error("Invalid renderTs:", renderTs);
+        return null;
+      }
+  
+      // Find first snap with snapTs > renderTs
+      let i = this.buf.findIndex(s => s && !isNaN(s.snapTs) && s.snapTs > renderTs);
+  
+      /* Case A – we're *before* the first snap (shouldn't happen after lag),
+          just show that first snap. */
+      if(i===0){
+          const s=this.buf[0];
+          return {x:s.pos.x,z:s.pos.z,rot:s.rot};
+      }
+  
+      /* Case B – we're *between* two snaps → normal lerp. */
+      if(i>0){
+          const s0=this.buf[i-1], s1=this.buf[i];
+          const t=(renderTs-s0.snapTs)/(s1.snapTs-s0.snapTs);
+          return {
+              x: s0.pos.x + (s1.pos.x-s0.pos.x)*t,
+              z: s0.pos.z + (s1.pos.z-s0.pos.z)*t,
+              rot: lerpAngle(s0.rot,s1.rot,t)
+          };
+      }
+  
+      /* Case C – we're *after* the newest snap → **extrapolate** a bit. */
+      const sLast=this.buf[this.buf.length-1];
+      const dt = (renderTs - sLast.snapTs)/1000;
+      const maxDist = speedCap * dt * 1.2;
+      const dx = clamp(sLast.vel.x * dt, -maxDist, maxDist);
+      const dz = clamp(sLast.vel.z * dt, -maxDist, maxDist);
+      return { x: sLast.pos.x+dx, z: sLast.pos.z+dz, rot: sLast.rot };
+    } catch (err) {
+      console.error("Error in SnapBuffer.sample:", err);
+      return null;
     }
-    
-    const s0 = this.buf[Math.max(0, i-1)], s1 = this.buf[i] || s0;
-    const dt = s1.snapTs - s0.snapTs || 1;
-    const t = Math.min(1, Math.max(0, (renderTs - s0.snapTs) / dt));
-    
-    // lerp pos
-    const x = s0.pos.x + (s1.pos.x - s0.pos.x) * t;
-    const z = s0.pos.z + (s1.pos.z - s0.pos.z) * t;
-    const rot = lerpAngle(s0.rot, s1.rot, t);
-    
-    return {x, z, rot};
   }
+}
+
+/**
+ * Clamps a value between a minimum and maximum value
+ */
+function clamp(v:number, min:number, max:number){ 
+  return Math.min(max, Math.max(min, v)); 
 }
 
 /**
  * Lerps between two angles with wrapping around 2PI
  */
-function lerpAngle(a0: number, a1: number, t: number): number {
-  // Normalize angles to [0, 2PI)
-  a0 = a0 % (2 * Math.PI);
-  if (a0 < 0) a0 += 2 * Math.PI;
-  
-  a1 = a1 % (2 * Math.PI);
-  if (a1 < 0) a1 += 2 * Math.PI;
-  
-  // Find the shortest arc between the angles
-  let delta = a1 - a0;
-  
-  // Handle wrapping
-  if (delta > Math.PI) {
-    delta -= 2 * Math.PI;
-  } else if (delta < -Math.PI) {
-    delta += 2 * Math.PI;
-  }
-  
-  // Interpolate
-  return (a0 + delta * t) % (2 * Math.PI);
+function lerpAngle(a:number, b:number, t:number){
+  let d = b-a;
+  if(d > Math.PI) d -= 2*Math.PI;
+  if(d < -Math.PI) d += 2*Math.PI;
+  return a + d*t;
 }

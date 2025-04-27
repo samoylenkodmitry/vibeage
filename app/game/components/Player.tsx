@@ -207,121 +207,119 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   useFrame((_, delta) => {
     if (!playerRef.current || !playerState) return;
 
-    const currentPosition = playerRef.current.translation();
-    lastUpdateTimeTs.current = Date.now();
+    try {
+      const currentPosition = playerRef.current.translation();
+      lastUpdateTimeTs.current = Date.now();
 
-    // For controlled player, we do client-side prediction and light reconciliation
-    if (isControlledPlayer) {
-      // Check if we have a movement active
-      if (playerState.movement?.dest && targetPosition) {
-        const dest = playerState.movement.dest;
-        const speed = playerState.movement.speed;
-        
-        // Use simulated movement for predictive client updates
-        const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
-        
-        if (!isMoving) {
-          // We've arrived at destination - notify server but only once
-          if (!targetPosition) return; // Already notified server
+      // For controlled player, we do client-side prediction and light reconciliation
+      if (isControlledPlayer) {
+        // Check if we have a movement active
+        if (playerState.movement?.dest && targetPosition) {
+          const dest = playerState.movement.dest;
+          const speed = playerState.movement.speed;
           
-          // First send MoveSync then clear the movement state
-          useGameStore.getState().sendMoveSyncImmediate({ 
-            x: currentPosition.x, 
-            z: currentPosition.z 
-          });
-          setTargetPosition(null);
-        } else {
-          // Update rotation to face direction of movement
-          const dir = new Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
-          const targetRotation = Math.atan2(dir.x, dir.z);
-          playerRef.current.setNextKinematicRotation({
-            x: 0,
-            y: Math.sin(targetRotation / 2),
-            z: 0,
-            w: Math.cos(targetRotation / 2)
-          });
-        }
-      }
-
-      // Apply jump velocity if needed
-      if (moveDirection.current.jump && isGrounded && !hasJumped) {
-        playerRef.current.setLinvel({ x: 0, y: jumpForce, z: 0 });
-        moveDirection.current.jump = false;
-      }
-
-      // Update camera position
-      const distance = 15;
-      const height = 10;
-      const angle = cameraAngleRef.current;
-      camera.position.set(
-        currentPosition.x - Math.sin(angle) * distance,
-        currentPosition.y + height,
-        currentPosition.z - Math.cos(angle) * distance
-      );
-      camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
-    } else {
-      // Remote player: Use SnapBuffer for interpolation
-      if (snapBufferRef.current && !isControlledPlayer) {
-        const INTERP_LAG = 120; // ms
-        const renderTs = performance.now() - INTERP_LAG;
-        const sample = snapBufferRef.current.sample(renderTs, playerState.movement?.speed || 25);
-        
-        if (sample) {
-          // Apply interpolated position
-          playerRef.current.setTranslation({
-            x: sample.x,
-            y: GROUND_Y,
-            z: sample.z
-          }, true);
+          // Use simulated movement for predictive client updates
+          const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
           
-          // Apply interpolated rotation
-          playerRef.current.setRotation({
-            x: 0,
-            y: Math.sin(sample.rot/2),
-            z: 0,
-            w: Math.cos(sample.rot/2)
-          }, true);
+          if (!isMoving) {
+            // We've arrived at destination - notify server but only once
+            if (!targetPosition) return; // Already notified server
+            
+            // First send MoveSync then clear the movement state
+            useGameStore.getState().sendMoveSyncImmediate({ 
+              x: currentPosition.x, 
+              z: currentPosition.z 
+            });
+            setTargetPosition(null);
+          } else {
+            // Update rotation to face direction of movement
+            const dir = new Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
+            const targetRotation = Math.atan2(dir.x, dir.z);
+            playerRef.current.setNextKinematicRotation({
+              x: 0,
+              y: Math.sin(targetRotation / 2),
+              z: 0,
+              w: Math.cos(targetRotation / 2)
+            });
+          }
         }
-      } else if (playerState.position) {
-        // Fallback when we don't have snapshots yet
-        playerRef.current.setTranslation({
-          x: playerState.position.x,
-          y: playerState.position.y,
-          z: playerState.position.z
-        }, true);
-      }
-    }
-    
-    // Handle server-side correction for controlled player
-    if (isControlledPlayer && pendingCorrectionRef.current) {
-      const now = performance.now();
-      const correctionProgress = Math.min(
-        (now - correctionStartTimeRef.current) / correctionDurationRef.current, 
-        1
-      );
-      
-      if (correctionProgress < 1) {
-        // Get current position
-        const currentPos = playerRef.current.translation();
-        // Create a vector from current position to server position
-        const correctionVector = new Vector3().subVectors(
-          serverCorrectionPositionRef.current,
-          new Vector3(currentPos.x, currentPos.y, currentPos.z)
+
+        // Apply jump velocity if needed
+        if (moveDirection.current.jump && isGrounded && !hasJumped) {
+          playerRef.current.setLinvel({ x: 0, y: jumpForce, z: 0 });
+          moveDirection.current.jump = false;
+        }
+
+        // Update camera position
+        const distance = 15;
+        const height = 10;
+        const angle = cameraAngleRef.current;
+        camera.position.set(
+          currentPosition.x - Math.sin(angle) * distance,
+          currentPosition.y + height,
+          currentPosition.z - Math.cos(angle) * distance
         );
-        // Apply a fraction of the correction each frame
-        correctionVector.multiplyScalar(delta * 10); // Adjust speed factor as needed
-        
-        // Apply partial correction
-        const newPos = new Vector3(
-          currentPos.x + correctionVector.x,
-          currentPos.y + correctionVector.y,
-          currentPos.z + correctionVector.z
-        );
-        playerRef.current.setTranslation(newPos);
+        camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
       } else {
-        // Correction completed
-        pendingCorrectionRef.current = false;
+        // Remote player: Use SnapBuffer for interpolation
+        if (snapBufferRef.current && !isControlledPlayer && playerState) {
+          const INTERP_LAG = 120; // ms
+          const renderTs = Date.now() - INTERP_LAG;
+          const playerSpeed = playerState.movement?.speed || 25;
+          const sample = snapBufferRef.current.sample(renderTs, playerSpeed);
+          
+          if (sample) {
+            // Apply interpolated position
+            playerRef.current.setTranslation({
+              x: sample.x,
+              y: GROUND_Y,
+              z: sample.z
+            }, true);
+            
+            // Apply interpolated rotation
+            playerRef.current.setRotation({
+              x: 0,
+              y: Math.sin(sample.rot/2),
+              z: 0,
+              w: Math.cos(sample.rot/2)
+            }, true);
+          }
+        }
       }
+      
+      // Handle server-side correction for controlled player
+      if (isControlledPlayer && pendingCorrectionRef.current) {
+        const now = performance.now();
+        const correctionProgress = Math.min(
+          (now - correctionStartTimeRef.current) / correctionDurationRef.current, 
+          1
+        );
+        
+        if (correctionProgress < 1) {
+          // Get current position
+          const currentPos = playerRef.current.translation();
+          // Create a vector from current position to server position
+          const correctionVector = new Vector3().subVectors(
+            serverCorrectionPositionRef.current,
+            new Vector3(currentPos.x, currentPos.y, currentPos.z)
+          );
+          // Apply a fraction of the correction each frame
+          correctionVector.multiplyScalar(delta * 10); // Adjust speed factor as needed
+          
+          // Apply partial correction
+          const newPos = new Vector3(
+            currentPos.x + correctionVector.x,
+            currentPos.y + correctionVector.y,
+            currentPos.z + correctionVector.z
+          );
+          playerRef.current.setTranslation(newPos);
+        } else {
+          // Correction completed
+          pendingCorrectionRef.current = false;
+        }
+      }
+    } catch (err) {
+      console.error("Error in useFrame handler:", err);
     }
   });
 
@@ -381,10 +379,11 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     // Handle position updates from server 
     const handlePosSnap = (data: { type: string, snaps: Array<{ id: string, pos: VecXZ, vel: VecXZ, ts: number }> }) => {
       if (data.type !== 'PosSnap') return;
+      if (!data.snaps || !Array.isArray(data.snaps)) return;
       
       // Find this player's snap in the snaps array
-      const thisPlayerSnap = data.snaps.find(snap => snap.id === playerId);
-      if (!thisPlayerSnap) return;
+      const thisPlayerSnap = data.snaps.find(snap => snap && snap.id === playerId);
+      if (!thisPlayerSnap || !thisPlayerSnap.pos || !thisPlayerSnap.vel || !thisPlayerSnap.ts) return;
       
       if (isControlledPlayer) {
         // For controlled player: apply correction if needed
@@ -407,13 +406,17 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
         }
       } else {
         // For remote players: use SnapBuffer for interpolation
-        if (snapBufferRef.current) {
-          snapBufferRef.current.push({
-            pos: thisPlayerSnap.pos,
-            vel: thisPlayerSnap.vel,
-            rot: playerState?.rotation?.y || 0,
-            snapTs: thisPlayerSnap.ts
-          });
+        if (snapBufferRef.current && playerState) {
+          try {
+            snapBufferRef.current.push({
+              pos: thisPlayerSnap.pos,
+              vel: thisPlayerSnap.vel,
+              rot: playerState.rotation?.y || 0,
+              snapTs: thisPlayerSnap.ts
+            });
+          } catch (err) {
+            console.error('Error pushing to snap buffer:', err);
+          }
         }
       }
     };
@@ -424,7 +427,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     return () => {
       socket.off('msg', handlePosSnap);
     };
-  }, [playerId, socket, isControlledPlayer]);
+  }, [playerId, socket, isControlledPlayer, playerState]);
 
   // --- Effect to handle skill effect visualization ---
   useEffect(() => {
@@ -491,9 +494,18 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   // Initialize the interpolation buffer on component mount
   useEffect(() => {
     if (!isControlledPlayer) {
+      console.log(`Creating SnapBuffer for remote player ${playerId}`);
       snapBufferRef.current = new SnapBuffer();
     }
-  }, [isControlledPlayer]);
+    
+    return () => {
+      // Clean up
+      if (snapBufferRef.current && !isControlledPlayer) {
+        console.log(`Cleaning up SnapBuffer for remote player ${playerId}`);
+        snapBufferRef.current = null;
+      }
+    };
+  }, [isControlledPlayer, playerId]);
 
   // Log player state on mount
   useEffect(() => {

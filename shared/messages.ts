@@ -14,7 +14,7 @@ export interface CastReq { type: 'CastReq'; id: string; skillId: SkillId; target
 
 export type ClientMsg = MoveStart | MoveSync | CastReq
 
-export interface PosSnap { id: string; pos: VecXZ; vel: VecXZ; snapTs: number }
+export interface PosSnap { id: string; pos: VecXZ; vel: VecXZ; ts: number }
 export interface CastStart { id: string; skillId: SkillId; castMs: number; }
 export interface CastEnd { id: string; skillId: SkillId; success: boolean }
 

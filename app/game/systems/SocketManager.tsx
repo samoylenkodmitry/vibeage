@@ -85,19 +85,33 @@ export default function SocketManager() {
 
   // Handle position snapshot from server
   const handlePosSnap = useCallback((data: { snaps: PosSnap[] }) => {
+    if (!data.snaps || !Array.isArray(data.snaps)) {
+      console.warn("Invalid snaps data received:", data);
+      return;
+    }
+    
     data.snaps.forEach(s => {
-      const state = useGameStore.getState();
-      const player = state.players[s.id];
-      
-      if (player) {
-        // Store in snap buffer
-        if (!snapBuffers.current[s.id]) snapBuffers.current[s.id] = new SnapBuffer();
-        snapBuffers.current[s.id].push({
-          pos: s.pos,
-          vel: s.vel,
-          rot: player.rotation?.y || 0,
-          snapTs: s.snapTs
-        });
+      try {
+        if (!s || !s.id || !s.pos || !s.vel || typeof s.ts !== 'number') {
+          console.warn("Invalid snap entry:", s);
+          return;
+        }
+        
+        const state = useGameStore.getState();
+        const player = state.players[s.id];
+        
+        if (player) {
+          // Store in snap buffer
+          if (!snapBuffers.current[s.id]) snapBuffers.current[s.id] = new SnapBuffer();
+          snapBuffers.current[s.id].push({
+            pos: s.pos,
+            vel: s.vel,
+            rot: player.rotation?.y || 0,
+            snapTs: s.ts
+          });
+        }
+      } catch (err) {
+        console.error("Error processing position snapshot:", err);
       }
     });
   }, []);

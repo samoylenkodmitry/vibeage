@@ -214,7 +214,7 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
         id: playerId,
         pos,
         vel,
-        snapTs: Date.now()
+        ts: timestamp
       });
       
       // Clear the dirty flag after including in snapshot
