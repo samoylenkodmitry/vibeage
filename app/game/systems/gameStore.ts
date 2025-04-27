@@ -74,7 +74,7 @@ interface GameState {
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => void;
   // Legacy methods for backward compatibility
   sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => void;
-  sendMoveStop: (pos: VecXZ) => void;
+  sendMoveSyncImmediate: (pos: VecXZ) => void;
   // Other methods
   sendSelectTarget: (targetId: string | null) => void;
   sendCancelCast: () => void;
@@ -496,13 +496,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setHasJoinedGame: (joined: boolean) => set({ hasJoinedGame: joined }),
 
-  // Move stop function - tells server we've stopped moving
-  sendMoveStop: (pos: VecXZ) => {
+  // Move sync function - tells server our current position
+  sendMoveSyncImmediate: (pos: VecXZ) => {
     const socket = get().socket;
     const myPlayerId = get().myPlayerId;
     
     if (!socket || !myPlayerId) {
-      console.warn('Cannot send move stop: Socket not connected or player ID unknown');
+      console.warn('Cannot send move sync: Socket not connected or player ID unknown');
       return;
     }
     

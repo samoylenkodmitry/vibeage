@@ -68,8 +68,8 @@ export default function ActiveSkills() {
         'q': 'fireball',
         '2': 'icebolt',
         'e': 'icebolt',
-        '3': 'water',
-        'r': 'water',
+        '3': 'waterSplash',
+        'r': 'waterSplash',
         '4': 'petrify',
         'f': 'petrify'
       };

@@ -140,6 +140,9 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
     entity.position.z = dest.z;
     entity.movement.dest = null;
     entity.velocity = { x: 0, z: 0 };
+    
+    // Add a flag to indicate velocity was zeroed so we include it in the next snapshot
+    (entity as any).dirtySnap = true;
   }
 }
 
@@ -200,15 +203,26 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
     // Add velocity if moving, zero otherwise
     const vel = player.velocity || { x: 0, z: 0 };
     
-    snaps.push({
-      id: playerId,
-      pos,
-      vel,
-      ts: timestamp
-    });
+    // Always include in snapshot if player has dirty velocity flag
+    // or if player is moving (non-zero velocity)
+    const shouldInclude = (player as any).dirtySnap || 
+                         (vel.x !== 0 || vel.z !== 0) || 
+                         player.movement?.dest !== null;
+    
+    if (shouldInclude) {
+      snaps.push({
+        id: playerId,
+        pos,
+        vel,
+        ts: timestamp
+      });
+      
+      // Clear the dirty flag after including in snapshot
+      if ((player as any).dirtySnap) {
+        (player as any).dirtySnap = false;
+      }
+    }
   }
-  
-  // We could also add enemies to the snapshot if needed
   
   return snaps;
 }
@@ -379,10 +393,9 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     const targetPos = { x: target.position.x, z: target.position.z };
     const dist = distance(casterPos, targetPos);
     
-    // Check skill range
-    const MAX_SKILL_RANGE = 15; // Default range for all skills for now
-    if (dist > MAX_SKILL_RANGE) {
-      console.warn(`Target out of range: ${dist} > ${MAX_SKILL_RANGE}`);
+    // Check skill range - use skill's defined range
+    if (dist > skill.range) {
+      console.warn(`Target out of range: ${dist} > ${skill.range}`);
       return;
     }
   }
@@ -391,8 +404,11 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
   player.mana -= skill.manaCost;
   player.skillCooldownEndTs[msg.skillId] = now + skill.cooldownMs;
   
+  // Get the io server instance from socket's connection
+  const io = socket.nsp;
+  
   // Broadcast cast start
-  socket.server.emit('msg', {
+  io.emit('msg', {
     type: 'CastStart',
     id: playerId,
     skillId: msg.skillId,
@@ -403,11 +419,14 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
   setTimeout(() => {
     // Execute skill effect after cast time
     if (msg.targetId) {
-      executeSkill(player, state.enemies[msg.targetId], msg.skillId as SkillType, socket.server);
+      const target = state.enemies[msg.targetId];
+      if (target) {
+        executeSkillEffects(player, target, msg.skillId as SkillType, io, state);
+      }
     }
     
     // Broadcast cast completion
-    socket.server.emit('msg', {
+    io.emit('msg', {
       type: 'CastEnd',
       id: playerId,
       skillId: msg.skillId,
@@ -419,18 +438,19 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
 /**
  * Executes a skill's effects
  */
-function executeSkill(
+function executeSkillEffects(
   caster: PlayerState, 
   target: Enemy, 
   skillId: SkillType, 
-  server: Server
+  io: any,
+  state: GameState
 ): void {
   if (!target || !target.isAlive) return;
   
   const skill = SKILLS[skillId];
   if (!skill) return;
   
-  // Apply damage
+  // Apply damage to primary target
   if (skill.damage) {
     const oldHealth = target.health;
     target.health = Math.max(0, target.health - skill.damage);
@@ -456,6 +476,38 @@ function executeSkill(
     }
   }
   
+  // Handle area of effect damage
+  if (skill.areaOfEffect && skill.areaOfEffect > 0) {
+    Object.values(state.enemies).forEach(enemy => {
+      // Skip primary target (already damaged) and dead enemies
+      if (enemy.id === target.id || !enemy.isAlive) return;
+      
+      // Check if enemy is within AoE radius
+      const dist = distance(
+        { x: target.position.x, z: target.position.z },
+        { x: enemy.position.x, z: enemy.position.z }
+      );
+      
+      if (dist <= skill.areaOfEffect!) {
+        // Apply AoE damage
+        enemy.health = Math.max(0, enemy.health - skill.damage);
+        
+        // Handle death
+        if (enemy.health === 0) {
+          enemy.isAlive = false;
+          enemy.deathTimeTs = Date.now();
+          enemy.targetId = null;
+          
+          // Grant experience to the player
+          caster.experience += enemy.experienceValue;
+        }
+        
+        // Broadcast enemy update for AoE targets
+        io.emit('enemyUpdated', enemy);
+      }
+    });
+  }
+  
   // Apply status effect
   if (skill.statusEffect) {
     const effectId = Math.random().toString(36).substr(2, 9);
@@ -468,11 +520,11 @@ function executeSkill(
   }
   
   // Broadcast updates
-  server.emit('enemyUpdated', target);
-  server.emit('playerUpdated', caster);
+  io.emit('enemyUpdated', target);
+  io.emit('playerUpdated', caster);
   
   // Emit skillEffect event for visual effects
-  server.emit('skillEffect', {
+  io.emit('skillEffect', {
     skillId,
     sourceId: caster.id,
     targetId: target.id
