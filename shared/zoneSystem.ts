@@ -76,6 +76,14 @@ export class ZoneManager {
             zone.minLevel
         );
     }
+    
+    /**
+     * Get all available game zones
+     * @returns Array of all zones
+     */
+    getZones(): Zone[] {
+        return GAME_ZONES;
+    }
 }
 
 export const GAME_ZONES: Zone[] = [

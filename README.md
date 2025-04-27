@@ -1,61 +1,91 @@
-# VibeAge
+# Vibe Game
 
-A 3D browser-based MMORPG inspired by Lineage 2, built with modern web technologies. The name combines "vibe coding" philosophy with the legacy of classic MMORPGs.
+A multiplayer game with movement and skill systems.
 
-## Current State: Single Player Proof of Concept
+## Network Architecture
 
-Currently implemented features:
-- 3D world with dynamic zones and environments
-- Character creation and progression
-- Combat system with various skills and abilities
-- Status effects and damage over time mechanics
-- Zone-based enemy spawning and respawn system
-- Level progression and experience system
+The game uses a client-server architecture with the following components:
 
-## Roadmap to MMORPG
+### Message Protocol
 
-### Phase 1: Infrastructure
-- [ ] Server-side state management
-- [ ] Player data persistence
-- [ ] Authentication system
-- [ ] Basic chat system
+| Direction | Type | When | Payload |
+|-----------|------|------|---------|
+| Client → Server | MoveStart | Once per path | `{id, path: VecXZ[], speed, clientTs}` |
+| Client → Server | MoveSync | Every 2s or when speed/path changes | `{id, pos, clientTs}` |
+| Client → Server | CastReq | Skill button | `{skillId, targetId?, targetPos?, clientTs}` |
+| Server → Client | MoveStart | Broadcast | Same as above |
+| Server → Client | PosSnap | 10 Hz | `[{id, pos, vel, ts}]` |
+| Server → Client | CastStart/CastEnd | Skill events | `{id, skillId, castMs, success}` |
 
-### Phase 2: Multiplayer Core
-- [ ] Real-time player synchronization
-- [ ] Player-to-player interaction
-- [ ] Improved zone management for multiple players
-- [ ] Basic party system
+### Server Update Loop
 
-### Phase 3: MMORPG Features
-- [ ] Enhanced chat (global, zone, party, private)
-- [ ] Trading system
-- [ ] Group content (dungeons, raids)
-- [ ] Guild system
-- [ ] Player economy
+The server runs at a fixed 30Hz update rate with the following steps:
 
-## Tech Stack
+1. Update player positions based on their movement state
+2. Process skill effects and other game systems
+3. Send position snapshots at 10Hz to clients
 
-- **Frontend**: Next.js, Three.js, React Three Fiber
-- **State Management**: Zustand
-- **Physics**: Rapier
-- **3D UI**: React Three Drei
+### Client Prediction
 
-## Getting Started
+Clients implement:
 
-First, run the development server:
+1. Local path-finding for smoother movement
+2. Client-side prediction to reduce perceived latency 
+3. Interpolation for other player movement
+4. Rubber-band correction when server indicates position errors
+
+## Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
-# or
-yarn dev
+
+# Build for production
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to play the game.
+## Technical Notes
 
-## Contributing
+### Skill System Architecture
 
-We welcome contributions! Feel free to submit issues and pull requests.
+The skill system uses the following flow:
 
-## License
+1. **Skill Cast Request**: 
+   - Client sends `CastReq` message with `skillId` and `targetId`
+   - Server validates range, mana cost, cooldowns
+   - If valid, server broadcasts `CastStart` message
 
-This project is MIT licensed.
+2. **Casting Period**:
+   - Server waits for the skill's cast time
+   - Client shows casting animation/UI
+
+3. **Skill Execution**:
+   - Server applies skill effects (damage, status effects)
+   - Server broadcasts `CastEnd` message
+   - Server emits `skillEffect` event with source and target info
+
+4. **Visual Effects**:
+   - Client receives `skillEffect` event 
+   - `SocketManager` converts this to a DOM custom event `skillTriggered`
+   - `ActiveSkills` component listens for this event and creates the visual effect
+   - After effect animation completes, it's removed from the scene
+
+5. **State Updates**:
+   - Server sends updated health/status via `enemyUpdated` and `playerUpdated`
+   - Client UI reflects these changes
+
+This event-based system allows for decoupling of skill logic from visual effects and enables client-side prediction for responsive gameplay.
+
+- Movement system uses intent-based movement with server validation
+- Skills have range checks that account for player movement
+- Position reconciliation prevents cheating with speed hacks
+- Fixed timestep simulation provides consistent gameplay experience
+
+## Known Issues
+
+- [Current] Client sometimes gets out of sync on very long walks
+- [Current] AoEs sometimes target wrong position when player is moving
+- [Fixed] Server now properly tracks player position during movement

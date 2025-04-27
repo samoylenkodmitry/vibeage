@@ -9,8 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "build:server": "tsc -p tsconfig.server.json",
-    "start:server": "node dist/server/index.js",
-    "dev:server": "tsx watch server/index.ts",
+    "start:server": "node dist/server/server.js",
+    "dev:server": "tsx watch server/server.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\""
   },
   "dependencies": {

@@ -29,13 +29,12 @@ export interface Enemy {
     attackCooldown?: boolean;
 }
 
-// Vector with X/Z coordinates only (for ground movement)
-export interface VecXZ {
-    x: number;
-    z: number;
-}
-
 // Intent-based movement messages
+// These have been moved to shared/messages.ts
+// Only keeping old interface definitions for backward compatibility during migration
+import type { VecXZ, PlayerMovementState } from './messages';
+export type { VecXZ, PlayerMovementState };
+
 export interface MoveStartMsg {
     type: 'moveStart';
     id: string;            // playerId
@@ -50,13 +49,6 @@ export interface MoveStopMsg {
     id: string;
     pos: VecXZ;            // here the client thinks he stopped
     ts: number;
-}
-
-// Movement state for player
-export interface PlayerMovementState {
-    dest: VecXZ | null;    // null when idle
-    speed: number;         // server-clamped speed
-    startTs: number;       // server time when move accepted
 }
 
 // Update PlayerState with optional movement field

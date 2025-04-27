@@ -4,7 +4,15 @@ import { useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
-import { MoveStartMsg, MoveStopMsg } from '../../../shared/types';
+import { 
+  MoveStart, 
+  MoveSync, 
+  CastReq, 
+  PosSnap, 
+  CastStart, 
+  CastEnd,
+  VecXZ
+} from '../../../shared/messages';
 
 export default function SocketManager() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -56,31 +64,55 @@ export default function SocketManager() {
   }, []);
 
   // Handle movement start events from server
-  const handlePlayerMoveStart = useCallback((data: {id: string, to: {x: number, z: number}, speed: number}) => {
+  const handlePlayerMoveStart = useCallback((data: MoveStart) => {
+    if (!data.path || data.path.length === 0) return;
+    
     updatePlayer({ 
       id: data.id, 
       movement: { 
-        dest: data.to, 
+        dest: data.path[0], 
         speed: data.speed, 
         startTs: performance.now() 
       } 
     });
   }, [updatePlayer]);
 
-  // Handle movement stop events from server
-  const handlePlayerMoveStop = useCallback((data: {id: string, pos: {x: number, z: number}}) => {
-    updatePlayer({ 
-      id: data.id, 
-      movement: { 
-        dest: null, 
-        speed: 0, 
-        startTs: 0 
-      },
-      position: { 
-        x: data.pos.x, 
-        y: GROUND_Y, 
-        z: data.pos.z 
-      } 
+  // Handle position snapshot from server
+  const handlePosSnap = useCallback((data: { snaps: PosSnap[] }) => {
+    data.snaps.forEach(snap => {
+      const state = useGameStore.getState();
+      const player = state.players[snap.id];
+      
+      if (player) {
+        // Update player position and velocity
+        updatePlayer({
+          id: snap.id,
+          position: { 
+            x: snap.pos.x, 
+            y: GROUND_Y, 
+            z: snap.pos.z 
+          },
+          velocity: snap.vel
+        });
+      }
+    });
+  }, [updatePlayer]);
+
+  // Handle skill cast start
+  const handleCastStart = useCallback((data: CastStart) => {
+    updatePlayer({
+      id: data.id,
+      castingSkill: data.skillId,
+      castingProgressMs: data.castMs
+    });
+  }, [updatePlayer]);
+
+  // Handle skill cast end
+  const handleCastEnd = useCallback((data: CastEnd) => {
+    updatePlayer({
+      id: data.id,
+      castingSkill: null,
+      castingProgressMs: 0
     });
   }, [updatePlayer]);
 
@@ -110,7 +142,7 @@ export default function SocketManager() {
       // Set up skill-related event handlers
       socket.on('skillEffect', (data: { skillId: string, sourceId: string, targetId: string }) => {
         // Update game state based on skill effects
-        console.log('Skill effect received:', data);
+        console.log('Skill effect received from server:', data);
         
         // Get the player and target positions to create the visual effect
         const gameState = useGameStore.getState();
@@ -121,7 +153,7 @@ export default function SocketManager() {
           // Dispatch a custom event that ActiveSkills can listen for
           window.dispatchEvent(new CustomEvent('skillTriggered', { 
             detail: {
-              id: `effect-${Math.random().toString(36).substr(2, 9)}`,
+              id: `effect-${Math.random().toString(36).substring(2, 9)}`,
               skillId: data.skillId,
               sourceId: data.sourceId,
               targetId: data.targetId,
@@ -130,6 +162,16 @@ export default function SocketManager() {
               createdAtTs: Date.now()
             }
           }));
+        } else {
+          console.warn('Could not find source player or target enemy for skill effect:', {
+            skillId: data.skillId,
+            sourceId: data.sourceId,
+            targetId: data.targetId,
+            sourceMissing: !sourcePlayer,
+            targetMissing: !targetEnemy,
+            playerCount: Object.keys(gameState.players).length,
+            enemyCount: Object.keys(gameState.enemies).length
+          });
         }
       });
 
@@ -172,11 +214,26 @@ export default function SocketManager() {
         addPlayer(player);
       });
 
-      // Register new movement protocol handlers
-      socket.on('playerMoveStart', handlePlayerMoveStart);
-      socket.on('playerMoveStop', handlePlayerMoveStop);
-      
-      // Keep old handlers for compatibility
+      socket.on('msg', (msg: any) => {
+        switch (msg.type) {
+          case 'MoveStart':
+            handlePlayerMoveStart(msg);
+            break;
+          case 'PosSnap':
+            handlePosSnap(msg);
+            break;
+          case 'CastStart':
+            handleCastStart(msg);
+            break;
+          case 'CastEnd':
+            handleCastEnd(msg);
+            break;
+          default:
+            console.log('Unknown message type:', msg.type);
+        }
+      });
+
+      // Keep old handlers for compatibility during transition
       socket.on('playerLeft', handlePlayerLeft);
       socket.on('playerUpdated', handlePlayerUpdated);
       socket.on('enemyUpdated', handleEnemyUpdated);
@@ -193,8 +250,10 @@ export default function SocketManager() {
     handlePlayerUpdated, 
     handlePlayerMoved, 
     handleEnemyUpdated, 
-    handlePlayerMoveStart, 
-    handlePlayerMoveStop, 
+    handlePlayerMoveStart,
+    handlePosSnap,
+    handleCastStart,
+    handleCastEnd,
     setConnectionStatus
   ]);
 
@@ -233,20 +292,100 @@ export default function SocketManager() {
     debugSocketEvents('playerJoined');
     debugSocketEvents('playerUpdated');
     debugSocketEvents('gameState');
-    debugSocketEvents('playerMoveStart');
-    debugSocketEvents('playerMoveStop');
+    debugSocketEvents('msg');
     
-    // Log skill events with detailed position info
-    const originalSkillEmit = socket.emit.bind(socket);
+    // Log outgoing messages
+    const originalEmit = socket.emit.bind(socket);
     socket.emit = function(event: string, ...args: any[]) {
-      if (event === 'castSkillRequest' || event === 'playerMove' || 
-          event === 'moveStart' || event === 'moveStop') {
+      if (event === 'msg' || event === 'joinGame' || event === 'requestGameState') {
         console.log(`[Socket] Emitting ${event}:`, args);
       }
-      return originalSkillEmit(event, ...args);
+      return originalEmit(event, ...args);
     };
     
   }, []);
+
+  // Function to send MoveStart message
+  const sendMoveStart = useCallback((path: VecXZ[], speed: number) => {
+    const socket = useGameStore.getState().socket;
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    
+    if (!socket || !myPlayerId) return;
+    
+    const moveStart: MoveStart = {
+      type: 'MoveStart',
+      id: myPlayerId,
+      path,
+      speed,
+      clientTs: Date.now()
+    };
+    
+    socket.emit('msg', moveStart);
+    
+    // Also update local player immediately for prediction
+    updatePlayer({ 
+      id: myPlayerId, 
+      movement: { 
+        dest: path[0], 
+        speed, 
+        startTs: performance.now() 
+      } 
+    });
+  }, [updatePlayer]);
+  
+  // Function to send MoveSync message
+  const sendMoveSync = useCallback(() => {
+    const socket = useGameStore.getState().socket;
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    const players = useGameStore.getState().players;
+    
+    if (!socket || !myPlayerId || !players[myPlayerId]) return;
+    
+    const player = players[myPlayerId];
+    
+    const moveSync: MoveSync = {
+      type: 'MoveSync',
+      id: myPlayerId,
+      pos: { x: player.position.x, z: player.position.z },
+      clientTs: Date.now()
+    };
+    
+    socket.emit('msg', moveSync);
+  }, []);
+  
+  // Function to send CastReq message
+  const sendCastReq = useCallback((skillId: string, targetId?: string, targetPos?: VecXZ) => {
+    const socket = useGameStore.getState().socket;
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    
+    if (!socket || !myPlayerId) return;
+    
+    const castReq: CastReq = {
+      type: 'CastReq',
+      id: myPlayerId,
+      skillId,
+      targetId,
+      targetPos,
+      clientTs: Date.now()
+    };
+    
+    socket.emit('msg', castReq);
+  }, []);
+  
+  // Add these functions to the game store for components to use
+  useEffect(() => {
+    useGameStore.setState({
+      sendMoveStart,
+      sendMoveSync,
+      sendCastReq
+    });
+  }, [sendMoveStart, sendMoveSync, sendCastReq]);
+  
+  // Set up periodic MoveSync messages
+  useEffect(() => {
+    const syncInterval = setInterval(sendMoveSync, 2000);
+    return () => clearInterval(syncInterval);
+  }, [sendMoveSync]);
 
   return null;
 }

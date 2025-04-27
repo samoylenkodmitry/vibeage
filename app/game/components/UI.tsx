@@ -354,16 +354,15 @@ export default React.memo(function UI() {
     event.stopPropagation();
     console.log('Attempting to cast skill:', {
       skillId,
-      targetId: selectedTargetId,
-      hasSocket: !!socket
+      targetId: selectedTargetId
     });
-    if (socket && selectedTargetId) {
-      console.log('Emitting castSkillRequest event');
-      socket.emit('castSkillRequest', { skillId, targetId: selectedTargetId });
+    if (selectedTargetId) {
+      console.log('Casting skill using sendCastReq');
+      useGameStore.getState().sendCastReq(skillId, selectedTargetId);
     } else {
-      console.warn('Cannot cast skill:', !socket ? 'No socket connection' : 'No target selected');
+      console.warn('Cannot cast skill: No target selected');
     }
-  }, [socket, selectedTargetId]);
+  }, [selectedTargetId]);
 
   return (
     <div className="fixed inset-0 pointer-events-none">

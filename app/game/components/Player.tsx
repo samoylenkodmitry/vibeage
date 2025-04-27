@@ -4,7 +4,7 @@ import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier';
 import { Vector3, Euler, Raycaster, Plane, Mesh, Vector2 } from 'three';
 import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
 import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
-import { MoveStartMsg, MoveStopMsg, VecXZ } from '../../../shared/types';
+import { VecXZ } from '../../../shared/messages';
 
 // Movement constants
 const BASE_SPEED = 20;
@@ -86,24 +86,13 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       // Create target position, ensuring Y is at ground level
       const newTarget = new Vector3(intersectPoint.x, GROUND_Y, intersectPoint.z);
       
-      // Stop any previous movement
-      if (playerState.movement?.dest) {
-        emitMoveStop(playerRef.current.translation());
-      }
-      
-      // Create movement start message
+      // Get current position
       const currentPos = playerRef.current.translation();
-      const moveStartMsg: MoveStartMsg = {
-        type: 'moveStart',
-        id: playerId,
-        from: { x: currentPos.x, z: currentPos.z },
-        to: { x: newTarget.x, z: newTarget.z },
-        speed: BASE_SPEED * (keys.shift ? SPRINT_MUL : 1),
-        ts: Date.now()
-      };
       
-      // Send move start to server
-      socket.emit('moveStart', moveStartMsg);
+      // Call the store's function to send the move start message with new protocol
+      const path = [{ x: newTarget.x, z: newTarget.z }];
+      const speed = BASE_SPEED * (keys.shift ? SPRINT_MUL : 1);
+      useGameStore.getState().sendMoveStart(path, speed);
       
       // Set the target position in the component state (for local simulation)
       setTargetPosition(newTarget);
@@ -117,16 +106,8 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const emitMoveStop = useCallback((position: any) => {
     if (!socket || !playerState) return;
     
-    // Create stop message with current position
-    const moveStopMsg: MoveStopMsg = {
-      type: 'moveStop',
-      id: playerId,
-      pos: { x: position.x, z: position.z },
-      ts: Date.now()
-    };
-    
-    // Send to server
-    socket.emit('moveStop', moveStopMsg);
+    // With the new protocol, we just send a MoveSync message
+    useGameStore.getState().sendMoveStop({ x: position.x, z: position.z });
     
     // Clear local target
     setTargetPosition(null);
@@ -219,59 +200,30 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [isControlledPlayer, handleMouseClick, handleMouseDown, handleMouseUp, handleMouseMove, handleContextMenu, handleKeyDown, handleKeyUp]);
 
-  // --- Frame Update Logic ---
-  useFrame((state, delta) => {
+  // --- Update Player.tsx useFrame handler to handle position snapshots ---
+  useFrame((_, delta) => {
     if (!playerRef.current || !playerState) return;
 
     const currentPosition = playerRef.current.translation();
-    const currentVelocity = playerRef.current.linvel();
+    lastUpdateTimeTs.current = Date.now();
 
-    // --- Controlled Player Logic ---
+    // For controlled player, we do client-side prediction and light reconciliation
     if (isControlledPlayer) {
-      // Ground Check
-      const origin = { x: currentPosition.x, y: currentPosition.y + 0.1, z: currentPosition.z };
-      const ray = new rapier.Ray(origin, { x: 0, y: -1, z: 0 });
-      const hit = world.castRay(ray, 0.8, true);
-      const isNearGround = Math.abs(currentPosition.y - GROUND_Y) < 0.2;
-      const isNotRising = currentVelocity.y <= 0.01;
-      const nowGrounded = (hit !== null || isNearGround) && isNotRising;
-
-      // Only update grounded state if it actually changed
-      if (nowGrounded !== isGrounded) {
-        setIsGrounded(nowGrounded);
-        if (nowGrounded && hasJumped) {
-          setHasJumped(false);
-        }
-      }
-
-      // Only apply these physics updates if the state is actually grounded
-      if (isGrounded) {
-        // Batch physics updates to minimize state changes
-        const physicsUpdates = {
-          velocity: { x: currentVelocity.x, y: 0, z: currentVelocity.z },
-          position: currentPosition
-        };
-
-        if (Math.abs(currentPosition.y - GROUND_Y) > 0.01) {
-          physicsUpdates.position = { ...currentPosition, y: GROUND_Y };
-          playerRef.current.setTranslation(physicsUpdates.position);
-        }
-        
-        playerRef.current.setLinvel(physicsUpdates.velocity);
-      }
-
-      // Intent-based movement simulation for controlled player
-      if (isGrounded && playerState.movement?.dest) {
-        // Use the server-determined parameters for simulation
+      // Check if we have a movement active
+      if (playerState.movement?.dest && targetPosition) {
         const dest = playerState.movement.dest;
         const speed = playerState.movement.speed;
         
-        // Simulate the movement
+        // Use simulated movement for predictive client updates
         const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
         
         if (!isMoving) {
-          // We've arrived at destination - notify server
+          // We've arrived at destination - notify server but only once
+          if (!targetPosition) return; // Already notified server
+          
           emitMoveStop(playerRef.current.translation());
+          // Clear target so we don't trigger this again
+          setTargetPosition(null);
         } else {
           // Update rotation to face direction of movement
           const dir = new Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
@@ -302,15 +254,47 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       );
       camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
     } else {
-      // Remote player movement simulation
-      if (playerState.movement?.dest) {
-        // Use the server-provided movement parameters to simulate remote players
-        simulateMovement(
-          playerRef.current, 
-          playerState.movement.dest, 
-          playerState.movement.speed, 
-          delta
+      // Remote player: Use a combination of server snapshots and interpolation
+      if (playerState.movement?.dest && playerState.velocity) {
+        // Use velocity-based interpolation for smoother remote player movement
+        const playerVelocity = playerState.velocity;
+        const velVector = new Vector3(playerVelocity.x, 0, playerVelocity.z);
+        
+        // Scale velocity by delta time for frame-rate independent movement
+        velVector.multiplyScalar(delta);
+        
+        // Apply velocity-based movement
+        const newPos = new Vector3(
+          currentPosition.x + velVector.x,
+          currentPosition.y,
+          currentPosition.z + velVector.z
         );
+        
+        // If we have a destination, ensure we don't overshoot it
+        if (playerState.movement.dest) {
+          const dest = playerState.movement.dest;
+          const distToTarget = new Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).length();
+          const stepSize = velVector.length();
+          
+          if (stepSize >= distToTarget) {
+            // We would overshoot, so snap to destination
+            newPos.set(dest.x, currentPosition.y, dest.z);
+          }
+        }
+        
+        // Apply the movement
+        playerRef.current.setTranslation(newPos, true);
+        
+        // Update rotation to match movement direction (if moving)
+        if (velVector.lengthSq() > 0.001) {
+          const targetRotation = Math.atan2(velVector.x, velVector.z);
+          playerRef.current.setRotation({
+            x: 0,
+            y: Math.sin(targetRotation / 2),
+            z: 0,
+            w: Math.cos(targetRotation / 2)
+          }, true);
+        }
       } else {
         // If there's no movement data, fall back to traditional interpolation
         const now = performance.now();
@@ -431,36 +415,39 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   useEffect(() => {
     if (!isControlledPlayer || !socket) return;
 
-    const handlePlayerUpdated = (data: { id: string; position?: { x: number; y: number; z: number }; rotation: { y: number } }) => {
-      if (data.id !== playerId) return;
-      if (!data.position) {
-        console.warn(`Player update received without position data:`, data);
-        return;
-      }
+    // Handle position updates from server 
+    const handlePosSnap = (data: { type: string, snaps: Array<{ id: string, pos: VecXZ, vel: VecXZ, ts: number }> }) => {
+      if (data.type !== 'PosSnap') return;
+      
+      // Find our player in the snaps array
+      const mySnap = data.snaps.find(snap => snap.id === playerId);
+      if (!mySnap) return;
+      
       // Server is correcting our position
       const currentPosition = playerRef.current?.translation();
       if (!currentPosition) return;
       
-      const serverPosition = new Vector3(data.position.x, data.position.y, data.position.z);
+      const serverPosition = new Vector3(mySnap.pos.x, currentPosition.y, mySnap.pos.z);
       const distance = new Vector3(
         serverPosition.x - currentPosition.x,
-        serverPosition.y - currentPosition.y,
+        0, // Ignore Y differences
         serverPosition.z - currentPosition.z
       ).length();
       
       // Only apply correction if the difference is significant
-      if (distance > 0.5) {
+      if (distance > 1.0) {
         console.log(`Server correction: ${distance.toFixed(2)} units`);
         pendingCorrectionRef.current = true;
         serverCorrectionPositionRef.current.copy(serverPosition);
         correctionStartTimeRef.current = performance.now();
       }
     };
-
-    socket.on('playerUpdated', handlePlayerUpdated);
+    
+    // Listen for position snapshots
+    socket.on('msg', handlePosSnap);
     
     return () => {
-      socket.off('playerUpdated', handlePlayerUpdated);
+      socket.off('msg', handlePosSnap);
     };
   }, [isControlledPlayer, playerId, socket]);
 

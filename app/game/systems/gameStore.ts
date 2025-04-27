@@ -27,6 +27,7 @@ interface PlayerState extends Character {
   castingProgressMs: number;
   isAlive: boolean;
   movement?: PlayerMovementState;
+  velocity?: { x: number; z: number }; // Add velocity vector for interpolation
 }
 
 // Define the structure for the overall game state received from the server
@@ -60,21 +61,22 @@ interface GameState {
   lastMoveSentTimeMs: number | null; // Track the last time we sent a movement update
 
   // --- Methods ---
-  setSocket: (socket: any) => void;
+  setSocket: (socketInstance: any) => void;
   setGameState: (newState: ServerGameState) => void;
   setMyPlayerId: (id: string) => void;
   addPlayer: (player: PlayerState) => void;
   removePlayer: (playerId: string) => void;
   updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => void;
   updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => void;
-  // Legacy movement
+  // Intent-based movement - new message format
+  sendMoveStart: (path: VecXZ[], speed: number) => void;
+  sendMoveSync: () => void;
+  sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => void;
+  // Legacy methods for backward compatibility
   sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => void;
-  // Intent-based movement
-  sendMoveStart: (from: VecXZ, to: VecXZ, speed: number) => void;
   sendMoveStop: (pos: VecXZ) => void;
   // Other methods
   sendSelectTarget: (targetId: string | null) => void;
-  sendCastSkill: (skillId: string, targetId: string | null) => void;
   sendCancelCast: () => void;
   selectTarget: (targetId: string | null) => void;
   setSelectedSkill: (skillId: string | null) => void;
@@ -139,7 +141,6 @@ const selectPlayer = (id: string) => {
 };
 
 const selectSendPlayerMove = (state: GameState) => state.sendPlayerMove;
-const selectCastSkill = (state: GameState) => state.sendCastSkill;
 const selectGetPlayer = (state: GameState) => state.getMyPlayer;
 
 export {
@@ -151,7 +152,6 @@ export {
   selectSelectedTargetId,
   selectPlayer,
   selectSendPlayerMove,
-  selectCastSkill,
   selectGetPlayer,
   selectStatusEffects,
 };
@@ -299,8 +299,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     socket.emit('playerMove', { position, rotationY });
   },
 
-  // New intent-based movement methods
-  sendMoveStart: (from: VecXZ, to: VecXZ, speed: number) => {
+  // New intent-based movement methods with the new protocol
+  sendMoveStart: (path: VecXZ[], speed: number) => {
     const socket = get().socket;
     const myPlayerId = get().myPlayerId;
     
@@ -309,30 +309,69 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
     
-    socket.emit('moveStart', {
-      type: 'moveStart',
+    socket.emit('msg', {
+      type: 'MoveStart',
       id: myPlayerId,
-      from,
-      to,
+      path,
       speed,
-      ts: Date.now()
+      clientTs: Date.now()
     });
+    
+    // Also update local player immediately for smoother prediction
+    const player = get().players[myPlayerId];
+    if (player && path.length > 0) {
+      const dest = path[0];
+      set(state => ({
+        players: {
+          ...state.players,
+          [myPlayerId]: {
+            ...player,
+            movement: {
+              dest,
+              speed,
+              startTs: performance.now()
+            }
+          }
+        }
+      }));
+    }
   },
   
-  sendMoveStop: (pos: VecXZ) => {
+  sendMoveSync: () => {
     const socket = get().socket;
     const myPlayerId = get().myPlayerId;
     
     if (!socket || !myPlayerId) {
-      console.warn('Cannot send move stop: Socket not connected or player ID unknown');
       return;
     }
     
-    socket.emit('moveStop', {
-      type: 'moveStop',
+    const player = get().players[myPlayerId];
+    if (!player) return;
+    
+    socket.emit('msg', {
+      type: 'MoveSync',
       id: myPlayerId,
-      pos,
-      ts: Date.now()
+      pos: { x: player.position.x, z: player.position.z },
+      clientTs: Date.now()
+    });
+  },
+  
+  sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => {
+    const socket = get().socket;
+    const myPlayerId = get().myPlayerId;
+    
+    if (!socket || !myPlayerId) {
+      console.warn('Cannot send cast request: Socket not connected or player ID unknown');
+      return;
+    }
+    
+    socket.emit('msg', {
+      type: 'CastReq',
+      id: myPlayerId,
+      skillId,
+      targetId,
+      targetPos,
+      clientTs: Date.now()
     });
   },
 
@@ -349,12 +388,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   // --- Actions ---
   castSkill: (skillId: string) => {
     const state = get();
-    if (!state.socket || !state.selectedTargetId) return;
+    if (!state.myPlayerId || !state.selectedTargetId) return;
     
-    state.socket.emit('castSkillRequest', {
-      skillId,
-      targetId: state.selectedTargetId
-    });
+    // Use the new CastReq protocol
+    get().sendCastReq(skillId, state.selectedTargetId);
   },
 
   cancelCast: () => {
@@ -458,4 +495,47 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setHasJoinedGame: (joined: boolean) => set({ hasJoinedGame: joined }),
+
+  // Move stop function - tells server we've stopped moving
+  sendMoveStop: (pos: VecXZ) => {
+    const socket = get().socket;
+    const myPlayerId = get().myPlayerId;
+    
+    if (!socket || !myPlayerId) {
+      console.warn('Cannot send move stop: Socket not connected or player ID unknown');
+      return;
+    }
+    
+    // Send MoveSync with current position
+    socket.emit('msg', {
+      type: 'MoveSync',
+      id: myPlayerId,
+      pos,
+      clientTs: Date.now()
+    });
+    
+    // Update local player state
+    const player = get().players[myPlayerId];
+    if (player) {
+      set(state => ({
+        players: {
+          ...state.players,
+          [myPlayerId]: {
+            ...player,
+            movement: {
+              dest: null,
+              speed: 0,
+              startTs: 0
+            },
+            velocity: { x: 0, z: 0 },
+            position: { 
+              ...player.position,
+              x: pos.x, 
+              z: pos.z 
+            }
+          }
+        }
+      }));
+    }
+  },
 }));

@@ -9,8 +9,8 @@ import { IceBoltProjectile } from '../skills/IceBolt';
 import { WaterSplash } from '../skills/WaterSplash';
 import { PetrifyProjectile } from '../skills/Petrify';
 import { SKILLS } from '../models/Skill';
-import { skillEventsBus, initializeSkillEventHandling } from '../systems/skillEventsHandler';
 
+// Type definitions
 interface SkillEffect {
   id: string;
   skillId: string;
@@ -20,7 +20,25 @@ interface SkillEffect {
   createdAtTs: number;
 }
 
+interface SkillTriggeredEvent {
+  id: string;
+  skillId: string;
+  sourceId: string;
+  targetId: string;
+  startPosition: { x: number; y: number; z: number };
+  targetPosition: { x: number; y: number; z: number };
+  createdAtTs: number;
+}
+
 declare global {
+  interface WindowEventMap {
+    'skillTriggered': CustomEvent<SkillTriggeredEvent>;
+    'requestPlayerPosition': CustomEvent<{
+      effectId: string;
+      callback: (position: { x: number; y: number; z: number }) => void;
+    }>;
+  }
+  
   interface Window {
     castFireball?: () => void;
     castIceBolt?: () => void;
@@ -30,21 +48,17 @@ declare global {
 }
 
 export default function ActiveSkills() {
-  const player = useGameStore(state => state.player);
+  // Use a more stable selection from the store
+  const myPlayerId = useGameStore(state => state.myPlayerId);
+  const players = useGameStore(state => state.players);
   const enemies = useGameStore(state => state.enemies);
   const selectedTargetId = useGameStore(state => state.selectedTargetId);
-  const castingSkill = useGameStore(state => state.castingSkill);
-  const castingProgressMs = useGameStore(state => state.castingProgressMs);
-  const skillCooldownEndTs = useGameStore(state => state.skillCooldownEndTs);
-  // Remove the reference to the non-existent applySkillEffect function
-  // const applySkillEffect = useGameStore(state => state.applySkillEffect);
+  const socket = useGameStore(state => state.socket);
   
+  // State for skill effects
   const [activeEffects, setActiveEffects] = useState<SkillEffect[]>([]);
-  const [lastCastingSkill, setLastCastingSkill] = useState<string | null>(null);
-  const [completedCasts, setCompletedCasts] = useState<string[]>([]);
   
-  // Monitor skill casting
-  // Add keyboard event handlers
+  // Monitor key presses for skill casting
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!selectedTargetId) return; // No target selected
@@ -54,197 +68,120 @@ export default function ActiveSkills() {
         'q': 'fireball',
         '2': 'icebolt',
         'e': 'icebolt',
-        '3': 'waterSplash',
-        'r': 'waterSplash',
+        '3': 'water',
+        'r': 'water',
         '4': 'petrify',
         'f': 'petrify'
       };
       
       const skillId = keyToSkill[event.key.toLowerCase()];
       if (skillId && SKILLS[skillId]) {
-        useGameStore.getState().castSkill(skillId);
+        console.log('Casting skill via keyboard:', skillId);
+        useGameStore.getState().sendCastReq(skillId, selectedTargetId);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedTargetId]);
-
-  useEffect(() => {
-    // If a skill has completed casting (was casting and now isn't)
-    if (lastCastingSkill && !castingSkill) {
-      const targetEnemy = enemies.find(e => e.id === selectedTargetId);
-      
-      // If we have a valid target and the skill is valid
-      if (targetEnemy && lastCastingSkill && SKILLS[lastCastingSkill]) {
-        const castId = `${lastCastingSkill}-${Date.now()}`;
-        
-        // Record this as a completed cast
-        setCompletedCasts(prev => [...prev, castId]);
-      }
-    }
-    
-    setLastCastingSkill(castingSkill);
-  }, [castingSkill, lastCastingSkill, enemies, selectedTargetId]);
   
-  // Listen for skill effects from the server
+  // Listen for skillTriggered events
   useEffect(() => {
-    // Subscribe to skillEffect events from the socket
-    const handleSkillEffect = (data: any) => {
-      const { skillId, sourceId, targetId } = data;
-      console.log('Skill effect received:', { skillId, sourceId, targetId });
+    const handleSkillTriggered = (event: CustomEvent<SkillTriggeredEvent>) => {
+      const detail = event.detail;
+      console.log('Skill triggered event received:', detail);
       
-      // Get the source player and target enemy
-      const state = useGameStore.getState();
-      const player = state.players[sourceId];
-      const targetEnemy = state.enemies[targetId];
+      // Create a new skill effect
+      const newEffect: SkillEffect = {
+        id: detail.id,
+        skillId: detail.skillId,
+        startPosition: new Vector3(
+          detail.startPosition.x,
+          detail.startPosition.y + 1.5, // Cast from shoulder height
+          detail.startPosition.z
+        ),
+        targetPosition: new Vector3(
+          detail.targetPosition.x,
+          detail.targetPosition.y + 1.0, // Target center mass
+          detail.targetPosition.z
+        ),
+        targetId: detail.targetId,
+        createdAtTs: detail.createdAtTs
+      };
       
-      if (player && targetEnemy && skillId) {
-        // Create a new skill effect
-        const newEffect: SkillEffect = {
-          id: `effect-${Math.random().toString(36).substr(2, 9)}`,
-          skillId,
-          startPosition: new Vector3(
-            player.position.x,
-            player.position.y + 1.5, // Cast from shoulder height
-            player.position.z
-          ),
-          targetPosition: new Vector3(
-            targetEnemy.position.x,
-            targetEnemy.position.y + 1.0, // Target center mass
-            targetEnemy.position.z
-          ),
-          targetId,
-          createdAtTs: Date.now()
-        };
-        
-        // If this is the local player, use an event to get the accurate client position
-        if (sourceId === useGameStore.getState().myPlayerId) {
-          // Dispatch an event to request accurate client position
-          window.dispatchEvent(new CustomEvent('requestPlayerPosition', {
-            detail: {
-              effectId: newEffect.id,
-              callback: (clientPosition: {x: number, y: number, z: number}) => {
-                console.log('Using client position for skill effect:', clientPosition);
-                newEffect.startPosition = new Vector3(
-                  clientPosition.x,
-                  clientPosition.y + 1.5, // Cast from shoulder height
-                  clientPosition.z
-                );
-                // Add the visual effect with corrected position
-                setActiveEffects(prev => [...prev, newEffect]);
-              }
+      // If this is the local player, get accurate client-side position
+      if (detail.sourceId === myPlayerId) {
+        window.dispatchEvent(new CustomEvent('requestPlayerPosition', {
+          detail: {
+            effectId: detail.id,
+            callback: (clientPosition) => {
+              console.log('Using client position for skill effect:', clientPosition);
+              newEffect.startPosition = new Vector3(
+                clientPosition.x,
+                clientPosition.y + 1.5, // Cast from shoulder height
+                clientPosition.z
+              );
+              // Add the effect with the corrected position
+              setActiveEffects(prev => [...prev, newEffect]);
             }
-          }));
-          // Return early as we'll add the effect in the callback
-          return;
-        }
-        
-        console.log('Creating skill effect with positions:', {
-          start: {...newEffect.startPosition},
-          target: {...newEffect.targetPosition}
+          }
+        }));
+        return; // Return early as we'll add the effect in the callback
+      }
+      
+      // Add the visual effect for other players
+      setActiveEffects(prev => [...prev, newEffect]);
+    };
+    
+    // Listen for server's skillEffect events
+    const handleServerSkillEffect = (data: { skillId: string, sourceId: string, targetId: string }) => {
+      console.log('Server skillEffect received:', data);
+      
+      const sourcePlayer = players[data.sourceId];
+      const targetEnemy = enemies[data.targetId];
+      
+      if (sourcePlayer && targetEnemy) {
+        // Trigger the same event handling as the custom event
+        const triggeredEvent = new CustomEvent<SkillTriggeredEvent>('skillTriggered', {
+          detail: {
+            id: `effect-${Math.random().toString(36).substring(2, 9)}`,
+            skillId: data.skillId,
+            sourceId: data.sourceId,
+            targetId: data.targetId,
+            startPosition: sourcePlayer.position,
+            targetPosition: targetEnemy.position,
+            createdAtTs: Date.now()
+          }
         });
         
-        // Add the visual effect
-        setActiveEffects(prev => [...prev, newEffect]);
+        window.dispatchEvent(triggeredEvent);
       }
     };
     
-    // Get the socket from game store
-    const socket = useGameStore.getState().socket;
+    window.addEventListener('skillTriggered', handleSkillTriggered);
+    
     if (socket) {
-      socket.on('skillEffect', handleSkillEffect);
-      
-      return () => {
-        socket.off('skillEffect', handleSkillEffect);
-      };
+      socket.on('skillEffect', handleServerSkillEffect);
     }
-  }, []);
-  
-  // Handle skill buttons being clicked directly (for testing or instant cast)
-  const handleDirectSkillCast = useCallback((skillId: string) => {
-    const targetEnemy = enemies.find(e => e.id === selectedTargetId);
-    if (!targetEnemy || !SKILLS[skillId]) return;
     
-    // Create a new skill effect
-    const newEffect: SkillEffect = {
-      id: `effect-${Math.random().toString(36).substr(2, 9)}`,
-      skillId,
-      startPosition: new Vector3(
-        player.position.x,
-        player.position.y + 1.5,
-        player.position.z
-      ),
-      targetPosition: new Vector3(
-        targetEnemy.position.x,
-        targetEnemy.position.y + 1.0,
-        targetEnemy.position.z
-      ),
-      targetId: targetEnemy.id,
-      createdAtTs: Date.now()
-    };
-    
-    setActiveEffects(prev => [...prev, newEffect]);
-  }, [enemies, player, selectedTargetId]);
-
-  // Handle the visual effect reaching its target
-  const handleEffectHit = (effectId: string, targetId: string, skillId: string) => {
-    if (targetId) {
-      const skill = SKILLS[skillId];
-      if (skill) {
-        console.log('Skill hit target:', {skillId, targetId});
-        
-        // Get the socket to send effect application to the server
-        const socket = useGameStore.getState().socket;
-        
-        if (socket) {
-          // For water splash, apply effects to all enemies in the area
-          if (skillId === 'water') {
-            const targetEnemy = enemies.find(e => e.id === targetId);
-            if (targetEnemy) {
-              // Get the area of effect radius from skill config
-              const areaRange = skill.areaOfEffect || 5;
-              
-              // Find all enemies in the area of effect range
-              const affectedEnemies = enemies.filter(enemy => {
-                if (!enemy.isAlive) return false;
-                
-                const dx = enemy.position.x - targetEnemy.position.x;
-                const dz = enemy.position.z - targetEnemy.position.z;
-                const distance = Math.sqrt(dx * dx + dz * dz);
-                
-                return distance <= areaRange;
-              });
-              
-              console.log(`Water splash hitting ${affectedEnemies.length} enemies in range ${areaRange}`);
-              
-              // Apply effects to all enemies in range through socket event
-              affectedEnemies.forEach(enemy => {
-                socket.emit('applyEffects', { 
-                  targetId: enemy.id, 
-                  effects: skill.effects,
-                  skillId
-                });
-              });
-            }
-          } else {
-            // For all other skills, just apply to the target through socket event
-            socket.emit('applyEffects', { 
-              targetId, 
-              effects: skill.effects,
-              skillId
-            });
-          }
-        }
+    return () => {
+      window.removeEventListener('skillTriggered', handleSkillTriggered);
+      if (socket) {
+        socket.off('skillEffect', handleServerSkillEffect);
       }
-    }
+    };
+  }, [myPlayerId, players, enemies, socket]);
+  
+  // Handle the visual effect reaching its target
+  const handleEffectHit = useCallback((effectId: string, targetId: string, skillId: string) => {
+    console.log('Skill hit target:', { skillId, targetId });
     
     // Remove the effect from active effects
     setActiveEffects(prev => prev.filter(e => e.id !== effectId));
-  };
+  }, []);
   
   // Render different effects based on skill type
-  const renderEffect = (effect: SkillEffect) => {
+  const renderEffect = useCallback((effect: SkillEffect) => {
     const { id, skillId, startPosition, targetPosition, targetId } = effect;
     
     switch (skillId) {
@@ -267,17 +204,12 @@ export default function ActiveSkills() {
           />
         );
       case 'water':
-        // For water splash, we should apply the effect directly at the target position
-        // instead of as a projectile like fireball/icebolt
         return (
           <WaterSplash
             key={id}
             position={targetPosition}
-            radius={SKILLS[skillId].areaOfEffect || 3} // Use the area of effect value from the skill
-            onComplete={() => {
-              // Apply the effect immediately and then clean up
-              handleEffectHit(id, targetId, skillId);
-            }}
+            radius={SKILLS[skillId]?.areaOfEffect || 3}
+            onComplete={() => handleEffectHit(id, targetId, skillId)}
           />
         );
       case 'petrify':
@@ -289,18 +221,26 @@ export default function ActiveSkills() {
             onHit={() => handleEffectHit(id, targetId, skillId)}
           />
         );
-      // Add cases for other skills as they are implemented
       default:
+        console.warn('Unknown skill type:', skillId);
         return null;
     }
-  };
+  }, [handleEffectHit]);
   
-  // For debugging
+  // For debugging - expose global methods to manually trigger skills
   useEffect(() => {
-    window.castFireball = () => handleDirectSkillCast('fireball');
-    window.castIceBolt = () => handleDirectSkillCast('icebolt');
-    window.castWater = () => handleDirectSkillCast('water');
-    window.castPetrify = () => handleDirectSkillCast('petrify');
+    const castSkill = (skillId: string) => {
+      if (!selectedTargetId) {
+        console.warn('Cannot cast skill: No target selected');
+        return;
+      }
+      useGameStore.getState().sendCastReq(skillId, selectedTargetId);
+    };
+    
+    window.castFireball = () => castSkill('fireball');
+    window.castIceBolt = () => castSkill('icebolt');
+    window.castWater = () => castSkill('water');
+    window.castPetrify = () => castSkill('petrify');
     
     return () => {
       window.castFireball = undefined;
@@ -308,7 +248,7 @@ export default function ActiveSkills() {
       window.castWater = undefined;
       window.castPetrify = undefined;
     };
-  }, [handleDirectSkillCast]);
+  }, [selectedTargetId]);
   
   return (
     <group>
