@@ -5,8 +5,12 @@ import { SkillType } from './types.js';
 import { SKILLS_LEGACY } from './skillsAdapter.js';
 import { isPathBlocked, findValidDestination } from './collision.js';
 import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
+import { EffectManager } from './effects/manager';
+import { SKILLS, SkillId } from '../shared/skills';
 
-// Define the GameState interface
+/**
+ * Defines the GameState interface
+ */
 interface GameState {
   players: Record<string, PlayerState>;
   enemies: Record<string, Enemy>;
@@ -49,15 +53,16 @@ function distance(a: VecXZ, b: VecXZ): number {
 /**
  * Calculates the direction vector from source to destination
  */
-function calculateDirection(from: VecXZ, to: VecXZ): { x: number; z: number } {
+function calculateDir(from: VecXZ, to: VecXZ): { x: number; y: number; z: number } {
   const dx = to.x - from.x;
   const dz = to.z - from.z;
   const dist = Math.sqrt(dx * dx + dz * dz);
   
   // Normalize direction
-  if (dist === 0) return { x: 0, z: 0 };
+  if (dist === 0) return { x: 0, y: 0, z: 0 };
   return {
     x: dx / dist,
+    y: 0, // Add y component with default 0
     z: dz / dist
   };
 }
@@ -82,7 +87,7 @@ export function predictPosition(
   const elapsedSec = (timestamp - startTs) / 1000;
   
   // Calculate direction
-  const dir = calculateDirection(currentPos, dest);
+  const dir = calculateDir(currentPos, dest);
   
   // Calculate distance that would be covered by now
   const distanceCovered = speed * elapsedSec;
@@ -115,7 +120,7 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   
   // Calculate direction if not already set
   if (!entity.velocity) {
-    const dir = calculateDirection(currentPos, dest);
+    const dir = calculateDir(currentPos, dest);
     entity.velocity = {
       x: dir.x * speed,
       z: dir.z * speed
@@ -285,7 +290,7 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
   }
 
   // Calculate direction and velocity
-  const dir = calculateDirection({ x: player.position.x, z: player.position.z }, destination);
+  const dir = calculateDir({ x: player.position.x, z: player.position.z }, destination);
   
   // Update player's movement state
   player.movement = {
@@ -449,7 +454,25 @@ function executeSkillEffects(
   const skill = SKILLS_LEGACY[skillId];
   if (!skill) return;
   
-  // Apply damage to primary target
+  // Get skill from the shared/skills.ts file if available
+  const sharedSkill = SKILLS[skillId as SkillId];
+  
+  // Launch appropriate effect based on skill category from shared definition if available
+  if (sharedSkill) {
+    if (sharedSkill.cat === 'projectile') {
+      const casterPos = { x: caster.position.x, z: caster.position.z };
+      const targetPos = { x: target.position.x, z: target.position.z };
+      const dir = calculateDir(casterPos, targetPos);
+      
+      // Spawn projectile using the effect manager
+      effects.spawnProjectile(sharedSkill.id, caster, dir, target.id);
+    } else if (sharedSkill.cat === 'instant') {
+      // Spawn instant effect using the effect manager
+      effects.spawnInstant(sharedSkill.id, caster, [target.id]);
+    }
+  }
+  
+  // Apply damage to primary target (legacy code)
   if (skill.damage) {
     const oldHealth = target.health;
     target.health = Math.max(0, target.health - skill.damage);
@@ -522,7 +545,7 @@ function executeSkillEffects(
   io.emit('enemyUpdated', target);
   io.emit('playerUpdated', caster);
   
-  // Emit skillEffect event for visual effects
+  // Emit skillEffect event for visual effects (legacy support)
   io.emit('skillEffect', {
     skillId,
     sourceId: caster.id,
@@ -533,12 +556,18 @@ function executeSkillEffects(
 /**
  * Initialize the game world
  */
+// Create an effects variable at module scope
+let effects: EffectManager;
+
 export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Initialize game state
   const state: GameState = {
     players: {},
     enemies: {}
   };
+  
+  // Initialize effect manager
+  effects = new EffectManager(io, state);
   
   // Spawn initial enemies
   spawnInitialEnemies(state, zoneManager);
@@ -555,7 +584,10 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 1: Advance all entity states
     advanceAll(state, TICK);
     
-    // Step 2: Generate and broadcast PosSnap at the target rate
+    // Step 2: Update all effects
+    effects.updateAll(TICK/1000); // convert to seconds
+    
+    // Step 3: Generate and broadcast PosSnap at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
       const snaps = collectSnaps(state, now);
@@ -568,12 +600,12 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       snapAccumulator = 0;
     }
     
-    // Step 3: Process mana regeneration (less frequent)
+    // Step 4: Process mana regeneration (less frequent)
     if (snapAccumulator === 1) {
       handleManaRegeneration(state);
     }
     
-    // Step 4: Process enemy respawns (even less frequent)
+    // Step 5: Process enemy respawns (even less frequent)
     if (snapAccumulator === 2) {
       handleEnemyRespawns(state, io);
     }
