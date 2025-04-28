@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
+import { hookVfx } from './vfxDispatcher';
 import { 
   MoveStart, 
   MoveSync, 
@@ -154,15 +155,18 @@ export default function SocketManager() {
       console.log('Connected to game server, setting socket in game store');
       setConnectionStatus(true);
       setSocket(socket);  // Make sure we set the socket in the game store
+      
+      // Hook up VFX event system
+      hookVfx(socket);
 
       // Removed automatic joinGame emission to prevent duplicate player IDs
 
-      // Set up skill-related event handlers
+      // Set up skill-related event handlers - will be deprecated after migration
       socket.on('skillEffect', (data: { skillId: string, sourceId: string, targetId: string }) => {
         // Update game state based on skill effects
-        console.log('Skill effect received from server:', data);
+        console.log('Legacy skillEffect received from server:', data);
         
-        // Get the player and target positions to create the visual effect
+        // This handler will be removed after the new projectile system is confirmed working
         const gameState = useGameStore.getState();
         const sourcePlayer = gameState.players[data.sourceId];
         const targetEnemy = gameState.enemies[data.targetId];

@@ -53,8 +53,8 @@ export const SKILLS: Record<string, Skill> = {
       { type: 'burn', value: 1, durationMs: 5000 } // 5 seconds
     ]
   },
-  'water': {
-    id: 'water',
+  'waterSplash': {
+    id: 'waterSplash',
     name: 'Water Splash',
     description: 'Creates a splash of water that damages enemies and slows them down',
     icon: '/skills/water.png',

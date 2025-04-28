@@ -546,6 +546,7 @@ function executeSkillEffects(
   io.emit('playerUpdated', caster);
   
   // Emit skillEffect event for visual effects (legacy support)
+  // TODO: Remove this legacy skillEffect emission after client PR-3 is merged
   io.emit('skillEffect', {
     skillId,
     sourceId: caster.id,

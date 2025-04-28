@@ -9,6 +9,9 @@ import { IceBoltProjectile } from '../skills/IceBolt';
 import { WaterSplash } from '../skills/WaterSplash';
 import { PetrifyProjectile } from '../skills/Petrify';
 import { SKILLS } from '../models/Skill';
+import ProjectileVfx from '../vfx/ProjectileVfx';
+import SplashVfx, { spawnSplashVfx, spawnStunFlash } from '../vfx/SplashVfx';
+import { ProjSpawn, ProjHit, InstantHit } from '../../../shared/messages';
 
 // Type definitions
 interface SkillEffect {
@@ -37,6 +40,12 @@ declare global {
       effectId: string;
       callback: (position: { x: number; y: number; z: number }) => void;
     }>;
+    'projSpawn': CustomEvent<ProjSpawn>;
+    'projHit': CustomEvent<ProjHit>;
+    'projEnd': CustomEvent<{ id: string }>;
+    'instantHit': CustomEvent<InstantHit>;
+    'spawnSplash': CustomEvent<{ position: any; radius: number }>;
+    'spawnStunFlash': CustomEvent<{ position: any }>;
   }
   
   interface Window {
@@ -50,13 +59,13 @@ declare global {
 export default function ActiveSkills() {
   // Use a more stable selection from the store
   const myPlayerId = useGameStore(state => state.myPlayerId);
-  const players = useGameStore(state => state.players);
-  const enemies = useGameStore(state => state.enemies);
   const selectedTargetId = useGameStore(state => state.selectedTargetId);
   const socket = useGameStore(state => state.socket);
   
-  // State for skill effects
-  const [activeEffects, setActiveEffects] = useState<SkillEffect[]>([]);
+  // New state for projectiles
+  const [projs, setProjs] = useState<Record<string, ProjSpawn>>({});
+  const [splashes, setSplashes] = useState<{id: string, position: any, radius: number}[]>([]);
+  const [stunFlashes, setStunFlashes] = useState<{id: string, position: any}[]>([]);
   
   // Monitor key presses for skill casting
   useEffect(() => {
@@ -85,147 +94,77 @@ export default function ActiveSkills() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedTargetId]);
   
-  // Listen for skillTriggered events
+  // Listen for projectile events
   useEffect(() => {
-    const handleSkillTriggered = (event: CustomEvent<SkillTriggeredEvent>) => {
-      const detail = event.detail;
-      console.log('Skill triggered event received:', detail);
-      
-      // Create a new skill effect
-      const newEffect: SkillEffect = {
-        id: detail.id,
-        skillId: detail.skillId,
-        startPosition: new Vector3(
-          detail.startPosition.x,
-          detail.startPosition.y + 1.5, // Cast from shoulder height
-          detail.startPosition.z
-        ),
-        targetPosition: new Vector3(
-          detail.targetPosition.x,
-          detail.targetPosition.y + 1.0, // Target center mass
-          detail.targetPosition.z
-        ),
-        targetId: detail.targetId,
-        createdAtTs: detail.createdAtTs
-      };
-      
-      // If this is the local player, get accurate client-side position
-      if (detail.sourceId === myPlayerId) {
-        window.dispatchEvent(new CustomEvent('requestPlayerPosition', {
-          detail: {
-            effectId: detail.id,
-            callback: (clientPosition) => {
-              console.log('Using client position for skill effect:', clientPosition);
-              newEffect.startPosition = new Vector3(
-                clientPosition.x,
-                clientPosition.y + 1.5, // Cast from shoulder height
-                clientPosition.z
-              );
-              // Add the effect with the corrected position
-              setActiveEffects(prev => [...prev, newEffect]);
-            }
-          }
-        }));
-        return; // Return early as we'll add the effect in the callback
-      }
-      
-      // Add the visual effect for other players
-      setActiveEffects(prev => [...prev, newEffect]);
+    const spawn = (e: CustomEvent<ProjSpawn>) => {
+      console.log('Projectile spawn:', e.detail);
+      setProjs(p => ({...p, [e.detail.id]: e.detail}));
     };
     
-    // Listen for server's skillEffect events
-    const handleServerSkillEffect = (data: { skillId: string, sourceId: string, targetId: string }) => {
-      console.log('Server skillEffect received:', data);
-      
-      const sourcePlayer = players[data.sourceId];
-      const targetEnemy = enemies[data.targetId];
-      
-      if (sourcePlayer && targetEnemy) {
-        // Trigger the same event handling as the custom event
-        const triggeredEvent = new CustomEvent<SkillTriggeredEvent>('skillTriggered', {
-          detail: {
-            id: `effect-${Math.random().toString(36).substring(2, 9)}`,
-            skillId: data.skillId,
-            sourceId: data.sourceId,
-            targetId: data.targetId,
-            startPosition: sourcePlayer.position,
-            targetPosition: targetEnemy.position,
-            createdAtTs: Date.now()
-          }
-        });
-        
-        window.dispatchEvent(triggeredEvent);
-      }
+    const end = (e: CustomEvent<{id: string}>) => {
+      console.log('Projectile end:', e.detail);
+      setProjs(p => {
+        const q = {...p};
+        delete q[e.detail.id];
+        return q;
+      });
     };
     
-    window.addEventListener('skillTriggered', handleSkillTriggered);
+    const spawnSplash = (e: CustomEvent<{position: any, radius: number}>) => {
+      const id = `splash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      setSplashes(s => [...s, { id, position: e.detail.position, radius: e.detail.radius }]);
+      
+      // Auto-remove splash after animation time
+      setTimeout(() => {
+        setSplashes(s => s.filter(splash => splash.id !== id));
+      }, 1000);
+    };
     
-    if (socket) {
-      socket.on('skillEffect', handleServerSkillEffect);
-    }
+    const spawnFlash = (e: CustomEvent<{position: any}>) => {
+      const id = `flash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      setStunFlashes(s => [...s, { id, position: e.detail.position }]);
+      
+      // Auto-remove flash after animation time
+      setTimeout(() => {
+        setStunFlashes(s => s.filter(flash => flash.id !== id));
+      }, 500);
+    };
+    
+    window.addEventListener('projSpawn', spawn as EventListener);
+    window.addEventListener('projEnd', end as EventListener);
+    window.addEventListener('spawnSplash', spawnSplash as EventListener);
+    window.addEventListener('spawnStunFlash', spawnFlash as EventListener);
     
     return () => {
-      window.removeEventListener('skillTriggered', handleSkillTriggered);
-      if (socket) {
-        socket.off('skillEffect', handleServerSkillEffect);
-      }
+      window.removeEventListener('projSpawn', spawn as EventListener);
+      window.removeEventListener('projEnd', end as EventListener);
+      window.removeEventListener('spawnSplash', spawnSplash as EventListener);
+      window.removeEventListener('spawnStunFlash', spawnFlash as EventListener);
     };
-  }, [myPlayerId, players, enemies, socket]);
-  
-  // Handle the visual effect reaching its target
-  const handleEffectHit = useCallback((effectId: string, targetId: string, skillId: string) => {
-    console.log('Skill hit target:', { skillId, targetId });
-    
-    // Remove the effect from active effects
-    setActiveEffects(prev => prev.filter(e => e.id !== effectId));
   }, []);
   
-  // Render different effects based on skill type
-  const renderEffect = useCallback((effect: SkillEffect) => {
-    const { id, skillId, startPosition, targetPosition, targetId } = effect;
+  // Listen for hit events to spawn visual effects
+  useEffect(() => {
+    const hit = (e: CustomEvent<InstantHit|ProjHit>) => {
+      const detail = e.detail as any;
+      console.log('Hit event:', detail);
+      
+      if (detail.skillId === 'waterSplash') {
+        spawnSplashVfx(detail.pos || detail.targetPos, 3);
+      }
+      if (detail.skillId === 'petrify') {
+        spawnStunFlash(detail.pos || detail.targetPos);
+      }
+    };
     
-    switch (skillId) {
-      case 'fireball':
-        return (
-          <FireballProjectile 
-            key={id}
-            startPosition={startPosition}
-            targetPosition={targetPosition}
-            onHit={() => handleEffectHit(id, targetId, skillId)}
-          />
-        );
-      case 'icebolt':
-        return (
-          <IceBoltProjectile
-            key={id}
-            startPosition={startPosition}
-            targetPosition={targetPosition}
-            onHit={() => handleEffectHit(id, targetId, skillId)}
-          />
-        );
-      case 'water':
-        return (
-          <WaterSplash
-            key={id}
-            position={targetPosition}
-            radius={SKILLS[skillId]?.areaOfEffect || 3}
-            onComplete={() => handleEffectHit(id, targetId, skillId)}
-          />
-        );
-      case 'petrify':
-        return (
-          <PetrifyProjectile
-            key={id}
-            startPosition={startPosition}
-            targetPosition={targetPosition}
-            onHit={() => handleEffectHit(id, targetId, skillId)}
-          />
-        );
-      default:
-        console.warn('Unknown skill type:', skillId);
-        return null;
-    }
-  }, [handleEffectHit]);
+    window.addEventListener('instantHit', hit as EventListener);
+    window.addEventListener('projHit', hit as EventListener);
+    
+    return () => {
+      window.removeEventListener('instantHit', hit as EventListener);
+      window.removeEventListener('projHit', hit as EventListener);
+    };
+  }, []);
   
   // For debugging - expose global methods to manually trigger skills
   useEffect(() => {
@@ -239,7 +178,7 @@ export default function ActiveSkills() {
     
     window.castFireball = () => castSkill('fireball');
     window.castIceBolt = () => castSkill('icebolt');
-    window.castWater = () => castSkill('water');
+    window.castWater = () => castSkill('waterSplash'); // Changed from 'water' to 'waterSplash'
     window.castPetrify = () => castSkill('petrify');
     
     return () => {
@@ -252,7 +191,32 @@ export default function ActiveSkills() {
   
   return (
     <group>
-      {activeEffects.map(effect => renderEffect(effect))}
+      {Object.values(projs).map(p =>
+        <ProjectileVfx 
+          key={p.id} 
+          id={p.id} 
+          origin={p.origin} 
+          dir={p.dir} 
+          speed={p.speed}
+        />
+      )}
+      {splashes.map(splash => 
+        <SplashVfx 
+          key={splash.id} 
+          position={splash.position} 
+          radius={splash.radius} 
+        />
+      )}
+      {/* Keep existing stun flash for petrify - replace with custom VFX later */}
+      {stunFlashes.map(flash => (
+        <mesh 
+          key={flash.id} 
+          position={[flash.position.x, flash.position.y + 1.5, flash.position.z]}
+        >
+          <sphereGeometry args={[0.4, 16, 16]} />
+          <meshBasicMaterial color={'yellow'} transparent={true} opacity={0.8} />
+        </mesh>
+      ))}
     </group>
   );
 }
