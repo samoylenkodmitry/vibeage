@@ -4,12 +4,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGameStore } from '../systems/gameStore';
-import { FireballProjectile } from '../skills/Fireball';
-import { IceBoltProjectile } from '../skills/IceBolt';
 import { WaterSplash } from '../skills/WaterSplash';
 import { PetrifyProjectile } from '../skills/Petrify';
 import { SKILLS } from '../models/Skill';
 import ProjectileVfx from '../vfx/ProjectileVfx';
+import WaterProjectile from '../vfx/WaterProjectile';
+import FireballProjectile from '../vfx/FireballProjectile';
+import IceBoltProjectile from '../vfx/IceBoltProjectile';
 import SplashVfx, { spawnSplashVfx, spawnStunFlash } from '../vfx/SplashVfx';
 import { ProjSpawn, ProjHit, InstantHit } from '../../../shared/messages';
 
@@ -40,10 +41,10 @@ declare global {
       effectId: string;
       callback: (position: { x: number; y: number; z: number }) => void;
     }>;
-    'projSpawn': CustomEvent<ProjSpawn>;
-    'projHit': CustomEvent<ProjHit>;
-    'projEnd': CustomEvent<{ id: string }>;
-    'instantHit': CustomEvent<InstantHit>;
+    'projspawn': CustomEvent<ProjSpawn>;
+    'projhit': CustomEvent<ProjHit>;
+    'projend': CustomEvent<{ id: string }>;
+    'instanthit': CustomEvent<InstantHit>;
     'spawnSplash': CustomEvent<{ position: any; radius: number }>;
     'spawnStunFlash': CustomEvent<{ position: any }>;
   }
@@ -130,14 +131,78 @@ export default function ActiveSkills() {
       }, 500);
     };
     
-    window.addEventListener('projSpawn', spawn as EventListener);
-    window.addEventListener('projEnd', end as EventListener);
+    const hit = (e: CustomEvent<any>) => {
+      console.log('Hit event:', e.detail);
+      
+      // Handle hit effects for specific skills
+      if ('skillId' in e.detail) {
+        let position;
+        if ('pos' in e.detail) {
+          position = e.detail.pos; // ProjHit
+        } else if ('targetPos' in e.detail) {
+          position = e.detail.targetPos; // InstantHit
+        }
+        
+        if (position) {
+          // Create different effects based on skill type
+          switch (e.detail.skillId) {
+            case 'waterSplash':
+              // Create a water splash effect
+              window.dispatchEvent(new CustomEvent('spawnSplash', {
+                detail: {
+                  position: new Vector3(position.x, position.y, position.z),
+                  radius: 2
+                }
+              }));
+              break;
+              
+            case 'fireball':
+              // Create a fire explosion effect
+              window.dispatchEvent(new CustomEvent('spawnSplash', {
+                detail: {
+                  position: new Vector3(position.x, position.y, position.z),
+                  radius: 1.5,
+                  isFireExplosion: true
+                }
+              }));
+              break;
+              
+            case 'iceBolt':
+              // Create an ice shatter effect
+              window.dispatchEvent(new CustomEvent('spawnSplash', {
+                detail: {
+                  position: new Vector3(position.x, position.y, position.z),
+                  radius: 1,
+                  isIceShatter: true
+                }
+              }));
+              break;
+              
+            case 'petrify':
+              // Create a stun flash effect
+              window.dispatchEvent(new CustomEvent('spawnStunFlash', {
+                detail: {
+                  position: new Vector3(position.x, position.y, position.z)
+                }
+              }));
+              break;
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('projspawn', spawn as EventListener);
+    window.addEventListener('projend', end as EventListener);
+    window.addEventListener('projhit', hit as EventListener);
+    window.addEventListener('instanthit', hit as EventListener);
     window.addEventListener('spawnSplash', spawnSplash as EventListener);
     window.addEventListener('spawnStunFlash', spawnFlash as EventListener);
     
     return () => {
-      window.removeEventListener('projSpawn', spawn as EventListener);
-      window.removeEventListener('projEnd', end as EventListener);
+      window.removeEventListener('projspawn', spawn as EventListener);
+      window.removeEventListener('projend', end as EventListener);
+      window.removeEventListener('projhit', hit as EventListener);
+      window.removeEventListener('instanthit', hit as EventListener);
       window.removeEventListener('spawnSplash', spawnSplash as EventListener);
       window.removeEventListener('spawnStunFlash', spawnFlash as EventListener);
     };
@@ -149,20 +214,29 @@ export default function ActiveSkills() {
       const detail = e.detail as any;
       console.log('Hit event:', detail);
       
+      // Get the position from either ProjHit or InstantHit
+      const position = detail.pos || detail.targetPos;
+      
       if (detail.skillId === 'waterSplash') {
-        spawnSplashVfx(detail.pos || detail.targetPos, 3);
+        spawnSplashVfx(position, 3, 'water');
       }
-      if (detail.skillId === 'petrify') {
-        spawnStunFlash(detail.pos || detail.targetPos);
+      else if (detail.skillId === 'fireball') {
+        spawnSplashVfx(position, 2, 'fire');
+      }
+      else if (detail.skillId === 'iceBolt') {
+        spawnSplashVfx(position, 1.5, 'ice');
+      }
+      else if (detail.skillId === 'petrify') {
+        spawnStunFlash(position);
       }
     };
     
-    window.addEventListener('instantHit', hit as EventListener);
-    window.addEventListener('projHit', hit as EventListener);
+    window.addEventListener('instanthit', hit as EventListener);
+    window.addEventListener('projhit', hit as EventListener);
     
     return () => {
-      window.removeEventListener('instantHit', hit as EventListener);
-      window.removeEventListener('projHit', hit as EventListener);
+      window.removeEventListener('instanthit', hit as EventListener);
+      window.removeEventListener('projhit', hit as EventListener);
     };
   }, []);
   
@@ -191,15 +265,57 @@ export default function ActiveSkills() {
   
   return (
     <group>
-      {Object.values(projs).map(p =>
-        <ProjectileVfx 
-          key={p.id} 
-          id={p.id} 
-          origin={p.origin} 
-          dir={p.dir} 
-          speed={p.speed}
-        />
-      )}
+      {Object.values(projs).map(p => {
+        console.log('Rendering projectile:', p.id, 'skillId:', p.skillId);
+        
+        // Different visualization based on skill type
+        switch (p.skillId) {
+          case 'waterSplash':
+            return (
+              <WaterProjectile 
+                key={p.id} 
+                id={p.id}
+                origin={p.origin}
+                dir={p.dir}
+                speed={p.speed}
+              />
+            );
+            
+          case 'fireball':
+            return (
+              <FireballProjectile 
+                key={p.id} 
+                id={p.id}
+                origin={p.origin}
+                dir={p.dir}
+                speed={p.speed}
+              />
+            );
+            
+          case 'iceBolt':
+            return (
+              <IceBoltProjectile 
+                key={p.id} 
+                id={p.id}
+                origin={p.origin}
+                dir={p.dir}
+                speed={p.speed}
+              />
+            );
+            
+          default:
+            // Default projectile visualization for others
+            return (
+              <ProjectileVfx 
+                key={p.id} 
+                id={p.id} 
+                origin={p.origin} 
+                dir={p.dir} 
+                speed={p.speed}
+              />
+            );
+        }
+      })}
       {splashes.map(splash => 
         <SplashVfx 
           key={splash.id} 

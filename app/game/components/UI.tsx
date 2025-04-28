@@ -173,6 +173,13 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
     };
   }, [isUsable]);
 
+  // Map skill IDs to their correct image paths
+  const getSkillImagePath = (skillId: string) => {
+    // Special case mapping for waterSplash which uses the water image
+    if (skillId === 'waterSplash') return '/game/skills/skill_water.png';
+    return `/game/skills/skill_${skillId}.png`;
+  };
+
   return (
     <div className="flex flex-col items-center">
       <button
@@ -187,17 +194,21 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
         disabled={!isUsable}
         style={{ transition: 'transform 0.2s, box-shadow 0.2s' }}
       >
-        {/* Skill icon - using dynamic path */}
+        {/* Skill icon - using mapped path */}
         <Image 
-          src={`/game/skills/skill_${skill.id}.png`}
+          src={getSkillImagePath(skill.id)}
           alt={skill.name} 
           width={48}
           height={48}
           className="w-full h-full object-cover"
           onError={(e) => {
             // If image fails to load, show fallback
-            e.currentTarget.style.display = 'none';
-            e.currentTarget.parentElement!.innerHTML = skill.id.charAt(0).toUpperCase();
+            if (e.currentTarget.parentElement) {
+              e.currentTarget.style.display = 'none';
+              // Create a text node with the first letter instead of using innerHTML
+              const fallbackText = document.createTextNode(skill.id.charAt(0).toUpperCase());
+              e.currentTarget.parentElement.appendChild(fallbackText);
+            }
           }}
         />
         

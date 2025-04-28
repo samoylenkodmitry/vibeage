@@ -429,44 +429,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [playerId, socket, isControlledPlayer, playerState]);
 
-  // --- Effect to handle skill effect visualization ---
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleSkillEffect = (data: { skillId: string, sourceId: string, targetId: string }) => {
-      // Debug skill effect origin
-      if (data.sourceId === playerId && isControlledPlayer) {
-        const currentPosition = playerRef.current?.translation();
-        if (currentPosition) {
-          console.log('Skill origin check:', {
-            skill: data.skillId,
-            playerPosition: {
-              x: currentPosition.x.toFixed(2),
-              y: currentPosition.y.toFixed(2),
-              z: currentPosition.z.toFixed(2)
-            },
-            serverPosition: {
-              x: playerState?.position.x.toFixed(2),
-              y: playerState?.position.y.toFixed(2),
-              z: playerState?.position.z.toFixed(2)
-            },
-            positionDiff: new Vector3(
-              currentPosition.x - (playerState?.position.x || 0),
-              currentPosition.y - (playerState?.position.y || 0),
-              currentPosition.z - (playerState?.position.z || 0)
-            ).length().toFixed(2)
-          });
-        }
-      }
-    };
-
-    socket.on('skillEffect', handleSkillEffect);
-    
-    return () => {
-      socket.off('skillEffect', handleSkillEffect);
-    };
-  }, [socket, playerId, isControlledPlayer, playerState]);
-
   // --- Listen for player position requests from skill effects ---
   useEffect(() => {
     if (!isControlledPlayer || !playerRef.current) return;

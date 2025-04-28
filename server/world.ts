@@ -305,9 +305,10 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
     z: dir.z * msg.speed
   };
   
-  // Broadcast to all clients using the io instance (which we need to get from somewhere)
-  // Since we can't access socket.server directly, we'll need to use the io instance passed to the function
-  socket.server.emit('msg', msg);
+  // Instead of using socket.server.emit, we'll broadcast the message to all clients
+  // We can use socket.broadcast.emit to send to all clients except the sender
+  // or just use the io instance that's passed to the createWorld function
+  socket.broadcast.emit('msg', msg);
 }
 
 /**

@@ -4,12 +4,15 @@ import { ProjSpawn, ProjHit, ProjEnd, InstantHit } from '../../../shared/message
 type Msg = ProjSpawn|ProjHit|ProjEnd|InstantHit;
 
 export function hookVfx(socket:Socket){
+  const emit = (name:string, detail:any) =>
+    window.dispatchEvent(new CustomEvent(name.toLowerCase(), {detail}));
+
   socket.on('msg',(m:Msg)=>{
     switch(m.type){
-      case 'ProjSpawn':  window.dispatchEvent(new CustomEvent('projSpawn',{detail:m}));  break;
-      case 'ProjHit':    window.dispatchEvent(new CustomEvent('projHit',  {detail:m}));  break;
-      case 'ProjEnd':    window.dispatchEvent(new CustomEvent('projEnd',  {detail:m}));  break;
-      case 'InstantHit': window.dispatchEvent(new CustomEvent('instantHit',{detail:m})); break;
+      case 'ProjSpawn':  emit('projspawn', m); break;
+      case 'ProjHit':    emit('projhit', m); break;
+      case 'ProjEnd':    emit('projend', m); break;
+      case 'InstantHit': emit('instanthit', m); break;
     }
   });
 }
