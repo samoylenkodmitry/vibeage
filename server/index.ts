@@ -1,9 +1,11 @@
 import { createServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
-import { ZoneManager, GAME_ZONES } from '../shared/zoneSystem';
-import { Enemy, StatusEffect, MoveStartMsg, MoveStopMsg, VecXZ, PlayerMovementState } from '../shared/types';
-import { SKILLS, SkillType } from './types';
-import { isPathBlocked, findValidDestination } from './collision';
+import { ZoneManager, GAME_ZONES } from '../shared/zoneSystem.js';
+import { Enemy, StatusEffect, MoveStartMsg, MoveStopMsg, VecXZ, PlayerMovementState } from '../shared/types.js';
+import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
+import { SKILLS_LEGACY } from './skillsAdapter.js';
+import { SkillType } from './types.js';
+import { isPathBlocked, findValidDestination } from './collision.js';
 
 interface GameState {
   players: Record<string, PlayerState>;
@@ -325,7 +327,7 @@ io.on('connection', (socket: Socket) => {
       return;
     }
 
-    const skill = SKILLS[skillId as SkillType];
+    const skill = SKILLS_LEGACY[skillId as SkillType];
     if (!skill) {
       console.log('[SKILL] Invalid skill ID:', {
         skillId,
@@ -490,7 +492,7 @@ io.on('connection', (socket: Socket) => {
 
 // Handle skill completion and effects
 function handleSkillComplete(player: PlayerState, skillId: SkillType, targetId: string) {
-  const skill = SKILLS[skillId];
+  const skill = SKILLS_LEGACY[skillId];
   if (!skill) return;
 
   // Reset casting state

@@ -1,4 +1,4 @@
-import { VecXZ } from '../shared/types';
+import { VecXZ } from '../shared/types.js';
 
 // Constants for the game world
 const WORLD_BOUNDS = {

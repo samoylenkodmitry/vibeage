@@ -12,9 +12,9 @@ import {
   PosSnap, 
   CastStart, 
   CastEnd,
-  VecXZ,
-  SkillId
+  VecXZ
 } from '../../../shared/messages';
+import { SkillId } from '../../../shared/skills';
 
 export default function SocketManager() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -294,7 +294,7 @@ export default function SocketManager() {
     
     const debugSocketEvents = (eventName: string) => {
       const originalOn = socket.on.bind(socket);
-      socket.on = function(event: string, callback: Function) {
+      socket.on = function(event: string, callback: (...args: any[]) => any) {
         if (event === eventName) {
           const wrappedCallback = function(this: any, ...args: any[]) {
             console.log(`[Socket] ${event} received:`, ...args);
@@ -381,7 +381,7 @@ export default function SocketManager() {
     const castReq: CastReq = {
       type: 'CastReq',
       id: myPlayerId,
-      skillId: skillId as SkillId, // Cast to SkillId
+      skillId: skillId as SkillId,
       targetId,
       targetPos,
       clientTs: Date.now()

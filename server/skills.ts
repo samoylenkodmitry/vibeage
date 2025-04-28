@@ -1,8 +1,10 @@
 import { Server } from 'socket.io';
-import { Enemy, StatusEffect } from '../shared/types';
-import { SkillType, SKILLS } from './types';
-import { VecXZ } from '../shared/messages';
-import { predictPosition } from './world';
+import { Enemy, StatusEffect } from '../shared/types.js';
+import { SkillType } from './types.js';
+import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
+import { SKILLS_LEGACY } from './skillsAdapter.js';
+import { VecXZ } from '../shared/messages.js';
+import { predictPosition } from './world.js';
 
 interface PlayerState {
   id: string;
@@ -57,7 +59,7 @@ export function canCast(
   }
   
   // Get skill definition
-  const skillDef = SKILLS[skill.id as SkillType];
+  const skillDef = SKILLS_LEGACY[skill.id as SkillType];
   if (!skillDef) {
     return false;
   }
@@ -110,7 +112,7 @@ export function executeSkill(
   server: Server
 ): void {
   const now = Date.now();
-  const skill = SKILLS[skillId];
+  const skill = SKILLS_LEGACY[skillId];
   
   if (!skill) return;
   

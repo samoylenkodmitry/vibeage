@@ -1,9 +1,10 @@
 import { Server, Socket } from 'socket.io';
-import { ZoneManager } from '../shared/zoneSystem';
-import { Enemy, StatusEffect } from '../shared/types';
-import { SkillType, SKILLS } from './types';
-import { isPathBlocked, findValidDestination } from './collision';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages';
+import { ZoneManager } from '../shared/zoneSystem.js';
+import { Enemy, StatusEffect } from '../shared/types.js';
+import { SkillType } from './types.js';
+import { SKILLS_LEGACY } from './skillsAdapter.js';
+import { isPathBlocked, findValidDestination } from './collision.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
 
 // Define the GameState interface
 interface GameState {
@@ -358,7 +359,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
-  const skill = SKILLS[msg.skillId as SkillType];
+  const skill = SKILLS_LEGACY[msg.skillId as SkillType];
   if (!skill) {
     console.warn(`Invalid skill ID: ${msg.skillId}`);
     return;
@@ -445,7 +446,7 @@ function executeSkillEffects(
 ): void {
   if (!target || !target.isAlive) return;
   
-  const skill = SKILLS[skillId];
+  const skill = SKILLS_LEGACY[skillId];
   if (!skill) return;
   
   // Apply damage to primary target

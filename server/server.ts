@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import { ZoneManager } from '../shared/zoneSystem';
-import { initWorld } from './world';
+import { ZoneManager } from '../shared/zoneSystem.js';
+import { initWorld } from './world.js';
 
 // Create HTTP server
 const httpServer = createServer();

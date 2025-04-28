@@ -1,3 +1,5 @@
+import { SKILLS as SHARED_SKILLS, SkillId } from '../../../shared/skills';
+
 export interface Skill {
   id: string;
   name: string;
@@ -39,15 +41,15 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Fireball',
     description: 'Launches a ball of fire that deals damage and applies a burn effect',
     icon: '/skills/fireball.png',
-    damage: 20,
-    manaCost: 10,
-    cooldownMs: 2000,
-    range: 15,
+    damage: SHARED_SKILLS.fireball.dmg,
+    manaCost: SHARED_SKILLS.fireball.manaCost,
+    cooldownMs: SHARED_SKILLS.fireball.cooldownMs,
+    range: SHARED_SKILLS.fireball.range || 15,
     levelRequired: 1,
-    castTimeMs: 500,
-    projectileSpeed: 20,
+    castTimeMs: SHARED_SKILLS.fireball.castMs,
+    projectileSpeed: SHARED_SKILLS.fireball.speed,
     effects: [
-      { type: 'damage', value: 20 },
+      { type: 'damage', value: SHARED_SKILLS.fireball.dmg || 20 },
       { type: 'burn', value: 1, durationMs: 5000 } // 5 seconds
     ]
   },
@@ -56,15 +58,15 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Water Splash',
     description: 'Creates a splash of water that damages enemies and slows them down',
     icon: '/skills/water.png',
-    damage: 15,
-    manaCost: 15,
-    cooldownMs: 3000,
-    range: 10,
-    areaOfEffect: 20, 
+    damage: SHARED_SKILLS.waterSplash.dmg,
+    manaCost: SHARED_SKILLS.waterSplash.manaCost,
+    cooldownMs: SHARED_SKILLS.waterSplash.cooldownMs,
+    range: SHARED_SKILLS.waterSplash.range || 10,
+    areaOfEffect: SHARED_SKILLS.waterSplash.area || 20, 
     levelRequired: 2,
-    castTimeMs: 800,
+    castTimeMs: SHARED_SKILLS.waterSplash.castMs,
     effects: [
-      { type: 'damage', value: 15 },
+      { type: 'damage', value: SHARED_SKILLS.waterSplash.dmg || 15 },
       { type: 'waterWeakness', value: 30, durationMs: 5000 } // Makes enemy take 30% more damage from water attacks
     ]
   },
@@ -73,15 +75,15 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Ice Bolt',
     description: 'Fires a bolt of ice that poisons enemies and slows their movement',
     icon: '/skills/icebolt.png',
-    damage: 25,
-    manaCost: 20,
-    cooldownMs: 4000,
-    range: 12,
+    damage: SHARED_SKILLS.iceBolt.dmg,
+    manaCost: SHARED_SKILLS.iceBolt.manaCost,
+    cooldownMs: SHARED_SKILLS.iceBolt.cooldownMs,
+    range: SHARED_SKILLS.iceBolt.range || 12,
     levelRequired: 3,
-    castTimeMs: 1000,
-    projectileSpeed: 15,
+    castTimeMs: SHARED_SKILLS.iceBolt.castMs,
+    projectileSpeed: SHARED_SKILLS.iceBolt.speed,
     effects: [
-      { type: 'damage', value: 25 },
+      { type: 'damage', value: SHARED_SKILLS.iceBolt.dmg || 25 },
       { type: 'poison', value: 0.5, durationMs: 10000 }, // Poisons enemy for 0.5% damage for 10 seconds
       { type: 'slow', value: 50, durationMs: 10000 } // Slows enemy by 50% for 10 seconds
     ]
@@ -91,15 +93,15 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Petrify',
     description: 'Temporarily stuns an enemy, preventing them from moving or attacking',
     icon: '/skills/petrify.png',
-    damage: 20,
-    manaCost: 30,
-    cooldownMs: 10000,
-    range: 8,
+    damage: SHARED_SKILLS.petrify.dmg,
+    manaCost: SHARED_SKILLS.petrify.manaCost,
+    cooldownMs: SHARED_SKILLS.petrify.cooldownMs,
+    range: SHARED_SKILLS.petrify.range || 8,
     levelRequired: 4,
-    castTimeMs: 1500,
-    projectileSpeed: 12,
+    castTimeMs: SHARED_SKILLS.petrify.castMs,
+    projectileSpeed: SHARED_SKILLS.petrify.speed,
     effects: [
-      { type: 'damage', value: 20 },
+      { type: 'damage', value: SHARED_SKILLS.petrify.dmg || 20 },
       { type: 'stun', value: 100, durationMs: 2000 } // Stuns enemy completely for 2 seconds
     ]
   }
