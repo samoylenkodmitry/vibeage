@@ -76,7 +76,6 @@ interface GameState {
   sendMoveSyncImmediate: (pos: VecXZ) => void;
   // Other methods
   sendSelectTarget: (targetId: string | null) => void;
-  sendCancelCast: () => void;
   selectTarget: (targetId: string | null) => void;
   setSelectedSkill: (skillId: string | null) => void;
   setTargetWorldPos: (pos: { x: number, y: number, z: number } | null) => void;
@@ -391,12 +390,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     
     // Use the new CastReq protocol
     get().sendCastReq(skillId, state.selectedTargetId);
-  },
-
-  cancelCast: () => {
-    const state = get();
-    if (!state.socket) return;
-    state.socket.emit('cancelCastRequest');
   },
 
   selectTarget: (targetId: string | null) => {

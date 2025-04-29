@@ -15,7 +15,7 @@ import {
   CastEnd,
   VecXZ
 } from '../../../shared/messages';
-import { SkillId } from '../../../shared/skills';
+import { SkillId } from '../../../shared/skillsDefinition';
 
 export default function SocketManager() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -249,6 +249,12 @@ export default function SocketManager() {
             break;
           case 'CastEnd':
             handleCastEnd(msg);
+            break;
+          case 'ProjHit':
+          case 'ProjEnd':
+          case 'InstantHit':
+          case 'ProjSpawn':
+            // vfxDispatcher will handle this
             break;
           default:
             console.log('Unknown message type:', msg.type);

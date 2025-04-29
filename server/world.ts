@@ -2,7 +2,6 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect } from '../shared/types.js';
 import { SkillType } from './types.js';
-import { SKILLS_LEGACY } from './skillsAdapter.js';
 import { isPathBlocked, findValidDestination } from './collision.js';
 import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
 import { EffectManager } from './effects/manager';
@@ -365,7 +364,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
-  const skill = SKILLS_LEGACY[msg.skillId as SkillType];
+  const skill = SKILLS[msg.skillId as SkillType];
   if (!skill) {
     console.warn(`Invalid skill ID: ${msg.skillId}`);
     return;
@@ -452,11 +451,9 @@ function executeSkillEffects(
 ): void {
   if (!target || !target.isAlive) return;
   
-  const skill = SKILLS_LEGACY[skillId];
-  if (!skill) return;
-  
   // Get skill from the shared/skills.ts file if available
   const sharedSkill = SKILLS[skillId as SkillId];
+  const skill = SKILLS[skillId as SkillId];
   
   // Launch appropriate effect based on skill category from shared definition if available
   if (sharedSkill) {
@@ -473,34 +470,8 @@ function executeSkillEffects(
     }
   }
   
-  // Apply damage to primary target (legacy code)
-  if (skill.damage) {
-    const oldHealth = target.health;
-    target.health = Math.max(0, target.health - skill.damage);
-    
-    if (target.health === 0) {
-      target.isAlive = false;
-      target.deathTimeTs = Date.now();
-      target.targetId = null;
-      
-      // Grant experience to the player
-      caster.experience += target.experienceValue;
-      
-      // Check for level up
-      while (caster.experience >= caster.experienceToNextLevel) {
-        caster.level++;
-        caster.experience -= caster.experienceToNextLevel;
-        caster.experienceToNextLevel = Math.floor(caster.experienceToNextLevel * 1.5);
-        caster.maxHealth += 20;
-        caster.health = caster.maxHealth;
-        caster.maxMana += 10;
-        caster.mana = caster.maxMana;
-      }
-    }
-  }
-  
   // Handle area of effect damage
-  if (skill.areaOfEffect && skill.areaOfEffect > 0) {
+  if (skill.area && skill.area > 0) {
     Object.values(state.enemies).forEach(enemy => {
       // Skip primary target (already damaged) and dead enemies
       if (enemy.id === target.id || !enemy.isAlive) return;
@@ -511,9 +482,9 @@ function executeSkillEffects(
         { x: enemy.position.x, z: enemy.position.z }
       );
       
-      if (dist <= skill.areaOfEffect!) {
+      if (dist <= skill.area!) {
         // Apply AoE damage
-        enemy.health = Math.max(0, enemy.health - skill.damage);
+        enemy.health = Math.max(0, enemy.health - (skill.dmg || 0));
         
         // Handle death
         if (enemy.health === 0) {

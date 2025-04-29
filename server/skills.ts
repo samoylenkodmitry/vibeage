@@ -2,7 +2,6 @@ import { Server } from 'socket.io';
 import { Enemy, StatusEffect } from '../shared/types.js';
 import { SkillType } from './types.js';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
-import { SKILLS_LEGACY } from './skillsAdapter.js';
 import { VecXZ } from '../shared/messages.js';
 import { predictPosition } from './world.js';
 
@@ -59,7 +58,7 @@ export function canCast(
   }
   
   // Get skill definition
-  const skillDef = SKILLS_LEGACY[skill.id as SkillType];
+  const skillDef = SKILLS[skill.id as SkillType];
   if (!skillDef) {
     return false;
   }
@@ -112,7 +111,7 @@ export function executeSkill(
   server: Server
 ): void {
   const now = Date.now();
-  const skill = SKILLS_LEGACY[skillId];
+  const skill = SKILLS[skillId];
   
   if (!skill) return;
   
@@ -121,9 +120,9 @@ export function executeSkill(
   caster.skillCooldownEndTs[skillId] = now + skill.cooldownMs;
   
   // Apply damage
-  if (skill.damage && target) {
+  if (skill.dmg && target) {
     const oldHealth = target.health;
-    target.health = Math.max(0, target.health - skill.damage);
+    target.health = Math.max(0, target.health - skill.dmg);
     
     if (target.health === 0) {
       target.isAlive = false;
@@ -147,14 +146,23 @@ export function executeSkill(
   }
   
   // Apply status effect
-  if (skill.statusEffect && target) {
-    const effectId = Math.random().toString(36).substr(2, 9);
-    target.statusEffects.push({
-      id: effectId,
-      ...skill.statusEffect,
-      startTimeTs: now,
-      sourceSkill: skillId
-    });
+  if (skill.status && target) {
+    for (const status of skill.status) {
+      const existingEffect = target.statusEffects.find(e => e.type === status.type);
+      if (existingEffect) {
+        existingEffect.value = status.value;
+        existingEffect.durationMs = status.durationMs;
+        existingEffect.startTimeTs = now;
+      } else {
+        const effectId = Math.random().toString(36).substr(2, 9);
+        target.statusEffects.push({
+          id: effectId,
+          ...status,
+          startTimeTs: now,
+          sourceSkill: skillId,
+        });
+      }
+    }
   }
   
   // Broadcast updates
