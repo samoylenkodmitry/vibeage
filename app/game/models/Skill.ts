@@ -1,4 +1,4 @@
-import { SKILLS as SHARED_SKILLS, SkillId } from '../../../shared/skills';
+import { SKILLS as SHARED_SKILLS, SkillId } from '../../../shared/skillsDefinition';
 
 export interface Skill {
   id: string;

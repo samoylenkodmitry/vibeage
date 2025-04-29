@@ -1,6 +1,6 @@
 import { EffectEntity, Projectile, Instant } from './entities';
 import { GameState } from '../world';
-import { SKILLS, SkillId } from '../../shared/skills';
+import { SKILLS, SkillId } from '../../shared/skillsDefinition';
 import { ProjSpawn, ProjHit, ProjEnd, InstantHit } from '../../shared/messages';
 
 export class EffectManager {

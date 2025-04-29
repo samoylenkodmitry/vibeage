@@ -6,7 +6,7 @@ import { SKILLS_LEGACY } from './skillsAdapter.js';
 import { isPathBlocked, findValidDestination } from './collision.js';
 import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
 import { EffectManager } from './effects/manager';
-import { SKILLS, SkillId } from '../shared/skills';
+import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 
 /**
  * Defines the GameState interface
