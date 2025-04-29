@@ -398,7 +398,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     const dist = distance(casterPos, targetPos);
     
     // Check skill range - use skill's defined range
-    if (dist > skill.range) {
+    if (dist > (skill.range || 0)) {
       console.warn(`Target out of range: ${dist} > ${skill.range}`);
       return;
     }
@@ -416,7 +416,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     type: 'CastStart',
     id: playerId,
     skillId: msg.skillId,
-    castMs: skill.castTimeMs
+    castMs: skill.castMs
   });
   
   // Schedule cast completion
@@ -436,7 +436,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
       skillId: msg.skillId,
       success: true
     });
-  }, skill.castTimeMs);
+  }, skill.castMs);
 }
 
 /**
@@ -503,14 +503,23 @@ function executeSkillEffects(
   }
   
   // Apply status effect
-  if (skill.statusEffect) {
-    const effectId = Math.random().toString(36).substr(2, 9);
-    target.statusEffects.push({
-      id: effectId,
-      ...skill.statusEffect,
-      startTimeTs: Date.now(),
-      sourceSkill: skillId
-    });
+  if (skill.status) {
+   for (const status of skill.status) {
+      const existingEffect = target.statusEffects.find(e => e.type === status.type);
+      if (existingEffect) {
+        existingEffect.value = status.value;
+        existingEffect.durationMs = status.durationMs;
+        existingEffect.startTimeTs = Date.now();
+      } else {
+        const effectId = Math.random().toString(36).substr(2, 9);
+        target.statusEffects.push({
+          id: effectId,
+          ...status,
+          startTimeTs: Date.now(),
+          sourceSkill: skillId
+        });
+      }
+    }
   }
   
   // Broadcast updates
