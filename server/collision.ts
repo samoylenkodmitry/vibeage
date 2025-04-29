@@ -18,18 +18,18 @@ const OBSTACLES: Array<{
     height?: number;
 }> = [
     // Central lake - moved away from spawn
-    {
-        type: 'circle',
-        center: { x: 100, z: 100 }, // was { x: 0, z: 0 }
-        radius: 50
-    },
-    // Mountain area - north rectangle
-    {
-        type: 'rectangle',
-        position: { x: -100, z: 300 },
-        width: 200,
-        height: 100
-    },
+    //{
+    //    type: 'circle',
+    //    center: { x: 100, z: 100 }, // was { x: 0, z: 0 }
+    //    radius: 50
+    //},
+    //// Mountain area - north rectangle
+    //{
+    //    type: 'rectangle',
+    //    position: { x: -100, z: 300 },
+    //    width: 200,
+    //    height: 100
+    //},
     // Ruins - west rectangle
     {
         type: 'rectangle',
