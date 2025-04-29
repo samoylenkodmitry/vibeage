@@ -557,6 +557,8 @@ const TICK_RATE = 60;
 const MANA_REGEN_PER_SECOND = 2; // Mana points regenerated per second
 
 setInterval(() => {
+  /*
+  // DEPRECATED: Mana regeneration is now handled in world.ts handleManaRegeneration()
   // Process player mana regeneration
   Object.values(gameState.players).forEach(player => {
     if (player.isAlive) {
@@ -577,6 +579,7 @@ setInterval(() => {
       }
     }
   });
+  */
 
   // Process all active enemies
   Object.values(gameState.enemies).forEach(enemy => {

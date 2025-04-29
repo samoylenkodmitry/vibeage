@@ -604,7 +604,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Step 4: Process mana regeneration (less frequent)
     if (snapAccumulator === 1) {
-      handleManaRegeneration(state);
+      handleManaRegeneration(state, io);
     }
     
     // Step 5: Process enemy respawns (even less frequent)
@@ -715,13 +715,25 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
 /**
  * Handle mana regeneration for all players
  */
-function handleManaRegeneration(state: GameState) {
+function handleManaRegeneration(state: GameState, io: Server) {
   const MANA_REGEN_PER_SECOND = 2;
   
   for (const playerId in state.players) {
     const player = state.players[playerId];
     if (player.isAlive && player.mana < player.maxMana) {
-      player.mana = Math.min(player.maxMana, player.mana + MANA_REGEN_PER_SECOND / 10);
+      const oldMana = player.mana;
+      // Since this function is called less frequently than the old system,
+      // we regenerate more mana per call to achieve the same rate over time
+      player.mana = Math.min(player.maxMana, player.mana + MANA_REGEN_PER_SECOND);
+      
+      // Only broadcast if mana actually changed (avoiding precision issues)
+      if (Math.abs(player.mana - oldMana) > 0.01) {
+        // Broadcast mana update to all clients
+        io.emit('playerUpdated', {
+          id: player.id,
+          mana: player.mana
+        });
+      }
     }
   }
 }
