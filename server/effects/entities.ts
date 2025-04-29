@@ -34,7 +34,11 @@ export class Projectile implements EffectEntity {
         const t = state.enemies[this.targetId] || state.players[this.targetId];
         if(t && distanceXZ(this.pos, t.position) <= 0.5) {
             this.done = true;
-            applySkillDamage(this.skill, t, state);
+            
+            // Add casterId to skill for XP calculation
+            const skillWithCaster = {...this.skill, casterId: this.casterId};
+            
+            applySkillDamage(skillWithCaster, t, state);
             hitMsgs.push({type: 'ProjHit', id: this.id, pos: this.pos, hitIds: [t.id]});
         }
      }
@@ -54,12 +58,23 @@ export class Instant implements EffectEntity {
   update(dt: number, state: GameState): InstantHit[] {
      if(this.done) return [];
      this.done = true;
+     
      /* immediately apply damage to targets */
+     for (const targetId of this.targetIds) {
+       const target = state.enemies[targetId] || state.players[targetId];
+       if (target) {
+         // Add casterId to skill for XP calculation
+         const skillWithCaster = {...this.skill, casterId: this.casterId};
+         
+         applySkillDamage(skillWithCaster, target, state);
+       }
+     }
+     
      return [{
        type: 'InstantHit',
        skillId: this.skill.id,
        origin: this.origin,
-       targetPos: this.origin,      // for now
+       targetPos: this.origin,
        hitIds: this.targetIds
      }];
   }
@@ -73,12 +88,37 @@ export function distanceXZ(a: VecXZ, b: VecXZ): number {
 }
 
 export function applySkillDamage(skill: SkillDef, target: any, state: GameState) {
-  // Copy implementation from existing code
-  if (skill.damage) {
-    target.hp -= skill.damage;
-    if (target.hp <= 0) {
-      target.hp = 0;
-      target.alive = false;
+  // Apply damage from skill to target
+  if (skill.dmg) {
+    target.health -= skill.dmg;
+    if (target.health <= 0) {
+      target.health = 0;
+      target.isAlive = false;
+      target.deathTimeTs = Date.now();
+      
+      // Clear target if this is an enemy
+      if (target.targetId !== undefined) {
+        target.targetId = null;
+        
+        // If this is an enemy, grant XP to the player who killed it
+        if (state.players && skill.casterId) {
+          const killer = state.players[skill.casterId];
+          if (killer && target.experienceValue) {
+            killer.experience += target.experienceValue;
+            
+            // Check for level up
+            while (killer.experience >= killer.experienceToNextLevel) {
+              killer.level++;
+              killer.experience -= killer.experienceToNextLevel;
+              killer.experienceToNextLevel = Math.floor(killer.experienceToNextLevel * 1.5);
+              killer.maxHealth += 20;
+              killer.health = killer.maxHealth;
+              killer.maxMana += 10;
+              killer.mana = killer.maxMana;
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -32,15 +32,43 @@ export class EffectManager {
   }
   
   updateAll(dt) {
+      const updatedEnemies = new Set<string>();
+      const updatedPlayers = new Set<string>();
+      
       for(const id in this.effects) {
           const e = this.effects[id];
           const msgs = e.update(dt, this.state);
-          msgs.forEach(m => this.io.emit('msg', m));
+          
+          // Collect IDs of targets that got hit
+          msgs.forEach(m => {
+              this.io.emit('msg', m);
+              
+              // Track which entities need updates
+              if (m.type === 'ProjHit' || m.type === 'InstantHit') {
+                  (m.hitIds || []).forEach(hitId => {
+                      if (this.state.enemies[hitId]) {
+                          updatedEnemies.add(hitId);
+                      } else if (this.state.players[hitId]) {
+                          updatedPlayers.add(hitId);
+                      }
+                  });
+              }
+          });
+          
           if(e.done) {
-             delete this.effects[id];
-             if(e instanceof Projectile)
-                 this.io.emit('msg', {type: 'ProjEnd', id: e.id, pos: e.pos});
+              delete this.effects[id];
+              if(e instanceof Projectile)
+                  this.io.emit('msg', {type: 'ProjEnd', id: e.id, pos: e.pos});
           }
       }
+      
+      // Send updates for all affected entities
+      updatedEnemies.forEach(enemyId => {
+          this.io.emit('enemyUpdated', this.state.enemies[enemyId]);
+      });
+      
+      updatedPlayers.forEach(playerId => {
+          this.io.emit('playerUpdated', this.state.players[playerId]);
+      });
   }
 }
