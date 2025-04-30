@@ -217,3 +217,78 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
     console.log('[COLLISION] No valid destination found, returning start', { start, dest });
     return { ...start };
 }
+
+/**
+ * Check if a moving point with initial position a0 and final position a1
+ * collides with a stationary circle at bPos with radius bRadius
+ * Implements swept AABB collision detection for projectiles
+ * @param a0 Initial position of the moving point
+ * @param a1 Final position of the moving point
+ * @param bPos Position of the stationary circle
+ * @param bRadius Radius of the stationary circle (default 0.4)
+ * @returns true if collision occurs
+ */
+export function sweptHit(
+  a0: VecXZ, 
+  a1: VecXZ,
+  bPos: VecXZ, 
+  bRadius = 0.4
+): boolean {
+  // Use a consistent and generous hit radius
+  const hitRadius = bRadius * 3.0; // Triple the hit radius for more reliable detection
+  
+  // Log hit check details for debugging
+  console.log(`[HIT-CHECK] Projectile from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with hit radius ${hitRadius}`);
+  
+  // SIMPLE APPROACH FIRST: Direct distance check at any point
+  // Check distance at initial position
+  const initialDist = Math.sqrt(Math.pow(a0.x - bPos.x, 2) + Math.pow(a0.z - bPos.z, 2));
+  if (initialDist <= hitRadius) {
+    console.log(`[HIT-CHECK] Direct hit at initial position! Distance: ${initialDist.toFixed(2)} <= ${hitRadius}`);
+    return true;
+  }
+  
+  // Check distance at final position
+  const finalDist = Math.sqrt(Math.pow(a1.x - bPos.x, 2) + Math.pow(a1.z - bPos.z, 2));
+  if (finalDist <= hitRadius) {
+    console.log(`[HIT-CHECK] Direct hit at final position! Distance: ${finalDist.toFixed(2)} <= ${hitRadius}`);
+    return true;
+  }
+  
+  // SWEPT APPROACH: Check if projectile passes through the target
+  // Get direction and length of movement
+  const dx = a1.x - a0.x;
+  const dz = a1.z - a0.z;
+  const lengthSq = dx * dx + dz * dz;
+  
+  // Skip if no movement
+  if (lengthSq < 0.0001) return false;
+  
+  // Get vector from start position to target center
+  const cx = bPos.x - a0.x;
+  const cz = bPos.z - a0.z;
+  
+  // Project target onto movement line to find closest point
+  const t = Math.max(0, Math.min(1, (cx * dx + cz * dz) / lengthSq));
+  
+  // Find the closest point on the movement line segment
+  const closestX = a0.x + t * dx;
+  const closestZ = a0.z + t * dz;
+  
+  // Get distance from closest point to target
+  const closestDist = Math.sqrt(Math.pow(closestX - bPos.x, 2) + Math.pow(closestZ - bPos.z, 2));
+  
+  console.log(`[HIT-CHECK] Closest approach at t=${t.toFixed(2)}, distance: ${closestDist.toFixed(2)}, hit radius: ${hitRadius}`);
+  
+  // Check if this closest distance is less than the hit radius
+  const hit = closestDist <= hitRadius;
+  
+  // Additional debug logging
+  if (hit) {
+    console.log(`[HIT-CHECK] HIT! Projectile passes within ${closestDist.toFixed(2)} units of target (hit radius: ${hitRadius})`);
+  } else {
+    console.log(`[HIT-CHECK] MISS. Closest approach: ${closestDist.toFixed(2)} > ${hitRadius}`);
+  }
+  
+  return hit;
+}

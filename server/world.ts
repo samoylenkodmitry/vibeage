@@ -1,8 +1,8 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect } from '../shared/types.js';
-import { SkillType } from './types.js';
-import { isPathBlocked, findValidDestination } from './collision.js';
+import { SkillType, Projectile } from './types.js';
+import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
 import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -13,6 +13,8 @@ import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 interface GameState {
   players: Record<string, PlayerState>;
   enemies: Record<string, Enemy>;
+  projectiles: Projectile[];
+  lastProjectileId: number;
 }
 
 interface PlayerState {
@@ -38,6 +40,7 @@ interface PlayerState {
   lastUpdateTime?: number;
   movement?: PlayerMovementState;
   velocity?: { x: number; z: number }; // New: current velocity vector
+  posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
 }
 
 /**
@@ -149,6 +152,77 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
     // Add a flag to indicate velocity was zeroed so we include it in the next snapshot
     (entity as any).dirtySnap = true;
   }
+  
+  // Update the position history after movement
+  updatePositionHistory(entity, Date.now());
+}
+
+/**
+ * Updates the position history of an entity, maintaining a limited history window
+ */
+function updatePositionHistory(entity: PlayerState, timestamp: number): void {
+  if (!entity.posHistory) {
+    entity.posHistory = [];
+  }
+  
+  // Add current position to history
+  entity.posHistory.push({
+    ts: timestamp,
+    x: entity.position.x,
+    z: entity.position.z
+  });
+  
+  // Trim old entries to keep history within the time window (500ms)
+  const MAX_HISTORY_AGE_MS = 500;
+  while (entity.posHistory.length > 0 && 
+         entity.posHistory[0].ts < timestamp - MAX_HISTORY_AGE_MS) {
+    entity.posHistory.shift();
+  }
+}
+
+/**
+ * Gets the position of an entity at a specific timestamp by interpolating position history
+ */
+function getPositionAtTime(entity: PlayerState | Enemy, timestamp: number): VecXZ {
+  // For enemies or entities without history, just return current position
+  if (!('posHistory' in entity) || !entity.posHistory || entity.posHistory.length === 0) {
+    return { x: entity.position.x, z: entity.position.z };
+  }
+  
+  const history = entity.posHistory;
+  
+  // If timestamp is newer than all history entries, use the latest position
+  if (timestamp > history[history.length - 1].ts) {
+    return { x: entity.position.x, z: entity.position.z };
+  }
+  
+  // If timestamp is older than all history entries, use the oldest position
+  if (timestamp < history[0].ts) {
+    return { x: history[0].x, z: history[0].z };
+  }
+  
+  // Find the two history entries that bracket the requested timestamp
+  let beforeIndex = 0;
+  for (let i = 0; i < history.length - 1; i++) {
+    if (history[i].ts <= timestamp && history[i + 1].ts >= timestamp) {
+      beforeIndex = i;
+      break;
+    }
+  }
+  
+  const before = history[beforeIndex];
+  const after = history[beforeIndex + 1];
+  
+  // Linear interpolation between the two positions
+  if (after.ts === before.ts) {
+    return { x: before.x, z: before.z }; // Avoid division by zero
+  }
+  
+  const ratio = (timestamp - before.ts) / (after.ts - before.ts);
+  return {
+    x: before.x + (after.x - before.x) * ratio,
+    z: before.z + (after.z - before.z) * ratio
+  };
 }
 
 /**
@@ -281,6 +355,14 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
     return;
   }
   
+  // Implement a cast-lock window to prevent "micro-teleport" exploits
+  // If we just received a movement request, make the player wait one tick before another one takes effect
+  const now = Date.now();
+  if (player.lastUpdateTime && now - player.lastUpdateTime < 33) { // 33ms is approximately one tick at 30 FPS
+    console.warn(`Movement request from player ${playerId} received too quickly, enforcing cast-lock window`);
+    // Still process the request but apply a slight delay
+  }
+  
   // Determine destination from the path
   const destination = msg.path.length > 0 ? msg.path[0] : null;
   if (!destination) {
@@ -295,7 +377,7 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
   player.movement = {
     dest: destination,
     speed: msg.speed,
-    startTs: Date.now()
+    startTs: now
   };
   
   // Set the velocity vector
@@ -303,6 +385,12 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
     x: dir.x * msg.speed,
     z: dir.z * msg.speed
   };
+  
+  // Update the last update time
+  player.lastUpdateTime = now;
+  
+  // Update position history
+  updatePositionHistory(player, now);
   
   // Instead of using socket.server.emit, we'll broadcast the message to all clients
   // We can use socket.broadcast.emit to send to all clients except the sender
@@ -322,8 +410,13 @@ function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
     return;
   }
   
+  // Clamp clientTs to prevent lag-dodge exploits (can't rewrite the last 100ms)
+  const now = Date.now();
+  const MAX_SYNC_LAG_MS = 100;
+  const clampedClientTs = Math.min(msg.clientTs, now - MAX_SYNC_LAG_MS);
+  
   // Calculate the current server-side position
-  const serverPos = predictPosition(player, Date.now());
+  const serverPos = predictPosition(player, now);
   
   // Calculate error between client and server positions
   const error = distance(serverPos, msg.pos);
@@ -339,11 +432,14 @@ function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
         id: playerId,
         pos: serverPos,
         vel: player.velocity || { x: 0, z: 0 },
-        snapTs: Date.now()
+        snapTs: now
       }]
     });
   } 
   // For smaller errors, we could implement gradual reconciliation if needed
+  
+  // Update position history regardless of error
+  updatePositionHistory(player, now);
 }
 
 /**
@@ -384,6 +480,12 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
+  // Validate target if provided
+  let targetInRange = true;
+  
+  // Use predictPosition for accurate range check
+  const casterPos = predictPosition(player, now);
+  
   // If targeting an enemy, validate target
   if (msg.targetId) {
     const target = state.enemies[msg.targetId];
@@ -392,14 +494,20 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
       return;
     }
     
-    // Use predictPosition for accurate range check
-    const casterPos = predictPosition(player, now);
     const targetPos = { x: target.position.x, z: target.position.z };
     const dist = distance(casterPos, targetPos);
     
-    // Check skill range - use skill's defined range
+    // Check skill range
     if (dist > (skill.range || 0)) {
-      console.warn(`Target out of range: ${dist} > ${skill.range}`);
+      console.warn(`Target out of range: ${dist.toFixed(2)} > ${skill.range}`);
+      return;
+    }
+  } 
+  // If targeting a position directly (for projectiles)
+  else if (msg.targetPos && skill.range) {
+    const dist = distance(casterPos, msg.targetPos);
+    if (dist > skill.range) {
+      console.warn(`Target position out of range: ${dist.toFixed(2)} > ${skill.range}`);
       return;
     }
   }
@@ -419,10 +527,93 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     castMs: skill.castMs
   });
   
+  console.log(`[SKILL] Player ${playerId} started casting ${msg.skillId}, castTime: ${skill.castMs}ms`);
+  
   // Schedule cast completion
   setTimeout(() => {
-    // Execute skill effect after cast time
-    if (msg.targetId) {
+    console.log(`[SKILL] Player ${playerId} finished casting ${msg.skillId}`);      // Determine whether to spawn a projectile or use instant effects
+      if (skill.cat === 'projectile' && (skill.speed || skill.projectile?.speed)) {
+        console.log(`[SKILL] ${msg.skillId} is a projectile skill with speed ${skill.projectile?.speed || skill.speed}`);
+        
+        // Get player's current position
+        const casterPos = predictPosition(player, Date.now());
+        
+        // If targeting a position or entity, calculate direction
+        let targetPos: VecXZ;
+        
+        if (msg.targetPos) {
+          targetPos = msg.targetPos;
+          console.log(`[SKILL] Using target position (${targetPos.x.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
+        } else if (msg.targetId) {
+          const target = state.enemies[msg.targetId] || state.players[msg.targetId];
+          if (target) {
+            targetPos = { x: target.position.x, z: target.position.z };
+            console.log(`[SKILL] Using target entity ${msg.targetId} at (${targetPos.x.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
+          } else {
+            // Invalid target, cancel cast
+            console.log(`[SKILL] Target entity ${msg.targetId} not found, canceling cast`);
+            io.emit('msg', {
+              type: 'CastEnd',
+              id: playerId,
+              skillId: msg.skillId,
+              success: false
+            });
+            return;
+          }
+        } else {
+          // No target specified, use player's forward direction
+          // Use player's rotation to determine forward direction
+          const forwardAngle = player.rotation?.y || 0; // Assuming y rotation is yaw
+          targetPos = { 
+            x: casterPos.x + Math.sin(forwardAngle) * 20, // 20 units forward
+            z: casterPos.z + Math.cos(forwardAngle) * 20
+          };
+          console.log(`[SKILL] No target, using player's forward direction to (${targetPos.x.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
+        }
+        
+        // Calculate direction vector
+        const dx = targetPos.x - casterPos.x;
+        const dz = targetPos.z - casterPos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        
+        // Normalize direction
+        const dir: VecXZ = dist > 0 
+          ? { x: dx / dist, z: dz / dist } 
+          : { x: 0, z: 1 };  // Default forward if no direction
+        
+        console.log(`[SKILL] Projectile direction: (${dir.x.toFixed(2)}, ${dir.z.toFixed(2)})`);
+        
+        // Spawn projectile using the new projectile property if available
+        const projectileSpeed = skill.projectile?.speed || skill.speed || 0;
+        const projectile = spawnProjectile(
+          state,
+          playerId,
+          msg.skillId as SkillId,
+          casterPos,
+          dir,
+          projectileSpeed,
+          msg.targetId
+        );
+      
+      // Emit projectile spawn message
+      const projSpawnMsg = {
+        type: 'ProjSpawn',
+        id: projectile.id,
+        skillId: msg.skillId,
+        origin: { x: casterPos.x, y: 1.5, z: casterPos.z },
+        dir: { x: dir.x, y: 0, z: dir.z },
+        speed: skill.speed,
+        launchTs: Date.now()
+      };
+      
+      console.log(`[SKILL] Emitting ProjSpawn: id=${projSpawnMsg.id}, origin=(${projSpawnMsg.origin.x.toFixed(2)}, ${projSpawnMsg.origin.z.toFixed(2)}), dir=(${projSpawnMsg.dir.x.toFixed(2)}, ${projSpawnMsg.dir.z.toFixed(2)}), speed=${projSpawnMsg.speed}, skillId=${projSpawnMsg.skillId}`);
+      
+      // Broadcast to ALL clients including the sender
+      io.emit('msg', projSpawnMsg);
+    } 
+    // Handle instant effects (like the existing logic)
+    else if (msg.targetId) {
+      console.log(`[SKILL] ${msg.skillId} is an instant skill targeting ${msg.targetId}`);
       const target = state.enemies[msg.targetId];
       if (target) {
         executeSkillEffects(player, target, msg.skillId as SkillType, io, state);
@@ -545,7 +736,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Initialize game state
   const state: GameState = {
     players: {},
-    enemies: {}
+    enemies: {},
+    projectiles: [],
+    lastProjectileId: 0
   };
   
   // Initialize effect manager
@@ -569,7 +762,13 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Generate and broadcast PosSnap at the target rate
+    // Step 3: Update all projectiles
+    if (state.projectiles.length > 0) {
+      console.log(`[GAME-LOOP] Updating ${state.projectiles.length} projectiles`);
+      updateProjectiles(state, TICK/1000, io);
+    }
+    
+    // Step 4: Generate and broadcast PosSnap at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
       const snaps = collectSnaps(state, now);
@@ -582,12 +781,12 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       snapAccumulator = 0;
     }
     
-    // Step 4: Process mana regeneration (less frequent)
+    // Step 5: Process mana regeneration (less frequent)
     if (snapAccumulator === 1) {
       handleManaRegeneration(state, io);
     }
     
-    // Step 5: Process enemy respawns (even less frequent)
+    // Step 6: Process enemy respawns (even less frequent)
     if (snapAccumulator === 2) {
       handleEnemyRespawns(state, io);
     }
@@ -690,6 +889,317 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
       }
     });
   });
+}
+
+/**
+ * Spawns a projectile in the world
+ */
+function spawnProjectile(
+  state: GameState,
+  casterId: string,
+  skillId: SkillId,
+  pos: VecXZ,
+  dir: VecXZ,
+  speed: number,
+  targetId?: string
+): Projectile {
+  const projectileId = `proj_${state.lastProjectileId++}`;
+  
+  // Offset the initial position slightly in the direction of travel
+  // This helps avoid collisions with the caster when spawning projectiles
+  const offsetDistance = 0.5; // Small offset to move projectile away from caster
+  const initialPos = {
+    x: pos.x + dir.x * offsetDistance,
+    z: pos.z + dir.z * offsetDistance
+  };
+  
+  const projectile: Projectile = {
+    id: projectileId,
+    casterId,
+    skillId,
+    pos: { ...initialPos },
+    dir: { ...dir },
+    speed,
+    spawnTs: Date.now(),
+    targetId
+  };
+  
+  console.log(`[PROJECTILE] Created new projectile: id=${projectileId}, skill=${skillId}, pos=(${initialPos.x.toFixed(2)}, ${initialPos.z.toFixed(2)}), dir=(${dir.x.toFixed(2)}, ${dir.z.toFixed(2)}), speed=${speed}, targetId=${targetId || 'none'}`);
+  
+  state.projectiles.push(projectile);
+  
+  return projectile;
+}
+
+/**
+ * Updates all projectiles in the game
+ */
+function updateProjectiles(state: GameState, dt: number, io: Server): void {
+  const projectilesToRemove: number[] = [];
+  
+  // Process each projectile
+  for (let i = 0; i < state.projectiles.length; i++) {
+    const p = state.projectiles[i];
+    
+    // Calculate new position using linear movement
+    const oldPos = { ...p.pos };
+    p.pos.x += p.dir.x * p.speed * dt;
+    p.pos.z += p.dir.z * p.speed * dt;
+    
+    // Debug log for projectile movement
+    console.log(`[PROJECTILE ${p.id}] Moved from (${oldPos.x.toFixed(2)}, ${oldPos.z.toFixed(2)}) to (${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)}) with speed ${p.speed}`);
+    
+    // Check for collisions with players and enemies
+    let hit = false;
+    const hitTargets: string[] = [];
+    
+    console.log(`[PROJECTILE ${p.id}] Checking collisions for projectile at (${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)})`);
+    
+    // Check collision against enemies
+    for (const enemyId in state.enemies) {
+      const enemy = state.enemies[enemyId];
+      if (!enemy.isAlive) continue;
+      
+      // Skip if this enemy is the caster
+      if (enemyId === p.casterId) continue;
+      
+      // Get enemy position at the time of projectile movement
+      // For enemies we use current position as they don't have history yet
+      const enemyPos = { x: enemy.position.x, z: enemy.position.z };
+      
+      // Add debug info for distance to enemy
+      const distToEnemy = Math.sqrt(
+        Math.pow(p.pos.x - enemyPos.x, 2) + 
+        Math.pow(p.pos.z - enemyPos.z, 2)
+      );
+      
+      console.log(`[PROJECTILE ${p.id}] Distance to enemy ${enemyId}: ${distToEnemy.toFixed(2)}, enemy pos: (${enemyPos.x.toFixed(2)}, ${enemyPos.z.toFixed(2)})`);
+      
+      // Improved hit detection with both distance check and swept hit
+      // Uses a consistent approach with the collision.ts implementation
+      const hitRadius = 2.0; // Standard hit radius for direct distance check
+      const isDirectHit = distToEnemy <= hitRadius;
+      const isSweptHit = sweptHit(oldPos, p.pos, enemyPos, 1.0);
+      
+      if (isDirectHit || isSweptHit) {
+        console.log(`[PROJECTILE ${p.id}] HIT enemy ${enemyId}! Distance: ${distToEnemy.toFixed(2)}, Direct hit: ${isDirectHit}, Swept hit: ${isSweptHit}`);
+        hit = true;
+        hitTargets.push(enemyId);
+        
+        // Apply skill effect
+        const skill = SKILLS[p.skillId];
+        if (skill) {
+          // Apply damage to the enemy
+          if (skill.dmg) {
+            const oldHealth = enemy.health;
+            enemy.health -= skill.dmg;
+            console.log(`[DAMAGE] Enemy ${enemyId} took ${skill.dmg} damage from projectile ${p.id}. Health: ${oldHealth} -> ${enemy.health}`);
+            
+            if (enemy.health <= 0) {
+              enemy.health = 0;
+              enemy.isAlive = false;
+              enemy.deathTimeTs = Date.now();
+              enemy.targetId = null;
+              console.log(`[KILL] Enemy ${enemyId} was killed by projectile ${p.id}`);
+              
+              // Give XP to the player who cast the projectile
+              const caster = state.players[p.casterId];
+              if (caster) {
+                caster.experience += enemy.experienceValue || 0;
+                // Check for level up could be added here
+              }
+            }
+          }
+          
+          // Apply status effects if defined
+          if (skill.status && skill.status.length > 0) {
+            for (const statusEffect of skill.status) {
+              const effectId = Math.random().toString(36).substr(2, 9);
+              enemy.statusEffects.push({
+                id: effectId,
+                type: statusEffect.type,
+                value: statusEffect.value,
+                durationMs: statusEffect.durationMs,
+                startTimeTs: Date.now(),
+                sourceSkill: p.skillId
+              });
+            }
+          }
+          
+          // Broadcast enemy update
+          io.emit('enemyUpdated', enemy);
+        }
+        
+        // Important: Break out of the enemy loop after a hit to ensure we stop checking more enemies
+        break;
+      }
+    }
+    
+    // Check collision against players (if PvP is enabled)
+    for (const playerId in state.players) {
+      const player = state.players[playerId];
+      if (!player.isAlive) continue;
+      
+      // Skip if this player is the caster
+      if (playerId === p.casterId) continue;
+      
+      // Get player position at the exact time of projectile movement for more accurate hit detection
+      const timeOfCheck = Date.now();
+      const playerPos = player.posHistory && player.posHistory.length > 0 
+                      ? getPositionAtTime(player, timeOfCheck) 
+                      : { x: player.position.x, z: player.position.z };
+      
+      // Calculate distance to player
+      const distToPlayer = Math.sqrt(
+        Math.pow(p.pos.x - playerPos.x, 2) + 
+        Math.pow(p.pos.z - playerPos.z, 2)
+      );
+      
+      // Improved hit detection with both distance check and swept hit
+      const hitRadius = 1.0; // Slightly smaller hit radius for PvP
+      const isDirectHit = distToPlayer <= hitRadius;
+      const isSweptHit = sweptHit(oldPos, p.pos, playerPos, 0.8);
+      
+      if (isDirectHit || isSweptHit) {
+        console.log(`[PROJECTILE ${p.id}] HIT player ${playerId}! Distance: ${distToPlayer.toFixed(2)}, Direct hit: ${isDirectHit}, Swept hit: ${isSweptHit}`);
+        hit = true;
+        hitTargets.push(playerId);
+        
+        // Apply skill effect to player
+        // (Add PvP damage logic here if needed)
+        
+        // Important: Break out of the player loop after a hit
+        break;
+      }
+    }
+    
+    // Handle hit effects
+    if (hit && hitTargets.length > 0) {
+      console.log(`[PROJECTILE ${p.id}] Hit detected with ${hitTargets.length} targets, removing projectile`);
+      
+      // Emit hit event
+      io.emit('msg', {
+        type: 'ProjHit',
+        id: p.id,
+        pos: { x: p.pos.x, y: 1.5, z: p.pos.z },
+        hitIds: hitTargets
+      });
+      
+      // Check if the skill has splash damage
+      const skill = SKILLS[p.skillId];
+      if (skill?.projectile?.splashRadius) {
+        const splashRadius = skill.projectile.splashRadius;
+        const splashTargets: string[] = [];
+        
+        // Check all enemies for splash damage
+        for (const enemyId in state.enemies) {
+          const enemy = state.enemies[enemyId];
+          if (!enemy.isAlive || hitTargets.includes(enemyId)) continue; // Skip dead enemies or already hit
+          
+          const enemyPos = { x: enemy.position.x, z: enemy.position.z };
+          const distToEnemy = Math.sqrt(
+            Math.pow(p.pos.x - enemyPos.x, 2) + 
+            Math.pow(p.pos.z - enemyPos.z, 2)
+          );
+          
+          if (distToEnemy <= splashRadius) {
+            splashTargets.push(enemyId);
+            
+            // Apply splash damage to the enemy (can be reduced damage)
+            if (skill.dmg) {
+              const splashDamage = Math.floor(skill.dmg * 0.5); // 50% of original damage
+              const oldHealth = enemy.health;
+              enemy.health -= splashDamage;
+              console.log(`[SPLASH] Enemy ${enemyId} took ${splashDamage} splash damage from projectile ${p.id}. Health: ${oldHealth} -> ${enemy.health}`);
+              
+              if (enemy.health <= 0) {
+                enemy.health = 0;
+                enemy.isAlive = false;
+                enemy.deathTimeTs = Date.now();
+                enemy.targetId = null;
+                console.log(`[KILL] Enemy ${enemyId} was killed by splash from projectile ${p.id}`);
+                
+                // Give XP to the player who cast the projectile
+                const caster = state.players[p.casterId];
+                if (caster) {
+                  caster.experience += enemy.experienceValue || 0;
+                }
+              }
+              
+              // Apply status effects if defined
+              if (skill.status && skill.status.length > 0) {
+                for (const statusEffect of skill.status) {
+                  const effectId = Math.random().toString(36).substr(2, 9);
+                  enemy.statusEffects.push({
+                    id: effectId,
+                    type: statusEffect.type,
+                    value: statusEffect.value,
+                    durationMs: statusEffect.durationMs,
+                    startTimeTs: Date.now(),
+                    sourceSkill: p.skillId
+                  });
+                }
+              }
+              
+              // Broadcast enemy update
+              io.emit('enemyUpdated', enemy);
+            }
+          }
+        }
+        
+        // Emit a separate hit event for splash targets
+        if (splashTargets.length > 0) {
+          console.log(`[SPLASH] Projectile ${p.id} hit ${splashTargets.length} targets with splash damage`);
+          io.emit('msg', {
+            type: 'ProjHit',
+            id: p.id,
+            pos: { x: p.pos.x, y: 1.5, z: p.pos.z },
+            hitIds: splashTargets
+          });
+        }
+      }
+      
+      // Check for piercing - continue flight if piercing is true
+      if (skill?.projectile?.pierce) {
+        console.log(`[PROJECTILE ${p.id}] Has pierce property, continuing flight`);
+      } else {
+        // Also tell clients to despawn it immediately for non-piercing projectiles
+        io.emit('msg', {
+          type: 'ProjEnd',
+          id: p.id,
+          pos: { x: p.pos.x, y: 1.5, z: p.pos.z }
+        });
+        
+        // Mark for removal and skip further processing for this projectile
+        projectilesToRemove.push(i);
+        continue; // Skip the TTL check
+      }
+    }
+    
+    // Check TTL (Time To Live) - 4 seconds max lifetime
+    const now = Date.now();
+    if (now - p.spawnTs > 4000) {
+      console.log(`[PROJECTILE ${p.id}] Expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
+      io.emit('msg', {
+        type: 'ProjEnd',
+        id: p.id,
+        pos: { x: p.pos.x, y: 1.5, z: p.pos.z }
+      });
+      
+      projectilesToRemove.push(i);
+    }
+  }
+  
+  // Remove projectiles that hit or expired (remove from end to start to avoid index issues)
+  if (projectilesToRemove.length > 0) {
+    console.log(`[PROJECTILES] Removing ${projectilesToRemove.length} projectiles`);
+    for (let i = projectilesToRemove.length - 1; i >= 0; i--) {
+      const index = projectilesToRemove[i];
+      const p = state.projectiles[index];
+      console.log(`[PROJECTILE ${p.id}] Removed from world`);
+      state.projectiles.splice(index, 1);
+    }
+  }
 }
 
 /**

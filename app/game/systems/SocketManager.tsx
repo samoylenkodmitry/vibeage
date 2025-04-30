@@ -6,6 +6,7 @@ import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
+import { initProjectileListeners } from './projectileManager';
 import { 
   MoveStart, 
   MoveSync, 
@@ -158,6 +159,9 @@ export default function SocketManager() {
       
       // Hook up VFX event system
       hookVfx(socket);
+      
+      // Initialize projectile manager listeners
+      initProjectileListeners();
 
       // Removed automatic joinGame emission to prevent duplicate player IDs
 

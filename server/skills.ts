@@ -169,3 +169,65 @@ export function executeSkill(
   server.emit('enemyUpdated', target);
   server.emit('playerUpdated', caster);
 }
+
+/**
+ * Spawn a projectile from a skill cast
+ */
+export function spawnProjectileFromSkill(
+  world: any,  // World interface will be defined later
+  caster: PlayerState,
+  skillId: SkillId,
+  targetPos?: VecXZ,
+  targetId?: string
+): void {
+  const skill = SKILLS[skillId];
+  
+  // Check if skill exists and is a projectile type
+  if (!skill || skill.cat !== 'projectile' || !skill.speed) {
+    return;
+  }
+  
+  // Get caster position
+  const casterPos: VecXZ = { x: caster.position.x, z: caster.position.z };
+  
+  // Determine target position
+  let finalTargetPos: VecXZ;
+  
+  if (targetPos) {
+    // If target position provided, use it
+    finalTargetPos = targetPos;
+  } else if (targetId) {
+    // If target ID provided, get entity position
+    const targetEntity = world.getGameState().enemies[targetId] || world.getGameState().players[targetId];
+    if (!targetEntity) return;
+    
+    finalTargetPos = { x: targetEntity.position.x, z: targetEntity.position.z };
+  } else {
+    // No valid target, use caster's forward direction
+    const forwardDir = { x: 0, z: 1 }; // Assuming +Z is forward
+    finalTargetPos = {
+      x: casterPos.x + forwardDir.x * 10, // 10 units forward
+      z: casterPos.z + forwardDir.z * 10
+    };
+  }
+  
+  // Calculate direction from caster to target
+  const dx = finalTargetPos.x - casterPos.x;
+  const dz = finalTargetPos.z - casterPos.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  
+  // Normalize direction
+  const dir: VecXZ = dist > 0 
+    ? { x: dx / dist, z: dz / dist } 
+    : { x: 0, z: 1 };  // Default forward
+  
+  // Spawn the projectile in the world
+  world.spawnProjectile({
+    casterId: caster.id,
+    skillId,
+    pos: casterPos,
+    dir,
+    speed: skill.speed,
+    targetId
+  });
+}

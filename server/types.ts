@@ -1,4 +1,5 @@
 import { SkillId, SKILLS } from '../shared/skillsDefinition.js';
+import { VecXZ } from '../shared/messages.js';
 
 export interface SkillEffect {
     id?: string;
@@ -10,13 +11,27 @@ export interface SkillEffect {
 }
 
 export interface SkillDefinition {
+    id: SkillId;
+    cat: string;
     manaCost: number;
     cooldownMs: number;
-    castTimeMs: number;
-    damage: number;
-    statusEffect: SkillEffect;
+    castMs: number;     // Changed from castTimeMs to match shared definition
+    dmg?: number;       // Changed from damage to match shared definition
     range: number;
-    areaOfEffect?: number;
+    area?: number;      // Changed from areaOfEffect to match shared definition
+    speed?: number;     // Projectile speed
+    status?: {type:string; value:number; durationMs:number}[]; // Changed from statusEffect to match shared definition
+}
+
+export interface Projectile {
+    id: string;
+    casterId: string;
+    skillId: SkillId;
+    pos: VecXZ;
+    dir: VecXZ;
+    speed: number;
+    spawnTs: number;
+    targetId?: string;  // Optional for homing projectiles
 }
 
 export type SkillType = SkillId;   // export for compatibility

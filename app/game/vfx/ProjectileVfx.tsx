@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { Vector3, Mesh, Material, MathUtils, Color, Group } from 'three';
+import { useProjectileStore } from '../systems/projectileManager';
 
 interface ProjectileVfxProps {
   id: string;
@@ -26,6 +27,11 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
   const [intensity, setIntensity] = useState(2);
   const [trailParticles, setTrailParticles] = useState<TrailParticle[]>([]);
   
+  // Get projectile opacity from store
+  const projectileState = useProjectileStore(state => state.projectiles[id]);
+  const opacity = projectileState?.opacity ?? 1.0;
+  const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
+  
   // Normalize direction vector if needed
   const normalizedDir = useMemo(() => {
     const length = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
@@ -40,9 +46,17 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
   useFrame((state, delta) => {
     if (!ref.current) return;
     
-    // Move projectile
-    pos.current.addScaledVector(new Vector3(normalizedDir.x, normalizedDir.y, normalizedDir.z), speed * delta);
-    ref.current.position.copy(pos.current);
+    // If fading out, don't update position
+    if (!isFadingOut) {
+      // Move projectile
+      pos.current.addScaledVector(new Vector3(normalizedDir.x, normalizedDir.y, normalizedDir.z), speed * delta);
+      ref.current.position.copy(pos.current);
+    }
+    
+    // Update material opacity
+    if (ref.current.material instanceof Material) {
+      (ref.current.material as any).opacity = opacity;
+    }
     
     // Make the projectile pulsate
     const pulseFactor = MathUtils.lerp(0.9, 1.1, Math.sin(state.clock.elapsedTime * 8 + timeOffset.current));
@@ -54,12 +68,13 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
       groupRef.current.position.y += Math.cos(state.clock.elapsedTime * 12) * 0.015;
     }
     
-    // Varying light intensity
-    const newIntensity = 2 + Math.sin(state.clock.elapsedTime * 10 + timeOffset.current) * 0.5;
+    // Varying light intensity (reduced when fading out)
+    const baseIntensity = 2 * opacity;
+    const newIntensity = baseIntensity + Math.sin(state.clock.elapsedTime * 10 + timeOffset.current) * 0.5 * opacity;
     setIntensity(newIntensity);
     
-    // Add trail particles
-    if (Math.random() > 0.6) {
+    // Add trail particles (fewer when fading out)
+    if (Math.random() > 0.6 && (!isFadingOut || Math.random() > 0.8)) {
       const newParticle: TrailParticle = {
         position: pos.current.clone().add(
           new Vector3(
@@ -69,7 +84,7 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
           )
         ),
         scale: 0.1 + Math.random() * 0.2,
-        opacity: 0.8,
+        opacity: 0.8 * opacity, // Adjust opacity based on projectile opacity
         lifetimeMs: 400 + Math.random() * 200,
         rotationSpeed: new Vector3(
           (Math.random() - 0.5) * 2,
@@ -96,7 +111,7 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
         return {
           ...particle,
           lifetimeMs: newLifetime,
-          opacity: Math.max(0, newLifetime / 400), // fade out
+          opacity: Math.max(0, newLifetime / 400) * opacity, // fade out and respect projectile opacity
           scale: particle.scale * 0.97 // shrink over time
         };
       }).filter(p => p.lifetimeMs > 0)
@@ -112,6 +127,8 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
           color={'orange'} 
           emissive={'orange'} 
           emissiveIntensity={intensity}
+          transparent={true}
+          opacity={opacity}
         />
         
         {/* Add glow effect */}
