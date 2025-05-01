@@ -769,7 +769,6 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Step 3: Update all projectiles
     if (state.projectiles.length > 0) {
-      console.log(`[GAME-LOOP] Updating ${state.projectiles.length} projectiles`);
       updateProjectiles(state, TICK/1000, io);
     }
     
@@ -897,6 +896,47 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
 }
 
 /**
+ * Awards XP to a player and handles level ups
+ * @param player The player to award XP to
+ * @param xpAmount Amount of XP to award
+ * @param sourceInfo Information about the source of XP (for logging)
+ * @param io Server instance for broadcasting updates
+ */
+function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string, io: Server): void {
+  const oldExp = player.experience;
+  player.experience += xpAmount;
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained ${xpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`);
+  
+  // Check for level up
+  if (player.experience >= player.experienceToNextLevel) {
+    player.level += 1;
+    const oldMaxExp = player.experienceToNextLevel;
+    player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5); // 50% more XP needed for next level
+    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);
+    
+    // Increase max health and mana with level
+    player.maxHealth = 100 + (player.level - 1) * 20;
+    player.maxMana = 100 + (player.level - 1) * 10;
+    
+    // Heal player on level up
+    player.health = player.maxHealth;
+    player.mana = player.maxMana;
+  }
+  
+  // Broadcast the updated player state so clients see XP and level changes
+  io.emit('playerUpdated', {
+    id: player.id,
+    experience: player.experience,
+    experienceToNextLevel: player.experienceToNextLevel,
+    level: player.level,
+    maxHealth: player.maxHealth,
+    health: player.health,
+    maxMana: player.maxMana,
+    mana: player.mana
+  });
+}
+
+/**
  * Spawns a projectile in the world
  */
 function spawnProjectile(
@@ -926,7 +966,9 @@ function spawnProjectile(
     dir: { ...dir },
     speed,
     spawnTs: Date.now(),
-    targetId
+    targetId,
+    hitTargets: [],
+    hitCount: 0
   };
   
   console.log(`[PROJECTILE] Created new projectile: id=${projectileId}, skill=${skillId}, pos=(${initialPos.x.toFixed(2)}, ${initialPos.z.toFixed(2)}), dir=(${dir.x.toFixed(2)}, ${dir.z.toFixed(2)}), speed=${speed}, targetId=${targetId || 'none'}`);
@@ -1019,8 +1061,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               // Give XP to the player who cast the projectile
               const caster = state.players[p.casterId];
               if (caster) {
-                caster.experience += enemy.experienceValue || 0;
-                // Check for level up could be added here
+                awardPlayerXP(caster, enemy.experienceValue || 0, `killing enemy ${enemyId}`, io);
               }
             }
           }
@@ -1135,7 +1176,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           if (!enemy.isAlive || hitTargets.includes(enemyId)) continue; // Skip dead enemies or already hit
           
           // Skip enemies already hit by this projectile
-          if (p.hitTargets && p.hitTargets.includes(enemyId)) {
+          if (p.hitTargets.includes(enemyId)) {
             continue;
           }
           
@@ -1156,9 +1197,8 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               const splashDamage = Math.floor(skill.dmg * distanceFactor);
               
               // Track hit
-              if (!p.hitTargets) p.hitTargets = [];
               p.hitTargets.push(enemyId);
-              p.hitCount = (p.hitCount || 0) + 1;
+              p.hitCount += 1;
               
               const oldHealth = enemy.health;
               enemy.health -= splashDamage;
@@ -1174,7 +1214,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
                 // Give XP to the player who cast the projectile
                 const caster = state.players[p.casterId];
                 if (caster) {
-                  caster.experience += enemy.experienceValue || 0;
+                  awardPlayerXP(caster, enemy.experienceValue || 0, `splash killing enemy ${enemyId}`, io);
                 }
               }
               
@@ -1197,7 +1237,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               io.emit('enemyUpdated', enemy);
             }
           }
-        }
+        };
         
         // Emit a separate hit event for splash targets
         if (splashTargets.length > 0) {
@@ -1217,7 +1257,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         const maxPierceHits = skill.projectile.maxPierceHits || Number.MAX_SAFE_INTEGER;
         
         // Check if we've hit the maximum number of targets already
-        if (p.hitCount && p.hitCount >= maxPierceHits) {
+        if (p.hitCount >= maxPierceHits) {
           log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} reached max pierce hits (${p.hitCount}/${maxPierceHits}), removing`);
           
           // Tell clients to despawn it
