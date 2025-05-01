@@ -27,6 +27,8 @@ export interface Enemy {
     markedForRemoval?: boolean;
     deathTimeTs?: number;
     attackCooldown?: boolean;
+    posHistory?: { ts: number; x: number; z: number }[];  // Position history buffer similar to players
+    lastUpdateTime?: number;  // Track last update time
 }
 
 // Intent-based movement messages

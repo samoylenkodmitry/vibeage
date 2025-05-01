@@ -22,7 +22,7 @@ interface ProjectileStore {
 }
 
 // Duration of fade-out effect in milliseconds
-const FADE_OUT_DURATION_MS = 300;
+const FADE_OUT_DURATION_MS = 500; // Increased from 300ms to 500ms for smoother fade-out
 
 export const useProjectileStore = create<ProjectileStore>((set, get) => ({
   projectiles: {},
@@ -109,9 +109,7 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
       return hasChanges ? { projectiles: updatedProjectiles } : state;
     });
   }
-}));
-
-// Export the function directly
+}));  // Export the function directly
 export function initProjectileListeners() {
   window.addEventListener('projspawn', (event: any) => {
     useProjectileStore.getState().addProjectile(event.detail);
@@ -125,8 +123,19 @@ export function initProjectileListeners() {
     useProjectileStore.getState().handleEnd(event.detail);
   });
   
-  // Set up periodic opacity updates
-  setInterval(() => {
+  // Set up opacity updates using requestAnimationFrame for smoother animations
+  let animationFrameId: number;
+  
+  function updateLoop() {
     useProjectileStore.getState().updateOpacity();
-  }, 16); // Update at ~60fps
+    animationFrameId = requestAnimationFrame(updateLoop);
+  }
+  
+  // Start the animation loop
+  animationFrameId = requestAnimationFrame(updateLoop);
+  
+  // Return a cleanup function that can be used if needed
+  return () => {
+    cancelAnimationFrame(animationFrameId);
+  };
 }

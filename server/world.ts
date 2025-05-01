@@ -4,6 +4,7 @@ import { Enemy, StatusEffect } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
 import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
+import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 
@@ -160,7 +161,7 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
 /**
  * Updates the position history of an entity, maintaining a limited history window
  */
-function updatePositionHistory(entity: PlayerState, timestamp: number): void {
+function updatePositionHistory(entity: PlayerState | Enemy, timestamp: number): void {
   if (!entity.posHistory) {
     entity.posHistory = [];
   }
@@ -240,13 +241,18 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   // Process enemy logic, status effects, etc.
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
+    const now = Date.now();
+    
+    // Update position history for all enemies at each tick
+    updatePositionHistory(enemy, now);
+    enemy.lastUpdateTime = now;
     
     // Process enemy targeting and movement here
     if (enemy.isAlive && enemy.targetId) {
       const target = state.players[enemy.targetId];
       if (target && target.isAlive) {
         // Calculate target position prediction
-        const targetPos = predictPosition(target, Date.now());
+        const targetPos = predictPosition(target, now);
         
         // Movement logic for enemy to follow target
         // (Simplified for now)
@@ -255,7 +261,6 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
     
     // Process status effects (could be moved to a separate function)
     if (enemy.statusEffects.length > 0) {
-      const now = Date.now();
       enemy.statusEffects = enemy.statusEffects.filter(effect => {
         return (effect.startTimeTs + effect.durationMs) > now;
       });
@@ -947,13 +952,13 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     p.pos.z += p.dir.z * p.speed * dt;
     
     // Debug log for projectile movement
-    console.log(`[PROJECTILE ${p.id}] Moved from (${oldPos.x.toFixed(2)}, ${oldPos.z.toFixed(2)}) to (${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)}) with speed ${p.speed}`);
+    log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} moved from (${oldPos.x.toFixed(2)}, ${oldPos.z.toFixed(2)}) to (${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)}) with speed ${p.speed}`);
     
     // Check for collisions with players and enemies
     let hit = false;
     const hitTargets: string[] = [];
     
-    console.log(`[PROJECTILE ${p.id}] Checking collisions for projectile at (${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)})`);
+    log(LOG_CATEGORIES.PROJECTILE, `Checking collisions for projectile at (${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)})`);
     
     // Check collision against enemies
     for (const enemyId in state.enemies) {
@@ -963,9 +968,9 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       // Skip if this enemy is the caster
       if (enemyId === p.casterId) continue;
       
-      // Get enemy position at the time of projectile movement
-      // For enemies we use current position as they don't have history yet
-      const enemyPos = { x: enemy.position.x, z: enemy.position.z };
+      // Get enemy position at the time of projectile movement for accurate hit detection
+      const timeOfCheck = Date.now();
+      const enemyPos = getPositionAtTime(enemy, timeOfCheck);
       
       // Add debug info for distance to enemy
       const distToEnemy = Math.sqrt(
@@ -973,16 +978,25 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         Math.pow(p.pos.z - enemyPos.z, 2)
       );
       
-      console.log(`[PROJECTILE ${p.id}] Distance to enemy ${enemyId}: ${distToEnemy.toFixed(2)}, enemy pos: (${enemyPos.x.toFixed(2)}, ${enemyPos.z.toFixed(2)})`);
+      log(LOG_CATEGORIES.PROJECTILE, `Distance to enemy ${enemyId}: ${distToEnemy.toFixed(2)}, enemy pos: (${enemyPos.x.toFixed(2)}, ${enemyPos.z.toFixed(2)})`);
+      
+      // Get the configured hit radius from the skill definition
+      const skill = SKILLS[p.skillId];
+      const configuredHitRadius = skill?.projectile?.hitRadius || 1.0;
       
       // Improved hit detection with both distance check and swept hit
-      // Uses a consistent approach with the collision.ts implementation
-      const hitRadius = 2.0; // Standard hit radius for direct distance check
-      const isDirectHit = distToEnemy <= hitRadius;
-      const isSweptHit = sweptHit(oldPos, p.pos, enemyPos, 1.0);
+      // Uses hit radius from skill config
+      const isDirectHit = distToEnemy <= configuredHitRadius * 2.0; // Direct hit can be more generous
+      const isSweptHit = sweptHit(oldPos, p.pos, enemyPos, configuredHitRadius);
+      
+      // Skip this enemy if it's already been hit by this projectile (for piercing projectiles)
+      if (p.hitTargets && p.hitTargets.includes(enemyId)) {
+        log(LOG_CATEGORIES.PROJECTILE, `Skipping enemy ${enemyId} - already hit by this projectile`);
+        continue;
+      }
       
       if (isDirectHit || isSweptHit) {
-        console.log(`[PROJECTILE ${p.id}] HIT enemy ${enemyId}! Distance: ${distToEnemy.toFixed(2)}, Direct hit: ${isDirectHit}, Swept hit: ${isSweptHit}`);
+        log(LOG_CATEGORIES.PROJECTILE, `HIT enemy ${enemyId}! Distance: ${distToEnemy.toFixed(2)}, Direct hit: ${isDirectHit}, Swept hit: ${isSweptHit}`);
         hit = true;
         hitTargets.push(enemyId);
         
@@ -993,14 +1007,14 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           if (skill.dmg) {
             const oldHealth = enemy.health;
             enemy.health -= skill.dmg;
-            console.log(`[DAMAGE] Enemy ${enemyId} took ${skill.dmg} damage from projectile ${p.id}. Health: ${oldHealth} -> ${enemy.health}`);
+            log(LOG_CATEGORIES.DAMAGE, `Enemy ${enemyId} took ${skill.dmg} damage from projectile ${p.id}. Health: ${oldHealth} -> ${enemy.health}`);
             
             if (enemy.health <= 0) {
               enemy.health = 0;
               enemy.isAlive = false;
               enemy.deathTimeTs = Date.now();
               enemy.targetId = null;
-              console.log(`[KILL] Enemy ${enemyId} was killed by projectile ${p.id}`);
+              log(LOG_CATEGORIES.ENEMY, `Enemy ${enemyId} was killed by projectile ${p.id}`);
               
               // Give XP to the player who cast the projectile
               const caster = state.players[p.casterId];
@@ -1055,13 +1069,22 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         Math.pow(p.pos.z - playerPos.z, 2)
       );
       
+      // Get the configured hit radius from the skill definition
+      const skill = SKILLS[p.skillId];
+      const configuredHitRadius = skill?.projectile?.hitRadius || 0.8; // Default slightly smaller for PvP
+      
+      // Skip this player if it's already been hit by this projectile (for piercing projectiles)
+      if (p.hitTargets && p.hitTargets.includes(playerId)) {
+        log(LOG_CATEGORIES.PROJECTILE, `Skipping player ${playerId} - already hit by this projectile`);
+        continue;
+      }
+      
       // Improved hit detection with both distance check and swept hit
-      const hitRadius = 1.0; // Slightly smaller hit radius for PvP
-      const isDirectHit = distToPlayer <= hitRadius;
-      const isSweptHit = sweptHit(oldPos, p.pos, playerPos, 0.8);
+      const isDirectHit = distToPlayer <= configuredHitRadius * 1.5; // Direct hit can be more generous
+      const isSweptHit = sweptHit(oldPos, p.pos, playerPos, configuredHitRadius);
       
       if (isDirectHit || isSweptHit) {
-        console.log(`[PROJECTILE ${p.id}] HIT player ${playerId}! Distance: ${distToPlayer.toFixed(2)}, Direct hit: ${isDirectHit}, Swept hit: ${isSweptHit}`);
+        log(LOG_CATEGORIES.PROJECTILE, `HIT player ${playerId}! Distance: ${distToPlayer.toFixed(2)}, Direct hit: ${isDirectHit}, Swept hit: ${isSweptHit}`);
         hit = true;
         hitTargets.push(playerId);
         
@@ -1075,7 +1098,22 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     
     // Handle hit effects
     if (hit && hitTargets.length > 0) {
-      console.log(`[PROJECTILE ${p.id}] Hit detected with ${hitTargets.length} targets, removing projectile`);
+      log(LOG_CATEGORIES.PROJECTILE, `Hit detected with ${hitTargets.length} targets, processing hit`);
+      
+      // Initialize hit targets array if not already present
+      if (!p.hitTargets) {
+        p.hitTargets = [];
+      }
+      
+      // Track hit count
+      p.hitCount = (p.hitCount || 0) + hitTargets.length;
+      
+      // Add new hit targets to the tracking array
+      hitTargets.forEach(targetId => {
+        if (!p.hitTargets?.includes(targetId)) {
+          p.hitTargets.push(targetId);
+        }
+      });
       
       // Emit hit event
       io.emit('msg', {
@@ -1096,6 +1134,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           const enemy = state.enemies[enemyId];
           if (!enemy.isAlive || hitTargets.includes(enemyId)) continue; // Skip dead enemies or already hit
           
+          // Skip enemies already hit by this projectile
+          if (p.hitTargets && p.hitTargets.includes(enemyId)) {
+            continue;
+          }
+          
           const enemyPos = { x: enemy.position.x, z: enemy.position.z };
           const distToEnemy = Math.sqrt(
             Math.pow(p.pos.x - enemyPos.x, 2) + 
@@ -1105,19 +1148,28 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           if (distToEnemy <= splashRadius) {
             splashTargets.push(enemyId);
             
-            // Apply splash damage to the enemy (can be reduced damage)
+            // Apply splash damage to the enemy with distance-based fall-off
             if (skill.dmg) {
-              const splashDamage = Math.floor(skill.dmg * 0.5); // 50% of original damage
+              // Calculate damage fall-off based on distance
+              // 100% damage at direct hit, scaling down to 25% at max splash radius
+              const distanceFactor = 1 - (distToEnemy / splashRadius * 0.75);
+              const splashDamage = Math.floor(skill.dmg * distanceFactor);
+              
+              // Track hit
+              if (!p.hitTargets) p.hitTargets = [];
+              p.hitTargets.push(enemyId);
+              p.hitCount = (p.hitCount || 0) + 1;
+              
               const oldHealth = enemy.health;
               enemy.health -= splashDamage;
-              console.log(`[SPLASH] Enemy ${enemyId} took ${splashDamage} splash damage from projectile ${p.id}. Health: ${oldHealth} -> ${enemy.health}`);
+              log(LOG_CATEGORIES.DAMAGE, `Enemy ${enemyId} took ${splashDamage} splash damage from projectile ${p.id}. Distance: ${distToEnemy.toFixed(2)}, fall-off: ${(distanceFactor * 100).toFixed(0)}%. Health: ${oldHealth} -> ${enemy.health}`);
               
               if (enemy.health <= 0) {
                 enemy.health = 0;
                 enemy.isAlive = false;
                 enemy.deathTimeTs = Date.now();
                 enemy.targetId = null;
-                console.log(`[KILL] Enemy ${enemyId} was killed by splash from projectile ${p.id}`);
+                log(LOG_CATEGORIES.ENEMY, `Enemy ${enemyId} was killed by splash from projectile ${p.id}`);
                 
                 // Give XP to the player who cast the projectile
                 const caster = state.players[p.casterId];
@@ -1149,7 +1201,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         
         // Emit a separate hit event for splash targets
         if (splashTargets.length > 0) {
-          console.log(`[SPLASH] Projectile ${p.id} hit ${splashTargets.length} targets with splash damage`);
+          log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} hit ${splashTargets.length} targets with splash damage`);
           io.emit('msg', {
             type: 'ProjHit',
             id: p.id,
@@ -1161,7 +1213,26 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       
       // Check for piercing - continue flight if piercing is true
       if (skill?.projectile?.pierce) {
-        console.log(`[PROJECTILE ${p.id}] Has pierce property, continuing flight`);
+        // Get the max number of hits for this piercing projectile
+        const maxPierceHits = skill.projectile.maxPierceHits || Number.MAX_SAFE_INTEGER;
+        
+        // Check if we've hit the maximum number of targets already
+        if (p.hitCount && p.hitCount >= maxPierceHits) {
+          log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} reached max pierce hits (${p.hitCount}/${maxPierceHits}), removing`);
+          
+          // Tell clients to despawn it
+          io.emit('msg', {
+            type: 'ProjEnd',
+            id: p.id,
+            pos: { x: p.pos.x, y: 1.5, z: p.pos.z }
+          });
+          
+          // Mark for removal and skip further processing for this projectile
+          projectilesToRemove.push(i);
+          continue; // Skip the TTL check
+        }
+        
+        log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} has pierce property, continuing flight (hits: ${p.hitCount || 0}/${maxPierceHits})`);
       } else {
         // Also tell clients to despawn it immediately for non-piercing projectiles
         io.emit('msg', {
@@ -1179,7 +1250,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     // Check TTL (Time To Live) - 4 seconds max lifetime
     const now = Date.now();
     if (now - p.spawnTs > 4000) {
-      console.log(`[PROJECTILE ${p.id}] Expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
+      log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
       io.emit('msg', {
         type: 'ProjEnd',
         id: p.id,
@@ -1192,11 +1263,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
   
   // Remove projectiles that hit or expired (remove from end to start to avoid index issues)
   if (projectilesToRemove.length > 0) {
-    console.log(`[PROJECTILES] Removing ${projectilesToRemove.length} projectiles`);
+    log(LOG_CATEGORIES.PROJECTILE, `Removing ${projectilesToRemove.length} projectiles`);
     for (let i = projectilesToRemove.length - 1; i >= 0; i--) {
       const index = projectilesToRemove[i];
       const p = state.projectiles[index];
-      console.log(`[PROJECTILE ${p.id}] Removed from world`);
+      log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} removed from world`);
       state.projectiles.splice(index, 1);
     }
   }

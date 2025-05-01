@@ -1,4 +1,5 @@
 import { VecXZ } from '../shared/types.js';
+import { log, LOG_CATEGORIES } from './logger';
 
 // Constants for the game world
 const WORLD_BOUNDS = {
@@ -232,26 +233,26 @@ export function sweptHit(
   a0: VecXZ, 
   a1: VecXZ,
   bPos: VecXZ, 
-  bRadius = 0.4
+  hitRadiusMultiplier = 1.0
 ): boolean {
-  // Use a consistent and generous hit radius
-  const hitRadius = bRadius * 3.0; // Triple the hit radius for more reliable detection
+  // Apply the hit radius multiplier to get the final hit radius
+  const hitRadius = 1.2 * hitRadiusMultiplier; // Base hit radius * multiplier
   
   // Log hit check details for debugging
-  console.log(`[HIT-CHECK] Projectile from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with hit radius ${hitRadius}`);
+  log(LOG_CATEGORIES.COLLISION, `Projectile from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with hit radius ${hitRadius}`);
   
   // SIMPLE APPROACH FIRST: Direct distance check at any point
   // Check distance at initial position
   const initialDist = Math.sqrt(Math.pow(a0.x - bPos.x, 2) + Math.pow(a0.z - bPos.z, 2));
   if (initialDist <= hitRadius) {
-    console.log(`[HIT-CHECK] Direct hit at initial position! Distance: ${initialDist.toFixed(2)} <= ${hitRadius}`);
+    log(LOG_CATEGORIES.COLLISION, `Direct hit at initial position! Distance: ${initialDist.toFixed(2)} <= ${hitRadius}`);
     return true;
   }
   
   // Check distance at final position
   const finalDist = Math.sqrt(Math.pow(a1.x - bPos.x, 2) + Math.pow(a1.z - bPos.z, 2));
   if (finalDist <= hitRadius) {
-    console.log(`[HIT-CHECK] Direct hit at final position! Distance: ${finalDist.toFixed(2)} <= ${hitRadius}`);
+    log(LOG_CATEGORIES.COLLISION, `Direct hit at final position! Distance: ${finalDist.toFixed(2)} <= ${hitRadius}`);
     return true;
   }
   
@@ -278,16 +279,16 @@ export function sweptHit(
   // Get distance from closest point to target
   const closestDist = Math.sqrt(Math.pow(closestX - bPos.x, 2) + Math.pow(closestZ - bPos.z, 2));
   
-  console.log(`[HIT-CHECK] Closest approach at t=${t.toFixed(2)}, distance: ${closestDist.toFixed(2)}, hit radius: ${hitRadius}`);
+  log(LOG_CATEGORIES.COLLISION, `Closest approach at t=${t.toFixed(2)}, distance: ${closestDist.toFixed(2)}, hit radius: ${hitRadius}`);
   
   // Check if this closest distance is less than the hit radius
   const hit = closestDist <= hitRadius;
   
   // Additional debug logging
   if (hit) {
-    console.log(`[HIT-CHECK] HIT! Projectile passes within ${closestDist.toFixed(2)} units of target (hit radius: ${hitRadius})`);
+    log(LOG_CATEGORIES.COLLISION, `HIT! Projectile passes within ${closestDist.toFixed(2)} units of target (hit radius: ${hitRadius})`);
   } else {
-    console.log(`[HIT-CHECK] MISS. Closest approach: ${closestDist.toFixed(2)} > ${hitRadius}`);
+    log(LOG_CATEGORIES.COLLISION, `MISS. Closest approach: ${closestDist.toFixed(2)} > ${hitRadius}`);
   }
   
   return hit;

@@ -32,6 +32,8 @@ export interface Projectile {
     speed: number;
     spawnTs: number;
     targetId?: string;  // Optional for homing projectiles
+    hitTargets?: string[];  // Track entities that have been hit by this projectile
+    hitCount?: number;  // Track number of hits for piercing projectiles
 }
 
 export type SkillType = SkillId;   // export for compatibility

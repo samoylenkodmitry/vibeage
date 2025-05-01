@@ -18,6 +18,8 @@ export interface SkillDef {
     speed?: number; 
     pierce?: boolean; 
     splashRadius?: number;
+    hitRadius?: number;  // Explicit hit detection radius
+    maxPierceHits?: number; // Maximum number of targets that can be hit with pierce
   };
 }
 
@@ -34,7 +36,8 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     speed:22,
     projectile: {
       speed: 22,
-      pierce: false
+      pierce: false,
+      hitRadius: 1.0
     }
   },
   iceBolt:     {
@@ -48,7 +51,9 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     speed:26,
     projectile: {
       speed: 26,
-      pierce: false
+      pierce: true,
+      maxPierceHits: 2,
+      hitRadius: 0.8
     }
   },
   waterSplash: {
@@ -64,7 +69,8 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     projectile: {
       speed: 20,
       pierce: false,
-      splashRadius: 3
+      splashRadius: 3,
+      hitRadius: 1.2
     }
   },
   petrify:     {
