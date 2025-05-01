@@ -71,33 +71,6 @@ export default function ActiveSkills() {
   const [stunFlashes, setStunFlashes] = useState<{id: string, position: any}[]>([]);
   const [petrifyFlashes, setPetrifyFlashes] = useState<{id: string, position: any}[]>([]);
   
-  // Monitor key presses for skill casting
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!selectedTargetId) return; // No target selected
-      
-      const keyToSkill: Record<string, string> = {
-        '1': 'fireball',
-        'q': 'fireball',
-        '2': 'icebolt',
-        'e': 'icebolt',
-        '3': 'waterSplash',
-        'r': 'waterSplash',
-        '4': 'petrify',
-        'f': 'petrify'
-      };
-      
-      const skillId = keyToSkill[event.key.toLowerCase()];
-      if (skillId && SKILLS[skillId]) {
-        console.log('Casting skill via keyboard:', skillId);
-        useGameStore.getState().sendCastReq(skillId, selectedTargetId);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTargetId]);
-  
   // Listen for projectile events
   useEffect(() => {
     const spawn = (e: CustomEvent<ProjSpawn>) => {

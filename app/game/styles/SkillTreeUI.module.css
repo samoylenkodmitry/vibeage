@@ -1,0 +1,294 @@
+.skillTreeButton {
+  position: relative; /* Changed from absolute since parent now has fixed positioning */
+  padding: 8px 16px;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 1000;
+  pointer-events: auto; /* Explicitly ensure click events are captured */
+  transition: all 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Add shadow for better visibility */
+}
+
+.skillTreeButton:hover {
+  background-color: #c0392b;
+  transform: translateY(-2px); /* Add slight animation on hover */
+}
+
+.skillTreeOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; /* Increased to be higher than button */
+  pointer-events: auto; /* Ensure clicks are captured */
+}
+
+.skillTreeContainer {
+  background-color: #1e2a38;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 900px;
+  height: 80vh;
+  padding: 20px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto; /* Ensure clicks are handled by container */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* Add shadow for depth */
+}
+
+.skillTreeHeader {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #34495e;
+  padding-bottom: 10px;
+  position: relative;
+}
+
+.skillTreeHeader h2 {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+  color: #3498db;
+}
+
+.skillTreeHeader p {
+  margin: 0 0 5px 0;
+  color: #bdc3c7;
+  font-size: 14px;
+}
+
+.closeButton {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: transparent;
+  color: #bdc3c7;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 5px 10px;
+}
+
+.closeButton:hover {
+  color: white;
+}
+
+.skillsContainer {
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.unlockedSkills, .availableSkills {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.unlockedSkills h3, .availableSkills h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  color: #e74c3c;
+}
+
+.skillsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 15px;
+}
+
+.skillItem {
+  background-color: #2c3e50;
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.skillItem:hover {
+  background-color: #34495e;
+}
+
+.skillItem img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+
+.skillItem span {
+  font-size: 14px;
+  text-align: center;
+}
+
+.skillDetails {
+  width: 100%;
+  font-size: 12px;
+  color: #bdc3c7;
+  margin-top: 8px;
+}
+
+.skillDetails p {
+  margin: 2px 0;
+}
+
+.learnButton {
+  margin-top: 10px;
+  padding: 5px 15px;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  width: 100%;
+}
+
+.learnButton:hover:not(:disabled) {
+  background-color: #2ecc71;
+}
+
+.learnButton:disabled {
+  background-color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+.activeSkillsSection {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #34495e;
+}
+
+.activeSkillsSection h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #e74c3c;
+}
+
+.activeSkillsSection p {
+  margin: 0 0 15px 0;
+  color: #bdc3c7;
+  font-size: 14px;
+}
+
+.shortcutsPanel {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 20px;
+  background-color: #2c3e50;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.shortcutSlot {
+  width: 60px;
+  height: 60px;
+  background-color: #1e2a38;
+  border-radius: 6px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shortcutSlot:hover {
+  background-color: #34495e;
+  transform: translateY(-2px);
+}
+
+.dragOver {
+  background-color: #2980b9;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+  border: 2px dashed #3498db;
+}
+
+.shortcutSuccess {
+  animation: successPulse 0.5s ease;
+}
+
+.dropSuccess {
+  animation: successDropPulse 0.5s ease;
+}
+
+@keyframes successPulse {
+  0% { background-color: #1e2a38; }
+  50% { background-color: #27ae60; }
+  100% { background-color: #1e2a38; }
+}
+
+@keyframes successDropPulse {
+  0% { 
+    background-color: #1e2a38;
+    transform: scale(1);
+  }
+  50% { 
+    background-color: #27ae60; 
+    transform: scale(1.2);
+  }
+  100% { 
+    background-color: #1e2a38;
+    transform: scale(1);
+  }
+}
+
+.shortcutSlot img {
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+}
+
+.keyNumber {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #e74c3c;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.emptySlot {
+  width: 45px;
+  height: 45px;
+  border: 2px dashed #7f8c8d;
+  border-radius: 6px;
+}
+
+.unlockedSkillsPanel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #e74c3c;
+}

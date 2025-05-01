@@ -1,27 +1,16 @@
-import { SkillId, SKILLS } from '../shared/skillsDefinition.js';
+import { SkillId, SKILLS, SkillDef, SkillEffect as SharedSkillEffect } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
+import { CharacterClass } from '../shared/classSystem.js';
 
-export interface SkillEffect {
+// Server-side representation of a skill effect
+export interface SkillEffect extends SharedSkillEffect {
     id?: string;
-    type: string;
-    value: number;
-    durationMs: number;
     startTimeTs?: number;
     sourceSkill?: string;
 }
 
-export interface SkillDefinition {
-    id: SkillId;
-    cat: string;
-    manaCost: number;
-    cooldownMs: number;
-    castMs: number;     // Changed from castTimeMs to match shared definition
-    dmg?: number;       // Changed from damage to match shared definition
-    range: number;
-    area?: number;      // Changed from areaOfEffect to match shared definition
-    speed?: number;     // Projectile speed
-    status?: {type:string; value:number; durationMs:number}[]; // Changed from statusEffect to match shared definition
-}
+// Re-export SkillDef for server
+export type { SkillDef };
 
 export interface Projectile {
     id: string;
@@ -40,3 +29,11 @@ export type SkillType = SkillId;   // export for compatibility
 
 // Add an alias for 'water' skill ID to match 'waterSplash'
 (SKILLS as any)['water'] = SKILLS['waterSplash'];
+
+// Player class data - stores class and unlocked skills
+export interface PlayerClassData {
+    className: CharacterClass;
+    unlockedSkills: SkillId[];
+    activeSkills: SkillId[]; // Skills currently equipped (limited by slots)
+    availableSkillPoints: number;
+}

@@ -1,7 +1,12 @@
-import { SkillDef } from '../../shared/skills';
+import { SkillDef } from '../../shared/skillsDefinition';
 import { VecXZ, ProjHit, ProjEnd, InstantHit } from '../../shared/messages';
-import { GameState } from '../world';
 import { v4 as uuid } from 'uuid';
+
+// Define a simplified GameState interface for use in this file
+interface GameState {
+  enemies: Record<string, any>;
+  players: Record<string, any>;
+}
 
 export interface EffectEntity {
   id: string;
@@ -24,15 +29,19 @@ export class Projectile implements EffectEntity {
   update(dt: number, state: GameState): (ProjHit | ProjEnd)[]{
      if(this.done) return [];
      
-     this.pos.x += this.dir.x * this.skill.speed! * dt;
-     this.pos.y += this.dir.y * this.skill.speed! * dt;
-     this.pos.z += this.dir.z * this.skill.speed! * dt;
+     // Use the standardized projectile speed from the skill definition
+     const speed = this.skill.projectile?.speed || this.skill.speed || 0;
+     this.pos.x += this.dir.x * speed * dt;
+     this.pos.y += this.dir.y * speed * dt;
+     this.pos.z += this.dir.z * speed * dt;
      
      /* hit check vs targetId (later broaden) */
      const hitMsgs: ProjHit[] = [];
      if(this.targetId) {
         const t = state.enemies[this.targetId] || state.players[this.targetId];
-        if(t && distanceXZ(this.pos, t.position) <= 0.5) {
+        // Use the hitRadius from the projectile definition if available
+        const hitRadius = this.skill.projectile?.hitRadius || 0.5;
+        if(t && distanceXZ(this.pos, t.position) <= hitRadius) {
             this.done = true;
             
             // Add casterId to skill for XP calculation
@@ -59,7 +68,7 @@ export class Instant implements EffectEntity {
      if(this.done) return [];
      this.done = true;
      
-     /* immediately apply damage to targets */
+     /* immediately apply damage and effects to targets */
      for (const targetId of this.targetIds) {
        const target = state.enemies[targetId] || state.players[targetId];
        if (target) {
@@ -80,25 +89,31 @@ export class Instant implements EffectEntity {
   }
 }
 
-/* distanceXZ, applySkillDamage omitted for brevity */
+/* Helper functions */
 export function distanceXZ(a: VecXZ, b: VecXZ): number {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   return Math.sqrt(dx * dx + dz * dz);
 }
 
-export function applySkillDamage(skill: SkillDef, target: any, state: GameState) {
-  // Apply damage from skill to target
-  if (skill.dmg) {
-    target.health -= skill.dmg;
-    if (target.health <= 0) {
-      target.health = 0;
-      target.isAlive = false;
-      target.deathTimeTs = Date.now();
-      
-      // Clear target if this is an enemy
-      if (target.targetId !== undefined) {
-        target.targetId = null;
+export function applySkillDamage(skill: any, target: any, state: GameState) {
+  // Apply all effects from the skill
+  const now = Date.now();
+  
+  // Process all skill effects
+  for (const effect of skill.effects) {
+    if (effect.type === 'damage') {
+      // Apply damage
+      target.health -= effect.value;
+      if (target.health <= 0) {
+        target.health = 0;
+        target.isAlive = false;
+        target.deathTimeTs = now;
+        
+        // Clear target if this is an enemy
+        if (target.targetId !== undefined) {
+          target.targetId = null;
+        }
         
         // If this is an enemy, grant XP to the player who killed it
         if (state.players && skill.casterId) {
@@ -118,6 +133,24 @@ export function applySkillDamage(skill: SkillDef, target: any, state: GameState)
             }
           }
         }
+      }
+    } else {
+      // Apply status effect
+      const effectId = Math.random().toString(36).substr(2, 9);
+      const statusEffect = {
+        id: effectId,
+        type: effect.type,
+        value: effect.value,
+        durationMs: effect.durationMs || 0,
+        startTimeTs: now,
+        sourceSkill: skill.id
+      };
+      
+      const existingEffectIndex = target.statusEffects.findIndex((e: any) => e.type === effect.type);
+      if (existingEffectIndex >= 0) {
+        target.statusEffects[existingEffectIndex] = statusEffect;
+      } else {
+        target.statusEffects.push(statusEffect);
       }
     }
   }

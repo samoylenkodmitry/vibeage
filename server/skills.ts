@@ -3,11 +3,12 @@ import { Enemy, StatusEffect } from '../shared/types.js';
 import { SkillType } from './types.js';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
-import { predictPosition } from './world.js';
+import { predictPosition, awardPlayerXP } from './world.js';
 
 interface PlayerState {
   id: string;
   socketId: string;
+  name: string;
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };
   health: number;
@@ -23,7 +24,11 @@ interface PlayerState {
   castingSkill: SkillType | null;
   castingProgressMs: number;
   isAlive: boolean;
+  deathTimeTs?: number;
+  lastUpdateTime?: number;
   movement?: any;
+  velocity?: { x: number; z: number };
+  posHistory?: { ts: number; x: number; z: number }[];
 }
 
 /**
@@ -129,19 +134,8 @@ export function executeSkill(
       target.deathTimeTs = now;
       target.targetId = null;
       
-      // Grant experience to the player
-      caster.experience += target.experienceValue;
-      
-      // Check for level up
-      while (caster.experience >= caster.experienceToNextLevel) {
-        caster.level++;
-        caster.experience -= caster.experienceToNextLevel;
-        caster.experienceToNextLevel = Math.floor(caster.experienceToNextLevel * 1.5);
-        caster.maxHealth += 20;
-        caster.health = caster.maxHealth;
-        caster.maxMana += 10;
-        caster.mana = caster.maxMana;
-      }
+      // Grant experience to the player using the centralized function
+      awardPlayerXP(caster, target.experienceValue, `killing enemy ${target.id} with ${skillId}`, server);
     }
   }
   

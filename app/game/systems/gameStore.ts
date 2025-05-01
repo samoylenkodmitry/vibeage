@@ -3,8 +3,16 @@
 import { create } from 'zustand';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
-import { Skill } from '../models/Skill';
+import { Skill, SkillId } from '../models/Skill';
 import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
+import { validateSkillId } from './skillUtils';ient';
+
+import { create } from 'zustand';
+import { Character } from '../models/Character';
+import { Enemy } from '../models/Enemy';
+import { Skill, SkillId } from '../models/Skill';
+import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
+import { validateSkillId } from './skillUtils';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -89,6 +97,8 @@ interface GameState {
   updatePlayerZone: () => void;
   applySkillEffect: (targetId: string, effects: any[]) => void;
   setHasJoinedGame: (joined: boolean) => void;
+  handleSkillHotkey: (key: string) => void;
+  setActiveSkill: (skillId: string | null) => void;
 }
 
 // --- Memoized selectors ---
@@ -181,6 +191,31 @@ export const useGameStore = create<GameState>((set, get) => ({
   // --- Methods ---
   setSocket: (socketInstance: any) => {
     set({ socket: socketInstance });
+  },
+  
+  // New method to handle keyboard shortcuts for skills
+  handleSkillHotkey: (key: string) => {
+    const player = get().getMyPlayer();
+    const selectedTarget = get().selectedTargetId;
+    
+    if (!player || !player.skillShortcuts) return;
+    
+    // Convert key to index (keys 1-9 map to array indices 0-8)
+    const keyNum = parseInt(key);
+    if (isNaN(keyNum) || keyNum < 1 || keyNum > 9) return;
+    
+    const shortcutIndex = keyNum - 1;
+    const skillId = player.skillShortcuts[shortcutIndex];
+    
+    if (skillId) {
+      console.log(`Using skill hotkey ${keyNum} to cast ${skillId}`);
+      get().setSelectedSkill(skillId);
+      
+      // If there's a selected target, cast immediately
+      if (selectedTarget) {
+        get().sendCastReq(skillId, selectedTarget);
+      }
+    }
   },
 
   setGameState: (newState: ServerGameState) => {
@@ -390,6 +425,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     
     // Use the new CastReq protocol
     get().sendCastReq(skillId, state.selectedTargetId);
+  },
+
+  setActiveSkill: (skillId: string | null) => {
+    set({ selectedSkill: skillId });
   },
 
   selectTarget: (targetId: string | null) => {

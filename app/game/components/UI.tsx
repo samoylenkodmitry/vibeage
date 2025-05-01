@@ -5,6 +5,7 @@ import { useGameStore } from '../systems/gameStore';
 import { SKILLS, Skill } from '../models/Skill';
 import StatusEffects from './StatusEffects';
 import ConnectionStatus from './ConnectionStatus';
+import SkillTreeUI from './SkillTreeUI';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
 
@@ -18,7 +19,10 @@ interface PlayerState {
   maxHealth: number;
   mana: number;
   maxMana: number;
-  skills: string[];
+  unlockedSkills: string[];
+  skillShortcuts: (string | null)[];
+  availableSkillPoints: number;
+  className: string;
 }
 
 // Add explicit global window typings for our custom method
@@ -332,19 +336,14 @@ export default React.memo(function UI() {
   
   // Memoize available skills filtering
   const availableSkills = useMemo(() => {
-    const skills = player?.skills
-      ? player.skills
-          .map((skillId: string) => SKILLS[skillId])
-          .filter((skill: Skill | undefined): skill is Skill => 
-            Boolean(skill && player.level >= (skill.levelRequired ?? 0)))
-      : [];
-    console.log('Available skills:', {
-      playerSkills: player?.skills,
-      mappedSkills: skills.map(s => s.id),
-      playerLevel: player?.level
-    });
-    return skills;
-  }, [player?.skills, player?.level]);
+    if (!player || !player.skillShortcuts) return [];
+    
+    // Filter out null values and map to skill objects
+    return player.skillShortcuts
+      .filter((skillId): skillId is string => skillId !== null)
+      .map(skillId => SKILLS[skillId])
+      .filter((skill): skill is Skill => Boolean(skill));
+  }, [player?.skillShortcuts]);
 
   // Debug log when skills panel renders
   useEffect(() => {
@@ -477,9 +476,9 @@ export default React.memo(function UI() {
         {/* Skills */}
         <div className="bg-gray-900/80 p-3 rounded-lg">
           <div className="flex space-x-3">
-            {availableSkills.map((skill) => (
+            {availableSkills.map((skill, index) => (
               <SkillButton 
-                key={skill.id}
+                key={`${skill.id}-${index}`} // Add index to ensure uniqueness
                 skill={skill}
                 cooldownEndMs={skillCooldownEndTs[skill.id] || 0}
                 isCasting={castingSkill === skill.id}
@@ -505,6 +504,9 @@ export default React.memo(function UI() {
           </div>
         )}
       </div>
+      
+      {/* Skill Tree UI */}
+      <SkillTreeUI />
       
       {/* Connection status indicator */}
       <ConnectionStatus />

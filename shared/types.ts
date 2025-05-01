@@ -1,3 +1,6 @@
+import { SkillId } from './skillsDefinition';
+import { CharacterClass } from './classSystem';
+
 export interface StatusEffect {
     id: string;
     type: string;
@@ -53,7 +56,7 @@ export interface MoveStopMsg {
     ts: number;
 }
 
-// Update PlayerState with optional movement field
+// Update PlayerState with optional movement field and class data
 export interface PlayerState {
     id: string;
     socketId: string;
@@ -64,7 +67,10 @@ export interface PlayerState {
     maxHealth: number;
     mana: number;
     maxMana: number;
-    skills: string[];
+    className: CharacterClass;
+    unlockedSkills: SkillId[];     // All skills the player has learned
+    skillShortcuts: (SkillId | null)[];  // Skills assigned to number keys 1-9
+    availableSkillPoints: number;  // Points available to learn new skills
     skillCooldownEndTs: Record<string, number>;
     statusEffects: StatusEffect[];
     level: number;

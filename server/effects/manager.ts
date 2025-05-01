@@ -1,34 +1,52 @@
 import { EffectEntity, Projectile, Instant } from './entities';
-import { GameState } from '../world';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition';
 import { ProjSpawn, ProjHit, ProjEnd, InstantHit } from '../../shared/messages';
+import { Server } from 'socket.io';
+
+// Define a simplified GameState interface to match our usage
+interface GameState {
+  enemies: Record<string, any>;
+  players: Record<string, any>;
+  [key: string]: any;
+}
 
 export class EffectManager {
   private effects: Record<string, EffectEntity> = {};
-  constructor(private io: import('socket.io').Server,
-              private state: GameState) {}
+  
+  constructor(
+    private io: Server,
+    private state: GameState
+  ) {}
   
   spawnProjectile(skillId: SkillId, caster, dir, targetId?) {
       const skill = SKILLS[skillId];
+      if (!skill) return null;
+      
       const origin = {...caster.position, y: 1.5};
       const p = new Projectile(skill, origin, dir, caster.id, targetId);
       this.effects[p.id] = p;
+      
+      // Emit projectile spawn event
       this.io.emit('msg', {
         type: 'ProjSpawn',
         id: p.id, 
         skillId: skillId, 
         origin, 
         dir, 
-        speed: skill.speed, 
+        speed: skill.projectile?.speed || skill.speed || 0, 
         launchTs: Date.now()
       });
+      
       return p.id;
   }
   
   spawnInstant(skillId: SkillId, caster, targetIds) {
       const skill = SKILLS[skillId];
+      if (!skill) return null;
+      
       const inst = new Instant(skill, caster.id, targetIds, {...caster.position, y: 1.5});
       this.effects[inst.id] = inst;
+      return inst.id;
   }
   
   updateAll(dt) {

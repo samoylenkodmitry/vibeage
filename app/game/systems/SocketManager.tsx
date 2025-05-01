@@ -254,6 +254,58 @@ export default function SocketManager() {
           case 'CastEnd':
             handleCastEnd(msg);
             break;
+          case 'SkillShortcutUpdated':
+            // Update local shortcuts to match server state
+            console.log('Skill shortcut updated:', msg);
+            try {
+              if (typeof msg.slotIndex !== 'number' || msg.slotIndex < 0 || msg.slotIndex > 8) {
+                console.error('Invalid slot index in SkillShortcutUpdated message:', msg.slotIndex);
+                break;
+              }
+              
+              const player = useGameStore.getState().getMyPlayer();
+              if (!player) {
+                console.error('Cannot update skill shortcuts: No player data available');
+                break;
+              }
+              
+              if (!player.skillShortcuts) {
+                console.error('Cannot update skill shortcuts: Player has no skillShortcuts array');
+                break;
+              }
+              
+              // Create a new array from existing shortcuts to avoid reference issues
+              const updatedShortcuts = [...player.skillShortcuts];
+              updatedShortcuts[msg.slotIndex] = msg.skillId;
+              
+              // Update player in store
+              useGameStore.getState().updatePlayer({
+                id: player.id,
+                skillShortcuts: updatedShortcuts
+              });
+              
+              console.log(`Successfully updated skill shortcut at slot ${msg.slotIndex+1} to ${msg.skillId}`);
+            } catch (error) {
+              console.error('Error processing SkillShortcutUpdated message:', error);
+            }
+            break;
+          case 'SkillLearned':
+            // Handle skill learned confirmation from server
+            console.log('Skill learned:', msg);
+            if (useGameStore.getState().myPlayerId) {
+              const player = useGameStore.getState().getMyPlayer();
+              if (player) {
+                // Create a new array of unlocked skills with the new skill
+                const updatedUnlockedSkills = [...player.unlockedSkills, msg.skillId];
+                // Update the player with the new skill and remaining points
+                useGameStore.getState().updatePlayer({
+                  id: player.id,
+                  unlockedSkills: updatedUnlockedSkills,
+                  availableSkillPoints: msg.remainingPoints
+                });
+              }
+            }
+            break;
           case 'ProjHit':
           case 'ProjEnd':
           case 'InstantHit':

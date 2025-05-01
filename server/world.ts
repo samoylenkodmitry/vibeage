@@ -1,12 +1,13 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
-import { Enemy, StatusEffect } from '../shared/types.js';
+import { Enemy, StatusEffect, PlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState } from '../shared/messages.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
+import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 
 /**
  * Defines the GameState interface
@@ -18,6 +19,7 @@ interface GameState {
   lastProjectileId: number;
 }
 
+// Update PlayerState to include the class system fields
 interface PlayerState {
   id: string;
   socketId: string;
@@ -28,7 +30,10 @@ interface PlayerState {
   maxHealth: number;
   mana: number;
   maxMana: number;
-  skills: SkillType[];
+  className: string; // Character class: mage, warrior, etc.
+  unlockedSkills: SkillId[]; // Skills the player has learned
+  skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
+  availableSkillPoints: number; // Points to spend on new skills
   skillCooldownEndTs: Record<string, number>;
   statusEffects: StatusEffect[];
   level: number;
@@ -459,9 +464,8 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
-  // Validate skill exists
-  if (!player.skills.includes(msg.skillId as SkillType)) {
-    console.warn(`Player ${playerId} tried to cast unknown skill: ${msg.skillId}`);
+  if (!player.unlockedSkills.includes(msg.skillId as SkillType)) {
+    console.warn(`Player ${playerId} tried to cast not owned skill: ${msg.skillId}`);
     return;
   }
   
@@ -800,9 +804,11 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   return {
     handleMessage(socket: Socket, msg: ClientMsg) {
       switch (msg.type) {
-        case 'MoveStart': return onMoveStart(socket, state, msg);
-        case 'MoveSync': return onMoveSync(socket, state, msg);
-        case 'CastReq': return onCastReq(socket, state, msg);
+        case 'MoveStart': return onMoveStart(socket, state, msg as MoveStart);
+        case 'MoveSync': return onMoveSync(socket, state, msg as MoveSync);
+        case 'CastReq': return onCastReq(socket, state, msg as CastReq);
+        case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
+        case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
       }
     },
     
@@ -823,7 +829,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         maxHealth: 100,
         mana: 100,
         maxMana: 100,
-        level: 1,
+        level: 2,
         experience: 0,
         experienceToNextLevel: 100,
         statusEffects: [],
@@ -831,9 +837,12 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         castingSkill: null,
         castingProgressMs: 0,
         isAlive: true,
-        movement: { dest: null, speed: 0, startTs: 0 },
-        velocity: { x: 0, z: 0 },
-        skills: ['fireball', 'iceBolt', 'waterSplash', 'petrify']
+        className: 'mage', // Default class
+        unlockedSkills: ['fireball'], // Start with fireball
+        skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
+        availableSkillPoints: 1, // Give the player 1 skill point to start
+        posHistory: [], // Initialize position history
+        lastUpdateTime: Date.now()
       };
       
       state.players[playerId] = player;
@@ -902,7 +911,7 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
  * @param sourceInfo Information about the source of XP (for logging)
  * @param io Server instance for broadcasting updates
  */
-function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string, io: Server): void {
+export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string, io: Server): void {
   const oldExp = player.experience;
   player.experience += xpAmount;
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained ${xpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`);
@@ -911,6 +920,7 @@ function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string
   if (player.experience >= player.experienceToNextLevel) {
     player.level += 1;
     const oldMaxExp = player.experienceToNextLevel;
+    player.experience -= player.experienceToNextLevel; // Keep excess XP
     player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5); // 50% more XP needed for next level
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);
     
@@ -921,6 +931,10 @@ function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string
     // Heal player on level up
     player.health = player.maxHealth;
     player.mana = player.maxMana;
+    
+    // Award a skill point on level up
+    player.availableSkillPoints += 1;
+    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints}`);
   }
   
   // Broadcast the updated player state so clients see XP and level changes
@@ -932,7 +946,8 @@ function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string
     maxHealth: player.maxHealth,
     health: player.health,
     maxMana: player.maxMana,
-    mana: player.mana
+    mana: player.mana,
+    availableSkillPoints: player.availableSkillPoints
   });
 }
 

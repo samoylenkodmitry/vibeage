@@ -1,36 +1,165 @@
-export interface VecXZ { x: number; z: number }
-export interface PlayerMovementState {
-  dest: VecXZ | null;
-  speed: number;
-  startTs: number;
+import { SkillId } from './skillsDefinition';
+
+export interface VecXZ {
+  x: number;
+  z: number;
 }
 
-// Define a union type for all skill IDs to ensure consistency
-import { SkillId } from './skillsDefinition.js';
+export interface PlayerMovementState {
+  isMoving: boolean;
+  path?: VecXZ[];
+  pos: VecXZ;  // Current position
+  targetPos?: VecXZ; // Target position when moving
+  lastUpdateTime: number;
+  speed: number;
+}
 
-export interface MoveStart { type: 'MoveStart'; id: string; path: VecXZ[]; speed: number; clientTs: number }
-export interface MoveSync { type: 'MoveSync'; id: string; pos: VecXZ; clientTs: number }
-export interface CastReq { type: 'CastReq'; id: string; skillId: SkillId; targetId?: string; targetPos?: VecXZ; clientTs: number }
+// Base message with type
+export interface ClientMsg {
+  type: string;
+  [key: string]: any;
+}
 
-export type ClientMsg = MoveStart | MoveSync | CastReq
+// Movement messages
+export interface MoveStart extends ClientMsg {
+  type: 'MoveStart';
+  id: string;
+  path: VecXZ[];
+  speed: number;
+  clientTs: number;
+}
 
-export interface PosSnap { id: string; pos: VecXZ; vel: VecXZ; ts: number }
-export interface CastStart { id: string; skillId: SkillId; castMs: number; }
-export interface CastEnd { id: string; skillId: SkillId; success: boolean }
+export interface MoveSync extends ClientMsg {
+  type: 'MoveSync';
+  id: string;
+  pos: VecXZ;
+  clientTs: number;
+}
 
-export interface ProjSpawn { type:'ProjSpawn'; id:string; skillId:SkillId;
-  origin:{x:number;y:number;z:number}; dir:{x:number;y:number;z:number};
-  speed:number; launchTs:number; }
+export interface MoveStop extends ClientMsg {
+  type: 'MoveStop';
+  id: string;
+  pos: VecXZ;
+  clientTs: number;
+}
 
-export interface ProjHit  { type:'ProjHit';  id:string; pos:{x:number;y:number;z:number}; hitIds:string[] }
-export interface ProjEnd  { type:'ProjEnd';  id:string; pos:{x:number;y:number;z:number} }
+// Server-driven position correction
+export interface PosSnap extends ClientMsg {
+  type: 'PosSnap';
+  id: string;
+  pos: VecXZ;
+  serverTs: number;
+}
 
-export interface InstantHit { type:'InstantHit'; skillId:SkillId;
-  origin:{x:number;y:number;z:number}; targetPos:{x:number;y:number;z:number}; hitIds:string[] }
+// Skill casting
+export interface CastReq extends ClientMsg {
+  type: 'CastReq';
+  id: string;
+  skillId: string;
+  targetId?: string;
+  targetPos?: VecXZ;
+  clientTs: number;
+}
 
-export type ServerMsg =
-  | { type: 'MoveStart' } & MoveStart
-  | { type: 'PosSnap', snaps: PosSnap[] }
-  | { type: 'CastStart' } & CastStart
-  | { type: 'CastEnd' } & CastEnd
-  | ProjSpawn | ProjHit | ProjEnd | InstantHit
+export interface CastStart extends ClientMsg {
+  type: 'CastStart';
+  id: string;
+  skillId: string;
+  castTimeMs: number;
+  targetId?: string;
+  targetPos?: VecXZ;
+  serverTs: number;
+}
+
+export interface CastEnd extends ClientMsg {
+  type: 'CastEnd';
+  id: string;
+  skillId: string;
+  success: boolean;
+  serverTs: number;
+}
+
+// Projectile messages
+export interface ProjSpawn extends ClientMsg {
+  type: 'ProjSpawn';
+  id: string; // Projectile ID
+  skillId: string;
+  origin: { x: number; y: number; z: number };
+  dir: { x: number; y: number; z: number };
+  speed: number;
+  launchTs: number;
+}
+
+export interface ProjHit extends ClientMsg {
+  type: 'ProjHit';
+  id: string; // Projectile ID
+  pos: { x: number; y: number; z: number };
+  hitIds: string[]; // IDs of entities hit by this projectile
+}
+
+export interface ProjEnd extends ClientMsg {
+  type: 'ProjEnd';
+  id: string; // Projectile ID
+  pos: { x: number; y: number; z: number };
+}
+
+// Instant skill hit effect
+export interface InstantHit extends ClientMsg {
+  type: 'InstantHit';
+  skillId: string;
+  origin: { x: number; y: number; z: number };
+  targetPos: { x: number; y: number; z: number };
+  hitIds: string[];
+}
+
+// Skill management
+export interface LearnSkill extends ClientMsg {
+  type: 'LearnSkill';
+  skillId: SkillId;
+}
+
+export interface SetSkillShortcut extends ClientMsg {
+  type: 'SetSkillShortcut';
+  slotIndex: number;  // 0-8 for keys 1-9
+  skillId: SkillId | null;  // null to clear the slot
+}
+
+export interface SkillLearned extends ClientMsg {
+  type: 'SkillLearned';
+  skillId: SkillId;
+  remainingPoints: number;
+}
+
+export interface SkillShortcutUpdated extends ClientMsg {
+  type: 'SkillShortcutUpdated';
+  slotIndex: number;
+  skillId: SkillId | null;
+}
+
+// Legacy - to be removed
+export interface SetActiveSkills extends ClientMsg {
+  type: 'SetActiveSkills';
+  skills: SkillId[];
+}
+
+export interface ActiveSkillsUpdated extends ClientMsg {
+  type: 'ActiveSkillsUpdated';
+  skills: SkillId[];
+}
+
+// Class system messages
+export interface SelectClass extends ClientMsg {
+  type: 'SelectClass';
+  className: string;
+}
+
+export interface ClassSelected extends ClientMsg {
+  type: 'ClassSelected';
+  className: string;
+  baseStats: {
+    healthMultiplier: number;
+    manaMultiplier: number;
+    damageMultiplier: number;
+    speedMultiplier: number;
+  };
+}

@@ -8,6 +8,7 @@ import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
 import UI from './UI';
+import KeyboardShortcuts from './KeyboardShortcuts';
 import ActiveSkills from './ActiveSkills';
 import TargetRing from './TargetRing';
 import { useGameStore } from '../systems/gameStore';
@@ -90,6 +91,7 @@ export default function Game() {
   return (
     <div className="relative w-full h-full">
       <SocketManager />
+      <KeyboardShortcuts />
       <KeyboardControls map={controls}>
         <Canvas 
           className="w-full h-screen"
