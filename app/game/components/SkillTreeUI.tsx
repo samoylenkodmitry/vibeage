@@ -159,14 +159,7 @@ const SkillTreeUI: React.FC = () => {
       console.error(`Cannot set skill shortcut: Invalid skill ID "${skillId}"`);
       return;
     }
-    
-    // Check if skill is unlocked, but continue anyway in case of synchronization issues
-    if (!player.unlockedSkills.includes(skillId)) {
-      console.warn(`Warning: Skill ${skillId} appears to not be unlocked, but attempting to set shortcut anyway`);
-      console.log('Player unlocked skills:', player.unlockedSkills);
-      // We'll continue anyway since you mentioned you were able to learn it
-    }
-    
+
     console.log(`Setting skill ${skillId} to shortcut slot ${slotIndex+1}`);
     
     try {
@@ -300,12 +293,63 @@ const SkillTreeUI: React.FC = () => {
                             src={skillUtils.getSkillIconPath(skillId)} 
                             alt={skill.name} 
                             title={skill.description}
+                      onDoubleClick={() => {
+                        // When double-clicking a skill, assign it to the first available slot
+                        console.log('Skill double-clicked:', skillId);
+                        const availableSlotIndex = skillShortcuts.findIndex(skill => skill === null);
+                        if (availableSlotIndex !== -1) {
+                          console.log(`Assigning to first available slot: ${availableSlotIndex + 1}`);
+                          setSkillShortcut(skillId, availableSlotIndex);
+                        } else {
+                          // If no empty slots, assign to slot 1
+                          console.log('No empty slots, assigning to slot 1');
+                          setSkillShortcut(skillId, 0);
+                        }
+                      }}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        // Make sure we have a valid skill ID to start the drag
+                        if (!SKILLS[skillId]) {
+                          console.error(`Attempting to drag invalid skill: ${skillId}`);
+                          return;
+                        }
+
+                        console.log('Drag started with skill ID:', skillId);
+
+                        // Store the skill ID in our global drag state
+                        dragState.setDraggedSkill(skillId);
+
+                        // Set the drag effect to copy
+                        e.dataTransfer.effectAllowed = 'copy';
+
+                        // Add custom drag image if available
+                        try {
+                          const img = new Image();
+                          img.src = skillUtils.getSkillIconPath(skillId);
+                          console.log('Using image for drag:', img.src);
+
+                          img.onload = () => {
+                            try {
+                              e.dataTransfer.setDragImage(img, 25, 25);
+                              console.log('Set drag image successfully');
+                            } catch (imgErr) {
+                              console.warn('Failed to set drag image after load:', imgErr);
+                            }
+                          };
+                        } catch (err) {
+                          console.warn('Failed to create drag image:', err);
+                        }
+                      }}
+                      onDragEnd={() => {
+                        console.log('Drag ended, clearing drag state');
+                        clearDraggedSkill();
+                      }}
                           />
                           <span>{skill.name}</span>
                           <div className={styles.skillDetails}>
                             <p>Level Required: {skill.levelRequired}</p>
                             <p>Mana Cost: {skill.manaCost}</p>
-                            <p>Cooldown: {skill.cooldownMs / 1000}s</p>
+                            <p>Cooldown: {skill.cooldownMs}ms</p>
                           </div>
                         </div>
                       );
@@ -333,7 +377,7 @@ const SkillTreeUI: React.FC = () => {
                           <div className={styles.skillDetails}>
                             <p>Level Required: {skill.levelRequired}</p>
                             <p>Mana Cost: {skill.manaCost}</p>
-                            <p>Cooldown: {skill.cooldownMs / 1000}s</p>
+                            <p>Cooldown: {skill.cooldownMs}ms</p>
                           </div>
                           <button 
                             className={styles.learnButton}
@@ -364,8 +408,8 @@ const SkillTreeUI: React.FC = () => {
                     onClick={() => {
                       // If we have a selected skill and the user clicks a slot,
                       // set the skill to that slot (simpler alternative to drag and drop)
-                      const selectedSkill = useGameStore.getState().selectedSkill;
-                      if (selectedSkill && SKILLS[selectedSkill as SkillId] && 
+                      const selectedSkill = dragState.getDraggedSkill();
+                      if (selectedSkill && SKILLS[selectedSkill as SkillId] &&
                           player?.unlockedSkills.includes(selectedSkill as SkillId)) {
                         console.log(`Slot ${index+1} clicked with skill ${selectedSkill} selected`);
                         setSkillShortcut(selectedSkill as SkillId, index);
@@ -409,54 +453,11 @@ const SkillTreeUI: React.FC = () => {
                       e.currentTarget.classList.remove(styles.dragOver);
                       
                       console.log('Drop event triggered on slot', index + 1);
-                      
-                      // First try to get the skill ID from our global drag state (most reliable)
-                      let skillIdRaw = dragState.getDraggedSkill();
-                      console.log('Drag state skill ID:', skillIdRaw);
-                      
-                      // If that doesn't work, try the data transfer methods as backup
-                      if (!skillIdRaw) {
-                        console.log('DataTransfer types available:', Array.from(e.dataTransfer.types));
-                        
-                        // Try getting plain text first as it's most reliable
-                        try {
-                          const textData = e.dataTransfer.getData('text/plain');
-                          console.log('text/plain data:', textData);
-                          if (textData) {
-                            skillIdRaw = textData;
-                          }
-                        } catch (err) {
-                          console.warn('Failed to get text/plain data:', err);
-                        }
-                        
-                        // Then try JSON data
-                        if (!skillIdRaw) {
-                          try {
-                            // Try to get the JSON data
-                            const jsonData = e.dataTransfer.getData('application/json');
-                            console.log('application/json data:', jsonData);
-                            
-                            if (jsonData) {
-                              try {
-                                const dragData = JSON.parse(jsonData);
-                                console.log('Parsed JSON data:', dragData);
-                                
-                                if (dragData.type === 'skill' && dragData.id) {
-                                  skillIdRaw = dragData.id;
-                                } else if (dragData.skillId) {
-                                  // Fallback for older code
-                                  skillIdRaw = dragData.skillId;
-                                }
-                              } catch (parseErr) {
-                                console.warn('Error parsing JSON:', parseErr);
-                              }
-                            }
-                          } catch (err) {
-                            console.warn('Failed to access application/json data:', err);
-                          }
-                        }
-                      }
-                      
+
+                      const skillIdRaw = dragState.getDraggedSkill();
+                      console.log('Raw skill ID from drag state:', skillIdRaw);
+                      dragState.clearDraggedSkill();
+
                       // Validate and normalize the skill ID
                       const skillId = skillUtils.validateSkillId(skillIdRaw);
                       console.log('Validated skill ID:', skillId);
@@ -466,38 +467,17 @@ const SkillTreeUI: React.FC = () => {
                         // Add visual feedback for the drop
                         e.currentTarget.classList.add(styles.dropSuccess);
                         setTimeout(() => {
-                          e.currentTarget.classList.remove(styles.dropSuccess);
+                          try {
+                              e.currentTarget.classList.remove(styles.dropSuccess);
+                          } catch (err) { }
                         }, 500);
                         
                         // Set the shortcut with the validated skill ID
                         setSkillShortcut(skillId, index);
                         
-                        // Clear the drag state after successful drop
-                        dragState.clearDraggedSkill();
                       } else {
                         console.error('Failed to get valid skill ID from drop event. Value:', skillIdRaw);
                         
-                        // Try getting a skill from the original target element
-                        if (e.dataTransfer.getData('text/html')) {
-                          const match = e.dataTransfer.getData('text/html').match(/data-skill-id="([^"]+)"/);
-                          if (match && match[1]) {
-                            const htmlSkillId = skillUtils.validateSkillId(match[1]);
-                            if (htmlSkillId) {
-                              console.log(`Found skill ID ${htmlSkillId} from HTML data`);
-                              setSkillShortcut(htmlSkillId, index);
-                              dragState.clearDraggedSkill();
-                              return;
-                            }
-                          }
-                        }
-                        
-                        // Try a last resort method - use the first unlocked skill
-                        if (player?.unlockedSkills && player.unlockedSkills.length > 0) {
-                          console.log('Using fallback: assigning first unlocked skill as last resort');
-                          const fallbackSkill = player.unlockedSkills[0];
-                          setSkillShortcut(fallbackSkill, index);
-                          dragState.clearDraggedSkill();
-                        }
                       }
                     }}
                   >
@@ -515,135 +495,6 @@ const SkillTreeUI: React.FC = () => {
                 ))}
               </div>
               
-              {/* Unlocked skills that can be assigned to shortcuts */}
-              <div className={styles.unlockedSkillsPanel}>
-                {player.unlockedSkills.map((skillId) => {
-                  // Validate skill exists to prevent errors
-                  if (!SKILLS[skillId]) {
-                    console.error(`Invalid skill ID in player.unlockedSkills: ${skillId}`);
-                    return null; // Skip this skill
-                  }
-                  
-                  const skill = SKILLS[skillId];
-                  const shortcutIndex = skillShortcuts.indexOf(skillId);
-                  
-                  return (
-                    <div 
-                      key={skillId} 
-                      className={`${styles.skillItem} ${shortcutIndex !== -1 ? styles.assignedSkill : ''}`}
-                      data-skill-id={skillId} // Add data attribute for debugging
-                      onDoubleClick={() => {
-                        // When double-clicking a skill, assign it to the first available slot
-                        console.log('Skill double-clicked:', skillId);
-                        const availableSlotIndex = skillShortcuts.findIndex(skill => skill === null);
-                        if (availableSlotIndex !== -1) {
-                          console.log(`Assigning to first available slot: ${availableSlotIndex + 1}`);
-                          setSkillShortcut(skillId, availableSlotIndex);
-                        } else {
-                          // If no empty slots, assign to slot 1
-                          console.log('No empty slots, assigning to slot 1');
-                          setSkillShortcut(skillId, 0);
-                        }
-                      }}
-                      onDragStart={(e) => {
-                        // Make sure we have a valid skill ID to start the drag
-                        if (!SKILLS[skillId]) {
-                          console.error(`Attempting to drag invalid skill: ${skillId}`);
-                          return;
-                        }
-                        
-                        console.log('Drag started with skill ID:', skillId);
-                        
-                        // Store the skill ID in our global drag state
-                        dragState.setDraggedSkill(skillId);
-                        
-                        // Set the drag source element's HTML to provide additional context
-                        const html = e.currentTarget.outerHTML;
-                        try {
-                          e.dataTransfer.setData('text/html', html);
-                          console.log('Set HTML data for drag');
-                        } catch (err) {
-                          console.warn('Failed to set HTML data:', err);
-                        }
-                        
-                        // Set data using multiple formats for compatibility
-                        try {
-                          e.dataTransfer.setData('text/plain', skillId);
-                          console.log('Set text/plain data:', skillId);
-                        } catch (err) {
-                          console.warn('Failed to set text/plain data:', err);
-                        }
-                        
-                        try {
-                          // Create a simple object with just the skill ID
-                          const dragData = { type: 'skill', id: skillId };
-                          const jsonStr = JSON.stringify(dragData);
-                          e.dataTransfer.setData('application/json', jsonStr);
-                          console.log('Set application/json data:', jsonStr);
-                        } catch (err) {
-                          console.warn('Failed to set application/json data:', err);
-                        }
-                        
-                        // Attach the skill ID directly to the drag event as a fallback
-                        try {
-                          (e.dataTransfer as any).skillId = skillId;
-                          console.log('Set direct skillId property:', skillId);
-                        } catch (err) {
-                          console.warn('Failed to set direct property:', err);
-                        }
-                        
-                        // Set the drag effect to copy
-                        e.dataTransfer.effectAllowed = 'copy';
-                        
-                        // Add custom drag image if available
-                        try {
-                          const img = new Image();
-                          img.src = skillUtils.getSkillIconPath(skillId);
-                          console.log('Using image for drag:', img.src);
-                          
-                          img.onload = () => {
-                            try {
-                              e.dataTransfer.setDragImage(img, 25, 25);
-                              console.log('Set drag image successfully');
-                            } catch (imgErr) {
-                              console.warn('Failed to set drag image after load:', imgErr);
-                            }
-                          };
-                        } catch (err) {
-                          console.warn('Failed to create drag image:', err);
-                        }
-                      }}
-                      onDragEnd={() => {
-                        console.log('Drag ended, clearing drag state');
-                        clearDraggedSkill();
-                      }}
-                      draggable="true"
-                    >                          <img 
-                            src={skillUtils.getSkillIconPath(skillId)} 
-                            alt={skill.name} 
-                            title={skill.description}
-                          />
-                      <span>{skill.name}</span>
-                      
-                      {/* Shortcut assignment buttons */}
-                      <div className={styles.shortcutAssign}>
-                        {Array.from({ length: 9 }, (_, i) => (
-                          <button 
-                            key={i}
-                            className={styles.shortcutButton}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSkillShortcut(skillId, i);
-                            }}
-                          >
-                            {i + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </div>
         </div>
