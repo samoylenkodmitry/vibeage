@@ -127,6 +127,41 @@ export default function SocketManager() {
     });
   }, [updatePlayer]);
 
+  // Handle skill cast failure
+  const handleCastFail = useCallback((data: { clientSeq: number, reason: 'cooldown' | 'nomana' | 'invalid' }) => {
+    const state = useGameStore.getState();
+    const myPlayerId = state.myPlayerId;
+    const players = state.players;
+    const player = myPlayerId ? players[myPlayerId] : null;
+    
+    if (player) {
+      // Get the skill that failed (if we can identify it from clientSeq)
+      // For now we just reset the skill state in case it was locally set
+      
+      // Revert any local mana or cooldown changes
+      if (data.reason === 'nomana') {
+        // Flash mana bar red briefly
+        useGameStore.setState({ manaBarFlash: true });
+        setTimeout(() => useGameStore.setState({ manaBarFlash: false }), 300);
+      }
+      
+      // Flash the skill icon red
+      const skillId = state.lastCastSkillId || null;
+      if (skillId) {
+        useGameStore.setState({ flashingSkill: skillId });
+        setTimeout(() => useGameStore.setState({ flashingSkill: null }), 300);
+      }
+      
+      // Log the failure reason
+      const reasons = {
+        cooldown: 'Skill is on cooldown',
+        nomana: 'Not enough mana',
+        invalid: 'Invalid target or range'
+      };
+      console.log(`Cast failed: ${reasons[data.reason]}`);
+    }
+  }, []);
+
   // Handle skill cast end
   const handleCastEnd = useCallback((data: CastEnd) => {
     updatePlayer({
@@ -251,6 +286,9 @@ export default function SocketManager() {
           case 'CastStart':
             handleCastStart(msg);
             break;
+          case 'CastFail':
+            handleCastFail(msg);
+            break;
           case 'CastEnd':
             handleCastEnd(msg);
             break;
@@ -337,6 +375,7 @@ export default function SocketManager() {
     handlePlayerMoveStart,
     handlePosSnap,
     handleCastStart,
+    handleCastFail,
     handleCastEnd,
     setConnectionStatus
   ]);

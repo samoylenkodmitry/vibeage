@@ -2,12 +2,18 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useGameStore } from '../systems/gameStore';
-import { SKILLS, Skill } from '../models/Skill';
+import { SKILLS, Skill, SkillId } from '../models/Skill';
 import StatusEffects from './StatusEffects';
 import ConnectionStatus from './ConnectionStatus';
 import SkillTreeUI from './SkillTreeUI';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
+
+// Helper function to validate if a string is a valid SkillId
+function isValidSkillId(id: string | null): id is SkillId {
+  if (!id) return false;
+  return id in SKILLS; // Check if the ID exists in the SKILLS object
+}
 
 interface PlayerState {
   id: string;
@@ -115,10 +121,11 @@ interface SkillButtonProps {
   castProgressMs: number;
   onClick: (event: React.MouseEvent) => void;
   selectedTarget: any;
+  isFlashing?: boolean; // Added to handle cast fail visual feedback
 }
 
 // Memoize SkillButton to prevent unnecessary re-renders
-const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget }: SkillButtonProps) => {
+const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
   const initial = Math.max(0, cooldownEndMs - Date.now());
   const [remainingCooldownMs, setRemainingCooldownMs] = useState(initial);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -189,6 +196,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
       <button
         ref={buttonRef}
         className={`relative w-12 h-12 rounded transition-all duration-200 ${
+          isFlashing ? 'bg-red-700 ring-2 ring-red-500' :
           isCasting ? 'bg-purple-700 ring-2 ring-purple-300' :
           isOnCooldown ? 'bg-gray-600' : 
           !selectedTarget ? 'bg-gray-500 opacity-50' :
@@ -325,6 +333,7 @@ export default React.memo(function UI() {
   const castingProgressMs = player?.castingProgressMs ?? 0;
   const socket = useGameStore(state => state.socket);
   const currentZoneId = useGameStore(state => state.currentZoneId);
+  const flashingSkill = useGameStore(state => state.flashingSkill);
   
   const [isAdmin] = useState(false);
   
@@ -340,9 +349,9 @@ export default React.memo(function UI() {
     
     // Filter out null values and map to skill objects
     return player.skillShortcuts
-      .filter((skillId): skillId is string => skillId !== null)
-      .map(skillId => SKILLS[skillId])
-      .filter((skill): skill is Skill => Boolean(skill));
+      .filter(skillId => skillId !== null && isValidSkillId(skillId))
+      .map(skillId => SKILLS[skillId as SkillId])
+      .filter((skill): skill is Skill => skill !== undefined);
   }, [player?.skillShortcuts]);
 
   // Debug log when skills panel renders
@@ -457,7 +466,7 @@ export default React.memo(function UI() {
           <div>
             <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-blue-600"
+                className={`h-full ${useGameStore(state => state.manaBarFlash) ? 'bg-red-600' : 'bg-blue-600'}`}
                 style={{ width: `${player?.mana && player?.maxMana ? (player.mana / player.maxMana) * 100 : 0}%` }}
               ></div>
             </div>
@@ -485,6 +494,7 @@ export default React.memo(function UI() {
                 castProgressMs={castingProgressMs}
                 onClick={handleSkillClick(skill.id)}
                 selectedTarget={selectedTarget}
+                isFlashing={flashingSkill === skill.id}
               />
             ))}
           </div>

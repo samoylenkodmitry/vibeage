@@ -376,7 +376,7 @@ const SkillTreeUI: React.FC = () => {
                       e.preventDefault();
                       const draggedSkill = dragState.getDraggedSkill();
                       if (draggedSkill) {
-                        const validSkill = validateSkillId(draggedSkill);
+                        const validSkill = skillUtils.validateSkillId(draggedSkill);
                         if (validSkill) {
                           console.log(`Touch ended on slot ${index+1} with skill ${validSkill}`);
                           setSkillShortcut(validSkill, index);
@@ -458,7 +458,7 @@ const SkillTreeUI: React.FC = () => {
                       }
                       
                       // Validate and normalize the skill ID
-                      const skillId = validateSkillId(skillIdRaw);
+                      const skillId = skillUtils.validateSkillId(skillIdRaw);
                       console.log('Validated skill ID:', skillId);
                       
                       if (skillId) {
@@ -481,7 +481,7 @@ const SkillTreeUI: React.FC = () => {
                         if (e.dataTransfer.getData('text/html')) {
                           const match = e.dataTransfer.getData('text/html').match(/data-skill-id="([^"]+)"/);
                           if (match && match[1]) {
-                            const htmlSkillId = validateSkillId(match[1]);
+                            const htmlSkillId = skillUtils.validateSkillId(match[1]);
                             if (htmlSkillId) {
                               console.log(`Found skill ID ${htmlSkillId} from HTML data`);
                               setSkillShortcut(htmlSkillId, index);

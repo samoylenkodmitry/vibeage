@@ -163,3 +163,10 @@ export interface ClassSelected extends ClientMsg {
     speedMultiplier: number;
   };
 }
+
+// Skill cast failure message
+export interface CastFail extends ClientMsg {
+  type: 'CastFail';
+  clientSeq: number;
+  reason: 'cooldown' | 'nomana' | 'invalid';
+}

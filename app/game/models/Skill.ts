@@ -23,9 +23,9 @@ export interface Skill {
 export type { SkillId };
 export type SkillEffectType = SharedSkillEffectType;
 
-// Client-side skill effect interface
+// Client-side skill effect interface - explicitly add client-side property
 export interface SkillEffect extends SharedSkillEffect {
-  // Any client-specific properties can be added here
+  clientRendered?: boolean;
 }
 
 // Map shared skills to client-side format

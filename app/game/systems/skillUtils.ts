@@ -11,7 +11,7 @@ import { SKILLS, SkillId } from '../models/Skill';
  * @param skillId - A potential skill ID that needs validation
  * @returns A valid SkillId or null if invalid
  */
-function validateSkillId(skillId: any): SkillId | null {
+export function validateSkillId(skillId: any): SkillId | null {
   if (!skillId) return null;
   
   // If it's already a valid skill ID

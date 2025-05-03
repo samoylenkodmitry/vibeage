@@ -28,7 +28,7 @@ export class SnapBuffer {
       }
   
       // Find first snap with snapTs > renderTs
-      let i = this.buf.findIndex(s => s && !isNaN(s.snapTs) && s.snapTs > renderTs);
+      const i = this.buf.findIndex(s => s && !isNaN(s.snapTs) && s.snapTs > renderTs);
   
       /* Case A – we're *before* the first snap (shouldn't happen after lag),
           just show that first snap. */

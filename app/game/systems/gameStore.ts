@@ -5,14 +5,6 @@ import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
 import { Skill, SkillId } from '../models/Skill';
 import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
-import { validateSkillId } from './skillUtils';ient';
-
-import { create } from 'zustand';
-import { Character } from '../models/Character';
-import { Enemy } from '../models/Enemy';
-import { Skill, SkillId } from '../models/Skill';
-import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
-import { validateSkillId } from './skillUtils';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -49,7 +41,9 @@ interface GameState {
   players: Record<string, PlayerState>;
   enemies: Record<string, Enemy>;
   selectedTargetId: string | null;
-  selectedSkill: string | null;
+  lastCastSkillId: string | null;
+  flashingSkill: string | null;  // Skill ID that should flash red (for failures)
+  manaBarFlash: boolean;         // Whether mana bar should flash red
   currentZoneId: string | null;
   donationXpBoost: number;
   donationBoostEndTimeTs: number | null;
@@ -64,6 +58,7 @@ interface GameState {
   lastConnectionChangeTs: number;
   socket: any | null;
   hasJoinedGame: boolean;
+  selectedSkill: string | null;
   targetWorldPos: { x: number, y: number, z: number } | null;
   lastMoveSentTimeMs: number | null; // Track the last time we sent a movement update
 
@@ -170,7 +165,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   players: {},
   enemies: {},
   selectedTargetId: null,
-  selectedSkill: null,
+  lastCastSkillId: null,
+  flashingSkill: null,
+  manaBarFlash: false,
   currentZoneId: null,
   donationXpBoost: 0,
   donationBoostEndTimeTs: null,
@@ -397,6 +394,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       console.warn('Cannot send cast request: Socket not connected or player ID unknown');
       return;
     }
+    
+    // Store the skill ID for reconciliation with CastFail responses
+    set({ lastCastSkillId: skillId });
     
     socket.emit('msg', {
       type: 'CastReq',

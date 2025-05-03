@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
-import { Enemy, StatusEffect, PlayerState } from '../shared/types.js';
+import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
 import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut } from '../shared/messages.js';
@@ -8,6 +8,7 @@ import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
+import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
 
 /**
  * Defines the GameState interface
@@ -35,6 +36,7 @@ interface PlayerState {
   skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
   availableSkillPoints: number; // Points to spend on new skills
   skillCooldownEndTs: Record<string, number>;
+  cooldowns: Record<string, number>; // Alias for skillCooldownEndTs for compatibility
   statusEffects: StatusEffect[];
   level: number;
   experience: number;
@@ -466,177 +468,20 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
   
   if (!player.unlockedSkills.includes(msg.skillId as SkillType)) {
     console.warn(`Player ${playerId} tried to cast not owned skill: ${msg.skillId}`);
-    return;
-  }
-  
-  const skill = SKILLS[msg.skillId as SkillType];
-  if (!skill) {
-    console.warn(`Invalid skill ID: ${msg.skillId}`);
-    return;
-  }
-  
-  // Check mana cost
-  if (player.mana < skill.manaCost) {
-    console.warn(`Not enough mana: ${player.mana} < ${skill.manaCost}`);
-    return;
-  }
-  
-  // Check cooldown
-  const cooldownEnd = player.skillCooldownEndTs[msg.skillId] || 0;
-  const now = Date.now();
-  if (now < cooldownEnd) {
-    console.warn(`Skill on cooldown: ${msg.skillId}, ${(cooldownEnd - now) / 1000}s remaining`);
-    return;
-  }
-  
-  // Validate target if provided
-  let targetInRange = true;
-  
-  // Use predictPosition for accurate range check
-  const casterPos = predictPosition(player, now);
-  
-  // If targeting an enemy, validate target
-  if (msg.targetId) {
-    const target = state.enemies[msg.targetId];
-    if (!target || !target.isAlive) {
-      console.warn(`Invalid target for skill: ${msg.targetId}`);
-      return;
-    }
-    
-    const targetPos = { x: target.position.x, z: target.position.z };
-    const dist = distance(casterPos, targetPos);
-    
-    // Check skill range
-    if (dist > (skill.range || 0)) {
-      console.warn(`Target out of range: ${dist.toFixed(2)} > ${skill.range}`);
-      return;
-    }
-  } 
-  // If targeting a position directly (for projectiles)
-  else if (msg.targetPos && skill.range) {
-    const dist = distance(casterPos, msg.targetPos);
-    if (dist > skill.range) {
-      console.warn(`Target position out of range: ${dist.toFixed(2)} > ${skill.range}`);
-      return;
-    }
-  }
-  
-  // Apply mana cost and set cooldown
-  player.mana -= skill.manaCost;
-  player.skillCooldownEndTs[msg.skillId] = now + skill.cooldownMs;
-  
-  // Get the io server instance from socket's connection
-  const io = socket.nsp;
-  
-  // Broadcast cast start
-  io.emit('msg', {
-    type: 'CastStart',
-    id: playerId,
-    skillId: msg.skillId,
-    castMs: skill.castMs
-  });
-  
-  console.log(`[SKILL] Player ${playerId} started casting ${msg.skillId}, castTime: ${skill.castMs}ms`);
-  
-  // Schedule cast completion
-  setTimeout(() => {
-    console.log(`[SKILL] Player ${playerId} finished casting ${msg.skillId}`);      // Determine whether to spawn a projectile or use instant effects
-      if (skill.cat === 'projectile' && (skill.speed || skill.projectile?.speed)) {
-        console.log(`[SKILL] ${msg.skillId} is a projectile skill with speed ${skill.projectile?.speed || skill.speed}`);
-        
-        // Get player's current position
-        const casterPos = predictPosition(player, Date.now());
-        
-        // If targeting a position or entity, calculate direction
-        let targetPos: VecXZ;
-        
-        if (msg.targetPos) {
-          targetPos = msg.targetPos;
-          console.log(`[SKILL] Using target position (${targetPos.x.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
-        } else if (msg.targetId) {
-          const target = state.enemies[msg.targetId] || state.players[msg.targetId];
-          if (target) {
-            targetPos = { x: target.position.x, z: target.position.z };
-            console.log(`[SKILL] Using target entity ${msg.targetId} at (${targetPos.x.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
-          } else {
-            // Invalid target, cancel cast
-            console.log(`[SKILL] Target entity ${msg.targetId} not found, canceling cast`);
-            io.emit('msg', {
-              type: 'CastEnd',
-              id: playerId,
-              skillId: msg.skillId,
-              success: false
-            });
-            return;
-          }
-        } else {
-          // No target specified, use player's forward direction
-          // Use player's rotation to determine forward direction
-          const forwardAngle = player.rotation?.y || 0; // Assuming y rotation is yaw
-          targetPos = { 
-            x: casterPos.x + Math.sin(forwardAngle) * 20, // 20 units forward
-            z: casterPos.z + Math.cos(forwardAngle) * 20
-          };
-          console.log(`[SKILL] No target, using player's forward direction to (${targetPos.x.toFixed(2)}, ${targetPos.z.toFixed(2)})`);
-        }
-        
-        // Calculate direction vector
-        const dx = targetPos.x - casterPos.x;
-        const dz = targetPos.z - casterPos.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Normalize direction
-        const dir: VecXZ = dist > 0 
-          ? { x: dx / dist, z: dz / dist } 
-          : { x: 0, z: 1 };  // Default forward if no direction
-        
-        console.log(`[SKILL] Projectile direction: (${dir.x.toFixed(2)}, ${dir.z.toFixed(2)})`);
-        
-        // Spawn projectile using the new projectile property if available
-        const projectileSpeed = skill.projectile?.speed || skill.speed || 0;
-        const projectile = spawnProjectile(
-          state,
-          playerId,
-          msg.skillId as SkillId,
-          casterPos,
-          dir,
-          projectileSpeed,
-          msg.targetId
-        );
-      
-      // Emit projectile spawn message
-      const projSpawnMsg = {
-        type: 'ProjSpawn',
-        id: projectile.id,
-        skillId: msg.skillId,
-        origin: { x: casterPos.x, y: 1.5, z: casterPos.z },
-        dir: { x: dir.x, y: 0, z: dir.z },
-        speed: skill.speed,
-        launchTs: Date.now()
-      };
-      
-      console.log(`[SKILL] Emitting ProjSpawn: id=${projSpawnMsg.id}, origin=(${projSpawnMsg.origin.x.toFixed(2)}, ${projSpawnMsg.origin.z.toFixed(2)}), dir=(${projSpawnMsg.dir.x.toFixed(2)}, ${projSpawnMsg.dir.z.toFixed(2)}), speed=${projSpawnMsg.speed}, skillId=${projSpawnMsg.skillId}`);
-      
-      // Broadcast to ALL clients including the sender
-      io.emit('msg', projSpawnMsg);
-    } 
-    // Handle instant effects (like the existing logic)
-    else if (msg.targetId) {
-      console.log(`[SKILL] ${msg.skillId} is an instant skill targeting ${msg.targetId}`);
-      const target = state.enemies[msg.targetId];
-      if (target) {
-        executeSkillEffects(player, target, msg.skillId as SkillType, io, state);
-      }
-    }
-    
-    // Broadcast cast completion
-    io.emit('msg', {
-      type: 'CastEnd',
-      id: playerId,
-      skillId: msg.skillId,
-      success: true
+    socket.emit('msg', {
+      type: 'CastFail',
+      clientSeq: msg.clientTs,
+      reason: 'invalid'
     });
-  }, skill.castMs);
+    return;
+  }
+  
+  // Use the skillManager to handle the cast request
+  // Helper function to get enemy by ID
+  const getEnemyById = (id: string) => state.enemies[id] || null;
+  
+  // Delegate to the skillManager
+  handleCastReq(player, msg, socket, getEnemyById);
 }
 
 /**
@@ -703,18 +548,23 @@ function executeSkillEffects(
   }
   
   // Apply status effect
-  if (skill.status) {
-   for (const status of skill.status) {
-      const existingEffect = target.statusEffects.find(e => e.type === status.type);
+  if (skill.effects && skill.effects.length > 0) {
+    for (const effect of skill.effects) {
+      // Skip effects without a duration
+      if (!effect.durationMs) continue;
+      
+      const existingEffect = target.statusEffects.find(e => e.type === effect.type);
       if (existingEffect) {
-        existingEffect.value = status.value;
-        existingEffect.durationMs = status.durationMs;
+        existingEffect.value = effect.value;
+        existingEffect.durationMs = effect.durationMs;
         existingEffect.startTimeTs = Date.now();
       } else {
         const effectId = Math.random().toString(36).substr(2, 9);
         target.statusEffects.push({
           id: effectId,
-          ...status,
+          type: effect.type,
+          value: effect.value,
+          durationMs: effect.durationMs,
           startTimeTs: Date.now(),
           sourceSkill: skillId
         });
@@ -771,12 +621,29 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Update all projectiles
+    // Step 3: Update skill casting progress
+    updateCasts(io, state.players);
+    
+    // Step 4: Process completed casts
+    const completedCasts = getCompletedCasts();
+    completedCasts.forEach(cast => {
+      // Find the player and target
+      const player = state.players[cast.id];
+      const targetId = cast.targetId;
+      const target = targetId ? state.enemies[targetId] : null;
+      
+      // Execute the skill if target exists
+      if (player && target) {
+        executeSkillEffects(player, target, cast.skillId, io, state);
+      }
+    });
+    
+    // Step 5: Update all projectiles
     if (state.projectiles.length > 0) {
       updateProjectiles(state, TICK/1000, io);
     }
     
-    // Step 4: Generate and broadcast PosSnap at the target rate
+    // Step 5: Generate and broadcast PosSnap at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
       const snaps = collectSnaps(state, now);
@@ -834,6 +701,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         experienceToNextLevel: 100,
         statusEffects: [],
         skillCooldownEndTs: {},
+        cooldowns: {}, // Alias for skillCooldownEndTs
         castingSkill: null,
         castingProgressMs: 0,
         isAlive: true,
@@ -1082,14 +950,17 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           }
           
           // Apply status effects if defined
-          if (skill.status && skill.status.length > 0) {
-            for (const statusEffect of skill.status) {
+          if (skill.effects && skill.effects.length > 0) {
+            for (const effect of skill.effects) {
+              // Skip effects without a duration
+              if (!effect.durationMs) continue;
+              
               const effectId = Math.random().toString(36).substr(2, 9);
               enemy.statusEffects.push({
                 id: effectId,
-                type: statusEffect.type,
-                value: statusEffect.value,
-                durationMs: statusEffect.durationMs,
+                type: effect.type,
+                value: effect.value,
+                durationMs: effect.durationMs,
                 startTimeTs: Date.now(),
                 sourceSkill: p.skillId
               });
@@ -1234,14 +1105,17 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               }
               
               // Apply status effects if defined
-              if (skill.status && skill.status.length > 0) {
-                for (const statusEffect of skill.status) {
+              if (skill.effects && skill.effects.length > 0) {
+                for (const effect of skill.effects) {
+                  // Skip effects without a duration
+                  if (!effect.durationMs) continue;
+                  
                   const effectId = Math.random().toString(36).substr(2, 9);
                   enemy.statusEffects.push({
                     id: effectId,
-                    type: statusEffect.type,
-                    value: statusEffect.value,
-                    durationMs: statusEffect.durationMs,
+                    type: effect.type,
+                    value: effect.value,
+                    durationMs: effect.durationMs,
                     startTimeTs: Date.now(),
                     sourceSkill: p.skillId
                   });
