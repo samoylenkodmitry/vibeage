@@ -1,6 +1,18 @@
 import { SkillId } from './skillsDefinition';
 import { CharacterClass } from './classSystem';
 
+export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
+
+export interface CastSnapshot {
+  castId: string;
+  casterId: string;
+  skillId: SkillId;
+  state: CastState;
+  origin: VecXZ;
+  target?: VecXZ;
+  startedAt: number;   // Timestamp
+}
+
 export interface StatusEffect {
     id: string;
     type: string;

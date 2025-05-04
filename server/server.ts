@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
+import { startWorldLoop } from './combat/worldLoop.js';
+import { sendCastSnapshots } from './combat/skillManager.js';
 
 // Create HTTP server
 const httpServer = createServer();
@@ -44,6 +46,9 @@ io.on('connection', (socket) => {
     
     // Send full game state to the new player
     socket.emit('gameState', world.getGameState());
+    
+    // Send all active casts and projectiles to the new player
+    sendCastSnapshots(socket);
     
     // Broadcast new player to others
     socket.broadcast.emit('playerJoined', player);
@@ -135,6 +140,10 @@ try {
     console.log(`Game server running on port ${PORT}`);
     console.log(`Enemy count at startup: ${Object.keys(world.getGameState().enemies).length}`);
     console.log('Game zones:', zoneManager.getZones().map(zone => zone.name).join(', '));
+    
+    // Start the enhanced world loop with the game state
+    console.log('Starting enhanced combat system...');
+    startWorldLoop(io, world.getGameState(), undefined, 50); // 50ms = 20 ticks per second
   });
 } catch (error) {
   console.error('Failed to start server:', error);

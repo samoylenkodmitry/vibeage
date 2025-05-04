@@ -350,6 +350,12 @@ export default function SocketManager() {
           case 'ProjSpawn':
             // vfxDispatcher will handle this
             break;
+          case 'ProjSpawn2':
+            window.dispatchEvent(new CustomEvent('projspawn2', {detail: msg}));
+            break;
+          case 'ProjHit2':
+            window.dispatchEvent(new CustomEvent('projhit2', {detail: msg}));
+            break;
           default:
             console.log('Unknown message type:', msg.type);
         }

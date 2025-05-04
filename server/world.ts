@@ -9,6 +9,7 @@ import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
+import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
 
 /**
  * Defines the GameState interface

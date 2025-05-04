@@ -1,4 +1,5 @@
 import { SkillId } from './skillsDefinition';
+import { CastSnapshot } from './types';
 
 export interface VecXZ {
   x: number;
@@ -169,4 +170,33 @@ export interface CastFail extends ClientMsg {
   type: 'CastFail';
   clientSeq: number;
   reason: 'cooldown' | 'nomana' | 'invalid';
+}
+
+// Server-facing message base type
+export interface ServerMsg extends ClientMsg {
+  type: string;
+}
+
+// New additive messages - do NOT edit old ones
+export interface CastSnapshotMsg extends ServerMsg {
+  type: 'CastSnapshot';
+  data: CastSnapshot;
+}
+
+export interface ProjSpawn2 extends ServerMsg {
+  type: 'ProjSpawn2';
+  castId: string;
+  origin: VecXZ;
+  dir: VecXZ;   // Normalized, XZ plane
+  speed: number;
+  launchTs: number;
+  hitRadius?: number;  // Optional hitRadius for VFX
+}
+
+export interface ProjHit2 extends ServerMsg {
+  type: 'ProjHit2';
+  castId: string;
+  hitIds: string[];
+  dmg: number[];   // Aligned with hitIds
+  impactPos?: VecXZ; // Position of the projectile impact (optional for backwards compatibility)
 }

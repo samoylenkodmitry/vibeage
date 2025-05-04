@@ -1,50 +1,156 @@
 // filepath: /home/s/develop/projects/vibe/1/server/combat/worldLoop.ts
 import { Server } from 'socket.io';
-import { tickCasts, tickProjectiles } from './skillManager';
-import { updateProjectiles } from '../world';
+import { tickCasts, tickProjectiles, updateCasts } from './skillManager';
 
-// Simple world object that provides the interface needed by the skill system
-export interface World {
-  getEnemyById: (id: string) => any | null;
-  getPlayerById: (id: string) => any | null;
-  getEntitiesInCircle: (pos: { x: number, z: number }, radius: number) => any[];
+// Game state reference
+let gameState: any = null;
+let updateProjectilesLegacy: ((gameState: any, deltaTime: number) => void) | null = null;
+
+// Track time
+let lastTime = Date.now();
+let isRunning = false;
+let loopInterval: NodeJS.Timeout | null = null;
+
+// Reference to IO server
+let ioServer: Server | null = null;
+
+// World interface implementation
+const world = {
+  getEnemyById: (id: string) => {
+    if (!gameState || !gameState.enemies) return null;
+    return gameState.enemies[id] || null;
+  },
+  
+  getPlayerById: (id: string) => {
+    if (!gameState || !gameState.players) return null;
+    return gameState.players[id] || null;
+  },
+  
+  getEntitiesInCircle: (pos: { x: number, z: number }, radius: number) => {
+    const result: any[] = [];
+    
+    // Check enemies
+    if (gameState && gameState.enemies) {
+      for (const enemyId in gameState.enemies) {
+        const enemy = gameState.enemies[enemyId];
+        if (!enemy.isAlive) continue;
+        
+        const dx = enemy.position.x - pos.x;
+        const dz = enemy.position.z - pos.z;
+        const distSq = dx * dx + dz * dz;
+        
+        if (distSq <= radius * radius) {
+          result.push(enemy);
+        }
+      }
+    }
+    
+    // Check players (for PvP if enabled)
+    if (gameState && gameState.players) {
+      for (const playerId in gameState.players) {
+        const player = gameState.players[playerId];
+        if (!player.isAlive) continue;
+        
+        const dx = player.position.x - pos.x;
+        const dz = player.position.z - pos.z;
+        const distSq = dx * dx + dz * dz;
+        
+        if (distSq <= radius * radius) {
+          result.push(player);
+        }
+      }
+    }
+    
+    return result;
+  }
+};
+
+/**
+ * The main game tick function that updates all game entities
+ */
+function gameTick() {
+  const now = Date.now();
+  const deltaTime = now - lastTime;
+  lastTime = now;
+  
+  // Process cast state machine for the new system
+  if (ioServer) {
+    tickCasts(deltaTime, ioServer, world);
+    
+    // Process projectile movement and collision for the new system
+    tickProjectiles(deltaTime, ioServer, world);
+  }
+  
+  // Legacy system integration
+  // Update the casts in the legacy system
+  if (ioServer) {
+    updateCasts(ioServer, gameState?.players);
+  } else {
+    updateCasts(undefined, gameState?.players);
+  }
+  
+  // Run existing projectile system (legacy mode) if it exists
+  // This ensures both systems run side by side during transition
+  if (updateProjectilesLegacy && typeof updateProjectilesLegacy === 'function' && gameState) {
+    updateProjectilesLegacy(gameState, deltaTime / 1000);
+  }
 }
 
 /**
- * Create a world loop to process skill casts and projectiles
- * 
- * @param io Socket.io server instance for broadcasting
- * @param world Game world with entity lookup methods
- * @param gameState Current game state
+ * Start the game loop
+ * @param tickRateMs How often to run the game loop in milliseconds
  */
-export function setupWorldLoop(io: Server, world: World, gameState: any) {
-  let lastTime = Date.now();
+export function startWorldLoop(
+  io: Server, 
+  state: any, 
+  updateProjectilesFn?: ((gameState: any, deltaTime: number) => void) | null,
+  tickRateMs: number = 50 // Default to 20 ticks per second
+) {
+  // Store references
+  ioServer = io;
+  gameState = state;
+  updateProjectilesLegacy = updateProjectilesFn || null;
   
-  // The game tick function that runs regularly
-  function gameTick() {
-    const now = Date.now();
-    const deltaTime = now - lastTime;
-    lastTime = now;
+  // Initialize time
+  lastTime = Date.now();
+  
+  // Start the loop if not already running
+  if (!isRunning) {
+    isRunning = true;
     
-    // Process cast state machine
-    tickCasts(deltaTime, io, world);
-    
-    // Process projectile movement and collision
-    tickProjectiles(deltaTime, io, world);
-    
-    // Run existing projectile system (legacy mode)
-    // This ensures both systems run side by side during transition
-    if (typeof updateProjectiles === 'function') {
-      updateProjectiles(gameState, deltaTime / 1000);
+    // Clear any existing interval
+    if (loopInterval) {
+      clearInterval(loopInterval);
     }
+    
+    // Start the new interval
+    loopInterval = setInterval(gameTick, tickRateMs);
+    console.log(`World loop started with tick rate: ${tickRateMs}ms`);
   }
-  
-  // Run the game tick every 50ms (20 times per second)
-  const tickInterval = 50;
-  const intervalId = setInterval(gameTick, tickInterval);
-  
-  // Return a cleanup function to stop the loop
-  return function cleanup() {
-    clearInterval(intervalId);
-  };
+}
+
+/**
+ * Stop the game loop
+ */
+export function stopWorldLoop() {
+  if (isRunning && loopInterval) {
+    clearInterval(loopInterval);
+    loopInterval = null;
+    isRunning = false;
+    console.log('World loop stopped');
+  }
+}
+
+/**
+ * Update the game state reference
+ */
+export function updateGameState(newState: any) {
+  gameState = newState;
+}
+
+/**
+ * Check if the world loop is currently running
+ */
+export function isWorldLoopRunning(): boolean {
+  return isRunning;
 }

@@ -1,11 +1,45 @@
+// filepath: /home/s/develop/projects/vibe/1/server/combat/skillManager.ts
 import { Socket, Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
-import { CastReq, CastStart, CastFail } from '../../shared/messages.js';
+import { CastReq, CastStart, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
 import { getManaCost, getCooldownMs } from '../../shared/combatMath.js';
 import { VecXZ } from '../../shared/messages.js';
-import { predictPosition } from '../world.js';
+import { predictPosition, distance } from '../../shared/positionUtils.js';
+import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
+import { nanoid } from 'nanoid';
 
-// Define the type for active casts
+/**
+ * Calculate damage for a skill based on the skill and caster stats
+ * @param skill The skill object with dmg property
+ * @param casterStats Optional caster stats that may modify damage
+ * @returns The calculated damage amount
+ */
+function getDamage(skill: any, casterStats?: any): number {
+  // Base damage from skill
+  let damage = skill.dmg || 10;
+  
+  // Apply caster stats if available
+  if (casterStats && casterStats.damageMultiplier) {
+    damage *= casterStats.damageMultiplier;
+  }
+  
+  // Add some variation
+  const variation = 0.9 + Math.random() * 0.2; // 90% to 110% of base damage
+  damage *= variation;
+  
+  return Math.floor(damage);
+}
+
+/**
+ * Get world interface for interacting with game state
+ */
+interface World {
+  getEnemyById: (id: string) => any | null;
+  getPlayerById: (id: string) => Player | null;
+  getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
+}
+
+// Define the type for active casts (legacy)
 interface CastState {
   id: string;
   skillId: SkillId;
@@ -15,6 +49,31 @@ interface CastState {
   targetPos?: VecXZ;
   clientSeq: number; // To reconcile with client
   state: 'casting' | 'completed' | 'canceled';
+}
+
+// New types for the enhanced Cast and Projectile system
+interface Cast {
+  castId: string;
+  casterId: string;
+  skillId: SkillId;
+  state: CastStateEnum;
+  origin: VecXZ;
+  target?: VecXZ;
+  startedAt: number;
+  castTimeMs: number;
+  targetId?: string;
+  targetPos?: VecXZ;
+}
+
+interface Projectile {
+  castId: string;
+  pos: VecXZ;
+  dir: VecXZ;
+  speed: number;
+  distanceTraveled: number;
+  maxRange: number;
+  startTime: number;
+  skillId: SkillId;
 }
 
 // Player interface that contains needed properties for skill casting
@@ -31,22 +90,18 @@ interface Player {
   level: number;
   position: { x: number; y: number; z: number };
   movement?: any;
+  stats?: any;
   // Other player properties
 }
 
-// Collection of active casts by all players
+// Collection of active casts by all players (legacy)
 const activeCasts: CastState[] = [];
 // Collection of completed casts to be processed
 let completedCasts: CastState[] = [];
 
-/**
- * Calculate distance between two points in 2D space
- */
-function distance(a: VecXZ, b: VecXZ): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dz * dz);
-}
+// New collections for the enhanced system
+const activeCastsNew: Cast[] = [];
+const projectiles: Projectile[] = [];
 
 /**
  * Handle a cast request from a client
@@ -189,6 +244,42 @@ export function handleCastReq(
   // Send to everyone including the caster
   socket.emit('msg', castStartMessage);
   socket.broadcast.emit('msg', castStartMessage);
+  
+  // Create a new Cast object for the enhanced system
+  const newCast: Cast = {
+    castId: nanoid(),
+    casterId: player.id,
+    skillId,
+    state: CastStateEnum.Casting,
+    origin: { x: player.position.x, z: player.position.z },
+    startedAt: now,
+    castTimeMs: skill.castMs,
+    targetId: req.targetId,
+    targetPos: req.targetPos
+  };
+  
+  // Add to active casts
+  activeCastsNew.push(newCast);
+  
+  // Broadcast initial cast snapshot
+  const castSnapshot: CastSnapshot = {
+    castId: newCast.castId,
+    casterId: newCast.casterId,
+    skillId: newCast.skillId,
+    state: newCast.state,
+    origin: newCast.origin,
+    target: newCast.targetPos,
+    startedAt: newCast.startedAt
+  };
+  
+  socket.emit('msg', {
+    type: 'CastSnapshot',
+    data: castSnapshot
+  } as CastSnapshotMsg);
+  socket.broadcast.emit('msg', {
+    type: 'CastSnapshot',
+    data: castSnapshot
+  } as CastSnapshotMsg);
 }
 
 /**
@@ -307,4 +398,279 @@ export function cancelCast(playerId: string, skillId?: string): boolean {
  */
 export function isPlayerCasting(playerId: string): boolean {
   return activeCasts.some(cast => cast.id === playerId);
+}
+
+/**
+ * Updates and progresses active casts, transitions them between states
+ */
+export function tickCasts(dt: number, io: Server, world: World): void {
+  const now = Date.now();
+  
+  for (let i = activeCastsNew.length - 1; i >= 0; i--) {
+    const cast = activeCastsNew[i];
+    
+    // Skip casts that are already in their final state
+    if (cast.state === CastStateEnum.Impact) {
+      // Remove completed casts after a delay
+      if (now - cast.startedAt > 5000) { // 5 seconds after cast started
+        activeCastsNew.splice(i, 1);
+      }
+      continue;
+    }
+    
+    // Check if cast time is complete for casts in Casting state
+    if (cast.state === CastStateEnum.Casting) {
+      const elapsedMs = now - cast.startedAt;
+      
+      if (elapsedMs >= cast.castTimeMs) {
+        // Cast is complete, transition to Traveling or Impact
+        const skill = SKILLS[cast.skillId];
+        const isProjectileSkill = skill.projectile !== undefined;
+        
+        if (isProjectileSkill) {
+          // Change state to Traveling
+          cast.state = CastStateEnum.Traveling;
+          
+          // Calculate direction vector
+          let dir = { x: 0, z: 0 };
+          
+          if (cast.targetPos) {
+            // Targeted at a position
+            const dx = cast.targetPos.x - cast.origin.x;
+            const dz = cast.targetPos.z - cast.origin.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            
+            // Normalize the direction
+            if (dist > 0) {
+              dir = {
+                x: dx / dist,
+                z: dz / dist
+              };
+            }
+          } else if (cast.targetId) {
+            // Targeted at an entity
+            const target = world.getEnemyById(cast.targetId);
+            if (target) {
+              const targetPos = { x: target.position.x, z: target.position.z };
+              const dx = targetPos.x - cast.origin.x;
+              const dz = targetPos.z - cast.origin.z;
+              const dist = Math.sqrt(dx * dx + dz * dz);
+              
+              // Normalize the direction
+              if (dist > 0) {
+                dir = {
+                  x: dx / dist,
+                  z: dz / dist
+                };
+              }
+            }
+          }
+          
+          // Create projectile
+          const projectile: Projectile = {
+            castId: cast.castId,
+            pos: { ...cast.origin },
+            dir,
+            speed: skill.projectile?.speed || 5,
+            distanceTraveled: 0,
+            maxRange: skill.range || 10,
+            startTime: now,
+            skillId: cast.skillId
+          };
+          
+          projectiles.push(projectile);
+          
+          // Emit projectile spawn
+          io.emit('msg', {
+            type: 'ProjSpawn2',
+            castId: cast.castId,
+            origin: cast.origin,
+            dir,
+            speed: projectile.speed,
+            launchTs: now,
+            hitRadius: skill.projectile?.hitRadius
+          } as ProjSpawn2);
+          
+          // Broadcast cast state change
+          io.emit('msg', {
+            type: 'CastSnapshot',
+            data: {
+              castId: cast.castId,
+              casterId: cast.casterId,
+              skillId: cast.skillId,
+              state: cast.state,
+              origin: cast.origin,
+              target: cast.targetPos,
+              startedAt: cast.startedAt
+            }
+          } as CastSnapshotMsg);
+        } else {
+          // Instant cast, goes straight to Impact
+          cast.state = CastStateEnum.Impact;
+          
+          // Broadcast cast state change
+          io.emit('msg', {
+            type: 'CastSnapshot',
+            data: {
+              castId: cast.castId,
+              casterId: cast.casterId,
+              skillId: cast.skillId,
+              state: cast.state,
+              origin: cast.origin,
+              target: cast.targetPos,
+              startedAt: cast.startedAt
+            }
+          } as CastSnapshotMsg);
+          
+          // TODO: Handle instant cast effects directly here
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Updates projectile positions and handles collisions
+ */
+export function tickProjectiles(dt: number, io: Server, world: World): void {
+  const now = Date.now();
+  
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const proj = projectiles[i];
+    const skill = SKILLS[proj.skillId];
+    
+    // Calculate distance traveled in this time step
+    const distanceThisFrame = proj.speed * (dt / 1000);
+    proj.distanceTraveled += distanceThisFrame;
+    
+    // Update position
+    proj.pos.x += proj.dir.x * distanceThisFrame;
+    proj.pos.z += proj.dir.z * distanceThisFrame;
+    
+    // Check if projectile has reached max range
+    let detonate = false;
+    if (proj.distanceTraveled >= proj.maxRange) {
+      detonate = true;
+      
+      // Find the matching cast to update state
+      const castIndex = activeCastsNew.findIndex(c => c.castId === proj.castId);
+      if (castIndex >= 0) {
+        const cast = activeCastsNew[castIndex];
+        
+        // Update cast state to Impact
+        cast.state = CastStateEnum.Impact;
+        
+        // Emit hit message with empty hit list
+        io.emit('msg', {
+          type: 'ProjHit2',
+          castId: proj.castId,
+          hitIds: [],
+          dmg: [],
+          impactPos: { ...proj.pos }  // Include impact position for VFX
+        } as ProjHit2);
+        
+        // Broadcast cast state change
+        io.emit('msg', {
+          type: 'CastSnapshot',
+          data: {
+            castId: cast.castId,
+            casterId: cast.casterId,
+            skillId: cast.skillId,
+            state: cast.state,
+            origin: cast.origin,
+            target: cast.targetPos,
+            startedAt: cast.startedAt
+          }
+        } as CastSnapshotMsg);
+      }
+    }
+    
+    // Check for collisions
+    if (skill.projectile?.hitRadius) {
+      const victims = world.getEntitiesInCircle(proj.pos, skill.projectile.hitRadius);
+      
+      if (victims.length > 0) {
+        detonate = true;
+        
+        // Find the matching cast
+        const castIndex = activeCastsNew.findIndex(c => c.castId === proj.castId);
+        if (castIndex >= 0) {
+          const cast = activeCastsNew[castIndex];
+          const caster = world.getPlayerById(cast.casterId);
+          
+          // Calculate damage for each victim
+          const dmgArr = victims.map((v: any) => getDamage(skill, caster?.stats));
+          
+          // Emit hit message with current projectile data
+          const currentProj = projectiles[i];
+          const hitVictims = victims;
+
+          io.emit('msg', {
+            type: 'ProjHit2',
+            castId: currentProj.castId,
+            hitIds: hitVictims.map((v: any) => v.id),
+            dmg: dmgArr,
+            impactPos: { ...currentProj.pos }  // Include impact position for VFX
+          } as ProjHit2);
+          
+          // Update cast state to Impact
+          cast.state = CastStateEnum.Impact;
+          
+          // Broadcast cast snapshot
+          io.emit('msg', {
+            type: 'CastSnapshot',
+            data: {
+              castId: cast.castId,
+              casterId: cast.casterId,
+              skillId: cast.skillId,
+              state: cast.state,
+              origin: cast.origin,
+              target: cast.targetPos,
+              startedAt: cast.startedAt
+            }
+          } as CastSnapshotMsg);
+        }
+      }
+    }
+    
+    // If projectile should detonate (hit max range or collided), remove it
+    if (detonate) {
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+/**
+ * Send snapshots of all active casts and projectiles to a client
+ * Call this when a new client connects to catch them up on the game state
+ */
+export function sendCastSnapshots(socket: Socket): void {
+  // Send all active casts
+  activeCastsNew.forEach(cast => {
+    socket.emit('msg', {
+      type: 'CastSnapshot',
+      data: {
+        castId: cast.castId,
+        casterId: cast.casterId,
+        skillId: cast.skillId,
+        state: cast.state,
+        origin: cast.origin,
+        target: cast.targetPos,
+        startedAt: cast.startedAt
+      }
+    } as CastSnapshotMsg);
+  });
+  
+  // Send all active projectiles
+  projectiles.forEach(proj => {
+    socket.emit('msg', {
+      type: 'ProjSpawn2',
+      castId: proj.castId,
+      origin: proj.pos,
+      dir: proj.dir,
+      speed: proj.speed,
+      launchTs: proj.startTime,
+      hitRadius: SKILLS[proj.skillId].projectile?.hitRadius || 0.5
+    } as ProjSpawn2);
+  });
 }

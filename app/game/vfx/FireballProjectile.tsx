@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, Group, Material, MeshBasicMaterial } from 'three';
 
@@ -7,6 +7,7 @@ interface FireballProjectileProps {
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
+  launchTs?: number; // Add launch timestamp
 }
 
 interface FireParticle {
@@ -18,10 +19,15 @@ interface FireParticle {
   color: Color;
 }
 
-export function FireballProjectile({ id, origin, dir, speed }: FireballProjectileProps) {
+export function FireballProjectile({ id, origin, dir, speed, launchTs }: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
+  const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
+  const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z));
+  const originalSpeed = useRef(speed);
+  const originalLaunchTs = useRef(launchTs || performance.now());
+  
   const [particles, setParticles] = useState<FireParticle[]>([]);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
@@ -56,10 +62,17 @@ export function FireballProjectile({ id, origin, dir, speed }: FireballProjectil
   useFrame((state, delta) => {
     if (!coreRef.current) return;
     
-    // Move projectile
-    pos.current.x += dir.x * speed * delta;
-    pos.current.y += dir.y * speed * delta;
-    pos.current.z += dir.z * speed * delta;
+    // Calculate position based on server parameters and elapsed time
+    // This ensures the projectile follows exactly the path determined by the server
+    const elapsedTimeSec = (performance.now() - originalLaunchTs.current) / 1000;
+    
+    // Calculate the exact position based on origin, direction, speed, and time
+    const distanceTraveled = originalSpeed.current * elapsedTimeSec;
+    pos.current.x = originalOrigin.current.x + originalDir.current.x * distanceTraveled;
+    pos.current.y = originalOrigin.current.y + originalDir.current.y * distanceTraveled;
+    pos.current.z = originalOrigin.current.z + originalDir.current.z * distanceTraveled;
+    
+    // Apply the calculated position to the mesh
     coreRef.current.position.copy(pos.current);
     
     // Fire core pulsing

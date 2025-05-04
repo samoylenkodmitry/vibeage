@@ -8,6 +8,7 @@ interface ProjectileVfxProps {
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
+  launchTs?: number; // Add launch timestamp
 }
 
 interface TrailParticle {
@@ -19,10 +20,15 @@ interface TrailParticle {
   rotation: Vector3;
 }
 
-function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
+function ProjectileVfx({id, origin, dir, speed, launchTs}: ProjectileVfxProps) {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
+  const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
+  const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z));
+  const originalSpeed = useRef(speed);
+  const originalLaunchTs = useRef(launchTs || performance.now());
+  
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const [intensity, setIntensity] = useState(2);
   const [trailParticles, setTrailParticles] = useState<TrailParticle[]>([]);
@@ -48,8 +54,17 @@ function ProjectileVfx({id, origin, dir, speed}: ProjectileVfxProps) {
     
     // If fading out, don't update position
     if (!isFadingOut) {
-      // Move projectile
-      pos.current.addScaledVector(new Vector3(normalizedDir.x, normalizedDir.y, normalizedDir.z), speed * delta);
+      // Calculate position based on server parameters and elapsed time
+      // This ensures the projectile follows exactly the path determined by the server
+      const elapsedTimeSec = (performance.now() - originalLaunchTs.current) / 1000;
+      
+      // Calculate the exact position based on origin, direction, speed, and time
+      const distanceTraveled = originalSpeed.current * elapsedTimeSec;
+      pos.current.x = originalOrigin.current.x + originalDir.current.x * distanceTraveled;
+      pos.current.y = originalOrigin.current.y + originalDir.current.y * distanceTraveled;
+      pos.current.z = originalOrigin.current.z + originalDir.current.z * distanceTraveled;
+      
+      // Apply the calculated position to the mesh
       ref.current.position.copy(pos.current);
     }
     

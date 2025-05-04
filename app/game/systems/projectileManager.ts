@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProjSpawn, ProjHit, ProjEnd } from '../../../shared/messages';
+import { ProjSpawn, ProjHit, ProjEnd, ProjSpawn2, ProjHit2 } from '../../../shared/messages';
 
 // Define interfaces for our state
 export interface ProjectileState {
@@ -11,14 +11,31 @@ export interface ProjectileState {
   launchTs: number;
   fadeOutStartTs?: number;
   opacity: number;
+  castId?: string; // For the enhanced system
+}
+
+// Enhanced projectile state for the new system
+export interface EnhancedProjectileState {
+  castId: string;
+  origin: {x: number; z: number};
+  dir: {x: number; z: number};
+  speed: number;
+  launchTs: number;
+  fadeOutStartTs?: number;
+  opacity: number;
 }
 
 interface ProjectileStore {
   projectiles: Record<string, ProjectileState>;
+  enhancedProjectiles: Record<string, EnhancedProjectileState>;
   addProjectile: (data: ProjSpawn) => void;
   handleHit: (data: ProjHit) => void;
   handleEnd: (data: ProjEnd) => void;
   updateOpacity: () => void;
+  
+  // New methods for the enhanced system
+  addEnhancedProjectile: (data: ProjSpawn2) => void;
+  handleEnhancedHit: (data: ProjHit2) => void;
 }
 
 // Duration of fade-out effect in milliseconds
@@ -26,6 +43,7 @@ const FADE_OUT_DURATION_MS = 500; // Increased from 300ms to 500ms for smoother 
 
 export const useProjectileStore = create<ProjectileStore>((set, get) => ({
   projectiles: {},
+  enhancedProjectiles: {},
   
   addProjectile: (data: ProjSpawn) => {
     set(state => ({
@@ -108,9 +126,31 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
       // Only update state if changes occurred
       return hasChanges ? { projectiles: updatedProjectiles } : state;
     });
-  }
+  },
+  
+  addEnhancedProjectile: (data: ProjSpawn2) => {
+    set(state => ({
+      enhancedProjectiles: {
+        ...state.enhancedProjectiles,
+        [data.castId]: {
+          castId: data.castId,
+          origin: data.origin,
+          dir: data.dir,
+          speed: data.speed,
+          launchTs: data.launchTs,
+          opacity: 1.0
+        }
+      }
+    }));
+  },
+  
+  handleEnhancedHit: (data: ProjHit2) => {
+    // Logic for handling enhanced projectile hits
+    // This can be similar to the handleHit method but for enhanced projectiles
+  },
 }));  // Export the function directly
 export function initProjectileListeners() {
+  // Legacy event listeners
   window.addEventListener('projspawn', (event: any) => {
     useProjectileStore.getState().addProjectile(event.detail);
   });
@@ -121,6 +161,15 @@ export function initProjectileListeners() {
   
   window.addEventListener('projend', (event: any) => {
     useProjectileStore.getState().handleEnd(event.detail);
+  });
+  
+  // New enhanced event listeners - using custom events to match existing pattern
+  window.addEventListener('projspawn2', (event: any) => {
+    useProjectileStore.getState().addEnhancedProjectile(event.detail);
+  });
+  
+  window.addEventListener('projhit2', (event: any) => {
+    useProjectileStore.getState().handleEnhancedHit(event.detail);
   });
   
   // Set up opacity updates using requestAnimationFrame for smoother animations
