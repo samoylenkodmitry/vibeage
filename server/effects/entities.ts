@@ -1,6 +1,6 @@
 import { SkillDef } from '../../shared/skillsDefinition';
 import { VecXZ, InstantHit, ProjHit2 } from '../../shared/messages';
-import { getDamage } from '../../shared/combatMath';
+import { getDamage, hash } from '../../shared/combatMath';
 import { v4 as uuid } from 'uuid';
 
 // Define a simplified GameState interface for use in this file
@@ -181,7 +181,7 @@ export function applySkillDamage(skill: any, target: any, state: GameState, prec
       }
     } else {
       // Apply status effect
-      const effectId = Math.random().toString(36).substr(2, 9);
+      const effectId = `effect-${hash(`${effect.type}-${now}`)}`;
       const statusEffect = {
         id: effectId,
         type: effect.type,

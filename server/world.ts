@@ -11,6 +11,7 @@ import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
 import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
 import { createSpatialHashGrid, SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
+import { getDamage, hash, rng } from '../shared/combatMath.js';
 
 /**
  * Defines the GameState interface
@@ -51,6 +52,11 @@ interface PlayerState {
   movement?: PlayerMovementState;
   velocity?: { x: number; z: number }; // New: current velocity vector
   posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
+  stats?: {
+    dmgMult?: number;
+    critChance?: number;
+    critMult?: number;
+  };
 }
 
 /**
@@ -578,13 +584,14 @@ function executeSkillEffects(
         existingEffect.durationMs = effect.durationMs;
         existingEffect.startTimeTs = Date.now();
       } else {
-        const effectId = Math.random().toString(36).substr(2, 9);
+        const now = Date.now();
+        const effectId = `effect-${hash(`${effect.type}-${now}-${target.id}`).toString(36).substring(0, 9)}`;
         target.statusEffects.push({
           id: effectId,
           type: effect.type,
           value: effect.value,
           durationMs: effect.durationMs,
-          startTimeTs: Date.now(),
+          startTimeTs: now,
           sourceSkill: skillId
         });
       }
@@ -729,7 +736,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     spatial,
     
     addPlayer(socketId: string, name: string) {
-      const playerId = Math.random().toString(36).substr(2, 9);
+      const playerId = `player-${hash(socketId + Date.now().toString())}`;
       
       const player: PlayerState = {
         id: playerId,
@@ -804,7 +811,7 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
         const position = zoneManager.getRandomPositionInZone(zone.id);
         if (!position) continue;
 
-        const enemyId = `${type}-${Math.random().toString(36).substr(2, 9)}`;
+        const enemyId = `${type}-${hash(`${type}-${Date.now()}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`;
         const level = zoneManager.getMobLevel(zone.id);
 
         state.enemies[enemyId] = {
@@ -814,7 +821,7 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
           level,
           position,
           spawnPosition: { ...position },
-          rotation: { x: 0, y: Math.random() * Math.PI * 2, z: 0 },
+          rotation: { x: 0, y: rng(hash(`rotation-${Date.now()}-${position.x}-${position.z}`))() * Math.PI * 2, z: 0 },
           health: 100 + (level * 20),
           maxHealth: 100 + (level * 20),
           isAlive: true,
@@ -1015,18 +1022,18 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           
           // Apply status effects if defined
           if (skill.effects && skill.effects.length > 0) {
-            for (const effect of skill.effects) {
-              // Skip effects without a duration
-              if (!effect.durationMs) continue;
-              
-              const effectId = Math.random().toString(36).substr(2, 9);
-              enemy.statusEffects.push({
-                id: effectId,
-                type: effect.type,
-                value: effect.value,
-                durationMs: effect.durationMs,
-                startTimeTs: Date.now(),
-                sourceSkill: p.skillId
+            for (const effect of skill.effects) {                  // Skip effects without a duration
+                  if (!effect.durationMs) continue;
+                  
+                  const now = Date.now();
+                  const effectId = `effect-${hash(`${effect.type}-${now}-${enemyId}`).toString(36).substring(0, 9)}`;
+                  enemy.statusEffects.push({
+                    id: effectId,
+                    type: effect.type,
+                    value: effect.value,
+                    durationMs: effect.durationMs,
+                    startTimeTs: now,
+                    sourceSkill: p.skillId
               });
             }
           }
@@ -1111,7 +1118,14 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         type: 'ProjHit2',
         castId: p.id,
         hitIds: hitTargets,
-        dmg: hitTargets.map(() => skill?.dmg || 10),
+        dmg: hitTargets.map(targetId => {
+          const { dmg } = getDamage({
+            caster: state.players[p.casterId]?.stats ?? {},
+            skill: { base: skill?.dmg || 10, variance: 0.1 },
+            seed: `${p.id}:${targetId}`
+          });
+          return dmg;
+        }),
         impactPos: { x: p.pos.x, z: p.pos.z }
       });
       
@@ -1178,7 +1192,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
                   // Skip effects without a duration
                   if (!effect.durationMs) continue;
                   
-                  const effectId = Math.random().toString(36).substr(2, 9);
+                  const effectId = `effect-${hash(`${effect.type}-${now}-${enemyId}`).toString(36).substring(0, 9)}`;
                   enemy.statusEffects.push({
                     id: effectId,
                     type: effect.type,
@@ -1203,7 +1217,17 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
             type: 'ProjHit2',
             castId: p.id,
             hitIds: splashTargets,
-            dmg: splashTargets.map(() => (skill?.dmg || 10) * (skill?.projectile?.splashDamagePct || 0.5)),
+            dmg: splashTargets.map(targetId => {
+              const { dmg } = getDamage({
+                caster: state.players[p.casterId]?.stats ?? {},
+                skill: { 
+                  base: (skill?.dmg || 10) * (skill?.projectile?.splashDamagePct || 0.5), 
+                  variance: 0.1 
+                },
+                seed: `${p.id}:splash:${targetId}`
+              });
+              return dmg;
+            }),
             impactPos: { x: p.pos.x, z: p.pos.z }
           });
         }

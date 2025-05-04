@@ -4,6 +4,7 @@ import { SkillType } from './types.js';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
 import { predictPosition, awardPlayerXP } from './world.js';
+import { hash } from '../shared/combatMath.js';
 
 interface PlayerState {
   id: string;
@@ -148,7 +149,8 @@ export function executeSkill(
         existingEffect.durationMs = status.durationMs;
         existingEffect.startTimeTs = now;
       } else {
-        const effectId = Math.random().toString(36).substr(2, 9);
+        // Generate a deterministic effect ID
+        const effectId = `effect-${hash(`${effect.type}-${now}-${player.id}`)}`;
         target.statusEffects.push({
           id: effectId,
           ...status,
