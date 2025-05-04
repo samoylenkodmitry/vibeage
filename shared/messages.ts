@@ -62,47 +62,7 @@ export interface CastReq extends ClientMsg {
   clientTs: number;
 }
 
-export interface CastStart extends ClientMsg {
-  type: 'CastStart';
-  id: string;
-  skillId: string;
-  castTimeMs: number;
-  targetId?: string;
-  targetPos?: VecXZ;
-  serverTs: number;
-}
-
-export interface CastEnd extends ClientMsg {
-  type: 'CastEnd';
-  id: string;
-  skillId: string;
-  success: boolean;
-  serverTs: number;
-}
-
-// Projectile messages
-export interface ProjSpawn extends ClientMsg {
-  type: 'ProjSpawn';
-  id: string; // Projectile ID
-  skillId: string;
-  origin: { x: number; y: number; z: number };
-  dir: { x: number; y: number; z: number };
-  speed: number;
-  launchTs: number;
-}
-
-export interface ProjHit extends ClientMsg {
-  type: 'ProjHit';
-  id: string; // Projectile ID
-  pos: { x: number; y: number; z: number };
-  hitIds: string[]; // IDs of entities hit by this projectile
-}
-
-export interface ProjEnd extends ClientMsg {
-  type: 'ProjEnd';
-  id: string; // Projectile ID
-  pos: { x: number; y: number; z: number };
-}
+// Projectile messages - Legacy interfaces removed
 
 // Instant skill hit effect
 export interface InstantHit extends ClientMsg {
@@ -135,17 +95,6 @@ export interface SkillShortcutUpdated extends ClientMsg {
   type: 'SkillShortcutUpdated';
   slotIndex: number;
   skillId: SkillId | null;
-}
-
-// Legacy - to be removed
-export interface SetActiveSkills extends ClientMsg {
-  type: 'SetActiveSkills';
-  skills: SkillId[];
-}
-
-export interface ActiveSkillsUpdated extends ClientMsg {
-  type: 'ActiveSkillsUpdated';
-  skills: SkillId[];
 }
 
 // Class system messages
@@ -191,6 +140,8 @@ export interface ProjSpawn2 extends ServerMsg {
   speed: number;
   launchTs: number;
   hitRadius?: number;  // Optional hitRadius for VFX
+  casterId?: string;   // ID of the entity that cast this projectile
+  skillId?: string;    // ID of the skill that created this projectile
 }
 
 export interface ProjHit2 extends ServerMsg {

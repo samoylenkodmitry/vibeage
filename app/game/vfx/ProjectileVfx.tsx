@@ -20,7 +20,7 @@ interface TrailParticle {
   rotation: Vector3;
 }
 
-function ProjectileVfx({id, origin, dir, speed, launchTs}: ProjectileVfxProps) {
+function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs}: ProjectileVfxProps) {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
@@ -137,8 +137,9 @@ function ProjectileVfx({id, origin, dir, speed, launchTs}: ProjectileVfxProps) {
     <group ref={groupRef}>
       {/* Main projectile */}
       <mesh ref={ref}>
-        <sphereGeometry args={[0.25, 16, 16]} />
+        <sphereGeometry key={`proj-geo-${id}`} args={[0.25, 16, 16]} />
         <meshStandardMaterial 
+          key={`proj-mat-${id}`}
           color={'orange'} 
           emissive={'orange'} 
           emissiveIntensity={intensity}
@@ -148,6 +149,7 @@ function ProjectileVfx({id, origin, dir, speed, launchTs}: ProjectileVfxProps) {
         
         {/* Add glow effect */}
         <pointLight 
+          key={`proj-light-${id}`}
           color={'orange'} 
           intensity={intensity} 
           distance={3} 
@@ -162,8 +164,9 @@ function ProjectileVfx({id, origin, dir, speed, launchTs}: ProjectileVfxProps) {
           rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
           scale={[particle.scale, particle.scale, particle.scale]}
         >
-          <sphereGeometry args={[0.15, 8, 8]} />
+          <sphereGeometry key={`trail-geo-${id}-${index}`} args={[0.15, 8, 8]} />
           <meshBasicMaterial 
+            key={`trail-mat-${id}-${index}`}
             color={new Color(0xff8c00)} 
             transparent={true} 
             opacity={particle.opacity} 

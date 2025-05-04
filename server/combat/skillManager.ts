@@ -1,7 +1,7 @@
 // filepath: /home/s/develop/projects/vibe/1/server/combat/skillManager.ts
 import { Socket, Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
-import { CastReq, CastStart, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
+import { CastReq, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
 import { getManaCost, getCooldownMs } from '../../shared/combatMath.js';
 import { VecXZ } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
@@ -230,20 +230,7 @@ export function handleCastReq(
   // Add to active casts
   activeCasts.push(cast);
   
-  // Emit cast start event
-  const castStartMessage: CastStart = {
-    type: 'CastStart',
-    id: player.id,
-    skillId,
-    castTimeMs: skill.castMs,
-    targetId: req.targetId,
-    targetPos: req.targetPos,
-    serverTs: now
-  };
-  
-  // Send to everyone including the caster
-  socket.emit('msg', castStartMessage);
-  socket.broadcast.emit('msg', castStartMessage);
+  // Legacy CastStart removed - using only CastSnapshot
   
   // Create a new Cast object for the enhanced system
   const newCast: Cast = {
@@ -329,16 +316,8 @@ export function updateCasts(io?: Server, players?: Record<string, any>): void {
         playerUpdates[cast.id].castingSkill = null;   // Reset casting skill
       }
       
-      // Send cast end message
-      if (io) {
-        io.emit('msg', {
-          type: 'CastEnd',
-          id: cast.id,
-          skillId: cast.skillId,
-          success: true,
-          serverTs: now
-        });
-      }
+      // Legacy CastEnd message removed
+      
     }
   }
   

@@ -31,6 +31,7 @@ interface MistParticle {
 export default function SplashVfx({ position, radius }: SplashVfxProps) {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0); // 1 second lifetime
+  const uniqueId = useRef(`splash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
   
   // Generate water droplet particles
   const particles = useMemo(() => {
@@ -456,7 +457,7 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
       {/* Ice particles */}
       {iceParticles.map((particle, index) => (
         <mesh
-          key={`ice-${index}`}
+          key={`ice-${index}-${Math.random().toString(36).substring(2, 9)}`}
           position={[particle.position.x, particle.position.y, particle.position.z]}
           rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
           scale={[particle.scale, particle.scale * particle.stretching, particle.scale]}

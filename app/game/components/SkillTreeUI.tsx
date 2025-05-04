@@ -469,7 +469,10 @@ const SkillTreeUI: React.FC = () => {
                         setTimeout(() => {
                           try {
                               e.currentTarget.classList.remove(styles.dropSuccess);
-                          } catch (err) { }
+                          } catch (_err) {
+                              // Ignoring errors when removing class if element no longer exists
+                              console.debug('Failed to remove drop success class');
+                          }
                         }, 500);
                         
                         // Set the shortcut with the validated skill ID

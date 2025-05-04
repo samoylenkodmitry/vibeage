@@ -11,6 +11,7 @@ interface FireballProjectileProps {
 }
 
 interface FireParticle {
+  id: string;
   position: Vector3;
   scale: number;
   opacity: number;
@@ -19,7 +20,7 @@ interface FireParticle {
   color: Color;
 }
 
-export function FireballProjectile({ id, origin, dir, speed, launchTs }: FireballProjectileProps) {
+export function FireballProjectile({ id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs }: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
@@ -31,11 +32,12 @@ export function FireballProjectile({ id, origin, dir, speed, launchTs }: Firebal
   const [particles, setParticles] = useState<FireParticle[]>([]);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
-  // Generate some initial fire particles
-  useState(() => {
+  // Generate initial fire particles only once on component mount
+  useEffect(() => {
     const initialParticles: FireParticle[] = [];
     for (let i = 0; i < 15; i++) {
       initialParticles.push({
+        id: `flame-${id}-initial-${i}-${Math.random().toString(36).substr(2, 9)}`,
         position: new Vector3(
           origin.x + (Math.random() - 0.5) * 0.3,
           origin.y + (Math.random() - 0.5) * 0.3,
@@ -57,7 +59,7 @@ export function FireballProjectile({ id, origin, dir, speed, launchTs }: Firebal
       });
     }
     setParticles(initialParticles);
-  });
+  }, []); // Empty dependency array ensures this only runs once on mount
   
   useFrame((state, delta) => {
     if (!coreRef.current) return;
@@ -88,6 +90,7 @@ export function FireballProjectile({ id, origin, dir, speed, launchTs }: Firebal
     // Add fire trail particles
     if (Math.random() > 0.4) {
       const newParticle: FireParticle = {
+        id: `flame-${id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         position: pos.current.clone().add(
           new Vector3(
             (Math.random() - 0.5) * 0.3,
@@ -140,9 +143,10 @@ export function FireballProjectile({ id, origin, dir, speed, launchTs }: Firebal
   return (
     <group ref={groupRef}>
       {/* Main fire core */}
-      <mesh ref={coreRef}>
-        <sphereGeometry args={[0.25, 16, 16]} />
+      <mesh key={`core-${id}`} ref={coreRef}>
+        <sphereGeometry key={`core-geo-${id}`} args={[0.25, 16, 16]} />
         <meshBasicMaterial 
+          key={`core-mat-${id}`}
           color={new Color(0xff5500)}
           transparent={true}
           opacity={0.9}
@@ -150,9 +154,10 @@ export function FireballProjectile({ id, origin, dir, speed, launchTs }: Firebal
       </mesh>
       
       {/* Outer glow */}
-      <mesh position={pos.current.toArray()}>
-        <sphereGeometry args={[0.4, 16, 16]} />
+      <mesh key={`glow-${id}`} position={pos.current.toArray()}>
+        <sphereGeometry key={`glow-geo-${id}`} args={[0.4, 16, 16]} />
         <meshBasicMaterial 
+          key={`glow-mat-${id}`}
           color={new Color(0xff8800)}
           transparent={true}
           opacity={0.4}
@@ -160,14 +165,15 @@ export function FireballProjectile({ id, origin, dir, speed, launchTs }: Firebal
       </mesh>
       
       {/* Fire particles */}
-      {particles.map((particle, index) => (
+      {particles.map((particle) => (
         <mesh
-          key={`flame-${id}-${index}`}
+          key={particle.id}
           position={[particle.position.x, particle.position.y, particle.position.z]}
           scale={[particle.scale, particle.scale, particle.scale]}
         >
-          <sphereGeometry args={[0.1, 8, 8]} />
+          <sphereGeometry key={`geo-${particle.id}`} args={[0.1, 8, 8]} />
           <meshBasicMaterial 
+            key={`mat-${particle.id}`}
             color={particle.color}
             transparent={true}
             opacity={particle.opacity}

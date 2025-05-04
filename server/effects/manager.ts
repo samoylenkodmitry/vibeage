@@ -1,6 +1,6 @@
 import { EffectEntity, Projectile, Instant } from './entities';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition';
-import { ProjSpawn, ProjHit, ProjEnd, InstantHit } from '../../shared/messages';
+import { ProjSpawn2, ProjHit2, InstantHit } from '../../shared/messages';
 import { Server } from 'socket.io';
 
 // Define a simplified GameState interface to match our usage
@@ -26,16 +26,18 @@ export class EffectManager {
       const p = new Projectile(skill, origin, dir, caster.id, targetId);
       this.effects[p.id] = p;
       
-      // Emit projectile spawn event
+      // Emit enhanced projectile spawn event
       this.io.emit('msg', {
-        type: 'ProjSpawn',
-        id: p.id, 
+        type: 'ProjSpawn2',
+        castId: p.id, 
         skillId: skillId, 
-        origin, 
-        dir, 
+        origin: { x: origin.x, z: origin.z }, 
+        dir: { x: dir.x, z: dir.z }, 
         speed: skill.projectile?.speed || skill.speed || 0, 
-        launchTs: Date.now()
-      });
+        launchTs: Date.now(),
+        casterId: caster.id,
+        hitRadius: skill.projectile?.hitRadius || 0.5
+      } as ProjSpawn2);
       
       return p.id;
   }
@@ -62,7 +64,7 @@ export class EffectManager {
               this.io.emit('msg', m);
               
               // Track which entities need updates
-              if (m.type === 'ProjHit' || m.type === 'InstantHit') {
+              if (m.type === 'ProjHit2' || m.type === 'InstantHit') {
                   (m.hitIds || []).forEach(hitId => {
                       if (this.state.enemies[hitId]) {
                           updatedEnemies.add(hitId);
@@ -75,8 +77,7 @@ export class EffectManager {
           
           if(e.done) {
               delete this.effects[id];
-              if(e instanceof Projectile)
-                  this.io.emit('msg', {type: 'ProjEnd', id: e.id, pos: e.pos});
+              // No need to emit ProjEnd - the new protocol handles this through state transitions
           }
       }
       

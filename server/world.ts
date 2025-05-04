@@ -10,6 +10,7 @@ import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
 import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
+import { createSpatialHashGrid, SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 
 /**
  * Defines the GameState interface
@@ -144,17 +145,31 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   const stepZ = entity.velocity.z * deltaTimeSec;
   
   // Update position
+  const oldPos = { x: entity.position.x, z: entity.position.z };
   entity.position.x += stepX;
   entity.position.z += stepZ;
+  const newPos = { x: entity.position.x, z: entity.position.z };
+  
+  // Update spatial hash grid if position changed cells
+  if (gridCellChanged(oldPos, newPos)) {
+    spatial.move(entity.id, oldPos, newPos);
+  }
   
   // Check if we've reached the destination
-  const newDist = distance({ x: entity.position.x, z: entity.position.z }, dest);
+  const newDist = distance(newPos, dest);
   const prevDist = distance(currentPos, dest);
   
   // If we've passed the destination or are very close, snap to it and clear movement
   if (newDist > prevDist || newDist < 0.1) {
     entity.position.x = dest.x;
     entity.position.z = dest.z;
+    
+    // Check again if final position changed the cell
+    const finalPos = { x: dest.x, z: dest.z };
+    if (gridCellChanged(newPos, finalPos)) {
+      spatial.move(entity.id, newPos, finalPos);
+    }
+    
     entity.movement.dest = null;
     entity.velocity = { x: 0, z: 0 };
     
@@ -538,6 +553,9 @@ function executeSkillEffects(
           enemy.deathTimeTs = Date.now();
           enemy.targetId = null;
           
+          // Remove from spatial hash grid
+          spatial.remove(enemy.id, { x: enemy.position.x, z: enemy.position.z });
+          
           // Grant experience to the player
           caster.experience += enemy.experienceValue;
         }
@@ -591,6 +609,8 @@ function executeSkillEffects(
  */
 // Create an effects variable at module scope
 let effects: EffectManager;
+// Create a spatial hash grid at module scope
+let spatial: SpatialHashGrid;
 
 export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Initialize game state
@@ -603,6 +623,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   
   // Initialize effect manager
   effects = new EffectManager(io, state);
+  
+  // Initialize the spatial hash grid
+  spatial = createSpatialHashGrid();
   
   // Spawn initial enemies
   spawnInitialEnemies(state, zoneManager);
@@ -684,6 +707,27 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       return state;
     },
     
+    getEntitiesInCircle(pos: VecXZ, radius: number) {
+      // Use spatial hash grid to get entity IDs within the circle
+      const entityIds = spatial.queryCircle(pos, radius);
+      
+      // Convert IDs back to entities
+      return entityIds.map(id => {
+        // Check if it's a player
+        if (id in state.players && state.players[id].isAlive) {
+          return state.players[id];
+        }
+        // Check if it's an enemy
+        if (id in state.enemies && state.enemies[id].isAlive) {
+          return state.enemies[id];
+        }
+        return null;
+      }).filter(Boolean); // Remove null entries
+    },
+    
+    // Expose the spatial grid for direct access
+    spatial,
+    
     addPlayer(socketId: string, name: string) {
       const playerId = Math.random().toString(36).substr(2, 9);
       
@@ -715,6 +759,10 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       };
       
       state.players[playerId] = player;
+      
+      // Add player to spatial hash grid
+      spatial.insert(playerId, { x: player.position.x, z: player.position.z });
+      
       return player;
     },
     
@@ -724,7 +772,16 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       );
       
       if (playerId) {
+        // Get player position before removing
+        const player = state.players[playerId];
+        const pos = { x: player.position.x, z: player.position.z };
+        
+        // Remove player from spatial hash grid
+        spatial.remove(playerId, pos);
+        
+        // Remove player from state
         delete state.players[playerId];
+        
         return playerId;
       }
       
@@ -768,6 +825,9 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
           statusEffects: [],
           targetId: null,
         };
+        
+        // Add enemy to spatial hash grid
+        spatial.insert(enemyId, { x: position.x, z: position.z });
       }
     });
   });
@@ -942,6 +1002,9 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               enemy.targetId = null;
               log(LOG_CATEGORIES.ENEMY, `Enemy ${enemyId} was killed by projectile ${p.id}`);
               
+              // Remove enemy from spatial hash grid
+              spatial.remove(enemyId, { x: enemy.position.x, z: enemy.position.z });
+              
               // Give XP to the player who cast the projectile
               const caster = state.players[p.casterId];
               if (caster) {
@@ -1045,10 +1108,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       
       // Emit hit event
       io.emit('msg', {
-        type: 'ProjHit',
-        id: p.id,
-        pos: { x: p.pos.x, y: 1.5, z: p.pos.z },
-        hitIds: hitTargets
+        type: 'ProjHit2',
+        castId: p.id,
+        hitIds: hitTargets,
+        dmg: hitTargets.map(() => skill?.dmg || 10),
+        impactPos: { x: p.pos.x, z: p.pos.z }
       });
       
       // Check if the skill has splash damage
@@ -1098,6 +1162,9 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
                 enemy.targetId = null;
                 log(LOG_CATEGORIES.ENEMY, `Enemy ${enemyId} was killed by splash from projectile ${p.id}`);
                 
+                // Remove enemy from spatial hash grid
+                spatial.remove(enemyId, { x: enemy.position.x, z: enemy.position.z });
+                
                 // Give XP to the player who cast the projectile
                 const caster = state.players[p.casterId];
                 if (caster) {
@@ -1133,10 +1200,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         if (splashTargets.length > 0) {
           log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} hit ${splashTargets.length} targets with splash damage`);
           io.emit('msg', {
-            type: 'ProjHit',
-            id: p.id,
-            pos: { x: p.pos.x, y: 1.5, z: p.pos.z },
-            hitIds: splashTargets
+            type: 'ProjHit2',
+            castId: p.id,
+            hitIds: splashTargets,
+            dmg: splashTargets.map(() => (skill?.dmg || 10) * (skill?.projectile?.splashDamagePct || 0.5)),
+            impactPos: { x: p.pos.x, z: p.pos.z }
           });
         }
       }
@@ -1152,9 +1220,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           
           // Tell clients to despawn it
           io.emit('msg', {
-            type: 'ProjEnd',
-            id: p.id,
-            pos: { x: p.pos.x, y: 1.5, z: p.pos.z }
+            type: 'ProjHit2',
+            castId: p.id,
+            hitIds: [],
+            dmg: [],
+            impactPos: { x: p.pos.x, z: p.pos.z }
           });
           
           // Mark for removal and skip further processing for this projectile
@@ -1166,9 +1236,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       } else {
         // Also tell clients to despawn it immediately for non-piercing projectiles
         io.emit('msg', {
-          type: 'ProjEnd',
-          id: p.id,
-          pos: { x: p.pos.x, y: 1.5, z: p.pos.z }
+          type: 'ProjHit2',
+          castId: p.id,
+          hitIds: [],
+          dmg: [],
+          impactPos: { x: p.pos.x, z: p.pos.z }
         });
         
         // Mark for removal and skip further processing for this projectile
@@ -1182,9 +1254,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     if (now - p.spawnTs > 4000) {
       log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
       io.emit('msg', {
-        type: 'ProjEnd',
-        id: p.id,
-        pos: { x: p.pos.x, y: 1.5, z: p.pos.z }
+        type: 'ProjHit2',
+        castId: p.id,
+        hitIds: [],
+        dmg: [],
+        impactPos: { x: p.pos.x, z: p.pos.z }
       });
       
       projectilesToRemove.push(i);
@@ -1246,6 +1320,10 @@ function handleEnemyRespawns(state: GameState, io: Server) {
         enemy.position = { ...enemy.spawnPosition };
         enemy.targetId = null;
         enemy.statusEffects = [];
+        
+        // Re-add enemy to spatial hash grid upon respawn
+        spatial.insert(enemyId, { x: enemy.position.x, z: enemy.position.z });
+        
         io.emit('enemyUpdated', enemy);
       }
     }

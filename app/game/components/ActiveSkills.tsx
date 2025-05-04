@@ -14,7 +14,9 @@ import IceBoltProjectile from '../vfx/IceBoltProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
 import SplashVfx, { spawnSplashVfx, spawnStunFlash } from '../vfx/SplashVfx';
-import { ProjSpawn, ProjHit, InstantHit } from '../../../shared/messages';
+import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
+import { tryStartCast } from '../systems/castController';
+import { SkillId } from '../../../shared/skillsDefinition';
 
 // Type definitions
 interface SkillEffect {
@@ -36,6 +38,14 @@ interface SkillTriggeredEvent {
   createdAtTs: number;
 }
 
+// Define interfaces for our component props
+interface ProjectileProps {
+  id: string;
+  origin: { x: number; y: number; z: number };
+  dir: { x: number; y: number; z: number };
+  speed: number;
+}
+
 declare global {
   interface WindowEventMap {
     'skillTriggered': CustomEvent<SkillTriggeredEvent>;
@@ -43,12 +53,14 @@ declare global {
       effectId: string;
       callback: (position: { x: number; y: number; z: number }) => void;
     }>;
-    'projspawn': CustomEvent<ProjSpawn>;
-    'projhit': CustomEvent<ProjHit>;
-    'projend': CustomEvent<{ id: string }>;
+    // Legacy events removed
     'instanthit': CustomEvent<InstantHit>;
     'spawnSplash': CustomEvent<{ position: any; radius: number }>;
     'spawnStunFlash': CustomEvent<{ position: any }>;
+    
+    // New enhanced events
+    'projspawn2': CustomEvent<ProjSpawn2>;
+    'projhit2': CustomEvent<ProjHit2>;
   }
   
   interface Window {
@@ -66,15 +78,21 @@ export default function ActiveSkills() {
   const socket = useGameStore(state => state.socket);
   
   // New state for projectiles
-  const [projs, setProjs] = useState<Record<string, ProjSpawn>>({});
+  const [projs, setProjs] = useState<Record<string, ProjSpawn2>>({});
   const [splashes, setSplashes] = useState<{id: string, position: any, radius: number}[]>([]);
   const [stunFlashes, setStunFlashes] = useState<{id: string, position: any}[]>([]);
   const [petrifyFlashes, setPetrifyFlashes] = useState<{id: string, position: any}[]>([]);
   
   // Listen for projectile events
   useEffect(() => {
-    const spawn = (e: CustomEvent<ProjSpawn>) => {
+    const spawn = (e: CustomEvent<ProjSpawn2>) => {
       console.log('Projectile spawn:', e.detail);
+      
+      // Ensure the projectile has an ID
+      if (!e.detail.id) {
+        e.detail.id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      }
+      
       setProjs(p => ({...p, [e.detail.id]: e.detail}));
     };
     
@@ -120,11 +138,20 @@ export default function ActiveSkills() {
     const hit = (e: CustomEvent<any>) => {
       console.log('Hit event:', e.detail);
       
+      // Remove the projectile from state
+      if ('id' in e.detail) {
+        setProjs(p => {
+          const q = {...p};
+          delete q[e.detail.id];
+          return q;
+        });
+      }
+      
       // Handle hit effects for specific skills
       if ('skillId' in e.detail) {
         let position;
-        if ('pos' in e.detail) {
-          position = e.detail.pos; // ProjHit
+        if ('impactPos' in e.detail) {
+          position = { x: e.detail.impactPos.x, y: 1.5, z: e.detail.impactPos.z }; // ProjHit2
         } else if ('targetPos' in e.detail) {
           position = e.detail.targetPos; // InstantHit
         }
@@ -147,19 +174,17 @@ export default function ActiveSkills() {
               window.dispatchEvent(new CustomEvent('spawnSplash', {
                 detail: {
                   position: new Vector3(position.x, position.y, position.z),
-                  radius: 1.5,
-                  isFireExplosion: true
+                  radius: 1.5
                 }
               }));
               break;
               
-            case 'iceBolt':
+            case 'icebolt':
               // Create an ice shatter effect
               window.dispatchEvent(new CustomEvent('spawnSplash', {
                 detail: {
                   position: new Vector3(position.x, position.y, position.z),
-                  radius: 1,
-                  isIceShatter: true
+                  radius: 1
                 }
               }));
               break;
@@ -177,18 +202,16 @@ export default function ActiveSkills() {
       }
     };
     
-    window.addEventListener('projspawn', spawn as EventListener);
-    window.addEventListener('projend', end as EventListener);
-    window.addEventListener('projhit', hit as EventListener);
+    window.addEventListener('projspawn2', spawn as EventListener);
+    window.addEventListener('projhit2', hit as EventListener);
     window.addEventListener('instanthit', hit as EventListener);
     window.addEventListener('spawnSplash', spawnSplash as EventListener);
     window.addEventListener('spawnStunFlash', spawnFlash as EventListener);
     window.addEventListener('petrifyFlash', spawnPetrifyFlash as EventListener);
     
     return () => {
-      window.removeEventListener('projspawn', spawn as EventListener);
-      window.removeEventListener('projend', end as EventListener);
-      window.removeEventListener('projhit', hit as EventListener);
+      window.removeEventListener('projspawn2', spawn as EventListener);
+      window.removeEventListener('projhit2', hit as EventListener);
       window.removeEventListener('instanthit', hit as EventListener);
       window.removeEventListener('spawnSplash', spawnSplash as EventListener);
       window.removeEventListener('spawnStunFlash', spawnFlash as EventListener);
@@ -196,57 +219,17 @@ export default function ActiveSkills() {
     };
   }, []);
   
-  // Listen for hit events to spawn visual effects
-  useEffect(() => {
-    const hit = (e: CustomEvent<InstantHit|ProjHit>) => {
-      const detail = e.detail as any;
-      console.log('Hit event:', detail);
-      
-      // Get the position from either ProjHit or InstantHit
-      const position = detail.pos || detail.targetPos;
-      
-      if (detail.skillId === 'waterSplash') {
-        spawnSplashVfx(position, 3, 'water');
-      }
-      else if (detail.skillId === 'fireball') {
-        spawnSplashVfx(position, 2, 'fire');
-      }
-      else if (detail.skillId === 'iceBolt') {
-        spawnSplashVfx(position, 1.5, 'ice');
-      }
-      else if (detail.skillId === 'petrify') {
-        // Use our new PetrifyFlash component
-        window.dispatchEvent(new CustomEvent('petrifyFlash', {
-          detail: { 
-            position: position 
-          }
-        }));
-      }
-    };
-    
-    window.addEventListener('instanthit', hit as EventListener);
-    window.addEventListener('projhit', hit as EventListener);
-    
-    return () => {
-      window.removeEventListener('instanthit', hit as EventListener);
-      window.removeEventListener('projhit', hit as EventListener);
-    };
-  }, []);
-  
   // For debugging - expose global methods to manually trigger skills
   useEffect(() => {
-    const castSkill = (skillId: string) => {
-      if (!selectedTargetId) {
-        console.warn('Cannot cast skill: No target selected');
-        return;
-      }
-      useGameStore.getState().sendCastReq(skillId, selectedTargetId);
+    const castSkill = (skillId: SkillId) => {
+      // Use the imported tryStartCast function
+      tryStartCast(skillId, selectedTargetId || undefined);
     };
     
-    window.castFireball = () => castSkill('fireball');
-    window.castIceBolt = () => castSkill('icebolt');
-    window.castWater = () => castSkill('waterSplash'); // Changed from 'water' to 'waterSplash'
-    window.castPetrify = () => castSkill('petrify');
+    window.castFireball = () => castSkill('fireball' as SkillId);
+    window.castIceBolt = () => castSkill('icebolt' as SkillId);
+    window.castWater = () => castSkill('waterSplash' as SkillId); // Changed from 'water' to 'waterSplash'
+    window.castPetrify = () => castSkill('petrify' as SkillId);
     
     return () => {
       window.castFireball = undefined;
@@ -257,27 +240,53 @@ export default function ActiveSkills() {
   }, [selectedTargetId]);
   
   // VFX registry for skill components
-  const vfxTable: Record<string, (props: any) => JSX.Element> = {
+  const vfxTable: Record<string, (props: ProjectileProps) => JSX.Element> = {
     fireball: FireballProjectile,
-    iceBolt: IceBoltVfx,
+    icebolt: IceBoltVfx,
     waterSplash: WaterProjectile,
+    petrify: ProjectileVfx, // Using generic projectile for now
     // Add more skills as they are implemented
   };
   
+  // Render projectiles, splashes, and stun flashes
   return (
     <group>
-      {Object.values(projs).map(p => {
+      {/* Render all active projectiles */}
+      {Object.values(projs).map((p) => {
+        // Skip rendering if required props are missing
+        if (!p.id) {
+          console.warn('Skipping projectile with undefined id');
+          return null;
+        }
+        
         console.log('Rendering projectile:', p.id, 'skillId:', p.skillId);
         
+        // Convert skillId to a safe string key for the vfxTable
+        const skillIdKey = p.skillId?.toString() || '';
+        
+        // Convert 2D vectors to 3D vectors with y=0 for this specific projectile
+        const origin3D = {
+          x: p.origin.x, 
+          y: 0, // Default height for projectiles
+          z: p.origin.z
+        };
+        
+        const dir3D = {
+          x: p.dir.x,
+          y: 0, // No vertical component
+          z: p.dir.z
+        };
+        
         // Use the VFX component from our registry
-        const VfxComponent = vfxTable[p.skillId];
+        const VfxComponent = vfxTable[skillIdKey];
+        
         if (VfxComponent) {
           return (
-            <VfxComponent
-              key={p.id}
-              id={p.id}
-              origin={p.origin}
-              dir={p.dir}
+            <VfxComponent 
+              key={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
+              id={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
+              origin={origin3D} 
+              dir={dir3D} 
               speed={p.speed}
             />
           );
@@ -286,21 +295,24 @@ export default function ActiveSkills() {
         // Fallback to default if not found in registry
         return (
           <ProjectileVfx 
-            key={p.id} 
-            id={p.id} 
-            origin={p.origin} 
-            dir={p.dir} 
+            key={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
+            id={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
+            origin={origin3D} 
+            dir={dir3D} 
             speed={p.speed}
           />
         );
       })}
-      {splashes.map(splash => 
+      
+      {/* Render splash effects */}
+      {splashes.map(splash => (
         <SplashVfx 
           key={splash.id} 
           position={splash.position} 
           radius={splash.radius} 
         />
-      )}
+      ))}
+      
       {/* Keep existing stun flash for petrify - replace with custom VFX later */}
       {stunFlashes.map(flash => (
         <mesh 
@@ -311,6 +323,8 @@ export default function ActiveSkills() {
           <meshBasicMaterial color={'yellow'} transparent={true} opacity={0.8} />
         </mesh>
       ))}
+      
+      {/* Render petrify flash effects */}
       {petrifyFlashes.map(flash => (
         <PetrifyFlash 
           key={flash.id} 

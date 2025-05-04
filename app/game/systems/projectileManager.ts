@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProjSpawn, ProjHit, ProjEnd, ProjSpawn2, ProjHit2 } from '../../../shared/messages';
+import { ProjSpawn2, ProjHit2 } from '../../../shared/messages';
 
 // Define interfaces for our state
 export interface ProjectileState {
@@ -14,23 +14,24 @@ export interface ProjectileState {
   castId?: string; // For the enhanced system
 }
 
-// Enhanced projectile state for the new system
-export interface EnhancedProjectileState {
-  castId: string;
-  origin: {x: number; z: number};
-  dir: {x: number; z: number};
+// Enhanced projectile live state
+export interface ProjectileLive {
+  projId: string;
+  startPos: {x: number; z: number};
+  dirXZ: {x: number; z: number};
   speed: number;
   launchTs: number;
+  hitRadius?: number;
+  casterId?: string;
+  skillId: string;
+  state: 'active' | 'hit';
   fadeOutStartTs?: number;
   opacity: number;
 }
 
 interface ProjectileStore {
   projectiles: Record<string, ProjectileState>;
-  enhancedProjectiles: Record<string, EnhancedProjectileState>;
-  addProjectile: (data: ProjSpawn) => void;
-  handleHit: (data: ProjHit) => void;
-  handleEnd: (data: ProjEnd) => void;
+  enhanced: Record<string, ProjectileLive>; // New map for enhanced projectiles
   updateOpacity: () => void;
   
   // New methods for the enhanced system
@@ -43,54 +44,16 @@ const FADE_OUT_DURATION_MS = 500; // Increased from 300ms to 500ms for smoother 
 
 export const useProjectileStore = create<ProjectileStore>((set, get) => ({
   projectiles: {},
-  enhancedProjectiles: {},
-  
-  addProjectile: (data: ProjSpawn) => {
-    set(state => ({
-      projectiles: {
-        ...state.projectiles,
-        [data.id]: {
-          id: data.id,
-          skillId: data.skillId,
-          origin: data.origin,
-          dir: data.dir,
-          speed: data.speed,
-          launchTs: data.launchTs,
-          opacity: 1.0
-        }
-      }
-    }));
-  },
-  
-  handleHit: (data: ProjHit) => {
-    // We don't remove the projectile immediately on hit anymore
-    // Instead, we'll wait for ProjEnd which will be sent by the server
-  },
-  
-  handleEnd: (data: ProjEnd) => {
-    // Mark the projectile for fade-out instead of removing immediately
-    set(state => {
-      const projectile = state.projectiles[data.id];
-      if (!projectile) return state;
-      
-      return {
-        projectiles: {
-          ...state.projectiles,
-          [data.id]: {
-            ...projectile,
-            fadeOutStartTs: Date.now(),
-          }
-        }
-      };
-    });
-  },
+  enhanced: {}, // Initialize the enhanced projectiles map
   
   updateOpacity: () => {
     const now = Date.now();
     
     set(state => {
       const updatedProjectiles: Record<string, ProjectileState> = {};
+      const updatedEnhanced: Record<string, ProjectileLive> = {};
       let hasChanges = false;
+      let enhancedChanges = false;
       
       // Process each projectile
       Object.values(state.projectiles).forEach(proj => {
@@ -123,21 +86,58 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
         }
       });
       
+      // Process each enhanced projectile
+      Object.values(state.enhanced).forEach(proj => {
+        if (proj.fadeOutStartTs) {
+          const elapsedFadeTime = now - proj.fadeOutStartTs;
+          
+          // If fade complete, don't include in updated list (remove it)
+          if (elapsedFadeTime >= FADE_OUT_DURATION_MS) {
+            enhancedChanges = true;
+            return;
+          }
+          
+          // Calculate new opacity
+          const newOpacity = Math.max(0, 1 - (elapsedFadeTime / FADE_OUT_DURATION_MS));
+          
+          // Only update if opacity changed significantly
+          if (Math.abs(newOpacity - proj.opacity) > 0.01) {
+            enhancedChanges = true;
+            updatedEnhanced[proj.projId] = {
+              ...proj,
+              opacity: newOpacity
+            };
+          } else {
+            updatedEnhanced[proj.projId] = proj;
+          }
+        } else {
+          // Keep active projectiles
+          updatedEnhanced[proj.projId] = proj;
+        }
+      });
+      
       // Only update state if changes occurred
-      return hasChanges ? { projectiles: updatedProjectiles } : state;
+      return (hasChanges || enhancedChanges) ? { 
+        projectiles: updatedProjectiles,
+        enhanced: updatedEnhanced
+      } : state;
     });
   },
   
   addEnhancedProjectile: (data: ProjSpawn2) => {
     set(state => ({
-      enhancedProjectiles: {
-        ...state.enhancedProjectiles,
+      enhanced: {
+        ...state.enhanced,
         [data.castId]: {
-          castId: data.castId,
-          origin: data.origin,
-          dir: data.dir,
+          projId: data.castId,
+          startPos: data.origin,
+          dirXZ: data.dir,
           speed: data.speed,
           launchTs: data.launchTs,
+          hitRadius: data.hitRadius,
+          casterId: data.casterId || 'unknown', // Handle potential undefined casterId
+          skillId: data.skillId || 'unknown',  // Handle potential undefined skillId
+          state: 'active',
           opacity: 1.0
         }
       }
@@ -145,23 +145,26 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
   },
   
   handleEnhancedHit: (data: ProjHit2) => {
-    // Logic for handling enhanced projectile hits
-    // This can be similar to the handleHit method but for enhanced projectiles
+    // Mark the projectile as hit and start fade-out
+    set(state => {
+      const projectile = state.enhanced[data.castId];
+      if (!projectile) return state;
+      
+      return {
+        enhanced: {
+          ...state.enhanced,
+          [data.castId]: {
+            ...projectile,
+            state: 'hit',
+            fadeOutStartTs: Date.now(),
+          }
+        }
+      };
+    });
   },
 }));  // Export the function directly
 export function initProjectileListeners() {
-  // Legacy event listeners
-  window.addEventListener('projspawn', (event: any) => {
-    useProjectileStore.getState().addProjectile(event.detail);
-  });
-  
-  window.addEventListener('projhit', (event: any) => {
-    useProjectileStore.getState().handleHit(event.detail);
-  });
-  
-  window.addEventListener('projend', (event: any) => {
-    useProjectileStore.getState().handleEnd(event.detail);
-  });
+  // Legacy event listeners removed
   
   // New enhanced event listeners - using custom events to match existing pattern
   window.addEventListener('projspawn2', (event: any) => {

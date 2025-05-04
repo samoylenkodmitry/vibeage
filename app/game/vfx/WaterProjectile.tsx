@@ -20,7 +20,7 @@ interface DropletParticle {
 }
 
 // Use named export instead of default
-export function WaterProjectile({ id, origin, dir, speed }: WaterProjectileProps) {
+export function WaterProjectile({ id = `water-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed }: WaterProjectileProps) {
   const mainRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
@@ -105,8 +105,9 @@ export function WaterProjectile({ id, origin, dir, speed }: WaterProjectileProps
     <group ref={groupRef}>
       {/* Main water projectile */}
       <mesh ref={mainRef}>
-        <sphereGeometry args={[0.3, 16, 16]} />
+        <sphereGeometry key={`water-geo-${id}`} args={[0.3, 16, 16]} />
         <meshStandardMaterial 
+          key={`water-mat-${id}`}
           color={new Color(0x42a5f5)} // Light blue
           transparent={true}
           opacity={0.7}
@@ -123,8 +124,9 @@ export function WaterProjectile({ id, origin, dir, speed }: WaterProjectileProps
           rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
           scale={[particle.scale, particle.scale, particle.scale]}
         >
-          <sphereGeometry args={[0.1, 8, 8]} />
+          <sphereGeometry key={`droplet-geo-${id}-${index}`} args={[0.1, 8, 8]} />
           <meshBasicMaterial 
+            key={`droplet-mat-${id}-${index}`}
             color={new Color(0x81d4fa)} // Lighter blue for droplets
             transparent={true}
             opacity={particle.opacity}

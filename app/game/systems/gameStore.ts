@@ -182,6 +182,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastConnectionChangeTs: Date.now(),
   socket: null,
   hasJoinedGame: false,
+  selectedSkill: null,
   targetWorldPos: null,
   lastMoveSentTimeMs: null,
 
@@ -357,9 +358,12 @@ export const useGameStore = create<GameState>((set, get) => ({
           [myPlayerId]: {
             ...player,
             movement: {
-              dest,
+              isMoving: true,
+              path: path,
+              pos: { x: player.position.x, z: player.position.z },
+              targetPos: dest,
               speed,
-              startTs: performance.now()
+              lastUpdateTime: performance.now()
             }
           }
         }

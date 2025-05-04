@@ -1,5 +1,5 @@
 import { SkillDef } from '../../shared/skillsDefinition';
-import { VecXZ, ProjHit, ProjEnd, InstantHit } from '../../shared/messages';
+import { VecXZ, InstantHit, ProjHit2 } from '../../shared/messages';
 import { v4 as uuid } from 'uuid';
 
 // Define a simplified GameState interface for use in this file
@@ -12,7 +12,7 @@ export interface EffectEntity {
   id: string;
   skill: SkillDef;
   done: boolean;
-  update(dt: number, state: GameState): (ProjHit | ProjEnd | InstantHit)[];
+  update(dt: number, state: GameState): (ProjHit2 | InstantHit)[];
 }
 
 /* ---- Projectile ---------- */
@@ -26,7 +26,7 @@ export class Projectile implements EffectEntity {
      public casterId: string,
      public targetId?: string)
   {}
-  update(dt: number, state: GameState): (ProjHit | ProjEnd)[]{
+  update(dt: number, state: GameState): ProjHit2[]{
      if(this.done) return [];
      
      // Use the standardized projectile speed from the skill definition
@@ -36,7 +36,7 @@ export class Projectile implements EffectEntity {
      this.pos.z += this.dir.z * speed * dt;
      
      /* hit check vs targetId (later broaden) */
-     const hitMsgs: ProjHit[] = [];
+     const hitMsgs: ProjHit2[] = [];
      if(this.targetId) {
         const t = state.enemies[this.targetId] || state.players[this.targetId];
         // Use the hitRadius from the projectile definition if available
@@ -48,7 +48,13 @@ export class Projectile implements EffectEntity {
             const skillWithCaster = {...this.skill, casterId: this.casterId};
             
             applySkillDamage(skillWithCaster, t, state);
-            hitMsgs.push({type: 'ProjHit', id: this.id, pos: this.pos, hitIds: [t.id]});
+            hitMsgs.push({
+              type: 'ProjHit2', 
+              castId: this.id, 
+              hitIds: [t.id], 
+              dmg: [this.skill.dmg || 10],
+              impactPos: { x: this.pos.x, z: this.pos.z }
+            });
         }
      }
      return hitMsgs;

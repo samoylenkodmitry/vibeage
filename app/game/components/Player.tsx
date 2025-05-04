@@ -160,7 +160,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     }
     
     // Handle S key for force stop
-    if (e.code === 'KeyS' && playerState?.movement?.dest) {
+    if (e.code === 'KeyS' && playerState?.movement?.targetPos) {
       if (playerRef.current) {
         emitMoveStop(playerRef.current.translation());
       }
@@ -214,8 +214,8 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       // For controlled player, we do client-side prediction and light reconciliation
       if (isControlledPlayer) {
         // Check if we have a movement active
-        if (playerState.movement?.dest && targetPosition) {
-          const dest = playerState.movement.dest;
+        if (playerState.movement?.targetPos && targetPosition) {
+          const dest = playerState.movement.targetPos;
           const speed = playerState.movement.speed;
           
           // Use simulated movement for predictive client updates
@@ -331,7 +331,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if (!isControlledPlayer) {
       const now = performance.now();
       // If movement just stopped, snap interpolation refs to stop position
-      if (!playerState.movement?.dest) {
+      if (!playerState.movement?.targetPos) {
         previousPositionRef.current.set(
           playerState.position.x,
           playerState.position.y,

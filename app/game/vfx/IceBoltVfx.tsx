@@ -5,13 +5,14 @@ import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh } from 'three';
 
 interface IceBoltVfxProps {
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
 }
 
 // Define as a named function first
-export function IceBoltVfx({ origin, dir, speed }: IceBoltVfxProps) {
+export function IceBoltVfx({ id = `icebolt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed }: IceBoltVfxProps) {
   const ref = useRef<Mesh>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
   
@@ -24,8 +25,8 @@ export function IceBoltVfx({ origin, dir, speed }: IceBoltVfxProps) {
   
   return (
     <mesh ref={ref}>
-      <coneGeometry args={[0.25, 1]} />
-      <meshBasicMaterial color="skyblue" />
+      <coneGeometry key={`icebolt-geo-${id}`} args={[0.25, 1]} />
+      <meshBasicMaterial key={`icebolt-mat-${id}`} color="skyblue" />
     </mesh>
   );
 }

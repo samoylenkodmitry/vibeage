@@ -6,17 +6,19 @@ import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
-import { initProjectileListeners } from './projectileManager';
+import { initProjectileListeners, useProjectileStore } from './projectileManager';
 import { 
   MoveStart, 
   MoveSync, 
   CastReq, 
   PosSnap, 
-  CastStart, 
-  CastEnd,
-  VecXZ
+  VecXZ,
+  ProjSpawn2,
+  ProjHit2,
+  CastSnapshotMsg
 } from '../../../shared/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
+import { CastState } from '../../../shared/types';
 
 export default function SocketManager() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -78,9 +80,12 @@ export default function SocketManager() {
     updatePlayer({ 
       id: data.id, 
       movement: { 
-        dest: data.path[0], 
-        speed: data.speed, 
-        startTs: performance.now() 
+        isMoving: true,
+        targetPos: data.path[0],
+        path: data.path,
+        pos: data.path[0], // Default to first point in path
+        lastUpdateTime: performance.now(),
+        speed: data.speed
       } 
     });
   }, [updatePlayer]);
@@ -118,15 +123,6 @@ export default function SocketManager() {
     });
   }, []);
 
-  // Handle skill cast start
-  const handleCastStart = useCallback((data: CastStart) => {
-    updatePlayer({
-      id: data.id,
-      castingSkill: data.skillId as string,
-      castingProgressMs: data.castMs
-    });
-  }, [updatePlayer]);
-
   // Handle skill cast failure
   const handleCastFail = useCallback((data: { clientSeq: number, reason: 'cooldown' | 'nomana' | 'invalid' }) => {
     const state = useGameStore.getState();
@@ -162,18 +158,34 @@ export default function SocketManager() {
     }
   }, []);
 
-  // Handle skill cast end
-  const handleCastEnd = useCallback((data: CastEnd) => {
-    updatePlayer({
-      id: data.id,
-      castingSkill: null,
-      castingProgressMs: 0
-    });
-  }, [updatePlayer]);
-
   const handleEnemyUpdated = useCallback((enemyData: any) => {
     updateEnemy(enemyData);
   }, [updateEnemy]);
+  
+  // Handle cast snapshot updates
+  const handleCastSnapshot = useCallback((data: CastSnapshotMsg) => {
+    const castData = data.data;
+    
+    // Update player casting state based on cast state
+    if (castData.state === CastState.Casting) {
+      // Skill is being cast (equivalent to old CastStart)
+      updatePlayer({
+        id: castData.casterId,
+        castingSkill: castData.skillId as string,
+        castingProgressMs: 1000 // Default cast time, should come from skill definition
+      });
+    } else if (castData.state === CastState.Impact) {
+      // Skill cast has completed (equivalent to old CastEnd)
+      updatePlayer({
+        id: castData.casterId,
+        castingSkill: null,
+        castingProgressMs: 0
+      });
+    }
+    
+    // Pass the cast snapshot to any system that needs it
+    window.dispatchEvent(new CustomEvent('castsnapshot', { detail: castData }));
+  }, [updatePlayer]);
 
   // Memoize the socket connection handler
   const handleConnect = useCallback(() => {
@@ -283,14 +295,8 @@ export default function SocketManager() {
           case 'PosSnap':
             handlePosSnap(msg);
             break;
-          case 'CastStart':
-            handleCastStart(msg);
-            break;
           case 'CastFail':
             handleCastFail(msg);
-            break;
-          case 'CastEnd':
-            handleCastEnd(msg);
             break;
           case 'SkillShortcutUpdated':
             // Update local shortcuts to match server state
@@ -344,17 +350,18 @@ export default function SocketManager() {
               }
             }
             break;
-          case 'ProjHit':
-          case 'ProjEnd':
-          case 'InstantHit':
-          case 'ProjSpawn':
-            // vfxDispatcher will handle this
-            break;
           case 'ProjSpawn2':
+            // Call store method first and then dispatch event for legacy VFX
+            useProjectileStore.getState().addEnhancedProjectile(msg as ProjSpawn2);
             window.dispatchEvent(new CustomEvent('projspawn2', {detail: msg}));
             break;
           case 'ProjHit2':
+            // Call store method first and then dispatch event for VFX
+            useProjectileStore.getState().handleEnhancedHit(msg as ProjHit2);
             window.dispatchEvent(new CustomEvent('projhit2', {detail: msg}));
+            break;
+          case 'CastSnapshot':
+            handleCastSnapshot(msg as CastSnapshotMsg);
             break;
           default:
             console.log('Unknown message type:', msg.type);
@@ -380,9 +387,8 @@ export default function SocketManager() {
     handleEnemyUpdated, 
     handlePlayerMoveStart,
     handlePosSnap,
-    handleCastStart,
     handleCastFail,
-    handleCastEnd,
+    handleCastSnapshot,
     setConnectionStatus
   ]);
 
@@ -455,9 +461,12 @@ export default function SocketManager() {
     updatePlayer({ 
       id: myPlayerId, 
       movement: { 
-        dest: path[0], 
-        speed, 
-        startTs: performance.now() 
+        isMoving: true,
+        targetPos: path[0],
+        path: path,
+        pos: path[0], // Default to first point in path
+        lastUpdateTime: performance.now(),
+        speed
       } 
     });
   }, [updatePlayer]);

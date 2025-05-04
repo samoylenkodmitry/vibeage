@@ -8,6 +8,7 @@ import ConnectionStatus from './ConnectionStatus';
 import SkillTreeUI from './SkillTreeUI';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
+import { tryStartCast } from '../systems/castController';
 
 // Helper function to validate if a string is a valid SkillId
 function isValidSkillId(id: string | null): id is SkillId {
@@ -371,15 +372,13 @@ export default React.memo(function UI() {
   
   const handleSkillClick = useCallback((skillId: string) => (event: React.MouseEvent) => {
     event.stopPropagation();
-    console.log('Attempting to cast skill:', {
-      skillId,
-      targetId: selectedTargetId
-    });
-    if (selectedTargetId) {
-      console.log('Casting skill using sendCastReq');
-      useGameStore.getState().sendCastReq(skillId, selectedTargetId);
+    console.log('Attempting to cast skill via UI component');
+    
+    // Use the unified cast controller
+    if (isValidSkillId(skillId)) {
+      tryStartCast(skillId, selectedTargetId || undefined);
     } else {
-      console.warn('Cannot cast skill: No target selected');
+      console.warn(`Invalid skill ID: ${skillId}`);
     }
   }, [selectedTargetId]);
 
