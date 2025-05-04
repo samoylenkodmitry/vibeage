@@ -6,6 +6,7 @@ import { SKILLS, Skill, SkillId } from '../models/Skill';
 import StatusEffects from './StatusEffects';
 import ConnectionStatus from './ConnectionStatus';
 import SkillTreeUI from './SkillTreeUI';
+import CombatLog from './HUD/CombatLog';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
 import { tryStartCast } from '../systems/castController';
@@ -519,6 +520,9 @@ export default React.memo(function UI() {
       
       {/* Connection status indicator */}
       <ConnectionStatus />
+
+      {/* Combat Log */}
+      <CombatLog />
     </div>
   );
 });

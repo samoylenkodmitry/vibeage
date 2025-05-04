@@ -20,6 +20,10 @@ import {
 } from '../../../shared/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
+import { useCombatLogStore } from '../stores/useCombatLogStore';
+
+// Variable for generating unique log entry IDs
+let nextId = 1;
 
 export default function SocketManager() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -360,6 +364,32 @@ export default function SocketManager() {
             // Call store method first and then dispatch event for VFX
             useProjectileStore.getState().handleEnhancedHit(msg as ProjHit2);
             window.dispatchEvent(new CustomEvent('projhit2', {detail: msg}));
+            
+            // Add combat log entry for hit
+            const hitMsg = msg as ProjHit2;
+            const player = useGameStore.getState().getMyPlayer();
+            const playerId = player?.id || '';
+            
+            // Check if there's damage information
+            if (hitMsg.dmg && hitMsg.dmg.length > 0 && hitMsg.hitIds && hitMsg.hitIds.length > 0) {
+              // For each hit target
+              hitMsg.hitIds.forEach((id, index) => {
+                const damage = hitMsg.dmg[index];
+                const total = damage;
+                const crit = damage > 200; // crude crit flag
+                
+                useCombatLogStore.getState().push({
+                  id: nextId++,
+                  text: `${hitMsg.src === playerId ? 'You' : 'Enemy'} hit ${
+                    id === playerId ? 'YOU' : 'enemy'
+                  } for ${total}${crit ? ' (CRIT!)' : ''}`,
+                  ts: Date.now()
+                });
+                
+                // Trim the log after adding entries
+                useCombatLogStore.getState().trim();
+              });
+            }
             break;
           case 'CastSnapshot':
             handleCastSnapshot(msg as CastSnapshotMsg);
@@ -538,6 +568,21 @@ export default function SocketManager() {
     const remainingMs = msg.remainingMs;
     
     console.log(`Effect snapshot: ${effectId} on ${targetId} from ${sourceId}, stacks: ${stacks}, remaining: ${remainingMs}ms`);
+    
+    // Add to combat log when effect is first applied
+    if (remainingMs > 0 && stacks === 1) {
+      const player = useGameStore.getState().getMyPlayer();
+      const playerId = player?.id || '';
+      
+      useCombatLogStore.getState().push({
+        id: nextId++,
+        text: `>>> ${effectId.toUpperCase()} applied`,
+        ts: Date.now()
+      });
+      
+      // Trim the log after adding entries
+      useCombatLogStore.getState().trim();
+    }
     
     // Check if this is a player effect
     const players = useGameStore.getState().players;

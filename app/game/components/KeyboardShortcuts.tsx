@@ -22,6 +22,13 @@ export default function KeyboardShortcuts() {
         return;
       }
       
+      // Toggle combat log with L key
+      if (e.key === 'l' || e.key === 'L') {
+        document.body.classList.toggle('hide-combat-log');
+        console.log('Combat log toggled with L key');
+        return;
+      }
+      
       // Only handle number keys 1-9
       if (e.key >= '1' && e.key <= '9') {
         console.log(`Key pressed: ${e.key}`);
