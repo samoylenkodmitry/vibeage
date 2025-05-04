@@ -53,6 +53,15 @@ export function hash(str: string): number {
   return h >>> 0;
 }
 
+/**
+ * Specialized RNG for status effects with a unique hash seed
+ * @param seed The base seed to use
+ * @returns Random number generator function
+ */
+export function effectRng(seed: number) {
+  return rng(seed ^ 0xEFFECC);
+}
+
 export interface DamageOpts {
   caster: { dmgMult?: number; critChance?: number; critMult?: number };
   skill:  { base: number; variance?: number }; // variance , default 0.1

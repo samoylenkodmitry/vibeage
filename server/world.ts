@@ -12,6 +12,7 @@ import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillMan
 import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
 import { createSpatialHashGrid, SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
+import { effectRunner } from './combat/effects/EffectRunner.js';
 
 /**
  * Defines the GameState interface
@@ -578,23 +579,15 @@ function executeSkillEffects(
       // Skip effects without a duration
       if (!effect.durationMs) continue;
       
-      const existingEffect = target.statusEffects.find(e => e.type === effect.type);
-      if (existingEffect) {
-        existingEffect.value = effect.value;
-        existingEffect.durationMs = effect.durationMs;
-        existingEffect.startTimeTs = Date.now();
-      } else {
-        const now = Date.now();
-        const effectId = `effect-${hash(`${effect.type}-${now}-${target.id}`).toString(36).substring(0, 9)}`;
-        target.statusEffects.push({
-          id: effectId,
-          type: effect.type,
-          value: effect.value,
-          durationMs: effect.durationMs,
-          startTimeTs: now,
-          sourceSkill: skillId
-        });
-      }
+      const now = Date.now();
+      
+      // Use the new effectRunner for direct skill effects
+      effectRunner.add(
+        target,           // target entity
+        caster,           // source entity
+        effect.type as any, // effect type as EffectId
+        hash(`${skillId}:${target.id}:${now}`) // consistent seed for deterministic effect calculations
+      );
     }
   }
   
@@ -652,7 +645,13 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Update skill casting progress
+    // Step 3: Process status effects with our new effectRunner
+    effectRunner.setGameState(state);
+    effectRunner.tick(TICK/1000, (effectMsg) => {
+      io.emit('msg', effectMsg);
+    });
+    
+    // Step 4: Update skill casting progress
     updateCasts(io, state.players);
     
     // Step 4: Process completed casts
@@ -1022,19 +1021,19 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           
           // Apply status effects if defined
           if (skill.effects && skill.effects.length > 0) {
-            for (const effect of skill.effects) {                  // Skip effects without a duration
-                  if (!effect.durationMs) continue;
-                  
-                  const now = Date.now();
-                  const effectId = `effect-${hash(`${effect.type}-${now}-${enemyId}`).toString(36).substring(0, 9)}`;
-                  enemy.statusEffects.push({
-                    id: effectId,
-                    type: effect.type,
-                    value: effect.value,
-                    durationMs: effect.durationMs,
-                    startTimeTs: now,
-                    sourceSkill: p.skillId
-              });
+            for (const effect of skill.effects) {
+              // Skip effects without a duration
+              if (!effect.durationMs) continue;
+              
+              const now = Date.now();
+              
+              // Use the new effectRunner instead of directly pushing to status effects
+              effectRunner.add(
+                enemy,                  // target entity 
+                state.players[p.casterId], // source entity
+                effect.type as any,     // effect type as EffectId
+                hash(`${p.id}:${enemyId}:${now}`)  // consistent seed for deterministic effect calculations
+              );
             }
           }
           

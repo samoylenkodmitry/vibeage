@@ -6,6 +6,7 @@ import { VecXZ } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
+import { effectRunner } from './effects/EffectRunner.js';
 
 // Import getDamage from shared/combatMath.js
 import { getDamage as getSkillDamage } from '../../shared/combatMath.js';
@@ -334,13 +335,11 @@ export function updateCasts(io?: Server, players?: Record<string, any>): void {
  * Process the effects of a completed cast
  */
 function processCompletedCast(cast: CastState): void {
-  // This would handle the actual skill execution
-  // - For projectiles, spawn new projectile entities
-  // - For direct damage skills, apply damage immediately
-  // - For status effects, apply them to targets
-  
-  // This is handled by separate game systems
-  console.log(`Cast completed: ${cast.skillId} by player ${cast.id}`);
+  // Handle any side effects of the completed cast
+  // e.g., apply an effect, trigger an event, etc.
+
+  // Set cast state to completed
+  cast.state = 'completed';
 }
 
 /**
@@ -348,9 +347,9 @@ function processCompletedCast(cast: CastState): void {
  * Other systems should call this to process completed casts
  */
 export function getCompletedCasts(): CastState[] {
-  const casts = [...completedCasts];
-  completedCasts.length = 0; // Clear the array
-  return casts;
+  const temp = [...completedCasts];
+  completedCasts = [];
+  return temp;
 }
 
 /**

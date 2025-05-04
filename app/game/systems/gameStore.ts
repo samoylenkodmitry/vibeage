@@ -14,6 +14,7 @@ export interface StatusEffect {
   durationMs: number;
   startTimeTs: number;
   sourceSkill: string;
+  stacks?: number;  // Optional stacks field for stackable effects
 }
 
 // Define the structure for player state received from the server

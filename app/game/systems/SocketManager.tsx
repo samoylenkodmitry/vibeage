@@ -15,7 +15,8 @@ import {
   VecXZ,
   ProjSpawn2,
   ProjHit2,
-  CastSnapshotMsg
+  CastSnapshotMsg,
+  EffectSnapshotMsg
 } from '../../../shared/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
@@ -363,6 +364,9 @@ export default function SocketManager() {
           case 'CastSnapshot':
             handleCastSnapshot(msg as CastSnapshotMsg);
             break;
+          case 'EffectSnapshot':
+            handleEffectSnapshot(msg as EffectSnapshotMsg);
+            break;
           default:
             console.log('Unknown message type:', msg.type);
         }
@@ -524,6 +528,82 @@ export default function SocketManager() {
     const syncInterval = setInterval(sendMoveSync, 2000);
     return () => clearInterval(syncInterval);
   }, [sendMoveSync]);
+
+  // Handle effect snapshots from server
+  const handleEffectSnapshot = useCallback((msg: EffectSnapshotMsg) => {
+    const targetId = msg.id;
+    const sourceId = msg.src;
+    const effectId = msg.effectId;
+    const stacks = msg.stacks;
+    const remainingMs = msg.remainingMs;
+    
+    console.log(`Effect snapshot: ${effectId} on ${targetId} from ${sourceId}, stacks: ${stacks}, remaining: ${remainingMs}ms`);
+    
+    // Check if this is a player effect
+    const players = useGameStore.getState().players;
+    if (players[targetId]) {
+      // Update player with new status effect info
+      updatePlayer({
+        id: targetId,
+        statusEffects: [
+          ...players[targetId].statusEffects.filter(e => e.type !== effectId), // Remove old effect of same type
+          {
+            id: `${effectId}-${sourceId}-${Date.now()}`,
+            type: effectId,
+            value: 0, // The actual value will be determined by the effect definition
+            durationMs: remainingMs,
+            startTimeTs: Date.now() - (remainingMs * (1 - stacks / 5)), // Approximate start time based on remaining duration
+            sourceSkill: effectId,
+            stacks
+          }
+        ]
+      });
+    }
+    
+    // Check if this is an enemy effect
+    const enemies = useGameStore.getState().enemies;
+    if (enemies[targetId]) {
+      // Update enemy with new status effect info
+      updateEnemy({
+        id: targetId,
+        statusEffects: [
+          ...enemies[targetId].statusEffects.filter(e => e.type !== effectId), // Remove old effect of same type
+          {
+            id: `${effectId}-${sourceId}-${Date.now()}`,
+            type: effectId,
+            value: 0, // The actual value will be determined by the effect definition
+            durationMs: remainingMs,
+            startTimeTs: Date.now() - (remainingMs * (1 - stacks / 5)), // Approximate start time based on remaining duration
+            sourceSkill: effectId,
+            stacks
+          }
+        ]
+      });
+      
+      // Trigger visual effect on the target
+      if (stacks === 1) {
+        // Only spawn the VFX on first application
+        console.log(`VFX for effect ${effectId} on enemy ${targetId}`);
+        const enemy = enemies[targetId];
+        const position = enemy ? { x: enemy.position.x, y: enemy.position.y, z: enemy.position.z } : undefined;
+        
+        if (position) {
+          // For burn effects
+          if (effectId === 'burn') {
+            window.dispatchEvent(new CustomEvent('spawnSplash', {
+              detail: { position, radius: 1.2, effectType: 'fire' }
+            }));
+          }
+          // For bleed effects
+          else if (effectId === 'bleed') {
+            window.dispatchEvent(new CustomEvent('spawnSplash', {
+              detail: { position, radius: 0.8, effectType: 'blood' }
+            }));
+          }
+        }
+      }
+    }
+  }, [updatePlayer, updateEnemy]);
 
   return null;
 }

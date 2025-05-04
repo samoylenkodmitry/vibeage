@@ -152,3 +152,14 @@ export interface ProjHit2 extends ServerMsg {
   dmg: number[];   // Aligned with hitIds
   impactPos?: VecXZ; // Position of the projectile impact (optional for backwards compatibility)
 }
+
+// Status effect messages
+export interface EffectSnapshotMsg extends ServerMsg {
+  type: 'EffectSnapshot';
+  id: string;       // Entity ID
+  src: string;      // Source entity ID
+  effectId: string; // Effect type identifier
+  stacks: number;   // Current stacks
+  remainingMs: number; // Remaining duration in ms
+  seed: number;     // RNG seed for deterministic calculations
+}
