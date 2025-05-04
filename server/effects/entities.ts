@@ -1,5 +1,6 @@
 import { SkillDef } from '../../shared/skillsDefinition';
 import { VecXZ, InstantHit, ProjHit2 } from '../../shared/messages';
+import { getDamage } from '../../shared/combatMath';
 import { v4 as uuid } from 'uuid';
 
 // Define a simplified GameState interface for use in this file
@@ -47,12 +48,21 @@ export class Projectile implements EffectEntity {
             // Add casterId to skill for XP calculation
             const skillWithCaster = {...this.skill, casterId: this.casterId};
             
-            applySkillDamage(skillWithCaster, t, state);
+            // Calculate damage using the shared function
+            const { dmg } = getDamage({
+              caster: state.players[this.casterId]?.stats || { dmgMult: 1 },
+              skill: { base: this.skill.dmg || 10, variance: 0.1 },
+              seed: `${this.id}:${t.id}`
+            });
+            
+            // Apply the damage using our pre-calculated value
+            applySkillDamage(skillWithCaster, t, state, dmg);
+            
             hitMsgs.push({
               type: 'ProjHit2', 
               castId: this.id, 
               hitIds: [t.id], 
-              dmg: [this.skill.dmg || 10],
+              dmg: [dmg],
               impactPos: { x: this.pos.x, z: this.pos.z }
             });
         }
@@ -75,13 +85,27 @@ export class Instant implements EffectEntity {
      this.done = true;
      
      /* immediately apply damage and effects to targets */
+     const damageResults: number[] = [];
+     
      for (const targetId of this.targetIds) {
        const target = state.enemies[targetId] || state.players[targetId];
        if (target) {
          // Add casterId to skill for XP calculation
          const skillWithCaster = {...this.skill, casterId: this.casterId};
          
-         applySkillDamage(skillWithCaster, target, state);
+         // Calculate damage using the shared function
+         const { dmg } = getDamage({
+           caster: state.players[this.casterId]?.stats || { dmgMult: 1 },
+           skill: { base: this.skill.dmg || 10, variance: 0.1 },
+           seed: `${this.id}:${targetId}`
+         });
+         
+         damageResults.push(dmg);
+         
+         // Pass the pre-calculated damage to applySkillDamage
+         applySkillDamage(skillWithCaster, target, state, dmg);
+       } else {
+         damageResults.push(0); // No damage for non-existent targets
        }
      }
      
@@ -90,7 +114,8 @@ export class Instant implements EffectEntity {
        skillId: this.skill.id,
        origin: this.origin,
        targetPos: this.origin,
-       hitIds: this.targetIds
+       hitIds: this.targetIds,
+       dmg: damageResults
      }];
   }
 }
@@ -102,15 +127,29 @@ export function distanceXZ(a: VecXZ, b: VecXZ): number {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
-export function applySkillDamage(skill: any, target: any, state: GameState) {
+export function applySkillDamage(skill: any, target: any, state: GameState, precalculatedDmg?: number) {
   // Apply all effects from the skill
   const now = Date.now();
+  
+  // Use precalculated damage if provided, otherwise calculate it
+  let dmgToApply: number;
+  if (precalculatedDmg !== undefined) {
+    dmgToApply = precalculatedDmg;
+  } else {
+    // Get damage using the shared damage calculation
+    const { dmg } = getDamage({
+      caster: state.players[skill.casterId]?.stats || { dmgMult: 1 },
+      skill: { base: skill.effects?.find(e => e.type === 'damage')?.value || skill.dmg || 10, variance: 0.1 },
+      seed: `${skill.id || ''}:${target.id || ''}`
+    });
+    dmgToApply = dmg;
+  }
   
   // Process all skill effects
   for (const effect of skill.effects) {
     if (effect.type === 'damage') {
-      // Apply damage
-      target.health -= effect.value;
+      // Apply damage from our calculation instead of the literal value
+      target.health -= dmgToApply;
       if (target.health <= 0) {
         target.health = 0;
         target.isAlive = false;

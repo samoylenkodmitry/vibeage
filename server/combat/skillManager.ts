@@ -1,34 +1,14 @@
-// filepath: /home/s/develop/projects/vibe/1/server/combat/skillManager.ts
 import { Socket, Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
 import { CastReq, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
-import { getManaCost, getCooldownMs } from '../../shared/combatMath.js';
+import { getManaCost, getCooldownMs, getDamage } from '../../shared/combatMath.js';
 import { VecXZ } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
 
-/**
- * Calculate damage for a skill based on the skill and caster stats
- * @param skill The skill object with dmg property
- * @param casterStats Optional caster stats that may modify damage
- * @returns The calculated damage amount
- */
-function getDamage(skill: any, casterStats?: any): number {
-  // Base damage from skill
-  let damage = skill.dmg || 10;
-  
-  // Apply caster stats if available
-  if (casterStats && casterStats.damageMultiplier) {
-    damage *= casterStats.damageMultiplier;
-  }
-  
-  // Add some variation
-  const variation = 0.9 + Math.random() * 0.2; // 90% to 110% of base damage
-  damage *= variation;
-  
-  return Math.floor(damage);
-}
+// Import getDamage from shared/combatMath.js
+import { getDamage as getSkillDamage } from '../../shared/combatMath.js';
 
 /**
  * Get world interface for interacting with game state
@@ -37,6 +17,26 @@ interface World {
   getEnemyById: (id: string) => any | null;
   getPlayerById: (id: string) => Player | null;
   getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
+}
+
+/**
+ * Calculate damage for a skill based on the skill and caster stats, using the shared implementation
+ * @param skill The skill object with dmg property
+ * @param caster Optional caster with stats
+ * @param castId The unique ID of the cast
+ * @param targetId The ID of the target
+ * @returns The calculated damage amount
+ */
+function calculateDamage(skill: any, caster?: any, castId?: string, targetId?: string): number {
+  if (!skill || !skill.dmg) return 10; // Default damage
+  
+  const result = getDamage({
+    caster: caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 },
+    skill: { base: skill.dmg, variance: 0.1 },
+    seed: `${castId || nanoid()}:${targetId || nanoid()}`
+  });
+  
+  return result.dmg;
 }
 
 // Define the type for active casts (legacy)
@@ -577,8 +577,13 @@ export function tickProjectiles(dt: number, io: Server, world: World): void {
           const cast = activeCastsNew[castIndex];
           const caster = world.getPlayerById(cast.casterId);
           
-          // Calculate damage for each victim
-          const dmgArr = victims.map((v: any) => getDamage(skill, caster?.stats));
+          // Calculate damage for each victim using the shared getDamage function
+          const dmgArr = victims.map((v: any) => calculateDamage(
+            skill, 
+            caster, 
+            cast.castId, 
+            v.id
+          ));
           
           // Emit hit message with current projectile data
           const currentProj = projectiles[i];

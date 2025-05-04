@@ -71,6 +71,7 @@ export interface InstantHit extends ClientMsg {
   origin: { x: number; y: number; z: number };
   targetPos: { x: number; y: number; z: number };
   hitIds: string[];
+  dmg?: number[];  // Damage values for each hit target
 }
 
 // Skill management
