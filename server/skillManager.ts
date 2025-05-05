@@ -50,14 +50,18 @@ export function learnNewSkill(player: Player, skillId: SkillId): boolean {
     
     // Check if player can learn this skill
     if (!canPlayerLearnSkill(player, skillId)) {
+      console.log(`[LEARN_SKILL] Player ${player.id} failed to learn ${skillId} - requirements not met`);
       return false;
     }
 
     // Add skill to unlocked skills
+    const oldSkillPoints = player.availableSkillPoints;
     player.unlockedSkills.push(skillId);
     
     // Deduct a skill point
     player.availableSkillPoints -= 1;
+    
+    console.log(`[LEARN_SKILL] Player ${player.id} learned ${skillId}. Skill points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
     
     // Automatically assign to the first empty shortcut slot if available
     const emptySlotIndex = player.skillShortcuts.findIndex(slot => slot === null);

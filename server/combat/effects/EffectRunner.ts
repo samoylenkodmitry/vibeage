@@ -121,6 +121,13 @@ class EffectRunner {
           continue;
         }
         
+        // Check if the target is still alive before applying effects
+        if (!targetEntity.isAlive) {
+          console.log(`[EffectRunner] Target ${targetId} is dead, skipping effect ${effect.effectId}`);
+          expiredEffects.push(i);
+          continue; // Skip to the next effect for this target
+        }
+        
         // Check if effect should tick
         const timeSinceLastTick = now - effect.lastTick;
         if (timeSinceLastTick >= effect.def.tickMs) {
@@ -130,6 +137,12 @@ class EffectRunner {
           
           // For each missed tick, apply the effect
           for (let tick = 0; tick < tickCount; tick++) {
+            // Check again if the target is alive before each tick application
+            if (!targetEntity.isAlive) {
+              console.log(`[EffectRunner] Target ${targetId} died during effect processing, stopping ticks`);
+              break; // Stop processing ticks for this effect
+            }
+            
             const tickSeed = effect.seed + tick;
             const result = effect.def.apply({
               level: effect.level,

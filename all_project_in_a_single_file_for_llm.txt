@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-05T17:21:08.293Z
+// Generated on: 2025-05-05T18:10:11.925Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -10,67 +10,86 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, JSX } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Vector3 } from 'three';
+import { useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
-import { WaterSplash } from '../skills/WaterSplash';
-import { PetrifyProjectile } from '../skills/Petrify';
-import { SKILLS } from '../models/Skill';
-import ProjectileVfx from '../vfx/ProjectileVfx';
-import WaterProjectile from '../vfx/WaterProjectile';
-import FireballProjectile from '../vfx/FireballProjectile';
-import IceBoltProjectile from '../vfx/IceBoltProjectile';
-import IceBoltVfx from '../vfx/IceBoltVfx';
-import { PetrifyFlash } from '../vfx/PetrifyFlash';
-import SplashVfx, { spawnSplashVfx, spawnStunFlash } from '../vfx/SplashVfx';
-import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
 import { tryStartCast } from '../systems/castController';
 import { SkillId } from '../../../shared/skillsDefinition';
 
-// Type definitions
-interface SkillEffect {
-  id: string;
-  skillId: string;
-  startPosition: Vector3;
-  targetPosition: Vector3;
-  targetId: string;
-  createdAtTs: number;
+/**
+ * ActiveSkills component
+ * 
+ * This component:
+ * 1. Sets up keyboard shortcuts for casting skills
+ * 2. Doesn't render any visual elements itself
+ * 3. VFX for skills are handled by the VfxManager component
+ */
+export default function ActiveSkills() {
+  // Use a more stable selection from the store
+  const myPlayerId = useGameStore(state => state.myPlayerId);
+  const selectedTargetId = useGameStore(state => state.selectedTargetId);
+  
+  // Setup keyboard shortcuts for casting skills
+  useEffect(() => {
+    // Fireball casting
+    window.castFireball = () => {
+      if (!myPlayerId || !selectedTargetId) return;
+      tryStartCast("fireball", selectedTargetId);
+    };
+    
+    // Ice Bolt casting
+    window.castIceBolt = () => {
+      if (!myPlayerId || !selectedTargetId) return;
+      tryStartCast("iceBolt", selectedTargetId);
+    };
+    
+    // Water Splash casting
+    window.castWater = () => {
+      if (!myPlayerId || !selectedTargetId) return;
+      tryStartCast("waterSplash", selectedTargetId);
+    };
+    
+    // Petrify casting
+    window.castPetrify = () => {
+      if (!myPlayerId || !selectedTargetId) return;
+      tryStartCast("petrify", selectedTargetId);
+    };
+    
+    // Clean up on unmount
+    return () => {
+      window.castFireball = undefined;
+      window.castIceBolt = undefined;
+      window.castWater = undefined;
+      window.castPetrify = undefined;
+    };
+  }, [myPlayerId, selectedTargetId]);
+  
+  // No rendering needed as VFX is now handled by VfxManager
+  return null;
 }
 
-interface SkillTriggeredEvent {
-  id: string;
-  skillId: string;
-  sourceId: string;
-  targetId: string;
-  startPosition: { x: number; y: number; z: number };
-  targetPosition: { x: number; y: number; z: number };
-  createdAtTs: number;
-}
-
-// Define interfaces for our component props
-interface ProjectileProps {
-  id: string;
-  origin: { x: number; y: number; z: number };
-  dir: { x: number; y: number; z: number };
-  speed: number;
-}
-
+// Type definitions for global window events
 declare global {
   interface WindowEventMap {
-    'skillTriggered': CustomEvent<SkillTriggeredEvent>;
+    'skillTriggered': CustomEvent<{
+      id: string;
+      skillId: string;
+      sourceId: string;
+      targetId: string;
+      startPosition: { x: number; y: number; z: number };
+      targetPosition: { x: number; y: number; z: number };
+      createdAtTs: number;
+    }>;
     'requestPlayerPosition': CustomEvent<{
       effectId: string;
       callback: (position: { x: number; y: number; z: number }) => void;
     }>;
-    // Legacy events removed
-    'instanthit': CustomEvent<InstantHit>;
+    // Events now handled by VfxManager
+    'instanthit': CustomEvent<any>;
     'spawnSplash': CustomEvent<{ position: any; radius: number }>;
     'spawnStunFlash': CustomEvent<{ position: any }>;
-    
-    // New enhanced events
-    'projspawn2': CustomEvent<ProjSpawn2>;
-    'projhit2': CustomEvent<ProjHit2>;
+    'petrifyFlash': CustomEvent<{ position: any }>;
+    'projspawn2': CustomEvent<any>;
+    'projhit2': CustomEvent<any>;
   }
   
   interface Window {
@@ -79,270 +98,6 @@ declare global {
     castWater?: () => void;
     castPetrify?: () => void;
   }
-}
-
-export default function ActiveSkills() {
-  // Use a more stable selection from the store
-  const myPlayerId = useGameStore(state => state.myPlayerId);
-  const selectedTargetId = useGameStore(state => state.selectedTargetId);
-  const socket = useGameStore(state => state.socket);
-  
-  // New state for projectiles
-  const [projs, setProjs] = useState<Record<string, ProjSpawn2>>({});
-  const [splashes, setSplashes] = useState<{id: string, position: any, radius: number}[]>([]);
-  const [stunFlashes, setStunFlashes] = useState<{id: string, position: any}[]>([]);
-  const [petrifyFlashes, setPetrifyFlashes] = useState<{id: string, position: any}[]>([]);
-  
-  // Listen for projectile events
-  useEffect(() => {
-    const spawn = (e: CustomEvent<ProjSpawn2>) => {
-      console.log('Projectile spawn:', e.detail);
-      
-      // Ensure the projectile has an ID
-      if (!e.detail.id) {
-        e.detail.id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      }
-      
-      setProjs(p => ({...p, [e.detail.id]: e.detail}));
-    };
-    
-    const end = (e: CustomEvent<{id: string}>) => {
-      console.log('Projectile end:', e.detail);
-      setProjs(p => {
-        const q = {...p};
-        delete q[e.detail.id];
-        return q;
-      });
-    };
-    
-    const spawnSplash = (e: CustomEvent<{position: any, radius: number}>) => {
-      const id = `splash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      setSplashes(s => [...s, { id, position: e.detail.position, radius: e.detail.radius }]);
-      
-      // Auto-remove splash after animation time
-      setTimeout(() => {
-        setSplashes(s => s.filter(splash => splash.id !== id));
-      }, 1000);
-    };
-    
-    const spawnFlash = (e: CustomEvent<{position: any}>) => {
-      const id = `flash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      setStunFlashes(s => [...s, { id, position: e.detail.position }]);
-      
-      // Auto-remove flash after animation time
-      setTimeout(() => {
-        setStunFlashes(s => s.filter(flash => flash.id !== id));
-      }, 500);
-    };
-    
-    const spawnPetrifyFlash = (e: CustomEvent<{position: any}>) => {
-      const id = `petrify-flash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      setPetrifyFlashes(s => [...s, { id, position: e.detail.position }]);
-      
-      // Auto-remove flash after animation time
-      setTimeout(() => {
-        setPetrifyFlashes(s => s.filter(flash => flash.id !== id));
-      }, 500);
-    };
-    
-    const hit = (e: CustomEvent<any>) => {
-      console.log('Hit event:', e.detail);
-      
-      // Remove the projectile from state
-      if ('id' in e.detail) {
-        setProjs(p => {
-          const q = {...p};
-          delete q[e.detail.id];
-          return q;
-        });
-      }
-      
-      // Handle hit effects for specific skills
-      if ('skillId' in e.detail) {
-        let position;
-        if ('impactPos' in e.detail) {
-          position = { x: e.detail.impactPos.x, y: 1.5, z: e.detail.impactPos.z }; // ProjHit2
-        } else if ('targetPos' in e.detail) {
-          position = e.detail.targetPos; // InstantHit
-        }
-        
-        if (position) {
-          // Create different effects based on skill type
-          switch (e.detail.skillId) {
-            case 'waterSplash':
-              // Create a water splash effect
-              window.dispatchEvent(new CustomEvent('spawnSplash', {
-                detail: {
-                  position: new Vector3(position.x, position.y, position.z),
-                  radius: 2
-                }
-              }));
-              break;
-              
-            case 'fireball':
-              // Create a fire explosion effect
-              window.dispatchEvent(new CustomEvent('spawnSplash', {
-                detail: {
-                  position: new Vector3(position.x, position.y, position.z),
-                  radius: 1.5
-                }
-              }));
-              break;
-              
-            case 'icebolt':
-              // Create an ice shatter effect
-              window.dispatchEvent(new CustomEvent('spawnSplash', {
-                detail: {
-                  position: new Vector3(position.x, position.y, position.z),
-                  radius: 1
-                }
-              }));
-              break;
-              
-            case 'petrify':
-              // Create a stun flash effect
-              window.dispatchEvent(new CustomEvent('spawnStunFlash', {
-                detail: {
-                  position: new Vector3(position.x, position.y, position.z)
-                }
-              }));
-              break;
-          }
-        }
-      }
-    };
-    
-    window.addEventListener('projspawn2', spawn as EventListener);
-    window.addEventListener('projhit2', hit as EventListener);
-    window.addEventListener('instanthit', hit as EventListener);
-    window.addEventListener('spawnSplash', spawnSplash as EventListener);
-    window.addEventListener('spawnStunFlash', spawnFlash as EventListener);
-    window.addEventListener('petrifyFlash', spawnPetrifyFlash as EventListener);
-    
-    return () => {
-      window.removeEventListener('projspawn2', spawn as EventListener);
-      window.removeEventListener('projhit2', hit as EventListener);
-      window.removeEventListener('instanthit', hit as EventListener);
-      window.removeEventListener('spawnSplash', spawnSplash as EventListener);
-      window.removeEventListener('spawnStunFlash', spawnFlash as EventListener);
-      window.removeEventListener('petrifyFlash', spawnPetrifyFlash as EventListener);
-    };
-  }, []);
-  
-  // For debugging - expose global methods to manually trigger skills
-  useEffect(() => {
-    const castSkill = (skillId: SkillId) => {
-      // Use the imported tryStartCast function
-      tryStartCast(skillId, selectedTargetId || undefined);
-    };
-    
-    window.castFireball = () => castSkill('fireball' as SkillId);
-    window.castIceBolt = () => castSkill('icebolt' as SkillId);
-    window.castWater = () => castSkill('waterSplash' as SkillId); // Changed from 'water' to 'waterSplash'
-    window.castPetrify = () => castSkill('petrify' as SkillId);
-    
-    return () => {
-      window.castFireball = undefined;
-      window.castIceBolt = undefined;
-      window.castWater = undefined;
-      window.castPetrify = undefined;
-    };
-  }, [selectedTargetId]);
-  
-  // VFX registry for skill components
-  const vfxTable: Record<string, (props: ProjectileProps) => JSX.Element> = {
-    fireball: FireballProjectile,
-    icebolt: IceBoltVfx,
-    waterSplash: WaterProjectile,
-    petrify: ProjectileVfx, // Using generic projectile for now
-    // Add more skills as they are implemented
-  };
-  
-  // Render projectiles, splashes, and stun flashes
-  return (
-    <group>
-      {/* Render all active projectiles */}
-      {Object.values(projs).map((p) => {
-        // Skip rendering if required props are missing
-        if (!p.id) {
-          console.warn('Skipping projectile with undefined id');
-          return null;
-        }
-        
-        console.log('Rendering projectile:', p.id, 'skillId:', p.skillId);
-        
-        // Convert skillId to a safe string key for the vfxTable
-        const skillIdKey = p.skillId?.toString() || '';
-        
-        // Convert 2D vectors to 3D vectors with y=0 for this specific projectile
-        const origin3D = {
-          x: p.origin.x, 
-          y: 0, // Default height for projectiles
-          z: p.origin.z
-        };
-        
-        const dir3D = {
-          x: p.dir.x,
-          y: 0, // No vertical component
-          z: p.dir.z
-        };
-        
-        // Use the VFX component from our registry
-        const VfxComponent = vfxTable[skillIdKey];
-        
-        if (VfxComponent) {
-          return (
-            <VfxComponent 
-              key={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
-              id={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
-              origin={origin3D} 
-              dir={dir3D} 
-              speed={p.speed}
-            />
-          );
-        }
-        
-        // Fallback to default if not found in registry
-        return (
-          <ProjectileVfx 
-            key={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
-            id={p.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
-            origin={origin3D} 
-            dir={dir3D} 
-            speed={p.speed}
-          />
-        );
-      })}
-      
-      {/* Render splash effects */}
-      {splashes.map(splash => (
-        <SplashVfx 
-          key={splash.id} 
-          position={splash.position} 
-          radius={splash.radius} 
-        />
-      ))}
-      
-      {/* Keep existing stun flash for petrify - replace with custom VFX later */}
-      {stunFlashes.map(flash => (
-        <mesh 
-          key={flash.id} 
-          position={[flash.position.x, flash.position.y + 1.5, flash.position.z]}
-        >
-          <sphereGeometry args={[0.4, 16, 16]} />
-          <meshBasicMaterial color={'yellow'} transparent={true} opacity={0.8} />
-        </mesh>
-      ))}
-      
-      {/* Render petrify flash effects */}
-      {petrifyFlashes.map(flash => (
-        <PetrifyFlash 
-          key={flash.id} 
-          pos={flash.position} 
-        />
-      ))}
-    </group>
-  );
 }
 
 // ==============================================================================
@@ -795,6 +550,7 @@ import UI from './UI';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import ActiveSkills from './ActiveSkills';
 import TargetRing from './TargetRing';
+import VfxManager from './VfxManager';
 import { useGameStore } from '../systems/gameStore';
 import SocketManager from '../systems/SocketManager';
 
@@ -897,6 +653,7 @@ export default function Game() {
             <Enemies />
             <ActiveSkills />
             <TargetRing />
+            <VfxManager />
           </Physics>
         </Canvas>
       </KeyboardControls>
@@ -2862,6 +2619,306 @@ export default React.memo(function UI() {
     </div>
   );
 });
+
+// ==============================================================================
+// FILE: app/game/components/VfxManager.tsx
+// ==============================================================================
+
+import { useEffect, useState, useCallback } from 'react';
+import { Vector3 } from 'three';
+import FireballProjectile from '../vfx/FireballProjectile';
+import IceBoltVfx from '../vfx/IceBoltVfx';
+import WaterProjectile from '../vfx/WaterProjectile';
+import ProjectileVfx from '../vfx/ProjectileVfx';
+import SplashVfx from '../vfx/SplashVfx';
+import { PetrifyFlash } from '../vfx/PetrifyFlash';
+import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
+import { SkillId } from '../../../shared/skillsDefinition';
+
+// Types for VFX instances
+interface BaseVfxInstance {
+  id: string;
+  type: string;
+  createdAt: number;
+  expiresAt?: number;
+}
+
+interface ProjectileVfxInstance extends BaseVfxInstance {
+  type: 'projectile';
+  skillId: string;
+  origin: { x: number; y: number; z: number };
+  dir: { x: number; y: number; z: number };
+  speed: number;
+  launchTs: number;
+}
+
+interface SplashVfxInstance extends BaseVfxInstance {
+  type: 'splash';
+  position: { x: number; y: number; z: number };
+  radius: number;
+}
+
+interface FlashVfxInstance extends BaseVfxInstance {
+  type: 'flash';
+  flashType: 'stun' | 'petrify';
+  position: { x: number; y: number; z: number };
+}
+
+type VfxInstance = ProjectileVfxInstance | SplashVfxInstance | FlashVfxInstance;
+
+export default function VfxManager() {
+  // Store all active VFX instances
+  const [vfxInstances, setVfxInstances] = useState<VfxInstance[]>([]);
+  
+  // Mapping of skill IDs to VFX types
+  const skillVfxMap = {
+    fireball: 'fireball',
+    iceBolt: 'icebolt',
+    waterSplash: 'water',
+    petrify: 'petrify',
+  };
+  
+  // Handle projectile spawn events
+  const handleProjectileSpawn = useCallback((e: CustomEvent<ProjSpawn2>) => {
+    console.log('VfxManager: Projectile spawn', e.detail);
+    
+    // Ensure the projectile has an ID
+    const projId = e.detail.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    // Create a new projectile instance
+    const newProj: ProjectileVfxInstance = {
+      id: projId,
+      type: 'projectile',
+      skillId: e.detail.skillId,
+      origin: e.detail.origin,
+      dir: e.detail.dir,
+      speed: e.detail.speed,
+      launchTs: e.detail.launchTs || performance.now(),
+      createdAt: performance.now(),
+    };
+    
+    setVfxInstances(prev => [...prev, newProj]);
+  }, []);
+  
+  // Handle projectile hit events
+  const handleProjectileHit = useCallback((e: CustomEvent<ProjHit2>) => {
+    console.log('VfxManager: Projectile hit', e.detail);
+    
+    // Remove the projectile
+    setVfxInstances(prev => prev.filter(vfx => vfx.id !== e.detail.id));
+    
+    // Create impact effects based on skill type
+    if (e.detail.skillId && e.detail.impactPos) {
+      const position = { 
+        x: e.detail.impactPos.x, 
+        y: e.detail.impactPos.y || 1.5, 
+        z: e.detail.impactPos.z 
+      };
+      
+      // Generate the proper effect based on the skill type
+      switch (e.detail.skillId) {
+        case 'fireball':
+          createSplashEffect(position, 1.5);
+          break;
+        case 'waterSplash':
+          createSplashEffect(position, 2);
+          break;
+        case 'iceBolt':
+          createSplashEffect(position, 1);
+          break;
+        case 'petrify':
+          createFlashEffect(position, 'petrify');
+          break;
+      }
+    }
+  }, []);
+  
+  // Handle instant hit events
+  const handleInstantHit = useCallback((e: CustomEvent<InstantHit>) => {
+    console.log('VfxManager: Instant hit', e.detail);
+    
+    if (e.detail.skillId && e.detail.targetPos) {
+      const position = e.detail.targetPos;
+      
+      // Generate effects based on skill type
+      switch (e.detail.skillId) {
+        case 'petrify':
+          createFlashEffect(position, 'petrify');
+          break;
+      }
+    }
+  }, []);
+  
+  // Create a splash effect
+  const createSplashEffect = useCallback((position: any, radius: number) => {
+    const id = `splash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const newSplash: SplashVfxInstance = {
+      id,
+      type: 'splash',
+      position,
+      radius,
+      createdAt: performance.now(),
+      expiresAt: performance.now() + 1000, // 1s duration for splashes
+    };
+    
+    setVfxInstances(prev => [...prev, newSplash]);
+  }, []);
+  
+  // Handle custom splash spawn events
+  const handleSpawnSplash = useCallback((e: CustomEvent<{position: any, radius: number}>) => {
+    createSplashEffect(e.detail.position, e.detail.radius);
+  }, []);
+  
+  // Create a flash effect (stun or petrify)
+  const createFlashEffect = useCallback((position: any, flashType: 'stun' | 'petrify') => {
+    const id = `${flashType}-flash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const newFlash: FlashVfxInstance = {
+      id,
+      type: 'flash',
+      flashType,
+      position,
+      createdAt: performance.now(),
+      expiresAt: performance.now() + 500, // 0.5s duration for flashes
+    };
+    
+    setVfxInstances(prev => [...prev, newFlash]);
+  }, []);
+  
+  // Handle stun flash events
+  const handleSpawnStunFlash = useCallback((e: CustomEvent<{position: any}>) => {
+    createFlashEffect(e.detail.position, 'stun');
+  }, [createFlashEffect]);
+  
+  // Handle petrify flash events
+  const handleSpawnPetrifyFlash = useCallback((e: CustomEvent<{position: any}>) => {
+    createFlashEffect(e.detail.position, 'petrify');
+  }, [createFlashEffect]);
+  
+  // Register and unregister event listeners
+  useEffect(() => {
+    // Register event listeners
+    window.addEventListener('projspawn2', handleProjectileSpawn as EventListener);
+    window.addEventListener('projhit2', handleProjectileHit as EventListener);
+    window.addEventListener('instanthit', handleInstantHit as EventListener);
+    window.addEventListener('spawnSplash', handleSpawnSplash as EventListener);
+    window.addEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
+    window.addEventListener('petrifyFlash', handleSpawnPetrifyFlash as EventListener);
+    
+    // Cleanup expired effects periodically
+    const cleanupInterval = setInterval(() => {
+      const now = performance.now();
+      setVfxInstances(prev => prev.filter(vfx => !vfx.expiresAt || vfx.expiresAt > now));
+    }, 100);
+    
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('projspawn2', handleProjectileSpawn as EventListener);
+      window.removeEventListener('projhit2', handleProjectileHit as EventListener);
+      window.removeEventListener('instanthit', handleInstantHit as EventListener);
+      window.removeEventListener('spawnSplash', handleSpawnSplash as EventListener);
+      window.removeEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
+      window.removeEventListener('petrifyFlash', handleSpawnPetrifyFlash as EventListener);
+      clearInterval(cleanupInterval);
+    };
+  }, [
+    handleProjectileSpawn, 
+    handleProjectileHit, 
+    handleInstantHit, 
+    handleSpawnSplash, 
+    handleSpawnStunFlash, 
+    handleSpawnPetrifyFlash
+  ]);
+  
+  // Render all active VFX instances
+  return (
+    <>
+      {vfxInstances.map(vfx => {
+        if (vfx.type === 'projectile') {
+          // Render the appropriate projectile VFX based on skill type
+          switch (vfx.skillId) {
+            case 'fireball':
+              return (
+                <FireballProjectile
+                  key={vfx.id}
+                  id={vfx.id}
+                  origin={vfx.origin}
+                  dir={vfx.dir}
+                  speed={vfx.speed}
+                  launchTs={vfx.launchTs}
+                />
+              );
+              
+            case 'iceBolt':
+              return (
+                <IceBoltVfx
+                  key={vfx.id}
+                  id={vfx.id}
+                  origin={vfx.origin}
+                  dir={vfx.dir}
+                  speed={vfx.speed}
+                  launchTs={vfx.launchTs}
+                />
+              );
+              
+            case 'waterSplash':
+              return (
+                <WaterProjectile
+                  key={vfx.id}
+                  id={vfx.id}
+                  origin={vfx.origin}
+                  dir={vfx.dir}
+                  speed={vfx.speed}
+                  launchTs={vfx.launchTs}
+                />
+              );
+              
+            case 'petrify':
+            default:
+              return (
+                <ProjectileVfx
+                  key={vfx.id}
+                  id={vfx.id}
+                  origin={vfx.origin}
+                  dir={vfx.dir}
+                  speed={vfx.speed}
+                  launchTs={vfx.launchTs}
+                />
+              );
+          }
+        } else if (vfx.type === 'splash') {
+          return (
+            <SplashVfx
+              key={vfx.id}
+              position={vfx.position}
+              radius={vfx.radius}
+            />
+          );
+        } else if (vfx.type === 'flash') {
+          if (vfx.flashType === 'petrify') {
+            return (
+              <PetrifyFlash
+                key={vfx.id}
+                position={vfx.position}
+              />
+            );
+          } else {
+            // Stun flash would go here if it were a separate component
+            return (
+              <SplashVfx
+                key={vfx.id}
+                position={vfx.position}
+                radius={0.8}
+              />
+            );
+          }
+        }
+        
+        return null;
+      })}
+    </>
+  );
+}
+
 
 // ==============================================================================
 // FILE: app/game/components/World.tsx
@@ -7021,183 +7078,146 @@ export const zoneManager = new ZoneManager();
 // FILE: app/game/vfx/FireballProjectile.tsx
 // ==============================================================================
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group, Material, MeshBasicMaterial } from 'three';
+import { Vector3, Mesh, Color, Group, MeshBasicMaterial } from 'three';
+import useProjectileMovement from './useProjectileMovement';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface FireballProjectileProps {
-  id: string;
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
-  launchTs?: number; // Add launch timestamp
+  launchTs?: number;
 }
 
-interface FireParticle {
-  id: string;
-  position: Vector3;
-  scale: number;
-  opacity: number;
-  velocity: Vector3;
-  lifetimeMs: number;
-  color: Color;
-}
-
-export function FireballProjectile({ id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs }: FireballProjectileProps) {
+export default function FireballProjectile({ 
+  id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+  origin, 
+  dir, 
+  speed, 
+  launchTs = performance.now() 
+}: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
-  const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z));
-  const originalSpeed = useRef(speed);
-  const originalLaunchTs = useRef(launchTs || performance.now());
-  
-  const [particles, setParticles] = useState<FireParticle[]>([]);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
-  // Generate initial fire particles only once on component mount
-  useEffect(() => {
-    const initialParticles: FireParticle[] = [];
-    for (let i = 0; i < 15; i++) {
-      initialParticles.push({
-        id: `flame-${id}-initial-${i}-${Math.random().toString(36).substr(2, 9)}`,
+  // Use the projectile movement hook for consistent positioning
+  const { position } = useProjectileMovement({
+    origin,
+    dir,
+    speed,
+    launchTs
+  });
+  
+  // Setup particle system for fire effects
+  const fireParticles = useParticleSystem({
+    emitterPosition: () => position,
+    emitterShape: 'sphere',
+    emitterRadius: 0.2,
+    particleLifetime: { min: 0.1, max: 0.5 },
+    particleSpeed: { min: 0.5, max: 2 },
+    particleSize: { min: 0.05, max: 0.2 },
+    particleOpacity: { min: 0.6, max: 1.0 },
+    emissionRate: 40,
+    maxParticles: 50,
+    generateParticle: () => {
+      return {
+        id: `flame-${id}-${Math.random().toString(36).substring(2, 9)}`,
         position: new Vector3(
-          origin.x + (Math.random() - 0.5) * 0.3,
-          origin.y + (Math.random() - 0.5) * 0.3,
-          origin.z + (Math.random() - 0.5) * 0.3
+          position.x + (Math.random() - 0.5) * 0.3,
+          position.y + (Math.random() - 0.5) * 0.3,
+          position.z + (Math.random() - 0.5) * 0.3
+        ),
+        velocity: new Vector3(
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2
         ),
         scale: 0.05 + Math.random() * 0.15,
         opacity: 0.6 + Math.random() * 0.4,
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1,
-          (Math.random() - 0.5) * 1,
-          (Math.random() - 0.5) * 1
-        ),
-        lifetimeMs: 100 + Math.random() * 300,
+        lifetime: 0,
+        maxLifetime: 0.1 + Math.random() * 0.4,
         color: new Color().setHSL(
           0.05 + Math.random() * 0.06, // orange-red hue
           0.7 + Math.random() * 0.3,   // saturation
           0.5 + Math.random() * 0.5    // lightness
-        )
-      });
+        ),
+      };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
+      
+      // Update particle
+      return {
+        ...particle,
+        position: new Vector3(
+          particle.position.x + particle.velocity.x * deltaTime,
+          particle.position.y + particle.velocity.y * deltaTime,
+          particle.position.z + particle.velocity.z * deltaTime
+        ),
+        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)),
+        lifetime: particle.lifetime + deltaTime
+      };
     }
-    setParticles(initialParticles);
-  }, []); // Empty dependency array ensures this only runs once on mount
+  });
   
+  // Add wobble effect to core
   useFrame((state, delta) => {
     if (!coreRef.current) return;
     
-    // Calculate position based on server parameters and elapsed time
-    // This ensures the projectile follows exactly the path determined by the server
-    const elapsedTimeSec = (performance.now() - originalLaunchTs.current) / 1000;
-    
-    // Calculate the exact position based on origin, direction, speed, and time
-    const distanceTraveled = originalSpeed.current * elapsedTimeSec;
-    pos.current.x = originalOrigin.current.x + originalDir.current.x * distanceTraveled;
-    pos.current.y = originalOrigin.current.y + originalDir.current.y * distanceTraveled;
-    pos.current.z = originalOrigin.current.z + originalDir.current.z * distanceTraveled;
-    
-    // Apply the calculated position to the mesh
-    coreRef.current.position.copy(pos.current);
-    
     // Fire core pulsing
-    const pulseFactor = Math.sin(state.clock.elapsedTime * 15 + timeOffset.current) * 0.15 + 1;
+    const time = state.clock.elapsedTime;
+    const pulseFactor = Math.sin(time * 15 + timeOffset.current) * 0.15 + 1;
     coreRef.current.scale.set(pulseFactor, pulseFactor, pulseFactor);
     
     // Random fire flickering through material opacity
     if (coreRef.current.material instanceof MeshBasicMaterial) {
-      const flickerOpacity = 0.8 + Math.sin(state.clock.elapsedTime * 20) * 0.2;
+      const flickerOpacity = 0.8 + Math.sin(time * 20) * 0.2;
       coreRef.current.material.opacity = flickerOpacity;
     }
-    
-    // Add fire trail particles
-    if (Math.random() > 0.4) {
-      const newParticle: FireParticle = {
-        id: `flame-${id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        position: pos.current.clone().add(
-          new Vector3(
-            (Math.random() - 0.5) * 0.3,
-            (Math.random() - 0.5) * 0.3,
-            (Math.random() - 0.5) * 0.3 - 0.2 // bias toward trail behind
-          )
-        ),
-        scale: 0.05 + Math.random() * 0.15,
-        opacity: 0.6 + Math.random() * 0.4,
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1,
-          (Math.random() * 1), // upward bias
-          (Math.random() - 0.5) * 1
-        ),
-        lifetimeMs: 200 + Math.random() * 300,
-        color: new Color().setHSL(
-          0.05 + Math.random() * 0.06, // orange-red hue
-          0.7 + Math.random() * 0.3,   // saturation
-          0.5 + Math.random() * 0.5    // lightness
-        )
-      };
-      
-      setParticles(prev => [...prev, newParticle]);
-    }
-    
-    // Update fire particles
-    setParticles(prev => 
-      prev.map(particle => {
-        // Rise and drift
-        particle.position.x += particle.velocity.x * delta;
-        particle.position.y += particle.velocity.y * delta;
-        particle.position.z += particle.velocity.z * delta;
-        
-        // Make particles rise faster as they age
-        particle.velocity.y += delta * 0.5;
-        
-        // Expand slightly as they rise
-        const newScale = particle.scale * (1 + delta * 0.3);
-        
-        return {
-          ...particle,
-          scale: newScale,
-          lifetimeMs: particle.lifetimeMs - delta * 1000,
-          opacity: Math.max(0, particle.lifetimeMs / 300) // fade out
-        };
-      }).filter(p => p.lifetimeMs > 0 && p.opacity > 0.05)
-    );
   });
   
   return (
-    <group ref={groupRef}>
+    <group 
+      ref={groupRef} 
+      position={[position.x, position.y, position.z]} 
+    >
       {/* Main fire core */}
       <mesh key={`core-${id}`} ref={coreRef}>
         <sphereGeometry key={`core-geo-${id}`} args={[0.25, 16, 16]} />
         <meshBasicMaterial 
           key={`core-mat-${id}`}
-          color={new Color(0xff5500)}
+          color={0xff5500}
           transparent={true}
           opacity={0.9}
         />
       </mesh>
       
       {/* Outer glow */}
-      <mesh key={`glow-${id}`} position={pos.current.toArray()}>
+      <mesh key={`glow-${id}`}>
         <sphereGeometry key={`glow-geo-${id}`} args={[0.4, 16, 16]} />
         <meshBasicMaterial 
           key={`glow-mat-${id}`}
-          color={new Color(0xff8800)}
+          color={0xff8800}
           transparent={true}
-          opacity={0.4}
+          opacity={0.6}
         />
       </mesh>
       
-      {/* Fire particles */}
-      {particles.map((particle) => (
+      {/* Render fire particles */}
+      {fireParticles.particles.map((particle) => (
         <mesh
           key={particle.id}
           position={[particle.position.x, particle.position.y, particle.position.z]}
           scale={[particle.scale, particle.scale, particle.scale]}
         >
-          <sphereGeometry key={`geo-${particle.id}`} args={[0.1, 8, 8]} />
-          <meshBasicMaterial 
-            key={`mat-${particle.id}`}
-            color={particle.color}
+          <sphereGeometry args={[1, 8, 8]} />
+          <meshBasicMaterial
+            color={0xff7700}
             transparent={true}
             opacity={particle.opacity}
           />
@@ -7207,77 +7227,72 @@ export function FireballProjectile({ id = `fireball-${Date.now()}-${Math.random(
   );
 }
 
-// Make sure to export both as named and default export for compatibility
-export default FireballProjectile;
-
 
 // ==============================================================================
 // FILE: app/game/vfx/IceBoltProjectile.tsx
 // ==============================================================================
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group } from 'three';
+import { Vector3, Mesh, Group } from 'three';
+import useProjectileMovement from './useProjectileMovement';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface IceBoltProjectileProps {
   id: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
+  launchTs?: number;
 }
 
-interface IceParticle {
-  position: Vector3;
-  scale: number;
-  opacity: number;
-  velocity: Vector3;
-  lifetimeMs: number;
-  rotation: Vector3;
-  rotationSpeed: Vector3;
-}
-
-export function IceBoltProjectile({ id, origin, dir, speed }: IceBoltProjectileProps) {
+export function IceBoltProjectile({ 
+  id = `icebolt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+  origin, 
+  dir, 
+  speed,
+  launchTs = performance.now()
+}: IceBoltProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
-  const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const [particles, setParticles] = useState<IceParticle[]>([]);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
-  useFrame((state, delta) => {
-    if (!coreRef.current) return;
-    
-    // Move projectile
-    pos.current.x += dir.x * speed * delta;
-    pos.current.y += dir.y * speed * delta;
-    pos.current.z += dir.z * speed * delta;
-    coreRef.current.position.copy(pos.current);
-    
-    // Rotate core
-    coreRef.current.rotation.x += delta * 2;
-    coreRef.current.rotation.z += delta * 3;
-    
-    // Subtle pulsing
-    const pulseFactor = Math.sin(state.clock.elapsedTime * 8 + timeOffset.current) * 0.05 + 1;
-    coreRef.current.scale.set(pulseFactor, pulseFactor, pulseFactor);
-    
-    // Add ice trail particles
-    if (Math.random() > 0.6) {
-      const newParticle: IceParticle = {
-        position: pos.current.clone().add(
-          new Vector3(
-            (Math.random() - 0.5) * 0.2,
-            (Math.random() - 0.5) * 0.2,
-            (Math.random() - 0.5) * 0.2
-          )
+  // Use the projectile movement hook for consistent positioning
+  const { position } = useProjectileMovement({
+    origin,
+    dir,
+    speed,
+    launchTs
+  });
+  
+  // Setup particle system for ice crystal trail
+  const iceParticles = useParticleSystem({
+    emitterPosition: () => position,
+    emitterShape: 'sphere',
+    emitterRadius: 0.2,
+    particleLifetime: { min: 0.4, max: 0.7 },
+    particleSpeed: { min: 0.1, max: 0.5 },
+    particleSize: { min: 0.03, max: 0.08 },
+    particleOpacity: { min: 0.7, max: 1.0 },
+    emissionRate: 15,
+    maxParticles: 40,
+    generateParticle: () => {
+      return {
+        id: `ice-${id}-${Math.random().toString(36).substring(2, 9)}`,
+        position: new Vector3(
+          position.x + (Math.random() - 0.5) * 0.2,
+          position.y + (Math.random() - 0.5) * 0.2,
+          position.z + (Math.random() - 0.5) * 0.2
         ),
-        scale: 0.03 + Math.random() * 0.08,
-        opacity: 0.7 + Math.random() * 0.3,
         velocity: new Vector3(
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5
         ),
-        lifetimeMs: 400 + Math.random() * 300,
+        scale: 0.03 + Math.random() * 0.08,
+        opacity: 0.7 + Math.random() * 0.3,
+        lifetime: 0,
+        maxLifetime: 0.4 + Math.random() * 0.3,
         rotation: new Vector3(
           Math.random() * Math.PI * 2,
           Math.random() * Math.PI * 2,
@@ -7289,76 +7304,92 @@ export function IceBoltProjectile({ id, origin, dir, speed }: IceBoltProjectileP
           (Math.random() - 0.5) * 2
         )
       };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
       
-      setParticles(prev => [...prev, newParticle]);
+      // Update rotation if available
+      const rotParticle = particle as Particle & { rotation?: Vector3, rotationSpeed?: Vector3 };
+      const newRotation = rotParticle.rotation && rotParticle.rotationSpeed ? new Vector3(
+        rotParticle.rotation.x + rotParticle.rotationSpeed.x * deltaTime,
+        rotParticle.rotation.y + rotParticle.rotationSpeed.y * deltaTime,
+        rotParticle.rotation.z + rotParticle.rotationSpeed.z * deltaTime
+      ) : undefined;
+      
+      // Update particle with fading
+      return {
+        ...particle,
+        rotation: newRotation || rotParticle.rotation,
+        opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime),
+        lifetime: particle.lifetime + deltaTime
+      };
     }
-    
-    // Update ice particles
-    setParticles(prev => 
-      prev.map(particle => {
-        // Drift slowly
-        particle.position.x += particle.velocity.x * delta;
-        particle.position.y += particle.velocity.y * delta;
-        particle.position.z += particle.velocity.z * delta;
-        
-        // Update rotation
-        particle.rotation.x += particle.rotationSpeed.x * delta;
-        particle.rotation.y += particle.rotationSpeed.y * delta;
-        particle.rotation.z += particle.rotationSpeed.z * delta;
-        
-        return {
-          ...particle,
-          lifetimeMs: particle.lifetimeMs - delta * 1000,
-          opacity: Math.max(0, particle.lifetimeMs / 500) // fade out
-        };
-      }).filter(p => p.lifetimeMs > 0 && p.opacity > 0.05)
-    );
+  });
+  
+  // Apply animations to the ice projectile core
+  useFrame((state, delta) => {
+    if (coreRef.current) {
+      // Rotate core
+      coreRef.current.rotation.x += delta * 2;
+      coreRef.current.rotation.z += delta * 3;
+      
+      // Subtle pulsing
+      const pulseFactor = Math.sin(state.clock.elapsedTime * 8 + timeOffset.current) * 0.05 + 1;
+      coreRef.current.scale.set(pulseFactor, pulseFactor, pulseFactor);
+    }
   });
   
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[position.x, position.y, position.z]}>
       {/* Main ice core - using an icosahedron for crystalline look */}
       <mesh ref={coreRef}>
         <icosahedronGeometry args={[0.2, 1]} />
         <meshStandardMaterial 
-          color={new Color(0xaad4ff)}
+          color="#aad4ff"
           transparent={true}
           opacity={0.7}
           roughness={0.1}
           metalness={0.9}
-          emissive={new Color(0x84b9ff)}
+          emissive="#84b9ff"
           emissiveIntensity={0.5}
         />
       </mesh>
       
       {/* Outer glow */}
-      <mesh position={pos.current.toArray()}>
+      <mesh>
         <sphereGeometry args={[0.35, 16, 16]} />
         <meshBasicMaterial 
-          color={new Color(0xc7e0ff)}
+          color="#c7e0ff"
           transparent={true}
           opacity={0.3}
         />
       </mesh>
       
       {/* Ice particles - using boxGeometry for crystal-like shards */}
-      {particles.map((particle, index) => (
-        <mesh
-          key={`ice-${id}-${index}`}
-          position={[particle.position.x, particle.position.y, particle.position.z]}
-          rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
-          scale={[particle.scale, particle.scale, particle.scale]}
-        >
-          <boxGeometry args={[0.1, 0.1, 0.1]} />
-          <meshStandardMaterial 
-            color={new Color(0xd1e6ff)}
-            transparent={true}
-            opacity={particle.opacity}
-            roughness={0.1}
-            metalness={0.8}
-          />
-        </mesh>
-      ))}
+      {iceParticles.particles.map(particle => {
+        const rotParticle = particle as Particle & { rotation?: Vector3 };
+        const rotation = rotParticle.rotation;
+        
+        return (
+          <mesh
+            key={particle.id}
+            position={[particle.position.x, particle.position.y, particle.position.z]}
+            rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
+            scale={[particle.scale, particle.scale, particle.scale]}
+          >
+            <boxGeometry args={[0.1, 0.1, 0.1]} />
+            <meshStandardMaterial 
+              color="#d1e6ff"
+              transparent={true}
+              opacity={particle.opacity}
+              roughness={0.1}
+              metalness={0.8}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
@@ -7373,34 +7404,118 @@ export default IceBoltProjectile;
 
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh } from 'three';
+import { Vector3, Mesh, Color } from 'three';
+import useProjectileMovement from './useProjectileMovement';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface IceBoltVfxProps {
   id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
+  launchTs?: number;
 }
 
 // Define as a named function first
-export function IceBoltVfx({ id = `icebolt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed }: IceBoltVfxProps) {
-  const ref = useRef<Mesh>(null);
-  const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
+export function IceBoltVfx({ 
+  id = `icebolt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+  origin, 
+  dir, 
+  speed,
+  launchTs = performance.now()
+}: IceBoltVfxProps) {
+  const coreRef = useRef<Mesh>(null);
   
-  useFrame((_, d) => { 
-    if (ref.current) { 
-      pos.current.addScaledVector(new Vector3(dir.x, dir.y, dir.z), speed * d);
-      ref.current.position.copy(pos.current);
-    } 
+  // Use the projectile movement hook for consistent positioning
+  const { position } = useProjectileMovement({
+    origin,
+    dir,
+    speed,
+    launchTs
+  });
+  
+  // Setup particle system for ice mist effects
+  const iceParticles = useParticleSystem({
+    emitterPosition: () => position,
+    emitterShape: 'sphere',
+    emitterRadius: 0.2,
+    particleLifetime: { min: 0.1, max: 0.3 },
+    particleSpeed: { min: 0.3, max: 1 },
+    particleSize: { min: 0.03, max: 0.1 },
+    particleOpacity: { min: 0.5, max: 0.8 },
+    emissionRate: 25,
+    maxParticles: 40,
+    generateParticle: () => {
+      return {
+        id: `icemist-${id}-${Math.random().toString(36).substring(2, 9)}`,
+        position: new Vector3(
+          position.x + (Math.random() - 0.5) * 0.2,
+          position.y + (Math.random() - 0.5) * 0.2,
+          position.z + (Math.random() - 0.5) * 0.2
+        ),
+        velocity: new Vector3(
+          (Math.random() - 0.5) * 1,
+          (Math.random() - 0.5) * 1,
+          (Math.random() - 0.5) * 1
+        ),
+        scale: 0.03 + Math.random() * 0.07,
+        opacity: 0.5 + Math.random() * 0.3,
+        lifetime: 0,
+        maxLifetime: 0.1 + Math.random() * 0.2,
+        color: new Color().setHSL(
+          0.58 + Math.random() * 0.05, // cyan-blue hue
+          0.5 + Math.random() * 0.3,   // saturation
+          0.7 + Math.random() * 0.3    // lightness
+        ),
+      };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
+      
+      // Update particle
+      return {
+        ...particle,
+        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)),
+        lifetime: particle.lifetime + deltaTime
+      };
+    }
+  });
+  
+  // Add some rotation to the ice bolt
+  useFrame((state) => {
+    if (coreRef.current) {
+      coreRef.current.rotation.z = state.clock.elapsedTime * 5;
+    }
   });
   
   return (
-    <mesh ref={ref}>
-      <coneGeometry key={`icebolt-geo-${id}`} args={[0.25, 1]} />
-      <meshBasicMaterial key={`icebolt-mat-${id}`} color="skyblue" />
-    </mesh>
+    <group position={[position.x, position.y, position.z]}>
+      {/* Main ice bolt */}
+      <mesh ref={coreRef} rotation={[0, 0, Math.PI / 2]}>
+        <coneGeometry key={`icebolt-geo-${id}`} args={[0.25, 1]} />
+        <meshBasicMaterial key={`icebolt-mat-${id}`} color="skyblue" transparent opacity={0.8} />
+      </mesh>
+      
+      {/* Render ice mist particles */}
+      {iceParticles.particles.map(particle => (
+        <mesh
+          key={particle.id}
+          position={[particle.position.x, particle.position.y, particle.position.z]}
+          scale={[particle.scale, particle.scale, particle.scale]}
+        >
+          <sphereGeometry args={[1, 8, 8]} />
+          <meshBasicMaterial
+            color="aliceblue"
+            transparent
+            opacity={particle.opacity}
+          />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -7414,30 +7529,108 @@ export default IceBoltVfx;
 
 'use client';
 
-import { useState } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Vector3, Mesh } from 'three';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
-interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
+interface PetrifyFlashProps {
+  position: {x: number; y: number; z: number};
 }
 
 // Export as named export
-export function PetrifyFlash({ pos }: { pos: Vec3 }) {
-  const [scale, setScale] = useState(0);
+export function PetrifyFlash({ position }: PetrifyFlashProps) {
+  const coreRef = useRef<Mesh>(null);
+  const positionVector = useRef(new Vector3(position.x, position.y + 1, position.z));
   
-  useFrame((_, d) => {
-    setScale(s => s < 2 ? s + 5 * d : 0);
+  // Setup particle system for petrify flash
+  const glowParticles = useParticleSystem({
+    emitterPosition: positionVector.current,
+    emitterShape: 'sphere',
+    emitterRadius: 0.3,
+    particleLifetime: { min: 0.3, max: 0.5 },
+    particleSpeed: { min: 0.5, max: 2 },
+    particleSize: { min: 0.1, max: 0.3 },
+    particleOpacity: { min: 0.6, max: 1.0 },
+    emissionRate: 25,
+    maxParticles: 30,
+    generateParticle: () => {
+      return {
+        id: `petrify-${Math.random().toString(36).substring(2, 9)}`,
+        position: new Vector3(
+          positionVector.current.x + (Math.random() - 0.5) * 0.5,
+          positionVector.current.y + (Math.random() - 0.5) * 0.5,
+          positionVector.current.z + (Math.random() - 0.5) * 0.5
+        ),
+        velocity: new Vector3(
+          (Math.random() - 0.5) * 3,
+          (Math.random() - 0.5) * 3,
+          (Math.random() - 0.5) * 3
+        ),
+        scale: 0.1 + Math.random() * 0.2,
+        opacity: 0.7 + Math.random() * 0.3,
+        lifetime: 0,
+        maxLifetime: 0.3 + Math.random() * 0.2,
+      };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
+      
+      return {
+        ...particle,
+        opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime * 0.8),
+        scale: particle.scale * 0.95, // Shrink over time
+        lifetime: particle.lifetime + deltaTime
+      };
+    }
   });
   
-  if (scale === 0) return null;
+  // Emit particles on first render
+  useFrame((_, delta) => {
+    // Pulse the core flash
+    if (coreRef.current) {
+      const pulseScale = Math.min(2, coreRef.current.scale.x + 5 * delta);
+      coreRef.current.scale.set(pulseScale, pulseScale, pulseScale);
+      
+      // Get material and update opacity
+      const material = coreRef.current.material as any;
+      if (material && material.opacity) {
+        material.opacity = 1 - pulseScale / 2;
+      }
+      
+      // Reset when fully expanded
+      if (pulseScale >= 2) {
+        coreRef.current.scale.set(0, 0, 0);
+      }
+    }
+  });
   
   return (
-    <mesh position={[pos.x, pos.y + 1, pos.z]} scale={scale}>
-      <icosahedronGeometry args={[0.5, 1]} />
-      <meshBasicMaterial color="yellow" transparent opacity={1 - scale / 2} />
-    </mesh>
+    <group>
+      {/* Core flash */}
+      <mesh ref={coreRef} position={[positionVector.current.x, positionVector.current.y, positionVector.current.z]}>
+        <icosahedronGeometry args={[0.5, 1]} />
+        <meshBasicMaterial color="yellow" transparent opacity={1} />
+      </mesh>
+      
+      {/* Glow particles */}
+      {glowParticles.particles.map(particle => (
+        <mesh
+          key={particle.id}
+          position={[particle.position.x, particle.position.y, particle.position.z]}
+          scale={[particle.scale, particle.scale, particle.scale]}
+        >
+          <sphereGeometry args={[1, 8, 8]} />
+          <meshBasicMaterial
+            color="yellow"
+            transparent
+            opacity={particle.opacity}
+          />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -7450,76 +7643,113 @@ export default PetrifyFlash;
 // ==============================================================================
 
 import { useFrame } from '@react-three/fiber';
-import { useRef, useState, useMemo, useEffect } from 'react';
-import { Vector3, Mesh, Material, MathUtils, Color, Group } from 'three';
+import { useRef, useState } from 'react';
+import { Vector3, Mesh, MathUtils, Color, Group, Material } from 'three';
 import { useProjectileStore } from '../systems/projectileManager';
+import useProjectileMovement from './useProjectileMovement';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface ProjectileVfxProps {
   id: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
-  launchTs?: number; // Add launch timestamp
-  travelMs?: number; // Travel time for client-side animation
+  launchTs?: number;
 }
 
-interface TrailParticle {
-  position: Vector3;
-  scale: number;
-  opacity: number;
-  lifetimeMs: number;
-  rotationSpeed: Vector3;
-  rotation: Vector3;
-}
-
-function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs, travelMs}: ProjectileVfxProps) {
+export default function ProjectileVfx({
+  id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+  origin, 
+  dir, 
+  speed, 
+  launchTs = performance.now()
+}: ProjectileVfxProps) {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
-  const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z));
-  const originalSpeed = useRef(speed);
-  const originalLaunchTs = useRef(launchTs || performance.now());
-  const originalTravelMs = useRef(travelMs || null);
-  
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const [intensity, setIntensity] = useState(2);
-  const [trailParticles, setTrailParticles] = useState<TrailParticle[]>([]);
   
   // Get projectile opacity from store
   const projectileState = useProjectileStore(state => state.projectiles[id]);
   const opacity = projectileState?.opacity ?? 1.0;
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
   
-  // Normalize direction vector if needed
-  const normalizedDir = useMemo(() => {
-    const length = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
-    if (length === 0) return { x: 0, y: 0, z: 0 };
-    return {
-      x: dir.x / length,
-      y: dir.y / length,
-      z: dir.z / length
-    };
-  }, [dir]);
+  // Use the projectile movement hook for consistent positioning
+  const { position, isDestroyed } = useProjectileMovement({
+    origin,
+    dir,
+    speed,
+    launchTs,
+    shouldAutoDestroy: false, // Let the VfxManager handle destruction
+  });
+  
+  // Setup particle system for trail effects
+  const trailParticles = useParticleSystem({
+    emitterPosition: () => position,
+    emitterShape: 'sphere',
+    emitterRadius: 0.1,
+    particleLifetime: { min: 0.4, max: 0.6 },
+    particleSpeed: { min: 0.1, max: 0.5 },
+    particleSize: { min: 0.1, max: 0.2 },
+    particleOpacity: { min: 0.6, max: 0.8 },
+    emissionRate: isFadingOut ? 5 : 15, // Reduce emission when fading out
+    maxParticles: 40,
+    generateParticle: () => {
+      return {
+        id: `trail-${id}-${Math.random().toString(36).substring(2, 9)}`,
+        position: new Vector3(
+          position.x + (Math.random() - 0.5) * 0.2,
+          position.y + (Math.random() - 0.5) * 0.2,
+          position.z + (Math.random() - 0.5) * 0.2
+        ),
+        velocity: new Vector3(
+          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.5,
+          (Math.random() - 0.5) * 0.5
+        ),
+        scale: 0.1 + Math.random() * 0.1,
+        opacity: 0.6 * opacity, // Adjust for projectile opacity
+        lifetime: 0,
+        maxLifetime: 0.4 + Math.random() * 0.2,
+        color: new Color(0xff8c00),
+        rotation: new Vector3(
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2
+        ),
+        rotationSpeed: new Vector3(
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2
+        ),
+      };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
+      
+      // Update rotation if available
+      const rotParticle = particle as Particle & { rotation?: Vector3, rotationSpeed?: Vector3 };
+      const newRotation = rotParticle.rotation && rotParticle.rotationSpeed ? new Vector3(
+        rotParticle.rotation.x + rotParticle.rotationSpeed.x * deltaTime,
+        rotParticle.rotation.y + rotParticle.rotationSpeed.y * deltaTime,
+        rotParticle.rotation.z + rotParticle.rotationSpeed.z * deltaTime
+      ) : undefined;
+      
+      // Update particle with fading
+      return {
+        ...particle,
+        rotation: newRotation || rotParticle.rotation,
+        opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime) * opacity,
+        scale: particle.scale * 0.98, // Shrink over time
+        lifetime: particle.lifetime + deltaTime
+      };
+    }
+  });
   
   useFrame((state, delta) => {
     if (!ref.current) return;
-    
-    // If fading out, don't update position
-    if (!isFadingOut) {
-      // Calculate position based on server parameters and elapsed time
-      // This ensures the projectile follows exactly the path determined by the server
-      const elapsedTimeSec = (performance.now() - originalLaunchTs.current) / 1000;
-      
-      // Calculate the exact position based on origin, direction, speed, and time
-      const distanceTraveled = originalSpeed.current * elapsedTimeSec;
-      pos.current.x = originalOrigin.current.x + originalDir.current.x * distanceTraveled;
-      pos.current.y = originalOrigin.current.y + originalDir.current.y * distanceTraveled;
-      pos.current.z = originalOrigin.current.z + originalDir.current.z * distanceTraveled;
-      
-      // Apply the calculated position to the mesh
-      ref.current.position.copy(pos.current);
-    }
     
     // Update material opacity
     if (ref.current.material instanceof Material) {
@@ -7540,61 +7770,17 @@ function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).su
     const baseIntensity = 2 * opacity;
     const newIntensity = baseIntensity + Math.sin(state.clock.elapsedTime * 10 + timeOffset.current) * 0.5 * opacity;
     setIntensity(newIntensity);
-    
-    // Add trail particles (fewer when fading out)
-    if (Math.random() > 0.6 && (!isFadingOut || Math.random() > 0.8)) {
-      const newParticle: TrailParticle = {
-        position: pos.current.clone().add(
-          new Vector3(
-            (Math.random() - 0.5) * 0.2,
-            (Math.random() - 0.5) * 0.2,
-            (Math.random() - 0.5) * 0.2
-          )
-        ),
-        scale: 0.1 + Math.random() * 0.2,
-        opacity: 0.8 * opacity, // Adjust opacity based on projectile opacity
-        lifetimeMs: 400 + Math.random() * 200,
-        rotationSpeed: new Vector3(
-          (Math.random() - 0.5) * 2,
-          (Math.random() - 0.5) * 2,
-          (Math.random() - 0.5) * 2
-        ),
-        rotation: new Vector3()
-      };
-      
-      setTrailParticles(prev => [...prev, newParticle]);
-    }
-    
-    // Update trail particles
-    setTrailParticles(prev => 
-      prev.map(particle => {
-        // Update lifetime
-        const newLifetime = particle.lifetimeMs - delta * 1000;
-        
-        // Update rotation
-        particle.rotation.x += particle.rotationSpeed.x * delta;
-        particle.rotation.y += particle.rotationSpeed.y * delta;
-        particle.rotation.z += particle.rotationSpeed.z * delta;
-        
-        return {
-          ...particle,
-          lifetimeMs: newLifetime,
-          opacity: Math.max(0, newLifetime / 400) * opacity, // fade out and respect projectile opacity
-          scale: particle.scale * 0.97 // shrink over time
-        };
-      }).filter(p => p.lifetimeMs > 0)
-    );
   });
   
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[position.x, position.y, position.z]}>
       {/* Main projectile */}
       <mesh ref={ref}>
         <sphereGeometry key={`proj-geo-${id}`} args={[0.25, 16, 16]} />
         <meshStandardMaterial 
           key={`proj-mat-${id}`}
-          color={'orange'} 
-          emissive={'orange'} 
+          color="orange"
+          emissive="orange"
           emissiveIntensity={intensity}
           transparent={true}
           opacity={opacity}
@@ -7603,34 +7789,36 @@ function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).su
         {/* Add glow effect */}
         <pointLight 
           key={`proj-light-${id}`}
-          color={'orange'} 
+          color="orange"
           intensity={intensity} 
           distance={3} 
         />
       </mesh>
       
       {/* Trail particles */}
-      {trailParticles.map((particle, index) => (
-        <mesh
-          key={`trail-${id}-${index}`}
-          position={[particle.position.x, particle.position.y, particle.position.z]}
-          rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
-          scale={[particle.scale, particle.scale, particle.scale]}
-        >
-          <sphereGeometry key={`trail-geo-${id}-${index}`} args={[0.15, 8, 8]} />
-          <meshBasicMaterial 
-            key={`trail-mat-${id}-${index}`}
-            color={new Color(0xff8c00)} 
-            transparent={true} 
-            opacity={particle.opacity} 
-          />
-        </mesh>
-      ))}
+      {trailParticles.particles.map(particle => {
+        const rotParticle = particle as Particle & { rotation?: Vector3 };
+        const rotation = rotParticle.rotation;
+        
+        return (
+          <mesh
+            key={particle.id}
+            position={[particle.position.x, particle.position.y, particle.position.z]}
+            rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
+            scale={[particle.scale, particle.scale, particle.scale]}
+          >
+            <sphereGeometry args={[1, 8, 8]} />
+            <meshBasicMaterial 
+              color="#ff8c00"
+              transparent={true} 
+              opacity={particle.opacity} 
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
-
-export default ProjectileVfx;
 
 
 // ==============================================================================
@@ -8118,43 +8306,109 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
 // FILE: app/game/vfx/WaterProjectile.tsx
 // ==============================================================================
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, MathUtils, Group } from 'three';
+import { Vector3, Mesh, Color, Group } from 'three';
+import useProjectileMovement from './useProjectileMovement';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface WaterProjectileProps {
   id: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
+  launchTs?: number;
 }
 
-interface DropletParticle {
-  position: Vector3;
-  scale: number;
-  opacity: number;
-  velocity: Vector3;
-  lifetimeMs: number;
-  rotation: Vector3;
-  rotationSpeed: Vector3;
-}
-
-// Use named export instead of default
-export function WaterProjectile({ id = `water-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed }: WaterProjectileProps) {
+export default function WaterProjectile({ 
+  id = `water-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+  origin, 
+  dir, 
+  speed, 
+  launchTs = performance.now()
+}: WaterProjectileProps) {
   const mainRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
-  const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const [particles, setParticles] = useState<DropletParticle[]>([]);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
+  // Use the projectile movement hook for consistent positioning
+  const { position } = useProjectileMovement({
+    origin,
+    dir,
+    speed,
+    launchTs
+  });
+  
+  // Setup particle system for water droplet effects
+  const dropletParticles = useParticleSystem({
+    emitterPosition: () => position,
+    emitterShape: 'sphere',
+    emitterRadius: 0.3,
+    particleLifetime: { min: 0.3, max: 0.5 },
+    particleSpeed: { min: 0.5, max: 2 },
+    particleSize: { min: 0.05, max: 0.15 },
+    particleOpacity: { min: 0.7, max: 1.0 },
+    emissionRate: 15,
+    maxParticles: 30,
+    gravity: new Vector3(0, -9.8, 0),
+    generateParticle: () => {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * 0.3;
+      
+      return {
+        id: `droplet-${id}-${Math.random().toString(36).substring(2, 9)}`,
+        position: new Vector3(
+          position.x + Math.cos(angle) * distance,
+          position.y + Math.sin(angle) * distance + 0.1,
+          position.z + Math.sin(angle) * distance
+        ),
+        velocity: new Vector3(
+          (Math.random() - 0.5) * 1.5,
+          Math.random() * 1.5,
+          (Math.random() - 0.5) * 1.5
+        ),
+        scale: 0.05 + Math.random() * 0.1,
+        opacity: 0.7 + Math.random() * 0.3,
+        lifetime: 0,
+        maxLifetime: 0.3 + Math.random() * 0.2,
+        color: new Color(0x57c1eb),
+        rotation: new Vector3(
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2
+        ),
+        rotationSpeed: new Vector3(
+          (Math.random() - 0.5) * 3,
+          (Math.random() - 0.5) * 3,
+          (Math.random() - 0.5) * 3
+        )
+      };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
+      
+      // Update rotation if available
+      const rotParticle = particle as Particle & { rotation?: Vector3, rotationSpeed?: Vector3 };
+      const newRotation = rotParticle.rotation && rotParticle.rotationSpeed ? new Vector3(
+        rotParticle.rotation.x + rotParticle.rotationSpeed.x * deltaTime,
+        rotParticle.rotation.y + rotParticle.rotationSpeed.y * deltaTime,
+        rotParticle.rotation.z + rotParticle.rotationSpeed.z * deltaTime
+      ) : undefined;
+      
+      // Update particle
+      return {
+        ...particle,
+        rotation: newRotation || rotParticle.rotation,
+        opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime), // fade out
+        lifetime: particle.lifetime + deltaTime
+      };
+    }  });
+  
+  // Apply water-like wobble effect
   useFrame((state, delta) => {
     if (!mainRef.current) return;
-    
-    // Move projectile
-    pos.current.x += dir.x * speed * delta;
-    pos.current.y += dir.y * speed * delta;
-    pos.current.z += dir.z * speed * delta;
-    mainRef.current.position.copy(pos.current);
     
     // Water-like wobble effect
     const wobbleFactor = Math.sin(state.clock.elapsedTime * 12 + timeOffset.current) * 0.2 + 0.8;
@@ -8162,103 +8416,487 @@ export function WaterProjectile({ id = `water-${Date.now()}-${Math.random().toSt
     
     // Random movement for more natural water motion
     if (groupRef.current) {
-      groupRef.current.position.y += Math.sin(state.clock.elapsedTime * 10) * 0.01;
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 10) * 0.1;
       groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 4) * 0.05;
     }
-    
-    // Add water droplets
-    if (Math.random() > 0.7) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = Math.random() * 0.3;
-      
-      const newParticle: DropletParticle = {
-        position: pos.current.clone().add(
-          new Vector3(
-            Math.cos(angle) * distance,
-            Math.sin(angle) * distance + 0.1,
-            Math.sin(angle) * distance
-          )
-        ),
-        scale: 0.05 + Math.random() * 0.1,
-        opacity: 0.7 + Math.random() * 0.3,
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1.5,
-          Math.random() * 1.5,
-          (Math.random() - 0.5) * 1.5
-        ),
-        lifetimeMs: 300 + Math.random() * 200,
-        rotation: new Vector3(),
-        rotationSpeed: new Vector3(
-          (Math.random() - 0.5) * 3,
-          (Math.random() - 0.5) * 3,
-          (Math.random() - 0.5) * 3
-        )
-      };
-      
-      setParticles(prev => [...prev, newParticle]);
-    }
-    
-    // Update water particles
-    setParticles(prev => 
-      prev.map(particle => {
-        // Apply gravity and update position
-        particle.velocity.y -= 5 * delta;
-        particle.position.x += particle.velocity.x * delta;
-        particle.position.y += particle.velocity.y * delta;
-        particle.position.z += particle.velocity.z * delta;
-        
-        // Update rotation
-        particle.rotation.x += particle.rotationSpeed.x * delta;
-        particle.rotation.y += particle.rotationSpeed.y * delta;
-        particle.rotation.z += particle.rotationSpeed.z * delta;
-        
-        return {
-          ...particle,
-          lifetimeMs: particle.lifetimeMs - delta * 1000,
-          opacity: Math.max(0, particle.lifetimeMs / 300) // fade out
-        };
-      }).filter(p => p.lifetimeMs > 0 && p.opacity > 0.1)
-    );
   });
   
   return (
-    <group ref={groupRef}>
-      {/* Main water projectile */}
-      <mesh ref={mainRef}>
-        <sphereGeometry key={`water-geo-${id}`} args={[0.3, 16, 16]} />
+    <group 
+      ref={groupRef} 
+      position={[position.x, position.y, position.z]} 
+    >
+      {/* Main water ball */}
+      <mesh key={`core-${id}`} ref={mainRef}>
+        <sphereGeometry key={`core-geo-${id}`} args={[0.4, 16, 16]} />
         <meshStandardMaterial 
-          key={`water-mat-${id}`}
-          color={new Color(0x42a5f5)} // Light blue
+          key={`core-mat-${id}`}
+          color="#57c1eb"
           transparent={true}
           opacity={0.7}
           roughness={0.2}
-          metalness={0.8}
+          metalness={0.7}
         />
       </mesh>
       
-      {/* Water particles */}
-      {particles.map((particle, index) => (
-        <mesh
-          key={`droplet-${id}-${index}`}
-          position={[particle.position.x, particle.position.y, particle.position.z]}
-          rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
-          scale={[particle.scale, particle.scale, particle.scale]}
-        >
-          <sphereGeometry key={`droplet-geo-${id}-${index}`} args={[0.1, 8, 8]} />
-          <meshBasicMaterial 
-            key={`droplet-mat-${id}-${index}`}
-            color={new Color(0x81d4fa)} // Lighter blue for droplets
-            transparent={true}
-            opacity={particle.opacity}
-          />
-        </mesh>
-      ))}
+      {/* Render water droplet particles */}
+      {dropletParticles.particles.map(particle => {
+        const rotParticle = particle as Particle & { rotation?: Vector3 };
+        const rotation = rotParticle.rotation;
+        
+        return (
+          <mesh
+            key={particle.id}
+            position={[particle.position.x, particle.position.y, particle.position.z]}
+            rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
+            scale={[particle.scale, particle.scale, particle.scale]}
+          >
+            <icosahedronGeometry args={[1, 0]} />
+            <meshStandardMaterial
+              color="#57c1eb"
+              transparent
+              opacity={particle.opacity}
+              roughness={0.2}
+              metalness={0.7}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
 
-// Add default export as well for compatibility
-export default WaterProjectile;
+// Maintain compatibility with both default and named exports
+export { WaterProjectile };
+
+
+// ==============================================================================
+// FILE: app/game/vfx/useParticleSystem.ts
+// ==============================================================================
+
+import { useState, useEffect, useRef } from 'react';
+import { Vector3, Color } from 'three';
+import { useFrame } from '@react-three/fiber';
+
+export interface Particle {
+  id: string;
+  position: Vector3;
+  velocity: Vector3;
+  scale: number;
+  opacity: number;
+  color?: Color;
+  rotation?: Vector3;
+  rotationSpeed?: Vector3;
+  lifetime: number;  // Current lifetime in seconds
+  maxLifetime: number; // Maximum lifetime in seconds
+  // Optional properties for different particle effects
+  stretching?: number;
+  acceleration?: Vector3;
+  drag?: number;
+}
+
+export interface ParticleSystemOptions {
+  initialParticles?: Particle[];
+  maxParticles?: number;
+  emissionRate?: number; // Particles per second
+  emitterPosition?: Vector3 | (() => Vector3);
+  emitterShape?: 'point' | 'sphere' | 'box' | 'cone';
+  emitterRadius?: number;
+  emitterSize?: Vector3;
+  particleLifetime?: { min: number; max: number }; // In seconds
+  particleSpeed?: { min: number; max: number };
+  particleSize?: { min: number; max: number };
+  particleOpacity?: { min: number; max: number };
+  gravity?: Vector3;
+  useCollision?: boolean;
+  collisionPlaneY?: number;
+  collisionDamping?: number;
+  colorOverLifetime?: (progress: number) => Color;
+  opacityOverLifetime?: (progress: number) => number;
+  sizeOverLifetime?: (progress: number) => number;
+  generateParticle?: () => Particle;
+  updateParticle?: (particle: Particle, deltaTime: number) => Particle | null;
+}
+
+const defaultOptions: ParticleSystemOptions = {
+  initialParticles: [],
+  maxParticles: 100,
+  emissionRate: 0, // Default to no continuous emission
+  emitterPosition: new Vector3(0, 0, 0),
+  emitterShape: 'point',
+  emitterRadius: 0.5,
+  emitterSize: new Vector3(1, 1, 1),
+  particleLifetime: { min: 1, max: 3 },
+  particleSpeed: { min: 0.5, max: 2 },
+  particleSize: { min: 0.1, max: 0.3 },
+  particleOpacity: { min: 0.5, max: 1 },
+  gravity: new Vector3(0, -9.8, 0),
+  useCollision: false,
+  collisionPlaneY: 0,
+  collisionDamping: 0.5,
+};
+
+const useParticleSystem = (options: ParticleSystemOptions = {}) => {
+  const optionsWithDefaults = { ...defaultOptions, ...options };
+  const [particles, setParticles] = useState<Particle[]>(
+    optionsWithDefaults.initialParticles || []
+  );
+  const lastEmitTime = useRef(0);
+  const isActive = useRef(true);
+  
+  // Generate a new particle
+  const generateParticle = (): Particle => {
+    if (optionsWithDefaults.generateParticle) {
+      return optionsWithDefaults.generateParticle();
+    }
+    
+    // Get emitter position (can be static or dynamic)
+    const emitterPos = typeof optionsWithDefaults.emitterPosition === 'function'
+      ? optionsWithDefaults.emitterPosition()
+      : optionsWithDefaults.emitterPosition!;
+    
+    // Generate position based on emitter shape
+    let position = new Vector3();
+    switch (optionsWithDefaults.emitterShape) {
+      case 'sphere':
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+        const radius = optionsWithDefaults.emitterRadius! * Math.cbrt(Math.random());
+        position.set(
+          emitterPos.x + radius * Math.sin(phi) * Math.cos(theta),
+          emitterPos.y + radius * Math.sin(phi) * Math.sin(theta),
+          emitterPos.z + radius * Math.cos(phi)
+        );
+        break;
+        
+      case 'box':
+        const size = optionsWithDefaults.emitterSize!;
+        position.set(
+          emitterPos.x + (Math.random() - 0.5) * size.x,
+          emitterPos.y + (Math.random() - 0.5) * size.y,
+          emitterPos.z + (Math.random() - 0.5) * size.z
+        );
+        break;
+        
+      case 'cone':
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * optionsWithDefaults.emitterRadius!;
+        position.set(
+          emitterPos.x + Math.cos(angle) * distance,
+          emitterPos.y,
+          emitterPos.z + Math.sin(angle) * distance
+        );
+        break;
+        
+      case 'point':
+      default:
+        position.copy(emitterPos);
+        break;
+    }
+    
+    // Generate random velocity direction
+    const velocityDir = new Vector3(
+      Math.random() * 2 - 1,
+      Math.random() * 2 - 1,
+      Math.random() * 2 - 1
+    ).normalize();
+    
+    // Apply random speed
+    const speed = optionsWithDefaults.particleSpeed!.min + 
+      Math.random() * (optionsWithDefaults.particleSpeed!.max - optionsWithDefaults.particleSpeed!.min);
+    const velocity = velocityDir.multiplyScalar(speed);
+    
+    // Generate other random properties
+    const scale = optionsWithDefaults.particleSize!.min + 
+      Math.random() * (optionsWithDefaults.particleSize!.max - optionsWithDefaults.particleSize!.min);
+    const opacity = optionsWithDefaults.particleOpacity!.min + 
+      Math.random() * (optionsWithDefaults.particleOpacity!.max - optionsWithDefaults.particleOpacity!.min);
+    const lifetime = 0; // Start at 0
+    const maxLifetime = optionsWithDefaults.particleLifetime!.min + 
+      Math.random() * (optionsWithDefaults.particleLifetime!.max - optionsWithDefaults.particleLifetime!.min);
+    
+    return {
+      id: `particle-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      position,
+      velocity,
+      scale,
+      opacity,
+      lifetime,
+      maxLifetime,
+      color: new Color(0xffffff),
+      rotation: new Vector3(0, 0, 0),
+      rotationSpeed: new Vector3(
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2
+      ),
+    };
+  };
+  
+  // Update a particle for a time step
+  const updateParticle = (particle: Particle, deltaTime: number): Particle | null => {
+    if (optionsWithDefaults.updateParticle) {
+      return optionsWithDefaults.updateParticle(particle, deltaTime);
+    }
+    
+    // Update lifetime and check if particle should be removed
+    const newLifetime = particle.lifetime + deltaTime;
+    if (newLifetime >= particle.maxLifetime) {
+      return null; // Remove particle
+    }
+    
+    // Clone particle for updates
+    const newParticle = { ...particle, lifetime: newLifetime };
+    
+    // Apply gravity
+    if (optionsWithDefaults.gravity) {
+      newParticle.velocity = new Vector3(
+        particle.velocity.x + optionsWithDefaults.gravity.x * deltaTime,
+        particle.velocity.y + optionsWithDefaults.gravity.y * deltaTime,
+        particle.velocity.z + optionsWithDefaults.gravity.z * deltaTime
+      );
+    }
+    
+    // Apply velocity to position
+    newParticle.position = new Vector3(
+      particle.position.x + particle.velocity.x * deltaTime,
+      particle.position.y + particle.velocity.y * deltaTime,
+      particle.position.z + particle.velocity.z * deltaTime
+    );
+    
+    // Apply rotation
+    if (particle.rotation && particle.rotationSpeed) {
+      newParticle.rotation = new Vector3(
+        particle.rotation.x + particle.rotationSpeed.x * deltaTime,
+        particle.rotation.y + particle.rotationSpeed.y * deltaTime,
+        particle.rotation.z + particle.rotationSpeed.z * deltaTime
+      );
+    }
+    
+    // Check for collision with ground
+    if (optionsWithDefaults.useCollision && 
+        newParticle.position.y < optionsWithDefaults.collisionPlaneY!) {
+      // Reflect off the ground with damping
+      newParticle.position.y = optionsWithDefaults.collisionPlaneY!;
+      newParticle.velocity.y = -newParticle.velocity.y * optionsWithDefaults.collisionDamping!;
+      
+      // Apply friction to horizontal velocity
+      newParticle.velocity.x *= 0.9;
+      newParticle.velocity.z *= 0.9;
+      
+      // If velocity is very small after bouncing, just stop it
+      if (Math.abs(newParticle.velocity.y) < 0.1) {
+        newParticle.velocity.y = 0;
+      }
+    }
+    
+    // Apply color over lifetime if provided
+    if (optionsWithDefaults.colorOverLifetime && particle.color) {
+      const lifetimeProgress = newParticle.lifetime / newParticle.maxLifetime;
+      newParticle.color = optionsWithDefaults.colorOverLifetime(lifetimeProgress);
+    }
+    
+    // Apply opacity over lifetime if provided
+    if (optionsWithDefaults.opacityOverLifetime) {
+      const lifetimeProgress = newParticle.lifetime / newParticle.maxLifetime;
+      newParticle.opacity = optionsWithDefaults.opacityOverLifetime(lifetimeProgress);
+    }
+    
+    // Apply size over lifetime if provided
+    if (optionsWithDefaults.sizeOverLifetime) {
+      const lifetimeProgress = newParticle.lifetime / newParticle.maxLifetime;
+      newParticle.scale = optionsWithDefaults.sizeOverLifetime(lifetimeProgress);
+    }
+    
+    return newParticle;
+  };
+  
+  // Add new particles to the system
+  const addParticles = (newParticles: Particle[]) => {
+    setParticles(currentParticles => {
+      // Enforce max particles limit if needed
+      const combinedParticles = [...currentParticles, ...newParticles];
+      if (optionsWithDefaults.maxParticles && 
+          combinedParticles.length > optionsWithDefaults.maxParticles) {
+        return combinedParticles.slice(-optionsWithDefaults.maxParticles);
+      }
+      return combinedParticles;
+    });
+  };
+  
+  // Emit a specific number of particles
+  const emit = (count: number) => {
+    const newParticles = Array.from({ length: count }, generateParticle);
+    addParticles(newParticles);
+  };
+  
+  // Clear all particles
+  const clear = () => {
+    setParticles([]);
+  };
+  
+  // Pause/resume the particle system
+  const setActive = (active: boolean) => {
+    isActive.current = active;
+  };
+  
+  // Setup continuous emission if enabled
+  useFrame((_, delta) => {
+    if (!isActive.current) return;
+    
+    const now = performance.now();
+    const deltaSeconds = delta; // delta is already in seconds
+    
+    // Handle continuous emission if enabled
+    if (optionsWithDefaults.emissionRate! > 0) {
+      const timeSinceLastEmit = (now - lastEmitTime.current) / 1000; // convert to seconds
+      const particlesToEmit = Math.floor(timeSinceLastEmit * optionsWithDefaults.emissionRate!);
+      
+      if (particlesToEmit > 0) {
+        emit(particlesToEmit);
+        lastEmitTime.current = now;
+      }
+    }
+    
+    // Update all particles
+    setParticles(currentParticles => {
+      return currentParticles
+        .map(particle => updateParticle(particle, deltaSeconds))
+        .filter((particle): particle is Particle => particle !== null);
+    });
+  });
+  
+  // Initialize with provided particles
+  useEffect(() => {
+    if (optionsWithDefaults.initialParticles && 
+        optionsWithDefaults.initialParticles.length > 0) {
+      setParticles(optionsWithDefaults.initialParticles);
+    }
+    
+    lastEmitTime.current = performance.now();
+    
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+  
+  return {
+    particles,
+    emit,
+    clear,
+    setActive,
+    addParticles,
+  };
+};
+
+export default useParticleSystem;
+
+
+// ==============================================================================
+// FILE: app/game/vfx/useProjectileMovement.ts
+// ==============================================================================
+
+import { useState, useEffect, useRef } from 'react';
+import { Vector3 } from 'three';
+import { useFrame } from '@react-three/fiber';
+
+/**
+ * Hook for calculating projectile movement based on the server's expected trajectory.
+ * Uses precise timing to ensure client-server consistency.
+ */
+export interface ProjectileMovementOptions {
+  origin: { x: number; y: number; z: number };
+  dir: { x: number; y: number; z: number };
+  speed: number;
+  launchTs: number;
+  gravity?: number;
+  shouldAutoDestroy?: boolean;
+  maxDistance?: number;
+  onDestroy?: () => void;
+}
+
+const useProjectileMovement = ({
+  origin,
+  dir,
+  speed,
+  launchTs,
+  gravity = 0,
+  shouldAutoDestroy = false,
+  maxDistance = 100,
+  onDestroy
+}: ProjectileMovementOptions) => {
+  // Create stable references for the initial values
+  const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
+  const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
+  const originalSpeed = useRef(speed);
+  const originalLaunchTs = useRef(launchTs);
+  
+  // Use state for the current position so renders will happen when it updates
+  const [currentPosition, setCurrentPosition] = useState(new Vector3(origin.x, origin.y, origin.z));
+  
+  // Additional refs for tracking distance, etc.
+  const totalDistance = useRef(0);
+  const isDestroyed = useRef(false);
+  
+  // Function to calculate position at a given time
+  const calculatePosition = (elapsedTimeSeconds: number) => {
+    // Calculate the base motion (direction * speed * time)
+    const position = new Vector3().copy(originalOrigin.current);
+    const movement = new Vector3()
+      .copy(originalDir.current)
+      .multiplyScalar(originalSpeed.current * elapsedTimeSeconds);
+    
+    // Apply movement
+    position.add(movement);
+    
+    // Apply gravity if specified (gravity * time^2 / 2)
+    if (gravity !== 0) {
+      position.y -= 0.5 * gravity * elapsedTimeSeconds * elapsedTimeSeconds;
+    }
+    
+    // Calculate total distance traveled
+    const distanceTraveled = originalSpeed.current * elapsedTimeSeconds;
+    totalDistance.current = distanceTraveled;
+    
+    return position;
+  };
+  
+  // Update position each frame
+  useFrame(() => {
+    if (isDestroyed.current) return;
+    
+    // Calculate elapsed time in seconds since launch
+    const now = performance.now();
+    const elapsedTimeSeconds = (now - originalLaunchTs.current) / 1000;
+    
+    // Calculate new position
+    const newPosition = calculatePosition(elapsedTimeSeconds);
+    setCurrentPosition(newPosition);
+    
+    // Check if projectile should be destroyed
+    if (shouldAutoDestroy && totalDistance.current >= maxDistance) {
+      isDestroyed.current = true;
+      if (onDestroy) onDestroy();
+    }
+  });
+  
+  // Expose methods to manually destroy the projectile
+  const destroy = () => {
+    if (!isDestroyed.current) {
+      isDestroyed.current = true;
+      if (onDestroy) onDestroy();
+    }
+  };
+  
+  return {
+    position: currentPosition,
+    isDestroyed: isDestroyed.current,
+    destroy,
+    totalDistance: totalDistance.current
+  };
+};
+
+export default useProjectileMovement;
 
 
 // ==============================================================================

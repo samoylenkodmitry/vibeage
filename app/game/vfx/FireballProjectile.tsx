@@ -1,180 +1,158 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group, Material, MeshBasicMaterial } from 'three';
+import { Vector3, Mesh, Color, Group, MeshBasicMaterial } from 'three';
+import useProjectileMovement from './useProjectileMovement';
+import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface FireballProjectileProps {
-  id: string;
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
-  launchTs?: number; // Add launch timestamp
+  launchTs?: number;
 }
 
-interface FireParticle {
-  id: string;
-  position: Vector3;
-  scale: number;
-  opacity: number;
-  velocity: Vector3;
-  lifetimeMs: number;
-  color: Color;
-}
-
-export function FireballProjectile({ id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs }: FireballProjectileProps) {
+export default function FireballProjectile({ 
+  id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
+  origin, 
+  dir, 
+  speed, 
+  launchTs = performance.now() 
+}: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
-  const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
-  const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z));
-  const originalSpeed = useRef(speed);
-  const originalLaunchTs = useRef(launchTs || performance.now());
-  
-  const [particles, setParticles] = useState<FireParticle[]>([]);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
-  // Generate initial fire particles only once on component mount
+  // Use the projectile movement hook for consistent positioning
+  const { position } = useProjectileMovement({
+    origin,
+    dir,
+    speed,
+    launchTs
+  });
+  
+  // Log initial values
   useEffect(() => {
-    const initialParticles: FireParticle[] = [];
-    for (let i = 0; i < 15; i++) {
-      initialParticles.push({
-        id: `flame-${id}-initial-${i}-${Math.random().toString(36).substr(2, 9)}`,
+    console.log(`[Fireball ${id}] Created with:`, {
+      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
+      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
+      speed,
+      launchTs
+    });
+  }, [id, origin, dir, speed, launchTs]);
+  
+  // Add debug logging for position updates
+  useEffect(() => {
+    console.log(`[Fireball ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
+  }, [id, position]);
+
+  // Setup particle system for fire effects
+  const fireParticles = useParticleSystem({
+    emitterPosition: () => position,
+    emitterShape: 'sphere',
+    emitterRadius: 0.2,
+    particleLifetime: { min: 0.1, max: 0.5 },
+    particleSpeed: { min: 0.5, max: 2 },
+    particleSize: { min: 0.05, max: 0.2 },
+    particleOpacity: { min: 0.6, max: 1.0 },
+    emissionRate: 40,
+    maxParticles: 50,
+    generateParticle: () => {
+      return {
+        id: `flame-${id}-${Math.random().toString(36).substring(2, 9)}`,
         position: new Vector3(
-          origin.x + (Math.random() - 0.5) * 0.3,
-          origin.y + (Math.random() - 0.5) * 0.3,
-          origin.z + (Math.random() - 0.5) * 0.3
+          position.x + (Math.random() - 0.5) * 0.3,
+          position.y + (Math.random() - 0.5) * 0.3,
+          position.z + (Math.random() - 0.5) * 0.3
+        ),
+        velocity: new Vector3(
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2
         ),
         scale: 0.05 + Math.random() * 0.15,
         opacity: 0.6 + Math.random() * 0.4,
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1,
-          (Math.random() - 0.5) * 1,
-          (Math.random() - 0.5) * 1
-        ),
-        lifetimeMs: 100 + Math.random() * 300,
+        lifetime: 0,
+        maxLifetime: 0.1 + Math.random() * 0.4,
         color: new Color().setHSL(
           0.05 + Math.random() * 0.06, // orange-red hue
           0.7 + Math.random() * 0.3,   // saturation
           0.5 + Math.random() * 0.5    // lightness
-        )
-      });
+        ),
+      };
+    },
+    updateParticle: (particle: Particle, deltaTime: number) => {
+      if (particle.lifetime + deltaTime > particle.maxLifetime) {
+        return null; // Remove particle
+      }
+      
+      // Update particle
+      return {
+        ...particle,
+        position: new Vector3(
+          particle.position.x + particle.velocity.x * deltaTime,
+          particle.position.y + particle.velocity.y * deltaTime,
+          particle.position.z + particle.velocity.z * deltaTime
+        ),
+        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)),
+        lifetime: particle.lifetime + deltaTime
+      };
     }
-    setParticles(initialParticles);
-  }, []); // Empty dependency array ensures this only runs once on mount
+  });
   
+  // Add wobble effect to core
   useFrame((state, delta) => {
     if (!coreRef.current) return;
     
-    // Calculate position based on server parameters and elapsed time
-    // This ensures the projectile follows exactly the path determined by the server
-    const elapsedTimeSec = (performance.now() - originalLaunchTs.current) / 1000;
-    
-    // Calculate the exact position based on origin, direction, speed, and time
-    const distanceTraveled = originalSpeed.current * elapsedTimeSec;
-    pos.current.x = originalOrigin.current.x + originalDir.current.x * distanceTraveled;
-    pos.current.y = originalOrigin.current.y + originalDir.current.y * distanceTraveled;
-    pos.current.z = originalOrigin.current.z + originalDir.current.z * distanceTraveled;
-    
-    // Apply the calculated position to the mesh
-    coreRef.current.position.copy(pos.current);
-    
     // Fire core pulsing
-    const pulseFactor = Math.sin(state.clock.elapsedTime * 15 + timeOffset.current) * 0.15 + 1;
+    const time = state.clock.elapsedTime;
+    const pulseFactor = Math.sin(time * 15 + timeOffset.current) * 0.15 + 1;
     coreRef.current.scale.set(pulseFactor, pulseFactor, pulseFactor);
     
     // Random fire flickering through material opacity
     if (coreRef.current.material instanceof MeshBasicMaterial) {
-      const flickerOpacity = 0.8 + Math.sin(state.clock.elapsedTime * 20) * 0.2;
+      const flickerOpacity = 0.8 + Math.sin(time * 20) * 0.2;
       coreRef.current.material.opacity = flickerOpacity;
     }
-    
-    // Add fire trail particles
-    if (Math.random() > 0.4) {
-      const newParticle: FireParticle = {
-        id: `flame-${id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        position: pos.current.clone().add(
-          new Vector3(
-            (Math.random() - 0.5) * 0.3,
-            (Math.random() - 0.5) * 0.3,
-            (Math.random() - 0.5) * 0.3 - 0.2 // bias toward trail behind
-          )
-        ),
-        scale: 0.05 + Math.random() * 0.15,
-        opacity: 0.6 + Math.random() * 0.4,
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1,
-          (Math.random() * 1), // upward bias
-          (Math.random() - 0.5) * 1
-        ),
-        lifetimeMs: 200 + Math.random() * 300,
-        color: new Color().setHSL(
-          0.05 + Math.random() * 0.06, // orange-red hue
-          0.7 + Math.random() * 0.3,   // saturation
-          0.5 + Math.random() * 0.5    // lightness
-        )
-      };
-      
-      setParticles(prev => [...prev, newParticle]);
-    }
-    
-    // Update fire particles
-    setParticles(prev => 
-      prev.map(particle => {
-        // Rise and drift
-        particle.position.x += particle.velocity.x * delta;
-        particle.position.y += particle.velocity.y * delta;
-        particle.position.z += particle.velocity.z * delta;
-        
-        // Make particles rise faster as they age
-        particle.velocity.y += delta * 0.5;
-        
-        // Expand slightly as they rise
-        const newScale = particle.scale * (1 + delta * 0.3);
-        
-        return {
-          ...particle,
-          scale: newScale,
-          lifetimeMs: particle.lifetimeMs - delta * 1000,
-          opacity: Math.max(0, particle.lifetimeMs / 300) // fade out
-        };
-      }).filter(p => p.lifetimeMs > 0 && p.opacity > 0.05)
-    );
   });
   
   return (
-    <group ref={groupRef}>
+    <group 
+      ref={groupRef} 
+      position={[position.x, position.y, position.z]} 
+    >
       {/* Main fire core */}
       <mesh key={`core-${id}`} ref={coreRef}>
         <sphereGeometry key={`core-geo-${id}`} args={[0.25, 16, 16]} />
         <meshBasicMaterial 
           key={`core-mat-${id}`}
-          color={new Color(0xff5500)}
+          color={0xff5500}
           transparent={true}
           opacity={0.9}
         />
       </mesh>
       
       {/* Outer glow */}
-      <mesh key={`glow-${id}`} position={pos.current.toArray()}>
+      <mesh key={`glow-${id}`}>
         <sphereGeometry key={`glow-geo-${id}`} args={[0.4, 16, 16]} />
         <meshBasicMaterial 
           key={`glow-mat-${id}`}
-          color={new Color(0xff8800)}
+          color={0xff8800}
           transparent={true}
-          opacity={0.4}
+          opacity={0.6}
         />
       </mesh>
       
-      {/* Fire particles */}
-      {particles.map((particle) => (
+      {/* Render fire particles */}
+      {fireParticles.particles.map((particle) => (
         <mesh
           key={particle.id}
           position={[particle.position.x, particle.position.y, particle.position.z]}
           scale={[particle.scale, particle.scale, particle.scale]}
         >
-          <sphereGeometry key={`geo-${particle.id}`} args={[0.1, 8, 8]} />
-          <meshBasicMaterial 
-            key={`mat-${particle.id}`}
-            color={particle.color}
+          <sphereGeometry args={[1, 8, 8]} />
+          <meshBasicMaterial
+            color={0xff7700}
             transparent={true}
             opacity={particle.opacity}
           />
@@ -183,6 +161,3 @@ export function FireballProjectile({ id = `fireball-${Date.now()}-${Math.random(
     </group>
   );
 }
-
-// Make sure to export both as named and default export for compatibility
-export default FireballProjectile;

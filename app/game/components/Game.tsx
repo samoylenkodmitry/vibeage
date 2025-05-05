@@ -11,6 +11,7 @@ import UI from './UI';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import ActiveSkills from './ActiveSkills';
 import TargetRing from './TargetRing';
+import VfxManager from './VfxManager';
 import { useGameStore } from '../systems/gameStore';
 import SocketManager from '../systems/SocketManager';
 
@@ -113,6 +114,7 @@ export default function Game() {
             <Enemies />
             <ActiveSkills />
             <TargetRing />
+            <VfxManager />
           </Physics>
         </Canvas>
       </KeyboardControls>

@@ -52,6 +52,13 @@ export default function SocketManager() {
   }, [removePlayer]);
 
   const handlePlayerUpdated = useCallback((playerData: any) => {
+    console.log('[SocketManager] Player updated:', playerData);
+    
+    // Check if skill points are included in the update
+    if (playerData.availableSkillPoints !== undefined) {
+      console.log(`[SocketManager] Skill points updated for player ${playerData.id}: ${playerData.availableSkillPoints}`);
+    }
+    
     updatePlayer(playerData);
   }, [updatePlayer]);
 

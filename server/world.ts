@@ -853,6 +853,9 @@ export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo:
   
   // Check for level up
   if (player.experience >= player.experienceToNextLevel) {
+    const oldLevel = player.level;
+    const oldSkillPoints = player.availableSkillPoints;
+    
     player.level += 1;
     const oldMaxExp = player.experienceToNextLevel;
     player.experience -= player.experienceToNextLevel; // Keep excess XP
@@ -869,7 +872,9 @@ export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo:
     
     // Award a skill point on level up
     player.availableSkillPoints += 1;
-    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints}`);
+    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints} (before: ${oldSkillPoints})`);
+    
+    console.log(`[LEVEL_UP] Player ${player.id}: Level ${oldLevel} -> ${player.level}, Skill Points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
   }
   
   // Broadcast the updated player state so clients see XP and level changes
@@ -933,10 +938,37 @@ function spawnProjectile(
  */
 function updateProjectiles(state: GameState, dt: number, io: Server): void {
   const projectilesToRemove: number[] = [];
+  const now = Date.now();
   
   // Process each projectile
   for (let i = 0; i < state.projectiles.length; i++) {
     const p = state.projectiles[i];
+    
+    // Check projectile lifetime - remove if it's too old (10 seconds max lifetime)
+    const projectileLifetime = now - p.spawnTs;
+    if (projectileLifetime > 10000) {
+      log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} removed due to exceeding maximum lifetime (${projectileLifetime}ms)`);
+      projectilesToRemove.push(i);
+      continue;
+    }
+    
+    // Calculate the total distance traveled since spawn
+    const startPos = { 
+      x: p.pos.x - p.dir.x * p.speed * (projectileLifetime / 1000),
+      z: p.pos.z - p.dir.z * p.speed * (projectileLifetime / 1000)
+    };
+    const distanceTraveled = Math.sqrt(
+      Math.pow(p.pos.x - startPos.x, 2) + 
+      Math.pow(p.pos.z - startPos.z, 2)
+    );
+    
+    // Remove projectile if it has traveled too far
+    const maxDistance = 100; // Reduced from 5000 to a more reasonable value
+    if (distanceTraveled > maxDistance) {
+      log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} removed due to exceeding maximum distance (${distanceTraveled.toFixed(2)} > ${maxDistance})`);
+      projectilesToRemove.push(i);
+      continue;
+    }
     
     // Calculate new position using linear movement
     const oldPos = { ...p.pos };
@@ -1272,9 +1304,9 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       }
     }
     
-    // Check TTL (Time To Live) - 4 seconds max lifetime
+    // Check TTL (Time To Live) - 2 seconds max lifetime (reduced from 4)
     const now = Date.now();
-    if (now - p.spawnTs > 4000) {
+    if (now - p.spawnTs > 2000) {
       log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
       io.emit('msg', {
         type: 'ProjHit2',
