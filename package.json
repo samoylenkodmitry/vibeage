@@ -14,7 +14,8 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bench": "vitest bench"
+    "bench": "vitest bench",
+    "generate-docs": "tsx generate-project-doc.ts"
   },
   "dependencies": {
     "@react-three/cannon": "^6.6.0",
