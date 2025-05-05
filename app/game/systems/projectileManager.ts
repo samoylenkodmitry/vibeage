@@ -27,6 +27,7 @@ export interface ProjectileLive {
   state: 'active' | 'hit';
   fadeOutStartTs?: number;
   opacity: number;
+  travelMs?: number; // Travel time in milliseconds for accurate client-side animation
 }
 
 interface ProjectileStore {
@@ -138,7 +139,8 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
           casterId: data.casterId || 'unknown', // Handle potential undefined casterId
           skillId: data.skillId || 'unknown',  // Handle potential undefined skillId
           state: 'active',
-          opacity: 1.0
+          opacity: 1.0,
+          travelMs: data.travelMs // Store the server-provided travel time
         }
       }
     }));

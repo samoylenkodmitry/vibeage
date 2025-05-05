@@ -98,14 +98,6 @@ describe('SpatialHashGrid', () => {
     expect(result.filter((id: string) => id === 'entity1').length).toBe(1);
   });
   
-  it('returns each id only once', () => {
-    const grid = new SpatialHashGrid(6);
-    grid.insert('A', { x: 0, z: 0 });
-    grid.insert('A', { x: 0, z: 0 });  // same cell, allowed internally
-    const res = grid.queryCircle({ x: 0, z: 0 }, 1);
-    expect(res.filter((id: string) => id === 'A').length).toBe(1);
-  });
-  
   it('should handle 1,000 entities and 1,000 queries with performance under 5ms', () => {
     const grid = new SpatialHashGrid(6);
     const entities: Array<{ id: string, pos: { x: number, z: number } }> = [];

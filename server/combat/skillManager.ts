@@ -411,6 +411,7 @@ export function tickCasts(dt: number, io: Server, world: World): void {
           
           // Calculate direction vector
           let dir = { x: 0, z: 0 };
+          let tgtPos = cast.targetPos;
           
           if (cast.targetPos) {
             // Targeted at a position
@@ -429,27 +430,55 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             // Targeted at an entity
             const target = world.getEnemyById(cast.targetId);
             if (target) {
+              // Calculate travel time based on distance and speed
               const targetPos = { x: target.position.x, z: target.position.z };
-              const dx = targetPos.x - cast.origin.x;
-              const dz = targetPos.z - cast.origin.z;
-              const dist = Math.sqrt(dx * dx + dz * dz);
+              const srcPos = cast.origin;
+              const dist = Math.sqrt(
+                Math.pow(targetPos.x - srcPos.x, 2) + 
+                Math.pow(targetPos.z - srcPos.z, 2)
+              );
+              
+              const speed = skill.projectile?.speed || 5;
+              const travelS = dist / speed;
+              
+              // Predict the target's position after travel time
+              const predicted = predictPosition(target, now + travelS * 1000);
+              
+              // Update target position to the predicted position
+              tgtPos = predicted;
+              
+              // Calculate direction to predicted position
+              const dx = predicted.x - cast.origin.x;
+              const dz = predicted.z - cast.origin.z;
+              const predictedDist = Math.sqrt(dx * dx + dz * dz);
               
               // Normalize the direction
-              if (dist > 0) {
+              if (predictedDist > 0) {
                 dir = {
-                  x: dx / dist,
-                  z: dz / dist
+                  x: dx / predictedDist,
+                  z: dz / predictedDist
                 };
               }
             }
           }
+          
+          // Calculate travel time in milliseconds
+          const speed = skill.projectile?.speed || 5;
+          const dist = tgtPos ? 
+            Math.sqrt(
+              Math.pow(tgtPos.x - cast.origin.x, 2) + 
+              Math.pow(tgtPos.z - cast.origin.z, 2)
+            ) : skill.range || 10; // Default to skill range if no target
+          
+          const travelS = dist / speed;
+          const travelMs = travelS * 1000;
           
           // Create projectile
           const projectile: Projectile = {
             castId: cast.castId,
             pos: { ...cast.origin },
             dir,
-            speed: skill.projectile?.speed || 5,
+            speed: speed,
             distanceTraveled: 0,
             maxRange: skill.range || 10,
             startTime: now,
@@ -458,7 +487,7 @@ export function tickCasts(dt: number, io: Server, world: World): void {
           
           projectiles.push(projectile);
           
-          // Emit projectile spawn
+          // Emit projectile spawn with travelMs
           io.emit('msg', {
             type: 'ProjSpawn2',
             castId: cast.castId,
@@ -466,7 +495,8 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             dir,
             speed: projectile.speed,
             launchTs: now,
-            hitRadius: skill.projectile?.hitRadius
+            hitRadius: skill.projectile?.hitRadius,
+            travelMs: travelMs
           } as ProjSpawn2);
           
           // Broadcast cast state change

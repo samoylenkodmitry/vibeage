@@ -9,6 +9,7 @@ interface ProjectileVfxProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number; // Add launch timestamp
+  travelMs?: number; // Travel time for client-side animation
 }
 
 interface TrailParticle {
@@ -20,7 +21,7 @@ interface TrailParticle {
   rotation: Vector3;
 }
 
-function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs}: ProjectileVfxProps) {
+function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, origin, dir, speed, launchTs, travelMs}: ProjectileVfxProps) {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const pos = useRef(new Vector3(origin.x, origin.y, origin.z));
@@ -28,6 +29,7 @@ function ProjectileVfx({id = `proj-${Date.now()}-${Math.random().toString(36).su
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z));
   const originalSpeed = useRef(speed);
   const originalLaunchTs = useRef(launchTs || performance.now());
+  const originalTravelMs = useRef(travelMs || null);
   
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const [intensity, setIntensity] = useState(2);

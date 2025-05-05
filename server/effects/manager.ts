@@ -27,6 +27,21 @@ export class EffectManager {
       const p = new Projectile(skill, origin, dir, caster.id, targetId);
       this.effects[p.id] = p;
       
+      // Calculate travel time for the projectile if we have a target
+      let travelMs;
+      if (targetId) {
+          const target = this.state.enemies[targetId] || this.state.players[targetId];
+          if (target) {
+              const dist = Math.sqrt(
+                  Math.pow(target.position.x - origin.x, 2) +
+                  Math.pow(target.position.z - origin.z, 2)
+              );
+              const speedMPS = skill.projectile?.speed || skill.speed || 0;
+              const speedMPMS = speedMPS / 1000;
+              travelMs = Math.ceil(dist / speedMPMS);
+          }
+      }
+      
       // Emit enhanced projectile spawn event
       this.io.emit('msg', {
         type: 'ProjSpawn2',
@@ -37,7 +52,8 @@ export class EffectManager {
         speed: skill.projectile?.speed || skill.speed || 0, 
         launchTs: Date.now(),
         casterId: caster.id,
-        hitRadius: skill.projectile?.hitRadius || 0.5
+        hitRadius: skill.projectile?.hitRadius || 0.5,
+        travelMs: travelMs
       } as ProjSpawn2);
       
       return p.id;

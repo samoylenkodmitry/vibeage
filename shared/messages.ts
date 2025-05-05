@@ -143,6 +143,7 @@ export interface ProjSpawn2 extends ServerMsg {
   hitRadius?: number;  // Optional hitRadius for VFX
   casterId?: string;   // ID of the entity that cast this projectile
   skillId?: string;    // ID of the skill that created this projectile
+  travelMs?: number;   // Flight time client-side
 }
 
 export interface ProjHit2 extends ServerMsg {

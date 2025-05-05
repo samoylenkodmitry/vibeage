@@ -1,4 +1,4 @@
-# Game Protocol - v0.5.0
+# Game Protocol - v0.6.1
 
 This document describes the current messaging protocol used for communication between the client and server.
 
@@ -35,6 +35,7 @@ interface ProjSpawn2 {
   hitRadius?: number;   // Optional collision radius for VFX
   casterId?: string;    // ID of the entity that cast this
   skillId?: string;     // Type of skill
+  travelMs?: number;    // Flight time for client-side animation
 }
 ```
 

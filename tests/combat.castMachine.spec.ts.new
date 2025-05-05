@@ -91,7 +91,7 @@ vi.mock('nanoid', () => ({
   nanoid: () => 'test-id'
 }));
 
-// In our tickCasts implementation, check we're using the right enum values
+// Mock the server module with our custom implementations
 vi.mock('../server/combat/skillManager', () => ({
   activeCastsNew: mockActiveCasts,
   projectiles: mockProjectiles,
@@ -101,27 +101,27 @@ vi.mock('../server/combat/skillManager', () => ({
       const now = Date.now();
       
       // If the cast is in Casting state and cast time has elapsed
-      if (cast.state === 0 && // CastState.Casting 
+      if (cast.state === CastState.Casting && 
           now - cast.startedAt >= cast.castTimeMs) {
         
         // Special case for instant effects (no projectile)
         if (cast.skillId === 'instant_heal') {
           // Transition directly to Impact state
-          cast.state = 2; // CastState.Impact
+          cast.state = CastState.Impact;
           
           // Emit a snapshot with the Impact state
           server.emit('msg', {
             type: 'CastSnapshot',
             data: {
               castId: cast.castId,
-              state: 2 // CastState.Impact
+              state: CastState.Impact
             }
           });
           continue;
         }
         
         // Transition to Traveling state for projectile skills
-        cast.state = 1; // CastState.Traveling
+        cast.state = CastState.Traveling;
         
         // Create a projectile
         const dir = {
@@ -187,7 +187,7 @@ vi.mock('../server/combat/skillManager', () => ({
           
           // Set cast to Impact state
           const cast = mockActiveCasts.find((c: any) => c.castId === proj.castId);
-          if (cast) cast.state = 2; // CastState.Impact
+          if (cast) cast.state = CastState.Impact;
           
           // Remove this projectile
           mockProjectiles.splice(i, 1);
@@ -207,7 +207,7 @@ vi.mock('../server/combat/skillManager', () => ({
       if (proj.distanceTraveled >= proj.maxRange) {
         // Handle max range detonation
         const cast = mockActiveCasts.find((c: any) => c.castId === proj.castId);
-        if (cast) cast.state = 2; // CastState.Impact
+        if (cast) cast.state = CastState.Impact;
         
         // Emit empty hit
         server.emit('msg', {
@@ -251,7 +251,7 @@ describe('Cast State Machine', () => {
       castId: 'cast1',
       casterId: 'player1',
       skillId: 'fireball',
-      state: 0, // CastState.Casting
+      state: CastState.Casting,
       origin: { x: 0, z: 0 },
       targetPos: { x: 10, z: 10 },
       startedAt: Date.now() - 1000, // Started 1 second ago
@@ -265,7 +265,7 @@ describe('Cast State Machine', () => {
     tickCasts(100, mockServer, mockWorld);
     
     // Check the state has changed to Traveling
-    expect(testCast.state).toBe(1); // CastState.Traveling
+    expect(testCast.state).toBe(CastState.Traveling);
     
     // Check that a projectile was created
     expect(mockProjectiles.length).toBe(1);
@@ -284,7 +284,7 @@ describe('Cast State Machine', () => {
       castId: 'cast2',
       casterId: 'player1',
       skillId: 'fireball',
-      state: 1, // CastState.Traveling
+      state: CastState.Traveling,
       origin: { x: 0, z: 0 },
       targetPos: { x: 10, z: 10 },
       startedAt: Date.now() - 1000,
@@ -312,7 +312,7 @@ describe('Cast State Machine', () => {
     expect(mockProjectiles.length).toBe(0);
     
     // The cast should transition to Impact state
-    expect(testCast.state).toBe(2); // CastState.Impact
+    expect(testCast.state).toBe(CastState.Impact);
     
     // Check that a hit message was emitted
     expect(mockEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
@@ -329,7 +329,7 @@ describe('Cast State Machine', () => {
       castId: 'cast3',
       casterId: 'player1',
       skillId: 'instant_heal',
-      state: 0, // CastState.Casting
+      state: CastState.Casting,
       origin: { x: 0, z: 0 },
       startedAt: Date.now() - 1000, // Started 1 second ago
       castTimeMs: 500 // 500ms cast time
@@ -342,7 +342,7 @@ describe('Cast State Machine', () => {
     tickCasts(100, mockServer, mockWorld);
     
     // Check the state has changed directly to Impact (skipping Traveling)
-    expect(instantCast.state).toBe(2); // CastState.Impact
+    expect(instantCast.state).toBe(CastState.Impact);
     
     // No projectile should be created
     expect(mockProjectiles.length).toBe(0);
@@ -363,7 +363,7 @@ describe('Cast State Machine', () => {
       castId: 'cast4',
       casterId: 'player1',
       skillId: 'fireball',
-      state: 0, // CastState.Casting
+      state: CastState.Casting,
       origin: { x: 0, z: 0 },
       targetPos: { x: 10, z: 10 },
       startedAt: Date.now() - 200, // Started 200ms ago
@@ -377,7 +377,7 @@ describe('Cast State Machine', () => {
     tickCasts(100, mockServer, mockWorld);
     
     // Check the state has not changed
-    expect(inProgressCast.state).toBe(0); // CastState.Casting
+    expect(inProgressCast.state).toBe(CastState.Casting);
     
     // No projectile should be created
     expect(mockProjectiles.length).toBe(0);
