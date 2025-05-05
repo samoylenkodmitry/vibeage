@@ -10,7 +10,7 @@ import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
 import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
-import { createSpatialHashGrid, SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
+import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { effectRunner } from './combat/effects/EffectRunner.js';
 
@@ -625,7 +625,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   effects = new EffectManager(io, state);
   
   // Initialize the spatial hash grid
-  spatial = createSpatialHashGrid();
+  spatial = new SpatialHashGrid();
   
   // Spawn initial enemies
   spawnInitialEnemies(state, zoneManager);

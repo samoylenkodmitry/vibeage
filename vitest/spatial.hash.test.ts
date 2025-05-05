@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSpatialHashGrid, gridCellChanged } from '../server/spatial/SpatialHashGrid';
+import { SpatialHashGrid, gridCellChanged } from '../server/spatial/SpatialHashGrid';
 
 describe('SpatialHashGrid', () => {
   it('should detect cell changes correctly', () => {
@@ -30,7 +30,7 @@ describe('SpatialHashGrid', () => {
   });
   
   it('should handle basic insert and query operations', () => {
-    const grid = createSpatialHashGrid();
+    const grid = new SpatialHashGrid(6);
     
     // Insert an entity
     grid.insert('entity1', { x: 10, z: 20 });
@@ -44,8 +44,16 @@ describe('SpatialHashGrid', () => {
     expect(result2).not.toContain('entity1');
   });
   
+  it('returns each id only once', () => {
+    const grid = new SpatialHashGrid(6);
+    grid.insert('A', { x: 0, z: 0 });
+    grid.insert('A', { x: 0, z: 0 });  // same cell, allowed internally
+    const res = grid.queryCircle({ x: 0, z: 0 }, 1);
+    expect(res.filter((id: string) => id === 'A').length).toBe(1);
+  });
+  
   it('should handle entity movement between cells', () => {
-    const grid = createSpatialHashGrid();
+    const grid = new SpatialHashGrid(6);
     
     // Insert an entity
     grid.insert('entity1', { x: 10, z: 20 });
@@ -63,7 +71,7 @@ describe('SpatialHashGrid', () => {
   });
   
   it('should handle entity removal', () => {
-    const grid = createSpatialHashGrid();
+    const grid = new SpatialHashGrid(6);
     
     // Insert an entity
     grid.insert('entity1', { x: 10, z: 20 });
@@ -77,7 +85,7 @@ describe('SpatialHashGrid', () => {
   });
   
   it('should dedup entities when querying multiple cells', () => {
-    const grid = createSpatialHashGrid();
+    const grid = new SpatialHashGrid(6);
     
     // Insert the same entity into multiple cells
     grid.insert('entity1', { x: 5.9, z: 0 });
@@ -87,11 +95,19 @@ describe('SpatialHashGrid', () => {
     const result = grid.queryCircle({ x: 6, z: 0 }, 1);
     
     // The entity should appear only once in the result
-    expect(result.filter(id => id === 'entity1').length).toBe(1);
+    expect(result.filter((id: string) => id === 'entity1').length).toBe(1);
+  });
+  
+  it('returns each id only once', () => {
+    const grid = new SpatialHashGrid(6);
+    grid.insert('A', { x: 0, z: 0 });
+    grid.insert('A', { x: 0, z: 0 });  // same cell, allowed internally
+    const res = grid.queryCircle({ x: 0, z: 0 }, 1);
+    expect(res.filter((id: string) => id === 'A').length).toBe(1);
   });
   
   it('should handle 1,000 entities and 1,000 queries with performance under 5ms', () => {
-    const grid = createSpatialHashGrid();
+    const grid = new SpatialHashGrid(6);
     const entities: Array<{ id: string, pos: { x: number, z: number } }> = [];
     
     // Generate 1,000 entities at random positions
@@ -131,7 +147,7 @@ describe('SpatialHashGrid', () => {
           .map(e => e.id);
           
         // Filter the spatial result to the actual entities within the exact radius
-        const filteredSpatialResult = spatialResult.filter(id => {
+        const filteredSpatialResult = spatialResult.filter((id: string) => {
           const entity = entities.find(e => e.id === id);
           if (!entity) return false;
           

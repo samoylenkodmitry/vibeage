@@ -4,9 +4,9 @@ import { VecXZ } from '../../shared/messages';
 type EntityId = string;
 
 /**
- * A spatial hash grid for efficient spatial queries
+ * A spatial hash grid implementation for efficient spatial queries
  */
-export class SpatialHashGrid {
+export class SpatialHashGridImpl {
   private cells: Map<string, Set<EntityId>>;
   private cellSize: number;
   private invCellSize: number;
@@ -26,16 +26,6 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Creates a cell key from world coordinates using specified cell size
-   * Static helper for external use without instantiating a grid
-   */
-  static key(x: number, z: number, cellSize: number = 6): string {
-    const ix = Math.floor(x / cellSize);
-    const iz = Math.floor(z / cellSize);
-    return `${ix},${iz}`;
-  }
-
-  /**
    * Generates a hash key from world coordinates
    */
   private hash(x: number, z: number): string {
@@ -45,10 +35,19 @@ export class SpatialHashGrid {
   }
 
   /**
+   * Checks if an entity has moved to a different grid cell
+   */
+  public cellChanged(oldPos: VecXZ, newPos: VecXZ): boolean {
+    const oldKey = this.hash(oldPos.x, oldPos.z);
+    const newKey = this.hash(newPos.x, newPos.z);
+    return oldKey !== newKey;
+  }
+
+  /**
    * Inserts an entity into the grid at the specified position
    */
-  public insert(id: EntityId, pos: VecXZ): void {
-    const key = this.hash(pos.x, pos.z);
+  public insert(id: EntityId, x: number, z: number): void {
+    const key = this.hash(x, z);
     
     if (!this.cells.has(key)) {
       this.cells.set(key, new Set<EntityId>());
@@ -60,9 +59,9 @@ export class SpatialHashGrid {
   /**
    * Moves an entity from its old position to a new position in the grid
    */
-  public move(id: EntityId, oldPos: VecXZ, newPos: VecXZ): void {
-    const oldKey = this.hash(oldPos.x, oldPos.z);
-    const newKey = this.hash(newPos.x, newPos.z);
+  public move(id: EntityId, oldX: number, oldZ: number, newX: number, newZ: number): void {
+    const oldKey = this.hash(oldX, oldZ);
+    const newKey = this.hash(newX, newZ);
     
     // If the entity hasn't changed cells, no need to update the grid
     if (oldKey === newKey) {
@@ -90,8 +89,8 @@ export class SpatialHashGrid {
   /**
    * Removes an entity from the grid
    */
-  public remove(id: EntityId, pos: VecXZ): void {
-    const key = this.hash(pos.x, pos.z);
+  public remove(id: EntityId, x: number, z: number): void {
+    const key = this.hash(x, z);
     
     const cell = this.cells.get(key);
     if (cell) {
@@ -104,16 +103,16 @@ export class SpatialHashGrid {
   }
   
   /**
-   * Queries the grid for entities within a circle centered at pos with radius r
+   * Queries the grid for entities within a circle centered at (cx,cz) with radius r
    * Returns deduplicated list of entity IDs
    */
-  public queryCircle(pos: VecXZ, r: number): EntityId[] {
+  public queryCircle(cx: number, cz: number, r: number): EntityId[] {
     const set = this._scratchSet;
     set.clear();
     
     const cellRadius = Math.ceil(r * this.invCellSize);
-    const centerIx = Math.floor(pos.x * this.invCellSize);
-    const centerIz = Math.floor(pos.z * this.invCellSize);
+    const centerIx = Math.floor(cx * this.invCellSize);
+    const centerIz = Math.floor(cz * this.invCellSize);
     
     // Generate keys for all cells that might intersect with the circle
     for (let ix = centerIx - cellRadius; ix <= centerIx + cellRadius; ix++) {
@@ -138,14 +137,4 @@ export class SpatialHashGrid {
     
     return this._scratchArr;
   }
-}
-
-/**
- * Checks if an entity has moved to a different grid cell
- * Uses static key method to avoid unnecessary object instantiation
- */
-export function gridCellChanged(oldPos: VecXZ, newPos: VecXZ): boolean {
-  const oldKey = SpatialHashGrid.key(oldPos.x, oldPos.z);
-  const newKey = SpatialHashGrid.key(newPos.x, newPos.z);
-  return oldKey !== newKey;
 }

@@ -13,7 +13,8 @@
     "dev:server": "tsx watch server/server.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench": "vitest bench"
   },
   "dependencies": {
     "@react-three/cannon": "^6.6.0",
