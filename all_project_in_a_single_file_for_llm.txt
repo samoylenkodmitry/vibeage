@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-05T18:10:11.925Z
+// Generated on: 2025-05-05T18:43:33.112Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -2682,20 +2682,56 @@ export default function VfxManager() {
   const handleProjectileSpawn = useCallback((e: CustomEvent<ProjSpawn2>) => {
     console.log('VfxManager: Projectile spawn', e.detail);
     
-    // Ensure the projectile has an ID
-    const projId = e.detail.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // Debug validation of required properties
+    if (!e.detail.dir || typeof e.detail.speed !== 'number' || e.detail.speed === 0) {
+      console.error('VfxManager: Invalid projectile data', {
+        dir: e.detail.dir,
+        speed: e.detail.speed,
+        skillId: e.detail.skillId || 'unknown'
+      });
+      return; // Exit early if invalid data
+    }
     
-    // Create a new projectile instance
+    // Ensure the projectile has an ID
+    const projId = e.detail.castId || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    // Ensure timestamps are valid - use current time if missing or invalid
+    const now = performance.now();
+    let launchTimestamp = e.detail.launchTs;
+    
+    // If timestamp is missing or invalid (too far in future or past), use current time
+    if (!launchTimestamp || launchTimestamp > now + 5000 || launchTimestamp < now - 30000) {
+      console.warn(`[VfxManager] Invalid launchTs: ${launchTimestamp}, using current time`);
+      launchTimestamp = now;
+    }
+    
+    // Create a new projectile instance with y-coordinate defaulting to 1.5
     const newProj: ProjectileVfxInstance = {
       id: projId,
       type: 'projectile',
-      skillId: e.detail.skillId,
-      origin: e.detail.origin,
-      dir: e.detail.dir,
+      skillId: e.detail.skillId || 'unknown',
+      origin: { 
+        x: e.detail.origin.x, 
+        y: 1.5, // Default y-position for projectiles
+        z: e.detail.origin.z 
+      },
+      dir: { 
+        x: e.detail.dir.x, 
+        y: 0, // Default no vertical movement
+        z: e.detail.dir.z 
+      },
       speed: e.detail.speed,
-      launchTs: e.detail.launchTs || performance.now(),
-      createdAt: performance.now(),
+      launchTs: launchTimestamp,
+      createdAt: now,
     };
+    
+    console.log(`[VfxManager] Creating projectile ${projId}:`, {
+      origin: `(${newProj.origin.x.toFixed(2)}, ${newProj.origin.y.toFixed(2)}, ${newProj.origin.z.toFixed(2)})`,
+      dir: `(${newProj.dir.x.toFixed(2)}, ${newProj.dir.y.toFixed(2)}, ${newProj.dir.z.toFixed(2)})`,
+      speed: newProj.speed,
+      launchTs: newProj.launchTs,
+      currentTime: now
+    });
     
     setVfxInstances(prev => [...prev, newProj]);
   }, []);
@@ -2704,14 +2740,22 @@ export default function VfxManager() {
   const handleProjectileHit = useCallback((e: CustomEvent<ProjHit2>) => {
     console.log('VfxManager: Projectile hit', e.detail);
     
-    // Remove the projectile
-    setVfxInstances(prev => prev.filter(vfx => vfx.id !== e.detail.id));
+    // Remove the projectile - use castId (new system) or fallback to id (legacy)
+    const hitId = e.detail.castId;
+    console.log(`VfxManager: Removing projectile with id ${hitId}`);
+    
+    setVfxInstances(prev => {
+      // Log what's being filtered
+      const filtered = prev.filter(vfx => vfx.id !== hitId);
+      console.log(`VfxManager: Found ${prev.length} projectiles, removed ${prev.length - filtered.length}`);
+      return filtered;
+    });
     
     // Create impact effects based on skill type
     if (e.detail.skillId && e.detail.impactPos) {
       const position = { 
         x: e.detail.impactPos.x, 
-        y: e.detail.impactPos.y || 1.5, 
+        y: 1.5, // Default height for impact effects 
         z: e.detail.impactPos.z 
       };
       
@@ -5105,6 +5149,13 @@ export default function SocketManager() {
   }, [removePlayer]);
 
   const handlePlayerUpdated = useCallback((playerData: any) => {
+    console.log('[SocketManager] Player updated:', playerData);
+    
+    // Check if skill points are included in the update
+    if (playerData.availableSkillPoints !== undefined) {
+      console.log(`[SocketManager] Skill points updated for player ${playerData.id}: ${playerData.availableSkillPoints}`);
+    }
+    
     updatePlayer(playerData);
   }, [updatePlayer]);
 
@@ -7078,7 +7129,7 @@ export const zoneManager = new ZoneManager();
 // FILE: app/game/vfx/FireballProjectile.tsx
 // ==============================================================================
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, Group, MeshBasicMaterial } from 'three';
 import useProjectileMovement from './useProjectileMovement';
@@ -7111,6 +7162,21 @@ export default function FireballProjectile({
     launchTs
   });
   
+  // Log initial values
+  useEffect(() => {
+    console.log(`[Fireball ${id}] Created with:`, {
+      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
+      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
+      speed,
+      launchTs
+    });
+  }, [id, origin, dir, speed, launchTs]);
+  
+  // Add debug logging for position updates
+  useEffect(() => {
+    console.log(`[Fireball ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
+  }, [id, position]);
+
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
     emitterPosition: () => position,
@@ -8306,7 +8372,7 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
 // FILE: app/game/vfx/WaterProjectile.tsx
 // ==============================================================================
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
@@ -8338,6 +8404,21 @@ export default function WaterProjectile({
     speed,
     launchTs
   });
+  
+  // Log initial values
+  useEffect(() => {
+    console.log(`[Water ${id}] Created with:`, {
+      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
+      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
+      speed,
+      launchTs
+    });
+  }, [id, origin, dir, speed, launchTs]);
+  
+  // Add debug logging for position updates
+  useEffect(() => {
+    console.log(`[Water ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
+  }, [id, position]);
   
   // Setup particle system for water droplet effects
   const dropletParticles = useParticleSystem({
@@ -8821,7 +8902,7 @@ const useProjectileMovement = ({
   speed,
   launchTs,
   gravity = 0,
-  shouldAutoDestroy = false,
+  shouldAutoDestroy = true, // Changed default to true - projectiles should auto-destroy
   maxDistance = 100,
   onDestroy
 }: ProjectileMovementOptions) => {
@@ -8829,7 +8910,11 @@ const useProjectileMovement = ({
   const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
   const originalSpeed = useRef(speed);
-  const originalLaunchTs = useRef(launchTs);
+  
+  // Adjust launchTs if it's in the future (server timestamp ahead of client)
+  const now = performance.now();
+  const adjustedLaunchTs = launchTs > now ? now - 100 : launchTs; // If in future, set to 100ms ago
+  const originalLaunchTs = useRef(adjustedLaunchTs);
   
   // Use state for the current position so renders will happen when it updates
   const [currentPosition, setCurrentPosition] = useState(new Vector3(origin.x, origin.y, origin.z));
@@ -8837,6 +8922,18 @@ const useProjectileMovement = ({
   // Additional refs for tracking distance, etc.
   const totalDistance = useRef(0);
   const isDestroyed = useRef(false);
+  
+  // Initial debug log when projectile is created
+  useEffect(() => {
+    console.log(`[ProjMove] New projectile created:`, {
+      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
+      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`,
+      speed: speed,
+      originalTs: launchTs,
+      adjustedTs: originalLaunchTs.current,
+      now: performance.now()
+    });
+  }, [origin, dir, speed, launchTs]);
   
   // Function to calculate position at a given time
   const calculatePosition = (elapsedTimeSeconds: number) => {
@@ -8867,10 +8964,32 @@ const useProjectileMovement = ({
     
     // Calculate elapsed time in seconds since launch
     const now = performance.now();
-    const elapsedTimeSeconds = (now - originalLaunchTs.current) / 1000;
+    
+    // Handle case where launchTs might be in the future due to clock mismatch
+    // or using a server timestamp that's ahead of client clock
+    let elapsedTimeSeconds = Math.max(0, (now - originalLaunchTs.current) / 1000);
+    
+    // Sanity check: if elapsed time is too large or negative, use a small value
+    // and auto-destroy the projectile if it's been alive for more than 5 seconds
+    if (elapsedTimeSeconds < 0 || elapsedTimeSeconds > 5) {
+      console.warn(`[ProjMove] Excessive elapsed time: ${elapsedTimeSeconds.toFixed(3)}s. Auto-destroying projectile.`);
+      
+      // Auto-destroy the projectile since it's been alive too long
+      isDestroyed.current = true;
+      if (onDestroy) onDestroy();
+      
+      // Use a reasonable fallback for final position calculation
+      elapsedTimeSeconds = Math.min(5, Math.max(0, elapsedTimeSeconds));
+    }
     
     // Calculate new position
     const newPosition = calculatePosition(elapsedTimeSeconds);
+    
+    // Debug logging to track position calculations (only log occasionally to reduce spam)
+    if (Math.random() < 0.05) { // Log roughly 5% of frames
+      console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition.x.toFixed(2)}, ${newPosition.y.toFixed(2)}, ${newPosition.z.toFixed(2)})`);
+    }
+    
     setCurrentPosition(newPosition);
     
     // Check if projectile should be destroyed
@@ -9653,6 +9772,13 @@ class EffectRunner {
           continue;
         }
         
+        // Check if the target is still alive before applying effects
+        if (!targetEntity.isAlive) {
+          console.log(`[EffectRunner] Target ${targetId} is dead, skipping effect ${effect.effectId}`);
+          expiredEffects.push(i);
+          continue; // Skip to the next effect for this target
+        }
+        
         // Check if effect should tick
         const timeSinceLastTick = now - effect.lastTick;
         if (timeSinceLastTick >= effect.def.tickMs) {
@@ -9662,6 +9788,12 @@ class EffectRunner {
           
           // For each missed tick, apply the effect
           for (let tick = 0; tick < tickCount; tick++) {
+            // Check again if the target is alive before each tick application
+            if (!targetEntity.isAlive) {
+              console.log(`[EffectRunner] Target ${targetId} died during effect processing, stopping ticks`);
+              break; // Stop processing ticks for this effect
+            }
+            
             const tickSeed = effect.seed + tick;
             const result = effect.def.apply({
               level: effect.level,
@@ -11359,14 +11491,18 @@ export function learnNewSkill(player: Player, skillId: SkillId): boolean {
     
     // Check if player can learn this skill
     if (!canPlayerLearnSkill(player, skillId)) {
+      console.log(`[LEARN_SKILL] Player ${player.id} failed to learn ${skillId} - requirements not met`);
       return false;
     }
 
     // Add skill to unlocked skills
+    const oldSkillPoints = player.availableSkillPoints;
     player.unlockedSkills.push(skillId);
     
     // Deduct a skill point
     player.availableSkillPoints -= 1;
+    
+    console.log(`[LEARN_SKILL] Player ${player.id} learned ${skillId}. Skill points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
     
     // Automatically assign to the first empty shortcut slot if available
     const emptySlotIndex = player.skillShortcuts.findIndex(slot => slot === null);
@@ -12758,6 +12894,9 @@ export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo:
   
   // Check for level up
   if (player.experience >= player.experienceToNextLevel) {
+    const oldLevel = player.level;
+    const oldSkillPoints = player.availableSkillPoints;
+    
     player.level += 1;
     const oldMaxExp = player.experienceToNextLevel;
     player.experience -= player.experienceToNextLevel; // Keep excess XP
@@ -12774,7 +12913,9 @@ export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo:
     
     // Award a skill point on level up
     player.availableSkillPoints += 1;
-    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints}`);
+    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints} (before: ${oldSkillPoints})`);
+    
+    console.log(`[LEVEL_UP] Player ${player.id}: Level ${oldLevel} -> ${player.level}, Skill Points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
   }
   
   // Broadcast the updated player state so clients see XP and level changes
@@ -12838,10 +12979,37 @@ function spawnProjectile(
  */
 function updateProjectiles(state: GameState, dt: number, io: Server): void {
   const projectilesToRemove: number[] = [];
+  const now = Date.now();
   
   // Process each projectile
   for (let i = 0; i < state.projectiles.length; i++) {
     const p = state.projectiles[i];
+    
+    // Check projectile lifetime - remove if it's too old (10 seconds max lifetime)
+    const projectileLifetime = now - p.spawnTs;
+    if (projectileLifetime > 10000) {
+      log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} removed due to exceeding maximum lifetime (${projectileLifetime}ms)`);
+      projectilesToRemove.push(i);
+      continue;
+    }
+    
+    // Calculate the total distance traveled since spawn
+    const startPos = { 
+      x: p.pos.x - p.dir.x * p.speed * (projectileLifetime / 1000),
+      z: p.pos.z - p.dir.z * p.speed * (projectileLifetime / 1000)
+    };
+    const distanceTraveled = Math.sqrt(
+      Math.pow(p.pos.x - startPos.x, 2) + 
+      Math.pow(p.pos.z - startPos.z, 2)
+    );
+    
+    // Remove projectile if it has traveled too far
+    const maxDistance = 100; // Reduced from 5000 to a more reasonable value
+    if (distanceTraveled > maxDistance) {
+      log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} removed due to exceeding maximum distance (${distanceTraveled.toFixed(2)} > ${maxDistance})`);
+      projectilesToRemove.push(i);
+      continue;
+    }
     
     // Calculate new position using linear movement
     const oldPos = { ...p.pos };
@@ -13177,9 +13345,9 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       }
     }
     
-    // Check TTL (Time To Live) - 4 seconds max lifetime
+    // Check TTL (Time To Live) - 2 seconds max lifetime (reduced from 4)
     const now = Date.now();
-    if (now - p.spawnTs > 4000) {
+    if (now - p.spawnTs > 2000) {
       log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
       io.emit('msg', {
         type: 'ProjHit2',
