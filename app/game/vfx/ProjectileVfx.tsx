@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import { Vector3, Mesh, MathUtils, Color, Group, Material } from 'three';
-import { useProjectileStore } from '../systems/projectileManager';
+import { useProjectileStoreLegacy } from '../systems/projectileManager';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
@@ -26,7 +26,7 @@ export default function ProjectileVfx({
   const [intensity, setIntensity] = useState(2);
   
   // Get projectile opacity from store
-  const projectileState = useProjectileStore(state => state.projectiles[id]);
+  const projectileState = useProjectileStoreLegacy(state => state.enhanced[id]);
   const opacity = projectileState?.opacity ?? 1.0;
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
   

@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut } from '../shared/messages.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, ProjHit2 } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -508,6 +508,20 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
 }
 
 /**
+ * Ensures a vector is normalized (unit vector)
+ */
+function ensureUnitVec(dir: { x: number, z: number }): { x: number, z: number } {
+  const magnitude = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+  if (magnitude === 0) return { x: 1, z: 0 }; // Default direction if zero vector
+  
+  // Normalize the vector
+  return {
+    x: dir.x / magnitude,
+    z: dir.z / magnitude
+  };
+}
+
+/**
  * Executes a skill's effects
  */
 function executeSkillEffects(
@@ -532,6 +546,37 @@ function executeSkillEffects(
       
       // Spawn projectile using the effect manager
       effects.spawnProjectile(sharedSkill.id, caster, dir, target.id);
+      
+      // Build full ProjSpawn2 message with no missing fields
+      const now = Date.now();
+      const projMsg: ProjSpawn2 = {
+        type: 'ProjSpawn2',
+        castId: crypto.randomUUID(),
+        skillId: sharedSkill.id,
+        src: caster.id,
+        origin: { 
+          x: caster.position.x, 
+          y: caster.position.y + 1.5, // Add height for projectile origin
+          z: caster.position.z 
+        },
+        dir: ensureUnitVec(dir),
+        speed: sharedSkill.speed ?? 30,
+        launchTs: now
+      };
+      
+      // Validate speed and direction (development-only guard)
+      if (process.env.NODE_ENV !== 'production') {
+        if (projMsg.speed <= 0) {
+          throw new Error(`Invalid projectile speed: ${projMsg.speed} for skill ${sharedSkill.id}`);
+        }
+        
+        const dirMagnitude = Math.sqrt(projMsg.dir.x * projMsg.dir.x + projMsg.dir.z * projMsg.dir.z);
+        if (Math.abs(dirMagnitude - 1) > 0.001) {
+          throw new Error(`Direction vector not normalized: magnitude=${dirMagnitude} for skill ${sharedSkill.id}`);
+        }
+      }
+      
+      io.emit('msg', projMsg);
     } else if (sharedSkill.cat === 'instant') {
       // Spawn instant effect using the effect manager
       effects.spawnInstant(sharedSkill.id, caster, [target.id]);

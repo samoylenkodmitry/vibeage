@@ -6,7 +6,8 @@ import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
-import { initProjectileListeners, useProjectileStore } from './projectileManager';
+import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
+import { useProjectileStore } from './projectileStore';
 import { 
   MoveStart, 
   MoveSync, 
@@ -363,14 +364,16 @@ export default function SocketManager() {
             }
             break;
           case 'ProjSpawn2':
-            // Call store method first and then dispatch event for legacy VFX
-            useProjectileStore.getState().addEnhancedProjectile(msg as ProjSpawn2);
-            window.dispatchEvent(new CustomEvent('projspawn2', {detail: msg}));
+            // Add to projectile store
+            useProjectileStore.getState().add(msg as ProjSpawn2);
+            // Also update legacy store during transition
+            useProjectileStoreLegacy.getState().addEnhancedProjectile(msg as ProjSpawn2);
             break;
           case 'ProjHit2':
-            // Call store method first and then dispatch event for VFX
-            useProjectileStore.getState().handleEnhancedHit(msg as ProjHit2);
-            window.dispatchEvent(new CustomEvent('projhit2', {detail: msg}));
+            // Mark hit in projectile store
+            useProjectileStore.getState().hit(msg as ProjHit2);
+            // Also update legacy store during transition
+            useProjectileStoreLegacy.getState().handleEnhancedHit(msg as ProjHit2);
             
             // Add combat log entry for hit
             const hitMsg = msg as ProjHit2;

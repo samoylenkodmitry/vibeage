@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-05T18:43:33.112Z
+// Generated on: 2025-05-06T17:27:38.559Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -2621,10 +2621,16 @@ export default React.memo(function UI() {
 });
 
 // ==============================================================================
+// FILE: app/game/components/VfxManager.new.tsx
+// ==============================================================================
+
+
+
+// ==============================================================================
 // FILE: app/game/components/VfxManager.tsx
 // ==============================================================================
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Vector3 } from 'three';
 import FireballProjectile from '../vfx/FireballProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
@@ -2634,6 +2640,7 @@ import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
 import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
+import { useProjectileStore } from '../systems/projectileStore';
 
 // Types for VFX instances
 interface BaseVfxInstance {
@@ -2669,6 +2676,14 @@ type VfxInstance = ProjectileVfxInstance | SplashVfxInstance | FlashVfxInstance;
 export default function VfxManager() {
   // Store all active VFX instances
   const [vfxInstances, setVfxInstances] = useState<VfxInstance[]>([]);
+  
+  // Get projectiles from the store directly
+  const liveProjectiles = useProjectileStore(state => state.live);
+  
+  // Cache the projectiles array with useMemo to prevent unnecessary re-renders
+  const projectileArray = useMemo(() => {
+    return Object.values(liveProjectiles);
+  }, [liveProjectiles]);
   
   // Mapping of skill IDs to VFX types
   const skillVfxMap = {
@@ -2737,30 +2752,19 @@ export default function VfxManager() {
   }, []);
   
   // Handle projectile hit events
-  const handleProjectileHit = useCallback((e: CustomEvent<ProjHit2>) => {
-    console.log('VfxManager: Projectile hit', e.detail);
-    
-    // Remove the projectile - use castId (new system) or fallback to id (legacy)
-    const hitId = e.detail.castId;
-    console.log(`VfxManager: Removing projectile with id ${hitId}`);
-    
-    setVfxInstances(prev => {
-      // Log what's being filtered
-      const filtered = prev.filter(vfx => vfx.id !== hitId);
-      console.log(`VfxManager: Found ${prev.length} projectiles, removed ${prev.length - filtered.length}`);
-      return filtered;
-    });
+  const handleProjectileHit = useCallback((hitData: ProjHit2) => {
+    console.log('VfxManager: Projectile hit', hitData);
     
     // Create impact effects based on skill type
-    if (e.detail.skillId && e.detail.impactPos) {
+    if (hitData.skillId && hitData.impactPos) {
       const position = { 
-        x: e.detail.impactPos.x, 
+        x: hitData.impactPos.x, 
         y: 1.5, // Default height for impact effects 
-        z: e.detail.impactPos.z 
+        z: hitData.impactPos.z 
       };
       
       // Generate the proper effect based on the skill type
-      switch (e.detail.skillId) {
+      switch (hitData.skillId) {
         case 'fireball':
           createSplashEffect(position, 1.5);
           break;
@@ -2840,9 +2844,7 @@ export default function VfxManager() {
   
   // Register and unregister event listeners
   useEffect(() => {
-    // Register event listeners
-    window.addEventListener('projspawn2', handleProjectileSpawn as EventListener);
-    window.addEventListener('projhit2', handleProjectileHit as EventListener);
+    // Register event listeners for non-projectile events
     window.addEventListener('instanthit', handleInstantHit as EventListener);
     window.addEventListener('spawnSplash', handleSpawnSplash as EventListener);
     window.addEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
@@ -2851,13 +2853,14 @@ export default function VfxManager() {
     // Cleanup expired effects periodically
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
-      setVfxInstances(prev => prev.filter(vfx => !vfx.expiresAt || vfx.expiresAt > now));
+      // Filter out expired and projectile effects (projectiles now come from the store)
+      setVfxInstances(prev => prev.filter(vfx => 
+        (vfx.type !== 'projectile') && (!vfx.expiresAt || vfx.expiresAt > now)
+      ));
     }, 100);
     
     // Cleanup on unmount
     return () => {
-      window.removeEventListener('projspawn2', handleProjectileSpawn as EventListener);
-      window.removeEventListener('projhit2', handleProjectileHit as EventListener);
       window.removeEventListener('instanthit', handleInstantHit as EventListener);
       window.removeEventListener('spawnSplash', handleSpawnSplash as EventListener);
       window.removeEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
@@ -2865,8 +2868,6 @@ export default function VfxManager() {
       clearInterval(cleanupInterval);
     };
   }, [
-    handleProjectileSpawn, 
-    handleProjectileHit, 
     handleInstantHit, 
     handleSpawnSplash, 
     handleSpawnStunFlash, 
@@ -2876,60 +2877,72 @@ export default function VfxManager() {
   // Render all active VFX instances
   return (
     <>
+      {/* Render projectiles from the store */}
+      {projectileArray.map((proj: ProjSpawn2) => {
+        // For each projectile in the store, create the appropriate VFX
+        const skillId = proj.skillId || 'unknown';
+        const origin = { 
+          x: proj.origin.x, 
+          y: proj.origin.y || 1.5, // Use server-provided y or default to 1.5
+          z: proj.origin.z 
+        };
+        const dir = { 
+          x: proj.dir.x, 
+          y: 0, // No vertical movement
+          z: proj.dir.z 
+        };
+        
+        switch (skillId) {
+          case 'fireball':
+            return (
+              <FireballProjectile
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+          case 'iceBolt':
+            return (
+              <IceBoltVfx
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+          case 'waterSplash':
+            return (
+              <WaterProjectile
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+          default:
+            return (
+              <ProjectileVfx
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+        }
+      })}
+      
+      {/* Render other VFX instances */}
       {vfxInstances.map(vfx => {
-        if (vfx.type === 'projectile') {
-          // Render the appropriate projectile VFX based on skill type
-          switch (vfx.skillId) {
-            case 'fireball':
-              return (
-                <FireballProjectile
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-              
-            case 'iceBolt':
-              return (
-                <IceBoltVfx
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-              
-            case 'waterSplash':
-              return (
-                <WaterProjectile
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-              
-            case 'petrify':
-            default:
-              return (
-                <ProjectileVfx
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-          }
-        } else if (vfx.type === 'splash') {
+        if (vfx.type === 'splash') {
           return (
             <SplashVfx
               key={vfx.id}
@@ -5103,7 +5116,8 @@ import { useGameStore } from './gameStore';
 import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
-import { initProjectileListeners, useProjectileStore } from './projectileManager';
+import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
+import { useProjectileStore } from './projectileStore';
 import { 
   MoveStart, 
   MoveSync, 
@@ -5460,14 +5474,16 @@ export default function SocketManager() {
             }
             break;
           case 'ProjSpawn2':
-            // Call store method first and then dispatch event for legacy VFX
-            useProjectileStore.getState().addEnhancedProjectile(msg as ProjSpawn2);
-            window.dispatchEvent(new CustomEvent('projspawn2', {detail: msg}));
+            // Add to projectile store
+            useProjectileStore.getState().add(msg as ProjSpawn2);
+            // Also update legacy store during transition
+            useProjectileStoreLegacy.getState().addEnhancedProjectile(msg as ProjSpawn2);
             break;
           case 'ProjHit2':
-            // Call store method first and then dispatch event for VFX
-            useProjectileStore.getState().handleEnhancedHit(msg as ProjHit2);
-            window.dispatchEvent(new CustomEvent('projhit2', {detail: msg}));
+            // Mark hit in projectile store
+            useProjectileStore.getState().hit(msg as ProjHit2);
+            // Also update legacy store during transition
+            useProjectileStoreLegacy.getState().handleEnhancedHit(msg as ProjHit2);
             
             // Add combat log entry for hit
             const hitMsg = msg as ProjHit2;
@@ -6587,23 +6603,10 @@ export function hasReachedDestination(currentPos: {x: number, z: number}, destPo
 import { create } from 'zustand';
 import { ProjSpawn2, ProjHit2 } from '../../../shared/messages';
 
-// Define interfaces for our state
-export interface ProjectileState {
-  id: string;
-  skillId: string;
-  origin: {x: number; y: number; z: number};
-  dir: {x: number; y: number; z: number};
-  speed: number;
-  launchTs: number;
-  fadeOutStartTs?: number;
-  opacity: number;
-  castId?: string; // For the enhanced system
-}
-
 // Enhanced projectile live state
 export interface ProjectileLive {
   projId: string;
-  startPos: {x: number; z: number};
+  startPos: {x: number; y: number; z: number};
   dirXZ: {x: number; z: number};
   speed: number;
   launchTs: number;
@@ -6617,63 +6620,28 @@ export interface ProjectileLive {
 }
 
 interface ProjectileStore {
-  projectiles: Record<string, ProjectileState>;
-  enhanced: Record<string, ProjectileLive>; // New map for enhanced projectiles
+  enhanced: Record<string, ProjectileLive>; // Map for projectiles
   updateOpacity: () => void;
   
-  // New methods for the enhanced system
+  // Methods for the projectile system
   addEnhancedProjectile: (data: ProjSpawn2) => void;
   handleEnhancedHit: (data: ProjHit2) => void;
 }
 
 // Duration of fade-out effect in milliseconds
-const FADE_OUT_DURATION_MS = 500; // Increased from 300ms to 500ms for smoother fade-out
+const FADE_OUT_DURATION_MS = 500; // 500ms for smooth fade-out
 
-export const useProjectileStore = create<ProjectileStore>((set, get) => ({
-  projectiles: {},
-  enhanced: {}, // Initialize the enhanced projectiles map
+export const useProjectileStoreLegacy = create<ProjectileStore>((set, get) => ({
+  enhanced: {}, // Initialize the projectiles map
   
   updateOpacity: () => {
     const now = Date.now();
     
     set(state => {
-      const updatedProjectiles: Record<string, ProjectileState> = {};
       const updatedEnhanced: Record<string, ProjectileLive> = {};
-      let hasChanges = false;
       let enhancedChanges = false;
       
       // Process each projectile
-      Object.values(state.projectiles).forEach(proj => {
-        // If projectile is fading out
-        if (proj.fadeOutStartTs) {
-          const elapsedFadeTime = now - proj.fadeOutStartTs;
-          
-          // If fade complete, don't include in updated list (remove it)
-          if (elapsedFadeTime >= FADE_OUT_DURATION_MS) {
-            hasChanges = true;
-            return;
-          }
-          
-          // Calculate new opacity
-          const newOpacity = Math.max(0, 1 - (elapsedFadeTime / FADE_OUT_DURATION_MS));
-          
-          // Only update if opacity changed significantly
-          if (Math.abs(newOpacity - proj.opacity) > 0.01) {
-            hasChanges = true;
-            updatedProjectiles[proj.id] = {
-              ...proj,
-              opacity: newOpacity
-            };
-          } else {
-            updatedProjectiles[proj.id] = proj;
-          }
-        } else {
-          // Keep active projectiles
-          updatedProjectiles[proj.id] = proj;
-        }
-      });
-      
-      // Process each enhanced projectile
       Object.values(state.enhanced).forEach(proj => {
         if (proj.fadeOutStartTs) {
           const elapsedFadeTime = now - proj.fadeOutStartTs;
@@ -6704,10 +6672,7 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
       });
       
       // Only update state if changes occurred
-      return (hasChanges || enhancedChanges) ? { 
-        projectiles: updatedProjectiles,
-        enhanced: updatedEnhanced
-      } : state;
+      return enhancedChanges ? { enhanced: updatedEnhanced } : state;
     });
   },
   
@@ -6750,24 +6715,14 @@ export const useProjectileStore = create<ProjectileStore>((set, get) => ({
       };
     });
   },
-}));  // Export the function directly
+}));
+
 export function initProjectileListeners() {
-  // Legacy event listeners removed
-  
-  // New enhanced event listeners - using custom events to match existing pattern
-  window.addEventListener('projspawn2', (event: any) => {
-    useProjectileStore.getState().addEnhancedProjectile(event.detail);
-  });
-  
-  window.addEventListener('projhit2', (event: any) => {
-    useProjectileStore.getState().handleEnhancedHit(event.detail);
-  });
-  
   // Set up opacity updates using requestAnimationFrame for smoother animations
   let animationFrameId: number;
   
   function updateLoop() {
-    useProjectileStore.getState().updateOpacity();
+    useProjectileStoreLegacy.getState().updateOpacity();
     animationFrameId = requestAnimationFrame(updateLoop);
   }
   
@@ -6779,6 +6734,28 @@ export function initProjectileListeners() {
     cancelAnimationFrame(animationFrameId);
   };
 }
+
+// Re-export the new projectile store to transition callers
+export { useProjectileStore } from './projectileStore';
+
+
+// ==============================================================================
+// FILE: app/game/systems/projectileStore.ts
+// ==============================================================================
+
+import { create } from 'zustand';
+import { ProjSpawn2, ProjHit2 } from '../../../shared/messages';
+
+type State = { live: Record<string, ProjSpawn2> };
+type Actions = {
+  add: (p: ProjSpawn2) => void;
+  hit: (msg: ProjHit2) => void;
+};
+export const useProjectileStore = create<State & Actions>((set) => ({
+  live: {},
+  add: (p) => set((s) => ({ live: { ...s.live, [p.castId]: p } })),
+  hit: (h) => set((s) => { const { [h.castId]: _, ...rest } = s.live; return { live: rest }; })
+}));
 
 
 // ==============================================================================
@@ -7711,7 +7688,7 @@ export default PetrifyFlash;
 import { useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import { Vector3, Mesh, MathUtils, Color, Group, Material } from 'three';
-import { useProjectileStore } from '../systems/projectileManager';
+import { useProjectileStoreLegacy } from '../systems/projectileManager';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
@@ -7736,7 +7713,7 @@ export default function ProjectileVfx({
   const [intensity, setIntensity] = useState(2);
   
   // Get projectile opacity from store
-  const projectileState = useProjectileStore(state => state.projectiles[id]);
+  const projectileState = useProjectileStoreLegacy(state => state.enhanced[id]);
   const opacity = projectileState?.opacity ?? 1.0;
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
   
@@ -12044,7 +12021,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut } from '../shared/messages.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, ProjHit2 } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -12549,6 +12526,20 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
 }
 
 /**
+ * Ensures a vector is normalized (unit vector)
+ */
+function ensureUnitVec(dir: { x: number, z: number }): { x: number, z: number } {
+  const magnitude = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+  if (magnitude === 0) return { x: 1, z: 0 }; // Default direction if zero vector
+  
+  // Normalize the vector
+  return {
+    x: dir.x / magnitude,
+    z: dir.z / magnitude
+  };
+}
+
+/**
  * Executes a skill's effects
  */
 function executeSkillEffects(
@@ -12573,6 +12564,37 @@ function executeSkillEffects(
       
       // Spawn projectile using the effect manager
       effects.spawnProjectile(sharedSkill.id, caster, dir, target.id);
+      
+      // Build full ProjSpawn2 message with no missing fields
+      const now = Date.now();
+      const projMsg: ProjSpawn2 = {
+        type: 'ProjSpawn2',
+        castId: crypto.randomUUID(),
+        skillId: sharedSkill.id,
+        src: caster.id,
+        origin: { 
+          x: caster.position.x, 
+          y: caster.position.y + 1.5, // Add height for projectile origin
+          z: caster.position.z 
+        },
+        dir: ensureUnitVec(dir),
+        speed: sharedSkill.speed ?? 30,
+        launchTs: now
+      };
+      
+      // Validate speed and direction (development-only guard)
+      if (process.env.NODE_ENV !== 'production') {
+        if (projMsg.speed <= 0) {
+          throw new Error(`Invalid projectile speed: ${projMsg.speed} for skill ${sharedSkill.id}`);
+        }
+        
+        const dirMagnitude = Math.sqrt(projMsg.dir.x * projMsg.dir.x + projMsg.dir.z * projMsg.dir.z);
+        if (Math.abs(dirMagnitude - 1) > 0.001) {
+          throw new Error(`Direction vector not normalized: magnitude=${dirMagnitude} for skill ${sharedSkill.id}`);
+        }
+      }
+      
+      io.emit('msg', projMsg);
     } else if (sharedSkill.cat === 'instant') {
       // Spawn instant effect using the effect manager
       effects.spawnInstant(sharedSkill.id, caster, [target.id]);
@@ -13771,6 +13793,12 @@ export interface VecXZ {
   z: number;
 }
 
+export interface Vec3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface PlayerMovementState {
   isMoving: boolean;
   path?: VecXZ[];
@@ -13901,14 +13929,15 @@ export interface CastSnapshotMsg extends ServerMsg {
 export interface ProjSpawn2 extends ServerMsg {
   type: 'ProjSpawn2';
   castId: string;
-  origin: VecXZ;
-  dir: VecXZ;   // Normalized, XZ plane
+  origin: Vec3D;       // Using 3D vector with y-coordinate for height
+  dir: VecXZ;          // Normalized, XZ plane
   speed: number;
   launchTs: number;
   hitRadius?: number;  // Optional hitRadius for VFX
   casterId?: string;   // ID of the entity that cast this projectile
   skillId?: string;    // ID of the skill that created this projectile
   travelMs?: number;   // Flight time client-side
+  src?: string;        // Source entity ID (alias for casterId)
 }
 
 export interface ProjHit2 extends ServerMsg {

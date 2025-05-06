@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Vector3 } from 'three';
 import FireballProjectile from '../vfx/FireballProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
@@ -8,6 +8,7 @@ import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
 import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
+import { useProjectileStore } from '../systems/projectileStore';
 
 // Types for VFX instances
 interface BaseVfxInstance {
@@ -43,6 +44,14 @@ type VfxInstance = ProjectileVfxInstance | SplashVfxInstance | FlashVfxInstance;
 export default function VfxManager() {
   // Store all active VFX instances
   const [vfxInstances, setVfxInstances] = useState<VfxInstance[]>([]);
+  
+  // Get projectiles from the store directly
+  const liveProjectiles = useProjectileStore(state => state.live);
+  
+  // Cache the projectiles array with useMemo to prevent unnecessary re-renders
+  const projectileArray = useMemo(() => {
+    return Object.values(liveProjectiles);
+  }, [liveProjectiles]);
   
   // Mapping of skill IDs to VFX types
   const skillVfxMap = {
@@ -111,30 +120,19 @@ export default function VfxManager() {
   }, []);
   
   // Handle projectile hit events
-  const handleProjectileHit = useCallback((e: CustomEvent<ProjHit2>) => {
-    console.log('VfxManager: Projectile hit', e.detail);
-    
-    // Remove the projectile - use castId (new system) or fallback to id (legacy)
-    const hitId = e.detail.castId;
-    console.log(`VfxManager: Removing projectile with id ${hitId}`);
-    
-    setVfxInstances(prev => {
-      // Log what's being filtered
-      const filtered = prev.filter(vfx => vfx.id !== hitId);
-      console.log(`VfxManager: Found ${prev.length} projectiles, removed ${prev.length - filtered.length}`);
-      return filtered;
-    });
+  const handleProjectileHit = useCallback((hitData: ProjHit2) => {
+    console.log('VfxManager: Projectile hit', hitData);
     
     // Create impact effects based on skill type
-    if (e.detail.skillId && e.detail.impactPos) {
+    if (hitData.skillId && hitData.impactPos) {
       const position = { 
-        x: e.detail.impactPos.x, 
+        x: hitData.impactPos.x, 
         y: 1.5, // Default height for impact effects 
-        z: e.detail.impactPos.z 
+        z: hitData.impactPos.z 
       };
       
       // Generate the proper effect based on the skill type
-      switch (e.detail.skillId) {
+      switch (hitData.skillId) {
         case 'fireball':
           createSplashEffect(position, 1.5);
           break;
@@ -214,9 +212,7 @@ export default function VfxManager() {
   
   // Register and unregister event listeners
   useEffect(() => {
-    // Register event listeners
-    window.addEventListener('projspawn2', handleProjectileSpawn as EventListener);
-    window.addEventListener('projhit2', handleProjectileHit as EventListener);
+    // Register event listeners for non-projectile events
     window.addEventListener('instanthit', handleInstantHit as EventListener);
     window.addEventListener('spawnSplash', handleSpawnSplash as EventListener);
     window.addEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
@@ -225,13 +221,14 @@ export default function VfxManager() {
     // Cleanup expired effects periodically
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
-      setVfxInstances(prev => prev.filter(vfx => !vfx.expiresAt || vfx.expiresAt > now));
+      // Filter out expired and projectile effects (projectiles now come from the store)
+      setVfxInstances(prev => prev.filter(vfx => 
+        (vfx.type !== 'projectile') && (!vfx.expiresAt || vfx.expiresAt > now)
+      ));
     }, 100);
     
     // Cleanup on unmount
     return () => {
-      window.removeEventListener('projspawn2', handleProjectileSpawn as EventListener);
-      window.removeEventListener('projhit2', handleProjectileHit as EventListener);
       window.removeEventListener('instanthit', handleInstantHit as EventListener);
       window.removeEventListener('spawnSplash', handleSpawnSplash as EventListener);
       window.removeEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
@@ -239,8 +236,6 @@ export default function VfxManager() {
       clearInterval(cleanupInterval);
     };
   }, [
-    handleProjectileSpawn, 
-    handleProjectileHit, 
     handleInstantHit, 
     handleSpawnSplash, 
     handleSpawnStunFlash, 
@@ -250,60 +245,72 @@ export default function VfxManager() {
   // Render all active VFX instances
   return (
     <>
+      {/* Render projectiles from the store */}
+      {projectileArray.map((proj: ProjSpawn2) => {
+        // For each projectile in the store, create the appropriate VFX
+        const skillId = proj.skillId || 'unknown';
+        const origin = { 
+          x: proj.origin.x, 
+          y: proj.origin.y || 1.5, // Use server-provided y or default to 1.5
+          z: proj.origin.z 
+        };
+        const dir = { 
+          x: proj.dir.x, 
+          y: 0, // No vertical movement
+          z: proj.dir.z 
+        };
+        
+        switch (skillId) {
+          case 'fireball':
+            return (
+              <FireballProjectile
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+          case 'iceBolt':
+            return (
+              <IceBoltVfx
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+          case 'waterSplash':
+            return (
+              <WaterProjectile
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+          default:
+            return (
+              <ProjectileVfx
+                key={proj.castId}
+                id={proj.castId}
+                origin={origin}
+                dir={dir}
+                speed={proj.speed}
+                launchTs={proj.launchTs}
+              />
+            );
+        }
+      })}
+      
+      {/* Render other VFX instances */}
       {vfxInstances.map(vfx => {
-        if (vfx.type === 'projectile') {
-          // Render the appropriate projectile VFX based on skill type
-          switch (vfx.skillId) {
-            case 'fireball':
-              return (
-                <FireballProjectile
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-              
-            case 'iceBolt':
-              return (
-                <IceBoltVfx
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-              
-            case 'waterSplash':
-              return (
-                <WaterProjectile
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-              
-            case 'petrify':
-            default:
-              return (
-                <ProjectileVfx
-                  key={vfx.id}
-                  id={vfx.id}
-                  origin={vfx.origin}
-                  dir={vfx.dir}
-                  speed={vfx.speed}
-                  launchTs={vfx.launchTs}
-                />
-              );
-          }
-        } else if (vfx.type === 'splash') {
+        if (vfx.type === 'splash') {
           return (
             <SplashVfx
               key={vfx.id}

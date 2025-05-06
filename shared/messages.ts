@@ -6,6 +6,12 @@ export interface VecXZ {
   z: number;
 }
 
+export interface Vec3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface PlayerMovementState {
   isMoving: boolean;
   path?: VecXZ[];
@@ -136,14 +142,15 @@ export interface CastSnapshotMsg extends ServerMsg {
 export interface ProjSpawn2 extends ServerMsg {
   type: 'ProjSpawn2';
   castId: string;
-  origin: VecXZ;
-  dir: VecXZ;   // Normalized, XZ plane
+  origin: Vec3D;       // Using 3D vector with y-coordinate for height
+  dir: VecXZ;          // Normalized, XZ plane
   speed: number;
   launchTs: number;
   hitRadius?: number;  // Optional hitRadius for VFX
   casterId?: string;   // ID of the entity that cast this projectile
   skillId?: string;    // ID of the skill that created this projectile
   travelMs?: number;   // Flight time client-side
+  src?: string;        // Source entity ID (alias for casterId)
 }
 
 export interface ProjHit2 extends ServerMsg {

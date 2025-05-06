@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useProjectileStore } from '../app/game/systems/projectileManager';
+import { useProjectileStoreLegacy } from '../app/game/systems/projectileManager';
 import { ProjSpawn2, ProjHit2 } from '../shared/messages';
 
 describe('Enhanced Projectile Protocol', () => {
   beforeEach(() => {
     // Reset the store before each test
-    useProjectileStore.setState({ 
-      projectiles: {}, 
+    useProjectileStoreLegacy.setState({ 
       enhanced: {} 
     });
     
@@ -19,7 +18,7 @@ describe('Enhanced Projectile Protocol', () => {
     const projSpawn2: ProjSpawn2 = {
       type: 'ProjSpawn2',
       castId: 'test-proj-1',
-      origin: { x: 10, z: 10 },
+      origin: { x: 10, y: 1.5, z: 10 },
       dir: { x: 1, z: 0 },
       speed: 5,
       launchTs: Date.now(),
@@ -29,10 +28,10 @@ describe('Enhanced Projectile Protocol', () => {
     };
 
     // Call the addEnhancedProjectile method directly
-    useProjectileStore.getState().addEnhancedProjectile(projSpawn2);
+    useProjectileStoreLegacy.getState().addEnhancedProjectile(projSpawn2);
 
     // Get the state and verify the projectile was added
-    const state = useProjectileStore.getState();
+    const state = useProjectileStoreLegacy.getState();
     
     // The projectile should exist in the enhanced map with the correct ID
     expect(state.enhanced[projSpawn2.castId]).toBeDefined();
@@ -56,7 +55,7 @@ describe('Enhanced Projectile Protocol', () => {
     const projSpawn2: ProjSpawn2 = {
       type: 'ProjSpawn2',
       castId: 'test-proj-2',
-      origin: { x: 10, z: 10 },
+      origin: { x: 10, y: 1.5, z: 10 },
       dir: { x: 1, z: 0 },
       speed: 5,
       launchTs: Date.now(),
@@ -66,7 +65,7 @@ describe('Enhanced Projectile Protocol', () => {
     };
     
     // Add the projectile to the store
-    useProjectileStore.getState().addEnhancedProjectile(projSpawn2);
+    useProjectileStoreLegacy.getState().addEnhancedProjectile(projSpawn2);
     
     // Create a ProjHit2 message for the same projectile
     const projHit2: ProjHit2 = {
@@ -78,10 +77,10 @@ describe('Enhanced Projectile Protocol', () => {
     };
     
     // Call the handleEnhancedHit method
-    useProjectileStore.getState().handleEnhancedHit(projHit2);
+    useProjectileStoreLegacy.getState().handleEnhancedHit(projHit2);
     
     // Get the state and verify the projectile was updated
-    const state = useProjectileStore.getState();
+    const state = useProjectileStoreLegacy.getState();
     
     // The projectile should still exist
     expect(state.enhanced[projHit2.castId]).toBeDefined();
@@ -104,7 +103,7 @@ describe('Enhanced Projectile Protocol', () => {
     const projSpawn2: ProjSpawn2 = {
       type: 'ProjSpawn2',
       castId: 'test-proj-3',
-      origin: { x: 10, z: 10 },
+      origin: { x: 10, y: 1.5, z: 10 },
       dir: { x: 1, z: 0 },
       speed: 5,
       launchTs: now,
@@ -114,7 +113,7 @@ describe('Enhanced Projectile Protocol', () => {
     };
     
     // Add the projectile
-    useProjectileStore.getState().addEnhancedProjectile(projSpawn2);
+    useProjectileStoreLegacy.getState().addEnhancedProjectile(projSpawn2);
     
     // Hit the projectile
     const projHit2: ProjHit2 = {
@@ -124,16 +123,16 @@ describe('Enhanced Projectile Protocol', () => {
       dmg: [10]
     };
     
-    useProjectileStore.getState().handleEnhancedHit(projHit2);
+    useProjectileStoreLegacy.getState().handleEnhancedHit(projHit2);
     
     // Advance time to just before fade-out completes (using 500ms from the manager)
     dateNowSpy.mockReturnValue(now + 499);
     
     // Update opacity (normally done by animation frame)
-    useProjectileStore.getState().updateOpacity();
+    useProjectileStoreLegacy.getState().updateOpacity();
     
     // The projectile should still exist but with reduced opacity
-    let state = useProjectileStore.getState();
+    let state = useProjectileStoreLegacy.getState();
     expect(state.enhanced[projHit2.castId]).toBeDefined();
     expect(state.enhanced[projHit2.castId].opacity).toBeLessThan(1.0);
     
@@ -141,10 +140,10 @@ describe('Enhanced Projectile Protocol', () => {
     dateNowSpy.mockReturnValue(now + 501);
     
     // Update opacity again
-    useProjectileStore.getState().updateOpacity();
+    useProjectileStoreLegacy.getState().updateOpacity();
     
     // The projectile should be removed
-    state = useProjectileStore.getState();
+    state = useProjectileStoreLegacy.getState();
     expect(state.enhanced[projHit2.castId]).toBeUndefined();
     
     // Restore Date.now
