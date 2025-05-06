@@ -3,6 +3,7 @@ import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
 import { CastReq, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
 import { getManaCost, getCooldownMs, getDamage } from '../../shared/combatMath.js';
 import { VecXZ } from '../../shared/messages.js';
+import { Vec3D } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
@@ -58,7 +59,7 @@ interface Cast {
   casterId: string;
   skillId: SkillId;
   state: CastStateEnum;
-  origin: VecXZ;
+  origin: Vec3D;
   target?: VecXZ;
   startedAt: number;
   castTimeMs: number;
@@ -239,7 +240,7 @@ export function handleCastReq(
     casterId: player.id,
     skillId,
     state: CastStateEnum.Casting,
-    origin: { x: player.position.x, z: player.position.z },
+    origin: { x: player.position.x, y: player.position.y + 1.5, z: player.position.z },
     startedAt: now,
     castTimeMs: skill.castMs,
     targetId: req.targetId,

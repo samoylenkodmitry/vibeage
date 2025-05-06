@@ -88,14 +88,14 @@ export default function VfxManager() {
       launchTimestamp = now;
     }
     
-    // Create a new projectile instance with y-coordinate defaulting to 1.5
+    // Create a new projectile instance with y-coordinate from server
     const newProj: ProjectileVfxInstance = {
       id: projId,
       type: 'projectile',
       skillId: e.detail.skillId || 'unknown',
       origin: { 
         x: e.detail.origin.x, 
-        y: 1.5, // Default y-position for projectiles
+        y: e.detail.origin.y, // Use y-coordinate from server
         z: e.detail.origin.z 
       },
       dir: { 

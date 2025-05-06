@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-06T17:27:38.559Z
+// Generated on: 2025-05-06T18:36:23.793Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -1024,6 +1024,13 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
               y: Math.sin(targetRotation / 2),
               z: 0,
               w: Math.cos(targetRotation / 2)
+            });
+            
+            // Update local player position in the store
+            useGameStore.getState().setLocalPlayerPos({
+              x: currentPosition.x,
+              y: currentPosition.y,
+              z: currentPosition.z
             });
           }
         }
@@ -2621,12 +2628,6 @@ export default React.memo(function UI() {
 });
 
 // ==============================================================================
-// FILE: app/game/components/VfxManager.new.tsx
-// ==============================================================================
-
-
-
-// ==============================================================================
 // FILE: app/game/components/VfxManager.tsx
 // ==============================================================================
 
@@ -2720,14 +2721,14 @@ export default function VfxManager() {
       launchTimestamp = now;
     }
     
-    // Create a new projectile instance with y-coordinate defaulting to 1.5
+    // Create a new projectile instance with y-coordinate from server
     const newProj: ProjectileVfxInstance = {
       id: projId,
       type: 'projectile',
       skillId: e.detail.skillId || 'unknown',
       origin: { 
         x: e.detail.origin.x, 
-        y: 1.5, // Default y-position for projectiles
+        y: e.detail.origin.y, // Use y-coordinate from server
         z: e.detail.origin.z 
       },
       dir: { 
@@ -5853,6 +5854,7 @@ export default dragState;
 'use client';
 
 import { create } from 'zustand';
+import { produce } from 'immer';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
 import { Skill, SkillId } from '../models/Skill';
@@ -5947,6 +5949,12 @@ interface GameState {
   setHasJoinedGame: (joined: boolean) => void;
   handleSkillHotkey: (key: string) => void;
   setActiveSkill: (skillId: string | null) => void;
+  
+  // --- New explicitly defined action functions ---
+  setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => void;
+  setLocalPlayerVel: (vel: { x: number, z: number }) => void;
+  setStatusEffects: (targetId: string, effects: StatusEffect[]) => void;
+  addXp: (amount: number) => void;
 }
 
 // --- Memoized selectors ---
@@ -6039,9 +6047,68 @@ export const useGameStore = create<GameState>((set, get) => ({
   targetWorldPos: null,
   lastMoveSentTimeMs: null,
 
+  // --- New explicitly defined action functions ---
+  setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => {
+    set(produce(state => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (player) {
+        player.position.x = pos.x;
+        player.position.y = pos.y;
+        player.position.z = pos.z;
+      }
+    }));
+  },
+
+  setLocalPlayerVel: (vel: { x: number, z: number }) => {
+    set(produce(state => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (player) {
+        if (!player.velocity) {
+          player.velocity = { x: 0, y: 0, z: 0 };
+        }
+        player.velocity.x = vel.x;
+        player.velocity.z = vel.z;
+      }
+    }));
+  },
+
+  setStatusEffects: (targetId: string, effects: StatusEffect[]) => {
+    set(produce(state => {
+      if (targetId === 'player' || targetId === state.myPlayerId) {
+        const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+        if (player) {
+          player.statusEffects = effects;
+        }
+      } else {
+        const enemy = state.enemies[targetId];
+        if (enemy) {
+          enemy.statusEffects = effects;
+        }
+      }
+    }));
+  },
+
+  addXp: (amount: number) => {
+    set(produce(state => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (player) {
+        player.experience += amount;
+        
+        // Optional: Check if player has leveled up and adjust experienceToNextLevel
+        if (player.experience >= player.experienceToNextLevel) {
+          // This may need to be handled by server, but we can simulate it locally too
+          player.experience -= player.experienceToNextLevel;
+          player.experienceToNextLevel = Math.floor(player.experienceToNextLevel * 1.5);
+        }
+      }
+    }));
+  },
+
   // --- Methods ---
   setSocket: (socketInstance: any) => {
-    set({ socket: socketInstance });
+    set(produce(state => {
+      state.socket = socketInstance;
+    }));
   },
   
   // New method to handle keyboard shortcuts for skills
@@ -6070,35 +6137,35 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setGameState: (newState: ServerGameState) => {
-    set({ 
-      players: newState.players,
-      enemies: newState.enemies,
-      selectedTargetId: newState.enemies[get().selectedTargetId ?? ''] ? get().selectedTargetId : null,
-    });
+    set(produce(state => {
+      state.players = newState.players;
+      state.enemies = newState.enemies;
+      state.selectedTargetId = newState.enemies[state.selectedTargetId ?? ''] ? state.selectedTargetId : null;
+    }));
   },
 
   setMyPlayerId: (id: string) => {
-    set({ myPlayerId: id });
+    set(produce(state => {
+      state.myPlayerId = id;
+    }));
   },
 
   addPlayer: (player: PlayerState) => {
-    set(state => ({
-      players: { ...state.players, [player.id]: player }
+    set(produce(state => {
+      state.players[player.id] = player;
     }));
   },
 
   removePlayer: (playerId: string) => {
-    set(state => {
-      const newPlayers = { ...state.players };
-      delete newPlayers[playerId];
-      return { players: newPlayers };
-    });
+    set(produce(state => {
+      delete state.players[playerId];
+    }));
   },
 
   updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => {
-    set(state => {
+    set(produce(state => {
       const currentPlayer = state.players[playerData.id];
-      if (!currentPlayer) return state;
+      if (!currentPlayer) return;
       
       // Check if this is the locally controlled player
       const isSelf = playerData.id === state.myPlayerId;
@@ -6115,18 +6182,12 @@ export const useGameStore = create<GameState>((set, get) => ({
           // Still update other properties, just not position
           const { position, ...otherProps } = playerData;
           
-          // If we only had position update, return unchanged state
-          if (Object.keys(otherProps).length === 1) { // Only 'id' remains
-            return state;
-          }
+          // If we only had position update, return without changes
+          if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
           
           // Update other properties
-          return {
-            players: {
-              ...state.players,
-              [playerData.id]: { ...currentPlayer, ...otherProps }
-            }
-          };
+          Object.assign(currentPlayer, otherProps);
+          return;
         }
       }
       
@@ -6136,27 +6197,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
       );
       
-      if (!hasChanges) return state;
-      
-      return {
-        players: {
-          ...state.players,
-          [playerData.id]: { ...currentPlayer, ...playerData }
-        }
-      };
-    });
+      if (hasChanges) {
+        Object.assign(currentPlayer, playerData);
+      }
+    }));
   },
 
   updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => {
-    set(state => {
-      if (!state.enemies[enemyData.id]) return state;
-      return {
-        enemies: {
-          ...state.enemies,
-          [enemyData.id]: { ...state.enemies[enemyData.id], ...enemyData }
-        }
-      };
-    });
+    set(produce(state => {
+      const enemy = state.enemies[enemyData.id];
+      if (enemy) {
+        Object.assign(enemy, enemyData);
+      }
+    }));
   },
 
   // Legacy movement method - keep for compatibility but mark as deprecated
@@ -6178,7 +6231,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     
     // Update the last sent timestamp
-    set({ lastMoveSentTimeMs: now });
+    set(produce(state => {
+      state.lastMoveSentTimeMs = now;
+    }));
     
     socket.emit('playerMove', { position, rotationY });
   },
@@ -6205,20 +6260,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     const player = get().players[myPlayerId];
     if (player && path.length > 0) {
       const dest = path[0];
-      set(state => ({
-        players: {
-          ...state.players,
-          [myPlayerId]: {
-            ...player,
-            movement: {
-              isMoving: true,
-              path: path,
-              pos: { x: player.position.x, z: player.position.z },
-              targetPos: dest,
-              speed,
-              lastUpdateTime: performance.now()
-            }
-          }
+      set(produce(state => {
+        const player = state.players[myPlayerId];
+        if (player) {
+          player.movement = {
+            isMoving: true,
+            path: path,
+            pos: { x: player.position.x, z: player.position.z },
+            targetPos: dest,
+            speed,
+            lastUpdateTime: performance.now()
+          };
         }
       }));
     }
@@ -6253,7 +6305,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     
     // Store the skill ID for reconciliation with CastFail responses
-    set({ lastCastSkillId: skillId });
+    set(produce(state => {
+      state.lastCastSkillId = skillId;
+    }));
     
     socket.emit('msg', {
       type: 'CastReq',
@@ -6285,23 +6339,31 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setActiveSkill: (skillId: string | null) => {
-    set({ selectedSkill: skillId });
+    set(produce(state => {
+      state.selectedSkill = skillId;
+    }));
   },
 
   selectTarget: (targetId: string | null) => {
-    if (targetId === null || get().enemies[targetId]) {
-      set({ selectedTargetId: targetId });
-    } else {
-      set({ selectedTargetId: null });
-    }
+    set(produce(state => {
+      if (targetId === null || state.enemies[targetId]) {
+        state.selectedTargetId = targetId;
+      } else {
+        state.selectedTargetId = null;
+      }
+    }));
   },
 
   setSelectedSkill: (skillId: string | null) => {
-    set({ selectedSkill: skillId });
+    set(produce(state => {
+      state.selectedSkill = skillId;
+    }));
   },
 
   setTargetWorldPos: (pos: { x: number, y: number, z: number } | null) => {
-    set({ targetWorldPos: pos });
+    set(produce(state => {
+      state.targetWorldPos = pos;
+    }));
   },
 
   getMyPlayer: () => {
@@ -6333,21 +6395,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   applyDonationBoost: (amount: number, durationMinutes: number) => {
-    set({
-      donationXpBoost: amount,
-      donationBoostEndTimeTs: Date.now() + (durationMinutes * 60 * 1000)
-    });
+    set(produce(state => {
+      state.donationXpBoost = amount;
+      state.donationBoostEndTimeTs = Date.now() + (durationMinutes * 60 * 1000);
+    }));
   },
 
   clearDonationBoost: () => {
-    set({
-      donationXpBoost: 0,
-      donationBoostEndTimeTs: null
-    });
+    set(produce(state => {
+      state.donationXpBoost = 0;
+      state.donationBoostEndTimeTs = null;
+    }));
   },
 
   toggleXpEvent: () => {
-    set(state => ({ bonusXpEventActive: !state.bonusXpEventActive }));
+    set(produce(state => {
+      state.bonusXpEventActive = !state.bonusXpEventActive;
+    }));
   },
 
   updatePlayerZone: () => {
@@ -6369,20 +6433,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     const enemy = get().enemies[targetId];
     if (enemy) {
       // For visual feedback only - the server will handle the actual logic
-      set(state => ({
-        enemies: {
-          ...state.enemies,
-          [targetId]: {
-            ...enemy,
-            // You might want to add a temporary visual effect here
-            // This is just for immediate feedback while waiting for the server update
-          }
+      set(produce(state => {
+        const enemy = state.enemies[targetId];
+        if (enemy) {
+          // You might add a temporary visual effect here
+          // This is just for immediate feedback while waiting for the server update
         }
       }));
     }
   },
 
-  setHasJoinedGame: (joined: boolean) => set({ hasJoinedGame: joined }),
+  setHasJoinedGame: (joined: boolean) => {
+    set(produce(state => {
+      state.hasJoinedGame = joined;
+    }));
+  },
 
   // Move sync function - tells server our current position
   sendMoveSyncImmediate: (pos: VecXZ) => {
@@ -6405,22 +6470,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Update local player state
     const player = get().players[myPlayerId];
     if (player) {
-      set(state => ({
-        players: {
-          ...state.players,
-          [myPlayerId]: {
-            ...player,
-            movement: {
-              dest: null,
-              speed: 0,
-              startTs: 0
-            },
-            position: { 
-              ...player.position,
-              x: pos.x, 
-              z: pos.z 
-            }
-          }
+      set(produce(state => {
+        const player = state.players[myPlayerId];
+        if (player) {
+          player.movement = {
+            dest: null,
+            speed: 0,
+            startTs: 0
+          };
+          player.position.x = pos.x;
+          player.position.z = pos.z;
         }
       }));
     }
@@ -8862,15 +8921,11 @@ import { useFrame } from '@react-three/fiber';
  * Hook for calculating projectile movement based on the server's expected trajectory.
  * Uses precise timing to ensure client-server consistency.
  */
-export interface ProjectileMovementOptions {
+interface Params {
   origin: { x: number; y: number; z: number };
   dir: { x: number; y: number; z: number };
   speed: number;
   launchTs: number;
-  gravity?: number;
-  shouldAutoDestroy?: boolean;
-  maxDistance?: number;
-  onDestroy?: () => void;
 }
 
 const useProjectileMovement = ({
@@ -8882,7 +8937,12 @@ const useProjectileMovement = ({
   shouldAutoDestroy = true, // Changed default to true - projectiles should auto-destroy
   maxDistance = 100,
   onDestroy
-}: ProjectileMovementOptions) => {
+}: Params & {
+  gravity?: number;
+  shouldAutoDestroy?: boolean;
+  maxDistance?: number;
+  onDestroy?: () => void;
+}) => {
   // Create stable references for the initial values
   const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
@@ -8903,8 +8963,8 @@ const useProjectileMovement = ({
   // Initial debug log when projectile is created
   useEffect(() => {
     console.log(`[ProjMove] New projectile created:`, {
-      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
-      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`,
+      origin: `(${origin?.x?.toFixed(2) || 'undefined'}, ${origin?.y?.toFixed(2) || 'undefined'}, ${origin?.z?.toFixed(2) || 'undefined'})`,
+      dir: `(${dir?.x?.toFixed(2) || 'undefined'}, ${dir?.y?.toFixed(2) || 'undefined'}, ${dir?.z?.toFixed(2) || 'undefined'})`,
       speed: speed,
       originalTs: launchTs,
       adjustedTs: originalLaunchTs.current,
@@ -8949,7 +9009,7 @@ const useProjectileMovement = ({
     // Sanity check: if elapsed time is too large or negative, use a small value
     // and auto-destroy the projectile if it's been alive for more than 5 seconds
     if (elapsedTimeSeconds < 0 || elapsedTimeSeconds > 5) {
-      console.warn(`[ProjMove] Excessive elapsed time: ${elapsedTimeSeconds.toFixed(3)}s. Auto-destroying projectile.`);
+      console.warn(`[ProjMove] Excessive elapsed time: ${elapsedTimeSeconds?.toFixed(3) || 'undefined'}s. Auto-destroying projectile.`);
       
       // Auto-destroy the projectile since it's been alive too long
       isDestroyed.current = true;
@@ -8964,7 +9024,7 @@ const useProjectileMovement = ({
     
     // Debug logging to track position calculations (only log occasionally to reduce spam)
     if (Math.random() < 0.05) { // Log roughly 5% of frames
-      console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition.x.toFixed(2)}, ${newPosition.y.toFixed(2)}, ${newPosition.z.toFixed(2)})`);
+      console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2) || 'undefined'}, ${newPosition?.y?.toFixed(2) || 'undefined'}, ${newPosition?.z?.toFixed(2) || 'undefined'})`);
     }
     
     setCurrentPosition(newPosition);
@@ -9847,6 +9907,7 @@ import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
 import { CastReq, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
 import { getManaCost, getCooldownMs, getDamage } from '../../shared/combatMath.js';
 import { VecXZ } from '../../shared/messages.js';
+import { Vec3D } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
@@ -9902,7 +9963,7 @@ interface Cast {
   casterId: string;
   skillId: SkillId;
   state: CastStateEnum;
-  origin: VecXZ;
+  origin: Vec3D;
   target?: VecXZ;
   startedAt: number;
   castTimeMs: number;
@@ -10083,7 +10144,7 @@ export function handleCastReq(
     casterId: player.id,
     skillId,
     state: CastStateEnum.Casting,
-    origin: { x: player.position.x, z: player.position.z },
+    origin: { x: player.position.x, y: player.position.y + 1.5, z: player.position.z },
     startedAt: now,
     castTimeMs: skill.castMs,
     targetId: req.targetId,

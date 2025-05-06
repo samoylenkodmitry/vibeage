@@ -6,15 +6,11 @@ import { useFrame } from '@react-three/fiber';
  * Hook for calculating projectile movement based on the server's expected trajectory.
  * Uses precise timing to ensure client-server consistency.
  */
-export interface ProjectileMovementOptions {
+interface Params {
   origin: { x: number; y: number; z: number };
   dir: { x: number; y: number; z: number };
   speed: number;
   launchTs: number;
-  gravity?: number;
-  shouldAutoDestroy?: boolean;
-  maxDistance?: number;
-  onDestroy?: () => void;
 }
 
 const useProjectileMovement = ({
@@ -26,7 +22,12 @@ const useProjectileMovement = ({
   shouldAutoDestroy = true, // Changed default to true - projectiles should auto-destroy
   maxDistance = 100,
   onDestroy
-}: ProjectileMovementOptions) => {
+}: Params & {
+  gravity?: number;
+  shouldAutoDestroy?: boolean;
+  maxDistance?: number;
+  onDestroy?: () => void;
+}) => {
   // Create stable references for the initial values
   const originalOrigin = useRef(new Vector3(origin.x, origin.y, origin.z));
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
@@ -47,8 +48,8 @@ const useProjectileMovement = ({
   // Initial debug log when projectile is created
   useEffect(() => {
     console.log(`[ProjMove] New projectile created:`, {
-      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
-      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`,
+      origin: `(${origin?.x?.toFixed(2) || 'undefined'}, ${origin?.y?.toFixed(2) || 'undefined'}, ${origin?.z?.toFixed(2) || 'undefined'})`,
+      dir: `(${dir?.x?.toFixed(2) || 'undefined'}, ${dir?.y?.toFixed(2) || 'undefined'}, ${dir?.z?.toFixed(2) || 'undefined'})`,
       speed: speed,
       originalTs: launchTs,
       adjustedTs: originalLaunchTs.current,
@@ -93,7 +94,7 @@ const useProjectileMovement = ({
     // Sanity check: if elapsed time is too large or negative, use a small value
     // and auto-destroy the projectile if it's been alive for more than 5 seconds
     if (elapsedTimeSeconds < 0 || elapsedTimeSeconds > 5) {
-      console.warn(`[ProjMove] Excessive elapsed time: ${elapsedTimeSeconds.toFixed(3)}s. Auto-destroying projectile.`);
+      console.warn(`[ProjMove] Excessive elapsed time: ${elapsedTimeSeconds?.toFixed(3) || 'undefined'}s. Auto-destroying projectile.`);
       
       // Auto-destroy the projectile since it's been alive too long
       isDestroyed.current = true;
@@ -108,7 +109,7 @@ const useProjectileMovement = ({
     
     // Debug logging to track position calculations (only log occasionally to reduce spam)
     if (Math.random() < 0.05) { // Log roughly 5% of frames
-      console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition.x.toFixed(2)}, ${newPosition.y.toFixed(2)}, ${newPosition.z.toFixed(2)})`);
+      console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2) || 'undefined'}, ${newPosition?.y?.toFixed(2) || 'undefined'}, ${newPosition?.z?.toFixed(2) || 'undefined'})`);
     }
     
     setCurrentPosition(newPosition);

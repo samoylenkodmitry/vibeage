@@ -241,6 +241,13 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
               z: 0,
               w: Math.cos(targetRotation / 2)
             });
+            
+            // Update local player position in the store
+            useGameStore.getState().setLocalPlayerPos({
+              x: currentPosition.x,
+              y: currentPosition.y,
+              z: currentPosition.z
+            });
           }
         }
 

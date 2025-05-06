@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { produce } from 'immer';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
 import { Skill, SkillId } from '../models/Skill';
@@ -95,6 +96,12 @@ interface GameState {
   setHasJoinedGame: (joined: boolean) => void;
   handleSkillHotkey: (key: string) => void;
   setActiveSkill: (skillId: string | null) => void;
+  
+  // --- New explicitly defined action functions ---
+  setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => void;
+  setLocalPlayerVel: (vel: { x: number, z: number }) => void;
+  setStatusEffects: (targetId: string, effects: StatusEffect[]) => void;
+  addXp: (amount: number) => void;
 }
 
 // --- Memoized selectors ---
@@ -187,9 +194,68 @@ export const useGameStore = create<GameState>((set, get) => ({
   targetWorldPos: null,
   lastMoveSentTimeMs: null,
 
+  // --- New explicitly defined action functions ---
+  setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => {
+    set(produce(state => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (player) {
+        player.position.x = pos.x;
+        player.position.y = pos.y;
+        player.position.z = pos.z;
+      }
+    }));
+  },
+
+  setLocalPlayerVel: (vel: { x: number, z: number }) => {
+    set(produce(state => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (player) {
+        if (!player.velocity) {
+          player.velocity = { x: 0, y: 0, z: 0 };
+        }
+        player.velocity.x = vel.x;
+        player.velocity.z = vel.z;
+      }
+    }));
+  },
+
+  setStatusEffects: (targetId: string, effects: StatusEffect[]) => {
+    set(produce(state => {
+      if (targetId === 'player' || targetId === state.myPlayerId) {
+        const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+        if (player) {
+          player.statusEffects = effects;
+        }
+      } else {
+        const enemy = state.enemies[targetId];
+        if (enemy) {
+          enemy.statusEffects = effects;
+        }
+      }
+    }));
+  },
+
+  addXp: (amount: number) => {
+    set(produce(state => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (player) {
+        player.experience += amount;
+        
+        // Optional: Check if player has leveled up and adjust experienceToNextLevel
+        if (player.experience >= player.experienceToNextLevel) {
+          // This may need to be handled by server, but we can simulate it locally too
+          player.experience -= player.experienceToNextLevel;
+          player.experienceToNextLevel = Math.floor(player.experienceToNextLevel * 1.5);
+        }
+      }
+    }));
+  },
+
   // --- Methods ---
   setSocket: (socketInstance: any) => {
-    set({ socket: socketInstance });
+    set(produce(state => {
+      state.socket = socketInstance;
+    }));
   },
   
   // New method to handle keyboard shortcuts for skills
@@ -218,35 +284,35 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setGameState: (newState: ServerGameState) => {
-    set({ 
-      players: newState.players,
-      enemies: newState.enemies,
-      selectedTargetId: newState.enemies[get().selectedTargetId ?? ''] ? get().selectedTargetId : null,
-    });
+    set(produce(state => {
+      state.players = newState.players;
+      state.enemies = newState.enemies;
+      state.selectedTargetId = newState.enemies[state.selectedTargetId ?? ''] ? state.selectedTargetId : null;
+    }));
   },
 
   setMyPlayerId: (id: string) => {
-    set({ myPlayerId: id });
+    set(produce(state => {
+      state.myPlayerId = id;
+    }));
   },
 
   addPlayer: (player: PlayerState) => {
-    set(state => ({
-      players: { ...state.players, [player.id]: player }
+    set(produce(state => {
+      state.players[player.id] = player;
     }));
   },
 
   removePlayer: (playerId: string) => {
-    set(state => {
-      const newPlayers = { ...state.players };
-      delete newPlayers[playerId];
-      return { players: newPlayers };
-    });
+    set(produce(state => {
+      delete state.players[playerId];
+    }));
   },
 
   updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => {
-    set(state => {
+    set(produce(state => {
       const currentPlayer = state.players[playerData.id];
-      if (!currentPlayer) return state;
+      if (!currentPlayer) return;
       
       // Check if this is the locally controlled player
       const isSelf = playerData.id === state.myPlayerId;
@@ -263,18 +329,12 @@ export const useGameStore = create<GameState>((set, get) => ({
           // Still update other properties, just not position
           const { position, ...otherProps } = playerData;
           
-          // If we only had position update, return unchanged state
-          if (Object.keys(otherProps).length === 1) { // Only 'id' remains
-            return state;
-          }
+          // If we only had position update, return without changes
+          if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
           
           // Update other properties
-          return {
-            players: {
-              ...state.players,
-              [playerData.id]: { ...currentPlayer, ...otherProps }
-            }
-          };
+          Object.assign(currentPlayer, otherProps);
+          return;
         }
       }
       
@@ -284,27 +344,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
       );
       
-      if (!hasChanges) return state;
-      
-      return {
-        players: {
-          ...state.players,
-          [playerData.id]: { ...currentPlayer, ...playerData }
-        }
-      };
-    });
+      if (hasChanges) {
+        Object.assign(currentPlayer, playerData);
+      }
+    }));
   },
 
   updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => {
-    set(state => {
-      if (!state.enemies[enemyData.id]) return state;
-      return {
-        enemies: {
-          ...state.enemies,
-          [enemyData.id]: { ...state.enemies[enemyData.id], ...enemyData }
-        }
-      };
-    });
+    set(produce(state => {
+      const enemy = state.enemies[enemyData.id];
+      if (enemy) {
+        Object.assign(enemy, enemyData);
+      }
+    }));
   },
 
   // Legacy movement method - keep for compatibility but mark as deprecated
@@ -326,7 +378,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     
     // Update the last sent timestamp
-    set({ lastMoveSentTimeMs: now });
+    set(produce(state => {
+      state.lastMoveSentTimeMs = now;
+    }));
     
     socket.emit('playerMove', { position, rotationY });
   },
@@ -353,20 +407,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     const player = get().players[myPlayerId];
     if (player && path.length > 0) {
       const dest = path[0];
-      set(state => ({
-        players: {
-          ...state.players,
-          [myPlayerId]: {
-            ...player,
-            movement: {
-              isMoving: true,
-              path: path,
-              pos: { x: player.position.x, z: player.position.z },
-              targetPos: dest,
-              speed,
-              lastUpdateTime: performance.now()
-            }
-          }
+      set(produce(state => {
+        const player = state.players[myPlayerId];
+        if (player) {
+          player.movement = {
+            isMoving: true,
+            path: path,
+            pos: { x: player.position.x, z: player.position.z },
+            targetPos: dest,
+            speed,
+            lastUpdateTime: performance.now()
+          };
         }
       }));
     }
@@ -401,7 +452,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     
     // Store the skill ID for reconciliation with CastFail responses
-    set({ lastCastSkillId: skillId });
+    set(produce(state => {
+      state.lastCastSkillId = skillId;
+    }));
     
     socket.emit('msg', {
       type: 'CastReq',
@@ -433,23 +486,31 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setActiveSkill: (skillId: string | null) => {
-    set({ selectedSkill: skillId });
+    set(produce(state => {
+      state.selectedSkill = skillId;
+    }));
   },
 
   selectTarget: (targetId: string | null) => {
-    if (targetId === null || get().enemies[targetId]) {
-      set({ selectedTargetId: targetId });
-    } else {
-      set({ selectedTargetId: null });
-    }
+    set(produce(state => {
+      if (targetId === null || state.enemies[targetId]) {
+        state.selectedTargetId = targetId;
+      } else {
+        state.selectedTargetId = null;
+      }
+    }));
   },
 
   setSelectedSkill: (skillId: string | null) => {
-    set({ selectedSkill: skillId });
+    set(produce(state => {
+      state.selectedSkill = skillId;
+    }));
   },
 
   setTargetWorldPos: (pos: { x: number, y: number, z: number } | null) => {
-    set({ targetWorldPos: pos });
+    set(produce(state => {
+      state.targetWorldPos = pos;
+    }));
   },
 
   getMyPlayer: () => {
@@ -481,21 +542,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   applyDonationBoost: (amount: number, durationMinutes: number) => {
-    set({
-      donationXpBoost: amount,
-      donationBoostEndTimeTs: Date.now() + (durationMinutes * 60 * 1000)
-    });
+    set(produce(state => {
+      state.donationXpBoost = amount;
+      state.donationBoostEndTimeTs = Date.now() + (durationMinutes * 60 * 1000);
+    }));
   },
 
   clearDonationBoost: () => {
-    set({
-      donationXpBoost: 0,
-      donationBoostEndTimeTs: null
-    });
+    set(produce(state => {
+      state.donationXpBoost = 0;
+      state.donationBoostEndTimeTs = null;
+    }));
   },
 
   toggleXpEvent: () => {
-    set(state => ({ bonusXpEventActive: !state.bonusXpEventActive }));
+    set(produce(state => {
+      state.bonusXpEventActive = !state.bonusXpEventActive;
+    }));
   },
 
   updatePlayerZone: () => {
@@ -517,20 +580,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     const enemy = get().enemies[targetId];
     if (enemy) {
       // For visual feedback only - the server will handle the actual logic
-      set(state => ({
-        enemies: {
-          ...state.enemies,
-          [targetId]: {
-            ...enemy,
-            // You might want to add a temporary visual effect here
-            // This is just for immediate feedback while waiting for the server update
-          }
+      set(produce(state => {
+        const enemy = state.enemies[targetId];
+        if (enemy) {
+          // You might add a temporary visual effect here
+          // This is just for immediate feedback while waiting for the server update
         }
       }));
     }
   },
 
-  setHasJoinedGame: (joined: boolean) => set({ hasJoinedGame: joined }),
+  setHasJoinedGame: (joined: boolean) => {
+    set(produce(state => {
+      state.hasJoinedGame = joined;
+    }));
+  },
 
   // Move sync function - tells server our current position
   sendMoveSyncImmediate: (pos: VecXZ) => {
@@ -553,22 +617,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Update local player state
     const player = get().players[myPlayerId];
     if (player) {
-      set(state => ({
-        players: {
-          ...state.players,
-          [myPlayerId]: {
-            ...player,
-            movement: {
-              dest: null,
-              speed: 0,
-              startTs: 0
-            },
-            position: { 
-              ...player.position,
-              x: pos.x, 
-              z: pos.z 
-            }
-          }
+      set(produce(state => {
+        const player = state.players[myPlayerId];
+        if (player) {
+          player.movement = {
+            dest: null,
+            speed: 0,
+            startTs: 0
+          };
+          player.position.x = pos.x;
+          player.position.z = pos.z;
         }
       }));
     }
