@@ -10,6 +10,8 @@ export const LOG_CATEGORIES = {
   PROJECTILE: 'projectile',
   MOVEMENT: 'movement',
   DAMAGE: 'damage',
+  MANA: 'mana',
+  HEALING: 'healing',
   ENEMY: 'enemy',
   PLAYER: 'player',
   SKILL: 'skill',

@@ -1,4 +1,4 @@
-import { SkillId } from './skillsDefinition';
+import { SkillId, SkillType } from './skillsDefinition';
 import { CharacterClass } from './classSystem';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
@@ -88,10 +88,17 @@ export interface PlayerState {
     level: number;
     experience: number;
     experienceToNextLevel: number;
-    castingSkill: string | null;
+    castingSkill: SkillType | null;
     castingProgressMs: number;
     isAlive: boolean;
     deathTimeTs?: number;
     lastUpdateTime?: number;
     movement?: PlayerMovementState;
+    velocity?: { x: number; z: number };
+    posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
+    stats?: {
+        dmgMult?: number;
+        critChance?: number;
+        critMult?: number;
+    };
 }

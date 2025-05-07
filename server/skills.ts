@@ -5,32 +5,7 @@ import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
 import { predictPosition, awardPlayerXP } from './world.js';
 import { hash } from '../shared/combatMath.js';
-
-interface PlayerState {
-  id: string;
-  socketId: string;
-  name: string;
-  position: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  skills: SkillType[];
-  skillCooldownEndTs: Record<string, number>;
-  statusEffects: StatusEffect[];
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  castingSkill: SkillType | null;
-  castingProgressMs: number;
-  isAlive: boolean;
-  deathTimeTs?: number;
-  lastUpdateTime?: number;
-  movement?: any;
-  velocity?: { x: number; z: number };
-  posHistory?: { ts: number; x: number; z: number }[];
-}
+import { PlayerState } from '../shared/types.js';
 
 /**
  * Calculate distance between two points
@@ -141,19 +116,21 @@ export function executeSkill(
   }
   
   // Apply status effect
-  if (skill.status && target) {
-    for (const status of skill.status) {
-      const existingEffect = target.statusEffects.find(e => e.type === status.type);
+  if (skill.effects && target) {
+    for (const effect of skill.effects) {
+      const existingEffect = target.statusEffects.find(e => e.type === effect.type);
       if (existingEffect) {
-        existingEffect.value = status.value;
-        existingEffect.durationMs = status.durationMs;
+        existingEffect.value = effect.value;
+        existingEffect.durationMs = effect.durationMs;
         existingEffect.startTimeTs = now;
       } else {
         // Generate a deterministic effect ID
-        const effectId = `effect-${hash(`${effect.type}-${now}-${player.id}`)}`;
+        const effectId = `effect-${hash(`${effect.type}-${now}-${skillId}`)}`;
         target.statusEffects.push({
           id: effectId,
-          ...status,
+          type: effect.type,
+          value: effect.value,
+          durationMs: effect.durationMs,
           startTimeTs: now,
           sourceSkill: skillId,
         });

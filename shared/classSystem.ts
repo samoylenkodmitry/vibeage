@@ -53,6 +53,8 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
     },
     skillProgression: {
       'fireball': { level: 2 }, // Warriors get fireball later
+      'waterSplash': { level: 4 }, // Warriors aren't very proficient with water magic
+      'iceBolt': { level: 5 }, // Warriors struggle with ice magic
       'petrify': { level: 3 }
     }
   },
@@ -66,8 +68,10 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.0
     },
     skillProgression: {
-      'waterSplash': { level: 1 },
-      'iceBolt': { level: 3 }
+      'fireball': { level: 4 }, // Healers aren't very combat-focused
+      'waterSplash': { level: 1 }, // Healers start with water abilities
+      'iceBolt': { level: 3 },
+      'petrify': { level: 5 } // Advanced skill for healers
     }
   },
   ranger: {
@@ -80,8 +84,9 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.2
     },
     skillProgression: {
-      'iceBolt': { level: 1 },
+      'iceBolt': { level: 1 }, // Rangers start with ice abilities
       'fireball': { level: 2 },
+      'waterSplash': { level: 3 }, // Rangers get water abilities mid-game
       'petrify': { level: 4 }
     }
   }

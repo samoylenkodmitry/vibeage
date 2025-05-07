@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2} from '../shared/messages.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -13,6 +13,7 @@ import { predictPosition as sharedPredictPosition } from '../shared/positionUtil
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { effectRunner } from './combat/effects/EffectRunner.js';
+import { PlayerState } from '../shared/types.js';
 
 /**
  * Defines the GameState interface
@@ -22,42 +23,6 @@ interface GameState {
   enemies: Record<string, Enemy>;
   projectiles: Projectile[];
   lastProjectileId: number;
-}
-
-// Update PlayerState to include the class system fields
-interface PlayerState {
-  id: string;
-  socketId: string;
-  name: string;
-  position: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  className: string; // Character class: mage, warrior, etc.
-  unlockedSkills: SkillId[]; // Skills the player has learned
-  skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
-  availableSkillPoints: number; // Points to spend on new skills
-  skillCooldownEndTs: Record<string, number>;
-  cooldowns: Record<string, number>; // Alias for skillCooldownEndTs for compatibility
-  statusEffects: StatusEffect[];
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  castingSkill: SkillType | null;
-  castingProgressMs: number;
-  isAlive: boolean;
-  deathTimeTs?: number;
-  lastUpdateTime?: number;
-  movement?: PlayerMovementState;
-  velocity?: { x: number; z: number }; // New: current velocity vector
-  posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
-  stats?: {
-    dmgMult?: number;
-    critChance?: number;
-    critMult?: number;
-  };
 }
 
 /**
@@ -90,18 +55,18 @@ function calculateDir(from: VecXZ, to: VecXZ): { x: number; y: number; z: number
  * Predicts the position of an entity at a specific timestamp based on its movement
  */
 export function predictPosition(
-  entity: { position: { x: number; z: number }, movement?: { dest: VecXZ | null, speed: number, startTs: number } },
+  entity: { position: { x: number; y: number; z: number }, movement?: { targetPos?: VecXZ | null, speed: number, lastUpdateTime: number } },
   timestamp: number
 ): VecXZ {
-  if (!entity.movement?.dest) {
+  const dest = entity.movement?.targetPos;
+  if (!dest) {
     return { x: entity.position.x, z: entity.position.z };
   }
 
-  const dest = entity.movement.dest;
   const speed = entity.movement.speed;
-  const startTs = entity.movement.startTs;
-  const currentPos = { x: entity.position.x, z: entity.position.z };
-  
+  const startTs = entity.movement.lastUpdateTime;
+  const currentPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
+
   // Calculate elapsed time in seconds
   const elapsedSec = (timestamp - startTs) / 1000;
   
@@ -128,13 +93,13 @@ export function predictPosition(
  * Advances an entity's position based on its movement state
  */
 function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
-  if (!entity.movement?.dest) return;
+  if (!entity.movement?.targetPos) return;
   
   // Current position
-  const currentPos = { x: entity.position.x, z: entity.position.z };
-  
+  const currentPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
+
   // Get destination and speed
-  const dest = entity.movement.dest;
+  const dest = entity.movement.targetPos;
   const speed = entity.movement.speed;
   
   // Calculate direction if not already set
@@ -149,14 +114,16 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   // Calculate distance to move this step
   const deltaTimeSec = deltaTimeMs / 1000;
   const stepX = entity.velocity.x * deltaTimeSec;
+  const stepY = 0;
   const stepZ = entity.velocity.z * deltaTimeSec;
-  
+  const stepDist = Math.sqrt(stepX * stepX + stepY * stepY + stepZ * stepZ);
   // Update position
-  const oldPos = { x: entity.position.x, z: entity.position.z };
+  const oldPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
   entity.position.x += stepX;
+  entity.position.y += stepY;
   entity.position.z += stepZ;
-  const newPos = { x: entity.position.x, z: entity.position.z };
-  
+  const newPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
+
   // Update spatial hash grid if position changed cells
   if (gridCellChanged(oldPos, newPos)) {
     spatial.move(entity.id, oldPos, newPos);
@@ -176,10 +143,10 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
     if (gridCellChanged(newPos, finalPos)) {
       spatial.move(entity.id, newPos, finalPos);
     }
-    
-    entity.movement.dest = null;
+
+    entity.movement.targetPos = null;
     entity.velocity = { x: 0, z: 0 };
-    
+
     // Add a flag to indicate velocity was zeroed so we include it in the next snapshot
     (entity as any).dirtySnap = true;
   }
@@ -263,7 +230,7 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   // Process player movements
   for (const playerId in state.players) {
     const player = state.players[playerId];
-    if (player.movement?.dest) {
+    if (player.movement?.targetPos) {
       advancePosition(player, deltaTimeMs);
     }
   }
@@ -320,14 +287,14 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
     // or if player is moving (non-zero velocity)
     const shouldInclude = (player as any).dirtySnap || 
                          (vel.x !== 0 || vel.z !== 0) || 
-                         player.movement?.dest !== null;
+                         player.movement?.targetPos !== null;
     
     if (shouldInclude) {
       snaps.push({
         id: playerId,
-        pos,
-        vel,
-        ts: timestamp
+        type: 'PosSnap',
+        pos: pos,
+        serverTs: timestamp
       });
       
       // Clear the dirty flag after including in snapshot
@@ -409,9 +376,10 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
   
   // Update player's movement state
   player.movement = {
-    dest: destination,
+    ...player.movement,
+    targetPos: destination,
     speed: msg.speed,
-    startTs: now
+    lastUpdateTime: now
   };
   
   // Set the velocity vector
@@ -437,7 +405,7 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
  */
 function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
   const playerId = msg.id;
-  const player = state.players[playerId];
+  let player = state.players[playerId];
   
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
@@ -449,6 +417,54 @@ function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
   const MAX_SYNC_LAG_MS = 100;
 
   // Calculate the current server-side position
+  // 
+  //entity: { position: { x: number; z: number }, movement?: { dest: VecXZ | null, speed: number, startTs: number } },
+  /*
+
+interface PlayerState {
+  id: string;
+  socketId: string;
+  name: string;
+  position: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+  health: number;
+  maxHealth: number;
+  mana: number;
+  maxMana: number;
+  className: string; // Character class: mage, warrior, etc.
+  unlockedSkills: SkillId[]; // Skills the player has learned
+  skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
+  availableSkillPoints: number; // Points to spend on new skills
+  skillCooldownEndTs: Record<string, number>;
+  cooldowns: Record<string, number>; // Alias for skillCooldownEndTs for compatibility
+  statusEffects: StatusEffect[];
+  level: number;
+  experience: number;
+  experienceToNextLevel: number;
+  castingSkill: SkillType | null;
+  castingProgressMs: number;
+  isAlive: boolean;
+  deathTimeTs?: number;
+  lastUpdateTime?: number;
+  movement?: PlayerMovementState;
+  velocity?: { x: number; z: number }; // New: current velocity vector
+  posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
+  stats?: {
+    dmgMult?: number;
+    critChance?: number;
+    critMult?: number;
+  };
+}
+
+export interface PlayerMovementState {
+  isMoving: boolean;
+  path?: VecXZ[];
+  pos: VecXZ;  // Current position
+  targetPos?: VecXZ; // Target position when moving
+  lastUpdateTime: number;
+  speed: number;
+}
+  */
   const serverPos = predictPosition(player, now);
   
   // Calculate error between client and server positions
@@ -795,7 +811,6 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         experienceToNextLevel: 100,
         statusEffects: [],
         skillCooldownEndTs: {},
-        cooldowns: {}, // Alias for skillCooldownEndTs
         castingSkill: null,
         castingProgressMs: 0,
         isAlive: true,
@@ -982,6 +997,7 @@ function spawnProjectile(
 function updateProjectiles(state: GameState, dt: number, io: Server): void {
   const projectilesToRemove: number[] = [];
 
+  const now = Date.now();
   // Process each projectile
   for (let i = 0; i < state.projectiles.length; i++) {
     const p = state.projectiles[i];
@@ -1265,7 +1281,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
                   // Skip effects without a duration
                   if (!effect.durationMs) continue;
                   
-                  const effectId = `effect-${hash(`${effect.type}-${now}-${enemyId}`).toString(36).substring(0, 9)}`;
+                  const effectId = `effect-${hash(`${effect.type}-${Date.now()}-${enemyId}`).toString(36).substring(0, 9)}`;
                   enemy.statusEffects.push({
                     id: effectId,
                     type: effect.type,
@@ -1294,7 +1310,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               const { dmg } = getDamage({
                 caster: state.players[p.casterId]?.stats ?? {},
                 skill: { 
-                  base: (skill?.dmg || 10) * (skill?.projectile?.splashDamagePct || 0.5), 
+                  base: skill?.dmg || 10, 
                   variance: 0.1 
                 },
                 seed: `${p.id}:splash:${targetId}`
@@ -1347,7 +1363,6 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     }
     
     // Check TTL (Time To Live) - 2 seconds max lifetime (reduced from 4)
-    const now = Date.now();
     if (now - p.spawnTs > 2000) {
       log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
       io.emit('msg', {

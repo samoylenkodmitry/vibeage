@@ -319,23 +319,6 @@ const SkillTreeUI: React.FC = () => {
                         // Set the drag effect to copy
                         e.dataTransfer.effectAllowed = 'copy';
 
-                        // Add custom drag image if available
-                        try {
-                          const img = new Image();
-                          img.src = skillUtils.getSkillIconPath(skillId);
-                          console.log('Using image for drag:', img.src);
-
-                          img.onload = () => {
-                            try {
-                              e.dataTransfer.setDragImage(img, 25, 25);
-                              console.log('Set drag image successfully');
-                            } catch (imgErr) {
-                              console.warn('Failed to set drag image after load:', imgErr);
-                            }
-                          };
-                        } catch (err) {
-                          console.warn('Failed to create drag image:', err);
-                        }
                       }}
                       onDragEnd={() => {
                         console.log('Drag ended, clearing drag state');

@@ -1,6 +1,7 @@
 import { SkillId, SKILLS, SkillDef, SkillEffect as SharedSkillEffect } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
 import { CharacterClass } from '../shared/classSystem.js';
+import { SkillType } from '../shared/skillsDefinition.js';
 
 // Server-side representation of a skill effect
 export interface SkillEffect extends SharedSkillEffect {
@@ -25,7 +26,7 @@ export interface Projectile {
     hitCount: number;  // Track number of hits for piercing projectiles
 }
 
-export type SkillType = SkillId;   // export for compatibility
+export type { SkillType }
 
 // Add an alias for 'water' skill ID to match 'waterSplash'
 (SKILLS as any)['water'] = SKILLS['waterSplash'];

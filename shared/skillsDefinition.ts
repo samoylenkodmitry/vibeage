@@ -1,6 +1,6 @@
 // Direct definitions without imports
 export type SkillId = 'fireball'|'iceBolt'|'waterSplash'|'petrify';
-
+export type SkillType = SkillId;   // export for compatibility
 export type SkillCategory = 'projectile'|'instant'|'beam'|'aura';
 
 export type SkillEffectType = 

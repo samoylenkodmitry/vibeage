@@ -7,6 +7,7 @@ import { Vec3D } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
+import { PlayerState as Player } from '../../shared/types.js';
 
 // Import getDamage from shared/combatMath.js
 import { getDamage as getSkillDamage } from '../../shared/combatMath.js';
@@ -77,24 +78,6 @@ interface Projectile {
   skillId: SkillId;
 }
 
-// Player interface that contains needed properties for skill casting
-interface Player {
-  id: string;
-  socketId: string;
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  cooldowns: Record<string, number>;
-  skillCooldownEndTs: Record<string, number>;
-  isAlive: boolean;
-  level: number;
-  position: { x: number; y: number; z: number };
-  movement?: any;
-  stats?: any;
-  // Other player properties
-}
-
 // Collection of active casts by all players (legacy)
 const activeCasts: CastState[] = [];
 // Collection of completed casts to be processed
@@ -139,7 +122,7 @@ export function handleCastReq(
   }
   
   // Check cooldown
-  if ((player.cooldowns?.[skillId] && now < player.cooldowns[skillId]) || 
+  if ((player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId]) || 
       (player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId])) {
     socket.emit('msg', {
       type: 'CastFail',
@@ -150,7 +133,7 @@ export function handleCastReq(
   }
   
   // Check mana cost
-  const manaCost = getManaCost(skillId, player.level);
+  const manaCost = getManaCost(skillId);
   if (player.mana < manaCost) {
     socket.emit('msg', {
       type: 'CastFail',
@@ -212,8 +195,7 @@ export function handleCastReq(
   player.mana -= manaCost;
   
   // Set cooldown
-  const cooldownMs = getCooldownMs(skillId, player.level);
-  player.cooldowns[skillId] = now + cooldownMs;
+  const cooldownMs = getCooldownMs(skillId);
   player.skillCooldownEndTs[skillId] = now + cooldownMs;
   
   // Create a cast state entry
