@@ -31,8 +31,7 @@ interface MistParticle {
 export default function SplashVfx({ position, radius }: SplashVfxProps) {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0); // 1 second lifetime
-  const uniqueId = useRef(`splash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
-  
+
   // Generate water droplet particles
   const particles = useMemo(() => {
     const particleCount = 10 + Math.floor(radius * 5); // Scale particles with radius

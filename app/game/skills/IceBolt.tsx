@@ -4,7 +4,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
 import * as THREE from 'three';
-import { useGameStore } from '../systems/gameStore';
 import { SKILLS } from '../models/Skill';
 
 interface IceBoltProps {

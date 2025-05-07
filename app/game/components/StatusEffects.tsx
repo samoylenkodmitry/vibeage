@@ -1,23 +1,13 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
-import { useGameStore, StatusEffect, selectStatusEffects } from '../systems/gameStore';
-import Image from 'next/image';
+import React, { useCallback } from 'react';
+import { useGameStore, StatusEffect } from '../systems/gameStore';
 
 interface StatusEffectsProps {
   targetId: string | 'player';
   position?: 'top' | 'right' | 'bottom' | 'left';
   inline?: boolean;
 }
-
-// Cache for status effects to ensure stable references across renders
-const statusEffectsCache: {
-  [key: string]: {
-    effects: StatusEffect[];
-    timestamp: number;
-    signature: string;
-  }
-} = {};
 
 // EXTREMELY simple hook for status effects with debugging
 function useStatusEffects(targetId: string | 'player'): StatusEffect[] {

@@ -101,7 +101,7 @@ export default function FireballProjectile({
   });
   
   // Add wobble effect to core
-  useFrame((state, delta) => {
+  useFrame((state, _delta) => {
     if (!coreRef.current) return;
     
     // Fire core pulsing

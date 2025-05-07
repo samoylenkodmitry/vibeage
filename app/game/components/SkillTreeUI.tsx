@@ -7,6 +7,7 @@ import { CLASS_SKILL_TREES, canLearnSkill, CharacterClass } from '../../../share
 import dragState from '../systems/dragState';
 import skillUtils from '../systems/skillUtils';
 import styles from '../styles/SkillTreeUI.module.css';
+import Image from 'next/image';
 
 const SkillTreeUI: React.FC = () => {
   const socket = useGameStore(state => state.socket);

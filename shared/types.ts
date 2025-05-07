@@ -1,6 +1,5 @@
 import { SkillId } from './skillsDefinition';
 import { CharacterClass } from './classSystem';
-import { VecXZ } from './messages';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 

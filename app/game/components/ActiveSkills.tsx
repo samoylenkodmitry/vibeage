@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { tryStartCast } from '../systems/castController';
-import { SkillId } from '../../../shared/skillsDefinition';
 
 /**
  * ActiveSkills component

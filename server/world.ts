@@ -272,7 +272,7 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
     const now = Date.now();
-    
+
     // Update position history for all enemies at each tick
     updatePositionHistory(enemy, now);
     enemy.lastUpdateTime = now;
@@ -683,7 +683,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Start game loop
   setInterval(() => {
     const now = Date.now();
-    
+
     // Step 1: Advance all entity states
     advanceAll(state, TICK);
     
@@ -984,7 +984,7 @@ function spawnProjectile(
 function updateProjectiles(state: GameState, dt: number, io: Server): void {
   const projectilesToRemove: number[] = [];
   const now = Date.now();
-  
+
   // Process each projectile
   for (let i = 0; i < state.projectiles.length; i++) {
     const p = state.projectiles[i];
@@ -1408,7 +1408,7 @@ function handleManaRegeneration(state: GameState, io: Server) {
  */
 function handleEnemyRespawns(state: GameState, io: Server) {
   const now = Date.now();
-  
+
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
     

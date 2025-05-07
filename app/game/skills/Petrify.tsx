@@ -4,7 +4,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
 import * as THREE from 'three';
-import { SKILLS } from '../models/Skill';
 
 interface PetrifyProps {
   startPosition: Vector3;
@@ -204,8 +203,7 @@ function PetrifyImpact({ position }: ImpactProps) {
   const waveRef = useRef<THREE.Mesh>(null);
   const crystalsRef = useRef<THREE.Group>(null);
   const centralPillarRef = useRef<THREE.Mesh>(null);
-  const [initialScale] = useState(() => 0.1 + Math.random() * 0.2);
-  
+
   // Stone fragments that emerge from the ground
   const fragments = useRef<Array<{
     position: Vector3;

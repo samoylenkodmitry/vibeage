@@ -47,11 +47,7 @@ interface XPBoostPanelProps {
 function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
   const getXpMultiplierInfo = useGameStore(state => state.getXpMultiplierInfo);
   const applyDonationBoost = useGameStore(state => state.applyDonationBoost);
-  const clearDonationBoost = useGameStore(state => state.clearDonationBoost);
-  const toggleXpEvent = useGameStore(state => state.toggleXpEvent);
-  const bonusXpEventActive = useGameStore(state => state.bonusXpEventActive);
-  const donationXpBoost = useGameStore(state => state.donationXpBoost);
-  
+
   const xpInfo = getXpMultiplierInfo();
   const totalMultiplier = xpInfo.total;
   
@@ -333,11 +329,8 @@ export default React.memo(function UI() {
   const skillCooldownEndTs = player?.skillCooldownEndTs ?? {};
   const castingSkill = player?.castingSkill ?? null;
   const castingProgressMs = player?.castingProgressMs ?? 0;
-  const socket = useGameStore(state => state.socket);
   const currentZoneId = useGameStore(state => state.currentZoneId);
   const flashingSkill = useGameStore(state => state.flashingSkill);
-  
-  const [isAdmin] = useState(false);
   
   // Memoize selected target lookup
   const selectedTarget = useMemo(() => 
@@ -404,11 +397,6 @@ export default React.memo(function UI() {
           </div>
         </div>
       )}
-      
-      {/* Right UI - XP Boost Panel */}
-      <div className="absolute top-20 right-5 w-64">
-        <XPBoostPanel isAdmin={isAdmin} />
-      </div>
       
       {/* Bottom UI - Player stats and skills */}
       <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-3xl px-5">

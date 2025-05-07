@@ -2,8 +2,8 @@
 
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Sky, KeyboardControls } from '@react-three/drei';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { KeyboardControls } from '@react-three/drei';
+import { useEffect, useState, useCallback } from 'react';
 import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
@@ -31,7 +31,7 @@ const controls = [
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
   const [playerName, setPlayerName] = useState('');
-  const [joiningError, setJoiningError] = useState<string | null>(null);
+  const [_joiningError, setJoiningError] = useState<string | null>(null);
   const isConnected = useGameStore(state => state.isConnected);
   const socket = useGameStore(state => state.socket);
   const hasJoinedGame = useGameStore(state => state.hasJoinedGame);

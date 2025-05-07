@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Vector3 } from 'three';
 import FireballProjectile from '../vfx/FireballProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
 import WaterProjectile from '../vfx/WaterProjectile';
@@ -7,7 +6,6 @@ import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
 import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
-import { SkillId } from '../../../shared/skillsDefinition';
 import { useProjectileStore } from '../systems/projectileStore';
 
 // Types for VFX instances
@@ -52,103 +50,7 @@ export default function VfxManager() {
   const projectileArray = useMemo(() => {
     return Object.values(liveProjectiles);
   }, [liveProjectiles]);
-  
-  // Mapping of skill IDs to VFX types
-  const skillVfxMap = {
-    fireball: 'fireball',
-    iceBolt: 'icebolt',
-    waterSplash: 'water',
-    petrify: 'petrify',
-  };
-  
-  // Handle projectile spawn events
-  const handleProjectileSpawn = useCallback((e: CustomEvent<ProjSpawn2>) => {
-    console.log('VfxManager: Projectile spawn', e.detail);
-    
-    // Debug validation of required properties
-    if (!e.detail.dir || typeof e.detail.speed !== 'number' || e.detail.speed === 0) {
-      console.error('VfxManager: Invalid projectile data', {
-        dir: e.detail.dir,
-        speed: e.detail.speed,
-        skillId: e.detail.skillId || 'unknown'
-      });
-      return; // Exit early if invalid data
-    }
-    
-    // Ensure the projectile has an ID
-    const projId = e.detail.castId || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Ensure timestamps are valid - use current time if missing or invalid
-    const now = performance.now();
-    let launchTimestamp = e.detail.launchTs;
-    
-    // If timestamp is missing or invalid (too far in future or past), use current time
-    if (!launchTimestamp || launchTimestamp > now + 5000 || launchTimestamp < now - 30000) {
-      console.warn(`[VfxManager] Invalid launchTs: ${launchTimestamp}, using current time`);
-      launchTimestamp = now;
-    }
-    
-    // Create a new projectile instance with y-coordinate from server
-    const newProj: ProjectileVfxInstance = {
-      id: projId,
-      type: 'projectile',
-      skillId: e.detail.skillId || 'unknown',
-      origin: { 
-        x: e.detail.origin.x, 
-        y: e.detail.origin.y, // Use y-coordinate from server
-        z: e.detail.origin.z 
-      },
-      dir: { 
-        x: e.detail.dir.x, 
-        y: 0, // Default no vertical movement
-        z: e.detail.dir.z 
-      },
-      speed: e.detail.speed,
-      launchTs: launchTimestamp,
-      createdAt: now,
-    };
-    
-    console.log(`[VfxManager] Creating projectile ${projId}:`, {
-      origin: `(${newProj.origin.x.toFixed(2)}, ${newProj.origin.y.toFixed(2)}, ${newProj.origin.z.toFixed(2)})`,
-      dir: `(${newProj.dir.x.toFixed(2)}, ${newProj.dir.y.toFixed(2)}, ${newProj.dir.z.toFixed(2)})`,
-      speed: newProj.speed,
-      launchTs: newProj.launchTs,
-      currentTime: now
-    });
-    
-    setVfxInstances(prev => [...prev, newProj]);
-  }, []);
-  
-  // Handle projectile hit events
-  const handleProjectileHit = useCallback((hitData: ProjHit2) => {
-    console.log('VfxManager: Projectile hit', hitData);
-    
-    // Create impact effects based on skill type
-    if (hitData.skillId && hitData.impactPos) {
-      const position = { 
-        x: hitData.impactPos.x, 
-        y: 1.5, // Default height for impact effects 
-        z: hitData.impactPos.z 
-      };
-      
-      // Generate the proper effect based on the skill type
-      switch (hitData.skillId) {
-        case 'fireball':
-          createSplashEffect(position, 1.5);
-          break;
-        case 'waterSplash':
-          createSplashEffect(position, 2);
-          break;
-        case 'iceBolt':
-          createSplashEffect(position, 1);
-          break;
-        case 'petrify':
-          createFlashEffect(position, 'petrify');
-          break;
-      }
-    }
-  }, []);
-  
+
   // Handle instant hit events
   const handleInstantHit = useCallback((e: CustomEvent<InstantHit>) => {
     console.log('VfxManager: Instant hit', e.detail);

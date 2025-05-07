@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { useGameStore } from '../systems/gameStore';
 import { zoneManager } from '../systems/zoneSystem';
 
-interface Position {
+interface _Position {
   x: number;
   y: number;
   z: number;
@@ -49,11 +49,9 @@ interface EnemyProps {
 
 function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { id, type, position, health, maxHealth, isAlive, name, level } = enemy;
+  const { _id, type, position, health, maxHealth, isAlive, _name, level } = enemy;
   const [isHovered, setIsHovered] = useState(false);
-  const originalPosition = useRef(new Vector3(enemy.position.x, enemy.position.y, enemy.position.z));
-  const currentZone = useRef(zoneManager.getZoneAtPosition(enemy.position));
-  
+
   // Different models for different enemy types
   const getEnemyModel = () => {
     switch (type) {
@@ -211,22 +209,4 @@ function DefaultEnemyModel({ isSelected, isHovered }: ModelProps) {
       <meshStandardMaterial color={color} />
     </mesh>
   );
-}
-
-// Helper function to get health bar color based on percentage
-function getHealthColor(percentage: number): string {
-  if (percentage > 0.6) return '#00ff00';
-  if (percentage > 0.3) return '#ffff00';
-  return '#ff0000';
-}
-
-// Helper function to get zone indicator color
-function getZoneColor(zoneId: string): string {
-  const colors: { [key: string]: string } = {
-    starter_meadow: '#90EE90', // Light green
-    dark_forest: '#228B22',    // Forest green
-    rocky_highlands: '#A0522D', // Brown
-    misty_lake: '#4682B4'      // Steel blue
-  };
-  return colors[zoneId] || '#FFFFFF';
 }

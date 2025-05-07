@@ -4,8 +4,7 @@ import { create } from 'zustand';
 import { produce } from 'immer';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
-import { Skill, SkillId } from '../models/Skill';
-import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
+import { VecXZ, PlayerMovementState } from '../../../shared/types';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -327,7 +326,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         // Ignore minor position updates from server for self-controlled player
         if (error < 0.5) {
           // Still update other properties, just not position
-          const { position, ...otherProps } = playerData;
+          const { position: _position, ...otherProps } = playerData;
           
           // If we only had position update, return without changes
           if (Object.keys(otherProps).length === 1) return; // Only 'id' remains

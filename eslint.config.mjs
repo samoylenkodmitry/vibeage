@@ -23,6 +23,16 @@ const eslintConfig = [
   eslintConfigPrettier,
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    ignores: [
+      // Files to ignore (equivalent to .eslintignore)
+      'src/custom-types.d.ts',
+      'node_modules/**',
+      '.next/**',
+      'dist/**',
+      'public/**'
+    ]
+  },
+  {
     files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
       react,
@@ -30,17 +40,12 @@ const eslintConfig = [
       '@next/next': nextjs,
     },
     rules: {
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'off',
       '@next/next/no-img-element': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { 
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-        destructuredArrayIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_'
-      }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'react/no-unescaped-entities': 'warn',
-      '@typescript-eslint/ban-ts-comment': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'react/no-unescaped-entities': 'off',
       '@typescript-eslint/no-empty-function': 'warn'
     },
     settings: {

@@ -1,11 +1,11 @@
 'use client';
 
 import { RigidBody } from '@react-three/rapier';
-import { useRef, useEffect } from 'react';
+import { useRef} from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '../systems/gameStore';
-import { zoneManager, GAME_ZONES } from '../systems/zoneSystem';
+import { GAME_ZONES } from '../systems/zoneSystem';
 import * as THREE from 'three';
 
 export default function World() {

@@ -104,7 +104,7 @@ export default function ProjectileVfx({
     }
   });
   
-  useFrame((state, delta) => {
+  useFrame((state, _delta) => {
     if (!ref.current) return;
     
     // Update material opacity

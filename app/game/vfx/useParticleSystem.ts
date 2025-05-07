@@ -80,9 +80,9 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
       : optionsWithDefaults.emitterPosition!;
     
     // Generate position based on emitter shape
-    let position = new Vector3();
+    const position = new Vector3();
     switch (optionsWithDefaults.emitterShape) {
-      case 'sphere':
+      case 'sphere': {
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos((Math.random() * 2) - 1);
         const radius = optionsWithDefaults.emitterRadius! * Math.cbrt(Math.random());
@@ -92,8 +92,9 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
           emitterPos.z + radius * Math.cos(phi)
         );
         break;
+      }
         
-      case 'box':
+      case 'box': {
         const size = optionsWithDefaults.emitterSize!;
         position.set(
           emitterPos.x + (Math.random() - 0.5) * size.x,
@@ -101,8 +102,9 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
           emitterPos.z + (Math.random() - 0.5) * size.z
         );
         break;
+      }
         
-      case 'cone':
+      case 'cone': {
         const angle = Math.random() * Math.PI * 2;
         const distance = Math.random() * optionsWithDefaults.emitterRadius!;
         position.set(
@@ -111,6 +113,7 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
           emitterPos.z + Math.sin(angle) * distance
         );
         break;
+      }
         
       case 'point':
       default:

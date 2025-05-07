@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier';
-import { Vector3, Euler, Raycaster, Plane, Mesh, Vector2 } from 'three';
+import { Vector3, Plane, Vector2 } from 'three';
 import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
 import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
 import { VecXZ } from '../../../shared/messages';
@@ -56,8 +56,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 
   // --- Constants ---
   const jumpForce = 8;
-  const MOVEMENT_PRECISION = 0.1;
-  const TARGET_REACHED_THRESHOLD = 0.05; // Smaller threshold for more precise stopping
 
   // --- Callbacks for Controlled Player Input ---
   const handleMouseClick = useCallback((e: MouseEvent) => {
@@ -89,9 +87,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       
       // Create target position, ensuring Y is at ground level
       const newTarget = new Vector3(intersectPoint.x, GROUND_Y, intersectPoint.z);
-      
-      // Get current position
-      const currentPos = playerRef.current.translation();
       
       // Call the store's function to send the move start message with new protocol
       const path = [{ x: newTarget.x, z: newTarget.z }];
@@ -441,7 +436,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if (!isControlledPlayer || !playerRef.current) return;
 
     const handleRequestPosition = (e: CustomEvent) => {
-      const { effectId, callback } = e.detail;
+      const { _effectId, callback } = e.detail;
       if (playerRef.current) {
         const currentPosition = playerRef.current.translation();
         // Provide the accurate client-side position for skill effects

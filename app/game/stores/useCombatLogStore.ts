@@ -13,8 +13,6 @@ interface State {
   trim: () => void;
 }
 
-let nextId = 1;
-
 export const useCombatLogStore = create<State>()(
   persist(
     (set, get) => ({
@@ -28,8 +26,8 @@ export const useCombatLogStore = create<State>()(
       // This helps avoid errors in tests while keeping the code simple
       storage: {
         getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {}
+        setItem: () => { /* empty implementation */ },
+        removeItem: () => { /* empty implementation */ }
       }
     }
   )

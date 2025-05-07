@@ -26,6 +26,8 @@ export function applySkillEffect(targetId: string, effects: any[]) {
   }
 }
 
-export default {
+const skillEffectsExports = {
   applySkillEffect
 };
+
+export default skillEffectsExports;;

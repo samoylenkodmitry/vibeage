@@ -1,6 +1,5 @@
 import { useGameStore } from '../systems/gameStore';
 import { memo } from 'react';
-import { Vector3 } from 'three';
 
 export default memo(function TargetRing() {
   const pos = useGameStore(s => s.targetWorldPos);

@@ -3,7 +3,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
-import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
 import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
@@ -302,16 +301,19 @@ export default function SocketManager() {
 
       socket.on('msg', (msg: any) => {
         switch (msg.type) {
-          case 'MoveStart':
+          case 'MoveStart': {
             handlePlayerMoveStart(msg);
             break;
-          case 'PosSnap':
+          }
+          case 'PosSnap': {
             handlePosSnap(msg);
             break;
-          case 'CastFail':
+          }
+          case 'CastFail': {
             handleCastFail(msg);
             break;
-          case 'SkillShortcutUpdated':
+          }
+          case 'SkillShortcutUpdated': {
             // Update local shortcuts to match server state
             console.log('Skill shortcut updated:', msg);
             try {
@@ -346,7 +348,8 @@ export default function SocketManager() {
               console.error('Error processing SkillShortcutUpdated message:', error);
             }
             break;
-          case 'SkillLearned':
+          }
+          case 'SkillLearned': {
             // Handle skill learned confirmation from server
             console.log('Skill learned:', msg);
             if (useGameStore.getState().myPlayerId) {
@@ -363,13 +366,15 @@ export default function SocketManager() {
               }
             }
             break;
-          case 'ProjSpawn2':
+          }
+          case 'ProjSpawn2': {
             // Add to projectile store
             useProjectileStore.getState().add(msg as ProjSpawn2);
             // Also update legacy store during transition
             useProjectileStoreLegacy.getState().addEnhancedProjectile(msg as ProjSpawn2);
             break;
-          case 'ProjHit2':
+          }
+          case 'ProjHit2': {
             // Mark hit in projectile store
             useProjectileStore.getState().hit(msg as ProjHit2);
             // Also update legacy store during transition
@@ -401,14 +406,18 @@ export default function SocketManager() {
               });
             }
             break;
-          case 'CastSnapshot':
+          }
+          case 'CastSnapshot': {
             handleCastSnapshot(msg as CastSnapshotMsg);
             break;
-          case 'EffectSnapshot':
+          }
+          case 'EffectSnapshot': {
             handleEffectSnapshot(msg as EffectSnapshotMsg);
             break;
-          default:
+          }
+          default: {
             console.log('Unknown message type:', msg.type);
+          }
         }
       });
 

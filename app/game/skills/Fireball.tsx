@@ -4,7 +4,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
 import * as THREE from 'three';
-import { useGameStore } from '../systems/gameStore';
 import { SKILLS } from '../models/Skill';
 
 interface FireballProps {
@@ -215,9 +214,7 @@ function FireballImpact({ position }: ImpactProps) {
   }, [position]);
   
   useFrame((state, delta) => {
-    // Cap delta to prevent large jumps with low frame rates
-    const cappedDelta = Math.min(delta, 0.1);
-    
+
     if (meshRef.current) {
       // Expand impact with controlled scaling instead of additive
       const maxScale = 5.0;
