@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-06T18:36:23.793Z
+// Generated on: 2025-05-07T18:25:05.118Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -13,7 +13,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { tryStartCast } from '../systems/castController';
-import { SkillId } from '../../../shared/skillsDefinition';
 
 /**
  * ActiveSkills component
@@ -306,16 +305,9 @@ import { useFrame } from '@react-three/fiber';
 import { useState, useRef } from 'react';
 import { RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
-import { Vector3 } from 'three';
+
 import * as THREE from 'three';
 import { useGameStore } from '../systems/gameStore';
-import { zoneManager } from '../systems/zoneSystem';
-
-interface Position {
-  x: number;
-  y: number;
-  z: number;
-}
 
 export default function Enemies() {
   const enemies = useGameStore(state => state.enemies);
@@ -351,11 +343,9 @@ interface EnemyProps {
 
 function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { id, type, position, health, maxHealth, isAlive, name, level } = enemy;
+  const { type, position, health, maxHealth, isAlive, level } = enemy;
   const [isHovered, setIsHovered] = useState(false);
-  const originalPosition = useRef(new Vector3(enemy.position.x, enemy.position.y, enemy.position.z));
-  const currentZone = useRef(zoneManager.getZoneAtPosition(enemy.position));
-  
+
   // Different models for different enemy types
   const getEnemyModel = () => {
     switch (type) {
@@ -515,24 +505,6 @@ function DefaultEnemyModel({ isSelected, isHovered }: ModelProps) {
   );
 }
 
-// Helper function to get health bar color based on percentage
-function getHealthColor(percentage: number): string {
-  if (percentage > 0.6) return '#00ff00';
-  if (percentage > 0.3) return '#ffff00';
-  return '#ff0000';
-}
-
-// Helper function to get zone indicator color
-function getZoneColor(zoneId: string): string {
-  const colors: { [key: string]: string } = {
-    starter_meadow: '#90EE90', // Light green
-    dark_forest: '#228B22',    // Forest green
-    rocky_highlands: '#A0522D', // Brown
-    misty_lake: '#4682B4'      // Steel blue
-  };
-  return colors[zoneId] || '#FFFFFF';
-}
-
 // ==============================================================================
 // FILE: app/game/components/Game.tsx
 // ==============================================================================
@@ -541,8 +513,8 @@ function getZoneColor(zoneId: string): string {
 
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Sky, KeyboardControls } from '@react-three/drei';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { KeyboardControls } from '@react-three/drei';
+import { useEffect, useState, useCallback } from 'react';
 import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
@@ -570,7 +542,6 @@ const controls = [
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
   const [playerName, setPlayerName] = useState('');
-  const [joiningError, setJoiningError] = useState<string | null>(null);
   const isConnected = useGameStore(state => state.isConnected);
   const socket = useGameStore(state => state.socket);
   const hasJoinedGame = useGameStore(state => state.hasJoinedGame);
@@ -580,16 +551,12 @@ export default function Game() {
     if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame) {
       console.log('Joining game with player name:', playerName);
       socket.emit('joinGame', playerName);
-      setJoiningError(null);
       setHasJoinedGame(true);
     }
   }, [isGameStarted, socket, isConnected, playerName, hasJoinedGame, setHasJoinedGame]);
 
   const handleStartGame = useCallback(() => {
     if (playerName.trim()) {
-      if (!isConnected) {
-        setJoiningError('Waiting for server connection...');
-      }
       setGameStarted(true);
     }
   }, [playerName, isConnected]);
@@ -784,8 +751,8 @@ export default function KeyboardShortcuts() {
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier';
-import { Vector3, Euler, Raycaster, Plane, Mesh, Vector2 } from 'three';
+import { RigidBody, CapsuleCollider} from '@react-three/rapier';
+import { Vector3, Plane, Vector2 } from 'three';
 import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
 import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
 import { VecXZ } from '../../../shared/messages';
@@ -821,8 +788,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   
   // --- Hooks and State specific to the controlled player ---
   const { camera, gl, raycaster } = useThree();
-  const { rapier, world } = useRapier();
-  const [isGrounded, setIsGrounded] = useState(false);
+  const [isGrounded] = useState(false);
   const [hasJumped, setHasJumped] = useState(false);
   const [targetPosition, setTargetPosition] = useState<Vector3 | null>(null);
   const movementStartTimeTs = useRef<number | null>(null);
@@ -831,7 +797,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const [isRotating, setIsRotating] = useState(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
-  const cameraInitialized = useRef(false);
+
   const groundPlane = new Plane(new Vector3(0, 1, 0), -GROUND_Y);
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
   
@@ -840,8 +806,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 
   // --- Constants ---
   const jumpForce = 8;
-  const MOVEMENT_PRECISION = 0.1;
-  const TARGET_REACHED_THRESHOLD = 0.05; // Smaller threshold for more precise stopping
 
   // --- Callbacks for Controlled Player Input ---
   const handleMouseClick = useCallback((e: MouseEvent) => {
@@ -873,9 +837,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       
       // Create target position, ensuring Y is at ground level
       const newTarget = new Vector3(intersectPoint.x, GROUND_Y, intersectPoint.z);
-      
-      // Get current position
-      const currentPos = playerRef.current.translation();
       
       // Call the store's function to send the move start message with new protocol
       const path = [{ x: newTarget.x, z: newTarget.z }];
@@ -1225,7 +1186,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if (!isControlledPlayer || !playerRef.current) return;
 
     const handleRequestPosition = (e: CustomEvent) => {
-      const { effectId, callback } = e.detail;
+      const { callback } = e.detail;
       if (playerRef.current) {
         const currentPosition = playerRef.current.translation();
         // Provide the accurate client-side position for skill effects
@@ -1395,6 +1356,7 @@ import { CLASS_SKILL_TREES, canLearnSkill, CharacterClass } from '../../../share
 import dragState from '../systems/dragState';
 import skillUtils from '../systems/skillUtils';
 import styles from '../styles/SkillTreeUI.module.css';
+import Image from 'next/image';
 
 const SkillTreeUI: React.FC = () => {
   const socket = useGameStore(state => state.socket);
@@ -1407,12 +1369,6 @@ const SkillTreeUI: React.FC = () => {
 
   // Force update when drag state changes
   const [dragStateKey, setDragStateKey] = useState(0);
-  // Create local wrappers for drag state functions that trigger re-renders
-  const setDraggedSkill = (skillId: string | null) => {
-    dragState.setDraggedSkill(skillId);
-    setDragStateKey(prev => prev + 1);
-  };
-  
   const clearDraggedSkill = () => {
     dragState.clearDraggedSkill();
     setDragStateKey(prev => prev + 1);
@@ -1677,8 +1633,10 @@ const SkillTreeUI: React.FC = () => {
                       const skill = SKILLS[skillId];
                       return (
                         <div key={skillId} className={styles.skillItem}>
-                          <img 
+                          <Image 
                             src={skillUtils.getSkillIconPath(skillId)} 
+                            width={50}
+                            height={50}
                             alt={skill.name} 
                             title={skill.description}
                       onDoubleClick={() => {
@@ -1710,23 +1668,6 @@ const SkillTreeUI: React.FC = () => {
                         // Set the drag effect to copy
                         e.dataTransfer.effectAllowed = 'copy';
 
-                        // Add custom drag image if available
-                        try {
-                          const img = new Image();
-                          img.src = skillUtils.getSkillIconPath(skillId);
-                          console.log('Using image for drag:', img.src);
-
-                          img.onload = () => {
-                            try {
-                              e.dataTransfer.setDragImage(img, 25, 25);
-                              console.log('Set drag image successfully');
-                            } catch (imgErr) {
-                              console.warn('Failed to set drag image after load:', imgErr);
-                            }
-                          };
-                        } catch (err) {
-                          console.warn('Failed to create drag image:', err);
-                        }
                       }}
                       onDragEnd={() => {
                         console.log('Drag ended, clearing drag state');
@@ -1756,10 +1697,12 @@ const SkillTreeUI: React.FC = () => {
                       const skill = SKILLS[skillId];
                       return (
                         <div key={skillId} className={styles.skillItem}>
-                          <img 
+                          <Image 
                             src={skillUtils.getSkillIconPath(skillId)} 
                             alt={skill.name} 
                             title={skill.description}
+                            width={50}
+                            height={50}
                           />
                           <span>{skill.name}</span>
                           <div className={styles.skillDetails}>
@@ -1857,7 +1800,7 @@ const SkillTreeUI: React.FC = () => {
                         setTimeout(() => {
                           try {
                               e.currentTarget.classList.remove(styles.dropSuccess);
-                          } catch (_err) {
+                          } catch {
                               // Ignoring errors when removing class if element no longer exists
                               console.debug('Failed to remove drop success class');
                           }
@@ -1874,10 +1817,12 @@ const SkillTreeUI: React.FC = () => {
                   >
                     <div className={styles.keyNumber}>{index + 1}</div>
                     {skillId ? (
-                      <img 
+                      <Image 
                         src={skillUtils.getSkillIconPath(skillId)} 
                         alt={SKILLS[skillId] ? SKILLS[skillId].name : skillId} 
                         title={SKILLS[skillId] ? SKILLS[skillId].description : skillId}
+                        width={50}
+                        height={50}
                       />
                     ) : (
                       <div className={styles.emptySlot} />
@@ -1903,8 +1848,8 @@ export default SkillTreeUI;
 
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
-import { useGameStore, StatusEffect, selectStatusEffects } from '../systems/gameStore';
+import React, { useCallback } from 'react';
+import { useGameStore, StatusEffect } from '../systems/gameStore';
 import Image from 'next/image';
 
 interface StatusEffectsProps {
@@ -1912,15 +1857,6 @@ interface StatusEffectsProps {
   position?: 'top' | 'right' | 'bottom' | 'left';
   inline?: boolean;
 }
-
-// Cache for status effects to ensure stable references across renders
-const statusEffectsCache: {
-  [key: string]: {
-    effects: StatusEffect[];
-    timestamp: number;
-    signature: string;
-  }
-} = {};
 
 // EXTREMELY simple hook for status effects with debugging
 function useStatusEffects(targetId: string | 'player'): StatusEffect[] {
@@ -2007,6 +1943,7 @@ function useStatusEffects(targetId: string | 'player'): StatusEffect[] {
   return effects;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const StatusEffects = React.memo(React.forwardRef<HTMLDivElement, StatusEffectsProps>(({ targetId, position = 'top', inline = false }, ref) => {
   // Format to show time remaining
   const formatTimeRemainingMs = useCallback((effect: StatusEffect) => {
@@ -2049,8 +1986,10 @@ const StatusEffects = React.memo(React.forwardRef<HTMLDivElement, StatusEffectsP
               backgroundColor: `var(--effect-${effect.type}-color, #6b7280)`
             }}
           >
-            <img 
+            <Image 
               src={`/game/skills/effect_${effect.type}.png`} 
+              width={24}
+              height={24}
               alt={effect.type} 
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -2078,7 +2017,6 @@ export default StatusEffects;
 
 import { useGameStore } from '../systems/gameStore';
 import { memo } from 'react';
-import { Vector3 } from 'three';
 
 export default memo(function TargetRing() {
   const pos = useGameStore(s => s.targetWorldPos);
@@ -2117,103 +2055,12 @@ function isValidSkillId(id: string | null): id is SkillId {
   return id in SKILLS; // Check if the ID exists in the SKILLS object
 }
 
-interface PlayerState {
-  id: string;
-  name: string;
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  unlockedSkills: string[];
-  skillShortcuts: (string | null)[];
-  availableSkillPoints: number;
-  className: string;
-}
 
 // Add explicit global window typings for our custom method
 declare global {
   interface Window {
     castFireball?: () => void;
   }
-}
-
-interface XPBoostPanelProps {
-  isAdmin?: boolean;
-}
-
-function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
-  const getXpMultiplierInfo = useGameStore(state => state.getXpMultiplierInfo);
-  const applyDonationBoost = useGameStore(state => state.applyDonationBoost);
-  const clearDonationBoost = useGameStore(state => state.clearDonationBoost);
-  const toggleXpEvent = useGameStore(state => state.toggleXpEvent);
-  const bonusXpEventActive = useGameStore(state => state.bonusXpEventActive);
-  const donationXpBoost = useGameStore(state => state.donationXpBoost);
-  
-  const xpInfo = getXpMultiplierInfo();
-  const totalMultiplier = xpInfo.total;
-  
-  // Handler for donation boost
-  const handleDonationBoost = useCallback((amount: number, durationMinutes: number, event: React.MouseEvent) => {
-    event.stopPropagation();
-    applyDonationBoost(amount, durationMinutes);
-  }, [applyDonationBoost]);
-  
-  return (
-    <div className="bg-gray-900/80 p-3 rounded-lg mb-3">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-white font-bold">XP Multipliers</h3>
-        <div className="text-xl text-yellow-400 font-bold">{totalMultiplier.toFixed(2)}x</div>
-      </div>
-      
-      <div className="space-y-1 mb-3 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-300">Base Multiplier:</span>
-          <span className="text-white">{xpInfo.base}x</span>
-        </div>
-        
-        {xpInfo.donation > 0 && (
-          <div className="flex justify-between">
-            <span className="text-gray-300">Donation Boost:</span>
-            <span className="text-green-400">+{(xpInfo.donation * 100).toFixed(0)}%</span>
-          </div>
-        )}
-        
-        {xpInfo.event > 1 && (
-          <div className="flex justify-between">
-            <span className="text-gray-300">Event Bonus:</span>
-            <span className="text-purple-400">{xpInfo.event}x</span>
-          </div>
-        )}
-      </div>
-      
-      {/* Donation boost panel - visible to all players */}
-      <div className="mb-3">
-        <div className="flex gap-2 justify-center">
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={(e) => handleDonationBoost(0.5, 60, e)}
-          >
-            +50% (1h) $5
-          </button>
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={(e) => handleDonationBoost(1.0, 120, e)}
-          >
-            +100% (2h) $10
-          </button>
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={(e) => handleDonationBoost(2.0, 240, e)}
-          >
-            +200% (4h) $20
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 interface SkillButtonProps {
@@ -2227,7 +2074,7 @@ interface SkillButtonProps {
 }
 
 // Memoize SkillButton to prevent unnecessary re-renders
-const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
+const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
   const initial = Math.max(0, cooldownEndMs - Date.now());
   const [remainingCooldownMs, setRemainingCooldownMs] = useState(initial);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -2433,11 +2280,8 @@ export default React.memo(function UI() {
   const skillCooldownEndTs = player?.skillCooldownEndTs ?? {};
   const castingSkill = player?.castingSkill ?? null;
   const castingProgressMs = player?.castingProgressMs ?? 0;
-  const socket = useGameStore(state => state.socket);
   const currentZoneId = useGameStore(state => state.currentZoneId);
   const flashingSkill = useGameStore(state => state.flashingSkill);
-  
-  const [isAdmin] = useState(false);
   
   // Memoize selected target lookup
   const selectedTarget = useMemo(() => 
@@ -2504,11 +2348,6 @@ export default React.memo(function UI() {
           </div>
         </div>
       )}
-      
-      {/* Right UI - XP Boost Panel */}
-      <div className="absolute top-20 right-5 w-64">
-        <XPBoostPanel isAdmin={isAdmin} />
-      </div>
       
       {/* Bottom UI - Player stats and skills */}
       <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 w-full max-w-3xl px-5">
@@ -2632,15 +2471,13 @@ export default React.memo(function UI() {
 // ==============================================================================
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Vector3 } from 'three';
 import FireballProjectile from '../vfx/FireballProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
 import WaterProjectile from '../vfx/WaterProjectile';
 import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
-import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
-import { SkillId } from '../../../shared/skillsDefinition';
+import { ProjSpawn2, InstantHit } from '../../../shared/messages';
 import { useProjectileStore } from '../systems/projectileStore';
 
 // Types for VFX instances
@@ -2685,103 +2522,7 @@ export default function VfxManager() {
   const projectileArray = useMemo(() => {
     return Object.values(liveProjectiles);
   }, [liveProjectiles]);
-  
-  // Mapping of skill IDs to VFX types
-  const skillVfxMap = {
-    fireball: 'fireball',
-    iceBolt: 'icebolt',
-    waterSplash: 'water',
-    petrify: 'petrify',
-  };
-  
-  // Handle projectile spawn events
-  const handleProjectileSpawn = useCallback((e: CustomEvent<ProjSpawn2>) => {
-    console.log('VfxManager: Projectile spawn', e.detail);
-    
-    // Debug validation of required properties
-    if (!e.detail.dir || typeof e.detail.speed !== 'number' || e.detail.speed === 0) {
-      console.error('VfxManager: Invalid projectile data', {
-        dir: e.detail.dir,
-        speed: e.detail.speed,
-        skillId: e.detail.skillId || 'unknown'
-      });
-      return; // Exit early if invalid data
-    }
-    
-    // Ensure the projectile has an ID
-    const projId = e.detail.castId || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Ensure timestamps are valid - use current time if missing or invalid
-    const now = performance.now();
-    let launchTimestamp = e.detail.launchTs;
-    
-    // If timestamp is missing or invalid (too far in future or past), use current time
-    if (!launchTimestamp || launchTimestamp > now + 5000 || launchTimestamp < now - 30000) {
-      console.warn(`[VfxManager] Invalid launchTs: ${launchTimestamp}, using current time`);
-      launchTimestamp = now;
-    }
-    
-    // Create a new projectile instance with y-coordinate from server
-    const newProj: ProjectileVfxInstance = {
-      id: projId,
-      type: 'projectile',
-      skillId: e.detail.skillId || 'unknown',
-      origin: { 
-        x: e.detail.origin.x, 
-        y: e.detail.origin.y, // Use y-coordinate from server
-        z: e.detail.origin.z 
-      },
-      dir: { 
-        x: e.detail.dir.x, 
-        y: 0, // Default no vertical movement
-        z: e.detail.dir.z 
-      },
-      speed: e.detail.speed,
-      launchTs: launchTimestamp,
-      createdAt: now,
-    };
-    
-    console.log(`[VfxManager] Creating projectile ${projId}:`, {
-      origin: `(${newProj.origin.x.toFixed(2)}, ${newProj.origin.y.toFixed(2)}, ${newProj.origin.z.toFixed(2)})`,
-      dir: `(${newProj.dir.x.toFixed(2)}, ${newProj.dir.y.toFixed(2)}, ${newProj.dir.z.toFixed(2)})`,
-      speed: newProj.speed,
-      launchTs: newProj.launchTs,
-      currentTime: now
-    });
-    
-    setVfxInstances(prev => [...prev, newProj]);
-  }, []);
-  
-  // Handle projectile hit events
-  const handleProjectileHit = useCallback((hitData: ProjHit2) => {
-    console.log('VfxManager: Projectile hit', hitData);
-    
-    // Create impact effects based on skill type
-    if (hitData.skillId && hitData.impactPos) {
-      const position = { 
-        x: hitData.impactPos.x, 
-        y: 1.5, // Default height for impact effects 
-        z: hitData.impactPos.z 
-      };
-      
-      // Generate the proper effect based on the skill type
-      switch (hitData.skillId) {
-        case 'fireball':
-          createSplashEffect(position, 1.5);
-          break;
-        case 'waterSplash':
-          createSplashEffect(position, 2);
-          break;
-        case 'iceBolt':
-          createSplashEffect(position, 1);
-          break;
-        case 'petrify':
-          createFlashEffect(position, 'petrify');
-          break;
-      }
-    }
-  }, []);
-  
+
   // Handle instant hit events
   const handleInstantHit = useCallback((e: CustomEvent<InstantHit>) => {
     console.log('VfxManager: Instant hit', e.detail);
@@ -2985,11 +2726,11 @@ export default function VfxManager() {
 'use client';
 
 import { RigidBody } from '@react-three/rapier';
-import { useRef, useEffect } from 'react';
+import { useRef} from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '../systems/gameStore';
-import { zoneManager, GAME_ZONES } from '../systems/zoneSystem';
+import { GAME_ZONES } from '../systems/zoneSystem';
 import * as THREE from 'three';
 
 export default function World() {
@@ -3312,17 +3053,6 @@ function FallenLogs({ position = [0, 0, 0], count = 5, spread = 30 }) {
   return <group>{logs}</group>;
 }
 
-// Hills and elevated terrain
-function Hill({ position = [0, 0, 0], radius = 30, height = 10 }) {
-  return (
-    <RigidBody type="fixed" position={[position[0], position[1], position[2]]}>
-      <mesh castShadow receiveShadow>
-        <coneGeometry args={[radius, height, 32]} />
-        <meshStandardMaterial color="#4a8f5c" roughness={0.8} />
-      </mesh>
-    </RigidBody>
-  );
-}
 
 // ==============================================================================
 // FILE: app/game/models/Character.ts
@@ -3490,7 +3220,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
 import * as THREE from 'three';
-import { useGameStore } from '../systems/gameStore';
 import { SKILLS } from '../models/Skill';
 
 interface FireballProps {
@@ -3701,9 +3430,7 @@ function FireballImpact({ position }: ImpactProps) {
   }, [position]);
   
   useFrame((state, delta) => {
-    // Cap delta to prevent large jumps with low frame rates
-    const cappedDelta = Math.min(delta, 0.1);
-    
+
     if (meshRef.current) {
       // Expand impact with controlled scaling instead of additive
       const maxScale = 5.0;
@@ -3798,7 +3525,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
 import * as THREE from 'three';
-import { useGameStore } from '../systems/gameStore';
 import { SKILLS } from '../models/Skill';
 
 interface IceBoltProps {
@@ -4165,7 +3891,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, MathUtils } from 'three';
 import * as THREE from 'three';
-import { SKILLS } from '../models/Skill';
 
 interface PetrifyProps {
   startPosition: Vector3;
@@ -4365,8 +4090,7 @@ function PetrifyImpact({ position }: ImpactProps) {
   const waveRef = useRef<THREE.Mesh>(null);
   const crystalsRef = useRef<THREE.Group>(null);
   const centralPillarRef = useRef<THREE.Mesh>(null);
-  const [initialScale] = useState(() => 0.1 + Math.random() * 0.2);
-  
+
   // Stone fragments that emerge from the ground
   const fragments = useRef<Array<{
     position: Vector3;
@@ -5082,8 +4806,6 @@ interface State {
   trim: () => void;
 }
 
-let nextId = 1;
-
 export const useCombatLogStore = create<State>()(
   persist(
     (set, get) => ({
@@ -5097,8 +4819,8 @@ export const useCombatLogStore = create<State>()(
       // This helps avoid errors in tests while keeping the code simple
       storage: {
         getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {}
+        setItem: () => { /* empty implementation */ },
+        removeItem: () => { /* empty implementation */ }
       }
     }
   )
@@ -5114,7 +4836,6 @@ export const useCombatLogStore = create<State>()(
 import { useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
-import { GROUND_Y } from './moveSimulation';
 import { SnapBuffer } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
 import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
@@ -5413,16 +5134,19 @@ export default function SocketManager() {
 
       socket.on('msg', (msg: any) => {
         switch (msg.type) {
-          case 'MoveStart':
+          case 'MoveStart': {
             handlePlayerMoveStart(msg);
             break;
-          case 'PosSnap':
+          }
+          case 'PosSnap': {
             handlePosSnap(msg);
             break;
-          case 'CastFail':
+          }
+          case 'CastFail': {
             handleCastFail(msg);
             break;
-          case 'SkillShortcutUpdated':
+          }
+          case 'SkillShortcutUpdated': {
             // Update local shortcuts to match server state
             console.log('Skill shortcut updated:', msg);
             try {
@@ -5457,7 +5181,8 @@ export default function SocketManager() {
               console.error('Error processing SkillShortcutUpdated message:', error);
             }
             break;
-          case 'SkillLearned':
+          }
+          case 'SkillLearned': {
             // Handle skill learned confirmation from server
             console.log('Skill learned:', msg);
             if (useGameStore.getState().myPlayerId) {
@@ -5474,13 +5199,15 @@ export default function SocketManager() {
               }
             }
             break;
-          case 'ProjSpawn2':
+          }
+          case 'ProjSpawn2': {
             // Add to projectile store
             useProjectileStore.getState().add(msg as ProjSpawn2);
             // Also update legacy store during transition
             useProjectileStoreLegacy.getState().addEnhancedProjectile(msg as ProjSpawn2);
             break;
-          case 'ProjHit2':
+          }
+          case 'ProjHit2': {
             // Mark hit in projectile store
             useProjectileStore.getState().hit(msg as ProjHit2);
             // Also update legacy store during transition
@@ -5512,14 +5239,18 @@ export default function SocketManager() {
               });
             }
             break;
-          case 'CastSnapshot':
+          }
+          case 'CastSnapshot': {
             handleCastSnapshot(msg as CastSnapshotMsg);
             break;
-          case 'EffectSnapshot':
+          }
+          case 'EffectSnapshot': {
             handleEffectSnapshot(msg as EffectSnapshotMsg);
             break;
-          default:
+          }
+          default: {
             console.log('Unknown message type:', msg.type);
+          }
         }
       });
 
@@ -5692,9 +5423,7 @@ export default function SocketManager() {
     
     // Add to combat log when effect is first applied
     if (remainingMs > 0 && stacks === 1) {
-      const player = useGameStore.getState().getMyPlayer();
-      const playerId = player?.id || '';
-      
+
       useCombatLogStore.getState().push({
         id: nextId++,
         text: `>>> ${effectId.toUpperCase()} applied`,
@@ -5857,8 +5586,7 @@ import { create } from 'zustand';
 import { produce } from 'immer';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
-import { Skill, SkillId } from '../models/Skill';
-import { PlayerState as ServerPlayerState, VecXZ, PlayerMovementState } from '../../../shared/types';
+import { VecXZ, PlayerMovementState } from '../../../shared/types';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -6180,7 +5908,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         // Ignore minor position updates from server for self-controlled player
         if (error < 0.5) {
           // Still update other properties, just not position
-          const { position, ...otherProps } = playerData;
+          // suppress unused variable warning
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { position: _position, ...otherProps } = playerData;
           
           // If we only had position update, return without changes
           if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
@@ -6690,7 +6420,7 @@ interface ProjectileStore {
 // Duration of fade-out effect in milliseconds
 const FADE_OUT_DURATION_MS = 500; // 500ms for smooth fade-out
 
-export const useProjectileStoreLegacy = create<ProjectileStore>((set, get) => ({
+export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
   enhanced: {}, // Initialize the projectiles map
   
   updateOpacity: () => {
@@ -6813,6 +6543,7 @@ type Actions = {
 export const useProjectileStore = create<State & Actions>((set) => ({
   live: {},
   add: (p) => set((s) => ({ live: { ...s.live, [p.castId]: p } })),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
   hit: (h) => set((s) => { const { [h.castId]: _, ...rest } = s.live; return { live: rest }; })
 }));
 
@@ -6849,9 +6580,11 @@ export function applySkillEffect(targetId: string, effects: any[]) {
   }
 }
 
-export default {
+const skillEffectsExports = {
   applySkillEffect
 };
+
+export default skillEffectsExports;;
 
 
 // ==============================================================================
@@ -7268,7 +7001,7 @@ export default function FireballProjectile({
   });
   
   // Add wobble effect to core
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!coreRef.current) return;
     
     // Fire core pulsing
@@ -7777,7 +7510,7 @@ export default function ProjectileVfx({
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
   
   // Use the projectile movement hook for consistent positioning
-  const { position, isDestroyed } = useProjectileMovement({
+  const { position} = useProjectileMovement({
     origin,
     dir,
     speed,
@@ -7850,7 +7583,7 @@ export default function ProjectileVfx({
     }
   });
   
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!ref.current) return;
     
     // Update material opacity
@@ -7960,8 +7693,7 @@ interface MistParticle {
 export default function SplashVfx({ position, radius }: SplashVfxProps) {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0); // 1 second lifetime
-  const uniqueId = useRef(`splash-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
-  
+
   // Generate water droplet particles
   const particles = useMemo(() => {
     const particleCount = 10 + Math.floor(radius * 5); // Scale particles with radius
@@ -8524,7 +8256,7 @@ export default function WaterProjectile({
     }  });
   
   // Apply water-like wobble effect
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!mainRef.current) return;
     
     // Water-like wobble effect
@@ -8673,9 +8405,9 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
       : optionsWithDefaults.emitterPosition!;
     
     // Generate position based on emitter shape
-    let position = new Vector3();
+    const position = new Vector3();
     switch (optionsWithDefaults.emitterShape) {
-      case 'sphere':
+      case 'sphere': {
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos((Math.random() * 2) - 1);
         const radius = optionsWithDefaults.emitterRadius! * Math.cbrt(Math.random());
@@ -8685,8 +8417,9 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
           emitterPos.z + radius * Math.cos(phi)
         );
         break;
+      }
         
-      case 'box':
+      case 'box': {
         const size = optionsWithDefaults.emitterSize!;
         position.set(
           emitterPos.x + (Math.random() - 0.5) * size.x,
@@ -8694,8 +8427,9 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
           emitterPos.z + (Math.random() - 0.5) * size.z
         );
         break;
+      }
         
-      case 'cone':
+      case 'cone': {
         const angle = Math.random() * Math.PI * 2;
         const distance = Math.random() * optionsWithDefaults.emitterRadius!;
         position.set(
@@ -8704,6 +8438,7 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
           emitterPos.z + Math.sin(angle) * distance
         );
         break;
+      }
         
       case 'point':
       default:
@@ -9255,46 +8990,6 @@ export default nextConfig;
 // FILE: script.ts
 // ==============================================================================
 
-// Script to run the server in development mode
-import * as path from 'path';
-import * as fs from 'fs';
-import { spawn } from 'child_process';
-
-// Get the project root directory
-const rootDir = process.cwd();
-
-// Check if TypeScript is available
-const tsconfigPath = path.join(rootDir, 'tsconfig.server.json');
-const hasTsConfig = fs.existsSync(tsconfigPath);
-
-// Use ts-node for TypeScript execution in development
-const nodemon = require('nodemon');
-
-nodemon({
-  script: path.join(rootDir, 'server', 'server.ts'),
-  ext: 'ts,tsx,js,jsx,json',
-  watch: [
-    path.join(rootDir, 'server'),
-    path.join(rootDir, 'shared')
-  ],
-  exec: hasTsConfig ? 'ts-node --project tsconfig.server.json' : 'ts-node',
-  env: {
-    NODE_ENV: 'development',
-    PORT: process.env.PORT || '3001'
-  }
-});
-
-nodemon.on('start', () => {
-  console.log('Server started');
-});
-
-nodemon.on('restart', (files) => {
-  console.log('Server restarted due to changes in:', files);
-});
-
-nodemon.on('crash', () => {
-  console.error('Server crashed, waiting for changes before restart');
-});
 
 
 // ==============================================================================
@@ -9504,8 +9199,7 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
     // Simple approach: try points along the line from start to dest
     const dx = dest.x - start.x;
     const dz = dest.z - start.z;
-    const distance = Math.sqrt(dx * dx + dz * dz);
-    
+
     // Try increments of 5% back from the destination
     for (let percent = 0.95; percent >= 0.05; percent -= 0.05) {
         const testPoint = {
@@ -9658,7 +9352,7 @@ const effectHandlers = {
     return false; // No entity died from mana change
   },
   
-  stat: (value: number, target: any) => {
+  stat: () => {
     // Stat modifications would go here
     // For now, we don't implement actual stat modifications
     return false;
@@ -9689,7 +9383,7 @@ export function applyEffectTick(tick: EffectTick, target: any): boolean {
 import { nanoid } from 'nanoid';
 import { EffectDef, EffectId, EFFECTS } from '../../../shared/effectsDefinition.js';
 import { EffectSnapshotMsg } from '../../../shared/messages.js';
-import { effectRng } from '../../../shared/combatMath.js';
+
 import { applyEffectTick } from './EffectApplicator.js';
 
 type EntityId = string;
@@ -9911,7 +9605,7 @@ import { Vec3D } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
-import { effectRunner } from './effects/EffectRunner.js';
+import { PlayerState as Player } from '../../shared/types.js';
 
 // Import getDamage from shared/combatMath.js
 import { getDamage as getSkillDamage } from '../../shared/combatMath.js';
@@ -9982,24 +9676,6 @@ interface Projectile {
   skillId: SkillId;
 }
 
-// Player interface that contains needed properties for skill casting
-interface Player {
-  id: string;
-  socketId: string;
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  cooldowns: Record<string, number>;
-  skillCooldownEndTs: Record<string, number>;
-  isAlive: boolean;
-  level: number;
-  position: { x: number; y: number; z: number };
-  movement?: any;
-  stats?: any;
-  // Other player properties
-}
-
 // Collection of active casts by all players (legacy)
 const activeCasts: CastState[] = [];
 // Collection of completed casts to be processed
@@ -10044,7 +9720,7 @@ export function handleCastReq(
   }
   
   // Check cooldown
-  if ((player.cooldowns?.[skillId] && now < player.cooldowns[skillId]) || 
+  if ((player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId]) || 
       (player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId])) {
     socket.emit('msg', {
       type: 'CastFail',
@@ -10055,7 +9731,7 @@ export function handleCastReq(
   }
   
   // Check mana cost
-  const manaCost = getManaCost(skillId, player.level);
+  const manaCost = getManaCost(skillId);
   if (player.mana < manaCost) {
     socket.emit('msg', {
       type: 'CastFail',
@@ -10117,8 +9793,7 @@ export function handleCastReq(
   player.mana -= manaCost;
   
   // Set cooldown
-  const cooldownMs = getCooldownMs(skillId, player.level);
-  player.cooldowns[skillId] = now + cooldownMs;
+  const cooldownMs = getCooldownMs(skillId);
   player.skillCooldownEndTs[skillId] = now + cooldownMs;
   
   // Create a cast state entry
@@ -10446,8 +10121,7 @@ export function tickCasts(dt: number, io: Server, world: World): void {
  * Updates projectile positions and handles collisions
  */
 export function tickProjectiles(dt: number, io: Server, world: World): void {
-  const now = Date.now();
-  
+
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     const skill = SKILLS[proj.skillId];
@@ -10970,8 +10644,8 @@ export function applySkillDamage(skill: any, target: any, state: GameState, prec
 
 import { EffectEntity, Projectile, Instant } from './entities';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition';
-import { ProjSpawn2, ProjHit2, InstantHit } from '../../shared/messages';
-import { getDamage } from '../../shared/combatMath';
+import { ProjSpawn2} from '../../shared/messages';
+
 import { Server } from 'socket.io';
 
 // Define a simplified GameState interface to match our usage
@@ -11096,6 +10770,8 @@ export const LOG_CATEGORIES = {
   PROJECTILE: 'projectile',
   MOVEMENT: 'movement',
   DAMAGE: 'damage',
+  MANA: 'mana',
+  HEALING: 'healing',
   ENEMY: 'enemy',
   PLAYER: 'player',
   SKILL: 'skill',
@@ -11312,8 +10988,7 @@ try {
 import { Socket } from 'socket.io';
 import { LearnSkill, SetSkillShortcut } from '../shared/messages.js';
 import { SkillId } from '../shared/skillsDefinition.js';
-import { canLearnSkill } from '../shared/classSystem.js';
-import { CharacterClass } from '../shared/classSystem.js';
+
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';
 
 // Define simplified types for what we need from the game state
@@ -11478,8 +11153,8 @@ export function onSetSkillShortcut(socket: Socket, state: GameState, msg: SetSki
 // ==============================================================================
 
 // filepath: /home/s/develop/projects/vibe/1/server/skillManager.ts
-import { Socket } from 'socket.io';
-import { SkillId, SKILLS } from '../shared/skillsDefinition.js';
+
+import { SkillId} from '../shared/skillsDefinition.js';
 import { canLearnSkill, CharacterClass, CLASS_SKILL_TREES } from '../shared/classSystem.js';
 
 // Define simplified types for what we need from the game state
@@ -11647,32 +11322,7 @@ import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
 import { predictPosition, awardPlayerXP } from './world.js';
 import { hash } from '../shared/combatMath.js';
-
-interface PlayerState {
-  id: string;
-  socketId: string;
-  name: string;
-  position: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  skills: SkillType[];
-  skillCooldownEndTs: Record<string, number>;
-  statusEffects: StatusEffect[];
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  castingSkill: SkillType | null;
-  castingProgressMs: number;
-  isAlive: boolean;
-  deathTimeTs?: number;
-  lastUpdateTime?: number;
-  movement?: any;
-  velocity?: { x: number; z: number };
-  posHistory?: { ts: number; x: number; z: number }[];
-}
+import { PlayerState } from '../shared/types.js';
 
 /**
  * Calculate distance between two points
@@ -11769,7 +11419,7 @@ export function executeSkill(
   
   // Apply damage
   if (skill.dmg && target) {
-    const oldHealth = target.health;
+
     target.health = Math.max(0, target.health - skill.dmg);
     
     if (target.health === 0) {
@@ -11783,19 +11433,21 @@ export function executeSkill(
   }
   
   // Apply status effect
-  if (skill.status && target) {
-    for (const status of skill.status) {
-      const existingEffect = target.statusEffects.find(e => e.type === status.type);
+  if (skill.effects && target) {
+    for (const effect of skill.effects) {
+      const existingEffect = target.statusEffects.find(e => e.type === effect.type);
       if (existingEffect) {
-        existingEffect.value = status.value;
-        existingEffect.durationMs = status.durationMs;
+        existingEffect.value = effect.value;
+        existingEffect.durationMs = effect.durationMs;
         existingEffect.startTimeTs = now;
       } else {
         // Generate a deterministic effect ID
-        const effectId = `effect-${hash(`${effect.type}-${now}-${player.id}`)}`;
+        const effectId = `effect-${hash(`${effect.type}-${now}-${skillId}`)}`;
         target.statusEffects.push({
           id: effectId,
-          ...status,
+          type: effect.type,
+          value: effect.value,
+          durationMs: effect.durationMs,
           startTimeTs: now,
           sourceSkill: skillId,
         });
@@ -12035,6 +11687,7 @@ export function gridCellChanged(oldPos: VecXZ, newPos: VecXZ): boolean {
 import { SkillId, SKILLS, SkillDef, SkillEffect as SharedSkillEffect } from '../shared/skillsDefinition.js';
 import { VecXZ } from '../shared/messages.js';
 import { CharacterClass } from '../shared/classSystem.js';
+import { SkillType } from '../shared/skillsDefinition.js';
 
 // Server-side representation of a skill effect
 export interface SkillEffect extends SharedSkillEffect {
@@ -12059,7 +11712,7 @@ export interface Projectile {
     hitCount: number;  // Track number of hits for piercing projectiles
 }
 
-export type SkillType = SkillId;   // export for compatibility
+export type { SkillType }
 
 // Add an alias for 'water' skill ID to match 'waterSplash'
 (SKILLS as any)['water'] = SKILLS['waterSplash'];
@@ -12081,8 +11734,8 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
-import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, ProjHit2 } from '../shared/messages.js';
+import { isPathBlocked, sweptHit } from './collision.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -12092,6 +11745,7 @@ import { predictPosition as sharedPredictPosition } from '../shared/positionUtil
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { effectRunner } from './combat/effects/EffectRunner.js';
+import { PlayerState } from '../shared/types.js';
 
 /**
  * Defines the GameState interface
@@ -12101,42 +11755,6 @@ interface GameState {
   enemies: Record<string, Enemy>;
   projectiles: Projectile[];
   lastProjectileId: number;
-}
-
-// Update PlayerState to include the class system fields
-interface PlayerState {
-  id: string;
-  socketId: string;
-  name: string;
-  position: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  className: string; // Character class: mage, warrior, etc.
-  unlockedSkills: SkillId[]; // Skills the player has learned
-  skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
-  availableSkillPoints: number; // Points to spend on new skills
-  skillCooldownEndTs: Record<string, number>;
-  cooldowns: Record<string, number>; // Alias for skillCooldownEndTs for compatibility
-  statusEffects: StatusEffect[];
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  castingSkill: SkillType | null;
-  castingProgressMs: number;
-  isAlive: boolean;
-  deathTimeTs?: number;
-  lastUpdateTime?: number;
-  movement?: PlayerMovementState;
-  velocity?: { x: number; z: number }; // New: current velocity vector
-  posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
-  stats?: {
-    dmgMult?: number;
-    critChance?: number;
-    critMult?: number;
-  };
 }
 
 /**
@@ -12169,18 +11787,18 @@ function calculateDir(from: VecXZ, to: VecXZ): { x: number; y: number; z: number
  * Predicts the position of an entity at a specific timestamp based on its movement
  */
 export function predictPosition(
-  entity: { position: { x: number; z: number }, movement?: { dest: VecXZ | null, speed: number, startTs: number } },
+  entity: { position: { x: number; y: number; z: number }, movement?: { targetPos?: VecXZ | null, speed: number, lastUpdateTime: number } },
   timestamp: number
 ): VecXZ {
-  if (!entity.movement?.dest) {
+  const dest = entity.movement?.targetPos;
+  if (!dest) {
     return { x: entity.position.x, z: entity.position.z };
   }
 
-  const dest = entity.movement.dest;
   const speed = entity.movement.speed;
-  const startTs = entity.movement.startTs;
-  const currentPos = { x: entity.position.x, z: entity.position.z };
-  
+  const startTs = entity.movement.lastUpdateTime;
+  const currentPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
+
   // Calculate elapsed time in seconds
   const elapsedSec = (timestamp - startTs) / 1000;
   
@@ -12207,13 +11825,13 @@ export function predictPosition(
  * Advances an entity's position based on its movement state
  */
 function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
-  if (!entity.movement?.dest) return;
+  if (!entity.movement?.targetPos) return;
   
   // Current position
-  const currentPos = { x: entity.position.x, z: entity.position.z };
-  
+  const currentPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
+
   // Get destination and speed
-  const dest = entity.movement.dest;
+  const dest = entity.movement.targetPos;
   const speed = entity.movement.speed;
   
   // Calculate direction if not already set
@@ -12228,14 +11846,16 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   // Calculate distance to move this step
   const deltaTimeSec = deltaTimeMs / 1000;
   const stepX = entity.velocity.x * deltaTimeSec;
+  const stepY = 0;
   const stepZ = entity.velocity.z * deltaTimeSec;
-  
+  const stepDist = Math.sqrt(stepX * stepX + stepY * stepY + stepZ * stepZ);
   // Update position
-  const oldPos = { x: entity.position.x, z: entity.position.z };
+  const oldPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
   entity.position.x += stepX;
+  entity.position.y += stepY;
   entity.position.z += stepZ;
-  const newPos = { x: entity.position.x, z: entity.position.z };
-  
+  const newPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
+
   // Update spatial hash grid if position changed cells
   if (gridCellChanged(oldPos, newPos)) {
     spatial.move(entity.id, oldPos, newPos);
@@ -12255,10 +11875,10 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
     if (gridCellChanged(newPos, finalPos)) {
       spatial.move(entity.id, newPos, finalPos);
     }
-    
-    entity.movement.dest = null;
+
+    entity.movement.targetPos = null;
     entity.velocity = { x: 0, z: 0 };
-    
+
     // Add a flag to indicate velocity was zeroed so we include it in the next snapshot
     (entity as any).dirtySnap = true;
   }
@@ -12342,7 +11962,7 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   // Process player movements
   for (const playerId in state.players) {
     const player = state.players[playerId];
-    if (player.movement?.dest) {
+    if (player.movement?.targetPos) {
       advancePosition(player, deltaTimeMs);
     }
   }
@@ -12351,7 +11971,7 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
     const now = Date.now();
-    
+
     // Update position history for all enemies at each tick
     updatePositionHistory(enemy, now);
     enemy.lastUpdateTime = now;
@@ -12361,8 +11981,7 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
       const target = state.players[enemy.targetId];
       if (target && target.isAlive) {
         // Calculate target position prediction
-        const targetPos = predictPosition(target, now);
-        
+
         // Movement logic for enemy to follow target
         // (Simplified for now)
       }
@@ -12400,14 +12019,14 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
     // or if player is moving (non-zero velocity)
     const shouldInclude = (player as any).dirtySnap || 
                          (vel.x !== 0 || vel.z !== 0) || 
-                         player.movement?.dest !== null;
+                         player.movement?.targetPos !== null;
     
     if (shouldInclude) {
       snaps.push({
         id: playerId,
-        pos,
-        vel,
-        ts: timestamp
+        type: 'PosSnap',
+        pos: pos,
+        serverTs: timestamp
       });
       
       // Clear the dirty flag after including in snapshot
@@ -12489,9 +12108,10 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
   
   // Update player's movement state
   player.movement = {
-    dest: destination,
+    ...player.movement,
+    targetPos: destination,
     speed: msg.speed,
-    startTs: now
+    lastUpdateTime: now
   };
   
   // Set the velocity vector
@@ -12517,7 +12137,7 @@ function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
  */
 function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
   const playerId = msg.id;
-  const player = state.players[playerId];
+  let player = state.players[playerId];
   
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
@@ -12527,9 +12147,56 @@ function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
   // Clamp clientTs to prevent lag-dodge exploits (can't rewrite the last 100ms)
   const now = Date.now();
   const MAX_SYNC_LAG_MS = 100;
-  const clampedClientTs = Math.min(msg.clientTs, now - MAX_SYNC_LAG_MS);
-  
+
   // Calculate the current server-side position
+  // 
+  //entity: { position: { x: number; z: number }, movement?: { dest: VecXZ | null, speed: number, startTs: number } },
+  /*
+
+interface PlayerState {
+  id: string;
+  socketId: string;
+  name: string;
+  position: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+  health: number;
+  maxHealth: number;
+  mana: number;
+  maxMana: number;
+  className: string; // Character class: mage, warrior, etc.
+  unlockedSkills: SkillId[]; // Skills the player has learned
+  skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
+  availableSkillPoints: number; // Points to spend on new skills
+  skillCooldownEndTs: Record<string, number>;
+  cooldowns: Record<string, number>; // Alias for skillCooldownEndTs for compatibility
+  statusEffects: StatusEffect[];
+  level: number;
+  experience: number;
+  experienceToNextLevel: number;
+  castingSkill: SkillType | null;
+  castingProgressMs: number;
+  isAlive: boolean;
+  deathTimeTs?: number;
+  lastUpdateTime?: number;
+  movement?: PlayerMovementState;
+  velocity?: { x: number; z: number }; // New: current velocity vector
+  posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
+  stats?: {
+    dmgMult?: number;
+    critChance?: number;
+    critMult?: number;
+  };
+}
+
+export interface PlayerMovementState {
+  isMoving: boolean;
+  path?: VecXZ[];
+  pos: VecXZ;  // Current position
+  targetPos?: VecXZ; // Target position when moving
+  lastUpdateTime: number;
+  speed: number;
+}
+  */
   const serverPos = predictPosition(player, now);
   
   // Calculate error between client and server positions
@@ -12762,7 +12429,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Start game loop
   setInterval(() => {
     const now = Date.now();
-    
+
     // Step 1: Advance all entity states
     advanceAll(state, TICK);
     
@@ -12876,7 +12543,6 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         experienceToNextLevel: 100,
         statusEffects: [],
         skillCooldownEndTs: {},
-        cooldowns: {}, // Alias for skillCooldownEndTs
         castingSkill: null,
         castingProgressMs: 0,
         isAlive: true,
@@ -13062,8 +12728,8 @@ function spawnProjectile(
  */
 function updateProjectiles(state: GameState, dt: number, io: Server): void {
   const projectilesToRemove: number[] = [];
+
   const now = Date.now();
-  
   // Process each projectile
   for (let i = 0; i < state.projectiles.length; i++) {
     const p = state.projectiles[i];
@@ -13347,7 +13013,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
                   // Skip effects without a duration
                   if (!effect.durationMs) continue;
                   
-                  const effectId = `effect-${hash(`${effect.type}-${now}-${enemyId}`).toString(36).substring(0, 9)}`;
+                  const effectId = `effect-${hash(`${effect.type}-${Date.now()}-${enemyId}`).toString(36).substring(0, 9)}`;
                   enemy.statusEffects.push({
                     id: effectId,
                     type: effect.type,
@@ -13376,7 +13042,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               const { dmg } = getDamage({
                 caster: state.players[p.casterId]?.stats ?? {},
                 skill: { 
-                  base: (skill?.dmg || 10) * (skill?.projectile?.splashDamagePct || 0.5), 
+                  base: skill?.dmg || 10, 
                   variance: 0.1 
                 },
                 seed: `${p.id}:splash:${targetId}`
@@ -13429,7 +13095,6 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     }
     
     // Check TTL (Time To Live) - 2 seconds max lifetime (reduced from 4)
-    const now = Date.now();
     if (now - p.spawnTs > 2000) {
       log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
       io.emit('msg', {
@@ -13487,7 +13152,7 @@ function handleManaRegeneration(state: GameState, io: Server) {
  */
 function handleEnemyRespawns(state: GameState, io: Server) {
   const now = Date.now();
-  
+
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
     
@@ -13569,6 +13234,8 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
     },
     skillProgression: {
       'fireball': { level: 2 }, // Warriors get fireball later
+      'waterSplash': { level: 4 }, // Warriors aren't very proficient with water magic
+      'iceBolt': { level: 5 }, // Warriors struggle with ice magic
       'petrify': { level: 3 }
     }
   },
@@ -13582,8 +13249,10 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.0
     },
     skillProgression: {
-      'waterSplash': { level: 1 },
-      'iceBolt': { level: 3 }
+      'fireball': { level: 4 }, // Healers aren't very combat-focused
+      'waterSplash': { level: 1 }, // Healers start with water abilities
+      'iceBolt': { level: 3 },
+      'petrify': { level: 5 } // Advanced skill for healers
     }
   },
   ranger: {
@@ -13596,8 +13265,9 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.2
     },
     skillProgression: {
-      'iceBolt': { level: 1 },
+      'iceBolt': { level: 1 }, // Rangers start with ice abilities
       'fireball': { level: 2 },
+      'waterSplash': { level: 3 }, // Rangers get water abilities mid-game
       'petrify': { level: 4 }
     }
   }
@@ -13667,7 +13337,7 @@ import { SkillId, SKILLS } from './skillsDefinition';
  * @param playerLevel Current player level
  * @returns Mana cost for the skill
  */
-export function getManaCost(skillId: SkillId, playerLevel: number): number {
+export function getManaCost(skillId: SkillId): number {
   const skill = SKILLS[skillId];
   if (!skill) return 0;
   
@@ -13682,7 +13352,7 @@ export function getManaCost(skillId: SkillId, playerLevel: number): number {
  * @param playerLevel Current player level
  * @returns Cooldown time in milliseconds
  */
-export function getCooldownMs(skillId: SkillId, playerLevel: number): number {
+export function getCooldownMs(skillId: SkillId): number {
   const skill = SKILLS[skillId];
   if (!skill) return 0;
   
@@ -13757,16 +13427,10 @@ export const DEFAULT_GRAVITY = 9.8;
 export const MAX_SYNC_LAG_MS = 100; // Maximum lag allowed for sync
 export const POSITION_CORRECTION_THRESHOLD = 2.0; // Distance in meters
 // Protocol version - bump when making changes to message formats
-export const PROTOCOL_VERSION = '0.6.1';
 
 // Game constants
-export const DEFAULT_GROUND_Y = 0;
-export const DEFAULT_PLAYER_HEIGHT = 1.8;
-export const DEFAULT_GRAVITY = 9.8;
 
 // Network constants
-export const MAX_SYNC_LAG_MS = 100; // Maximum lag allowed for sync
-export const POSITION_CORRECTION_THRESHOLD = 2.0; // Distance in meters
 
 // ==============================================================================
 // FILE: shared/effectsDefinition.ts
@@ -13810,7 +13474,7 @@ export const EFFECTS: Record<EffectId, EffectDef> = {
     tickMs: 750,      // Ticks faster than burn
     durationMs: 6000, // Shorter duration
     maxStacks: 5,     // More stacks
-    apply({ level, int, seed }): EffectTick {
+    apply({ level, seed }): EffectTick {
       const random = rng(seed);
       const baseDamage = 5 + level * 1.5;
       const variance = 0.15;
@@ -14088,7 +13752,7 @@ export function distance(a: VecXZ, b: VecXZ): number {
 
 // Direct definitions without imports
 export type SkillId = 'fireball'|'iceBolt'|'waterSplash'|'petrify';
-
+export type SkillType = SkillId;   // export for compatibility
 export type SkillCategory = 'projectile'|'instant'|'beam'|'aura';
 
 export type SkillEffectType = 
@@ -14231,9 +13895,8 @@ export const SKILLS: Record<SkillId,SkillDef> = {
 // FILE: shared/types.ts
 // ==============================================================================
 
-import { SkillId } from './skillsDefinition';
+import { SkillId, SkillType } from './skillsDefinition';
 import { CharacterClass } from './classSystem';
-import { VecXZ } from './messages';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 
@@ -14322,12 +13985,19 @@ export interface PlayerState {
     level: number;
     experience: number;
     experienceToNextLevel: number;
-    castingSkill: string | null;
+    castingSkill: SkillType | null;
     castingProgressMs: number;
     isAlive: boolean;
     deathTimeTs?: number;
     lastUpdateTime?: number;
     movement?: PlayerMovementState;
+    velocity?: { x: number; z: number };
+    posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
+    stats?: {
+        dmgMult?: number;
+        critChance?: number;
+        critMult?: number;
+    };
 }
 
 
@@ -14335,7 +14005,6 @@ export interface PlayerState {
 // FILE: shared/zoneSystem.ts
 // ==============================================================================
 
-import { Enemy } from './types.js';
 
 // Types for zone management
 export interface Zone {
