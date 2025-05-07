@@ -95,6 +95,7 @@ function useStatusEffects(targetId: string | 'player'): StatusEffect[] {
   return effects;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const StatusEffects = React.memo(React.forwardRef<HTMLDivElement, StatusEffectsProps>(({ targetId, position = 'top', inline = false }, ref) => {
   // Format to show time remaining
   const formatTimeRemainingMs = useCallback((effect: StatusEffect) => {
