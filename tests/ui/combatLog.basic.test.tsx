@@ -1,4 +1,4 @@
-import { expect, test, vi, describe, beforeEach } from 'vitest';
+import { expect, test, describe, beforeEach } from 'vitest';
 import { useCombatLogStore } from '../../app/game/stores/useCombatLogStore';
 
 // This is a simplified test that doesn't require rendering React components
@@ -14,6 +14,5 @@ describe('CombatLog Store', () => {
     const store = useCombatLogStore.getState();
     expect(store.list).toEqual([]);
   });
-
 
 });

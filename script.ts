@@ -11,7 +11,7 @@ const tsconfigPath = path.join(rootDir, 'tsconfig.server.json');
 const hasTsConfig = fs.existsSync(tsconfigPath);
 
 // Use ts-node for TypeScript execution in development
-const nodemon = require('nodemon');
+import nodemon from 'nodemon';
 
 nodemon({
   script: path.join(rootDir, 'server', 'server.ts'),

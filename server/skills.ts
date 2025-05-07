@@ -127,7 +127,7 @@ export function executeSkill(
   
   // Apply damage
   if (skill.dmg && target) {
-    const oldHealth = target.health;
+
     target.health = Math.max(0, target.health - skill.dmg);
     
     if (target.health === 0) {

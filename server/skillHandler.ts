@@ -1,8 +1,7 @@
 import { Socket } from 'socket.io';
 import { LearnSkill, SetSkillShortcut } from '../shared/messages.js';
 import { SkillId } from '../shared/skillsDefinition.js';
-import { canLearnSkill } from '../shared/classSystem.js';
-import { CharacterClass } from '../shared/classSystem.js';
+
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';
 
 // Define simplified types for what we need from the game state

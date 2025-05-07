@@ -54,7 +54,7 @@ const effectHandlers = {
     return false; // No entity died from mana change
   },
   
-  stat: (value: number, target: any) => {
+  stat: () => {
     // Stat modifications would go here
     // For now, we don't implement actual stat modifications
     return false;

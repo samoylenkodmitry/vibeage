@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { predictPosition } from '../shared/positionUtils';
-import { VecXZ } from '../shared/messages';
 
 describe('Projectile Prediction', () => {
   it('should accurately predict intercept points for moving targets', () => {

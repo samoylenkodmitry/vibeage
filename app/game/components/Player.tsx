@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { RigidBody, CapsuleCollider, useRapier } from '@react-three/rapier';
+import { RigidBody, CapsuleCollider} from '@react-three/rapier';
 import { Vector3, Plane, Vector2 } from 'three';
 import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
 import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
@@ -37,8 +37,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   
   // --- Hooks and State specific to the controlled player ---
   const { camera, gl, raycaster } = useThree();
-  const { rapier, world } = useRapier();
-  const [isGrounded, setIsGrounded] = useState(false);
+  const [isGrounded] = useState(false);
   const [hasJumped, setHasJumped] = useState(false);
   const [targetPosition, setTargetPosition] = useState<Vector3 | null>(null);
   const movementStartTimeTs = useRef<number | null>(null);
@@ -47,7 +46,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const [isRotating, setIsRotating] = useState(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
-  const cameraInitialized = useRef(false);
+
   const groundPlane = new Plane(new Vector3(0, 1, 0), -GROUND_Y);
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
   
@@ -436,7 +435,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if (!isControlledPlayer || !playerRef.current) return;
 
     const handleRequestPosition = (e: CustomEvent) => {
-      const { _effectId, callback } = e.detail;
+      const { callback } = e.detail;
       if (playerRef.current) {
         const currentPosition = playerRef.current.translation();
         // Provide the accurate client-side position for skill effects

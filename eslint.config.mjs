@@ -42,7 +42,7 @@ const eslintConfig = [
     rules: {
       'react-hooks/exhaustive-deps': 'off',
       '@next/next/no-img-element': 'warn',
-      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': 'error',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       'react/no-unescaped-entities': 'off',

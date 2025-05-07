@@ -17,99 +17,12 @@ function isValidSkillId(id: string | null): id is SkillId {
   return id in SKILLS; // Check if the ID exists in the SKILLS object
 }
 
-interface PlayerState {
-  id: string;
-  name: string;
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  unlockedSkills: string[];
-  skillShortcuts: (string | null)[];
-  availableSkillPoints: number;
-  className: string;
-}
 
 // Add explicit global window typings for our custom method
 declare global {
   interface Window {
     castFireball?: () => void;
   }
-}
-
-interface XPBoostPanelProps {
-  isAdmin?: boolean;
-}
-
-function XPBoostPanel({ isAdmin = false }: XPBoostPanelProps) {
-  const getXpMultiplierInfo = useGameStore(state => state.getXpMultiplierInfo);
-  const applyDonationBoost = useGameStore(state => state.applyDonationBoost);
-
-  const xpInfo = getXpMultiplierInfo();
-  const totalMultiplier = xpInfo.total;
-  
-  // Handler for donation boost
-  const handleDonationBoost = useCallback((amount: number, durationMinutes: number, event: React.MouseEvent) => {
-    event.stopPropagation();
-    applyDonationBoost(amount, durationMinutes);
-  }, [applyDonationBoost]);
-  
-  return (
-    <div className="bg-gray-900/80 p-3 rounded-lg mb-3">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-white font-bold">XP Multipliers</h3>
-        <div className="text-xl text-yellow-400 font-bold">{totalMultiplier.toFixed(2)}x</div>
-      </div>
-      
-      <div className="space-y-1 mb-3 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-300">Base Multiplier:</span>
-          <span className="text-white">{xpInfo.base}x</span>
-        </div>
-        
-        {xpInfo.donation > 0 && (
-          <div className="flex justify-between">
-            <span className="text-gray-300">Donation Boost:</span>
-            <span className="text-green-400">+{(xpInfo.donation * 100).toFixed(0)}%</span>
-          </div>
-        )}
-        
-        {xpInfo.event > 1 && (
-          <div className="flex justify-between">
-            <span className="text-gray-300">Event Bonus:</span>
-            <span className="text-purple-400">{xpInfo.event}x</span>
-          </div>
-        )}
-      </div>
-      
-      {/* Donation boost panel - visible to all players */}
-      <div className="mb-3">
-        <div className="flex gap-2 justify-center">
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={(e) => handleDonationBoost(0.5, 60, e)}
-          >
-            +50% (1h) $5
-          </button>
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={(e) => handleDonationBoost(1.0, 120, e)}
-          >
-            +100% (2h) $10
-          </button>
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded pointer-events-auto transition-colors"
-            onClick={(e) => handleDonationBoost(2.0, 240, e)}
-          >
-            +200% (4h) $20
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 interface SkillButtonProps {
@@ -123,7 +36,7 @@ interface SkillButtonProps {
 }
 
 // Memoize SkillButton to prevent unnecessary re-renders
-const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
+const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
   const initial = Math.max(0, cooldownEndMs - Date.now());
   const [remainingCooldownMs, setRemainingCooldownMs] = useState(initial);
   const buttonRef = useRef<HTMLButtonElement>(null);

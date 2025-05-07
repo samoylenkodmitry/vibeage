@@ -6,7 +6,7 @@ import { SkillId, SKILLS } from './skillsDefinition';
  * @param playerLevel Current player level
  * @returns Mana cost for the skill
  */
-export function getManaCost(skillId: SkillId, playerLevel: number): number {
+export function getManaCost(skillId: SkillId): number {
   const skill = SKILLS[skillId];
   if (!skill) return 0;
   
@@ -21,7 +21,7 @@ export function getManaCost(skillId: SkillId, playerLevel: number): number {
  * @param playerLevel Current player level
  * @returns Cooldown time in milliseconds
  */
-export function getCooldownMs(skillId: SkillId, playerLevel: number): number {
+export function getCooldownMs(skillId: SkillId): number {
   const skill = SKILLS[skillId];
   if (!skill) return 0;
   

@@ -95,7 +95,7 @@ vi.mock('nanoid', () => ({
 vi.mock('../server/combat/skillManager', () => ({
   activeCastsNew: mockActiveCasts,
   projectiles: mockProjectiles,
-  tickCasts: mockTickCasts.mockImplementation((deltaTime: number, server: Server, world: any) => {
+  tickCasts: mockTickCasts.mockImplementation((deltaTime: number, server: Server) => {
     // Process each cast
     for (const cast of mockActiveCasts) {
       const now = Date.now();

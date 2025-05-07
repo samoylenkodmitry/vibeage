@@ -29,7 +29,7 @@ interface ProjectileStore {
 // Duration of fade-out effect in milliseconds
 const FADE_OUT_DURATION_MS = 500; // 500ms for smooth fade-out
 
-export const useProjectileStoreLegacy = create<ProjectileStore>((set, get) => ({
+export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
   enhanced: {}, // Initialize the projectiles map
   
   updateOpacity: () => {

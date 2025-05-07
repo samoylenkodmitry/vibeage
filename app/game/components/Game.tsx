@@ -31,7 +31,6 @@ const controls = [
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
   const [playerName, setPlayerName] = useState('');
-  const [_joiningError, setJoiningError] = useState<string | null>(null);
   const isConnected = useGameStore(state => state.isConnected);
   const socket = useGameStore(state => state.socket);
   const hasJoinedGame = useGameStore(state => state.hasJoinedGame);
@@ -41,16 +40,12 @@ export default function Game() {
     if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame) {
       console.log('Joining game with player name:', playerName);
       socket.emit('joinGame', playerName);
-      setJoiningError(null);
       setHasJoinedGame(true);
     }
   }, [isGameStarted, socket, isConnected, playerName, hasJoinedGame, setHasJoinedGame]);
 
   const handleStartGame = useCallback(() => {
     if (playerName.trim()) {
-      if (!isConnected) {
-        setJoiningError('Waiting for server connection...');
-      }
       setGameStarted(true);
     }
   }, [playerName, isConnected]);

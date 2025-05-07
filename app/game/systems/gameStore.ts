@@ -326,6 +326,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         // Ignore minor position updates from server for self-controlled player
         if (error < 0.5) {
           // Still update other properties, just not position
+          // suppress unused variable warning
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { position: _position, ...otherProps } = playerData;
           
           // If we only had position update, return without changes

@@ -327,15 +327,3 @@ function FallenLogs({ position = [0, 0, 0], count = 5, spread = 30 }) {
   
   return <group>{logs}</group>;
 }
-
-// Hills and elevated terrain
-function Hill({ position = [0, 0, 0], radius = 30, height = 10 }) {
-  return (
-    <RigidBody type="fixed" position={[position[0], position[1], position[2]]}>
-      <mesh castShadow receiveShadow>
-        <coneGeometry args={[radius, height, 32]} />
-        <meshStandardMaterial color="#4a8f5c" roughness={0.8} />
-      </mesh>
-    </RigidBody>
-  );
-}

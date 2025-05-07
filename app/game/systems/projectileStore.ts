@@ -9,5 +9,6 @@ type Actions = {
 export const useProjectileStore = create<State & Actions>((set) => ({
   live: {},
   add: (p) => set((s) => ({ live: { ...s.live, [p.castId]: p } })),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
   hit: (h) => set((s) => { const { [h.castId]: _, ...rest } = s.live; return { live: rest }; })
 }));

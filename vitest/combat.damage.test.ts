@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDamage, hash, rng } from '../shared/combatMath';
+import { getDamage, hash} from '../shared/combatMath';
 
 describe('Combat Damage Calculation', () => {
   // Test for determinism: same seed returns identical results

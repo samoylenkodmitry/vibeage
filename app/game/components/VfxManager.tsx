@@ -5,7 +5,7 @@ import WaterProjectile from '../vfx/WaterProjectile';
 import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
-import { ProjSpawn2, ProjHit2, InstantHit } from '../../../shared/messages';
+import { ProjSpawn2, InstantHit } from '../../../shared/messages';
 import { useProjectileStore } from '../systems/projectileStore';
 
 // Types for VFX instances

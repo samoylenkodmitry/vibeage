@@ -1,6 +1,6 @@
 // filepath: /home/s/develop/projects/vibe/1/server/skillManager.ts
-import { Socket } from 'socket.io';
-import { SkillId, SKILLS } from '../shared/skillsDefinition.js';
+
+import { SkillId} from '../shared/skillsDefinition.js';
 import { canLearnSkill, CharacterClass, CLASS_SKILL_TREES } from '../shared/classSystem.js';
 
 // Define simplified types for what we need from the game state

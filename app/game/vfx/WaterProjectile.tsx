@@ -114,7 +114,7 @@ export default function WaterProjectile({
     }  });
   
   // Apply water-like wobble effect
-  useFrame((state, _delta) => {
+  useFrame((state) => {
     if (!mainRef.current) return;
     
     // Water-like wobble effect

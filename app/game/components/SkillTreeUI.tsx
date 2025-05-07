@@ -20,12 +20,6 @@ const SkillTreeUI: React.FC = () => {
 
   // Force update when drag state changes
   const [dragStateKey, setDragStateKey] = useState(0);
-  // Create local wrappers for drag state functions that trigger re-renders
-  const setDraggedSkill = (skillId: string | null) => {
-    dragState.setDraggedSkill(skillId);
-    setDragStateKey(prev => prev + 1);
-  };
-  
   const clearDraggedSkill = () => {
     dragState.clearDraggedSkill();
     setDragStateKey(prev => prev + 1);
@@ -290,8 +284,10 @@ const SkillTreeUI: React.FC = () => {
                       const skill = SKILLS[skillId];
                       return (
                         <div key={skillId} className={styles.skillItem}>
-                          <img 
+                          <Image 
                             src={skillUtils.getSkillIconPath(skillId)} 
+                            width={50}
+                            height={50}
                             alt={skill.name} 
                             title={skill.description}
                       onDoubleClick={() => {
@@ -369,10 +365,12 @@ const SkillTreeUI: React.FC = () => {
                       const skill = SKILLS[skillId];
                       return (
                         <div key={skillId} className={styles.skillItem}>
-                          <img 
+                          <Image 
                             src={skillUtils.getSkillIconPath(skillId)} 
                             alt={skill.name} 
                             title={skill.description}
+                            width={50}
+                            height={50}
                           />
                           <span>{skill.name}</span>
                           <div className={styles.skillDetails}>
@@ -470,7 +468,7 @@ const SkillTreeUI: React.FC = () => {
                         setTimeout(() => {
                           try {
                               e.currentTarget.classList.remove(styles.dropSuccess);
-                          } catch (_err) {
+                          } catch {
                               // Ignoring errors when removing class if element no longer exists
                               console.debug('Failed to remove drop success class');
                           }
@@ -487,10 +485,12 @@ const SkillTreeUI: React.FC = () => {
                   >
                     <div className={styles.keyNumber}>{index + 1}</div>
                     {skillId ? (
-                      <img 
+                      <Image 
                         src={skillUtils.getSkillIconPath(skillId)} 
                         alt={SKILLS[skillId] ? SKILLS[skillId].name : skillId} 
                         title={SKILLS[skillId] ? SKILLS[skillId].description : skillId}
+                        width={50}
+                        height={50}
                       />
                     ) : (
                       <div className={styles.emptySlot} />

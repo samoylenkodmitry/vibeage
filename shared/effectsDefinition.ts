@@ -36,7 +36,7 @@ export const EFFECTS: Record<EffectId, EffectDef> = {
     tickMs: 750,      // Ticks faster than burn
     durationMs: 6000, // Shorter duration
     maxStacks: 5,     // More stacks
-    apply({ level, int, seed }): EffectTick {
+    apply({ level, seed }): EffectTick {
       const random = rng(seed);
       const baseDamage = 5 + level * 1.5;
       const variance = 0.15;

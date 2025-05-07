@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { useProjectileStore } from '../app/game/systems/projectileStore';
 import { ProjSpawn2, ProjHit2 } from '../shared/messages';
 

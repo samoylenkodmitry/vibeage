@@ -590,9 +590,7 @@ export default function SocketManager() {
     
     // Add to combat log when effect is first applied
     if (remainingMs > 0 && stacks === 1) {
-      const player = useGameStore.getState().getMyPlayer();
-      const playerId = player?.id || '';
-      
+
       useCombatLogStore.getState().push({
         id: nextId++,
         text: `>>> ${effectId.toUpperCase()} applied`,

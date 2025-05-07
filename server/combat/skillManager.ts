@@ -7,7 +7,6 @@ import { Vec3D } from '../../shared/messages.js';
 import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
-import { effectRunner } from './effects/EffectRunner.js';
 
 // Import getDamage from shared/combatMath.js
 import { getDamage as getSkillDamage } from '../../shared/combatMath.js';
@@ -542,8 +541,7 @@ export function tickCasts(dt: number, io: Server, world: World): void {
  * Updates projectile positions and handles collisions
  */
 export function tickProjectiles(dt: number, io: Server, world: World): void {
-  const now = Date.now();
-  
+
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     const skill = SKILLS[proj.skillId];

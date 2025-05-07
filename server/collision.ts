@@ -201,8 +201,7 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
     // Simple approach: try points along the line from start to dest
     const dx = dest.x - start.x;
     const dz = dest.z - start.z;
-    const distance = Math.sqrt(dx * dx + dz * dz);
-    
+
     // Try increments of 5% back from the destination
     for (let percent = 0.95; percent >= 0.05; percent -= 0.05) {
         const testPoint = {

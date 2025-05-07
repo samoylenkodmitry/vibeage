@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import { EffectDef, EffectId, EFFECTS } from '../../../shared/effectsDefinition.js';
 import { EffectSnapshotMsg } from '../../../shared/messages.js';
-import { effectRng } from '../../../shared/combatMath.js';
+
 import { applyEffectTick } from './EffectApplicator.js';
 
 type EntityId = string;

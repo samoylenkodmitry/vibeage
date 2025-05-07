@@ -31,7 +31,7 @@ export default function ProjectileVfx({
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
   
   // Use the projectile movement hook for consistent positioning
-  const { position, isDestroyed } = useProjectileMovement({
+  const { position} = useProjectileMovement({
     origin,
     dir,
     speed,
@@ -104,7 +104,7 @@ export default function ProjectileVfx({
     }
   });
   
-  useFrame((state, _delta) => {
+  useFrame((state) => {
     if (!ref.current) return;
     
     // Update material opacity

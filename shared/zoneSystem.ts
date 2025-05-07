@@ -1,4 +1,3 @@
-import { Enemy } from './types.js';
 
 // Types for zone management
 export interface Zone {

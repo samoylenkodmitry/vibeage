@@ -2,8 +2,8 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
-import { isPathBlocked, findValidDestination, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, ProjHit2 } from '../shared/messages.js';
+import { isPathBlocked, sweptHit } from './collision.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2} from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -282,8 +282,7 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
       const target = state.players[enemy.targetId];
       if (target && target.isAlive) {
         // Calculate target position prediction
-        const targetPos = predictPosition(target, now);
-        
+
         // Movement logic for enemy to follow target
         // (Simplified for now)
       }
@@ -448,8 +447,7 @@ function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
   // Clamp clientTs to prevent lag-dodge exploits (can't rewrite the last 100ms)
   const now = Date.now();
   const MAX_SYNC_LAG_MS = 100;
-  const clampedClientTs = Math.min(msg.clientTs, now - MAX_SYNC_LAG_MS);
-  
+
   // Calculate the current server-side position
   const serverPos = predictPosition(player, now);
   
@@ -983,7 +981,6 @@ function spawnProjectile(
  */
 function updateProjectiles(state: GameState, dt: number, io: Server): void {
   const projectilesToRemove: number[] = [];
-  const now = Date.now();
 
   // Process each projectile
   for (let i = 0; i < state.projectiles.length; i++) {

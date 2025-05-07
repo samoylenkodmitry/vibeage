@@ -4,16 +4,9 @@ import { useFrame } from '@react-three/fiber';
 import { useState, useRef } from 'react';
 import { RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
-import { Vector3 } from 'three';
+
 import * as THREE from 'three';
 import { useGameStore } from '../systems/gameStore';
-import { zoneManager } from '../systems/zoneSystem';
-
-interface _Position {
-  x: number;
-  y: number;
-  z: number;
-}
 
 export default function Enemies() {
   const enemies = useGameStore(state => state.enemies);
@@ -49,7 +42,7 @@ interface EnemyProps {
 
 function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { _id, type, position, health, maxHealth, isAlive, _name, level } = enemy;
+  const { type, position, health, maxHealth, isAlive, level } = enemy;
   const [isHovered, setIsHovered] = useState(false);
 
   // Different models for different enemy types

@@ -1,7 +1,7 @@
 import { EffectEntity, Projectile, Instant } from './entities';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition';
-import { ProjSpawn2, ProjHit2, InstantHit } from '../../shared/messages';
-import { getDamage } from '../../shared/combatMath';
+import { ProjSpawn2} from '../../shared/messages';
+
 import { Server } from 'socket.io';
 
 // Define a simplified GameState interface to match our usage

@@ -2,6 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { useGameStore, StatusEffect } from '../systems/gameStore';
+import Image from 'next/image';
 
 interface StatusEffectsProps {
   targetId: string | 'player';
@@ -136,8 +137,10 @@ const StatusEffects = React.memo(React.forwardRef<HTMLDivElement, StatusEffectsP
               backgroundColor: `var(--effect-${effect.type}-color, #6b7280)`
             }}
           >
-            <img 
+            <Image 
               src={`/game/skills/effect_${effect.type}.png`} 
+              width={24}
+              height={24}
               alt={effect.type} 
               className="w-full h-full object-cover"
               onError={(e) => {
