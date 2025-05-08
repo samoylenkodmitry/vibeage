@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Group } from 'three';
 import FireballProjectile from '../vfx/FireballProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
 import WaterProjectile from '../vfx/WaterProjectile';
 import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
-import { ProjSpawn2, InstantHit } from '../../../shared/messages';
-import { useProjectileStore } from '../systems/projectileStore';
+import { InstantHit } from '../../../shared/messages';
+import { useProjectileStore, ProjectileData } from '../systems/projectileStore';
+import { get as poolGet, recycle, registerPool } from '../systems/vfxPool';
 
 // Types for VFX instances
 interface BaseVfxInstance {
@@ -45,11 +47,44 @@ export default function VfxManager() {
   
   // Get projectiles from the store directly
   const liveProjectiles = useProjectileStore(state => state.live);
+  const recycleProjectiles = useProjectileStore(state => state.toRecycle);
+  const clearRecycled = useProjectileStore(state => state.clearRecycled);
   
   // Cache the projectiles array with useMemo to prevent unnecessary re-renders
   const projectileArray = useMemo(() => {
     return Object.values(liveProjectiles);
   }, [liveProjectiles]);
+  
+  // Track active pooled projectiles
+  const [pooledInstances, setPooledInstances] = useState<Map<string, Group>>(new Map());
+  
+  // Initialize pools
+  useEffect(() => {
+    // Register pools for each projectile type
+    registerPool('fireball', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    registerPool('iceBolt', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    registerPool('waterSplash', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    registerPool('default', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
 
   // Handle instant hit events
   const handleInstantHit = useCallback((e: CustomEvent<InstantHit>) => {
@@ -123,10 +158,32 @@ export default function VfxManager() {
     // Cleanup expired effects periodically
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
+      
       // Filter out expired and projectile effects (projectiles now come from the store)
       setVfxInstances(prev => prev.filter(vfx => 
         (vfx.type !== 'projectile') && (!vfx.expiresAt || vfx.expiresAt > now)
       ));
+      
+      // Process projectiles that need to be recycled
+      Object.entries(recycleProjectiles).forEach(([castId, projectile]) => {
+        if (pooledInstances.has(castId)) {
+          const type = projectile.skillId || 'default';
+          const instance = pooledInstances.get(castId);
+          
+          if (instance) {
+            // Recycle the projectile
+            recycle(type, instance);
+            // Remove from active instances
+            setPooledInstances(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(castId);
+              return newMap;
+            });
+            // Clear from store
+            clearRecycled(castId);
+          }
+        }
+      });
     }, 100);
     
     // Cleanup on unmount
@@ -141,16 +198,19 @@ export default function VfxManager() {
     handleInstantHit, 
     handleSpawnSplash, 
     handleSpawnStunFlash, 
-    handleSpawnPetrifyFlash
+    handleSpawnPetrifyFlash,
+    recycleProjectiles,
+    pooledInstances,
+    clearRecycled
   ]);
   
   // Render all active VFX instances
   return (
     <>
       {/* Render projectiles from the store */}
-      {projectileArray.map((proj: ProjSpawn2) => {
+      {projectileArray.map((proj: ProjectileData) => {
         // For each projectile in the store, create the appropriate VFX
-        const skillId = proj.skillId || 'unknown';
+        const skillId = proj.skillId || 'default';
         const origin = { 
           x: proj.origin.x, 
           y: proj.origin.y || 1.5, // Use server-provided y or default to 1.5
@@ -160,6 +220,32 @@ export default function VfxManager() {
           x: proj.dir.x, 
           y: 0, // No vertical movement
           z: proj.dir.z 
+        };
+        
+        // Get or create a pooled group for this projectile
+        let group: Group;
+        if (!pooledInstances.has(proj.castId)) {
+          group = poolGet(skillId);
+          // Add to active instances
+          setPooledInstances(prev => {
+            const newMap = new Map(prev);
+            newMap.set(proj.castId, group);
+            return newMap;
+          });
+        } else {
+          group = pooledInstances.get(proj.castId)!;
+        }
+        
+        // Render appropriate projectile with pooled group
+        const handleDone = () => {
+          if (pooledInstances.has(proj.castId)) {
+            recycle(skillId, group);
+            setPooledInstances(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(proj.castId);
+              return newMap;
+            });
+          }
         };
         
         switch (skillId) {
@@ -172,6 +258,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
           case 'iceBolt':
@@ -183,6 +271,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
           case 'waterSplash':
@@ -194,6 +284,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
           default:
@@ -205,6 +297,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
         }

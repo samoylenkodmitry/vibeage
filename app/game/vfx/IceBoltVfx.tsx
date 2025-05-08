@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color } from 'three';
+import { Vector3, Mesh, Color, ConeGeometry, MeshBasicMaterial, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
@@ -12,6 +12,8 @@ interface IceBoltVfxProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group; // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 // Define as a named function first
@@ -20,9 +22,12 @@ export function IceBoltVfx({
   origin, 
   dir, 
   speed,
-  launchTs = performance.now()
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: IceBoltVfxProps) {
   const coreRef = useRef<Mesh>(null);
+  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -31,6 +36,52 @@ export function IceBoltVfx({
     speed,
     launchTs
   });
+  
+  // Initialize pooled group on first mount if provided
+  useEffect(() => {
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create core mesh - rotating cone for ice bolt
+    const coreMesh = new Mesh(
+      new ConeGeometry(0.25, 1),
+      new MeshBasicMaterial({ 
+        color: "skyblue",
+        transparent: true,
+        opacity: 0.8
+      })
+    );
+    
+    // Set initial rotation
+    coreMesh.rotation.set(0, 0, Math.PI / 2);
+    
+    // Add meshes to the pooled group
+    pooled.add(coreMesh);
+    
+    // Store references
+    coreRef.current = coreMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
+  
+  // Handle cleanup when projectile is done
+  useEffect(() => {
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
   
   // Setup particle system for ice mist effects
   const iceParticles = useParticleSystem({
@@ -81,13 +132,25 @@ export function IceBoltVfx({
     }
   });
   
-  // Add some rotation to the ice bolt
+  // Add some rotation to the ice bolt and update pooled group
   useFrame((state) => {
     if (coreRef.current) {
       coreRef.current.rotation.z = state.clock.elapsedTime * 5;
     }
+    
+    // Update pooled group position
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+    }
   });
   
+  // If we're using pooled objects, return the primitive
+  if (pooled) {
+    return <primitive object={pooled} />;
+  }
+  
+  // Legacy rendering path for non-pooled usage
   return (
     <group position={[position.x, position.y, position.z]}>
       {/* Main ice bolt */}

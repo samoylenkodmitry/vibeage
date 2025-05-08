@@ -10,6 +10,8 @@ interface FireballProjectileProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group;  // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 export default function FireballProjectile({ 
@@ -17,11 +19,14 @@ export default function FireballProjectile({
   origin, 
   dir, 
   speed, 
-  launchTs = performance.now() 
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
+  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -31,21 +36,60 @@ export default function FireballProjectile({
     launchTs
   });
   
-  // Log initial values
+  // Initialize pooled group on first mount if provided
   useEffect(() => {
-    console.log(`[Fireball ${id}] Created with:`, {
-      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
-      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
-      speed,
-      launchTs
-    });
-  }, [id, origin, dir, speed, launchTs]);
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create core mesh
+    const coreMesh = new Mesh(
+      new SphereGeometry(0.25, 16, 16),
+      new MeshBasicMaterial({ 
+        color: 0xff5500,
+        transparent: true,
+        opacity: 0.9
+      })
+    );
+    
+    // Create outer glow mesh
+    const glowMesh = new Mesh(
+      new SphereGeometry(0.4, 16, 16),
+      new MeshBasicMaterial({
+        color: 0xff8800,
+        transparent: true,
+        opacity: 0.6
+      })
+    );
+    
+    // Add meshes to the pooled group
+    pooled.add(coreMesh);
+    pooled.add(glowMesh);
+    
+    // Store references
+    coreRef.current = coreMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
   
-  // Add debug logging for position updates
+  // Handle cleanup when projectile is done
   useEffect(() => {
-    console.log(`[Fireball ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
-  }, [id, position]);
-
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
+  
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
     emitterPosition: () => position,
@@ -104,6 +148,12 @@ export default function FireballProjectile({
   useFrame((state) => {
     if (!coreRef.current) return;
     
+    // Update pooled group position
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+    }
+    
     // Fire core pulsing
     const time = state.clock.elapsedTime;
     const pulseFactor = Math.sin(time * 15 + timeOffset.current) * 0.15 + 1;
@@ -116,6 +166,12 @@ export default function FireballProjectile({
     }
   });
   
+  // If we're using pooled objects, return the primitive
+  if (pooled) {
+    return <primitive object={pooled} />;
+  }
+  
+  // Legacy rendering path for non-pooled usage
   return (
     <group 
       ref={groupRef} 
@@ -161,3 +217,6 @@ export default function FireballProjectile({
     </group>
   );
 }
+
+// Import needed THREE types
+import { SphereGeometry } from 'three';

@@ -1,16 +1,18 @@
 import { useFrame } from '@react-three/fiber';
-import { useRef, useState } from 'react';
-import { Vector3, Mesh, MathUtils, Color, Group, Material } from 'three';
+import { useRef, useState, useEffect } from 'react';
+import { Vector3, Mesh, MathUtils, Color, Group, Material, SphereGeometry, MeshStandardMaterial, PointLight } from 'three';
 import { useProjectileStoreLegacy } from '../systems/projectileManager';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface ProjectileVfxProps {
-  id: string;
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group; // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 export default function ProjectileVfx({
@@ -18,17 +20,69 @@ export default function ProjectileVfx({
   origin, 
   dir, 
   speed, 
-  launchTs = performance.now()
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: ProjectileVfxProps) {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const [intensity, setIntensity] = useState(2);
+  const isActive = useRef(true);
   
   // Get projectile opacity from store
   const projectileState = useProjectileStoreLegacy(state => state.enhanced[id]);
   const opacity = projectileState?.opacity ?? 1.0;
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
+  
+  // Initialize pooled group on first mount if provided
+  useEffect(() => {
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create main projectile sphere
+    const coreMesh = new Mesh(
+      new SphereGeometry(0.25, 16, 16),
+      new MeshStandardMaterial({ 
+        color: "orange",
+        emissive: "orange",
+        emissiveIntensity: 2,
+        transparent: true,
+        opacity: 1.0
+      })
+    );
+    
+    // Add light
+    const light = new PointLight("orange", 2, 3);
+    
+    // Add meshes to the pooled group
+    pooled.add(coreMesh);
+    pooled.add(light);
+    
+    // Store references
+    ref.current = coreMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
+  
+  // Handle cleanup when projectile is done
+  useEffect(() => {
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
   
   // Use the projectile movement hook for consistent positioning
   const { position} = useProjectileMovement({
@@ -107,6 +161,32 @@ export default function ProjectileVfx({
   useFrame((state) => {
     if (!ref.current) return;
     
+    // Update pooled group position if available
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+      
+      // Update material opacity for all child meshes
+      pooled.children.forEach(child => {
+        if (child instanceof Mesh && child.material instanceof Material) {
+          (child.material as any).opacity = opacity;
+        }
+        if (child instanceof PointLight) {
+          child.intensity = 2 * opacity + Math.sin(state.clock.elapsedTime * 10 + timeOffset.current) * 0.5 * opacity;
+        }
+      });
+      
+      // Add wobble effect
+      if (pooled.children[0] instanceof Mesh) {
+        const pulseFactor = MathUtils.lerp(0.9, 1.1, Math.sin(state.clock.elapsedTime * 8 + timeOffset.current));
+        pooled.children[0].scale.set(pulseFactor, pulseFactor, pulseFactor);
+      }
+      
+      // Add random movement
+      pooled.position.x += Math.sin(state.clock.elapsedTime * 15) * 0.015;
+      pooled.position.y += Math.cos(state.clock.elapsedTime * 12) * 0.015;
+    }
+    
     // Update material opacity
     if (ref.current.material instanceof Material) {
       (ref.current.material as any).opacity = opacity;
@@ -129,49 +209,56 @@ export default function ProjectileVfx({
   });
   
   return (
-    <group ref={groupRef} position={[position.x, position.y, position.z]}>
-      {/* Main projectile */}
-      <mesh ref={ref}>
-        <sphereGeometry key={`proj-geo-${id}`} args={[0.25, 16, 16]} />
-        <meshStandardMaterial 
-          key={`proj-mat-${id}`}
-          color="orange"
-          emissive="orange"
-          emissiveIntensity={intensity}
-          transparent={true}
-          opacity={opacity}
-        />
-        
-        {/* Add glow effect */}
-        <pointLight 
-          key={`proj-light-${id}`}
-          color="orange"
-          intensity={intensity} 
-          distance={3} 
-        />
-      </mesh>
-      
-      {/* Trail particles */}
-      {trailParticles.particles.map(particle => {
-        const rotParticle = particle as Particle & { rotation?: Vector3 };
-        const rotation = rotParticle.rotation;
-        
-        return (
-          <mesh
-            key={particle.id}
-            position={[particle.position.x, particle.position.y, particle.position.z]}
-            rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
-            scale={[particle.scale, particle.scale, particle.scale]}
-          >
-            <sphereGeometry args={[1, 8, 8]} />
-            <meshBasicMaterial 
-              color="#ff8c00"
-              transparent={true} 
-              opacity={particle.opacity} 
+    <>
+      {/* If we're using pooled objects, return the primitive */}
+      {pooled ? (
+        <primitive object={pooled} />
+      ) : (
+        <group ref={groupRef} position={[position.x, position.y, position.z]}>
+          {/* Main projectile */}
+          <mesh ref={ref}>
+            <sphereGeometry key={`proj-geo-${id}`} args={[0.25, 16, 16]} />
+            <meshStandardMaterial 
+              key={`proj-mat-${id}`}
+              color="orange"
+              emissive="orange"
+              emissiveIntensity={intensity}
+              transparent={true}
+              opacity={opacity}
+            />
+            
+            {/* Add glow effect */}
+            <pointLight 
+              key={`proj-light-${id}`}
+              color="orange"
+              intensity={intensity} 
+              distance={3} 
             />
           </mesh>
-        );
-      })}
-    </group>
+          
+          {/* Trail particles */}
+          {trailParticles.particles.map(particle => {
+            const rotParticle = particle as Particle & { rotation?: Vector3 };
+            const rotation = rotParticle.rotation;
+            
+            return (
+              <mesh
+                key={particle.id}
+                position={[particle.position.x, particle.position.y, particle.position.z]}
+                rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
+                scale={[particle.scale, particle.scale, particle.scale]}
+              >
+                <sphereGeometry args={[1, 8, 8]} />
+                <meshBasicMaterial 
+                  color="#ff8c00"
+                  transparent={true} 
+                  opacity={particle.opacity} 
+                />
+              </mesh>
+            );
+          })}
+        </group>
+      )}
+    </>
   );
 }

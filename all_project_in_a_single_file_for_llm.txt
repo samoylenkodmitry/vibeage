@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-08T04:28:31.196Z
+// Generated on: 2025-05-08T16:47:00.674Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -2365,14 +2365,16 @@ export default React.memo(function UI() {
 // ==============================================================================
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Group } from 'three';
 import FireballProjectile from '../vfx/FireballProjectile';
 import IceBoltVfx from '../vfx/IceBoltVfx';
 import WaterProjectile from '../vfx/WaterProjectile';
 import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
-import { ProjSpawn2, InstantHit } from '../../../shared/messages';
-import { useProjectileStore } from '../systems/projectileStore';
+import { InstantHit } from '../../../shared/messages';
+import { useProjectileStore, ProjectileData } from '../systems/projectileStore';
+import { get as poolGet, recycle, registerPool } from '../systems/vfxPool';
 
 // Types for VFX instances
 interface BaseVfxInstance {
@@ -2411,11 +2413,44 @@ export default function VfxManager() {
   
   // Get projectiles from the store directly
   const liveProjectiles = useProjectileStore(state => state.live);
+  const recycleProjectiles = useProjectileStore(state => state.toRecycle);
+  const clearRecycled = useProjectileStore(state => state.clearRecycled);
   
   // Cache the projectiles array with useMemo to prevent unnecessary re-renders
   const projectileArray = useMemo(() => {
     return Object.values(liveProjectiles);
   }, [liveProjectiles]);
+  
+  // Track active pooled projectiles
+  const [pooledInstances, setPooledInstances] = useState<Map<string, Group>>(new Map());
+  
+  // Initialize pools
+  useEffect(() => {
+    // Register pools for each projectile type
+    registerPool('fireball', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    registerPool('iceBolt', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    registerPool('waterSplash', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    registerPool('default', () => {
+      const group = new Group();
+      return group;
+    });
+    
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
 
   // Handle instant hit events
   const handleInstantHit = useCallback((e: CustomEvent<InstantHit>) => {
@@ -2489,10 +2524,32 @@ export default function VfxManager() {
     // Cleanup expired effects periodically
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
+      
       // Filter out expired and projectile effects (projectiles now come from the store)
       setVfxInstances(prev => prev.filter(vfx => 
         (vfx.type !== 'projectile') && (!vfx.expiresAt || vfx.expiresAt > now)
       ));
+      
+      // Process projectiles that need to be recycled
+      Object.entries(recycleProjectiles).forEach(([castId, projectile]) => {
+        if (pooledInstances.has(castId)) {
+          const type = projectile.skillId || 'default';
+          const instance = pooledInstances.get(castId);
+          
+          if (instance) {
+            // Recycle the projectile
+            recycle(type, instance);
+            // Remove from active instances
+            setPooledInstances(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(castId);
+              return newMap;
+            });
+            // Clear from store
+            clearRecycled(castId);
+          }
+        }
+      });
     }, 100);
     
     // Cleanup on unmount
@@ -2507,16 +2564,19 @@ export default function VfxManager() {
     handleInstantHit, 
     handleSpawnSplash, 
     handleSpawnStunFlash, 
-    handleSpawnPetrifyFlash
+    handleSpawnPetrifyFlash,
+    recycleProjectiles,
+    pooledInstances,
+    clearRecycled
   ]);
   
   // Render all active VFX instances
   return (
     <>
       {/* Render projectiles from the store */}
-      {projectileArray.map((proj: ProjSpawn2) => {
+      {projectileArray.map((proj: ProjectileData) => {
         // For each projectile in the store, create the appropriate VFX
-        const skillId = proj.skillId || 'unknown';
+        const skillId = proj.skillId || 'default';
         const origin = { 
           x: proj.origin.x, 
           y: proj.origin.y || 1.5, // Use server-provided y or default to 1.5
@@ -2526,6 +2586,32 @@ export default function VfxManager() {
           x: proj.dir.x, 
           y: 0, // No vertical movement
           z: proj.dir.z 
+        };
+        
+        // Get or create a pooled group for this projectile
+        let group: Group;
+        if (!pooledInstances.has(proj.castId)) {
+          group = poolGet(skillId);
+          // Add to active instances
+          setPooledInstances(prev => {
+            const newMap = new Map(prev);
+            newMap.set(proj.castId, group);
+            return newMap;
+          });
+        } else {
+          group = pooledInstances.get(proj.castId)!;
+        }
+        
+        // Render appropriate projectile with pooled group
+        const handleDone = () => {
+          if (pooledInstances.has(proj.castId)) {
+            recycle(skillId, group);
+            setPooledInstances(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(proj.castId);
+              return newMap;
+            });
+          }
         };
         
         switch (skillId) {
@@ -2538,6 +2624,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
           case 'iceBolt':
@@ -2549,6 +2637,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
           case 'waterSplash':
@@ -2560,6 +2650,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
           default:
@@ -2571,6 +2663,8 @@ export default function VfxManager() {
                 dir={dir}
                 speed={proj.speed}
                 launchTs={proj.launchTs}
+                pooled={group}
+                onDone={handleDone}
               />
             );
         }
@@ -6418,16 +6512,79 @@ export { useProjectileStore } from './projectileStore';
 import { create } from 'zustand';
 import { ProjSpawn2, ProjHit2 } from '../../../shared/messages';
 
-type State = { live: Record<string, ProjSpawn2> };
+// Extended projectile type with hit timestamp
+export interface ProjectileData extends ProjSpawn2 {
+  hitTs?: number;
+  expired?: boolean;
+}
+
+type State = { 
+  live: Record<string, ProjectileData>;
+  // Keep hit projectiles around briefly for VFX cleanup
+  toRecycle: Record<string, ProjectileData>;
+};
+
 type Actions = {
   add: (p: ProjSpawn2) => void;
   hit: (msg: ProjHit2) => void;
+  markExpired: (castId: string) => void;
+  clearRecycled: (castId: string) => void;
 };
+
 export const useProjectileStore = create<State & Actions>((set) => ({
   live: {},
-  add: (p) => set((s) => ({ live: { ...s.live, [p.castId]: p } })),
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  hit: (h) => set((s) => { const { [h.castId]: _, ...rest } = s.live; return { live: rest }; })
+  toRecycle: {},
+  
+  add: (p) => set((s) => ({ 
+    live: { ...s.live, [p.castId]: p } 
+  })),
+  
+  hit: (h) => set((s) => { 
+    // Get the projectile that was hit
+    const projectile = s.live[h.castId];
+    if (!projectile) return s; // No-op if projectile not found
+    
+    // Mark with hit timestamp and move to toRecycle
+    const hitProjectile = { 
+      ...projectile, 
+      hitTs: performance.now() 
+    };
+    
+    // Remove from live and add to toRecycle
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [h.castId]: _, ...restLive } = s.live;
+    
+    return { 
+      live: restLive,
+      toRecycle: { ...s.toRecycle, [h.castId]: hitProjectile }
+    }; 
+  }),
+  
+  markExpired: (castId) => set((s) => {
+    const projectile = s.live[castId];
+    if (!projectile) return s;
+    
+    // Mark as expired and move to toRecycle
+    const expiredProjectile = {
+      ...projectile,
+      expired: true
+    };
+    
+    // Remove from live and add to toRecycle
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [castId]: _, ...restLive } = s.live;
+    
+    return {
+      live: restLive,
+      toRecycle: { ...s.toRecycle, [castId]: expiredProjectile }
+    };
+  }),
+  
+  clearRecycled: (castId) => set((s) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [castId]: _, ...restRecycle } = s.toRecycle;
+    return { toRecycle: restRecycle };
+  })
 }));
 
 
@@ -6551,6 +6708,36 @@ export function hookVfx(socket:Socket){
       case 'InstantHit': emit('instanthit', m); break;
     }
   });
+}
+
+
+// ==============================================================================
+// FILE: app/game/systems/vfxPool.ts
+// ==============================================================================
+
+import { Group } from 'three';
+type Pool = { idle: Group[]; factory: () => Group };
+
+const pools: Record<string, Pool> = {};
+
+export function registerPool(
+  type: string,
+  factory: () => Group,
+  warm = 20
+) {
+  const idle = Array.from({ length: warm }, factory);
+  pools[type] = { idle, factory };
+}
+
+export function get(type: string): Group {
+  const p = pools[type] || (() => { throw new Error(`Pool type '${type}' is not registered`); })();
+  return p.idle.pop() || p.factory();
+}
+
+export function recycle(type: string, inst: Group) {
+  inst.visible = false;
+  inst.position.set(0, 0, 0);
+  pools[type]?.idle.push(inst);
 }
 
 
@@ -6793,6 +6980,8 @@ interface FireballProjectileProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group;  // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 export default function FireballProjectile({ 
@@ -6800,11 +6989,14 @@ export default function FireballProjectile({
   origin, 
   dir, 
   speed, 
-  launchTs = performance.now() 
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
+  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -6814,21 +7006,60 @@ export default function FireballProjectile({
     launchTs
   });
   
-  // Log initial values
+  // Initialize pooled group on first mount if provided
   useEffect(() => {
-    console.log(`[Fireball ${id}] Created with:`, {
-      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
-      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
-      speed,
-      launchTs
-    });
-  }, [id, origin, dir, speed, launchTs]);
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create core mesh
+    const coreMesh = new Mesh(
+      new SphereGeometry(0.25, 16, 16),
+      new MeshBasicMaterial({ 
+        color: 0xff5500,
+        transparent: true,
+        opacity: 0.9
+      })
+    );
+    
+    // Create outer glow mesh
+    const glowMesh = new Mesh(
+      new SphereGeometry(0.4, 16, 16),
+      new MeshBasicMaterial({
+        color: 0xff8800,
+        transparent: true,
+        opacity: 0.6
+      })
+    );
+    
+    // Add meshes to the pooled group
+    pooled.add(coreMesh);
+    pooled.add(glowMesh);
+    
+    // Store references
+    coreRef.current = coreMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
   
-  // Add debug logging for position updates
+  // Handle cleanup when projectile is done
   useEffect(() => {
-    console.log(`[Fireball ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
-  }, [id, position]);
-
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
+  
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
     emitterPosition: () => position,
@@ -6887,6 +7118,12 @@ export default function FireballProjectile({
   useFrame((state) => {
     if (!coreRef.current) return;
     
+    // Update pooled group position
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+    }
+    
     // Fire core pulsing
     const time = state.clock.elapsedTime;
     const pulseFactor = Math.sin(time * 15 + timeOffset.current) * 0.15 + 1;
@@ -6899,6 +7136,12 @@ export default function FireballProjectile({
     }
   });
   
+  // If we're using pooled objects, return the primitive
+  if (pooled) {
+    return <primitive object={pooled} />;
+  }
+  
+  // Legacy rendering path for non-pooled usage
   return (
     <group 
       ref={groupRef} 
@@ -6944,6 +7187,9 @@ export default function FireballProjectile({
     </group>
   );
 }
+
+// Import needed THREE types
+import { SphereGeometry } from 'three';
 
 
 // ==============================================================================
@@ -7122,9 +7368,9 @@ export default IceBoltProjectile;
 
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color } from 'three';
+import { Vector3, Mesh, Color, ConeGeometry, MeshBasicMaterial, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
@@ -7134,6 +7380,8 @@ interface IceBoltVfxProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group; // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 // Define as a named function first
@@ -7142,9 +7390,12 @@ export function IceBoltVfx({
   origin, 
   dir, 
   speed,
-  launchTs = performance.now()
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: IceBoltVfxProps) {
   const coreRef = useRef<Mesh>(null);
+  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -7153,6 +7404,52 @@ export function IceBoltVfx({
     speed,
     launchTs
   });
+  
+  // Initialize pooled group on first mount if provided
+  useEffect(() => {
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create core mesh - rotating cone for ice bolt
+    const coreMesh = new Mesh(
+      new ConeGeometry(0.25, 1),
+      new MeshBasicMaterial({ 
+        color: "skyblue",
+        transparent: true,
+        opacity: 0.8
+      })
+    );
+    
+    // Set initial rotation
+    coreMesh.rotation.set(0, 0, Math.PI / 2);
+    
+    // Add meshes to the pooled group
+    pooled.add(coreMesh);
+    
+    // Store references
+    coreRef.current = coreMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
+  
+  // Handle cleanup when projectile is done
+  useEffect(() => {
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
   
   // Setup particle system for ice mist effects
   const iceParticles = useParticleSystem({
@@ -7203,13 +7500,25 @@ export function IceBoltVfx({
     }
   });
   
-  // Add some rotation to the ice bolt
+  // Add some rotation to the ice bolt and update pooled group
   useFrame((state) => {
     if (coreRef.current) {
       coreRef.current.rotation.z = state.clock.elapsedTime * 5;
     }
+    
+    // Update pooled group position
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+    }
   });
   
+  // If we're using pooled objects, return the primitive
+  if (pooled) {
+    return <primitive object={pooled} />;
+  }
+  
+  // Legacy rendering path for non-pooled usage
   return (
     <group position={[position.x, position.y, position.z]}>
       {/* Main ice bolt */}
@@ -7361,18 +7670,20 @@ export default PetrifyFlash;
 // ==============================================================================
 
 import { useFrame } from '@react-three/fiber';
-import { useRef, useState } from 'react';
-import { Vector3, Mesh, MathUtils, Color, Group, Material } from 'three';
+import { useRef, useState, useEffect } from 'react';
+import { Vector3, Mesh, MathUtils, Color, Group, Material, SphereGeometry, MeshStandardMaterial, PointLight } from 'three';
 import { useProjectileStoreLegacy } from '../systems/projectileManager';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface ProjectileVfxProps {
-  id: string;
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group; // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 export default function ProjectileVfx({
@@ -7380,17 +7691,69 @@ export default function ProjectileVfx({
   origin, 
   dir, 
   speed, 
-  launchTs = performance.now()
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: ProjectileVfxProps) {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const [intensity, setIntensity] = useState(2);
+  const isActive = useRef(true);
   
   // Get projectile opacity from store
   const projectileState = useProjectileStoreLegacy(state => state.enhanced[id]);
   const opacity = projectileState?.opacity ?? 1.0;
   const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
+  
+  // Initialize pooled group on first mount if provided
+  useEffect(() => {
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create main projectile sphere
+    const coreMesh = new Mesh(
+      new SphereGeometry(0.25, 16, 16),
+      new MeshStandardMaterial({ 
+        color: "orange",
+        emissive: "orange",
+        emissiveIntensity: 2,
+        transparent: true,
+        opacity: 1.0
+      })
+    );
+    
+    // Add light
+    const light = new PointLight("orange", 2, 3);
+    
+    // Add meshes to the pooled group
+    pooled.add(coreMesh);
+    pooled.add(light);
+    
+    // Store references
+    ref.current = coreMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
+  
+  // Handle cleanup when projectile is done
+  useEffect(() => {
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
   
   // Use the projectile movement hook for consistent positioning
   const { position} = useProjectileMovement({
@@ -7469,6 +7832,32 @@ export default function ProjectileVfx({
   useFrame((state) => {
     if (!ref.current) return;
     
+    // Update pooled group position if available
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+      
+      // Update material opacity for all child meshes
+      pooled.children.forEach(child => {
+        if (child instanceof Mesh && child.material instanceof Material) {
+          (child.material as any).opacity = opacity;
+        }
+        if (child instanceof PointLight) {
+          child.intensity = 2 * opacity + Math.sin(state.clock.elapsedTime * 10 + timeOffset.current) * 0.5 * opacity;
+        }
+      });
+      
+      // Add wobble effect
+      if (pooled.children[0] instanceof Mesh) {
+        const pulseFactor = MathUtils.lerp(0.9, 1.1, Math.sin(state.clock.elapsedTime * 8 + timeOffset.current));
+        pooled.children[0].scale.set(pulseFactor, pulseFactor, pulseFactor);
+      }
+      
+      // Add random movement
+      pooled.position.x += Math.sin(state.clock.elapsedTime * 15) * 0.015;
+      pooled.position.y += Math.cos(state.clock.elapsedTime * 12) * 0.015;
+    }
+    
     // Update material opacity
     if (ref.current.material instanceof Material) {
       (ref.current.material as any).opacity = opacity;
@@ -7491,50 +7880,57 @@ export default function ProjectileVfx({
   });
   
   return (
-    <group ref={groupRef} position={[position.x, position.y, position.z]}>
-      {/* Main projectile */}
-      <mesh ref={ref}>
-        <sphereGeometry key={`proj-geo-${id}`} args={[0.25, 16, 16]} />
-        <meshStandardMaterial 
-          key={`proj-mat-${id}`}
-          color="orange"
-          emissive="orange"
-          emissiveIntensity={intensity}
-          transparent={true}
-          opacity={opacity}
-        />
-        
-        {/* Add glow effect */}
-        <pointLight 
-          key={`proj-light-${id}`}
-          color="orange"
-          intensity={intensity} 
-          distance={3} 
-        />
-      </mesh>
-      
-      {/* Trail particles */}
-      {trailParticles.particles.map(particle => {
-        const rotParticle = particle as Particle & { rotation?: Vector3 };
-        const rotation = rotParticle.rotation;
-        
-        return (
-          <mesh
-            key={particle.id}
-            position={[particle.position.x, particle.position.y, particle.position.z]}
-            rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
-            scale={[particle.scale, particle.scale, particle.scale]}
-          >
-            <sphereGeometry args={[1, 8, 8]} />
-            <meshBasicMaterial 
-              color="#ff8c00"
-              transparent={true} 
-              opacity={particle.opacity} 
+    <>
+      {/* If we're using pooled objects, return the primitive */}
+      {pooled ? (
+        <primitive object={pooled} />
+      ) : (
+        <group ref={groupRef} position={[position.x, position.y, position.z]}>
+          {/* Main projectile */}
+          <mesh ref={ref}>
+            <sphereGeometry key={`proj-geo-${id}`} args={[0.25, 16, 16]} />
+            <meshStandardMaterial 
+              key={`proj-mat-${id}`}
+              color="orange"
+              emissive="orange"
+              emissiveIntensity={intensity}
+              transparent={true}
+              opacity={opacity}
+            />
+            
+            {/* Add glow effect */}
+            <pointLight 
+              key={`proj-light-${id}`}
+              color="orange"
+              intensity={intensity} 
+              distance={3} 
             />
           </mesh>
-        );
-      })}
-    </group>
+          
+          {/* Trail particles */}
+          {trailParticles.particles.map(particle => {
+            const rotParticle = particle as Particle & { rotation?: Vector3 };
+            const rotation = rotParticle.rotation;
+            
+            return (
+              <mesh
+                key={particle.id}
+                position={[particle.position.x, particle.position.y, particle.position.z]}
+                rotation={rotation ? [rotation.x, rotation.y, rotation.z] : [0, 0, 0]}
+                scale={[particle.scale, particle.scale, particle.scale]}
+              >
+                <sphereGeometry args={[1, 8, 8]} />
+                <meshBasicMaterial 
+                  color="#ff8c00"
+                  transparent={true} 
+                  opacity={particle.opacity} 
+                />
+              </mesh>
+            );
+          })}
+        </group>
+      )}
+    </>
   );
 }
 
@@ -8025,16 +8421,18 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
 
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group } from 'three';
+import { Vector3, Mesh, Color, Group, SphereGeometry, MeshStandardMaterial } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface WaterProjectileProps {
-  id: string;
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group; // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 export default function WaterProjectile({ 
@@ -8042,11 +8440,14 @@ export default function WaterProjectile({
   origin, 
   dir, 
   speed, 
-  launchTs = performance.now()
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: WaterProjectileProps) {
   const mainRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
+  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -8056,20 +8457,50 @@ export default function WaterProjectile({
     launchTs
   });
   
-  // Log initial values
+  // Initialize pooled group on first mount if provided
   useEffect(() => {
-    console.log(`[Water ${id}] Created with:`, {
-      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
-      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
-      speed,
-      launchTs
-    });
-  }, [id, origin, dir, speed, launchTs]);
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create main water ball
+    const mainMesh = new Mesh(
+      new SphereGeometry(0.4, 16, 16),
+      new MeshStandardMaterial({ 
+        color: "#57c1eb",
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.2,
+        metalness: 0.7
+      })
+    );
+    
+    // Add meshes to the pooled group
+    pooled.add(mainMesh);
+    
+    // Store references
+    mainRef.current = mainMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
   
-  // Add debug logging for position updates
+  // Handle cleanup when projectile is done
   useEffect(() => {
-    console.log(`[Water ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
-  }, [id, position]);
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
   
   // Setup particle system for water droplet effects
   const dropletParticles = useParticleSystem({
@@ -8136,11 +8567,18 @@ export default function WaterProjectile({
         opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime), // fade out
         lifetime: particle.lifetime + deltaTime
       };
-    }  });
+    }
+  });
   
-  // Apply water-like wobble effect
+  // Apply water-like wobble effect and update pooled position
   useFrame((state) => {
     if (!mainRef.current) return;
+    
+    // Update pooled group position
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+    }
     
     // Water-like wobble effect
     const wobbleFactor = Math.sin(state.clock.elapsedTime * 12 + timeOffset.current) * 0.2 + 0.8;
@@ -8152,7 +8590,13 @@ export default function WaterProjectile({
       groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 4) * 0.05;
     }
   });
+
+  // If we're using pooled objects, return the primitive
+  if (pooled) {
+    return <primitive object={pooled} />;
+  }
   
+  // Legacy rendering path for non-pooled usage
   return (
     <group 
       ref={groupRef} 

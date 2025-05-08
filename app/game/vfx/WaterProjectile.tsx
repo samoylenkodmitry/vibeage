@@ -1,15 +1,17 @@
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group } from 'three';
+import { Vector3, Mesh, Color, Group, SphereGeometry, MeshStandardMaterial } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface WaterProjectileProps {
-  id: string;
+  id?: string;
   origin: {x: number; y: number; z: number};
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  pooled?: Group; // Add pooled group prop
+  onDone?: () => void; // Add callback for when projectile is done
 }
 
 export default function WaterProjectile({ 
@@ -17,11 +19,14 @@ export default function WaterProjectile({
   origin, 
   dir, 
   speed, 
-  launchTs = performance.now()
+  launchTs = performance.now(),
+  pooled, // Use the pooled group passed from VfxManager
+  onDone
 }: WaterProjectileProps) {
   const mainRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
+  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -31,20 +36,50 @@ export default function WaterProjectile({
     launchTs
   });
   
-  // Log initial values
+  // Initialize pooled group on first mount if provided
   useEffect(() => {
-    console.log(`[Water ${id}] Created with:`, {
-      origin: `(${origin.x.toFixed(2)}, ${origin.y.toFixed(2)}, ${origin.z.toFixed(2)})`,
-      dir: `(${dir.x.toFixed(2)}, ${dir.y.toFixed(2)}, ${dir.z.toFixed(2)})`, 
-      speed,
-      launchTs
-    });
-  }, [id, origin, dir, speed, launchTs]);
+    if (!pooled) return;
+    
+    // Clear any existing children if this is a reused group
+    while (pooled.children.length > 0) {
+      pooled.remove(pooled.children[0]);
+    }
+    
+    // Create main water ball
+    const mainMesh = new Mesh(
+      new SphereGeometry(0.4, 16, 16),
+      new MeshStandardMaterial({ 
+        color: "#57c1eb",
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.2,
+        metalness: 0.7
+      })
+    );
+    
+    // Add meshes to the pooled group
+    pooled.add(mainMesh);
+    
+    // Store references
+    mainRef.current = mainMesh;
+    
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [pooled, onDone]);
   
-  // Add debug logging for position updates
+  // Handle cleanup when projectile is done
   useEffect(() => {
-    console.log(`[Water ${id}] Position updated: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
-  }, [id, position]);
+    return () => {
+      if (isActive.current && onDone) {
+        isActive.current = false;
+        onDone();
+      }
+    };
+  }, [onDone]);
   
   // Setup particle system for water droplet effects
   const dropletParticles = useParticleSystem({
@@ -111,11 +146,18 @@ export default function WaterProjectile({
         opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime), // fade out
         lifetime: particle.lifetime + deltaTime
       };
-    }  });
+    }
+  });
   
-  // Apply water-like wobble effect
+  // Apply water-like wobble effect and update pooled position
   useFrame((state) => {
     if (!mainRef.current) return;
+    
+    // Update pooled group position
+    if (pooled) {
+      pooled.position.set(position.x, position.y, position.z);
+      pooled.visible = true;
+    }
     
     // Water-like wobble effect
     const wobbleFactor = Math.sin(state.clock.elapsedTime * 12 + timeOffset.current) * 0.2 + 0.8;
@@ -127,7 +169,13 @@ export default function WaterProjectile({
       groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 4) * 0.05;
     }
   });
+
+  // If we're using pooled objects, return the primitive
+  if (pooled) {
+    return <primitive object={pooled} />;
+  }
   
+  // Legacy rendering path for non-pooled usage
   return (
     <group 
       ref={groupRef} 
