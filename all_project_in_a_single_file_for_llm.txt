@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-08T18:15:44.298Z
+// Generated on: 2025-05-08T18:33:25.485Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -1742,7 +1742,7 @@ export default SkillTreeUI;
 
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useGameStore, StatusEffect } from '../systems/gameStore';
 import Image from 'next/image';
 
@@ -1750,91 +1750,6 @@ interface StatusEffectsProps {
   targetId: string | 'player';
   position?: 'top' | 'right' | 'bottom' | 'left';
   inline?: boolean;
-}
-
-// EXTREMELY simple hook for status effects with debugging
-function useStatusEffects(targetId: string | 'player'): StatusEffect[] {
-  // Add component instance identifier for tracking render cycles
-  const instanceId = React.useRef(`${targetId}-${Math.random().toString(36).substring(2, 7)}`);
-  
-  console.log(`[DEBUG][StatusEffects][${instanceId.current}] Hook initializing for target: ${targetId}`);
-  
-  // Initialize with empty array instead of calling getter directly
-  const [effects, setEffects] = React.useState<StatusEffect[]>([]);
-  
-  // Create a stable getter function that will always retrieve the latest effects
-  const effectsGetter = useCallback(() => {
-    const state = useGameStore.getState();
-    
-    if (targetId === 'player') {
-      const playerId = state.myPlayerId;
-      if (!playerId) {
-        console.log(`[DEBUG][StatusEffects][${instanceId.current}] No player ID found in state`);
-        return [];
-      }
-      const player = state.players[playerId];
-      if (!player) {
-        console.log(`[DEBUG][StatusEffects][${instanceId.current}] Player with ID ${playerId} not found in state`);
-        return [];
-      }
-      return player?.statusEffects || [];
-    } else {
-      const enemy = state.enemies[targetId];
-      if (!enemy) {
-        console.log(`[DEBUG][StatusEffects][${instanceId.current}] Enemy with ID ${targetId} not found in state`);
-        return [];
-      }
-      return enemy?.statusEffects || [];
-    }
-  }, [targetId, instanceId]);
-  
-  // Set up a simple interval to update the effects
-  React.useEffect(() => {
-    console.log(`[DEBUG][StatusEffects][${instanceId.current}] Effect setup for target: ${targetId}`);
-    
-    let isMounted = true;
-    
-    // Update immediately on mount
-    try {
-      const initialEffects = effectsGetter();
-      console.log(`[DEBUG][StatusEffects][${instanceId.current}] Initial effects:`, initialEffects);
-      if (isMounted) {
-        setEffects(initialEffects);
-      }
-    } catch (err) {
-      console.error(`[ERROR][StatusEffects][${instanceId.current}] Error getting initial effects:`, err);
-    }
-    
-    // Update effects on a timer to avoid excessive re-renders
-    const intervalId = setInterval(() => {
-      try {
-        if (isMounted) {
-          const newEffects = effectsGetter();
-          
-          // Only update if there's a meaningful change
-          const hasChanged = newEffects.length !== effects.length || 
-            newEffects.some((effect, idx) => 
-              !effects[idx] || effect.id !== effects[idx].id || 
-              effect.durationMs !== effects[idx].durationMs);
-          
-          if (hasChanged) {
-            console.log(`[DEBUG][StatusEffects][${instanceId.current}] Updating effects:`, newEffects);
-            setEffects(newEffects);
-          }
-        }
-      } catch (err) {
-        console.error(`[ERROR][StatusEffects][${instanceId.current}] Error updating effects:`, err);
-      }
-    }, 1000); // Once per second is enough for effects display
-    
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-      console.log(`[DEBUG][StatusEffects][${instanceId.current}] Cleanup for target: ${targetId}`);
-    };
-  }, [targetId, effectsGetter, instanceId, effects.length]);
-  
-  return effects;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1861,8 +1776,38 @@ const StatusEffects = React.memo(React.forwardRef<HTMLDivElement, StatusEffectsP
     }
   }, [inline, position]);
 
-  // Use the custom hook to get effects - this separates the store logic from the component
-  const effects = useStatusEffects(targetId);
+  // Create a stable memoized selector to avoid infinite loops
+  const selectEffects = useMemo(() => {
+    // Cache for the last result to compare with shallow equality
+    let lastResult: StatusEffect[] = [];
+    
+    // Return a selector function that's stable across renders
+    return (state: any) => {
+      let newResult: StatusEffect[];
+      
+      if (targetId === 'player') {
+        const pid = state.myPlayerId;
+        newResult = pid ? state.players[pid]?.statusEffects ?? [] : [];
+      } else {
+        newResult = state.enemies[targetId]?.statusEffects ?? [];
+      }
+      
+      // Only update the reference if the content has changed
+      // This is a simple shallow comparison - checks if arrays have the same items
+      const hasChanged = 
+        lastResult.length !== newResult.length || 
+        newResult.some((effect, i) => effect !== lastResult[i]);
+      
+      if (hasChanged) {
+        lastResult = newResult;
+      }
+      
+      return lastResult;
+    };
+  }, [targetId]);
+  
+  // Use the memoized selector with the store
+  const effects = useGameStore(selectEffects);
   
   if (effects.length === 0) return null;
 
@@ -5099,7 +5044,7 @@ export default function SocketManager() {
     const socket = io('http://localhost:3001', {
       path: '/socket.io',
       transports: ['websocket'],
-      perMessageDeflate: true,   // Enable compression explicitly for clarity
+      perMessageDeflate: { threshold: 1024 },   // Enable compression with threshold
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -5860,12 +5805,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (targetId === 'player' || targetId === state.myPlayerId) {
         const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
         if (player) {
-          player.statusEffects = effects;
+          // Create a new array to ensure proper reference change
+          player.statusEffects = [...effects];
         }
       } else {
         const enemy = state.enemies[targetId];
         if (enemy) {
-          enemy.statusEffects = effects;
+          // Create a new array to ensure proper reference change
+          enemy.statusEffects = [...effects];
         }
       }
     }));
@@ -5970,6 +5917,13 @@ export const useGameStore = create<GameState>((set, get) => ({
           // If we only had position update, return without changes
           if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
           
+          // Handle statusEffects array immutably if it exists in otherProps
+          if ('statusEffects' in otherProps) {
+            currentPlayer.statusEffects = [...otherProps.statusEffects];
+            // Remove statusEffects from otherProps so we don't double-apply it
+            delete otherProps.statusEffects;
+          }
+          
           // Update other properties
           Object.assign(currentPlayer, otherProps);
           return;
@@ -5977,13 +5931,31 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
       
       // For other players or significant corrections, process normally
-      // Check if any values are actually different before updating
-      const hasChanges = Object.keys(playerData).some(key => 
-        playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
-      );
-      
-      if (hasChanges) {
-        Object.assign(currentPlayer, playerData);
+      // Handle statusEffects immutably
+      if ('statusEffects' in playerData && Array.isArray(playerData.statusEffects)) {
+        currentPlayer.statusEffects = [...playerData.statusEffects];
+        
+        // Create a copy without statusEffects
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { statusEffects: _ignored, ...otherProps } = playerData;
+        
+        // Check if any values are actually different before updating
+        const hasChanges = Object.keys(otherProps).some(key => 
+          otherProps[key as keyof typeof otherProps] !== currentPlayer[key as keyof typeof currentPlayer]
+        );
+        
+        if (hasChanges) {
+          Object.assign(currentPlayer, otherProps);
+        }
+      } else {
+        // No statusEffects property, so we can update everything directly
+        const hasChanges = Object.keys(playerData).some(key => 
+          playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
+        );
+        
+        if (hasChanges) {
+          Object.assign(currentPlayer, playerData);
+        }
       }
     }));
   },
@@ -5992,7 +5964,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(produce(state => {
       const enemy = state.enemies[enemyData.id];
       if (enemy) {
-        Object.assign(enemy, enemyData);
+        // Handle statusEffects immutably if present
+        if ('statusEffects' in enemyData && Array.isArray(enemyData.statusEffects)) {
+          enemy.statusEffects = [...enemyData.statusEffects];
+          // Create a copy without statusEffects to avoid double-applying
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { statusEffects: _ignored, ...otherProps } = enemyData;
+          // Update other properties
+          Object.assign(enemy, otherProps);
+        } else {
+          // No statusEffects to handle, update normally
+          Object.assign(enemy, enemyData);
+        }
       }
     }));
   },

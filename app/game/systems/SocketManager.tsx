@@ -278,7 +278,7 @@ export default function SocketManager() {
     const socket = io('http://localhost:3001', {
       path: '/socket.io',
       transports: ['websocket'],
-      perMessageDeflate: true,   // Enable compression explicitly for clarity
+      perMessageDeflate: { threshold: 1024 },   // Enable compression with threshold
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

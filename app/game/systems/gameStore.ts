@@ -223,12 +223,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (targetId === 'player' || targetId === state.myPlayerId) {
         const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
         if (player) {
-          player.statusEffects = effects;
+          // Create a new array to ensure proper reference change
+          player.statusEffects = [...effects];
         }
       } else {
         const enemy = state.enemies[targetId];
         if (enemy) {
-          enemy.statusEffects = effects;
+          // Create a new array to ensure proper reference change
+          enemy.statusEffects = [...effects];
         }
       }
     }));
@@ -333,6 +335,13 @@ export const useGameStore = create<GameState>((set, get) => ({
           // If we only had position update, return without changes
           if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
           
+          // Handle statusEffects array immutably if it exists in otherProps
+          if ('statusEffects' in otherProps) {
+            currentPlayer.statusEffects = [...otherProps.statusEffects];
+            // Remove statusEffects from otherProps so we don't double-apply it
+            delete otherProps.statusEffects;
+          }
+          
           // Update other properties
           Object.assign(currentPlayer, otherProps);
           return;
@@ -340,13 +349,31 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
       
       // For other players or significant corrections, process normally
-      // Check if any values are actually different before updating
-      const hasChanges = Object.keys(playerData).some(key => 
-        playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
-      );
-      
-      if (hasChanges) {
-        Object.assign(currentPlayer, playerData);
+      // Handle statusEffects immutably
+      if ('statusEffects' in playerData && Array.isArray(playerData.statusEffects)) {
+        currentPlayer.statusEffects = [...playerData.statusEffects];
+        
+        // Create a copy without statusEffects
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { statusEffects: _ignored, ...otherProps } = playerData;
+        
+        // Check if any values are actually different before updating
+        const hasChanges = Object.keys(otherProps).some(key => 
+          otherProps[key as keyof typeof otherProps] !== currentPlayer[key as keyof typeof currentPlayer]
+        );
+        
+        if (hasChanges) {
+          Object.assign(currentPlayer, otherProps);
+        }
+      } else {
+        // No statusEffects property, so we can update everything directly
+        const hasChanges = Object.keys(playerData).some(key => 
+          playerData[key as keyof typeof playerData] !== currentPlayer[key as keyof typeof currentPlayer]
+        );
+        
+        if (hasChanges) {
+          Object.assign(currentPlayer, playerData);
+        }
       }
     }));
   },
@@ -355,7 +382,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(produce(state => {
       const enemy = state.enemies[enemyData.id];
       if (enemy) {
-        Object.assign(enemy, enemyData);
+        // Handle statusEffects immutably if present
+        if ('statusEffects' in enemyData && Array.isArray(enemyData.statusEffects)) {
+          enemy.statusEffects = [...enemyData.statusEffects];
+          // Create a copy without statusEffects to avoid double-applying
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { statusEffects: _ignored, ...otherProps } = enemyData;
+          // Update other properties
+          Object.assign(enemy, otherProps);
+        } else {
+          // No statusEffects to handle, update normally
+          Object.assign(enemy, enemyData);
+        }
       }
     }));
   },

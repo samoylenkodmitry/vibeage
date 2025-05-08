@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useGameStore, StatusEffect } from '../systems/gameStore';
 import Image from 'next/image';
 
@@ -8,91 +8,6 @@ interface StatusEffectsProps {
   targetId: string | 'player';
   position?: 'top' | 'right' | 'bottom' | 'left';
   inline?: boolean;
-}
-
-// EXTREMELY simple hook for status effects with debugging
-function useStatusEffects(targetId: string | 'player'): StatusEffect[] {
-  // Add component instance identifier for tracking render cycles
-  const instanceId = React.useRef(`${targetId}-${Math.random().toString(36).substring(2, 7)}`);
-  
-  console.log(`[DEBUG][StatusEffects][${instanceId.current}] Hook initializing for target: ${targetId}`);
-  
-  // Initialize with empty array instead of calling getter directly
-  const [effects, setEffects] = React.useState<StatusEffect[]>([]);
-  
-  // Create a stable getter function that will always retrieve the latest effects
-  const effectsGetter = useCallback(() => {
-    const state = useGameStore.getState();
-    
-    if (targetId === 'player') {
-      const playerId = state.myPlayerId;
-      if (!playerId) {
-        console.log(`[DEBUG][StatusEffects][${instanceId.current}] No player ID found in state`);
-        return [];
-      }
-      const player = state.players[playerId];
-      if (!player) {
-        console.log(`[DEBUG][StatusEffects][${instanceId.current}] Player with ID ${playerId} not found in state`);
-        return [];
-      }
-      return player?.statusEffects || [];
-    } else {
-      const enemy = state.enemies[targetId];
-      if (!enemy) {
-        console.log(`[DEBUG][StatusEffects][${instanceId.current}] Enemy with ID ${targetId} not found in state`);
-        return [];
-      }
-      return enemy?.statusEffects || [];
-    }
-  }, [targetId, instanceId]);
-  
-  // Set up a simple interval to update the effects
-  React.useEffect(() => {
-    console.log(`[DEBUG][StatusEffects][${instanceId.current}] Effect setup for target: ${targetId}`);
-    
-    let isMounted = true;
-    
-    // Update immediately on mount
-    try {
-      const initialEffects = effectsGetter();
-      console.log(`[DEBUG][StatusEffects][${instanceId.current}] Initial effects:`, initialEffects);
-      if (isMounted) {
-        setEffects(initialEffects);
-      }
-    } catch (err) {
-      console.error(`[ERROR][StatusEffects][${instanceId.current}] Error getting initial effects:`, err);
-    }
-    
-    // Update effects on a timer to avoid excessive re-renders
-    const intervalId = setInterval(() => {
-      try {
-        if (isMounted) {
-          const newEffects = effectsGetter();
-          
-          // Only update if there's a meaningful change
-          const hasChanged = newEffects.length !== effects.length || 
-            newEffects.some((effect, idx) => 
-              !effects[idx] || effect.id !== effects[idx].id || 
-              effect.durationMs !== effects[idx].durationMs);
-          
-          if (hasChanged) {
-            console.log(`[DEBUG][StatusEffects][${instanceId.current}] Updating effects:`, newEffects);
-            setEffects(newEffects);
-          }
-        }
-      } catch (err) {
-        console.error(`[ERROR][StatusEffects][${instanceId.current}] Error updating effects:`, err);
-      }
-    }, 1000); // Once per second is enough for effects display
-    
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-      console.log(`[DEBUG][StatusEffects][${instanceId.current}] Cleanup for target: ${targetId}`);
-    };
-  }, [targetId, effectsGetter, instanceId, effects.length]);
-  
-  return effects;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -119,8 +34,38 @@ const StatusEffects = React.memo(React.forwardRef<HTMLDivElement, StatusEffectsP
     }
   }, [inline, position]);
 
-  // Use the custom hook to get effects - this separates the store logic from the component
-  const effects = useStatusEffects(targetId);
+  // Create a stable memoized selector to avoid infinite loops
+  const selectEffects = useMemo(() => {
+    // Cache for the last result to compare with shallow equality
+    let lastResult: StatusEffect[] = [];
+    
+    // Return a selector function that's stable across renders
+    return (state: any) => {
+      let newResult: StatusEffect[];
+      
+      if (targetId === 'player') {
+        const pid = state.myPlayerId;
+        newResult = pid ? state.players[pid]?.statusEffects ?? [] : [];
+      } else {
+        newResult = state.enemies[targetId]?.statusEffects ?? [];
+      }
+      
+      // Only update the reference if the content has changed
+      // This is a simple shallow comparison - checks if arrays have the same items
+      const hasChanged = 
+        lastResult.length !== newResult.length || 
+        newResult.some((effect, i) => effect !== lastResult[i]);
+      
+      if (hasChanged) {
+        lastResult = newResult;
+      }
+      
+      return lastResult;
+    };
+  }, [targetId]);
+  
+  // Use the memoized selector with the store
+  const effects = useGameStore(selectEffects);
   
   if (effects.length === 0) return null;
 
