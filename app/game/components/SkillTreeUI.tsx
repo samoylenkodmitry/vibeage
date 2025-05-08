@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, SkillId } from '../models/Skill';
 import { CLASS_SKILL_TREES, canLearnSkill, CharacterClass } from '../../../shared/classSystem';
-import dragState from '../systems/dragState';
+import { useDragStore } from '../systems/dragState';
 import skillUtils from '../systems/skillUtils';
 import styles from '../styles/SkillTreeUI.module.css';
 import Image from 'next/image';
@@ -17,13 +17,8 @@ const SkillTreeUI: React.FC = () => {
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   // New state for skill shortcuts (keys 1-9)
   const [skillShortcuts, setSkillShortcuts] = useState<(SkillId | null)[]>([null, null, null, null, null, null, null, null, null]);
-
-  // Force update when drag state changes
-  const [dragStateKey, setDragStateKey] = useState(0);
-  const clearDraggedSkill = () => {
-    dragState.clearDraggedSkill();
-    setDragStateKey(prev => prev + 1);
-  };
+  // Use the Zustand store for drag state
+  const { dragged, setDragged } = useDragStore();
   
   useEffect(() => {
     // Debug log to see if component is rendering and has proper data
@@ -31,14 +26,14 @@ const SkillTreeUI: React.FC = () => {
       player, 
       className: player?.className,
       skillPoints: player?.availableSkillPoints,
-      draggedSkill: dragState.getDraggedSkill()
+      draggedSkill: dragged
     });
     
     // Update selected class when player data changes
     if (player?.className) {
       setSelectedClass(player.className as CharacterClass);
     }
-  }, [player, dragStateKey]);
+  }, [player, dragged]);
 
   useEffect(() => {
     // Calculate available skills when relevant data changes
@@ -148,7 +143,7 @@ const SkillTreeUI: React.FC = () => {
       console.error('Cannot set skill shortcut: No player data');
       return;
     }
-    
+
     // Validate skill ID - make sure it's an actual skill ID, not a path or something else
     if (!SKILLS[skillId]) {
       console.error(`Cannot set skill shortcut: Invalid skill ID "${skillId}"`);
@@ -243,6 +238,7 @@ const SkillTreeUI: React.FC = () => {
   }
 
   const classTree = selectedClass ? CLASS_SKILL_TREES[selectedClass] : null;
+  const canDrag = typeof window !== 'undefined' && window.matchMedia('(pointer:fine)').matches;
 
   return (
     <>
@@ -258,7 +254,11 @@ const SkillTreeUI: React.FC = () => {
       {isSkillTreeOpen && classTree && (
         <div 
           className={styles.skillTreeOverlay}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Clear drag state when clicking the overlay
+            if (dragged) setDragged(null);
+          }}
         >
           <div className={styles.skillTreeContainer}>
             <div className={styles.skillTreeHeader}>
@@ -283,47 +283,55 @@ const SkillTreeUI: React.FC = () => {
                     {player.unlockedSkills.map((skillId) => {
                       const skill = SKILLS[skillId];
                       return (
-                        <div key={skillId} className={styles.skillItem}>
+                        <div key={skillId} 
+                          className={`${styles.skillItem} ${dragged === skillId ? styles.tapSelect : ''}`}
+                        >
                           <Image 
                             src={skillUtils.getSkillIconPath(skillId)} 
                             width={50}
                             height={50}
                             alt={skill.name} 
                             title={skill.description}
-                      onDoubleClick={() => {
-                        // When double-clicking a skill, assign it to the first available slot
-                        console.log('Skill double-clicked:', skillId);
-                        const availableSlotIndex = skillShortcuts.findIndex(skill => skill === null);
-                        if (availableSlotIndex !== -1) {
-                          console.log(`Assigning to first available slot: ${availableSlotIndex + 1}`);
-                          setSkillShortcut(skillId, availableSlotIndex);
-                        } else {
-                          // If no empty slots, assign to slot 1
-                          console.log('No empty slots, assigning to slot 1');
-                          setSkillShortcut(skillId, 0);
-                        }
-                      }}
-                      draggable={true}
-                      onDragStart={(e) => {
-                        // Make sure we have a valid skill ID to start the drag
-                        if (!SKILLS[skillId]) {
-                          console.error(`Attempting to drag invalid skill: ${skillId}`);
-                          return;
-                        }
+                            onClick={() => {
+                              if (!dragged) {
+                                setDragged(skillId);
+                              } else {
+                                setDragged(null);
+                              }
+                            }}
+                            onDoubleClick={() => {
+                              // When double-clicking a skill, assign it to the first available slot
+                              console.log('Skill double-clicked:', skillId);
+                              const availableSlotIndex = skillShortcuts.findIndex(skill => skill === null);
+                              if (availableSlotIndex !== -1) {
+                                console.log(`Assigning to first available slot: ${availableSlotIndex + 1}`);
+                                setSkillShortcut(skillId, availableSlotIndex);
+                              } else {
+                                // If no empty slots, assign to slot 1
+                                console.log('No empty slots, assigning to slot 1');
+                                setSkillShortcut(skillId, 0);
+                              }
+                            }}
+                            draggable={canDrag}
+                            onDragStart={canDrag ? (e) => {
+                              // Make sure we have a valid skill ID to start the drag
+                              if (!SKILLS[skillId]) {
+                                console.error(`Attempting to drag invalid skill: ${skillId}`);
+                                return;
+                              }
 
-                        console.log('Drag started with skill ID:', skillId);
+                              console.log('Drag started with skill ID:', skillId);
 
-                        // Store the skill ID in our global drag state
-                        dragState.setDraggedSkill(skillId);
+                              // Store the skill ID in our global drag state
+                              setDragged(skillId);
 
-                        // Set the drag effect to copy
-                        e.dataTransfer.effectAllowed = 'copy';
-
-                      }}
-                      onDragEnd={() => {
-                        console.log('Drag ended, clearing drag state');
-                        clearDraggedSkill();
-                      }}
+                              // Set the drag effect to copy
+                              e.dataTransfer.effectAllowed = 'copy';
+                            } : undefined}
+                            onDragEnd={() => {
+                              console.log('Drag ended, clearing drag state');
+                              setDragged(null);
+                            }}
                           />
                           <span>{skill.name}</span>
                           <div className={styles.skillDetails}>
@@ -389,31 +397,12 @@ const SkillTreeUI: React.FC = () => {
                     data-slot-index={index}
                     onClick={() => {
                       // If we have a selected skill and the user clicks a slot,
-                      // set the skill to that slot (simpler alternative to drag and drop)
-                      const selectedSkill = dragState.getDraggedSkill();
-                      if (selectedSkill && SKILLS[selectedSkill as SkillId] &&
-                          player?.unlockedSkills.includes(selectedSkill as SkillId)) {
-                        console.log(`Slot ${index+1} clicked with skill ${selectedSkill} selected`);
-                        setSkillShortcut(selectedSkill as SkillId, index);
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      // Special handler for touch events where drag and drop might not work
-                      e.preventDefault();
-                      const draggedSkill = dragState.getDraggedSkill();
-                      if (draggedSkill) {
-                        const validSkill = skillUtils.validateSkillId(draggedSkill);
-                        if (validSkill) {
-                          console.log(`Touch ended on slot ${index+1} with skill ${validSkill}`);
-                          setSkillShortcut(validSkill, index);
-                          clearDraggedSkill();
-                          
-                          // Add visual feedback
-                          e.currentTarget.classList.add(styles.dropSuccess);
-                          setTimeout(() => {
-                            e.currentTarget.classList.remove(styles.dropSuccess);
-                          }, 500);
-                        }
+                      // set the skill to that slot (alternative to drag and drop)
+                      if (dragged && SKILLS[dragged] &&
+                          player?.unlockedSkills.includes(dragged)) {
+                        console.log(`Slot ${index+1} clicked with skill ${dragged} selected`);
+                        setSkillShortcut(dragged, index);
+                        setDragged(null);
                       }
                     }}
                     onDragOver={(e) => {
@@ -436,9 +425,9 @@ const SkillTreeUI: React.FC = () => {
                       
                       console.log('Drop event triggered on slot', index + 1);
 
-                      const skillIdRaw = dragState.getDraggedSkill();
+                      const skillIdRaw = dragged;
                       console.log('Raw skill ID from drag state:', skillIdRaw);
-                      dragState.clearDraggedSkill();
+                      setDragged(null);
 
                       // Validate and normalize the skill ID
                       const skillId = skillUtils.validateSkillId(skillIdRaw);

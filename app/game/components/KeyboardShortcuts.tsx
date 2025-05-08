@@ -10,7 +10,6 @@ import { tryStartCast } from '../systems/castController';
  * This component doesn't render anything but sets up event listeners
  */
 export default function KeyboardShortcuts() {
-  // We no longer need the game store's handleSkillHotkey
   const getMyPlayer = useGameStore(state => state.getMyPlayer);
   
   useEffect(() => {

@@ -250,6 +250,10 @@
   }
 }
 
+.tapSelect { 
+  outline: 2px dashed #ffa500; 
+}
+
 .shortcutSlot img {
   width: 45px;
   height: 45px;

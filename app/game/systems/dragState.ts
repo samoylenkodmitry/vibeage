@@ -1,31 +1,20 @@
 'use client';
 
 /**
- * Simple drag state manager to reliably track currently dragged skill
+ * Drag state manager implemented with Zustand
  * This helps work around cross-browser drag and drop limitations
+ * and adds support for touch devices
  */
 
-let currentlyDraggedSkillId: string | null = null;
+import { create } from 'zustand';
+import { SkillId } from '../models/Skill';
 
-function setDraggedSkill(skillId: string | null) {
-  console.log('Setting dragged skill to:', skillId);
-  currentlyDraggedSkillId = skillId;
-}
-
-function getDraggedSkill() {
-  console.log('Getting dragged skill:', currentlyDraggedSkillId);
-  return currentlyDraggedSkillId;
-}
-
-function clearDraggedSkill() {
-  console.log('Clearing dragged skill');
-  currentlyDraggedSkillId = null;
-}
-
-const dragState = {
-  setDraggedSkill,
-  getDraggedSkill,
-  clearDraggedSkill
+type DragStore = { 
+  dragged: SkillId|null, 
+  setDragged: (s: SkillId|null) => void 
 };
 
-export default dragState;
+export const useDragStore = create<DragStore>((set) => ({
+  dragged: null,
+  setDragged: (skillId: SkillId|null) => set({ dragged: skillId })
+}));
