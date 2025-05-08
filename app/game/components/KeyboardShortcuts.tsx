@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
-import { validateSkillId } from '../systems/skillUtils';
 import { tryStartCast } from '../systems/castController';
 
 /**
@@ -11,6 +10,7 @@ import { tryStartCast } from '../systems/castController';
  */
 export default function KeyboardShortcuts() {
   const getMyPlayer = useGameStore(state => state.getMyPlayer);
+  const selectedTargetId = useGameStore(state => state.selectedTargetId);
   
   useEffect(() => {
     // Add keyboard event listener for skill shortcuts
@@ -28,25 +28,28 @@ export default function KeyboardShortcuts() {
         return;
       }
       
-      // Only handle number keys 1-9
-      if (e.key >= '1' && e.key <= '9') {
-        console.log(`Key pressed: ${e.key}`);
-        
-        const player = getMyPlayer();
-        if (!player || !player.skillShortcuts) return;
-        
-        // Convert key to index (keys 1-9 map to array indices 0-8)
-        const keyNum = parseInt(e.key);
-        if (isNaN(keyNum) || keyNum < 1 || keyNum > 9) return;
-        
-        const shortcutIndex = keyNum - 1;
-        const skillId = player.skillShortcuts[shortcutIndex];
-        
-        if (skillId && validateSkillId(skillId)) {
-          console.log(`Using skill hotkey ${keyNum} to cast ${skillId}`);
-          // Use the new unified cast controller instead of the game store method
-          tryStartCast(skillId);
-        }
+      // Handle skill keybinds with more direct keyboard mapping
+      switch (e.code) {
+        case 'Digit1':
+        case 'KeyQ':
+          console.log('Hotkey 1/Q pressed');
+          tryStartCast('fireball', selectedTargetId || undefined);
+          break;
+        case 'Digit2':
+        case 'KeyE':
+          console.log('Hotkey 2/E pressed');
+          tryStartCast('iceBolt', selectedTargetId || undefined);
+          break;
+        case 'Digit3':
+        case 'KeyR':
+          console.log('Hotkey 3/R pressed');
+          tryStartCast('waterSplash', selectedTargetId || undefined);
+          break;
+        case 'Digit4':
+        case 'KeyF':
+          console.log('Hotkey 4/F pressed');
+          tryStartCast('petrify', selectedTargetId || undefined);
+          break;
       }
     };
     
@@ -57,7 +60,7 @@ export default function KeyboardShortcuts() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [getMyPlayer]);
+  }, [getMyPlayer, selectedTargetId]);
   
   // This component doesn't render anything
   return null;

@@ -9,7 +9,6 @@ import Player from './Player';
 import Enemies from './Enemies';
 import UI from './UI';
 import KeyboardShortcuts from './KeyboardShortcuts';
-import ActiveSkills from './ActiveSkills';
 import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
 import { useGameStore } from '../systems/gameStore';
@@ -107,7 +106,6 @@ export default function Game() {
             <World />
             <Player />
             <Enemies />
-            <ActiveSkills />
             <TargetRing />
             <VfxManager />
           </Physics>
