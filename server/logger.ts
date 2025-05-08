@@ -2,7 +2,7 @@
 // Simple logger module to replace console.log with more controlled debugging
 
 // Set to true to enable debug logs, false to disable them
-export const DEBUG = true;
+export const DEBUG = process.env.NODE_ENV !== 'production';
 
 // Define different log categories
 export const LOG_CATEGORIES = {

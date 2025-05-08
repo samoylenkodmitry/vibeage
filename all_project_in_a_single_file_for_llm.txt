@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-08T16:47:00.674Z
+// Generated on: 2025-05-08T17:08:58.176Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -9294,11 +9294,19 @@ generateProjectDoc().catch(console.error);
 
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
   webpack: (config) => {
     config.externals = [...(config.externals || []), { bufferutil: 'bufferutil', 'utf-8-validate': 'utf-8-validate' }];
     return config;
   },
+  
+  // Kills console.* except error/warn in prod
+  compiler: {
+    removeConsole: isProd ? { exclude: ['error', 'warn'] } : false,
+  },
+  
   // Add rewrites for Socket.IO
   rewrites: async () => {
     return [
@@ -11089,7 +11097,7 @@ export class EffectManager {
 // Simple logger module to replace console.log with more controlled debugging
 
 // Set to true to enable debug logs, false to disable them
-export const DEBUG = true;
+export const DEBUG = process.env.NODE_ENV !== 'production';
 
 // Define different log categories
 export const LOG_CATEGORIES = {
