@@ -1,103 +1,8 @@
 // Project Documentation
-// Generated on: 2025-05-07T18:25:05.118Z
+// Generated on: 2025-05-08T04:28:31.196Z
 // This file contains the source code of all meaningful files in the project.
 
 
-
-// ==============================================================================
-// FILE: app/game/components/ActiveSkills.tsx
-// ==============================================================================
-
-'use client';
-
-import { useEffect } from 'react';
-import { useGameStore } from '../systems/gameStore';
-import { tryStartCast } from '../systems/castController';
-
-/**
- * ActiveSkills component
- * 
- * This component:
- * 1. Sets up keyboard shortcuts for casting skills
- * 2. Doesn't render any visual elements itself
- * 3. VFX for skills are handled by the VfxManager component
- */
-export default function ActiveSkills() {
-  // Use a more stable selection from the store
-  const myPlayerId = useGameStore(state => state.myPlayerId);
-  const selectedTargetId = useGameStore(state => state.selectedTargetId);
-  
-  // Setup keyboard shortcuts for casting skills
-  useEffect(() => {
-    // Fireball casting
-    window.castFireball = () => {
-      if (!myPlayerId || !selectedTargetId) return;
-      tryStartCast("fireball", selectedTargetId);
-    };
-    
-    // Ice Bolt casting
-    window.castIceBolt = () => {
-      if (!myPlayerId || !selectedTargetId) return;
-      tryStartCast("iceBolt", selectedTargetId);
-    };
-    
-    // Water Splash casting
-    window.castWater = () => {
-      if (!myPlayerId || !selectedTargetId) return;
-      tryStartCast("waterSplash", selectedTargetId);
-    };
-    
-    // Petrify casting
-    window.castPetrify = () => {
-      if (!myPlayerId || !selectedTargetId) return;
-      tryStartCast("petrify", selectedTargetId);
-    };
-    
-    // Clean up on unmount
-    return () => {
-      window.castFireball = undefined;
-      window.castIceBolt = undefined;
-      window.castWater = undefined;
-      window.castPetrify = undefined;
-    };
-  }, [myPlayerId, selectedTargetId]);
-  
-  // No rendering needed as VFX is now handled by VfxManager
-  return null;
-}
-
-// Type definitions for global window events
-declare global {
-  interface WindowEventMap {
-    'skillTriggered': CustomEvent<{
-      id: string;
-      skillId: string;
-      sourceId: string;
-      targetId: string;
-      startPosition: { x: number; y: number; z: number };
-      targetPosition: { x: number; y: number; z: number };
-      createdAtTs: number;
-    }>;
-    'requestPlayerPosition': CustomEvent<{
-      effectId: string;
-      callback: (position: { x: number; y: number; z: number }) => void;
-    }>;
-    // Events now handled by VfxManager
-    'instanthit': CustomEvent<any>;
-    'spawnSplash': CustomEvent<{ position: any; radius: number }>;
-    'spawnStunFlash': CustomEvent<{ position: any }>;
-    'petrifyFlash': CustomEvent<{ position: any }>;
-    'projspawn2': CustomEvent<any>;
-    'projhit2': CustomEvent<any>;
-  }
-  
-  interface Window {
-    castFireball?: () => void;
-    castIceBolt?: () => void;
-    castWater?: () => void;
-    castPetrify?: () => void;
-  }
-}
 
 // ==============================================================================
 // FILE: app/game/components/ConnectionStatus.tsx
@@ -520,7 +425,6 @@ import Player from './Player';
 import Enemies from './Enemies';
 import UI from './UI';
 import KeyboardShortcuts from './KeyboardShortcuts';
-import ActiveSkills from './ActiveSkills';
 import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
 import { useGameStore } from '../systems/gameStore';
@@ -618,7 +522,6 @@ export default function Game() {
             <World />
             <Player />
             <Enemies />
-            <ActiveSkills />
             <TargetRing />
             <VfxManager />
           </Physics>
@@ -682,7 +585,6 @@ export default function CombatLog() {
 
 import { useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
-import { validateSkillId } from '../systems/skillUtils';
 import { tryStartCast } from '../systems/castController';
 
 /**
@@ -690,8 +592,8 @@ import { tryStartCast } from '../systems/castController';
  * This component doesn't render anything but sets up event listeners
  */
 export default function KeyboardShortcuts() {
-  // We no longer need the game store's handleSkillHotkey
   const getMyPlayer = useGameStore(state => state.getMyPlayer);
+  const selectedTargetId = useGameStore(state => state.selectedTargetId);
   
   useEffect(() => {
     // Add keyboard event listener for skill shortcuts
@@ -709,25 +611,28 @@ export default function KeyboardShortcuts() {
         return;
       }
       
-      // Only handle number keys 1-9
-      if (e.key >= '1' && e.key <= '9') {
-        console.log(`Key pressed: ${e.key}`);
-        
-        const player = getMyPlayer();
-        if (!player || !player.skillShortcuts) return;
-        
-        // Convert key to index (keys 1-9 map to array indices 0-8)
-        const keyNum = parseInt(e.key);
-        if (isNaN(keyNum) || keyNum < 1 || keyNum > 9) return;
-        
-        const shortcutIndex = keyNum - 1;
-        const skillId = player.skillShortcuts[shortcutIndex];
-        
-        if (skillId && validateSkillId(skillId)) {
-          console.log(`Using skill hotkey ${keyNum} to cast ${skillId}`);
-          // Use the new unified cast controller instead of the game store method
-          tryStartCast(skillId);
-        }
+      // Handle skill keybinds with more direct keyboard mapping
+      switch (e.code) {
+        case 'Digit1':
+        case 'KeyQ':
+          console.log('Hotkey 1/Q pressed');
+          tryStartCast('fireball', selectedTargetId || undefined);
+          break;
+        case 'Digit2':
+        case 'KeyE':
+          console.log('Hotkey 2/E pressed');
+          tryStartCast('iceBolt', selectedTargetId || undefined);
+          break;
+        case 'Digit3':
+        case 'KeyR':
+          console.log('Hotkey 3/R pressed');
+          tryStartCast('waterSplash', selectedTargetId || undefined);
+          break;
+        case 'Digit4':
+        case 'KeyF':
+          console.log('Hotkey 4/F pressed');
+          tryStartCast('petrify', selectedTargetId || undefined);
+          break;
       }
     };
     
@@ -738,7 +643,7 @@ export default function KeyboardShortcuts() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [getMyPlayer]);
+  }, [getMyPlayer, selectedTargetId]);
   
   // This component doesn't render anything
   return null;
@@ -1353,7 +1258,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, SkillId } from '../models/Skill';
 import { CLASS_SKILL_TREES, canLearnSkill, CharacterClass } from '../../../shared/classSystem';
-import dragState from '../systems/dragState';
+import { useDragStore } from '../systems/dragState';
 import skillUtils from '../systems/skillUtils';
 import styles from '../styles/SkillTreeUI.module.css';
 import Image from 'next/image';
@@ -1366,13 +1271,8 @@ const SkillTreeUI: React.FC = () => {
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   // New state for skill shortcuts (keys 1-9)
   const [skillShortcuts, setSkillShortcuts] = useState<(SkillId | null)[]>([null, null, null, null, null, null, null, null, null]);
-
-  // Force update when drag state changes
-  const [dragStateKey, setDragStateKey] = useState(0);
-  const clearDraggedSkill = () => {
-    dragState.clearDraggedSkill();
-    setDragStateKey(prev => prev + 1);
-  };
+  // Use the Zustand store for drag state
+  const { dragged, setDragged } = useDragStore();
   
   useEffect(() => {
     // Debug log to see if component is rendering and has proper data
@@ -1380,14 +1280,14 @@ const SkillTreeUI: React.FC = () => {
       player, 
       className: player?.className,
       skillPoints: player?.availableSkillPoints,
-      draggedSkill: dragState.getDraggedSkill()
+      draggedSkill: dragged
     });
     
     // Update selected class when player data changes
     if (player?.className) {
       setSelectedClass(player.className as CharacterClass);
     }
-  }, [player, dragStateKey]);
+  }, [player, dragged]);
 
   useEffect(() => {
     // Calculate available skills when relevant data changes
@@ -1497,7 +1397,7 @@ const SkillTreeUI: React.FC = () => {
       console.error('Cannot set skill shortcut: No player data');
       return;
     }
-    
+
     // Validate skill ID - make sure it's an actual skill ID, not a path or something else
     if (!SKILLS[skillId]) {
       console.error(`Cannot set skill shortcut: Invalid skill ID "${skillId}"`);
@@ -1592,6 +1492,7 @@ const SkillTreeUI: React.FC = () => {
   }
 
   const classTree = selectedClass ? CLASS_SKILL_TREES[selectedClass] : null;
+  const canDrag = typeof window !== 'undefined' && window.matchMedia('(pointer:fine)').matches;
 
   return (
     <>
@@ -1607,7 +1508,11 @@ const SkillTreeUI: React.FC = () => {
       {isSkillTreeOpen && classTree && (
         <div 
           className={styles.skillTreeOverlay}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Clear drag state when clicking the overlay
+            if (dragged) setDragged(null);
+          }}
         >
           <div className={styles.skillTreeContainer}>
             <div className={styles.skillTreeHeader}>
@@ -1632,47 +1537,55 @@ const SkillTreeUI: React.FC = () => {
                     {player.unlockedSkills.map((skillId) => {
                       const skill = SKILLS[skillId];
                       return (
-                        <div key={skillId} className={styles.skillItem}>
+                        <div key={skillId} 
+                          className={`${styles.skillItem} ${dragged === skillId ? styles.tapSelect : ''}`}
+                        >
                           <Image 
                             src={skillUtils.getSkillIconPath(skillId)} 
                             width={50}
                             height={50}
                             alt={skill.name} 
                             title={skill.description}
-                      onDoubleClick={() => {
-                        // When double-clicking a skill, assign it to the first available slot
-                        console.log('Skill double-clicked:', skillId);
-                        const availableSlotIndex = skillShortcuts.findIndex(skill => skill === null);
-                        if (availableSlotIndex !== -1) {
-                          console.log(`Assigning to first available slot: ${availableSlotIndex + 1}`);
-                          setSkillShortcut(skillId, availableSlotIndex);
-                        } else {
-                          // If no empty slots, assign to slot 1
-                          console.log('No empty slots, assigning to slot 1');
-                          setSkillShortcut(skillId, 0);
-                        }
-                      }}
-                      draggable={true}
-                      onDragStart={(e) => {
-                        // Make sure we have a valid skill ID to start the drag
-                        if (!SKILLS[skillId]) {
-                          console.error(`Attempting to drag invalid skill: ${skillId}`);
-                          return;
-                        }
+                            onClick={() => {
+                              if (!dragged) {
+                                setDragged(skillId);
+                              } else {
+                                setDragged(null);
+                              }
+                            }}
+                            onDoubleClick={() => {
+                              // When double-clicking a skill, assign it to the first available slot
+                              console.log('Skill double-clicked:', skillId);
+                              const availableSlotIndex = skillShortcuts.findIndex(skill => skill === null);
+                              if (availableSlotIndex !== -1) {
+                                console.log(`Assigning to first available slot: ${availableSlotIndex + 1}`);
+                                setSkillShortcut(skillId, availableSlotIndex);
+                              } else {
+                                // If no empty slots, assign to slot 1
+                                console.log('No empty slots, assigning to slot 1');
+                                setSkillShortcut(skillId, 0);
+                              }
+                            }}
+                            draggable={canDrag}
+                            onDragStart={canDrag ? (e) => {
+                              // Make sure we have a valid skill ID to start the drag
+                              if (!SKILLS[skillId]) {
+                                console.error(`Attempting to drag invalid skill: ${skillId}`);
+                                return;
+                              }
 
-                        console.log('Drag started with skill ID:', skillId);
+                              console.log('Drag started with skill ID:', skillId);
 
-                        // Store the skill ID in our global drag state
-                        dragState.setDraggedSkill(skillId);
+                              // Store the skill ID in our global drag state
+                              setDragged(skillId);
 
-                        // Set the drag effect to copy
-                        e.dataTransfer.effectAllowed = 'copy';
-
-                      }}
-                      onDragEnd={() => {
-                        console.log('Drag ended, clearing drag state');
-                        clearDraggedSkill();
-                      }}
+                              // Set the drag effect to copy
+                              e.dataTransfer.effectAllowed = 'copy';
+                            } : undefined}
+                            onDragEnd={() => {
+                              console.log('Drag ended, clearing drag state');
+                              setDragged(null);
+                            }}
                           />
                           <span>{skill.name}</span>
                           <div className={styles.skillDetails}>
@@ -1738,31 +1651,12 @@ const SkillTreeUI: React.FC = () => {
                     data-slot-index={index}
                     onClick={() => {
                       // If we have a selected skill and the user clicks a slot,
-                      // set the skill to that slot (simpler alternative to drag and drop)
-                      const selectedSkill = dragState.getDraggedSkill();
-                      if (selectedSkill && SKILLS[selectedSkill as SkillId] &&
-                          player?.unlockedSkills.includes(selectedSkill as SkillId)) {
-                        console.log(`Slot ${index+1} clicked with skill ${selectedSkill} selected`);
-                        setSkillShortcut(selectedSkill as SkillId, index);
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      // Special handler for touch events where drag and drop might not work
-                      e.preventDefault();
-                      const draggedSkill = dragState.getDraggedSkill();
-                      if (draggedSkill) {
-                        const validSkill = skillUtils.validateSkillId(draggedSkill);
-                        if (validSkill) {
-                          console.log(`Touch ended on slot ${index+1} with skill ${validSkill}`);
-                          setSkillShortcut(validSkill, index);
-                          clearDraggedSkill();
-                          
-                          // Add visual feedback
-                          e.currentTarget.classList.add(styles.dropSuccess);
-                          setTimeout(() => {
-                            e.currentTarget.classList.remove(styles.dropSuccess);
-                          }, 500);
-                        }
+                      // set the skill to that slot (alternative to drag and drop)
+                      if (dragged && SKILLS[dragged] &&
+                          player?.unlockedSkills.includes(dragged)) {
+                        console.log(`Slot ${index+1} clicked with skill ${dragged} selected`);
+                        setSkillShortcut(dragged, index);
+                        setDragged(null);
                       }
                     }}
                     onDragOver={(e) => {
@@ -1785,9 +1679,9 @@ const SkillTreeUI: React.FC = () => {
                       
                       console.log('Drop event triggered on slot', index + 1);
 
-                      const skillIdRaw = dragState.getDraggedSkill();
+                      const skillIdRaw = dragged;
                       console.log('Raw skill ID from drag state:', skillIdRaw);
-                      dragState.clearDraggedSkill();
+                      setDragged(null);
 
                       // Validate and normalize the skill ID
                       const skillId = skillUtils.validateSkillId(skillIdRaw);
@@ -5546,34 +5440,23 @@ export function tryStartCast(skillId: SkillId, targetId?: string, targetPos?: Ve
 'use client';
 
 /**
- * Simple drag state manager to reliably track currently dragged skill
+ * Drag state manager implemented with Zustand
  * This helps work around cross-browser drag and drop limitations
+ * and adds support for touch devices
  */
 
-let currentlyDraggedSkillId: string | null = null;
+import { create } from 'zustand';
+import { SkillId } from '../models/Skill';
 
-function setDraggedSkill(skillId: string | null) {
-  console.log('Setting dragged skill to:', skillId);
-  currentlyDraggedSkillId = skillId;
-}
-
-function getDraggedSkill() {
-  console.log('Getting dragged skill:', currentlyDraggedSkillId);
-  return currentlyDraggedSkillId;
-}
-
-function clearDraggedSkill() {
-  console.log('Clearing dragged skill');
-  currentlyDraggedSkillId = null;
-}
-
-const dragState = {
-  setDraggedSkill,
-  getDraggedSkill,
-  clearDraggedSkill
+type DragStore = { 
+  dragged: SkillId|null, 
+  setDragged: (s: SkillId|null) => void 
 };
 
-export default dragState;
+export const useDragStore = create<DragStore>((set) => ({
+  dragged: null,
+  setDragged: (skillId: SkillId|null) => set({ dragged: skillId })
+}));
 
 
 // ==============================================================================
