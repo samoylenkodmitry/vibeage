@@ -84,6 +84,12 @@ This event-based system allows for decoupling of skill logic from visual effects
 - Position reconciliation prevents cheating with speed hacks
 - Fixed timestep simulation provides consistent gameplay experience
 
+## WebSocket compression
+
+`WS_COMPRESSION=0 npm start` disables gzip/deflate for debugging.
+By default it is **enabled** and uses per-message deflate with
+zero-byte threshold.
+
 ## Known Issues
 
 - [Current] Client sometimes gets out of sync on very long walks

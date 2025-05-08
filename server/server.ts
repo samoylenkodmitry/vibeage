@@ -8,6 +8,9 @@ import { sendCastSnapshots } from './combat/skillManager.js';
 // Create HTTP server
 const httpServer = createServer();
 
+// WebSocket compression config
+const COMPRESSION = process.env.WS_COMPRESSION !== "0";
+
 // Configure Socket.IO with improved settings
 const io = new Server(httpServer, {
   cors: {
@@ -21,7 +24,13 @@ const io = new Server(httpServer, {
   connectTimeout: 45000,
   allowEIO3: true,
   maxHttpBufferSize: 1e8,
-  path: '/socket.io/'
+  path: '/socket.io/',
+  perMessageDeflate: COMPRESSION
+    ? { threshold: 0 }          // Compress everything
+    : false,                    // Easy kill-switch
+  httpCompression: COMPRESSION
+    ? { threshold: 0 }
+    : false,
 });
 
 // Initialize zone manager

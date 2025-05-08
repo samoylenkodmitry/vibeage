@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-08T17:17:15.268Z
+// Generated on: 2025-05-08T18:15:44.298Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -4832,13 +4832,15 @@ import {
   MoveStart, 
   MoveSync, 
   CastReq, 
-  PosSnap, 
+  PosSnap,
+  PosDelta,
   VecXZ,
   ProjSpawn2,
   ProjHit2,
   CastSnapshotMsg,
   EffectSnapshotMsg
 } from '../../../shared/messages';
+import { CM_PER_UNIT } from '../../../shared/netConstants';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
@@ -4859,6 +4861,10 @@ export default function SocketManager() {
   // Add snapBuffers for each remote player
   const snapBuffers = useRef<Record<string, SnapBuffer>>({});
   
+  // Maps to track last positions and velocities for delta updates
+  const lastPosMap = useRef<Record<string, VecXZ>>({});
+  const lastVelMap = useRef<Record<string, VecXZ>>({});
+
   // Get connection status update functions
   const setConnectionStatus = useCallback((isConnected: boolean) => {
     useGameStore.setState({ 
@@ -4924,37 +4930,104 @@ export default function SocketManager() {
   }, [updatePlayer]);
 
   // Handle position snapshot from server
-  const handlePosSnap = useCallback((data: { snaps: PosSnap[] }) => {
-    if (!data.snaps || !Array.isArray(data.snaps)) {
-      console.warn("Invalid snaps data received:", data);
-      return;
-    }
-    
-    data.snaps.forEach(s => {
-      try {
-        if (!s || !s.id || !s.pos || !s.vel || typeof s.ts !== 'number') {
-          console.warn("Invalid snap entry:", s);
-          return;
-        }
-        
-        const state = useGameStore.getState();
-        const player = state.players[s.id];
-        
-        if (player) {
-          // Store in snap buffer
-          if (!snapBuffers.current[s.id]) snapBuffers.current[s.id] = new SnapBuffer();
-          snapBuffers.current[s.id].push({
-            pos: s.pos,
-            vel: s.vel,
-            rot: player.rotation?.y || 0,
-            snapTs: s.ts
-          });
-        }
-      } catch (err) {
-        console.error("Error processing position snapshot:", err);
+  const handlePosSnap = useCallback((data: PosSnap) => {
+    try {
+      const { id, pos, serverTs } = data;
+      if (!id || !pos || typeof serverTs !== 'number') {
+        console.warn("Invalid PosSnap data received:", data);
+        return;
       }
-    });
+      
+      const state = useGameStore.getState();
+      const player = state.players[id];
+      
+      if (player) {
+        // Store in snap buffer
+        if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+        
+        // Get current velocity from player's movement or default to zero
+        let vel = { x: 0, z: 0 };
+        if (player.movement?.targetPos) {
+          const speed = player.movement.speed || 0;
+          const dx = player.movement.targetPos.x - pos.x;
+          const dz = player.movement.targetPos.z - pos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > 0) {
+            vel = {
+              x: (dx / dist) * speed,
+              z: (dz / dist) * speed
+            };
+          }
+        }
+        
+        snapBuffers.current[id].push({
+          pos: pos,
+          vel: vel,
+          rot: player.rotation?.y || 0,
+          snapTs: serverTs
+        });
+        
+        // Update last position and velocity maps
+        lastPosMap.current[id] = pos;
+        lastVelMap.current[id] = vel;
+      }
+    } catch (err) {
+      console.error("Error processing position snapshot:", err);
+    }
   }, []);
+  
+  // Handle delta-compressed position updates
+  // Handle delta-compressed position updates
+  const handlePosDelta = useCallback((data: PosDelta) => {
+    try {
+      const { id, dx, dz, vdx, vdz, serverTs } = data;
+      
+      // Get last known position or default to origin
+      const lastPos = lastPosMap.current[id] ?? { x: 0, z: 0 };
+      
+      // Calculate new absolute position from deltas (cm → m)
+      const newPos = { 
+        x: lastPos.x + dx / CM_PER_UNIT, 
+        z: lastPos.z + dz / CM_PER_UNIT 
+      };
+      
+      const state = useGameStore.getState();
+      const player = state.players[id];
+      
+      if (player) {
+        // Get current velocity or use last known
+        let vel = lastVelMap.current[id] || { x: 0, z: 0 };
+        
+        // Apply velocity delta if provided
+        if (vdx !== undefined && vdz !== undefined) {
+          vel = {
+            x: vel.x + vdx / CM_PER_UNIT,
+            z: vel.z + vdz / CM_PER_UNIT
+          };
+          lastVelMap.current[id] = vel;
+        }
+        
+        // Store in snap buffer
+        if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+        
+        snapBuffers.current[id].push({
+          pos: newPos,
+          vel: vel,
+          rot: player.rotation?.y || 0,
+          snapTs: serverTs
+        });
+        
+        // Update last position map
+        lastPosMap.current[id] = newPos;
+      }
+    } catch (err) {
+      console.error("Error processing position delta:", err);
+    }
+  }, []);
+
+  // Handle skill cast failure
+
+  // Handle skill cast failure
 
   // Handle skill cast failure
   const handleCastFail = useCallback((data: { clientSeq: number, reason: 'cooldown' | 'nomana' | 'invalid' }) => {
@@ -5026,6 +5099,7 @@ export default function SocketManager() {
     const socket = io('http://localhost:3001', {
       path: '/socket.io',
       transports: ['websocket'],
+      perMessageDeflate: true,   // Enable compression explicitly for clarity
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -5128,6 +5202,10 @@ export default function SocketManager() {
           }
           case 'PosSnap': {
             handlePosSnap(msg);
+            break;
+          }
+          case 'PosDelta': {
+            handlePosDelta(msg);
             break;
           }
           case 'CastFail': {
@@ -11212,6 +11290,9 @@ import { sendCastSnapshots } from './combat/skillManager.js';
 // Create HTTP server
 const httpServer = createServer();
 
+// WebSocket compression config
+const COMPRESSION = process.env.WS_COMPRESSION !== "0";
+
 // Configure Socket.IO with improved settings
 const io = new Server(httpServer, {
   cors: {
@@ -11225,7 +11306,13 @@ const io = new Server(httpServer, {
   connectTimeout: 45000,
   allowEIO3: true,
   maxHttpBufferSize: 1e8,
-  path: '/socket.io/'
+  path: '/socket.io/',
+  perMessageDeflate: COMPRESSION
+    ? { threshold: 0 }          // Compress everything
+    : false,                    // Easy kill-switch
+  httpCompression: COMPRESSION
+    ? { threshold: 0 }
+    : false,
 });
 
 // Initialize zone manager
@@ -12109,7 +12196,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PosDelta, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -12120,6 +12207,7 @@ import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { effectRunner } from './combat/effects/EffectRunner.js';
 import { PlayerState } from '../shared/types.js';
+import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
 
 /**
  * Defines the GameState interface
@@ -12370,13 +12458,16 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   }
 }
 
+// Maintain map of last sent positions for delta compression
+const lastSentPos: Record<string, VecXZ> = {};
+
 /**
- * Collects current position snapshots for all entities
+ * Collects position deltas or fallback snaps for all entities
  */
-function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
-  const snaps: PosSnap[] = [];
+function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap)[] {
+  const msgs: (PosDelta | PosSnap)[] = [];
   
-  // Add player position snapshots
+  // Add player position updates
   for (const playerId in state.players) {
     const player = state.players[playerId];
     
@@ -12396,21 +12487,86 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
                          player.movement?.targetPos !== null;
     
     if (shouldInclude) {
-      snaps.push({
-        id: playerId,
-        type: 'PosSnap',
-        pos: pos,
-        serverTs: timestamp
-      });
+      const last = lastSentPos[playerId];
       
-      // Clear the dirty flag after including in snapshot
+      // If first time or no last position, send full snapshot
+      if (!last) {
+        msgs.push({
+          id: playerId,
+          type: 'PosSnap',
+          pos: pos,
+          serverTs: timestamp
+        });
+        lastSentPos[playerId] = { ...pos };
+        
+      } else {
+        // Calculate deltas in cm
+        const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
+        const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
+        
+        // Skip if no movement
+        if (dx === 0 && dz === 0) {
+          // No change, skip message
+          continue;
+        }
+        
+        // Check if delta is too large (int16 overflow) or first time seeing entity
+        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM || 
+            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM) {
+          // Send full snapshot as fallback
+          msgs.push({
+            id: playerId,
+            type: 'PosSnap',
+            pos: pos,
+            serverTs: timestamp
+          });
+        } else {
+          // Send delta-compressed update
+          msgs.push({
+            id: playerId,
+            type: 'PosDelta',
+            dx,
+            dz,
+            serverTs: timestamp
+          });
+        }
+        
+        // Update last sent position
+        lastSentPos[playerId] = { ...pos };
+      }
+      
+      // Clear the dirty flag after including in update
       if ((player as any).dirtySnap) {
         (player as any).dirtySnap = false;
       }
     }
   }
   
-  return snaps;
+  return msgs;
+}
+
+/**
+ * Legacy function for backwards compatibility
+ */
+function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
+  // Convert all deltas to snaps for backward compatibility
+  return collectDeltas(state, timestamp).map(msg => {
+    if (msg.type === 'PosSnap') {
+      return msg;
+    } else {
+      // Convert delta to snap using lastSentPos
+      const last = lastSentPos[msg.id];
+      return {
+        id: msg.id,
+        type: 'PosSnap',
+        pos: { 
+          x: last.x, 
+          z: last.z 
+        },
+        serverTs: timestamp
+      };
+    }
+  });
 }
 
 /**
@@ -12838,15 +12994,12 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       updateProjectiles(state, TICK/1000, io);
     }
     
-    // Step 5: Generate and broadcast PosSnap at the target rate
+    // Step 5: Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
-      const snaps = collectSnaps(state, now);
-      if (snaps.length > 0) {
-        io.emit('msg', {
-          type: 'PosSnap',
-          snaps
-        });
+      const msgs = collectDeltas(state, now);
+      if (msgs.length > 0) {
+        io.emit('msg', msgs);
       }
       snapAccumulator = 0;
     }
@@ -13944,6 +14097,16 @@ export interface PosSnap extends ClientMsg {
   serverTs: number;
 }
 
+export interface PosDelta extends ClientMsg {
+  type: 'PosDelta';
+  id: string;
+  dx: number;
+  dz: number;
+  vdx?: number;
+  vdz?: number;
+  serverTs: number;
+}
+
 // Skill casting
 export interface CastReq extends ClientMsg {
   type: 'CastReq';
@@ -14057,6 +14220,14 @@ export interface EffectSnapshotMsg extends ServerMsg {
   remainingMs: number; // Remaining duration in ms
   seed: number;     // RNG seed for deterministic calculations
 }
+
+
+// ==============================================================================
+// FILE: shared/netConstants.ts
+// ==============================================================================
+
+export const CM_PER_UNIT = 100;
+export const POS_MAX_DELTA_CM = 32767; // Maximum delta value for int16
 
 
 // ==============================================================================
