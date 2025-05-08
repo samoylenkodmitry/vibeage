@@ -19,7 +19,7 @@ import {
   CastSnapshotMsg,
   EffectSnapshotMsg
 } from '../../../shared/messages';
-import { CM_PER_UNIT } from '../../../shared/netConstants';
+import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../../../shared/netConstants';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
@@ -156,7 +156,6 @@ export default function SocketManager() {
   }, []);
   
   // Handle delta-compressed position updates
-  // Handle delta-compressed position updates
   const handlePosDelta = useCallback((data: PosDelta) => {
     try {
       const { id, dx, dz, vdx, vdz, serverTs } = data;
@@ -204,7 +203,10 @@ export default function SocketManager() {
     }
   }, []);
 
-  // Handle skill cast failure
+  // Handle skill cast failure {
+      console.error("Error processing position delta:", err);
+    }
+  }, []);
 
   // Handle skill cast failure
 

@@ -58,6 +58,16 @@ export interface PosSnap extends ClientMsg {
   serverTs: number;
 }
 
+export interface PosDelta extends ClientMsg {
+  type: 'PosDelta';
+  id: string;
+  dx: number;
+  dz: number;
+  vdx?: number;
+  vdz?: number;
+  serverTs: number;
+}
+
 // Skill casting
 export interface CastReq extends ClientMsg {
   type: 'CastReq';

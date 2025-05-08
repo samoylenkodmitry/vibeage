@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
+import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PosDelta, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -14,6 +14,7 @@ import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { effectRunner } from './combat/effects/EffectRunner.js';
 import { PlayerState } from '../shared/types.js';
+import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
 
 /**
  * Defines the GameState interface
@@ -264,13 +265,16 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   }
 }
 
+// Maintain map of last sent positions for delta compression
+const lastSentPos: Record<string, VecXZ> = {};
+
 /**
- * Collects current position snapshots for all entities
+ * Collects position deltas or fallback snaps for all entities
  */
-function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
-  const snaps: PosSnap[] = [];
+function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap)[] {
+  const msgs: (PosDelta | PosSnap)[] = [];
   
-  // Add player position snapshots
+  // Add player position updates
   for (const playerId in state.players) {
     const player = state.players[playerId];
     
@@ -290,21 +294,86 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
                          player.movement?.targetPos !== null;
     
     if (shouldInclude) {
-      snaps.push({
-        id: playerId,
-        type: 'PosSnap',
-        pos: pos,
-        serverTs: timestamp
-      });
+      const last = lastSentPos[playerId];
       
-      // Clear the dirty flag after including in snapshot
+      // If first time or no last position, send full snapshot
+      if (!last) {
+        msgs.push({
+          id: playerId,
+          type: 'PosSnap',
+          pos: pos,
+          serverTs: timestamp
+        });
+        lastSentPos[playerId] = { ...pos };
+        
+      } else {
+        // Calculate deltas in cm
+        const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
+        const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
+        
+        // Skip if no movement
+        if (dx === 0 && dz === 0) {
+          // No change, skip message
+          continue;
+        }
+        
+        // Check if delta is too large (int16 overflow) or first time seeing entity
+        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM || 
+            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM) {
+          // Send full snapshot as fallback
+          msgs.push({
+            id: playerId,
+            type: 'PosSnap',
+            pos: pos,
+            serverTs: timestamp
+          });
+        } else {
+          // Send delta-compressed update
+          msgs.push({
+            id: playerId,
+            type: 'PosDelta',
+            dx,
+            dz,
+            serverTs: timestamp
+          });
+        }
+        
+        // Update last sent position
+        lastSentPos[playerId] = { ...pos };
+      }
+      
+      // Clear the dirty flag after including in update
       if ((player as any).dirtySnap) {
         (player as any).dirtySnap = false;
       }
     }
   }
   
-  return snaps;
+  return msgs;
+}
+
+/**
+ * Legacy function for backwards compatibility
+ */
+function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
+  // Convert all deltas to snaps for backward compatibility
+  return collectDeltas(state, timestamp).map(msg => {
+    if (msg.type === 'PosSnap') {
+      return msg;
+    } else {
+      // Convert delta to snap using lastSentPos
+      const last = lastSentPos[msg.id];
+      return {
+        id: msg.id,
+        type: 'PosSnap',
+        pos: { 
+          x: last.x, 
+          z: last.z 
+        },
+        serverTs: timestamp
+      };
+    }
+  });
 }
 
 /**
@@ -732,15 +801,12 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       updateProjectiles(state, TICK/1000, io);
     }
     
-    // Step 5: Generate and broadcast PosSnap at the target rate
+    // Step 5: Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
-      const snaps = collectSnaps(state, now);
-      if (snaps.length > 0) {
-        io.emit('msg', {
-          type: 'PosSnap',
-          snaps
-        });
+      const msgs = collectDeltas(state, now);
+      if (msgs.length > 0) {
+        io.emit('msg', msgs);
       }
       snapAccumulator = 0;
     }
