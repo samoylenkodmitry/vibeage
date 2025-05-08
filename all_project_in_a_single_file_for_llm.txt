@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-08T18:33:25.485Z
+// Generated on: 2025-05-08T18:39:54.891Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -427,6 +427,7 @@ import UI from './UI';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
+import GameHud from './GameHud';
 import { useGameStore } from '../systems/gameStore';
 import SocketManager from '../systems/SocketManager';
 
@@ -527,10 +528,28 @@ export default function Game() {
           </Physics>
         </Canvas>
       </KeyboardControls>
-      <UI />
+      <GameHud>
+        <UI />
+      </GameHud>
     </div>
   );
 }
+
+// ==============================================================================
+// FILE: app/game/components/GameHud.tsx
+// ==============================================================================
+
+import React from 'react';
+import { DragProvider } from '../context/DragContext';
+
+export default function GameHud({ children }: { children: React.ReactNode }){ 
+  return (
+    <DragProvider>
+      {children}
+    </DragProvider>
+  ); 
+}
+
 
 // ==============================================================================
 // FILE: app/game/components/HUD/CombatLog.tsx
@@ -1258,7 +1277,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, SkillId } from '../models/Skill';
 import { CLASS_SKILL_TREES, canLearnSkill, CharacterClass } from '../../../shared/classSystem';
-import { useDragStore } from '../systems/dragState';
+import { useDraggedSkill, useSetDragged } from '../context/DragContext';
 import skillUtils from '../systems/skillUtils';
 import styles from '../styles/SkillTreeUI.module.css';
 import Image from 'next/image';
@@ -1271,8 +1290,9 @@ const SkillTreeUI: React.FC = () => {
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   // New state for skill shortcuts (keys 1-9)
   const [skillShortcuts, setSkillShortcuts] = useState<(SkillId | null)[]>([null, null, null, null, null, null, null, null, null]);
-  // Use the Zustand store for drag state
-  const { dragged, setDragged } = useDragStore();
+  // Use the React context for drag state
+  const dragged = useDraggedSkill();
+  const setDragged = useSetDragged();
   
   useEffect(() => {
     // Debug log to see if component is rendering and has proper data
@@ -2984,6 +3004,33 @@ function FallenLogs({ position = [0, 0, 0], count = 5, spread = 30 }) {
   }
   
   return <group>{logs}</group>;
+}
+
+
+// ==============================================================================
+// FILE: app/game/context/DragContext.tsx
+// ==============================================================================
+
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { SkillId } from '../../../shared/skillsDefinition';
+
+type Ctx = [SkillId|null, (s:SkillId|null)=>void];
+const DragCtx = createContext<Ctx|undefined>(undefined);
+
+export function DragProvider({ children }:{children:ReactNode}) {
+  const state = useState<SkillId|null>(null);
+  return <DragCtx.Provider value={state}>{children}</DragCtx.Provider>;
+}
+
+export function useDraggedSkill() {
+  const ctx = useContext(DragCtx);
+  if (!ctx) throw new Error('useDraggedSkill outside DragProvider');
+  return ctx[0];
+}
+export function useSetDragged() {
+  const ctx = useContext(DragCtx);
+  if (!ctx) throw new Error('useSetDragged outside DragProvider');
+  return ctx[1];
 }
 
 
@@ -5548,32 +5595,6 @@ export function tryStartCast(skillId: SkillId, targetId?: string, targetPos?: Ve
   // Set this as the selected skill for UI state
   useGameStore.getState().setSelectedSkill(skillId);
 }
-
-
-// ==============================================================================
-// FILE: app/game/systems/dragState.ts
-// ==============================================================================
-
-'use client';
-
-/**
- * Drag state manager implemented with Zustand
- * This helps work around cross-browser drag and drop limitations
- * and adds support for touch devices
- */
-
-import { create } from 'zustand';
-import { SkillId } from '../models/Skill';
-
-type DragStore = { 
-  dragged: SkillId|null, 
-  setDragged: (s: SkillId|null) => void 
-};
-
-export const useDragStore = create<DragStore>((set) => ({
-  dragged: null,
-  setDragged: (skillId: SkillId|null) => set({ dragged: skillId })
-}));
 
 
 // ==============================================================================

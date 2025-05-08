@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../systems/gameStore';
 import { SKILLS, SkillId } from '../models/Skill';
 import { CLASS_SKILL_TREES, canLearnSkill, CharacterClass } from '../../../shared/classSystem';
-import { useDragStore } from '../systems/dragState';
+import { useDraggedSkill, useSetDragged } from '../context/DragContext';
 import skillUtils from '../systems/skillUtils';
 import styles from '../styles/SkillTreeUI.module.css';
 import Image from 'next/image';
@@ -17,8 +17,9 @@ const SkillTreeUI: React.FC = () => {
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   // New state for skill shortcuts (keys 1-9)
   const [skillShortcuts, setSkillShortcuts] = useState<(SkillId | null)[]>([null, null, null, null, null, null, null, null, null]);
-  // Use the Zustand store for drag state
-  const { dragged, setDragged } = useDragStore();
+  // Use the React context for drag state
+  const dragged = useDraggedSkill();
+  const setDragged = useSetDragged();
   
   useEffect(() => {
     // Debug log to see if component is rendering and has proper data

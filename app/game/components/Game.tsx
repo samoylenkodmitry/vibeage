@@ -11,6 +11,7 @@ import UI from './UI';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
+import GameHud from './GameHud';
 import { useGameStore } from '../systems/gameStore';
 import SocketManager from '../systems/SocketManager';
 
@@ -111,7 +112,9 @@ export default function Game() {
           </Physics>
         </Canvas>
       </KeyboardControls>
-      <UI />
+      <GameHud>
+        <UI />
+      </GameHud>
     </div>
   );
 }
