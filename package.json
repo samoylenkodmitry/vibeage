@@ -11,7 +11,7 @@
     "build:server": "tsc -p tsconfig.server.json",
     "start:server": "node dist/server/server.js",
     "dev:server": "tsx watch server/server.ts",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "dev:all": "concurrently \"pnpm run dev\" \"pnpm run dev:server\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "vitest bench",
