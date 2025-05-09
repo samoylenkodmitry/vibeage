@@ -1,15 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider} from '@react-three/rapier';
-import { Vector3, Plane, Vector2 } from 'three';
-import { useGameStore, selectPlayerIds, selectMyPlayerId, selectPlayer } from '../systems/gameStore';
+import * as THREE from 'three';
+import { useGameStore, selectPlayer, selectMyPlayerId, selectPlayerIds } from '../systems/gameStore';
 import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
 import { VecXZ } from '../../../shared/messages';
 import { SnapBuffer } from '../systems/interpolation';
-
-// Movement constants
-const BASE_SPEED = 20;
-const SPRINT_MUL = 1.5;
 
 // Individual Player Component
 function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
@@ -19,8 +15,8 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const socket = useGameStore(state => state.socket);
 
   // --- Remote Player Interpolation ---
-  const previousPositionRef = useRef(new Vector3());
-  const targetPositionRef = useRef(new Vector3());
+  const previousPositionRef = useRef(new THREE.Vector3());
+  const targetPositionRef = useRef(new THREE.Vector3());
   const previousRotationRef = useRef(0);
   const targetRotationRef = useRef(0);
   const lastPositionUpdateTimeRef = useRef(0);
@@ -31,7 +27,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   
   // --- Controlled Player Reconciliation ---
   const pendingCorrectionRef = useRef(false);
-  const serverCorrectionPositionRef = useRef(new Vector3());
+  const serverCorrectionPositionRef = useRef(new THREE.Vector3());
   const correctionStartTimeRef = useRef(0);
   const correctionDurationRef = useRef(300); // ms
   
@@ -39,7 +35,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const { camera, gl, raycaster } = useThree();
   const [isGrounded] = useState(false);
   const [hasJumped, setHasJumped] = useState(false);
-  const [targetPosition, setTargetPosition] = useState<Vector3 | null>(null);
+  const [targetPosition, setTargetPosition] = useState<THREE.Vector3 | null>(null);
   const movementStartTimeTs = useRef<number | null>(null);
   const lastDistanceToTarget = useRef<number>(Infinity);
   const stuckCounter = useRef(0);
@@ -47,12 +43,9 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
 
-  const groundPlane = new Plane(new Vector3(0, 1, 0), -GROUND_Y);
+  // Used for ground plane intersection calculations and movement
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
   
-  // Keyboard state for determining if shift is pressed (sprinting)
-  const [keys, setKeys] = useState({ shift: false });
-
   // --- Constants ---
   const jumpForce = 8;
 
@@ -62,49 +55,76 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if ((e.target as HTMLElement).closest('.pointer-events-auto')) return;
     if (!socket || !playerState) return;
 
-    // Make sure we're using the correct canvas dimensions for accurate clicking
-    const canvasRect = gl.domElement.getBoundingClientRect();
-    
-    // Calculate normalized device coordinates (-1 to +1) using the canvas's actual position
-    const mouse = new Vector2(
-      ((e.clientX - canvasRect.left) / canvasRect.width) * 2 - 1,
-      -((e.clientY - canvasRect.top) / canvasRect.height) * 2 + 1
-    );
+    console.log('Mouse click event:', e.clientX, e.clientY, 'Player controlled:', isControlledPlayer);
 
-    // Update the ray with the camera and mouse position
-    raycaster.setFromCamera(mouse, camera);
-
-    // Find where ray intersects the ground plane
-    const intersectPoint = new Vector3();
-    if (raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
-      // For debugging, log the click position
-      console.log('Click position:', intersectPoint);
+    try {
+      // Make sure we're using the correct canvas dimensions for accurate clicking
+      const canvasRect = gl.domElement.getBoundingClientRect();
       
-      movementStartTimeTs.current = Date.now();
-      lastDistanceToTarget.current = Infinity;
-      stuckCounter.current = 0;
+      // Calculate normalized device coordinates (-1 to +1) using the canvas's actual position
+      const mouseX = ((e.clientX - canvasRect.left) / canvasRect.width) * 2 - 1;
+      const mouseY = -((e.clientY - canvasRect.top) / canvasRect.height) * 2 + 1;
       
-      // Create target position, ensuring Y is at ground level
-      const newTarget = new Vector3(intersectPoint.x, GROUND_Y, intersectPoint.z);
+      // Create the mouse vector and set it directly
+      raycaster.ray.origin.setFromMatrixPosition(camera.matrixWorld);
+      raycaster.ray.direction.set(mouseX, mouseY, 0.5).unproject(camera).sub(raycaster.ray.origin).normalize();
       
-      // Call the store's function to send the move start message with new protocol
-      const path = [{ x: newTarget.x, z: newTarget.z }];
-      const speed = BASE_SPEED * (keys.shift ? SPRINT_MUL : 1);
-      useGameStore.getState().sendMoveStart(path, speed);
+      console.log('Ray direction:', raycaster.ray.direction);
       
-      // Set the target position in the component state (for local simulation)
-      setTargetPosition(newTarget);
+      // Create a y-plane at ground level and check for intersection
+      const planeY = GROUND_Y; 
+      const rayDir = raycaster.ray.direction.clone();
+      const rayOrig = raycaster.ray.origin.clone();
       
-      // Store the target position globally
-      useGameStore.getState().setTargetWorldPos(newTarget);
+      // Calculate distance along ray to y plane
+      if (rayDir.y === 0) {
+        console.warn('Ray is parallel to ground plane, no intersection');
+      } else {
+        const t = (planeY - rayOrig.y) / rayDir.y;
+        if (t >= 0) {
+          // Calculate the intersection point manually to avoid type compatibility issues
+          const rayPos = new THREE.Vector3(
+            rayOrig.x + rayDir.x * t,
+            rayOrig.y + rayDir.y * t,
+            rayOrig.z + rayDir.z * t
+          );
+          console.log('Ray intersects ground at:', rayPos);
+          
+          // Store movement start time and reset tracking variables
+          movementStartTimeTs.current = Date.now();
+          lastDistanceToTarget.current = Infinity;
+          stuckCounter.current = 0;
+          
+          // Create target position, ensuring Y is at ground level
+          const newTarget = new THREE.Vector3(rayPos.x, GROUND_Y, rayPos.z);
+          console.log('Setting movement target:', newTarget);
+        
+          // Get reference to store to ensure we're using the proper state
+          const store = useGameStore.getState();
+          
+          // First update local state to prevent rendering issues
+          setTargetPosition(newTarget);
+          store.setTargetWorldPos(newTarget);
+          
+          // Then send network message with move intent
+          store.sendMoveIntent({ 
+            x: newTarget.x, 
+            z: newTarget.z 
+          });
+        } else {
+          console.warn('Ray did not intersect ground plane');
+        }
+      }
+    } catch (err) {
+      console.error('Error in handleMouseClick:', err);
     }
-  }, [isControlledPlayer, isRotating, camera, raycaster, groundPlane, gl, socket, playerState, playerId, keys]);
+  }, [isControlledPlayer, isRotating, camera, raycaster, gl, socket, playerState]);
 
   const emitMoveStop = useCallback((position: any) => {
     if (!socket || !playerState) return;
     
-    // Using the renamed function for immediate move sync
-    useGameStore.getState().sendMoveSyncImmediate({ x: position.x, z: position.z });
+    // Send a final intent to the current position to stop movement
+    useGameStore.getState().sendMoveIntent({ x: position.x, z: position.z });
     
     // Clear local target
     setTargetPosition(null);
@@ -148,11 +168,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       setHasJumped(true);
     }
     
-    // Handle shift for sprint
-    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-      setKeys(prev => ({ ...prev, shift: true }));
-    }
-    
     // Handle S key for force stop
     if (e.code === 'KeyS' && playerState?.movement?.targetPos) {
       if (playerRef.current) {
@@ -164,11 +179,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     if (!isControlledPlayer) return;
-    
-    // Handle shift for sprint
-    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-      setKeys(prev => ({ ...prev, shift: false }));
-    }
     
   }, [isControlledPlayer]);
 
@@ -210,24 +220,29 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
         // Check if we have a movement active
         if (playerState.movement?.targetPos && targetPosition) {
           const dest = playerState.movement.targetPos;
-          const speed = playerState.movement.speed;
+          const speed = playerState.movement.speed || 20; // Default speed if not set
+          
+          console.log(`[Frame] Moving player, targetPos: (${dest.x.toFixed(2)}, ${dest.z.toFixed(2)}), speed: ${speed}`);
           
           // Use simulated movement for predictive client updates
           const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
           
           if (!isMoving) {
+            console.log('[Frame] Player reached destination');
             // We've arrived at destination - notify server but only once
-            if (!targetPosition) return; // Already notified server
-            
-            // First send MoveSync then clear the movement state
-            useGameStore.getState().sendMoveSyncImmediate({ 
-              x: currentPosition.x, 
-              z: currentPosition.z 
-            });
-            setTargetPosition(null);
+            if (targetPosition) {
+              // We've reached our destination, send a final position update
+              const store = useGameStore.getState();
+              store.sendMoveIntent({ 
+                x: currentPosition.x, 
+                z: currentPosition.z 
+              });
+              setTargetPosition(null);
+              store.setTargetWorldPos(null);
+            }
           } else {
             // Update rotation to face direction of movement
-            const dir = new Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
+            const dir = new THREE.Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
             const targetRotation = Math.atan2(dir.x, dir.z);
             playerRef.current.setNextKinematicRotation({
               x: 0,
@@ -300,15 +315,15 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           // Get current position
           const currentPos = playerRef.current.translation();
           // Create a vector from current position to server position
-          const correctionVector = new Vector3().subVectors(
+          const correctionVector = new THREE.Vector3().subVectors(
             serverCorrectionPositionRef.current,
-            new Vector3(currentPos.x, currentPos.y, currentPos.z)
+            new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z)
           );
           // Apply a fraction of the correction each frame
           correctionVector.multiplyScalar(delta * 10); // Adjust speed factor as needed
           
           // Apply partial correction
-          const newPos = new Vector3(
+          const newPos = new THREE.Vector3(
             currentPos.x + correctionVector.x,
             currentPos.y + correctionVector.y,
             currentPos.z + correctionVector.z
@@ -378,21 +393,21 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if (!socket) return;
 
     // Handle position updates from server 
-    const handlePosSnap = (data: { type: string, snaps: Array<{ id: string, pos: VecXZ, vel: VecXZ, ts: number }> }) => {
+    const handlePosSnap = (data: { type: string, snaps: Array<{ id: string, pos: VecXZ, vel: VecXZ, snapTs: number }> }) => {
       if (data.type !== 'PosSnap') return;
       if (!data.snaps || !Array.isArray(data.snaps)) return;
       
       // Find this player's snap in the snaps array
       const thisPlayerSnap = data.snaps.find(snap => snap && snap.id === playerId);
-      if (!thisPlayerSnap || !thisPlayerSnap.pos || !thisPlayerSnap.vel || !thisPlayerSnap.ts) return;
+      if (!thisPlayerSnap || !thisPlayerSnap.pos) return;
       
       if (isControlledPlayer) {
         // For controlled player: apply correction if needed
         const currentPosition = playerRef.current?.translation();
         if (!currentPosition) return;
         
-        const serverPosition = new Vector3(thisPlayerSnap.pos.x, currentPosition.y, thisPlayerSnap.pos.z);
-        const distance = new Vector3(
+        const serverPosition = new THREE.Vector3(thisPlayerSnap.pos.x, currentPosition.y, thisPlayerSnap.pos.z);
+        const distance = new THREE.Vector3(
           serverPosition.x - currentPosition.x,
           0, // Ignore Y differences
           serverPosition.z - currentPosition.z
@@ -413,7 +428,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
               pos: thisPlayerSnap.pos,
               vel: thisPlayerSnap.vel,
               rot: playerState.rotation?.y || 0,
-              snapTs: thisPlayerSnap.ts
+              snapTs: thisPlayerSnap.snapTs
             });
           } catch (err) {
             console.error('Error pushing to snap buffer:', err);
@@ -523,71 +538,31 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 }
 
 // Main Players Component (Renders all players)
-export default function Players() {
-  // Use stable selector functions from the store
+export default function Player() {
+  // Use the exported selectors from gameStore for proper memoization
   const playerIds = useGameStore(selectPlayerIds);
   const myPlayerId = useGameStore(selectMyPlayerId);
-  
-  // Debug logging for player store state
-  useEffect(() => {
-    // Log current state of players in store
-    const allPlayers = useGameStore.getState().players;
-    console.log('DEBUG - Player store state:', {
-      playerIds,
-      myPlayerId,
-      allPlayerCount: Object.keys(allPlayers).length,
-      timestamp: new Date().toISOString(),
-      duplicatePlayerCheck: Object.values(allPlayers).filter(p => p.id === myPlayerId).length > 1 ? 'DUPLICATE DETECTED' : 'No duplicates',
-      allPlayerIds: Object.values(allPlayers).map(p => p.id),
-      allSocketIds: Object.values(allPlayers).map(p => p.socketId),
-    });
+
+  // Memoize the component rendering to prevent unnecessary re-renders
+  const memoizedContent = React.useMemo(() => {
+    if (playerIds.length === 0) {
+      return null; // No players to render yet
+    }
+
+    console.log('Rendering players:', playerIds, 'My ID:', myPlayerId);
+
+    return (
+      <group>
+        {playerIds.map(id => (
+          <PlayerCharacter
+            key={id}
+            playerId={id}
+            isControlledPlayer={id === myPlayerId}
+          />
+        ))}
+      </group>
+    );
   }, [playerIds, myPlayerId]);
 
-  // Check for duplicate playerIds to prevent rendering the same player twice
-  const uniquePlayerIds = [...new Set(playerIds)];
-  
-  // Direct and aggressive approach to ensure we render exactly one instance of each player
-  const filteredPlayerIds = React.useMemo(() => {
-    const allPlayers = useGameStore.getState().players;
-    const seenPlayers = new Set<string>();
-    const result: string[] = [];
-    
-    // First, ensure our player is included if it exists
-    if (myPlayerId && allPlayers[myPlayerId]) {
-      result.push(myPlayerId);
-      seenPlayers.add(myPlayerId);
-      console.log('Added controlled player to render list:', myPlayerId);
-    }
-    
-    // Then add other unique players (but never add duplicates of our player)
-    Object.values(allPlayers).forEach(player => {
-      // Skip our own player (already added) and any players we've already seen
-      if (player.id !== myPlayerId && !seenPlayers.has(player.id)) {
-        result.push(player.id);
-        seenPlayers.add(player.id);
-      }
-    });
-    
-    console.log('Final filtered player IDs for rendering:', {
-      myPlayerId,
-      filteredCount: result.length,
-      filteredIds: result
-    });
-    
-    return result;
-  }, [uniquePlayerIds, myPlayerId]);
-
-  // Memoize player creation
-  const playerComponents = React.useMemo(() => 
-    filteredPlayerIds.map(id => (
-      <PlayerCharacter 
-        key={id}
-        playerId={id}
-        isControlledPlayer={id === myPlayerId}
-      />
-    ))
-  , [filteredPlayerIds, myPlayerId]); // Only recreate when IDs or controlled player changes
-
-  // Render just the players, no target marker (moved to the TargetRing component)
-  return <>{playerComponents}</>;
+  return memoizedContent;
 }

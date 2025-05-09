@@ -26,11 +26,13 @@ export default function World() {
           position={[0, -0.5, 0]} 
           rotation={[-Math.PI / 2, 0, 0]} 
           receiveShadow
+          userData={{ groundPlane: true }}
         >
           <planeGeometry args={[1000, 1000, 64, 64]} />
           <meshStandardMaterial 
             color="#3a7e4c" 
             roughness={0.8}
+            side={THREE.DoubleSide} // Render both sides to ensure visibility
           />
         </mesh>
       </RigidBody>

@@ -15,10 +15,10 @@ export interface Vec3D {
 export interface PlayerMovementState {
   isMoving: boolean;
   path?: VecXZ[];
-  pos: VecXZ;  // Current position
+  pos?: VecXZ;  // Current position (optional)
   targetPos?: VecXZ; // Target position when moving
   lastUpdateTime: number;
-  speed: number;
+  speed?: number; // Speed is now optional
 }
 
 // Base message with type
@@ -28,34 +28,23 @@ export interface ClientMsg {
 }
 
 // Movement messages
-export interface MoveStart extends ClientMsg {
-  type: 'MoveStart';
-  id: string;
-  path: VecXZ[];
-  speed: number;
-  clientTs: number;
-}
-
-export interface MoveSync extends ClientMsg {
-  type: 'MoveSync';
-  id: string;
-  pos: VecXZ;
-  clientTs: number;
-}
-
-export interface MoveStop extends ClientMsg {
-  type: 'MoveStop';
-  id: string;
-  pos: VecXZ;
-  clientTs: number;
+// Client → Server: request to move
+export interface MoveIntent extends ClientMsg {
+  type: 'MoveIntent';
+  id: string;          // Entity id (player uid)
+  targetPos: VecXZ;    // World coords (XZ plane)
+  clientTs: number;    // Ms since epoch on the client
 }
 
 // Server-driven position correction
-export interface PosSnap extends ClientMsg {
+export interface PosSnap extends ServerMsg {
   type: 'PosSnap';
-  id: string;
-  pos: VecXZ;
-  serverTs: number;
+  snaps: {
+    id: string;
+    pos: VecXZ;
+    vel: { x: number; z: number };
+    snapTs: number;
+  }[];
 }
 
 export interface PosDelta extends ClientMsg {

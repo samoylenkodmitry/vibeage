@@ -94,6 +94,18 @@ export default function Game() {
           shadows
           frameloop="always"
           performance={{ min: 0.5 }}
+          camera={{ 
+            position: [0, 10, 15], 
+            fov: 60,
+            near: 0.1,
+            far: 1000
+          }}
+          onCreated={({ gl }) => {
+            // Configure renderer for better performance
+            gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            gl.setClearColor('#202060'); // Default background color
+            console.log('Canvas created successfully!');
+          }}
         >
           <fog attach="fog" args={['#202060', 0, 100]} />
           <ambientLight intensity={0.5} />

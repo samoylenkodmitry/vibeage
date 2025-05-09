@@ -71,13 +71,11 @@ interface GameState {
   removePlayer: (playerId: string) => void;
   updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => void;
   updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => void;
-  // Intent-based movement - new message format
-  sendMoveStart: (path: VecXZ[], speed: number) => void;
-  sendMoveSync: () => void;
+  // Movement - server authoritative
+  sendMoveIntent: (targetPos: VecXZ) => void;
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => void;
   // Legacy methods for backward compatibility
   sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => void;
-  sendMoveSyncImmediate: (pos: VecXZ) => void;
   // Other methods
   sendSelectTarget: (targetId: string | null) => void;
   selectTarget: (targetId: string | null) => void;
@@ -424,61 +422,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     socket.emit('playerMove', { position, rotationY });
   },
 
-  // New intent-based movement methods with the new protocol
-  sendMoveStart: (path: VecXZ[], speed: number) => {
+  // New intent-based movement method with the server-authoritative protocol
+  sendMoveIntent: (targetPos: VecXZ) => {
     const socket = get().socket;
     const myPlayerId = get().myPlayerId;
     
     if (!socket || !myPlayerId) {
-      console.warn('Cannot send move start: Socket not connected or player ID unknown');
+      console.warn('Cannot send move intent: Socket not connected or player ID unknown');
       return;
     }
     
     socket.emit('msg', {
-      type: 'MoveStart',
+      type: 'MoveIntent',
       id: myPlayerId,
-      path,
-      speed,
+      targetPos: targetPos,
       clientTs: Date.now()
     });
     
     // Also update local player immediately for smoother prediction
     const player = get().players[myPlayerId];
-    if (player && path.length > 0) {
-      const dest = path[0];
+    if (player) {
       set(produce(state => {
         const player = state.players[myPlayerId];
         if (player) {
           player.movement = {
             isMoving: true,
-            path: path,
-            pos: { x: player.position.x, z: player.position.z },
-            targetPos: dest,
-            speed,
+            targetPos: targetPos,
             lastUpdateTime: performance.now()
           };
         }
       }));
     }
-  },
-  
-  sendMoveSync: () => {
-    const socket = get().socket;
-    const myPlayerId = get().myPlayerId;
-    
-    if (!socket || !myPlayerId) {
-      return;
-    }
-    
-    const player = get().players[myPlayerId];
-    if (!player) return;
-    
-    socket.emit('msg', {
-      type: 'MoveSync',
-      id: myPlayerId,
-      pos: { x: player.position.x, z: player.position.z },
-      clientTs: Date.now()
-    });
   },
   
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => {
@@ -635,39 +609,4 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
-  // Move sync function - tells server our current position
-  sendMoveSyncImmediate: (pos: VecXZ) => {
-    const socket = get().socket;
-    const myPlayerId = get().myPlayerId;
-    
-    if (!socket || !myPlayerId) {
-      console.warn('Cannot send move sync: Socket not connected or player ID unknown');
-      return;
-    }
-    
-    // Send MoveSync with current position
-    socket.emit('msg', {
-      type: 'MoveSync',
-      id: myPlayerId,
-      pos,
-      clientTs: Date.now()
-    });
-    
-    // Update local player state
-    const player = get().players[myPlayerId];
-    if (player) {
-      set(produce(state => {
-        const player = state.players[myPlayerId];
-        if (player) {
-          player.movement = {
-            dest: null,
-            speed: 0,
-            startTs: 0
-          };
-          player.position.x = pos.x;
-          player.position.z = pos.z;
-        }
-      }));
-    }
-  },
 }));

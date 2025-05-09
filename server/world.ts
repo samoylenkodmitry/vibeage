@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, MoveStart, MoveSync, CastReq, VecXZ, PosSnap, PosDelta, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, Vec3D} from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, PosSnap, PosDelta, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, MoveIntent } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -56,7 +56,7 @@ function calculateDir(from: VecXZ, to: VecXZ): { x: number; y: number; z: number
  * Predicts the position of an entity at a specific timestamp based on its movement
  */
 export function predictPosition(
-  entity: { position: { x: number; y: number; z: number }, movement?: { targetPos?: VecXZ | null, speed: number, lastUpdateTime: number } },
+  entity: { position: { x: number; y: number; z: number }, movement?: { targetPos?: VecXZ | null, speed?: number, lastUpdateTime: number } },
   timestamp: number
 ): VecXZ {
   const dest = entity.movement?.targetPos;
@@ -64,7 +64,7 @@ export function predictPosition(
     return { x: entity.position.x, z: entity.position.z };
   }
 
-  const speed = entity.movement.speed;
+  const speed = entity.movement.speed ?? 20; // Default to 20 if speed is undefined
   const startTs = entity.movement.lastUpdateTime;
   const currentPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
 
@@ -377,190 +377,6 @@ function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
 }
 
 /**
- * Validates movement start requests
- */
-function validateMoveStart(player: PlayerState, msg: MoveStart): boolean {
-  // Validate player speed
-  const MAX_SPEED = 30; // units per second
-  if (msg.speed > MAX_SPEED) {
-    console.warn(`Player ${player.id} attempted to move too fast: ${msg.speed} > ${MAX_SPEED}`);
-    return false;
-  }
-  
-  // Validate movement while dead
-  if (!player.isAlive) {
-    console.warn(`Dead player ${player.id} attempted to move`);
-    return false;
-  }
-  
-  // Wall/collision validation for the first path segment
-  if (msg.path.length > 0) {
-    const startPos = { x: player.position.x, z: player.position.z };
-    const firstDest = msg.path[0];
-    
-    if (isPathBlocked(startPos, firstDest)) {
-      console.warn(`Player ${player.id} attempted to move through an obstacle`);
-      return false;
-    }
-  }
-  
-  return true;
-}
-
-/**
- * Handles MoveStart message
- */
-function onMoveStart(socket: Socket, state: GameState, msg: MoveStart): void {
-  const playerId = msg.id;
-  const player = state.players[playerId];
-  
-  // Verify player exists and belongs to this socket
-  if (!player || player.socketId !== socket.id) {
-    console.warn(`Invalid player ID or wrong socket for MoveStart: ${playerId}`);
-    return;
-  }
-  
-  // Validate the move request
-  if (!validateMoveStart(player, msg)) {
-    return;
-  }
-  
-  // Implement a cast-lock window to prevent "micro-teleport" exploits
-  // If we just received a movement request, make the player wait one tick before another one takes effect
-  const now = Date.now();
-  if (player.lastUpdateTime && now - player.lastUpdateTime < 33) { // 33ms is approximately one tick at 30 FPS
-    console.warn(`Movement request from player ${playerId} received too quickly, enforcing cast-lock window`);
-    // Still process the request but apply a slight delay
-  }
-  
-  // Determine destination from the path
-  const destination = msg.path.length > 0 ? msg.path[0] : null;
-  if (!destination) {
-    console.warn(`Empty path in MoveStart from player ${playerId}`);
-    return;
-  }
-
-  // Calculate direction and velocity
-  const dir = calculateDir({ x: player.position.x, z: player.position.z }, destination);
-  
-  // Update player's movement state
-  player.movement = {
-    ...player.movement,
-    targetPos: destination,
-    speed: msg.speed,
-    lastUpdateTime: now
-  };
-  
-  // Set the velocity vector
-  player.velocity = {
-    x: dir.x * msg.speed,
-    z: dir.z * msg.speed
-  };
-  
-  // Update the last update time
-  player.lastUpdateTime = now;
-  
-  // Update position history
-  updatePositionHistory(player, now);
-  
-  // Instead of using socket.server.emit, we'll broadcast the message to all clients
-  // We can use socket.broadcast.emit to send to all clients except the sender
-  // or just use the io instance that's passed to the createWorld function
-  socket.broadcast.emit('msg', msg);
-}
-
-/**
- * Handles MoveSync message
- */
-function onMoveSync(socket: Socket, state: GameState, msg: MoveSync): void {
-  const playerId = msg.id;
-  let player = state.players[playerId];
-  
-  // Verify player exists and belongs to this socket
-  if (!player || player.socketId !== socket.id) {
-    return;
-  }
-  
-  // Clamp clientTs to prevent lag-dodge exploits (can't rewrite the last 100ms)
-  const now = Date.now();
-  const MAX_SYNC_LAG_MS = 100;
-
-  // Calculate the current server-side position
-  // 
-  //entity: { position: { x: number; z: number }, movement?: { dest: VecXZ | null, speed: number, startTs: number } },
-  /*
-
-interface PlayerState {
-  id: string;
-  socketId: string;
-  name: string;
-  position: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  health: number;
-  maxHealth: number;
-  mana: number;
-  maxMana: number;
-  className: string; // Character class: mage, warrior, etc.
-  unlockedSkills: SkillId[]; // Skills the player has learned
-  skillShortcuts: (SkillId | null)[]; // Skills assigned to number keys 1-9
-  availableSkillPoints: number; // Points to spend on new skills
-  skillCooldownEndTs: Record<string, number>;
-  cooldowns: Record<string, number>; // Alias for skillCooldownEndTs for compatibility
-  statusEffects: StatusEffect[];
-  level: number;
-  experience: number;
-  experienceToNextLevel: number;
-  castingSkill: SkillType | null;
-  castingProgressMs: number;
-  isAlive: boolean;
-  deathTimeTs?: number;
-  lastUpdateTime?: number;
-  movement?: PlayerMovementState;
-  velocity?: { x: number; z: number }; // New: current velocity vector
-  posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
-  stats?: {
-    dmgMult?: number;
-    critChance?: number;
-    critMult?: number;
-  };
-}
-
-export interface PlayerMovementState {
-  isMoving: boolean;
-  path?: VecXZ[];
-  pos: VecXZ;  // Current position
-  targetPos?: VecXZ; // Target position when moving
-  lastUpdateTime: number;
-  speed: number;
-}
-  */
-  const serverPos = predictPosition(player, now);
-  
-  // Calculate error between client and server positions
-  const error = distance(serverPos, msg.pos);
-  
-  // If error is large, force correction
-  if (error > 2.0) {
-    console.warn(`Large position error for player ${playerId}: ${error} units. Correction applied.`);
-    
-    // Send a position snapshot to correct the client
-    socket.emit('msg', {
-      type: 'PosSnap',
-      snaps: [{
-        id: playerId,
-        pos: serverPos,
-        vel: player.velocity || { x: 0, z: 0 },
-        snapTs: now
-      }]
-    });
-  } 
-  // For smaller errors, we could implement gradual reconciliation if needed
-  
-  // Update position history regardless of error
-  updatePositionHistory(player, now);
-}
-
-/**
  * Handles CastReq message
  */
 function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
@@ -826,8 +642,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   return {
     handleMessage(socket: Socket, msg: ClientMsg) {
       switch (msg.type) {
-        case 'MoveStart': return onMoveStart(socket, state, msg as MoveStart);
-        case 'MoveSync': return onMoveSync(socket, state, msg as MoveSync);
+        case 'MoveIntent': return onMoveIntent(socket, state, msg as MoveIntent);
         case 'CastReq': return onCastReq(socket, state, msg as CastReq);
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
@@ -1506,4 +1321,199 @@ function handleEnemyRespawns(state: GameState, io: Server) {
       }
     }
   }
+}
+
+/**
+ * Broadcasts position snapshots of all players to clients
+ * Should be called regularly (e.g. 10 Hz) to keep clients in sync
+ */
+export function broadcastSnaps(io: Server, state: GameState): void {
+  if (!io || !state.players) return;
+  
+  const now = Date.now();
+  const snapItems = [];
+  
+  // Generate position snapshots for all players
+  for (const playerId in state.players) {
+    const player = state.players[playerId];
+    
+    // Only send snapshots for moving players or every 2 seconds for stationary ones
+    const shouldSendSnapshot = 
+      player.movement?.isMoving || 
+      !player.lastSnapTime || 
+      (now - (player.lastSnapTime || 0) > 2000);
+    
+    if (shouldSendSnapshot) {
+      // Get current velocity from player or default to zero
+      const vel = player.velocity || { x: 0, z: 0 };
+      
+      snapItems.push({
+        id: playerId,
+        pos: { x: player.position.x, z: player.position.z },
+        vel: vel,
+        snapTs: now
+      });
+      
+      // Update last snap time
+      player.lastSnapTime = now;
+    }
+  }
+  
+  // Send snapshots to all clients as a batch
+  if (snapItems.length > 0) {
+    io.emit('msg', {
+      type: 'PosSnap',
+      snaps: snapItems
+    });
+  }
+}
+
+/**
+ * Handles MoveIntent messages from clients requesting to move to a target position
+ * This replaces the old MoveStart handler in the server-authoritative movement system
+ */
+function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
+  const playerId = msg.id;
+  const player = state.players[playerId];
+  
+  // Verify player exists and belongs to this socket
+  if (!player || player.socketId !== socket.id) {
+    console.warn(`Invalid player ID or wrong socket for MoveIntent: ${playerId}`);
+    return;
+  }
+  
+  // Implement a cast-lock window to prevent "micro-teleport" exploits
+  const now = Date.now();
+  if (player.lastUpdateTime && now - player.lastUpdateTime < 33) { // 33ms = ~1 tick at 30 FPS
+    console.warn(`Movement request from player ${playerId} received too quickly, enforcing cast-lock window`);
+    // Still process the request but apply a slight delay (server-side)
+  }
+  
+  // Validate the target position is within reasonable bounds
+  if (!isValidPosition(msg.targetPos)) {
+    console.warn(`Invalid target position in MoveIntent from player ${playerId}: ${JSON.stringify(msg.targetPos)}`);
+    return;
+  }
+
+  // Get current position
+  const currentPos = { x: player.position.x, z: player.position.z };
+  
+  // Check if this is a stop command (targetPos same as current position)
+  const distance = Math.sqrt(
+    Math.pow(currentPos.x - msg.targetPos.x, 2) +
+    Math.pow(currentPos.z - msg.targetPos.z, 2)
+  );
+  
+  if (distance < 0.05) {
+    // This is a stop command - immediately halt the player
+    player.movement = { 
+      isMoving: false, 
+      lastUpdateTime: now 
+    };
+    player.velocity = { x: 0, z: 0 };
+    
+    // Broadcast stopped position to other players
+    socket.broadcast.emit('msg', {
+      type: 'PosSnap',
+      snaps: [{
+        id: playerId,
+        pos: currentPos,
+        vel: { x: 0, z: 0 },
+        snapTs: now
+      }]
+    });
+    return;
+  }
+  
+  // Calculate direction and determine speed (now server-controlled)
+  const dir = calculateDir(currentPos, msg.targetPos);
+  
+  // Determine server-authorized speed (can vary based on player stats, buffs, etc.)
+  const speed = getPlayerSpeed(player); // Server decides the speed
+  
+  // Update player's movement state
+  player.movement = {
+    ...player.movement,
+    isMoving: true,
+    targetPos: msg.targetPos,
+    lastUpdateTime: now,
+    speed: speed
+  };
+  
+  // Set velocity for movement simulation
+  player.velocity = {
+    x: dir.x * speed,
+    z: dir.z * speed
+  };
+  
+  // Update last processed time
+  player.lastUpdateTime = now;
+  
+  // Broadcast movement to other players
+  socket.broadcast.emit('msg', {
+    type: 'PosSnap',
+    snaps: [{
+      id: playerId, 
+      pos: currentPos,
+      vel: player.velocity,
+      snapTs: now
+    }]
+  });
+  
+  // Log movement (debug level)
+  log(LOG_CATEGORIES.MOVEMENT, 'debug', `Player ${playerId} moving to ${JSON.stringify(msg.targetPos)} at speed ${speed}`);
+}
+
+/**
+ * Determines a player's movement speed based on their stats and effects
+ */
+function getPlayerSpeed(player: PlayerState): number {
+  // Base speed (can be adjusted for different character classes)
+  let speed = 20; // Default movement units per second
+  
+  // Apply modifier based on player class and stats
+  if (player.stats) {
+    // Use movement speed if defined, or apply a default multiplier
+    if ('movement' in player.stats) {
+      speed += player.stats.movement as number;
+    } else if (player.stats.dmgMult) {
+      // Apply a small boost based on damage multiplier as a fallback
+      speed += player.stats.dmgMult * 2;
+    }
+  }
+  
+  // Apply status effects that modify speed
+  for (const effect of player.statusEffects) {
+    if (effect.type === 'speed_boost') {
+      speed *= 1.3; // 30% speed boost
+    } else if (effect.type === 'slow') {
+      speed *= 0.7; // 30% slow
+    }
+  }
+  
+  // Ensure speed doesn't exceed maximum allowed value
+  const MAX_SPEED = 40;
+  speed = Math.min(speed, MAX_SPEED);
+  
+  return speed;
+}
+
+/**
+ * Validates if a position is within the allowed game bounds
+ */
+function isValidPosition(pos: VecXZ): boolean {
+  const MAX_POSITION = 1000; // Maximum allowed coordinate value
+  
+  // Check for NaN or Infinity
+  if (isNaN(pos.x) || isNaN(pos.z) || 
+      !isFinite(pos.x) || !isFinite(pos.z)) {
+    return false;
+  }
+  
+  // Check bounds
+  if (Math.abs(pos.x) > MAX_POSITION || Math.abs(pos.z) > MAX_POSITION) {
+    return false;
+  }
+  
+  return true;
 }

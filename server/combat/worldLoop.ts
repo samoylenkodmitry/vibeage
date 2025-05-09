@@ -1,6 +1,10 @@
 // filepath: /home/s/develop/projects/vibe/1/server/combat/worldLoop.ts
 import { Server } from 'socket.io';
 import { tickCasts, tickProjectiles, updateCasts } from './skillManager';
+import { broadcastSnaps } from '../world.js';
+
+// Add broadcast function to global scope for access from other modules
+(globalThis as any).broadcastSnaps = broadcastSnaps;
 
 // Game state reference
 let gameState: any = null;
@@ -8,6 +12,7 @@ let updateProjectilesLegacy: ((gameState: any, deltaTime: number) => void) | nul
 
 // Track time
 let lastTime = Date.now();
+let lastSnapBroadcastTime = Date.now();
 let isRunning = false;
 let loopInterval: NodeJS.Timeout | null = null;
 
@@ -73,6 +78,11 @@ function gameTick() {
   const deltaTime = now - lastTime;
   lastTime = now;
   
+  // Apply movement to players based on their velocities
+  if (gameState?.players) {
+    applyMovement(gameState.players, deltaTime);
+  }
+  
   // Process cast state machine for the new system
   if (ioServer) {
     tickCasts(deltaTime, ioServer, world);
@@ -93,6 +103,51 @@ function gameTick() {
   // This ensures both systems run side by side during transition
   if (updateProjectilesLegacy && typeof updateProjectilesLegacy === 'function' && gameState) {
     updateProjectilesLegacy(gameState, deltaTime / 1000);
+  }
+  
+  // Broadcast position snapshots at 10 Hz (every 100ms)
+  if (ioServer && gameState && now - lastSnapBroadcastTime >= 100) {
+    // Call the broadcastSnaps function from world.ts
+    if (typeof globalThis.broadcastSnaps === 'function') {
+      globalThis.broadcastSnaps(ioServer, gameState);
+    }
+    lastSnapBroadcastTime = now;
+  }
+}
+
+/**
+ * Applies movement updates to player entities based on their velocity
+ */
+function applyMovement(players: Record<string, any>, deltaTimeMs: number) {
+  if (!players) return;
+  
+  const now = Date.now();
+  const dt = deltaTimeMs / 1000; // Convert to seconds
+  
+  for (const player of Object.values(players)) {
+    if (!player.movement?.isMoving) continue;
+    
+    // Apply velocity to position
+    if (player.velocity) {
+      player.position.x += player.velocity.x * dt;
+      player.position.z += player.velocity.z * dt;
+      
+      // Check if we've reached the target position
+      if (player.movement.targetPos) {
+        const distance = Math.sqrt(
+          Math.pow(player.position.x - player.movement.targetPos.x, 2) +
+          Math.pow(player.position.z - player.movement.targetPos.z, 2)
+        );
+        
+        // If close enough to target, stop moving
+        if (distance < 0.1) {
+          player.movement.isMoving = false;
+          player.velocity = { x: 0, z: 0 };
+        }
+      }
+      
+      player.movement.lastUpdateTime = now;
+    }
   }
 }
 

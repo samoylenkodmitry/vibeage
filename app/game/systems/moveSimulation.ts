@@ -30,32 +30,32 @@ export function simulateMovement(
   if (!dest) return false;
   
   // Get current position
-  const pos = body.translation();
-  
-  // Calculate direction vector to destination
-  const dir = new Vector3(dest.x - pos.x, 0, dest.z - pos.z);
-  
-  // Calculate distance to destination
-  const dist = dir.length();
-  
-  // If we're close enough to destination, consider it reached
+    const pos = body.translation();
+
+    // Calculate direction vector to destination
+    const dir = new Vector3(dest.x - pos.x, 0, dest.z - pos.z);
+    
+    // Calculate distance to destination
+    const dist = dir.length();
+    
+    // If we're close enough to destination, consider it reached
   if (dist < 0.05) return false;
-  
-  // Normalize and scale by speed and delta time
-  dir.normalize().multiplyScalar(speed * delta);
-  
-  // Prevent overshooting
-  if (dir.length() > dist) dir.setLength(dist);
-  
+    
+    // Normalize and scale by speed and delta time
+    dir.normalize().multiplyScalar(speed * delta);
+    
+    // Prevent overshooting
+    if (dir.length() > dist) dir.setLength(dist);
+    
   // Set next position
-  body.setNextKinematicTranslation({ 
+    body.setNextKinematicTranslation({ 
     x: pos.x + dir.x, 
-    y: GROUND_Y, 
+      y: GROUND_Y, 
     z: pos.z + dir.z 
-  });
-  
-  // Movement is still in progress
-  return true;
+    });
+
+    // Movement is still in progress
+    return true;
 }
 
 /**

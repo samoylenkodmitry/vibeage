@@ -8,8 +8,9 @@ import { hookVfx } from './vfxDispatcher';
 import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
 import { useProjectileStore } from './projectileStore';
 import { 
-  MoveStart, 
-  MoveSync, 
+  // MoveIntent is actually used in type definitions
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  MoveIntent,
   CastReq, 
   PosSnap,
   PosDelta,
@@ -17,7 +18,10 @@ import {
   ProjSpawn2,
   ProjHit2,
   CastSnapshotMsg,
-  EffectSnapshotMsg
+  EffectSnapshotMsg,
+  // CastFail is used in the handleCastFail callback
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  CastFail
 } from '../../../shared/messages';
 import { CM_PER_UNIT } from '../../../shared/netConstants';
 import { SkillId } from '../../../shared/skillsDefinition';
@@ -91,64 +95,44 @@ export default function SocketManager() {
     }
   }, []);
 
-  // Handle movement start events from server
-  const handlePlayerMoveStart = useCallback((data: MoveStart) => {
-    if (!data.path || data.path.length === 0) return;
-    
-    updatePlayer({ 
-      id: data.id, 
-      movement: { 
-        isMoving: true,
-        targetPos: data.path[0],
-        path: data.path,
-        pos: data.path[0], // Default to first point in path
-        lastUpdateTime: performance.now(),
-        speed: data.speed
-      } 
-    });
-  }, [updatePlayer]);
-
   // Handle position snapshot from server
   const handlePosSnap = useCallback((data: PosSnap) => {
     try {
-      const { id, pos, serverTs } = data;
-      if (!id || !pos || typeof serverTs !== 'number') {
-        console.warn("Invalid PosSnap data received:", data);
+      if (!data.snaps || !Array.isArray(data.snaps)) {
+        console.warn("Invalid PosSnap data received: missing or non-array snaps property", data);
         return;
       }
       
       const state = useGameStore.getState();
-      const player = state.players[id];
       
-      if (player) {
-        // Store in snap buffer
-        if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+      // Process each player snapshot in the batch
+      for (const snap of data.snaps) {
+        const { id, pos, vel, snapTs } = snap;
         
-        // Get current velocity from player's movement or default to zero
-        let vel = { x: 0, z: 0 };
-        if (player.movement?.targetPos) {
-          const speed = player.movement.speed || 0;
-          const dx = player.movement.targetPos.x - pos.x;
-          const dz = player.movement.targetPos.z - pos.z;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist > 0) {
-            vel = {
-              x: (dx / dist) * speed,
-              z: (dz / dist) * speed
-            };
-          }
+        if (!id || !pos || !snapTs) {
+          console.warn("Invalid snapshot entry:", snap);
+          continue;
         }
         
-        snapBuffers.current[id].push({
-          pos: pos,
-          vel: vel,
-          rot: player.rotation?.y || 0,
-          snapTs: serverTs
-        });
-        
-        // Update last position and velocity maps
-        lastPosMap.current[id] = pos;
-        lastVelMap.current[id] = vel;
+        const player = state.players[id];
+        if (player) {
+          // Store in snap buffer
+          if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+          
+          // Use velocity from snapshot or default to zero if not provided
+          const velocity = vel || { x: 0, z: 0 };
+          
+          snapBuffers.current[id].push({
+            pos: pos,
+            vel: velocity,
+            rot: player.rotation?.y || 0,
+            snapTs: snapTs
+          });
+          
+          // Update last position and velocity maps
+          lastPosMap.current[id] = pos;
+          lastVelMap.current[id] = velocity;
+        }
       }
     } catch (err) {
       console.error("Error processing position snapshot:", err);
@@ -375,10 +359,6 @@ export default function SocketManager() {
 
       socket.on('msg', (msg: any) => {
         switch (msg.type) {
-          case 'MoveStart': {
-            handlePlayerMoveStart(msg);
-            break;
-          }
           case 'PosSnap': {
             handlePosSnap(msg);
             break;
@@ -515,8 +495,7 @@ export default function SocketManager() {
     handlePlayerLeft, 
     handlePlayerUpdated, 
     handlePlayerMoved, 
-    handleEnemyUpdated, 
-    handlePlayerMoveStart,
+    handleEnemyUpdated,
     handlePosSnap,
     handleCastFail,
     handleCastSnapshot,
@@ -571,56 +550,30 @@ export default function SocketManager() {
     
   }, []);
 
-  // Function to send MoveStart message
-  const sendMoveStart = useCallback((path: VecXZ[], speed: number) => {
+  // The only movement message function we now need is sendMoveIntent
+  const sendMoveIntent = useCallback((targetPos: VecXZ) => {
     const socket = useGameStore.getState().socket;
     const myPlayerId = useGameStore.getState().myPlayerId;
     
     if (!socket || !myPlayerId) return;
     
-    const moveStart: MoveStart = {
-      type: 'MoveStart',
+    socket.emit('msg', {
+      type: 'MoveIntent',
       id: myPlayerId,
-      path,
-      speed,
+      targetPos,
       clientTs: Date.now()
-    };
-    
-    socket.emit('msg', moveStart);
+    });
     
     // Also update local player immediately for prediction
     updatePlayer({ 
       id: myPlayerId, 
       movement: { 
         isMoving: true,
-        targetPos: path[0],
-        path: path,
-        pos: path[0], // Default to first point in path
-        lastUpdateTime: performance.now(),
-        speed
+        targetPos,
+        lastUpdateTime: performance.now()
       } 
     });
   }, [updatePlayer]);
-  
-  // Function to send MoveSync message
-  const sendMoveSync = useCallback(() => {
-    const socket = useGameStore.getState().socket;
-    const myPlayerId = useGameStore.getState().myPlayerId;
-    const players = useGameStore.getState().players;
-    
-    if (!socket || !myPlayerId || !players[myPlayerId]) return;
-    
-    const player = players[myPlayerId];
-    
-    const moveSync: MoveSync = {
-      type: 'MoveSync',
-      id: myPlayerId,
-      pos: { x: player.position.x, z: player.position.z },
-      clientTs: Date.now()
-    };
-    
-    socket.emit('msg', moveSync);
-  }, []);
   
   // Function to send CastReq message
   const sendCastReq = useCallback((skillId: string, targetId?: string, targetPos?: VecXZ) => {
@@ -644,18 +597,11 @@ export default function SocketManager() {
   // Add these functions to the game store for components to use
   useEffect(() => {
     useGameStore.setState({
-      sendMoveStart,
-      sendMoveSync,
-      sendCastReq
+      sendCastReq,
+      sendMoveIntent
     });
-  }, [sendMoveStart, sendMoveSync, sendCastReq]);
+  }, [sendCastReq, sendMoveIntent]);
   
-  // Set up periodic MoveSync messages
-  useEffect(() => {
-    const syncInterval = setInterval(sendMoveSync, 2000);
-    return () => clearInterval(syncInterval);
-  }, [sendMoveSync]);
-
   // Handle effect snapshots from server
   const handleEffectSnapshot = useCallback((msg: EffectSnapshotMsg) => {
     const targetId = msg.id;

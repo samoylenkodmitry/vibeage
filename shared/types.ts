@@ -93,6 +93,7 @@ export interface PlayerState {
     isAlive: boolean;
     deathTimeTs?: number;
     lastUpdateTime?: number;
+    lastSnapTime?: number; // Track when the last position snapshot was sent
     movement?: PlayerMovementState;
     velocity?: { x: number; z: number };
     posHistory?: { ts: number; x: number; z: number }[]; // Position history for better hit detection
