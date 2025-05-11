@@ -1320,6 +1320,7 @@ export function broadcastSnaps(io: Server, state: GameState): void {
     
     // Only send snapshots for moving players or every 2 seconds for stationary ones
       const isMoving = player.movement?.isMoving || false;
+      let reasonForSnap = "unknown";
 let shouldSendSnapshot = false;
 if (isMoving) {
     shouldSendSnapshot = true;
