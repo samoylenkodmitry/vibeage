@@ -132,7 +132,8 @@ export default function SocketManager() {
             pos: pos,
             vel: velocity,
             rot: player.rotation?.y || 0,
-            snapTs: clientReceiveTs
+            snapTs: clientReceiveTs,
+            serverSnapTs: serverSnapTs
           };
           
           // Enhanced debugging to see what's being pushed to the buffer

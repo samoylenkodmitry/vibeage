@@ -1319,12 +1319,18 @@ export function broadcastSnaps(io: Server, state: GameState): void {
     const player = state.players[playerId];
     
     // Only send snapshots for moving players or every 2 seconds for stationary ones
-    const shouldSendSnapshot = 
-      player.movement?.isMoving || 
-      !player.lastSnapTime || 
-      (now - (player.lastSnapTime || 0) > 2000);
-    
+      const isMoving = player.movement?.isMoving || false;
+let shouldSendSnapshot = false;
+if (isMoving) {
+    shouldSendSnapshot = true;
+    reasonForSnap = "moving";
+} else if (!player.lastSnapTime || timeSinceLastSnap > 500) { // Using 500ms for idle
+    shouldSendSnapshot = true;
+    reasonForSnap = `idle (last: ${player.lastSnapTime ? timeSinceLastSnap : 'never'})`;
+}
+
     if (shouldSendSnapshot) {
+            console.log(`SERVER: Sending snap for ${playerId}. Reason: ${reasonForSnap}. Pos: (${player.position.x.toFixed(1)}, ${player.position.z.toFixed(1)}), Vel: (${player.velocity?.x.toFixed(1) || 0}, ${player.velocity?.z.toFixed(1) || 0})`);
       // Get current velocity from player or default to zero
       const vel = player.velocity || { x: 0, z: 0 };
       

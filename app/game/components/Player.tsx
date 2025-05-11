@@ -98,6 +98,22 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
             x: newTarget.x, 
             z: newTarget.z 
           });
+          // --- BEGIN BUFFER RESET LOGIC for controlled player ---
+          if (isControlledPlayer && playerRef.current) {
+            const currentVisualPos = playerRef.current.translation();
+            const buffer = getBuffer(playerId);
+            buffer.clearBuffer(); // Add this method to SnapBuffer
+
+            const syntheticSnap: Snap = {
+              pos: { x: currentVisualPos.x, z: currentVisualPos.z },
+              vel: { x: 0, z: 0 }, // Start with zero velocity, server will correct
+              rot: cameraAngleRef.current, // Or current player Y rotation
+              snapTs: performance.now() // Timestamp it as "now" from client's perspective
+            };
+            buffer.push(syntheticSnap);
+            console.log(`[Player.tsx] Cleared buffer and pushed synthetic snap for ${playerId} at`, syntheticSnap.pos);
+          }
+          // --- END BUFFER RESET LOGIC ---
         } else {
           console.warn('Ray did not intersect ground plane');
         }
@@ -206,9 +222,22 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     try {
       const buf = getBuffer(playerId);
       // Use a consistent lag value of 100ms (matching the camera)
-      const lag = 100;
+      const lag = 200;
       const tick = performance.now() - lag;
       const s = buf.sample(tick);
+      if (isControlledPlayer && Math.random() < 0.05) { // Log ~5% of frames
+          const now = performance.now();
+          console.log(
+              `Player ${playerId} sample: renderTs=${tick.toFixed(0)}, now=${now.toFixed(0)}, lag=${lag}, ` +
+              (s ? `s.x=${s.x.toFixed(2)}, s.z=${s.z.toFixed(2)}, s.rot=${s.rot.toFixed(2)}` : "s is null") +
+              `, bufferLen=${buf.getBufferLength()}`
+          );
+          if (buf.getBufferLength() > 0) {
+              const firstTs = buf.debugDump()[0].snapTs.toFixed(0);
+              const lastTs = buf.debugDump()[buf.getBufferLength()-1].snapTs.toFixed(0);
+              console.log(`  Buffer time range: [${firstTs}, ${lastTs}], current renderTs relative to last: ${(tick - parseFloat(lastTs)).toFixed(0)}ms`);
+          }
+      }
       
       if (s) {
         // Apply interpolated position from snap for all players
@@ -218,18 +247,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           z: s.z
         };
         
-        // Debug interpolated position for controlled player
-        if (isControlledPlayer && Math.random() < 0.01) { // Only log 1% of frames
-          console.log(`Player ${playerId} position from buffer:`, newPos);
-          console.log(`Buffer length: ${buf.getBufferLength()}`);
-        }
-        
-        // Get current position before applying the new one
-        const currentPos = playerRef.current.translation();
-
-        const interpolatedPos = new THREE.Vector3().lerpVectors(
-              currentPos, new THREE.Vector3(newPos.x, GROUND_Y, newPos.z), 0.25);
-        playerRef.current.setNextKinematicTranslation(interpolatedPos);
+        playerRef.current.setNextKinematicTranslation(newPos);
 
         // Apply interpolated rotation
         playerRef.current.setNextKinematicRotation({
