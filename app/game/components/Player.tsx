@@ -240,14 +240,20 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       }
       
       if (s) {
-        // Apply interpolated position from snap for all players
-        const newPos = {
-          x: s.x,
-          y: GROUND_Y,
-          z: s.z
-        };
-        
-        playerRef.current.setNextKinematicTranslation(newPos);
+          const targetStatePos = new THREE.Vector3(s.x, GROUND_Y, s.z);
+
+          // Get the current actual position of the physics body
+          const currentActualPos = playerRef.current.translation();
+
+          // Gently lerp the physics body towards the interpolated target state.
+          // Use a HIGH lerp factor to mostly snap but smooth out tiny residuals.
+          const lerpFactor = 0.75; // Experiment with 0.6 to 0.9
+          const smoothedPos = new THREE.Vector3().lerpVectors(
+              currentActualPos,
+              targetStatePos,
+              lerpFactor
+          );
+          playerRef.current.setNextKinematicTranslation(smoothedPos);
 
         // Apply interpolated rotation
         playerRef.current.setNextKinematicRotation({

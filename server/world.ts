@@ -272,85 +272,65 @@ const lastSentPos: Record<string, VecXZ> = {};
  * Collects position deltas or individual PosSnap entries for all entities
  * Note: This returns individual delta messages and PosSnap components, NOT complete messages
  */
-function collectDeltas(state: GameState, timestamp: number): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
-  const msgs: (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] = [];
-  
-  // Add player position updates
-  for (const playerId in state.players) {
-    const player = state.players[playerId];
-    
-    // Skip dead players
-    if (!player.isAlive) continue;
-    
-    // Get predicted/current position
-    const pos = predictPosition(player, timestamp);
-    
-    // Add velocity if moving, zero otherwise
-    const vel = player.velocity || { x: 0, z: 0 };
-    
-    // Always include in snapshot if player has dirty velocity flag
-    // or if player is moving (non-zero velocity)
-    const shouldInclude = (player as any).dirtySnap || 
-                         (vel.x !== 0 || vel.z !== 0) || 
-                         player.movement?.targetPos !== null;
-    
-    if (shouldInclude) {
-      const last = lastSentPos[playerId];
-      
-      // If first time or no last position, send full snapshot
-      if (!last) {
-        msgs.push({
-          id: playerId,
-          pos: pos,
-          vel: vel,
-          snapTs: timestamp
-        });
-        lastSentPos[playerId] = { ...pos };
-        
-      } else {
-        // Calculate deltas in cm
+function collectDeltas(
+    state: GameState,
+    timestamp: number,
+    playersToForceInclude: Set<string> // New parameter
+): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
+    const msgs: any[] = []; // Use 'any' for simplicity here, ensure correct type on push
+
+    for (const playerId in state.players) {
+        const player = state.players[playerId];
+        if (!player.isAlive) continue;
+
+        const pos = predictPosition(player, timestamp); // Server's current authoritative pos
+        const vel = player.velocity || { x: 0, z: 0 };
+        const last = lastSentPos[playerId];
+
+        if (playersToForceInclude.has(playerId) || !last) {
+            msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+            lastSentPos[playerId] = { ...pos };
+            if ((player as any).dirtySnap) (player as any).dirtySnap = false;
+            continue; // Move to next player
+        }
+
+        // If not forced, proceed with delta logic
         const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
         const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
-        
-        // Skip if no movement
-        if (dx === 0 && dz === 0) {
-          // No change, skip message
-          continue;
+
+        // Calculate velocity deltas (optional, can add later if needed)
+        // const lastVel = lastVelSent[playerId] || {x:0, z:0};
+        // const vdx = Math.round((vel.x - lastVel.x) * CM_PER_UNIT);
+        // const vdz = Math.round((vel.z - lastVel.z) * CM_PER_UNIT);
+
+        if (dx === 0 && dz === 0 /* && vdx === 0 && vdz === 0 */) { // If also checking vel deltas
+             if ((player as any).dirtySnap) { // Still send if dirty (e.g. stopped, vel changed to 0)
+                msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+                lastSentPos[playerId] = { ...pos };
+                // lastVelSent[playerId] = {...vel};
+                (player as any).dirtySnap = false;
+             }
+            continue; // No change and not dirty
         }
-        
-        // Check if delta is too large (int16 overflow) or first time seeing entity
-        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM || 
-            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM) {
-          // Send full snapshot as fallback
-          msgs.push({
-            id: playerId,
-            pos: pos,
-            vel: vel,
-            snapTs: timestamp
-          });
+
+        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM ||
+            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM
+            /* || vdx < -POS_MAX_DELTA_CM || ... */) {
+            msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
         } else {
-          // Send delta-compressed update
-          msgs.push({
-            id: playerId,
-            type: 'PosDelta',
-            dx,
-            dz,
-            serverTs: timestamp
-          });
+            // Add vel deltas if they are significant or if velocity itself changed
+            const deltaMsg: PosDelta = { type: 'PosDelta', id: playerId, dx, dz, serverTs: timestamp };
+            // if (vdx !== 0 || vdz !== 0) { // Example: only send vel deltas if they changed
+            //    deltaMsg.vdx = vdx;
+            //    deltaMsg.vdz = vdz;
+            // }
+            msgs.push(deltaMsg);
         }
-        
-        // Update last sent position
         lastSentPos[playerId] = { ...pos };
-      }
-      
-      // Clear the dirty flag after including in update
-      if ((player as any).dirtySnap) {
-        (player as any).dirtySnap = false;
-      }
+        // lastVelSent[playerId] = {...vel};
+        if ((player as any).dirtySnap) (player as any).dirtySnap = false;
     }
-  }
-  
-  return msgs;
+    return msgs;
 }
 
 /**
@@ -597,7 +577,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 5: Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
-      const msgs = collectDeltas(state, now);
+      const msgs = collectDeltas(state, now, new Set());
       if (msgs.length > 0) {
         // Wrap the messages array in a container with its own type to prevent client errors
         io.emit('msg', {
@@ -1309,59 +1289,40 @@ function handleEnemyRespawns(state: GameState, io: Server) {
  * Should be called regularly (e.g. 10 Hz) to keep clients in sync
  */
 export function broadcastSnaps(io: Server, state: GameState): void {
-  if (!io || !state.players) return;
-  
-  const now = Date.now();
-  const snapItems = [];
-  
-  // Generate position snapshots for all players
-  for (const playerId in state.players) {
-    const player = state.players[playerId];
-    
-    // Only send snapshots for moving players or every 2 seconds for stationary ones
-      const isMoving = player.movement?.isMoving || false;
-      let reasonForSnap = "unknown";
-    const timeSinceLastSnap = now - (player.lastSnapTime || 0);
-let shouldSendSnapshot = false;
-if (isMoving) {
-    shouldSendSnapshot = true;
-    reasonForSnap = "moving";
-} else if (!player.lastSnapTime || timeSinceLastSnap > 500) { // Using 500ms for idle
-    shouldSendSnapshot = true;
-    reasonForSnap = `idle (last: ${player.lastSnapTime ? timeSinceLastSnap : 'never'})`;
-}
+    if (!io || !state.players) return;
+    const now = Date.now();
+    const playersToForceInclude = new Set<string>();
 
-    if (shouldSendSnapshot) {
-            console.log(`SERVER: Sending snap for ${playerId}. Reason: ${reasonForSnap}. Pos: (${player.position.x.toFixed(1)}, ${player.position.z.toFixed(1)}), Vel: (${player.velocity?.x.toFixed(1) || 0}, ${player.velocity?.z.toFixed(1) || 0})`);
-      // Get current velocity from player or default to zero
-      const vel = player.velocity || { x: 0, z: 0 };
-      
-      snapItems.push({
-        id: playerId,
-        pos: { x: player.position.x, z: player.position.z },
-        vel: vel,
-        snapTs: now
-      });
-      
-      // Update last snap time
-      player.lastSnapTime = now;
+    for (const playerId in state.players) {
+        const player = state.players[playerId];
+        if (!player.isAlive) continue;
+
+        const isMoving = player.movement?.isMoving;
+        const timeSinceLastSnap = player.lastSnapTime ? (now - player.lastSnapTime) : Infinity;
+
+        // Determine if this player needs a "forced" full snapshot
+        // (e.g., for idle refresh or if it's the very first snap)
+        if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 500)) {
+            playersToForceInclude.add(playerId);
+            console.log(`SERVER: Marking ${playerId} for forced idle snap. LastSnapTime: ${player.lastSnapTime}, TimeSince: ${timeSinceLastSnap}`);
+        }
+        // Always update lastSnapTime if we are considering sending a snap for this player due to idle timeout
+        if (playersToForceInclude.has(playerId) || isMoving) { // Or any other condition that leads to sending
+             player.lastSnapTime = now;
+        }
     }
-  }
-  
-  // Send snapshots to all clients as a batch
-  if (snapItems.length > 0) {
-    const posSnapMsg = {
-      type: 'PosSnap',
-      snaps: snapItems
-    };
-    
-    // Debug log (only 5% of the time to avoid spam)
-    if (Math.random() < 0.05) {
-      console.log(`Broadcasting PosSnap with ${snapItems.length} entries`);
+
+    // Pass the set of players needing forced updates to collectDeltas
+    // collectDeltas will then decide whether to send a full snap or a delta for moving players
+    // not in the forced set.
+    const snapItems = collectDeltas(state, now, playersToForceInclude);
+
+    if (snapItems.length > 0) {
+        io.emit('msg', { type: 'BatchUpdate', updates: snapItems });
+        if (Math.random() < 0.1) { // Reduce log spam
+             console.log(`Broadcasting BatchUpdate with ${snapItems.length} items. Forced: ${playersToForceInclude.size}`);
+        }
     }
-    
-    io.emit('msg', posSnapMsg);
-  }
 }
 
 /**
