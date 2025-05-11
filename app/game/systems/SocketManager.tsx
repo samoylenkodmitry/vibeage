@@ -112,7 +112,7 @@ export default function SocketManager() {
       
       // Process each player snapshot in the batch
       for (const snap of data.snaps) {
-        const { id, pos, vel, serverSnapTs } = snap;
+        const { id, pos, vel, snapTs: serverSnapTs } = snap;
         
         if (!id || !pos || !serverSnapTs) {
           console.warn("Invalid snapshot entry:", snap);
@@ -154,7 +154,7 @@ export default function SocketManager() {
           
           // Check for duplicates before pushing
           const existingSnap = buffer.getBufferLength() > 0 ? 
-            buffer.sample(snapTs) : null;
+            buffer.sample(serverSnapTs) : null;
             
           if (existingSnap && 
               Math.abs(existingSnap.x - pos.x) < 0.001 && 
@@ -185,7 +185,7 @@ export default function SocketManager() {
                 vel: velocity,
                 bufferLength: buffer.getBufferLength(),
                 latestSample: latestSample,
-                serverSnapTs: new Date(snapTs).toISOString(),
+                serverSnapTs: new Date(serverSnapTs).toISOString(),
                 clientReceiveTs: new Date(clientReceiveTs).toISOString(),
                 timeDiff: clientReceiveTs - serverSnapTs
               });
