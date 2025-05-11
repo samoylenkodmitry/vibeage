@@ -226,37 +226,11 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
         
         // Get current position before applying the new one
         const currentPos = playerRef.current.translation();
-        
-        // Calculate distance to detect large jumps
-        const distance = Math.sqrt(
-          Math.pow(newPos.x - currentPos.x, 2) + 
-          Math.pow(newPos.z - currentPos.z, 2)
-        );
-        
-        // For very large jumps, apply more aggressive smoothing
-        if (distance > 3) {
-          // Calculate an adaptive smoothing factor based on the distance
-          // Larger jumps get smaller factors (slower movement)
-          const adaptiveSmoothFactor = Math.min(0.3, 1.0 / (distance * 0.1));
-          
-          // Create a smoothed position that moves part of the way 
-          const smoothedPos = {
-            x: currentPos.x + (newPos.x - currentPos.x) * adaptiveSmoothFactor,
-            y: GROUND_Y,
-            z: currentPos.z + (newPos.z - currentPos.z) * adaptiveSmoothFactor
-          };
-          
-          // Log the smoothing (occasionally to avoid spam)
-          if (Math.random() < 0.1) {
-            console.log(`Smoothing movement: distance=${distance.toFixed(2)}, factor=${adaptiveSmoothFactor.toFixed(2)}`);
-          }
-          
-          playerRef.current.setNextKinematicTranslation(smoothedPos);
-        } else {
-          // Normal case - apply position directly
-          playerRef.current.setNextKinematicTranslation(newPos);
-        }
-        
+
+        const interpolatedPos = new THREE.Vector3().lerpVectors(
+              currentPos, new THREE.Vector3(newPos.x, GROUND_Y, newPos.z), 0.25);
+        playerRef.current.setNextKinematicTranslation(interpolatedPos);
+
         // Apply interpolated rotation
         playerRef.current.setNextKinematicRotation({
           x: 0,

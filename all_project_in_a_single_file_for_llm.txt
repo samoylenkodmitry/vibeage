@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-11T16:10:47.978Z
+// Generated on: 2025-05-11T17:45:52.175Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -981,37 +981,11 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
         
         // Get current position before applying the new one
         const currentPos = playerRef.current.translation();
-        
-        // Calculate distance to detect large jumps
-        const distance = Math.sqrt(
-          Math.pow(newPos.x - currentPos.x, 2) + 
-          Math.pow(newPos.z - currentPos.z, 2)
-        );
-        
-        // For very large jumps, apply more aggressive smoothing
-        if (distance > 3) {
-          // Calculate an adaptive smoothing factor based on the distance
-          // Larger jumps get smaller factors (slower movement)
-          const adaptiveSmoothFactor = Math.min(0.3, 1.0 / (distance * 0.1));
-          
-          // Create a smoothed position that moves part of the way 
-          const smoothedPos = {
-            x: currentPos.x + (newPos.x - currentPos.x) * adaptiveSmoothFactor,
-            y: GROUND_Y,
-            z: currentPos.z + (newPos.z - currentPos.z) * adaptiveSmoothFactor
-          };
-          
-          // Log the smoothing (occasionally to avoid spam)
-          if (Math.random() < 0.1) {
-            console.log(`Smoothing movement: distance=${distance.toFixed(2)}, factor=${adaptiveSmoothFactor.toFixed(2)}`);
-          }
-          
-          playerRef.current.setNextKinematicTranslation(smoothedPos);
-        } else {
-          // Normal case - apply position directly
-          playerRef.current.setNextKinematicTranslation(newPos);
-        }
-        
+
+        const interpolatedPos = new THREE.Vector3().lerpVectors(
+              currentPos, new THREE.Vector3(newPos.x, GROUND_Y, newPos.z), 0.25);
+        playerRef.current.setNextKinematicTranslation(interpolatedPos);
+
         // Apply interpolated rotation
         playerRef.current.setNextKinematicRotation({
           x: 0,
@@ -4968,7 +4942,7 @@ export default function SocketManager() {
       
       // Process each player snapshot in the batch
       for (const snap of data.snaps) {
-        const { id, pos, vel, serverSnapTs } = snap;
+        const { id, pos, vel, snapTs: serverSnapTs } = snap;
         
         if (!id || !pos || !serverSnapTs) {
           console.warn("Invalid snapshot entry:", snap);
@@ -5010,7 +4984,7 @@ export default function SocketManager() {
           
           // Check for duplicates before pushing
           const existingSnap = buffer.getBufferLength() > 0 ? 
-            buffer.sample(snapTs) : null;
+            buffer.sample(serverSnapTs) : null;
             
           if (existingSnap && 
               Math.abs(existingSnap.x - pos.x) < 0.001 && 
@@ -5041,7 +5015,7 @@ export default function SocketManager() {
                 vel: velocity,
                 bufferLength: buffer.getBufferLength(),
                 latestSample: latestSample,
-                serverSnapTs: new Date(snapTs).toISOString(),
+                serverSnapTs: new Date(serverSnapTs).toISOString(),
                 clientReceiveTs: new Date(clientReceiveTs).toISOString(),
                 timeDiff: clientReceiveTs - serverSnapTs
               });
