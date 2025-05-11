@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-09T17:28:38.931Z
+// Generated on: 2025-05-11T16:10:47.978Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -419,7 +419,9 @@ function DefaultEnemyModel({ isSelected, isHovered }: ModelProps) {
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { KeyboardControls } from '@react-three/drei';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
@@ -429,7 +431,9 @@ import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
 import GameHud from './GameHud';
 import { useGameStore } from '../systems/gameStore';
+import { GROUND_Y, getBuffer } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
+import { debugAndFixPlayerMovement, forceUpdatePlayerPosition } from '../systems/playerMovementFix';
 
 // Define keyboard controls
 const controls = [
@@ -443,6 +447,68 @@ const controls = [
   { name: 'waterSplash', keys: ['Digit3', 'KeyR'] },
   { name: 'petrify', keys: ['Digit4', 'KeyF'] },
 ];
+
+function CameraFollowPlayer() {
+  const myId = useGameStore(s => s.myPlayerId);
+  const players = useGameStore(s => s.players);
+  const angleRef = useRef(Math.PI);
+
+  // Listen for camera angle changes from Player.tsx
+  useEffect(() => {
+    const handleCameraAngleChange = (e: CustomEvent) => {
+      angleRef.current = e.detail.angle;
+    };
+
+    window.addEventListener('cameraAngleChange', handleCameraAngleChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('cameraAngleChange', handleCameraAngleChange as EventListener);
+    };
+  }, []);
+
+  useFrame(({camera})=>{
+    if(!myId) return;
+    
+    // Get current player state
+    const player = players[myId];
+    if (!player) return;
+    
+    // Use consistent lag value of 100ms to avoid stuttering
+    const s = getBuffer(myId).sample(performance.now()-100);
+    
+    // If buffer has valid data, use it for camera position
+    if(s) {
+      const dist=15, height=10, ang=angleRef.current;
+      
+      // Create target position
+      const targetPos = new THREE.Vector3(
+        s.x - Math.sin(ang)*dist,
+        GROUND_Y + height,
+        s.z - Math.cos(ang)*dist
+      );
+      
+      // Use stronger lerp factor for smoother camera follow
+      camera.position.lerp(targetPos, 0.15);
+      camera.lookAt(s.x, GROUND_Y+1, s.z);
+    } 
+    // Fallback to state-based position if buffer doesn't have data yet
+    else if (player.position) {
+      const dist=15, height=10, ang=angleRef.current;
+      
+      // Create target position using state instead of buffer
+      const targetPos = new THREE.Vector3(
+        player.position.x - Math.sin(ang)*dist,
+        GROUND_Y + height,
+        player.position.z - Math.cos(ang)*dist
+      );
+      
+      camera.position.lerp(targetPos, 0.15);
+      camera.lookAt(player.position.x, GROUND_Y+1, player.position.z);
+    }
+  });
+  
+  return null;
+}
 
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
@@ -537,6 +603,7 @@ export default function Game() {
             <Enemies />
             <TargetRing />
             <VfxManager />
+            <CameraFollowPlayer />
           </Physics>
         </Canvas>
       </KeyboardControls>
@@ -546,6 +613,7 @@ export default function Game() {
     </div>
   );
 }
+
 
 // ==============================================================================
 // FILE: app/game/components/GameHud.tsx
@@ -690,52 +758,41 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider} from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore, selectPlayer, selectMyPlayerId, selectPlayerIds } from '../systems/gameStore';
-import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
+import { GROUND_Y, getBuffer } from '../systems/interpolation';
 import { VecXZ } from '../../../shared/messages';
-import { SnapBuffer } from '../systems/interpolation';
+import { MovementDebugger } from './SimpleMovementDebugger';
 
 // Individual Player Component
 function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
   const playerRef = useRef<any>(null);
   const playerState = useGameStore(selectPlayer(playerId));
-  const lastUpdateTimeTs = useRef<number | null>(null);
   const socket = useGameStore(state => state.socket);
 
-  // --- Remote Player Interpolation ---
-  const previousPositionRef = useRef(new THREE.Vector3());
-  const targetPositionRef = useRef(new THREE.Vector3());
-  const previousRotationRef = useRef(0);
-  const targetRotationRef = useRef(0);
-  const lastPositionUpdateTimeRef = useRef(0);
-  const interpolationAlphaRef = useRef(0);
-  
-  // --- Snapshot interpolation with SnapBuffer ---
-  const snapBufferRef = useRef<SnapBuffer | null>(null);
-  
-  // --- Controlled Player Reconciliation ---
-  const pendingCorrectionRef = useRef(false);
-  const serverCorrectionPositionRef = useRef(new THREE.Vector3());
-  const correctionStartTimeRef = useRef(0);
-  const correctionDurationRef = useRef(300); // ms
-  
   // --- Hooks and State specific to the controlled player ---
   const { camera, gl, raycaster } = useThree();
   const [isGrounded] = useState(false);
   const [hasJumped, setHasJumped] = useState(false);
-  const [targetPosition, setTargetPosition] = useState<THREE.Vector3 | null>(null);
-  const movementStartTimeTs = useRef<number | null>(null);
-  const lastDistanceToTarget = useRef<number>(Infinity);
-  const stuckCounter = useRef(0);
   const [isRotating, setIsRotating] = useState(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
+  const movementTimestampRef = useRef(0);
 
-  // Used for ground plane intersection calculations and movement
+  // Initialize camera angle
+  useEffect(() => {
+    if (isControlledPlayer) {
+      // Initialize with default value
+      cameraAngleRef.current = Math.PI;
+      
+      // Dispatch initial angle to ensure the camera starts at the correct angle
+      window.dispatchEvent(new CustomEvent('cameraAngleChange', { 
+        detail: { angle: cameraAngleRef.current } 
+      }));
+    }
+  }, [isControlledPlayer]);
+
+  // Used for ground plane intersection calculations
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
   
-  // --- Constants ---
-  const jumpForce = 8;
-
   // --- Callbacks for Controlled Player Input ---
   const handleMouseClick = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || e.button !== 0 || isRotating) return;
@@ -777,23 +834,21 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           );
           console.log('Ray intersects ground at:', rayPos);
           
-          // Store movement start time and reset tracking variables
-          movementStartTimeTs.current = Date.now();
-          lastDistanceToTarget.current = Infinity;
-          stuckCounter.current = 0;
-          
           // Create target position, ensuring Y is at ground level
           const newTarget = new THREE.Vector3(rayPos.x, GROUND_Y, rayPos.z);
           console.log('Setting movement target:', newTarget);
+          
+          // Record movement timestamp to prevent camera rotation during movement
+          movementTimestampRef.current = Date.now();
         
           // Get reference to store to ensure we're using the proper state
           const store = useGameStore.getState();
           
-          // First update local state to prevent rendering issues
-          setTargetPosition(newTarget);
+          // Set target in global store for reference
           store.setTargetWorldPos(newTarget);
           
-          // Then send network message with move intent
+          // Send network message with move intent
+          // The server will handle the movement and send back position updates
           store.sendMoveIntent({ 
             x: newTarget.x, 
             z: newTarget.z 
@@ -807,14 +862,13 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     }
   }, [isControlledPlayer, isRotating, camera, raycaster, gl, socket, playerState]);
 
-  const emitMoveStop = useCallback((position: any) => {
+  const emitMoveStop = useCallback((position: THREE.Vector3) => {
     if (!socket || !playerState) return;
     
     // Send a final intent to the current position to stop movement
     useGameStore.getState().sendMoveIntent({ x: position.x, z: position.z });
     
-    // Clear local target
-    setTargetPosition(null);
+    // Clear target in global store
     useGameStore.getState().setTargetWorldPos(null);
   }, [socket, playerState]);
 
@@ -836,7 +890,14 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || !isRotating) return;
     const deltaX = e.clientX - previousMousePosition.current.x;
-    cameraAngleRef.current -= deltaX * 0.02;
+    // Update the local ref directly
+    cameraAngleRef.current = cameraAngleRef.current - deltaX * 0.02;
+    
+    // Dispatch a custom event to notify the camera of the angle change
+    window.dispatchEvent(new CustomEvent('cameraAngleChange', { 
+      detail: { angle: cameraAngleRef.current } 
+    }));
+    
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
     e.preventDefault(); e.stopPropagation();
   }, [isControlledPlayer, isRotating]);
@@ -858,15 +919,14 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     // Handle S key for force stop
     if (e.code === 'KeyS' && playerState?.movement?.targetPos) {
       if (playerRef.current) {
-        emitMoveStop(playerRef.current.translation());
+        const position = playerRef.current.translation();
+        emitMoveStop(position);
       }
     }
-    
   }, [isControlledPlayer, hasJumped, isGrounded, playerState, emitMoveStop]);
 
-  const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    if (!isControlledPlayer) return;
-    
+  const handleKeyUp = useCallback(() => {
+    // Empty handler kept for future use
   }, [isControlledPlayer]);
 
   // --- Register event listeners for controlled player ---
@@ -894,192 +954,101 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [isControlledPlayer, handleMouseClick, handleMouseDown, handleMouseUp, handleMouseMove, handleContextMenu, handleKeyDown, handleKeyUp]);
 
-  // --- Update Player.tsx useFrame handler to handle position snapshots ---
-  useFrame((_, delta) => {
+  // --- Update Player.tsx useFrame handler to use position snapshots from the module-global buffer ---
+  useFrame(() => {
     if (!playerRef.current || !playerState) return;
 
     try {
-      const currentPosition = playerRef.current.translation();
-      lastUpdateTimeTs.current = Date.now();
-
-      // For controlled player, we do client-side prediction and light reconciliation
-      if (isControlledPlayer) {
-        // Check if we have a movement active
-        if (playerState.movement?.targetPos && targetPosition) {
-          const dest = playerState.movement.targetPos;
-          const speed = playerState.movement.speed || 20; // Default speed if not set
-          
-          console.log(`[Frame] Moving player, targetPos: (${dest.x.toFixed(2)}, ${dest.z.toFixed(2)}), speed: ${speed}`);
-          
-          // Use simulated movement for predictive client updates
-          const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
-          
-          if (!isMoving) {
-            console.log('[Frame] Player reached destination');
-            // We've arrived at destination - notify server but only once
-            if (targetPosition) {
-              // We've reached our destination, send a final position update
-              const store = useGameStore.getState();
-              store.sendMoveIntent({ 
-                x: currentPosition.x, 
-                z: currentPosition.z 
-              });
-              setTargetPosition(null);
-              store.setTargetWorldPos(null);
-            }
-          } else {
-            // Update rotation to face direction of movement
-            const dir = new THREE.Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
-            const targetRotation = Math.atan2(dir.x, dir.z);
-            playerRef.current.setNextKinematicRotation({
-              x: 0,
-              y: Math.sin(targetRotation / 2),
-              z: 0,
-              w: Math.cos(targetRotation / 2)
-            });
-            
-            // Update local player position in the store
-            useGameStore.getState().setLocalPlayerPos({
-              x: currentPosition.x,
-              y: currentPosition.y,
-              z: currentPosition.z
-            });
-          }
-        }
-
-        // Apply jump velocity if needed
-        if (moveDirection.current.jump && isGrounded && !hasJumped) {
-          playerRef.current.setLinvel({ x: 0, y: jumpForce, z: 0 });
-          moveDirection.current.jump = false;
-        }
-
-        // Update camera position
-        const distance = 15;
-        const height = 10;
-        const angle = cameraAngleRef.current;
-        camera.position.set(
-          currentPosition.x - Math.sin(angle) * distance,
-          currentPosition.y + height,
-          currentPosition.z - Math.cos(angle) * distance
-        );
-        camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
-      } else {
-        // Remote player: Use SnapBuffer for interpolation
-        if (snapBufferRef.current && !isControlledPlayer && playerState) {
-          const INTERP_LAG = 120; // ms
-          const renderTs = Date.now() - INTERP_LAG;
-          const playerSpeed = playerState.movement?.speed || 25;
-          const sample = snapBufferRef.current.sample(renderTs, playerSpeed);
-          
-          if (sample) {
-            // Apply interpolated position
-            playerRef.current.setTranslation({
-              x: sample.x,
-              y: GROUND_Y,
-              z: sample.z
-            }, true);
-            
-            // Apply interpolated rotation
-            playerRef.current.setRotation({
-              x: 0,
-              y: Math.sin(sample.rot/2),
-              z: 0,
-              w: Math.cos(sample.rot/2)
-            }, true);
-          }
-        }
-      }
+      const buf = getBuffer(playerId);
+      // Use a consistent lag value of 100ms (matching the camera)
+      const lag = 100;
+      const tick = performance.now() - lag;
+      const s = buf.sample(tick);
       
-      // Handle server-side correction for controlled player
-      if (isControlledPlayer && pendingCorrectionRef.current) {
-        const now = performance.now();
-        const correctionProgress = Math.min(
-          (now - correctionStartTimeRef.current) / correctionDurationRef.current, 
-          1
+      if (s) {
+        // Apply interpolated position from snap for all players
+        const newPos = {
+          x: s.x,
+          y: GROUND_Y,
+          z: s.z
+        };
+        
+        // Debug interpolated position for controlled player
+        if (isControlledPlayer && Math.random() < 0.01) { // Only log 1% of frames
+          console.log(`Player ${playerId} position from buffer:`, newPos);
+          console.log(`Buffer length: ${buf.getBufferLength()}`);
+        }
+        
+        // Get current position before applying the new one
+        const currentPos = playerRef.current.translation();
+        
+        // Calculate distance to detect large jumps
+        const distance = Math.sqrt(
+          Math.pow(newPos.x - currentPos.x, 2) + 
+          Math.pow(newPos.z - currentPos.z, 2)
         );
         
-        if (correctionProgress < 1) {
-          // Get current position
-          const currentPos = playerRef.current.translation();
-          // Create a vector from current position to server position
-          const correctionVector = new THREE.Vector3().subVectors(
-            serverCorrectionPositionRef.current,
-            new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z)
-          );
-          // Apply a fraction of the correction each frame
-          correctionVector.multiplyScalar(delta * 10); // Adjust speed factor as needed
+        // For very large jumps, apply more aggressive smoothing
+        if (distance > 3) {
+          // Calculate an adaptive smoothing factor based on the distance
+          // Larger jumps get smaller factors (slower movement)
+          const adaptiveSmoothFactor = Math.min(0.3, 1.0 / (distance * 0.1));
           
-          // Apply partial correction
-          const newPos = new THREE.Vector3(
-            currentPos.x + correctionVector.x,
-            currentPos.y + correctionVector.y,
-            currentPos.z + correctionVector.z
-          );
-          playerRef.current.setTranslation(newPos);
+          // Create a smoothed position that moves part of the way 
+          const smoothedPos = {
+            x: currentPos.x + (newPos.x - currentPos.x) * adaptiveSmoothFactor,
+            y: GROUND_Y,
+            z: currentPos.z + (newPos.z - currentPos.z) * adaptiveSmoothFactor
+          };
+          
+          // Log the smoothing (occasionally to avoid spam)
+          if (Math.random() < 0.1) {
+            console.log(`Smoothing movement: distance=${distance.toFixed(2)}, factor=${adaptiveSmoothFactor.toFixed(2)}`);
+          }
+          
+          playerRef.current.setNextKinematicTranslation(smoothedPos);
         } else {
-          // Correction completed
-          pendingCorrectionRef.current = false;
+          // Normal case - apply position directly
+          playerRef.current.setNextKinematicTranslation(newPos);
         }
+        
+        // Apply interpolated rotation
+        playerRef.current.setNextKinematicRotation({
+          x: 0,
+          y: Math.sin(s.rot/2),
+          z: 0,
+          w: Math.cos(s.rot/2)
+        });
+      } else if (playerState.position) {
+        // Fallback to using the playerState position if no buffer sample
+        // This should rarely happen once the system is working correctly
+        console.warn(`No position sample for player ${playerId}, falling back to state position`);
+        playerRef.current.setNextKinematicTranslation({
+          x: playerState.position.x,
+          y: GROUND_Y,
+          z: playerState.position.z
+        });
+        
+        // Apply current rotation from state
+        const rotY = playerState.rotation?.y || 0;
+        playerRef.current.setNextKinematicRotation({
+          x: 0,
+          y: Math.sin(rotY/2),
+          z: 0,
+          w: Math.cos(rotY/2)
+        });
       }
+      
     } catch (err) {
       console.error("Error in useFrame handler:", err);
     }
   });
 
-  // --- Effect to handle server position updates for interpolation ---
-  useEffect(() => {
-    if (!playerState) return;
-    
-    // Handle remote player interpolation
-    if (!isControlledPlayer) {
-      const now = performance.now();
-      // If movement just stopped, snap interpolation refs to stop position
-      if (!playerState.movement?.targetPos) {
-        previousPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        targetPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        interpolationAlphaRef.current = 0;
-      } else if (lastPositionUpdateTimeRef.current === 0 || now - lastPositionUpdateTimeRef.current > 1000) {
-        previousPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        targetPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        previousRotationRef.current = playerState.rotation.y;
-        targetRotationRef.current = playerState.rotation.y;
-      } else {
-        // Otherwise, set previous to current target, and update target
-        previousPositionRef.current.copy(targetPositionRef.current);
-        targetPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        previousRotationRef.current = targetRotationRef.current;
-        targetRotationRef.current = playerState.rotation.y;
-        interpolationAlphaRef.current = 0; // Reset interpolation progress
-      }
-      lastPositionUpdateTimeRef.current = now;
-    }
-  }, [playerState, isControlledPlayer]);
-
   // --- Effect to handle server corrections for controlled player ---
   useEffect(() => {
     if (!socket) return;
 
-    // Handle position updates from server 
+    // Handle position updates from server - just for logging/debugging purposes
     const handlePosSnap = (data: { type: string, snaps: Array<{ id: string, pos: VecXZ, vel: VecXZ, snapTs: number }> }) => {
       if (data.type !== 'PosSnap') return;
       if (!data.snaps || !Array.isArray(data.snaps)) return;
@@ -1088,37 +1057,30 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       const thisPlayerSnap = data.snaps.find(snap => snap && snap.id === playerId);
       if (!thisPlayerSnap || !thisPlayerSnap.pos) return;
       
-      if (isControlledPlayer) {
-        // For controlled player: apply correction if needed
-        const currentPosition = playerRef.current?.translation();
+      // For debugging only - log significant position jumps for the controlled player
+      if (isControlledPlayer && playerRef.current) {
+        const currentPosition = playerRef.current.translation();
         if (!currentPosition) return;
         
-        const serverPosition = new THREE.Vector3(thisPlayerSnap.pos.x, currentPosition.y, thisPlayerSnap.pos.z);
-        const distance = new THREE.Vector3(
-          serverPosition.x - currentPosition.x,
-          0, // Ignore Y differences
-          serverPosition.z - currentPosition.z
-        ).length();
+        const serverPos = thisPlayerSnap.pos;
+        const distance = Math.sqrt(
+          Math.pow(serverPos.x - currentPosition.x, 2) + 
+          Math.pow(serverPos.z - currentPosition.z, 2)
+        );
         
-        // Only apply correction if the difference is significant
-        if (distance > 1.0) {
-          console.log(`Server correction: ${distance.toFixed(2)} units`);
-          pendingCorrectionRef.current = true;
-          serverCorrectionPositionRef.current.copy(serverPosition);
-          correctionStartTimeRef.current = performance.now();
-        }
-      } else {
-        // For remote players: use SnapBuffer for interpolation
-        if (snapBufferRef.current && playerState) {
-          try {
-            snapBufferRef.current.push({
-              pos: thisPlayerSnap.pos,
-              vel: thisPlayerSnap.vel,
-              rot: playerState.rotation?.y || 0,
-              snapTs: thisPlayerSnap.snapTs
-            });
-          } catch (err) {
-            console.error('Error pushing to snap buffer:', err);
+        // Only log if the difference is significant and reduce frequency
+        if (distance > 3.0 && Math.random() < 0.3) {
+          console.log(`Position difference detected: ${distance.toFixed(2)} units`);
+          
+          // If distance is extremely large (teleport-like), implement stronger smoothing
+          if (distance > 10.0) {
+            console.log(`Large teleport detected: (${currentPosition.x.toFixed(2)}, ${currentPosition.z.toFixed(2)}) → (${serverPos.x.toFixed(2)}, ${serverPos.z.toFixed(2)})`);
+            
+            // Add metadata to help with debugging
+            if (isControlledPlayer) {
+              const buf = getBuffer(playerId);
+              console.log(`Buffer info: length=${buf.getBufferLength()}`);
+            }
           }
         }
       }
@@ -1130,7 +1092,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     return () => {
       socket.off('msg', handlePosSnap);
     };
-  }, [playerId, socket, isControlledPlayer, playerState]);
+  }, [playerId, socket, isControlledPlayer]);
 
   // --- Listen for player position requests from skill effects ---
   useEffect(() => {
@@ -1156,22 +1118,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [isControlledPlayer]);
 
-  // Initialize the interpolation buffer on component mount
-  useEffect(() => {
-    if (!isControlledPlayer) {
-      console.log(`Creating SnapBuffer for remote player ${playerId}`);
-      snapBufferRef.current = new SnapBuffer();
-    }
-    
-    return () => {
-      // Clean up
-      if (snapBufferRef.current && !isControlledPlayer) {
-        console.log(`Cleaning up SnapBuffer for remote player ${playerId}`);
-        snapBufferRef.current = null;
-      }
-    };
-  }, [isControlledPlayer, playerId]);
-
   // Log player state on mount
   useEffect(() => {
     console.log(`PlayerCharacter mounting: id=${playerId}, isControlled=${isControlledPlayer}`, {
@@ -1189,70 +1135,178 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   if (!playerState) return null; // Don't render if state doesn't exist yet
 
   return (
-    <RigidBody
-      ref={playerRef}
-      position={[playerState.position.x, playerState.position.y, playerState.position.z]} // Initial position from store
-      enabledRotations={[false, true, false]} // Allow Y rotation for facing direction
-      colliders={false}
-      mass={isControlledPlayer ? 10 : 1}
-      type={isControlledPlayer ? "kinematicPosition" : "kinematicPosition"}
-      lockRotations={!isControlledPlayer} // Lock rotation for non-controlled players if needed
-      linearDamping={isControlledPlayer ? 0.5 : 0}
-      angularDamping={isControlledPlayer ? 0.95 : 0}
-      friction={isControlledPlayer ? 0.2 : 0}
-      restitution={0.0}
-      gravityScale={isControlledPlayer ? 2 : 0} // Disable gravity for remote players
-      ccd={true}
-      key={playerId} // Important for React to identify elements correctly
-      userData={{ type: 'player', id: playerId }} // Add userData for identification
-    >
-      <CapsuleCollider args={[0.5, 0.6]} />
-      {/* Single unified player model */}
-      <group>
-        {/* Body */}
-        <mesh castShadow position={[0, 0.5, 0]}>
-          <capsuleGeometry args={[0.5, 1.2, 8, 16]} />
-          <meshStandardMaterial color={isControlledPlayer ? "#3870c4" : "#5a8cd9"} />
-        </mesh>
-        {/* Head */}
-        <mesh castShadow position={[0, 1.6, 0]}>
-          <sphereGeometry args={[0.3, 16, 16]} />
-          <meshStandardMaterial color="#f5deb3" />
-        </mesh>
-      </group>
-    </RigidBody>
+    <>
+      <RigidBody
+        ref={playerRef}
+        position={[playerState.position.x, playerState.position.y, playerState.position.z]} // Initial position from store
+        enabledRotations={[false, true, false]} // Allow Y rotation for facing direction
+        colliders={false}
+        mass={isControlledPlayer ? 10 : 1}
+        type="kinematicPosition" // Both controlled and remote players use kinematic positioning
+        lockRotations={!isControlledPlayer} // Lock rotation for non-controlled players if needed
+        linearDamping={isControlledPlayer ? 0.5 : 0}
+        angularDamping={isControlledPlayer ? 0.95 : 0}
+        friction={isControlledPlayer ? 0.2 : 0}
+        restitution={0.0}
+        gravityScale={0} // Disable gravity for all players - server handles physics
+        ccd={true}
+        key={playerId} // Important for React to identify elements correctly
+        userData={{ type: 'player', id: playerId }} // Add userData for identification
+      >
+        <CapsuleCollider args={[0.5, 0.6]} />
+        {/* Single unified player model */}
+        <group>
+          {/* Body */}
+          <mesh castShadow position={[0, 0.5, 0]}>
+            <capsuleGeometry args={[0.5, 1.2, 8, 16]} />
+            <meshStandardMaterial color={isControlledPlayer ? "#3870c4" : "#5a8cd9"} />
+          </mesh>
+          {/* Head */}
+          <mesh castShadow position={[0, 1.6, 0]}>
+            <sphereGeometry args={[0.3, 16, 16]} />
+            <meshStandardMaterial color="#f5deb3" />
+          </mesh>
+        </group>
+      </RigidBody>
+
+      {/* Add movement debugger */}
+      <MovementDebugger 
+        playerId={playerId}
+        playerRef={playerRef}
+        isControlledPlayer={isControlledPlayer}
+      />
+    </>
   );
 }
 
 // Main Players Component (Renders all players)
 export default function Player() {
-  // Use the exported selectors from gameStore for proper memoization
   const playerIds = useGameStore(selectPlayerIds);
   const myPlayerId = useGameStore(selectMyPlayerId);
 
-  // Memoize the component rendering to prevent unnecessary re-renders
-  const memoizedContent = React.useMemo(() => {
-    if (playerIds.length === 0) {
-      return null; // No players to render yet
-    }
-
-    console.log('Rendering players:', playerIds, 'My ID:', myPlayerId);
-
-    return (
-      <group>
-        {playerIds.map(id => (
-          <PlayerCharacter
-            key={id}
-            playerId={id}
-            isControlledPlayer={id === myPlayerId}
-          />
-        ))}
-      </group>
-    );
-  }, [playerIds, myPlayerId]);
-
-  return memoizedContent;
+  return (
+    <>
+      {playerIds.map(id => (
+        <PlayerCharacter 
+          key={id} 
+          playerId={id} 
+          isControlledPlayer={id === myPlayerId} 
+        />
+      ))}
+    </>
+  );
 }
+
+// ==============================================================================
+// FILE: app/game/components/SimpleMovementDebugger.tsx
+// ==============================================================================
+
+// Helper component for debugging player movement in the game
+import React, { useRef, useState, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { Text } from '@react-three/drei';
+import { useGameStore } from '../systems/gameStore';
+import { getBuffer } from '../systems/interpolation';
+
+interface MovementDebuggerProps {
+  playerId: string;
+  playerRef: React.RefObject<any>;
+  isControlledPlayer: boolean;
+}
+
+export function MovementDebugger({ playerId, playerRef, isControlledPlayer }: MovementDebuggerProps) {
+  // Only show debugging for the controlled player
+  if (!isControlledPlayer) return null;
+  
+  const targetMarkerRef = useRef<THREE.Mesh>(null);
+  const [showDebug, setShowDebug] = useState(false);
+  const [stats, setStats] = useState({ 
+    distance: 0, 
+    bufferSize: 0,
+    position: { x: 0, z: 0 } 
+  });
+  
+  // Get the target position from the game store
+  const targetPos = useGameStore(state => state.targetWorldPos);
+  
+  // Toggle debug visualization with 'D' key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'd' || e.key === 'D') {
+        setShowDebug(prev => !prev);
+        console.log(`Movement debugger ${!showDebug ? 'enabled' : 'disabled'}`);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDebug]);
+  
+  // Update visualization on each frame
+  useFrame(() => {
+    if (!showDebug || !playerRef?.current) return;
+    
+    // Get current player position
+    const currentPos = playerRef.current.translation();
+    if (!currentPos) return;
+    
+    // Update the target indicator
+    if (targetMarkerRef.current && targetPos) {
+      targetMarkerRef.current.position.set(targetPos.x, 0.1, targetPos.z);
+      targetMarkerRef.current.visible = true;
+      
+      // Calculate distance to target
+      const distance = Math.sqrt(
+        Math.pow(currentPos.x - targetPos.x, 2) + 
+        Math.pow(currentPos.z - targetPos.z, 2)
+      );
+      
+      // Get buffer info
+      const buffer = getBuffer(playerId);
+      const bufferSize = buffer ? buffer.getBufferLength() : 0;
+      
+      // Update stats
+      setStats({
+        distance,
+        bufferSize,
+        position: { x: currentPos.x, z: currentPos.z }
+      });
+    } else if (targetMarkerRef.current) {
+      targetMarkerRef.current.visible = false;
+    }
+  });
+  
+  if (!showDebug) return null;
+  
+  return (
+    <group>
+      {/* Target marker */}
+      <mesh ref={targetMarkerRef} position={[0, 0.1, 0]} visible={false}>
+        <ringGeometry args={[0.3, 0.4, 16]} />
+        <meshBasicMaterial color="yellow" transparent opacity={0.6} />
+      </mesh>
+      
+      {/* Debug text */}
+      {targetPos && (
+        <Text
+          position={[0, 2, 0]}
+          fontSize={0.15}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.02}
+          outlineColor="#000000"
+        >
+          {`Dist: ${stats.distance.toFixed(2)}m
+Buffer: ${stats.bufferSize} entries
+Pos: (${stats.position.x.toFixed(2)}, ${stats.position.z.toFixed(2)})`}
+        </Text>
+      )}
+    </group>
+  );
+}
+
 
 // ==============================================================================
 // FILE: app/game/components/SkillTreeUI.tsx
@@ -4805,10 +4859,11 @@ export const useCombatLogStore = create<State>()(
 import { useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
-import { SnapBuffer } from './interpolation';
+import { getBuffer, GROUND_Y } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
 import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
 import { useProjectileStore } from './projectileStore';
+import * as THREE from 'three';
 import { 
   // MoveIntent is actually used in type definitions
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -4842,9 +4897,6 @@ export default function SocketManager() {
   const removePlayer = useGameStore(state => state.removePlayer);
   const updatePlayer = useGameStore(state => state.updatePlayer);
   const updateEnemy = useGameStore(state => state.updateEnemy);
-  
-  // Add snapBuffers for each remote player
-  const snapBuffers = useRef<Record<string, SnapBuffer>>({});
   
   // Maps to track last positions and velocities for delta updates
   const lastPosMap = useRef<Record<string, VecXZ>>({});
@@ -4905,31 +4957,96 @@ export default function SocketManager() {
         return;
       }
       
+      // Debug log to trace PosSnap messages (only 5% to avoid flooding console)
+      if (Math.random() < 0.05) {
+        console.log(`Received PosSnap with ${data.snaps.length} entries:`, JSON.stringify(data));
+      }
+      
       const state = useGameStore.getState();
+      const myPlayerId = state.myPlayerId;
+      const clientReceiveTs = performance.now();
       
       // Process each player snapshot in the batch
       for (const snap of data.snaps) {
-        const { id, pos, vel, snapTs } = snap;
+        const { id, pos, vel, serverSnapTs } = snap;
         
-        if (!id || !pos || !snapTs) {
+        if (!id || !pos || !serverSnapTs) {
           console.warn("Invalid snapshot entry:", snap);
           continue;
         }
         
         const player = state.players[id];
         if (player) {
-          // Store in snap buffer
-          if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+          // Get global buffer reference for this player
+          const buffer = getBuffer(id);
           
           // Use velocity from snapshot or default to zero if not provided
           const velocity = vel || { x: 0, z: 0 };
           
-          snapBuffers.current[id].push({
+          // Create a properly timestamped snap object
+          const snapObject = {
             pos: pos,
             vel: velocity,
             rot: player.rotation?.y || 0,
-            snapTs: snapTs
-          });
+            snapTs: clientReceiveTs
+          };
+          
+          // Enhanced debugging to see what's being pushed to the buffer
+          if (id === myPlayerId && Math.random() < 0.1) {
+            console.log("Pushing to position buffer:", {
+              id,
+              pos,
+              vel,
+              serverSnapTs,
+              clientReceiveTs,
+              currentBufferLength: buffer.getBufferLength()
+            });
+          }
+          
+          // Additional validation to check for invalid position data
+          if (pos.x === 0 && pos.z === 0) {
+            console.warn(`Position at (0,0) detected in PosSnap for player ${id}. This might cause movement issues.`);
+          }
+          
+          // Check for duplicates before pushing
+          const existingSnap = buffer.getBufferLength() > 0 ? 
+            buffer.sample(snapTs) : null;
+            
+          if (existingSnap && 
+              Math.abs(existingSnap.x - pos.x) < 0.001 && 
+              Math.abs(existingSnap.z - pos.z) < 0.001) {
+            // Skip duplicate position to prevent animation repeating
+            // Just update the maps and continue
+            lastPosMap.current[id] = pos;
+            lastVelMap.current[id] = velocity;
+            continue;
+          }
+          
+          // Push to the module-global buffer for calculations
+          buffer.push(snapObject);
+          
+          // Track last known server position for this player
+          useGameStore.getState().serverLastKnownPositions = {
+            ...useGameStore.getState().serverLastKnownPositions,
+            [id]: { ...pos }
+          };
+          
+          // Enhanced debug logging, especially for controlled player
+          if (id === myPlayerId) {
+            if (Math.random() < 0.05) {
+                const latestSample = buffer.sample(performance.now() - 100);
+              console.log(`MyPlayer Position Update:`, {
+                playerId: id,
+                pos: pos,
+                vel: velocity,
+                bufferLength: buffer.getBufferLength(),
+                latestSample: latestSample,
+                serverSnapTs: new Date(snapTs).toISOString(),
+                clientReceiveTs: new Date(clientReceiveTs).toISOString(),
+                timeDiff: clientReceiveTs - serverSnapTs
+              });
+            }
+          }
           
           // Update last position and velocity maps
           lastPosMap.current[id] = pos;
@@ -4941,7 +5058,6 @@ export default function SocketManager() {
     }
   }, []);
   
-  // Handle delta-compressed position updates
   // Handle delta-compressed position updates
   const handlePosDelta = useCallback((data: PosDelta) => {
     try {
@@ -4957,6 +5073,7 @@ export default function SocketManager() {
       };
       
       const state = useGameStore.getState();
+      const myPlayerId = state.myPlayerId;
       const player = state.players[id];
       
       if (player) {
@@ -4972,15 +5089,43 @@ export default function SocketManager() {
           lastVelMap.current[id] = vel;
         }
         
-        // Store in snap buffer
-        if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+        // Get module-global buffer reference for this player
+        const buffer = getBuffer(id);
+        const clientReceiveTs = performance.now();
         
-        snapBuffers.current[id].push({
+        // Create the snap object
+        const snapObject = {
           pos: newPos,
           vel: vel,
           rot: player.rotation?.y || 0,
-          snapTs: serverTs
-        });
+          snapTs: clientReceiveTs
+        };
+        
+        // Check for duplicates before pushing
+        const existingSnap = buffer.getBufferLength() > 0 ? 
+          buffer.sample(snapObject.snapTs) : null;
+          
+        if (existingSnap && 
+            Math.abs(existingSnap.x - newPos.x) < 0.001 && 
+            Math.abs(existingSnap.z - newPos.z) < 0.001) {
+          // Skip duplicate position to prevent animation repeating
+          // Just update the maps and don't push to buffer
+          lastPosMap.current[id] = newPos;
+          return;
+        }
+        
+        // Push to buffer
+        buffer.push(snapObject);
+        
+        // Special debug for my player's snapBuffer to diagnose camera issues
+        if (id === myPlayerId && Math.random() < 0.05) { // Only log 5% of updates to avoid spam
+          console.log(`MyPlayer (${id}) SnapBuffer delta update:`, {
+            bufferExists: !!buffer,
+            hasSampleMethod: buffer && typeof buffer.sample === 'function',
+            pos: newPos,
+            serverTs
+          });
+        }
         
         // Update last position map
         lastPosMap.current[id] = newPos;
@@ -4989,10 +5134,6 @@ export default function SocketManager() {
       console.error("Error processing position delta:", err);
     }
   }, []);
-
-  // Handle skill cast failure
-
-  // Handle skill cast failure
 
   // Handle skill cast failure
   const handleCastFail = useCallback((data: { clientSeq: number, reason: 'cooldown' | 'nomana' | 'invalid' }) => {
@@ -5160,7 +5301,59 @@ export default function SocketManager() {
       });
 
       socket.on('msg', (msg: any) => {
+        // Add validation to prevent "Unknown message type: undefined" errors
+        if (!msg) {
+          console.error('Received null or undefined message');
+          return;
+        }
+
+        // Handle case where we receive an array of messages instead of a single message
+        if (Array.isArray(msg)) {
+          console.log('Received array of messages, processing each one:', JSON.stringify(msg));
+          msg.forEach((item, index) => {
+            if (item && typeof item === 'object' && item.type) {
+              // Process each valid message in the array
+              console.log(`Processing array item ${index} with type: ${item.type}`);
+              processMessage(item);
+            } else {
+              console.warn(`Skipping invalid message in array at index ${index}:`, item);
+            }
+          });
+          return;
+        }
+        
+        // Handle single message object
+        if (typeof msg !== 'object') {
+          console.error('Received invalid message format:', msg);
+          return;
+        }
+        
+        if (!msg.type) {
+          console.error('Received message without type property:', msg);
+          return;
+        }
+        
+        // Process the single message
+        processMessage(msg);
+      });
+      
+      // Helper function to process a single message
+      const processMessage = (msg: any) => {
         switch (msg.type) {
+          case 'BatchUpdate': {
+            // Handle batch updates from server
+            console.log('Received BatchUpdate with', msg.updates?.length || 0, 'items');
+            if (Array.isArray(msg.updates)) {
+              // Process each update in the batch
+              msg.updates.forEach(update => {
+                if (update && typeof update === 'object' && update.type) {
+                  // Process each valid message in the batch
+                  processMessage(update);
+                }
+              });
+            }
+            break;
+          }
           case 'PosSnap': {
             handlePosSnap(msg);
             break;
@@ -5359,6 +5552,9 @@ export default function SocketManager() {
     
     if (!socket || !myPlayerId) return;
     
+    // Log the outgoing message for debugging
+    console.log('Sending MoveIntent to server:', { targetPos });
+    
     socket.emit('msg', {
       type: 'MoveIntent',
       id: myPlayerId,
@@ -5366,16 +5562,10 @@ export default function SocketManager() {
       clientTs: Date.now()
     });
     
-    // Also update local player immediately for prediction
-    updatePlayer({ 
-      id: myPlayerId, 
-      movement: { 
-        isMoving: true,
-        targetPos,
-        lastUpdateTime: performance.now()
-      } 
-    });
-  }, [updatePlayer]);
+    // Don't update player locally - let server updates control movement
+    // Store the target in UI state only - not as a position/movement update
+    useGameStore.getState().setTargetWorldPos(new THREE.Vector3(targetPos.x, GROUND_Y, targetPos.z));
+  }, []);
   
   // Function to send CastReq message
   const sendCastReq = useCallback((skillId: string, targetId?: string, targetPos?: VecXZ) => {
@@ -5493,6 +5683,40 @@ export default function SocketManager() {
     }
   }, [updatePlayer, updateEnemy]);
 
+  // Enhanced buffer push function with error handling
+  function safeBufferPush(buffer: any, snapObject: any, playerId: string) {
+    try {
+      // Add some validation before pushing
+      if (!snapObject || !snapObject.pos || !snapObject.snapTs) {
+        console.warn("Attempted to push invalid snap object to buffer:", snapObject);
+        return false;
+      }
+      
+      // Check for zeros or NaN in position data
+      if (isNaN(snapObject.pos.x) || isNaN(snapObject.pos.z) || 
+          !isFinite(snapObject.pos.x) || !isFinite(snapObject.pos.z)) {
+        console.warn("Invalid position values in snap object:", snapObject);
+        return false;
+      }
+      
+      // Log every hundredth push to avoid console spam
+      if (Math.random() < 0.01) {
+        console.log(`Pushing to buffer for ${playerId}:`, {
+          pos: snapObject.pos,
+          vel: snapObject.vel,
+          bufferLength: buffer.getBufferLength()
+        });
+      }
+      
+      // Perform the actual push
+      buffer.push(snapObject);
+      return true;
+    } catch (err) {
+      console.error("Error pushing to position buffer:", err);
+      return false;
+    }
+  }
+
   return null;
 }
 
@@ -5587,6 +5811,7 @@ interface GameState {
   donationXpBoost: number;
   donationBoostEndTimeTs: number | null;
   bonusXpEventActive: boolean;
+  serverLastKnownPositions: Record<string, { x: number, z: number }>;  // Last known positions from server
   player: PlayerState | null;
   experience: number;
   experienceToNextLevel: number;
@@ -5715,6 +5940,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   donationXpBoost: 0,
   donationBoostEndTimeTs: null,
   bonusXpEventActive: false,
+  serverLastKnownPositions: {},
   player: null,
   experience: 0,
   experienceToNextLevel: 100,
@@ -5851,40 +6077,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentPlayer = state.players[playerData.id];
       if (!currentPlayer) return;
       
-      // Check if this is the locally controlled player
-      const isSelf = playerData.id === state.myPlayerId;
-      
-      if (isSelf && playerData.position) {
-        // For self-controlled player, only accept server position corrections 
-        // when the error is significant (> 0.5 units)
-        const dx = currentPlayer.position.x - playerData.position.x;
-        const dz = currentPlayer.position.z - playerData.position.z;
-        const error = Math.sqrt(dx * dx + dz * dz);
-        
-        // Ignore minor position updates from server for self-controlled player
-        if (error < 0.5) {
-          // Still update other properties, just not position
-          // suppress unused variable warning
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { position: _position, ...otherProps } = playerData;
-          
-          // If we only had position update, return without changes
-          if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
-          
-          // Handle statusEffects array immutably if it exists in otherProps
-          if ('statusEffects' in otherProps) {
-            currentPlayer.statusEffects = [...otherProps.statusEffects];
-            // Remove statusEffects from otherProps so we don't double-apply it
-            delete otherProps.statusEffects;
-          }
-          
-          // Update other properties
-          Object.assign(currentPlayer, otherProps);
-          return;
-        }
-      }
-      
-      // For other players or significant corrections, process normally
       // Handle statusEffects immutably
       if ('statusEffects' in playerData && Array.isArray(playerData.statusEffects)) {
         currentPlayer.statusEffects = [...playerData.statusEffects];
@@ -5977,20 +6169,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       clientTs: Date.now()
     });
     
-    // Also update local player immediately for smoother prediction
-    const player = get().players[myPlayerId];
-    if (player) {
-      set(produce(state => {
-        const player = state.players[myPlayerId];
-        if (player) {
-          player.movement = {
-            isMoving: true,
-            targetPos: targetPos,
-            lastUpdateTime: performance.now()
-          };
-        }
-      }));
-    }
   },
   
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => {
@@ -6159,8 +6337,48 @@ export interface Snap { pos:{x:number,z:number}; rot:number; vel:{x:number,z:num
 // Game runs at 60 fps (~16.7ms per tick)
 const MAX_REWIND_MS = 200; // Prevent >200 ms rewinds that cause visible teleports
 
+// Export the ground level for consistent positioning
+export const GROUND_Y = 0.5;
+
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+
+// Module-global SnapBuffer map - one buffer per entity, lives for app lifetime
+const bufMap: Record<string, SnapBuffer> = {};
+export const getBuffer = (id: string) => bufMap[id] || (bufMap[id] = new SnapBuffer());
+
+/**
+ * Hook to continuously sample a player's SnapBuffer in the game loop
+ * Returns the latest interpolated position/rotation
+ */
+export const useInterpolatedPosition = (id: string, interpolationLag = 120) => {
+  const bufferRef = useRef<SnapBuffer | null>(null);
+  const sampleRef = useRef<{x: number, z: number, rot: number} | null>(null);
+  
+  // Keep local reference to the buffer from the module-global map
+  const buffer = getBuffer(id);
+  if (buffer !== bufferRef.current) {
+    bufferRef.current = buffer;
+  }
+  
+  // Sample the buffer on every frame
+  useFrame(() => {
+    if (!bufferRef.current) return;
+    
+    const renderTs = performance.now() - interpolationLag;
+    
+    const sample = bufferRef.current.sample(renderTs);
+    if (sample) {
+      sampleRef.current = sample;
+    }
+  });
+  
+  return sampleRef.current;
+};
+
 export class SnapBuffer {
   private buf: Snap[] = [];
+  private lastSample: {x: number, z: number, rot: number} | null = null;
   
   /**
    * Limit how far we rewind; call on every push()
@@ -6173,95 +6391,249 @@ export class SnapBuffer {
     }
   }
   
+  /**
+   * Returns the current buffer length for debugging
+   */
+  getBufferLength() {
+    return this.buf.length;
+  }
+  
+  // Debug helper function - expose to window for console debugging
+  debugDump() {
+    return [...this.buf];
+  }
+  
+  // Clear buffer for troubleshooting
+  clearBuffer() {
+    this.buf = [];
+    this.lastSample = null;
+    console.log("Buffer cleared");
+  }
+  
   push(s:Snap){ 
-    // Skip invalid entries
-    if (s === null || s === undefined || isNaN(s.snapTs)) {
-      console.warn("Skipping invalid snap entry:", s);
-      return;
+    try {
+      // Skip invalid entries
+      if (s === null || s === undefined || isNaN(s.snapTs)) {
+        console.warn("Skipping invalid snap entry:", s);
+        return;
+      }
+      
+      // Validate position values
+      if (isNaN(s.pos.x) || isNaN(s.pos.z) || !isFinite(s.pos.x) || !isFinite(s.pos.z)) {
+        console.warn("Invalid position values in snap, skipping:", s);
+        return;
+      }
+      
+      // Check if the position is (0,0) which might indicate an issue
+      if (s.pos.x === 0 && s.pos.z === 0 && Math.random() < 0.1) {
+        console.warn("Received (0,0) position in snap - this may cause movement issues", s);
+      }
+      
+      // Prevent duplicates based on timestamp
+      if (this.buf.some(existing => 
+        existing.snapTs === s.snapTs && 
+        existing.pos.x === s.pos.x && 
+        existing.pos.z === s.pos.z)) {
+        return; // Skip this duplicate
+      }
+      
+      // Maintain correct chronological order
+      let insertIndex = this.buf.length;
+      for (let i = 0; i < this.buf.length; i++) {
+        if (s.snapTs < this.buf[i].snapTs) {
+          insertIndex = i;
+          break;
+        }
+      }
+      
+      // Insert at the correct position to maintain time ordering
+      this.buf.splice(insertIndex, 0, s);
+      
+      // Debug large position jumps in buffer
+      if (this.buf.length >= 2) {
+        const first = this.buf[0].pos;
+        const last = this.buf[this.buf.length - 1].pos;
+        const totalDistance = Math.sqrt(
+          Math.pow(last.x - first.x, 2) + 
+          Math.pow(last.z - first.z, 2)
+        );
+        
+        // If the total travel distance in the buffer is unexpectedly large
+        if (totalDistance > 20) {
+          console.debug("Large movement distance detected in buffer", {
+            totalDistance,
+            firstPos: first,
+            lastPos: last,
+            bufferEntries: this.buf.length,
+            timeSpan: this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs
+          });
+        }
+      }
+      
+      // Trim buffer to reasonable size
+      while (this.buf.length > 60) this.buf.shift();   // keep ~6 s of data
+      
+      // Update lastSample for new entries that are very recent
+      if (insertIndex === this.buf.length - 1) { // If this is the newest entry
+        const now = performance.now();
+        if (now - s.snapTs < 100) { // If it's a very recent update
+          this.lastSample = { x: s.pos.x, z: s.pos.z, rot: s.rot };
+        }
+      }
+      
+      // Random debug logging (only 1% of pushes to avoid spam)
+      if (Math.random() < 0.01 && this.buf.length > 1) {
+        console.debug("Buffer info after push:", {
+          bufferLength: this.buf.length,
+          newest: this.buf[this.buf.length - 1],
+          oldest: this.buf[0],
+          timeSpan: this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs
+        });
+      }
+    } catch (err) {
+      console.error("Error in buffer push:", err);
     }
+
+    // Trim buffer to reasonable size
+    while (this.buf.length > 60) this.buf.shift();   // keep ~6 s of data
     
-    this.buf.push(s); 
+    // Also apply timestamp-based cleanup
     this.clampDepthNow();
   }
   
   /**
    * Returns interpolated {x,z,rot} or extrapolated position if we're outside range 
    */
-  sample(renderTs:number, speedCap:number){
+  sample(renderTs: number) {
     try {
-      if(this.buf.length===0) return null;
-  
-      // Safety check for NaN values
-      if (isNaN(renderTs)) {
-        console.error("Invalid renderTs:", renderTs);
-        return null;
+      if (this.buf.length === 0) {
+        // No data in buffer - use lastSample if available
+        if (this.lastSample) {
+          console.warn("Using last valid sample due to empty buffer");
+          return this.lastSample;
+        }
+        
+        // If no lastSample either, return default
+        console.warn("Buffer is empty when sampling, returning default position");
+        return { x: 0, z: 0, rot: 0 };
       }
-  
-      // Find first snap with snapTs > renderTs
-      const i = this.buf.findIndex(s => s && !isNaN(s.snapTs) && s.snapTs > renderTs);
-  
-      /* Case A – we're *before* the first snap (shouldn't happen after lag),
-          just show that first snap. */
-      if(i===0){
-          const s=this.buf[0];
-          return {x:s.pos.x,z:s.pos.z,rot:s.rot};
+
+      // Add safety check for very old timestamps
+      if (renderTs < this.buf[0].snapTs - 5000) {
+        // Instead of just warning, we'll adjust the timestamp and provide more context
+        console.debug("Adjusting render timestamp to match buffer - possible clock sync issue", {
+          renderTs,
+          oldestBufferTs: this.buf[0].snapTs,
+          diff: renderTs - this.buf[0].snapTs,
+          bufferLength: this.buf.length
+        });
+        renderTs = this.buf[0].snapTs;
       }
-  
-      /* Case B – we're *between* two snaps → use Hermite interpolation. */
-      if(i>0){
-          const s0=this.buf[i-1], s1=this.buf[i];
-          const t=(renderTs-s0.snapTs)/(s1.snapTs-s0.snapTs);
-          
-          // Use Hermite interpolation if both snaps have velocity data
-          if (s0.vel && s1.vel) {
-            return {
-              x: hermite(s0.pos.x, s0.vel.x, s1.pos.x, s1.vel.x, t),
-              z: hermite(s0.pos.z, s0.vel.z, s1.pos.z, s1.vel.z, t),
-              rot: lerpAngle(s0.rot, s1.rot, t)
-            };
+    
+      // Add debugging for timestamp gaps that might be causing issues
+      if (Math.random() < 0.01) { // Only log occasionally
+        console.debug("Buffer sample info:", {
+          renderTs,
+          bufferLength: this.buf.length,
+          oldestTs: this.buf.length > 0 ? this.buf[0].snapTs : 'none',
+          newestTs: this.buf.length > 0 ? this.buf[this.buf.length - 1].snapTs : 'none',
+          timeRange: this.buf.length > 1 ? this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs : 0
+        });
+      }
+      
+      // Debug large position jumps in buffer
+      if (this.buf.length >= 2) {
+        const first = this.buf[0].pos;
+        const last = this.buf[this.buf.length - 1].pos;
+        const totalDistance = Math.sqrt(
+          Math.pow(last.x - first.x, 2) + 
+          Math.pow(last.z - first.z, 2)
+        );
+        
+        // If the total travel distance in the buffer is unexpectedly large
+        if (totalDistance > 20) {
+          console.debug("Large movement distance detected in buffer", {
+            totalDistance,
+            firstPos: first,
+            lastPos: last,
+            bufferEntries: this.buf.length,
+            timeSpan: this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs
+          });
+        }
+      }
+
+      // early / before first - use oldest entry in buffer
+      if (renderTs <= this.buf[0].snapTs) {
+        const s = this.buf[0];
+        this.lastSample = { x: s.pos.x, z: s.pos.z, rot: s.rot };
+        return this.lastSample;
+      }
+
+      // find the first snap AFTER renderTs
+      const idx = this.buf.findIndex(s => s.snapTs > renderTs);
+
+      // between two snaps → linear interpolate
+      if (idx !== -1 && idx > 0) {
+        const a = this.buf[idx - 1];
+        const b = this.buf[idx];
+        const t = (renderTs - a.snapTs) / (b.snapTs - a.snapTs);
+        
+        // Clamp t to prevent NaN from division by zero
+        const clampedT = isNaN(t) ? 0 : Math.max(0, Math.min(1, t));
+        
+        // Check for potential teleportation between snapshots
+        const distance = Math.sqrt(
+          Math.pow(b.pos.x - a.pos.x, 2) + 
+          Math.pow(b.pos.z - a.pos.z, 2)
+        );
+        
+        // If there's a sudden large jump in position (likely teleport)
+        // and the time difference is small, we should not interpolate
+        if (distance > 15 && (b.snapTs - a.snapTs) < 500) {
+          // If we're closer to the end position, just return that
+          if (clampedT > 0.5) {
+            this.lastSample = { x: b.pos.x, z: b.pos.z, rot: b.rot };
           } else {
-            // Fall back to linear interpolation if velocity is missing
-            return {
-              x: s0.pos.x + (s1.pos.x-s0.pos.x)*t,
-              z: s0.pos.z + (s1.pos.z-s0.pos.z)*t,
-              rot: lerpAngle(s0.rot, s1.rot, t)
-            };
+            this.lastSample = { x: a.pos.x, z: a.pos.z, rot: a.rot };
           }
+          return this.lastSample;
+        }
+        
+        // Normal interpolation
+        this.lastSample = {
+          x: a.pos.x + (b.pos.x - a.pos.x) * clampedT,
+          z: a.pos.z + (b.pos.z - a.pos.z) * clampedT,
+          rot: lerpAngle(a.rot, b.rot, clampedT)
+        };
+        return this.lastSample;
       }
-  
-      /* Case C – we're *after* the newest snap → **extrapolate** a bit. */
-      const sLast=this.buf[this.buf.length-1];
-      const dt = (renderTs - sLast.snapTs)/1000;
-      const maxDist = speedCap * dt * 1.2;
-      const dx = clamp(sLast.vel.x * dt, -maxDist, maxDist);
-      const dz = clamp(sLast.vel.z * dt, -maxDist, maxDist);
-      return { x: sLast.pos.x+dx, z: sLast.pos.z+dz, rot: sLast.rot };
+
+      // after newest snap → extrapolate MAX 120 ms
+      const last = this.buf[this.buf.length - 1];
+      const dt = Math.min((renderTs - last.snapTs) / 1000, 0.12);   // 0–0.12 s
+      
+      // Safety check for NaN or non-finite values
+      if (isNaN(dt) || !isFinite(dt)) {
+        this.lastSample = { x: last.pos.x, z: last.pos.z, rot: last.rot };
+        return this.lastSample;
+      }
+      
+      const dx = last.vel.x * dt;
+      const dz = last.vel.z * dt;
+      
+      this.lastSample = { 
+        x: last.pos.x + dx, 
+        z: last.pos.z + dz, 
+        rot: last.rot 
+      };
+      return this.lastSample;
     } catch (err) {
-      console.error("Error in SnapBuffer.sample:", err);
-      return null;
+      console.error("Error in buffer sample:", err);
+      
+      // Return the last valid sample if we have one, or default values
+      return this.lastSample || { x: 0, z: 0, rot: 0 };
     }
   }
-}
-
-/**
- * Hermite interpolation function for smooth curves with velocity
- * p0, p1 = position values
- * v0, v1 = velocity values (tangents)
- * t = interpolation parameter [0,1]
- */
-function hermite(p0: number, v0: number, p1: number, v1: number, t: number) {
-  const t2 = t * t, t3 = t2 * t;
-  return (2*t3 - 3*t2 + 1) * p0 +
-         (t3 - 2*t2 + t)   * v0 +
-         (-2*t3 + 3*t2)    * p1 +
-         (t3 - t2)         * v1;
-}
-
-/**
- * Clamps a value between a minimum and maximum value
- */
-function clamp(v:number, min:number, max:number){ 
-  return Math.min(max, Math.max(min, v)); 
 }
 
 /**
@@ -6272,88 +6644,6 @@ function lerpAngle(a:number, b:number, t:number){
   if(d > Math.PI) d -= 2*Math.PI;
   if(d < -Math.PI) d += 2*Math.PI;
   return a + d*t;
-}
-
-
-// ==============================================================================
-// FILE: app/game/systems/moveSimulation.ts
-// ==============================================================================
-
-'use client';
-
-import { Vector3 } from 'three';
-
-// Ground position constant
-export const GROUND_Y = 0.5;
-
-// Vector interface for XZ positions
-export interface VecXZ {
-  x: number;
-  z: number;
-}
-
-/**
- * Simulates movement for a physics body towards a destination
- * 
- * @param body The physics body to move
- * @param dest The destination position (can be null if no movement)
- * @param speed The movement speed in units per second
- * @param delta Time elapsed since last frame in seconds
- * @returns true if movement is still in progress, false if arrived or no destination
- */
-export function simulateMovement(
-  body: any, // Using any for RigidBodyApi to avoid dependency issues
-  dest: VecXZ | null,
-  speed: number,
-  delta: number
-): boolean {
-  // No movement if no destination
-  if (!dest) return false;
-  
-  // Get current position
-    const pos = body.translation();
-
-    // Calculate direction vector to destination
-    const dir = new Vector3(dest.x - pos.x, 0, dest.z - pos.z);
-    
-    // Calculate distance to destination
-    const dist = dir.length();
-    
-    // If we're close enough to destination, consider it reached
-  if (dist < 0.05) return false;
-    
-    // Normalize and scale by speed and delta time
-    dir.normalize().multiplyScalar(speed * delta);
-    
-    // Prevent overshooting
-    if (dir.length() > dist) dir.setLength(dist);
-    
-  // Set next position
-    body.setNextKinematicTranslation({ 
-    x: pos.x + dir.x, 
-      y: GROUND_Y, 
-    z: pos.z + dir.z 
-    });
-
-    // Movement is still in progress
-    return true;
-}
-
-/**
- * Checks if a player has reached their destination
- * 
- * @param currentPos Current position
- * @param destPos Destination position
- * @returns true if destination is reached (or close enough)
- */
-export function hasReachedDestination(currentPos: {x: number, z: number}, destPos: VecXZ | null): boolean {
-  if (!destPos) return true;
-  
-  const dx = destPos.x - currentPos.x;
-  const dz = destPos.z - currentPos.z;
-  const dist = Math.sqrt(dx * dx + dz * dz);
-  
-  return dist < 0.05;
 }
 
 
@@ -11210,6 +11500,141 @@ export function error(category: string, message: string, ...args: any[]) {
 
 
 // ==============================================================================
+// FILE: server/onMoveIntent.ts
+// ==============================================================================
+
+/**
+ * Handles MoveIntent messages from clients requesting to move to a target position
+ * This replaces the old MoveStart handler in the server-authoritative movement system
+ */
+function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
+  const playerId = msg.id;
+  const player = state.players[playerId];
+  
+  // Verify player exists and belongs to this socket
+  if (!player || player.socketId !== socket.id) {
+    console.warn(`Invalid player ID or wrong socket for MoveIntent: ${playerId}`);
+    return;
+  }
+  
+  // Implement a cast-lock window to prevent "micro-teleport" exploits
+  const now = Date.now();
+  if (player.lastUpdateTime && now - player.lastUpdateTime < 33) { // 33ms = ~1 tick at 30 FPS
+    console.warn(`Movement request from player ${playerId} received too quickly, enforcing cast-lock window`);
+    // Still process the request but apply a slight delay (server-side)
+  }
+  
+  // Validate the target position is within reasonable bounds
+  if (!isValidPosition(msg.targetPos)) {
+    console.warn(`Invalid target position in MoveIntent from player ${playerId}: ${JSON.stringify(msg.targetPos)}`);
+    return;
+  }
+
+  // Get current position
+  const currentPos = { x: player.position.x, z: player.position.z };
+  
+  // Calculate distance to target
+  const distance = Math.sqrt(
+    Math.pow(currentPos.x - msg.targetPos.x, 2) +
+    Math.pow(currentPos.z - msg.targetPos.z, 2)
+  );
+  
+  // Check if this is a stop command (targetPos same as current position)
+  if (distance < 0.05) {
+    // This is a stop command - immediately halt the player
+    player.movement = { 
+      isMoving: false, 
+      lastUpdateTime: now 
+    };
+    player.velocity = { x: 0, z: 0 };
+    
+    // Create a position snapshot for the stop command
+    const stopSnapMsg = {
+      type: 'PosSnap',
+      snaps: [{
+        id: playerId,
+        pos: currentPos,
+        vel: { x: 0, z: 0 },
+        snapTs: now
+      }]
+    };
+    
+    // Send to the requesting client
+    socket.emit('msg', stopSnapMsg);
+    
+    // Also broadcast to other players
+    socket.broadcast.emit('msg', stopSnapMsg);
+    
+    return;
+  }
+  
+  // Limit maximum teleport distance - if move request is too far, cap it
+  const MAX_MOVE_DISTANCE = 30; // Maximum allowed movement distance in units
+  let finalTargetPos = { ...msg.targetPos };
+  
+  if (distance > MAX_MOVE_DISTANCE) {
+    console.warn(`Movement request from player ${playerId} exceeds maximum allowed distance: ${distance.toFixed(2)} units`);
+    
+    // Cap the distance while maintaining the direction
+    const dirToTarget = calculateDir(currentPos, msg.targetPos);
+    finalTargetPos = {
+      x: currentPos.x + dirToTarget.x * MAX_MOVE_DISTANCE,
+      z: currentPos.z + dirToTarget.z * MAX_MOVE_DISTANCE
+    };
+    
+    console.log(`Capped movement at distance ${MAX_MOVE_DISTANCE} units in direction (${dirToTarget.x.toFixed(2)}, ${dirToTarget.z.toFixed(2)})`);
+  }
+  
+  // Calculate direction and determine speed (now server-controlled)
+  const dir = calculateDir(currentPos, finalTargetPos);
+  
+  // Determine server-authorized speed (can vary based on player stats, buffs, etc.)
+  const speed = getPlayerSpeed(player); // Server decides the speed
+  
+  // Update player's movement state
+  player.movement = {
+    ...player.movement,
+    isMoving: true,
+    targetPos: finalTargetPos,
+    lastUpdateTime: now,
+    speed: speed
+  };
+  
+  // Set velocity for movement simulation
+  player.velocity = {
+    x: dir.x * speed,
+    z: dir.z * speed
+  };
+  
+  // Update last processed time
+  player.lastUpdateTime = now;
+  
+  // Create a position snapshot message
+  const posSnapMsg = {
+    type: 'PosSnap',
+    snaps: [{
+      id: playerId, 
+      pos: currentPos,
+      vel: player.velocity,
+      snapTs: now
+    }]
+  };
+  
+  // Debug logging for position snapshots
+  console.log(`Sending MoveIntent response PosSnap: ${JSON.stringify(posSnapMsg)}`);
+  
+  // Send position update back to the requesting client
+  socket.emit('msg', posSnapMsg);
+  
+  // Also broadcast to other players
+  socket.broadcast.emit('msg', posSnapMsg);
+  
+  // Log movement (debug level)
+  log(LOG_CATEGORIES.MOVEMENT, 'debug', `Player ${playerId} moving to ${JSON.stringify(finalTargetPos)} at speed ${speed}`);
+}
+
+
+// ==============================================================================
 // FILE: server/server.ts
 // ==============================================================================
 
@@ -12395,10 +12820,11 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
 const lastSentPos: Record<string, VecXZ> = {};
 
 /**
- * Collects position deltas or fallback snaps for all entities
+ * Collects position deltas or individual PosSnap entries for all entities
+ * Note: This returns individual delta messages and PosSnap components, NOT complete messages
  */
-function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap)[] {
-  const msgs: (PosDelta | PosSnap)[] = [];
+function collectDeltas(state: GameState, timestamp: number): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
+  const msgs: (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] = [];
   
   // Add player position updates
   for (const playerId in state.players) {
@@ -12426,9 +12852,9 @@ function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap
       if (!last) {
         msgs.push({
           id: playerId,
-          type: 'PosSnap',
           pos: pos,
-          serverTs: timestamp
+          vel: vel,
+          snapTs: timestamp
         });
         lastSentPos[playerId] = { ...pos };
         
@@ -12449,9 +12875,9 @@ function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap
           // Send full snapshot as fallback
           msgs.push({
             id: playerId,
-            type: 'PosSnap',
             pos: pos,
-            serverTs: timestamp
+            vel: vel,
+            snapTs: timestamp
           });
         } else {
           // Send delta-compressed update
@@ -12476,30 +12902,6 @@ function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap
   }
   
   return msgs;
-}
-
-/**
- * Legacy function for backwards compatibility
- */
-function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
-  // Convert all deltas to snaps for backward compatibility
-  return collectDeltas(state, timestamp).map(msg => {
-    if (msg.type === 'PosSnap') {
-      return msg;
-    } else {
-      // Convert delta to snap using lastSentPos
-      const last = lastSentPos[msg.id];
-      return {
-        id: msg.id,
-        type: 'PosSnap',
-        pos: { 
-          x: last.x, 
-          z: last.z 
-        },
-        serverTs: timestamp
-      };
-    }
-  });
 }
 
 /**
@@ -12748,7 +13150,11 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     if (snapAccumulator >= 30 / SNAP_HZ) {
       const msgs = collectDeltas(state, now);
       if (msgs.length > 0) {
-        io.emit('msg', msgs);
+        // Wrap the messages array in a container with its own type to prevent client errors
+        io.emit('msg', {
+          type: 'BatchUpdate',
+          updates: msgs
+        });
       }
       snapAccumulator = 0;
     }
@@ -13487,10 +13893,17 @@ export function broadcastSnaps(io: Server, state: GameState): void {
   
   // Send snapshots to all clients as a batch
   if (snapItems.length > 0) {
-    io.emit('msg', {
+    const posSnapMsg = {
       type: 'PosSnap',
       snaps: snapItems
-    });
+    };
+    
+    // Debug log (only 5% of the time to avoid spam)
+    if (Math.random() < 0.05) {
+      console.log(`Broadcasting PosSnap with ${snapItems.length} entries`);
+    }
+    
+    io.emit('msg', posSnapMsg);
   }
 }
 
@@ -13524,12 +13937,15 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   // Get current position
   const currentPos = { x: player.position.x, z: player.position.z };
   
-  // Check if this is a stop command (targetPos same as current position)
+  // Calculate the distance to the target
   const distance = Math.sqrt(
     Math.pow(currentPos.x - msg.targetPos.x, 2) +
     Math.pow(currentPos.z - msg.targetPos.z, 2)
   );
   
+  // Limit maximum teleport distance - if move request is too far, cap it
+  let targetPos = { ...msg.targetPos };
+
   if (distance < 0.05) {
     // This is a stop command - immediately halt the player
     player.movement = { 
@@ -13538,8 +13954,8 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
     };
     player.velocity = { x: 0, z: 0 };
     
-    // Broadcast stopped position to other players
-    socket.broadcast.emit('msg', {
+    // Create a position snapshot for the stop command
+    const stopSnapMsg = {
       type: 'PosSnap',
       snaps: [{
         id: playerId,
@@ -13547,13 +13963,25 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
         vel: { x: 0, z: 0 },
         snapTs: now
       }]
-    });
+    };
+    
+    // Send to the requesting client
+    socket.emit('msg', stopSnapMsg);
+    
+    // Also broadcast to other players
+    socket.broadcast.emit('msg', stopSnapMsg);
+    
     return;
   }
   
   // Calculate direction and determine speed (now server-controlled)
   const dir = calculateDir(currentPos, msg.targetPos);
   
+  // Use the already defined MAX_MOVE_DISTANCE for capping move distances
+  let actualTargetPos = { ...msg.targetPos };
+  
+    actualTargetPos = msg.targetPos;
+
   // Determine server-authorized speed (can vary based on player stats, buffs, etc.)
   const speed = getPlayerSpeed(player); // Server decides the speed
   
@@ -13561,7 +13989,7 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   player.movement = {
     ...player.movement,
     isMoving: true,
-    targetPos: msg.targetPos,
+    targetPos: actualTargetPos, // Use the possibly capped target position
     lastUpdateTime: now,
     speed: speed
   };
@@ -13575,8 +14003,8 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   // Update last processed time
   player.lastUpdateTime = now;
   
-  // Broadcast movement to other players
-  socket.broadcast.emit('msg', {
+  // Create a position snapshot message
+  const posSnapMsg = {
     type: 'PosSnap',
     snaps: [{
       id: playerId, 
@@ -13584,7 +14012,13 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
       vel: player.velocity,
       snapTs: now
     }]
-  });
+  };
+  
+  // Send position update back to the requesting client
+  socket.emit('msg', posSnapMsg);
+  
+  // Also broadcast to other players
+  socket.broadcast.emit('msg', posSnapMsg);
   
   // Log movement (debug level)
   log(LOG_CATEGORIES.MOVEMENT, 'debug', `Player ${playerId} moving to ${JSON.stringify(msg.targetPos)} at speed ${speed}`);

@@ -49,6 +49,7 @@ interface GameState {
   donationXpBoost: number;
   donationBoostEndTimeTs: number | null;
   bonusXpEventActive: boolean;
+  serverLastKnownPositions: Record<string, { x: number, z: number }>;  // Last known positions from server
   player: PlayerState | null;
   experience: number;
   experienceToNextLevel: number;
@@ -177,6 +178,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   donationXpBoost: 0,
   donationBoostEndTimeTs: null,
   bonusXpEventActive: false,
+  serverLastKnownPositions: {},
   player: null,
   experience: 0,
   experienceToNextLevel: 100,
@@ -313,40 +315,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       const currentPlayer = state.players[playerData.id];
       if (!currentPlayer) return;
       
-      // Check if this is the locally controlled player
-      const isSelf = playerData.id === state.myPlayerId;
-      
-      if (isSelf && playerData.position) {
-        // For self-controlled player, only accept server position corrections 
-        // when the error is significant (> 0.5 units)
-        const dx = currentPlayer.position.x - playerData.position.x;
-        const dz = currentPlayer.position.z - playerData.position.z;
-        const error = Math.sqrt(dx * dx + dz * dz);
-        
-        // Ignore minor position updates from server for self-controlled player
-        if (error < 0.5) {
-          // Still update other properties, just not position
-          // suppress unused variable warning
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { position: _position, ...otherProps } = playerData;
-          
-          // If we only had position update, return without changes
-          if (Object.keys(otherProps).length === 1) return; // Only 'id' remains
-          
-          // Handle statusEffects array immutably if it exists in otherProps
-          if ('statusEffects' in otherProps) {
-            currentPlayer.statusEffects = [...otherProps.statusEffects];
-            // Remove statusEffects from otherProps so we don't double-apply it
-            delete otherProps.statusEffects;
-          }
-          
-          // Update other properties
-          Object.assign(currentPlayer, otherProps);
-          return;
-        }
-      }
-      
-      // For other players or significant corrections, process normally
       // Handle statusEffects immutably
       if ('statusEffects' in playerData && Array.isArray(playerData.statusEffects)) {
         currentPlayer.statusEffects = [...playerData.statusEffects];
@@ -439,20 +407,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       clientTs: Date.now()
     });
     
-    // Also update local player immediately for smoother prediction
-    const player = get().players[myPlayerId];
-    if (player) {
-      set(produce(state => {
-        const player = state.players[myPlayerId];
-        if (player) {
-          player.movement = {
-            isMoving: true,
-            targetPos: targetPos,
-            lastUpdateTime: performance.now()
-          };
-        }
-      }));
-    }
   },
   
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => {

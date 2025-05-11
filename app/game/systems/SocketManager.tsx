@@ -3,10 +3,11 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
-import { SnapBuffer } from './interpolation';
+import { getBuffer, GROUND_Y } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
 import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
 import { useProjectileStore } from './projectileStore';
+import * as THREE from 'three';
 import { 
   // MoveIntent is actually used in type definitions
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -40,9 +41,6 @@ export default function SocketManager() {
   const removePlayer = useGameStore(state => state.removePlayer);
   const updatePlayer = useGameStore(state => state.updatePlayer);
   const updateEnemy = useGameStore(state => state.updateEnemy);
-  
-  // Add snapBuffers for each remote player
-  const snapBuffers = useRef<Record<string, SnapBuffer>>({});
   
   // Maps to track last positions and velocities for delta updates
   const lastPosMap = useRef<Record<string, VecXZ>>({});
@@ -103,31 +101,96 @@ export default function SocketManager() {
         return;
       }
       
+      // Debug log to trace PosSnap messages (only 5% to avoid flooding console)
+      if (Math.random() < 0.05) {
+        console.log(`Received PosSnap with ${data.snaps.length} entries:`, JSON.stringify(data));
+      }
+      
       const state = useGameStore.getState();
+      const myPlayerId = state.myPlayerId;
+      const clientReceiveTs = performance.now();
       
       // Process each player snapshot in the batch
       for (const snap of data.snaps) {
-        const { id, pos, vel, snapTs } = snap;
+        const { id, pos, vel, serverSnapTs } = snap;
         
-        if (!id || !pos || !snapTs) {
+        if (!id || !pos || !serverSnapTs) {
           console.warn("Invalid snapshot entry:", snap);
           continue;
         }
         
         const player = state.players[id];
         if (player) {
-          // Store in snap buffer
-          if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+          // Get global buffer reference for this player
+          const buffer = getBuffer(id);
           
           // Use velocity from snapshot or default to zero if not provided
           const velocity = vel || { x: 0, z: 0 };
           
-          snapBuffers.current[id].push({
+          // Create a properly timestamped snap object
+          const snapObject = {
             pos: pos,
             vel: velocity,
             rot: player.rotation?.y || 0,
-            snapTs: snapTs
-          });
+            snapTs: clientReceiveTs
+          };
+          
+          // Enhanced debugging to see what's being pushed to the buffer
+          if (id === myPlayerId && Math.random() < 0.1) {
+            console.log("Pushing to position buffer:", {
+              id,
+              pos,
+              vel,
+              serverSnapTs,
+              clientReceiveTs,
+              currentBufferLength: buffer.getBufferLength()
+            });
+          }
+          
+          // Additional validation to check for invalid position data
+          if (pos.x === 0 && pos.z === 0) {
+            console.warn(`Position at (0,0) detected in PosSnap for player ${id}. This might cause movement issues.`);
+          }
+          
+          // Check for duplicates before pushing
+          const existingSnap = buffer.getBufferLength() > 0 ? 
+            buffer.sample(snapTs) : null;
+            
+          if (existingSnap && 
+              Math.abs(existingSnap.x - pos.x) < 0.001 && 
+              Math.abs(existingSnap.z - pos.z) < 0.001) {
+            // Skip duplicate position to prevent animation repeating
+            // Just update the maps and continue
+            lastPosMap.current[id] = pos;
+            lastVelMap.current[id] = velocity;
+            continue;
+          }
+          
+          // Push to the module-global buffer for calculations
+          buffer.push(snapObject);
+          
+          // Track last known server position for this player
+          useGameStore.getState().serverLastKnownPositions = {
+            ...useGameStore.getState().serverLastKnownPositions,
+            [id]: { ...pos }
+          };
+          
+          // Enhanced debug logging, especially for controlled player
+          if (id === myPlayerId) {
+            if (Math.random() < 0.05) {
+                const latestSample = buffer.sample(performance.now() - 100);
+              console.log(`MyPlayer Position Update:`, {
+                playerId: id,
+                pos: pos,
+                vel: velocity,
+                bufferLength: buffer.getBufferLength(),
+                latestSample: latestSample,
+                serverSnapTs: new Date(snapTs).toISOString(),
+                clientReceiveTs: new Date(clientReceiveTs).toISOString(),
+                timeDiff: clientReceiveTs - serverSnapTs
+              });
+            }
+          }
           
           // Update last position and velocity maps
           lastPosMap.current[id] = pos;
@@ -139,7 +202,6 @@ export default function SocketManager() {
     }
   }, []);
   
-  // Handle delta-compressed position updates
   // Handle delta-compressed position updates
   const handlePosDelta = useCallback((data: PosDelta) => {
     try {
@@ -155,6 +217,7 @@ export default function SocketManager() {
       };
       
       const state = useGameStore.getState();
+      const myPlayerId = state.myPlayerId;
       const player = state.players[id];
       
       if (player) {
@@ -170,15 +233,43 @@ export default function SocketManager() {
           lastVelMap.current[id] = vel;
         }
         
-        // Store in snap buffer
-        if (!snapBuffers.current[id]) snapBuffers.current[id] = new SnapBuffer();
+        // Get module-global buffer reference for this player
+        const buffer = getBuffer(id);
+        const clientReceiveTs = performance.now();
         
-        snapBuffers.current[id].push({
+        // Create the snap object
+        const snapObject = {
           pos: newPos,
           vel: vel,
           rot: player.rotation?.y || 0,
-          snapTs: serverTs
-        });
+          snapTs: clientReceiveTs
+        };
+        
+        // Check for duplicates before pushing
+        const existingSnap = buffer.getBufferLength() > 0 ? 
+          buffer.sample(snapObject.snapTs) : null;
+          
+        if (existingSnap && 
+            Math.abs(existingSnap.x - newPos.x) < 0.001 && 
+            Math.abs(existingSnap.z - newPos.z) < 0.001) {
+          // Skip duplicate position to prevent animation repeating
+          // Just update the maps and don't push to buffer
+          lastPosMap.current[id] = newPos;
+          return;
+        }
+        
+        // Push to buffer
+        buffer.push(snapObject);
+        
+        // Special debug for my player's snapBuffer to diagnose camera issues
+        if (id === myPlayerId && Math.random() < 0.05) { // Only log 5% of updates to avoid spam
+          console.log(`MyPlayer (${id}) SnapBuffer delta update:`, {
+            bufferExists: !!buffer,
+            hasSampleMethod: buffer && typeof buffer.sample === 'function',
+            pos: newPos,
+            serverTs
+          });
+        }
         
         // Update last position map
         lastPosMap.current[id] = newPos;
@@ -187,10 +278,6 @@ export default function SocketManager() {
       console.error("Error processing position delta:", err);
     }
   }, []);
-
-  // Handle skill cast failure
-
-  // Handle skill cast failure
 
   // Handle skill cast failure
   const handleCastFail = useCallback((data: { clientSeq: number, reason: 'cooldown' | 'nomana' | 'invalid' }) => {
@@ -358,7 +445,59 @@ export default function SocketManager() {
       });
 
       socket.on('msg', (msg: any) => {
+        // Add validation to prevent "Unknown message type: undefined" errors
+        if (!msg) {
+          console.error('Received null or undefined message');
+          return;
+        }
+
+        // Handle case where we receive an array of messages instead of a single message
+        if (Array.isArray(msg)) {
+          console.log('Received array of messages, processing each one:', JSON.stringify(msg));
+          msg.forEach((item, index) => {
+            if (item && typeof item === 'object' && item.type) {
+              // Process each valid message in the array
+              console.log(`Processing array item ${index} with type: ${item.type}`);
+              processMessage(item);
+            } else {
+              console.warn(`Skipping invalid message in array at index ${index}:`, item);
+            }
+          });
+          return;
+        }
+        
+        // Handle single message object
+        if (typeof msg !== 'object') {
+          console.error('Received invalid message format:', msg);
+          return;
+        }
+        
+        if (!msg.type) {
+          console.error('Received message without type property:', msg);
+          return;
+        }
+        
+        // Process the single message
+        processMessage(msg);
+      });
+      
+      // Helper function to process a single message
+      const processMessage = (msg: any) => {
         switch (msg.type) {
+          case 'BatchUpdate': {
+            // Handle batch updates from server
+            console.log('Received BatchUpdate with', msg.updates?.length || 0, 'items');
+            if (Array.isArray(msg.updates)) {
+              // Process each update in the batch
+              msg.updates.forEach(update => {
+                if (update && typeof update === 'object' && update.type) {
+                  // Process each valid message in the batch
+                  processMessage(update);
+                }
+              });
+            }
+            break;
+          }
           case 'PosSnap': {
             handlePosSnap(msg);
             break;
@@ -557,6 +696,9 @@ export default function SocketManager() {
     
     if (!socket || !myPlayerId) return;
     
+    // Log the outgoing message for debugging
+    console.log('Sending MoveIntent to server:', { targetPos });
+    
     socket.emit('msg', {
       type: 'MoveIntent',
       id: myPlayerId,
@@ -564,16 +706,10 @@ export default function SocketManager() {
       clientTs: Date.now()
     });
     
-    // Also update local player immediately for prediction
-    updatePlayer({ 
-      id: myPlayerId, 
-      movement: { 
-        isMoving: true,
-        targetPos,
-        lastUpdateTime: performance.now()
-      } 
-    });
-  }, [updatePlayer]);
+    // Don't update player locally - let server updates control movement
+    // Store the target in UI state only - not as a position/movement update
+    useGameStore.getState().setTargetWorldPos(new THREE.Vector3(targetPos.x, GROUND_Y, targetPos.z));
+  }, []);
   
   // Function to send CastReq message
   const sendCastReq = useCallback((skillId: string, targetId?: string, targetPos?: VecXZ) => {
@@ -690,6 +826,40 @@ export default function SocketManager() {
       }
     }
   }, [updatePlayer, updateEnemy]);
+
+  // Enhanced buffer push function with error handling
+  function safeBufferPush(buffer: any, snapObject: any, playerId: string) {
+    try {
+      // Add some validation before pushing
+      if (!snapObject || !snapObject.pos || !snapObject.snapTs) {
+        console.warn("Attempted to push invalid snap object to buffer:", snapObject);
+        return false;
+      }
+      
+      // Check for zeros or NaN in position data
+      if (isNaN(snapObject.pos.x) || isNaN(snapObject.pos.z) || 
+          !isFinite(snapObject.pos.x) || !isFinite(snapObject.pos.z)) {
+        console.warn("Invalid position values in snap object:", snapObject);
+        return false;
+      }
+      
+      // Log every hundredth push to avoid console spam
+      if (Math.random() < 0.01) {
+        console.log(`Pushing to buffer for ${playerId}:`, {
+          pos: snapObject.pos,
+          vel: snapObject.vel,
+          bufferLength: buffer.getBufferLength()
+        });
+      }
+      
+      // Perform the actual push
+      buffer.push(snapObject);
+      return true;
+    } catch (err) {
+      console.error("Error pushing to position buffer:", err);
+      return false;
+    }
+  }
 
   return null;
 }

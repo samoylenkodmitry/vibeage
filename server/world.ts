@@ -269,10 +269,11 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
 const lastSentPos: Record<string, VecXZ> = {};
 
 /**
- * Collects position deltas or fallback snaps for all entities
+ * Collects position deltas or individual PosSnap entries for all entities
+ * Note: This returns individual delta messages and PosSnap components, NOT complete messages
  */
-function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap)[] {
-  const msgs: (PosDelta | PosSnap)[] = [];
+function collectDeltas(state: GameState, timestamp: number): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
+  const msgs: (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] = [];
   
   // Add player position updates
   for (const playerId in state.players) {
@@ -300,9 +301,9 @@ function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap
       if (!last) {
         msgs.push({
           id: playerId,
-          type: 'PosSnap',
           pos: pos,
-          serverTs: timestamp
+          vel: vel,
+          snapTs: timestamp
         });
         lastSentPos[playerId] = { ...pos };
         
@@ -323,9 +324,9 @@ function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap
           // Send full snapshot as fallback
           msgs.push({
             id: playerId,
-            type: 'PosSnap',
             pos: pos,
-            serverTs: timestamp
+            vel: vel,
+            snapTs: timestamp
           });
         } else {
           // Send delta-compressed update
@@ -350,30 +351,6 @@ function collectDeltas(state: GameState, timestamp: number): (PosDelta | PosSnap
   }
   
   return msgs;
-}
-
-/**
- * Legacy function for backwards compatibility
- */
-function collectSnaps(state: GameState, timestamp: number): PosSnap[] {
-  // Convert all deltas to snaps for backward compatibility
-  return collectDeltas(state, timestamp).map(msg => {
-    if (msg.type === 'PosSnap') {
-      return msg;
-    } else {
-      // Convert delta to snap using lastSentPos
-      const last = lastSentPos[msg.id];
-      return {
-        id: msg.id,
-        type: 'PosSnap',
-        pos: { 
-          x: last.x, 
-          z: last.z 
-        },
-        serverTs: timestamp
-      };
-    }
-  });
 }
 
 /**
@@ -622,7 +599,11 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     if (snapAccumulator >= 30 / SNAP_HZ) {
       const msgs = collectDeltas(state, now);
       if (msgs.length > 0) {
-        io.emit('msg', msgs);
+        // Wrap the messages array in a container with its own type to prevent client errors
+        io.emit('msg', {
+          type: 'BatchUpdate',
+          updates: msgs
+        });
       }
       snapAccumulator = 0;
     }
@@ -1361,10 +1342,17 @@ export function broadcastSnaps(io: Server, state: GameState): void {
   
   // Send snapshots to all clients as a batch
   if (snapItems.length > 0) {
-    io.emit('msg', {
+    const posSnapMsg = {
       type: 'PosSnap',
       snaps: snapItems
-    });
+    };
+    
+    // Debug log (only 5% of the time to avoid spam)
+    if (Math.random() < 0.05) {
+      console.log(`Broadcasting PosSnap with ${snapItems.length} entries`);
+    }
+    
+    io.emit('msg', posSnapMsg);
   }
 }
 
@@ -1398,12 +1386,15 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   // Get current position
   const currentPos = { x: player.position.x, z: player.position.z };
   
-  // Check if this is a stop command (targetPos same as current position)
+  // Calculate the distance to the target
   const distance = Math.sqrt(
     Math.pow(currentPos.x - msg.targetPos.x, 2) +
     Math.pow(currentPos.z - msg.targetPos.z, 2)
   );
   
+  // Limit maximum teleport distance - if move request is too far, cap it
+  let targetPos = { ...msg.targetPos };
+
   if (distance < 0.05) {
     // This is a stop command - immediately halt the player
     player.movement = { 
@@ -1412,8 +1403,8 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
     };
     player.velocity = { x: 0, z: 0 };
     
-    // Broadcast stopped position to other players
-    socket.broadcast.emit('msg', {
+    // Create a position snapshot for the stop command
+    const stopSnapMsg = {
       type: 'PosSnap',
       snaps: [{
         id: playerId,
@@ -1421,13 +1412,25 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
         vel: { x: 0, z: 0 },
         snapTs: now
       }]
-    });
+    };
+    
+    // Send to the requesting client
+    socket.emit('msg', stopSnapMsg);
+    
+    // Also broadcast to other players
+    socket.broadcast.emit('msg', stopSnapMsg);
+    
     return;
   }
   
   // Calculate direction and determine speed (now server-controlled)
   const dir = calculateDir(currentPos, msg.targetPos);
   
+  // Use the already defined MAX_MOVE_DISTANCE for capping move distances
+  let actualTargetPos = { ...msg.targetPos };
+  
+    actualTargetPos = msg.targetPos;
+
   // Determine server-authorized speed (can vary based on player stats, buffs, etc.)
   const speed = getPlayerSpeed(player); // Server decides the speed
   
@@ -1435,7 +1438,7 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   player.movement = {
     ...player.movement,
     isMoving: true,
-    targetPos: msg.targetPos,
+    targetPos: actualTargetPos, // Use the possibly capped target position
     lastUpdateTime: now,
     speed: speed
   };
@@ -1449,8 +1452,8 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   // Update last processed time
   player.lastUpdateTime = now;
   
-  // Broadcast movement to other players
-  socket.broadcast.emit('msg', {
+  // Create a position snapshot message
+  const posSnapMsg = {
     type: 'PosSnap',
     snaps: [{
       id: playerId, 
@@ -1458,7 +1461,13 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
       vel: player.velocity,
       snapTs: now
     }]
-  });
+  };
+  
+  // Send position update back to the requesting client
+  socket.emit('msg', posSnapMsg);
+  
+  // Also broadcast to other players
+  socket.broadcast.emit('msg', posSnapMsg);
   
   // Log movement (debug level)
   log(LOG_CATEGORIES.MOVEMENT, 'debug', `Player ${playerId} moving to ${JSON.stringify(msg.targetPos)} at speed ${speed}`);

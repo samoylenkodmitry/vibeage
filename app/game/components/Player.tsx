@@ -3,52 +3,41 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider} from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore, selectPlayer, selectMyPlayerId, selectPlayerIds } from '../systems/gameStore';
-import { simulateMovement, GROUND_Y } from '../systems/moveSimulation';
+import { GROUND_Y, getBuffer } from '../systems/interpolation';
 import { VecXZ } from '../../../shared/messages';
-import { SnapBuffer } from '../systems/interpolation';
+import { MovementDebugger } from './SimpleMovementDebugger';
 
 // Individual Player Component
 function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
   const playerRef = useRef<any>(null);
   const playerState = useGameStore(selectPlayer(playerId));
-  const lastUpdateTimeTs = useRef<number | null>(null);
   const socket = useGameStore(state => state.socket);
 
-  // --- Remote Player Interpolation ---
-  const previousPositionRef = useRef(new THREE.Vector3());
-  const targetPositionRef = useRef(new THREE.Vector3());
-  const previousRotationRef = useRef(0);
-  const targetRotationRef = useRef(0);
-  const lastPositionUpdateTimeRef = useRef(0);
-  const interpolationAlphaRef = useRef(0);
-  
-  // --- Snapshot interpolation with SnapBuffer ---
-  const snapBufferRef = useRef<SnapBuffer | null>(null);
-  
-  // --- Controlled Player Reconciliation ---
-  const pendingCorrectionRef = useRef(false);
-  const serverCorrectionPositionRef = useRef(new THREE.Vector3());
-  const correctionStartTimeRef = useRef(0);
-  const correctionDurationRef = useRef(300); // ms
-  
   // --- Hooks and State specific to the controlled player ---
   const { camera, gl, raycaster } = useThree();
   const [isGrounded] = useState(false);
   const [hasJumped, setHasJumped] = useState(false);
-  const [targetPosition, setTargetPosition] = useState<THREE.Vector3 | null>(null);
-  const movementStartTimeTs = useRef<number | null>(null);
-  const lastDistanceToTarget = useRef<number>(Infinity);
-  const stuckCounter = useRef(0);
   const [isRotating, setIsRotating] = useState(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
+  const movementTimestampRef = useRef(0);
 
-  // Used for ground plane intersection calculations and movement
+  // Initialize camera angle
+  useEffect(() => {
+    if (isControlledPlayer) {
+      // Initialize with default value
+      cameraAngleRef.current = Math.PI;
+      
+      // Dispatch initial angle to ensure the camera starts at the correct angle
+      window.dispatchEvent(new CustomEvent('cameraAngleChange', { 
+        detail: { angle: cameraAngleRef.current } 
+      }));
+    }
+  }, [isControlledPlayer]);
+
+  // Used for ground plane intersection calculations
   const moveDirection = useRef({ forward: 0, right: 0, jump: false });
   
-  // --- Constants ---
-  const jumpForce = 8;
-
   // --- Callbacks for Controlled Player Input ---
   const handleMouseClick = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || e.button !== 0 || isRotating) return;
@@ -90,23 +79,21 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           );
           console.log('Ray intersects ground at:', rayPos);
           
-          // Store movement start time and reset tracking variables
-          movementStartTimeTs.current = Date.now();
-          lastDistanceToTarget.current = Infinity;
-          stuckCounter.current = 0;
-          
           // Create target position, ensuring Y is at ground level
           const newTarget = new THREE.Vector3(rayPos.x, GROUND_Y, rayPos.z);
           console.log('Setting movement target:', newTarget);
+          
+          // Record movement timestamp to prevent camera rotation during movement
+          movementTimestampRef.current = Date.now();
         
           // Get reference to store to ensure we're using the proper state
           const store = useGameStore.getState();
           
-          // First update local state to prevent rendering issues
-          setTargetPosition(newTarget);
+          // Set target in global store for reference
           store.setTargetWorldPos(newTarget);
           
-          // Then send network message with move intent
+          // Send network message with move intent
+          // The server will handle the movement and send back position updates
           store.sendMoveIntent({ 
             x: newTarget.x, 
             z: newTarget.z 
@@ -120,14 +107,13 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     }
   }, [isControlledPlayer, isRotating, camera, raycaster, gl, socket, playerState]);
 
-  const emitMoveStop = useCallback((position: any) => {
+  const emitMoveStop = useCallback((position: THREE.Vector3) => {
     if (!socket || !playerState) return;
     
     // Send a final intent to the current position to stop movement
     useGameStore.getState().sendMoveIntent({ x: position.x, z: position.z });
     
-    // Clear local target
-    setTargetPosition(null);
+    // Clear target in global store
     useGameStore.getState().setTargetWorldPos(null);
   }, [socket, playerState]);
 
@@ -149,7 +135,14 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || !isRotating) return;
     const deltaX = e.clientX - previousMousePosition.current.x;
-    cameraAngleRef.current -= deltaX * 0.02;
+    // Update the local ref directly
+    cameraAngleRef.current = cameraAngleRef.current - deltaX * 0.02;
+    
+    // Dispatch a custom event to notify the camera of the angle change
+    window.dispatchEvent(new CustomEvent('cameraAngleChange', { 
+      detail: { angle: cameraAngleRef.current } 
+    }));
+    
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
     e.preventDefault(); e.stopPropagation();
   }, [isControlledPlayer, isRotating]);
@@ -171,15 +164,14 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     // Handle S key for force stop
     if (e.code === 'KeyS' && playerState?.movement?.targetPos) {
       if (playerRef.current) {
-        emitMoveStop(playerRef.current.translation());
+        const position = playerRef.current.translation();
+        emitMoveStop(position);
       }
     }
-    
   }, [isControlledPlayer, hasJumped, isGrounded, playerState, emitMoveStop]);
 
-  const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    if (!isControlledPlayer) return;
-    
+  const handleKeyUp = useCallback(() => {
+    // Empty handler kept for future use
   }, [isControlledPlayer]);
 
   // --- Register event listeners for controlled player ---
@@ -207,192 +199,101 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [isControlledPlayer, handleMouseClick, handleMouseDown, handleMouseUp, handleMouseMove, handleContextMenu, handleKeyDown, handleKeyUp]);
 
-  // --- Update Player.tsx useFrame handler to handle position snapshots ---
-  useFrame((_, delta) => {
+  // --- Update Player.tsx useFrame handler to use position snapshots from the module-global buffer ---
+  useFrame(() => {
     if (!playerRef.current || !playerState) return;
 
     try {
-      const currentPosition = playerRef.current.translation();
-      lastUpdateTimeTs.current = Date.now();
-
-      // For controlled player, we do client-side prediction and light reconciliation
-      if (isControlledPlayer) {
-        // Check if we have a movement active
-        if (playerState.movement?.targetPos && targetPosition) {
-          const dest = playerState.movement.targetPos;
-          const speed = playerState.movement.speed || 20; // Default speed if not set
-          
-          console.log(`[Frame] Moving player, targetPos: (${dest.x.toFixed(2)}, ${dest.z.toFixed(2)}), speed: ${speed}`);
-          
-          // Use simulated movement for predictive client updates
-          const isMoving = simulateMovement(playerRef.current, dest, speed, delta);
-          
-          if (!isMoving) {
-            console.log('[Frame] Player reached destination');
-            // We've arrived at destination - notify server but only once
-            if (targetPosition) {
-              // We've reached our destination, send a final position update
-              const store = useGameStore.getState();
-              store.sendMoveIntent({ 
-                x: currentPosition.x, 
-                z: currentPosition.z 
-              });
-              setTargetPosition(null);
-              store.setTargetWorldPos(null);
-            }
-          } else {
-            // Update rotation to face direction of movement
-            const dir = new THREE.Vector3(dest.x - currentPosition.x, 0, dest.z - currentPosition.z).normalize();
-            const targetRotation = Math.atan2(dir.x, dir.z);
-            playerRef.current.setNextKinematicRotation({
-              x: 0,
-              y: Math.sin(targetRotation / 2),
-              z: 0,
-              w: Math.cos(targetRotation / 2)
-            });
-            
-            // Update local player position in the store
-            useGameStore.getState().setLocalPlayerPos({
-              x: currentPosition.x,
-              y: currentPosition.y,
-              z: currentPosition.z
-            });
-          }
-        }
-
-        // Apply jump velocity if needed
-        if (moveDirection.current.jump && isGrounded && !hasJumped) {
-          playerRef.current.setLinvel({ x: 0, y: jumpForce, z: 0 });
-          moveDirection.current.jump = false;
-        }
-
-        // Update camera position
-        const distance = 15;
-        const height = 10;
-        const angle = cameraAngleRef.current;
-        camera.position.set(
-          currentPosition.x - Math.sin(angle) * distance,
-          currentPosition.y + height,
-          currentPosition.z - Math.cos(angle) * distance
-        );
-        camera.lookAt(currentPosition.x, currentPosition.y + 1.0, currentPosition.z);
-      } else {
-        // Remote player: Use SnapBuffer for interpolation
-        if (snapBufferRef.current && !isControlledPlayer && playerState) {
-          const INTERP_LAG = 120; // ms
-          const renderTs = Date.now() - INTERP_LAG;
-          const playerSpeed = playerState.movement?.speed || 25;
-          const sample = snapBufferRef.current.sample(renderTs, playerSpeed);
-          
-          if (sample) {
-            // Apply interpolated position
-            playerRef.current.setTranslation({
-              x: sample.x,
-              y: GROUND_Y,
-              z: sample.z
-            }, true);
-            
-            // Apply interpolated rotation
-            playerRef.current.setRotation({
-              x: 0,
-              y: Math.sin(sample.rot/2),
-              z: 0,
-              w: Math.cos(sample.rot/2)
-            }, true);
-          }
-        }
-      }
+      const buf = getBuffer(playerId);
+      // Use a consistent lag value of 100ms (matching the camera)
+      const lag = 100;
+      const tick = performance.now() - lag;
+      const s = buf.sample(tick);
       
-      // Handle server-side correction for controlled player
-      if (isControlledPlayer && pendingCorrectionRef.current) {
-        const now = performance.now();
-        const correctionProgress = Math.min(
-          (now - correctionStartTimeRef.current) / correctionDurationRef.current, 
-          1
+      if (s) {
+        // Apply interpolated position from snap for all players
+        const newPos = {
+          x: s.x,
+          y: GROUND_Y,
+          z: s.z
+        };
+        
+        // Debug interpolated position for controlled player
+        if (isControlledPlayer && Math.random() < 0.01) { // Only log 1% of frames
+          console.log(`Player ${playerId} position from buffer:`, newPos);
+          console.log(`Buffer length: ${buf.getBufferLength()}`);
+        }
+        
+        // Get current position before applying the new one
+        const currentPos = playerRef.current.translation();
+        
+        // Calculate distance to detect large jumps
+        const distance = Math.sqrt(
+          Math.pow(newPos.x - currentPos.x, 2) + 
+          Math.pow(newPos.z - currentPos.z, 2)
         );
         
-        if (correctionProgress < 1) {
-          // Get current position
-          const currentPos = playerRef.current.translation();
-          // Create a vector from current position to server position
-          const correctionVector = new THREE.Vector3().subVectors(
-            serverCorrectionPositionRef.current,
-            new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z)
-          );
-          // Apply a fraction of the correction each frame
-          correctionVector.multiplyScalar(delta * 10); // Adjust speed factor as needed
+        // For very large jumps, apply more aggressive smoothing
+        if (distance > 3) {
+          // Calculate an adaptive smoothing factor based on the distance
+          // Larger jumps get smaller factors (slower movement)
+          const adaptiveSmoothFactor = Math.min(0.3, 1.0 / (distance * 0.1));
           
-          // Apply partial correction
-          const newPos = new THREE.Vector3(
-            currentPos.x + correctionVector.x,
-            currentPos.y + correctionVector.y,
-            currentPos.z + correctionVector.z
-          );
-          playerRef.current.setTranslation(newPos);
+          // Create a smoothed position that moves part of the way 
+          const smoothedPos = {
+            x: currentPos.x + (newPos.x - currentPos.x) * adaptiveSmoothFactor,
+            y: GROUND_Y,
+            z: currentPos.z + (newPos.z - currentPos.z) * adaptiveSmoothFactor
+          };
+          
+          // Log the smoothing (occasionally to avoid spam)
+          if (Math.random() < 0.1) {
+            console.log(`Smoothing movement: distance=${distance.toFixed(2)}, factor=${adaptiveSmoothFactor.toFixed(2)}`);
+          }
+          
+          playerRef.current.setNextKinematicTranslation(smoothedPos);
         } else {
-          // Correction completed
-          pendingCorrectionRef.current = false;
+          // Normal case - apply position directly
+          playerRef.current.setNextKinematicTranslation(newPos);
         }
+        
+        // Apply interpolated rotation
+        playerRef.current.setNextKinematicRotation({
+          x: 0,
+          y: Math.sin(s.rot/2),
+          z: 0,
+          w: Math.cos(s.rot/2)
+        });
+      } else if (playerState.position) {
+        // Fallback to using the playerState position if no buffer sample
+        // This should rarely happen once the system is working correctly
+        console.warn(`No position sample for player ${playerId}, falling back to state position`);
+        playerRef.current.setNextKinematicTranslation({
+          x: playerState.position.x,
+          y: GROUND_Y,
+          z: playerState.position.z
+        });
+        
+        // Apply current rotation from state
+        const rotY = playerState.rotation?.y || 0;
+        playerRef.current.setNextKinematicRotation({
+          x: 0,
+          y: Math.sin(rotY/2),
+          z: 0,
+          w: Math.cos(rotY/2)
+        });
       }
+      
     } catch (err) {
       console.error("Error in useFrame handler:", err);
     }
   });
 
-  // --- Effect to handle server position updates for interpolation ---
-  useEffect(() => {
-    if (!playerState) return;
-    
-    // Handle remote player interpolation
-    if (!isControlledPlayer) {
-      const now = performance.now();
-      // If movement just stopped, snap interpolation refs to stop position
-      if (!playerState.movement?.targetPos) {
-        previousPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        targetPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        interpolationAlphaRef.current = 0;
-      } else if (lastPositionUpdateTimeRef.current === 0 || now - lastPositionUpdateTimeRef.current > 1000) {
-        previousPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        targetPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        previousRotationRef.current = playerState.rotation.y;
-        targetRotationRef.current = playerState.rotation.y;
-      } else {
-        // Otherwise, set previous to current target, and update target
-        previousPositionRef.current.copy(targetPositionRef.current);
-        targetPositionRef.current.set(
-          playerState.position.x,
-          playerState.position.y,
-          playerState.position.z
-        );
-        previousRotationRef.current = targetRotationRef.current;
-        targetRotationRef.current = playerState.rotation.y;
-        interpolationAlphaRef.current = 0; // Reset interpolation progress
-      }
-      lastPositionUpdateTimeRef.current = now;
-    }
-  }, [playerState, isControlledPlayer]);
-
   // --- Effect to handle server corrections for controlled player ---
   useEffect(() => {
     if (!socket) return;
 
-    // Handle position updates from server 
+    // Handle position updates from server - just for logging/debugging purposes
     const handlePosSnap = (data: { type: string, snaps: Array<{ id: string, pos: VecXZ, vel: VecXZ, snapTs: number }> }) => {
       if (data.type !== 'PosSnap') return;
       if (!data.snaps || !Array.isArray(data.snaps)) return;
@@ -401,37 +302,30 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       const thisPlayerSnap = data.snaps.find(snap => snap && snap.id === playerId);
       if (!thisPlayerSnap || !thisPlayerSnap.pos) return;
       
-      if (isControlledPlayer) {
-        // For controlled player: apply correction if needed
-        const currentPosition = playerRef.current?.translation();
+      // For debugging only - log significant position jumps for the controlled player
+      if (isControlledPlayer && playerRef.current) {
+        const currentPosition = playerRef.current.translation();
         if (!currentPosition) return;
         
-        const serverPosition = new THREE.Vector3(thisPlayerSnap.pos.x, currentPosition.y, thisPlayerSnap.pos.z);
-        const distance = new THREE.Vector3(
-          serverPosition.x - currentPosition.x,
-          0, // Ignore Y differences
-          serverPosition.z - currentPosition.z
-        ).length();
+        const serverPos = thisPlayerSnap.pos;
+        const distance = Math.sqrt(
+          Math.pow(serverPos.x - currentPosition.x, 2) + 
+          Math.pow(serverPos.z - currentPosition.z, 2)
+        );
         
-        // Only apply correction if the difference is significant
-        if (distance > 1.0) {
-          console.log(`Server correction: ${distance.toFixed(2)} units`);
-          pendingCorrectionRef.current = true;
-          serverCorrectionPositionRef.current.copy(serverPosition);
-          correctionStartTimeRef.current = performance.now();
-        }
-      } else {
-        // For remote players: use SnapBuffer for interpolation
-        if (snapBufferRef.current && playerState) {
-          try {
-            snapBufferRef.current.push({
-              pos: thisPlayerSnap.pos,
-              vel: thisPlayerSnap.vel,
-              rot: playerState.rotation?.y || 0,
-              snapTs: thisPlayerSnap.snapTs
-            });
-          } catch (err) {
-            console.error('Error pushing to snap buffer:', err);
+        // Only log if the difference is significant and reduce frequency
+        if (distance > 3.0 && Math.random() < 0.3) {
+          console.log(`Position difference detected: ${distance.toFixed(2)} units`);
+          
+          // If distance is extremely large (teleport-like), implement stronger smoothing
+          if (distance > 10.0) {
+            console.log(`Large teleport detected: (${currentPosition.x.toFixed(2)}, ${currentPosition.z.toFixed(2)}) → (${serverPos.x.toFixed(2)}, ${serverPos.z.toFixed(2)})`);
+            
+            // Add metadata to help with debugging
+            if (isControlledPlayer) {
+              const buf = getBuffer(playerId);
+              console.log(`Buffer info: length=${buf.getBufferLength()}`);
+            }
           }
         }
       }
@@ -443,7 +337,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     return () => {
       socket.off('msg', handlePosSnap);
     };
-  }, [playerId, socket, isControlledPlayer, playerState]);
+  }, [playerId, socket, isControlledPlayer]);
 
   // --- Listen for player position requests from skill effects ---
   useEffect(() => {
@@ -469,22 +363,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [isControlledPlayer]);
 
-  // Initialize the interpolation buffer on component mount
-  useEffect(() => {
-    if (!isControlledPlayer) {
-      console.log(`Creating SnapBuffer for remote player ${playerId}`);
-      snapBufferRef.current = new SnapBuffer();
-    }
-    
-    return () => {
-      // Clean up
-      if (snapBufferRef.current && !isControlledPlayer) {
-        console.log(`Cleaning up SnapBuffer for remote player ${playerId}`);
-        snapBufferRef.current = null;
-      }
-    };
-  }, [isControlledPlayer, playerId]);
-
   // Log player state on mount
   useEffect(() => {
     console.log(`PlayerCharacter mounting: id=${playerId}, isControlled=${isControlledPlayer}`, {
@@ -502,67 +380,64 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   if (!playerState) return null; // Don't render if state doesn't exist yet
 
   return (
-    <RigidBody
-      ref={playerRef}
-      position={[playerState.position.x, playerState.position.y, playerState.position.z]} // Initial position from store
-      enabledRotations={[false, true, false]} // Allow Y rotation for facing direction
-      colliders={false}
-      mass={isControlledPlayer ? 10 : 1}
-      type={isControlledPlayer ? "kinematicPosition" : "kinematicPosition"}
-      lockRotations={!isControlledPlayer} // Lock rotation for non-controlled players if needed
-      linearDamping={isControlledPlayer ? 0.5 : 0}
-      angularDamping={isControlledPlayer ? 0.95 : 0}
-      friction={isControlledPlayer ? 0.2 : 0}
-      restitution={0.0}
-      gravityScale={isControlledPlayer ? 2 : 0} // Disable gravity for remote players
-      ccd={true}
-      key={playerId} // Important for React to identify elements correctly
-      userData={{ type: 'player', id: playerId }} // Add userData for identification
-    >
-      <CapsuleCollider args={[0.5, 0.6]} />
-      {/* Single unified player model */}
-      <group>
-        {/* Body */}
-        <mesh castShadow position={[0, 0.5, 0]}>
-          <capsuleGeometry args={[0.5, 1.2, 8, 16]} />
-          <meshStandardMaterial color={isControlledPlayer ? "#3870c4" : "#5a8cd9"} />
-        </mesh>
-        {/* Head */}
-        <mesh castShadow position={[0, 1.6, 0]}>
-          <sphereGeometry args={[0.3, 16, 16]} />
-          <meshStandardMaterial color="#f5deb3" />
-        </mesh>
-      </group>
-    </RigidBody>
+    <>
+      <RigidBody
+        ref={playerRef}
+        position={[playerState.position.x, playerState.position.y, playerState.position.z]} // Initial position from store
+        enabledRotations={[false, true, false]} // Allow Y rotation for facing direction
+        colliders={false}
+        mass={isControlledPlayer ? 10 : 1}
+        type="kinematicPosition" // Both controlled and remote players use kinematic positioning
+        lockRotations={!isControlledPlayer} // Lock rotation for non-controlled players if needed
+        linearDamping={isControlledPlayer ? 0.5 : 0}
+        angularDamping={isControlledPlayer ? 0.95 : 0}
+        friction={isControlledPlayer ? 0.2 : 0}
+        restitution={0.0}
+        gravityScale={0} // Disable gravity for all players - server handles physics
+        ccd={true}
+        key={playerId} // Important for React to identify elements correctly
+        userData={{ type: 'player', id: playerId }} // Add userData for identification
+      >
+        <CapsuleCollider args={[0.5, 0.6]} />
+        {/* Single unified player model */}
+        <group>
+          {/* Body */}
+          <mesh castShadow position={[0, 0.5, 0]}>
+            <capsuleGeometry args={[0.5, 1.2, 8, 16]} />
+            <meshStandardMaterial color={isControlledPlayer ? "#3870c4" : "#5a8cd9"} />
+          </mesh>
+          {/* Head */}
+          <mesh castShadow position={[0, 1.6, 0]}>
+            <sphereGeometry args={[0.3, 16, 16]} />
+            <meshStandardMaterial color="#f5deb3" />
+          </mesh>
+        </group>
+      </RigidBody>
+
+      {/* Add movement debugger */}
+      <MovementDebugger 
+        playerId={playerId}
+        playerRef={playerRef}
+        isControlledPlayer={isControlledPlayer}
+      />
+    </>
   );
 }
 
 // Main Players Component (Renders all players)
 export default function Player() {
-  // Use the exported selectors from gameStore for proper memoization
   const playerIds = useGameStore(selectPlayerIds);
   const myPlayerId = useGameStore(selectMyPlayerId);
 
-  // Memoize the component rendering to prevent unnecessary re-renders
-  const memoizedContent = React.useMemo(() => {
-    if (playerIds.length === 0) {
-      return null; // No players to render yet
-    }
-
-    console.log('Rendering players:', playerIds, 'My ID:', myPlayerId);
-
-    return (
-      <group>
-        {playerIds.map(id => (
-          <PlayerCharacter
-            key={id}
-            playerId={id}
-            isControlledPlayer={id === myPlayerId}
-          />
-        ))}
-      </group>
-    );
-  }, [playerIds, myPlayerId]);
-
-  return memoizedContent;
+  return (
+    <>
+      {playerIds.map(id => (
+        <PlayerCharacter 
+          key={id} 
+          playerId={id} 
+          isControlledPlayer={id === myPlayerId} 
+        />
+      ))}
+    </>
+  );
 }

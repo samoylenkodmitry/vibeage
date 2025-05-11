@@ -3,7 +3,9 @@
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { KeyboardControls } from '@react-three/drei';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import World from './World';
 import Player from './Player';
 import Enemies from './Enemies';
@@ -13,7 +15,9 @@ import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
 import GameHud from './GameHud';
 import { useGameStore } from '../systems/gameStore';
+import { GROUND_Y, getBuffer } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
+import { debugAndFixPlayerMovement, forceUpdatePlayerPosition } from '../systems/playerMovementFix';
 
 // Define keyboard controls
 const controls = [
@@ -27,6 +31,68 @@ const controls = [
   { name: 'waterSplash', keys: ['Digit3', 'KeyR'] },
   { name: 'petrify', keys: ['Digit4', 'KeyF'] },
 ];
+
+function CameraFollowPlayer() {
+  const myId = useGameStore(s => s.myPlayerId);
+  const players = useGameStore(s => s.players);
+  const angleRef = useRef(Math.PI);
+
+  // Listen for camera angle changes from Player.tsx
+  useEffect(() => {
+    const handleCameraAngleChange = (e: CustomEvent) => {
+      angleRef.current = e.detail.angle;
+    };
+
+    window.addEventListener('cameraAngleChange', handleCameraAngleChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('cameraAngleChange', handleCameraAngleChange as EventListener);
+    };
+  }, []);
+
+  useFrame(({camera})=>{
+    if(!myId) return;
+    
+    // Get current player state
+    const player = players[myId];
+    if (!player) return;
+    
+    // Use consistent lag value of 100ms to avoid stuttering
+    const s = getBuffer(myId).sample(performance.now()-100);
+    
+    // If buffer has valid data, use it for camera position
+    if(s) {
+      const dist=15, height=10, ang=angleRef.current;
+      
+      // Create target position
+      const targetPos = new THREE.Vector3(
+        s.x - Math.sin(ang)*dist,
+        GROUND_Y + height,
+        s.z - Math.cos(ang)*dist
+      );
+      
+      // Use stronger lerp factor for smoother camera follow
+      camera.position.lerp(targetPos, 0.15);
+      camera.lookAt(s.x, GROUND_Y+1, s.z);
+    } 
+    // Fallback to state-based position if buffer doesn't have data yet
+    else if (player.position) {
+      const dist=15, height=10, ang=angleRef.current;
+      
+      // Create target position using state instead of buffer
+      const targetPos = new THREE.Vector3(
+        player.position.x - Math.sin(ang)*dist,
+        GROUND_Y + height,
+        player.position.z - Math.cos(ang)*dist
+      );
+      
+      camera.position.lerp(targetPos, 0.15);
+      camera.lookAt(player.position.x, GROUND_Y+1, player.position.z);
+    }
+  });
+  
+  return null;
+}
 
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
@@ -121,6 +187,7 @@ export default function Game() {
             <Enemies />
             <TargetRing />
             <VfxManager />
+            <CameraFollowPlayer />
           </Physics>
         </Canvas>
       </KeyboardControls>
