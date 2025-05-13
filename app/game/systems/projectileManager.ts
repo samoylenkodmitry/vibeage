@@ -75,31 +75,46 @@ export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
   },
   
   addEnhancedProjectile: (data: ProjSpawn2) => {
-    set(state => ({
-      enhanced: {
-        ...state.enhanced,
-        [data.castId]: {
-          projId: data.castId,
-          startPos: data.origin,
-          dirXZ: data.dir,
-          speed: data.speed,
-          launchTs: data.launchTs,
-          hitRadius: data.hitRadius,
-          casterId: data.casterId || 'unknown', // Handle potential undefined casterId
-          skillId: data.skillId || 'unknown',  // Handle potential undefined skillId
-          state: 'active',
-          opacity: 1.0,
-          travelMs: data.travelMs // Store the server-provided travel time
-        }
+    set(state => {
+      console.log(`[ProjectileStoreLegacy] Adding enhanced projectile with castId: ${data.castId}, skillId: ${data.skillId}`);
+      
+      // Check if this castId already exists in the enhanced projectiles
+      if (state.enhanced[data.castId]) {
+        console.warn(`[ProjectileStoreLegacy] ProjectileID ${data.castId} already exists in enhanced projectiles. Not creating duplicate.`);
+        return state; // Return unchanged state to prevent duplicate
       }
-    }));
+      
+      return {
+        enhanced: {
+          ...state.enhanced,
+          [data.castId]: {
+            projId: data.castId,
+            startPos: data.origin,
+            dirXZ: data.dir,
+            speed: data.speed,
+            launchTs: data.launchTs,
+            hitRadius: data.hitRadius,
+            casterId: data.casterId || 'unknown', // Handle potential undefined casterId
+            skillId: data.skillId || 'unknown',  // Handle potential undefined skillId
+            state: 'active',
+            opacity: 1.0,
+            travelMs: data.travelMs // Store the server-provided travel time
+          }
+        }
+      };
+    });
   },
   
   handleEnhancedHit: (data: ProjHit2) => {
     // Mark the projectile as hit and start fade-out
     set(state => {
       const projectile = state.enhanced[data.castId];
-      if (!projectile) return state;
+      if (!projectile) {
+        console.warn(`[ProjectileStoreLegacy] No projectile found with castId: ${data.castId} for hit event`);
+        return state;
+      }
+      
+      console.log(`[ProjectileStoreLegacy] Marking projectile ${data.castId} as hit`);
       
       return {
         enhanced: {

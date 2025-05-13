@@ -566,6 +566,7 @@ export default function SocketManager() {
             break;
           }
           case 'ProjSpawn2': {
+            console.log(`[SocketManager] Received ProjSpawn2 message for castId: ${(msg as ProjSpawn2).castId}, skillId: ${(msg as ProjSpawn2).skillId}`, msg);
             // Add to projectile store
             useProjectileStore.getState().add(msg as ProjSpawn2);
             // Also update legacy store during transition
@@ -573,6 +574,8 @@ export default function SocketManager() {
             break;
           }
           case 'ProjHit2': {
+            console.log(`[SocketManager] Received ProjHit2 message for castId: ${(msg as ProjHit2).castId}`, msg);
+            
             // Mark hit in projectile store
             useProjectileStore.getState().hit(msg as ProjHit2);
             // Also update legacy store during transition
@@ -582,6 +585,11 @@ export default function SocketManager() {
             const hitMsg = msg as ProjHit2;
             const player = useGameStore.getState().getMyPlayer();
             const playerId = player?.id || '';
+            
+            // Log the projectile status immediately after calling hit method
+            const projectileState = useProjectileStore.getState();
+            console.log(`[SocketManager] After hit processing - live projectiles: ${JSON.stringify(Object.keys(projectileState.live))}`);
+            console.log(`[SocketManager] After hit processing - recycled projectiles: ${JSON.stringify(Object.keys(projectileState.toRecycle))}`);
             
             // Check if there's damage information
             if (hitMsg.dmg && hitMsg.dmg.length > 0 && hitMsg.hitIds && hitMsg.hitIds.length > 0) {
@@ -615,9 +623,10 @@ export default function SocketManager() {
           }
           default: {
             console.log('Unknown message type:', msg.type);
+            break;
           }
         }
-      });
+      };
 
       // Keep old handlers for compatibility during transition
       socket.on('playerLeft', handlePlayerLeft);

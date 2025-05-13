@@ -38,6 +38,8 @@ export default function FireballProjectile({
   
   // Initialize pooled group on first mount if provided
   useEffect(() => {
+    console.log(`[FireballProjectile] Mounted: ${id}`);
+    
     if (!pooled) return;
     
     // Clear any existing children if this is a reused group
@@ -69,26 +71,33 @@ export default function FireballProjectile({
     pooled.add(coreMesh);
     pooled.add(glowMesh);
     
+    // Ensure the group is visible
+    pooled.visible = true;
+    
     // Store references
     coreRef.current = coreMesh;
     
     return () => {
+      console.log(`[FireballProjectile] Unmounting pooled: ${id}`);
       if (isActive.current && onDone) {
         isActive.current = false;
+        // Ensure the group is invisible when unmounted
+        pooled.visible = false;
         onDone();
       }
     };
-  }, [pooled, onDone]);
+  }, [pooled, onDone, id]);
   
   // Handle cleanup when projectile is done
   useEffect(() => {
     return () => {
+      console.log(`[FireballProjectile] Unmounting component: ${id}`);
       if (isActive.current && onDone) {
         isActive.current = false;
         onDone();
       }
     };
-  }, [onDone]);
+  }, [onDone, id]);
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({

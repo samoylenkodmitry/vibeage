@@ -24,14 +24,38 @@ export const useProjectileStore = create<State & Actions>((set) => ({
   live: {},
   toRecycle: {},
   
-  add: (p) => set((s) => ({ 
-    live: { ...s.live, [p.castId]: p } 
-  })),
+  add: (p) => set((s) => { 
+    console.log(`[ProjectileStore.add] Adding projectile with castId: ${p.castId}, skillId: ${p.skillId}`);
+    
+    // Check if this castId already exists in live projectiles
+    if (s.live[p.castId]) {
+      console.warn(`[ProjectileStore.add] Projectile with castId: ${p.castId} already exists in live projectiles. This might cause duplicate visuals.`);
+      // Keep using the same object reference to avoid creating a duplicate visual
+      return s;
+    }
+    
+    return { 
+      live: { ...s.live, [p.castId]: p } 
+    };
+  }),
   
   hit: (h) => set((s) => { 
+    console.log(`[ProjectileStore.hit] Received ProjHit2 for castId: ${h.castId}`, h);
+    console.log('[ProjectileStore.hit] s.live before:', JSON.stringify(Object.keys(s.live)));
+    
     // Get the projectile that was hit
     const projectile = s.live[h.castId];
-    if (!projectile) return s; // No-op if projectile not found
+    
+    if (!projectile) {
+      console.warn(`[ProjectileStore.hit] Projectile not found in s.live for castId: ${h.castId}`);
+      // If projectile is not in live but is in toRecycle, this might be a duplicate hit message
+      if (s.toRecycle[h.castId]) {
+        console.warn(`[ProjectileStore.hit] Projectile found in s.toRecycle. Possible duplicate hit message.`);
+      }
+      return s; // No-op if projectile not found
+    }
+    
+    console.log(`[ProjectileStore.hit] Found projectile for castId: ${h.castId}`, projectile);
     
     // Mark with hit timestamp and move to toRecycle
     const hitProjectile = { 
@@ -43,10 +67,15 @@ export const useProjectileStore = create<State & Actions>((set) => ({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [h.castId]: _, ...restLive } = s.live;
     
-    return { 
+    const newState = { 
       live: restLive,
       toRecycle: { ...s.toRecycle, [h.castId]: hitProjectile }
-    }; 
+    };
+    
+    console.log('[ProjectileStore.hit] s.live after:', JSON.stringify(Object.keys(newState.live)));
+    console.log('[ProjectileStore.hit] s.toRecycle after:', JSON.stringify(Object.keys(newState.toRecycle)));
+    
+    return newState; 
   }),
   
   markExpired: (castId) => set((s) => {

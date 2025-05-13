@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-11T17:45:52.175Z
+// Generated on: 2025-05-13T16:26:30.724Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -853,6 +853,22 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
             x: newTarget.x, 
             z: newTarget.z 
           });
+          // --- BEGIN BUFFER RESET LOGIC for controlled player ---
+          if (isControlledPlayer && playerRef.current) {
+            const currentVisualPos = playerRef.current.translation();
+            const buffer = getBuffer(playerId);
+            buffer.clearBuffer(); // Add this method to SnapBuffer
+
+            const syntheticSnap: Snap = {
+              pos: { x: currentVisualPos.x, z: currentVisualPos.z },
+              vel: { x: 0, z: 0 }, // Start with zero velocity, server will correct
+              rot: cameraAngleRef.current, // Or current player Y rotation
+              snapTs: performance.now() // Timestamp it as "now" from client's perspective
+            };
+            buffer.push(syntheticSnap);
+            console.log(`[Player.tsx] Cleared buffer and pushed synthetic snap for ${playerId} at`, syntheticSnap.pos);
+          }
+          // --- END BUFFER RESET LOGIC ---
         } else {
           console.warn('Ray did not intersect ground plane');
         }
@@ -961,30 +977,38 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     try {
       const buf = getBuffer(playerId);
       // Use a consistent lag value of 100ms (matching the camera)
-      const lag = 100;
+      const lag = 200;
       const tick = performance.now() - lag;
       const s = buf.sample(tick);
+      if (isControlledPlayer && Math.random() < 0.05) { // Log ~5% of frames
+          const now = performance.now();
+          console.log(
+              `Player ${playerId} sample: renderTs=${tick.toFixed(0)}, now=${now.toFixed(0)}, lag=${lag}, ` +
+              (s ? `s.x=${s.x.toFixed(2)}, s.z=${s.z.toFixed(2)}, s.rot=${s.rot.toFixed(2)}` : "s is null") +
+              `, bufferLen=${buf.getBufferLength()}`
+          );
+          if (buf.getBufferLength() > 0) {
+              const firstTs = buf.debugDump()[0].snapTs.toFixed(0);
+              const lastTs = buf.debugDump()[buf.getBufferLength()-1].snapTs.toFixed(0);
+              console.log(`  Buffer time range: [${firstTs}, ${lastTs}], current renderTs relative to last: ${(tick - parseFloat(lastTs)).toFixed(0)}ms`);
+          }
+      }
       
       if (s) {
-        // Apply interpolated position from snap for all players
-        const newPos = {
-          x: s.x,
-          y: GROUND_Y,
-          z: s.z
-        };
-        
-        // Debug interpolated position for controlled player
-        if (isControlledPlayer && Math.random() < 0.01) { // Only log 1% of frames
-          console.log(`Player ${playerId} position from buffer:`, newPos);
-          console.log(`Buffer length: ${buf.getBufferLength()}`);
-        }
-        
-        // Get current position before applying the new one
-        const currentPos = playerRef.current.translation();
+          const targetStatePos = new THREE.Vector3(s.x, GROUND_Y, s.z);
 
-        const interpolatedPos = new THREE.Vector3().lerpVectors(
-              currentPos, new THREE.Vector3(newPos.x, GROUND_Y, newPos.z), 0.25);
-        playerRef.current.setNextKinematicTranslation(interpolatedPos);
+          // Get the current actual position of the physics body
+          const currentActualPos = playerRef.current.translation();
+
+          // Gently lerp the physics body towards the interpolated target state.
+          // Use a HIGH lerp factor to mostly snap but smooth out tiny residuals.
+          const lerpFactor = 0.75; // Experiment with 0.6 to 0.9
+          const smoothedPos = new THREE.Vector3().lerpVectors(
+              currentActualPos,
+              targetStatePos,
+              lerpFactor
+          );
+          playerRef.current.setNextKinematicTranslation(smoothedPos);
 
         // Apply interpolated rotation
         playerRef.current.setNextKinematicRotation({
@@ -2398,7 +2422,20 @@ export default function VfxManager() {
   
   // Cache the projectiles array with useMemo to prevent unnecessary re-renders
   const projectileArray = useMemo(() => {
-    return Object.values(liveProjectiles);
+    const projArray = Object.values(liveProjectiles);
+    console.log('[VfxManager] Rendering projectileArray:', projArray.map(p => ({ 
+      castId: p.castId, 
+      skillId: p.skillId 
+    })));
+    
+    // Check for duplicate castIds which would cause multiple projectiles
+    const castIds = projArray.map(p => p.castId);
+    const duplicates = castIds.filter((id, index) => castIds.indexOf(id) !== index);
+    if (duplicates.length > 0) {
+      console.warn('[VfxManager] Duplicate projectile castIds detected:', duplicates);
+    }
+    
+    return projArray;
   }, [liveProjectiles]);
   
   // Track active pooled projectiles
@@ -2517,6 +2554,9 @@ export default function VfxManager() {
           const instance = pooledInstances.get(castId);
           
           if (instance) {
+            console.log(`[VfxManager] Recycling projectile with castId: ${castId}`);
+            // Make sure the instance is invisible before recycling
+            instance.visible = false;
             // Recycle the projectile
             recycle(type, instance);
             // Remove from active instances
@@ -2528,6 +2568,10 @@ export default function VfxManager() {
             // Clear from store
             clearRecycled(castId);
           }
+        } else {
+          // If there's a projectile to recycle but no pooled instance, just clear it from the store
+          console.log(`[VfxManager] No pooled instance found for projectile ${castId}, just clearing from store`);
+          clearRecycled(castId);
         }
       });
     }, 100);
@@ -2571,7 +2615,10 @@ export default function VfxManager() {
         // Get or create a pooled group for this projectile
         let group: Group;
         if (!pooledInstances.has(proj.castId)) {
+          // Only create a new pooled instance if one doesn't already exist
+          console.log(`[VfxManager] Creating new pooled group for projectile ${proj.castId}`);
           group = poolGet(skillId);
+          
           // Add to active instances
           setPooledInstances(prev => {
             const newMap = new Map(prev);
@@ -2580,12 +2627,23 @@ export default function VfxManager() {
           });
         } else {
           group = pooledInstances.get(proj.castId)!;
+          console.log(`[VfxManager] Reusing existing pooled group for projectile ${proj.castId}`);
         }
+        
+        // Explicitly ensure the group is visible
+        group.visible = true;
         
         // Render appropriate projectile with pooled group
         const handleDone = () => {
           if (pooledInstances.has(proj.castId)) {
-            recycle(skillId, group);
+            console.log(`[VfxManager] handleDone called for projectile ${proj.castId}`);
+            const skillType = skillId || 'default';
+            const pooledGroup = pooledInstances.get(proj.castId)!;
+            
+            // Make sure it's invisible before recycling
+            pooledGroup.visible = false;
+            recycle(skillType, pooledGroup);
+            
             setPooledInstances(prev => {
               const newMap = new Map(prev);
               newMap.delete(proj.castId);
@@ -4962,7 +5020,8 @@ export default function SocketManager() {
             pos: pos,
             vel: velocity,
             rot: player.rotation?.y || 0,
-            snapTs: clientReceiveTs
+            snapTs: clientReceiveTs,
+            serverSnapTs: serverSnapTs
           };
           
           // Enhanced debugging to see what's being pushed to the buffer
@@ -5395,6 +5454,7 @@ export default function SocketManager() {
             break;
           }
           case 'ProjSpawn2': {
+            console.log(`[SocketManager] Received ProjSpawn2 message for castId: ${(msg as ProjSpawn2).castId}, skillId: ${(msg as ProjSpawn2).skillId}`, msg);
             // Add to projectile store
             useProjectileStore.getState().add(msg as ProjSpawn2);
             // Also update legacy store during transition
@@ -5402,6 +5462,8 @@ export default function SocketManager() {
             break;
           }
           case 'ProjHit2': {
+            console.log(`[SocketManager] Received ProjHit2 message for castId: ${(msg as ProjHit2).castId}`, msg);
+            
             // Mark hit in projectile store
             useProjectileStore.getState().hit(msg as ProjHit2);
             // Also update legacy store during transition
@@ -5411,6 +5473,11 @@ export default function SocketManager() {
             const hitMsg = msg as ProjHit2;
             const player = useGameStore.getState().getMyPlayer();
             const playerId = player?.id || '';
+            
+            // Log the projectile status immediately after calling hit method
+            const projectileState = useProjectileStore.getState();
+            console.log(`[SocketManager] After hit processing - live projectiles: ${JSON.stringify(Object.keys(projectileState.live))}`);
+            console.log(`[SocketManager] After hit processing - recycled projectiles: ${JSON.stringify(Object.keys(projectileState.toRecycle))}`);
             
             // Check if there's damage information
             if (hitMsg.dmg && hitMsg.dmg.length > 0 && hitMsg.hitIds && hitMsg.hitIds.length > 0) {
@@ -5444,9 +5511,10 @@ export default function SocketManager() {
           }
           default: {
             console.log('Unknown message type:', msg.type);
+            break;
           }
         }
-      });
+      };
 
       // Keep old handlers for compatibility during transition
       socket.on('playerLeft', handlePlayerLeft);
@@ -6354,64 +6422,52 @@ export class SnapBuffer {
   private buf: Snap[] = [];
   private lastSample: {x: number, z: number, rot: number} | null = null;
   
-  /**
-   * Limit how far we rewind; call on every push()
-   */
   private clampDepthNow() {
     const now = performance.now();
     while (this.buf.length >= 2 &&
            (now - this.buf[1].snapTs) > MAX_REWIND_MS) {
-      this.buf.shift(); // Remove oldest
+      this.buf.shift();
     }
   }
-  
-  /**
-   * Returns the current buffer length for debugging
-   */
+
   getBufferLength() {
     return this.buf.length;
   }
-  
-  // Debug helper function - expose to window for console debugging
+
   debugDump() {
     return [...this.buf];
   }
-  
-  // Clear buffer for troubleshooting
+
   clearBuffer() {
     this.buf = [];
     this.lastSample = null;
     console.log("Buffer cleared");
   }
-  
-  push(s:Snap){ 
+
+  push(s:Snap){
+console.log(`Pushing snap: id=${(s as any).id}, snapTs(clientReceive)=${s.snapTs.toFixed(0)}, serverOriginTs=${(s as any).serverSnapTs || 'N/A'}, pos=...`);
+      if (this.buf.length > 0) {
+          console.log(`  Current buffer oldestTs=${this.buf[0].snapTs.toFixed(0)}, newestTs=${this.buf[this.buf.length-1].snapTs.toFixed(0)}`);
+      }
     try {
-      // Skip invalid entries
       if (s === null || s === undefined || isNaN(s.snapTs)) {
         console.warn("Skipping invalid snap entry:", s);
         return;
       }
-      
-      // Validate position values
       if (isNaN(s.pos.x) || isNaN(s.pos.z) || !isFinite(s.pos.x) || !isFinite(s.pos.z)) {
         console.warn("Invalid position values in snap, skipping:", s);
         return;
       }
-      
-      // Check if the position is (0,0) which might indicate an issue
       if (s.pos.x === 0 && s.pos.z === 0 && Math.random() < 0.1) {
         console.warn("Received (0,0) position in snap - this may cause movement issues", s);
       }
-      
-      // Prevent duplicates based on timestamp
-      if (this.buf.some(existing => 
-        existing.snapTs === s.snapTs && 
-        existing.pos.x === s.pos.x && 
+      if (this.buf.some(existing =>
+        existing.snapTs === s.snapTs &&
+        existing.pos.x === s.pos.x &&
         existing.pos.z === s.pos.z)) {
-        return; // Skip this duplicate
+        return;
       }
-      
-      // Maintain correct chronological order
+
       let insertIndex = this.buf.length;
       for (let i = 0; i < this.buf.length; i++) {
         if (s.snapTs < this.buf[i].snapTs) {
@@ -6419,195 +6475,97 @@ export class SnapBuffer {
           break;
         }
       }
-      
-      // Insert at the correct position to maintain time ordering
       this.buf.splice(insertIndex, 0, s);
-      
-      // Debug large position jumps in buffer
-      if (this.buf.length >= 2) {
-        const first = this.buf[0].pos;
-        const last = this.buf[this.buf.length - 1].pos;
-        const totalDistance = Math.sqrt(
-          Math.pow(last.x - first.x, 2) + 
-          Math.pow(last.z - first.z, 2)
-        );
-        
-        // If the total travel distance in the buffer is unexpectedly large
-        if (totalDistance > 20) {
-          console.debug("Large movement distance detected in buffer", {
-            totalDistance,
-            firstPos: first,
-            lastPos: last,
-            bufferEntries: this.buf.length,
-            timeSpan: this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs
-          });
-        }
-      }
-      
-      // Trim buffer to reasonable size
-      while (this.buf.length > 60) this.buf.shift();   // keep ~6 s of data
-      
-      // Update lastSample for new entries that are very recent
-      if (insertIndex === this.buf.length - 1) { // If this is the newest entry
-        const now = performance.now();
-        if (now - s.snapTs < 100) { // If it's a very recent update
-          this.lastSample = { x: s.pos.x, z: s.pos.z, rot: s.rot };
-        }
-      }
-      
-      // Random debug logging (only 1% of pushes to avoid spam)
-      if (Math.random() < 0.01 && this.buf.length > 1) {
-        console.debug("Buffer info after push:", {
-          bufferLength: this.buf.length,
-          newest: this.buf[this.buf.length - 1],
-          oldest: this.buf[0],
-          timeSpan: this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs
-        });
-      }
+
+      // ... (existing debug logging for large jumps and buffer info can remain)
+
     } catch (err) {
       console.error("Error in buffer push:", err);
     }
 
-    // Trim buffer to reasonable size
-    while (this.buf.length > 60) this.buf.shift();   // keep ~6 s of data
-    
-    // Also apply timestamp-based cleanup
+    while (this.buf.length > 60) this.buf.shift();
     this.clampDepthNow();
   }
-  
-  /**
-   * Returns interpolated {x,z,rot} or extrapolated position if we're outside range 
-   */
-  sample(renderTs: number) {
-    try {
-      if (this.buf.length === 0) {
-        // No data in buffer - use lastSample if available
-        if (this.lastSample) {
-          console.warn("Using last valid sample due to empty buffer");
-          return this.lastSample;
-        }
-        
-        // If no lastSample either, return default
-        console.warn("Buffer is empty when sampling, returning default position");
-        return { x: 0, z: 0, rot: 0 };
-      }
 
-      // Add safety check for very old timestamps
-      if (renderTs < this.buf[0].snapTs - 5000) {
-        // Instead of just warning, we'll adjust the timestamp and provide more context
-        console.debug("Adjusting render timestamp to match buffer - possible clock sync issue", {
-          renderTs,
-          oldestBufferTs: this.buf[0].snapTs,
-          diff: renderTs - this.buf[0].snapTs,
-          bufferLength: this.buf.length
-        });
-        renderTs = this.buf[0].snapTs;
-      }
-    
-      // Add debugging for timestamp gaps that might be causing issues
-      if (Math.random() < 0.01) { // Only log occasionally
-        console.debug("Buffer sample info:", {
-          renderTs,
-          bufferLength: this.buf.length,
-          oldestTs: this.buf.length > 0 ? this.buf[0].snapTs : 'none',
-          newestTs: this.buf.length > 0 ? this.buf[this.buf.length - 1].snapTs : 'none',
-          timeRange: this.buf.length > 1 ? this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs : 0
-        });
-      }
-      
-      // Debug large position jumps in buffer
-      if (this.buf.length >= 2) {
-        const first = this.buf[0].pos;
-        const last = this.buf[this.buf.length - 1].pos;
-        const totalDistance = Math.sqrt(
-          Math.pow(last.x - first.x, 2) + 
-          Math.pow(last.z - first.z, 2)
-        );
-        
-        // If the total travel distance in the buffer is unexpectedly large
-        if (totalDistance > 20) {
-          console.debug("Large movement distance detected in buffer", {
-            totalDistance,
-            firstPos: first,
-            lastPos: last,
-            bufferEntries: this.buf.length,
-            timeSpan: this.buf[this.buf.length - 1].snapTs - this.buf[0].snapTs
-          });
-        }
-      }
+      sample(renderTs: number) {
+        try {
+          const bufferLength = this.buf.length;
 
-      // early / before first - use oldest entry in buffer
-      if (renderTs <= this.buf[0].snapTs) {
-        const s = this.buf[0];
-        this.lastSample = { x: s.pos.x, z: s.pos.z, rot: s.rot };
-        return this.lastSample;
-      }
-
-      // find the first snap AFTER renderTs
-      const idx = this.buf.findIndex(s => s.snapTs > renderTs);
-
-      // between two snaps → linear interpolate
-      if (idx !== -1 && idx > 0) {
-        const a = this.buf[idx - 1];
-        const b = this.buf[idx];
-        const t = (renderTs - a.snapTs) / (b.snapTs - a.snapTs);
-        
-        // Clamp t to prevent NaN from division by zero
-        const clampedT = isNaN(t) ? 0 : Math.max(0, Math.min(1, t));
-        
-        // Check for potential teleportation between snapshots
-        const distance = Math.sqrt(
-          Math.pow(b.pos.x - a.pos.x, 2) + 
-          Math.pow(b.pos.z - a.pos.z, 2)
-        );
-        
-        // If there's a sudden large jump in position (likely teleport)
-        // and the time difference is small, we should not interpolate
-        if (distance > 15 && (b.snapTs - a.snapTs) < 500) {
-          // If we're closer to the end position, just return that
-          if (clampedT > 0.5) {
-            this.lastSample = { x: b.pos.x, z: b.pos.z, rot: b.rot };
-          } else {
-            this.lastSample = { x: a.pos.x, z: a.pos.z, rot: a.rot };
+          if (bufferLength === 0) {
+            return this.lastSample || { x: 0, z: 0, rot: 0 };
           }
-          return this.lastSample;
-        }
-        
-        // Normal interpolation
-        this.lastSample = {
-          x: a.pos.x + (b.pos.x - a.pos.x) * clampedT,
-          z: a.pos.z + (b.pos.z - a.pos.z) * clampedT,
-          rot: lerpAngle(a.rot, b.rot, clampedT)
-        };
-        return this.lastSample;
-      }
 
-      // after newest snap → extrapolate MAX 120 ms
-      const last = this.buf[this.buf.length - 1];
-      const dt = Math.min((renderTs - last.snapTs) / 1000, 0.12);   // 0–0.12 s
-      
-      // Safety check for NaN or non-finite values
-      if (isNaN(dt) || !isFinite(dt)) {
-        this.lastSample = { x: last.pos.x, z: last.pos.z, rot: last.rot };
-        return this.lastSample;
+          const firstSnap = this.buf[0];
+          const lastSnap = this.buf[bufferLength - 1];
+
+          // Case 1: renderTs is before or at the oldest snapshot in the buffer
+          if (renderTs <= firstSnap.snapTs) {
+            this.lastSample = { x: firstSnap.pos.x, z: firstSnap.pos.z, rot: firstSnap.rot };
+            return this.lastSample;
+          }
+
+          // Case 2: renderTs is after or at the newest snapshot in the buffer (extrapolation)
+          if (renderTs >= lastSnap.snapTs) {
+            const dt = (renderTs - lastSnap.snapTs) / 1000; // Time delta for extrapolation
+            const safeDt = Math.min(Math.max(0, dt), 0.12); // Clamp extrapolation time, ensure non-negative
+
+            const dx = lastSnap.vel.x * safeDt;
+            const dz = lastSnap.vel.z * safeDt;
+            this.lastSample = {
+              x: lastSnap.pos.x + dx,
+              z: lastSnap.pos.z + dz,
+              rot: lastSnap.rot
+            };
+            return this.lastSample;
+          }
+
+          // Case 3: renderTs is between two snapshots (interpolation)
+          let a: Snap = firstSnap;
+          let b: Snap = lastSnap;
+
+          // Find a and b: a.snapTs <= renderTs < b.snapTs
+          for (let i = 0; i < bufferLength - 1; i++) {
+            if (this.buf[i].snapTs <= renderTs && renderTs < this.buf[i + 1].snapTs) {
+              a = this.buf[i];
+              b = this.buf[i + 1];
+              break;
+            }
+          }
+          // If the loop completes and a,b are still first/last, it means renderTs didn't fall
+          // strictly between two points but was covered by Case 1 or 2.
+          // This explicit search is for clarity. If a == b after this, it implies renderTs matches a snap time.
+          // Given Case 1 and 2, this loop should always find a valid a and b if bufferLength > 1.
+
+          const duration = b.snapTs - a.snapTs;
+          if (duration <= 0) {
+            // This should ideally not happen if snaps are distinct and sorted.
+            // If it does, snap to 'a' (the earlier or equal one).
+            this.lastSample = { x: a.pos.x, z: a.pos.z, rot: a.rot };
+            return this.lastSample;
+          }
+
+          const t = (renderTs - a.snapTs) / duration;
+          const clampedT = Math.max(0, Math.min(1, t));
+
+          // Optional: Teleport detection logic (currently commented out)
+          // const distanceBetweenSnaps = Math.sqrt(Math.pow(b.pos.x - a.pos.x, 2) + Math.pow(b.pos.z - a.pos.z, 2));
+          // if (distanceBetweenSnaps > 15 && duration < 500) {
+          //   this.lastSample = (clampedT > 0.5) ? { x: b.pos.x, z: b.pos.z, rot: b.rot } : { x: a.pos.x, z: a.pos.z, rot: a.rot };
+          //   return this.lastSample;
+          // }
+
+          this.lastSample = {
+            x: a.pos.x + (b.pos.x - a.pos.x) * clampedT,
+            z: a.pos.z + (b.pos.z - a.pos.z) * clampedT,
+            rot: lerpAngle(a.rot, b.rot, clampedT)
+          };
+          return this.lastSample;
+
+        } catch (err) {
+          console.error("Error in buffer sample:", err);
+          return this.lastSample || { x: 0, z: 0, rot: 0 };
+        }
       }
-      
-      const dx = last.vel.x * dt;
-      const dz = last.vel.z * dt;
-      
-      this.lastSample = { 
-        x: last.pos.x + dx, 
-        z: last.pos.z + dz, 
-        rot: last.rot 
-      };
-      return this.lastSample;
-    } catch (err) {
-      console.error("Error in buffer sample:", err);
-      
-      // Return the last valid sample if we have one, or default values
-      return this.lastSample || { x: 0, z: 0, rot: 0 };
-    }
-  }
 }
 
 /**
@@ -6702,31 +6660,46 @@ export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
   },
   
   addEnhancedProjectile: (data: ProjSpawn2) => {
-    set(state => ({
-      enhanced: {
-        ...state.enhanced,
-        [data.castId]: {
-          projId: data.castId,
-          startPos: data.origin,
-          dirXZ: data.dir,
-          speed: data.speed,
-          launchTs: data.launchTs,
-          hitRadius: data.hitRadius,
-          casterId: data.casterId || 'unknown', // Handle potential undefined casterId
-          skillId: data.skillId || 'unknown',  // Handle potential undefined skillId
-          state: 'active',
-          opacity: 1.0,
-          travelMs: data.travelMs // Store the server-provided travel time
-        }
+    set(state => {
+      console.log(`[ProjectileStoreLegacy] Adding enhanced projectile with castId: ${data.castId}, skillId: ${data.skillId}`);
+      
+      // Check if this castId already exists in the enhanced projectiles
+      if (state.enhanced[data.castId]) {
+        console.warn(`[ProjectileStoreLegacy] ProjectileID ${data.castId} already exists in enhanced projectiles. Not creating duplicate.`);
+        return state; // Return unchanged state to prevent duplicate
       }
-    }));
+      
+      return {
+        enhanced: {
+          ...state.enhanced,
+          [data.castId]: {
+            projId: data.castId,
+            startPos: data.origin,
+            dirXZ: data.dir,
+            speed: data.speed,
+            launchTs: data.launchTs,
+            hitRadius: data.hitRadius,
+            casterId: data.casterId || 'unknown', // Handle potential undefined casterId
+            skillId: data.skillId || 'unknown',  // Handle potential undefined skillId
+            state: 'active',
+            opacity: 1.0,
+            travelMs: data.travelMs // Store the server-provided travel time
+          }
+        }
+      };
+    });
   },
   
   handleEnhancedHit: (data: ProjHit2) => {
     // Mark the projectile as hit and start fade-out
     set(state => {
       const projectile = state.enhanced[data.castId];
-      if (!projectile) return state;
+      if (!projectile) {
+        console.warn(`[ProjectileStoreLegacy] No projectile found with castId: ${data.castId} for hit event`);
+        return state;
+      }
+      
+      console.log(`[ProjectileStoreLegacy] Marking projectile ${data.castId} as hit`);
       
       return {
         enhanced: {
@@ -6794,14 +6767,38 @@ export const useProjectileStore = create<State & Actions>((set) => ({
   live: {},
   toRecycle: {},
   
-  add: (p) => set((s) => ({ 
-    live: { ...s.live, [p.castId]: p } 
-  })),
+  add: (p) => set((s) => { 
+    console.log(`[ProjectileStore.add] Adding projectile with castId: ${p.castId}, skillId: ${p.skillId}`);
+    
+    // Check if this castId already exists in live projectiles
+    if (s.live[p.castId]) {
+      console.warn(`[ProjectileStore.add] Projectile with castId: ${p.castId} already exists in live projectiles. This might cause duplicate visuals.`);
+      // Keep using the same object reference to avoid creating a duplicate visual
+      return s;
+    }
+    
+    return { 
+      live: { ...s.live, [p.castId]: p } 
+    };
+  }),
   
   hit: (h) => set((s) => { 
+    console.log(`[ProjectileStore.hit] Received ProjHit2 for castId: ${h.castId}`, h);
+    console.log('[ProjectileStore.hit] s.live before:', JSON.stringify(Object.keys(s.live)));
+    
     // Get the projectile that was hit
     const projectile = s.live[h.castId];
-    if (!projectile) return s; // No-op if projectile not found
+    
+    if (!projectile) {
+      console.warn(`[ProjectileStore.hit] Projectile not found in s.live for castId: ${h.castId}`);
+      // If projectile is not in live but is in toRecycle, this might be a duplicate hit message
+      if (s.toRecycle[h.castId]) {
+        console.warn(`[ProjectileStore.hit] Projectile found in s.toRecycle. Possible duplicate hit message.`);
+      }
+      return s; // No-op if projectile not found
+    }
+    
+    console.log(`[ProjectileStore.hit] Found projectile for castId: ${h.castId}`, projectile);
     
     // Mark with hit timestamp and move to toRecycle
     const hitProjectile = { 
@@ -6813,10 +6810,15 @@ export const useProjectileStore = create<State & Actions>((set) => ({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [h.castId]: _, ...restLive } = s.live;
     
-    return { 
+    const newState = { 
       live: restLive,
       toRecycle: { ...s.toRecycle, [h.castId]: hitProjectile }
-    }; 
+    };
+    
+    console.log('[ProjectileStore.hit] s.live after:', JSON.stringify(Object.keys(newState.live)));
+    console.log('[ProjectileStore.hit] s.toRecycle after:', JSON.stringify(Object.keys(newState.toRecycle)));
+    
+    return newState; 
   }),
   
   markExpired: (castId) => set((s) => {
@@ -6990,12 +6992,44 @@ export function registerPool(
 
 export function get(type: string): Group {
   const p = pools[type] || (() => { throw new Error(`Pool type '${type}' is not registered`); })();
-  return p.idle.pop() || p.factory();
+  
+  // Try to find a pooled group that's explicitly marked as invisible
+  let pooledGroup: Group | undefined;
+  for (let i = 0; i < p.idle.length; i++) {
+    if (!p.idle[i].visible) {
+      pooledGroup = p.idle.splice(i, 1)[0];
+      break;
+    }
+  }
+  
+  // If no invisible groups found, create a new one
+  const group = pooledGroup || p.idle.pop() || p.factory();
+  
+  // Ensure the group is visible and properly initialized
+  group.visible = true;
+  group.position.set(0, 0, 0);
+  group.rotation.set(0, 0, 0);
+  group.scale.set(1, 1, 1);
+  
+  console.log(`[vfxPool] Getting ${type} from pool`);
+  return group;
 }
 
 export function recycle(type: string, inst: Group) {
+  console.log(`[vfxPool] Recycling ${type} into pool`);
+  
+  // Make the group invisible
   inst.visible = false;
+  
+  // Reset all transformations
   inst.position.set(0, 0, 0);
+  inst.rotation.set(0, 0, 0);
+  inst.scale.set(1, 1, 1);
+  
+  // Clear any animations or states
+  inst.userData = {};
+  
+  // Return to pool
   pools[type]?.idle.push(inst);
 }
 
@@ -7267,6 +7301,8 @@ export default function FireballProjectile({
   
   // Initialize pooled group on first mount if provided
   useEffect(() => {
+    console.log(`[FireballProjectile] Mounted: ${id}`);
+    
     if (!pooled) return;
     
     // Clear any existing children if this is a reused group
@@ -7298,26 +7334,33 @@ export default function FireballProjectile({
     pooled.add(coreMesh);
     pooled.add(glowMesh);
     
+    // Ensure the group is visible
+    pooled.visible = true;
+    
     // Store references
     coreRef.current = coreMesh;
     
     return () => {
+      console.log(`[FireballProjectile] Unmounting pooled: ${id}`);
       if (isActive.current && onDone) {
         isActive.current = false;
+        // Ensure the group is invisible when unmounted
+        pooled.visible = false;
         onDone();
       }
     };
-  }, [pooled, onDone]);
+  }, [pooled, onDone, id]);
   
   // Handle cleanup when projectile is done
   useEffect(() => {
     return () => {
+      console.log(`[FireballProjectile] Unmounting component: ${id}`);
       if (isActive.current && onDone) {
         isActive.current = false;
         onDone();
       }
     };
-  }, [onDone]);
+  }, [onDone, id]);
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
@@ -10659,7 +10702,17 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             skillId: cast.skillId
           };
           
+          // Check if a projectile with this castId already exists
+          const existingProjIndex = projectiles.findIndex(p => p.castId === cast.castId);
+          if (existingProjIndex >= 0) {
+            console.warn(`[SkillManager] Duplicate projectile detected for castId ${cast.castId}. Removing previous.`);
+            projectiles.splice(existingProjIndex, 1);
+          }
+          
           projectiles.push(projectile);
+          
+          // Log before sending ProjSpawn2 message
+          console.log(`[SkillManager] Sending ProjSpawn2 for castId: ${cast.castId}, skillId: ${cast.skillId}`);
           
           // Emit projectile spawn with travelMs
           io.emit('msg', {
@@ -10670,7 +10723,9 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             speed: projectile.speed,
             launchTs: now,
             hitRadius: skill.projectile?.hitRadius,
-            travelMs: travelMs
+            travelMs: travelMs,
+            casterId: cast.casterId,
+            skillId: cast.skillId
           } as ProjSpawn2);
           
           // Broadcast cast state change
@@ -12797,85 +12852,65 @@ const lastSentPos: Record<string, VecXZ> = {};
  * Collects position deltas or individual PosSnap entries for all entities
  * Note: This returns individual delta messages and PosSnap components, NOT complete messages
  */
-function collectDeltas(state: GameState, timestamp: number): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
-  const msgs: (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] = [];
-  
-  // Add player position updates
-  for (const playerId in state.players) {
-    const player = state.players[playerId];
-    
-    // Skip dead players
-    if (!player.isAlive) continue;
-    
-    // Get predicted/current position
-    const pos = predictPosition(player, timestamp);
-    
-    // Add velocity if moving, zero otherwise
-    const vel = player.velocity || { x: 0, z: 0 };
-    
-    // Always include in snapshot if player has dirty velocity flag
-    // or if player is moving (non-zero velocity)
-    const shouldInclude = (player as any).dirtySnap || 
-                         (vel.x !== 0 || vel.z !== 0) || 
-                         player.movement?.targetPos !== null;
-    
-    if (shouldInclude) {
-      const last = lastSentPos[playerId];
-      
-      // If first time or no last position, send full snapshot
-      if (!last) {
-        msgs.push({
-          id: playerId,
-          pos: pos,
-          vel: vel,
-          snapTs: timestamp
-        });
-        lastSentPos[playerId] = { ...pos };
-        
-      } else {
-        // Calculate deltas in cm
+function collectDeltas(
+    state: GameState,
+    timestamp: number,
+    playersToForceInclude: Set<string> // New parameter
+): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
+    const msgs: any[] = []; // Use 'any' for simplicity here, ensure correct type on push
+
+    for (const playerId in state.players) {
+        const player = state.players[playerId];
+        if (!player.isAlive) continue;
+
+        const pos = predictPosition(player, timestamp); // Server's current authoritative pos
+        const vel = player.velocity || { x: 0, z: 0 };
+        const last = lastSentPos[playerId];
+
+        if (playersToForceInclude.has(playerId) || !last) {
+            msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+            lastSentPos[playerId] = { ...pos };
+            if ((player as any).dirtySnap) (player as any).dirtySnap = false;
+            continue; // Move to next player
+        }
+
+        // If not forced, proceed with delta logic
         const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
         const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
-        
-        // Skip if no movement
-        if (dx === 0 && dz === 0) {
-          // No change, skip message
-          continue;
+
+        // Calculate velocity deltas (optional, can add later if needed)
+        // const lastVel = lastVelSent[playerId] || {x:0, z:0};
+        // const vdx = Math.round((vel.x - lastVel.x) * CM_PER_UNIT);
+        // const vdz = Math.round((vel.z - lastVel.z) * CM_PER_UNIT);
+
+        if (dx === 0 && dz === 0 /* && vdx === 0 && vdz === 0 */) { // If also checking vel deltas
+             if ((player as any).dirtySnap) { // Still send if dirty (e.g. stopped, vel changed to 0)
+                msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+                lastSentPos[playerId] = { ...pos };
+                // lastVelSent[playerId] = {...vel};
+                (player as any).dirtySnap = false;
+             }
+            continue; // No change and not dirty
         }
-        
-        // Check if delta is too large (int16 overflow) or first time seeing entity
-        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM || 
-            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM) {
-          // Send full snapshot as fallback
-          msgs.push({
-            id: playerId,
-            pos: pos,
-            vel: vel,
-            snapTs: timestamp
-          });
+
+        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM ||
+            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM
+            /* || vdx < -POS_MAX_DELTA_CM || ... */) {
+            msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
         } else {
-          // Send delta-compressed update
-          msgs.push({
-            id: playerId,
-            type: 'PosDelta',
-            dx,
-            dz,
-            serverTs: timestamp
-          });
+            // Add vel deltas if they are significant or if velocity itself changed
+            const deltaMsg: PosDelta = { type: 'PosDelta', id: playerId, dx, dz, serverTs: timestamp };
+            // if (vdx !== 0 || vdz !== 0) { // Example: only send vel deltas if they changed
+            //    deltaMsg.vdx = vdx;
+            //    deltaMsg.vdz = vdz;
+            // }
+            msgs.push(deltaMsg);
         }
-        
-        // Update last sent position
         lastSentPos[playerId] = { ...pos };
-      }
-      
-      // Clear the dirty flag after including in update
-      if ((player as any).dirtySnap) {
-        (player as any).dirtySnap = false;
-      }
+        // lastVelSent[playerId] = {...vel};
+        if ((player as any).dirtySnap) (player as any).dirtySnap = false;
     }
-  }
-  
-  return msgs;
+    return msgs;
 }
 
 /**
@@ -12947,37 +12982,6 @@ function executeSkillEffects(
       
       // Spawn projectile using the effect manager
       effects.spawnProjectile(sharedSkill.id, caster, dir, target.id);
-      
-      // Build full ProjSpawn2 message with no missing fields
-      const now = Date.now();
-      const projMsg: ProjSpawn2 = {
-        type: 'ProjSpawn2',
-        castId: crypto.randomUUID(),
-        skillId: sharedSkill.id,
-        src: caster.id,
-        origin: { 
-          x: caster.position.x, 
-          y: caster.position.y + 1.5, // Add height for projectile origin
-          z: caster.position.z 
-        },
-        dir: ensureUnitVec(dir),
-        speed: sharedSkill.speed ?? 30,
-        launchTs: now
-      };
-      
-      // Validate speed and direction (development-only guard)
-      if (process.env.NODE_ENV !== 'production') {
-        if (projMsg.speed <= 0) {
-          throw new Error(`Invalid projectile speed: ${projMsg.speed} for skill ${sharedSkill.id}`);
-        }
-        
-        const dirMagnitude = Math.sqrt(projMsg.dir.x * projMsg.dir.x + projMsg.dir.z * projMsg.dir.z);
-        if (Math.abs(dirMagnitude - 1) > 0.001) {
-          throw new Error(`Direction vector not normalized: magnitude=${dirMagnitude} for skill ${sharedSkill.id}`);
-        }
-      }
-      
-      io.emit('msg', projMsg);
     } else if (sharedSkill.cat === 'instant') {
       // Spawn instant effect using the effect manager
       effects.spawnInstant(sharedSkill.id, caster, [target.id]);
@@ -13122,7 +13126,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 5: Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
-      const msgs = collectDeltas(state, now);
+      const msgs = collectDeltas(state, now, new Set());
       if (msgs.length > 0) {
         // Wrap the messages array in a container with its own type to prevent client errors
         io.emit('msg', {
@@ -13834,51 +13838,40 @@ function handleEnemyRespawns(state: GameState, io: Server) {
  * Should be called regularly (e.g. 10 Hz) to keep clients in sync
  */
 export function broadcastSnaps(io: Server, state: GameState): void {
-  if (!io || !state.players) return;
-  
-  const now = Date.now();
-  const snapItems = [];
-  
-  // Generate position snapshots for all players
-  for (const playerId in state.players) {
-    const player = state.players[playerId];
-    
-    // Only send snapshots for moving players or every 2 seconds for stationary ones
-    const shouldSendSnapshot = 
-      player.movement?.isMoving || 
-      !player.lastSnapTime || 
-      (now - (player.lastSnapTime || 0) > 2000);
-    
-    if (shouldSendSnapshot) {
-      // Get current velocity from player or default to zero
-      const vel = player.velocity || { x: 0, z: 0 };
-      
-      snapItems.push({
-        id: playerId,
-        pos: { x: player.position.x, z: player.position.z },
-        vel: vel,
-        snapTs: now
-      });
-      
-      // Update last snap time
-      player.lastSnapTime = now;
+    if (!io || !state.players) return;
+    const now = Date.now();
+    const playersToForceInclude = new Set<string>();
+
+    for (const playerId in state.players) {
+        const player = state.players[playerId];
+        if (!player.isAlive) continue;
+
+        const isMoving = player.movement?.isMoving;
+        const timeSinceLastSnap = player.lastSnapTime ? (now - player.lastSnapTime) : Infinity;
+
+        // Determine if this player needs a "forced" full snapshot
+        // (e.g., for idle refresh or if it's the very first snap)
+        if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 500)) {
+            playersToForceInclude.add(playerId);
+            console.log(`SERVER: Marking ${playerId} for forced idle snap. LastSnapTime: ${player.lastSnapTime}, TimeSince: ${timeSinceLastSnap}`);
+        }
+        // Always update lastSnapTime if we are considering sending a snap for this player due to idle timeout
+        if (playersToForceInclude.has(playerId) || isMoving) { // Or any other condition that leads to sending
+             player.lastSnapTime = now;
+        }
     }
-  }
-  
-  // Send snapshots to all clients as a batch
-  if (snapItems.length > 0) {
-    const posSnapMsg = {
-      type: 'PosSnap',
-      snaps: snapItems
-    };
-    
-    // Debug log (only 5% of the time to avoid spam)
-    if (Math.random() < 0.05) {
-      console.log(`Broadcasting PosSnap with ${snapItems.length} entries`);
+
+    // Pass the set of players needing forced updates to collectDeltas
+    // collectDeltas will then decide whether to send a full snap or a delta for moving players
+    // not in the forced set.
+    const snapItems = collectDeltas(state, now, playersToForceInclude);
+
+    if (snapItems.length > 0) {
+        io.emit('msg', { type: 'BatchUpdate', updates: snapItems });
+        if (Math.random() < 0.1) { // Reduce log spam
+             console.log(`Broadcasting BatchUpdate with ${snapItems.length} items. Forced: ${playersToForceInclude.size}`);
+        }
     }
-    
-    io.emit('msg', posSnapMsg);
-  }
 }
 
 /**

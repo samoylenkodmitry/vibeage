@@ -467,7 +467,17 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             skillId: cast.skillId
           };
           
+          // Check if a projectile with this castId already exists
+          const existingProjIndex = projectiles.findIndex(p => p.castId === cast.castId);
+          if (existingProjIndex >= 0) {
+            console.warn(`[SkillManager] Duplicate projectile detected for castId ${cast.castId}. Removing previous.`);
+            projectiles.splice(existingProjIndex, 1);
+          }
+          
           projectiles.push(projectile);
+          
+          // Log before sending ProjSpawn2 message
+          console.log(`[SkillManager] Sending ProjSpawn2 for castId: ${cast.castId}, skillId: ${cast.skillId}`);
           
           // Emit projectile spawn with travelMs
           io.emit('msg', {
@@ -478,7 +488,9 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             speed: projectile.speed,
             launchTs: now,
             hitRadius: skill.projectile?.hitRadius,
-            travelMs: travelMs
+            travelMs: travelMs,
+            casterId: cast.casterId,
+            skillId: cast.skillId
           } as ProjSpawn2);
           
           // Broadcast cast state change

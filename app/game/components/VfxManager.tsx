@@ -52,7 +52,20 @@ export default function VfxManager() {
   
   // Cache the projectiles array with useMemo to prevent unnecessary re-renders
   const projectileArray = useMemo(() => {
-    return Object.values(liveProjectiles);
+    const projArray = Object.values(liveProjectiles);
+    console.log('[VfxManager] Rendering projectileArray:', projArray.map(p => ({ 
+      castId: p.castId, 
+      skillId: p.skillId 
+    })));
+    
+    // Check for duplicate castIds which would cause multiple projectiles
+    const castIds = projArray.map(p => p.castId);
+    const duplicates = castIds.filter((id, index) => castIds.indexOf(id) !== index);
+    if (duplicates.length > 0) {
+      console.warn('[VfxManager] Duplicate projectile castIds detected:', duplicates);
+    }
+    
+    return projArray;
   }, [liveProjectiles]);
   
   // Track active pooled projectiles
@@ -171,6 +184,9 @@ export default function VfxManager() {
           const instance = pooledInstances.get(castId);
           
           if (instance) {
+            console.log(`[VfxManager] Recycling projectile with castId: ${castId}`);
+            // Make sure the instance is invisible before recycling
+            instance.visible = false;
             // Recycle the projectile
             recycle(type, instance);
             // Remove from active instances
@@ -182,6 +198,10 @@ export default function VfxManager() {
             // Clear from store
             clearRecycled(castId);
           }
+        } else {
+          // If there's a projectile to recycle but no pooled instance, just clear it from the store
+          console.log(`[VfxManager] No pooled instance found for projectile ${castId}, just clearing from store`);
+          clearRecycled(castId);
         }
       });
     }, 100);
@@ -225,7 +245,10 @@ export default function VfxManager() {
         // Get or create a pooled group for this projectile
         let group: Group;
         if (!pooledInstances.has(proj.castId)) {
+          // Only create a new pooled instance if one doesn't already exist
+          console.log(`[VfxManager] Creating new pooled group for projectile ${proj.castId}`);
           group = poolGet(skillId);
+          
           // Add to active instances
           setPooledInstances(prev => {
             const newMap = new Map(prev);
@@ -234,12 +257,23 @@ export default function VfxManager() {
           });
         } else {
           group = pooledInstances.get(proj.castId)!;
+          console.log(`[VfxManager] Reusing existing pooled group for projectile ${proj.castId}`);
         }
+        
+        // Explicitly ensure the group is visible
+        group.visible = true;
         
         // Render appropriate projectile with pooled group
         const handleDone = () => {
           if (pooledInstances.has(proj.castId)) {
-            recycle(skillId, group);
+            console.log(`[VfxManager] handleDone called for projectile ${proj.castId}`);
+            const skillType = skillId || 'default';
+            const pooledGroup = pooledInstances.get(proj.castId)!;
+            
+            // Make sure it's invisible before recycling
+            pooledGroup.visible = false;
+            recycle(skillType, pooledGroup);
+            
             setPooledInstances(prev => {
               const newMap = new Map(prev);
               newMap.delete(proj.castId);
