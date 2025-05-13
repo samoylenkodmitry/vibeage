@@ -10,7 +10,9 @@ export interface CastSnapshot {
   state: CastState;
   origin: VecXZ;
   target?: VecXZ;
-  startedAt: number;   // Timestamp
+  pos?: VecXZ;       // Current projectile position for authoritative trajectories
+  startedAt: number; // Timestamp
+  castTimeMs: number; // Cast time from skill definition
 }
 
 export interface StatusEffect {

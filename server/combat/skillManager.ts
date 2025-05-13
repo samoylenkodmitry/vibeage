@@ -361,15 +361,120 @@ export function isPlayerCasting(playerId: string): boolean {
 }
 
 /**
+ * Resolves the impact of a skill, applying damage and effects
+ */
+function resolveImpact(cast: Cast, io: Server, world: World): void {
+  const skill = SKILLS[cast.skillId];
+  const targets = getTargetsInArea(cast, world);
+  const caster = world.getPlayerById(cast.casterId);
+  
+  // Calculate damage for each target
+  const dmgValues = targets.map((target: any) => 
+    calculateDamage(skill, caster, cast.castId, target.id)
+  );
+  
+  // Apply damage to each target
+  targets.forEach((target: any, index: number) => {
+    // Apply damage if target has health
+    if (target.health !== undefined) {
+      target.health = Math.max(0, target.health - dmgValues[index]);
+      
+      // Apply skill effects
+      if (skill.effects && skill.effects.length > 0) {
+        applySkillEffects(target, skill, cast.casterId);
+      }
+      
+      // Check if target died
+      if (target.health <= 0 && target.isAlive) {
+        target.isAlive = false;
+        target.deathTimeTs = Date.now();
+      }
+    }
+  });
+  
+  // Emit hit notification with targets
+  io.emit('msg', {
+    type: 'InstantHit',
+    skillId: cast.skillId,
+    origin: cast.origin,
+    targetPos: cast.targetPos || { x: 0, y: 0, z: 0 },
+    hitIds: targets.map((t: any) => t.id),
+    dmg: dmgValues
+  });
+}
+
+/**
+ * Gets all targets in the area of effect for a skill
+ */
+function getTargetsInArea(cast: Cast, world: World): any[] {
+  const skill = SKILLS[cast.skillId];
+  const pos = cast.pos || cast.origin; // Use current projectile position if available
+  
+  // Get radius of impact
+  let radius = 0.5; // Default small radius
+  
+  if (skill.projectile?.splashRadius) {
+    radius = skill.projectile.splashRadius; // Use splash radius for AoE
+  } else if (skill.projectile?.hitRadius) {
+    radius = skill.projectile.hitRadius; // Use hit radius for direct hit
+  } else if (skill.area) {
+    radius = skill.area; // Use area for instant AoE skills
+  }
+  
+  // Get entities in range
+  return world.getEntitiesInCircle({ x: pos.x, z: pos.z }, radius);
+}
+
+/**
+ * Apply skill effects to a target
+ */
+function applySkillEffects(target: any, skill: any, casterId: string): void {
+  if (!skill.effects || skill.effects.length === 0) return;
+  
+  // Apply each effect
+  for (const effect of skill.effects) {
+    if (!effect.type || !effect.value) continue;
+    
+    // Create status effect
+    const statusEffect = {
+      id: nanoid(),
+      type: effect.type,
+      value: effect.value,
+      durationMs: effect.durationMs || 0,
+      startTimeTs: Date.now(),
+      sourceSkill: skill.id
+    };
+    
+    // Add to target's status effects
+    if (!target.statusEffects) {
+      target.statusEffects = [];
+    }
+    
+    // Check for existing effect of same type and replace if found
+    const existingIndex = target.statusEffects.findIndex(
+      (e: any) => e.type === effect.type
+    );
+    
+    if (existingIndex >= 0) {
+      target.statusEffects[existingIndex] = statusEffect;
+    } else {
+      target.statusEffects.push(statusEffect);
+    }
+  }
+}
+
+/**
  * Updates and progresses active casts, transitions them between states
+ * Fully implemented server-authoritative state machine
  */
 export function tickCasts(dt: number, io: Server, world: World): void {
   const now = Date.now();
+  const lastTickMs = now - dt;
   
   for (let i = activeCastsNew.length - 1; i >= 0; i--) {
     const cast = activeCastsNew[i];
     
-    // Skip casts that are already in their final state
+    // Skip casts that are already in their final state and remove after delay
     if (cast.state === CastStateEnum.Impact) {
       // Remove completed casts after a delay
       if (now - cast.startedAt > 5000) { // 5 seconds after cast started
@@ -379,70 +484,36 @@ export function tickCasts(dt: number, io: Server, world: World): void {
     }
     
     // Check if cast time is complete for casts in Casting state
-    if (cast.state === CastStateEnum.Casting) {
-      const elapsedMs = now - cast.startedAt;
+    if (cast.state === CastStateEnum.Casting && now - cast.startedAt >= cast.castTimeMs) {
+      const skill = SKILLS[cast.skillId];
+      const isProjectileSkill = skill.projectile !== undefined;
       
-      if (elapsedMs >= cast.castTimeMs) {
-        // Cast is complete, transition to Traveling or Impact
-        const skill = SKILLS[cast.skillId];
-        const isProjectileSkill = skill.projectile !== undefined;
-        
-        if (isProjectileSkill) {
-          // Change state to Traveling
-          cast.state = CastStateEnum.Traveling;
-          
-          // Calculate direction vector
-          let dir = { x: 0, z: 0 };
-          let tgtPos = cast.targetPos;
-          
-          if (cast.targetPos) {
-            // Targeted at a position
-            const dx = cast.targetPos.x - cast.origin.x;
-            const dz = cast.targetPos.z - cast.origin.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            
-            // Normalize the direction
-            if (dist > 0) {
-              dir = {
-                x: dx / dist,
-                z: dz / dist
-              };
-            }
-          } else if (cast.targetId) {
-            // Targeted at an entity
-            const target = world.getEnemyById(cast.targetId);
-            if (target) {
-              // Calculate travel time based on distance and speed
-              const targetPos = { x: target.position.x, z: target.position.z };
-              const srcPos = cast.origin;
-              const dist = Math.sqrt(
-                Math.pow(targetPos.x - srcPos.x, 2) + 
-                Math.pow(targetPos.z - srcPos.z, 2)
-              );
-              
-              const speed = skill.projectile?.speed || 5;
-              const travelS = dist / speed;
-              
-              // Predict the target's position after travel time
-              const predicted = predictPosition(target, now + travelS * 1000);
-              
-              // Update target position to the predicted position
-              tgtPos = predicted;
-              
-              // Calculate direction to predicted position
-              const dx = predicted.x - cast.origin.x;
-              const dz = predicted.z - cast.origin.z;
-              const predictedDist = Math.sqrt(dx * dx + dz * dz);
-              
-              // Normalize the direction
-              if (predictedDist > 0) {
-                dir = {
-                  x: dx / predictedDist,
-                  z: dz / predictedDist
-                };
-              }
-            }
-          }
+      // Transition to Traveling or Impact based on skill type
+      cast.state = isProjectileSkill ? CastStateEnum.Traveling : CastStateEnum.Impact;
+      
+      // Make a snapshot to broadcast the state change
+      const castSnapshot: CastSnapshot = {
+        castId: cast.castId,
+        casterId: cast.casterId,
+        skillId: cast.skillId,
+        state: cast.state,
+        origin: cast.origin,
+        target: cast.targetPos,
+        startedAt: cast.startedAt,
+        castTimeMs: cast.castTimeMs
+      };
+      
+      // Broadcast the state change
+      io.emit('msg', {
+        type: 'CastSnapshot',
+        data: castSnapshot
+      });
+      
+      // If it's an instant cast, resolve impact immediately
+      if (cast.state === CastStateEnum.Impact) {
+        resolveImpact(cast, io, world);
+        continue;
+      }
           
           // Calculate travel time in milliseconds
           const speed = skill.projectile?.speed || 5;
@@ -528,8 +599,6 @@ export function tickCasts(dt: number, io: Server, world: World): void {
         }
       }
     }
-  }
-}
 
 /**
  * Updates projectile positions and handles collisions

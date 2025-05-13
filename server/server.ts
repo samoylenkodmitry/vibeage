@@ -151,8 +151,8 @@ try {
     console.log('Game zones:', zoneManager.getZones().map(zone => zone.name).join(', '));
     
     // Start the enhanced world loop with the game state
-    console.log('Starting enhanced combat system...');
-    startWorldLoop(io, world.getGameState(), undefined, 50); // 50ms = 20 ticks per second
+    console.log('Starting server-authoritative combat system...');
+    startWorldLoop(io, world.getGameState(), undefined, 33); // ~30 ticks per second for better responsiveness
   });
 } catch (error) {
   console.error('Failed to start server:', error);

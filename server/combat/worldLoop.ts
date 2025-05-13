@@ -1,20 +1,18 @@
-// filepath: /home/s/develop/projects/vibe/1/server/combat/worldLoop.ts
 import { Server } from 'socket.io';
-import { tickCasts, tickProjectiles, updateCasts } from './skillManager';
+import { tickCasts, sendCastSnapshots } from './skillSystem.js';  // New skill system
 import { broadcastSnaps } from '../world.js';
-
-// Add broadcast function to global scope for access from other modules
-(globalThis as any).broadcastSnaps = broadcastSnaps;
+import { VecXZ } from '../../shared/messages.js';
 
 // Game state reference
 let gameState: any = null;
+let isRunning = false;
+let loopInterval: NodeJS.Timeout | null = null;
 let updateProjectilesLegacy: ((gameState: any, deltaTime: number) => void) | null = null;
 
 // Track time
 let lastTime = Date.now();
 let lastSnapBroadcastTime = Date.now();
-let isRunning = false;
-let loopInterval: NodeJS.Timeout | null = null;
+let lastCastSnapshotTime = Date.now();
 
 // Reference to IO server
 let ioServer: Server | null = null;
@@ -31,7 +29,7 @@ const world = {
     return gameState.players[id] || null;
   },
   
-  getEntitiesInCircle: (pos: { x: number, z: number }, radius: number) => {
+  getEntitiesInCircle: (pos: VecXZ, radius: number) => {
     const result: any[] = [];
     
     // Check enemies
@@ -83,20 +81,16 @@ function gameTick() {
     applyMovement(gameState.players, deltaTime);
   }
   
-  // Process cast state machine for the new system
+  // Process skills with the new skill system
   if (ioServer) {
+    // Process the skill state machine
     tickCasts(deltaTime, ioServer, world);
     
-    // Process projectile movement and collision for the new system
-    tickProjectiles(deltaTime, ioServer, world);
-  }
-  
-  // Legacy system integration
-  // Update the casts in the legacy system
-  if (ioServer) {
-    updateCasts(ioServer, gameState?.players);
-  } else {
-    updateCasts(undefined, gameState?.players);
+    // Send cast snapshots to clients on a regular interval (20 Hz)
+    if (now - lastCastSnapshotTime >= 50) {
+      sendCastSnapshots(ioServer);
+      lastCastSnapshotTime = now;
+    }
   }
   
   // Run existing projectile system (legacy mode) if it exists
@@ -108,10 +102,10 @@ function gameTick() {
   // Broadcast position snapshots at 10 Hz (every 100ms)
   if (ioServer && gameState && now - lastSnapBroadcastTime >= 100) {
     // Call the broadcastSnaps function from world.ts
-    if (typeof globalThis.broadcastSnaps === 'function') {
-      globalThis.broadcastSnaps(ioServer, gameState);
+    if (typeof broadcastSnaps === 'function') {
+      broadcastSnaps(ioServer, gameState);
+      lastSnapBroadcastTime = now;
     }
-    lastSnapBroadcastTime = now;
   }
 }
 
@@ -168,6 +162,8 @@ export function startWorldLoop(
   
   // Initialize time
   lastTime = Date.now();
+  lastCastSnapshotTime = Date.now();
+  lastSnapBroadcastTime = Date.now();
   
   // Start the loop if not already running
   if (!isRunning) {
@@ -180,7 +176,7 @@ export function startWorldLoop(
     
     // Start the new interval
     loopInterval = setInterval(gameTick, tickRateMs);
-    console.log(`World loop started with tick rate: ${tickRateMs}ms`);
+    console.log(`World loop started with new server-authoritative skill system, tick rate: ${tickRateMs}ms`);
   }
 }
 

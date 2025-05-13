@@ -15,6 +15,7 @@ import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { effectRunner } from './combat/effects/EffectRunner.js';
 import { PlayerState } from '../shared/types.js';
 import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
+import { handleCastRequest as handleNewCastRequest } from './combat/castHandler.js';
 
 /**
  * Defines the GameState interface
@@ -334,7 +335,7 @@ function collectDeltas(
 }
 
 /**
- * Handles CastReq message
+ * Handles CastReq message using the new server-authoritative skill system
  */
 function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
   const playerId = msg.id;
@@ -345,6 +346,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
+  // Handle using the legacy system first for backwards compatibility
   if (!player.unlockedSkills.includes(msg.skillId as SkillType)) {
     console.warn(`Player ${playerId} tried to cast not owned skill: ${msg.skillId}`);
     socket.emit('msg', {
@@ -355,12 +357,48 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
-  // Use the skillManager to handle the cast request
   // Helper function to get enemy by ID
   const getEnemyById = (id: string) => state.enemies[id] || null;
   
   // Delegate to the skillManager
   handleCastReq(player, msg, socket, getEnemyById);
+}
+
+/**
+ * Helper to get entities in a circle
+ */
+function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): any[] {
+  const result: any[] = [];
+  
+  // Check enemies
+  for (const enemyId in state.enemies) {
+    const enemy = state.enemies[enemyId];
+    if (!enemy.isAlive) continue;
+    
+    const dx = enemy.position.x - pos.x;
+    const dz = enemy.position.z - pos.z;
+    const distSq = dx * dx + dz * dz;
+    
+    if (distSq <= radius * radius) {
+      result.push(enemy);
+    }
+  }
+  
+  // Check players (for PvP if enabled)
+  for (const playerId in state.players) {
+    const player = state.players[playerId];
+    if (!player.isAlive) continue;
+    
+    const dx = player.position.x - pos.x;
+    const dz = player.position.z - pos.z;
+    const distSq = dx * dx + dz * dz;
+    
+    if (distSq <= radius * radius) {
+      result.push(player);
+    }
+  }
+  
+  return result;
 }
 
 /**

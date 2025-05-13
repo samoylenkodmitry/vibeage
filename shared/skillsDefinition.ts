@@ -26,19 +26,21 @@ export interface SkillDef {
   description: string;
   icon: string; // Path to icon image
   cat: SkillCategory;
-  manaCost: number;
-  castMs: number;
-  cooldownMs: number;
+  manaCost: number;     // Mana cost for casting
+  castMs: number;       // Time to cast in milliseconds
+  cooldownMs: number;   // Cooldown time in milliseconds
   dmg?: number;
-  range?: number;
+  range?: number;       // Maximum range from caster
   speed?: number;       // tiles/sec
   area?: number;        // tile radius
   levelRequired: number;
   effects: SkillEffect[];
   projectile?: { 
-    speed?: number; 
-    pierce?: boolean; 
-    splashRadius?: number;
+    speed: number;      // Speed of projectile in units per second
+    maxRange?: number;  // Maximum travel distance 
+    radius?: number;    // Collision radius
+    pierce?: boolean;   // Can hit multiple targets
+    splashRadius?: number; // Area of effect radius on impact
     hitRadius?: number;  // Explicit hit detection radius
     maxPierceHits?: number; // Maximum number of targets that can be hit with pierce
   };
