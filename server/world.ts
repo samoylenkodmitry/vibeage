@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -14,6 +14,7 @@ import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
+import { updateEnemyAI } from './ai/enemyAI.js';
 
 /**
  * Defines the GameState interface
@@ -556,7 +557,15 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Process active casts using the new skill system
+    // Step 3: Update Enemy AI
+    for (const enemyId in state.enemies) {
+      const enemy = state.enemies[enemyId];
+      if (enemy.isAlive) {
+        updateEnemyAI(enemy, state, io, spatial, TICK/1000); // deltaTime is in ms, convert to s
+      }
+    }
+    
+    // Step 4: Process active casts using the new skill system
     const world = {
       getEnemyById: (id: string) => state.enemies[id] || null,
       getPlayerById: (id: string) => state.players[id] || null,
@@ -604,6 +613,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'CastReq': return onCastReq(socket, state, msg as CastReq, io);
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
+        case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
       }
     },
     
@@ -727,6 +737,14 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
           experienceValue: 50 + (level * 10),
           statusEffects: [],
           targetId: null,
+          
+          // AI-related fields
+          aiState: 'idle',
+          aggroRadius: 15, // Default aggro radius
+          attackCooldownMs: 2000, // Default attack cooldown (2 seconds)
+          lastAttackTime: 0,
+          movementSpeed: 6, // Default movement speed
+          velocity: { x: 0, z: 0 }
         };
         
         // Add enemy to spatial hash grid
@@ -1490,4 +1508,53 @@ function isValidPosition(pos: VecXZ): boolean {
   }
   
   return true;
+}
+
+/**
+ * Handles respawn requests from players who have died
+ * @param socket The socket of the player requesting respawn
+ * @param state The game state
+ * @param msg The respawn request message
+ * @param io Server instance for broadcasting updates
+ */
+function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest, io: Server): void {
+  const playerId = msg.id;
+  const player = state.players[playerId];
+  
+  if (!player) {
+    console.error(`[RespawnRequest] Player ${playerId} not found`);
+    return;
+  }
+  
+  // Verify the player is actually dead
+  if (player.isAlive) {
+    console.warn(`[RespawnRequest] Player ${playerId} is already alive`);
+    return;
+  }
+  
+  // Set spawn position (can be customized if you have multiple spawn points)
+  const spawnPos = { x: 0, y: 0.5, z: 0 };
+  
+  // Resurrect player with partial health and mana
+  player.isAlive = true;
+  player.health = Math.floor(player.maxHealth * 0.5); // 50% health on respawn
+  player.mana = Math.floor(player.maxMana * 0.5); // 50% mana on respawn
+  player.position = { ...spawnPos };
+  player.deathTimeTs = undefined;
+  player.velocity = { x: 0, z: 0 };
+  
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} (${player.name}) respawned at ${JSON.stringify(spawnPos)}`);
+  
+  // Inform all clients about the resurrection
+  io.emit('playerUpdated', {
+    id: player.id,
+    health: player.health,
+    mana: player.mana,
+    position: player.position,
+    isAlive: true,
+    deathTimeTs: undefined
+  });
+  
+  // Update spatial grid with new position
+  spatial.move(player.id, player.position, player.position); // Force update of position in spatial grid
 }

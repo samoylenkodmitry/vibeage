@@ -33,4 +33,12 @@ export interface Enemy {
   markedForRemoval?: boolean; // Flag for client-side cleanup
   deathTimeTs?: number; // Timestamp when the enemy died
   attackCooldown?: boolean; // Whether the enemy is in attack cooldown
+  
+  // AI-related fields
+  aiState?: 'idle' | 'chasing' | 'attacking' | 'returning'; // Current AI state
+  aggroRadius?: number; // Distance at which enemy detects players
+  attackCooldownMs?: number; // Cooldown between attacks in milliseconds
+  lastAttackTime?: number; // Timestamp of the last attack
+  movementSpeed?: number; // Units per second
+  velocity?: { x: number; z: number }; // Current velocity vector
 }

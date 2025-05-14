@@ -283,6 +283,31 @@ export default React.memo(function UI() {
   const castingProgressMs = player?.castingProgressMs ?? 0;
   const currentZoneId = useGameStore(state => state.currentZoneId);
   const flashingSkill = useGameStore(state => state.flashingSkill);
+  const socket = useGameStore(state => state.socket);
+  
+  // Check if player is dead
+  const isPlayerDead = player && !player.isAlive;
+
+  // Handle resurrection
+  const handleResurrect = useCallback((event: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    console.log('Resurrection button clicked, sending respawn request');
+    
+    if (!socket) {
+      console.error('No socket connection available');
+      return;
+    }
+    
+    socket.emit('msg', {
+      type: 'RespawnRequest',
+      id: player?.id,
+      clientTs: Date.now()
+    });
+  }, [socket, player?.id]);
   
   // Memoize selected target lookup
   const selectedTarget = useMemo(() => 
@@ -463,6 +488,19 @@ export default React.memo(function UI() {
 
       {/* Combat Log */}
       <CombatLog />
+      
+      {/* Death Overlay */}
+      {isPlayerDead && (
+        <div className="fixed inset-0 bg-black/75 z-50 flex flex-col items-center justify-center pointer-events-auto">
+          <div className="text-red-500 text-4xl font-bold mb-6">You have died</div>
+          <button 
+            onClick={(e) => handleResurrect(e)}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-lg transition-colors cursor-pointer"
+          >
+            Resurrect at Home
+          </button>
+        </div>
+      )}
     </div>
   );
 });

@@ -183,3 +183,17 @@ export interface EffectSnapshotMsg extends ServerMsg {
   remainingMs: number; // Remaining duration in ms
   seed: number;     // RNG seed for deterministic calculations
 }
+
+export interface EnemyAttack extends ServerMsg {
+  type: 'EnemyAttack';
+  enemyId: string;
+  targetId: string; // Player ID
+  damage: number;
+}
+
+// Player respawn message - Client → Server request to resurrect
+export interface RespawnRequest extends ClientMsg {
+  type: 'RespawnRequest';
+  id: string;          // Player ID
+  clientTs: number;    // Ms since epoch on the client
+}

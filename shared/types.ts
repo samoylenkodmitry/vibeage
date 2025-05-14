@@ -47,6 +47,14 @@ export interface Enemy {
     attackCooldown?: boolean;
     posHistory?: { ts: number; x: number; z: number }[];  // Position history buffer similar to players
     lastUpdateTime?: number;  // Track last update time
+    
+    // AI-related fields
+    aiState: 'idle' | 'chasing' | 'attacking' | 'returning'; // Current AI state
+    aggroRadius: number;         // Distance at which enemy detects players
+    attackCooldownMs: number;    // Cooldown between attacks in milliseconds
+    lastAttackTime: number;      // Timestamp of the last attack
+    movementSpeed: number;       // Units per second
+    velocity?: { x: number; z: number }; // Similar to player velocity
 }
 
 // Intent-based movement messages

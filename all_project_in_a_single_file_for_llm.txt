@@ -1,5 +1,5 @@
 // Project Documentation
-// Generated on: 2025-05-14T17:15:13.914Z
+// Generated on: 2025-05-14T17:47:27.195Z
 // This file contains the source code of all meaningful files in the project.
 
 
@@ -2330,6 +2330,31 @@ export default React.memo(function UI() {
   const castingProgressMs = player?.castingProgressMs ?? 0;
   const currentZoneId = useGameStore(state => state.currentZoneId);
   const flashingSkill = useGameStore(state => state.flashingSkill);
+  const socket = useGameStore(state => state.socket);
+  
+  // Check if player is dead
+  const isPlayerDead = player && !player.isAlive;
+
+  // Handle resurrection
+  const handleResurrect = useCallback((event: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    console.log('Resurrection button clicked, sending respawn request');
+    
+    if (!socket) {
+      console.error('No socket connection available');
+      return;
+    }
+    
+    socket.emit('msg', {
+      type: 'RespawnRequest',
+      id: player?.id,
+      clientTs: Date.now()
+    });
+  }, [socket, player?.id]);
   
   // Memoize selected target lookup
   const selectedTarget = useMemo(() => 
@@ -2510,6 +2535,19 @@ export default React.memo(function UI() {
 
       {/* Combat Log */}
       <CombatLog />
+      
+      {/* Death Overlay */}
+      {isPlayerDead && (
+        <div className="fixed inset-0 bg-black/75 z-50 flex flex-col items-center justify-center pointer-events-auto">
+          <div className="text-red-500 text-4xl font-bold mb-6">You have died</div>
+          <button 
+            onClick={(e) => handleResurrect(e)}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-lg transition-colors cursor-pointer"
+          >
+            Resurrect at Home
+          </button>
+        </div>
+      )}
     </div>
   );
 });
@@ -3361,6 +3399,14 @@ export interface Enemy {
   markedForRemoval?: boolean; // Flag for client-side cleanup
   deathTimeTs?: number; // Timestamp when the enemy died
   attackCooldown?: boolean; // Whether the enemy is in attack cooldown
+  
+  // AI-related fields
+  aiState?: 'idle' | 'chasing' | 'attacking' | 'returning'; // Current AI state
+  aggroRadius?: number; // Distance at which enemy detects players
+  attackCooldownMs?: number; // Cooldown between attacks in milliseconds
+  lastAttackTime?: number; // Timestamp of the last attack
+  movementSpeed?: number; // Units per second
+  velocity?: { x: number; z: number }; // Current velocity vector
 }
 
 
@@ -5800,6 +5846,10 @@ export default function SocketManager() {
             handleCombatLog(msg as CombatLogMsg);
             break;
           }
+          case 'EnemyAttack': {
+            handleEnemyAttack(msg);
+            break;
+          }
           default: {
             console.log('Unknown message type:', msg.type);
             break;
@@ -5930,6 +5980,36 @@ export default function SocketManager() {
     });
   }, [sendCastReq, sendMoveIntent]);
 
+  // Handle enemy attack message
+  const handleEnemyAttack = useCallback((msg: {enemyId: string, targetId: string, damage: number}) => {
+    console.log(`[SocketManager] Enemy ${msg.enemyId} attacks player ${msg.targetId} for ${msg.damage} damage`);
+    
+    // Create formatted text message for combat log
+    const enemy = useGameStore.getState().enemies[msg.enemyId];
+    const player = useGameStore.getState().players[msg.targetId];
+    const enemyName = enemy?.name || 'Unknown Enemy';
+    const playerName = player?.name || 'Unknown Player';
+    
+    // Add to combat log
+    useCombatLogStore.getState().push({
+      id: nextId++,
+      text: `${enemyName} attacks ${playerName} for ${msg.damage} damage!`,
+      ts: Date.now()
+    });
+    
+    // Trim the log after adding entries
+    useCombatLogStore.getState().trim();
+    
+    // Trigger VFX event for enemy attack
+    window.dispatchEvent(new CustomEvent('enemyattack', {
+      detail: {
+        enemyId: msg.enemyId,
+        targetId: msg.targetId,
+        damage: msg.damage
+      }
+    }));
+  }, []);
+  
   return null;
 }
 
@@ -9840,6 +9920,257 @@ export default nextConfig;
 
 
 // ==============================================================================
+// FILE: server/ai/enemyAI.ts
+// ==============================================================================
+
+// server/ai/enemyAI.ts
+import { Server } from 'socket.io';
+import { Enemy, PlayerState } from '../../shared/types.js';
+import { VecXZ } from '../../shared/messages.js';
+import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+
+// Minimal GameState interface for this module
+interface GameState {
+    players: Record<string, PlayerState>;
+    enemies: Record<string, Enemy>;
+}
+
+// Helper: Calculate distance
+function localDistance(a: VecXZ, b: VecXZ): number {
+    const dx = a.x - b.x;
+    const dz = a.z - b.z;
+    return Math.sqrt(dx * dx + dz * dz);
+}
+
+// Helper: Calculate direction
+function localCalculateDir(from: VecXZ, to: VecXZ): VecXZ {
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist === 0) return { x: 0, z: 0 };
+    return { x: dx / dist, z: dz / dist };
+}
+
+// Check if entity moved to a different grid cell
+export function gridCellChanged(oldPos: VecXZ, newPos: VecXZ, cellSize: number = 10): boolean {
+    const oldCellX = Math.floor(oldPos.x / cellSize);
+    const oldCellZ = Math.floor(oldPos.z / cellSize);
+    const newCellX = Math.floor(newPos.x / cellSize);
+    const newCellZ = Math.floor(newPos.z / cellSize);
+    
+    return oldCellX !== newCellX || oldCellZ !== newCellZ;
+}
+
+export function updateEnemyAI(
+    enemy: Enemy,
+    gameState: GameState,
+    io: Server,
+    spatialGrid: SpatialHashGrid,
+    deltaTime: number // in seconds
+) {
+    if (!enemy.isAlive) {
+        return;
+    }
+
+    const now = Date.now();
+    let broadcastEnemyUpdate = false;
+
+    // State: Idle
+    if (enemy.aiState === 'idle') {
+        // Scan for players in aggro radius
+        const nearbyPlayerIds = spatialGrid.queryCircle({ x: enemy.position.x, z: enemy.position.z }, enemy.aggroRadius);
+        for (const playerId of nearbyPlayerIds) {
+            const player = gameState.players[playerId];
+            if (player && player.isAlive) {
+                const distToPlayer = localDistance(enemy.position, player.position);
+                if (distToPlayer <= enemy.aggroRadius) {
+                    enemy.targetId = playerId;
+                    enemy.aiState = 'chasing';
+                    console.log(`[AI] Enemy ${enemy.id} aggroed player ${playerId}`);
+                    broadcastEnemyUpdate = true;
+                    break;
+                }
+            }
+        }
+        // If idle and not at spawn point, try to return
+        if (enemy.aiState === 'idle' && localDistance(enemy.position, enemy.spawnPosition) > 1) {
+             enemy.aiState = 'returning';
+             broadcastEnemyUpdate = true;
+        }
+    }
+
+    // State: Chasing
+    if (enemy.aiState === 'chasing') {
+        const targetPlayer = enemy.targetId ? gameState.players[enemy.targetId] : null;
+        if (!targetPlayer || !targetPlayer.isAlive) {
+            enemy.targetId = null;
+            enemy.aiState = 'returning'; // Or 'idle' if already at spawn
+            console.log(`[AI] Enemy ${enemy.id} lost target or target died, returning.`);
+            broadcastEnemyUpdate = true;
+        } else {
+            const distToTarget = localDistance(enemy.position, targetPlayer.position);
+            if (distToTarget <= enemy.attackRange) {
+                enemy.aiState = 'attacking';
+                // Stop movement by clearing velocity
+                enemy.velocity = { x: 0, z: 0 };
+                broadcastEnemyUpdate = true;
+            } else {
+                // Move towards target
+                const dirToTarget = localCalculateDir(enemy.position, targetPlayer.position);
+                const oldPos = { x: enemy.position.x, z: enemy.position.z };
+
+                // Update enemy velocity
+                enemy.velocity = { 
+                    x: dirToTarget.x * enemy.movementSpeed,
+                    z: dirToTarget.z * enemy.movementSpeed
+                };
+                
+                // Update position based on velocity
+                enemy.position.x += enemy.velocity.x * deltaTime;
+                enemy.position.z += enemy.velocity.z * deltaTime;
+                
+                // Update rotation to face target
+                enemy.rotation.y = Math.atan2(dirToTarget.x, dirToTarget.z);
+
+                if (gridCellChanged(oldPos, enemy.position)) {
+                    spatialGrid.move(enemy.id, oldPos, enemy.position);
+                }
+                // Position updates are sent via broadcastSnaps/collectDeltas
+            }
+        }
+    }
+
+    // State: Attacking
+    if (enemy.aiState === 'attacking') {
+        const targetPlayer = enemy.targetId ? gameState.players[enemy.targetId] : null;
+        if (!targetPlayer || !targetPlayer.isAlive) {
+            enemy.targetId = null;
+            enemy.aiState = 'returning';
+            console.log(`[AI] Enemy ${enemy.id} target died while attacking, returning.`);
+            broadcastEnemyUpdate = true;
+        } else {
+            const distToTarget = localDistance(enemy.position, targetPlayer.position);
+            if (distToTarget > enemy.attackRange) {
+                enemy.aiState = 'chasing';
+                broadcastEnemyUpdate = true;
+            } else {
+                // Face the target while attacking
+                const dirToTarget = localCalculateDir(enemy.position, targetPlayer.position);
+                enemy.rotation.y = Math.atan2(dirToTarget.x, dirToTarget.z);
+                
+                if (now - enemy.lastAttackTime >= enemy.attackCooldownMs) {
+                    // Perform attack
+                    const damageDealt = enemy.attackDamage; // Basic damage for now
+                    targetPlayer.health -= damageDealt;
+                    enemy.lastAttackTime = now;
+
+                    console.log(`[AI] Enemy ${enemy.id} attacked player ${targetPlayer.id} for ${damageDealt} damage. Player HP: ${targetPlayer.health}`);
+
+                    // Emit EnemyAttack message for client VFX
+                    io.emit('msg', {
+                        type: 'EnemyAttack',
+                        enemyId: enemy.id,
+                        targetId: targetPlayer.id,
+                        damage: damageDealt
+                    });
+
+                    // Broadcast player health update
+                    io.emit('playerUpdated', {
+                        id: targetPlayer.id,
+                        health: targetPlayer.health
+                    });
+
+                    if (targetPlayer.health <= 0) {
+                        targetPlayer.health = 0;
+                        targetPlayer.isAlive = false;
+                        targetPlayer.deathTimeTs = now;
+                        targetPlayer.targetId = null; // Player can't target when dead
+                        targetPlayer.castingSkill = null; // Stop casting
+                        targetPlayer.castingProgressMs = 0;
+
+                        console.log(`[AI] Player ${targetPlayer.id} was killed by enemy ${enemy.id}`);
+                        io.emit('playerUpdated', { // Full update for death state
+                            id: targetPlayer.id,
+                            health: targetPlayer.health,
+                            isAlive: targetPlayer.isAlive,
+                            deathTimeTs: targetPlayer.deathTimeTs,
+                            targetId: targetPlayer.targetId,
+                            castingSkill: targetPlayer.castingSkill,
+                            castingProgressMs: targetPlayer.castingProgressMs
+                        });
+
+                        // Award XP to the enemy (if there's a function for that)
+                        // This would be handled in the world.ts file when players kill enemies
+
+                        // Enemy stops attacking and returns to idle/spawn
+                        enemy.targetId = null;
+                        enemy.aiState = 'returning';
+                        broadcastEnemyUpdate = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // State: Returning
+    if (enemy.aiState === 'returning') {
+        const distToSpawn = localDistance(enemy.position, enemy.spawnPosition);
+        if (distToSpawn <= 1.0) { // Close enough to spawn point
+            enemy.aiState = 'idle';
+            enemy.position.x = enemy.spawnPosition.x; // Snap to spawn
+            enemy.position.z = enemy.spawnPosition.z;
+            enemy.velocity = { x: 0, z: 0 };
+            broadcastEnemyUpdate = true;
+        } else {
+            // Move towards spawn point
+            const dirToSpawn = localCalculateDir(enemy.position, enemy.spawnPosition);
+            const oldPos = { x: enemy.position.x, z: enemy.position.z };
+
+            // Update enemy velocity
+            enemy.velocity = { 
+                x: dirToSpawn.x * enemy.movementSpeed,
+                z: dirToSpawn.z * enemy.movementSpeed
+            };
+            
+            // Update position based on velocity
+            enemy.position.x += enemy.velocity.x * deltaTime;
+            enemy.position.z += enemy.velocity.z * deltaTime;
+            
+            // Update rotation to face spawn point
+            enemy.rotation.y = Math.atan2(dirToSpawn.x, dirToSpawn.z);
+
+            if (gridCellChanged(oldPos, enemy.position)) {
+                spatialGrid.move(enemy.id, oldPos, enemy.position);
+            }
+        }
+        
+        // During returning, can still aggro if a player comes close
+        const nearbyPlayerIds = spatialGrid.queryCircle({ x: enemy.position.x, z: enemy.position.z }, enemy.aggroRadius);
+        for (const playerId of nearbyPlayerIds) {
+            const player = gameState.players[playerId];
+            if (player && player.isAlive) {
+                enemy.targetId = playerId;
+                enemy.aiState = 'chasing';
+                broadcastEnemyUpdate = true;
+                break;
+            }
+        }
+    }
+
+    if (broadcastEnemyUpdate) {
+        io.emit('enemyUpdated', {
+            id: enemy.id,
+            targetId: enemy.targetId,
+            aiState: enemy.aiState,
+            // position and rotation are handled by general position broadcasts
+        });
+    }
+    
+    enemy.lastUpdateTime = now; // For enemy movement prediction if needed
+}
+
+
+// ==============================================================================
 // FILE: server/collision.ts
 // ==============================================================================
 
@@ -12688,7 +13019,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -12699,6 +13030,7 @@ import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
+import { updateEnemyAI } from './ai/enemyAI.js';
 
 /**
  * Defines the GameState interface
@@ -13241,7 +13573,15 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Process active casts using the new skill system
+    // Step 3: Update Enemy AI
+    for (const enemyId in state.enemies) {
+      const enemy = state.enemies[enemyId];
+      if (enemy.isAlive) {
+        updateEnemyAI(enemy, state, io, spatial, TICK/1000); // deltaTime is in ms, convert to s
+      }
+    }
+    
+    // Step 4: Process active casts using the new skill system
     const world = {
       getEnemyById: (id: string) => state.enemies[id] || null,
       getPlayerById: (id: string) => state.players[id] || null,
@@ -13289,6 +13629,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'CastReq': return onCastReq(socket, state, msg as CastReq, io);
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
+        case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
       }
     },
     
@@ -13412,6 +13753,14 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
           experienceValue: 50 + (level * 10),
           statusEffects: [],
           targetId: null,
+          
+          // AI-related fields
+          aiState: 'idle',
+          aggroRadius: 15, // Default aggro radius
+          attackCooldownMs: 2000, // Default attack cooldown (2 seconds)
+          lastAttackTime: 0,
+          movementSpeed: 6, // Default movement speed
+          velocity: { x: 0, z: 0 }
         };
         
         // Add enemy to spatial hash grid
@@ -14177,6 +14526,55 @@ function isValidPosition(pos: VecXZ): boolean {
   return true;
 }
 
+/**
+ * Handles respawn requests from players who have died
+ * @param socket The socket of the player requesting respawn
+ * @param state The game state
+ * @param msg The respawn request message
+ * @param io Server instance for broadcasting updates
+ */
+function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest, io: Server): void {
+  const playerId = msg.id;
+  const player = state.players[playerId];
+  
+  if (!player) {
+    console.error(`[RespawnRequest] Player ${playerId} not found`);
+    return;
+  }
+  
+  // Verify the player is actually dead
+  if (player.isAlive) {
+    console.warn(`[RespawnRequest] Player ${playerId} is already alive`);
+    return;
+  }
+  
+  // Set spawn position (can be customized if you have multiple spawn points)
+  const spawnPos = { x: 0, y: 0.5, z: 0 };
+  
+  // Resurrect player with partial health and mana
+  player.isAlive = true;
+  player.health = Math.floor(player.maxHealth * 0.5); // 50% health on respawn
+  player.mana = Math.floor(player.maxMana * 0.5); // 50% mana on respawn
+  player.position = { ...spawnPos };
+  player.deathTimeTs = undefined;
+  player.velocity = { x: 0, z: 0 };
+  
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} (${player.name}) respawned at ${JSON.stringify(spawnPos)}`);
+  
+  // Inform all clients about the resurrection
+  io.emit('playerUpdated', {
+    id: player.id,
+    health: player.health,
+    mana: player.mana,
+    position: player.position,
+    isAlive: true,
+    deathTimeTs: undefined
+  });
+  
+  // Update spatial grid with new position
+  spatial.move(player.id, player.position, player.position); // Force update of position in spatial grid
+}
+
 
 // ==============================================================================
 // FILE: shared/classSystem.ts
@@ -14699,6 +15097,20 @@ export interface EffectSnapshotMsg extends ServerMsg {
   seed: number;     // RNG seed for deterministic calculations
 }
 
+export interface EnemyAttack extends ServerMsg {
+  type: 'EnemyAttack';
+  enemyId: string;
+  targetId: string; // Player ID
+  damage: number;
+}
+
+// Player respawn message - Client → Server request to resurrect
+export interface RespawnRequest extends ClientMsg {
+  type: 'RespawnRequest';
+  id: string;          // Player ID
+  clientTs: number;    // Ms since epoch on the client
+}
+
 
 // ==============================================================================
 // FILE: shared/netConstants.ts
@@ -14969,6 +15381,14 @@ export interface Enemy {
     attackCooldown?: boolean;
     posHistory?: { ts: number; x: number; z: number }[];  // Position history buffer similar to players
     lastUpdateTime?: number;  // Track last update time
+    
+    // AI-related fields
+    aiState: 'idle' | 'chasing' | 'attacking' | 'returning'; // Current AI state
+    aggroRadius: number;         // Distance at which enemy detects players
+    attackCooldownMs: number;    // Cooldown between attacks in milliseconds
+    lastAttackTime: number;      // Timestamp of the last attack
+    movementSpeed: number;       // Units per second
+    velocity?: { x: number; z: number }; // Similar to player velocity
 }
 
 // Intent-based movement messages

@@ -747,6 +747,10 @@ export default function SocketManager() {
             handleCombatLog(msg as CombatLogMsg);
             break;
           }
+          case 'EnemyAttack': {
+            handleEnemyAttack(msg);
+            break;
+          }
           default: {
             console.log('Unknown message type:', msg.type);
             break;
@@ -877,5 +881,35 @@ export default function SocketManager() {
     });
   }, [sendCastReq, sendMoveIntent]);
 
+  // Handle enemy attack message
+  const handleEnemyAttack = useCallback((msg: {enemyId: string, targetId: string, damage: number}) => {
+    console.log(`[SocketManager] Enemy ${msg.enemyId} attacks player ${msg.targetId} for ${msg.damage} damage`);
+    
+    // Create formatted text message for combat log
+    const enemy = useGameStore.getState().enemies[msg.enemyId];
+    const player = useGameStore.getState().players[msg.targetId];
+    const enemyName = enemy?.name || 'Unknown Enemy';
+    const playerName = player?.name || 'Unknown Player';
+    
+    // Add to combat log
+    useCombatLogStore.getState().push({
+      id: nextId++,
+      text: `${enemyName} attacks ${playerName} for ${msg.damage} damage!`,
+      ts: Date.now()
+    });
+    
+    // Trim the log after adding entries
+    useCombatLogStore.getState().trim();
+    
+    // Trigger VFX event for enemy attack
+    window.dispatchEvent(new CustomEvent('enemyattack', {
+      detail: {
+        enemyId: msg.enemyId,
+        targetId: msg.targetId,
+        damage: msg.damage
+      }
+    }));
+  }, []);
+  
   return null;
 }
