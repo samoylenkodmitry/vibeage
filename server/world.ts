@@ -1,21 +1,19 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
-import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
+import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, CastReq, VecXZ, PosSnap, PosDelta, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, MoveIntent } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
-import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
 import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
-import { effectRunner } from './combat/effects/EffectRunner.js';
-import { PlayerState } from '../shared/types.js';
 import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
-import { handleCastRequest as handleNewCastRequest } from './combat/castHandler.js';
+import { handleCastReq } from './combat/castHandler.js';
+import { tickCasts } from './combat/skillSystem.js';
 
 /**
  * Defines the GameState interface
@@ -336,8 +334,9 @@ function collectDeltas(
 
 /**
  * Handles CastReq message using the new server-authoritative skill system
+ * @param ioServer The Socket.IO server instance
  */
-function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
+function onCastReq(socket: Socket, state: GameState, msg: CastReq, ioServer: Server): void {
   const playerId = msg.id;
   const player = state.players[playerId];
   
@@ -357,11 +356,15 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
-  // Helper function to get enemy by ID
-  const getEnemyById = (id: string) => state.enemies[id] || null;
+  // Create a simple world object for the skill system
+  const world = {
+    getEnemyById: (id: string) => state.enemies[id] || null,
+    getPlayerById: (id: string) => state.players[id] || null,
+    getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)
+  };
   
-  // Delegate to the skillManager
-  handleCastReq(player, msg, socket, getEnemyById);
+  // Delegate to the server-authoritative castHandler
+  handleCastReq(socket, player, msg, ioServer, world);
 }
 
 /**
@@ -553,30 +556,17 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Process status effects with our new effectRunner
-    effectRunner.setGameState(state);
-    effectRunner.tick(TICK/1000, (effectMsg) => {
-      io.emit('msg', effectMsg);
-    });
+    // Step 3: Process active casts using the new skill system
+    const world = {
+      getEnemyById: (id: string) => state.enemies[id] || null,
+      getPlayerById: (id: string) => state.players[id] || null,
+      getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)
+    };
+    tickCasts(TICK, io, world);
     
-    // Step 4: Update skill casting progress
-    updateCasts(io, state.players);
     
-    // Step 4: Process completed casts
-    const completedCasts = getCompletedCasts();
-    completedCasts.forEach(cast => {
-      // Find the player and target
-      const player = state.players[cast.id];
-      const targetId = cast.targetId;
-      const target = targetId ? state.enemies[targetId] : null;
-      
-      // Execute the skill if target exists
-      if (player && target) {
-        executeSkillEffects(player, target, cast.skillId, io, state);
-      }
-    });
     
-    // Step 5: Update all projectiles
+    // Step 4: Update all projectiles
     if (state.projectiles.length > 0) {
       updateProjectiles(state, TICK/1000, io);
     }
@@ -611,7 +601,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     handleMessage(socket: Socket, msg: ClientMsg) {
       switch (msg.type) {
         case 'MoveIntent': return onMoveIntent(socket, state, msg as MoveIntent);
-        case 'CastReq': return onCastReq(socket, state, msg as CastReq);
+        case 'CastReq': return onCastReq(socket, state, msg as CastReq, io);
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
       }
@@ -1311,7 +1301,6 @@ export function broadcastSnaps(io: Server, state: GameState): void {
         // (e.g., for idle refresh or if it's the very first snap)
         if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 500)) {
             playersToForceInclude.add(playerId);
-            console.log(`SERVER: Marking ${playerId} for forced idle snap. LastSnapTime: ${player.lastSnapTime}, TimeSince: ${timeSinceLastSnap}`);
         }
         // Always update lastSnapTime if we are considering sending a snap for this player due to idle timeout
         if (playersToForceInclude.has(playerId) || isMoving) { // Or any other condition that leads to sending

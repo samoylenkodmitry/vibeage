@@ -1,5 +1,5 @@
 import { SkillId } from './skillsDefinition';
-import { CastSnapshot } from './types';
+import { CastSnapshot, StatusEffect } from './types';
 
 export interface VecXZ {
   x: number;
@@ -124,7 +124,7 @@ export interface ClassSelected extends ClientMsg {
 export interface CastFail extends ClientMsg {
   type: 'CastFail';
   clientSeq: number;
-  reason: 'cooldown' | 'nomana' | 'invalid';
+  reason: 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 }
 
 // Server-facing message base type
@@ -138,18 +138,19 @@ export interface CastSnapshotMsg extends ServerMsg {
   data: CastSnapshot;
 }
 
-export interface ProjSpawn2 extends ServerMsg {
-  type: 'ProjSpawn2';
+export interface EffectSnapshotMsg extends ServerMsg {
+  type: 'EffectSnapshot';
+  targetId: string;
+  effects: StatusEffect[];
+}
+
+export interface CombatLogMsg extends ServerMsg {
+  type: 'CombatLog';
   castId: string;
-  origin: Vec3D;       // Using 3D vector with y-coordinate for height
-  dir: VecXZ;          // Normalized, XZ plane
-  speed: number;
-  launchTs: number;
-  hitRadius?: number;  // Optional hitRadius for VFX
-  casterId?: string;   // ID of the entity that cast this projectile
-  skillId?: string;    // ID of the skill that created this projectile
-  travelMs?: number;   // Flight time client-side
-  src?: string;        // Source entity ID (alias for casterId)
+  skillId: string;
+  casterId: string;
+  targets: string[];
+  damages: number[];
 }
 
 export interface ProjHit2 extends ServerMsg {
@@ -158,6 +159,18 @@ export interface ProjHit2 extends ServerMsg {
   hitIds: string[];
   dmg: number[];   // Aligned with hitIds
   impactPos?: VecXZ; // Position of the projectile impact (optional for backwards compatibility)
+}
+
+export interface ProjSpawn2 extends ServerMsg {
+  type: 'ProjSpawn2';
+  castId: string;
+  skillId: string;
+  origin: Vec3D;
+  dir: VecXZ;
+  speed: number;
+  launchTs: number;
+  casterId: string;
+  hitRadius?: number;
 }
 
 // Status effect messages

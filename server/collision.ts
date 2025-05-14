@@ -218,6 +218,11 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
     return { ...start };
 }
 
+// Simple distance function between two points
+function distance(a: VecXZ, b: VecXZ): number {
+  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.z - b.z, 2));
+}
+
 /**
  * Check if a moving point with initial position a0 and final position a1
  * collides with a stationary circle at bPos with radius bRadius
@@ -225,69 +230,53 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
  * @param a0 Initial position of the moving point
  * @param a1 Final position of the moving point
  * @param bPos Position of the stationary circle
- * @param bRadius Radius of the stationary circle (default 0.4)
+ * @param projectileHitRadius The radius of the projectile's hitbox
  * @returns true if collision occurs
  */
 export function sweptHit(
-  a0: VecXZ, 
-  a1: VecXZ,
-  bPos: VecXZ, 
-  hitRadiusMultiplier = 1.0
+  a0: VecXZ, // projectile previous position
+  a1: VecXZ, // projectile current position
+  bPos: VecXZ, // target current position
+  projectileHitRadius: number // The radius of the projectile's hitbox
 ): boolean {
-  // Apply the hit radius multiplier to get the final hit radius
-  const hitRadius = 1.2 * hitRadiusMultiplier; // Base hit radius * multiplier
-  
+  const targetRadius = 0.5; // Assume a default radius for targets for simplicity
+  const effectiveHitRadius = projectileHitRadius + targetRadius; // Sum of radii
+
   // Log hit check details for debugging
-  log(LOG_CATEGORIES.COLLISION, `Projectile from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with hit radius ${hitRadius}`);
+  log(LOG_CATEGORIES.COLLISION, `SweptHit: Proj from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with effective radius ${effectiveHitRadius}`);
   
-  // SIMPLE APPROACH FIRST: Direct distance check at any point
-  // Check distance at initial position
-  const initialDist = Math.sqrt(Math.pow(a0.x - bPos.x, 2) + Math.pow(a0.z - bPos.z, 2));
-  if (initialDist <= hitRadius) {
-    log(LOG_CATEGORIES.COLLISION, `Direct hit at initial position! Distance: ${initialDist.toFixed(2)} <= ${hitRadius}`);
-    return true;
+  // Vector from projectile start to target center
+  const Px = bPos.x - a0.x;
+  const Pz = bPos.z - a0.z;
+
+  // Projectile movement vector
+  const Vx = a1.x - a0.x;
+  const Vz = a1.z - a0.z;
+
+  const VLengthSq = Vx * Vx + Vz * Vz;
+  if (VLengthSq < 0.0001) { // Projectile hasn't moved significantly
+    return distance(a0, bPos) <= effectiveHitRadius;
   }
-  
-  // Check distance at final position
-  const finalDist = Math.sqrt(Math.pow(a1.x - bPos.x, 2) + Math.pow(a1.z - bPos.z, 2));
-  if (finalDist <= hitRadius) {
-    log(LOG_CATEGORIES.COLLISION, `Direct hit at final position! Distance: ${finalDist.toFixed(2)} <= ${hitRadius}`);
-    return true;
-  }
-  
-  // SWEPT APPROACH: Check if projectile passes through the target
-  // Get direction and length of movement
-  const dx = a1.x - a0.x;
-  const dz = a1.z - a0.z;
-  const lengthSq = dx * dx + dz * dz;
-  
-  // Skip if no movement
-  if (lengthSq < 0.0001) return false;
-  
-  // Get vector from start position to target center
-  const cx = bPos.x - a0.x;
-  const cz = bPos.z - a0.z;
-  
-  // Project target onto movement line to find closest point
-  const t = Math.max(0, Math.min(1, (cx * dx + cz * dz) / lengthSq));
-  
-  // Find the closest point on the movement line segment
-  const closestX = a0.x + t * dx;
-  const closestZ = a0.z + t * dz;
-  
-  // Get distance from closest point to target
-  const closestDist = Math.sqrt(Math.pow(closestX - bPos.x, 2) + Math.pow(closestZ - bPos.z, 2));
-  
-  log(LOG_CATEGORIES.COLLISION, `Closest approach at t=${t.toFixed(2)}, distance: ${closestDist.toFixed(2)}, hit radius: ${hitRadius}`);
-  
-  // Check if this closest distance is less than the hit radius
-  const hit = closestDist <= hitRadius;
-  
-  // Additional debug logging
-  if (hit) {
-    log(LOG_CATEGORIES.COLLISION, `HIT! Projectile passes within ${closestDist.toFixed(2)} units of target (hit radius: ${hitRadius})`);
+
+  // Project P onto V
+  // t = (P . V) / (V . V)
+  const t = (Px * Vx + Pz * Vz) / VLengthSq;
+
+  let closestPoint: VecXZ;
+  if (t < 0) {
+    closestPoint = a0; // Closest point is the start of the segment
+  } else if (t > 1) {
+    closestPoint = a1; // Closest point is the end of the segment
   } else {
-    log(LOG_CATEGORIES.COLLISION, `MISS. Closest approach: ${closestDist.toFixed(2)} > ${hitRadius}`);
+    closestPoint = { x: a0.x + t * Vx, z: a0.z + t * Vz }; // Closest point is on the segment
+  }
+
+  const distToClosestPointSq = Math.pow(bPos.x - closestPoint.x, 2) + Math.pow(bPos.z - closestPoint.z, 2);
+
+  const hit = distToClosestPointSq <= effectiveHitRadius * effectiveHitRadius;
+
+  if (hit && Math.random() < 0.1) { // Reduce log spam
+    log(LOG_CATEGORIES.COLLISION, `Swept HIT! DistSq: ${distToClosestPointSq.toFixed(2)} <= RadiusSq: ${(effectiveHitRadius * effectiveHitRadius).toFixed(2)}`);
   }
   
   return hit;

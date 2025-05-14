@@ -6,7 +6,16 @@ import { VecXZ } from '../../../shared/messages';
 
 /**
  * Tries to start casting a skill. This is a unified entry point for skill casting
- * that replaces the legacy path via CastStart messages.
+ * that delegates to the server for validation and execution.
+ * 
+ * This function is completely server-authoritative and does not perform any client-side
+ * validation or state changes. The server will determine:
+ * - If the player has enough mana
+ * - If the skill is off cooldown
+ * - If the target is valid and in range
+ * - Apply all costs, cooldowns and effects
+ * 
+ * The client will receive updates via CastSnapshot, EffectSnapshot, and CombatLog messages
  * 
  * @param skillId The ID of the skill to cast
  * @param targetId Optional ID of the target entity
@@ -21,7 +30,7 @@ export function tryStartCast(skillId: SkillId, targetId?: string, targetPos?: Ve
     targetPos
   });
   
-  // Use the existing sendCastReq implementation
+  // Send the cast request to the server via socket
   useGameStore.getState().sendCastReq(skillId, selectedTargetId || undefined, targetPos);
   
   // Set this as the selected skill for UI state

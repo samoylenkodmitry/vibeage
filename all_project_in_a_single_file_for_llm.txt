@@ -1,7 +1,124 @@
 // Project Documentation
-// Generated on: 2025-05-13T17:09:20.502Z
+// Generated on: 2025-05-14T17:15:13.914Z
 // This file contains the source code of all meaningful files in the project.
 
+
+
+// ==============================================================================
+// FILE: app/game/components/CastingBar.tsx
+// ==============================================================================
+
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useGameStore } from '../systems/gameStore';
+// Import getSkillById from the correct path using shared definitions
+import { SKILLS as skillsDefinitionShared, SkillId as SkillIdShared } from '../../../shared/skillsDefinition';
+
+interface CastingBarProps {
+  playerId: string;
+}
+
+// Helper to get skill by ID using the shared definition
+const getSkillById = (skillId: string | null | undefined): typeof skillsDefinitionShared[SkillIdShared] | null => {
+  if (!skillId) return null;
+  // Ensure SKILLS has the skillId as a key and it's a valid SkillIdShared
+  if (Object.prototype.hasOwnProperty.call(skillsDefinitionShared, skillId)) {
+    return skillsDefinitionShared[skillId as SkillIdShared] || null;
+  }
+  return null;
+};
+
+export default function CastingBar({ playerId }: CastingBarProps) {
+  const player = useGameStore((state) => 
+    playerId ? state.players[playerId] : null
+  );
+  
+  const [progressPercentInternal, setProgressPercentInternal] = useState(0);
+  const [currentLocalProgressMs, setCurrentLocalProgressMs] = useState(0);
+  const [skillName, setSkillName] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+  
+  useEffect(() => {
+    if (!player) {
+      setIsVisible(false);
+      setCurrentLocalProgressMs(0); // Ensure reset if player disappears
+      setProgressPercentInternal(0); // Ensure reset
+      return;
+    }
+    
+    const isCurrentlyCasting = !!player.castingSkill;
+    const currentCastingSkillId = player.castingSkill;
+    
+    if (isCurrentlyCasting && currentCastingSkillId) {
+      const skill = getSkillById(currentCastingSkillId);
+      if (skill) {
+        // THIS IS THE KEY CHANGE: Always reset local progress based on store when cast starts/changes
+        const serverProgressMs = player.castingProgressMs || 0;
+        setCurrentLocalProgressMs(serverProgressMs); 
+        
+        const castTimeMs = skill.castMs || 1000;
+        // Calculate initial progress based on what the server says (should be 0 for new casts)
+        const initialProgressPercent = Math.min(100, (serverProgressMs / castTimeMs) * 100);
+        
+        setProgressPercentInternal(initialProgressPercent);
+        setSkillName(skill.name || currentCastingSkillId);
+        setIsVisible(true);
+      } else {
+        setIsVisible(false); // Skill definition not found
+        setCurrentLocalProgressMs(0); 
+        setProgressPercentInternal(0);
+      }
+    } else {
+      setIsVisible(false);
+      setCurrentLocalProgressMs(0); 
+      setProgressPercentInternal(0);
+    }
+  }, [player?.castingSkill, player?.castingProgressMs, player]); // player dependency is important
+  
+  useEffect(() => {
+    if (!isVisible || !player?.castingSkill) return;
+
+    const castingSkillId = player.castingSkill;
+    const skill = getSkillById(castingSkillId);
+    if (!skill) return;
+
+    const castTimeMs = skill.castMs || 1000;
+
+    const interval = setInterval(() => {
+      setCurrentLocalProgressMs(prevMs => {
+        const newMs = prevMs + 50; // Increment local progress
+        if (newMs >= castTimeMs) {
+          setProgressPercentInternal(100);
+          // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
+          return castTimeMs; 
+        }
+        const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
+        setProgressPercentInternal(newProgressPercent);
+        return newMs;
+      });
+    }, 50);
+    
+    return () => clearInterval(interval);
+  }, [isVisible, player?.castingSkill]); 
+  
+  if (!isVisible) return null;
+  
+  return (
+    <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 w-64 bg-gray-800 border border-purple-600 rounded-md p-2 shadow-lg">
+      <div className="flex justify-between items-center mb-1">
+        <div className="text-white text-sm font-semibold">{skillName}</div>
+        <div className="text-white text-xs">{Math.round(progressPercentInternal)}%</div>
+      </div>
+      <div className="h-4 bg-gray-700 rounded-sm overflow-hidden">
+        <div 
+          className="h-full bg-purple-600 transition-all duration-50 ease-linear"
+          style={{ width: `${progressPercentInternal}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+}
 
 
 // ==============================================================================
@@ -982,15 +1099,9 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       const s = buf.sample(tick);
       if (isControlledPlayer && Math.random() < 0.05) { // Log ~5% of frames
           const now = performance.now();
-          console.log(
-              `Player ${playerId} sample: renderTs=${tick.toFixed(0)}, now=${now.toFixed(0)}, lag=${lag}, ` +
-              (s ? `s.x=${s.x.toFixed(2)}, s.z=${s.z.toFixed(2)}, s.rot=${s.rot.toFixed(2)}` : "s is null") +
-              `, bufferLen=${buf.getBufferLength()}`
-          );
           if (buf.getBufferLength() > 0) {
               const firstTs = buf.debugDump()[0].snapTs.toFixed(0);
               const lastTs = buf.debugDump()[buf.getBufferLength()-1].snapTs.toFixed(0);
-              console.log(`  Buffer time range: [${firstTs}, ${lastTs}], current renderTs relative to last: ${(tick - parseFloat(lastTs)).toFixed(0)}ms`);
           }
       }
       
@@ -1972,11 +2083,13 @@ interface SkillButtonProps {
 }
 
 // Memoize SkillButton to prevent unnecessary re-renders
-const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
+const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
   const initial = Math.max(0, cooldownEndMs - Date.now());
   const [remainingCooldownMs, setRemainingCooldownMs] = useState(initial);
+  const [castProgress, setCastProgress] = useState(0); // 0-100 percentage of cast completion
   const buttonRef = useRef<HTMLButtonElement>(null);
   
+  // Update cooldown timer
   useEffect(() => {
     const update = () => 
       setRemainingCooldownMs(Math.max(0, cooldownEndMs - Date.now()));
@@ -1989,8 +2102,29 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, sele
     return () => clearInterval(interval);
   }, [cooldownEndMs]);
   
+  // Update cast progress
+  useEffect(() => {
+    if (!isCasting) {
+      setCastProgress(0);
+      return;
+    }
+    
+    const updateCastProgress = () => {
+      if (skill.castTimeMs <= 0) return; // Instant cast
+      
+      // Calculate progress percentage (0-100)
+      const progress = Math.min(100, (castProgressMs / skill.castTimeMs) * 100);
+      setCastProgress(progress);
+    };
+    
+    updateCastProgress();
+    const interval = setInterval(updateCastProgress, 50);
+    
+    return () => clearInterval(interval);
+  }, [isCasting, castProgressMs, skill.castTimeMs]);
+  
   const isOnCooldown = remainingCooldownMs > 0;
-  const isUsable = Boolean(selectedTarget) && !isOnCooldown;
+  const isUsable = Boolean(selectedTarget) && !isOnCooldown && !isCasting;
   
   // Handle click with stopPropagation
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -2082,7 +2216,23 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, sele
               }}
             ></div>
             <div className="absolute text-white font-bold text-sm">
-              {remainingCooldownMs}ms
+              {Math.ceil(remainingCooldownMs / 1000)}s
+            </div>
+          </>
+        )}
+        
+        {/* Casting progress overlay */}
+        {isCasting && (
+          <>
+            <div 
+              className="absolute inset-0 bg-purple-600 opacity-70"
+              style={{ 
+                // Fill from bottom to top as cast progresses
+                clipPath: `inset(${100 - castProgress}% 0 0 0)` 
+              }}
+            ></div>
+            <div className="absolute text-white font-bold text-sm">
+              {Math.ceil((skill.castTimeMs - castProgressMs) / 1000)}s
             </div>
           </>
         )}
@@ -2092,7 +2242,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, sele
           <div className="font-bold">{skill.name}</div>
           <div className="mt-1">{skill.description}</div>
           <div className="mt-1">Mana: {skill.manaCost}</div>
-          <div>Cooldown: {skill.cooldownMs}ms</div>
+          <div className="mt-1">Cooldown: {skill.cooldownMs}ms</div>
           {skill.castTimeMs > 0 && <div>Cast Time: {skill.castTimeMs}ms</div>}
           {skill.damage && <div>Damage: {skill.damage}</div>}
           
@@ -2428,6 +2578,20 @@ export default function VfxManager() {
       skillId: p.skillId 
     })));
     
+    // Add specific logging for fireball
+    const fireballs = projArray.filter(p => p.skillId === 'fireball');
+    if (fireballs.length > 0) {
+      console.log(`[VfxManager] Fireballs in projectileArray (${fireballs.length}):`, fireballs.map(f => ({ 
+        castId: f.castId, 
+        origin: f.origin, 
+        dir: f.dir, 
+        speed: f.speed, 
+        launchTs: f.launchTs 
+      })));
+    } else if (projArray.some(p => p.skillId === 'fireball')) {
+      console.log('[VfxManager] Fireball detected but not logged in detail.');
+    }
+    
     // Check for duplicate castIds which would cause multiple projectiles
     const castIds = projArray.map(p => p.castId);
     const duplicates = castIds.filter((id, index) => castIds.indexOf(id) !== index);
@@ -2654,6 +2818,7 @@ export default function VfxManager() {
         
         switch (skillId) {
           case 'fireball':
+            console.log(`[VfxManager] Rendering FireballProjectile for castId: ${proj.castId}, pooled group ID: ${group.uuid}, visible: ${group.visible}`);
             return (
               <FireballProjectile
                 key={proj.castId}
@@ -4893,8 +5058,7 @@ import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
 import { getBuffer, GROUND_Y } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
-import { initProjectileListeners, useProjectileStoreLegacy } from './projectileManager';
-import { useProjectileStore } from './projectileStore';
+import { initProjectileListeners } from './projectileManager';
 import * as THREE from 'three';
 import { 
   // MoveIntent is actually used in type definitions
@@ -4904,10 +5068,9 @@ import {
   PosSnap,
   PosDelta,
   VecXZ,
-  ProjSpawn2,
-  ProjHit2,
   CastSnapshotMsg,
   EffectSnapshotMsg,
+  CombatLogMsg,
   // CastFail is used in the handleCastFail callback
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CastFail
@@ -4916,6 +5079,8 @@ import { CM_PER_UNIT } from '../../../shared/netConstants';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
+import { useProjectileStore } from './projectileStore'; // Ensure this is imported
+import { SKILLS } from '../../../shared/skillsDefinition'; // Ensure SKILLS is imported
 
 // Variable for generating unique log entry IDs
 let nextId = 1;
@@ -5169,7 +5334,7 @@ export default function SocketManager() {
   }, []);
 
   // Handle skill cast failure
-  const handleCastFail = useCallback((data: { clientSeq: number, reason: 'cooldown' | 'nomana' | 'invalid' }) => {
+  const handleCastFail = useCallback((data: { clientSeq: number, reason?: string }) => {
     const state = useGameStore.getState();
     const myPlayerId = state.myPlayerId;
     const players = state.players;
@@ -5193,13 +5358,17 @@ export default function SocketManager() {
         setTimeout(() => useGameStore.setState({ flashingSkill: null }), 300);
       }
       
-      // Log the failure reason
-      const reasons = {
+      // Log the failure reason with improved error handling
+      const reasons: Record<string, string> = {
         cooldown: 'Skill is on cooldown',
         nomana: 'Not enough mana',
-        invalid: 'Invalid target or range'
+        invalid: 'Invalid target or skill',
+        outofrange: 'Target is out of range'
       };
-      console.log(`Cast failed: ${reasons[data.reason]}`);
+      
+      // Default to 'invalid' if no reason provided or if reason doesn't match known reasons
+      const reason = (data.reason && reasons[data.reason]) ? data.reason : 'invalid';
+      console.log(`Cast failed: ${reasons[reason] || 'Invalid target or skill'} (${data.reason || 'unknown'})`);
     }
   }, []);
 
@@ -5210,27 +5379,186 @@ export default function SocketManager() {
   // Handle cast snapshot updates
   const handleCastSnapshot = useCallback((data: CastSnapshotMsg) => {
     const castData = data.data;
+    const { add: addProjectileToStore, hit: markProjectileHit } = useProjectileStore.getState();
     
-    // Update player casting state based on cast state
+    console.log(`[SocketManager] Handling CastSnapshot: castId=${castData.castId}, skillId=${castData.skillId}, state=${castData.state}, pos=${JSON.stringify(castData.pos)}, target=${JSON.stringify(castData.target)}`);
+    
+    // Special logging for fireball
+    if (castData.skillId === 'fireball') {
+      console.log(`[SocketManager] Received Fireball CastSnapshot: castId=${castData.castId}, state=${castData.state}, pos=${JSON.stringify(castData.pos)}, target=${JSON.stringify(castData.target)}`);
+    }
+    
+    // Update player's casting UI state (e.g., for CastingBar)
     if (castData.state === CastState.Casting) {
       // Skill is being cast (equivalent to old CastStart)
+      console.log(`[SocketManager] Setting player ${castData.casterId} casting state: skillId=${castData.skillId}, castTimeMs=${castData.castTimeMs || 1000}`);
       updatePlayer({
         id: castData.casterId,
         castingSkill: castData.skillId as string,
-        castingProgressMs: 1000 // Default cast time, should come from skill definition
+        castingProgressMs: castData.castTimeMs || 1000 // Use cast time from snapshot or default to 1000ms
       });
-    } else if (castData.state === CastState.Impact) {
-      // Skill cast has completed (equivalent to old CastEnd)
+    } else if (castData.state === CastState.Traveling || castData.state === CastState.Impact) {
+      // If skill is no longer casting (i.e., it's traveling or has impacted),
+      // clear the castingSkill for this player
+      const playerToUpdate = useGameStore.getState().players[castData.casterId];
+      if (playerToUpdate && playerToUpdate.castingSkill === castData.skillId) {
+        console.log(`[SocketManager] Clearing player ${castData.casterId} casting state for skill ${castData.skillId}`);
+        useGameStore.getState().updatePlayer({
+          id: castData.casterId,
+          castingSkill: null,
+          castingProgressMs: 0
+        });
+      }
+    }
+    
+    if (castData.state === CastState.Impact) {
+      // Projectile impacted or instant skill resolved
+      console.log(`[SocketManager] Marking projectile as hit: castId=${castData.castId}`);
+      markProjectileHit({ type: 'ProjHit2', castId: castData.castId, hitIds: [], dmg: [] }); // Minimal hit message for store
+    }
+    
+    const skillDef = SKILLS[castData.skillId as SkillId];
+    if (skillDef && skillDef.projectile && castData.state === CastState.Traveling) {
+      // This is a projectile that has just started traveling
+      console.log(`[SocketManager] Processing traveling projectile: castId=${castData.castId}, skillId=${castData.skillId}`);
+      
+      if (castData.pos && castData.origin && castData.dir) {
+        // Use the direction vector provided by server
+        const projectileDataForStore = {
+          type: 'ProjSpawn2', // This is an internal type hint for the store's data structure
+          castId: castData.castId,
+          skillId: castData.skillId as SkillId,
+          // Use origin from server, with default y value
+          origin: { x: castData.origin.x, y: 1.5, z: castData.origin.z },
+          dir: castData.dir, // Use direction vector from server
+          speed: skillDef.projectile.speed,
+          launchTs: castData.startedAt, // Use server's cast start time for more accurate timing
+          casterId: castData.casterId,
+          hitRadius: skillDef.projectile.hitRadius || 0.5,
+        };
+        
+        // Special logging for fireball
+        if (castData.skillId === 'fireball') {
+          console.log('[SocketManager] Adding Fireball to projectile store. Data:', JSON.stringify(projectileDataForStore));
+        }
+        
+        // Debug the current projectileStore state
+        const currentStore = useProjectileStore.getState();
+        console.log(`[SocketManager] Current projectileStore before adding - live: ${Object.keys(currentStore.live).length}, recycled: ${Object.keys(currentStore.toRecycle).length}`);
+        
+        addProjectileToStore(projectileDataForStore);
+        
+        // Verify projectile was added
+        setTimeout(() => {
+          const updatedStore = useProjectileStore.getState();
+          console.log(`[SocketManager] ProjectileStore after adding - live: ${Object.keys(updatedStore.live).length}, recycled: ${Object.keys(updatedStore.toRecycle).length}`);
+          const addedProjectile = updatedStore.live[castData.castId];
+          if (addedProjectile) {
+            console.log(`[SocketManager] Successfully added projectile to store: castId=${castData.castId}`);
+          } else {
+            console.error(`[SocketManager] Failed to add projectile to store: castId=${castData.castId}`);
+          }
+        }, 10);
+      } else {
+        console.warn('[SocketManager] CastSnapshot (Traveling) for projectile missing essential data (pos, origin, or dir):', castData);
+      }
+    }
+    
+    // Dispatch generic event for other systems (e.g., non-projectile VFX for instant skills like PetrifyFlash)
+    window.dispatchEvent(new CustomEvent('castsnapshot', { detail: castData }));
+  }, [updatePlayer]);
+
+  // Handle effect snapshots from server
+  const handleEffectSnapshot = useCallback((msg: EffectSnapshotMsg) => {
+    console.log(`Received EffectSnapshot for target ${msg.targetId}:`, msg);
+    
+    const targetId = msg.targetId;
+    const effects = msg.effects || [];
+    
+    // Add to combat log
+    if (effects.length > 0) {
+      effects.forEach(effect => {
+        useCombatLogStore.getState().push({
+          id: nextId++,
+          text: `>>> ${effect.type.toUpperCase()} applied to ${targetId}`,
+          ts: Date.now()
+        });
+      });
+      
+      // Trim the log after adding entries
+      useCombatLogStore.getState().trim();
+    }
+    
+    // Check if this is a player effect
+    const players = useGameStore.getState().players;
+    if (players[targetId]) {
+      // Update player with new status effect info
       updatePlayer({
-        id: castData.casterId,
-        castingSkill: null,
-        castingProgressMs: 0
+        id: targetId,
+        statusEffects: effects
       });
     }
     
-    // Pass the cast snapshot to any system that needs it
-    window.dispatchEvent(new CustomEvent('castsnapshot', { detail: castData }));
-  }, [updatePlayer]);
+    // Check if this is an enemy effect
+    const enemies = useGameStore.getState().enemies;
+    if (enemies[targetId]) {
+      // Update enemy with new status effect info
+      updateEnemy({
+        id: targetId,
+        statusEffects: effects
+      });
+      
+      // Trigger visual effects for each effect
+      effects.forEach(effect => {
+        const enemy = enemies[targetId];
+        const position = enemy ? { x: enemy.position.x, y: enemy.position.y, z: enemy.position.z } : undefined;
+        
+        if (position) {
+          // For burn effects
+          if (effect.type === 'burn') {
+            window.dispatchEvent(new CustomEvent('spawnSplash', {
+              detail: { position, radius: 1.2, effectType: 'fire' }
+            }));
+          }
+          // For bleed effects
+          else if (effect.type === 'bleed') {
+            window.dispatchEvent(new CustomEvent('spawnSplash', {
+              detail: { position, radius: 0.8, effectType: 'blood' }
+            }));
+          }
+        }
+      });
+    }
+  }, [updatePlayer, updateEnemy]);
+
+  // Handle combat log messages from server
+  const handleCombatLog = useCallback((msg: CombatLogMsg) => {
+    console.log(`Received CombatLog for castId ${msg.castId}:`, msg);
+    
+    const player = useGameStore.getState().getMyPlayer();
+    const playerId = player?.id || '';
+    
+    // Check if there's damage information
+    if (msg.damages && msg.damages.length > 0 && msg.targets && msg.targets.length > 0) {
+      // For each hit target
+      msg.targets.forEach((targetId, index) => {
+        const damage = msg.damages[index];
+        const total = damage;
+        const crit = damage > 200; // crude threshold for critical hits
+        
+        useCombatLogStore.getState().push({
+          id: nextId++,
+          text: `${msg.casterId === playerId ? 'You' : 'Enemy'} hit ${
+            targetId === playerId ? 'YOU' : 'enemy'
+          } for ${total}${crit ? ' (CRIT!)' : ''}`,
+          ts: Date.now()
+        });
+      });
+      
+      // Trim the log after adding entries
+      useCombatLogStore.getState().trim();
+    }
+  }, []);
 
   // Memoize the socket connection handler
   const handleConnect = useCallback(() => {
@@ -5375,7 +5703,6 @@ export default function SocketManager() {
         switch (msg.type) {
           case 'BatchUpdate': {
             // Handle batch updates from server
-            console.log('Received BatchUpdate with', msg.updates?.length || 0, 'items');
             if (Array.isArray(msg.updates)) {
               // Process each update in the batch
               msg.updates.forEach(update => {
@@ -5454,51 +5781,11 @@ export default function SocketManager() {
             break;
           }
           case 'ProjSpawn2': {
-            console.log(`[SocketManager] Received ProjSpawn2 message for castId: ${(msg as ProjSpawn2).castId}, skillId: ${(msg as ProjSpawn2).skillId}`, msg);
-            // Add to projectile store
-            useProjectileStore.getState().add(msg as ProjSpawn2);
-            // Also update legacy store during transition
-            useProjectileStoreLegacy.getState().addEnhancedProjectile(msg as ProjSpawn2);
+            console.log(`[SocketManager] Received ProjSpawn2 message - using new CastSnapshot system instead`);
             break;
           }
           case 'ProjHit2': {
-            console.log(`[SocketManager] Received ProjHit2 message for castId: ${(msg as ProjHit2).castId}`, msg);
-            
-            // Mark hit in projectile store
-            useProjectileStore.getState().hit(msg as ProjHit2);
-            // Also update legacy store during transition
-            useProjectileStoreLegacy.getState().handleEnhancedHit(msg as ProjHit2);
-            
-            // Add combat log entry for hit
-            const hitMsg = msg as ProjHit2;
-            const player = useGameStore.getState().getMyPlayer();
-            const playerId = player?.id || '';
-            
-            // Log the projectile status immediately after calling hit method
-            const projectileState = useProjectileStore.getState();
-            console.log(`[SocketManager] After hit processing - live projectiles: ${JSON.stringify(Object.keys(projectileState.live))}`);
-            console.log(`[SocketManager] After hit processing - recycled projectiles: ${JSON.stringify(Object.keys(projectileState.toRecycle))}`);
-            
-            // Check if there's damage information
-            if (hitMsg.dmg && hitMsg.dmg.length > 0 && hitMsg.hitIds && hitMsg.hitIds.length > 0) {
-              // For each hit target
-              hitMsg.hitIds.forEach((id, index) => {
-                const damage = hitMsg.dmg[index];
-                const total = damage;
-                const crit = damage > 200; // crude crit flag
-                
-                useCombatLogStore.getState().push({
-                  id: nextId++,
-                  text: `${hitMsg.src === playerId ? 'You' : 'Enemy'} hit ${
-                    id === playerId ? 'YOU' : 'enemy'
-                  } for ${total}${crit ? ' (CRIT!)' : ''}`,
-                  ts: Date.now()
-                });
-                
-                // Trim the log after adding entries
-                useCombatLogStore.getState().trim();
-              });
-            }
+            console.log(`[SocketManager] Received ProjHit2 message - using new CastSnapshot system instead`);
             break;
           }
           case 'CastSnapshot': {
@@ -5507,6 +5794,10 @@ export default function SocketManager() {
           }
           case 'EffectSnapshot': {
             handleEffectSnapshot(msg as EffectSnapshotMsg);
+            break;
+          }
+          case 'CombatLog': {
+            handleCombatLog(msg as CombatLogMsg);
             break;
           }
           default: {
@@ -5534,8 +5825,11 @@ export default function SocketManager() {
     handlePlayerMoved, 
     handleEnemyUpdated,
     handlePosSnap,
+    handlePosDelta,
     handleCastFail,
     handleCastSnapshot,
+    handleEffectSnapshot,
+    handleCombatLog,
     setConnectionStatus
   ]);
 
@@ -5635,129 +5929,6 @@ export default function SocketManager() {
       sendMoveIntent
     });
   }, [sendCastReq, sendMoveIntent]);
-  
-  // Handle effect snapshots from server
-  const handleEffectSnapshot = useCallback((msg: EffectSnapshotMsg) => {
-    const targetId = msg.id;
-    const sourceId = msg.src;
-    const effectId = msg.effectId;
-    const stacks = msg.stacks;
-    const remainingMs = msg.remainingMs;
-    
-    console.log(`Effect snapshot: ${effectId} on ${targetId} from ${sourceId}, stacks: ${stacks}, remaining: ${remainingMs}ms`);
-    
-    // Add to combat log when effect is first applied
-    if (remainingMs > 0 && stacks === 1) {
-
-      useCombatLogStore.getState().push({
-        id: nextId++,
-        text: `>>> ${effectId.toUpperCase()} applied`,
-        ts: Date.now()
-      });
-      
-      // Trim the log after adding entries
-      useCombatLogStore.getState().trim();
-    }
-    
-    // Check if this is a player effect
-    const players = useGameStore.getState().players;
-    if (players[targetId]) {
-      // Update player with new status effect info
-      updatePlayer({
-        id: targetId,
-        statusEffects: [
-          ...players[targetId].statusEffects.filter(e => e.type !== effectId), // Remove old effect of same type
-          {
-            id: `${effectId}-${sourceId}-${Date.now()}`,
-            type: effectId,
-            value: 0, // The actual value will be determined by the effect definition
-            durationMs: remainingMs,
-            startTimeTs: Date.now() - (remainingMs * (1 - stacks / 5)), // Approximate start time based on remaining duration
-            sourceSkill: effectId,
-            stacks
-          }
-        ]
-      });
-    }
-    
-    // Check if this is an enemy effect
-    const enemies = useGameStore.getState().enemies;
-    if (enemies[targetId]) {
-      // Update enemy with new status effect info
-      updateEnemy({
-        id: targetId,
-        statusEffects: [
-          ...enemies[targetId].statusEffects.filter(e => e.type !== effectId), // Remove old effect of same type
-          {
-            id: `${effectId}-${sourceId}-${Date.now()}`,
-            type: effectId,
-            value: 0, // The actual value will be determined by the effect definition
-            durationMs: remainingMs,
-            startTimeTs: Date.now() - (remainingMs * (1 - stacks / 5)), // Approximate start time based on remaining duration
-            sourceSkill: effectId,
-            stacks
-          }
-        ]
-      });
-      
-      // Trigger visual effect on the target
-      if (stacks === 1) {
-        // Only spawn the VFX on first application
-        console.log(`VFX for effect ${effectId} on enemy ${targetId}`);
-        const enemy = enemies[targetId];
-        const position = enemy ? { x: enemy.position.x, y: enemy.position.y, z: enemy.position.z } : undefined;
-        
-        if (position) {
-          // For burn effects
-          if (effectId === 'burn') {
-            window.dispatchEvent(new CustomEvent('spawnSplash', {
-              detail: { position, radius: 1.2, effectType: 'fire' }
-            }));
-          }
-          // For bleed effects
-          else if (effectId === 'bleed') {
-            window.dispatchEvent(new CustomEvent('spawnSplash', {
-              detail: { position, radius: 0.8, effectType: 'blood' }
-            }));
-          }
-        }
-      }
-    }
-  }, [updatePlayer, updateEnemy]);
-
-  // Enhanced buffer push function with error handling
-  function safeBufferPush(buffer: any, snapObject: any, playerId: string) {
-    try {
-      // Add some validation before pushing
-      if (!snapObject || !snapObject.pos || !snapObject.snapTs) {
-        console.warn("Attempted to push invalid snap object to buffer:", snapObject);
-        return false;
-      }
-      
-      // Check for zeros or NaN in position data
-      if (isNaN(snapObject.pos.x) || isNaN(snapObject.pos.z) || 
-          !isFinite(snapObject.pos.x) || !isFinite(snapObject.pos.z)) {
-        console.warn("Invalid position values in snap object:", snapObject);
-        return false;
-      }
-      
-      // Log every hundredth push to avoid console spam
-      if (Math.random() < 0.01) {
-        console.log(`Pushing to buffer for ${playerId}:`, {
-          pos: snapObject.pos,
-          vel: snapObject.vel,
-          bufferLength: buffer.getBufferLength()
-        });
-      }
-      
-      // Perform the actual push
-      buffer.push(snapObject);
-      return true;
-    } catch (err) {
-      console.error("Error pushing to position buffer:", err);
-      return false;
-    }
-  }
 
   return null;
 }
@@ -5775,7 +5946,16 @@ import { VecXZ } from '../../../shared/messages';
 
 /**
  * Tries to start casting a skill. This is a unified entry point for skill casting
- * that replaces the legacy path via CastStart messages.
+ * that delegates to the server for validation and execution.
+ * 
+ * This function is completely server-authoritative and does not perform any client-side
+ * validation or state changes. The server will determine:
+ * - If the player has enough mana
+ * - If the skill is off cooldown
+ * - If the target is valid and in range
+ * - Apply all costs, cooldowns and effects
+ * 
+ * The client will receive updates via CastSnapshot, EffectSnapshot, and CombatLog messages
  * 
  * @param skillId The ID of the skill to cast
  * @param targetId Optional ID of the target entity
@@ -5790,7 +5970,7 @@ export function tryStartCast(skillId: SkillId, targetId?: string, targetPos?: Ve
     targetPos
   });
   
-  // Use the existing sendCastReq implementation
+  // Send the cast request to the server via socket
   useGameStore.getState().sendCastReq(skillId, selectedTargetId || undefined, targetPos);
   
   // Set this as the selected skill for UI state
@@ -6226,6 +6406,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(produce(state => {
       state.lastCastSkillId = skillId;
     }));
+    
+    console.log(`Sending CastReq: skill=${skillId}, target=${targetId || 'none'}, player=${myPlayerId}`);
     
     socket.emit('msg', {
       type: 'CastReq',
@@ -6770,11 +6952,27 @@ export const useProjectileStore = create<State & Actions>((set) => ({
   add: (p) => set((s) => { 
     console.log(`[ProjectileStore.add] Adding projectile with castId: ${p.castId}, skillId: ${p.skillId}`);
     
+    // Special logging for fireball
+    if (p.skillId === 'fireball') {
+      console.log(`[ProjectileStore.add] Attempting to add Fireball: castId=${p.castId}. Current live count: ${Object.keys(s.live).length}`);
+    }
+    
     // Check if this castId already exists in live projectiles
     if (s.live[p.castId]) {
       console.warn(`[ProjectileStore.add] Projectile with castId: ${p.castId} already exists in live projectiles. This might cause duplicate visuals.`);
+      
+      // Special logging for fireball
+      if (p.skillId === 'fireball') {
+        console.warn(`[ProjectileStore.add] Fireball with castId: ${p.castId} already exists. Not re-adding.`);
+      }
+      
       // Keep using the same object reference to avoid creating a duplicate visual
       return s;
+    }
+    
+    // Special logging for fireball
+    if (p.skillId === 'fireball') {
+      console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${p.castId}. New live count: ${Object.keys(s.live).length + 1}`);
     }
     
     return { 
@@ -7289,21 +7487,25 @@ export default function FireballProjectile({
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
-  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
     origin,
     dir,
     speed,
-    launchTs
+    launchTs,
+    shouldAutoDestroy: false, // Explicitly false - let VfxManager control lifecycle
   });
   
   // Initialize pooled group on first mount if provided
   useEffect(() => {
     console.log(`[FireballProjectile] Mounted: ${id}`);
+    console.log(`[FireballProjectile ${id}] Mounted. Pooled: ${!!pooled}. Origin: ${JSON.stringify(origin)}, Dir: ${JSON.stringify(dir)}, Speed: ${speed}`);
     
-    if (!pooled) return;
+    if (!pooled) {
+      console.error(`[FireballProjectile ${id}] Pooled group is UNDEFINED!`);
+      return;
+    }
     
     // Clear any existing children if this is a reused group
     while (pooled.children.length > 0) {
@@ -7340,27 +7542,22 @@ export default function FireballProjectile({
     // Store references
     coreRef.current = coreMesh;
     
+    console.log(`[FireballProjectile ${id}] Pooled group setup complete. Group ID: ${pooled.uuid}, Visible: ${pooled.visible}, Children: ${pooled.children.length}`);
+    if (coreRef.current) {
+      console.log(`[FireballProjectile ${id}] Core mesh material:`, coreRef.current.material);
+    }
+    
     return () => {
-      console.log(`[FireballProjectile] Unmounting pooled: ${id}`);
-      if (isActive.current && onDone) {
-        isActive.current = false;
+      console.log(`[FireballProjectile ${id}] Unmounting pooled: ${id}`);
+      console.log(`[FireballProjectile ${id}] Unmounting. Pooled group ID: ${pooled?.uuid}`);
+      
+      if (onDone) {
         // Ensure the group is invisible when unmounted
         pooled.visible = false;
         onDone();
       }
     };
-  }, [pooled, onDone, id]);
-  
-  // Handle cleanup when projectile is done
-  useEffect(() => {
-    return () => {
-      console.log(`[FireballProjectile] Unmounting component: ${id}`);
-      if (isActive.current && onDone) {
-        isActive.current = false;
-        onDone();
-      }
-    };
-  }, [onDone, id]);
+  }, [pooled, onDone, id, origin, dir, speed]); // Added origin, dir, speed for logging initial state
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
@@ -7420,10 +7617,15 @@ export default function FireballProjectile({
   useFrame((state) => {
     if (!coreRef.current) return;
     
+    // Log occasionally for fireballs
+    if (id.includes('fireball') && Math.random() < 0.1) {
+      console.log(`[FireballProjectile ${id}] useFrame. Position: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}). Pooled visible: ${pooled?.visible}`);
+    }
+    
     // Update pooled group position
     if (pooled) {
       pooled.position.set(position.x, position.y, position.z);
-      pooled.visible = true;
+      pooled.visible = true; // Explicitly ensure visibility
     }
     
     // Fire core pulsing
@@ -9298,7 +9500,7 @@ const useProjectileMovement = ({
   speed,
   launchTs,
   gravity = 0,
-  shouldAutoDestroy = true, // Changed default to true - projectiles should auto-destroy
+  shouldAutoDestroy = false, // Changed default to false - projectiles should be controlled by server state
   maxDistance = 100,
   onDestroy
 }: Params & {
@@ -9312,10 +9514,8 @@ const useProjectileMovement = ({
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
   const originalSpeed = useRef(speed);
   
-  // Adjust launchTs if it's in the future (server timestamp ahead of client)
-  const now = performance.now();
-  const adjustedLaunchTs = launchTs > now ? now - 100 : launchTs; // If in future, set to 100ms ago
-  const originalLaunchTs = useRef(adjustedLaunchTs);
+  // Store the server epoch launchTs directly
+  const originalLaunchTs = useRef(launchTs);
   
   // Use state for the current position so renders will happen when it updates
   const [currentPosition, setCurrentPosition] = useState(new Vector3(origin.x, origin.y, origin.z));
@@ -9331,9 +9531,10 @@ const useProjectileMovement = ({
       dir: `(${dir?.x?.toFixed(2) || 'undefined'}, ${dir?.y?.toFixed(2) || 'undefined'}, ${dir?.z?.toFixed(2) || 'undefined'})`,
       speed: speed,
       originalTs: launchTs,
-      adjustedTs: originalLaunchTs.current,
-      now: performance.now()
+      now: Date.now()
     });
+    
+    console.log(`[ProjMove Hook] Initialized for a projectile. Origin: (${origin?.x?.toFixed(2)}, ${origin?.y?.toFixed(2)}, ${origin?.z?.toFixed(2)}), Dir: (${dir?.x?.toFixed(2)}, ${dir?.y?.toFixed(2)}, ${dir?.z?.toFixed(2)}), Speed: ${speed}, LaunchTs: ${launchTs}, ServerEpochTs: ${originalLaunchTs.current}`);
   }, [origin, dir, speed, launchTs]);
   
   // Function to calculate position at a given time
@@ -9363,12 +9564,12 @@ const useProjectileMovement = ({
   useFrame(() => {
     if (isDestroyed.current) return;
     
-    // Calculate elapsed time in seconds since launch
-    const now = performance.now();
+    // Calculate elapsed time in seconds since launch using epoch time
+    const clientNowEpoch = Date.now();
     
     // Handle case where launchTs might be in the future due to clock mismatch
     // or using a server timestamp that's ahead of client clock
-    let elapsedTimeSeconds = Math.max(0, (now - originalLaunchTs.current) / 1000);
+    let elapsedTimeSeconds = Math.max(0, (clientNowEpoch - originalLaunchTs.current) / 1000);
     
     // Sanity check: if elapsed time is too large or negative, use a small value
     // and auto-destroy the projectile if it's been alive for more than 5 seconds
@@ -9391,10 +9592,19 @@ const useProjectileMovement = ({
       console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2) || 'undefined'}, ${newPosition?.y?.toFixed(2) || 'undefined'}, ${newPosition?.z?.toFixed(2) || 'undefined'})`);
     }
     
-    setCurrentPosition(newPosition);
+    // Enhanced hook logging (in addition to existing logs)
+    if (Math.random() < 0.02) { // Reduce log frequency
+      console.log(`[ProjMove Hook] Update. Elapsed: ${elapsedTimeSeconds?.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2)}, ${newPosition?.y?.toFixed(2)}, ${newPosition?.z?.toFixed(2)})`);
+    }
+    
+    // Only update position if it has actually changed to prevent infinite updates
+    if (!currentPosition.equals(newPosition)) {
+      setCurrentPosition(newPosition);
+    }
     
     // Check if projectile should be destroyed
     if (shouldAutoDestroy && totalDistance.current >= maxDistance) {
+      console.log(`[ProjMove Hook] Auto-destroying projectile. Distance: ${totalDistance.current.toFixed(2)} >= ${maxDistance}`);
       isDestroyed.current = true;
       if (onDestroy) onDestroy();
     }
@@ -9853,6 +10063,11 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
     return { ...start };
 }
 
+// Simple distance function between two points
+function distance(a: VecXZ, b: VecXZ): number {
+  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.z - b.z, 2));
+}
+
 /**
  * Check if a moving point with initial position a0 and final position a1
  * collides with a stationary circle at bPos with radius bRadius
@@ -9860,69 +10075,53 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
  * @param a0 Initial position of the moving point
  * @param a1 Final position of the moving point
  * @param bPos Position of the stationary circle
- * @param bRadius Radius of the stationary circle (default 0.4)
+ * @param projectileHitRadius The radius of the projectile's hitbox
  * @returns true if collision occurs
  */
 export function sweptHit(
-  a0: VecXZ, 
-  a1: VecXZ,
-  bPos: VecXZ, 
-  hitRadiusMultiplier = 1.0
+  a0: VecXZ, // projectile previous position
+  a1: VecXZ, // projectile current position
+  bPos: VecXZ, // target current position
+  projectileHitRadius: number // The radius of the projectile's hitbox
 ): boolean {
-  // Apply the hit radius multiplier to get the final hit radius
-  const hitRadius = 1.2 * hitRadiusMultiplier; // Base hit radius * multiplier
-  
+  const targetRadius = 0.5; // Assume a default radius for targets for simplicity
+  const effectiveHitRadius = projectileHitRadius + targetRadius; // Sum of radii
+
   // Log hit check details for debugging
-  log(LOG_CATEGORIES.COLLISION, `Projectile from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with hit radius ${hitRadius}`);
+  log(LOG_CATEGORIES.COLLISION, `SweptHit: Proj from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with effective radius ${effectiveHitRadius}`);
   
-  // SIMPLE APPROACH FIRST: Direct distance check at any point
-  // Check distance at initial position
-  const initialDist = Math.sqrt(Math.pow(a0.x - bPos.x, 2) + Math.pow(a0.z - bPos.z, 2));
-  if (initialDist <= hitRadius) {
-    log(LOG_CATEGORIES.COLLISION, `Direct hit at initial position! Distance: ${initialDist.toFixed(2)} <= ${hitRadius}`);
-    return true;
+  // Vector from projectile start to target center
+  const Px = bPos.x - a0.x;
+  const Pz = bPos.z - a0.z;
+
+  // Projectile movement vector
+  const Vx = a1.x - a0.x;
+  const Vz = a1.z - a0.z;
+
+  const VLengthSq = Vx * Vx + Vz * Vz;
+  if (VLengthSq < 0.0001) { // Projectile hasn't moved significantly
+    return distance(a0, bPos) <= effectiveHitRadius;
   }
-  
-  // Check distance at final position
-  const finalDist = Math.sqrt(Math.pow(a1.x - bPos.x, 2) + Math.pow(a1.z - bPos.z, 2));
-  if (finalDist <= hitRadius) {
-    log(LOG_CATEGORIES.COLLISION, `Direct hit at final position! Distance: ${finalDist.toFixed(2)} <= ${hitRadius}`);
-    return true;
-  }
-  
-  // SWEPT APPROACH: Check if projectile passes through the target
-  // Get direction and length of movement
-  const dx = a1.x - a0.x;
-  const dz = a1.z - a0.z;
-  const lengthSq = dx * dx + dz * dz;
-  
-  // Skip if no movement
-  if (lengthSq < 0.0001) return false;
-  
-  // Get vector from start position to target center
-  const cx = bPos.x - a0.x;
-  const cz = bPos.z - a0.z;
-  
-  // Project target onto movement line to find closest point
-  const t = Math.max(0, Math.min(1, (cx * dx + cz * dz) / lengthSq));
-  
-  // Find the closest point on the movement line segment
-  const closestX = a0.x + t * dx;
-  const closestZ = a0.z + t * dz;
-  
-  // Get distance from closest point to target
-  const closestDist = Math.sqrt(Math.pow(closestX - bPos.x, 2) + Math.pow(closestZ - bPos.z, 2));
-  
-  log(LOG_CATEGORIES.COLLISION, `Closest approach at t=${t.toFixed(2)}, distance: ${closestDist.toFixed(2)}, hit radius: ${hitRadius}`);
-  
-  // Check if this closest distance is less than the hit radius
-  const hit = closestDist <= hitRadius;
-  
-  // Additional debug logging
-  if (hit) {
-    log(LOG_CATEGORIES.COLLISION, `HIT! Projectile passes within ${closestDist.toFixed(2)} units of target (hit radius: ${hitRadius})`);
+
+  // Project P onto V
+  // t = (P . V) / (V . V)
+  const t = (Px * Vx + Pz * Vz) / VLengthSq;
+
+  let closestPoint: VecXZ;
+  if (t < 0) {
+    closestPoint = a0; // Closest point is the start of the segment
+  } else if (t > 1) {
+    closestPoint = a1; // Closest point is the end of the segment
   } else {
-    log(LOG_CATEGORIES.COLLISION, `MISS. Closest approach: ${closestDist.toFixed(2)} > ${hitRadius}`);
+    closestPoint = { x: a0.x + t * Vx, z: a0.z + t * Vz }; // Closest point is on the segment
+  }
+
+  const distToClosestPointSq = Math.pow(bPos.x - closestPoint.x, 2) + Math.pow(bPos.z - closestPoint.z, 2);
+
+  const hit = distToClosestPointSq <= effectiveHitRadius * effectiveHitRadius;
+
+  if (hit && Math.random() < 0.1) { // Reduce log spam
+    log(LOG_CATEGORIES.COLLISION, `Swept HIT! DistSq: ${distToClosestPointSq.toFixed(2)} <= RadiusSq: ${(effectiveHitRadius * effectiveHitRadius).toFixed(2)}`);
   }
   
   return hit;
@@ -9939,6 +10138,7 @@ import { CastReq, CastFail } from '../../shared/messages.js';
 import { VecXZ } from '../../shared/messages.js';
 import { PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
+import { canCast } from './utils/cast.js';
 
 /**
  * World interface for interacting with game state
@@ -9953,7 +10153,7 @@ interface World {
  * Handles a cast request from the client
  * Integration point between the world.ts and the new skillSystem.ts
  */
-export function handleCastRequest(
+export function handleCastReq(
   socket: Socket,
   player: PlayerState,
   msg: CastReq,
@@ -9962,8 +10162,11 @@ export function handleCastRequest(
 ): void {
   const playerId = msg.id;
   
+  console.log(`Handling cast request: player=${playerId}, skill=${msg.skillId}, target=${msg.targetId || 'none'}`);
+  
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
+    console.warn(`Invalid cast request: player=${playerId}, socketId mismatch`);
     return;
   }
   
@@ -9990,69 +10193,25 @@ export function handleCastRequest(
     return;
   }
   
-  // Check if player is alive
-  if (!player.isAlive) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: 'invalid'
-    } as CastFail);
-    return;
-  }
-  
-  // Check cooldown
+  // Get target if any
+  const target = msg.targetId ? world.getEnemyById(msg.targetId) : null;
   const now = Date.now();
-  if (player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId]) {
+  
+  // Use the canCast utility function to validate the cast
+  const castCheck = canCast(player, { id: skillId, range: skill.range || 0 }, target, msg.targetPos, now);
+  if (!castCheck.canCast) {
+    console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castCheck.reason}`);
     socket.emit('msg', {
       type: 'CastFail',
       clientSeq: msg.clientTs,
-      reason: 'cooldown'
+      reason: castCheck.reason || 'invalid'
     } as CastFail);
     return;
   }
   
-  // Check mana cost
-  if (player.mana < skill.manaCost) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: 'nomana'
-    } as CastFail);
-    return;
-  }
-  
-  // Check range if this is a targeted ability
-  if (skill.range && msg.targetId) {
-    const target = world.getEnemyById(msg.targetId);
-    if (!target) {
-      socket.emit('msg', {
-        type: 'CastFail',
-        clientSeq: msg.clientTs,
-        reason: 'outofrange'
-      } as CastFail);
-      return;
-    }
-    
-    // Calculate distance to target
-    const distance = Math.sqrt(
-      Math.pow(player.position.x - target.position.x, 2) +
-      Math.pow(player.position.z - target.position.z, 2)
-    );
-    
-    if (distance > skill.range) {
-      socket.emit('msg', {
-        type: 'CastFail',
-        clientSeq: msg.clientTs,
-        reason: 'outofrange'
-      } as CastFail);
-      return;
-    }
-  }
-  
-  // All checks passed, consume mana
+  // Apply mana cost and cooldown
   player.mana -= skill.manaCost;
   
-  // Set cooldown
   if (!player.skillCooldownEndTs) {
     player.skillCooldownEndTs = {};
   }
@@ -10069,15 +10228,23 @@ export function handleCastRequest(
     world
   );
   
-  // If castResult is a string, it's an error code
-  if (typeof castResult === 'string') {
+  // Valid error reasons
+  const validReasons = ['cooldown', 'nomana', 'invalid', 'outofrange'];
+  
+  // If castResult is a string and it's one of our valid error reasons,
+  // it's an error. Otherwise, it's a successful cast ID (nanoid)
+  if (typeof castResult === 'string' && validReasons.includes(castResult)) {
+    console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castResult}`);
+    
     socket.emit('msg', {
       type: 'CastFail',
       clientSeq: msg.clientTs,
-      reason: castResult
+      reason: castResult as 'cooldown' | 'nomana' | 'invalid' | 'outofrange'
     } as CastFail);
     return;
   }
+  
+  // If we got here, the cast was successful and castResult is the cast ID
   
   // Broadcast player update (mana consumed, cooldown set)
   io.emit('playerUpdated', {
@@ -10173,990 +10340,20 @@ export function applyEffectTick(tick: EffectTick, target: any): boolean {
 
 
 // ==============================================================================
-// FILE: server/combat/effects/EffectRunner.ts
-// ==============================================================================
-
-import { nanoid } from 'nanoid';
-import { EffectDef, EffectId, EFFECTS } from '../../../shared/effectsDefinition.js';
-import { EffectSnapshotMsg } from '../../../shared/messages.js';
-
-import { applyEffectTick } from './EffectApplicator.js';
-
-type EntityId = string;
-
-interface Entity {
-  id: string;
-  level?: number;
-  int?: number;  // Intelligence stat for effect damage/healing calculations
-}
-
-interface Active {
-  id: string;        // Unique identifier for this effect instance
-  srcId: EntityId;   // Source of the effect
-  effectId: EffectId; // Type of effect
-  def: EffectDef;    // Effect definition
-  remaining: number; // Remaining duration in ms
-  lastTick: number;  // When this effect last ticked
-  stacks: number;    // Current stack count
-  seed: number;      // RNG seed for deterministic calculations
-  level: number;     // Level of the effect (from source entity)
-  int: number;       // Int stat (from source entity)
-}
-
-class EffectRunner {
-  private active = new Map<EntityId, Active[]>();
-
-  /**
-   * Add a new effect to an entity or refresh an existing one
-   */
-  add(target: Entity, src: Entity, effectId: EffectId, seed: number) {
-    if (!EFFECTS[effectId]) {
-      console.error(`Unknown effect type: ${effectId}`);
-      return;
-    }
-
-    const targetId = target.id;
-    const def = EFFECTS[effectId];
-    const now = Date.now();
-    
-    // Get or create effects array for this target
-    if (!this.active.has(targetId)) {
-      this.active.set(targetId, []);
-    }
-    
-    const effects = this.active.get(targetId)!;
-    
-    // Check if this effect type already exists on target
-    const existingIdx = effects.findIndex(e => e.effectId === effectId && e.srcId === src.id);
-    
-    if (existingIdx >= 0) {
-      // Update existing effect
-      const existing = effects[existingIdx];
-      existing.remaining = Math.max(existing.remaining, def.durationMs); // Reset duration
-      existing.stacks = Math.min(existing.stacks + 1, def.maxStacks);    // Increment stacks
-      existing.seed = seed; // Update seed for deterministic calculations
-      return existing;
-    } else {
-      // Add new effect
-      const newEffect: Active = {
-        id: nanoid(),
-        srcId: src.id,
-        effectId,
-        def,
-        remaining: def.durationMs,
-        lastTick: now,
-        stacks: 1,
-        seed,
-        level: src.level || 1,
-        int: src.int || 0
-      };
-      effects.push(newEffect);
-      return newEffect;
-    }
-  }
-
-  private gameState: any = {};
-  
-  /**
-   * Set the game state reference for effect application
-   */
-  setGameState(state: any) {
-    this.gameState = state;
-  }
-
-  /**
-   * Process all active effects, trigger ticks, and return effect messages
-   */
-  tick(dt: number, emit: (m: EffectSnapshotMsg) => void) {
-    const now = Date.now();
-    const expiredEntities: EntityId[] = [];
-    
-    // Iterate through all targets and their effects
-    for (const [targetId, effects] of this.active.entries()) {
-      const expiredEffects: number[] = [];
-      
-      // Find the actual target entity
-      const targetEntity = 
-        (this.gameState.players && this.gameState.players[targetId]) || 
-        (this.gameState.enemies && this.gameState.enemies[targetId]);
-      
-      if (!targetEntity) {
-        // If target no longer exists, remove all effects
-        expiredEntities.push(targetId);
-        continue;
-      }
-      
-      // Update each effect
-      for (let i = 0; i < effects.length; i++) {
-        const effect = effects[i];
-        
-        // Decrease remaining time
-        effect.remaining -= dt;
-        
-        // Check if effect should be removed
-        if (effect.remaining <= 0) {
-          expiredEffects.push(i);
-          continue;
-        }
-        
-        // Check if the target is still alive before applying effects
-        if (!targetEntity.isAlive) {
-          console.log(`[EffectRunner] Target ${targetId} is dead, skipping effect ${effect.effectId}`);
-          expiredEffects.push(i);
-          continue; // Skip to the next effect for this target
-        }
-        
-        // Check if effect should tick
-        const timeSinceLastTick = now - effect.lastTick;
-        if (timeSinceLastTick >= effect.def.tickMs) {
-          // Apply effect tick
-          const tickCount = Math.floor(timeSinceLastTick / effect.def.tickMs);
-          effect.lastTick = now - (timeSinceLastTick % effect.def.tickMs);
-          
-          // For each missed tick, apply the effect
-          for (let tick = 0; tick < tickCount; tick++) {
-            // Check again if the target is alive before each tick application
-            if (!targetEntity.isAlive) {
-              console.log(`[EffectRunner] Target ${targetId} died during effect processing, stopping ticks`);
-              break; // Stop processing ticks for this effect
-            }
-            
-            const tickSeed = effect.seed + tick;
-            const result = effect.def.apply({
-              level: effect.level,
-              int: effect.int,
-              seed: tickSeed
-            });
-            
-            // Apply effect result value to target entity
-            if (targetEntity) {
-              const didKill = applyEffectTick(result, targetEntity);
-              
-              // If the target died, stop processing ticks for this entity
-              if (didKill) {
-                break;
-              }
-            }
-          }
-          
-          // Send effect snapshot after each tick
-          emit({
-            type: 'EffectSnapshot',
-            id: targetId,
-            src: effect.srcId,
-            effectId: effect.effectId,
-            stacks: effect.stacks,
-            remainingMs: effect.remaining,
-            seed: effect.seed
-          });
-        }
-      }
-      
-      // Remove expired effects in reverse order
-      for (let i = expiredEffects.length - 1; i >= 0; i--) {
-        const expiredIdx = expiredEffects[i];
-        effects.splice(expiredIdx, 1);
-      }
-      
-      // If no effects remain for this entity, mark for cleanup
-      if (effects.length === 0) {
-        expiredEntities.push(targetId);
-      }
-    }
-    
-    // Remove expired entities
-    for (const entityId of expiredEntities) {
-      this.active.delete(entityId);
-    }
-  }
-  
-  /**
-   * Get all active effects for a specific entity
-   */
-  getEffectsForEntity(entityId: EntityId): Active[] {
-    return this.active.get(entityId) || [];
-  }
-  
-  /**
-   * Remove all effects from a specific entity
-   */
-  clearEffects(entityId: EntityId) {
-    this.active.delete(entityId);
-  }
-}
-
-export const effectRunner = new EffectRunner();
-
-
-// ==============================================================================
-// FILE: server/combat/skillManager.ts
-// ==============================================================================
-
-import { Socket, Server } from 'socket.io';
-import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
-import { CastReq, CastFail, CastSnapshotMsg, ProjSpawn2, ProjHit2 } from '../../shared/messages.js';
-import { getManaCost, getCooldownMs, getDamage } from '../../shared/combatMath.js';
-import { VecXZ } from '../../shared/messages.js';
-import { Vec3D } from '../../shared/messages.js';
-import { predictPosition, distance } from '../../shared/positionUtils.js';
-import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
-import { nanoid } from 'nanoid';
-import { PlayerState as Player } from '../../shared/types.js';
-
-// Import getDamage from shared/combatMath.js
-import { getDamage as getSkillDamage } from '../../shared/combatMath.js';
-
-/**
- * Get world interface for interacting with game state
- */
-interface World {
-  getEnemyById: (id: string) => any | null;
-  getPlayerById: (id: string) => Player | null;
-  getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
-}
-
-/**
- * Calculate damage for a skill based on the skill and caster stats, using the shared implementation
- * @param skill The skill object with dmg property
- * @param caster Optional caster with stats
- * @param castId The unique ID of the cast
- * @param targetId The ID of the target
- * @returns The calculated damage amount
- */
-function calculateDamage(skill: any, caster?: any, castId?: string, targetId?: string): number {
-  if (!skill || !skill.dmg) return 10; // Default damage
-  
-  const result = getDamage({
-    caster: caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 },
-    skill: { base: skill.dmg, variance: 0.1 },
-    seed: `${castId || nanoid()}:${targetId || nanoid()}`
-  });
-  
-  return result.dmg;
-}
-
-// Define the type for active casts (legacy)
-interface CastState {
-  id: string;
-  skillId: SkillId;
-  startTime: number;
-  castTimeMs: number;
-  targetId?: string;
-  targetPos?: VecXZ;
-  clientSeq: number; // To reconcile with client
-  state: 'casting' | 'completed' | 'canceled';
-}
-
-// New types for the enhanced Cast and Projectile system
-interface Cast {
-  castId: string;
-  casterId: string;
-  skillId: SkillId;
-  state: CastStateEnum;
-  origin: Vec3D;
-  target?: VecXZ;
-  startedAt: number;
-  castTimeMs: number;
-  targetId?: string;
-  targetPos?: VecXZ;
-}
-
-interface Projectile {
-  castId: string;
-  pos: VecXZ;
-  dir: VecXZ;
-  speed: number;
-  distanceTraveled: number;
-  maxRange: number;
-  startTime: number;
-  skillId: SkillId;
-}
-
-// Collection of active casts by all players (legacy)
-const activeCasts: CastState[] = [];
-// Collection of completed casts to be processed
-let completedCasts: CastState[] = [];
-
-// New collections for the enhanced system
-const activeCastsNew: Cast[] = [];
-const projectiles: Projectile[] = [];
-
-/**
- * Handle a cast request from a client
- * Validates mana and cooldown, creates cast state or rejects with fail message
- */
-export function handleCastReq(
-  player: Player,
-  req: CastReq,
-  socket: Socket,
-  getEnemyById: (id: string) => any | null
-): void {
-  const now = Date.now();
-  const skillId = req.skillId as SkillId;
-  const skill = SKILLS[skillId];
-  
-  // Make sure the skill exists
-  if (!skill) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: req.clientTs, // Use clientTs as clientSeq for reconciliation
-      reason: 'invalid'
-    } as CastFail);
-    return;
-  }
-  
-  // Check if player is alive
-  if (!player.isAlive) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: req.clientTs,
-      reason: 'invalid'
-    } as CastFail);
-    return;
-  }
-  
-  // Check cooldown
-  if ((player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId]) || 
-      (player.skillCooldownEndTs?.[skillId] && now < player.skillCooldownEndTs[skillId])) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: req.clientTs,
-      reason: 'cooldown'
-    } as CastFail);
-    return;
-  }
-  
-  // Check mana cost
-  const manaCost = getManaCost(skillId);
-  if (player.mana < manaCost) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: req.clientTs,
-      reason: 'nomana'
-    } as CastFail);
-    return;
-  }
-  
-  // Check range if this is a targeted ability
-  if (skill.range && req.targetId) {
-    const target = getEnemyById(req.targetId);
-    if (!target) {
-      socket.emit('msg', {
-        type: 'CastFail',
-        clientSeq: req.clientTs,
-        reason: 'invalid'
-      } as CastFail);
-      return;
-    }
-    
-    // Check if target is alive
-    if (!target.isAlive) {
-      socket.emit('msg', {
-        type: 'CastFail',
-        clientSeq: req.clientTs,
-        reason: 'invalid'
-      } as CastFail);
-      return;
-    }
-    
-    // Check range
-    const playerPos = predictPosition(player, now);
-    const targetPos = { x: target.position.x, z: target.position.z };
-    
-    if (distance(playerPos, targetPos) > skill.range) {
-      socket.emit('msg', {
-        type: 'CastFail',
-        clientSeq: req.clientTs,
-        reason: 'invalid'
-      } as CastFail);
-      return;
-    }
-  } else if (skill.range && req.targetPos) {
-    // Position-targeted ability
-    const playerPos = predictPosition(player, now);
-    
-    if (distance(playerPos, req.targetPos) > skill.range) {
-      socket.emit('msg', {
-        type: 'CastFail',
-        clientSeq: req.clientTs,
-        reason: 'invalid'
-      } as CastFail);
-      return;
-    }
-  }
-  
-  // Deduct mana
-  player.mana -= manaCost;
-  
-  // Set cooldown
-  const cooldownMs = getCooldownMs(skillId);
-  player.skillCooldownEndTs[skillId] = now + cooldownMs;
-  
-  // Create a cast state entry
-  const cast: CastState = {
-    id: player.id,
-    skillId,
-    startTime: now,
-    castTimeMs: skill.castMs, // Use castMs from skill definition
-    targetId: req.targetId,
-    targetPos: req.targetPos,
-    clientSeq: req.clientTs,
-    state: 'casting'
-  };
-  
-  // Add to active casts
-  activeCasts.push(cast);
-  
-  // Legacy CastStart removed - using only CastSnapshot
-  
-  // Create a new Cast object for the enhanced system
-  const newCast: Cast = {
-    castId: nanoid(),
-    casterId: player.id,
-    skillId,
-    state: CastStateEnum.Casting,
-    origin: { x: player.position.x, y: player.position.y + 1.5, z: player.position.z },
-    startedAt: now,
-    castTimeMs: skill.castMs,
-    targetId: req.targetId,
-    targetPos: req.targetPos
-  };
-  
-  // Add to active casts
-  activeCastsNew.push(newCast);
-  
-  // Broadcast initial cast snapshot
-  const castSnapshot: CastSnapshot = {
-    castId: newCast.castId,
-    casterId: newCast.casterId,
-    skillId: newCast.skillId,
-    state: newCast.state,
-    origin: newCast.origin,
-    target: newCast.targetPos,
-    startedAt: newCast.startedAt
-  };
-  
-  socket.emit('msg', {
-    type: 'CastSnapshot',
-    data: castSnapshot
-  } as CastSnapshotMsg);
-  socket.broadcast.emit('msg', {
-    type: 'CastSnapshot',
-    data: castSnapshot
-  } as CastSnapshotMsg);
-}
-
-/**
- * Update casting progress for all active casts
- * Should be called from game loop on regular intervals
- */
-export function updateCasts(io?: Server, players?: Record<string, any>): void {
-  const now = Date.now();
-  const localCompletedCasts: CastState[] = [];
-  const playerUpdates: Record<string, any> = {};
-  
-  // Update all active casts
-  for (let i = activeCasts.length - 1; i >= 0; i--) {
-    const cast = activeCasts[i];
-    const elapsedMs = now - cast.startTime;
-    
-    // Update casting progress for this player
-    if (players && players[cast.id]) {
-      players[cast.id].castingProgressMs = elapsedMs;
-    }
-    
-    if (!playerUpdates[cast.id]) {
-      playerUpdates[cast.id] = { id: cast.id, castingProgressMs: elapsedMs };
-    }
-    
-    // Check if cast is complete
-    if (elapsedMs >= cast.castTimeMs) {
-      // Mark as completed
-      cast.state = 'completed';
-      localCompletedCasts.push({...cast});
-      
-      // Add to the global completed casts array
-      completedCasts.push({...cast});
-      
-      // Remove from active casts
-      activeCasts.splice(i, 1);
-      
-      // Reset player's casting state
-      if (players && players[cast.id]) {
-        players[cast.id].castingSkill = null;
-        players[cast.id].castingProgressMs = 0;
-      }
-      
-      // Update completion status
-      if (playerUpdates[cast.id]) {
-        playerUpdates[cast.id].castingProgressMs = 0; // Reset to 0
-        playerUpdates[cast.id].castingSkill = null;   // Reset casting skill
-      }
-      
-      // Legacy CastEnd message removed
-      
-    }
-  }
-  
-  // Send progress updates to clients if we have the io server
-  if (io && Object.keys(playerUpdates).length > 0) {
-    // Send progress updates to all clients
-    for (const playerId in playerUpdates) {
-      io.emit('playerUpdated', playerUpdates[playerId]);
-    }
-  }
-}
-
-/**
- * Process the effects of a completed cast
- */
-function processCompletedCast(cast: CastState): void {
-  // Handle any side effects of the completed cast
-  // e.g., apply an effect, trigger an event, etc.
-
-  // Set cast state to completed
-  cast.state = 'completed';
-}
-
-/**
- * Gets and clears the completed casts queue
- * Other systems should call this to process completed casts
- */
-export function getCompletedCasts(): CastState[] {
-  const temp = [...completedCasts];
-  completedCasts = [];
-  return temp;
-}
-
-/**
- * Cancel an active cast
- */
-export function cancelCast(playerId: string, skillId?: string): boolean {
-  const index = activeCasts.findIndex(cast => 
-    cast.id === playerId && 
-    (skillId ? cast.skillId === skillId : true)
-  );
-  
-  if (index >= 0) {
-    const cast = activeCasts[index];
-    cast.state = 'canceled';
-    activeCasts.splice(index, 1);
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * Check if a player is currently casting
- */
-export function isPlayerCasting(playerId: string): boolean {
-  return activeCasts.some(cast => cast.id === playerId);
-}
-
-/**
- * Resolves the impact of a skill, applying damage and effects
- */
-function resolveImpact(cast: Cast, io: Server, world: World): void {
-  const skill = SKILLS[cast.skillId];
-  const targets = getTargetsInArea(cast, world);
-  const caster = world.getPlayerById(cast.casterId);
-  
-  // Calculate damage for each target
-  const dmgValues = targets.map((target: any) => 
-    calculateDamage(skill, caster, cast.castId, target.id)
-  );
-  
-  // Apply damage to each target
-  targets.forEach((target: any, index: number) => {
-    // Apply damage if target has health
-    if (target.health !== undefined) {
-      target.health = Math.max(0, target.health - dmgValues[index]);
-      
-      // Apply skill effects
-      if (skill.effects && skill.effects.length > 0) {
-        applySkillEffects(target, skill, cast.casterId);
-      }
-      
-      // Check if target died
-      if (target.health <= 0 && target.isAlive) {
-        target.isAlive = false;
-        target.deathTimeTs = Date.now();
-      }
-    }
-  });
-  
-  // Emit hit notification with targets
-  io.emit('msg', {
-    type: 'InstantHit',
-    skillId: cast.skillId,
-    origin: cast.origin,
-    targetPos: cast.targetPos || { x: 0, y: 0, z: 0 },
-    hitIds: targets.map((t: any) => t.id),
-    dmg: dmgValues
-  });
-}
-
-/**
- * Gets all targets in the area of effect for a skill
- */
-function getTargetsInArea(cast: Cast, world: World): any[] {
-  const skill = SKILLS[cast.skillId];
-  const pos = cast.pos || cast.origin; // Use current projectile position if available
-  
-  // Get radius of impact
-  let radius = 0.5; // Default small radius
-  
-  if (skill.projectile?.splashRadius) {
-    radius = skill.projectile.splashRadius; // Use splash radius for AoE
-  } else if (skill.projectile?.hitRadius) {
-    radius = skill.projectile.hitRadius; // Use hit radius for direct hit
-  } else if (skill.area) {
-    radius = skill.area; // Use area for instant AoE skills
-  }
-  
-  // Get entities in range
-  return world.getEntitiesInCircle({ x: pos.x, z: pos.z }, radius);
-}
-
-/**
- * Apply skill effects to a target
- */
-function applySkillEffects(target: any, skill: any, casterId: string): void {
-  if (!skill.effects || skill.effects.length === 0) return;
-  
-  // Apply each effect
-  for (const effect of skill.effects) {
-    if (!effect.type || !effect.value) continue;
-    
-    // Create status effect
-    const statusEffect = {
-      id: nanoid(),
-      type: effect.type,
-      value: effect.value,
-      durationMs: effect.durationMs || 0,
-      startTimeTs: Date.now(),
-      sourceSkill: skill.id
-    };
-    
-    // Add to target's status effects
-    if (!target.statusEffects) {
-      target.statusEffects = [];
-    }
-    
-    // Check for existing effect of same type and replace if found
-    const existingIndex = target.statusEffects.findIndex(
-      (e: any) => e.type === effect.type
-    );
-    
-    if (existingIndex >= 0) {
-      target.statusEffects[existingIndex] = statusEffect;
-    } else {
-      target.statusEffects.push(statusEffect);
-    }
-  }
-}
-
-/**
- * Updates and progresses active casts, transitions them between states
- * Fully implemented server-authoritative state machine
- */
-export function tickCasts(dt: number, io: Server, world: World): void {
-  const now = Date.now();
-  const lastTickMs = now - dt;
-  
-  for (let i = activeCastsNew.length - 1; i >= 0; i--) {
-    const cast = activeCastsNew[i];
-    
-    // Skip casts that are already in their final state and remove after delay
-    if (cast.state === CastStateEnum.Impact) {
-      // Remove completed casts after a delay
-      if (now - cast.startedAt > 5000) { // 5 seconds after cast started
-        activeCastsNew.splice(i, 1);
-      }
-      continue;
-    }
-    
-    // Check if cast time is complete for casts in Casting state
-    if (cast.state === CastStateEnum.Casting && now - cast.startedAt >= cast.castTimeMs) {
-      const skill = SKILLS[cast.skillId];
-      const isProjectileSkill = skill.projectile !== undefined;
-      
-      // Transition to Traveling or Impact based on skill type
-      cast.state = isProjectileSkill ? CastStateEnum.Traveling : CastStateEnum.Impact;
-      
-      // Make a snapshot to broadcast the state change
-      const castSnapshot: CastSnapshot = {
-        castId: cast.castId,
-        casterId: cast.casterId,
-        skillId: cast.skillId,
-        state: cast.state,
-        origin: cast.origin,
-        target: cast.targetPos,
-        startedAt: cast.startedAt,
-        castTimeMs: cast.castTimeMs
-      };
-      
-      // Broadcast the state change
-      io.emit('msg', {
-        type: 'CastSnapshot',
-        data: castSnapshot
-      });
-      
-      // If it's an instant cast, resolve impact immediately
-      if (cast.state === CastStateEnum.Impact) {
-        resolveImpact(cast, io, world);
-        continue;
-      }
-          
-          // Calculate travel time in milliseconds
-          const speed = skill.projectile?.speed || 5;
-          const dist = tgtPos ? 
-            Math.sqrt(
-              Math.pow(tgtPos.x - cast.origin.x, 2) + 
-              Math.pow(tgtPos.z - cast.origin.z, 2)
-            ) : skill.range || 10; // Default to skill range if no target
-          
-          const travelS = dist / speed;
-          const travelMs = travelS * 1000;
-          
-          // Create projectile
-          const projectile: Projectile = {
-            castId: cast.castId,
-            pos: { ...cast.origin },
-            dir,
-            speed: speed,
-            distanceTraveled: 0,
-            maxRange: skill.range || 10,
-            startTime: now,
-            skillId: cast.skillId
-          };
-          
-          // Check if a projectile with this castId already exists
-          const existingProjIndex = projectiles.findIndex(p => p.castId === cast.castId);
-          if (existingProjIndex >= 0) {
-            console.warn(`[SkillManager] Duplicate projectile detected for castId ${cast.castId}. Removing previous.`);
-            projectiles.splice(existingProjIndex, 1);
-          }
-          
-          projectiles.push(projectile);
-          
-          // Log before sending ProjSpawn2 message
-          console.log(`[SkillManager] Sending ProjSpawn2 for castId: ${cast.castId}, skillId: ${cast.skillId}`);
-          
-          // Emit projectile spawn with travelMs
-          io.emit('msg', {
-            type: 'ProjSpawn2',
-            castId: cast.castId,
-            origin: cast.origin,
-            dir,
-            speed: projectile.speed,
-            launchTs: now,
-            hitRadius: skill.projectile?.hitRadius,
-            travelMs: travelMs,
-            casterId: cast.casterId,
-            skillId: cast.skillId
-          } as ProjSpawn2);
-          
-          // Broadcast cast state change
-          io.emit('msg', {
-            type: 'CastSnapshot',
-            data: {
-              castId: cast.castId,
-              casterId: cast.casterId,
-              skillId: cast.skillId,
-              state: cast.state,
-              origin: cast.origin,
-              target: cast.targetPos,
-              startedAt: cast.startedAt
-            }
-          } as CastSnapshotMsg);
-        } else {
-          // Instant cast, goes straight to Impact
-          cast.state = CastStateEnum.Impact;
-          
-          // Broadcast cast state change
-          io.emit('msg', {
-            type: 'CastSnapshot',
-            data: {
-              castId: cast.castId,
-              casterId: cast.casterId,
-              skillId: cast.skillId,
-              state: cast.state,
-              origin: cast.origin,
-              target: cast.targetPos,
-              startedAt: cast.startedAt
-            }
-          } as CastSnapshotMsg);
-          
-          // TODO: Handle instant cast effects directly here
-        }
-      }
-    }
-
-/**
- * Updates projectile positions and handles collisions
- */
-export function tickProjectiles(dt: number, io: Server, world: World): void {
-
-  for (let i = projectiles.length - 1; i >= 0; i--) {
-    const proj = projectiles[i];
-    const skill = SKILLS[proj.skillId];
-    
-    // Calculate distance traveled in this time step
-    const distanceThisFrame = proj.speed * (dt / 1000);
-    proj.distanceTraveled += distanceThisFrame;
-    
-    // Update position
-    proj.pos.x += proj.dir.x * distanceThisFrame;
-    proj.pos.z += proj.dir.z * distanceThisFrame;
-    
-    // Check if projectile has reached max range
-    let detonate = false;
-    if (proj.distanceTraveled >= proj.maxRange) {
-      detonate = true;
-      
-      // Find the matching cast to update state
-      const castIndex = activeCastsNew.findIndex(c => c.castId === proj.castId);
-      if (castIndex >= 0) {
-        const cast = activeCastsNew[castIndex];
-        
-        // Update cast state to Impact
-        cast.state = CastStateEnum.Impact;
-        
-        // Emit hit message with empty hit list
-        io.emit('msg', {
-          type: 'ProjHit2',
-          castId: proj.castId,
-          hitIds: [],
-          dmg: [],
-          impactPos: { ...proj.pos }  // Include impact position for VFX
-        } as ProjHit2);
-        
-        // Broadcast cast state change
-        io.emit('msg', {
-          type: 'CastSnapshot',
-          data: {
-            castId: cast.castId,
-            casterId: cast.casterId,
-            skillId: cast.skillId,
-            state: cast.state,
-            origin: cast.origin,
-            target: cast.targetPos,
-            startedAt: cast.startedAt
-          }
-        } as CastSnapshotMsg);
-      }
-    }
-    
-    // Check for collisions
-    if (skill.projectile?.hitRadius) {
-      const victims = world.getEntitiesInCircle(proj.pos, skill.projectile.hitRadius);
-      
-      if (victims.length > 0) {
-        detonate = true;
-        
-        // Find the matching cast
-        const castIndex = activeCastsNew.findIndex(c => c.castId === proj.castId);
-        if (castIndex >= 0) {
-          const cast = activeCastsNew[castIndex];
-          const caster = world.getPlayerById(cast.casterId);
-          
-          // Calculate damage for each victim using the shared getDamage function
-          const dmgArr = victims.map((v: any) => calculateDamage(
-            skill, 
-            caster, 
-            cast.castId, 
-            v.id
-          ));
-          
-          // Emit hit message with current projectile data
-          const currentProj = projectiles[i];
-          const hitVictims = victims;
-
-          io.emit('msg', {
-            type: 'ProjHit2',
-            castId: currentProj.castId,
-            hitIds: hitVictims.map((v: any) => v.id),
-            dmg: dmgArr,
-            impactPos: { ...currentProj.pos }  // Include impact position for VFX
-          } as ProjHit2);
-          
-          // Update cast state to Impact
-          cast.state = CastStateEnum.Impact;
-          
-          // Broadcast cast snapshot
-          io.emit('msg', {
-            type: 'CastSnapshot',
-            data: {
-              castId: cast.castId,
-              casterId: cast.casterId,
-              skillId: cast.skillId,
-              state: cast.state,
-              origin: cast.origin,
-              target: cast.targetPos,
-              startedAt: cast.startedAt
-            }
-          } as CastSnapshotMsg);
-        }
-      }
-    }
-    
-    // If projectile should detonate (hit max range or collided), remove it
-    if (detonate) {
-      projectiles.splice(i, 1);
-    }
-  }
-}
-
-/**
- * Send snapshots of all active casts and projectiles to a client
- * Call this when a new client connects to catch them up on the game state
- */
-export function sendCastSnapshots(socket: Socket): void {
-  // Send all active casts
-  activeCastsNew.forEach(cast => {
-    socket.emit('msg', {
-      type: 'CastSnapshot',
-      data: {
-        castId: cast.castId,
-        casterId: cast.casterId,
-        skillId: cast.skillId,
-        state: cast.state,
-        origin: cast.origin,
-        target: cast.targetPos,
-        startedAt: cast.startedAt
-      }
-    } as CastSnapshotMsg);
-  });
-  
-  // Send all active projectiles
-  projectiles.forEach(proj => {
-    socket.emit('msg', {
-      type: 'ProjSpawn2',
-      castId: proj.castId,
-      origin: proj.pos,
-      dir: proj.dir,
-      speed: proj.speed,
-      launchTs: proj.startTime,
-      hitRadius: SKILLS[proj.skillId].projectile?.hitRadius || 0.5
-    } as ProjSpawn2);
-  });
-}
-
-
-// ==============================================================================
 // FILE: server/combat/skillSystem.ts
 // ==============================================================================
 
 import { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
-import { VecXZ, Vec3D } from '../../shared/messages.js';
+import { VecXZ } from '../../shared/messages.js';
 import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
-import { predictPosition, distance } from '../../shared/positionUtils.js';
 import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';
 import { getDamage } from '../../shared/combatMath.js';
+import { sweptHit } from '../collision.js';
+
+// Set of constants for skill system
+export const CAST_BROADCAST_RATE = 50; // ms, how often to send cast snapshots
 
 /**
  * Get world interface for interacting with game state
@@ -11175,7 +10372,7 @@ export interface Cast {
   casterId: string;
   skillId: SkillId;
   state: CastStateEnum;
-  origin: Vec3D;
+  origin: VecXZ;
   target?: VecXZ;
   pos?: VecXZ; // Current position for projectiles
   dir?: VecXZ; // Direction for projectiles
@@ -11217,6 +10414,7 @@ function makeSnapshot(cast: Cast): CastSnapshot {
     origin: cast.origin,
     target: cast.targetPos,
     pos: cast.pos, // Include current position for projectiles
+    dir: cast.dir, // Include direction for traveling projectiles
     startedAt: cast.startedAt,
     castTimeMs: cast.castTimeMs
   };
@@ -11245,59 +10443,87 @@ function resolveImpact(cast: Cast, io: Server, world: World): void {
       
       // Apply skill effects
       if (skill.effects && skill.effects.length > 0) {
-        applySkillEffects(target, skill, cast.casterId);
+        applySkillEffects(target, skill);
       }
       
       // Check if target died
       if (target.health <= 0 && target.isAlive) {
         target.isAlive = false;
         target.deathTimeTs = Date.now();
+        
+        // Trigger any on-kill effects or rewards here
       }
+      
+      // Broadcast effect on the target
+      io.emit('msg', {
+        type: 'EffectSnapshot',
+        targetId: target.id,
+        effects: target.statusEffects
+      });
+      
+      // Broadcast target state update
+      io.emit('enemyUpdated', target);
     }
   });
   
-  // Emit hit notification with targets
+  // Emit combat log message with damage values
   io.emit('msg', {
-    type: 'InstantHit',
+    type: 'CombatLog',
+    castId: cast.castId,
     skillId: cast.skillId,
-    origin: cast.origin,
-    targetPos: cast.targetPos || { x: 0, y: 0, z: 0 },
-    hitIds: targets.map((t: any) => t.id),
-    dmg: dmgValues
+    casterId: cast.casterId,
+    targets: targets.map((t: any) => t.id),
+    damages: dmgValues
   });
 }
 
 /**
- * Gets all targets in the area of effect for a skill
+ * Get targets in the area of effect of a skill
  */
 function getTargetsInArea(cast: Cast, world: World): any[] {
   const skill = SKILLS[cast.skillId];
-  const pos = cast.pos || cast.origin; // Use current projectile position if available
+  const targets: any[] = [];
   
-  // Get radius of impact
-  let radius = 0.5; // Default small radius
+  // Default position to check (projectile position or caster position)
+  const pos = cast.pos || cast.origin;
   
-  if (skill.projectile?.splashRadius) {
-    radius = skill.projectile.splashRadius; // Use splash radius for AoE
-  } else if (skill.projectile?.hitRadius) {
-    radius = skill.projectile.hitRadius; // Use hit radius for direct hit
-  } else if (skill.area) {
-    radius = skill.area; // Use area for instant AoE skills
+  // Direct targeted cast
+  if (cast.targetId) {
+    const target = world.getEnemyById(cast.targetId);
+    if (target && target.isAlive) {
+      targets.push(target);
+    }
   }
   
-  // Get entities in range
-  return world.getEntitiesInCircle({ x: pos.x, z: pos.z }, radius);
+  // Area of effect
+  if (skill.area && skill.area > 0) {
+    // Get all entities in the area (includes players and enemies)
+    const entitiesInArea = world.getEntitiesInCircle(pos, skill.area);
+    
+    // Filter based on skill targeting rules (e.g., enemies only, exclude caster, etc.)
+    entitiesInArea.forEach(entity => {
+      if (entity.id !== cast.casterId && entity.isAlive) {
+        // Skip if we already have this target
+        if (!targets.find(t => t.id === entity.id)) {
+          targets.push(entity);
+        }
+      }
+    });
+  }
+  
+  return targets;
 }
 
 /**
  * Apply skill effects to a target
  */
-function applySkillEffects(target: any, skill: any, casterId: string): void {
-  if (!skill.effects || skill.effects.length === 0) return;
+function applySkillEffects(target: any, skill: any): void {
+  if (!skill.effects || !target) return;
   
   // Apply each effect
   for (const effect of skill.effects) {
-    if (!effect.type || !effect.value) continue;
+    // Skip effects without a duration
+    if (!effect.durationMs) continue;
     
     // Create status effect
     const statusEffect = {
@@ -11345,7 +10571,10 @@ function reachedTarget(cast: Cast): boolean {
 
 /**
  * Check if a cast has exceeded its maximum range
+ * @deprecated Now handled directly in tickCasts with more robust hit detection
+ * This is kept for backward compatibility with existing code
  */
+// @ts-ignore: Marked as deprecated - used by external code
 function exceededRange(cast: Cast): boolean {
   if (!cast.pos || !cast.origin) return false;
   
@@ -11365,13 +10594,24 @@ function exceededRange(cast: Cast): boolean {
 /**
  * Handle a new cast request from a player
  */
-export function handleCastRequest(player: Player, casterId: string, skillId: SkillId, targetPos?: VecXZ, targetId?: string, io: Server, world: World): string {
+export function handleCastRequest(
+  player: Player, 
+  casterId: string,
+  skillId: SkillId,
+  targetPos: VecXZ | undefined,
+  targetId: string | undefined,
+  io: Server, 
+  world: World
+): string | Cast['castId'] {
   const now = Date.now();
   const skill = SKILLS[skillId];
   
   if (!skill) {
+    console.error(`[handleCastRequest] Invalid skill ID: ${skillId}`);
     return 'invalid';
   }
+  
+  console.log(`[handleCastRequest] Creating new cast: casterId=${casterId}, skillId=${skillId}, targetId=${targetId}, targetPos=${JSON.stringify(targetPos)}`);
   
   // Create a new Cast
   const newCast: Cast = {
@@ -11379,13 +10619,18 @@ export function handleCastRequest(player: Player, casterId: string, skillId: Ski
     casterId: casterId,
     skillId: skillId,
     state: CastStateEnum.Casting,
-    origin: { x: player.position.x, y: player.position.y + 1.5, z: player.position.z },
+    origin: { x: player.position.x, z: player.position.z },
     startedAt: now,
-    castTimeMs: skill.castMs,
+    castTimeMs: skill.castMs || 0,
     targetId: targetId,
     targetPos: targetPos,
-    pos: { x: player.position.x, y: player.position.y + 1.5, z: player.position.z } // Start at origin
+    pos: { x: player.position.x, z: player.position.z } // Start at origin
   };
+  
+  // Add special logging for fireball
+  if (newCast.skillId === 'fireball') {
+    console.log(`[SkillSystem] Created Fireball Cast: castId=${newCast.castId}, origin=(${newCast.origin.x.toFixed(2)}, ${newCast.origin.z.toFixed(2)}), targetPos=(${newCast.targetPos?.x.toFixed(2)}, ${newCast.targetPos?.z.toFixed(2)}), dir=(${newCast.dir?.x.toFixed(2)}, ${newCast.dir?.z.toFixed(2)})`);
+  }
   
   // Calculate direction if projectile
   if (skill.projectile && (targetPos || targetId)) {
@@ -11410,23 +10655,43 @@ export function handleCastRequest(player: Player, casterId: string, skillId: Ski
       if (dist > 0) {
         newCast.dir = { x: dx / dist, z: dz / dist };
         newCast.speed = skill.projectile.speed;
+        console.log(`[handleCastRequest] Set projectile direction: [${newCast.dir.x.toFixed(2)}, ${newCast.dir.z.toFixed(2)}], speed: ${newCast.speed}`);
       }
     }
   }
   
   // Add to active casts
   activeCasts.push(newCast);
+  console.log(`[handleCastRequest] Added to activeCasts. Total active casts: ${activeCasts.length}`);
   
   // Broadcast initial cast snapshot
+  const snapshot = makeSnapshot(newCast);
+  console.log(`[handleCastRequest] Broadcasting initial CastSnapshot: ${JSON.stringify(snapshot)}`);
+  
+  // Add special logging for fireball snapshots
+  if (snapshot.skillId === 'fireball') {
+    console.log(`[SkillSystem] Broadcasting initial Fireball CastSnapshot (Casting): ${JSON.stringify(snapshot)}`);
+  }
+  
   io.emit('msg', {
     type: 'CastSnapshot',
-    data: makeSnapshot(newCast)
+    data: snapshot
   });
   
   // Set player UI info
   if (player) {
     player.castingSkill = skillId;
     player.castingProgressMs = 0;
+    
+    // Also broadcast the player's updated casting state
+    console.log(`[handleCastRequest] Broadcasting playerUpdated with castingSkill=${skillId}, castingProgressMs=0`);
+    io.emit('playerUpdated', {
+      id: player.id,
+      mana: player.mana,
+      skillCooldownEndTs: player.skillCooldownEndTs,
+      castingSkill: player.castingSkill,
+      castingProgressMs: player.castingProgressMs
+    });
   }
   
   return newCast.castId;
@@ -11447,6 +10712,14 @@ export function tickCasts(dt: number, io: Server, world: World): void {
   const now = Date.now();
   const lastTickMs = now - dt;
   
+  // Log active casts periodically (once every 10 seconds) to avoid flooding
+  if (Math.random() < 0.01) { // roughly 1% chance on each tick
+    console.log(`[tickCasts] Active casts: ${activeCasts.length}`);
+    activeCasts.forEach(cast => {
+      console.log(`[tickCasts] Cast state: castId=${cast.castId}, casterId=${cast.casterId}, skillId=${cast.skillId}, state=${cast.state}, elapsed=${now - cast.startedAt}ms`);
+    });
+  }
+  
   for (let i = activeCasts.length - 1; i >= 0; i--) {
     const cast = activeCasts[i];
     
@@ -11454,6 +10727,7 @@ export function tickCasts(dt: number, io: Server, world: World): void {
     if (cast.state === CastStateEnum.Impact) {
       // Remove completed casts after a delay
       if (now - cast.startedAt > 5000) { // 5 seconds after cast started
+        console.log(`[tickCasts] Removing completed cast: castId=${cast.castId}, skillId=${cast.skillId}`);
         activeCasts.splice(i, 1);
       }
       continue;
@@ -11462,16 +10736,42 @@ export function tickCasts(dt: number, io: Server, world: World): void {
     // Check if cast time is complete for casts in Casting state
     if (cast.state === CastStateEnum.Casting && now - cast.startedAt >= cast.castTimeMs) {
       const skill = SKILLS[cast.skillId];
-      cast.state = skill.projectile ? CastStateEnum.Traveling : CastStateEnum.Impact;
+      const newState = skill.projectile ? CastStateEnum.Traveling : CastStateEnum.Impact;
+      console.log(`[tickCasts] Cast complete, transitioning from Casting to ${newState}: castId=${cast.castId}, skillId=${cast.skillId}, casterId=${cast.casterId}`);
+      
+      // Special logging for fireball transitions
+      if (cast.skillId === 'fireball') {
+        console.log(`[SkillSystem] Fireball Cast ${cast.castId} transitioning to ${newState}. Snapshot: ${JSON.stringify(makeSnapshot(cast))}`);
+      }
+      
+      cast.state = newState;
+      
+      // Clear the player's casting state when casting is complete
+      const player = world.getPlayerById(cast.casterId);
+      if (player) {
+        player.castingSkill = null;
+        player.castingProgressMs = 0;
+        
+        // Broadcast that casting has finished for this player
+        console.log(`[tickCasts] Broadcasting playerUpdated with null castingSkill for player: ${cast.casterId}`);
+        io.emit('playerUpdated', {
+          id: player.id,
+          castingSkill: player.castingSkill,
+          castingProgressMs: player.castingProgressMs
+        });
+      }
       
       // Broadcast state change
+      const snapshot = makeSnapshot(cast);
+      console.log(`[tickCasts] Broadcasting CastSnapshot for state change: ${JSON.stringify(snapshot)}`);
       io.emit('msg', {
         type: 'CastSnapshot',
-        data: makeSnapshot(cast)
+        data: snapshot
       });
       
       // If instant skill, resolve impact immediately
       if (cast.state === CastStateEnum.Impact) {
+        console.log(`[tickCasts] Resolving impact immediately for instant skill: castId=${cast.castId}, skillId=${cast.skillId}`);
         resolveImpact(cast, io, world);
       }
       continue;
@@ -11479,32 +10779,87 @@ export function tickCasts(dt: number, io: Server, world: World): void {
     
     // Update traveling projectiles
     if (cast.state === CastStateEnum.Traveling) {
-      const dt = now - lastTickMs;
+      const dtSeconds = (now - lastTickMs) / 1000; // deltaTime for this tick in seconds
       
       // Make sure we have position and direction
       if (cast.pos && cast.dir && cast.speed) {
+        // Store old position for swept hit detection
+        const oldPos = { ...cast.pos };
+        
         // Update position based on velocity and time
-        cast.pos.x += cast.dir.x * cast.speed * dt / 1000;
-        cast.pos.z += cast.dir.z * cast.speed * dt / 1000;
+        cast.pos.x += cast.dir.x * cast.speed * dtSeconds;
+        cast.pos.z += cast.dir.z * cast.speed * dtSeconds;
         
         // Broadcast position updates periodically
-        if (!cast.lastBroadcast || now - cast.lastBroadcast > 50) {
+        if (!cast.lastBroadcast || now - cast.lastBroadcast > CAST_BROADCAST_RATE) {
+          const snapshot = makeSnapshot(cast);
+          console.log(`[tickCasts] Broadcasting projectile position update: castId=${cast.castId}, pos=[${cast.pos.x.toFixed(2)}, ${cast.pos.z.toFixed(2)}], moved=${Math.sqrt(Math.pow(cast.pos.x - oldPos.x, 2) + Math.pow(cast.pos.z - oldPos.z, 2)).toFixed(2)}m`);
+          
+          // Special logging for fireball position updates
+          if (cast.skillId === 'fireball') {
+            console.log(`[SkillSystem] Broadcasting Fireball position update (Traveling): castId=${cast.castId}, pos=(${snapshot.pos?.x.toFixed(2)}, ${snapshot.pos?.z.toFixed(2)})`);
+          }
+          
           io.emit('msg', {
             type: 'CastSnapshot',
-            data: makeSnapshot(cast)
+            data: snapshot
           });
           cast.lastBroadcast = now;
         }
         
-        // Check if projectile reached destination or exceeded range
-        if (reachedTarget(cast) || exceededRange(cast)) {
+        // --- ENHANCED HIT DETECTION LOGIC ---
+        const skill = SKILLS[cast.skillId];
+        const hitRadius = skill.projectile?.hitRadius || 0.5; // Use configured hit radius
+        let hasHitSomething = false;
+
+        // Check against all potential targets (enemies, other players if PvP)
+        const potentialTargets = world.getEntitiesInCircle(cast.pos, hitRadius * 2); // Query a slightly larger area
+
+        for (const entity of potentialTargets) {
+          if (entity.id === cast.casterId || !entity.isAlive) continue; // Skip caster and dead entities
+
+          // Check if this entity is an enemy (or valid target type)
+          if (world.getEnemyById(entity.id)) { // Example: only hit enemies
+            const entityPos = { x: entity.position.x, z: entity.position.z };
+            
+            // Use sweptHit for more reliable collision detection
+            if (sweptHit(oldPos, cast.pos, entityPos, hitRadius)) {
+              console.log(`[SkillSystem TickCasts] Projectile ${cast.castId} HIT entity ${entity.id} via sweptHit.`);
+              cast.targetId = entity.id; // Update targetId to the actual hit entity
+              cast.targetPos = entityPos; // Update targetPos to the hit location
+              hasHitSomething = true;
+              break; // Stop checking after first hit (unless it's a piercing projectile)
+            }
+          }
+        }
+        
+        // Calculate distance from origin for range check
+        const maxRange = skill.range || 50; // Default max range
+        const distanceFromOrigin = Math.sqrt(
+          Math.pow(cast.pos.x - cast.origin.x, 2) +
+          Math.pow(cast.pos.z - cast.origin.z, 2)
+        );
+
+        // Check if projectile reached target, exceeded range, or hit something
+        if (reachedTarget(cast) || distanceFromOrigin > maxRange || hasHitSomething) {
+          if (distanceFromOrigin > maxRange) {
+            console.log(`[SkillSystem TickCasts] Projectile ${cast.castId} exceeded max range (${distanceFromOrigin.toFixed(2)} > ${maxRange}).`);
+          } else if (reachedTarget(cast)) {
+            console.log(`[SkillSystem TickCasts] Projectile ${cast.castId} reached its initial target position.`);
+          } else if (hasHitSomething) {
+            console.log(`[SkillSystem TickCasts] Projectile ${cast.castId} hit a target.`);
+          }
+          
           cast.state = CastStateEnum.Impact;
+          const snapshot = makeSnapshot(cast);
           io.emit('msg', {
             type: 'CastSnapshot',
-            data: makeSnapshot(cast)
+            data: snapshot
           });
-          resolveImpact(cast, io, world);
+          resolveImpact(cast, io, world); // Resolve impact with the actual hit target(s)
         }
+      } else {
+        console.warn(`[tickCasts] Missing projectile data for traveling cast: castId=${cast.castId}, pos=${!!cast.pos}, dir=${!!cast.dir}, speed=${cast.speed}`);
       }
     }
   }
@@ -11512,11 +10867,12 @@ export function tickCasts(dt: number, io: Server, world: World): void {
 
 /**
  * Send snapshots of all active casts to a new client
+ * @param client - Socket.IO socket or server instance to send snapshots to
  */
-export function sendCastSnapshots(io: Server): void {
-  // Send all active casts to all clients
+export function sendCastSnapshots(client: any): void {
+  // Send all active casts to the client
   for (const cast of activeCasts) {
-    io.emit('msg', {
+    client.emit('msg', {
       type: 'CastSnapshot',
       data: makeSnapshot(cast)
     });
@@ -11546,6 +10902,127 @@ export function cancelCast(casterId: string, skillId?: SkillId): boolean {
  */
 export function getActiveCasts(): Cast[] {
   return [...activeCasts];
+}
+
+
+// ==============================================================================
+// FILE: server/combat/utils/cast.ts
+// ==============================================================================
+
+import { PlayerState, Enemy } from '../../../shared/types.js';
+import { VecXZ } from '../../../shared/messages.js';
+import { SKILLS, SkillId } from '../../../shared/skillsDefinition.js';
+
+/**
+ * Calculate distance between two points
+ */
+function distance(a: VecXZ, b: VecXZ): number {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return Math.sqrt(dx * dx + dz * dz);
+}
+
+/**
+ * Check if a skill can be cast
+ * Returns detailed cast validation result
+ */
+export function canCast(
+  caster: PlayerState,
+  skill: { id: SkillId, range: number },
+  target?: Enemy | null,
+  targetPos?: VecXZ,
+  timestamp: number = Date.now()
+): { canCast: boolean; reason?: 'cooldown' | 'nomana' | 'invalid' | 'outofrange' } {
+  const skillId = skill.id;
+  const skillDef = SKILLS[skillId];
+  
+  console.log(`canCast check for ${skillId}: player=${caster?.id || 'unknown'}, target=${target?.id || 'none'}, targetPos=${JSON.stringify(targetPos || 'none')}`);
+  
+  // Validate skill exists
+  if (!skillDef) {
+    console.log(`Cast failed: Skill ${skillId} not found in definitions`);
+    return { canCast: false, reason: 'invalid' };
+  }
+  
+  // Check if caster is alive
+  if (!caster.isAlive) {
+    console.log(`Cast failed: Caster is not alive`);
+    return { canCast: false, reason: 'invalid' };
+  }
+  
+  // Check mana cost
+  if (skillDef.manaCost && caster.mana < skillDef.manaCost) {
+    console.log(`Cast failed: Not enough mana (have ${caster.mana}, need ${skillDef.manaCost})`);
+    return { canCast: false, reason: 'nomana' };
+  }
+  
+  // Check if skill is on cooldown
+  const cooldownEnd = caster.skillCooldownEndTs?.[skillId] || 0;
+  if (timestamp < cooldownEnd) {
+    console.log(`Cast failed: Skill on cooldown until ${new Date(cooldownEnd).toISOString()}`);
+    return { canCast: false, reason: 'cooldown' };
+  }
+  
+  // Validate targeting requirements
+  if (skillDef.requiresTarget && !target) {
+    return { canCast: false, reason: 'invalid' };
+  }
+  
+  // Check target range if a target position is provided
+  if (targetPos && skill.range) {
+    const dist = distance(
+      { x: caster.position.x, z: caster.position.z },
+      targetPos
+    );
+    
+    if (dist > skill.range) {
+      return { canCast: false, reason: 'outofrange' };
+    }
+  }
+  
+  // Check target range if a target is provided
+  if (target && skill.range) {
+    const dist = distance(
+      { x: caster.position.x, z: caster.position.z },
+      { x: target.position.x, z: target.position.z }
+    );
+    
+    if (dist > skill.range) {
+      return { canCast: false, reason: 'outofrange' };
+    }
+  }
+  
+  // All checks passed
+  console.log(`Cast check passed for skill ${skillId}`);
+  return { canCast: true };
+}
+
+/**
+ * Apply mana cost and cooldown for a skill cast
+ * Returns the updated player object
+ */
+export function applyCastCost(player: PlayerState, skillId: SkillId): PlayerState {
+  const skill = SKILLS[skillId];
+  if (!skill) return player;
+  
+  const now = Date.now();
+  const updatedPlayer = { ...player };
+  
+  // Apply mana cost
+  if (skill.manaCost) {
+    updatedPlayer.mana = Math.max(0, player.mana - skill.manaCost);
+  }
+  
+  // Apply cooldown
+  if (skill.cooldownMs) {
+    const cooldownEndTime = now + skill.cooldownMs;
+    updatedPlayer.skillCooldownEndTs = {
+      ...(updatedPlayer.skillCooldownEndTs || {}),
+      [skillId]: cooldownEndTime
+    };
+  }
+  
+  return updatedPlayer;
 }
 
 
@@ -12300,7 +11777,7 @@ import { Server } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
 import { startWorldLoop } from './combat/worldLoop.js';
-import { sendCastSnapshots } from './combat/skillManager.js';
+import { sendCastSnapshots } from './combat/skillSystem.js';
 
 // Create HTTP server
 const httpServer = createServer();
@@ -13208,22 +12685,20 @@ export interface PlayerClassData {
 
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
-import { Enemy, StatusEffect, PlayerState as SharedPlayerState } from '../shared/types.js';
+import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, CastReq, VecXZ, PosSnap, PosDelta, PlayerMovementState, LearnSkill, SetSkillShortcut, ProjSpawn2, MoveIntent } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
-import { handleCastReq, updateCasts, getCompletedCasts } from './combat/skillManager.js';
 import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
-import { effectRunner } from './combat/effects/EffectRunner.js';
-import { PlayerState } from '../shared/types.js';
 import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
-import { handleCastRequest as handleNewCastRequest } from './combat/castHandler.js';
+import { handleCastReq } from './combat/castHandler.js';
+import { tickCasts } from './combat/skillSystem.js';
 
 /**
  * Defines the GameState interface
@@ -13544,8 +13019,9 @@ function collectDeltas(
 
 /**
  * Handles CastReq message using the new server-authoritative skill system
+ * @param ioServer The Socket.IO server instance
  */
-function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
+function onCastReq(socket: Socket, state: GameState, msg: CastReq, ioServer: Server): void {
   const playerId = msg.id;
   const player = state.players[playerId];
   
@@ -13565,11 +13041,15 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq): void {
     return;
   }
   
-  // Helper function to get enemy by ID
-  const getEnemyById = (id: string) => state.enemies[id] || null;
+  // Create a simple world object for the skill system
+  const world = {
+    getEnemyById: (id: string) => state.enemies[id] || null,
+    getPlayerById: (id: string) => state.players[id] || null,
+    getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)
+  };
   
-  // Delegate to the skillManager
-  handleCastReq(player, msg, socket, getEnemyById);
+  // Delegate to the server-authoritative castHandler
+  handleCastReq(socket, player, msg, ioServer, world);
 }
 
 /**
@@ -13761,30 +13241,17 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step 2: Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step 3: Process status effects with our new effectRunner
-    effectRunner.setGameState(state);
-    effectRunner.tick(TICK/1000, (effectMsg) => {
-      io.emit('msg', effectMsg);
-    });
+    // Step 3: Process active casts using the new skill system
+    const world = {
+      getEnemyById: (id: string) => state.enemies[id] || null,
+      getPlayerById: (id: string) => state.players[id] || null,
+      getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)
+    };
+    tickCasts(TICK, io, world);
     
-    // Step 4: Update skill casting progress
-    updateCasts(io, state.players);
     
-    // Step 4: Process completed casts
-    const completedCasts = getCompletedCasts();
-    completedCasts.forEach(cast => {
-      // Find the player and target
-      const player = state.players[cast.id];
-      const targetId = cast.targetId;
-      const target = targetId ? state.enemies[targetId] : null;
-      
-      // Execute the skill if target exists
-      if (player && target) {
-        executeSkillEffects(player, target, cast.skillId, io, state);
-      }
-    });
     
-    // Step 5: Update all projectiles
+    // Step 4: Update all projectiles
     if (state.projectiles.length > 0) {
       updateProjectiles(state, TICK/1000, io);
     }
@@ -13819,7 +13286,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     handleMessage(socket: Socket, msg: ClientMsg) {
       switch (msg.type) {
         case 'MoveIntent': return onMoveIntent(socket, state, msg as MoveIntent);
-        case 'CastReq': return onCastReq(socket, state, msg as CastReq);
+        case 'CastReq': return onCastReq(socket, state, msg as CastReq, io);
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
       }
@@ -14519,7 +13986,6 @@ export function broadcastSnaps(io: Server, state: GameState): void {
         // (e.g., for idle refresh or if it's the very first snap)
         if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 500)) {
             playersToForceInclude.add(playerId);
-            console.log(`SERVER: Marking ${playerId} for forced idle snap. LastSnapTime: ${player.lastSnapTime}, TimeSince: ${timeSinceLastSnap}`);
         }
         // Always update lastSnapTime if we are considering sending a snap for this player due to idle timeout
         if (playersToForceInclude.has(playerId) || isMoving) { // Or any other condition that leads to sending
@@ -15048,7 +14514,7 @@ export const EFFECTS: Record<EffectId, EffectDef> = {
 // ==============================================================================
 
 import { SkillId } from './skillsDefinition';
-import { CastSnapshot } from './types';
+import { CastSnapshot, StatusEffect } from './types';
 
 export interface VecXZ {
   x: number;
@@ -15173,7 +14639,7 @@ export interface ClassSelected extends ClientMsg {
 export interface CastFail extends ClientMsg {
   type: 'CastFail';
   clientSeq: number;
-  reason: 'cooldown' | 'nomana' | 'invalid';
+  reason: 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 }
 
 // Server-facing message base type
@@ -15187,18 +14653,19 @@ export interface CastSnapshotMsg extends ServerMsg {
   data: CastSnapshot;
 }
 
-export interface ProjSpawn2 extends ServerMsg {
-  type: 'ProjSpawn2';
+export interface EffectSnapshotMsg extends ServerMsg {
+  type: 'EffectSnapshot';
+  targetId: string;
+  effects: StatusEffect[];
+}
+
+export interface CombatLogMsg extends ServerMsg {
+  type: 'CombatLog';
   castId: string;
-  origin: Vec3D;       // Using 3D vector with y-coordinate for height
-  dir: VecXZ;          // Normalized, XZ plane
-  speed: number;
-  launchTs: number;
-  hitRadius?: number;  // Optional hitRadius for VFX
-  casterId?: string;   // ID of the entity that cast this projectile
-  skillId?: string;    // ID of the skill that created this projectile
-  travelMs?: number;   // Flight time client-side
-  src?: string;        // Source entity ID (alias for casterId)
+  skillId: string;
+  casterId: string;
+  targets: string[];
+  damages: number[];
 }
 
 export interface ProjHit2 extends ServerMsg {
@@ -15207,6 +14674,18 @@ export interface ProjHit2 extends ServerMsg {
   hitIds: string[];
   dmg: number[];   // Aligned with hitIds
   impactPos?: VecXZ; // Position of the projectile impact (optional for backwards compatibility)
+}
+
+export interface ProjSpawn2 extends ServerMsg {
+  type: 'ProjSpawn2';
+  castId: string;
+  skillId: string;
+  origin: Vec3D;
+  dir: VecXZ;
+  speed: number;
+  launchTs: number;
+  casterId: string;
+  hitRadius?: number;
 }
 
 // Status effect messages
@@ -15454,6 +14933,7 @@ export interface CastSnapshot {
   origin: VecXZ;
   target?: VecXZ;
   pos?: VecXZ;       // Current projectile position for authoritative trajectories
+  dir?: VecXZ;       // Direction vector for traveling projectiles
   startedAt: number; // Timestamp
   castTimeMs: number; // Cast time from skill definition
 }

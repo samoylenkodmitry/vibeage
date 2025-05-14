@@ -19,7 +19,7 @@ const useProjectileMovement = ({
   speed,
   launchTs,
   gravity = 0,
-  shouldAutoDestroy = true, // Changed default to true - projectiles should auto-destroy
+  shouldAutoDestroy = false, // Changed default to false - projectiles should be controlled by server state
   maxDistance = 100,
   onDestroy
 }: Params & {
@@ -33,10 +33,8 @@ const useProjectileMovement = ({
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
   const originalSpeed = useRef(speed);
   
-  // Adjust launchTs if it's in the future (server timestamp ahead of client)
-  const now = performance.now();
-  const adjustedLaunchTs = launchTs > now ? now - 100 : launchTs; // If in future, set to 100ms ago
-  const originalLaunchTs = useRef(adjustedLaunchTs);
+  // Store the server epoch launchTs directly
+  const originalLaunchTs = useRef(launchTs);
   
   // Use state for the current position so renders will happen when it updates
   const [currentPosition, setCurrentPosition] = useState(new Vector3(origin.x, origin.y, origin.z));
@@ -52,9 +50,10 @@ const useProjectileMovement = ({
       dir: `(${dir?.x?.toFixed(2) || 'undefined'}, ${dir?.y?.toFixed(2) || 'undefined'}, ${dir?.z?.toFixed(2) || 'undefined'})`,
       speed: speed,
       originalTs: launchTs,
-      adjustedTs: originalLaunchTs.current,
-      now: performance.now()
+      now: Date.now()
     });
+    
+    console.log(`[ProjMove Hook] Initialized for a projectile. Origin: (${origin?.x?.toFixed(2)}, ${origin?.y?.toFixed(2)}, ${origin?.z?.toFixed(2)}), Dir: (${dir?.x?.toFixed(2)}, ${dir?.y?.toFixed(2)}, ${dir?.z?.toFixed(2)}), Speed: ${speed}, LaunchTs: ${launchTs}, ServerEpochTs: ${originalLaunchTs.current}`);
   }, [origin, dir, speed, launchTs]);
   
   // Function to calculate position at a given time
@@ -84,12 +83,12 @@ const useProjectileMovement = ({
   useFrame(() => {
     if (isDestroyed.current) return;
     
-    // Calculate elapsed time in seconds since launch
-    const now = performance.now();
+    // Calculate elapsed time in seconds since launch using epoch time
+    const clientNowEpoch = Date.now();
     
     // Handle case where launchTs might be in the future due to clock mismatch
     // or using a server timestamp that's ahead of client clock
-    let elapsedTimeSeconds = Math.max(0, (now - originalLaunchTs.current) / 1000);
+    let elapsedTimeSeconds = Math.max(0, (clientNowEpoch - originalLaunchTs.current) / 1000);
     
     // Sanity check: if elapsed time is too large or negative, use a small value
     // and auto-destroy the projectile if it's been alive for more than 5 seconds
@@ -112,10 +111,19 @@ const useProjectileMovement = ({
       console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2) || 'undefined'}, ${newPosition?.y?.toFixed(2) || 'undefined'}, ${newPosition?.z?.toFixed(2) || 'undefined'})`);
     }
     
-    setCurrentPosition(newPosition);
+    // Enhanced hook logging (in addition to existing logs)
+    if (Math.random() < 0.02) { // Reduce log frequency
+      console.log(`[ProjMove Hook] Update. Elapsed: ${elapsedTimeSeconds?.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2)}, ${newPosition?.y?.toFixed(2)}, ${newPosition?.z?.toFixed(2)})`);
+    }
+    
+    // Only update position if it has actually changed to prevent infinite updates
+    if (!currentPosition.equals(newPosition)) {
+      setCurrentPosition(newPosition);
+    }
     
     // Check if projectile should be destroyed
     if (shouldAutoDestroy && totalDistance.current >= maxDistance) {
+      console.log(`[ProjMove Hook] Auto-destroying projectile. Distance: ${totalDistance.current.toFixed(2)} >= ${maxDistance}`);
       isDestroyed.current = true;
       if (onDestroy) onDestroy();
     }

@@ -3,7 +3,7 @@ import { Server } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
 import { startWorldLoop } from './combat/worldLoop.js';
-import { sendCastSnapshots } from './combat/skillManager.js';
+import { sendCastSnapshots } from './combat/skillSystem.js';
 
 // Create HTTP server
 const httpServer = createServer();

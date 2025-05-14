@@ -227,15 +227,9 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       const s = buf.sample(tick);
       if (isControlledPlayer && Math.random() < 0.05) { // Log ~5% of frames
           const now = performance.now();
-          console.log(
-              `Player ${playerId} sample: renderTs=${tick.toFixed(0)}, now=${now.toFixed(0)}, lag=${lag}, ` +
-              (s ? `s.x=${s.x.toFixed(2)}, s.z=${s.z.toFixed(2)}, s.rot=${s.rot.toFixed(2)}` : "s is null") +
-              `, bufferLen=${buf.getBufferLength()}`
-          );
           if (buf.getBufferLength() > 0) {
               const firstTs = buf.debugDump()[0].snapTs.toFixed(0);
               const lastTs = buf.debugDump()[buf.getBufferLength()-1].snapTs.toFixed(0);
-              console.log(`  Buffer time range: [${firstTs}, ${lastTs}], current renderTs relative to last: ${(tick - parseFloat(lastTs)).toFixed(0)}ms`);
           }
       }
       

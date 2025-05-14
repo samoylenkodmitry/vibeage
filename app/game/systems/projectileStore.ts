@@ -27,11 +27,27 @@ export const useProjectileStore = create<State & Actions>((set) => ({
   add: (p) => set((s) => { 
     console.log(`[ProjectileStore.add] Adding projectile with castId: ${p.castId}, skillId: ${p.skillId}`);
     
+    // Special logging for fireball
+    if (p.skillId === 'fireball') {
+      console.log(`[ProjectileStore.add] Attempting to add Fireball: castId=${p.castId}. Current live count: ${Object.keys(s.live).length}`);
+    }
+    
     // Check if this castId already exists in live projectiles
     if (s.live[p.castId]) {
       console.warn(`[ProjectileStore.add] Projectile with castId: ${p.castId} already exists in live projectiles. This might cause duplicate visuals.`);
+      
+      // Special logging for fireball
+      if (p.skillId === 'fireball') {
+        console.warn(`[ProjectileStore.add] Fireball with castId: ${p.castId} already exists. Not re-adding.`);
+      }
+      
       // Keep using the same object reference to avoid creating a duplicate visual
       return s;
+    }
+    
+    // Special logging for fireball
+    if (p.skillId === 'fireball') {
+      console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${p.castId}. New live count: ${Object.keys(s.live).length + 1}`);
     }
     
     return { 

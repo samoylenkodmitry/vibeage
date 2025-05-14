@@ -36,11 +36,13 @@ interface SkillButtonProps {
 }
 
 // Memoize SkillButton to prevent unnecessary re-renders
-const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
+const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressMs, onClick, selectedTarget, isFlashing = false }: SkillButtonProps) => {
   const initial = Math.max(0, cooldownEndMs - Date.now());
   const [remainingCooldownMs, setRemainingCooldownMs] = useState(initial);
+  const [castProgress, setCastProgress] = useState(0); // 0-100 percentage of cast completion
   const buttonRef = useRef<HTMLButtonElement>(null);
   
+  // Update cooldown timer
   useEffect(() => {
     const update = () => 
       setRemainingCooldownMs(Math.max(0, cooldownEndMs - Date.now()));
@@ -53,8 +55,29 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, sele
     return () => clearInterval(interval);
   }, [cooldownEndMs]);
   
+  // Update cast progress
+  useEffect(() => {
+    if (!isCasting) {
+      setCastProgress(0);
+      return;
+    }
+    
+    const updateCastProgress = () => {
+      if (skill.castTimeMs <= 0) return; // Instant cast
+      
+      // Calculate progress percentage (0-100)
+      const progress = Math.min(100, (castProgressMs / skill.castTimeMs) * 100);
+      setCastProgress(progress);
+    };
+    
+    updateCastProgress();
+    const interval = setInterval(updateCastProgress, 50);
+    
+    return () => clearInterval(interval);
+  }, [isCasting, castProgressMs, skill.castTimeMs]);
+  
   const isOnCooldown = remainingCooldownMs > 0;
-  const isUsable = Boolean(selectedTarget) && !isOnCooldown;
+  const isUsable = Boolean(selectedTarget) && !isOnCooldown && !isCasting;
   
   // Handle click with stopPropagation
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -146,7 +169,23 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, sele
               }}
             ></div>
             <div className="absolute text-white font-bold text-sm">
-              {remainingCooldownMs}ms
+              {Math.ceil(remainingCooldownMs / 1000)}s
+            </div>
+          </>
+        )}
+        
+        {/* Casting progress overlay */}
+        {isCasting && (
+          <>
+            <div 
+              className="absolute inset-0 bg-purple-600 opacity-70"
+              style={{ 
+                // Fill from bottom to top as cast progresses
+                clipPath: `inset(${100 - castProgress}% 0 0 0)` 
+              }}
+            ></div>
+            <div className="absolute text-white font-bold text-sm">
+              {Math.ceil((skill.castTimeMs - castProgressMs) / 1000)}s
             </div>
           </>
         )}
@@ -156,7 +195,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, onClick, sele
           <div className="font-bold">{skill.name}</div>
           <div className="mt-1">{skill.description}</div>
           <div className="mt-1">Mana: {skill.manaCost}</div>
-          <div>Cooldown: {skill.cooldownMs}ms</div>
+          <div className="mt-1">Cooldown: {skill.cooldownMs}ms</div>
           {skill.castTimeMs > 0 && <div>Cast Time: {skill.castTimeMs}ms</div>}
           {skill.damage && <div>Damage: {skill.damage}</div>}
           

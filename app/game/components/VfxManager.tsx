@@ -58,6 +58,20 @@ export default function VfxManager() {
       skillId: p.skillId 
     })));
     
+    // Add specific logging for fireball
+    const fireballs = projArray.filter(p => p.skillId === 'fireball');
+    if (fireballs.length > 0) {
+      console.log(`[VfxManager] Fireballs in projectileArray (${fireballs.length}):`, fireballs.map(f => ({ 
+        castId: f.castId, 
+        origin: f.origin, 
+        dir: f.dir, 
+        speed: f.speed, 
+        launchTs: f.launchTs 
+      })));
+    } else if (projArray.some(p => p.skillId === 'fireball')) {
+      console.log('[VfxManager] Fireball detected but not logged in detail.');
+    }
+    
     // Check for duplicate castIds which would cause multiple projectiles
     const castIds = projArray.map(p => p.castId);
     const duplicates = castIds.filter((id, index) => castIds.indexOf(id) !== index);
@@ -284,6 +298,7 @@ export default function VfxManager() {
         
         switch (skillId) {
           case 'fireball':
+            console.log(`[VfxManager] Rendering FireballProjectile for castId: ${proj.castId}, pooled group ID: ${group.uuid}, visible: ${group.visible}`);
             return (
               <FireballProjectile
                 key={proj.castId}

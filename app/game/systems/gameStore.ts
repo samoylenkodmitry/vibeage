@@ -423,6 +423,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       state.lastCastSkillId = skillId;
     }));
     
+    console.log(`Sending CastReq: skill=${skillId}, target=${targetId || 'none'}, player=${myPlayerId}`);
+    
     socket.emit('msg', {
       type: 'CastReq',
       id: myPlayerId,

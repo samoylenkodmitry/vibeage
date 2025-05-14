@@ -11,6 +11,7 @@ export interface CastSnapshot {
   origin: VecXZ;
   target?: VecXZ;
   pos?: VecXZ;       // Current projectile position for authoritative trajectories
+  dir?: VecXZ;       // Direction vector for traveling projectiles
   startedAt: number; // Timestamp
   castTimeMs: number; // Cast time from skill definition
 }

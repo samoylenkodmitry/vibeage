@@ -26,21 +26,25 @@ export default function FireballProjectile({
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
-  const isActive = useRef(true);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
     origin,
     dir,
     speed,
-    launchTs
+    launchTs,
+    shouldAutoDestroy: false, // Explicitly false - let VfxManager control lifecycle
   });
   
   // Initialize pooled group on first mount if provided
   useEffect(() => {
     console.log(`[FireballProjectile] Mounted: ${id}`);
+    console.log(`[FireballProjectile ${id}] Mounted. Pooled: ${!!pooled}. Origin: ${JSON.stringify(origin)}, Dir: ${JSON.stringify(dir)}, Speed: ${speed}`);
     
-    if (!pooled) return;
+    if (!pooled) {
+      console.error(`[FireballProjectile ${id}] Pooled group is UNDEFINED!`);
+      return;
+    }
     
     // Clear any existing children if this is a reused group
     while (pooled.children.length > 0) {
@@ -77,27 +81,22 @@ export default function FireballProjectile({
     // Store references
     coreRef.current = coreMesh;
     
+    console.log(`[FireballProjectile ${id}] Pooled group setup complete. Group ID: ${pooled.uuid}, Visible: ${pooled.visible}, Children: ${pooled.children.length}`);
+    if (coreRef.current) {
+      console.log(`[FireballProjectile ${id}] Core mesh material:`, coreRef.current.material);
+    }
+    
     return () => {
-      console.log(`[FireballProjectile] Unmounting pooled: ${id}`);
-      if (isActive.current && onDone) {
-        isActive.current = false;
+      console.log(`[FireballProjectile ${id}] Unmounting pooled: ${id}`);
+      console.log(`[FireballProjectile ${id}] Unmounting. Pooled group ID: ${pooled?.uuid}`);
+      
+      if (onDone) {
         // Ensure the group is invisible when unmounted
         pooled.visible = false;
         onDone();
       }
     };
-  }, [pooled, onDone, id]);
-  
-  // Handle cleanup when projectile is done
-  useEffect(() => {
-    return () => {
-      console.log(`[FireballProjectile] Unmounting component: ${id}`);
-      if (isActive.current && onDone) {
-        isActive.current = false;
-        onDone();
-      }
-    };
-  }, [onDone, id]);
+  }, [pooled, onDone, id, origin, dir, speed]); // Added origin, dir, speed for logging initial state
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
@@ -157,10 +156,15 @@ export default function FireballProjectile({
   useFrame((state) => {
     if (!coreRef.current) return;
     
+    // Log occasionally for fireballs
+    if (id.includes('fireball') && Math.random() < 0.1) {
+      console.log(`[FireballProjectile ${id}] useFrame. Position: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}). Pooled visible: ${pooled?.visible}`);
+    }
+    
     // Update pooled group position
     if (pooled) {
       pooled.position.set(position.x, position.y, position.z);
-      pooled.visible = true;
+      pooled.visible = true; // Explicitly ensure visibility
     }
     
     // Fire core pulsing
