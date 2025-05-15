@@ -17,7 +17,6 @@ import GameHud from './GameHud';
 import { useGameStore } from '../systems/gameStore';
 import { GROUND_Y, getBuffer } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
-import { debugAndFixPlayerMovement, forceUpdatePlayerPosition } from '../systems/playerMovementFix';
 
 // Define keyboard controls
 const controls = [

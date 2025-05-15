@@ -393,14 +393,6 @@ export function tickCasts(dt: number, io: Server, world: World): void {
   const now = Date.now();
   const lastTickMs = now - dt;
   
-  // Log active casts periodically (once every 10 seconds) to avoid flooding
-  if (Math.random() < 0.01) { // roughly 1% chance on each tick
-    console.log(`[tickCasts] Active casts: ${activeCasts.length}`);
-    activeCasts.forEach(cast => {
-      console.log(`[tickCasts] Cast state: castId=${cast.castId}, casterId=${cast.casterId}, skillId=${cast.skillId}, state=${cast.state}, elapsed=${now - cast.startedAt}ms`);
-    });
-  }
-  
   for (let i = activeCasts.length - 1; i >= 0; i--) {
     const cast = activeCasts[i];
     

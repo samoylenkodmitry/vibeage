@@ -1071,7 +1071,7 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
             enemy.targetId = null;
             
             // Remove enemy from spatial hash grid
-            spatial.remove(enemyId, { x: enemy.position.x, z: enemy.position.z });
+            spatial.remove(enemy.id, { x: enemy.position.x, z: enemy.position.z });
             
             // Give XP to the player
             const caster = state.players[p.casterId];

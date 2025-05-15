@@ -105,6 +105,7 @@ export interface PlayerState {
     isAlive: boolean;
     deathTimeTs?: number;
     lastUpdateTime?: number;
+    targetId?: string | null;      // ID of the entity the player is targeting
     lastSnapTime?: number; // Track when the last position snapshot was sent
     movement?: PlayerMovementState;
     velocity?: { x: number; z: number };

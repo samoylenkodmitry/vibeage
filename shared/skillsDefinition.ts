@@ -35,6 +35,7 @@ export interface SkillDef {
   area?: number;        // tile radius
   levelRequired: number;
   effects: SkillEffect[];
+  requiresTarget?: boolean; // Whether the skill requires a target to be cast
   projectile?: { 
     speed: number;      // Speed of projectile in units per second
     maxRange?: number;  // Maximum travel distance 
