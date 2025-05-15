@@ -181,6 +181,9 @@ export default function VfxManager() {
     window.addEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
     window.addEventListener('petrifyFlash', handleSpawnPetrifyFlash as EventListener);
     
+    // Use a set to track projectiles already processed in this cycle
+    const processedProjectiles = new Set<string>();
+    
     // Cleanup expired effects periodically
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
@@ -191,32 +194,48 @@ export default function VfxManager() {
       ));
       
       // Process projectiles that need to be recycled
-      Object.entries(recycleProjectiles).forEach(([castId, projectile]) => {
-        if (pooledInstances.has(castId)) {
-          const type = projectile.skillId || 'default';
-          const instance = pooledInstances.get(castId);
+      const projectilesToProcess = Object.entries(recycleProjectiles);
+      
+      if (projectilesToProcess.length > 0) {
+        // Process in a batch to avoid multiple state updates
+        const instancesToRemove: string[] = [];
+        
+        projectilesToProcess.forEach(([castId, projectile]) => {
+          // Skip if already processed in this cycle
+          if (processedProjectiles.has(castId)) return;
+          processedProjectiles.add(castId);
           
-          if (instance) {
-            console.log(`[VfxManager] Recycling projectile with castId: ${castId}`);
-            // Make sure the instance is invisible before recycling
-            instance.visible = false;
-            // Recycle the projectile
-            recycle(type, instance);
-            // Remove from active instances
-            setPooledInstances(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(castId);
-              return newMap;
-            });
-            // Clear from store
-            clearRecycled(castId);
+          if (pooledInstances.has(castId)) {
+            const type = projectile.skillId || 'default';
+            const instance = pooledInstances.get(castId);
+            
+            if (instance) {
+              console.log(`[VfxManager] Recycling projectile with castId: ${castId}`);
+              // Make sure the instance is invisible before recycling
+              instance.visible = false;
+              // Recycle the projectile
+              recycle(type, instance);
+              // Track for removal
+              instancesToRemove.push(castId);
+            }
           }
-        } else {
-          // If there's a projectile to recycle but no pooled instance, just clear it from the store
-          console.log(`[VfxManager] No pooled instance found for projectile ${castId}, just clearing from store`);
+          
+          // Clear from store regardless
           clearRecycled(castId);
+        });
+        
+        // Update the pooled instances in a single batch if needed
+        if (instancesToRemove.length > 0) {
+          setPooledInstances(prev => {
+            const newMap = new Map(prev);
+            instancesToRemove.forEach(id => newMap.delete(id));
+            return newMap;
+          });
         }
-      });
+      }
+      
+      // Clear the processed set after each cycle
+      processedProjectiles.clear();
     }, 100);
     
     // Cleanup on unmount
@@ -287,11 +306,11 @@ export default function VfxManager() {
             pooledGroup.visible = false;
             recycle(skillType, pooledGroup);
             
-            setPooledInstances(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(proj.castId);
-              return newMap;
-            });
+            // Instead of immediately updating state, mark this projectile for cleanup
+            // in the next cleanup cycle to avoid potential re-render loops
+            if (!recycleProjectiles[proj.castId]) {
+              clearRecycled(proj.castId);
+            }
           }
         };
         
