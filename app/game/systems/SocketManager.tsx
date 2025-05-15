@@ -171,10 +171,7 @@ export default function SocketManager() {
           buffer.push(snapObject);
           
           // Track last known server position for this player
-          useGameStore.getState().serverLastKnownPositions = {
-            ...useGameStore.getState().serverLastKnownPositions,
-            [id]: { ...pos }
-          };
+          useGameStore.getState().updateServerLastKnownPosition(id, { ...pos });
           
           // Enhanced debug logging, especially for controlled player
           if (id === myPlayerId) {
@@ -326,7 +323,6 @@ export default function SocketManager() {
   // Handle cast snapshot updates
   const handleCastSnapshot = useCallback((data: CastSnapshotMsg) => {
     const castData = data.data;
-    const { add: addProjectileToStore } = useProjectileStore.getState();
     
     console.log(`[SocketManager] Handling CastSnapshot: castId=${castData.castId}, skillId=${castData.skillId}, state=${castData.state}, pos=${JSON.stringify(castData.pos)}, target=${JSON.stringify(castData.target)}`);
     
@@ -376,24 +372,48 @@ export default function SocketManager() {
           console.log('[SocketManager] Adding Fireball to projectile store. Data:', JSON.stringify(castData));
         }
         
-        // Debug the current projectileStore state
+        // First check if the projectile already exists before trying to add it
         const currentStore = useProjectileStore.getState();
-        console.log(`[SocketManager] Current projectileStore before adding - live: ${Object.keys(currentStore.live).length}, recycled: ${Object.keys(currentStore.toRecycle).length}`);
+        const projectileAlreadyExists = !!currentStore.live[castData.castId];
         
-        // Add the snapshot directly to the projectile store
-        addProjectileToStore(castData);
+        console.log(`[SocketManager] Current projectileStore before adding - live: ${Object.keys(currentStore.live).length}, recycled: ${Object.keys(currentStore.toRecycle).length}, projectile already exists: ${projectileAlreadyExists}`);
         
-        // Verify projectile was added
-        setTimeout(() => {
-          const updatedStore = useProjectileStore.getState();
-          console.log(`[SocketManager] ProjectileStore after adding - live: ${Object.keys(updatedStore.live).length}, recycled: ${Object.keys(updatedStore.toRecycle).length}`);
-          const addedProjectile = updatedStore.live[castData.castId];
-          if (addedProjectile) {
-            console.log(`[SocketManager] Successfully added projectile to store: castId=${castData.castId}`);
-          } else {
-            console.error(`[SocketManager] Failed to add projectile to store: castId=${castData.castId}`);
+        // Only add the projectile if it doesn't already exist
+        if (!projectileAlreadyExists) {
+          try {
+            // Add the snapshot directly to the projectile store
+            useProjectileStore.getState().add(castData);
+            
+            // Immediate check instead of timeout
+            const updatedStore = useProjectileStore.getState();
+            const addedProjectile = updatedStore.live[castData.castId];
+            
+            if (addedProjectile) {
+              console.log(`[SocketManager] Successfully added projectile to store: castId=${castData.castId}`);
+            } else {
+              console.warn(`[SocketManager] Projectile not found immediately after adding: castId=${castData.castId}, retrying...`);
+              
+              // Retry adding the projectile if it wasn't added successfully
+              setTimeout(() => {
+                useProjectileStore.getState().add(castData);
+                
+                // Final verification check
+                const finalCheck = useProjectileStore.getState();
+                const finalProjectile = finalCheck.live[castData.castId];
+                
+                if (finalProjectile) {
+                  console.log(`[SocketManager] Successfully added projectile on retry: castId=${castData.castId}`);
+                } else {
+                  console.error(`[SocketManager] Failed to add projectile to store even after retry: castId=${castData.castId}`);
+                }
+              }, 20); // Slightly longer timeout for retry
+            }
+          } catch (error) {
+            console.error(`[SocketManager] Error adding projectile to store: ${error}`, error);
           }
-        }, 10);
+        } else {
+          console.log(`[SocketManager] Skipping projectile add because it already exists: castId=${castData.castId}`);
+        }
       } else {
         console.warn('[SocketManager] CastSnapshot (Traveling) for projectile missing essential data (pos, origin, or dir):', castData);
       }

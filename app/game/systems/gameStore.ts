@@ -102,6 +102,7 @@ interface GameState {
   setLocalPlayerVel: (vel: { x: number, z: number }) => void;
   setStatusEffects: (targetId: string, effects: StatusEffect[]) => void;
   addXp: (amount: number) => void;
+  updateServerLastKnownPosition: (playerId: string, position: { x: number, z: number }) => void;
 }
 
 // --- Memoized selectors ---
@@ -564,6 +565,16 @@ export const useGameStore = create<GameState>((set, get) => ({
   setHasJoinedGame: (joined: boolean) => {
     set(produce(state => {
       state.hasJoinedGame = joined;
+    }));
+  },
+
+  // Add a function to update server positions
+  updateServerLastKnownPosition: (playerId: string, position: { x: number, z: number }) => {
+    set(produce(state => {
+      state.serverLastKnownPositions = {
+        ...state.serverLastKnownPositions,
+        [playerId]: { ...position }
+      };
     }));
   },
 

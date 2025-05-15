@@ -50,30 +50,52 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
         console.warn(`[ProjectileStore.add] Fireball with castId: ${snapshot.castId} already exists. Not re-adding.`);
       }
       
-      // Keep using the same object reference to avoid creating a duplicate visual
+      // Return the existing state with the projectile that's already in it
       return s;
     }
     
-    // Special logging for fireball
-    if (snapshot.skillId === 'fireball') {
-      console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${snapshot.castId}. New live count: ${Object.keys(s.live).length + 1}`);
+    try {
+      // Special logging for fireball
+      if (snapshot.skillId === 'fireball') {
+        console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${snapshot.castId}. New live count: ${Object.keys(s.live).length + 1}`);
+      }
+      
+      // Create a ProjectileData object from the CastSnapshot
+      const projectileData: ProjectileData = {
+        type: 'CastSnapshot',
+        castId: snapshot.castId,
+        skillId: snapshot.skillId,
+        casterId: snapshot.casterId,
+        origin: snapshot.origin || snapshot.pos || { x: 0, z: 0 }, // Fallback if origin missing
+        pos: snapshot.pos || snapshot.origin || { x: 0, z: 0 }, // Fallback if pos missing
+        velocity: snapshot.dir || { x: 0, z: 0 }, // Fallback if dir missing
+        travelTime: snapshot.startedAt ? (Date.now() - snapshot.startedAt) : 0 // Calculate time elapsed since projectile started
+      };
+      
+      // Safety check for empty/invalid properties
+      if (!projectileData.castId || !projectileData.skillId) {
+        console.error(`[ProjectileStore.add] Invalid projectile data: missing castId or skillId`, projectileData);
+        return s; // Return unchanged state
+      }
+      
+      // Additional validation for coordinate properties
+      if (
+        !projectileData.pos || 
+        typeof projectileData.pos.x !== 'number' || 
+        typeof projectileData.pos.z !== 'number'
+      ) {
+        console.error(`[ProjectileStore.add] Invalid position data for projectile ${projectileData.castId}`, projectileData.pos);
+        // Try to fix it with a default position rather than failing
+        projectileData.pos = { x: 0, z: 0 };
+      }
+      
+      return { 
+        live: { ...s.live, [snapshot.castId]: projectileData } 
+      };
+    } catch (error) {
+      console.error(`[ProjectileStore.add] Error creating projectile data:`, error);
+      return s; // Return unchanged state on error
     }
-    
-    // Create a ProjectileData object from the CastSnapshot
-    const projectileData: ProjectileData = {
-      type: 'CastSnapshot',
-      castId: snapshot.castId,
-      skillId: snapshot.skillId,
-      casterId: snapshot.casterId,
-      origin: snapshot.origin,
-      pos: snapshot.pos || snapshot.origin, // Use origin if pos is not provided
-      velocity: snapshot.dir, // Direction vector can be used as velocity
-      travelTime: snapshot.startedAt ? (Date.now() - snapshot.startedAt) : 0 // Calculate time elapsed since projectile started
-    };
-    
-    return { 
-      live: { ...s.live, [snapshot.castId]: projectileData } 
-    };
   }),
   
   markProjectileAsHit: (castId) => set((s) => {
