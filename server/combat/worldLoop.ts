@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import { tickCasts, sendCastSnapshots } from './skillSystem.js';  // New skill system
 import { broadcastSnaps } from '../world.js';
 import { VecXZ } from '../../shared/messages.js';
+import { StatusEffectManager } from './StatusEffectManager'; // Import the StatusEffectManager
 
 // Game state reference
 let gameState: any = null;
@@ -16,6 +17,9 @@ let lastCastSnapshotTime = Date.now();
 
 // Reference to IO server
 let ioServer: Server | null = null;
+
+// Status effect manager instance
+let statusEffectManager: StatusEffectManager | null = null;
 
 // World interface implementation
 const world = {
@@ -93,6 +97,15 @@ function gameTick() {
     }
   }
   
+  // Process status effects on entities
+  if (ioServer && gameState && statusEffectManager) {
+    const currentWorldState = {
+      players: gameState.players,
+      enemies: gameState.enemies,
+    };
+    statusEffectManager.update(deltaTime, currentWorldState, ioServer);
+  }
+  
   // Run existing projectile system (legacy mode) if it exists
   // This ensures both systems run side by side during transition
   if (updateProjectilesLegacy && typeof updateProjectilesLegacy === 'function' && gameState) {
@@ -164,6 +177,9 @@ export function startWorldLoop(
   lastTime = Date.now();
   lastCastSnapshotTime = Date.now();
   lastSnapBroadcastTime = Date.now();
+  
+  // Initialize the status effect manager
+  statusEffectManager = new StatusEffectManager();
   
   // Start the loop if not already running
   if (!isRunning) {

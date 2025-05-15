@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';
 import { getDamage } from '../../shared/combatMath.js';
 import { sweptHit } from '../collision.js';
+import { EFFECTS } from '../../shared/effectsDefinition.js';
 
 // Set of constants for skill system
 export const CAST_BROADCAST_RATE = 50; // ms, how often to send cast snapshots
@@ -195,14 +196,39 @@ function applySkillEffects(target: any, skill: any): void {
       target.statusEffects = [];
     }
     
-    // Check for existing effect of same type and replace if found
+    // Check for existing effect of same type
     const existingIndex = target.statusEffects.findIndex(
       (e: any) => e.type === effect.type
     );
     
+    // Check if we need to handle effect stacking
+    const isStackable = effect.stackable === true;
+    
     if (existingIndex >= 0) {
-      target.statusEffects[existingIndex] = statusEffect;
+      const existing = target.statusEffects[existingIndex];
+      
+      // If it's a stackable effect, update stacks
+      if (isStackable && existing) {
+        // Get max stacks from effect def
+        const maxStacks = effect.maxStacks || 1;
+        
+        // Create a new effect with incremented stacks
+        const newEffect = {
+          ...statusEffect,
+          stacks: Math.min(((existing as any).stacks || 1) + 1, maxStacks)
+        };
+        
+        target.statusEffects[existingIndex] = newEffect;
+      } else {
+        // Replace the existing effect if not stackable
+        target.statusEffects[existingIndex] = statusEffect;
+      }
     } else {
+      // Add the new effect
+      if (isStackable) {
+        // For new stackable effects, start with 1 stack
+        (statusEffect as any).stacks = 1;
+      }
       target.statusEffects.push(statusEffect);
     }
   }

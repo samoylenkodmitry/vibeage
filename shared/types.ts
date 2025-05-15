@@ -23,6 +23,7 @@ export interface StatusEffect {
     durationMs: number;
     startTimeTs: number;
     sourceSkill: string;
+    stacks?: number; // Optional: for stackable effects
 }
 
 export interface Enemy {
