@@ -1,5 +1,5 @@
 import { SkillDef } from '../../shared/skillsDefinition';
-import { VecXZ, InstantHit, ProjHit2 } from '../../shared/messages';
+import { VecXZ, InstantHit } from '../../shared/messages';
 import { getDamage, hash } from '../../shared/combatMath';
 import { v4 as uuid } from 'uuid';
 
@@ -9,11 +9,18 @@ interface GameState {
   players: Record<string, any>;
 }
 
+// Represents hit data without using ProjHit2
+export interface HitResult {
+  targetId: string;
+  damage: number;
+  impactPos: VecXZ;
+}
+
 export interface EffectEntity {
   id: string;
   skill: SkillDef;
   done: boolean;
-  update(dt: number, state: GameState): (ProjHit2 | InstantHit)[];
+  update(dt: number, state: GameState): HitResult[] | InstantHit[];
 }
 
 /* ---- Projectile ---------- */
@@ -27,7 +34,7 @@ export class Projectile implements EffectEntity {
      public casterId: string,
      public targetId?: string)
   {}
-  update(dt: number, state: GameState): ProjHit2[]{
+  update(dt: number, state: GameState): HitResult[]{
      if(this.done) return [];
      
      // Use the standardized projectile speed from the skill definition
@@ -37,7 +44,7 @@ export class Projectile implements EffectEntity {
      this.pos.z += this.dir.z * speed * dt;
      
      /* hit check vs targetId (later broaden) */
-     const hitMsgs: ProjHit2[] = [];
+     const hitResults: HitResult[] = [];
      if(this.targetId) {
         const t = state.enemies[this.targetId] || state.players[this.targetId];
         // Use the hitRadius from the projectile definition if available
@@ -58,16 +65,14 @@ export class Projectile implements EffectEntity {
             // Apply the damage using our pre-calculated value
             applySkillDamage(skillWithCaster, t, state, dmg);
             
-            hitMsgs.push({
-              type: 'ProjHit2', 
-              castId: this.id, 
-              hitIds: [t.id], 
-              dmg: [dmg],
+            hitResults.push({
+              targetId: t.id,
+              damage: dmg,
               impactPos: { x: this.pos.x, z: this.pos.z }
             });
         }
      }
-     return hitMsgs;
+     return hitResults;
   }
 }
 

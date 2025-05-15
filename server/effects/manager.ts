@@ -1,6 +1,5 @@
 import { EffectEntity, Projectile, Instant } from './entities';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition';
-import { ProjSpawn2} from '../../shared/messages';
 
 import { Server } from 'socket.io';
 
@@ -27,35 +26,6 @@ export class EffectManager {
       const p = new Projectile(skill, origin, dir, caster.id, targetId);
       this.effects[p.id] = p;
       
-      // Calculate travel time for the projectile if we have a target
-      let travelMs;
-      if (targetId) {
-          const target = this.state.enemies[targetId] || this.state.players[targetId];
-          if (target) {
-              const dist = Math.sqrt(
-                  Math.pow(target.position.x - origin.x, 2) +
-                  Math.pow(target.position.z - origin.z, 2)
-              );
-              const speedMPS = skill.projectile?.speed || skill.speed || 0;
-              const speedMPMS = speedMPS / 1000;
-              travelMs = Math.ceil(dist / speedMPMS);
-          }
-      }
-      
-      // Emit enhanced projectile spawn event
-      this.io.emit('msg', {
-        type: 'ProjSpawn2',
-        castId: p.id, 
-        skillId: skillId, 
-        origin: { x: origin.x, z: origin.z }, 
-        dir: { x: dir.x, z: dir.z }, 
-        speed: skill.projectile?.speed || skill.speed || 0, 
-        launchTs: Date.now(),
-        casterId: caster.id,
-        hitRadius: skill.projectile?.hitRadius || 0.5,
-        travelMs: travelMs
-      } as ProjSpawn2);
-      
       return p.id;
   }
   
@@ -74,15 +44,24 @@ export class EffectManager {
       
       for(const id in this.effects) {
           const e = this.effects[id];
-          const msgs = e.update(dt, this.state);
+          const results = e.update(dt, this.state);
           
           // Collect IDs of targets that got hit
-          msgs.forEach(m => {
-              this.io.emit('msg', m);
-              
-              // Track which entities need updates
-              if (m.type === 'ProjHit2' || m.type === 'InstantHit') {
-                  (m.hitIds || []).forEach(hitId => {
+          results.forEach(result => {
+              // Handle HitResult (from Projectile)
+              if ('targetId' in result && 'damage' in result) {
+                  // HitResult from Projectile
+                  const hitId = result.targetId;
+                  if (this.state.enemies[hitId]) {
+                      updatedEnemies.add(hitId);
+                  } else if (this.state.players[hitId]) {
+                      updatedPlayers.add(hitId);
+                  }
+              } 
+              // Handle InstantHit
+              else if (result.type === 'InstantHit') {
+                  this.io.emit('msg', result);
+                  (result.hitIds || []).forEach(hitId => {
                       if (this.state.enemies[hitId]) {
                           updatedEnemies.add(hitId);
                       } else if (this.state.players[hitId]) {

@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
-import { startWorldLoop } from './combat/worldLoop.js';
+import { startWorldLoop, stopWorldLoop } from './combat/worldLoop.js';
 import { sendCastSnapshots } from './combat/skillSystem.js';
 
 // Create HTTP server
@@ -44,11 +44,20 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   // Handle player joining
-  socket.on('joinGame', (playerName: string) => {
-    console.log('Player joining:', playerName);
+  socket.on('joinGame', (data: { playerName: string, clientProtocolVersion?: number }) => {
+    // Check protocol version - require v2 or higher
+    const clientVersion = data.clientProtocolVersion || 1;
+    if (clientVersion < 2) {
+      console.warn(`Client ${socket.id} using outdated protocol version ${clientVersion}. Rejecting connection.`);
+      socket.emit('connectionRejected', { reason: 'outdatedProtocol', message: 'This server requires protocol v2 or higher.' });
+      socket.disconnect(true);
+      return;
+    }
+    
+    console.log(`Player joining: ${data.playerName} with protocol version ${clientVersion}`);
     
     // Add the player to the world
-    const player = world.addPlayer(socket.id, playerName);
+    const player = world.addPlayer(socket.id, data.playerName);
     
     // Send player ID to the client
     socket.emit('joinGame', { playerId: player.id });
@@ -139,22 +148,65 @@ process.on('unhandledRejection', (error) => {
   console.error('Unhandled Rejection:', error);
 });
 
-// Start the server
-const PORT = process.env.PORT || 3001;
+// Variables to track server state
+let isServerRunning = false;
 
-console.log('Attempting to start game server...');
+/**
+ * Start the game server on the specified port
+ * @param port Port number to listen on
+ * @returns Promise that resolves when server is started
+ */
+export async function startServer(port: number = 3001): Promise<void> {
+  if (isServerRunning) {
+    console.warn('Server is already running');
+    return;
+  }
 
-try {
-  httpServer.listen(PORT, () => {
-    console.log(`Game server running on port ${PORT}`);
-    console.log(`Enemy count at startup: ${Object.keys(world.getGameState().enemies).length}`);
-    console.log('Game zones:', zoneManager.getZones().map(zone => zone.name).join(', '));
-    
-    // Start the enhanced world loop with the game state
-    console.log('Starting server-authoritative combat system...');
-    startWorldLoop(io, world.getGameState(), undefined, 33); // ~30 ticks per second for better responsiveness
+  return new Promise((resolve) => {
+    httpServer.listen(port, () => {
+      console.log(`Game server running on port ${port}`);
+      console.log(`Enemy count at startup: ${Object.keys(world.getGameState().enemies).length}`);
+      console.log('Game zones:', zoneManager.getZones().map(zone => zone.name).join(', '));
+      
+      // Start the enhanced world loop with the game state
+      console.log('Starting server-authoritative combat system...');
+      startWorldLoop(io, world.getGameState(), undefined, 33); // ~30 ticks per second for better responsiveness
+      
+      isServerRunning = true;
+      resolve();
+    });
   });
-} catch (error) {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+}
+
+/**
+ * Stop the game server
+ */
+export function stopServer(): void {
+  if (!isServerRunning) {
+    console.warn('Server is not running');
+    return;
+  }
+
+  // Stop the world loop
+  stopWorldLoop();
+
+  // Close all socket connections
+  io.disconnectSockets();
+  
+  // Close the HTTP server
+  httpServer.close(() => {
+    console.log('Game server stopped');
+    isServerRunning = false;
+  });
+}
+
+// Start the server if this module is run directly
+// In ESM, import.meta.url will be the URL of the current module
+// and we can check if it's being run directly
+if (import.meta.url.endsWith(process.argv[1].replace(/^file:\/\//, ''))) {
+  const PORT = process.env.PORT || 3001;
+  startServer(Number(PORT)).catch(error => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
 }

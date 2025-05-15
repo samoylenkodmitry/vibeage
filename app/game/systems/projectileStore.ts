@@ -1,44 +1,53 @@
 import { create } from 'zustand';
-import { ProjSpawn2, ProjHit2 } from '../../../shared/messages';
+import { CastSnapshot } from '../../../shared/types';
 
-// Extended projectile type with hit timestamp
-export interface ProjectileData extends ProjSpawn2 {
+// Define a simplified projectile data structure for protocol v2+
+export interface ProjectileData {
+  type: 'CastSnapshot';
+  castId: string;
+  skillId: string;
+  casterId: string;
+  origin: { x: number, z: number };
+  pos: { x: number, z: number };
+  velocity?: { x: number, z: number };
+  travelTime?: number;
   hitTs?: number;
   expired?: boolean;
 }
 
-type State = { 
+export interface State {
   live: Record<string, ProjectileData>;
-  // Keep hit projectiles around briefly for VFX cleanup
   toRecycle: Record<string, ProjectileData>;
-};
+}
 
-type Actions = {
-  add: (p: ProjSpawn2) => void;
-  hit: (msg: ProjHit2) => void;
-  markExpired: (castId: string) => void;
+export interface Actions {
+  add: (snapshot: CastSnapshot) => void;
+  markProjectileAsHit: (castId: string) => void;
+  cleanup: () => void;
+  recycleProjectiles: (now: number) => void;
   clearRecycled: (castId: string) => void;
-};
+  getProjectileByProjId: (projId: string) => ProjectileData | undefined;
+}
 
-export const useProjectileStore = create<State & Actions>((set) => ({
+export const useProjectileStore = create<State & Actions>((set, get) => ({
   live: {},
   toRecycle: {},
   
-  add: (p) => set((s) => { 
-    console.log(`[ProjectileStore.add] Adding projectile with castId: ${p.castId}, skillId: ${p.skillId}`);
+  add: (snapshot) => set((s) => { 
+    console.log(`[ProjectileStore.add] Adding projectile with castId: ${snapshot.castId}, skillId: ${snapshot.skillId}`);
     
     // Special logging for fireball
-    if (p.skillId === 'fireball') {
-      console.log(`[ProjectileStore.add] Attempting to add Fireball: castId=${p.castId}. Current live count: ${Object.keys(s.live).length}`);
+    if (snapshot.skillId === 'fireball') {
+      console.log(`[ProjectileStore.add] Attempting to add Fireball: castId=${snapshot.castId}. Current live count: ${Object.keys(s.live).length}`);
     }
     
     // Check if this castId already exists in live projectiles
-    if (s.live[p.castId]) {
-      console.warn(`[ProjectileStore.add] Projectile with castId: ${p.castId} already exists in live projectiles. This might cause duplicate visuals.`);
+    if (s.live[snapshot.castId]) {
+      console.warn(`[ProjectileStore.add] Projectile with castId: ${snapshot.castId} already exists in live projectiles. This might cause duplicate visuals.`);
       
       // Special logging for fireball
-      if (p.skillId === 'fireball') {
-        console.warn(`[ProjectileStore.add] Fireball with castId: ${p.castId} already exists. Not re-adding.`);
+      if (snapshot.skillId === 'fireball') {
+        console.warn(`[ProjectileStore.add] Fireball with castId: ${snapshot.castId} already exists. Not re-adding.`);
       }
       
       // Keep using the same object reference to avoid creating a duplicate visual
@@ -46,34 +55,34 @@ export const useProjectileStore = create<State & Actions>((set) => ({
     }
     
     // Special logging for fireball
-    if (p.skillId === 'fireball') {
-      console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${p.castId}. New live count: ${Object.keys(s.live).length + 1}`);
+    if (snapshot.skillId === 'fireball') {
+      console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${snapshot.castId}. New live count: ${Object.keys(s.live).length + 1}`);
     }
     
+    // Create a ProjectileData object from the CastSnapshot
+    const projectileData: ProjectileData = {
+      type: 'CastSnapshot',
+      castId: snapshot.castId,
+      skillId: snapshot.skillId,
+      casterId: snapshot.casterId,
+      origin: snapshot.origin,
+      pos: snapshot.pos || snapshot.origin, // Use origin if pos is not provided
+      velocity: snapshot.dir, // Direction vector can be used as velocity
+      travelTime: snapshot.startedAt ? (Date.now() - snapshot.startedAt) : 0 // Calculate time elapsed since projectile started
+    };
+    
     return { 
-      live: { ...s.live, [p.castId]: p } 
+      live: { ...s.live, [snapshot.castId]: projectileData } 
     };
   }),
   
-  hit: (h) => set((s) => { 
-    console.log(`[ProjectileStore.hit] Received ProjHit2 for castId: ${h.castId}`, h);
-    console.log('[ProjectileStore.hit] s.live before:', JSON.stringify(Object.keys(s.live)));
+  markProjectileAsHit: (castId) => set((s) => {
+    const projectile = s.live[castId];
+    if (!projectile) return s;
     
-    // Get the projectile that was hit
-    const projectile = s.live[h.castId];
+    console.log(`[ProjectileStore.markProjectileAsHit] Marking projectile as hit: ${castId}`);
     
-    if (!projectile) {
-      console.warn(`[ProjectileStore.hit] Projectile not found in s.live for castId: ${h.castId}`);
-      // If projectile is not in live but is in toRecycle, this might be a duplicate hit message
-      if (s.toRecycle[h.castId]) {
-        console.warn(`[ProjectileStore.hit] Projectile found in s.toRecycle. Possible duplicate hit message.`);
-      }
-      return s; // No-op if projectile not found
-    }
-    
-    console.log(`[ProjectileStore.hit] Found projectile for castId: ${h.castId}`, projectile);
-    
-    // Mark with hit timestamp and move to toRecycle
+    // Mark with hit timestamp
     const hitProjectile = { 
       ...projectile, 
       hitTs: performance.now() 
@@ -81,42 +90,63 @@ export const useProjectileStore = create<State & Actions>((set) => ({
     
     // Remove from live and add to toRecycle
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { [h.castId]: _, ...restLive } = s.live;
-    
-    const newState = { 
-      live: restLive,
-      toRecycle: { ...s.toRecycle, [h.castId]: hitProjectile }
-    };
-    
-    console.log('[ProjectileStore.hit] s.live after:', JSON.stringify(Object.keys(newState.live)));
-    console.log('[ProjectileStore.hit] s.toRecycle after:', JSON.stringify(Object.keys(newState.toRecycle)));
-    
-    return newState; 
-  }),
-  
-  markExpired: (castId) => set((s) => {
-    const projectile = s.live[castId];
-    if (!projectile) return s;
-    
-    // Mark as expired and move to toRecycle
-    const expiredProjectile = {
-      ...projectile,
-      expired: true
-    };
-    
-    // Remove from live and add to toRecycle
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [castId]: _, ...restLive } = s.live;
     
-    return {
+    return { 
       live: restLive,
-      toRecycle: { ...s.toRecycle, [castId]: expiredProjectile }
+      toRecycle: { ...s.toRecycle, [castId]: hitProjectile }
     };
   }),
   
-  clearRecycled: (castId) => set((s) => {
+  cleanup: () => set((s) => {
+    // Implement cleanup logic if necessary
+    return s;
+  }),
+  
+  recycleProjectiles: () => set((s) => {
+    // Recycle projectiles that are expired
+    const newLive = { ...s.live };
+    const newToRecycle = { ...s.toRecycle };
+    
+    for (const [castId, projectile] of Object.entries(s.toRecycle)) {
+      if (projectile.expired) {
+        console.log(`[ProjectileStore.recycleProjectiles] Recycling expired projectile: ${castId}`);
+        delete newToRecycle[castId];
+      }
+    }
+    
+    return {
+      live: newLive,
+      toRecycle: newToRecycle
+    };
+  }),
+  
+  clearRecycled: (castId: string) => set((s) => {
+    if (!s.toRecycle[castId]) {
+      return s;
+    }
+    
+    console.log(`[ProjectileStore.clearRecycled] Clearing recycled projectile: ${castId}`);
+    
+    // Remove from toRecycle
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { [castId]: _, ...restRecycle } = s.toRecycle;
-    return { toRecycle: restRecycle };
-  })
+    const { [castId]: _, ...rest } = s.toRecycle;
+    
+    return { 
+      toRecycle: rest
+    };
+  }),
+  
+  getProjectileByProjId: (projId) => {
+    const state = get();
+    // Search in live projectiles
+    for (const projectile of Object.values(state.live)) {
+      if (projectile.castId === projId) {
+        return projectile;
+      }
+    }
+    
+    // Not found
+    return undefined;
+  }
 }));

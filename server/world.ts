@@ -493,27 +493,14 @@ function executeSkillEffects(
       
       const now = Date.now();
       
-      // Use the new effectRunner for direct skill effects
-      effectRunner.add(
-        target,           // target entity
-        caster,           // source entity
-        effect.type as any, // effect type as EffectId
-        hash(`${skillId}:${target.id}:${now}`) // consistent seed for deterministic effect calculations
-      );
+      // Use the effects manager to apply the effect
+      effects.spawnInstant(skillId, caster, [target.id]);
     }
   }
   
   // Broadcast updates
   io.emit('enemyUpdated', target);
   io.emit('playerUpdated', caster);
-  
-  // Emit skillEffect event for visual effects (legacy support)
-  // TODO: Remove this legacy skillEffect emission after client PR-3 is merged
-  io.emit('skillEffect', {
-    skillId,
-    sourceId: caster.id,
-    targetId: target.id
-  });
 }
 
 /**
@@ -974,13 +961,11 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
               
               const now = Date.now();
               
-              // Use the new effectRunner instead of directly pushing to status effects
-              effectRunner.add(
-                enemy,                  // target entity 
-                state.players[p.casterId], // source entity
-                effect.type as any,     // effect type as EffectId
-                hash(`${p.id}:${enemyId}:${now}`)  // consistent seed for deterministic effect calculations
-              );
+              // Use the effects manager to apply status effects
+              const sourceCaster = state.players[p.casterId];
+              if (sourceCaster) {
+                effects.spawnInstant(p.skillId, sourceCaster, [enemy.id]);
+              }
             }
           }
           
@@ -1060,19 +1045,44 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
       });
       
       // Emit hit event
-      io.emit('msg', {
-        type: 'ProjHit2',
-        castId: p.id,
-        hitIds: hitTargets,
-        dmg: hitTargets.map(targetId => {
-          const { dmg } = getDamage({
-            caster: state.players[p.casterId]?.stats ?? {},
-            skill: { base: skill?.dmg || 10, variance: 0.1 },
-            seed: `${p.id}:${targetId}`
-          });
-          return dmg;
-        }),
-        impactPos: { x: p.pos.x, z: p.pos.z }
+      // Remove legacy ProjHit2 protocol emission
+      // Instead, apply damage directly using the modern protocol
+      
+      // Apply damage to hit targets
+      hitTargets.forEach(targetId => {
+        const { dmg } = getDamage({
+          caster: state.players[p.casterId]?.stats ?? {},
+          skill: { base: skill?.dmg || 10, variance: 0.1 },
+          seed: `${p.id}:${targetId}`
+        });
+        
+        // Apply damage to the target
+        if (state.enemies[targetId]) {
+          const enemy = state.enemies[targetId];
+          const oldHealth = enemy.health;
+          enemy.health = Math.max(0, enemy.health - dmg);
+          
+          log(LOG_CATEGORIES.DAMAGE, `Enemy ${targetId} took ${dmg} damage from projectile ${p.id}. Health: ${oldHealth} -> ${enemy.health}`);
+          
+          // Handle death if needed
+          if (enemy.health <= 0 && enemy.isAlive) {
+            enemy.isAlive = false;
+            enemy.deathTimeTs = Date.now();
+            enemy.targetId = null;
+            
+            // Remove enemy from spatial hash grid
+            spatial.remove(enemyId, { x: enemy.position.x, z: enemy.position.z });
+            
+            // Give XP to the player
+            const caster = state.players[p.casterId];
+            if (caster) {
+              awardPlayerXP(caster, enemy.experienceValue, `killing enemy ${targetId}`, io);
+            }
+          }
+          
+          // Send updated enemy state to clients
+          io.emit('enemyUpdated', enemy);
+        }
       });
       
       // Check if the skill has splash damage
@@ -1156,14 +1166,14 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
           }
         };
         
-        // Emit a separate hit event for splash targets
+        // Process splash damage directly without using legacy ProjHit2 protocol
         if (splashTargets.length > 0) {
           log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} hit ${splashTargets.length} targets with splash damage`);
-          io.emit('msg', {
-            type: 'ProjHit2',
-            castId: p.id,
-            hitIds: splashTargets,
-            dmg: splashTargets.map(targetId => {
+          
+          // Apply splash damage directly to affected entities
+          splashTargets.forEach(targetId => {
+            const enemy = state.enemies[targetId];
+            if (enemy && enemy.isAlive) {
               const { dmg } = getDamage({
                 caster: state.players[p.casterId]?.stats ?? {},
                 skill: { 
@@ -1172,9 +1182,22 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
                 },
                 seed: `${p.id}:splash:${targetId}`
               });
-              return dmg;
-            }),
-            impactPos: { x: p.pos.x, z: p.pos.z }
+              
+              // Apply damage with splash scaling
+              const distToEnemy = Math.sqrt(
+                Math.pow(p.pos.x - enemy.position.x, 2) + 
+                Math.pow(p.pos.z - enemy.position.z, 2)
+              );
+              
+              // Scale damage: full damage at center, reducing toward edge
+              const distanceFactor = 1 - (distToEnemy / splashRadius);
+              const actualDamage = Math.max(1, Math.floor(dmg * distanceFactor));
+              
+              enemy.health = Math.max(0, enemy.health - actualDamage);
+              
+              // Update client
+              io.emit('enemyUpdated', enemy);
+            }
           });
         }
       }
@@ -1188,13 +1211,19 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         if (p.hitCount >= maxPierceHits) {
           log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} reached max pierce hits (${p.hitCount}/${maxPierceHits}), removing`);
           
-          // Tell clients to despawn it
+          // Notify clients about projectile end via CastSnapshot system
           io.emit('msg', {
-            type: 'ProjHit2',
-            castId: p.id,
-            hitIds: [],
-            dmg: [],
-            impactPos: { x: p.pos.x, z: p.pos.z }
+            type: 'CastSnapshot',
+            snapshots: [{
+              castId: p.id,
+              casterId: p.casterId,
+              skillId: p.skillId,
+              state: 2, // CastState.Impact
+              origin: { x: p.pos.x, z: p.pos.z },
+              pos: { x: p.pos.x, z: p.pos.z },
+              startedAt: p.spawnTs,
+              castTimeMs: 0
+            }]
           });
           
           // Mark for removal and skip further processing for this projectile
@@ -1204,13 +1233,19 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
         
         log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} has pierce property, continuing flight (hits: ${p.hitCount || 0}/${maxPierceHits})`);
       } else {
-        // Also tell clients to despawn it immediately for non-piercing projectiles
+        // Notify clients that the non-piercing projectile has impacted via CastSnapshot
         io.emit('msg', {
-          type: 'ProjHit2',
-          castId: p.id,
-          hitIds: [],
-          dmg: [],
-          impactPos: { x: p.pos.x, z: p.pos.z }
+          type: 'CastSnapshot',
+          snapshots: [{
+            castId: p.id,
+            casterId: p.casterId,
+            skillId: p.skillId,
+            state: 2, // CastState.Impact
+            origin: { x: p.pos.x, z: p.pos.z },
+            pos: { x: p.pos.x, z: p.pos.z },
+            startedAt: p.spawnTs,
+            castTimeMs: 0
+          }]
         });
         
         // Mark for removal and skip further processing for this projectile
@@ -1222,12 +1257,20 @@ function updateProjectiles(state: GameState, dt: number, io: Server): void {
     // Check TTL (Time To Live) - 2 seconds max lifetime (reduced from 4)
     if (now - p.spawnTs > 2000) {
       log(LOG_CATEGORIES.PROJECTILE, `Projectile ${p.id} expired by TTL after ${((now - p.spawnTs)/1000).toFixed(1)}s`);
+      
+      // Notify clients that projectile expired via CastSnapshot system
       io.emit('msg', {
-        type: 'ProjHit2',
-        castId: p.id,
-        hitIds: [],
-        dmg: [],
-        impactPos: { x: p.pos.x, z: p.pos.z }
+        type: 'CastSnapshot',
+        snapshots: [{
+          castId: p.id,
+          casterId: p.casterId,
+          skillId: p.skillId,
+          state: 2, // CastState.Impact
+          origin: { x: p.pos.x, z: p.pos.z },
+          pos: { x: p.pos.x, z: p.pos.z },
+          startedAt: p.spawnTs,
+          castTimeMs: 0
+        }]
       });
       
       projectilesToRemove.push(i);
@@ -1375,9 +1418,7 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
     Math.pow(currentPos.z - msg.targetPos.z, 2)
   );
   
-  // Limit maximum teleport distance - if move request is too far, cap it
-  let targetPos = { ...msg.targetPos };
-
+  // For very small movements (effectively a stop command)
   if (distance < 0.05) {
     // This is a stop command - immediately halt the player
     player.movement = { 
@@ -1409,10 +1450,8 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
   // Calculate direction and determine speed (now server-controlled)
   const dir = calculateDir(currentPos, msg.targetPos);
   
-  // Use the already defined MAX_MOVE_DISTANCE for capping move distances
-  let actualTargetPos = { ...msg.targetPos };
-  
-    actualTargetPos = msg.targetPos;
+  // Use the target position sent by the client
+  const actualTargetPos = msg.targetPos;
 
   // Determine server-authorized speed (can vary based on player stats, buffs, etc.)
   const speed = getPlayerSpeed(player); // Server decides the speed

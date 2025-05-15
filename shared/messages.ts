@@ -153,6 +153,7 @@ export interface CombatLogMsg extends ServerMsg {
   damages: number[];
 }
 
+/** @deprecated Removed in protocol v2 – use CastSnapshot pipeline instead. */
 export interface ProjHit2 extends ServerMsg {
   type: 'ProjHit2';
   castId: string;
@@ -161,6 +162,7 @@ export interface ProjHit2 extends ServerMsg {
   impactPos?: VecXZ; // Position of the projectile impact (optional for backwards compatibility)
 }
 
+/** @deprecated Removed in protocol v2 – use CastSnapshot pipeline instead. */
 export interface ProjSpawn2 extends ServerMsg {
   type: 'ProjSpawn2';
   castId: string;

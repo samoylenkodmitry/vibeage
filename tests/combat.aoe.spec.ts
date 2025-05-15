@@ -56,14 +56,31 @@ const mockTickProjectiles = vi.fn().mockImplementation((deltaTime: number, serve
       const cast = mockActiveCastsNew.find((c: any) => c.castId === proj.castId);
       if (cast) cast.state = 2; // Set to Impact state
       
-      // Emit empty hit
+      // Emit CastSnapshot with Impact state
       server.emit('msg', {
-        type: 'ProjHit2',
-        castId: proj.castId,
-        hitIds: [],
-        dmg: [],
-        impactPos: { ...proj.pos }
+        type: 'CastSnapshot',
+        data: {
+          castId: proj.castId,
+          casterId: 'caster1',
+          skillId: 'fireball',
+          state: 2, // CastState.Impact
+          origin: proj.origin || { x: 0, z: 0 },
+          pos: { ...proj.pos },
+          startedAt: proj.startTime,
+          castTimeMs: 500
+        }
       });
+      
+      // Emit combat log with damage information
+      server.emit('msg', {
+        type: 'CombatLog',
+        sourceId: 'caster1',
+        targetIds: [],
+        skillId: 'fireball',
+        values: [],
+        timestamp: Date.now()
+      });
+      
       
       // Remove this projectile
       mockProjectiles.splice(i, 1);
@@ -77,13 +94,29 @@ const mockTickProjectiles = vi.fn().mockImplementation((deltaTime: number, serve
       const hitIds = hitEntities.map((e: any) => e.id);
       const dmg = hitIds.map(() => 25); // Use skill damage
       
-      // Emit hit event
+      // Emit CastSnapshot with Impact state
       server.emit('msg', {
-        type: 'ProjHit2',
-        castId: proj.castId,
-        hitIds,
-        dmg,
-        impactPos: { ...proj.pos }
+        type: 'CastSnapshot',
+        data: {
+          castId: proj.castId,
+          casterId: 'caster1',
+          skillId: 'fireball',
+          state: 2, // CastState.Impact
+          origin: proj.origin || { x: 0, z: 0 },
+          pos: { ...proj.pos },
+          startedAt: proj.startTime,
+          castTimeMs: 500
+        }
+      });
+      
+      // Emit combat log with damage information
+      server.emit('msg', {
+        type: 'CombatLog',
+        sourceId: 'caster1',
+        targetIds: hitIds,
+        skillId: 'fireball',
+        values: dmg,
+        timestamp: Date.now()
       });
       
       // Set cast to Impact state
@@ -175,13 +208,23 @@ describe('AOE Projectile Collision', () => {
       3 // AOE radius
     );
     
-    // Check that a ProjHit2 message was emitted with the hit enemies
+    // Check that a CastSnapshot message was emitted with Impact state
     expect(mockEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'ProjHit2',
-      castId: 'cast1',
-      hitIds: expect.arrayContaining(['enemy1', 'enemy2']), // Both enemies are within the 3 unit radius
-      dmg: expect.any(Array),
-      impactPos: { x: 5, z: 5 } // Impact position is included
+      type: 'CastSnapshot',
+      data: expect.objectContaining({
+        castId: 'cast1',
+        state: 2, // CastState.Impact
+        skillId: 'fireball'
+      })
+    }));
+    
+    // Check that a CombatLog message was emitted with damage info
+    expect(mockEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
+      type: 'CombatLog',
+      sourceId: 'caster1',
+      targetIds: expect.arrayContaining(['enemy1', 'enemy2']), // Both enemies are within the 3 unit radius
+      skillId: 'fireball',
+      values: expect.any(Array)
     }));
     
     // Verify the cast state changed to Impact
@@ -228,13 +271,23 @@ describe('AOE Projectile Collision', () => {
     // Run the tick function
     mockTickProjectiles(100, mockServer, mockWorld);
     
-    // Check that a ProjHit2 message was emitted with empty hit list
+    // Check that a CastSnapshot message was emitted with Impact state
     expect(mockEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'ProjHit2',
-      castId: 'cast2',
-      hitIds: [], // No enemies hit
-      dmg: [],
-      impactPos: expect.any(Object) // Impact position is included
+      type: 'CastSnapshot',
+      data: expect.objectContaining({
+        castId: 'cast2',
+        state: 2, // CastState.Impact
+        skillId: 'fireball'
+      })
+    }));
+    
+    // Check that a CombatLog message was emitted with empty target list
+    expect(mockEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
+      type: 'CombatLog',
+      sourceId: 'caster1',
+      targetIds: [], // No enemies hit
+      skillId: 'fireball',
+      values: []
     }));
     
     // Verify the cast state changed to Impact

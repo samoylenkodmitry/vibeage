@@ -326,7 +326,7 @@ export default function SocketManager() {
   // Handle cast snapshot updates
   const handleCastSnapshot = useCallback((data: CastSnapshotMsg) => {
     const castData = data.data;
-    const { add: addProjectileToStore, hit: markProjectileHit } = useProjectileStore.getState();
+    const { add: addProjectileToStore } = useProjectileStore.getState();
     
     console.log(`[SocketManager] Handling CastSnapshot: castId=${castData.castId}, skillId=${castData.skillId}, state=${castData.state}, pos=${JSON.stringify(castData.pos)}, target=${JSON.stringify(castData.target)}`);
     
@@ -361,7 +361,8 @@ export default function SocketManager() {
     if (castData.state === CastState.Impact) {
       // Projectile impacted or instant skill resolved
       console.log(`[SocketManager] Marking projectile as hit: castId=${castData.castId}`);
-      markProjectileHit({ type: 'ProjHit2', castId: castData.castId, hitIds: [], dmg: [] }); // Minimal hit message for store
+      // Use projectile tracking system for hit state
+      useProjectileStore.getState().markProjectileAsHit(castData.castId);
     }
     
     const skillDef = SKILLS[castData.skillId as SkillId];
@@ -370,30 +371,17 @@ export default function SocketManager() {
       console.log(`[SocketManager] Processing traveling projectile: castId=${castData.castId}, skillId=${castData.skillId}`);
       
       if (castData.pos && castData.origin && castData.dir) {
-        // Use the direction vector provided by server
-        const projectileDataForStore = {
-          type: 'ProjSpawn2', // This is an internal type hint for the store's data structure
-          castId: castData.castId,
-          skillId: castData.skillId as SkillId,
-          // Use origin from server, with default y value
-          origin: { x: castData.origin.x, y: 1.5, z: castData.origin.z },
-          dir: castData.dir, // Use direction vector from server
-          speed: skillDef.projectile.speed,
-          launchTs: castData.startedAt, // Use server's cast start time for more accurate timing
-          casterId: castData.casterId,
-          hitRadius: skillDef.projectile.hitRadius || 0.5,
-        };
-        
         // Special logging for fireball
         if (castData.skillId === 'fireball') {
-          console.log('[SocketManager] Adding Fireball to projectile store. Data:', JSON.stringify(projectileDataForStore));
+          console.log('[SocketManager] Adding Fireball to projectile store. Data:', JSON.stringify(castData));
         }
         
         // Debug the current projectileStore state
         const currentStore = useProjectileStore.getState();
         console.log(`[SocketManager] Current projectileStore before adding - live: ${Object.keys(currentStore.live).length}, recycled: ${Object.keys(currentStore.toRecycle).length}`);
         
-        addProjectileToStore(projectileDataForStore);
+        // Add the snapshot directly to the projectile store
+        addProjectileToStore(castData);
         
         // Verify projectile was added
         setTimeout(() => {
@@ -534,40 +522,7 @@ export default function SocketManager() {
       // Removed automatic joinGame emission to prevent duplicate player IDs
 
       // Set up skill-related event handlers - will be deprecated after migration
-      socket.on('skillEffect', (data: { skillId: string, sourceId: string, targetId: string }) => {
-        // Update game state based on skill effects
-        console.log('Legacy skillEffect received from server:', data);
-        
-        // This handler will be removed after the new projectile system is confirmed working
-        const gameState = useGameStore.getState();
-        const sourcePlayer = gameState.players[data.sourceId];
-        const targetEnemy = gameState.enemies[data.targetId];
-        
-        if (sourcePlayer && targetEnemy) {
-          // Dispatch a custom event that ActiveSkills can listen for
-          window.dispatchEvent(new CustomEvent('skillTriggered', { 
-            detail: {
-              id: `effect-${Math.random().toString(36).substring(2, 9)}`,
-              skillId: data.skillId as string,
-              sourceId: data.sourceId,
-              targetId: data.targetId,
-              startPosition: sourcePlayer.position,
-              targetPosition: targetEnemy.position,
-              createdAtTs: Date.now()
-            }
-          }));
-        } else {
-          console.warn('Could not find source player or target enemy for skill effect:', {
-            skillId: data.skillId,
-            sourceId: data.sourceId,
-            targetId: data.targetId,
-            sourceMissing: !sourcePlayer,
-            targetMissing: !targetEnemy,
-            playerCount: Object.keys(gameState.players).length,
-            enemyCount: Object.keys(gameState.enemies).length
-          });
-        }
-      });
+      // Legacy 'skillEffect' event handler has been removed in protocol v2+
 
       socket.on('skillCooldownUpdate', (data: { skillId: string, cooldownEndTime: number }) => {
         // Update skill cooldowns in game state
@@ -725,14 +680,6 @@ export default function SocketManager() {
                 });
               }
             }
-            break;
-          }
-          case 'ProjSpawn2': {
-            console.log(`[SocketManager] Received ProjSpawn2 message - using new CastSnapshot system instead`);
-            break;
-          }
-          case 'ProjHit2': {
-            console.log(`[SocketManager] Received ProjHit2 message - using new CastSnapshot system instead`);
             break;
           }
           case 'CastSnapshot': {

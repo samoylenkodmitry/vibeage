@@ -8,14 +8,26 @@ The game uses a client-server architecture with the following components:
 
 ### Message Protocol
 
-| Direction | Type | When | Payload |
-|-----------|------|------|---------|
-| Client → Server | MoveStart | Once per path | `{id, path: VecXZ[], speed, clientTs}` |
-| Client → Server | MoveSync | Every 2s or when speed/path changes | `{id, pos, clientTs}` |
-| Client → Server | CastReq | Skill button | `{skillId, targetId?, targetPos?, clientTs}` |
-| Server → Client | MoveStart | Broadcast | Same as above |
-| Server → Client | PosSnap | 10 Hz | `[{id, pos, vel, ts}]` |
-| Server → Client | CastStart/CastEnd | Skill events | `{id, skillId, castMs, success}` |
+#### Client → Server Messages
+
+| Type | When | Payload |
+|------|------|---------|
+| MoveIntent | When player clicks to move | `{id, targetPos, clientTs}` |
+| CastReq | Skill button | `{id, skillId, targetId?, targetPos?, clientTs}` |
+| RespawnRequest | After player death | `{id, clientTs}` |
+
+#### Server → Client Messages
+
+| Type | When | Payload |
+|------|------|---------|
+| PosSnap | 10 Hz | `{snaps: [{id, pos, vel, snapTs}]}` |
+| PosDelta | On minor position changes | `{id, dx, dz, vdx?, vdz?, serverTs}` |
+| CastSnapshot | Skill state changes | `{castId, casterId, skillId, state, origin, target?, pos?, dir?, startedAt, castTimeMs}` |
+| EffectSnapshot | Status effects | `{targetId, effects: []}` |
+| CombatLog | Combat results | `{castId, skillId, casterId, targets, damages}` |
+| EnemyAttack | Enemy attacks | `{enemyId, targetId, damage}` |
+
+> **Note**: As of May 2025, legacy message types `skillEffect`, `ProjSpawn2`, and `ProjHit2` have been removed from the protocol. Clients must use protocol v2+ to connect to current servers.
 
 ### Server Update Loop
 

@@ -105,7 +105,11 @@ export default function Game() {
   useEffect(() => {
     if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame) {
       console.log('Joining game with player name:', playerName);
-      socket.emit('joinGame', playerName);
+      // Use protocol version 2 as required by the server
+      socket.emit('joinGame', { 
+        playerName,
+        clientProtocolVersion: 2
+      });
       setHasJoinedGame(true);
     }
   }, [isGameStarted, socket, isConnected, playerName, hasJoinedGame, setHasJoinedGame]);

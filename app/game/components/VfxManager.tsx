@@ -64,9 +64,8 @@ export default function VfxManager() {
       console.log(`[VfxManager] Fireballs in projectileArray (${fireballs.length}):`, fireballs.map(f => ({ 
         castId: f.castId, 
         origin: f.origin, 
-        dir: f.dir, 
-        speed: f.speed, 
-        launchTs: f.launchTs 
+        velocity: f.velocity, 
+        travelTime: f.travelTime 
       })));
     } else if (projArray.some(p => p.skillId === 'fireball')) {
       console.log('[VfxManager] Fireball detected but not logged in detail.');
@@ -247,13 +246,13 @@ export default function VfxManager() {
         const skillId = proj.skillId || 'default';
         const origin = { 
           x: proj.origin.x, 
-          y: proj.origin.y || 1.5, // Use server-provided y or default to 1.5
+          y: 1.5, // Default y position
           z: proj.origin.z 
         };
         const dir = { 
-          x: proj.dir.x, 
+          x: proj.velocity?.x || 0, 
           y: 0, // No vertical movement
-          z: proj.dir.z 
+          z: proj.velocity?.z || 0 
         };
         
         // Get or create a pooled group for this projectile
@@ -305,8 +304,8 @@ export default function VfxManager() {
                 id={proj.castId}
                 origin={origin}
                 dir={dir}
-                speed={proj.speed}
-                launchTs={proj.launchTs}
+                speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
+                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
                 pooled={group}
                 onDone={handleDone}
               />
@@ -318,8 +317,8 @@ export default function VfxManager() {
                 id={proj.castId}
                 origin={origin}
                 dir={dir}
-                speed={proj.speed}
-                launchTs={proj.launchTs}
+                speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
+                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
                 pooled={group}
                 onDone={handleDone}
               />
@@ -331,8 +330,8 @@ export default function VfxManager() {
                 id={proj.castId}
                 origin={origin}
                 dir={dir}
-                speed={proj.speed}
-                launchTs={proj.launchTs}
+                speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
+                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
                 pooled={group}
                 onDone={handleDone}
               />
@@ -344,8 +343,8 @@ export default function VfxManager() {
                 id={proj.castId}
                 origin={origin}
                 dir={dir}
-                speed={proj.speed}
-                launchTs={proj.launchTs}
+                speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
+                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
                 pooled={group}
                 onDone={handleDone}
               />
