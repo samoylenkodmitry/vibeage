@@ -98,22 +98,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
             x: newTarget.x, 
             z: newTarget.z 
           });
-          // --- BEGIN BUFFER RESET LOGIC for controlled player ---
-          if (isControlledPlayer && playerRef.current) {
-            const currentVisualPos = playerRef.current.translation();
-            const buffer = getBuffer(playerId);
-            buffer.clearBuffer(); // Add this method to SnapBuffer
-
-            const syntheticSnap: Snap = {
-              pos: { x: currentVisualPos.x, z: currentVisualPos.z },
-              vel: { x: 0, z: 0 }, // Start with zero velocity, server will correct
-              rot: cameraAngleRef.current, // Or current player Y rotation
-              snapTs: performance.now() // Timestamp it as "now" from client's perspective
-            };
-            buffer.push(syntheticSnap);
-            console.log(`[Player.tsx] Cleared buffer and pushed synthetic snap for ${playerId} at`, syntheticSnap.pos);
-          }
-          // --- END BUFFER RESET LOGIC ---
         } else {
           console.warn('Ray did not intersect ground plane');
         }
