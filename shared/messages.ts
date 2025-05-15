@@ -1,5 +1,5 @@
 import { SkillId } from './skillsDefinition';
-import { CastSnapshot, StatusEffect } from './types';
+import { CastSnapshot, InventorySlot, StatusEffect } from './types';
 
 export interface VecXZ {
   x: number;
@@ -198,4 +198,17 @@ export interface RespawnRequest extends ClientMsg {
   type: 'RespawnRequest';
   id: string;          // Player ID
   clientTs: number;    // Ms since epoch on the client
+}
+
+// Inventory related messages
+export interface InventoryUpdateMsg extends ServerMsg {
+  type: 'InventoryUpdate';
+  inventory: InventorySlot[]; // The full updated inventory
+  maxInventorySlots: number;
+}
+
+export interface LootAcquiredMsg extends ServerMsg {
+  type: 'LootAcquired';
+  items: InventorySlot[]; // Items that were acquired
+  sourceEnemyName?: string;
 }

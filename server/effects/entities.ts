@@ -2,11 +2,13 @@ import { SkillDef } from '../../shared/skillsDefinition';
 import { VecXZ, InstantHit } from '../../shared/messages';
 import { getDamage, hash } from '../../shared/combatMath';
 import { v4 as uuid } from 'uuid';
+import { handleEnemyLoot } from '../lootHandler';
 
 // Define a simplified GameState interface for use in this file
 interface GameState {
   enemies: Record<string, any>;
   players: Record<string, any>;
+  sockets?: Record<string, any>; // Socket instances mapped by socket ID
 }
 
 // Represents hit data without using ProjHit2
@@ -180,6 +182,13 @@ export function applySkillDamage(skill: any, target: any, state: GameState, prec
               killer.health = killer.maxHealth;
               killer.maxMana += 10;
               killer.mana = killer.maxMana;
+            }
+            
+            // Handle loot drops if this is an enemy with a loot table
+            if (target.type && target.lootTableId) {
+              // Store the loot result in target metadata to be processed by the world system
+              // This avoids needing direct access to sockets from here
+              target.lootResult = handleEnemyLoot(target, skill.casterId, state);
             }
           }
         }

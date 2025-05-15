@@ -698,6 +698,14 @@ export default function SocketManager() {
             handleEnemyAttack(msg);
             break;
           }
+          case 'InventoryUpdate': {
+            handleInventoryUpdate(msg);
+            break;
+          }
+          case 'LootAcquired': {
+            handleLootAcquired(msg);
+            break;
+          }
           default: {
             console.log('Unknown message type:', msg.type);
             break;
@@ -725,10 +733,6 @@ export default function SocketManager() {
     handlePosSnap,
     handlePosDelta,
     handleCastFail,
-    handleCastSnapshot,
-    handleEffectSnapshot,
-    handleCombatLog,
-    setConnectionStatus
   ]);
 
   useEffect(() => {
@@ -856,6 +860,36 @@ export default function SocketManager() {
         damage: msg.damage
       }
     }));
+  }, []);
+  
+  // Handle inventory update message
+  const handleInventoryUpdate = useCallback((msg: any) => {
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    if (!myPlayerId) return;
+    
+    console.log('Received inventory update:', msg);
+    useGameStore.getState().updatePlayer({
+      id: myPlayerId,
+      inventory: msg.inventory,
+      maxInventorySlots: msg.maxInventorySlots
+    });
+  }, []);
+  
+  // Handle loot acquired message
+  const handleLootAcquired = useCallback((msg: any) => {
+    console.log('Received loot acquired notification:', msg);
+    
+    // Format the loot items for the combat log
+    const lootText = msg.items
+      .map((item: any) => `${item.quantity}x ${item.itemId}`)
+      .join(', ');
+    
+    // Add the loot message to the combat log
+    useCombatLogStore.getState().push({
+      id: Date.now(),
+      text: `Looted: ${lootText} from ${msg.sourceEnemyName || 'enemy'}`,
+      ts: Date.now()
+    });
   }, []);
   
   return null;

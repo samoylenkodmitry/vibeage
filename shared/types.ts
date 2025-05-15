@@ -1,7 +1,13 @@
 import { SkillId, SkillType } from './skillsDefinition';
 import { CharacterClass } from './classSystem';
+import { ItemId } from './items';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
+
+export interface InventorySlot {
+  itemId: ItemId;
+  quantity: number;
+}
 
 export interface CastSnapshot {
   castId: string;
@@ -48,6 +54,7 @@ export interface Enemy {
     attackCooldown?: boolean;
     posHistory?: { ts: number; x: number; z: number }[];  // Position history buffer similar to players
     lastUpdateTime?: number;  // Track last update time
+    lootTableId?: string;     // ID of the loot table to generate drops from
     
     // AI-related fields
     aiState: 'idle' | 'chasing' | 'attacking' | 'returning'; // Current AI state
@@ -115,4 +122,6 @@ export interface PlayerState {
         critChance?: number;
         critMult?: number;
     };
+    inventory: InventorySlot[];          // Player's inventory items
+    maxInventorySlots: number;           // Maximum number of inventory slots
 }

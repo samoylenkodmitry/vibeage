@@ -1,9 +1,9 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
-import { Enemy, PlayerState } from '../shared/types.js';
+import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -15,6 +15,7 @@ import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
+import { LOOT_TABLES, LootTable } from './lootTables.js';
 
 /**
  * Defines the GameState interface
@@ -655,7 +656,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
         availableSkillPoints: 1, // Give the player 1 skill point to start
         posHistory: [], // Initialize position history
-        lastUpdateTime: Date.now()
+        lastUpdateTime: Date.now(),
+        inventory: [], // Initialize empty inventory
+        maxInventorySlots: 20 // Set default inventory size
       };
       
       state.players[playerId] = player;
@@ -731,7 +734,10 @@ function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
           attackCooldownMs: 2000, // Default attack cooldown (2 seconds)
           lastAttackTime: 0,
           movementSpeed: 6, // Default movement speed
-          velocity: { x: 0, z: 0 }
+          velocity: { x: 0, z: 0 },
+          
+          // Assign appropriate loot table ID based on enemy type
+          lootTableId: `${type}_loot`
         };
         
         // Add enemy to spatial hash grid
@@ -1596,4 +1602,121 @@ function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest,
   
   // Update spatial grid with new position
   spatial.move(player.id, player.position, player.position); // Force update of position in spatial grid
+}
+
+/**
+ * Generates loot from an enemy's loot table
+ * @param lootTableId The ID of the loot table to use
+ * @returns Array of inventory slots containing loot
+ */
+function generateLoot(lootTableId: string): InventorySlot[] {
+  const lootTable = LOOT_TABLES[lootTableId];
+  if (!lootTable) {
+    log(LOG_CATEGORIES.SYSTEM, `Loot table ${lootTableId} not found`);
+    return [];
+  }
+
+  const generatedLoot: InventorySlot[] = [];
+
+  // Process each potential drop in the loot table
+  lootTable.drops.forEach(drop => {
+    // Roll for chance
+    const roll = Math.random();
+    if (roll <= drop.chance) {
+      // Determine quantity
+      const quantity = Math.floor(
+        drop.quantity.min + Math.random() * (drop.quantity.max - drop.quantity.min + 1)
+      );
+      
+      if (quantity > 0) {
+        generatedLoot.push({
+          itemId: drop.itemId,
+          quantity
+        });
+      }
+    }
+  });
+
+  return generatedLoot;
+}
+
+/**
+ * Adds items to a player's inventory, handling stacking and inventory limits
+ * @param player The player to add items to
+ * @param items The items to add
+ * @returns Object containing successfully added items and overflow items
+ */
+function addItemsToInventory(
+  player: PlayerState, 
+  items: InventorySlot[]
+): { addedItems: InventorySlot[], overflowItems: InventorySlot[] } {
+  const addedItems: InventorySlot[] = [];
+  const overflowItems: InventorySlot[] = [];
+
+  // Process each item
+  items.forEach(item => {
+    let remainingQuantity = item.quantity;
+    const { itemId } = item;
+
+    // First try to merge with existing stacks of the same item
+    // This requires importing the item definitions to check stackability
+    const isStackable = true; // Default to stackable for now
+    const maxStack = 999; // Default max stack size
+    
+    if (isStackable) {
+      // Find existing stacks of this item that aren't full
+      for (let i = 0; i < player.inventory.length; i++) {
+        const slot = player.inventory[i];
+        
+        if (slot.itemId === itemId && slot.quantity < maxStack && remainingQuantity > 0) {
+          // Calculate how much we can add to this stack
+          const spaceInStack = maxStack - slot.quantity;
+          const amountToAdd = Math.min(spaceInStack, remainingQuantity);
+          
+          // Add to existing stack
+          player.inventory[i].quantity += amountToAdd;
+          remainingQuantity -= amountToAdd;
+          
+          // Add to addedItems for tracking
+          addedItems.push({
+            itemId,
+            quantity: amountToAdd
+          });
+          
+          // If we've added all of this item, break
+          if (remainingQuantity <= 0) break;
+        }
+      }
+    }
+    
+    // If we still have items to add, try to add to a new slot
+    if (remainingQuantity > 0) {
+      // Check if we have space for a new slot
+      if (player.inventory.length < player.maxInventorySlots) {
+        // Add to a new slot
+        player.inventory.push({
+          itemId,
+          quantity: remainingQuantity
+        });
+        
+        // Add to addedItems for tracking
+        addedItems.push({
+          itemId,
+          quantity: remainingQuantity
+        });
+        
+        remainingQuantity = 0;
+      }
+    }
+    
+    // If we still have items, they go to overflow
+    if (remainingQuantity > 0) {
+      overflowItems.push({
+        itemId,
+        quantity: remainingQuantity
+      });
+    }
+  });
+  
+  return { addedItems, overflowItems };
 }

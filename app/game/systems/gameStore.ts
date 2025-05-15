@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { produce } from 'immer';
 import { Character } from '../models/Character';
 import { Enemy } from '../models/Enemy';
-import { VecXZ, PlayerMovementState } from '../../../shared/types';
+import { VecXZ, PlayerMovementState, InventorySlot } from '../../../shared/types';
 
 // StatusEffect interface for tracking active effects
 export interface StatusEffect {
@@ -28,6 +28,8 @@ interface PlayerState extends Character {
   castingProgressMs: number;
   isAlive: boolean;
   movement?: PlayerMovementState;
+  inventory?: InventorySlot[];
+  maxInventorySlots?: number;
 }
 
 // Define the structure for the overall game state received from the server

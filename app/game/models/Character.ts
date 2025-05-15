@@ -1,6 +1,7 @@
 import { StatusEffect } from '../systems/gameStore';
 import { CharacterClass } from '../../../shared/classSystem';
 import { SkillId } from '../../../shared/skillsDefinition';
+import { InventorySlot } from '../../../shared/types';
 
 export interface Character {
   id: string;
@@ -21,6 +22,8 @@ export interface Character {
   experience?: number;           // Current experience points
   experienceToNextLevel?: number; // Experience needed for next level
   statusEffects?: StatusEffect[]; // Active status effects
+  inventory?: InventorySlot[];   // Character's inventory
+  maxInventorySlots?: number;    // Maximum inventory slots
 }
 
 export const createCharacter = (name: string): Character => {
@@ -38,6 +41,8 @@ export const createCharacter = (name: string): Character => {
     unlockedSkills: ['fireball'],
     availableSkillPoints: 0,
     activeSkill: 'fireball',
-    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null]
+    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+    inventory: [],
+    maxInventorySlots: 20
   };
 };

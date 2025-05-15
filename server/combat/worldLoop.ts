@@ -106,6 +106,9 @@ function gameTick() {
     statusEffectManager.update(deltaTime, currentWorldState, ioServer);
   }
   
+  // Process any pending loot results from enemy deaths
+  processLootResults();
+  
   // Run existing projectile system (legacy mode) if it exists
   // This ensures both systems run side by side during transition
   if (updateProjectilesLegacy && typeof updateProjectilesLegacy === 'function' && gameState) {
@@ -120,6 +123,9 @@ function gameTick() {
       lastSnapBroadcastTime = now;
     }
   }
+  
+  // Process any pending loot results from enemy deaths
+  processLootResults();
 }
 
 /**
@@ -155,6 +161,58 @@ function applyMovement(players: Record<string, any>, deltaTimeMs: number) {
       
       player.movement.lastUpdateTime = now;
     }
+  }
+}
+
+/**
+ * Process any pending loot results from enemy deaths
+ */
+function processLootResults() {
+  if (!ioServer || !gameState) return;
+  
+  // Check each enemy for loot results
+  for (const enemyId in gameState.enemies) {
+    const enemy = gameState.enemies[enemyId];
+    
+    // Skip enemies without loot results
+    if (!enemy.lootResult) continue;
+    
+    const { inventoryUpdate, lootAcquired } = enemy.lootResult;
+    
+    if (inventoryUpdate) {
+      const playerId = inventoryUpdate.playerId;
+      const player = gameState.players[playerId];
+      
+      if (player) {
+        // Find the player's socket
+        for (const socketId in ioServer.sockets.sockets) {
+          const socket = ioServer.sockets.sockets[socketId];
+          
+          if (socket && player.socketId === socketId) {
+            // Send inventory update
+            socket.emit('msg', {
+              type: 'InventoryUpdate',
+              inventory: inventoryUpdate.inventory,
+              maxInventorySlots: inventoryUpdate.maxInventorySlots
+            });
+            
+            // Send loot acquired notification if available
+            if (lootAcquired) {
+              socket.emit('msg', {
+                type: 'LootAcquired',
+                items: lootAcquired.items,
+                sourceEnemyName: lootAcquired.sourceEnemyName
+              });
+            }
+            
+            break;
+          }
+        }
+      }
+    }
+    
+    // Clear the loot result to prevent resending
+    delete enemy.lootResult;
   }
 }
 
