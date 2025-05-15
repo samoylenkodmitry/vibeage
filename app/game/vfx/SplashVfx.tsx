@@ -181,7 +181,7 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
         rotation={[Math.PI / 2, 0, 0]} // Flat on ground
       >
         <ringGeometry args={[radius * 0.8, radius, 32]} />
-        <meshBasicMaterial color={new Color(0x00a0ff)} transparent={true} opacity={1} />
+        <meshBasicMaterial color="#00a0ff" transparent={true} opacity={1} />
       </mesh>
       
       {/* Water particles */}
@@ -194,7 +194,7 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
         >
           <sphereGeometry args={[0.12, 8, 8]} />
           <meshBasicMaterial 
-            color={particle.color} 
+            color={particle.color.getHexString()} 
             transparent={true} 
             opacity={particle.opacity}
           />
@@ -209,7 +209,7 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
         >
           <sphereGeometry args={[0.15, 8, 8]} />
           <meshBasicMaterial
-            color={new Color(0x88ccff)}
+            color="#88ccff"
             transparent={true}
             opacity={particle.opacity}
           />
@@ -329,7 +329,7 @@ export function FireSplash({ position, radius }: SplashVfxProps) {
         rotation={[Math.PI / 2, 0, 0]}
       >
         <ringGeometry args={[radius * 0.8, radius, 32]} />
-        <meshBasicMaterial color={new Color(0xff5500)} transparent={true} opacity={1} />
+        <meshBasicMaterial color="#ff5500" transparent={true} opacity={1} />
       </mesh>
       
       {/* Fire particles */}
@@ -342,7 +342,7 @@ export function FireSplash({ position, radius }: SplashVfxProps) {
         >
           <sphereGeometry args={[0.12, 8, 8]} />
           <meshBasicMaterial 
-            color={particle.color} 
+            color={particle.color.getHexString()} 
             transparent={true} 
             opacity={particle.opacity}
           />
@@ -450,7 +450,7 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
         rotation={[Math.PI / 2, 0, 0]}
       >
         <ringGeometry args={[radius * 0.8, radius, 32]} />
-        <meshBasicMaterial color={new Color(0xb3e0ff)} transparent={true} opacity={1} />
+        <meshBasicMaterial color="#b3e0ff" transparent={true} opacity={1} />
       </mesh>
       
       {/* Ice particles */}
@@ -463,7 +463,7 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
         >
           <boxGeometry args={[0.15, 0.15, 0.15]} /> {/* Use box for crystal-like shards */}
           <meshBasicMaterial 
-            color={particle.color} 
+            color="#aad4ff" 
             transparent={true} 
             opacity={particle.opacity}
           />

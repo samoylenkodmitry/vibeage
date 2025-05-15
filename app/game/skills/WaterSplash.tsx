@@ -225,7 +225,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
   return (
     <group>
       {/* Initial splash burst */}
-      <mesh position={position}>
+      <mesh position={[position.x, position.y, position.z]}>
         <sphereGeometry args={[radius * 0.3, 16, 16]} />
         <meshStandardMaterial
           key={`splash-${position.x}-${position.z}`}
@@ -274,13 +274,13 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
       {particles.map((particle, i) => (
         <mesh 
           key={`droplet-${i}-${position.x}-${position.z}`}
-          position={particle.position}
+          position={[particle.position.x, particle.position.y, particle.position.z]}
           rotation={[particle.rotation.x, particle.rotation.y, particle.rotation.z]}
           scale={[particle.scale, particle.scale * particle.stretching, particle.scale]}
         >
           <sphereGeometry args={[1, 8, 8]} />
           <meshStandardMaterial
-            color={particle.color}
+            color={`#${particle.color.getHexString()}`}
             emissive="#4080ff"
             emissiveIntensity={0.2}
             transparent={true}
@@ -293,7 +293,7 @@ export function WaterSplash({ position, radius = 5, onComplete }: WaterSplashPro
       {mistParticles.current.map((mist, i) => (
         <mesh
           key={`mist-${i}-${position.x}-${position.z}`}
-          position={mist.position}
+          position={[mist.position.x, mist.position.y, mist.position.z]}
           scale={mist.scale}
         >
           <sphereGeometry args={[1, 8, 8]} />

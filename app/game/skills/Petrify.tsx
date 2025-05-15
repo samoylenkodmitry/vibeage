@@ -538,7 +538,7 @@ function PetrifyImpact({ position }: ImpactProps) {
       {fragments.current.map((fragment, index) => (
         <mesh
           key={`fragment-${index}`}
-          position={fragment.position}
+          position={[fragment.position.x, fragment.position.y, fragment.position.z]}
           rotation={[fragment.rotation.x, fragment.rotation.y, fragment.rotation.z]}
           scale={fragment.currentScale}
         >
@@ -555,7 +555,7 @@ function PetrifyImpact({ position }: ImpactProps) {
       {dustParticles.current.map((dust, index) => (
         <mesh
           key={`dust-${index}`}
-          position={dust.position}
+          position={[dust.position.x, dust.position.y, dust.position.z]}
           rotation={[dust.rotation.x, dust.rotation.y, dust.rotation.z]}
           scale={dust.scale}
         >

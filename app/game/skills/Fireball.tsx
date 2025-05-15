@@ -145,7 +145,12 @@ export function FireballProjectile({ startPosition, targetPosition, onHit }: Fir
       </mesh>
       
       {/* Inner core - more intense glow */}
-      <mesh position={meshRef.current ? meshRef.current.position : startPosition} scale={0.7}>
+      <mesh 
+        position={meshRef.current 
+          ? [meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z] 
+          : [startPosition.x, startPosition.y, startPosition.z]} 
+        scale={0.7}
+      >
         <sphereGeometry args={[0.2, 12, 12]} />
         <meshStandardMaterial
           emissive="#ffff00"
@@ -157,7 +162,7 @@ export function FireballProjectile({ startPosition, targetPosition, onHit }: Fir
       
       {/* Trail particles */}
       {particles.current.map((particle, index) => (
-        <mesh key={index} position={particle.position}>
+        <mesh key={index} position={[particle.position.x, particle.position.y, particle.position.z]}>
           <sphereGeometry args={[particle.scale, 8, 8]} />
           <meshStandardMaterial
             emissive="#ff6600"
@@ -254,7 +259,7 @@ function FireballImpact({ position }: ImpactProps) {
   return (
     <group>
       {/* Main impact shockwave */}
-      <mesh ref={meshRef} position={position}>
+      <mesh ref={meshRef} position={[position.x, position.y, position.z]}>
         <sphereGeometry args={[0.5, 16, 16]} />
         <meshStandardMaterial
           emissive="#ff6600"
@@ -267,7 +272,7 @@ function FireballImpact({ position }: ImpactProps) {
       </mesh>
       
       {/* Secondary flash */}
-      <mesh position={position} scale={lifetimeMs < 500 ? (lifetimeMs / 500) * 2 : 1}>
+      <mesh position={[position.x, position.y, position.z]} scale={lifetimeMs < 500 ? (lifetimeMs / 500) * 2 : 1}>
         <sphereGeometry args={[0.8, 12, 12]} />
         <meshStandardMaterial
           emissive="#ffff00"
@@ -282,7 +287,7 @@ function FireballImpact({ position }: ImpactProps) {
       {fragments.current.map((fragment, index) => (
         <mesh
           key={index}
-          position={fragment.position}
+          position={[fragment.position.x, fragment.position.y, fragment.position.z]}
           scale={fragment.scale}
         >
           <dodecahedronGeometry args={[1, 0]} />

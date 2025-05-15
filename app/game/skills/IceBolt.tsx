@@ -154,7 +154,9 @@ export function IceBoltProjectile({ startPosition, targetPosition, onHit }: IceB
       </mesh>
       
       {/* Secondary ice shard components */}
-      <group position={meshRef.current ? meshRef.current.position : startPosition}>
+      <group position={meshRef.current 
+        ? [meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z] 
+        : [startPosition.x, startPosition.y, startPosition.z]}>
         <mesh rotation={[Math.PI / 4, 0, Math.PI / 6]} scale={0.6}>
           <octahedronGeometry args={[0.3, 0]} />
           <meshStandardMaterial
@@ -178,7 +180,9 @@ export function IceBoltProjectile({ startPosition, targetPosition, onHit }: IceB
       </group>
       
       {/* Frost aura */}
-      <mesh position={meshRef.current ? meshRef.current.position : startPosition} scale={1.2}>
+      <mesh position={meshRef.current 
+        ? [meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z] 
+        : [startPosition.x, startPosition.y, startPosition.z]} scale={1.2}>
         <sphereGeometry args={[0.3, 12, 12]} />
         <meshStandardMaterial
           emissive="#88cfff"
@@ -193,7 +197,7 @@ export function IceBoltProjectile({ startPosition, targetPosition, onHit }: IceB
       {crystals.current.map((crystal, index) => (
         <mesh 
           key={index} 
-          position={crystal.position}
+          position={[crystal.position.x, crystal.position.y, crystal.position.z]}
           rotation={[crystal.rotation.x, crystal.rotation.y, crystal.rotation.z]}
         >
           <octahedronGeometry args={[crystal.scale, 0]} />
@@ -290,7 +294,7 @@ function IceBoltImpact({ position }: ImpactProps) {
   return (
     <group>
       {/* Initial flash */}
-      <mesh position={position}>
+      <mesh position={[position.x, position.y, position.z]}>
         <sphereGeometry args={[0.6, 16, 16]} />
         <meshStandardMaterial
           emissive="#ffffff"
@@ -302,7 +306,7 @@ function IceBoltImpact({ position }: ImpactProps) {
       </mesh>
       
       {/* Main frost sphere */}
-      <mesh ref={mainImpactRef} position={position}>
+      <mesh ref={mainImpactRef} position={[position.x, position.y, position.z]}>
         <sphereGeometry args={[0.5, 16, 16]} />
         <meshStandardMaterial
           emissive="#88cfff"
@@ -315,7 +319,7 @@ function IceBoltImpact({ position }: ImpactProps) {
       </mesh>
       
       {/* Frost ring */}
-      <mesh position={position} rotation={[Math.PI / 2, 0, 0]} scale={0.3 + (1 - lifetimeMs / 1500) * 2.5}>
+      <mesh position={[position.x, position.y, position.z]} rotation={[Math.PI / 2, 0, 0]} scale={0.3 + (1 - lifetimeMs / 1500) * 2.5}>
         <torusGeometry args={[1, 0.1, 16, 36]} />
         <meshStandardMaterial
           emissive="#88cfff"
@@ -330,7 +334,7 @@ function IceBoltImpact({ position }: ImpactProps) {
       {iceCrystalsRef.current.map((crystal, index) => (
         <mesh 
           key={index} 
-          position={crystal.position}
+          position={[crystal.position.x, crystal.position.y, crystal.position.z]}
           rotation={[crystal.rotation.x, crystal.rotation.y, crystal.rotation.z]}
           scale={crystal.scale}
         >
