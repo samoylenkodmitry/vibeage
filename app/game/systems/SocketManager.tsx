@@ -93,7 +93,6 @@ export default function SocketManager() {
 
   // Handle position snapshot from server
   const handlePosSnap = useCallback((snap: PosSnap) => {
-    console.log(`[SocketManager] Handling PosSnap: ${JSON.stringify(snap)}`);
       
     const state = useGameStore.getState();
     const clientReceiveTs = performance.now();
@@ -122,12 +121,6 @@ export default function SocketManager() {
         serverSnapTs: serverSnapTs
       };
       
-      // Additional validation to check for invalid position data
-      if (pos.x === 0 && pos.z === 0) {
-        console.warn(`Position at (0,0) detected in PosSnap for player ${id}. This might cause movement issues.`);
-      }
-      
-      console.log(`[SocketManager] snapObject1:`, snapObject);
       // Push to the module-global buffer for calculations
       buffer.push(snapObject);
       
@@ -188,29 +181,22 @@ export default function SocketManager() {
   // Handle cast snapshot updates
   const handleCastSnapshot = useCallback((data: CastSnapshotMsg) => {
     const castData = data.data;
-    
-    console.log(`[SocketManager] Handling CastSnapshot: castId=${castData.castId}, skillId=${castData.skillId}, state=${castData.state}, pos=${JSON.stringify(castData.pos)}, target=${JSON.stringify(castData.target)}`);
-    
-    // Special logging for fireball
-    if (castData.skillId === 'fireball') {
-      console.log(`[SocketManager] Received Fireball CastSnapshot: castId=${castData.castId}, state=${castData.state}, pos=${JSON.stringify(castData.pos)}, target=${JSON.stringify(castData.target)}`);
-    }
-    
+
+    console.log(`[SocketManager] Handling CastSnapshot: ${JSON.stringify(data)}`);
+
     // Update player's casting UI state (e.g., for CastingBar)
     if (castData.state === CastState.Casting) {
       // Skill is being cast (equivalent to old CastStart)
-      console.log(`[SocketManager] Setting player ${castData.casterId} casting state: skillId=${castData.skillId}, castTimeMs=${castData.castTimeMs || 1000}`);
       updatePlayer({
         id: castData.casterId,
         castingSkill: castData.skillId as string,
-        castingProgressMs: castData.castTimeMs || 1000 // Use cast time from snapshot or default to 1000ms
+        castingProgressMs: castData.castTimeMs
       });
     } else if (castData.state === CastState.Traveling || castData.state === CastState.Impact) {
       // If skill is no longer casting (i.e., it's traveling or has impacted),
       // clear the castingSkill for this player
       const playerToUpdate = useGameStore.getState().players[castData.casterId];
       if (playerToUpdate && playerToUpdate.castingSkill === castData.skillId) {
-        console.log(`[SocketManager] Clearing player ${castData.casterId} casting state for skill ${castData.skillId}`);
         useGameStore.getState().updatePlayer({
           id: castData.casterId,
           castingSkill: null,
@@ -232,53 +218,7 @@ export default function SocketManager() {
       console.log(`[SocketManager] Processing traveling projectile: castId=${castData.castId}, skillId=${castData.skillId}`);
       
       if (castData.pos && castData.origin && castData.dir) {
-        // Special logging for fireball
-        if (castData.skillId === 'fireball') {
-          console.log('[SocketManager] Adding Fireball to projectile store. Data:', JSON.stringify(castData));
-        }
-        
-        // First check if the projectile already exists before trying to add it
-        const currentStore = useProjectileStore.getState();
-        const projectileAlreadyExists = !!currentStore.live[castData.castId];
-        
-        console.log(`[SocketManager] Current projectileStore before adding - live: ${Object.keys(currentStore.live).length}, recycled: ${Object.keys(currentStore.toRecycle).length}, projectile already exists: ${projectileAlreadyExists}`);
-        
-        // Only add the projectile if it doesn't already exist
-        if (!projectileAlreadyExists) {
-          try {
-            // Add the snapshot directly to the projectile store
-            useProjectileStore.getState().add(castData);
-            
-            // Immediate check instead of timeout
-            const updatedStore = useProjectileStore.getState();
-            const addedProjectile = updatedStore.live[castData.castId];
-            
-            if (addedProjectile) {
-              console.log(`[SocketManager] Successfully added projectile to store: castId=${castData.castId}`);
-            } else {
-              console.warn(`[SocketManager] Projectile not found immediately after adding: castId=${castData.castId}, retrying...`);
-              
-              // Retry adding the projectile if it wasn't added successfully
-              setTimeout(() => {
-                useProjectileStore.getState().add(castData);
-                
-                // Final verification check
-                const finalCheck = useProjectileStore.getState();
-                const finalProjectile = finalCheck.live[castData.castId];
-                
-                if (finalProjectile) {
-                  console.log(`[SocketManager] Successfully added projectile on retry: castId=${castData.castId}`);
-                } else {
-                  console.error(`[SocketManager] Failed to add projectile to store even after retry: castId=${castData.castId}`);
-                }
-              }, 20); // Slightly longer timeout for retry
-            }
-          } catch (error) {
-            console.error(`[SocketManager] Error adding projectile to store: ${error}`, error);
-          }
-        } else {
-          console.log(`[SocketManager] Skipping projectile add because it already exists: castId=${castData.castId}`);
-        }
+          useProjectileStore.getState().add(castData);
       } else {
         console.warn('[SocketManager] CastSnapshot (Traveling) for projectile missing essential data (pos, origin, or dir):', castData);
       }

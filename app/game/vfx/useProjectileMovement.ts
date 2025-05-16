@@ -36,6 +36,13 @@ const useProjectileMovement = ({
   // Store the server epoch launchTs directly
   const originalLaunchTs = useRef(launchTs);
   
+  // Log when the launch timestamp is received
+  useEffect(() => {
+    console.log(`[ProjMove] Received launchTs: ${launchTs}, Current client time: ${Date.now()}, Difference: ${Date.now() - launchTs}ms`);
+    // Update the ref if the prop changes
+    originalLaunchTs.current = launchTs;
+  }, [launchTs]);
+  
   // Use state for the current position so renders will happen when it updates
   const [currentPosition, setCurrentPosition] = useState(new Vector3(origin.x, origin.y, origin.z));
   

@@ -335,19 +335,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     };
   }, [isControlledPlayer]);
 
-  // Log player state on mount
-  useEffect(() => {
-    console.log(`PlayerCharacter mounting: id=${playerId}, isControlled=${isControlledPlayer}`, {
-      position: playerState?.position,
-      playerStateExists: !!playerState,
-      allPlayers: Object.keys(useGameStore.getState().players)
-    });
-
-    return () => {
-      console.log(`PlayerCharacter unmounting: id=${playerId}, isControlled=${isControlledPlayer}`);
-    };
-  }, [playerId, isControlledPlayer, playerState]);
-
   // Render the player model
   if (!playerState) return null; // Don't render if state doesn't exist yet
 

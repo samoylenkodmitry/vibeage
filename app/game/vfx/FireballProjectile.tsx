@@ -1,15 +1,12 @@
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, Group, MeshBasicMaterial } from 'three';
-import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface FireballProjectileProps {
   id?: string;
   origin: {x: number; y: number; z: number};
-  dir: {x: number; y: number; z: number};
-  speed: number;
-  launchTs?: number;
+  pos: {x: number; z: number};
   pooled?: Group;  // Add pooled group prop
   onDone?: () => void; // Add callback for when projectile is done
 }
@@ -17,29 +14,18 @@ interface FireballProjectileProps {
 export default function FireballProjectile({ 
   id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
-  dir, 
-  speed, 
-  launchTs = performance.now(),
-  pooled, // Use the pooled group passed from VfxManager
+  pos,
+  pooled,
   onDone
 }: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   
-  // Use the projectile movement hook for consistent positioning
-  const { position } = useProjectileMovement({
-    origin,
-    dir,
-    speed,
-    launchTs,
-    shouldAutoDestroy: false, // Explicitly false - let VfxManager control lifecycle
-  });
-  
+  const position = new Vector3(pos.x, origin.y, pos.z);
   // Initialize pooled group on first mount if provided
   useEffect(() => {
     console.log(`[FireballProjectile] Mounted: ${id}`);
-    console.log(`[FireballProjectile ${id}] Mounted. Pooled: ${!!pooled}. Origin: ${JSON.stringify(origin)}, Dir: ${JSON.stringify(dir)}, Speed: ${speed}`);
     
     if (!pooled) {
       console.error(`[FireballProjectile ${id}] Pooled group is UNDEFINED!`);
@@ -96,7 +82,7 @@ export default function FireballProjectile({
         onDone();
       }
     };
-  }, [pooled, onDone, id, origin, dir, speed]); // Added origin, dir, speed for logging initial state
+  }, [pooled, onDone, id, pos]);
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({

@@ -11,6 +11,7 @@ export interface ProjectileData {
   pos: { x: number, z: number };
   velocity?: { x: number, z: number };
   travelTime?: number;
+  serverEpochLaunchTs: number; // NEW: To store server's Date.now() at projectile launch
   hitTs?: number;
   expired?: boolean;
 }
@@ -36,66 +37,35 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
   add: (snapshot) => set((s) => { 
     console.log(`[ProjectileStore.add] Adding projectile with castId: ${snapshot.castId}, skillId: ${snapshot.skillId}`);
     
-    // Special logging for fireball
-    if (snapshot.skillId === 'fireball') {
-      console.log(`[ProjectileStore.add] Attempting to add Fireball: castId=${snapshot.castId}. Current live count: ${Object.keys(s.live).length}`);
-    }
-    
     // Check if this castId already exists in live projectiles
     if (s.live[snapshot.castId]) {
-      console.warn(`[ProjectileStore.add] Projectile with castId: ${snapshot.castId} already exists in live projectiles. This might cause duplicate visuals.`);
-      
-      // Special logging for fireball
-      if (snapshot.skillId === 'fireball') {
-        console.warn(`[ProjectileStore.add] Fireball with castId: ${snapshot.castId} already exists. Not re-adding.`);
-      }
       
       // Return the existing state with the projectile that's already in it
       return s;
     }
     
-    try {
-      // Special logging for fireball
-      if (snapshot.skillId === 'fireball') {
-        console.log(`[ProjectileStore.add] Successfully added Fireball: castId=${snapshot.castId}. New live count: ${Object.keys(s.live).length + 1}`);
-      }
-      
+    const travelTime = Date.now() - snapshot.startedAt;
+    if (travelTime < 0 || travelTime > 10000) {
+      console.warn(`[ProjectileStore.add] Invalid travel time  ${snapshot}, travelTime: ${travelTime}`);
+      return s; // Return unchanged state
+    }
       // Create a ProjectileData object from the CastSnapshot
       const projectileData: ProjectileData = {
         type: 'CastSnapshot',
         castId: snapshot.castId,
         skillId: snapshot.skillId,
         casterId: snapshot.casterId,
-        origin: snapshot.origin || snapshot.pos || { x: 0, z: 0 }, // Fallback if origin missing
-        pos: snapshot.pos || snapshot.origin || { x: 0, z: 0 }, // Fallback if pos missing
-        velocity: snapshot.dir || { x: 0, z: 0 }, // Fallback if dir missing
-        travelTime: snapshot.startedAt ? (Date.now() - snapshot.startedAt) : 0 // Calculate time elapsed since projectile started
+        origin: snapshot.origin,
+        pos: snapshot.pos,
+        velocity: snapshot.dir,
+        serverEpochLaunchTs: snapshot.startedAt, // Use the server's authoritative launch timestamp
+        travelTime: travelTime, 
       };
-      
-      // Safety check for empty/invalid properties
-      if (!projectileData.castId || !projectileData.skillId) {
-        console.error(`[ProjectileStore.add] Invalid projectile data: missing castId or skillId`, projectileData);
-        return s; // Return unchanged state
-      }
-      
-      // Additional validation for coordinate properties
-      if (
-        !projectileData.pos || 
-        typeof projectileData.pos.x !== 'number' || 
-        typeof projectileData.pos.z !== 'number'
-      ) {
-        console.error(`[ProjectileStore.add] Invalid position data for projectile ${projectileData.castId}`, projectileData.pos);
-        // Try to fix it with a default position rather than failing
-        projectileData.pos = { x: 0, z: 0 };
-      }
       
       return { 
         live: { ...s.live, [snapshot.castId]: projectileData } 
       };
-    } catch (error) {
-      console.error(`[ProjectileStore.add] Error creating projectile data:`, error);
-      return s; // Return unchanged state on error
-    }
+
   }),
   
   markProjectileAsHit: (castId) => set((s) => {

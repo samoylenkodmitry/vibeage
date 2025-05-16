@@ -326,16 +326,6 @@ export default React.memo(function UI() {
       .filter((skill): skill is Skill => skill !== undefined);
   }, [player?.skillShortcuts]);
 
-  // Debug log when skills panel renders
-  useEffect(() => {
-    console.log('Skills panel render:', {
-      skillCount: availableSkills.length,
-      skillIds: availableSkills.map(s => s.id),
-      hasPlayer: !!player,
-      selectedTargetId
-    });
-  }, [availableSkills, player, selectedTargetId]);
-  
   const currentZone = useMemo(() => 
     GAME_ZONES.find(zone => zone.id === currentZoneId),
     [currentZoneId]
@@ -343,7 +333,6 @@ export default React.memo(function UI() {
   
   const handleSkillClick = useCallback((skillId: string) => (event: React.MouseEvent) => {
     event.stopPropagation();
-    console.log('Attempting to cast skill via UI component');
     
     // Use the unified cast controller
     if (isValidSkillId(skillId)) {

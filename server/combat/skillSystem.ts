@@ -59,21 +59,28 @@ function calculateDamage(skill: any, caster?: any, castId?: string, targetId?: s
 }
 
 /**
- * Create a CastSnapshot from a Cast object
+ * Create a snapshot of a cast for network transmission
  */
 function makeSnapshot(cast: Cast): CastSnapshot {
-  return {
+  const snapshot: CastSnapshot = {
     castId: cast.castId,
     casterId: cast.casterId,
     skillId: cast.skillId,
     state: cast.state,
-    origin: cast.origin,
-    target: cast.targetPos,
-    pos: cast.pos, // Include current position for projectiles
-    dir: cast.dir, // Include direction for traveling projectiles
     startedAt: cast.startedAt,
-    castTimeMs: cast.castTimeMs
+    castTimeMs: cast.castTimeMs,
+    origin: cast.origin,
+    pos: cast.pos,
+    dir: cast.dir,
+    target: cast.target
   };
+  
+  // Add additional logging for the timestamp
+  if (cast.state === CastStateEnum.Traveling) {
+    console.log(`[makeSnapshot] Creating snapshot for traveling projectile: castId=${cast.castId}, startedAt=${cast.startedAt}, now=${Date.now()}, diff=${Date.now() - cast.startedAt}ms`);
+  }
+  
+  return snapshot;
 }
 
 /**
@@ -418,6 +425,12 @@ export function tickCasts(dt: number, io: Server, world: World): void {
       }
       
       cast.state = newState;
+      
+      // CRITICAL: Update startedAt to when projectile *begins* traveling
+      if (newState === CastStateEnum.Traveling) {
+        cast.startedAt = now;
+        console.log(`[tickCasts] Updated startedAt timestamp for traveling projectile: castId=${cast.castId}, startedAt=${cast.startedAt}`);
+      }
       
       // Clear the player's casting state when casting is complete
       const player = world.getPlayerById(cast.casterId);

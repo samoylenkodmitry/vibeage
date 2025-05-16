@@ -269,9 +269,9 @@ export default function VfxManager() {
           z: proj.origin.z 
         };
         const dir = { 
-          x: proj.velocity?.x || 0, 
+          x: proj.velocity.x, 
           y: 0, // No vertical movement
-          z: proj.velocity?.z || 0 
+          z: proj.velocity.z 
         };
         
         // Get or create a pooled group for this projectile
@@ -316,15 +316,13 @@ export default function VfxManager() {
         
         switch (skillId) {
           case 'fireball':
-            console.log(`[VfxManager] Rendering FireballProjectile for castId: ${proj.castId}, pooled group ID: ${group.uuid}, visible: ${group.visible}`);
+            console.log(`[VfxManager] Rendering FireballProjectile : ${JSON.stringify(proj)}, pooled group ID: ${group.uuid}, visible: ${group.visible}, dir: ${dir.x}, ${dir.z}`);
             return (
               <FireballProjectile
                 key={proj.castId}
                 id={proj.castId}
                 origin={origin}
-                dir={dir}
-                speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
+                pos={proj.pos}
                 pooled={group}
                 onDone={handleDone}
               />
@@ -337,7 +335,7 @@ export default function VfxManager() {
                 origin={origin}
                 dir={dir}
                 speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
+                launchTs={proj.serverEpochLaunchTs} // Use server's epoch launch time
                 pooled={group}
                 onDone={handleDone}
               />
@@ -350,7 +348,7 @@ export default function VfxManager() {
                 origin={origin}
                 dir={dir}
                 speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
+                launchTs={proj.serverEpochLaunchTs} // Use server's epoch launch time
                 pooled={group}
                 onDone={handleDone}
               />
@@ -363,7 +361,7 @@ export default function VfxManager() {
                 origin={origin}
                 dir={dir}
                 speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={performance.now() - (proj.travelTime ? Math.min(proj.travelTime, 500) : 0)} // Limit travel time to make projectiles visible longer
+                launchTs={proj.serverEpochLaunchTs} // Use server's epoch launch time
                 pooled={group}
                 onDone={handleDone}
               />

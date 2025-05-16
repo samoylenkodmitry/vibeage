@@ -22,13 +22,6 @@ const SkillTreeUI: React.FC = () => {
   const setDragged = useSetDragged();
   
   useEffect(() => {
-    // Debug log to see if component is rendering and has proper data
-    console.log('SkillTreeUI rendering:', { 
-      player, 
-      className: player?.className,
-      skillPoints: player?.availableSkillPoints,
-      draggedSkill: dragged
-    });
     
     // Update selected class when player data changes
     if (player?.className) {
@@ -43,18 +36,11 @@ const SkillTreeUI: React.FC = () => {
       const availableSkillsList: SkillId[] = [];
       const classTree = CLASS_SKILL_TREES[selectedClass];
       
-      console.log('DEBUG: Calculating available skills', {
-        className: selectedClass,
-        level: player.level,
-        unlockedSkills: player.unlockedSkills,
-        skillPoints: player.availableSkillPoints
-      });
       
       if (classTree) {
         for (const [skillId, requirement] of Object.entries(classTree.skillProgression)) {
           // Skip skills player already has
           if (player.unlockedSkills.includes(skillId as SkillId)) {
-            console.log(`DEBUG: Skipping already unlocked skill: ${skillId}`);
             continue;
           }
           
@@ -66,19 +52,12 @@ const SkillTreeUI: React.FC = () => {
             player.unlockedSkills as SkillId[]
           );
           
-          console.log(`DEBUG: Skill ${skillId} can be learned: ${canLearn}`, {
-            levelRequirement: requirement.level,
-            playerLevel: player.level,
-            requiredSkills: requirement.requiredSkills
-          });
-          
           if (canLearn) {
             availableSkillsList.push(skillId as SkillId);
           }
         }
       }
       
-      console.log('Available skills to learn:', availableSkillsList);
       setAvailableSkills(availableSkillsList);
     }
   }, [player, selectedClass]);
@@ -200,13 +179,6 @@ const SkillTreeUI: React.FC = () => {
     console.log('Toggle skill tree clicked');
     setIsSkillTreeOpen(!isSkillTreeOpen);
   };
-
-  console.log('SkillTreeUI render checks:', { 
-    hasPlayer: !!player, 
-    playerClassName: player?.className,
-    selectedClass,
-    classTreeExists: selectedClass ? !!CLASS_SKILL_TREES[selectedClass] : false 
-  });
 
   // If we don't have player data yet, render just the button for now
   if (!player) {

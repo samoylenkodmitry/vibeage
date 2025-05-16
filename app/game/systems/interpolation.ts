@@ -18,7 +18,6 @@ export class SnapBuffer {
   }
 
   push(s:Snap){
-    console.log(`Pushing snap: id=${(s as any).id}, snapTs(clientReceive)=${s.snapTs.toFixed(0)}, serverOriginTs=${(s as any).serverSnapTs || 'N/A'}, pos=...`);
       if (s === null || s === undefined || isNaN(s.snapTs)) {
         console.warn("Skipping invalid snap entry:", s);
         return;

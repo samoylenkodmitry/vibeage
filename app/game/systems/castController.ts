@@ -19,7 +19,6 @@ import { VecXZ } from '../../../shared/messages';
  * 
  * @param skillId The ID of the skill to cast
  * @param targetId Optional ID of the target entity
- * @param targetPos Optional position to target the skill at
  */
 export function tryStartCast(skillId: SkillId, targetId?: string, targetPos?: VecXZ) {
   // Get the selected target from the game store if not explicitly provided

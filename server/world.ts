@@ -1362,9 +1362,6 @@ export function broadcastSnaps(io: Server, state: GameState): void {
 
     if (snapItems.length > 0) {
         io.emit('msg', { type: 'BatchUpdate', updates: snapItems });
-        if (Math.random() < 0.1) { // Reduce log spam
-             console.log(`Broadcasting BatchUpdate with ${snapItems.length} items. Forced: ${playersToForceInclude.size}`);
-        }
     }
 }
 
