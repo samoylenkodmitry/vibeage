@@ -190,7 +190,7 @@ export default function SocketManager() {
       updatePlayer({
         id: castData.casterId,
         castingSkill: castData.skillId as string,
-        castingProgressMs: castData.castTimeMs
+        castingProgressMs: castData.progressMs
       });
     } else if (castData.state === CastState.Traveling || castData.state === CastState.Impact) {
       // If skill is no longer casting (i.e., it's traveling or has impacted),

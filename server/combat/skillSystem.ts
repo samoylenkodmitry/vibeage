@@ -6,7 +6,6 @@ import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';
 import { getDamage } from '../../shared/combatMath.js';
 import { sweptHit } from '../collision.js';
-import { EFFECTS } from '../../shared/effectsDefinition.js';
 
 // Set of constants for skill system
 export const CAST_BROADCAST_RATE = 50; // ms, how often to send cast snapshots
@@ -33,6 +32,7 @@ export interface Cast {
   pos?: VecXZ; // Current position for projectiles
   dir?: VecXZ; // Direction for projectiles
   startedAt: number; // When the cast started
+  progressMs?: number; // Progress in milliseconds since cast started
   lastBroadcast?: number; // Last time position was broadcast
   castTimeMs: number;
   targetId?: string;
@@ -69,16 +69,11 @@ function makeSnapshot(cast: Cast): CastSnapshot {
     state: cast.state,
     startedAt: cast.startedAt,
     castTimeMs: cast.castTimeMs,
+    progressMs: cast.progressMs || 0,
     origin: cast.origin,
     pos: cast.pos,
     dir: cast.dir,
-    target: cast.target
   };
-  
-  // Add additional logging for the timestamp
-  if (cast.state === CastStateEnum.Traveling) {
-    console.log(`[makeSnapshot] Creating snapshot for traveling projectile: castId=${cast.castId}, startedAt=${cast.startedAt}, now=${Date.now()}, diff=${Date.now() - cast.startedAt}ms`);
-  }
   
   return snapshot;
 }
@@ -258,28 +253,6 @@ function reachedTarget(cast: Cast): boolean {
 }
 
 /**
- * Check if a cast has exceeded its maximum range
- * @deprecated Now handled directly in tickCasts with more robust hit detection
- * This is kept for backward compatibility with existing code
- */
-// @ts-ignore: Marked as deprecated - used by external code
-function exceededRange(cast: Cast): boolean {
-  if (!cast.pos || !cast.origin) return false;
-  
-  const skill = SKILLS[cast.skillId];
-  const maxRange = skill.range || 10;
-  
-  // Calculate distance from origin
-  const dist = Math.sqrt(
-    Math.pow(cast.pos.x - cast.origin.x, 2) +
-    Math.pow(cast.pos.z - cast.origin.z, 2)
-  );
-  
-  // Exceeded range if beyond max range
-  return dist > maxRange;
-}
-
-/**
  * Handle a new cast request from a player
  */
 export function handleCastRequest(
@@ -312,16 +285,16 @@ export function handleCastRequest(
     castTimeMs: skill.castMs || 0,
     targetId: targetId,
     targetPos: targetPos,
-    pos: { x: player.position.x, z: player.position.z } // Start at origin
+    pos: { x: player.position.x, z: player.position.z }
   };
   
-  // Add special logging for fireball
-  if (newCast.skillId === 'fireball') {
-    console.log(`[SkillSystem] Created Fireball Cast: castId=${newCast.castId}, origin=(${newCast.origin.x.toFixed(2)}, ${newCast.origin.z.toFixed(2)}), targetPos=(${newCast.targetPos?.x.toFixed(2)}, ${newCast.targetPos?.z.toFixed(2)}), dir=(${newCast.dir?.x.toFixed(2)}, ${newCast.dir?.z.toFixed(2)})`);
+  if (!targetPos && !targetId) {
+    console.warn(`[handleCastRequest] No target position or ID provided for cast: ${newCast.castId}`);
+    return 'missingTarget';
   }
   
   // Calculate direction if projectile
-  if (skill.projectile && (targetPos || targetId)) {
+  if (skill.projectile) {
     let targetPosVec: VecXZ | undefined;
     
     if (targetPos) {
@@ -330,6 +303,9 @@ export function handleCastRequest(
       const target = world.getEnemyById(targetId);
       if (target) {
         targetPosVec = { x: target.position.x, z: target.position.z };
+      } else {
+        console.warn(`[handleCastRequest] Target ID ${targetId} not found for cast: ${newCast.castId}`);
+        return 'targetNotFound';
       }
     }
     
@@ -355,11 +331,6 @@ export function handleCastRequest(
   // Broadcast initial cast snapshot
   const snapshot = makeSnapshot(newCast);
   console.log(`[handleCastRequest] Broadcasting initial CastSnapshot: ${JSON.stringify(snapshot)}`);
-  
-  // Add special logging for fireball snapshots
-  if (snapshot.skillId === 'fireball') {
-    console.log(`[SkillSystem] Broadcasting initial Fireball CastSnapshot (Casting): ${JSON.stringify(snapshot)}`);
-  }
   
   io.emit('msg', {
     type: 'CastSnapshot',
@@ -419,14 +390,9 @@ export function tickCasts(dt: number, io: Server, world: World): void {
       const newState = skill.projectile ? CastStateEnum.Traveling : CastStateEnum.Impact;
       console.log(`[tickCasts] Cast complete, transitioning from Casting to ${newState}: castId=${cast.castId}, skillId=${cast.skillId}, casterId=${cast.casterId}`);
       
-      // Special logging for fireball transitions
-      if (cast.skillId === 'fireball') {
-        console.log(`[SkillSystem] Fireball Cast ${cast.castId} transitioning to ${newState}. Snapshot: ${JSON.stringify(makeSnapshot(cast))}`);
-      }
-      
       cast.state = newState;
       
-      // CRITICAL: Update startedAt to when projectile *begins* traveling
+      // Update startedAt to when projectile *begins* traveling
       if (newState === CastStateEnum.Traveling) {
         cast.startedAt = now;
         console.log(`[tickCasts] Updated startedAt timestamp for traveling projectile: castId=${cast.castId}, startedAt=${cast.startedAt}`);
@@ -461,14 +427,58 @@ export function tickCasts(dt: number, io: Server, world: World): void {
         resolveImpact(cast, io, world);
       }
       continue;
+    } else if (cast.state === CastStateEnum.Casting) {
+      // Update casting progress
+      const progressMs = now - cast.startedAt;
+      if (progressMs < 0) {
+        console.warn(`[tickCasts] Negative casting progress detected: ${progressMs}ms`);
+        cast.state = CastStateEnum.Impact; // Force to impact state
+        resolveImpact(cast, io, world);
+        continue;
+      }
+      const player = world.getPlayerById(cast.casterId);
+      if (player) {
+        player.castingProgressMs = progressMs;
+        // Broadcast casting progress
+        console.log(`[tickCasts] Broadcasting casting progress: casterId=${cast.casterId}, castingProgressMs=${progressMs}`);
+        io.emit('playerUpdated', {
+          id: player.id,
+          castingSkill: cast.skillId,
+          castingProgressMs: cast.castTimeMs
+        });
+      }
+      cast.progressMs = progressMs;
+      // Broadcast cast progress
+      const snapshot = makeSnapshot(cast);
+      console.log(`[tickCasts] Broadcasting CastSnapshot for casting progress: ${JSON.stringify(snapshot)}`);
+      io.emit('msg', {
+        type: 'CastSnapshot',
+        data: snapshot
+      });
+      continue;
     }
     
     // Update traveling projectiles
     if (cast.state === CastStateEnum.Traveling) {
       const dtSeconds = (now - lastTickMs) / 1000; // deltaTime for this tick in seconds
+
+      // find target new position and auto aim to it
+      if (cast.targetId) {
+        const target = world.getEnemyById(cast.targetId);
+        if (target) {
+          cast.targetPos = { x: target.position.x, z: target.position.z };
+          const dx = cast.targetPos.x - cast.origin.x;
+          const dz = cast.targetPos.z - cast.origin.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          
+          // Update direction based on target position
+          if (dist > 0) {
+            cast.dir = { x: dx / dist, z: dz / dist };
+            console.log(`[tickCasts] Updated projectile direction towards target: [${cast.dir.x.toFixed(2)}, ${cast.dir.z.toFixed(2)}]`);
+          }
+        }
+      }
       
-      // Make sure we have position and direction
-      if (cast.pos && cast.dir && cast.speed) {
         // Store old position for swept hit detection
         const oldPos = { ...cast.pos };
         
@@ -481,11 +491,6 @@ export function tickCasts(dt: number, io: Server, world: World): void {
           const snapshot = makeSnapshot(cast);
           console.log(`[tickCasts] Broadcasting projectile position update: castId=${cast.castId}, pos=[${cast.pos.x.toFixed(2)}, ${cast.pos.z.toFixed(2)}], moved=${Math.sqrt(Math.pow(cast.pos.x - oldPos.x, 2) + Math.pow(cast.pos.z - oldPos.z, 2)).toFixed(2)}m`);
           
-          // Special logging for fireball position updates
-          if (cast.skillId === 'fireball') {
-            console.log(`[SkillSystem] Broadcasting Fireball position update (Traveling): castId=${cast.castId}, pos=(${snapshot.pos?.x.toFixed(2)}, ${snapshot.pos?.z.toFixed(2)})`);
-          }
-          
           io.emit('msg', {
             type: 'CastSnapshot',
             data: snapshot
@@ -493,7 +498,6 @@ export function tickCasts(dt: number, io: Server, world: World): void {
           cast.lastBroadcast = now;
         }
         
-        // --- ENHANCED HIT DETECTION LOGIC ---
         const skill = SKILLS[cast.skillId];
         const hitRadius = skill.projectile?.hitRadius || 0.5; // Use configured hit radius
         let hasHitSomething = false;
@@ -511,10 +515,8 @@ export function tickCasts(dt: number, io: Server, world: World): void {
             // Use sweptHit for more reliable collision detection
             if (sweptHit(oldPos, cast.pos, entityPos, hitRadius)) {
               console.log(`[SkillSystem TickCasts] Projectile ${cast.castId} HIT entity ${entity.id} via sweptHit.`);
-              cast.targetId = entity.id; // Update targetId to the actual hit entity
-              cast.targetPos = entityPos; // Update targetPos to the hit location
               hasHitSomething = true;
-              break; // Stop checking after first hit (unless it's a piercing projectile)
+              break;
             }
           }
         }
@@ -544,9 +546,6 @@ export function tickCasts(dt: number, io: Server, world: World): void {
           });
           resolveImpact(cast, io, world); // Resolve impact with the actual hit target(s)
         }
-      } else {
-        console.warn(`[tickCasts] Missing projectile data for traveling cast: castId=${cast.castId}, pos=${!!cast.pos}, dir=${!!cast.dir}, speed=${cast.speed}`);
-      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CastSnapshot } from '../../../shared/types';
+import { CastSnapshot, CastState } from '../../../shared/types';
 
 // Define a simplified projectile data structure for protocol v2+
 export interface ProjectileData {
@@ -35,37 +35,47 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
   toRecycle: {},
   
   add: (snapshot) => set((s) => { 
-    console.log(`[ProjectileStore.add] Adding projectile with castId: ${snapshot.castId}, skillId: ${snapshot.skillId}`);
-    
-    // Check if this castId already exists in live projectiles
-    if (s.live[snapshot.castId]) {
-      
-      // Return the existing state with the projectile that's already in it
-      return s;
-    }
+    console.log(`[ProjectileStore.add] Processing castId: ${snapshot.castId}, skillId: ${snapshot.skillId}, newPos: (${snapshot.pos.x.toFixed(2)}, ${snapshot.pos.z.toFixed(2)}), state: ${snapshot.state}`);
     
     const travelTime = Date.now() - snapshot.startedAt;
     if (travelTime < 0 || travelTime > 10000) {
       console.warn(`[ProjectileStore.add] Invalid travel time  ${snapshot}, travelTime: ${travelTime}`);
       return s; // Return unchanged state
     }
-      // Create a ProjectileData object from the CastSnapshot
-      const projectileData: ProjectileData = {
-        type: 'CastSnapshot',
-        castId: snapshot.castId,
-        skillId: snapshot.skillId,
-        casterId: snapshot.casterId,
-        origin: snapshot.origin,
-        pos: snapshot.pos,
-        velocity: snapshot.dir,
-        serverEpochLaunchTs: snapshot.startedAt, // Use the server's authoritative launch timestamp
-        travelTime: travelTime, 
+    
+    // Create a ProjectileData object from the CastSnapshot
+    const projectileData: ProjectileData = {
+      type: 'CastSnapshot',
+      castId: snapshot.castId,
+      skillId: snapshot.skillId,
+      casterId: snapshot.casterId,
+      origin: snapshot.origin,
+      pos: snapshot.pos,
+      velocity: snapshot.dir,
+      serverEpochLaunchTs: snapshot.startedAt, // Use the server's authoritative launch timestamp
+      travelTime: travelTime, 
+    };
+    
+    // Create a new live object with the updated/added projectile.
+    // This ensures that if s.live[castId] already exists, it's replaced with the new projectileData.
+    const newLive = {
+      ...s.live,
+      [snapshot.castId]: projectileData,
+    };
+    
+    // If the projectile is now in Impact state, move it to toRecycle immediately
+    if (snapshot.state === CastState.Impact) {
+      console.log(`[ProjectileStore.add] Projectile ${snapshot.castId} is in Impact state. Moving to toRecycle.`);
+      delete newLive[snapshot.castId]; // Remove from live
+      return {
+        live: newLive,
+        toRecycle: { ...s.toRecycle, [snapshot.castId]: { ...projectileData, hitTs: performance.now() } }
       };
-      
-      return { 
-        live: { ...s.live, [snapshot.castId]: projectileData } 
-      };
-
+    }
+    
+    return { 
+      live: newLive
+    };
   }),
   
   markProjectileAsHit: (castId) => set((s) => {

@@ -19,6 +19,7 @@ export interface CastSnapshot {
   dir: VecXZ;       // Velocity vector for traveling projectiles
   startedAt: number; // Timestamp
   castTimeMs: number; // Cast time from skill definition
+  progressMs: number; // Progress of the cast since cast started
 }
 
 export interface StatusEffect {

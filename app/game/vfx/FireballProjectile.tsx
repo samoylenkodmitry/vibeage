@@ -1,14 +1,14 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group, MeshBasicMaterial } from 'three';
+import { Vector3, Mesh, Color, Group, MeshBasicMaterial, SphereGeometry } from 'three';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
 interface FireballProjectileProps {
   id?: string;
   origin: {x: number; y: number; z: number};
   pos: {x: number; z: number};
-  pooled?: Group;  // Add pooled group prop
-  onDone?: () => void; // Add callback for when projectile is done
+  pooled?: Group;
+  onDone?: () => void;
 }
 
 export default function FireballProjectile({ 
@@ -19,74 +19,70 @@ export default function FireballProjectile({
   onDone
 }: FireballProjectileProps) {
   const coreRef = useRef<Mesh>(null);
-  const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
+
+  // currentVisualPosition will update whenever 'pos' or 'origin.y' props change
+  const currentVisualPosition = useMemo(() => new Vector3(pos.x, origin.y, pos.z), [pos, origin.y]);
   
-  const position = new Vector3(pos.x, origin.y, pos.z);
-  // Initialize pooled group on first mount if provided
   useEffect(() => {
-    console.log(`[FireballProjectile] Mounted: ${id}`);
+    // This effect handles the setup and cleanup of the pooled Three.js group.
+    console.log(`[FireballProjectile] Mount/Setup Effect for ID: ${id}. Pooled Group: ${pooled ? 'Exists' : 'Missing'}`);
+    const currentPooledGroup = pooled; // Capture for use in cleanup
     
-    if (!pooled) {
-      console.error(`[FireballProjectile ${id}] Pooled group is UNDEFINED!`);
-      return;
-    }
-    
-    // Clear any existing children if this is a reused group
-    while (pooled.children.length > 0) {
-      pooled.remove(pooled.children[0]);
-    }
-    
-    // Create core mesh
-    const coreMesh = new Mesh(
-      new SphereGeometry(0.25, 16, 16),
-      new MeshBasicMaterial({ 
-        color: 0xff5500,
-        transparent: true,
-        opacity: 0.9
-      })
-    );
-    
-    // Create outer glow mesh
-    const glowMesh = new Mesh(
-      new SphereGeometry(0.4, 16, 16),
-      new MeshBasicMaterial({
-        color: 0xff8800,
-        transparent: true,
-        opacity: 0.6
-      })
-    );
-    
-    // Add meshes to the pooled group
-    pooled.add(coreMesh);
-    pooled.add(glowMesh);
-    
-    // Ensure the group is visible
-    pooled.visible = true;
-    
-    // Store references
-    coreRef.current = coreMesh;
-    
-    console.log(`[FireballProjectile ${id}] Pooled group setup complete. Group ID: ${pooled.uuid}, Visible: ${pooled.visible}, Children: ${pooled.children.length}`);
-    if (coreRef.current) {
-      console.log(`[FireballProjectile ${id}] Core mesh material:`, coreRef.current.material);
+    if (currentPooledGroup) {
+      // Clear any existing children if this is a reused group
+      while (currentPooledGroup.children.length > 0) {
+        currentPooledGroup.remove(currentPooledGroup.children[0]);
+      }
+      
+      // Create core mesh
+      const coreMesh = new Mesh(
+        new SphereGeometry(0.25, 16, 16),
+        new MeshBasicMaterial({ 
+          color: 0xff5500,
+          transparent: true,
+          opacity: 0.9
+        })
+      );
+      
+      // Create outer glow mesh
+      const glowMesh = new Mesh(
+        new SphereGeometry(0.4, 16, 16),
+        new MeshBasicMaterial({
+          color: 0xff8800,
+          transparent: true,
+          opacity: 0.6
+        })
+      );
+      
+      // Add meshes to the pooled group
+      currentPooledGroup.add(coreMesh);
+      currentPooledGroup.add(glowMesh);
+      
+      // Ensure the group is visible
+      currentPooledGroup.visible = true;
+      
+      // Store references
+      coreRef.current = coreMesh;
+      
+      console.log(`[FireballProjectile ${id}] Pooled group setup complete. Group ID: ${currentPooledGroup.uuid}`);
+    } else {
+      console.error(`[FireballProjectile ${id}] Pooled group is UNDEFINED at mount!`);
     }
     
     return () => {
-      console.log(`[FireballProjectile ${id}] Unmounting pooled: ${id}`);
-      console.log(`[FireballProjectile ${id}] Unmounting. Pooled group ID: ${pooled?.uuid}`);
-      
+      // This cleanup runs ONLY when FireballProjectile unmounts from the scene.
+      console.log(`[FireballProjectile ${id}] Unmount Cleanup. Pooled group ID: ${currentPooledGroup?.uuid}`);
       if (onDone) {
-        // Ensure the group is invisible when unmounted
-        pooled.visible = false;
-        onDone();
+        onDone(); // Notifies VfxManager to recycle the pooled group.
       }
     };
-  }, [pooled, onDone, id, pos]);
+  // Dependencies: 'id', 'pooled', 'onDone'.
+  }, [id, pooled, onDone]);
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
-    emitterPosition: () => position,
+    emitterPosition: () => currentVisualPosition,
     emitterShape: 'sphere',
     emitterRadius: 0.2,
     particleLifetime: { min: 0.1, max: 0.5 },
@@ -99,9 +95,9 @@ export default function FireballProjectile({
       return {
         id: `flame-${id}-${Math.random().toString(36).substring(2, 9)}`,
         position: new Vector3(
-          position.x + (Math.random() - 0.5) * 0.3,
-          position.y + (Math.random() - 0.5) * 0.3,
-          position.z + (Math.random() - 0.5) * 0.3
+          currentVisualPosition.x + (Math.random() - 0.5) * 0.3,
+          currentVisualPosition.y + (Math.random() - 0.5) * 0.3,
+          currentVisualPosition.z + (Math.random() - 0.5) * 0.3
         ),
         velocity: new Vector3(
           (Math.random() - 0.5) * 2,
@@ -127,41 +123,37 @@ export default function FireballProjectile({
       // Update particle
       return {
         ...particle,
-        position: new Vector3(
-          particle.position.x + particle.velocity.x * deltaTime,
-          particle.position.y + particle.velocity.y * deltaTime,
-          particle.position.z + particle.velocity.z * deltaTime
-        ),
+        position: particle.position.addScaledVector(particle.velocity, deltaTime),
         opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)),
         lifetime: particle.lifetime + deltaTime
       };
     }
   });
   
-  // Add wobble effect to core
+  // Add wobble effect to core and update position
   useFrame((state) => {
-    if (!coreRef.current) return;
-    
     // Log occasionally for fireballs
-    if (id.includes('fireball') && Math.random() < 0.1) {
-      console.log(`[FireballProjectile ${id}] useFrame. Position: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}). Pooled visible: ${pooled?.visible}`);
+    if (id.includes('fireball') && Math.random() < 0.01) {
+      console.log(`[FireballProjectile ${id}] useFrame. VisualPos: (${currentVisualPosition.x.toFixed(2)}, ${currentVisualPosition.y.toFixed(2)}, ${currentVisualPosition.z.toFixed(2)}). Pooled visible: ${pooled?.visible}`);
     }
     
     // Update pooled group position
     if (pooled) {
-      pooled.position.set(position.x, position.y, position.z);
+      pooled.position.copy(currentVisualPosition);
       pooled.visible = true; // Explicitly ensure visibility
     }
     
-    // Fire core pulsing
-    const time = state.clock.elapsedTime;
-    const pulseFactor = Math.sin(time * 15 + timeOffset.current) * 0.15 + 1;
-    coreRef.current.scale.set(pulseFactor, pulseFactor, pulseFactor);
-    
-    // Random fire flickering through material opacity
-    if (coreRef.current.material instanceof MeshBasicMaterial) {
-      const flickerOpacity = 0.8 + Math.sin(time * 20) * 0.2;
-      coreRef.current.material.opacity = flickerOpacity;
+    if (coreRef.current) {
+      // Fire core pulsing
+      const time = state.clock.elapsedTime;
+      const pulseFactor = Math.sin(time * 15 + timeOffset.current) * 0.15 + 1;
+      coreRef.current.scale.set(pulseFactor, pulseFactor, pulseFactor);
+      
+      // Random fire flickering through material opacity
+      if (coreRef.current.material instanceof MeshBasicMaterial) {
+        const flickerOpacity = 0.8 + Math.sin(time * 20) * 0.2;
+        coreRef.current.material.opacity = flickerOpacity;
+      }
     }
   });
   
@@ -171,16 +163,13 @@ export default function FireballProjectile({
   }
   
   // Legacy rendering path for non-pooled usage
+  console.warn(`[FireballProjectile ${id}] Rendering without a pooled group.`);
   return (
-    <group 
-      ref={groupRef} 
-      position={[position.x, position.y, position.z]} 
-    >
+    <group position={[currentVisualPosition.x, currentVisualPosition.y, currentVisualPosition.z]}>
       {/* Main fire core */}
-      <mesh key={`core-${id}`} ref={coreRef}>
-        <sphereGeometry key={`core-geo-${id}`} args={[0.25, 16, 16]} />
+      <mesh ref={coreRef}>
+        <sphereGeometry args={[0.25, 16, 16]} />
         <meshBasicMaterial 
-          key={`core-mat-${id}`}
           color={0xff5500}
           transparent={true}
           opacity={0.9}
@@ -188,10 +177,9 @@ export default function FireballProjectile({
       </mesh>
       
       {/* Outer glow */}
-      <mesh key={`glow-${id}`}>
-        <sphereGeometry key={`glow-geo-${id}`} args={[0.4, 16, 16]} />
+      <mesh>
+        <sphereGeometry args={[0.4, 16, 16]} />
         <meshBasicMaterial 
-          key={`glow-mat-${id}`}
           color={0xff8800}
           transparent={true}
           opacity={0.6}
@@ -200,22 +188,19 @@ export default function FireballProjectile({
       
       {/* Render fire particles */}
       {fireParticles.particles.map((particle) => (
-        <mesh
-          key={particle.id}
-          position={[particle.position.x, particle.position.y, particle.position.z]}
-          scale={[particle.scale, particle.scale, particle.scale]}
+        <mesh 
+          key={particle.id} 
+          position={[particle.position.x, particle.position.y, particle.position.z]} 
+          scale={particle.scale}
         >
           <sphereGeometry args={[1, 8, 8]} />
-          <meshBasicMaterial
-            color={0xff7700}
-            transparent={true}
-            opacity={particle.opacity}
+          <meshBasicMaterial 
+            color={`#${particle.color.getHexString()}`} 
+            transparent={true} 
+            opacity={particle.opacity} 
           />
         </mesh>
       ))}
     </group>
   );
 }
-
-// Import needed THREE types
-import { SphereGeometry } from 'three';
