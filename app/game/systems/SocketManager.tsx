@@ -13,7 +13,6 @@ import {
   MoveIntent,
   CastReq, 
   PosSnap,
-  PosDelta,
   VecXZ,
   CastSnapshotMsg,
   EffectSnapshotMsg,
@@ -22,7 +21,6 @@ import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CastFail
 } from '../../../shared/messages';
-import { CM_PER_UNIT } from '../../../shared/netConstants';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
@@ -94,189 +92,56 @@ export default function SocketManager() {
   }, []);
 
   // Handle position snapshot from server
-  const handlePosSnap = useCallback((data: PosSnap) => {
-    try {
-      if (!data.snaps || !Array.isArray(data.snaps)) {
-        console.warn("Invalid PosSnap data received: missing or non-array snaps property", data);
-        return;
-      }
+  const handlePosSnap = useCallback((snap: PosSnap) => {
+    console.log(`[SocketManager] Handling PosSnap: ${JSON.stringify(snap)}`);
       
-      // Debug log to trace PosSnap messages (only 5% to avoid flooding console)
-      if (Math.random() < 0.05) {
-        console.log(`Received PosSnap with ${data.snaps.length} entries:`, JSON.stringify(data));
-      }
-      
-      const state = useGameStore.getState();
-      const myPlayerId = state.myPlayerId;
-      const clientReceiveTs = performance.now();
-      
-      // Process each player snapshot in the batch
-      for (const snap of data.snaps) {
-        const { id, pos, vel, snapTs: serverSnapTs } = snap;
-        
-        if (!id || !pos || !serverSnapTs) {
-          console.warn("Invalid snapshot entry:", snap);
-          continue;
-        }
-        
-        const player = state.players[id];
-        if (player) {
-          // Get global buffer reference for this player
-          const buffer = getBuffer(id);
-          
-          // Use velocity from snapshot or default to zero if not provided
-          const velocity = vel || { x: 0, z: 0 };
-          
-          // Create a properly timestamped snap object
-          const snapObject = {
-            pos: pos,
-            vel: velocity,
-            rot: player.rotation?.y || 0,
-            snapTs: clientReceiveTs,
-            serverSnapTs: serverSnapTs
-          };
-          
-          // Enhanced debugging to see what's being pushed to the buffer
-          if (id === myPlayerId && Math.random() < 0.1) {
-            console.log("Pushing to position buffer:", {
-              id,
-              pos,
-              vel,
-              serverSnapTs,
-              clientReceiveTs,
-              currentBufferLength: buffer.getBufferLength()
-            });
-          }
-          
-          // Additional validation to check for invalid position data
-          if (pos.x === 0 && pos.z === 0) {
-            console.warn(`Position at (0,0) detected in PosSnap for player ${id}. This might cause movement issues.`);
-          }
-          
-          // Check for duplicates before pushing
-          const existingSnap = buffer.getBufferLength() > 0 ? 
-            buffer.sample(serverSnapTs) : null;
-            
-          if (existingSnap && 
-              Math.abs(existingSnap.x - pos.x) < 0.001 && 
-              Math.abs(existingSnap.z - pos.z) < 0.001) {
-            // Skip duplicate position to prevent animation repeating
-            // Just update the maps and continue
-            lastPosMap.current[id] = pos;
-            lastVelMap.current[id] = velocity;
-            continue;
-          }
-          
-          // Push to the module-global buffer for calculations
-          buffer.push(snapObject);
-          
-          // Track last known server position for this player
-          useGameStore.getState().updateServerLastKnownPosition(id, { ...pos });
-          
-          // Enhanced debug logging, especially for controlled player
-          if (id === myPlayerId) {
-            if (Math.random() < 0.05) {
-                const latestSample = buffer.sample(performance.now() - 100);
-              console.log(`MyPlayer Position Update:`, {
-                playerId: id,
-                pos: pos,
-                vel: velocity,
-                bufferLength: buffer.getBufferLength(),
-                latestSample: latestSample,
-                serverSnapTs: new Date(serverSnapTs).toISOString(),
-                clientReceiveTs: new Date(clientReceiveTs).toISOString(),
-                timeDiff: clientReceiveTs - serverSnapTs
-              });
-            }
-          }
-          
-          // Update last position and velocity maps
-          lastPosMap.current[id] = pos;
-          lastVelMap.current[id] = velocity;
-        }
-      }
-    } catch (err) {
-      console.error("Error processing position snapshot:", err);
+    const state = useGameStore.getState();
+    const clientReceiveTs = performance.now();
+    
+    const { id, pos, vel, snapTs: serverSnapTs } = snap;
+    
+    if (!id || !pos || !serverSnapTs) {
+      console.warn("Invalid snapshot entry:", snap);
+      return;
     }
-  }, []);
-  
-  // Handle delta-compressed position updates
-  const handlePosDelta = useCallback((data: PosDelta) => {
-    try {
-      const { id, dx, dz, vdx, vdz, serverTs } = data;
+    
+    const player = state.players[id];
+    if (player) {
+      // Get global buffer reference for this player
+      const buffer = getBuffer(id);
       
-      // Get last known position or default to origin
-      const lastPos = lastPosMap.current[id] ?? { x: 0, z: 0 };
+      // Use velocity from snapshot or default to zero if not provided
+      const velocity = vel || { x: 0, z: 0 };
       
-      // Calculate new absolute position from deltas (cm → m)
-      const newPos = { 
-        x: lastPos.x + dx / CM_PER_UNIT, 
-        z: lastPos.z + dz / CM_PER_UNIT 
+      // Create a properly timestamped snap object
+      const snapObject = {
+        pos: pos,
+        vel: velocity,
+        rot: player.rotation?.y || 0,
+        snapTs: clientReceiveTs,
+        serverSnapTs: serverSnapTs
       };
       
-      const state = useGameStore.getState();
-      const myPlayerId = state.myPlayerId;
-      const player = state.players[id];
-      
-      if (player) {
-        // Get current velocity or use last known
-        let vel = lastVelMap.current[id] || { x: 0, z: 0 };
-        
-        // Apply velocity delta if provided
-        if (vdx !== undefined && vdz !== undefined) {
-          vel = {
-            x: vel.x + vdx / CM_PER_UNIT,
-            z: vel.z + vdz / CM_PER_UNIT
-          };
-          lastVelMap.current[id] = vel;
-        }
-        
-        // Get module-global buffer reference for this player
-        const buffer = getBuffer(id);
-        const clientReceiveTs = performance.now();
-        
-        // Create the snap object
-        const snapObject = {
-          pos: newPos,
-          vel: vel,
-          rot: player.rotation?.y || 0,
-          snapTs: clientReceiveTs
-        };
-        
-        // Check for duplicates before pushing
-        const existingSnap = buffer.getBufferLength() > 0 ? 
-          buffer.sample(snapObject.snapTs) : null;
-          
-        if (existingSnap && 
-            Math.abs(existingSnap.x - newPos.x) < 0.001 && 
-            Math.abs(existingSnap.z - newPos.z) < 0.001) {
-          // Skip duplicate position to prevent animation repeating
-          // Just update the maps and don't push to buffer
-          lastPosMap.current[id] = newPos;
-          return;
-        }
-        
-        // Push to buffer
-        buffer.push(snapObject);
-        
-        // Special debug for my player's snapBuffer to diagnose camera issues
-        if (id === myPlayerId && Math.random() < 0.05) { // Only log 5% of updates to avoid spam
-          console.log(`MyPlayer (${id}) SnapBuffer delta update:`, {
-            bufferExists: !!buffer,
-            hasSampleMethod: buffer && typeof buffer.sample === 'function',
-            pos: newPos,
-            serverTs
-          });
-        }
-        
-        // Update last position map
-        lastPosMap.current[id] = newPos;
+      // Additional validation to check for invalid position data
+      if (pos.x === 0 && pos.z === 0) {
+        console.warn(`Position at (0,0) detected in PosSnap for player ${id}. This might cause movement issues.`);
       }
-    } catch (err) {
-      console.error("Error processing position delta:", err);
+      
+      console.log(`[SocketManager] snapObject1:`, snapObject);
+      // Push to the module-global buffer for calculations
+      buffer.push(snapObject);
+      
+      // Track last known server position for this player
+      useGameStore.getState().updateServerLastKnownPosition(id, { ...pos });
+      
+      // Update last position and velocity maps
+      lastPosMap.current[id] = pos;
+      lastVelMap.current[id] = velocity;
     }
-  }, []);
 
+
+  }, []);
+  
   // Handle skill cast failure
   const handleCastFail = useCallback((data: { clientSeq: number, reason?: string }) => {
     const state = useGameStore.getState();
@@ -640,10 +505,6 @@ export default function SocketManager() {
             handlePosSnap(msg);
             break;
           }
-          case 'PosDelta': {
-            handlePosDelta(msg);
-            break;
-          }
           case 'CastFail': {
             handleCastFail(msg);
             break;
@@ -751,7 +612,6 @@ export default function SocketManager() {
     handlePlayerMoved, 
     handleEnemyUpdated,
     handlePosSnap,
-    handlePosDelta,
     handleCastFail,
   ]);
 

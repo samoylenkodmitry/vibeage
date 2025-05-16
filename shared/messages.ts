@@ -36,25 +36,13 @@ export interface MoveIntent extends ClientMsg {
   clientTs: number;    // Ms since epoch on the client
 }
 
-// Server-driven position correction
+// Server-driven position
 export interface PosSnap extends ServerMsg {
   type: 'PosSnap';
-  snaps: {
-    id: string;
-    pos: VecXZ;
-    vel: { x: number; z: number };
-    snapTs: number;
-  }[];
-}
-
-export interface PosDelta extends ClientMsg {
-  type: 'PosDelta';
-  id: string;
-  dx: number;
-  dz: number;
-  vdx?: number;
-  vdz?: number;
-  serverTs: number;
+  id: string; // Entity id (player uid)
+  pos: VecXZ; // World coords (XZ plane)
+  vel: { x: number; z: number }; // Velocity vector
+  snapTs: number; // Server timestamp when the snap was sent
 }
 
 // Skill casting

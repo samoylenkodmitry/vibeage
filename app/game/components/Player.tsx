@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import { useGameStore, selectPlayer, selectMyPlayerId, selectPlayerIds } from '../systems/gameStore';
 import { GROUND_Y, getBuffer } from '../systems/interpolation';
 import { VecXZ } from '../../../shared/messages';
-import { MovementDebugger } from './SimpleMovementDebugger';
 
 // Individual Player Component
 function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
@@ -205,85 +204,63 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 
     try {
       const buf = getBuffer(playerId);
-      // Use a consistent lag value of 100ms (matching the camera)
       const lag = 200;
       const tick = performance.now() - lag;
       const s = buf.sample(tick);
-      if (isControlledPlayer && Math.random() < 0.05) { // Log ~5% of frames
-          const now = performance.now();
-          if (buf.getBufferLength() > 0) {
-              const firstTs = buf.debugDump()[0].snapTs.toFixed(0);
-              const lastTs = buf.debugDump()[buf.getBufferLength()-1].snapTs.toFixed(0);
-          }
-      }
       
       if (s) {
-          const targetStatePos = new THREE.Vector3(s.x, GROUND_Y, s.z);
+          // Use server position directly without any interpolation
+          const serverPos = new THREE.Vector3(s.pos.x, GROUND_Y, s.pos.z);
+          
+          // Check if server considers player stopped
+          const serverConsideredStopped = s.vel ? (Math.abs(s.vel.x) < 0.001 && Math.abs(s.vel.z) < 0.001) : true;
+          
+          // Get client-side targetWorldPos for comparison
+          const targetWorldPos = isControlledPlayer ? useGameStore.getState().targetWorldPos : null;
 
-          // Get the current actual position of the physics body
-          const currentActualPos = playerRef.current.translation();
-
-          // Gently lerp the physics body towards the interpolated target state.
-          // Use a HIGH lerp factor to mostly snap but smooth out tiny residuals.
-          const lerpFactor = 0.75; // Experiment with 0.6 to 0.9
-          const smoothedPos = new THREE.Vector3().lerpVectors(
-              currentActualPos,
-              targetStatePos,
-              lerpFactor
-          );
-          playerRef.current.setNextKinematicTranslation(smoothedPos);
-
-        // Apply interpolated rotation
-        playerRef.current.setNextKinematicRotation({
-          x: 0,
-          y: Math.sin(s.rot/2),
-          z: 0,
-          w: Math.cos(s.rot/2)
-        });
-        
-        // === ADDED CODE START ===
-        if (isControlledPlayer) {
-          // playerRef.current.translation() gives the position *after* the physics step
-          // which includes the setNextKinematicTranslation from the previous frame.
-          // This is the position the model is currently rendered at.
-          const currentRenderedPos = playerRef.current.translation();
-          useGameStore.getState().setControlledPlayerRenderPosition({
-            x: currentRenderedPos.x,
-            y: currentRenderedPos.y, // This will be effectively GROUND_Y
-            z: currentRenderedPos.z
+          // Always apply server position directly - no interpolation
+          playerRef.current.setNextKinematicTranslation({
+            x: serverPos.x,
+            y: serverPos.y,
+            z: serverPos.z
           });
-        }
-        // === ADDED CODE END ===
-      } else if (playerState.position) {
-        // Fallback to using the playerState position if no buffer sample
-        // This should rarely happen once the system is working correctly
-        console.warn(`No position sample for player ${playerId}, falling back to state position`);
-        playerRef.current.setNextKinematicTranslation({
-          x: playerState.position.x,
-          y: GROUND_Y,
-          z: playerState.position.z
-        });
-        
-        // Apply current rotation from state
-        const rotY = playerState.rotation?.y || 0;
-        playerRef.current.setNextKinematicRotation({
-          x: 0,
-          y: Math.sin(rotY/2),
-          z: 0,
-          w: Math.cos(rotY/2)
-        });
-        
-        // === ADDED CODE START ===
-        if (isControlledPlayer) {
-           useGameStore.getState().setControlledPlayerRenderPosition({
-            x: playerState.position.x,
-            y: GROUND_Y,
-            z: playerState.position.z
+
+          
+          // If this is the controlled player and server indicates stopped,
+          // clear the target indicator (yellow ring)
+          if (isControlledPlayer && serverConsideredStopped && targetWorldPos !== null) {
+            useGameStore.getState().setTargetWorldPos(null);
+          }
+          
+          // Apply rotation directly from server
+          playerRef.current.setNextKinematicRotation({
+            x: 0,
+            y: Math.sin(s.rot/2),
+            z: 0,
+            w: Math.cos(s.rot/2)
           });
-        }
-        // === ADDED CODE END ===
-      }
-      
+          
+          // Update controlled player render position for other systems
+          if (isControlledPlayer) {
+            const currentGameStorePos = useGameStore.getState().controlledPlayerRenderPosition;
+            
+            // Get the position directly from the physics body after we've updated it
+            const updatedPos = playerRef.current.translation();
+            
+            // Only update if position changed significantly or if we don't have a position yet
+            const shouldUpdate = !currentGameStorePos || 
+              Math.abs(updatedPos.x - (currentGameStorePos?.x || 0)) > 0.01 || 
+              Math.abs(updatedPos.z - (currentGameStorePos?.z || 0)) > 0.01;
+              
+            if (shouldUpdate) {
+              useGameStore.getState().setControlledPlayerRenderPosition({
+                x: updatedPos.x,
+                y: updatedPos.y,
+                z: updatedPos.z
+              });
+            }
+          }
+      }      
     } catch (err) {
       console.error("Error in useFrame handler:", err);
     }
@@ -321,11 +298,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           if (distance > 10.0) {
             console.log(`Large teleport detected: (${currentPosition.x.toFixed(2)}, ${currentPosition.z.toFixed(2)}) → (${serverPos.x.toFixed(2)}, ${serverPos.z.toFixed(2)})`);
             
-            // Add metadata to help with debugging
-            if (isControlledPlayer) {
-              const buf = getBuffer(playerId);
-              console.log(`Buffer info: length=${buf.getBufferLength()}`);
-            }
           }
         }
       }
@@ -414,12 +386,6 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
         </group>
       </RigidBody>
 
-      {/* Add movement debugger */}
-      <MovementDebugger 
-        playerId={playerId}
-        playerRef={playerRef}
-        isControlledPlayer={isControlledPlayer}
-      />
     </>
   );
 }

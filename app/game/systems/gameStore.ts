@@ -584,7 +584,31 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Set the controlled player's current render position
   setControlledPlayerRenderPosition: (pos: { x: number, y: number, z: number } | null) => {
     set(produce(state => {
-      state.controlledPlayerRenderPosition = pos;
+      // Only update if there's a meaningful change to reduce unnecessary state updates
+      const currentPos = state.controlledPlayerRenderPosition;
+      
+      // If both are null or the same reference, no need to update
+      if (pos === currentPos) return;
+      
+      // If one is null and the other isn't, update
+      if (!pos || !currentPos) {
+        state.controlledPlayerRenderPosition = pos;
+        return;
+      }
+      
+      // Check if values are actually different
+      if (
+        Math.abs(pos.x - currentPos.x) > 0.001 || 
+        Math.abs(pos.y - currentPos.y) > 0.001 || 
+        Math.abs(pos.z - currentPos.z) > 0.001
+      ) {
+        state.controlledPlayerRenderPosition = {
+          x: pos.x,
+          y: pos.y,
+          z: pos.z
+        };
+      }
+      // If no significant change, don't update state
     }));
   },
 }));

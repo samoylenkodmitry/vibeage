@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { isPathBlocked, sweptHit } from './collision.js';
-import { ClientMsg, CastReq, VecXZ, PosDelta, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg, PosSnap, SinglePosSnap } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
@@ -97,60 +97,59 @@ export function predictPosition(
 function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   if (!entity.movement?.targetPos) return;
   
-  // Current position
-  const currentPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
-
-  // Get destination and speed
+  const currentPosVec = { x: entity.position.x, z: entity.position.z }; // Current position before this tick's movement
   const dest = entity.movement.targetPos;
   const speed = entity.movement.speed;
   
-  // Calculate direction if not already set
-  if (!entity.velocity) {
-    const dir = calculateDir(currentPos, dest);
+  // Ensure velocity is set if player is supposed to be moving towards a target
+  // This also recalculates velocity if the target changes or speed changes.
+  if (!entity.velocity || (entity.velocity.x === 0 && entity.velocity.z === 0 && entity.movement.targetPos)) {
+    const dir = calculateDir(currentPosVec, dest);
     entity.velocity = {
       x: dir.x * speed,
       z: dir.z * speed
     };
+    // If velocity was zero and is now non-zero (i.e., player started moving), mark as dirty for snapshot
+    if (dir.x !== 0 || dir.z !== 0) {
+        (entity as any).dirtySnap = true;
+    }
   }
-  
-  // Calculate distance to move this step
+
   const deltaTimeSec = deltaTimeMs / 1000;
   const stepX = entity.velocity.x * deltaTimeSec;
-  const stepY = 0;
   const stepZ = entity.velocity.z * deltaTimeSec;
-  const stepDist = Math.sqrt(stepX * stepX + stepY * stepY + stepZ * stepZ);
-  // Update position
-  const oldPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
-  entity.position.x += stepX;
-  entity.position.y += stepY;
-  entity.position.z += stepZ;
-  const newPos = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
 
-  // Update spatial hash grid if position changed cells
-  if (gridCellChanged(oldPos, newPos)) {
-    spatial.move(entity.id, oldPos, newPos);
-  }
-  
-  // Check if we've reached the destination
-  const newDist = distance(newPos, dest);
-  const prevDist = distance(currentPos, dest);
-  
-  // If we've passed the destination or are very close, snap to it and clear movement
-  if (newDist > prevDist || newDist < 0.1) {
+  const distToTargetBeforeMove = distance(currentPosVec, dest);
+  const moveAmountThisTick = Math.sqrt(stepX * stepX + stepZ * stepZ);
+
+  const oldPosForGrid = { x: entity.position.x, z: entity.position.z }; // For spatial grid updates
+
+  // Check if the player will reach or overshoot the target in this step,
+  // or if they are already very close to the target.
+  if (moveAmountThisTick >= distToTargetBeforeMove || distToTargetBeforeMove < 0.05) { // 0.05m = 5cm threshold
+    // Snap to destination
     entity.position.x = dest.x;
     entity.position.z = dest.z;
-    
-    // Check again if final position changed the cell
-    const finalPos = { x: dest.x, z: dest.z };
-    if (gridCellChanged(newPos, finalPos)) {
-      spatial.move(entity.id, newPos, finalPos);
+    // entity.position.y remains unchanged or should be set to ground_y if applicable
+
+    // Update spatial grid if cell changed due to snapping
+    if (gridCellChanged(oldPosForGrid, { x: entity.position.x, z: entity.position.z })) {
+      spatial.move(entity.id, oldPosForGrid, { x: entity.position.x, z: entity.position.z });
     }
 
-    entity.movement.targetPos = null;
-    entity.velocity = { x: 0, z: 0 };
+    entity.movement.targetPos = null; // Stop movement by clearing target
+    entity.velocity = { x: 0, z: 0 }; // Clear velocity as player has stopped
+    (entity as any).dirtySnap = true; // Mark for forced snapshot because velocity changed to zero
+  } else {
+    // Move the player
+    entity.position.x += stepX;
+    entity.position.z += stepZ;
+    // entity.position.y remains unchanged
 
-    // Add a flag to indicate velocity was zeroed so we include it in the next snapshot
-    (entity as any).dirtySnap = true;
+    // Update spatial grid if cell changed
+    if (gridCellChanged(oldPosForGrid, { x: entity.position.x, z: entity.position.z })) {
+      spatial.move(entity.id, oldPosForGrid, { x: entity.position.x, z: entity.position.z });
+    }
   }
   
   // Update the position history after movement
@@ -271,14 +270,14 @@ const lastSentPos: Record<string, VecXZ> = {};
 
 /**
  * Collects position deltas or individual PosSnap entries for all entities
- * Note: This returns individual delta messages and PosSnap components, NOT complete messages
+ * Note: This returns individual PosSnap components
  */
 function collectDeltas(
     state: GameState,
     timestamp: number,
-    playersToForceInclude: Set<string> // New parameter
-): (PosDelta | {id: string, pos: VecXZ, vel?: {x: number, z: number}, snapTs: number})[] {
-    const msgs: any[] = []; // Use 'any' for simplicity here, ensure correct type on push
+    playersToForceInclude: Set<string>
+): PosSnap[] {
+    const msgs: PosSnap[] = [];
 
     for (const playerId in state.players) {
         const player = state.players[playerId];
@@ -289,7 +288,7 @@ function collectDeltas(
         const last = lastSentPos[playerId];
 
         if (playersToForceInclude.has(playerId) || !last) {
-            msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+            msgs.push({ type: `PosSnap`, id: playerId, pos: pos, vel: vel, snapTs: timestamp });
             lastSentPos[playerId] = { ...pos };
             if ((player as any).dirtySnap) (player as any).dirtySnap = false;
             continue; // Move to next player
@@ -299,36 +298,17 @@ function collectDeltas(
         const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
         const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
 
-        // Calculate velocity deltas (optional, can add later if needed)
-        // const lastVel = lastVelSent[playerId] || {x:0, z:0};
-        // const vdx = Math.round((vel.x - lastVel.x) * CM_PER_UNIT);
-        // const vdz = Math.round((vel.z - lastVel.z) * CM_PER_UNIT);
-
-        if (dx === 0 && dz === 0 /* && vdx === 0 && vdz === 0 */) { // If also checking vel deltas
-             if ((player as any).dirtySnap) { // Still send if dirty (e.g. stopped, vel changed to 0)
-                msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+        if (dx === 0 && dz === 0) {
+             if ((player as any).dirtySnap) { // Still send if dirty
+                msgs.push({ type: `PosSnap`,  id: playerId, pos: pos, vel: vel, snapTs: timestamp });
                 lastSentPos[playerId] = { ...pos };
-                // lastVelSent[playerId] = {...vel};
                 (player as any).dirtySnap = false;
              }
             continue; // No change and not dirty
         }
 
-        if (dx < -POS_MAX_DELTA_CM || dx > POS_MAX_DELTA_CM ||
-            dz < -POS_MAX_DELTA_CM || dz > POS_MAX_DELTA_CM
-            /* || vdx < -POS_MAX_DELTA_CM || ... */) {
-            msgs.push({ id: playerId, pos: pos, vel: vel, snapTs: timestamp });
-        } else {
-            // Add vel deltas if they are significant or if velocity itself changed
-            const deltaMsg: PosDelta = { type: 'PosDelta', id: playerId, dx, dz, serverTs: timestamp };
-            // if (vdx !== 0 || vdz !== 0) { // Example: only send vel deltas if they changed
-            //    deltaMsg.vdx = vdx;
-            //    deltaMsg.vdz = vdz;
-            // }
-            msgs.push(deltaMsg);
-        }
+        msgs.push({ type: `PosSnap`, id: playerId, pos: pos, vel: vel, snapTs: timestamp });
         lastSentPos[playerId] = { ...pos };
-        // lastVelSent[playerId] = {...vel};
         if ((player as any).dirtySnap) (player as any).dirtySnap = false;
     }
     return msgs;
