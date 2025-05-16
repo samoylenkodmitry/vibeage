@@ -2,7 +2,7 @@ import { Socket, Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
 import { CastReq, CastFail } from '../../shared/messages.js';
 import { VecXZ } from '../../shared/messages.js';
-import { PlayerState } from '../../shared/types.js';
+import { Enemy, PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
 import { canCast } from './utils/cast.js';
 
@@ -13,6 +13,7 @@ interface World {
   getEnemyById: (id: string) => any | null;
   getPlayerById: (id: string) => PlayerState | null;
   getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
+  onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => void;
 }
 
 /**

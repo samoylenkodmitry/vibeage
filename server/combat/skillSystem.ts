@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
 import { VecXZ } from '../../shared/messages.js';
-import { CastState as CastStateEnum, CastSnapshot } from '../../shared/types.js';
+import { CastState as CastStateEnum, CastSnapshot, Enemy } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';
 import { getDamage } from '../../shared/combatMath.js';
@@ -17,6 +17,7 @@ interface World {
   getEnemyById: (id: string) => any | null;
   getPlayerById: (id: string) => Player | null;
   getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
+  onTargetDied: (caster: Player, target: Enemy | Player) => void;
 }
 
 /**
@@ -82,6 +83,7 @@ function makeSnapshot(cast: Cast): CastSnapshot {
  * Resolves the impact of a skill, applying damage and effects
  */
 function resolveImpact(cast: Cast, io: Server, world: World): void {
+  console.log(`[resolveImpact] Resolving impact for castId: ${cast.castId}, skillId: ${cast.skillId}`);
   const skill = SKILLS[cast.skillId];
   
   // Get all targets in the area of effect
@@ -93,6 +95,8 @@ function resolveImpact(cast: Cast, io: Server, world: World): void {
     calculateDamage(skill, caster, cast.castId, target.id)
   );
   
+  console.log(`[resolveImpact] Damage values: ${dmgValues}`);
+  console.log(`[resolveImpact] Targets: ${JSON.stringify(targets)}`);
   // Apply damage to each target
   targets.forEach((target: any, index: number) => {
     // Apply damage if target has health
@@ -106,10 +110,8 @@ function resolveImpact(cast: Cast, io: Server, world: World): void {
       
       // Check if target died
       if (target.health <= 0 && target.isAlive) {
-        target.isAlive = false;
         target.deathTimeTs = Date.now();
-        
-        // Trigger any on-kill effects or rewards here
+        world.onTargetDied(caster, target);
       }
       
       // Broadcast effect on the target
@@ -376,11 +378,9 @@ export function tickCasts(dt: number, io: Server, world: World): void {
     
     // Skip casts that are already in their final state and remove after delay
     if (cast.state === CastStateEnum.Impact) {
-      // Remove completed casts after a delay
-      if (now - cast.startedAt > 5000) { // 5 seconds after cast started
-        console.log(`[tickCasts] Removing completed cast: castId=${cast.castId}, skillId=${cast.skillId}`);
-        activeCasts.splice(i, 1);
-      }
+      // Remove completed casts
+      console.log(`[tickCasts] Removing completed cast: castId=${cast.castId}, skillId=${cast.skillId}`);
+      activeCasts.splice(i, 1);
       continue;
     }
     
@@ -430,12 +430,6 @@ export function tickCasts(dt: number, io: Server, world: World): void {
     } else if (cast.state === CastStateEnum.Casting) {
       // Update casting progress
       const progressMs = now - cast.startedAt;
-      if (progressMs < 0) {
-        console.warn(`[tickCasts] Negative casting progress detected: ${progressMs}ms`);
-        cast.state = CastStateEnum.Impact; // Force to impact state
-        resolveImpact(cast, io, world);
-        continue;
-      }
       const player = world.getPlayerById(cast.casterId);
       if (player) {
         player.castingProgressMs = progressMs;

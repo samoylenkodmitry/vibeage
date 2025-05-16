@@ -2,13 +2,10 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
-import { isPathBlocked, sweptHit } from './collision.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg, PosSnap, SinglePosSnap } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
-import { SKILLS, SkillId } from '../shared/skillsDefinition.js';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
-import { predictPosition as sharedPredictPosition } from '../shared/positionUtils.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
 import { getDamage, hash, rng } from '../shared/combatMath.js';
 import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
@@ -16,6 +13,7 @@ import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { LOOT_TABLES, LootTable } from './lootTables.js';
+import { J } from 'vitest/dist/chunks/reporters.d.79o4mouw.js';
 
 /**
  * Defines the GameState interface
@@ -297,7 +295,8 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq, ioServer: Ser
   const world = {
     getEnemyById: (id: string) => state.enemies[id] || null,
     getPlayerById: (id: string) => state.players[id] || null,
-    getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)
+    getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius),
+    onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => onTargetDied(caster, target, ioServer)
   };
   
   // Delegate to the server-authoritative castHandler
@@ -395,7 +394,8 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     const world = {
       getEnemyById: (id: string) => state.enemies[id] || null,
       getPlayerById: (id: string) => state.players[id] || null,
-      getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)
+      getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius),
+      onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => onTargetDied(caster, target, io)
     };
     tickCasts(TICK, io, world);
     
@@ -435,7 +435,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
       }
     },
-    
+    onTargetDied(caster: PlayerState, target: Enemy | PlayerState) {
+      return onTargetDied(caster, target, io);
+    },
     getGameState() {
       return state;
     },
@@ -630,46 +632,26 @@ export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo:
   });
 }
 
-/**
- * Spawns a projectile in the world
- */
-function spawnProjectile(
-  state: GameState,
-  casterId: string,
-  skillId: SkillId,
-  pos: VecXZ,
-  dir: VecXZ,
-  speed: number,
-  targetId?: string
-): Projectile {
-  const projectileId = `proj_${state.lastProjectileId++}`;
-  
-  // Offset the initial position slightly in the direction of travel
-  // This helps avoid collisions with the caster when spawning projectiles
-  const offsetDistance = 0.5; // Small offset to move projectile away from caster
-  const initialPos = {
-    x: pos.x + dir.x * offsetDistance,
-    z: pos.z + dir.z * offsetDistance
-  };
-  
-  const projectile: Projectile = {
-    id: projectileId,
-    casterId,
-    skillId,
-    pos: { ...initialPos },
-    dir: { ...dir },
-    speed,
-    spawnTs: Date.now(),
-    targetId,
-    hitTargets: [],
-    hitCount: 0
-  };
-  
-  console.log(`[PROJECTILE] Created new projectile: id=${projectileId}, skill=${skillId}, pos=(${initialPos.x.toFixed(2)}, ${initialPos.z.toFixed(2)}), dir=(${dir.x.toFixed(2)}, ${dir.z.toFixed(2)}), speed=${speed}, targetId=${targetId || 'none'}`);
-  
-  state.projectiles.push(projectile);
-  
-  return projectile;
+function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Server): void {
+  console.log(`Target died: ${JSON.stringify(target)}`);
+  if (target.isAlive) {
+    target.isAlive = false;
+    target.deathTimeTs = Date.now();
+    target.health = 0;
+    
+    // Remove from spatial hash grid
+    spatial.remove(target.id, { x: target.position.x, z: target.position.z });
+    
+    // Award XP to the caster
+    if (caster && caster.isAlive) {
+      if ('baseExperienceValue' in target) {
+        // Handle mob kill
+        const xpAmount = target.baseExperienceValue;
+        awardPlayerXP(caster, xpAmount, `killing ${target.name}`, io);
+        // TODO generateLoot
+      }
+    }
+  }
 }
 
 /**

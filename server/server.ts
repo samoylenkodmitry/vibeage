@@ -2,7 +2,6 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
-import { startWorldLoop, stopWorldLoop } from './combat/worldLoop.js';
 import { sendCastSnapshots } from './combat/skillSystem.js';
 
 // Create HTTP server
@@ -170,7 +169,6 @@ export async function startServer(port: number = 3001): Promise<void> {
       
       // Start the enhanced world loop with the game state
       console.log('Starting server-authoritative combat system...');
-      startWorldLoop(io, world.getGameState(), undefined, 33); // ~30 ticks per second for better responsiveness
       
       isServerRunning = true;
       resolve();
@@ -187,8 +185,6 @@ export function stopServer(): void {
     return;
   }
 
-  // Stop the world loop
-  stopWorldLoop();
 
   // Close all socket connections
   io.disconnectSockets();
