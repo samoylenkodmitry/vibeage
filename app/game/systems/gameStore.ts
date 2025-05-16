@@ -65,6 +65,7 @@ interface GameState {
   selectedSkill: string | null;
   targetWorldPos: { x: number, y: number, z: number } | null;
   lastMoveSentTimeMs: number | null; // Track the last time we sent a movement update
+  controlledPlayerRenderPosition: { x: number, y: number, z: number } | null; // The rendered position of the controlled player
 
   // --- Methods ---
   setSocket: (socketInstance: any) => void;
@@ -103,6 +104,7 @@ interface GameState {
   setStatusEffects: (targetId: string, effects: StatusEffect[]) => void;
   addXp: (amount: number) => void;
   updateServerLastKnownPosition: (playerId: string, position: { x: number, z: number }) => void;
+  setControlledPlayerRenderPosition: (pos: { x: number, y: number, z: number } | null) => void;
 }
 
 // --- Memoized selectors ---
@@ -195,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedSkill: null,
   targetWorldPos: null,
   lastMoveSentTimeMs: null,
+  controlledPlayerRenderPosition: null,
 
   // --- New explicitly defined action functions ---
   setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => {
@@ -578,4 +581,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
+  // Set the controlled player's current render position
+  setControlledPlayerRenderPosition: (pos: { x: number, y: number, z: number } | null) => {
+    set(produce(state => {
+      state.controlledPlayerRenderPosition = pos;
+    }));
+  },
 }));

@@ -15,7 +15,7 @@ import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
 import GameHud from './GameHud';
 import { useGameStore } from '../systems/gameStore';
-import { GROUND_Y, getBuffer } from '../systems/interpolation'; 
+import { GROUND_Y } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
 
 // Define keyboard controls
@@ -33,7 +33,7 @@ const controls = [
 
 function CameraFollowPlayer() {
   const myId = useGameStore(s => s.myPlayerId);
-  const players = useGameStore(s => s.players);
+  const controlledPlayerRenderPos = useGameStore(s => s.controlledPlayerRenderPosition); // Get the render position
   const angleRef = useRef(Math.PI);
 
   // Listen for camera angle changes from Player.tsx
@@ -50,44 +50,21 @@ function CameraFollowPlayer() {
   }, []);
 
   useFrame(({camera})=>{
-    if(!myId) return;
+    if(!myId || !controlledPlayerRenderPos) return; // Check if render position is available
     
-    // Get current player state
-    const player = players[myId];
-    if (!player) return;
+    const { x: playerX, z: playerZ } = controlledPlayerRenderPos; // Use x and z from render position
     
-    // Use consistent lag value of 100ms to avoid stuttering
-    const s = getBuffer(myId).sample(performance.now()-100);
+    // Create target camera position based on the player's render position
+    const dist=15, height=10, ang=angleRef.current;
+    const targetCamPos = new THREE.Vector3(
+      playerX - Math.sin(ang)*dist,
+      GROUND_Y + height,
+      playerZ - Math.cos(ang)*dist
+    );
     
-    // If buffer has valid data, use it for camera position
-    if(s) {
-      const dist=15, height=10, ang=angleRef.current;
-      
-      // Create target position
-      const targetPos = new THREE.Vector3(
-        s.x - Math.sin(ang)*dist,
-        GROUND_Y + height,
-        s.z - Math.cos(ang)*dist
-      );
-      
-      // Use stronger lerp factor for smoother camera follow
-      camera.position.lerp(targetPos, 0.15);
-      camera.lookAt(s.x, GROUND_Y+1, s.z);
-    } 
-    // Fallback to state-based position if buffer doesn't have data yet
-    else if (player.position) {
-      const dist=15, height=10, ang=angleRef.current;
-      
-      // Create target position using state instead of buffer
-      const targetPos = new THREE.Vector3(
-        player.position.x - Math.sin(ang)*dist,
-        GROUND_Y + height,
-        player.position.z - Math.cos(ang)*dist
-      );
-      
-      camera.position.lerp(targetPos, 0.15);
-      camera.lookAt(player.position.x, GROUND_Y+1, player.position.z);
-    }
+    // Directly set camera position without interpolation for instant snapping
+    camera.position.copy(targetCamPos);
+    camera.lookAt(playerX, GROUND_Y+1, playerZ);
   });
   
   return null;

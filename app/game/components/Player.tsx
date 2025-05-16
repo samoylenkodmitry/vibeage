@@ -240,6 +240,20 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           z: 0,
           w: Math.cos(s.rot/2)
         });
+        
+        // === ADDED CODE START ===
+        if (isControlledPlayer) {
+          // playerRef.current.translation() gives the position *after* the physics step
+          // which includes the setNextKinematicTranslation from the previous frame.
+          // This is the position the model is currently rendered at.
+          const currentRenderedPos = playerRef.current.translation();
+          useGameStore.getState().setControlledPlayerRenderPosition({
+            x: currentRenderedPos.x,
+            y: currentRenderedPos.y, // This will be effectively GROUND_Y
+            z: currentRenderedPos.z
+          });
+        }
+        // === ADDED CODE END ===
       } else if (playerState.position) {
         // Fallback to using the playerState position if no buffer sample
         // This should rarely happen once the system is working correctly
@@ -258,6 +272,16 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
           z: 0,
           w: Math.cos(rotY/2)
         });
+        
+        // === ADDED CODE START ===
+        if (isControlledPlayer) {
+           useGameStore.getState().setControlledPlayerRenderPosition({
+            x: playerState.position.x,
+            y: GROUND_Y,
+            z: playerState.position.z
+          });
+        }
+        // === ADDED CODE END ===
       }
       
     } catch (err) {
