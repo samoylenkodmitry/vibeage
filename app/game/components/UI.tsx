@@ -7,6 +7,7 @@ import StatusEffects from './StatusEffects';
 import ConnectionStatus from './ConnectionStatus';
 import SkillTreeUI from './SkillTreeUI';
 import CombatLog from './HUD/CombatLog';
+import Inventory from './HUD/Inventory';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
 import { tryStartCast } from '../systems/castController';
@@ -477,6 +478,9 @@ export default React.memo(function UI() {
 
       {/* Combat Log */}
       <CombatLog />
+      
+      {/* Inventory */}
+      <Inventory />
       
       {/* Death Overlay */}
       {isPlayerDead && (

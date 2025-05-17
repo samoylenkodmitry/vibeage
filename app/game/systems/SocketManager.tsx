@@ -527,6 +527,39 @@ export default function SocketManager() {
             handleLootAcquired(msg);
             break;
           }
+          case 'LootSpawn': {
+            // Handle loot spawned from a killed enemy
+            console.log('Loot spawned:', msg);
+            const lootId = `loot-${msg.enemyId}-${Date.now()}`;
+            const enemy = useGameStore.getState().enemies[msg.enemyId];
+            if (enemy) {
+              // We have the enemy position, create the loot at that position
+              useGameStore.getState().addGroundLoot(
+                lootId, 
+                msg.enemyId,
+                { x: enemy.position.x, y: 0.2, z: enemy.position.z }, 
+                msg.loot
+              );
+              
+              // Log the loot drop
+              const lootText = msg.loot
+                .map((item: any) => `${item.quantity}x ${item.itemId}`)
+                .join(', ');
+              
+              useCombatLogStore.getState().push({
+                id: Date.now(),
+                text: `${enemy.name} dropped: ${lootText}`,
+                ts: Date.now()
+              });
+            }
+            break;
+          }
+          case 'inventoryUpdate': {
+            // Handle inventory update from the server
+            console.log('Inventory updated:', msg);
+            useGameStore.getState().updateInventory(msg);
+            break;
+          }
           default: {
             console.log('Unknown message type:', msg.type);
             break;

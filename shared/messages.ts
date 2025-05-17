@@ -200,3 +200,21 @@ export interface LootAcquiredMsg extends ServerMsg {
   items: InventorySlot[]; // Items that were acquired
   sourceEnemyName?: string;
 }
+
+// Loot related messages
+export interface ItemDrop {
+  itemId: string;
+  quantity: number;
+}
+
+export interface LootSpawn {
+  type: 'LootSpawn';
+  enemyId: string;
+  loot: ItemDrop[];
+}
+
+export interface LootPickup {
+  type: 'LootPickup';
+  lootId: string;
+  playerId: string;
+}

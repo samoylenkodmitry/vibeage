@@ -7,6 +7,7 @@ import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '../systems/gameStore';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import * as THREE from 'three';
+import Loot from './Loot';
 
 export default function World() {
   const terrainRef = useRef<THREE.Mesh>(null);
@@ -89,6 +90,16 @@ export default function World() {
                 spread={zone.radius * 0.8} 
               />
             )}
+            
+            {/* Ground Loot Items */}
+            {Object.entries(useGameStore.getState().groundLoot).map(([lootId, lootData]) => (
+              <Loot 
+                key={lootId} 
+                lootId={lootId} 
+                position={lootData.position} 
+                items={lootData.items} 
+              />
+            ))}
             
             {zone.id === 'rocky_highlands' && (
               <>

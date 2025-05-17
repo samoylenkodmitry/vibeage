@@ -49,6 +49,8 @@ interface GameState {
   manaBarFlash: boolean;         // Whether mana bar should flash red
   currentZoneId: string | null;
   donationXpBoost: number;
+  groundLoot: Record<string, { position: { x: number, y: number, z: number }, items: { itemId: string, quantity: number }[] }>;
+  inventory: InventorySlot[];
   donationBoostEndTimeTs: number | null;
   bonusXpEventActive: boolean;
   serverLastKnownPositions: Record<string, { x: number, z: number }>;  // Last known positions from server
@@ -105,6 +107,14 @@ interface GameState {
   addXp: (amount: number) => void;
   updateServerLastKnownPosition: (playerId: string, position: { x: number, z: number }) => void;
   setControlledPlayerRenderPosition: (pos: { x: number, y: number, z: number } | null) => void;
+
+  // --- Loot State Updating ---
+  // Add ground loot item
+  addGroundLoot: (lootId: string, enemyId: string, position: { x: number, y: number, z: number }, items: { itemId: string, quantity: number }[]) => void;
+  // Remove ground loot item (when picked up)
+  removeGroundLoot: (lootId: string) => void;
+  // Update player inventory
+  updateInventory: (items: InventorySlot[]) => void;
 }
 
 // --- Memoized selectors ---
@@ -197,6 +207,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedSkill: null,
   targetWorldPos: null,
   lastMoveSentTimeMs: null,
+  groundLoot: {},
+  inventory: [],
   controlledPlayerRenderPosition: null,
 
   // --- New explicitly defined action functions ---
@@ -609,6 +621,31 @@ export const useGameStore = create<GameState>((set, get) => ({
         };
       }
       // If no significant change, don't update state
+    }));
+  },
+
+  // --- Loot State Updating ---
+  // Add ground loot item
+  addGroundLoot: (lootId: string, enemyId: string, position: { x: number, y: number, z: number }, items: { itemId: string, quantity: number }[]) => {
+    set(produce(state => {
+      state.groundLoot[lootId] = {
+        position,
+        items
+      };
+    }));
+  },
+
+  // Remove ground loot item (when picked up)
+  removeGroundLoot: (lootId: string) => {
+    set(produce(state => {
+      delete state.groundLoot[lootId];
+    }));
+  },
+
+  // Update player inventory
+  updateInventory: (items: InventorySlot[]) => {
+    set(produce(state => {
+      state.inventory = items;
     }));
   },
 }));

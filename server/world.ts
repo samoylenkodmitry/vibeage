@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
-import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg, PosSnap, SinglePosSnap } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
@@ -13,7 +13,7 @@ import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { LOOT_TABLES, LootTable } from './lootTables.js';
-import { J } from 'vitest/dist/chunks/reporters.d.79o4mouw.js';
+import { generateLoot } from './loot/generateLoot.js';
 
 /**
  * Defines the GameState interface
@@ -23,6 +23,7 @@ interface GameState {
   enemies: Record<string, Enemy>;
   projectiles: Projectile[];
   lastProjectileId: number;
+  groundLoot: Record<string, { position: VecXZ, items: ItemDrop[] }>;
 }
 
 /**
@@ -355,7 +356,8 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     players: {},
     enemies: {},
     projectiles: [],
-    lastProjectileId: 0
+    lastProjectileId: 0,
+    groundLoot: {}
   };
   
   // Initialize effect manager
@@ -433,6 +435,13 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
         case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
+        case 'LootPickup': 
+          if (state.players[msg.playerId]?.socketId === socket.id) {
+            if (this.tryGiveLoot(msg.playerId, msg.lootId)) {
+              socket.emit('inventoryUpdate', state.players[msg.playerId].inventory);
+            }
+          }
+          break;
       }
     },
     onTargetDied(caster: PlayerState, target: Enemy | PlayerState) {
@@ -462,6 +471,59 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Expose the spatial grid for direct access
     spatial,
+    
+    // Loot management methods
+    addGroundLoot(enemyId: string, loot: ItemDrop[]) {
+      if (!loot.length) return;
+      
+      // Get the position of the enemy
+      const enemy = state.enemies[enemyId];
+      if (!enemy) return;
+      
+      // Create a unique ID for this loot pile
+      const lootId = `loot-${enemyId}-${Date.now()}`;
+      
+      // Add loot to the ground at enemy position
+      state.groundLoot[lootId] = {
+        position: { x: enemy.position.x, z: enemy.position.z },
+        items: loot
+      };
+      
+      console.log(`Added ground loot ${lootId} at position ${JSON.stringify({ x: enemy.position.x, z: enemy.position.z })}`);
+      
+      return lootId;
+    },
+    
+    tryGiveLoot(playerId: string, lootId: string) {
+      // Check if player and loot exist
+      const player = state.players[playerId];
+      const loot = state.groundLoot[lootId];
+      
+      if (!player || !loot) return false;
+      
+      // Convert ItemDrop[] to InventorySlot[] format
+      const items: InventorySlot[] = loot.items.map(item => ({
+        itemId: item.itemId,
+        quantity: item.quantity
+      }));
+      
+      // Add items to player's inventory
+      for (const item of items) {
+        player.inventory.push(item);
+      }
+      
+      // Remove the loot from the ground
+      delete state.groundLoot[lootId];
+      
+      // Broadcast to all clients that the loot was picked up
+      io.emit('msg', { 
+        type: 'LootPickup', 
+        lootId, 
+        playerId 
+      });
+      
+      return true;
+    },
     
     addPlayer(socketId: string, name: string) {
       const playerId = `player-${hash(socketId + Date.now().toString())}`;
@@ -648,7 +710,15 @@ function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Serv
         // Handle mob kill
         const xpAmount = target.baseExperienceValue;
         awardPlayerXP(caster, xpAmount, `killing ${target.name}`, io);
-        // TODO generateLoot
+        
+        // Generate loot for the killed enemy
+        if ('lootTableId' in target && target.lootTableId) {
+          const loot = generateLoot(target as Enemy);
+          if (loot.length) {
+            // broadcast ground-loot spawn
+            io.emit('msg', { type: 'LootSpawn', enemyId: target.id, loot });
+          }
+        }
       }
     }
   }
