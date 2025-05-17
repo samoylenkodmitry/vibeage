@@ -13,7 +13,7 @@ import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { LOOT_TABLES, LootTable } from './lootTables.js';
-import { generateLoot } from './loot/generateLoot.js';
+import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 
 /**
  * Defines the GameState interface
@@ -473,7 +473,17 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'LootPickup': 
           if (state.players[msg.playerId]?.socketId === socket.id) {
             if (this.tryGiveLoot(msg.playerId, msg.lootId)) {
-              socket.emit('inventoryUpdate', state.players[msg.playerId].inventory);
+              // Send a properly formatted inventory update message
+              socket.emit('msg', { 
+                type: 'InventoryUpdate',
+                playerId: msg.playerId,
+                inventory: state.players[msg.playerId].inventory,
+                maxInventorySlots: state.players[msg.playerId].maxInventorySlots
+              });
+              // Log successful pickup
+              console.log(`Player ${msg.playerId} picked up loot ${msg.lootId}`);
+            } else {
+              console.log(`Failed to pick up loot: ${msg.lootId} for player ${msg.playerId}`);
             }
           }
           break;
@@ -534,7 +544,17 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       const player = state.players[playerId];
       const loot = state.groundLoot[lootId];
       
-      if (!player || !loot) return false;
+      if (!player) {
+        console.error(`[LootPickup] Player ${playerId} not found`);
+        return false;
+      }
+      
+      if (!loot) {
+        console.error(`[LootPickup] Loot ${lootId} not found`);
+        return false;
+      }
+      
+      console.log(`[LootPickup] Player ${playerId} picking up loot ${lootId}`);
       
       // Convert ItemDrop[] to InventorySlot[] format
       const items: InventorySlot[] = loot.items.map(item => ({
@@ -556,6 +576,16 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         lootId, 
         playerId 
       });
+      
+      // Also send a LootAcquired message to inform the player about what they picked up
+      const lootNames = items.map(item => `${item.quantity}x ${item.itemId}`).join(', ');
+      io.to(player.socketId).emit('msg', {
+        type: 'LootAcquired',
+        items: items,
+        sourceEnemyName: lootId.split('-')[1] // Extract enemy type from lootId
+      });
+      
+      console.log(`[LootPickup] Sent loot acquired notification: ${lootNames}`);
       
       return true;
     },
@@ -748,10 +778,37 @@ function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Serv
         
         // Generate loot for the killed enemy
         if ('lootTableId' in target && target.lootTableId) {
-          const loot = generateLoot(target as Enemy);
+          const enemyTarget = target as Enemy;
+          // Use the imported function that expects an Enemy object
+          const loot = generateLootFromEnemy(enemyTarget);
           if (loot.length) {
-            // broadcast ground-loot spawn
-            io.emit('msg', { type: 'LootSpawn', enemyId: target.id, loot });
+            // Create a unique loot ID
+            const lootId = `loot-${target.id}-${Date.now()}`;
+            
+            // Enemy position
+            const enemyPos = { x: enemyTarget.position.x, z: enemyTarget.position.z };
+            
+            // Add the loot to the ground
+            const state = io['gameState'] as any;
+            if (state && state.groundLoot) {
+              // Add loot directly to the game state
+              state.groundLoot[lootId] = {
+                position: enemyPos,
+                items: loot
+              };
+              console.log(`Added ground loot ${lootId} at position ${JSON.stringify(enemyPos)}`);
+            }
+            
+            // Always broadcast the loot spawn to clients
+            io.emit('msg', { 
+              type: 'LootSpawn', 
+              enemyId: target.id,
+              lootId,
+              position: enemyPos,
+              loot 
+            });
+            
+            console.log(`Sent loot spawn broadcast for ${lootId} with ${loot.length} items`);
           }
         }
       }

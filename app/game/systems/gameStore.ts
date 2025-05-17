@@ -627,12 +627,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   // --- Loot State Updating ---
   // Add ground loot item
   addGroundLoot: (lootId: string, enemyId: string, position: { x: number, y: number, z: number }, items: { itemId: string, quantity: number }[]) => {
+    console.log(`[Client] Adding ground loot ${lootId} at position:`, position, 'items:', items);
     set(produce(state => {
       state.groundLoot[lootId] = {
         position,
         items
       };
     }));
+    // Log the state of groundLoot after update for debugging
+    console.log('[Client] Current groundLoot state:', useGameStore.getState().groundLoot);
   },
 
   // Remove ground loot item (when picked up)
@@ -644,8 +647,29 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Update player inventory
   updateInventory: (items: InventorySlot[]) => {
+    console.log('[Client] Updating inventory with items:', items);
     set(produce(state => {
       state.inventory = items;
+    }));
+  },
+  
+  // Update a player's properties - used for updating inventory and other player properties
+  updatePlayer: (player: { id: string, [key: string]: any }) => {
+    console.log('[Client] Updating player data:', player);
+    set(produce(state => {
+      if (state.players[player.id]) {
+        // Update player properties
+        Object.keys(player).forEach(key => {
+          if (key !== 'id') {
+            (state.players[player.id] as any)[key] = player[key];
+          }
+        });
+        
+        // If this is the controlled player, also update inventory in main state
+        if (player.id === state.myPlayerId && player.inventory) {
+          state.inventory = player.inventory;
+        }
+      }
     }));
   },
 }));

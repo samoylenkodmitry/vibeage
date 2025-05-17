@@ -563,17 +563,30 @@ export default function SocketManager() {
             handleLootAcquired(msg);
             break;
           }
+          case 'LootPickup': {
+            handleLootPickup(msg);
+            break;
+          }
           case 'LootSpawn': {
             // Handle loot spawned from a killed enemy
             console.log('Loot spawned:', msg);
-            const lootId = `loot-${msg.enemyId}-${Date.now()}`;
+            // Use the lootId provided by the server instead of generating a new one
+            const lootId = msg.lootId || `loot-${msg.enemyId}-${Date.now()}`;
             const enemy = useGameStore.getState().enemies[msg.enemyId];
             if (enemy) {
+              // Get position from the message or use enemy position as fallback
+              const position = msg.position || { x: enemy.position.x, y: 0.2, z: enemy.position.z };
+              
+              // If position from server only has x,z, add y component for 3D rendering
+              if (position && !position.y) {
+                position.y = 0.2; // Default Y position for ground loot
+              }
+              
               // We have the enemy position, create the loot at that position
               useGameStore.getState().addGroundLoot(
                 lootId, 
                 msg.enemyId,
-                { x: enemy.position.x, y: 0.2, z: enemy.position.z }, 
+                position, 
                 msg.loot
               );
               
@@ -588,12 +601,6 @@ export default function SocketManager() {
                 ts: Date.now()
               });
             }
-            break;
-          }
-          case 'inventoryUpdate': {
-            // Handle inventory update from the server
-            console.log('Inventory updated:', msg);
-            useGameStore.getState().updateInventory(msg);
             break;
           }
           default: {
@@ -756,12 +763,22 @@ export default function SocketManager() {
     const myPlayerId = useGameStore.getState().myPlayerId;
     if (!myPlayerId) return;
     
-    console.log('Received inventory update:', msg);
+    console.log('[SocketManager] Received inventory update:', msg);
+    
+    // First, apply the update through updatePlayer
     useGameStore.getState().updatePlayer({
       id: myPlayerId,
       inventory: msg.inventory,
       maxInventorySlots: msg.maxInventorySlots
     });
+    
+    // Additionally, ensure the inventory state is directly updated for UI
+    useGameStore.getState().updateInventory(msg.inventory);
+    
+    // Log the updated inventory state
+    console.log('[SocketManager] Updated inventory state:', 
+      useGameStore.getState().inventory, 
+      useGameStore.getState().players[myPlayerId]?.inventory);
   }, []);
   
   // Handle loot acquired message
@@ -779,6 +796,27 @@ export default function SocketManager() {
       text: `Looted: ${lootText} from ${msg.sourceEnemyName || 'enemy'}`,
       ts: Date.now()
     });
+  }, []);
+
+  // Handle loot pickup message (when other players pick up loot)
+  const handleLootPickup = useCallback((msg: any) => {
+    console.log('Loot picked up:', msg);
+    
+    // Remove the loot from the ground client-side
+    useGameStore.getState().removeGroundLoot(msg.lootId);
+    
+    // If it's not us who picked it up, show a message
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    if (msg.playerId !== myPlayerId) {
+      const playerName = useGameStore.getState().players[msg.playerId]?.name || "Another player";
+      
+      // Add a message to the combat log
+      useCombatLogStore.getState().push({
+        id: Date.now(),
+        text: `${playerName} picked up loot`,
+        ts: Date.now()
+      });
+    }
   }, []);
   
   return null;

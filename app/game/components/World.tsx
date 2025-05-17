@@ -1,7 +1,7 @@
 'use client';
 
 import { RigidBody } from '@react-three/rapier';
-import { useRef} from 'react';
+import { useRef, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '../systems/gameStore';
@@ -9,9 +9,14 @@ import { GAME_ZONES } from '../systems/zoneSystem';
 import * as THREE from 'three';
 import Loot from './Loot';
 
+// Optimize the Loot component with memo to prevent unnecessary re-renders
+const MemoizedLoot = memo(Loot);
+
 export default function World() {
   const terrainRef = useRef<THREE.Mesh>(null);
   const updatePlayerZone = useGameStore(state => state.updatePlayerZone);
+  // Subscribe to groundLoot changes
+  const groundLoot = useGameStore(state => state.groundLoot);
   
   // Update player's current zone
   useFrame(() => {
@@ -78,6 +83,16 @@ export default function World() {
         </group>
       ))}
       
+      {/* Ground Loot Items - Render outside of zone loop for proper subscription */}
+      {Object.entries(groundLoot).map(([lootId, lootData]) => (
+        <MemoizedLoot 
+          key={lootId} 
+          lootId={lootId} 
+          position={lootData.position} 
+          items={lootData.items} 
+        />
+      ))}
+      
       {/* Environmental Objects */}
       <group>
         {/* Distribute environmental objects based on zones */}
@@ -90,16 +105,6 @@ export default function World() {
                 spread={zone.radius * 0.8} 
               />
             )}
-            
-            {/* Ground Loot Items */}
-            {Object.entries(useGameStore.getState().groundLoot).map(([lootId, lootData]) => (
-              <Loot 
-                key={lootId} 
-                lootId={lootId} 
-                position={lootData.position} 
-                items={lootData.items} 
-              />
-            ))}
             
             {zone.id === 'rocky_highlands' && (
               <>
