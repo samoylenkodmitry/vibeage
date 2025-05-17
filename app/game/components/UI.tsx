@@ -119,13 +119,6 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
     };
   }, [isUsable]);
 
-  // Map skill IDs to their correct image paths
-  const getSkillImagePath = (skillId: string) => {
-    // Special case mapping for waterSplash which uses the water image
-    if (skillId === 'waterSplash') return '/game/skills/skill_water.png';
-    return `/game/skills/skill_${skillId}.png`;
-  };
-
   return (
     <div className="flex flex-col items-center">
       <button
@@ -143,7 +136,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
       >
         {/* Skill icon - using mapped path */}
         <Image 
-          src={getSkillImagePath(skill.id)}
+          src={skill.icon}
           alt={skill.name} 
           width={48}
           height={48}
