@@ -31,6 +31,7 @@ export default function DebugPanel() {
         <p>Connection: <span className={isConnected ? "text-green-500" : "text-red-500"}>{isConnected ? "Connected" : "Disconnected"}</span></p>
         <p>Player ID: {myPlayerId || "Not assigned"}</p>
         <p>Enemy Count: {enemyCount}</p>
+        <p>Render Pos: {JSON.stringify(useGameStore(s=>s.controlledPlayerRenderPosition))}</p>
         
         <div className="mt-4">
           <h3 className="text-lg font-semibold mb-1">Enemies:</h3>

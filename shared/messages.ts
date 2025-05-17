@@ -12,6 +12,15 @@ export interface Vec3D {
   z: number;
 }
 
+/**
+ * A keyframe of predicted entity state at a specific future timestamp
+ */
+export interface PredictionKeyframe {
+    pos: VecXZ;     // Predicted position
+    rotY?: number;  // Optional rotation
+    ts: number;     // Server-epoch ms this keyframe is valid for
+}
+
 export interface PlayerMovementState {
   isMoving: boolean;
   path?: VecXZ[];
@@ -34,15 +43,20 @@ export interface MoveIntent extends ClientMsg {
   id: string;          // Entity id (player uid)
   targetPos: VecXZ;    // World coords (XZ plane)
   clientTs: number;    // Ms since epoch on the client
+  seq?: number;        // Optional sequence number for reconciliation
 }
 
 // Server-driven position
 export interface PosSnap extends ServerMsg {
   type: 'PosSnap';
-  id: string; // Entity id (player uid)
-  pos: VecXZ; // World coords (XZ plane)
+  id: string;                    // Entity id (player uid)
+  pos: VecXZ;                    // World coords (XZ plane)
   vel: { x: number; z: number }; // Velocity vector
-  snapTs: number; // Server timestamp when the snap was sent
+  snapTs: number;                // Server timestamp when the snap was sent
+  seq?: number;                  // Optional sequence number for reconciliation
+  
+  /** NEW – at most two future keyframes the server predicts for this entity */
+  predictions?: PredictionKeyframe[];
 }
 
 // Skill casting

@@ -14,6 +14,8 @@ import KeyboardShortcuts from './KeyboardShortcuts';
 import TargetRing from './TargetRing';
 import VfxManager from './VfxManager';
 import GameHud from './GameHud';
+import PredictionDebug from './PredictionDebug';
+import PredictionPath from './PredictionPath';
 import { useGameStore } from '../systems/gameStore';
 import { GROUND_Y } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
@@ -146,11 +148,16 @@ export default function Game() {
             near: 0.1,
             far: 1000
           }}
-          onCreated={({ gl }) => {
+          onCreated={({ gl, scene }) => {
             // Configure renderer for better performance
             gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             gl.setClearColor('#202060'); // Default background color
             console.log('Canvas created successfully!');
+            
+            // Expose scene for debugging
+            if (typeof window !== 'undefined') {
+              (window as any).__R3F = { scene };
+            }
           }}
         >
           <fog attach="fog" args={['#202060', 0, 100]} />
@@ -168,12 +175,14 @@ export default function Game() {
             <TargetRing />
             <VfxManager />
             <CameraFollowPlayer />
+            <PredictionPath />
           </Physics>
         </Canvas>
       </KeyboardControls>
       <GameHud>
         <UI />
       </GameHud>
+      <PredictionDebug />
     </div>
   );
 }

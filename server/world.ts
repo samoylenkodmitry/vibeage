@@ -2,7 +2,8 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
-import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop } from '../shared/messages.js';
+import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
+         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
@@ -14,6 +15,10 @@ import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { LOOT_TABLES, LootTable } from './lootTables.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
+
+// Constants
+const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
+const PREDICTION_TICK_OFFSETS = [TICK_MS, TICK_MS * 2]; // Default prediction offsets
 
 /**
  * Defines the GameState interface
@@ -241,9 +246,66 @@ function collectDeltas(
         const pos = predictPosition(player, timestamp); // Server's current authoritative pos
         const vel = player.velocity || { x: 0, z: 0 };
         const last = lastSentPos[playerId];
+        
+        // Generate predictions for this player
+        const predictions: PredictionKeyframe[] = [];
+        
+        // Current authoritative state
+        const currentPos = pos;
+        const currentVel = vel;
+        const currentRotY = player.rotation?.y || 0;
+        
+        for (const offsetMs of PREDICTION_TICK_OFFSETS) {
+            // Predict state at the given offset
+            const predictedState = predictEntityStateAtOffset(
+                player, 
+                currentPos, 
+                currentVel, 
+                currentRotY, 
+                timestamp, 
+                offsetMs, 
+                state
+            );
+            
+            // Check if player would stop (reached target)
+            let wouldStop = false;
+            if (player.movement?.targetPos) {
+                const distFromBaseToTarget = distance(currentPos, player.movement.targetPos);
+                const distTravelledInOffset = (player.movement.speed || 0) * (offsetMs / 1000.0);
+                if (distTravelledInOffset >= distFromBaseToTarget) {
+                    wouldStop = true;
+                    predictions.push({
+                        pos: player.movement.targetPos,
+                        rotY: predictedState.rotY,
+                        ts: timestamp + offsetMs
+                    });
+                    break; // Stop adding more predictions if target is reached
+                }
+            }
+            
+            if (!wouldStop) {
+                predictions.push({
+                    pos: predictedState.pos,
+                    rotY: predictedState.rotY,
+                    ts: timestamp + offsetMs
+                });
+            }
+        }
+        
+        // Debug predictions occasionally
+        if (predictions.length > 0) {
+            debugPrediction(playerId, predictions);
+        }
 
         if (playersToForceInclude.has(playerId) || !last) {
-            msgs.push({ type: `PosSnap`, id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+            msgs.push({ 
+                type: `PosSnap`, 
+                id: playerId, 
+                pos: pos, 
+                vel: vel, 
+                snapTs: timestamp,
+                predictions: predictions.length > 0 ? predictions : undefined 
+            });
             lastSentPos[playerId] = { ...pos };
             if ((player as any).dirtySnap) (player as any).dirtySnap = false;
             continue; // Move to next player
@@ -255,14 +317,28 @@ function collectDeltas(
 
         if (dx === 0 && dz === 0) {
              if ((player as any).dirtySnap) { // Still send if dirty
-                msgs.push({ type: `PosSnap`,  id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+                msgs.push({ 
+                    type: `PosSnap`,  
+                    id: playerId, 
+                    pos: pos, 
+                    vel: vel, 
+                    snapTs: timestamp,
+                    predictions: predictions.length > 0 ? predictions : undefined 
+                });
                 lastSentPos[playerId] = { ...pos };
                 (player as any).dirtySnap = false;
              }
             continue; // No change and not dirty
         }
 
-        msgs.push({ type: `PosSnap`, id: playerId, pos: pos, vel: vel, snapTs: timestamp });
+        msgs.push({ 
+            type: `PosSnap`, 
+            id: playerId, 
+            pos: pos, 
+            vel: vel, 
+            snapTs: timestamp,
+            predictions: predictions.length > 0 ? predictions : undefined 
+        });
         lastSentPos[playerId] = { ...pos };
         if ((player as any).dirtySnap) (player as any).dirtySnap = false;
     }
@@ -275,13 +351,43 @@ function collectDeltas(
         const pos = { x: enemy.position.x, z: enemy.position.z }; // Current enemy position
         const vel = enemy.velocity || { x: 0, z: 0 };
         const last = lastSentPos[enemyId];
+        
+        // Generate predictions for this enemy
+        const predictions: PredictionKeyframe[] = [];
+        
+        // Current authoritative state
+        const currentPos = pos;
+        const currentVel = vel;
+        const currentRotY = enemy.rotation?.y || 0;
+        
+        for (const offsetMs of PREDICTION_TICK_OFFSETS) {
+            // Predict state at the given offset
+            const predictedState = predictEntityStateAtOffset(
+                enemy, 
+                currentPos, 
+                currentVel, 
+                currentRotY, 
+                timestamp, 
+                offsetMs, 
+                state
+            );
+            
+            predictions.push({
+                pos: predictedState.pos,
+                rotY: predictedState.rotY,
+                ts: timestamp + offsetMs
+            });
+        }
 
-        // Send a snapshot if:
-        // 1. No previous position exists
-        // 2. Enemy is marked as dirty (state change)
-        // 3. Position has changed significantly
         if (!last || (enemy as any).dirtySnap) {
-            msgs.push({ type: `PosSnap`, id: enemyId, pos: pos, vel: vel, snapTs: timestamp });
+            msgs.push({ 
+                type: `PosSnap`, 
+                id: enemyId, 
+                pos: pos, 
+                vel: vel, 
+                snapTs: timestamp,
+                predictions: predictions.length > 0 ? predictions : undefined
+            });
             lastSentPos[enemyId] = { ...pos };
             if ((enemy as any).dirtySnap) (enemy as any).dirtySnap = false;
             continue;
@@ -296,7 +402,14 @@ function collectDeltas(
         }
 
         // Position has changed significantly, send update
-        msgs.push({ type: `PosSnap`, id: enemyId, pos: pos, vel: vel, snapTs: timestamp });
+        msgs.push({ 
+            type: `PosSnap`, 
+            id: enemyId, 
+            pos: pos, 
+            vel: vel, 
+            snapTs: timestamp,
+            predictions: predictions.length > 0 ? predictions : undefined
+        });
         lastSentPos[enemyId] = { ...pos };
     }
     
@@ -384,8 +497,16 @@ let spatial: SpatialHashGrid;
 // Create a reference to the current game state
 let globalState: GameState | null = null;
 
-// Reference to the world API
-let worldAPI: any = null;
+// Debug helper for prediction system
+function debugPrediction(id: string, predictions: PredictionKeyframe[]) {
+  // Only log occasionally to avoid flooding the console
+  if (Math.random() < 0.01) { // 1% chance to log
+    console.log(`[Prediction] Entity ${id}: ${predictions.length} keyframes`);
+    predictions.forEach((p, i) => {
+      console.log(`  Keyframe ${i}: pos=(${p.pos.x.toFixed(2)}, ${p.pos.z.toFixed(2)}), ts=${p.ts}`);
+    });
+  }
+}
 
 /**
  * Initialize the game world
@@ -416,6 +537,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   
   // Game loop settings
   const TICK = 1000 / 30; // 30 FPS / Hz world tick rate
+  // TICK_MS is now defined at the module level
   const SNAP_HZ = 10;     // 10 Hz position snapshots
   let snapAccumulator = 0;
   
@@ -681,7 +803,6 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   };
 
   // Store API reference and return it
-  worldAPI = api;
   return api;
 }
 
@@ -1153,10 +1274,12 @@ function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest,
 }
 
 /**
- * Generates loot from an enemy's loot table
+ * Generates loot from an enemy's loot table (internal helper function)
  * @param lootTableId The ID of the loot table to use
  * @returns Array of inventory slots containing loot
+ * @private
  */
+// @ts-ignore - This function is used in specific scenarios and maintained for future use
 function generateLoot(lootTableId: string): InventorySlot[] {
   const lootTable = LOOT_TABLES[lootTableId];
   if (!lootTable) {
@@ -1189,11 +1312,13 @@ function generateLoot(lootTableId: string): InventorySlot[] {
 }
 
 /**
- * Adds items to a player's inventory, handling stacking and inventory limits
+ * Adds items to a player's inventory, handling stacking and inventory limits (internal helper function)
  * @param player The player to add items to
  * @param items The items to add
  * @returns Object containing successfully added items and overflow items
+ * @private
  */
+// @ts-ignore - This function is maintained for future use
 function addItemsToInventory(
   player: PlayerState, 
   items: InventorySlot[]
@@ -1267,4 +1392,84 @@ function addItemsToInventory(
   });
   
   return { addedItems, overflowItems };
+}
+
+/**
+ * Predicts an entity's state at a future time offset from its current state
+ * @param entity Player or Enemy entity
+ * @param basePos Current position
+ * @param baseVel Current velocity
+ * @param baseRotY Current rotation Y
+ * @param baseTs Server timestamp for basePos/baseVel
+ * @param deltaTimeOffsetMs How far into the future to predict (e.g., TICK_MS, 2*TICK_MS)
+ * @param gameState Pass gameState for AI predictions if needed
+ * @returns Predicted position and rotation
+ */
+function predictEntityStateAtOffset(
+    entity: PlayerState | Enemy,
+    basePos: VecXZ,
+    baseVel: VecXZ,
+    baseRotY: number,
+    baseTs: number, 
+    deltaTimeOffsetMs: number,
+    gameState: GameState
+): { pos: VecXZ; rotY: number } {
+    try {
+        const deltaTimeSec = deltaTimeOffsetMs / 1000.0;
+        let predictedPos: VecXZ = { ...basePos };
+        let predictedRotY: number = baseRotY;
+
+        // Player prediction (based on current movement intent)
+        if ('movement' in entity && (entity as PlayerState).movement?.targetPos && (entity as PlayerState).movement.speed) {
+        const player = entity as PlayerState;
+        const targetPos = player.movement.targetPos!;
+        const speed = player.movement.speed!;
+        const dirToTarget = calculateDir(basePos, targetPos);
+
+        const stepX = dirToTarget.x * speed * deltaTimeSec;
+        const stepZ = dirToTarget.z * speed * deltaTimeSec;
+        const distToTarget = distance(basePos, targetPos);
+        const moveAmountThisTick = Math.sqrt(stepX * stepX + stepZ * stepZ);
+
+        if (moveAmountThisTick >= distToTarget || distToTarget < 0.05) {
+            predictedPos = { ...targetPos }; // Will reach target
+            if (dirToTarget.x !== 0 || dirToTarget.z !== 0) {
+                 predictedRotY = Math.atan2(dirToTarget.x, dirToTarget.z);
+            }
+        } else {
+            predictedPos = { x: basePos.x + stepX, z: basePos.z + stepZ };
+            if (dirToTarget.x !== 0 || dirToTarget.z !== 0) {
+                predictedRotY = Math.atan2(dirToTarget.x, dirToTarget.z);
+            }
+        }
+    }
+    // General entity prediction (based on current velocity)
+    else if (baseVel && (baseVel.x !== 0 || baseVel.z !== 0)) {
+        predictedPos = {
+            x: basePos.x + baseVel.x * deltaTimeSec,
+            z: basePos.z + baseVel.z * deltaTimeSec,
+        };
+        // Predict rotation based on velocity direction
+        if (baseVel.x !== 0 || baseVel.z !== 0) {
+            predictedRotY = Math.atan2(baseVel.x, baseVel.z);
+        }
+    }
+
+    // Further refinement for AI rotation if chasing/attacking a player
+    if ('aiState' in entity && (entity as Enemy).targetId && gameState.players[(entity as Enemy).targetId!]) {
+        const enemy = entity as Enemy;
+        const targetPlayer = gameState.players[enemy.targetId!];
+        const dirToTargetPlayer = calculateDir(predictedPos, targetPlayer.position);
+        if (dirToTargetPlayer.x !== 0 || dirToTargetPlayer.z !== 0) {
+            predictedRotY = Math.atan2(dirToTargetPlayer.x, dirToTargetPlayer.z);
+        }
+    }
+
+    return { pos: predictedPos, rotY: predictedRotY };
+}
+catch (error) {
+    console.error('Error in position prediction:', error);
+    // Return original position as fallback
+    return { pos: basePos, rotY: baseRotY };
+}
 }

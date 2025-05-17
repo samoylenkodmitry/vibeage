@@ -86,7 +86,7 @@ function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
         rigidBodyRef.current.setTranslation(targetPos, true);
       } else {
         // Smooth interpolation - blend current position with target position
-        const t = Math.min(delta * 8, 1); // Adjust the 8 factor to change interpolation speed
+        const t = Math.min(delta * 10, 1);   // was delta * 8
         const newPos = currentPos.lerp(targetPos, t);
         rigidBodyRef.current.setTranslation(newPos, true);
       }

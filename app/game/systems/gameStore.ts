@@ -66,7 +66,7 @@ interface GameState {
   hasJoinedGame: boolean;
   selectedSkill: string | null;
   targetWorldPos: { x: number, y: number, z: number } | null;
-  lastMoveSentTimeMs: number | null; // Track the last time we sent a movement update
+  lastMoveIntentSent: number; // Track the last time we sent a move intent
   controlledPlayerRenderPosition: { x: number, y: number, z: number } | null; // The rendered position of the controlled player
 
   // --- Methods ---
@@ -80,8 +80,6 @@ interface GameState {
   // Movement - server authoritative
   sendMoveIntent: (targetPos: VecXZ) => void;
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => void;
-  // Legacy methods for backward compatibility
-  sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => void;
   // Other methods
   sendSelectTarget: (targetId: string | null) => void;
   selectTarget: (targetId: string | null) => void;
@@ -156,16 +154,12 @@ const selectEnemies = (state: GameState) => state.enemies;
 const selectEnemyCount = (state: GameState) => Object.keys(state.enemies).length;
 const selectSelectedTargetId = (state: GameState) => state.selectedTargetId;
 
-// Memoized player selector using a stable function
-const selectPlayer = (id: string) => {
-  const selector = (state: GameState) => selectPlayers(state)[id];
-  // Using Object.is for referential equality check
-  selector.store = { id };
+// Function to create a selector that returns a specific player's data
+const selectPlayer = (playerId: string) => {
+  const selector = (state: GameState) => state.players[playerId] || null;
+  selector.store = { playerId }; // Add metadata for stable referencing
   return selector;
 };
-
-const selectSendPlayerMove = (state: GameState) => state.sendPlayerMove;
-const selectGetPlayer = (state: GameState) => state.getMyPlayer;
 
 export {
   selectPlayers,
@@ -174,10 +168,8 @@ export {
   selectEnemies,
   selectEnemyCount,
   selectSelectedTargetId,
-  selectPlayer,
-  selectSendPlayerMove,
-  selectGetPlayer,
   selectStatusEffects,
+  selectPlayer,
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -206,7 +198,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   hasJoinedGame: false,
   selectedSkill: null,
   targetWorldPos: null,
-  lastMoveSentTimeMs: null,
+  lastMoveIntentSent: 0,
   groundLoot: {},
   inventory: [],
   controlledPlayerRenderPosition: null,
@@ -382,41 +374,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
-  // Legacy movement method - keep for compatibility but mark as deprecated
-  sendPlayerMove: (position: { x: number; y: number; z: number }, rotationY: number) => {
-    console.warn('sendPlayerMove is deprecated. Use intent-based movement instead.');
-    const socket = get().socket;
-    if (!socket) {
-      console.warn('Cannot send player move: Socket not connected');
-      return;
-    }
-    
-    // Throttle outbound messages to reduce network traffic
-    const now = performance.now();
-    const lastSent = get().lastMoveSentTimeMs || 0;
-    
-    // Limit to 13Hz (roughly 75ms between updates)
-    if (now - lastSent < 75) {
-      return;
-    }
-    
-    // Update the last sent timestamp
-    set(produce(state => {
-      state.lastMoveSentTimeMs = now;
-    }));
-    
-    socket.emit('playerMove', { position, rotationY });
-  },
-
   // New intent-based movement method with the server-authoritative protocol
   sendMoveIntent: (targetPos: VecXZ) => {
     const socket = get().socket;
     const myPlayerId = get().myPlayerId;
+    const state = get();
     
     if (!socket || !myPlayerId) {
       console.warn('Cannot send move intent: Socket not connected or player ID unknown');
       return;
     }
+    
+    const now = performance.now();
+    if (now - state.lastMoveIntentSent < 125) return;   // new guard
+    state.lastMoveIntentSent = now;
     
     socket.emit('msg', {
       type: 'MoveIntent',
@@ -650,26 +621,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     console.log('[Client] Updating inventory with items:', items);
     set(produce(state => {
       state.inventory = items;
-    }));
-  },
-  
-  // Update a player's properties - used for updating inventory and other player properties
-  updatePlayer: (player: { id: string, [key: string]: any }) => {
-    console.log('[Client] Updating player data:', player);
-    set(produce(state => {
-      if (state.players[player.id]) {
-        // Update player properties
-        Object.keys(player).forEach(key => {
-          if (key !== 'id') {
-            (state.players[player.id] as any)[key] = player[key];
-          }
-        });
-        
-        // If this is the controlled player, also update inventory in main state
-        if (player.id === state.myPlayerId && player.inventory) {
-          state.inventory = player.inventory;
-        }
-      }
     }));
   },
 }));

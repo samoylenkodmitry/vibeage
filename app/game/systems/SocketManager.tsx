@@ -97,7 +97,7 @@ export default function SocketManager() {
     const state = useGameStore.getState();
     const clientReceiveTs = performance.now();
     
-    const { id, pos, vel, snapTs: serverSnapTs } = snap;
+    const { id, pos, vel, snapTs: serverSnapTs, predictions } = snap;
     
     if (!id || !pos || !serverSnapTs) {
       console.warn("Invalid snapshot entry:", snap);
@@ -119,7 +119,8 @@ export default function SocketManager() {
         vel: velocity,
         rot: player.rotation?.y || 0,
         snapTs: clientReceiveTs,
-        serverSnapTs: serverSnapTs
+        serverSnapTs: serverSnapTs,
+        predictions: predictions // Include the predictions array from server
       };
       
       // Push to the module-global buffer for calculations
@@ -148,7 +149,8 @@ export default function SocketManager() {
         vel: velocity,
         rot: enemy.rotation?.y || 0,
         snapTs: clientReceiveTs,
-        serverSnapTs: serverSnapTs
+        serverSnapTs: serverSnapTs,
+        predictions: predictions // Include the predictions array from server
       };
       
       // Push to the module-global buffer for calculations

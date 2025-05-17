@@ -3,10 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, CapsuleCollider} from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore, selectPlayer, selectMyPlayerId, selectPlayerIds } from '../systems/gameStore';
-import { GROUND_Y, getBuffer } from '../systems/interpolation';
+import { GROUND_Y, getBuffer, damp, TELEPORT_THRESHOLD } from '../systems/interpolation';
 import { VecXZ } from '../../../shared/messages';
 
-// Individual Player Component
+// Individual Player Character
 function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
   const playerRef = useRef<any>(null);
   const playerState = useGameStore(selectPlayer(playerId));
@@ -20,7 +20,9 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
   const movementTimestampRef = useRef(0);
-
+  const predictedPosRef = useRef(new THREE.Vector3(playerState.position.x, GROUND_Y, playerState.position.z));
+  const predictedVelRef = useRef(new THREE.Vector3());
+  
   // Initialize camera angle
   useEffect(() => {
     if (isControlledPlayer) {
@@ -199,70 +201,69 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   }, [isControlledPlayer, handleMouseClick, handleMouseDown, handleMouseUp, handleMouseMove, handleContextMenu, handleKeyDown, handleKeyUp]);
 
   // --- Update Player.tsx useFrame handler to use position snapshots from the module-global buffer ---
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (!playerRef.current || !playerState) return;
 
-    try {
-      const buf = getBuffer(playerId);
-      const lag = 200;
-      const tick = performance.now() - lag;
-      const s = buf.sample(tick);
+    const buf = getBuffer(playerId);
+    const renderTs = performance.now() - 100;            // 100 ms interpolation delay
+    const snap = buf.sample(renderTs);
+    if (!snap) return;
+
+    // ---------- prediction ----------
+    // step client-side position using last velocity
+    predictedPosRef.current.addScaledVector(predictedVelRef.current, delta);
+
+    // apply server correction smoothly unless the gap is large
+    const serverPos = new THREE.Vector3(snap.pos.x, GROUND_Y, snap.pos.z);
+    const gap = serverPos.distanceTo(predictedPosRef.current);
+    if (gap > TELEPORT_THRESHOLD) {
+      // hard snap on large divergence
+      predictedPosRef.current.copy(serverPos);
+    } else {
+      predictedPosRef.current.x = damp(predictedPosRef.current.x, serverPos.x, 16, delta);
+      predictedPosRef.current.z = damp(predictedPosRef.current.z, serverPos.z, 16, delta);
+    }
+
+    // keep velocity up-to-date for the next frame
+    predictedVelRef.current.set(snap.vel.x, 0, snap.vel.z);
+
+    // push to physics
+    playerRef.current.setNextKinematicTranslation(predictedPosRef.current);
+    playerRef.current.setNextKinematicRotation({
+      x: 0,
+      y: Math.sin(snap.rot / 2),
+      z: 0,
+      w: Math.cos(snap.rot / 2)
+    });
+    
+    // Check if server considers player stopped
+    const serverConsideredStopped = snap.vel ? (Math.abs(snap.vel.x) < 0.001 && Math.abs(snap.vel.z) < 0.001) : true;
+    
+    // Get client-side targetWorldPos for comparison
+    const targetWorldPos = isControlledPlayer ? useGameStore.getState().targetWorldPos : null;
+    
+    // If this is the controlled player and server indicates stopped,
+    // clear the target indicator (yellow ring)
+    if (isControlledPlayer && serverConsideredStopped && targetWorldPos !== null) {
+      useGameStore.getState().setTargetWorldPos(null);
+    }
+    
+    // Update controlled player render position for other systems
+    if (isControlledPlayer) {
+      const currentGameStorePos = useGameStore.getState().controlledPlayerRenderPosition;
       
-      if (s) {
-          // Use server position directly without any interpolation
-          const serverPos = new THREE.Vector3(s.pos.x, GROUND_Y, s.pos.z);
-          
-          // Check if server considers player stopped
-          const serverConsideredStopped = s.vel ? (Math.abs(s.vel.x) < 0.001 && Math.abs(s.vel.z) < 0.001) : true;
-          
-          // Get client-side targetWorldPos for comparison
-          const targetWorldPos = isControlledPlayer ? useGameStore.getState().targetWorldPos : null;
-
-          // Always apply server position directly - no interpolation
-          playerRef.current.setNextKinematicTranslation({
-            x: serverPos.x,
-            y: serverPos.y,
-            z: serverPos.z
-          });
-
-          
-          // If this is the controlled player and server indicates stopped,
-          // clear the target indicator (yellow ring)
-          if (isControlledPlayer && serverConsideredStopped && targetWorldPos !== null) {
-            useGameStore.getState().setTargetWorldPos(null);
-          }
-          
-          // Apply rotation directly from server
-          playerRef.current.setNextKinematicRotation({
-            x: 0,
-            y: Math.sin(s.rot/2),
-            z: 0,
-            w: Math.cos(s.rot/2)
-          });
-          
-          // Update controlled player render position for other systems
-          if (isControlledPlayer) {
-            const currentGameStorePos = useGameStore.getState().controlledPlayerRenderPosition;
-            
-            // Get the position directly from the physics body after we've updated it
-            const updatedPos = playerRef.current.translation();
-            
-            // Only update if position changed significantly or if we don't have a position yet
-            const shouldUpdate = !currentGameStorePos || 
-              Math.abs(updatedPos.x - (currentGameStorePos?.x || 0)) > 0.01 || 
-              Math.abs(updatedPos.z - (currentGameStorePos?.z || 0)) > 0.01;
-              
-            if (shouldUpdate) {
-              useGameStore.getState().setControlledPlayerRenderPosition({
-                x: updatedPos.x,
-                y: updatedPos.y,
-                z: updatedPos.z
-              });
-            }
-          }
-      }      
-    } catch (err) {
-      console.error("Error in useFrame handler:", err);
+      // Only update if position changed significantly or if we don't have a position yet
+      const shouldUpdate = !currentGameStorePos || 
+        Math.abs(predictedPosRef.current.x - (currentGameStorePos?.x || 0)) > 0.01 || 
+        Math.abs(predictedPosRef.current.z - (currentGameStorePos?.z || 0)) > 0.01;
+        
+      if (shouldUpdate) {
+        useGameStore.getState().setControlledPlayerRenderPosition({
+          x: predictedPosRef.current.x,
+          y: predictedPosRef.current.y,
+          z: predictedPosRef.current.z
+        });
+      }
     }
   });
 
