@@ -54,24 +54,27 @@ function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   useFrame((state, delta) => {
     if (!isAlive || !rigidBodyRef.current) return;
     
-    // Reset the flag at the beginning of each frame
-    hasUpdatedThisFrameRef.current = false;
-    
     // Get the interpolation buffer for this enemy
     const buffer = getBuffer(id);
     
-    // Sample the buffer at the current render time
-    const snap = buffer.sample(performance.now());
+    // Sample the buffer with renderTs (current time minus interpolation delay)
+    const renderTs = performance.now() - 100; // 100ms interpolation delay
+    const serverInterpolatedSnap = buffer.sample(renderTs);
     
-    if (snap) {
+    if (serverInterpolatedSnap) {
       // Get target position from the snapshot
       const targetPos = new THREE.Vector3(
-        snap.pos.x,
+        serverInterpolatedSnap.pos.x,
         position.y, // Keep Y coordinate the same
-        snap.pos.z
+        serverInterpolatedSnap.pos.z
       );
       
-      // Either smoothly interpolate or directly set position based on distance
+      // Get rotation from the snapshot if available
+      const targetRotY = serverInterpolatedSnap.rot !== undefined 
+        ? serverInterpolatedSnap.rot 
+        : enemy.rotation?.y || 0;
+      
+      // Get current position
       const currentPos = new THREE.Vector3(
         rigidBodyRef.current.translation().x,
         position.y,
@@ -81,28 +84,36 @@ function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
       const distance = currentPos.distanceTo(targetPos);
       
       // If we're far away from the target position, teleport
-      // Otherwise, smoothly interpolate
       if (distance > 5) {
-        rigidBodyRef.current.setTranslation(targetPos, true);
+        rigidBodyRef.current.setNextKinematicTranslation(targetPos);
+        // Update rotation immediately on teleport
+        rigidBodyRef.current.setNextKinematicRotation(new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(0, targetRotY, 0)
+        ));
       } else {
         // Smooth interpolation - blend current position with target position
-        const t = Math.min(delta * 10, 1);   // was delta * 8
-        const newPos = currentPos.lerp(targetPos, t);
-        rigidBodyRef.current.setTranslation(newPos, true);
+        const lerpFactor = Math.min(delta * 10, 1); // Adjust speed of interpolation
+        
+        // Create interpolated position
+        const newPos = new THREE.Vector3().lerpVectors(currentPos, targetPos, lerpFactor);
+        
+        // Set kinematic position for next frame
+        rigidBodyRef.current.setNextKinematicTranslation(newPos);
+        
+        // Smoothly interpolate rotation
+        const currentRotation = rigidBodyRef.current.rotation();
+        const currentEuler = new THREE.Euler().setFromQuaternion(
+          new THREE.Quaternion(currentRotation.x, currentRotation.y, currentRotation.z, currentRotation.w)
+        );
+        
+        // Interpolate rotation
+        const newRotY = THREE.MathUtils.lerp(currentEuler.y, targetRotY, lerpFactor * 0.8);
+        
+        // Set kinematic rotation for next frame
+        rigidBodyRef.current.setNextKinematicRotation(new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(0, newRotY, 0)
+        ));
       }
-      
-      // Mark as updated
-      hasUpdatedThisFrameRef.current = true;
-    }
-    
-    // If we have velocity but haven't updated from buffer, apply velocity directly
-    if (!hasUpdatedThisFrameRef.current && velocity && (velocity.x !== 0 || velocity.z !== 0)) {
-      const newPos = new THREE.Vector3(
-        rigidBodyRef.current.translation().x + velocity.x * delta,
-        position.y,
-        rigidBodyRef.current.translation().z + velocity.z * delta
-      );
-      rigidBodyRef.current.setTranslation(newPos, true);
     }
   });
 

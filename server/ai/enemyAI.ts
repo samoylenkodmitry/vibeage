@@ -102,17 +102,20 @@ export function updateEnemyAI(
                     z: dirToTarget.z * enemy.movementSpeed
                 };
                 
-                // Update position based on velocity
+                // Update position based on velocity and delta time (properly scaled)
                 enemy.position.x += enemy.velocity.x * deltaTime;
                 enemy.position.z += enemy.velocity.z * deltaTime;
                 
-                // Update rotation to face target
+                // Update rotation to face target (stored in radians)
                 enemy.rotation.y = Math.atan2(dirToTarget.x, dirToTarget.z);
 
+                // Update spatial hash grid if the enemy moved to a different cell
                 if (gridCellChanged(oldPos, enemy.position)) {
                     spatialGrid.move(enemy.id, oldPos, enemy.position);
                 }
-                // Position updates are sent via broadcastSnaps/collectDeltas
+                
+                // Mark the enemy as needing a position update sent to clients
+                (enemy as any).dirtySnap = true;
             }
         }
     }
@@ -197,7 +200,19 @@ export function updateEnemyAI(
             enemy.position.x = enemy.spawnPosition.x; // Snap to spawn
             enemy.position.z = enemy.spawnPosition.z;
             enemy.velocity = { x: 0, z: 0 };
+            
+            // Make sure we're facing the correct direction at spawn
+            // Use current rotation as spawn rotation if not defined
+            if (enemy.spawnRotation === undefined) {
+                enemy.spawnRotation = enemy.rotation.y;
+            } else {
+                enemy.rotation.y = enemy.spawnRotation;
+            }
+            
             broadcastEnemyUpdate = true;
+            // Mark the enemy as needing a position update sent to clients 
+            // even though it's stopped (to update the rotation)
+            (enemy as any).dirtySnap = true;
         } else {
             // Move towards spawn point
             const dirToSpawn = localCalculateDir(enemy.position, enemy.spawnPosition);
@@ -209,16 +224,20 @@ export function updateEnemyAI(
                 z: dirToSpawn.z * enemy.movementSpeed
             };
             
-            // Update position based on velocity
+            // Update position based on velocity and delta time (properly scaled)
             enemy.position.x += enemy.velocity.x * deltaTime;
             enemy.position.z += enemy.velocity.z * deltaTime;
             
-            // Update rotation to face spawn point
+            // Update rotation to face spawn point (stored in radians)
             enemy.rotation.y = Math.atan2(dirToSpawn.x, dirToSpawn.z);
 
+            // Update spatial hash grid if the enemy moved to a different cell
             if (gridCellChanged(oldPos, enemy.position)) {
                 spatialGrid.move(enemy.id, oldPos, enemy.position);
             }
+            
+            // Mark the enemy as needing a position update sent to clients
+            (enemy as any).dirtySnap = true;
         }
         
         // During returning, can still aggro if a player comes close

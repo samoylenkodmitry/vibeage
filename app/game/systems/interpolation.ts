@@ -14,6 +14,7 @@ export interface Snap {
   snapTs: number;           // client-local receipt time of the PosSnap message
   serverSnapTs: number;     // server time of the base pos/vel in the PosSnap message
   predictions?: PredictionKeyframe[];  // Array of server predictions
+  seq?: number;             // Optional sequence number for reconciliation
 }
 
 export const GROUND_Y = 0.5;
@@ -122,6 +123,7 @@ export class SnapBuffer {
             vel: base_snap.vel,
             snapTs: renderTsClientCorrected,
             serverSnapTs: renderTsClientCorrected,
+            predictions: base_snap.predictions
         };
     } 
     // 5. If we're past the last keyframe, extrapolate
@@ -145,6 +147,7 @@ export class SnapBuffer {
             vel: velForExtrapolation,
             snapTs: renderTsClientCorrected,
             serverSnapTs: renderTsClientCorrected,
+            predictions: base_snap.predictions
         };
     }
 

@@ -69,8 +69,14 @@ interface GameState {
   lastMoveIntentSent: number; // Track the last time we sent a move intent
   controlledPlayerRenderPosition: { x: number, y: number, z: number } | null; // The rendered position of the controlled player
 
+  // --- Movement Reconciliation State ---
+  pendingMoveSequences: number[];
+  acknowledgedSequence: number;
+
   // --- Methods ---
   setSocket: (socketInstance: any) => void;
+  acknowledgeServerSequence: (seq: number) => void;
+  recordMoveIntent: (seq: number) => void;
   setGameState: (newState: ServerGameState) => void;
   setMyPlayerId: (id: string) => void;
   addPlayer: (player: PlayerState) => void;
@@ -203,6 +209,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   inventory: [],
   controlledPlayerRenderPosition: null,
 
+  // --- Movement Reconciliation State ---
+  pendingMoveSequences: [],
+  acknowledgedSequence: -1,
+
   // --- New explicitly defined action functions ---
   setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => {
     set(produce(state => {
@@ -266,6 +276,22 @@ export const useGameStore = create<GameState>((set, get) => ({
   setSocket: (socketInstance: any) => {
     set(produce(state => {
       state.socket = socketInstance;
+    }));
+  },
+  
+  // Add sequence number tracking for move intent reconciliation
+  acknowledgeServerSequence: (seq: number) => {
+    set(produce(state => {
+      state.acknowledgedSequence = seq;
+      // Remove all sequences up to and including the acknowledged one
+      state.pendingMoveSequences = state.pendingMoveSequences.filter(s => s > seq);
+    }));
+  },
+  
+  // Record a sent move intent for reconciliation
+  recordMoveIntent: (seq: number) => {
+    set(produce(state => {
+      state.pendingMoveSequences.push(seq);
     }));
   },
   

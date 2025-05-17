@@ -107,16 +107,14 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   
   // Ensure velocity is set if player is supposed to be moving towards a target
   // This also recalculates velocity if the target changes or speed changes.
-  if (!entity.velocity || (entity.velocity.x === 0 && entity.velocity.z === 0 && entity.movement.targetPos)) {
+  if (!entity.velocity || (entity.movement.isMoving && entity.movement.targetPos)) {
     const dir = calculateDir(currentPosVec, dest);
     entity.velocity = {
       x: dir.x * speed,
       z: dir.z * speed
     };
-    // If velocity was zero and is now non-zero (i.e., player started moving), mark as dirty for snapshot
-    if (dir.x !== 0 || dir.z !== 0) {
-        (entity as any).dirtySnap = true;
-    }
+    // If velocity changed significantly, mark as dirty for snapshot
+    (entity as any).dirtySnap = true;
   }
 
   const deltaTimeSec = deltaTimeMs / 1000;
@@ -142,6 +140,7 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
     }
 
     entity.movement.targetPos = null; // Stop movement by clearing target
+    entity.movement.isMoving = false; // Update movement state
     entity.velocity = { x: 0, z: 0 }; // Clear velocity as player has stopped
     (entity as any).dirtySnap = true; // Mark for forced snapshot because velocity changed to zero
   } else {
@@ -156,8 +155,49 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
     }
   }
   
+  // Update rotation based on movement direction
+  if (entity.velocity.x !== 0 || entity.velocity.z !== 0) {
+    entity.rotation.y = Math.atan2(entity.velocity.x, entity.velocity.z);
+  }
+  
+  // Update the movement state's last update time
+  entity.movement.lastUpdateTime = Date.now();
+  
   // Update the position history after movement
   updatePositionHistory(entity, Date.now());
+}
+
+/**
+ * Advances an enemy's position based on its velocity
+ */
+function advanceEnemyPosition(enemy: Enemy, deltaTimeMs: number): void {
+  if (!enemy.velocity || (enemy.velocity.x === 0 && enemy.velocity.z === 0)) return;
+  
+  const deltaTimeSec = deltaTimeMs / 1000;
+  const stepX = enemy.velocity.x * deltaTimeSec;
+  const stepZ = enemy.velocity.z * deltaTimeSec;
+  
+  const oldPosForGrid = { x: enemy.position.x, z: enemy.position.z }; // For spatial grid updates
+  
+  // Move the enemy
+  enemy.position.x += stepX;
+  enemy.position.z += stepZ;
+  
+  // Update spatial grid if cell changed
+  if (gridCellChanged(oldPosForGrid, { x: enemy.position.x, z: enemy.position.z })) {
+    spatial.move(enemy.id, oldPosForGrid, { x: enemy.position.x, z: enemy.position.z });
+  }
+  
+  // Update rotation based on movement direction
+  if (enemy.velocity.x !== 0 || enemy.velocity.z !== 0) {
+    enemy.rotation.y = Math.atan2(enemy.velocity.x, enemy.velocity.z);
+  }
+  
+  // Update position history
+  updatePositionHistory(enemy, Date.now());
+  
+  // Update last update time
+  enemy.lastUpdateTime = Date.now();
 }
 
 /**
@@ -190,36 +230,25 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   // Process player movements
   for (const playerId in state.players) {
     const player = state.players[playerId];
-    if (player.movement?.targetPos) {
+    if (player.movement?.isMoving && player.movement?.targetPos) {
       advancePosition(player, deltaTimeMs);
     }
   }
   
-  // Process enemy logic, status effects, etc.
+  // Process enemy movements
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
-    const now = Date.now();
-
-    // Update position history for all enemies at each tick
-    updatePositionHistory(enemy, now);
-    enemy.lastUpdateTime = now;
-    
-    // Process enemy targeting and movement here
-    if (enemy.isAlive && enemy.targetId) {
-      const target = state.players[enemy.targetId];
-      if (target && target.isAlive) {
-        // Calculate target position prediction
-
-        // Movement logic for enemy to follow target
-        // (Simplified for now)
+    if (enemy.isAlive) {
+      // Advance enemy position based on velocity
+      advanceEnemyPosition(enemy, deltaTimeMs);
+      
+      // Process status effects
+      if (enemy.statusEffects.length > 0) {
+        const now = Date.now();
+        enemy.statusEffects = enemy.statusEffects.filter(effect => {
+          return (effect.startTimeTs + effect.durationMs) > now;
+        });
       }
-    }
-    
-    // Process status effects (could be moved to a separate function)
-    if (enemy.statusEffects.length > 0) {
-      enemy.statusEffects = enemy.statusEffects.filter(effect => {
-        return (effect.startTimeTs + effect.durationMs) > now;
-      });
     }
   }
 }
@@ -1071,13 +1100,6 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
     return;
   }
   
-  // Implement a cast-lock window to prevent "micro-teleport" exploits
-  const now = Date.now();
-  if (player.lastUpdateTime && now - player.lastUpdateTime < 33) { // 33ms = ~1 tick at 30 FPS
-    console.warn(`Movement request from player ${playerId} received too quickly, enforcing cast-lock window`);
-    // Still process the request but apply a slight delay (server-side)
-  }
-  
   // Validate the target position is within reasonable bounds
   if (!isValidPosition(msg.targetPos)) {
     console.warn(`Invalid target position in MoveIntent from player ${playerId}: ${JSON.stringify(msg.targetPos)}`);
@@ -1086,56 +1108,37 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
 
   // Get current position
   const currentPos = { x: player.position.x, z: player.position.z };
+  const now = Date.now();
   
   // Calculate the distance to the target
-  const distance = Math.sqrt(
-    Math.pow(currentPos.x - msg.targetPos.x, 2) +
-    Math.pow(currentPos.z - msg.targetPos.z, 2)
-  );
+  const distanceToTarget = distance(currentPos, msg.targetPos);
   
   // For very small movements (effectively a stop command)
-  if (distance < 0.05) {
+  if (distanceToTarget < 0.05) {
     // This is a stop command - immediately halt the player
     player.movement = { 
-      isMoving: false, 
-      lastUpdateTime: now 
+      isMoving: false,
+      lastUpdateTime: now,
+      speed: getPlayerSpeed(player) // Set a default speed even when stopped
     };
     player.velocity = { x: 0, z: 0 };
     
-    // Create a position snapshot for the stop command
-    const stopSnapMsg = {
-      type: 'PosSnap',
-      snaps: [{
-        id: playerId,
-        pos: currentPos,
-        vel: { x: 0, z: 0 },
-        snapTs: now
-      }]
-    };
-    
-    // Send to the requesting client
-    socket.emit('msg', stopSnapMsg);
-    
-    // Also broadcast to other players
-    socket.broadcast.emit('msg', stopSnapMsg);
+    // Mark for forced snapshot because velocity changed to zero
+    (player as any).dirtySnap = true;
     
     return;
   }
   
-  // Calculate direction and determine speed (now server-controlled)
+  // Calculate direction towards target
   const dir = calculateDir(currentPos, msg.targetPos);
   
-  // Use the target position sent by the client
-  const actualTargetPos = msg.targetPos;
-
   // Determine server-authorized speed (can vary based on player stats, buffs, etc.)
   const speed = getPlayerSpeed(player); // Server decides the speed
   
   // Update player's movement state
   player.movement = {
-    ...player.movement,
     isMoving: true,
-    targetPos: actualTargetPos, // Use the possibly capped target position
+    targetPos: msg.targetPos,
     lastUpdateTime: now,
     speed: speed
   };
@@ -1146,25 +1149,14 @@ function onMoveIntent(socket: Socket, state: GameState, msg: MoveIntent): void {
     z: dir.z * speed
   };
   
+  // Update rotation to face movement direction
+  player.rotation.y = Math.atan2(dir.x, dir.z);
+  
   // Update last processed time
   player.lastUpdateTime = now;
   
-  // Create a position snapshot message
-  const posSnapMsg = {
-    type: 'PosSnap',
-    snaps: [{
-      id: playerId, 
-      pos: currentPos,
-      vel: player.velocity,
-      snapTs: now
-    }]
-  };
-  
-  // Send position update back to the requesting client
-  socket.emit('msg', posSnapMsg);
-  
-  // Also broadcast to other players
-  socket.broadcast.emit('msg', posSnapMsg);
+  // Mark the player for sending a snapshot update
+  (player as any).dirtySnap = true;
   
   // Log movement (debug level)
   log(LOG_CATEGORIES.MOVEMENT, 'debug', `Player ${playerId} moving to ${JSON.stringify(msg.targetPos)} at speed ${speed}`);

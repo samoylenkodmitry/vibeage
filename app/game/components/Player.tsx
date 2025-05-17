@@ -204,65 +204,131 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   useFrame((state, delta) => {
     if (!playerRef.current || !playerState) return;
 
-    const buf = getBuffer(playerId);
-    const renderTs = performance.now() - 100;            // 100 ms interpolation delay
-    const snap = buf.sample(renderTs);
-    if (!snap) return;
-
-    // ---------- prediction ----------
-    // step client-side position using last velocity
-    predictedPosRef.current.addScaledVector(predictedVelRef.current, delta);
-
-    // apply server correction smoothly unless the gap is large
-    const serverPos = new THREE.Vector3(snap.pos.x, GROUND_Y, snap.pos.z);
-    const gap = serverPos.distanceTo(predictedPosRef.current);
-    if (gap > TELEPORT_THRESHOLD) {
-      // hard snap on large divergence
-      predictedPosRef.current.copy(serverPos);
-    } else {
-      predictedPosRef.current.x = damp(predictedPosRef.current.x, serverPos.x, 16, delta);
-      predictedPosRef.current.z = damp(predictedPosRef.current.z, serverPos.z, 16, delta);
-    }
-
-    // keep velocity up-to-date for the next frame
-    predictedVelRef.current.set(snap.vel.x, 0, snap.vel.z);
-
-    // push to physics
-    playerRef.current.setNextKinematicTranslation(predictedPosRef.current);
-    playerRef.current.setNextKinematicRotation({
-      x: 0,
-      y: Math.sin(snap.rot / 2),
-      z: 0,
-      w: Math.cos(snap.rot / 2)
-    });
+    // Get target position from game store if available
+    const targetWorldPosStore = useGameStore.getState().targetWorldPos;
     
-    // Check if server considers player stopped
-    const serverConsideredStopped = snap.vel ? (Math.abs(snap.vel.x) < 0.001 && Math.abs(snap.vel.z) < 0.001) : true;
-    
-    // Get client-side targetWorldPos for comparison
-    const targetWorldPos = isControlledPlayer ? useGameStore.getState().targetWorldPos : null;
-    
-    // If this is the controlled player and server indicates stopped,
-    // clear the target indicator (yellow ring)
-    if (isControlledPlayer && serverConsideredStopped && targetWorldPos !== null) {
-      useGameStore.getState().setTargetWorldPos(null);
-    }
-    
-    // Update controlled player render position for other systems
+    // For controlled player: client-side prediction and server reconciliation
     if (isControlledPlayer) {
-      const currentGameStorePos = useGameStore.getState().controlledPlayerRenderPosition;
+      // Get client-side prediction target from game store (if player has clicked to move)
+      const clientPredictedTargetPos = targetWorldPosStore ? 
+        new THREE.Vector3(targetWorldPosStore.x, GROUND_Y, targetWorldPosStore.z) : null;
       
-      // Only update if position changed significantly or if we don't have a position yet
-      const shouldUpdate = !currentGameStorePos || 
-        Math.abs(predictedPosRef.current.x - (currentGameStorePos?.x || 0)) > 0.01 || 
-        Math.abs(predictedPosRef.current.z - (currentGameStorePos?.z || 0)) > 0.01;
+      // --- LOCAL PREDICTION STEP ---
+      if (clientPredictedTargetPos) {
+        // Calculate client-side movement speed (should match server speed calculations)
+        const clientSpeed = 20; // Basic speed that should match server's base calculation
         
-      if (shouldUpdate) {
-        useGameStore.getState().setControlledPlayerRenderPosition({
-          x: predictedPosRef.current.x,
-          y: predictedPosRef.current.y,
-          z: predictedPosRef.current.z
-        });
+        // Calculate distance to target
+        const distToTarget = clientPredictedTargetPos.distanceTo(predictedPosRef.current);
+        
+        if (distToTarget < 0.05) {
+          // We've reached the target locally - don't clear the target visual yet
+          // The server will confirm when we've truly stopped
+        } else {
+          // Calculate direction to target
+          const dir = new THREE.Vector3()
+            .subVectors(clientPredictedTargetPos, predictedPosRef.current)
+            .normalize();
+          
+          // Set predicted velocity based on direction and speed
+          predictedVelRef.current.set(
+            dir.x * clientSpeed,
+            0,
+            dir.z * clientSpeed
+          );
+          
+          // Predict movement this frame
+          const moveDistance = Math.min(clientSpeed * delta, distToTarget);
+          predictedPosRef.current.addScaledVector(dir, moveDistance);
+          
+          // Update rotation to face movement direction
+          const targetRotation = Math.atan2(dir.x, dir.z);
+          playerRef.current.setNextKinematicRotation(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(0, targetRotation, 0)
+          ));
+        }
+      }
+      
+      // --- SERVER RECONCILIATION STEP ---
+      const buf = getBuffer(playerId);
+      const renderTs = performance.now() - 100; // 100ms interpolation delay
+      const serverInterpolatedSnap = buf.sample(renderTs);
+      
+      if (serverInterpolatedSnap) {
+        // Get authoritative server position and velocity
+        const serverPos = new THREE.Vector3(
+          serverInterpolatedSnap.pos.x, 
+          GROUND_Y, 
+          serverInterpolatedSnap.pos.z
+        );
+        
+        // Calculate gap between our predicted position and server position
+        const gap = serverPos.distanceTo(predictedPosRef.current);
+        
+        // Apply correction based on the size of the gap
+        if (gap > TELEPORT_THRESHOLD) {
+          // Hard snap on large divergence
+          predictedPosRef.current.copy(serverPos);
+          console.log(`Large position correction applied: ${gap.toFixed(2)} units`);
+        } else if (gap > 0.1) {
+          // Smooth correction for smaller gaps
+          predictedPosRef.current.x = damp(predictedPosRef.current.x, serverPos.x, 8, delta);
+          predictedPosRef.current.z = damp(predictedPosRef.current.z, serverPos.z, 8, delta);
+        }
+        
+        // If server says we've stopped (zero velocity and no ongoing target), clear client-side target
+        const serverConsideredStopped = 
+          Math.abs(serverInterpolatedSnap.vel.x) < 0.001 && 
+          Math.abs(serverInterpolatedSnap.vel.z) < 0.001;
+          
+        if (serverConsideredStopped && targetWorldPosStore) {
+          // Server indicates player has stopped, clear the target indicator (yellow ring)
+          useGameStore.getState().setTargetWorldPos(null);
+          predictedVelRef.current.set(0, 0, 0);
+        }
+        
+        // Apply rotation from server if not actively moving
+        if (!clientPredictedTargetPos && serverInterpolatedSnap.rot !== undefined) {
+          playerRef.current.setNextKinematicRotation(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(0, serverInterpolatedSnap.rot, 0)
+          ));
+        }
+      }
+      
+      // Apply final position to RigidBody
+      playerRef.current.setNextKinematicTranslation(predictedPosRef.current);
+      
+      // Update game store with final render position for camera and UI
+      useGameStore.getState().setControlledPlayerRenderPosition({
+        x: predictedPosRef.current.x,
+        y: predictedPosRef.current.y,
+        z: predictedPosRef.current.z
+      });
+    }
+    // For remote players: just interpolate based on server data
+    else {
+      const buf = getBuffer(playerId);
+      const renderTs = performance.now() - 100; // 100ms interpolation delay
+      const serverInterpolatedSnap = buf.sample(renderTs);
+      
+      if (serverInterpolatedSnap) {
+        // Get interpolated position and rotation from the server data
+        const targetPos = new THREE.Vector3(
+          serverInterpolatedSnap.pos.x, 
+          GROUND_Y, 
+          serverInterpolatedSnap.pos.z
+        );
+        
+        const targetRotY = serverInterpolatedSnap.rot !== undefined ? 
+          serverInterpolatedSnap.rot : playerState.rotation.y;
+        
+        // Apply interpolated position directly
+        playerRef.current.setNextKinematicTranslation(targetPos);
+        
+        // Apply rotation
+        playerRef.current.setNextKinematicRotation(new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(0, targetRotY, 0)
+        ));
       }
     }
   });

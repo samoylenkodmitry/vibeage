@@ -17,17 +17,15 @@ export interface Vec3D {
  */
 export interface PredictionKeyframe {
     pos: VecXZ;     // Predicted position
-    rotY?: number;  // Optional rotation
-    ts: number;     // Server-epoch ms this keyframe is valid for
+    rotY?: number;  // Optional: Predicted Y rotation
+    ts: number;     // Server timestamp (epoch ms) this keyframe is valid for
 }
 
 export interface PlayerMovementState {
-  isMoving: boolean;
-  path?: VecXZ[];
-  pos?: VecXZ;  // Current position (optional)
-  targetPos?: VecXZ; // Target position when moving
-  lastUpdateTime: number;
-  speed?: number; // Speed is now optional
+  isMoving: boolean;            // True if actively moving towards a target
+  targetPos?: VecXZ | null;     // Server-acknowledged target position
+  lastUpdateTime: number;       // Server time of last movement state update
+  speed: number;                // Current server-authoritative speed for this player
 }
 
 // Base message with type
@@ -50,12 +48,13 @@ export interface MoveIntent extends ClientMsg {
 export interface PosSnap extends ServerMsg {
   type: 'PosSnap';
   id: string;                    // Entity id (player uid)
-  pos: VecXZ;                    // World coords (XZ plane)
-  vel: { x: number; z: number }; // Velocity vector
-  snapTs: number;                // Server timestamp when the snap was sent
+  pos: VecXZ;                    // Current authoritative position at snapTs
+  vel: { x: number; z: number }; // Current authoritative velocity at snapTs
+  rotY?: number;                 // Optional: Current authoritative Y rotation (yaw)
+  snapTs: number;                // Server timestamp (epoch ms) when this snapshot was generated
   seq?: number;                  // Optional sequence number for reconciliation
   
-  /** NEW – at most two future keyframes the server predicts for this entity */
+  /** Server's prediction of future states */
   predictions?: PredictionKeyframe[];
 }
 

@@ -39,6 +39,7 @@ export interface Enemy {
     level: number;
     position: { x: number; y: number; z: number };
     spawnPosition: { x: number; y: number; z: number };
+    spawnRotation?: number;        // Original rotation at spawn (radians)
     rotation: { x: number; y: number; z: number };
     health: number;
     maxHealth: number;

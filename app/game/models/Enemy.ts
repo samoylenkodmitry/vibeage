@@ -20,6 +20,7 @@ export interface Enemy {
   level: number;
   position: { x: number; y: number; z: number };
   spawnPosition: { x: number; y: number; z: number }; // Track original spawn position
+  spawnRotation?: number; // Original rotation at spawn (radians)
   rotation: { x: number; y: number; z: number };
   health: number;
   maxHealth: number;
@@ -41,4 +42,5 @@ export interface Enemy {
   lastAttackTime?: number; // Timestamp of the last attack
   movementSpeed?: number; // Units per second
   velocity?: { x: number; z: number }; // Current velocity vector
+  lastUpdateTime?: number; // Timestamp of the last position update (for prediction)
 }

@@ -97,7 +97,7 @@ export default function SocketManager() {
     const state = useGameStore.getState();
     const clientReceiveTs = performance.now();
     
-    const { id, pos, vel, snapTs: serverSnapTs, predictions } = snap;
+    const { id, pos, vel, rotY, snapTs: serverSnapTs, seq, predictions } = snap;
     
     if (!id || !pos || !serverSnapTs) {
       console.warn("Invalid snapshot entry:", snap);
@@ -117,9 +117,10 @@ export default function SocketManager() {
       const snapObject = {
         pos: pos,
         vel: velocity,
-        rot: player.rotation?.y || 0,
+        rot: rotY !== undefined ? rotY : player.rotation?.y || 0,
         snapTs: clientReceiveTs,
         serverSnapTs: serverSnapTs,
+        seq: seq, // Store sequence number for reconciliation
         predictions: predictions // Include the predictions array from server
       };
       
@@ -128,6 +129,13 @@ export default function SocketManager() {
       
       // Track last known server position for this player
       useGameStore.getState().updateServerLastKnownPosition(id, { ...pos });
+      
+      // If this is our player and there's a sequence number, we can do client-side reconciliation
+      const myPlayerId = state.myPlayerId;
+      if (id === myPlayerId && seq !== undefined) {
+        // Acknowledge this sequence number was processed by the server
+        useGameStore.getState().acknowledgeServerSequence(seq);
+      }
       
       // Update last position and velocity maps
       lastPosMap.current[id] = pos;
@@ -147,7 +155,7 @@ export default function SocketManager() {
       const snapObject = {
         pos: pos,
         vel: velocity,
-        rot: enemy.rotation?.y || 0,
+        rot: rotY !== undefined ? rotY : enemy.rotation?.y || 0,
         snapTs: clientReceiveTs,
         serverSnapTs: serverSnapTs,
         predictions: predictions // Include the predictions array from server
@@ -156,7 +164,7 @@ export default function SocketManager() {
       // Push to the module-global buffer for calculations
       buffer.push(snapObject);
       
-      // Update the enemy in the game store with the new position and velocity
+      // Update the enemy in the game store with the new position, velocity and rotation
       useGameStore.getState().updateEnemy({
         id: id,
         position: { 
@@ -164,7 +172,12 @@ export default function SocketManager() {
           y: enemy.position.y, // Keep the current Y value
           z: pos.z 
         },
-        velocity: velocity
+        velocity: velocity,
+        rotation: { 
+          x: enemy.rotation?.x || 0,
+          y: rotY !== undefined ? rotY : enemy.rotation?.y || 0,
+          z: enemy.rotation?.z || 0
+        }
       });
       
       // Update last position and velocity maps
@@ -688,17 +701,26 @@ export default function SocketManager() {
     
     if (!socket || !myPlayerId) return;
     
+    // Generate sequence number for this move intent
+    const clientSeq = Date.now(); // Use timestamp as sequence number for simplicity
+    
     // Log the outgoing message for debugging
-    console.log('Sending MoveIntent to server:', { targetPos });
+    console.log('Sending MoveIntent to server:', { targetPos, clientSeq });
+    
+    // Add this sequence to pending list for reconciliation
+    useGameStore.getState().recordMoveIntent(clientSeq);
     
     socket.emit('msg', {
       type: 'MoveIntent',
       id: myPlayerId,
       targetPos,
-      clientTs: Date.now()
+      clientTs: Date.now(),
+      seq: clientSeq
     });
     
-    // Don't update player locally - let server updates control movement
+    // Store the last time we sent a move intent (for debouncing)
+    useGameStore.getState().lastMoveIntentSent = Date.now();
+    
     // Store the target in UI state only - not as a position/movement update
     useGameStore.getState().setTargetWorldPos(new THREE.Vector3(targetPos.x, GROUND_Y, targetPos.z));
   }, []);
