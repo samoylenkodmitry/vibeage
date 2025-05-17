@@ -45,11 +45,9 @@ export default function Loot({ lootId, position, items }: LootProps) {
         return;
       }
       
-      // Start pickup animation
-      setIsPickingUp(true);
-      
-      // Play a pickup sound (you'd need to implement this)
-      // playPickupSound();
+      // Don't start pickup animation immediately
+      // The component will unmount naturally when the server confirms pickup
+      // and removes the loot from gameStore.groundLoot
       
       console.log(`[Client] Sending LootPickup message: lootId=${lootId}, playerId=${myPlayerId}`);
       socket.emit('msg', { 

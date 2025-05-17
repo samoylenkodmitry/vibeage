@@ -377,14 +377,21 @@ function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): any[
 }
 
 
+// Create effect manager and spatial hash grid instances at the module scope
+let effects: EffectManager;
+let spatial: SpatialHashGrid;
+
+// Create a reference to the current game state
+let globalState: GameState | null = null;
+
+// Reference to the world API
+let worldAPI: any = null;
+
 /**
  * Initialize the game world
  */
-// Create an effects variable at module scope
-let effects: EffectManager;
-// Create a spatial hash grid at module scope
-let spatial: SpatialHashGrid;
 
+// Utility function to get worldAPI reference
 export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Initialize game state
   const state: GameState = {
@@ -394,6 +401,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     lastProjectileId: 0,
     groundLoot: {}
   };
+  
+  // Set the global state reference
+  globalState = state;
   
   // Initialize effect manager
   effects = new EffectManager(io, state);
@@ -461,8 +471,8 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     }
   }, TICK);
   
-  // Return public API
-  return {
+  // Create the world API
+  const api = {
     handleMessage(socket: Socket, msg: ClientMsg) {
       switch (msg.type) {
         case 'MoveIntent': return onMoveIntent(socket, state, msg as MoveIntent);
@@ -540,6 +550,15 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     },
     
     tryGiveLoot(playerId: string, lootId: string) {
+      // --- START ADDED LOGGING ---
+      console.log(`[tryGiveLoot] Attempting to find lootId: "${lootId}" for player: ${playerId}`);
+      console.log(`[tryGiveLoot] Current groundLoot keys: ${JSON.stringify(Object.keys(state.groundLoot))}`);
+      // Log a few actual keys and their values for comparison if the list is small
+      if (Object.keys(state.groundLoot).length < 10) {
+          console.log(`[tryGiveLoot] Current groundLoot content: ${JSON.stringify(state.groundLoot)}`);
+      }
+      // --- END ADDED LOGGING ---
+      
       // Check if player and loot exist
       const player = state.players[playerId];
       const loot = state.groundLoot[lootId];
@@ -550,7 +569,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       }
       
       if (!loot) {
-        console.error(`[LootPickup] Loot ${lootId} not found`);
+        console.error(`[LootPickup] Loot "${lootId}" not found in state.groundLoot.`);
         return false;
       }
       
@@ -651,6 +670,10 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       return null;
     }
   };
+
+  // Store API reference and return it
+  worldAPI = api;
+  return api;
 }
 
 /**
@@ -788,15 +811,13 @@ function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Serv
             // Enemy position
             const enemyPos = { x: enemyTarget.position.x, z: enemyTarget.position.z };
             
-            // Add the loot to the ground
-            const state = io['gameState'] as any;
-            if (state && state.groundLoot) {
-              // Add loot directly to the game state
-              state.groundLoot[lootId] = {
+            // Access the global state variable to add loot
+            if (globalState) {
+              globalState.groundLoot[lootId] = {
                 position: enemyPos,
                 items: loot
               };
-              console.log(`Added ground loot ${lootId} at position ${JSON.stringify(enemyPos)}`);
+              console.log(`Added ground loot ${lootId} at position ${JSON.stringify(enemyPos)} to game state.`);
             }
             
             // Always broadcast the loot spawn to clients
