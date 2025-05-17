@@ -49,6 +49,8 @@ export function updateEnemyAI(
 
     const now = Date.now();
     let broadcastEnemyUpdate = false;
+    const previousVelocity = { ...enemy.velocity || { x: 0, z: 0 } };
+    const previousState = enemy.aiState;
 
     // State: Idle
     if (enemy.aiState === 'idle') {
@@ -242,4 +244,13 @@ export function updateEnemyAI(
     }
     
     enemy.lastUpdateTime = now; // For enemy movement prediction if needed
+    
+    // Mark enemy as dirty for position snapshots if velocity or state changed
+    const newVelocity = enemy.velocity || { x: 0, z: 0 };
+    if (previousState !== enemy.aiState || 
+        Math.abs(previousVelocity.x - newVelocity.x) > 0.01 || 
+        Math.abs(previousVelocity.z - newVelocity.z) > 0.01) {
+        // Velocity changed significantly or state changed, mark for forced position update
+        (enemy as any).dirtySnap = true;
+    }
 }

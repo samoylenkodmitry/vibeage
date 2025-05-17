@@ -1,12 +1,13 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 
 import * as THREE from 'three';
 import { useGameStore } from '../systems/gameStore';
+import { getBuffer } from '../systems/interpolation';
 
 export default function Enemies() {
   const enemies = useGameStore(state => state.enemies);
@@ -17,7 +18,7 @@ export default function Enemies() {
   const enemiesArray = Object.values(enemies);
 
   useFrame(() => {
-    // Enemy AI and movement logic here
+    // Enemy movement is now handled in the Enemy component for each individual enemy
   });
 
   return (
@@ -42,8 +43,68 @@ interface EnemyProps {
 
 function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { type, position, health, maxHealth, isAlive, level } = enemy;
+  const rigidBodyRef = useRef<any>(null);
+  const { id, type, position, health, maxHealth, isAlive, level, velocity } = enemy;
   const [isHovered, setIsHovered] = useState(false);
+  
+  // Reference to track if we've updated the position for this frame
+  const hasUpdatedThisFrameRef = useRef(false);
+  
+  // Use interpolation for smoother movement
+  useFrame((state, delta) => {
+    if (!isAlive || !rigidBodyRef.current) return;
+    
+    // Reset the flag at the beginning of each frame
+    hasUpdatedThisFrameRef.current = false;
+    
+    // Get the interpolation buffer for this enemy
+    const buffer = getBuffer(id);
+    
+    // Sample the buffer at the current render time
+    const snap = buffer.sample(performance.now());
+    
+    if (snap) {
+      // Get target position from the snapshot
+      const targetPos = new THREE.Vector3(
+        snap.pos.x,
+        position.y, // Keep Y coordinate the same
+        snap.pos.z
+      );
+      
+      // Either smoothly interpolate or directly set position based on distance
+      const currentPos = new THREE.Vector3(
+        rigidBodyRef.current.translation().x,
+        position.y,
+        rigidBodyRef.current.translation().z
+      );
+      
+      const distance = currentPos.distanceTo(targetPos);
+      
+      // If we're far away from the target position, teleport
+      // Otherwise, smoothly interpolate
+      if (distance > 5) {
+        rigidBodyRef.current.setTranslation(targetPos, true);
+      } else {
+        // Smooth interpolation - blend current position with target position
+        const t = Math.min(delta * 8, 1); // Adjust the 8 factor to change interpolation speed
+        const newPos = currentPos.lerp(targetPos, t);
+        rigidBodyRef.current.setTranslation(newPos, true);
+      }
+      
+      // Mark as updated
+      hasUpdatedThisFrameRef.current = true;
+    }
+    
+    // If we have velocity but haven't updated from buffer, apply velocity directly
+    if (!hasUpdatedThisFrameRef.current && velocity && (velocity.x !== 0 || velocity.z !== 0)) {
+      const newPos = new THREE.Vector3(
+        rigidBodyRef.current.translation().x + velocity.x * delta,
+        position.y,
+        rigidBodyRef.current.translation().z + velocity.z * delta
+      );
+      rigidBodyRef.current.setTranslation(newPos, true);
+    }
+  });
 
   // Different models for different enemy types
   const getEnemyModel = () => {
@@ -67,7 +128,14 @@ function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   };
   
   return (
-    <RigidBody type="fixed" position={[position.x, position.y, position.z]}>
+    <RigidBody 
+      ref={rigidBodyRef} 
+      type="kinematicPosition" 
+      position={[position.x, position.y, position.z]}
+      colliders="hull"
+      restitution={0}
+      friction={0.7}
+    >
       {/* Clickable area */}
       <mesh 
         ref={meshRef}

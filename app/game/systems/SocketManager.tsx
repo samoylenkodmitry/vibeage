@@ -104,6 +104,7 @@ export default function SocketManager() {
       return;
     }
     
+    // Check if the ID belongs to a player
     const player = state.players[id];
     if (player) {
       // Get global buffer reference for this player
@@ -130,9 +131,44 @@ export default function SocketManager() {
       // Update last position and velocity maps
       lastPosMap.current[id] = pos;
       lastVelMap.current[id] = velocity;
+    } 
+    // Check if the ID belongs to an enemy
+    else if (state.enemies[id]) {
+      const enemy = state.enemies[id];
+      
+      // Get global buffer reference for this enemy
+      const buffer = getBuffer(id);
+      
+      // Use velocity from snapshot or default to zero if not provided
+      const velocity = vel || { x: 0, z: 0 };
+      
+      // Create a properly timestamped snap object
+      const snapObject = {
+        pos: pos,
+        vel: velocity,
+        rot: enemy.rotation?.y || 0,
+        snapTs: clientReceiveTs,
+        serverSnapTs: serverSnapTs
+      };
+      
+      // Push to the module-global buffer for calculations
+      buffer.push(snapObject);
+      
+      // Update the enemy in the game store with the new position and velocity
+      useGameStore.getState().updateEnemy({
+        id: id,
+        position: { 
+          x: pos.x, 
+          y: enemy.position.y, // Keep the current Y value
+          z: pos.z 
+        },
+        velocity: velocity
+      });
+      
+      // Update last position and velocity maps
+      lastPosMap.current[id] = pos;
+      lastVelMap.current[id] = velocity;
     }
-
-
   }, []);
   
   // Handle skill cast failure

@@ -233,6 +233,7 @@ function collectDeltas(
 ): PosSnap[] {
     const msgs: PosSnap[] = [];
 
+    // Process players
     for (const playerId in state.players) {
         const player = state.players[playerId];
         if (!player.isAlive) continue;
@@ -265,6 +266,40 @@ function collectDeltas(
         lastSentPos[playerId] = { ...pos };
         if ((player as any).dirtySnap) (player as any).dirtySnap = false;
     }
+    
+    // Process enemies
+    for (const enemyId in state.enemies) {
+        const enemy = state.enemies[enemyId];
+        if (!enemy.isAlive) continue;
+
+        const pos = { x: enemy.position.x, z: enemy.position.z }; // Current enemy position
+        const vel = enemy.velocity || { x: 0, z: 0 };
+        const last = lastSentPos[enemyId];
+
+        // Send a snapshot if:
+        // 1. No previous position exists
+        // 2. Enemy is marked as dirty (state change)
+        // 3. Position has changed significantly
+        if (!last || (enemy as any).dirtySnap) {
+            msgs.push({ type: `PosSnap`, id: enemyId, pos: pos, vel: vel, snapTs: timestamp });
+            lastSentPos[enemyId] = { ...pos };
+            if ((enemy as any).dirtySnap) (enemy as any).dirtySnap = false;
+            continue;
+        }
+
+        // Check for significant movement (using the same delta logic as for players)
+        const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
+        const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
+
+        if (dx === 0 && dz === 0) {
+            continue; // No significant change
+        }
+
+        // Position has changed significantly, send update
+        msgs.push({ type: `PosSnap`, id: enemyId, pos: pos, vel: vel, snapTs: timestamp });
+        lastSentPos[enemyId] = { ...pos };
+    }
+    
     return msgs;
 }
 
