@@ -581,9 +581,18 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         quantity: item.quantity
       }));
       
-      // Add items to player's inventory
+      // Add items to player's inventory with stacking
       for (const item of items) {
-        player.inventory.push(item);
+        // Check if the player already has this item type in their inventory
+        const existingItemIndex = player.inventory.findIndex(inv => inv.itemId === item.itemId);
+        
+        if (existingItemIndex !== -1) {
+          // Item exists, stack with existing item
+          player.inventory[existingItemIndex].quantity += item.quantity;
+        } else {
+          // Item doesn't exist, add as new item
+          player.inventory.push(item);
+        }
       }
       
       // Remove the loot from the ground
