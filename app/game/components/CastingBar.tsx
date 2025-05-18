@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../systems/gameStore';
 // Import getSkillById from the correct path using shared definitions
 import { SKILLS as skillsDefinitionShared, SkillId as SkillIdShared } from '../../../shared/skillsDefinition';
@@ -25,14 +25,15 @@ export default function CastingBar({ playerId }: CastingBarProps) {
   );
   
   const [progressPercentInternal, setProgressPercentInternal] = useState(0);
-  const [currentLocalProgressMs, setCurrentLocalProgressMs] = useState(0);
   const [skillName, setSkillName] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  // Use a ref to track current progress without triggering re-renders
+  const currentProgressMsRef = useRef(0);
   
   useEffect(() => {
     if (!player) {
       setIsVisible(false);
-      setCurrentLocalProgressMs(0); // Ensure reset if player disappears
+      currentProgressMsRef.current = 0;
       setProgressPercentInternal(0); // Ensure reset
       return;
     }
@@ -45,7 +46,7 @@ export default function CastingBar({ playerId }: CastingBarProps) {
       if (skill) {
         // THIS IS THE KEY CHANGE: Always reset local progress based on store when cast starts/changes
         const serverProgressMs = player.castingProgressMs || 0;
-        setCurrentLocalProgressMs(serverProgressMs); 
+        currentProgressMsRef.current = serverProgressMs;
         
         const castTimeMs = skill.castMs || 1000;
         // Calculate initial progress based on what the server says (should be 0 for new casts)
@@ -56,12 +57,12 @@ export default function CastingBar({ playerId }: CastingBarProps) {
         setIsVisible(true);
       } else {
         setIsVisible(false); // Skill definition not found
-        setCurrentLocalProgressMs(0); 
+        currentProgressMsRef.current = 0;
         setProgressPercentInternal(0);
       }
     } else {
       setIsVisible(false);
-      setCurrentLocalProgressMs(0); 
+      currentProgressMsRef.current = 0;
       setProgressPercentInternal(0);
     }
   }, [player?.castingSkill, player?.castingProgressMs, player]); // player dependency is important
@@ -76,17 +77,20 @@ export default function CastingBar({ playerId }: CastingBarProps) {
     const castTimeMs = skill.castMs || 1000;
 
     const interval = setInterval(() => {
-      setCurrentLocalProgressMs(prevMs => {
-        const newMs = prevMs + 50; // Increment local progress
-        if (newMs >= castTimeMs) {
-          setProgressPercentInternal(100);
-          // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
-          return castTimeMs; 
-        }
+      // Use the ref value directly
+      const prevMs = currentProgressMsRef.current;
+      const newMs = prevMs + 50; // Increment local progress
+      
+      currentProgressMsRef.current = newMs;
+      
+      if (newMs >= castTimeMs) {
+        setProgressPercentInternal(100);
+        // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
+        currentProgressMsRef.current = castTimeMs;
+      } else {
         const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
         setProgressPercentInternal(newProgressPercent);
-        return newMs;
-      });
+      }
     }, 50);
     
     return () => clearInterval(interval);

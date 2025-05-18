@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 
@@ -44,11 +44,8 @@ interface EnemyProps {
 function Enemy({ enemy, isSelected, onSelect }: EnemyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const rigidBodyRef = useRef<any>(null);
-  const { id, type, position, health, maxHealth, isAlive, level, velocity } = enemy;
+  const { id, type, position, health, maxHealth, isAlive, level } = enemy;
   const [isHovered, setIsHovered] = useState(false);
-  
-  // Reference to track if we've updated the position for this frame
-  const hasUpdatedThisFrameRef = useRef(false);
   
   // Use interpolation for smoother movement
   useFrame((state, delta) => {

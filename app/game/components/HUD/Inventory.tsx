@@ -31,6 +31,7 @@ export default function Inventory({ maxSlots = 20 }: InventoryProps) {
               <img 
                 src={`/items/${inv[i].itemId}.png`} 
                 className="w-full h-full object-contain"
+                alt={`${inv[i].itemId} item`}
                 onError={(e) => {
                   // Fallback for missing images
                   const target = e.target as HTMLImageElement;

@@ -38,7 +38,7 @@ const SkillTreeUI: React.FC = () => {
       
       
       if (classTree) {
-        for (const [skillId, requirement] of Object.entries(classTree.skillProgression)) {
+        for (const [skillId] of Object.entries(classTree.skillProgression)) {
           // Skip skills player already has
           if (player.unlockedSkills.includes(skillId as SkillId)) {
             continue;

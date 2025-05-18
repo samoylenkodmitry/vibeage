@@ -19,8 +19,6 @@ export interface Snap {
 
 export const GROUND_Y = 0.5;
 
-import { useRef } from 'react';
-
 // Module-global SnapBuffer map - one buffer per entity, lives for app lifetime
 const bufMap: Record<string, SnapBuffer> = {};
 export const getBuffer = (id: string) => bufMap[id] || (bufMap[id] = new SnapBuffer());

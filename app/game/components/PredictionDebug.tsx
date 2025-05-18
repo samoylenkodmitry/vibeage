@@ -36,7 +36,7 @@ export default function PredictionDebug() {
       
       entityIds.forEach(id => {
         const entity = entities[id];
-        const buffer = window.__DEBUG_SNAP_BUFFERS?.[id];
+        const buffer = (window as any).__DEBUG_SNAP_BUFFERS?.[id];
         if (!buffer?.lastSnap) return;
         
         const snap = buffer.lastSnap;

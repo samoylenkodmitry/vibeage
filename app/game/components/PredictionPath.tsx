@@ -11,7 +11,7 @@ export default function PredictionPath() {
   
   // Toggle debug paths on 'F7' key
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F7') {
         setShowDebugPaths(prev => !prev);
       }
@@ -31,36 +31,40 @@ export default function PredictionPath() {
   );
 }
 
-function EntityPredictionPath({ entityType }) {
+function EntityPredictionPath({ entityType }: { entityType: string }) {
   const entities = useGameStore(state => state[entityType]);
-  const lineMeshes = useRef({});
+  const lineMeshes = useRef<Record<string, THREE.Line>>({});
   
   useFrame(() => {
     // Cleanup old refs for entities that no longer exist
     Object.keys(lineMeshes.current).forEach(id => {
       if (!entities[id]) {
-        lineMeshes.current[id].parent?.remove(lineMeshes.current[id]);
+        const line = lineMeshes.current[id];
+        if (line && line.parent) line.parent.remove(line);
         delete lineMeshes.current[id];
       }
     });
     
     // Create or update lines for current entities
     Object.entries(entities).forEach(([id, entity]) => {
+      // Type cast to access properties
+      const typedEntity = entity as any;
+      
       // Skip entities that are dead
-      if (!entity.isAlive) return;
+      if (!typedEntity.isAlive) return;
       
       // Get prediction data from debug buffer
       const buffer = (window as any).__DEBUG_SNAP_BUFFERS?.[id];
       if (!buffer?.lastSnap?.predictions) return;
       
       const snap = buffer.lastSnap;
-      const currentPos = entity.position;
+      const currentPos = typedEntity.position;
       
       // Create a line from current position through all prediction points
       const points = [
         new THREE.Vector3(currentPos.x, 0.1, currentPos.z),
         new THREE.Vector3(snap.pos.x, 0.1, snap.pos.z),
-        ...snap.predictions.map(p => new THREE.Vector3(p.pos.x, 0.1, p.pos.z))
+        ...snap.predictions.map((p: any) => new THREE.Vector3(p.pos.x, 0.1, p.pos.z))
       ];
       
       // Create or update line mesh
@@ -93,7 +97,7 @@ function EntityPredictionPath({ entityType }) {
   useEffect(() => {
     return () => {
       Object.values(lineMeshes.current).forEach(line => {
-        line.parent?.remove(line);
+        if (line && line.parent) line.parent.remove(line);
       });
     };
   }, []);
