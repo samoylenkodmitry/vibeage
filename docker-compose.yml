@@ -1,0 +1,41 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports: ['5432:5432']   # for local psql access
+
+  game:
+    build: .
+    depends_on: [db]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      PORT: 3001
+    ports: ['3001:3001']
+    restart: unless-stopped
+
+  # Optional backup service - uncomment to enable
+  # backup:
+  #   image: postgres:16
+  #   depends_on: [db]
+  #   volumes:
+  #     - ./scripts/cron-dump.sh:/cron-dump.sh:ro
+  #     - backups:/backups
+  #   environment:
+  #     DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command: |
+  #     "apt-get update && apt-get -y install cron && 
+  #      echo '0 */4 * * * /cron-dump.sh >> /proc/1/fd/1 2>&1' > /etc/cron.d/db-backup && 
+  #      chmod 0644 /etc/cron.d/db-backup && 
+  #      crontab /etc/cron.d/db-backup && 
+  #      cron -f"
+  #   restart: unless-stopped
+
+volumes:
+  dbdata:
+  # backups:  # Uncomment with backup service

@@ -15,6 +15,8 @@ import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { LOOT_TABLES, LootTable } from './lootTables.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
+import { db } from './db.js';
+import { persistPlayer, recordServerEvent } from './persistence.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -622,6 +624,20 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     }
   }, TICK);
   
+  // Setup periodic player state persistence (every 30s)
+  setInterval(() => {
+    try {
+      log(LOG_CATEGORIES.SYSTEM, 'Running periodic player state persistence...');
+      Object.values(state.players).forEach(player => {
+        persistPlayer(player).catch(error => {
+          console.error(`Failed to persist player ${player.id} in periodic update:`, error);
+        });
+      });
+    } catch (error) {
+      console.error('Error in periodic player persistence:', error);
+    }
+  }, 30_000);
+  
   // Create the world API
   const api = {
     handleMessage(socket: Socket, msg: ClientMsg) {
@@ -769,54 +785,119 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       return true;
     },
     
-    addPlayer(socketId: string, name: string) {
-      const playerId = `player-${hash(socketId + Date.now().toString())}`;
-      
-      const player: PlayerState = {
-        id: playerId,
-        socketId,
-        name,
-        position: { x: 0, y: 0.5, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-        health: 100,
-        maxHealth: 100,
-        mana: 100,
-        maxMana: 100,
-        level: 2,
-        experience: 0,
-        experienceToNextLevel: 100,
-        statusEffects: [],
-        skillCooldownEndTs: {},
-        castingSkill: null,
-        castingProgressMs: 0,
-        isAlive: true,
-        className: 'mage', // Default class
-        unlockedSkills: ['fireball'], // Start with fireball
-        skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
-        availableSkillPoints: 1, // Give the player 1 skill point to start
-        posHistory: [], // Initialize position history
-        lastUpdateTime: Date.now(),
-        inventory: [], // Initialize empty inventory
-        maxInventorySlots: 20 // Set default inventory size
-      };
-      
-      state.players[playerId] = player;
-      
-      // Add player to spatial hash grid
-      spatial.insert(playerId, { x: player.position.x, z: player.position.z });
-      
-      return player;
+    async addPlayer(socketId: string, name: string) {
+      try {
+        // Insert player into database or fetch existing player
+        const { rows: [row] } = await db.query(
+          `insert into players (name, socket_id, last_login)
+             values ($1, $2, now())
+             on conflict (name) do update 
+             set socket_id = excluded.socket_id,
+                 last_login = now()
+           returning *`,
+          [name, socketId]);
+        
+        // Record login for analytics
+        await recordServerEvent('player_login', `Player ${name} logged in`);
+        
+        // Use playerId from database
+        const playerId = row.id;
+        
+        // Create player state, merging DB data with default values
+        const player: PlayerState = {
+          id: playerId,
+          socketId,
+          name,
+          position: { x: 0, y: 0.5, z: 0 },
+          rotation: { x: 0, y: 0, z: 0 },
+          health: 100,
+          maxHealth: 100,
+          mana: 100,
+          maxMana: 100,
+          level: row.level || 1,
+          experience: row.xp || 0,
+          experienceToNextLevel: 100,
+          statusEffects: [],
+          skillCooldownEndTs: {},
+          castingSkill: null,
+          castingProgressMs: 0,
+          isAlive: true,
+          className: row.class_name || 'mage', // Use class from DB or default
+          unlockedSkills: row.skills || ['fireball'], // Use skills from DB or default
+          skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
+          availableSkillPoints: 1, // Give the player 1 skill point to start
+          posHistory: [], // Initialize position history
+          lastUpdateTime: Date.now(),
+          inventory: row.inventory || [], // Use inventory from DB or empty
+          maxInventorySlots: 20 // Set default inventory size
+        };
+        
+        state.players[playerId] = player;
+        
+        // Add player to spatial hash grid
+        spatial.insert(playerId, { x: player.position.x, z: player.position.z });
+        
+        return player;
+      } catch (error) {
+        console.error('Error adding player to database:', error);
+        
+        // Fallback to old method if database fails
+        const fallbackId = `player-${hash(socketId + Date.now().toString())}`;
+        
+        const player: PlayerState = {
+          id: fallbackId,
+          socketId,
+          name,
+          position: { x: 0, y: 0.5, z: 0 },
+          rotation: { x: 0, y: 0, z: 0 },
+          health: 100,
+          maxHealth: 100,
+          mana: 100,
+          maxMana: 100,
+          level: 1,
+          experience: 0,
+          experienceToNextLevel: 100,
+          statusEffects: [],
+          skillCooldownEndTs: {},
+          castingSkill: null,
+          castingProgressMs: 0,
+          isAlive: true,
+          className: 'mage',
+          unlockedSkills: ['fireball'],
+          skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+          availableSkillPoints: 1,
+          posHistory: [],
+          lastUpdateTime: Date.now(),
+          inventory: [],
+          maxInventorySlots: 20
+        };
+        
+        state.players[fallbackId] = player;
+        spatial.insert(fallbackId, { x: player.position.x, z: player.position.z });
+        
+        return player;
+      }
     },
     
-    removePlayerBySocketId(socketId: string) {
+    async removePlayerBySocketId(socketId: string) {
       const playerId = Object.keys(state.players).find(
         id => state.players[id].socketId === socketId
       );
       
       if (playerId) {
-        // Get player position before removing
+        // Get player before removing
         const player = state.players[playerId];
         const pos = { x: player.position.x, z: player.position.z };
+        
+        // Record disconnect for analytics
+        await recordServerEvent('player_disconnect', `Player ${player.name} disconnected`);
+        
+        // Persist player data to database
+        try {
+          await persistPlayer(player);
+        } catch (error) {
+          console.error(`Failed to persist player ${playerId} on disconnect:`, error);
+        }
         
         // Remove player from spatial hash grid
         spatial.remove(playerId, pos);

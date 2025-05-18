@@ -1,17 +1,17 @@
-# --- builder ---
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm i --production=false
+# build stage
+FROM node:20-alpine AS build
+WORKDIR /src
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build:server
+RUN pnpm run build:server          # should output dist/server
 
-# --- runner ---
+# runtime stage
 FROM node:20-alpine
 WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+ENV NODE_ENV=production PORT=3001
+COPY --from=build /src/dist/server ./dist
+COPY --from=build /src/package.json ./
+RUN corepack enable && pnpm install --prod --frozen-lockfile
+CMD ["node", "dist/server/server.js"]
 EXPOSE 3001
-ENV PORT=3001
-CMD ["node", "--experimental-specifier-resolution=node", "dist/server/server.js"]

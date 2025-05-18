@@ -63,7 +63,7 @@ io.on('connection', (socket) => {
   const clientIp = socket.handshake.address;
 
   // Handle player joining
-  socket.on('joinGame', (data: { playerName: string, clientProtocolVersion?: number }) => {
+  socket.on('joinGame', async (data: { playerName: string, clientProtocolVersion?: number }) => {
     // Apply rate limiting
     if (!joinGameLimiter.isAllowed(clientIp)) {
       console.warn(`Rate limit exceeded for ${clientIp}. Rejecting joinGame request.`);
@@ -82,20 +82,25 @@ io.on('connection', (socket) => {
     
     console.log(`Player joining: ${data.playerName} with protocol version ${clientVersion}`);
     
-    // Add the player to the world
-    const player = world.addPlayer(socket.id, data.playerName);
-    
-    // Send player ID to the client
-    socket.emit('joinGame', { playerId: player.id });
-    
-    // Send full game state to the new player
-    socket.emit('gameState', world.getGameState());
-    
-    // Send all active casts and projectiles to the new player
-    sendCastSnapshots(socket);
-    
-    // Broadcast new player to others
-    socket.broadcast.emit('playerJoined', player);
+    try {
+      // Add the player to the world (now async)
+      const player = await world.addPlayer(socket.id, data.playerName);
+      
+      // Send player ID to the client
+      socket.emit('joinGame', { playerId: player.id });
+      
+      // Send full game state to the new player
+      socket.emit('gameState', world.getGameState());
+      
+      // Send all active casts and projectiles to the new player
+      sendCastSnapshots(socket);
+      
+      // Broadcast new player to others
+      socket.broadcast.emit('playerJoined', player);
+    } catch (error) {
+      console.error('Error during player join:', error);
+      socket.emit('connectionRejected', { reason: 'serverError', message: 'Server error during join process. Please try again.' });
+    }
   });
 
   // Handle game state requests
@@ -152,15 +157,19 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('Client disconnected:', socket.id);
     
-    // Remove the player from the world
-    const playerId = world.removePlayerBySocketId(socket.id);
-    
-    if (playerId) {
-      // Broadcast player removal to all clients
-      io.emit('playerLeft', playerId);
+    try {
+      // Remove the player from the world (now async)
+      const playerId = await world.removePlayerBySocketId(socket.id);
+      
+      if (playerId) {
+        // Broadcast player removal to all clients
+        io.emit('playerLeft', playerId);
+      }
+    } catch (error) {
+      console.error('Error during player disconnect:', error);
     }
   });
 });
