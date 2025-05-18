@@ -18,7 +18,8 @@ const includeExtensions = [
   '.md',
   'Dockerfile',
   '.json',
-  '.css'
+  '.css',
+  '.sh'
 ];
 
 // Skip test files unless they provide valuable documentation

@@ -125,40 +125,39 @@ apt-get install -y nginx certbot python3-certbot-nginx
 cat > /etc/nginx/sites-available/$DOMAIN << EOL
 server {
     listen 80;
+    listen [::]:80;
+    server_name $DOMAIN;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name $DOMAIN;
 
-    # Game server WebSocket endpoint (current setup)
-    location / {
-        proxy_pass http://localhost:3001;
+    # Certbot will fill/renew these paths automatically
+    ssl_certificate     /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+
+    # BACKEND – proxy to the Node game server
+    location /socket.io/ {
+        proxy_pass         http://localhost:3001;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header   Upgrade \$http_upgrade;
+        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Host \$host;
+    }
+    location /api/ {
+        proxy_pass http://localhost:3001;
     }
 
-    # Configuration is ready for future frontend deployment
-    # Uncomment these when frontend is ready:
-    
-    # # Frontend static files
-    # location / {
-    #     root /opt/vibeage-frontend/out;
-    #     try_files \$uri \$uri/ /index.html;
-    # }
-    # 
-    # # WebSocket/API endpoint
-    # location /socket.io/ {
-    #     proxy_pass http://localhost:3001;
-    #     proxy_http_version 1.1;
-    #     proxy_set_header Upgrade \$http_upgrade;
-    #     proxy_set_header Connection "upgrade";
-    #     proxy_set_header Host \$host;
-    #     proxy_set_header X-Real-IP \$remote_addr;
-    #     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    #     proxy_set_header X-Forwarded-Proto \$scheme;
-    # }
+    # FRONTEND – *will* be swapped in by setup-client.sh
+    location / {
+        proxy_pass http://localhost:3001;
+    }
+
+    access_log /var/log/nginx/vibeage.access.log;
+    error_log  /var/log/nginx/vibeage.error.log warn;
 }
 EOL
 

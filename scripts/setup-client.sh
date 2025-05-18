@@ -124,9 +124,15 @@ cd $FRONTEND_DIR
 step "Installing dependencies..."
 pnpm install
 
-# Build the frontend
+# Build & export a static copy of the frontend
 step "Building the frontend..."
 NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
+step "Exporting static site (Next.js → out/)..."
+NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm exec next export -o out
+
+if [ ! -f "$FRONTEND_DIR/out/index.html" ]; then
+  error "next export failed – out/index.html not found"
+fi
 
 # Configure Nginx for both client and server
 step "Updating Nginx configuration..."
@@ -164,6 +170,9 @@ server {
     }
 }
 EOL
+
+# Make sure the out/ directory is in place for Nginx
+rsync -a --delete out/ $FRONTEND_DIR/out/
 
 # Enable the site
 systemctl reload nginx
