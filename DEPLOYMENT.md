@@ -79,7 +79,6 @@ To deploy the game server on a VPS:
    ```bash
    # As root on your VPS
    useradd -m -s /bin/bash s
-   echo "s: " | chpasswd  # Sets password to a single space
    usermod -aG sudo s     # Add to sudo group
    
    # Setup SSH key authentication for the user
@@ -178,7 +177,7 @@ Also uncomment the `backups:` volume at the end.
 
 ## VPS Deployment for vibeage.eu
 
-We've created specialized scripts to deploy and manage the game server on our VPS (159.69.33.249).
+We've created specialized scripts to deploy and manage the game server on our VPS.
 
 ### Initial Deployment
 
@@ -234,4 +233,54 @@ For local development with the database:
 ```bash
 # Run complete dev environment with database
 pnpm run dev:db
+```
+
+## Setting Up the Frontend on the Same VPS
+
+To deploy the frontend on the same VPS as the server:
+
+1. SSH into your VPS:
+   ```bash
+   ssh -i your_ssh_key your_vps_user@your_vps_ip
+   ```
+
+2. If you haven't already deployed the server, follow the server deployment steps first.
+
+3. Navigate to the repository:
+   ```bash
+   cd vibeage
+   ```
+
+4. Run the client setup script:
+   ```bash
+   sudo ./scripts/setup-client.sh
+   ```
+
+5. The script will:
+   - Install Node.js and pnpm if needed
+   - Clone or reuse the repository code
+   - Build the Next.js frontend
+   - Configure Nginx to serve both the frontend and backend
+   - Create scripts for easy updates
+
+6. After setup, both your frontend and backend will be available at `https://vibeage.eu`
+
+### Managing Both Server and Frontend
+
+The management script has been extended to handle both components:
+
+```bash
+# Update server only
+/opt/vibeage/manage.sh update-server
+
+# Update frontend only
+/opt/vibeage/manage.sh update-frontend
+
+# Update both server and frontend
+/opt/vibeage/manage.sh update-all
+
+# Other commands remain the same
+/opt/vibeage/manage.sh logs
+/opt/vibeage/manage.sh backup
+/opt/vibeage/manage.sh status
 ```
