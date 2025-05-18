@@ -59,16 +59,37 @@ fi
 step "Installing pnpm..."
 npm install -g pnpm
 
-# Clone repository (if not already cloned)
+# Always setup a proper git repository for the frontend to enable updates
 step "Setting up frontend code..."
-if [ -f "$SERVER_DIR/package.json" ]; then
-  step "Using existing repository in $SERVER_DIR"
-  cp -r $SERVER_DIR/* $FRONTEND_DIR/
-else
-  step "Cloning repository to $FRONTEND_DIR..."
-  git clone https://github.com/samoylenkodmitry/vibeage.git $FRONTEND_DIR
+if [ -d "$FRONTEND_DIR/.git" ]; then
+  # Frontend already exists as a git repo, just pull the latest
+  step "Updating existing frontend repository in $FRONTEND_DIR..."
   cd $FRONTEND_DIR
-  git checkout main # Use main branch for client
+  git fetch origin
+  git checkout server
+  git reset --hard origin/server
+else
+  # Need to set up a new frontend repository
+  step "Setting up new frontend repository..."
+  
+  # If the server dir has a git repository, clone from the same source
+  if [ -f "$SERVER_DIR/.git/config" ]; then
+    step "Getting repository URL from server installation..."
+    cd $SERVER_DIR
+    REPO_URL=$(git config --get remote.origin.url)
+    
+    # Clone the repository
+    step "Cloning repository to $FRONTEND_DIR..."
+    git clone $REPO_URL $FRONTEND_DIR
+    cd $FRONTEND_DIR
+    git checkout server # Use server branch for client
+  else
+    # Fallback to hardcoded repository URL
+    step "Cloning repository to $FRONTEND_DIR..."
+    git clone https://github.com/samoylenkodmitry/vibeage.git $FRONTEND_DIR
+    cd $FRONTEND_DIR
+    git checkout server # Use server branch for client
+  fi
 fi
 
 cd $FRONTEND_DIR
@@ -129,12 +150,36 @@ certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@$DOMAIN || war
 step "Creating frontend update script..."
 cat > $FRONTEND_DIR/update-frontend.sh << EOL
 #!/bin/bash
+set -e
+
+echo "==> Updating frontend..."
 cd $FRONTEND_DIR
-git pull
+
+# Make sure the git repository is clean and at the right branch
+git reset --hard HEAD
+git clean -fd
+
+# Pull latest changes
+git fetch origin server
+git checkout server
+git reset --hard origin/server
+
+echo "==> Installing dependencies..."
 pnpm install
+
+echo "==> Building the frontend..."
 NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
+
+# Verify the build succeeded
+if [ ! -d "$FRONTEND_DIR/out" ]; then
+  echo "ERROR: Build failed - 'out' directory doesn't exist!"
+  exit 1
+fi
+
+echo "==> Reloading Nginx..."
 systemctl reload nginx
-echo "Frontend updated successfully!"
+
+echo "==> Frontend updated successfully!"
 EOL
 chmod +x $FRONTEND_DIR/update-frontend.sh
 
