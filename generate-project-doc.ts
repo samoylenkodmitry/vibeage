@@ -15,6 +15,10 @@ const excludeDirs = [
 const includeExtensions = [
   '.ts',
   '.tsx',
+  '.md',
+  'Dockerfile',
+  '.json',
+  '.css'
 ];
 
 // Skip test files unless they provide valuable documentation
