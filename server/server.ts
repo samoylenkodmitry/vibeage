@@ -1,11 +1,25 @@
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
+import express from 'express';
+import morgan from 'morgan';
 import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
 import { sendCastSnapshots } from './combat/skillSystem.js';
+import { RateLimiter } from './utils/rateLimiter.js';
 
-// Create HTTP server
-const httpServer = createServer();
+// Create Express app
+const app = express();
+
+// Setup request logging
+app.use(morgan('combined'));
+
+// Health check endpoint
+app.get('/healthz', (req, res) => {
+  res.status(200).send({ status: 'ok', uptime: process.uptime() });
+});
+
+// Create HTTP server with Express
+const httpServer = createServer(app);
 
 // WebSocket compression config
 const COMPRESSION = process.env.WS_COMPRESSION !== "0";
@@ -13,7 +27,7 @@ const COMPRESSION = process.env.WS_COMPRESSION !== "0";
 // Configure Socket.IO with improved settings
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000", "https://vibeage.vercel.app"],
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -38,12 +52,25 @@ const zoneManager = new ZoneManager();
 // Initialize game world with the IO instance and zone manager
 const world = initWorld(io, zoneManager);
 
+// Create rate limiter for joinGame events (5 attempts per minute per IP)
+const joinGameLimiter = new RateLimiter(60000, 5);
+
 // Handle socket connections
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
+  // Get client IP address
+  const clientIp = socket.handshake.address;
+
   // Handle player joining
   socket.on('joinGame', (data: { playerName: string, clientProtocolVersion?: number }) => {
+    // Apply rate limiting
+    if (!joinGameLimiter.isAllowed(clientIp)) {
+      console.warn(`Rate limit exceeded for ${clientIp}. Rejecting joinGame request.`);
+      socket.emit('connectionRejected', { reason: 'rateLimited', message: 'Too many join attempts. Please try again later.' });
+      return;
+    }
+    
     // Check protocol version - require v2 or higher
     const clientVersion = data.clientProtocolVersion || 1;
     if (clientVersion < 2) {
@@ -206,3 +233,10 @@ if (import.meta.url.endsWith(process.argv[1].replace(/^file:\/\//, ''))) {
     process.exit(1);
   });
 }
+
+// Error handling for unhandled promise rejections
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise Rejection:', reason);
+  // Let the process exit to trigger container restart if needed
+  process.exit(1);
+});

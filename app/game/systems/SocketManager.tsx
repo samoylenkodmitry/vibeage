@@ -374,7 +374,8 @@ export default function SocketManager() {
   // Memoize the socket connection handler
   const handleConnect = useCallback(() => {
     // Connect to WebSocket server with improved configuration
-    const socket = io('http://localhost:3001', {
+    const WS_URL = process.env.NEXT_PUBLIC_GAME_SERVER_URL ?? 'http://localhost:3001';
+    const socket = io(WS_URL, {
       path: '/socket.io',
       transports: ['websocket'],
       perMessageDeflate: { threshold: 1024 },   // Enable compression with threshold

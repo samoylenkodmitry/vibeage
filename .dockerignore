@@ -1,0 +1,57 @@
+# Version control
+.git
+.github
+.gitignore
+
+# Node.js dependencies
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build outputs
+.next
+dist
+out
+.output
+
+# Testing
+coverage
+.nyc_output
+tests
+__tests__
+test
+vitest
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE and editor files
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project specific
+docs
+*.md
+*.log
+scripts
+*.config.js
+*.config.ts
+!next.config.js
+!next.config.ts
+!next.config.mjs
+!tsconfig.server.json
