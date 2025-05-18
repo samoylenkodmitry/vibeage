@@ -71,6 +71,75 @@ The easiest way to deploy the game server is using Docker Compose:
    docker compose up -d
    ```
 
+## Quick VPS Deployment
+
+To deploy the game server on a VPS:
+
+1. SSH into your VPS and create a user named 's':
+   ```bash
+   # As root on your VPS
+   useradd -m -s /bin/bash s
+   echo "s: " | chpasswd  # Sets password to a single space
+   usermod -aG sudo s     # Add to sudo group
+   
+   # Setup SSH key authentication for the user
+   mkdir -p /home/s/.ssh
+   chmod 700 /home/s/.ssh
+   cp /root/.ssh/authorized_keys /home/s/.ssh/
+   chmod 600 /home/s/.ssh/authorized_keys
+   chown -R s:s /home/s/.ssh
+   
+   # Harden SSH
+   sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+   sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+   systemctl restart ssh
+   ```
+
+2. Switch to the new user:
+   ```bash
+   su - s
+   ```
+
+3. Clone the repository:
+   ```bash
+   git clone https://github.com/samoylenkodmitry/vibeage.git
+   cd vibeage
+   git checkout server
+   ```
+
+4. Run the setup script:
+   ```bash
+   sudo ./scripts/setup-server.sh
+   ```
+
+5. The script will:
+   - Install Docker and Docker Compose
+   - Set up the application in `/opt/vibeage`
+   - Configure Nginx with SSL
+   - Start the server
+   - Create management scripts for updates and backups
+
+6. Update your client environment:
+   - On Vercel: Set `NEXT_PUBLIC_GAME_SERVER_URL=https://yourdomain.com`
+
+### Managing the Server
+
+The setup script creates a management script at `/opt/vibeage/manage.sh` with the following commands:
+
+```bash
+# Update the server
+/opt/vibeage/manage.sh update
+
+# View server logs
+/opt/vibeage/manage.sh logs
+
+# Create database backup
+/opt/vibeage/manage.sh backup
+
+# Check server status
+/opt/vibeage/manage.sh status
+```
+
 ## Architecture
 
 - **Game Server**: Node.js/TypeScript authoritative server

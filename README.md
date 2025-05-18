@@ -107,3 +107,7 @@ zero-byte threshold.
 - [Current] Client sometimes gets out of sync on very long walks
 - [Current] AoEs sometimes target wrong position when player is moving
 - [Fixed] Server now properly tracks player position during movement
+
+## VPS Deployment
+
+For VPS deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
