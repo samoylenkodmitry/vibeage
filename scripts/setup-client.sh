@@ -79,16 +79,48 @@ else
     REPO_URL=$(git config --get remote.origin.url)
     
     # Clone the repository
-    step "Cloning repository to $FRONTEND_DIR..."
-    git clone $REPO_URL $FRONTEND_DIR
-    cd $FRONTEND_DIR
-    git checkout server # Use server branch for client
+    step "Setting up repository in $FRONTEND_DIR..."
+    if [ -d "$FRONTEND_DIR/.git" ]; then
+      # Directory exists and has git - update it
+      cd $FRONTEND_DIR
+      git fetch origin
+      git checkout server || git checkout -b server
+      git reset --hard origin/server
+    elif [ -d "$FRONTEND_DIR" ]; then
+      # Directory exists but doesn't have git - initialize it
+      cd $FRONTEND_DIR
+      git init
+      git remote add origin $REPO_URL
+      git fetch origin
+      git checkout -b server origin/server || git checkout -b server
+    else
+      # Directory doesn't exist - clone it
+      git clone $REPO_URL $FRONTEND_DIR
+      cd $FRONTEND_DIR
+      git checkout server # Use server branch for client
+    fi
   else
     # Fallback to hardcoded repository URL
-    step "Cloning repository to $FRONTEND_DIR..."
-    git clone https://github.com/samoylenkodmitry/vibeage.git $FRONTEND_DIR
-    cd $FRONTEND_DIR
-    git checkout server # Use server branch for client
+    step "Setting up repository in $FRONTEND_DIR..."
+    if [ -d "$FRONTEND_DIR/.git" ]; then
+      # Directory exists and has git - update it
+      cd $FRONTEND_DIR
+      git fetch origin
+      git checkout server || git checkout -b server
+      git reset --hard origin/server
+    elif [ -d "$FRONTEND_DIR" ]; then
+      # Directory exists but doesn't have git - initialize it
+      cd $FRONTEND_DIR
+      git init
+      git remote add origin https://github.com/samoylenkodmitry/vibeage.git
+      git fetch origin
+      git checkout -b server origin/server || git checkout -b server
+    else
+      # Directory doesn't exist - clone it
+      git clone https://github.com/samoylenkodmitry/vibeage.git $FRONTEND_DIR
+      cd $FRONTEND_DIR
+      git checkout server # Use server branch for client
+    fi
   fi
 fi
 
