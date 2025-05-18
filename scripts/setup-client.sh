@@ -128,7 +128,7 @@ pnpm install
 step "Building the frontend..."
 NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
 step "Exporting static site (Next.js → out/)..."
-NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm exec next export -o out
+NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm exec next export
 
 if [ ! -f "$FRONTEND_DIR/out/index.html" ]; then
   error "next export failed – out/index.html not found"
