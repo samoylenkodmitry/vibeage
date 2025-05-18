@@ -61,65 +61,59 @@ npm install -g pnpm
 
 # Always setup a proper git repository for the frontend to enable updates
 step "Setting up frontend code..."
+
+# Determine the repository URL
+if [ -f "$SERVER_DIR/.git/config" ]; then
+  step "Getting repository URL from server installation..."
+  cd $SERVER_DIR
+  REPO_URL=$(git config --get remote.origin.url)
+else
+  # Fallback to hardcoded repository URL
+  REPO_URL="https://github.com/samoylenkodmitry/vibeage.git"
+fi
+
+# Handle the frontend directory setup
+if [ -d "$FRONTEND_DIR" ]; then
+  if [ "$(ls -A $FRONTEND_DIR)" ]; then
+    # Directory exists and has content
+    if [ ! -d "$FRONTEND_DIR/.git" ]; then
+      # No git repo yet, ask to clear
+      echo "Directory contains existing files but no git repository."
+      read -p "Clear the directory before proceeding? (y/n): " CLEAR_DIR
+      if [ "$CLEAR_DIR" = "y" ] || [ "$CLEAR_DIR" = "Y" ]; then
+        step "Clearing directory..."
+        rm -rf $FRONTEND_DIR/*
+        rm -rf $FRONTEND_DIR/.[!.]*
+      else
+        warn "Proceeding without clearing directory. Setup may fail if files conflict."
+      fi
+    fi
+  fi
+fi
+
+# Set up or update the git repository
+cd $FRONTEND_DIR
 if [ -d "$FRONTEND_DIR/.git" ]; then
-  # Frontend already exists as a git repo, just pull the latest
-  step "Updating existing frontend repository in $FRONTEND_DIR..."
-  cd $FRONTEND_DIR
+  # Git repo exists, update it
+  step "Updating existing repository..."
   git fetch origin
-  git checkout server
+  git checkout server 2>/dev/null || git checkout -b server
   git reset --hard origin/server
 else
-  # Need to set up a new frontend repository
-  step "Setting up new frontend repository..."
+  # Initialize new git repo
+  step "Initializing new repository..."
+  git init
+  git remote add origin $REPO_URL
+  git fetch origin
   
-  # If the server dir has a git repository, clone from the same source
-  if [ -f "$SERVER_DIR/.git/config" ]; then
-    step "Getting repository URL from server installation..."
-    cd $SERVER_DIR
-    REPO_URL=$(git config --get remote.origin.url)
-    
-    # Clone the repository
-    step "Setting up repository in $FRONTEND_DIR..."
-    if [ -d "$FRONTEND_DIR/.git" ]; then
-      # Directory exists and has git - update it
-      cd $FRONTEND_DIR
-      git fetch origin
-      git checkout server || git checkout -b server
-      git reset --hard origin/server
-    elif [ -d "$FRONTEND_DIR" ]; then
-      # Directory exists but doesn't have git - initialize it
-      cd $FRONTEND_DIR
-      git init
-      git remote add origin $REPO_URL
-      git fetch origin
-      git checkout -b server origin/server || git checkout -b server
+  # Try checkout
+  if ! git checkout -b server origin/server 2>/dev/null; then
+    warn "Checkout failed. Files may be conflicting."
+    read -p "Force checkout and overwrite all local files? (y/n): " FORCE_CHECKOUT
+    if [ "$FORCE_CHECKOUT" = "y" ] || [ "$FORCE_CHECKOUT" = "Y" ]; then
+      git checkout -f -b server origin/server || git checkout -f server
     else
-      # Directory doesn't exist - clone it
-      git clone $REPO_URL $FRONTEND_DIR
-      cd $FRONTEND_DIR
-      git checkout server # Use server branch for client
-    fi
-  else
-    # Fallback to hardcoded repository URL
-    step "Setting up repository in $FRONTEND_DIR..."
-    if [ -d "$FRONTEND_DIR/.git" ]; then
-      # Directory exists and has git - update it
-      cd $FRONTEND_DIR
-      git fetch origin
-      git checkout server || git checkout -b server
-      git reset --hard origin/server
-    elif [ -d "$FRONTEND_DIR" ]; then
-      # Directory exists but doesn't have git - initialize it
-      cd $FRONTEND_DIR
-      git init
-      git remote add origin https://github.com/samoylenkodmitry/vibeage.git
-      git fetch origin
-      git checkout -b server origin/server || git checkout -b server
-    else
-      # Directory doesn't exist - clone it
-      git clone https://github.com/samoylenkodmitry/vibeage.git $FRONTEND_DIR
-      cd $FRONTEND_DIR
-      git checkout server # Use server branch for client
+      error "Cannot proceed without checking out the server branch. Exiting."
     fi
   fi
 fi
