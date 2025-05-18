@@ -2,12 +2,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "target": "es2020",
+    "module": "Node16",
+    "moduleResolution": "Node",
+    "target": "es2022",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "allowImportingTsExtensions": false,
+    "emitDeclarationOnly": false,
+    "noEmit": false
   },
   "include": ["server/**/*", "shared/**/*"]
 }
