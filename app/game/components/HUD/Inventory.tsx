@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../systems/gameStore';
 
 interface InventoryProps {
@@ -8,6 +8,7 @@ interface InventoryProps {
 export default function Inventory({ maxSlots = 20 }: InventoryProps) {
   // Use direct inventory state from gameStore
   const inv = useGameStore(s => s.inventory);
+  const [flashingSlot, setFlashingSlot] = useState<number | null>(null);
   
   // Debug logging on inventory changes
   useEffect(() => {
@@ -17,14 +18,27 @@ export default function Inventory({ maxSlots = 20 }: InventoryProps) {
   // Get the player to access maxInventorySlots if available
   const player = useGameStore(s => s.myPlayerId ? s.players[s.myPlayerId] : null);
   const actualMaxSlots = player?.maxInventorySlots || maxSlots;
+
+  // Function to handle right-click on inventory slots
+  const handleRightClick = (e: React.MouseEvent, i: number) => {
+    e.preventDefault();
+    if (inv[i] && inv[i].quantity > 0) {
+      useGameStore.getState().sendUseItem(i);
+      setFlashingSlot(i);
+      setTimeout(() => {
+        setFlashingSlot(null);
+      }, 1000); // Flashing duration
+    }
+  };
   
   return (
     <div className="inventory fixed bottom-2 right-2 grid grid-cols-4 gap-1 bg-black/70 p-2 rounded">
       {Array.from({ length: actualMaxSlots }).map((_, i) => (
         <div 
           key={i} 
-          className="w-12 h-12 bg-gray-800 flex items-center justify-center relative transition-all hover:bg-gray-700"
+          className={`w-12 h-12 bg-gray-800 flex items-center justify-center relative transition-all hover:bg-gray-700 ${flashingSlot === i ? 'animate-flash-green' : ''}`}
           title={inv[i] ? `${inv[i].itemId} (${inv[i].quantity})` : 'Empty slot'}
+          onContextMenu={(e) => handleRightClick(e, i)}
         >
           {inv[i] ? (
             <div className="relative w-full h-full">

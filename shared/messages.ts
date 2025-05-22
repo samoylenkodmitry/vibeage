@@ -1,5 +1,6 @@
 import { SkillId } from './skillsDefinition';
 import { CastSnapshot, InventorySlot, StatusEffect } from './types';
+import { ItemId } from './items';
 
 export interface VecXZ {
   x: number;
@@ -230,4 +231,20 @@ export interface LootPickup {
   type: 'LootPickup';
   lootId: string;
   playerId: string;
+}
+
+// Item usage messages
+export interface UseItem extends ClientMsg {
+  type: 'UseItem';
+  slotIndex: number;        // inventory slot             (0-based)
+  clientTs: number;         // epoch-ms
+}
+
+export interface ItemUsed extends ServerMsg {
+  type: 'ItemUsed';
+  slotIndex: number;
+  itemId: ItemId;
+  newQuantity: number;      // 0 if stack emptied
+  healthDelta?: number;     // +HP applied (for VFX/UI)
+  manaDelta?: number;       // +MP applied (future-proof)
 }

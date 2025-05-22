@@ -19,7 +19,10 @@ const includeExtensions = [
   'Dockerfile',
   '.json',
   '.css',
-  '.sh'
+  '.sh',
+  '.sql',
+  '.js',
+  '.jsx',
 ];
 
 // Skip test files unless they provide valuable documentation

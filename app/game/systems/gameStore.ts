@@ -119,6 +119,12 @@ interface GameState {
   removeGroundLoot: (lootId: string) => void;
   // Update player inventory
   updateInventory: (items: InventorySlot[]) => void;
+
+  // Update a single inventory slot
+  updateInventorySlot: (slotIndex: number, newQuantity: number) => void;
+
+  // Send a request to use an item from inventory
+  sendUseItem: (slotIndex: number) => void;
 }
 
 // --- Memoized selectors ---
@@ -648,5 +654,46 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(produce(state => {
       state.inventory = items;
     }));
+  },
+
+  // Update a single inventory slot
+  updateInventorySlot: (slotIndex: number, newQuantity: number) => {
+    set(produce(state => {
+      if (state.inventory[slotIndex]) {
+        if (newQuantity <= 0) {
+          // Remove the item from the slot if quantity is 0 or negative
+          state.inventory[slotIndex] = undefined;
+        } else {
+          // Update the quantity
+          state.inventory[slotIndex].quantity = newQuantity;
+        }
+      }
+    }));
+  },
+
+  // Send a request to use an item from inventory
+  sendUseItem: (slotIndex: number) => {
+    const socket = get().socket;
+    const myPlayerId = get().myPlayerId;
+    
+    if (!socket || !myPlayerId) {
+      console.warn('Cannot use item: Socket not connected or player ID unknown');
+      return;
+    }
+    
+    // Check if the slot actually has an item
+    const inventory = get().inventory;
+    if (!inventory[slotIndex] || inventory[slotIndex].quantity <= 0) {
+      console.warn(`Cannot use item: Slot ${slotIndex} is empty`);
+      return;
+    }
+    
+    console.log(`Sending UseItem request for slot ${slotIndex}`);
+    
+    socket.emit('msg', {
+      type: 'UseItem',
+      slotIndex,
+      clientTs: Date.now()
+    });
   },
 }));

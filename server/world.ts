@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
-         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe } from '../shared/messages.js';
+         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe, UseItem } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
@@ -17,6 +17,7 @@ import { LOOT_TABLES, LootTable } from './lootTables.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
 import { persistPlayer, recordServerEvent } from './persistence.js';
+import { ITEMS } from '../shared/items.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -520,6 +521,90 @@ function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): any[
   return result;
 }
 
+/**
+ * Handles UseItem requests from clients to use consumable items
+ * @param socket The player's socket
+ * @param state The game state
+ * @param msg The UseItem message
+ * @param io Server instance for broadcasting updates
+ */
+function onUseItem(socket: Socket, state: GameState, msg: UseItem, io: Server): void {
+  // Find player by socket ID
+  const playerId = Object.keys(state.players).find(
+    id => state.players[id].socketId === socket.id
+  );
+  
+  if (!playerId) {
+    log(LOG_CATEGORIES.SYSTEM, 'error', `UseItem: No player found for socket ${socket.id}`);
+    return;
+  }
+  
+  const player = state.players[playerId];
+  
+  // Validate: player must be alive
+  if (!player.isAlive) {
+    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use item while dead`);
+    return;
+  }
+  
+  // Validate: slot exists, quantity > 0
+  const slot = player.inventory[msg.slotIndex];
+  if (!slot || slot.quantity <= 0) {
+    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use item from invalid or empty slot ${msg.slotIndex}`);
+    return;
+  }
+  
+  // Get item definition
+  const itemDef = ITEMS[slot.itemId];
+  if (!itemDef) {
+    log(LOG_CATEGORIES.SYSTEM, 'error', `Player ${playerId} tried to use unknown item ${slot.itemId}`);
+    return;
+  }
+  
+  // Validate: item is consumable
+  if (itemDef.type !== 'consumable') {
+    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use non-consumable item ${slot.itemId}`);
+    return;
+  }
+  
+  // Track effect changes
+  let healthDelta = 0;
+  const manaDelta = 0;
+  
+  // Apply item effects
+  if (itemDef.healAmount && itemDef.healAmount > 0) {
+    const oldHealth = player.health;
+    player.health = Math.min(player.maxHealth, player.health + itemDef.healAmount);
+    healthDelta = player.health - oldHealth;
+    
+    log(LOG_CATEGORIES.HEALING, 'info', `Player ${playerId} used ${slot.itemId} and healed for ${healthDelta} HP`);
+  }
+  
+  // Decrement item quantity
+  slot.quantity--;
+  
+  // Get new quantity (might be 0)
+  const newQuantity = slot.quantity;
+  
+  // Broadcast health change to all clients if there was healing
+  if (healthDelta > 0) {
+    io.emit('playerUpdated', {
+      id: playerId,
+      health: player.health
+    });
+  }
+  
+  // Send ItemUsed message to the player
+  socket.emit('msg', {
+    type: 'ItemUsed',
+    slotIndex: msg.slotIndex,
+    itemId: slot.itemId,
+    newQuantity: newQuantity,
+    healthDelta: healthDelta > 0 ? healthDelta : undefined,
+    manaDelta: manaDelta > 0 ? manaDelta : undefined
+  });
+}
+
 
 // Create effect manager and spatial hash grid instances at the module scope
 let effects: EffectManager;
@@ -647,6 +732,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
         case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
+        case 'UseItem': return onUseItem(socket, state, msg as UseItem, io);
         case 'LootPickup': 
           if (state.players[msg.playerId]?.socketId === socket.id) {
             if (this.tryGiveLoot(msg.playerId, msg.lootId)) {

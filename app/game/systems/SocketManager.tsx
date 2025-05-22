@@ -229,6 +229,42 @@ export default function SocketManager() {
     updateEnemy(enemyData);
   }, [updateEnemy]);
   
+  // Handle item used message
+  const handleItemUsed = useCallback((msg: any) => {
+    console.log('[SocketManager] Received ItemUsed:', msg);
+    
+    // Update the inventory slot with new quantity
+    useGameStore.getState().updateInventorySlot(msg.slotIndex, msg.newQuantity);
+    
+    // Get player for checking health updates
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    const player = myPlayerId ? useGameStore.getState().players[myPlayerId] : null;
+    
+    // If health delta is present and this is for the current player, show visual feedback
+    if (msg.healthDelta && player) {
+      // Flash the inventory slot green
+      const inventorySlot = document.querySelector(`.inventory > div:nth-child(${msg.slotIndex + 1})`);
+      if (inventorySlot) {
+        inventorySlot.classList.add('animate-flash-green');
+        setTimeout(() => {
+          inventorySlot.classList.remove('animate-flash-green');
+        }, 500);
+      }
+      
+      // Dispatch a heal VFX event
+      window.dispatchEvent(new CustomEvent('heal', { 
+        detail: { amount: msg.healthDelta }
+      }));
+      
+      // Add to combat log
+      useCombatLogStore.getState().push({
+        id: Date.now(),
+        text: `Used ${msg.itemId} and healed for ${msg.healthDelta} HP`,
+        ts: Date.now()
+      });
+    }
+  }, []);
+  
   // Handle cast snapshot updates
   const handleCastSnapshot = useCallback((data: CastSnapshotMsg) => {
     const castData = data.data;
@@ -583,6 +619,10 @@ export default function SocketManager() {
             handleLootPickup(msg);
             break;
           }
+          case 'ItemUsed': {
+            handleItemUsed(msg);
+            break;
+          }
           case 'LootSpawn': {
             // Handle loot spawned from a killed enemy
             console.log('Loot spawned:', msg);
@@ -645,6 +685,7 @@ export default function SocketManager() {
     handleEnemyUpdated,
     handlePosSnap,
     handleCastFail,
+    handleItemUsed,
   ]);
 
   useEffect(() => {
@@ -783,44 +824,52 @@ export default function SocketManager() {
     }));
   }, []);
   
-  // Handle inventory update message
+  // Handle inventory update message (when the server sends updated inventory data)
   const handleInventoryUpdate = useCallback((msg: any) => {
-    const myPlayerId = useGameStore.getState().myPlayerId;
-    if (!myPlayerId) return;
+    console.log('Inventory updated:', msg);
     
-    console.log('[SocketManager] Received inventory update:', msg);
-    
-    // First, apply the update through updatePlayer
-    useGameStore.getState().updatePlayer({
-      id: myPlayerId,
-      inventory: msg.inventory,
-      maxInventorySlots: msg.maxInventorySlots
-    });
-    
-    // Additionally, ensure the inventory state is directly updated for UI
-    useGameStore.getState().updateInventory(msg.inventory);
-    
-    // Log the updated inventory state
-    console.log('[SocketManager] Updated inventory state:', 
-      useGameStore.getState().inventory, 
-      useGameStore.getState().players[myPlayerId]?.inventory);
+    // Handle different message formats
+    if (msg.items && Array.isArray(msg.items)) {
+      // Update the entire inventory with new items (legacy format)
+      useGameStore.getState().updateInventory(msg.items);
+    } else if (msg.inventory && Array.isArray(msg.inventory)) {
+      // Update the entire inventory with new items (standard format)
+      useGameStore.getState().updateInventory(msg.inventory);
+    } else if (msg.slotIndex !== undefined && msg.item) {
+      // Handle single slot update format
+      const currentItems = useGameStore.getState().inventory || [];
+      const newItems = [...currentItems];
+      newItems[msg.slotIndex] = msg.item;
+      useGameStore.getState().updateInventory(newItems);
+    } else if (Object.keys(msg).length === 0) {
+      // Handle empty update (might be a request for client to refresh inventory)
+      console.log('Received empty inventory update message - requesting current inventory state');
+      const socket = useGameStore.getState().socket;
+      if (socket) {
+        socket.emit('msg', { type: 'RequestInventory' });
+      }
+    } else {
+      console.error('Invalid inventory update message format:', msg);
+    }
   }, []);
-  
-  // Handle loot acquired message
+
+  // Handle loot acquired message (when player picks up loot)
   const handleLootAcquired = useCallback((msg: any) => {
-    console.log('Received loot acquired notification:', msg);
+    console.log('Loot acquired:', msg);
     
-    // Format the loot items for the combat log
-    const lootText = msg.items
-      .map((item: any) => `${item.quantity}x ${item.itemId}`)
-      .join(', ');
+    // Remove the loot from the ground
+    if (msg.lootId) {
+      useGameStore.getState().removeGroundLoot(msg.lootId);
+    }
     
-    // Add the loot message to the combat log
-    useCombatLogStore.getState().push({
-      id: Date.now(),
-      text: `Looted: ${lootText} from ${msg.sourceEnemyName || 'enemy'}`,
-      ts: Date.now()
-    });
+    // If inventory update is included in the message, update the inventory
+    if (msg.items && Array.isArray(msg.items)) {
+      useGameStore.getState().updateInventory(msg.items);
+    } else if (msg.inventory && Array.isArray(msg.inventory)) {
+      useGameStore.getState().updateInventory(msg.inventory);
+    }
+    
+    // Visual feedback could be added here if needed
   }, []);
 
   // Handle loot pickup message (when other players pick up loot)

@@ -11,6 +11,7 @@ import { tryStartCast } from '../systems/castController';
 export default function KeyboardShortcuts() {
   const getMyPlayer = useGameStore(state => state.getMyPlayer);
   const selectedTargetId = useGameStore(state => state.selectedTargetId);
+  const inventory = useGameStore(state => state.inventory);
   
   useEffect(() => {
     // Add keyboard event listener for skill shortcuts
@@ -25,6 +26,22 @@ export default function KeyboardShortcuts() {
       if (e.key === 'l' || e.key === 'L') {
         document.body.classList.toggle('hide-combat-log');
         console.log('Combat log toggled with L key');
+        return;
+      }
+      
+      // Use health potion with H key
+      if (e.key === 'h' || e.key === 'H') {
+        // Find a health potion in inventory
+        const healthPotionIndex = inventory.findIndex(item => 
+          item && item.itemId === 'health_potion' && item.quantity > 0
+        );
+        
+        if (healthPotionIndex !== -1) {
+          console.log('Using health potion with H key from slot', healthPotionIndex);
+          useGameStore.getState().sendUseItem(healthPotionIndex);
+        } else {
+          console.log('No health potions found in inventory');
+        }
         return;
       }
       
@@ -60,7 +77,7 @@ export default function KeyboardShortcuts() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [getMyPlayer, selectedTargetId]);
+  }, [getMyPlayer, inventory, selectedTargetId]);
   
   // This component doesn't render anything
   return null;

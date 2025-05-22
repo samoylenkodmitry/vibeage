@@ -6,9 +6,11 @@ import WaterProjectile from '../vfx/WaterProjectile';
 import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
+import HealingVfx from '../vfx/HealingVfx';
 import { InstantHit } from '../../../shared/messages';
 import { useProjectileStore, ProjectileData } from '../systems/projectileStore';
 import { get as poolGet, recycle, registerPool } from '../systems/vfxPool';
+import { useGameStore } from '../systems/gameStore';
 
 // Types for VFX instances
 interface BaseVfxInstance {
@@ -39,7 +41,13 @@ interface FlashVfxInstance extends BaseVfxInstance {
   position: { x: number; y: number; z: number };
 }
 
-type VfxInstance = ProjectileVfxInstance | SplashVfxInstance | FlashVfxInstance;
+interface HealingVfxInstance extends BaseVfxInstance {
+  type: 'healing';
+  position: { x: number; y: number; z: number };
+  amount: number;
+}
+
+type VfxInstance = ProjectileVfxInstance | SplashVfxInstance | FlashVfxInstance | HealingVfxInstance;
 
 export default function VfxManager() {
   // Store all active VFX instances
@@ -173,6 +181,42 @@ export default function VfxManager() {
     createFlashEffect(e.detail.position, 'petrify');
   }, [createFlashEffect]);
   
+  // Handle heal events
+  const handleHeal = useCallback((e: CustomEvent<{position?: any, amount?: number}>) => {
+    console.log('VfxManager: Heal event', e.detail);
+    
+    // Get player position if not provided in the event
+    const myPlayerId = useGameStore.getState().myPlayerId;
+    const player = myPlayerId ? useGameStore.getState().players[myPlayerId] : null;
+    
+    let healPosition;
+    if (e.detail.position) {
+      healPosition = e.detail.position;
+    } else if (player) {
+      healPosition = {
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z
+      };
+    } else {
+      console.warn('Could not determine position for healing effect');
+      return;
+    }
+    
+    // Create a healing VFX instance
+    const id = `healing-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const newHealing: HealingVfxInstance = {
+      id,
+      type: 'healing',
+      position: healPosition,
+      amount: e.detail.amount || 20,
+      createdAt: performance.now(),
+      expiresAt: performance.now() + 1500 // 1.5s duration for healing effects
+    };
+    
+    setVfxInstances(prev => [...prev, newHealing]);
+  }, []);
+  
   // Register and unregister event listeners
   useEffect(() => {
     // Register event listeners for non-projectile events
@@ -180,6 +224,7 @@ export default function VfxManager() {
     window.addEventListener('spawnSplash', handleSpawnSplash as EventListener);
     window.addEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
     window.addEventListener('petrifyFlash', handleSpawnPetrifyFlash as EventListener);
+    window.addEventListener('heal', handleHeal as EventListener);
     
     // Use a set to track projectiles already processed in this cycle
     const processedProjectiles = new Set<string>();
@@ -244,6 +289,7 @@ export default function VfxManager() {
       window.removeEventListener('spawnSplash', handleSpawnSplash as EventListener);
       window.removeEventListener('spawnStunFlash', handleSpawnStunFlash as EventListener);
       window.removeEventListener('petrifyFlash', handleSpawnPetrifyFlash as EventListener);
+      window.removeEventListener('heal', handleHeal as EventListener);
       clearInterval(cleanupInterval);
     };
   }, [
@@ -251,6 +297,7 @@ export default function VfxManager() {
     handleSpawnSplash, 
     handleSpawnStunFlash, 
     handleSpawnPetrifyFlash,
+    handleHeal,
     recycleProjectiles,
     pooledInstances,
     clearRecycled
@@ -397,6 +444,14 @@ export default function VfxManager() {
               />
             );
           }
+        } else if (vfx.type === 'healing') {
+          return (
+            <HealingVfx
+              key={vfx.id}
+              position={vfx.position}
+              amount={vfx.amount}
+            />
+          );
         }
         
         return null;
