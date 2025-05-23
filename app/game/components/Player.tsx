@@ -19,6 +19,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const [isRotating, setIsRotating] = useState(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
   const cameraAngleRef = useRef(Math.PI);
+  const cameraPitchRef = useRef(0); // Add pitch angle ref for vertical rotation
   const movementTimestampRef = useRef(0);
   const predictedPosRef = useRef(new THREE.Vector3(playerState.position.x, GROUND_Y, playerState.position.z));
   const predictedVelRef = useRef(new THREE.Vector3());
@@ -31,7 +32,7 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       
       // Dispatch initial angle to ensure the camera starts at the correct angle
       window.dispatchEvent(new CustomEvent('cameraAngleChange', { 
-        detail: { angle: cameraAngleRef.current } 
+        detail: { angle: cameraAngleRef.current, pitch: cameraPitchRef.current } 
       }));
     }
   }, [isControlledPlayer]);
@@ -44,6 +45,12 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
     if (!isControlledPlayer || e.button !== 0 || isRotating) return;
     if ((e.target as HTMLElement).closest('.pointer-events-auto')) return;
     if (!socket || !playerState) return;
+
+    // Check if a target was recently selected and prevent movement
+    const store = useGameStore.getState();
+    if (Date.now() - store.lastTargetSelectedTimestamp < 100) {
+      return; // Recently selected a target, so don't move
+    }
 
     console.log('Mouse click event:', e.clientX, e.clientY, 'Player controlled:', isControlledPlayer);
 
@@ -136,12 +143,17 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isControlledPlayer || !isRotating) return;
     const deltaX = e.clientX - previousMousePosition.current.x;
-    // Update the local ref directly
+    const deltaY = e.clientY - previousMousePosition.current.y;
+    
+    // Update the local ref directly for horizontal rotation
     cameraAngleRef.current = cameraAngleRef.current - deltaX * 0.02;
     
-    // Dispatch a custom event to notify the camera of the angle change
+    // Update vertical rotation (pitch) with clamping - fix inverted rotation by adding deltaY instead of subtracting
+    cameraPitchRef.current = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraPitchRef.current + deltaY * 0.02));
+    
+    // Dispatch a custom event to notify the camera of the angle changes
     window.dispatchEvent(new CustomEvent('cameraAngleChange', { 
-      detail: { angle: cameraAngleRef.current } 
+      detail: { angle: cameraAngleRef.current, pitch: cameraPitchRef.current } 
     }));
     
     previousMousePosition.current = { x: e.clientX, y: e.clientY };

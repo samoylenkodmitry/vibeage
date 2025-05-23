@@ -42,7 +42,7 @@ export default function Inventory({ maxSlots = 20 }: InventoryProps) {
   };
   
   return (
-    <div className="inventory fixed bottom-2 right-2 grid grid-cols-4 gap-1 bg-black/70 p-2 rounded z-20">
+    <div className="inventory fixed bottom-2 right-2 grid grid-cols-4 gap-1 bg-black/70 p-2 rounded z-20 pointer-events-auto">
       {Array.from({ length: actualMaxSlots }).map((_, i) => (
         <div 
           key={i} 

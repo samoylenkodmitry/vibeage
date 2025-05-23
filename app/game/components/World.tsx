@@ -1,7 +1,7 @@
 'use client';
 
 import { RigidBody } from '@react-three/rapier';
-import { useRef, memo } from 'react';
+import { useRef, memo, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '../systems/gameStore';
@@ -183,21 +183,36 @@ function getZoneColor(zoneId: string): string {
   return colors[zoneId] || '#FFFFFF';
 }
 
-// Helper component to create a forest with customizable spread
-function Forest({ position = [0, 0, 0], count = 5, spread = 40 }) {
-  const trees = [];
-  
-  for (let i = 0; i < count; i++) {
-    const x = position[0] + (Math.random() - 0.5) * spread;
-    const z = position[2] + (Math.random() - 0.5) * spread;
+// Helper component to create a forest with customizable spread - Memoized to prevent re-creation
+const Forest = memo<{ position?: number[]; count?: number; spread?: number }>(({ position = [0, 0, 0], count = 5, spread = 40 }) => {
+  // Use stable tree positions based on position and count
+  const trees = useMemo(() => {
+    // Use position as seed for consistent tree placement
+    const seed = position[0] + position[2] + count;
+    const result = [];
     
-    trees.push(
-      <Tree key={`tree-${i}`} position={[x, position[1], z]} scale={1.5 + Math.random() * 1.0} />
-    );
-  }
+    for (let i = 0; i < count; i++) {
+      // Create deterministic "random" positions based on seed
+      const pseudoRandom1 = Math.sin(seed + i * 12.9898) * 43758.5453;
+      const pseudoRandom2 = Math.sin(seed + i * 78.233) * 43758.5453;
+      const pseudoRandom3 = Math.sin(seed + i * 37.719) * 43758.5453;
+      
+      const x = position[0] + (pseudoRandom1 - Math.floor(pseudoRandom1) - 0.5) * spread;
+      const z = position[2] + (pseudoRandom2 - Math.floor(pseudoRandom2) - 0.5) * spread;
+      const scale = 1.5 + (pseudoRandom3 - Math.floor(pseudoRandom3)) * 1.0;
+      
+      result.push(
+        <Tree key={`tree-${i}`} position={[x, position[1], z]} scale={scale} />
+      );
+    }
+    
+    return result;
+  }, [position, count, spread]);
   
   return <group>{trees}</group>;
-}
+});
+
+Forest.displayName = 'Forest';
 
 // Simple tree component - Made slightly larger
 function Tree({ position = [0, 0, 0], scale = 1 }) {
@@ -218,130 +233,178 @@ function Tree({ position = [0, 0, 0], scale = 1 }) {
   );
 }
 
-// Rock formation component with customizable spread
-function Rocks({ position = [0, 0, 0], count = 3, spread = 20 }) {
-  const rocks = [];
-  
-  for (let i = 0; i < count; i++) {
-    const x = position[0] + (Math.random() - 0.5) * spread;
-    const z = position[2] + (Math.random() - 0.5) * spread;
-    const scale = 1.0 + Math.random() * 1.5; // Larger rocks
+// Rock formation component with customizable spread - Memoized
+const Rocks = memo<{ position?: number[]; count?: number; spread?: number }>(({ position = [0, 0, 0], count = 3, spread = 20 }) => {
+  const rocks = useMemo(() => {
+    const seed = position[0] + position[2] + count + 1000; // Different seed offset
+    const result = [];
     
-    rocks.push(
-      <RigidBody key={`rock-${i}`} type="fixed" position={[x, position[1], z]}>
-        <mesh castShadow>
-          <dodecahedronGeometry args={[scale, 0]} />
-          <meshStandardMaterial color="#808080" roughness={0.8} />
-        </mesh>
-      </RigidBody>
-    );
-  }
+    for (let i = 0; i < count; i++) {
+      const pseudoRandom1 = Math.sin(seed + i * 12.9898) * 43758.5453;
+      const pseudoRandom2 = Math.sin(seed + i * 78.233) * 43758.5453;
+      const pseudoRandom3 = Math.sin(seed + i * 37.719) * 43758.5453;
+      
+      const x = position[0] + (pseudoRandom1 - Math.floor(pseudoRandom1) - 0.5) * spread;
+      const z = position[2] + (pseudoRandom2 - Math.floor(pseudoRandom2) - 0.5) * spread;
+      const scale = 1.0 + (pseudoRandom3 - Math.floor(pseudoRandom3)) * 1.5;
+      
+      result.push(
+        <RigidBody key={`rock-${i}`} type="fixed" position={[x, position[1], z]}>
+          <mesh castShadow>
+            <dodecahedronGeometry args={[scale, 0]} />
+            <meshStandardMaterial color="#808080" roughness={0.8} />
+          </mesh>
+        </RigidBody>
+      );
+    }
+    
+    return result;
+  }, [position, count, spread]);
   
   return <group>{rocks}</group>;
-}
+});
 
-// Larger boulders with more diverse shapes
-function BoulderField({ position = [0, 0, 0], count = 5, spread = 30 }) {
-  const boulders = [];
-  
-  for (let i = 0; i < count; i++) {
-    const x = position[0] + (Math.random() - 0.5) * spread;
-    const z = position[2] + (Math.random() - 0.5) * spread;
-    const scale = 2.0 + Math.random() * 2.5; // Much larger than regular rocks
-    const rotationY = Math.random() * Math.PI * 2;
+Rocks.displayName = 'Rocks';
+
+// Larger boulders with more diverse shapes - Memoized
+const BoulderField = memo<{ position?: number[]; count?: number; spread?: number }>(({ position = [0, 0, 0], count = 5, spread = 30 }) => {
+  const boulders = useMemo(() => {
+    const seed = position[0] + position[2] + count + 2000; // Different seed offset
+    const result = [];
     
-    // Choose between different boulder shapes
-    const shape = Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const pseudoRandom1 = Math.sin(seed + i * 12.9898) * 43758.5453;
+      const pseudoRandom2 = Math.sin(seed + i * 78.233) * 43758.5453;
+      const pseudoRandom3 = Math.sin(seed + i * 37.719) * 43758.5453;
+      const pseudoRandom4 = Math.sin(seed + i * 41.233) * 43758.5453;
+      const pseudoRandom5 = Math.sin(seed + i * 53.719) * 43758.5453;
+      
+      const x = position[0] + (pseudoRandom1 - Math.floor(pseudoRandom1) - 0.5) * spread;
+      const z = position[2] + (pseudoRandom2 - Math.floor(pseudoRandom2) - 0.5) * spread;
+      const scale = 2.0 + (pseudoRandom3 - Math.floor(pseudoRandom3)) * 2.5;
+      const rotationY = (pseudoRandom4 - Math.floor(pseudoRandom4)) * Math.PI * 2;
+      const shape = Math.floor((pseudoRandom5 - Math.floor(pseudoRandom5)) * 3);
+      
+      result.push(
+        <RigidBody key={`boulder-${i}`} type="fixed" position={[x, position[1] + scale/3, z]}>
+          <mesh castShadow rotation={[(pseudoRandom1 - Math.floor(pseudoRandom1)) * 0.3, rotationY, (pseudoRandom2 - Math.floor(pseudoRandom2)) * 0.3]}>
+            {shape === 0 && <icosahedronGeometry args={[scale, 0]} />}
+            {shape === 1 && <octahedronGeometry args={[scale, 0]} />}
+            {shape === 2 && <boxGeometry args={[scale, scale * 0.7, scale * 0.9]} />}
+            <meshStandardMaterial color="#615e5d" roughness={0.9} />
+          </mesh>
+        </RigidBody>
+      );
+    }
     
-    boulders.push(
-      <RigidBody key={`boulder-${i}`} type="fixed" position={[x, position[1] + scale/3, z]}>
-        <mesh castShadow rotation={[Math.random() * 0.3, rotationY, Math.random() * 0.3]}>
-          {shape === 0 && <icosahedronGeometry args={[scale, 0]} />}
-          {shape === 1 && <octahedronGeometry args={[scale, 0]} />}
-          {shape === 2 && <boxGeometry args={[scale, scale * 0.7, scale * 0.9]} />}
-          <meshStandardMaterial color="#615e5d" roughness={0.9} />
-        </mesh>
-      </RigidBody>
-    );
-  }
+    return result;
+  }, [position, count, spread]);
   
   return <group>{boulders}</group>;
-}
+});
 
-// Bushes and small vegetation
-function Bushes({ position = [0, 0, 0], count = 15, spread = 30 }) {
-  const bushes = [];
-  
-  for (let i = 0; i < count; i++) {
-    const x = position[0] + (Math.random() - 0.5) * spread;
-    const z = position[2] + (Math.random() - 0.5) * spread;
-    const scale = 0.5 + Math.random() * 1.0;
-    const rotationY = Math.random() * Math.PI * 2;
-    
-    // Randomize bush color slightly
-    const greenHue = 0.3 + Math.random() * 0.1;
-    const colorVariation = Math.random() * 0.2;
-    const color = `rgb(${Math.floor((0.15 + colorVariation) * 255)}, 
-                      ${Math.floor((greenHue + colorVariation) * 255)}, 
-                      ${Math.floor((0.15 + colorVariation) * 255)})`;
-    
-    bushes.push(
-      <group key={`bush-${i}`} position={[x, position[1], z]} rotation={[0, rotationY, 0]} scale={scale}>
-        <mesh position={[0, 0.4, 0]} castShadow>
-          <sphereGeometry args={[0.8, 8, 8]} />
-          <meshStandardMaterial color={color} roughness={0.8} />
-        </mesh>
-        <mesh position={[0.4, 0.6, 0.4]} castShadow>
-          <sphereGeometry args={[0.6, 8, 8]} />
-          <meshStandardMaterial color={color} roughness={0.8} />
-        </mesh>
-        <mesh position={[-0.4, 0.5, 0.2]} castShadow>
-          <sphereGeometry args={[0.7, 8, 8]} />
-          <meshStandardMaterial color={color} roughness={0.8} />
-        </mesh>
-      </group>
-    );
-  }
-  
-  return <group>{bushes}</group>;
-}
+BoulderField.displayName = 'BoulderField';
 
-// Fallen logs scattered in the forest
-function FallenLogs({ position = [0, 0, 0], count = 5, spread = 30 }) {
-  const logs = [];
-  
-  for (let i = 0; i < count; i++) {
-    const x = position[0] + (Math.random() - 0.5) * spread;
-    const z = position[2] + (Math.random() - 0.5) * spread;
-    const scaleX = 0.5 + Math.random() * 0.3;
-    const scaleZ = 0.5 + Math.random() * 0.3;
-    const length = 3 + Math.random() * 5;
-    const rotationY = Math.random() * Math.PI * 2;
+// Bushes and small vegetation - Memoized
+const Bushes = memo<{ position?: number[]; count?: number; spread?: number }>(({ position = [0, 0, 0], count = 15, spread = 30 }) => {
+  const bushes = useMemo(() => {
+    const seed = position[0] + position[2] + count + 3000; // Different seed offset
+    const result = [];
     
-    logs.push(
-      <RigidBody key={`log-${i}`} type="fixed" position={[x, position[1], z]}>
-        <group rotation={[0, rotationY, Math.random() * 0.3 - 0.15]}>
-          {/* Log body */}
-          <mesh position={[0, 0.5 * scaleZ, 0]} castShadow>
-            <cylinderGeometry args={[scaleX, scaleX, length, 8]} />
-            <mesh rotation={[0, 0, Math.PI / 2]} />
-            <meshStandardMaterial color="#654321" roughness={0.9} />
+    for (let i = 0; i < count; i++) {
+      const pseudoRandom1 = Math.sin(seed + i * 12.9898) * 43758.5453;
+      const pseudoRandom2 = Math.sin(seed + i * 78.233) * 43758.5453;
+      const pseudoRandom3 = Math.sin(seed + i * 37.719) * 43758.5453;
+      const pseudoRandom4 = Math.sin(seed + i * 41.233) * 43758.5453;
+      const pseudoRandom5 = Math.sin(seed + i * 53.719) * 43758.5453;
+      
+      const x = position[0] + (pseudoRandom1 - Math.floor(pseudoRandom1) - 0.5) * spread;
+      const z = position[2] + (pseudoRandom2 - Math.floor(pseudoRandom2) - 0.5) * spread;
+      const scale = 0.5 + (pseudoRandom3 - Math.floor(pseudoRandom3)) * 1.0;
+      const rotationY = (pseudoRandom4 - Math.floor(pseudoRandom4)) * Math.PI * 2;
+      const colorVariation = (pseudoRandom5 - Math.floor(pseudoRandom5)) * 0.2;
+      
+      const greenHue = 0.3 + (pseudoRandom1 - Math.floor(pseudoRandom1)) * 0.1;
+      const color = `rgb(${Math.floor((0.15 + colorVariation) * 255)}, 
+                        ${Math.floor((greenHue + colorVariation) * 255)}, 
+                        ${Math.floor((0.15 + colorVariation) * 255)})`;
+      
+      result.push(
+        <group key={`bush-${i}`} position={[x, position[1], z]} rotation={[0, rotationY, 0]} scale={scale}>
+          <mesh position={[0, 0.4, 0]} castShadow>
+            <sphereGeometry args={[0.8, 8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.8} />
           </mesh>
-          
-          {/* End caps */}
-          <mesh position={[length/2, 0.5 * scaleZ, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
-            <circleGeometry args={[scaleX, 8]} />
-            <meshStandardMaterial color="#5a3a1a" roughness={0.95} />
+          <mesh position={[0.4, 0.6, 0.4]} castShadow>
+            <sphereGeometry args={[0.6, 8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.8} />
           </mesh>
-          
-          <mesh position={[-length/2, 0.5 * scaleZ, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow>
-            <circleGeometry args={[scaleX, 8]} />
-            <meshStandardMaterial color="#5a3a1a" roughness={0.95} />
+          <mesh position={[-0.4, 0.5, 0.2]} castShadow>
+            <sphereGeometry args={[0.7, 8, 8]} />
+            <meshStandardMaterial color={color} roughness={0.8} />
           </mesh>
         </group>
-      </RigidBody>
-    );
-  }
+      );
+    }
+    
+    return result;
+  }, [position, count, spread]);
+  
+  return <group>{bushes}</group>;
+});
+
+Bushes.displayName = 'Bushes';
+
+// Fallen logs scattered in the forest - Memoized
+const FallenLogs = memo<{ position?: number[]; count?: number; spread?: number }>(({ position = [0, 0, 0], count = 5, spread = 30 }) => {
+  const logs = useMemo(() => {
+    const seed = position[0] + position[2] + count + 4000; // Different seed offset
+    const result = [];
+    
+    for (let i = 0; i < count; i++) {
+      const pseudoRandom1 = Math.sin(seed + i * 12.9898) * 43758.5453;
+      const pseudoRandom2 = Math.sin(seed + i * 78.233) * 43758.5453;
+      const pseudoRandom3 = Math.sin(seed + i * 37.719) * 43758.5453;
+      const pseudoRandom4 = Math.sin(seed + i * 41.233) * 43758.5453;
+      const pseudoRandom5 = Math.sin(seed + i * 53.719) * 43758.5453;
+      const pseudoRandom6 = Math.sin(seed + i * 67.341) * 43758.5453;
+      
+      const x = position[0] + (pseudoRandom1 - Math.floor(pseudoRandom1) - 0.5) * spread;
+      const z = position[2] + (pseudoRandom2 - Math.floor(pseudoRandom2) - 0.5) * spread;
+      const scaleX = 0.5 + (pseudoRandom3 - Math.floor(pseudoRandom3)) * 0.3;
+      const scaleZ = 0.5 + (pseudoRandom4 - Math.floor(pseudoRandom4)) * 0.3;
+      const length = 3 + (pseudoRandom5 - Math.floor(pseudoRandom5)) * 5;
+      const rotationY = (pseudoRandom6 - Math.floor(pseudoRandom6)) * Math.PI * 2;
+      
+      result.push(
+        <RigidBody key={`log-${i}`} type="fixed" position={[x, position[1], z]}>
+          <group rotation={[0, rotationY, (pseudoRandom1 - Math.floor(pseudoRandom1)) * 0.3 - 0.15]}>
+            {/* Log body */}
+            <mesh position={[0, 0.5 * scaleZ, 0]} castShadow>
+              <cylinderGeometry args={[scaleX, scaleX, length, 8]} />
+              <mesh rotation={[0, 0, Math.PI / 2]} />
+              <meshStandardMaterial color="#654321" roughness={0.9} />
+            </mesh>
+            
+            {/* End caps */}
+            <mesh position={[length/2, 0.5 * scaleZ, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <circleGeometry args={[scaleX, 8]} />
+              <meshStandardMaterial color="#5a3a1a" roughness={0.95} />
+            </mesh>
+            
+            <mesh position={[-length/2, 0.5 * scaleZ, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow>
+              <circleGeometry args={[scaleX, 8]} />
+              <meshStandardMaterial color="#5a3a1a" roughness={0.95} />
+            </mesh>
+          </group>
+        </RigidBody>
+      );
+    }
+    
+    return result;
+  }, [position, count, spread]);
   
   return <group>{logs}</group>;
-}
+});
+
+FallenLogs.displayName = 'FallenLogs';

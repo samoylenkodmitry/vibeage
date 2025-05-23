@@ -44,6 +44,7 @@ interface GameState {
   players: Record<string, PlayerState>;
   enemies: Record<string, Enemy>;
   selectedTargetId: string | null;
+  lastTargetSelectedTimestamp: number; // Add timestamp for target selection
   lastCastSkillId: string | null;
   flashingSkill: string | null;  // Skill ID that should flash red (for failures)
   manaBarFlash: boolean;         // Whether mana bar should flash red
@@ -190,6 +191,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   players: {},
   enemies: {},
   selectedTargetId: null,
+  lastTargetSelectedTimestamp: 0,
   lastCastSkillId: null,
   flashingSkill: null,
   manaBarFlash: false,
@@ -500,8 +502,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(produce(state => {
       if (targetId === null || state.enemies[targetId]) {
         state.selectedTargetId = targetId;
+        state.lastTargetSelectedTimestamp = Date.now(); // Set timestamp when target is selected
       } else {
         state.selectedTargetId = null;
+        state.lastTargetSelectedTimestamp = Date.now();
       }
     }));
   },

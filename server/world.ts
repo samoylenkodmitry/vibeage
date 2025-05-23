@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
-         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe, UseItem } from '../shared/messages.js';
+         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
@@ -733,23 +733,31 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
         case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
         case 'UseItem': return onUseItem(socket, state, msg as UseItem, io);
-        case 'LootPickup': 
-          if (state.players[msg.playerId]?.socketId === socket.id) {
-            if (this.tryGiveLoot(msg.playerId, msg.lootId)) {
+        case 'LootPickup': {
+          const lootMsg = msg as LootPickup;
+          console.log(`[LootPickup] Received pickup request: lootId=${lootMsg.lootId}, playerId=${lootMsg.playerId}`);
+          console.log(`[LootPickup] Player exists: ${!!state.players[lootMsg.playerId]}`);
+          console.log(`[LootPickup] Socket ID matches: ${state.players[lootMsg.playerId]?.socketId === socket.id}`);
+          
+          if (state.players[lootMsg.playerId]?.socketId === socket.id) {
+            if (api.tryGiveLoot(lootMsg.playerId, lootMsg.lootId)) {
               // Send a properly formatted inventory update message
               socket.emit('msg', { 
                 type: 'InventoryUpdate',
-                playerId: msg.playerId,
-                inventory: state.players[msg.playerId].inventory,
-                maxInventorySlots: state.players[msg.playerId].maxInventorySlots
+                playerId: lootMsg.playerId,
+                inventory: state.players[lootMsg.playerId].inventory,
+                maxInventorySlots: state.players[lootMsg.playerId].maxInventorySlots
               });
               // Log successful pickup
-              console.log(`Player ${msg.playerId} picked up loot ${msg.lootId}`);
+              console.log(`[LootPickup] SUCCESS: Player ${lootMsg.playerId} picked up loot ${lootMsg.lootId}`);
             } else {
-              console.log(`Failed to pick up loot: ${msg.lootId} for player ${msg.playerId}`);
+              console.log(`[LootPickup] FAILED: Failed to pick up loot: ${lootMsg.lootId} for player ${lootMsg.playerId}`);
             }
+          } else {
+            console.log(`[LootPickup] REJECTED: Socket ID mismatch or player not found`);
           }
           break;
+        }
       }
     },
     onTargetDied(caster: PlayerState, target: Enemy | PlayerState) {
@@ -827,6 +835,22 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       }
       
       console.log(`[LootPickup] Player ${playerId} picking up loot ${lootId}`);
+      
+      // Check distance between player and loot (server-side validation)
+      const PICKUP_DISTANCE = 3.0; // Maximum pickup distance in world units
+      const playerPos = player.position;
+      const lootPos = loot.position;
+      const distance = Math.sqrt(
+        Math.pow(playerPos.x - lootPos.x, 2) + 
+        Math.pow(playerPos.z - lootPos.z, 2)
+      );
+      
+      if (distance > PICKUP_DISTANCE) {
+        console.log(`[LootPickup] Player ${playerId} too far from loot ${lootId}. Distance: ${distance.toFixed(2)}, Max: ${PICKUP_DISTANCE}`);
+        return false; // Reject pickup attempt
+      }
+      
+      console.log(`[LootPickup] Distance check passed. Distance: ${distance.toFixed(2)}`);
       
       // Convert ItemDrop[] to InventorySlot[] format
       const items: InventorySlot[] = loot.items.map(item => ({

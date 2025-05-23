@@ -37,11 +37,15 @@ function CameraFollowPlayer() {
   const myId = useGameStore(s => s.myPlayerId);
   const controlledPlayerRenderPos = useGameStore(s => s.controlledPlayerRenderPosition); // Get the render position
   const angleRef = useRef(Math.PI);
+  const pitchRef = useRef(0); // Add pitch reference
 
   // Listen for camera angle changes from Player.tsx
   useEffect(() => {
     const handleCameraAngleChange = (e: CustomEvent) => {
       angleRef.current = e.detail.angle;
+      if (e.detail.pitch !== undefined) {
+        pitchRef.current = e.detail.pitch;
+      }
     };
 
     window.addEventListener('cameraAngleChange', handleCameraAngleChange as EventListener);
@@ -56,17 +60,40 @@ function CameraFollowPlayer() {
     
     const { x: playerX, z: playerZ } = controlledPlayerRenderPos; // Use x and z from render position
     
-    // Create target camera position based on the player's render position
-    const dist=15, height=10, ang=angleRef.current;
+    // Camera settings - maintain constant distance
+    const dist = 15; // Fixed distance from rotation center
+    const heightOffset = 2; // Height above player for rotation center
+    const ang = angleRef.current;
+    const pitch = pitchRef.current;
+    
+    // Define the center of rotation (above the player)
+    const rotationCenter = new THREE.Vector3(playerX, GROUND_Y + heightOffset, playerZ);
+    
+    // Calculate camera position using spherical coordinates around the rotation center
     const targetCamPos = new THREE.Vector3(
-      playerX - Math.sin(ang)*dist,
-      GROUND_Y + height,
-      playerZ - Math.cos(ang)*dist
+      rotationCenter.x - Math.sin(ang) * Math.cos(pitch) * dist,
+      rotationCenter.y + Math.sin(pitch) * dist,
+      rotationCenter.z - Math.cos(ang) * Math.cos(pitch) * dist
+    );
+    
+    // Only adjust if camera would go underground - maintain distance otherwise
+    const MIN_CAMERA_HEIGHT = GROUND_Y + 1.0; // 1 unit above ground
+    if (targetCamPos.y < MIN_CAMERA_HEIGHT) {
+      // If underground, adjust only the Y position to stay above ground
+      // This will change the effective distance but prevent going underground
+      targetCamPos.y = MIN_CAMERA_HEIGHT;
+    }
+    
+    // Calculate look-at target (the rotation center with slight offset based on pitch)
+    const lookAtTarget = new THREE.Vector3(
+      rotationCenter.x,
+      rotationCenter.y + Math.sin(pitch) * 3, // Adjust look-at height based on pitch
+      rotationCenter.z
     );
     
     // Directly set camera position without interpolation for instant snapping
-    camera.position.copy(targetCamPos);
-    camera.lookAt(playerX, GROUND_Y+1, playerZ);
+    camera.position.set(targetCamPos.x, targetCamPos.y, targetCamPos.z);
+    camera.lookAt(lookAtTarget.x, lookAtTarget.y, lookAtTarget.z);
   });
   
   return null;

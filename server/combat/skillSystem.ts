@@ -103,6 +103,13 @@ function resolveImpact(cast: Cast, io: Server, world: World): void {
     if (target.health !== undefined) {
       target.health = Math.max(0, target.health - dmgValues[index]);
       
+      // Set enemy aggro to caster if this is an enemy and damage was dealt
+      if (target.type && dmgValues[index] > 0 && caster && target.isAlive) {
+        target.targetId = caster.id;
+        target.aiState = 'chasing';
+        console.log(`[resolveImpact] Enemy ${target.id} aggroed to player ${caster.id} after taking ${dmgValues[index]} damage`);
+      }
+      
       // Apply skill effects
       if (skill.effects && skill.effects.length > 0) {
         applySkillEffects(target, skill);
