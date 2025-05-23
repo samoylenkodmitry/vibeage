@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Color, Mesh, Vector3, MathUtils } from 'three';
+import { Color, Mesh, Vector3 } from 'three';
 
 interface HealingVfxProps {
   position: {x: number; y: number; z: number};
