@@ -331,6 +331,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       state.players = newState.players;
       state.enemies = newState.enemies;
       state.selectedTargetId = newState.enemies[state.selectedTargetId ?? ''] ? state.selectedTargetId : null;
+      
+      // Update inventory if we have a current player in the game state
+      if (state.myPlayerId && newState.players[state.myPlayerId]) {
+        const myPlayer = newState.players[state.myPlayerId];
+        if (myPlayer.inventory) {
+          state.inventory = myPlayer.inventory;
+          console.log('[Client] Inventory synchronized on game state update:', myPlayer.inventory);
+        }
+      }
     }));
   },
 
@@ -382,6 +391,12 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (hasChanges) {
           Object.assign(currentPlayer, playerData);
         }
+      }
+      
+      // If this is the current player and inventory data is included, update the local inventory
+      if (state.myPlayerId === playerData.id && 'inventory' in playerData && playerData.inventory) {
+        state.inventory = playerData.inventory;
+        console.log('[Client] Inventory synchronized on player update:', playerData.inventory);
       }
     }));
   },

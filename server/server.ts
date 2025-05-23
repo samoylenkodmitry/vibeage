@@ -92,6 +92,14 @@ io.on('connection', (socket) => {
       // Send full game state to the new player
       socket.emit('gameState', world.getGameState());
       
+      // Send explicit inventory update to ensure synchronization
+      socket.emit('msg', {
+        type: 'InventoryUpdate',
+        playerId: player.id,
+        inventory: player.inventory,
+        maxInventorySlots: player.maxInventorySlots
+      });
+      
       // Send all active casts and projectiles to the new player
       sendCastSnapshots(socket);
       
@@ -108,6 +116,21 @@ io.on('connection', (socket) => {
     const gameState = world.getGameState();
     console.log('Client requested game state. Enemy count:', Object.keys(gameState.enemies).length);
     socket.emit('gameState', gameState);
+    
+    // Find the player associated with this socket and send explicit inventory update
+    const playerId = Object.keys(gameState.players).find(
+      id => gameState.players[id].socketId === socket.id
+    );
+    
+    if (playerId && gameState.players[playerId]) {
+      const player = gameState.players[playerId];
+      socket.emit('msg', {
+        type: 'InventoryUpdate',
+        playerId: player.id,
+        inventory: player.inventory,
+        maxInventorySlots: player.maxInventorySlots
+      });
+    }
   });
 
   // Handle new message format
