@@ -8,8 +8,13 @@ const excludeDirs = [
   'node_modules',
   '.git',
   '.next',
+  'out',
   'dist',
   'build',
+  'coverage',
+  '.nyc_output',
+  'tmp',
+  'temp',
 ];
 
 const includeExtensions = [
@@ -25,11 +30,15 @@ const includeExtensions = [
   '.jsx',
 ];
 
-// Skip test files unless they provide valuable documentation
+// Skip test files and other non-essential files
 const excludePatterns = [
   /\.test\./,
   /\.spec\./,
   /\.bench\./,
+  /test\./,
+  /spec\./,
+  /\.test$/,
+  /\.spec$/,
   /next-env\.d\.ts/,
   /tsconfig\.tsbuildinfo/,
   /package-lock\.json/,
