@@ -21,8 +21,8 @@ export class RateLimiter {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
 
-    // Clean up expired records periodically
-    setInterval(() => this.cleanup(), windowMs);
+    // Clean up expired records periodically with reduced frequency
+    setInterval(() => this.cleanup(), windowMs * 2); // Run cleanup every 2x the window size for better performance
   }
 
   /**

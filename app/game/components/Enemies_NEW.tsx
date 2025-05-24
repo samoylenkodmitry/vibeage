@@ -1,5 +1,6 @@
 'use client';
 
+import { useFrame } from '@react-three/fiber';
 import { useGameStore } from '../systems/gameStore';
 import { Enemy } from './enemies/Enemy';
 
@@ -10,6 +11,10 @@ export default function Enemies() {
 
   // Convert enemies object to array
   const enemiesArray = Object.values(enemies);
+
+  useFrame(() => {
+    // Enemy movement is now handled in the Enemy component for each individual enemy
+  });
 
   return (
     <group>

@@ -91,7 +91,7 @@ export default function CastingBar({ playerId }: CastingBarProps) {
         const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
         setProgressPercentInternal(newProgressPercent);
       }
-    }, 50);
+    }, 100); // Increased from 50ms to 100ms for better performance
     
     return () => clearInterval(interval);
   }, [isVisible, player?.castingSkill]); 

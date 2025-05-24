@@ -125,6 +125,91 @@ export const GAME_ZONES: ZoneConfig[] = [
       { type: 'crystal_elemental', weight: 40, minCount: 3, maxCount: 6 },
       { type: 'crystal_guardian', weight: 20, minCount: 1, maxCount: 3 }
     ]
+  },
+  // New expansive zones
+  {
+    id: 'volcanic_wastes',
+    name: 'Volcanic Wastes',
+    description: 'A scorching landscape of lava flows and fire elementals',
+    position: { x: 500, y: 0, z: -300 },
+    radius: 170,
+    minLevel: 12,
+    maxLevel: 16,
+    mobs: [
+      { type: 'fire_elemental', weight: 50, minCount: 6, maxCount: 10 },
+      { type: 'lava_golem', weight: 30, minCount: 3, maxCount: 6 },
+      { type: 'flame_wraith', weight: 20, minCount: 2, maxCount: 4 }
+    ]
+  },
+  {
+    id: 'frozen_tundra',
+    name: 'Frozen Tundra',
+    description: 'An icy wasteland where frost giants and ice creatures roam',
+    position: { x: -500, y: 0, z: 500 },
+    radius: 180,
+    minLevel: 13,
+    maxLevel: 17,
+    mobs: [
+      { type: 'ice_giant', weight: 30, minCount: 2, maxCount: 4 },
+      { type: 'frost_wolf', weight: 40, minCount: 5, maxCount: 8 },
+      { type: 'ice_elemental', weight: 30, minCount: 4, maxCount: 7 }
+    ]
+  },
+  {
+    id: 'ethereal_gardens',
+    name: 'Ethereal Gardens',
+    description: 'Mystical floating gardens with magical creatures and ancient spirits',
+    position: { x: 600, y: 0, z: 400 },
+    radius: 160,
+    minLevel: 15,
+    maxLevel: 19,
+    mobs: [
+      { type: 'spirit_guardian', weight: 40, minCount: 4, maxCount: 7 },
+      { type: 'ethereal_sprite', weight: 35, minCount: 6, maxCount: 10 },
+      { type: 'ancient_treant', weight: 25, minCount: 2, maxCount: 4 }
+    ]
+  },
+  {
+    id: 'abyssal_depths',
+    name: 'Abyssal Depths',
+    description: 'Dark underwater caverns filled with eldritch horrors and ancient evils',
+    position: { x: -600, y: 0, z: -600 },
+    radius: 200,
+    minLevel: 18,
+    maxLevel: 22,
+    mobs: [
+      { type: 'deep_leviathan', weight: 20, minCount: 1, maxCount: 2 },
+      { type: 'tentacle_horror', weight: 40, minCount: 3, maxCount: 6 },
+      { type: 'void_spawner', weight: 40, minCount: 4, maxCount: 8 }
+    ]
+  },
+  {
+    id: 'celestial_peaks',
+    name: 'Celestial Peaks',
+    description: 'Sky-touching mountains where celestial beings and star guardians dwell',
+    position: { x: 700, y: 0, z: -500 },
+    radius: 190,
+    minLevel: 20,
+    maxLevel: 25,
+    mobs: [
+      { type: 'celestial_guardian', weight: 30, minCount: 2, maxCount: 4 },
+      { type: 'star_weaver', weight: 40, minCount: 3, maxCount: 6 },
+      { type: 'radiant_seraph', weight: 30, minCount: 2, maxCount: 5 }
+    ]
+  },
+  {
+    id: 'temporal_rifts',
+    name: 'Temporal Rifts',
+    description: 'Unstable zones where time itself is distorted, harboring chrono-entities',
+    position: { x: -700, y: 0, z: 700 },
+    radius: 150,
+    minLevel: 23,
+    maxLevel: 30,
+    mobs: [
+      { type: 'time_wraith', weight: 35, minCount: 3, maxCount: 6 },
+      { type: 'chrono_stalker', weight: 35, minCount: 4, maxCount: 7 },
+      { type: 'temporal_overlord', weight: 30, minCount: 1, maxCount: 3 }
+    ]
   }
 ];
 

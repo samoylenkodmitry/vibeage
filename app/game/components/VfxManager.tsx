@@ -229,7 +229,7 @@ export default function VfxManager() {
     // Use a set to track projectiles already processed in this cycle
     const processedProjectiles = new Set<string>();
     
-    // Cleanup expired effects periodically
+    // Cleanup expired effects periodically with reduced frequency
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
       
@@ -281,7 +281,7 @@ export default function VfxManager() {
       
       // Clear the processed set after each cycle
       processedProjectiles.clear();
-    }, 100);
+    }, 250); // Increased from 100ms to 250ms for better performance
     
     // Cleanup on unmount
     return () => {

@@ -267,12 +267,15 @@ const useParticleSystem = (options: ParticleSystemOptions = {}) => {
     isActive.current = active;
   };
   
-  // Setup continuous emission if enabled
+  // Setup continuous emission if enabled with performance optimization
   useFrame((_, delta) => {
     if (!isActive.current) return;
+
+    // Cap delta to prevent huge frame jumps that cause performance issues
+    const cappedDelta = Math.min(delta, 0.033); // Max 33ms (30 FPS minimum)
     
     const now = performance.now();
-    const deltaSeconds = delta; // delta is already in seconds
+    const deltaSeconds = cappedDelta; // delta is already in seconds
     
     // Handle continuous emission if enabled
     if (optionsWithDefaults.emissionRate! > 0) {

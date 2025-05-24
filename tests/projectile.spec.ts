@@ -26,7 +26,8 @@ describe('Projectile Contract Hardening', () => {
         pos: { x: 0, z: 0 },
         dir: { x: 1, z: 0 },
         startedAt: Date.now(),
-        castTimeMs: 1000
+        castTimeMs: 1000,
+        progressMs: 0
       };
       
       useProjectileStore.getState().add(castSnapshot);
@@ -56,7 +57,8 @@ describe('Projectile Contract Hardening', () => {
       pos: { x: 10, z: 20 },
       dir: { x: 0.707, z: 0.707 }, // Normalized vector (45 degrees)
       startedAt: 1620000000000,
-      castTimeMs: 1000
+      castTimeMs: 1000,
+      progressMs: 0
     };
     
     useProjectileStore.getState().add(castSnapshot);

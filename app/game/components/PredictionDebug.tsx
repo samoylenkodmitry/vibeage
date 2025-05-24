@@ -59,7 +59,7 @@ export default function PredictionDebug() {
       setDebugInfo(info);
     };
     
-    const interval = setInterval(collectDebugInfo, 500);
+    const interval = setInterval(collectDebugInfo, 1000); // Increased from 500ms to 1000ms for better performance
     return () => clearInterval(interval);
   }, [showDebug]);
   

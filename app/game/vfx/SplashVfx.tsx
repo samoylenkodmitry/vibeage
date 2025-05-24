@@ -99,8 +99,11 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
   useFrame((_, delta) => {
     if (!ringRef.current) return;
     
+    // Cap delta to prevent performance issues with large frame times
+    const cappedDelta = Math.min(delta, 0.033); // Max 33ms (30 FPS minimum)
+    
     // Shrink lifetime
-    setLifetime(prev => Math.max(0, prev - delta));
+    setLifetime(prev => Math.max(0, prev - cappedDelta));
     
     // Scale up the ring
     const progress = 1 - lifetime;
@@ -115,13 +118,13 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
     // Update water particles
     setWaterParticles(prevParticles => 
       prevParticles.map(particle => {
-        // Apply gravity
-        particle.velocity.y -= 15 * delta;
+        // Apply gravity with capped delta
+        particle.velocity.y -= 15 * cappedDelta;
         
-        // Update position
-        particle.position.x += particle.velocity.x * delta;
-        particle.position.y += particle.velocity.y * delta;
-        particle.position.z += particle.velocity.z * delta;
+        // Update position with capped delta
+        particle.position.x += particle.velocity.x * cappedDelta;
+        particle.position.y += particle.velocity.y * cappedDelta;
+        particle.position.z += particle.velocity.z * cappedDelta;
         
         // Handle bouncing
         if (particle.position.y < particle.initialY && particle.velocity.y < 0) {
@@ -134,13 +137,13 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
           particle.opacity *= 0.7;
         }
         
-        // Update rotation
-        particle.rotation.x += particle.rotationSpeed.x * delta;
-        particle.rotation.y += particle.rotationSpeed.y * delta;
-        particle.rotation.z += particle.rotationSpeed.z * delta;
+        // Update rotation with capped delta
+        particle.rotation.x += particle.rotationSpeed.x * cappedDelta;
+        particle.rotation.y += particle.rotationSpeed.y * cappedDelta;
+        particle.rotation.z += particle.rotationSpeed.z * cappedDelta;
         
         // Fade out over time
-        particle.opacity = Math.max(0, particle.opacity - 0.5 * delta);
+        particle.opacity = Math.max(0, particle.opacity - 0.5 * cappedDelta);
         
         return particle;
       }).filter(p => p.opacity > 0.1)

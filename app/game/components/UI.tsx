@@ -51,7 +51,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
     update(); // Update immediately
     if (cooldownEndMs <= Date.now()) return; // Already over
     
-    const interval = setInterval(update, 100); // Keep in sync
+    const interval = setInterval(update, 200); // Reduced from 100ms to 200ms for better performance
     
     return () => clearInterval(interval);
   }, [cooldownEndMs]);
@@ -72,7 +72,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
     };
     
     updateCastProgress();
-    const interval = setInterval(updateCastProgress, 50);
+    const interval = setInterval(updateCastProgress, 100); // Reduced from 50ms to 100ms for better performance
     
     return () => clearInterval(interval);
   }, [isCasting, castProgressMs, skill.castTimeMs]);

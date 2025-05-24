@@ -85,11 +85,10 @@ const useProjectileMovement = ({
     
     return position;
   };
-  
-  // Update position each frame
+   // Update position each frame with performance optimizations
   useFrame(() => {
     if (isDestroyed.current) return;
-    
+
     // Calculate elapsed time in seconds since launch using epoch time
     const clientNowEpoch = Date.now();
     
@@ -98,8 +97,8 @@ const useProjectileMovement = ({
     let elapsedTimeSeconds = Math.max(0, (clientNowEpoch - originalLaunchTs.current) / 1000);
     
     // Sanity check: if elapsed time is too large or negative, use a small value
-    // and auto-destroy the projectile if it's been alive for more than 5 seconds
-    if (elapsedTimeSeconds < 0 || elapsedTimeSeconds > 5) {
+    // and auto-destroy the projectile if it's been alive for more than 3 seconds (reduced from 5)
+    if (elapsedTimeSeconds < 0 || elapsedTimeSeconds > 3) {
       console.warn(`[ProjMove] Excessive elapsed time: ${elapsedTimeSeconds?.toFixed(3) || 'undefined'}s. Auto-destroying projectile.`);
       
       // Auto-destroy the projectile since it's been alive too long
@@ -107,24 +106,25 @@ const useProjectileMovement = ({
       if (onDestroy) onDestroy();
       
       // Use a reasonable fallback for final position calculation
-      elapsedTimeSeconds = Math.min(5, Math.max(0, elapsedTimeSeconds));
+      elapsedTimeSeconds = Math.min(3, Math.max(0, elapsedTimeSeconds));
     }
     
     // Calculate new position
     const newPosition = calculatePosition(elapsedTimeSeconds);
     
-    // Debug logging to track position calculations (only log occasionally to reduce spam)
-    if (Math.random() < 0.05) { // Log roughly 5% of frames
+    // Reduced debug logging frequency for better performance
+    if (Math.random() < 0.02) { // Log roughly 2% of frames (reduced from 5%)
       console.log(`[ProjMove] Elapsed: ${elapsedTimeSeconds.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2) || 'undefined'}, ${newPosition?.y?.toFixed(2) || 'undefined'}, ${newPosition?.z?.toFixed(2) || 'undefined'})`);
     }
     
     // Enhanced hook logging (in addition to existing logs)
-    if (Math.random() < 0.02) { // Reduce log frequency
+    if (Math.random() < 0.01) { // Reduce log frequency even more (from 0.02)
       console.log(`[ProjMove Hook] Update. Elapsed: ${elapsedTimeSeconds?.toFixed(3)}, NewPos: (${newPosition?.x?.toFixed(2)}, ${newPosition?.y?.toFixed(2)}, ${newPosition?.z?.toFixed(2)})`);
     }
     
-    // Only update position if it has actually changed to prevent infinite updates
-    if (!currentPosition.equals(newPosition)) {
+    // Only update position if it has actually changed significantly to prevent infinite updates
+    const distance = currentPosition.distanceTo(newPosition);
+    if (distance > 0.01) { // Only update if movement is significant (1cm threshold)
       setCurrentPosition(newPosition);
     }
     

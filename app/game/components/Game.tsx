@@ -16,6 +16,8 @@ import VfxManager from './VfxManager';
 import GameHud from './GameHud';
 import PredictionDebug from './PredictionDebug';
 import PredictionPath from './PredictionPath';
+import GameManager from './GameManager';
+import { GameUIContent, useGameManager, SystemsManager } from './gamemanager';
 import { useGameStore } from '../systems/gameStore';
 import { GROUND_Y } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
@@ -106,6 +108,12 @@ export default function Game() {
   const socket = useGameStore(state => state.socket);
   const hasJoinedGame = useGameStore(state => state.hasJoinedGame);
   const setHasJoinedGame = useGameStore(state => state.setHasJoinedGame);
+  const myId = useGameStore(s => s.myPlayerId);
+  const controlledPlayerRenderPos = useGameStore(s => s.controlledPlayerRenderPosition);
+
+  // Game Manager Hook for UI state management
+  const gameManager = useGameManager(myId || '', 1, controlledPlayerRenderPos || { x: 0, y: 0, z: 0 });
+  const [systemsManager] = useState(() => new SystemsManager());
 
   useEffect(() => {
     if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame) {
@@ -204,12 +212,33 @@ export default function Game() {
             <CameraFollowPlayer />
             <PredictionPath />
           </Physics>
+          <GameManager 
+            playerId={myId || ''} 
+            playerLevel={1} // TODO: Get from game store
+            playerPosition={controlledPlayerRenderPos || { x: 0, y: 0, z: 0 }} 
+          />
         </Canvas>
       </KeyboardControls>
       <GameHud>
         <UI />
       </GameHud>
       <PredictionDebug />
+      
+      {/* Game UI Content - Outside Canvas for proper React rendering */}
+      {myId && controlledPlayerRenderPos && (
+        <GameUIContent
+          systemsManager={systemsManager}
+          playerId={myId}
+          playerLevel={1}
+          uiState={gameManager.uiState}
+          onSetShowQuestUI={gameManager.uiActions.setShowQuestUI}
+          onSetShowDungeonUI={gameManager.uiActions.setShowDungeonUI}
+          onSetShowWeatherUI={gameManager.uiActions.setShowWeatherUI}
+          onEnterDungeon={gameManager.eventHandlers.handleEnterDungeon}
+          currentWeather={gameManager.gameState.currentWeather}
+          activeEvents={gameManager.gameState.activeEvents}
+        />
+      )}
     </div>
   );
 }

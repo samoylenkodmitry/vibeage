@@ -131,11 +131,16 @@ export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
 }));
 
 export function initProjectileListeners() {
-  // Set up opacity updates using requestAnimationFrame for smoother animations
+  // Set up opacity updates with reduced frequency for better performance
   let animationFrameId: number;
+  let frameCount = 0;
   
   function updateLoop() {
-    useProjectileStoreLegacy.getState().updateOpacity();
+    frameCount++;
+    // Only update opacity every 3rd frame (roughly 20Hz at 60FPS)
+    if (frameCount % 3 === 0) {
+      useProjectileStoreLegacy.getState().updateOpacity();
+    }
     animationFrameId = requestAnimationFrame(updateLoop);
   }
   

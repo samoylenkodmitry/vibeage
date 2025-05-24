@@ -20,7 +20,7 @@ import { persistPlayer, recordServerEvent } from './persistence.js';
 import { ITEMS } from '../shared/items.js';
 
 // Constants
-const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
+const TICK_MS = 1000 / 20; // 20 FPS / Hz world tick rate (reduced from 30 for better performance)
 const PREDICTION_TICK_OFFSETS = [TICK_MS, TICK_MS * 2]; // Default prediction offsets
 
 /**
@@ -652,9 +652,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   spawnInitialEnemies(state, zoneManager);
   
   // Game loop settings
-  const TICK = 1000 / 30; // 30 FPS / Hz world tick rate
+  const TICK = 1000 / 20; // 20 FPS / Hz world tick rate (reduced from 30 for better performance)
   // TICK_MS is now defined at the module level
-  const SNAP_HZ = 10;     // 10 Hz position snapshots
+  const SNAP_HZ = 8;      // 8 Hz position snapshots (reduced from 10 for better performance)
   let snapAccumulator = 0;
   
   // Start game loop
@@ -686,7 +686,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Step : Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
-    if (snapAccumulator >= 30 / SNAP_HZ) {
+    if (snapAccumulator >= 20 / SNAP_HZ) { // Updated to match new 20Hz tick rate
       const msgs = collectDeltas(state, now, new Set());
       if (msgs.length > 0) {
         // Wrap the messages array in a container with its own type to prevent client errors
@@ -1258,7 +1258,8 @@ export function broadcastSnaps(io: Server, state: GameState): void {
 
         // Determine if this player needs a "forced" full snapshot
         // (e.g., for idle refresh or if it's the very first snap)
-        if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 500)) {
+        // Increased threshold from 500ms to 1000ms for better performance
+        if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 1000)) {
             playersToForceInclude.add(playerId);
         }
         // Always update lastSnapTime if we are considering sending a snap for this player due to idle timeout
