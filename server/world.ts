@@ -3,17 +3,16 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
-         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../shared/messages.js';
+         PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
-import { getDamage, hash, rng } from '../shared/combatMath.js';
-import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
+import { hash, rng } from '../shared/combatMath.js';
+import { CM_PER_UNIT} from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
-import { LOOT_TABLES, LootTable } from './lootTables.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
 import { ITEMS } from '../shared/items.js';
@@ -698,9 +697,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   spawnInitialEnemies(state, zoneManager);
   
   // Game loop settings
-  const TICK = 1000 / 20; // 20 FPS / Hz world tick rate (reduced from 30 for better performance)
+  const TICK = 1000 / 30;
   // TICK_MS is now defined at the module level
-  const SNAP_HZ = 5;      // 5 Hz position snapshots (reduced from 8 for better performance)
+  const SNAP_HZ = 8; 
   let snapAccumulator = 0;
   
   // Start game loop
@@ -714,12 +713,10 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     effects.updateAll(TICK/1000); // convert to seconds
     
     // Step : Update Enemy AI with spatial optimization
-    let activeEnemyCount = 0;
     for (const enemyId in state.enemies) {
       const enemy = state.enemies[enemyId];
       if (!enemy.isAlive) continue;
       
-      activeEnemyCount++;
       
       // Use spatial hash to determine if enemy needs AI processing
       // Only process AI for enemies that are near players or in active states
@@ -1619,126 +1616,6 @@ function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest,
   spatial.move(player.id, player.position, player.position); // Force update of position in spatial grid
 }
 
-/**
- * Generates loot from an enemy's loot table (internal helper function)
- * @param lootTableId The ID of the loot table to use
- * @returns Array of inventory slots containing loot
- * @private
- */
-// @ts-ignore - This function is used in specific scenarios and maintained for future use
-function generateLoot(lootTableId: string): InventorySlot[] {
-  const lootTable = LOOT_TABLES[lootTableId];
-  if (!lootTable) {
-    log(LOG_CATEGORIES.SYSTEM, `Loot table ${lootTableId} not found`);
-    return [];
-  }
-
-  const generatedLoot: InventorySlot[] = [];
-
-  // Process each potential drop in the loot table
-  lootTable.drops.forEach(drop => {
-    // Roll for chance
-    const roll = Math.random();
-    if (roll <= drop.chance) {
-      // Determine quantity
-      const quantity = Math.floor(
-        drop.quantity.min + Math.random() * (drop.quantity.max - drop.quantity.min + 1)
-      );
-      
-      if (quantity > 0) {
-        generatedLoot.push({
-          itemId: drop.itemId,
-          quantity
-        });
-      }
-    }
-  });
-
-  return generatedLoot;
-}
-
-/**
- * Adds items to a player's inventory, handling stacking and inventory limits (internal helper function)
- * @param player The player to add items to
- * @param items The items to add
- * @returns Object containing successfully added items and overflow items
- * @private
- */
-// @ts-ignore - This function is maintained for future use
-function addItemsToInventory(
-  player: PlayerState, 
-  items: InventorySlot[]
-): { addedItems: InventorySlot[], overflowItems: InventorySlot[] } {
-  const addedItems: InventorySlot[] = [];
-  const overflowItems: InventorySlot[] = [];
-
-  // Process each item
-  items.forEach(item => {
-    let remainingQuantity = item.quantity;
-    const { itemId } = item;
-
-    // First try to merge with existing stacks of the same item
-    // This requires importing the item definitions to check stackability
-    const isStackable = true; // Default to stackable for now
-    const maxStack = 999; // Default max stack size
-    
-    if (isStackable) {
-      // Find existing stacks of this item that aren't full
-      for (let i = 0; i < player.inventory.length; i++) {
-        const slot = player.inventory[i];
-        
-        if (slot.itemId === itemId && slot.quantity < maxStack && remainingQuantity > 0) {
-          // Calculate how much we can add to this stack
-          const spaceInStack = maxStack - slot.quantity;
-          const amountToAdd = Math.min(spaceInStack, remainingQuantity);
-          
-          // Add to existing stack
-          player.inventory[i].quantity += amountToAdd;
-          remainingQuantity -= amountToAdd;
-          
-          // Add to addedItems for tracking
-          addedItems.push({
-            itemId,
-            quantity: amountToAdd
-          });
-          
-          // If we've added all of this item, break
-          if (remainingQuantity <= 0) break;
-        }
-      }
-    }
-    
-    // If we still have items to add, try to add to a new slot
-    if (remainingQuantity > 0) {
-      // Check if we have space for a new slot
-      if (player.inventory.length < player.maxInventorySlots) {
-        // Add to a new slot
-        player.inventory.push({
-          itemId,
-          quantity: remainingQuantity
-        });
-        
-        // Add to addedItems for tracking
-        addedItems.push({
-          itemId,
-          quantity: remainingQuantity
-        });
-        
-        remainingQuantity = 0;
-      }
-    }
-    
-    // If we still have items, they go to overflow
-    if (remainingQuantity > 0) {
-      overflowItems.push({
-        itemId,
-        quantity: remainingQuantity
-      });
-    }
-  });
-  
-  return { addedItems, overflowItems };
-}
 
 /**
  * Predicts an entity's state at a future time offset from its current state
