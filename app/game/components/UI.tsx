@@ -11,6 +11,7 @@ import Inventory from './HUD/Inventory';
 import { GAME_ZONES } from '../systems/zoneSystem';
 import Image from 'next/image';
 import { tryStartCast } from '../systems/castController';
+import { useThrottledRAF } from '../utils/ThrottledRAF';
 
 // Helper function to validate if a string is a valid SkillId
 function isValidSkillId(id: string | null): id is SkillId {
@@ -43,7 +44,7 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
   const [castProgress, setCastProgress] = useState(0); // 0-100 percentage of cast completion
   const buttonRef = useRef<HTMLButtonElement>(null);
   
-  // Update cooldown timer
+  // Update cooldown timer - use ThrottledRAF for sub-150ms intervals
   useEffect(() => {
     const update = () => 
       setRemainingCooldownMs(Math.max(0, cooldownEndMs - Date.now()));
@@ -51,31 +52,25 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
     update(); // Update immediately
     if (cooldownEndMs <= Date.now()) return; // Already over
     
-    const interval = setInterval(update, 200); // Reduced from 100ms to 200ms for better performance
+    // Since 200ms > 150ms, keep using setInterval for this
+    const interval = setInterval(update, 200);
     
     return () => clearInterval(interval);
   }, [cooldownEndMs]);
   
-  // Update cast progress
-  useEffect(() => {
+  // Update cast progress - use ThrottledRAF for 100ms interval
+  useThrottledRAF(() => {
     if (!isCasting) {
       setCastProgress(0);
       return;
     }
     
-    const updateCastProgress = () => {
-      if (skill.castTimeMs <= 0) return; // Instant cast
-      
-      // Calculate progress percentage (0-100)
-      const progress = Math.min(100, (castProgressMs / skill.castTimeMs) * 100);
-      setCastProgress(progress);
-    };
+    if (skill.castTimeMs <= 0) return; // Instant cast
     
-    updateCastProgress();
-    const interval = setInterval(updateCastProgress, 100); // Reduced from 50ms to 100ms for better performance
-    
-    return () => clearInterval(interval);
-  }, [isCasting, castProgressMs, skill.castTimeMs]);
+    // Calculate progress percentage (0-100)
+    const progress = Math.min(100, (castProgressMs / skill.castTimeMs) * 100);
+    setCastProgress(progress);
+  }, isCasting);
   
   const isOnCooldown = remainingCooldownMs > 0;
   const isUsable = Boolean(selectedTarget) && !isOnCooldown && !isCasting;

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../systems/gameStore';
 // Import getSkillById from the correct path using shared definitions
 import { SKILLS as skillsDefinitionShared, SkillId as SkillIdShared } from '../../../shared/skillsDefinition';
+import { useThrottledRAF } from '../utils/ThrottledRAF';
 
 interface CastingBarProps {
   playerId: string;
@@ -67,7 +68,8 @@ export default function CastingBar({ playerId }: CastingBarProps) {
     }
   }, [player?.castingSkill, player?.castingProgressMs, player]); // player dependency is important
   
-  useEffect(() => {
+  // Use ThrottledRAF for casting progress updates (100ms interval)
+  useThrottledRAF(() => {
     if (!isVisible || !player?.castingSkill) return;
 
     const castingSkillId = player.castingSkill;
@@ -75,26 +77,22 @@ export default function CastingBar({ playerId }: CastingBarProps) {
     if (!skill) return;
 
     const castTimeMs = skill.castMs || 1000;
-
-    const interval = setInterval(() => {
-      // Use the ref value directly
-      const prevMs = currentProgressMsRef.current;
-      const newMs = prevMs + 50; // Increment local progress
-      
-      currentProgressMsRef.current = newMs;
-      
-      if (newMs >= castTimeMs) {
-        setProgressPercentInternal(100);
-        // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
-        currentProgressMsRef.current = castTimeMs;
-      } else {
-        const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
-        setProgressPercentInternal(newProgressPercent);
-      }
-    }, 100); // Increased from 50ms to 100ms for better performance
     
-    return () => clearInterval(interval);
-  }, [isVisible, player?.castingSkill]); 
+    // Use the ref value directly
+    const prevMs = currentProgressMsRef.current;
+    const newMs = prevMs + 50; // Increment local progress
+    
+    currentProgressMsRef.current = newMs;
+    
+    if (newMs >= castTimeMs) {
+      setProgressPercentInternal(100);
+      // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
+      currentProgressMsRef.current = castTimeMs;
+    } else {
+      const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
+      setProgressPercentInternal(newProgressPercent);
+    }
+  }, isVisible && !!player?.castingSkill); 
   
   if (!isVisible) return null;
   

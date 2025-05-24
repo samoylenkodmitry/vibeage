@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh } from 'three';
 import useParticleSystem, { Particle } from './useParticleSystem';
+import { Vector3Pool } from '../utils/ClientObjectPool';
 
 interface PetrifyFlashProps {
   position: {x: number; y: number; z: number};
@@ -26,23 +27,37 @@ export function PetrifyFlash({ position }: PetrifyFlashProps) {
     emissionRate: 25,
     maxParticles: 30,
     generateParticle: () => {
-      return {
+      // Use pooled vectors for particle creation
+      const tempPos = Vector3Pool.acquire();
+      const tempVel = Vector3Pool.acquire();
+      
+      tempPos.set(
+        positionVector.current.x + (Math.random() - 0.5) * 0.5,
+        positionVector.current.y + (Math.random() - 0.5) * 0.5,
+        positionVector.current.z + (Math.random() - 0.5) * 0.5
+      );
+      
+      tempVel.set(
+        (Math.random() - 0.5) * 3,
+        (Math.random() - 0.5) * 3,
+        (Math.random() - 0.5) * 3
+      );
+      
+      const particle = {
         id: `petrify-${Math.random().toString(36).substring(2, 9)}`,
-        position: new Vector3(
-          positionVector.current.x + (Math.random() - 0.5) * 0.5,
-          positionVector.current.y + (Math.random() - 0.5) * 0.5,
-          positionVector.current.z + (Math.random() - 0.5) * 0.5
-        ),
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 3,
-          (Math.random() - 0.5) * 3,
-          (Math.random() - 0.5) * 3
-        ),
+        position: new Vector3().copy(tempPos),
+        velocity: new Vector3().copy(tempVel),
         scale: 0.1 + Math.random() * 0.2,
         opacity: 0.7 + Math.random() * 0.3,
         lifetime: 0,
         maxLifetime: 0.3 + Math.random() * 0.2,
       };
+      
+      // Release pooled objects
+      Vector3Pool.release(tempPos);
+      Vector3Pool.release(tempVel);
+      
+      return particle;
     },
     updateParticle: (particle: Particle, deltaTime: number) => {
       if (particle.lifetime + deltaTime > particle.maxLifetime) {

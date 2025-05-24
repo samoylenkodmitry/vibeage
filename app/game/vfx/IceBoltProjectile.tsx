@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
+import { Vector3Pool } from '../utils/ClientObjectPool';
 
 interface IceBoltProjectileProps {
   id: string;
@@ -43,33 +44,55 @@ export function IceBoltProjectile({
     emissionRate: 15,
     maxParticles: 40,
     generateParticle: () => {
-      return {
+      // Use pooled vectors for particle creation
+      const tempPos = Vector3Pool.acquire();
+      const tempVel = Vector3Pool.acquire();
+      const tempRot = Vector3Pool.acquire();
+      const tempRotSpeed = Vector3Pool.acquire();
+      
+      tempPos.set(
+        position.x + (Math.random() - 0.5) * 0.2,
+        position.y + (Math.random() - 0.5) * 0.2,
+        position.z + (Math.random() - 0.5) * 0.2
+      );
+      
+      tempVel.set(
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.5
+      );
+      
+      tempRot.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      
+      tempRotSpeed.set(
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2
+      );
+      
+      const particle = {
         id: `ice-${id}-${Math.random().toString(36).substring(2, 9)}`,
-        position: new Vector3(
-          position.x + (Math.random() - 0.5) * 0.2,
-          position.y + (Math.random() - 0.5) * 0.2,
-          position.z + (Math.random() - 0.5) * 0.2
-        ),
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5
-        ),
+        position: new Vector3().copy(tempPos),
+        velocity: new Vector3().copy(tempVel),
         scale: 0.03 + Math.random() * 0.08,
         opacity: 0.7 + Math.random() * 0.3,
         lifetime: 0,
         maxLifetime: 0.4 + Math.random() * 0.3,
-        rotation: new Vector3(
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2
-        ),
-        rotationSpeed: new Vector3(
-          (Math.random() - 0.5) * 2,
-          (Math.random() - 0.5) * 2,
-          (Math.random() - 0.5) * 2
-        )
+        rotation: new Vector3().copy(tempRot),
+        rotationSpeed: new Vector3().copy(tempRotSpeed)
       };
+      
+      // Release pooled objects
+      Vector3Pool.release(tempPos);
+      Vector3Pool.release(tempVel);
+      Vector3Pool.release(tempRot);
+      Vector3Pool.release(tempRotSpeed);
+      
+      return particle;
     },
     updateParticle: (particle: Particle, deltaTime: number) => {
       if (particle.lifetime + deltaTime > particle.maxLifetime) {

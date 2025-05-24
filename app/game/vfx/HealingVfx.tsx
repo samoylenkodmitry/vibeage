@@ -1,6 +1,7 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, Mesh, Vector3 } from 'three';
+import { Vector3Pool, ColorPool } from '../utils/ClientObjectPool';
 
 interface HealingVfxProps {
   position: {x: number; y: number; z: number};
@@ -34,34 +35,63 @@ export default function HealingVfx({ position, amount = 20, duration = 1.2 }: He
       const angle = Math.random() * Math.PI * 2;
       const distance = 0.3 + Math.random() * 0.8;
       
-      return {
+      // Use pooled vectors for particle creation
+      const tempPos = Vector3Pool.acquire();
+      const tempVel = Vector3Pool.acquire();
+      const tempRot = Vector3Pool.acquire();
+      const tempRotSpeed = Vector3Pool.acquire();
+      const tempColor1 = ColorPool.acquire();
+      const tempColor2 = ColorPool.acquire();
+      
+      tempPos.set(
+        position.x + Math.cos(angle) * distance * 0.3,
+        position.y + 0.5 + Math.random() * 0.8, // Start above the player
+        position.z + Math.sin(angle) * distance * 0.3
+      );
+      
+      tempVel.set(
+        Math.cos(angle) * (0.2 + Math.random() * 0.3),
+        0.8 + Math.random() * 0.6, // Move upward
+        Math.sin(angle) * (0.2 + Math.random() * 0.3)
+      );
+      
+      tempRot.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      
+      tempRotSpeed.set(
+        Math.random() * 2,
+        Math.random() * 2,
+        Math.random() * 2
+      );
+      
+      tempColor1.set(0x50ff50);
+      tempColor2.set(0x80ff80);
+      
+      const particle = {
         id,
-        position: new Vector3(
-          position.x + Math.cos(angle) * distance * 0.3,
-          position.y + 0.5 + Math.random() * 0.8, // Start above the player
-          position.z + Math.sin(angle) * distance * 0.3
-        ),
-        velocity: new Vector3(
-          Math.cos(angle) * (0.2 + Math.random() * 0.3),
-          0.8 + Math.random() * 0.6, // Move upward
-          Math.sin(angle) * (0.2 + Math.random() * 0.3)
-        ),
+        position: new Vector3().copy(tempPos),
+        velocity: new Vector3().copy(tempVel),
         scale: 0.08 + Math.random() * 0.12,
         opacity: 0.8 + Math.random() * 0.2,
-        color: new Color(0x50ff50).lerp(new Color(0x80ff80), Math.random()),
-        rotation: new Vector3(
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2
-        ),
-        rotationSpeed: new Vector3(
-          Math.random() * 2,
-          Math.random() * 2,
-          Math.random() * 2
-        ),
+        color: new Color().copy(tempColor1).lerp(tempColor2, Math.random()),
+        rotation: new Vector3().copy(tempRot),
+        rotationSpeed: new Vector3().copy(tempRotSpeed),
         lifetime: 0,
         maxLifetime: duration * (0.6 + Math.random() * 0.4)
       };
+      
+      // Release pooled objects
+      Vector3Pool.release(tempPos);
+      Vector3Pool.release(tempVel);
+      Vector3Pool.release(tempRot);
+      Vector3Pool.release(tempRotSpeed);
+      ColorPool.release(tempColor1);
+      ColorPool.release(tempColor2);
+      
+      return particle;
     });
   }, [position, amount, duration]);
   

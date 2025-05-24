@@ -181,6 +181,7 @@ case "\$1" in
     cd $APP_DIR
     git pull
     docker compose down
+    echo "Starting services with automatic migrations..."
     docker compose up -d --build
     ;;
   logs)

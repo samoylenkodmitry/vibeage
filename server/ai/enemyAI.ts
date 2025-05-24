@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { Enemy, PlayerState } from '../../shared/types.js';
 import { VecXZ } from '../../shared/messages.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import { Vector2Pool } from '../utils/ObjectPool.js';
 
 // Minimal GameState interface for this module
 interface GameState {
@@ -17,7 +18,7 @@ function localDistance(a: VecXZ, b: VecXZ): number {
     return Math.sqrt(dx * dx + dz * dz);
 }
 
-// Helper: Calculate direction
+// Helper: Calculate direction using object pooling
 function localCalculateDir(from: VecXZ, to: VecXZ): VecXZ {
     const dx = to.x - from.x;
     const dz = to.z - from.z;
@@ -92,9 +93,13 @@ export function updateEnemyAI(
                 enemy.velocity = { x: 0, z: 0 };
                 broadcastEnemyUpdate = true;
             } else {
-                // Move towards target
+                // Move towards target with optimized vector pooling
                 const dirToTarget = localCalculateDir(enemy.position, targetPlayer.position);
-                const oldPos = { x: enemy.position.x, z: enemy.position.z };
+                
+                // Use pooled vector for old position tracking
+                const oldPos = Vector2Pool.acquire();
+                oldPos.x = enemy.position.x;
+                oldPos.z = enemy.position.z;
 
                 // Update enemy velocity
                 enemy.velocity = { 
@@ -113,6 +118,9 @@ export function updateEnemyAI(
                 if (gridCellChanged(oldPos, enemy.position)) {
                     spatialGrid.move(enemy.id, oldPos, enemy.position);
                 }
+                
+                // Return pooled object
+                Vector2Pool.release(oldPos);
                 
                 // Mark the enemy as needing a position update sent to clients
                 (enemy as any).dirtySnap = true;
@@ -214,9 +222,13 @@ export function updateEnemyAI(
             // even though it's stopped (to update the rotation)
             (enemy as any).dirtySnap = true;
         } else {
-            // Move towards spawn point
+            // Move towards spawn point with optimized vector pooling
             const dirToSpawn = localCalculateDir(enemy.position, enemy.spawnPosition);
-            const oldPos = { x: enemy.position.x, z: enemy.position.z };
+            
+            // Use pooled vector for old position tracking
+            const oldPos = Vector2Pool.acquire();
+            oldPos.x = enemy.position.x;
+            oldPos.z = enemy.position.z;
 
             // Update enemy velocity
             enemy.velocity = { 
@@ -235,6 +247,9 @@ export function updateEnemyAI(
             if (gridCellChanged(oldPos, enemy.position)) {
                 spatialGrid.move(enemy.id, oldPos, enemy.position);
             }
+            
+            // Return pooled object
+            Vector2Pool.release(oldPos);
             
             // Mark the enemy as needing a position update sent to clients
             (enemy as any).dirtySnap = true;

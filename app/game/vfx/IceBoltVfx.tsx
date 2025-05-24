@@ -2,9 +2,10 @@
 
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, ConeGeometry, MeshBasicMaterial, Group } from 'three';
+import { Vector3, Mesh, Color, MeshBasicMaterial, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
+import { Vector3Pool, ColorPool, ConeMeshPool } from '../utils/ClientObjectPool';
 
 interface IceBoltVfxProps {
   id?: string;
@@ -47,14 +48,14 @@ export function IceBoltVfx({
     }
     
     // Create core mesh - rotating cone for ice bolt
-    const coreMesh = new Mesh(
-      new ConeGeometry(0.25, 1),
-      new MeshBasicMaterial({ 
-        color: "skyblue",
-        transparent: true,
-        opacity: 0.8
-      })
-    );
+    const coreMesh = ConeMeshPool.acquire();
+    
+    // Set material properties
+    if (coreMesh.material instanceof MeshBasicMaterial) {
+      coreMesh.material.color.set("skyblue");
+      coreMesh.material.transparent = true;
+      coreMesh.material.opacity = 0.8;
+    }
     
     // Set initial rotation
     coreMesh.rotation.set(0, 0, Math.PI / 2);
@@ -66,6 +67,11 @@ export function IceBoltVfx({
     coreRef.current = coreMesh;
     
     return () => {
+      // Release pooled mesh
+      if (coreRef.current) {
+        ConeMeshPool.release(coreRef.current);
+      }
+      
       if (isActive.current && onDone) {
         isActive.current = false;
         onDone();
@@ -76,6 +82,11 @@ export function IceBoltVfx({
   // Handle cleanup when projectile is done
   useEffect(() => {
     return () => {
+      // Additional cleanup - release pooled mesh if not already done
+      if (isActive.current && coreRef.current) {
+        ConeMeshPool.release(coreRef.current);
+      }
+      
       if (isActive.current && onDone) {
         isActive.current = false;
         onDone();
@@ -95,28 +106,46 @@ export function IceBoltVfx({
     emissionRate: 25,
     maxParticles: 40,
     generateParticle: () => {
-      return {
+      // Use pooled vectors for particle creation
+      const tempPos = Vector3Pool.acquire();
+      const tempVel = Vector3Pool.acquire();
+      const tempColor = ColorPool.acquire();
+      
+      tempPos.set(
+        position.x + (Math.random() - 0.5) * 0.2,
+        position.y + (Math.random() - 0.5) * 0.2,
+        position.z + (Math.random() - 0.5) * 0.2
+      );
+      
+      tempVel.set(
+        (Math.random() - 0.5) * 1,
+        (Math.random() - 0.5) * 1,
+        (Math.random() - 0.5) * 1
+      );
+      
+      tempColor.setHSL(
+        0.58 + Math.random() * 0.05, // cyan-blue hue
+        0.5 + Math.random() * 0.3,   // saturation
+        0.7 + Math.random() * 0.3    // lightness
+      );
+      
+      const particle = {
         id: `icemist-${id}-${Math.random().toString(36).substring(2, 9)}`,
-        position: new Vector3(
-          position.x + (Math.random() - 0.5) * 0.2,
-          position.y + (Math.random() - 0.5) * 0.2,
-          position.z + (Math.random() - 0.5) * 0.2
-        ),
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1,
-          (Math.random() - 0.5) * 1,
-          (Math.random() - 0.5) * 1
-        ),
+        position: new Vector3().copy(tempPos),
+        velocity: new Vector3().copy(tempVel),
         scale: 0.03 + Math.random() * 0.07,
         opacity: 0.5 + Math.random() * 0.3,
         lifetime: 0,
         maxLifetime: 0.1 + Math.random() * 0.2,
-        color: new Color().setHSL(
-          0.58 + Math.random() * 0.05, // cyan-blue hue
-          0.5 + Math.random() * 0.3,   // saturation
-          0.7 + Math.random() * 0.3    // lightness
-        ),
+        color: new Color().copy(tempColor),
       };
+      
+      // Release pooled objects
+      Vector3Pool.release(tempPos);
+      Vector3Pool.release(tempVel);
+      ColorPool.release(tempColor);
+      
+      return particle;
     },
     updateParticle: (particle: Particle, deltaTime: number) => {
       if (particle.lifetime + deltaTime > particle.maxLifetime) {

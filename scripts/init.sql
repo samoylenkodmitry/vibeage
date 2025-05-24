@@ -5,11 +5,18 @@ create table if not exists players (
   name       text unique not null,
   level      int  not null default 1,
   xp         int  not null default 0,
+  experience int  not null default 0,
   gold       int  not null default 0,
+  health     int  not null default 100,
+  is_alive   boolean not null default true,
+  position_x real not null default 0,
+  position_y real not null default 0,
+  position_z real not null default 0,
   inventory  jsonb not null default '[]'::jsonb,
   skills     jsonb not null default '[]'::jsonb,
   class_name text not null default 'mage',
   last_login timestamptz,
+  last_updated bigint,
   updated_at timestamptz not null default now()
 );
 create index if not exists players_name_idx on players(name);
@@ -28,6 +35,9 @@ create index if not exists game_stats_category_idx on game_stats(category);
 create table if not exists server_events (
   id          serial primary key,
   event_type  text not null,
+  player_id   uuid,
+  event_data  jsonb,
+  timestamp   bigint,
   description text,
   created_at  timestamptz not null default now()
 );

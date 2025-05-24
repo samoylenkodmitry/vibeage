@@ -1,8 +1,13 @@
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, Color, Group, SphereGeometry, MeshStandardMaterial } from 'three';
+import { Vector3, Mesh, Color, Group, MeshStandardMaterial } from 'three';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
+import { 
+  Vector3Pool, 
+  ColorPool, 
+  SphereMeshPool 
+} from '../utils/ClientObjectPool';
 
 interface WaterProjectileProps {
   id?: string;
@@ -45,17 +50,16 @@ export default function WaterProjectile({
       pooled.remove(pooled.children[0]);
     }
     
-    // Create main water ball
-    const mainMesh = new Mesh(
-      new SphereGeometry(0.4, 16, 16),
-      new MeshStandardMaterial({ 
-        color: "#57c1eb",
-        transparent: true,
-        opacity: 0.7,
-        roughness: 0.2,
-        metalness: 0.7
-      })
-    );
+    // Create main water ball using pooled mesh
+    const mainMesh = SphereMeshPool.acquire();
+    if (mainMesh.material instanceof MeshStandardMaterial) {
+      mainMesh.material.color.setStyle("#57c1eb");
+      mainMesh.material.transparent = true;
+      mainMesh.material.opacity = 0.7;
+      mainMesh.material.roughness = 0.2;
+      mainMesh.material.metalness = 0.7;
+    }
+    mainMesh.scale.set(0.4, 0.4, 0.4);
     
     // Add meshes to the pooled group
     pooled.add(mainMesh);
@@ -64,6 +68,18 @@ export default function WaterProjectile({
     mainRef.current = mainMesh;
     
     return () => {
+      // Release pooled mesh back to pool
+      if (mainMesh) {
+        SphereMeshPool.release(mainMesh);
+      }
+      
+      // Clear the group after releasing meshes
+      if (pooled) {
+        while (pooled.children.length > 0) {
+          pooled.remove(pooled.children[0]);
+        }
+      }
+      
       if (isActive.current && onDone) {
         isActive.current = false;
         onDone();
@@ -97,34 +113,60 @@ export default function WaterProjectile({
       const angle = Math.random() * Math.PI * 2;
       const distance = Math.random() * 0.3;
       
-      return {
+      // Use pooled Vector3 objects for position, velocity, rotation
+      const particlePos = Vector3Pool.acquire();
+      const velocity = Vector3Pool.acquire();
+      const rotation = Vector3Pool.acquire();
+      const rotationSpeed = Vector3Pool.acquire();
+      const color = ColorPool.acquire();
+      
+      particlePos.set(
+        position.x + Math.cos(angle) * distance,
+        position.y + Math.sin(angle) * distance + 0.1,
+        position.z + Math.sin(angle) * distance
+      );
+      
+      velocity.set(
+        (Math.random() - 0.5) * 1.5,
+        Math.random() * 1.5,
+        (Math.random() - 0.5) * 1.5
+      );
+      
+      rotation.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      
+      rotationSpeed.set(
+        (Math.random() - 0.5) * 3,
+        (Math.random() - 0.5) * 3,
+        (Math.random() - 0.5) * 3
+      );
+      
+      color.setHex(0x57c1eb);
+      
+      const particle = {
         id: `droplet-${id}-${Math.random().toString(36).substring(2, 9)}`,
-        position: new Vector3(
-          position.x + Math.cos(angle) * distance,
-          position.y + Math.sin(angle) * distance + 0.1,
-          position.z + Math.sin(angle) * distance
-        ),
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 1.5,
-          Math.random() * 1.5,
-          (Math.random() - 0.5) * 1.5
-        ),
+        position: new Vector3().copy(particlePos),
+        velocity: new Vector3().copy(velocity),
         scale: 0.05 + Math.random() * 0.1,
         opacity: 0.7 + Math.random() * 0.3,
         lifetime: 0,
         maxLifetime: 0.3 + Math.random() * 0.2,
-        color: new Color(0x57c1eb),
-        rotation: new Vector3(
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2
-        ),
-        rotationSpeed: new Vector3(
-          (Math.random() - 0.5) * 3,
-          (Math.random() - 0.5) * 3,
-          (Math.random() - 0.5) * 3
-        )
+        color: new Color().copy(color),
+        rotation: new Vector3().copy(rotation),
+        rotationSpeed: new Vector3().copy(rotationSpeed)
       };
+      
+      // Release pooled objects back to their pools
+      Vector3Pool.release(particlePos);
+      Vector3Pool.release(velocity);
+      Vector3Pool.release(rotation);
+      Vector3Pool.release(rotationSpeed);
+      ColorPool.release(color);
+      
+      return particle;
     },
     updateParticle: (particle: Particle, deltaTime: number) => {
       if (particle.lifetime + deltaTime > particle.maxLifetime) {
@@ -133,19 +175,29 @@ export default function WaterProjectile({
       
       // Update rotation if available
       const rotParticle = particle as Particle & { rotation?: Vector3, rotationSpeed?: Vector3 };
-      const newRotation = rotParticle.rotation && rotParticle.rotationSpeed ? new Vector3(
-        rotParticle.rotation.x + rotParticle.rotationSpeed.x * deltaTime,
-        rotParticle.rotation.y + rotParticle.rotationSpeed.y * deltaTime,
-        rotParticle.rotation.z + rotParticle.rotationSpeed.z * deltaTime
-      ) : undefined;
+      
+      // Use pooled Vector3 for rotation calculation
+      const newRotation = rotParticle.rotation && rotParticle.rotationSpeed ? 
+        Vector3Pool.acquire().copy(rotParticle.rotation).addScaledVector(rotParticle.rotationSpeed, deltaTime) : 
+        undefined;
       
       // Update particle
-      return {
+      const updatedParticle = {
         ...particle,
         rotation: newRotation || rotParticle.rotation,
         opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime), // fade out
         lifetime: particle.lifetime + deltaTime
       };
+      
+      // Release the pooled rotation vector if we created one
+      if (newRotation && rotParticle.rotation && rotParticle.rotationSpeed) {
+        // Copy the new rotation back to the particle's rotation object
+        rotParticle.rotation.copy(newRotation);
+        Vector3Pool.release(newRotation);
+        updatedParticle.rotation = rotParticle.rotation;
+      }
+      
+      return updatedParticle;
     }
   });
   

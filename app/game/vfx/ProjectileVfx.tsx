@@ -1,9 +1,10 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef, useState, useEffect } from 'react';
-import { Vector3, Mesh, MathUtils, Color, Group, Material, SphereGeometry, MeshStandardMaterial, PointLight } from 'three';
+import { Vector3, Mesh, MathUtils, Color, Group, Material, MeshStandardMaterial, PointLight } from 'three';
 import { useProjectileStoreLegacy } from '../systems/projectileManager';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
+import { Vector3Pool, ColorPool, SphereMeshPool, LightPool } from '../utils/ClientObjectPool';
 
 interface ProjectileVfxProps {
   id?: string;
@@ -45,19 +46,22 @@ export default function ProjectileVfx({
     }
     
     // Create main projectile sphere
-    const coreMesh = new Mesh(
-      new SphereGeometry(0.25, 16, 16),
-      new MeshStandardMaterial({ 
-        color: "orange",
-        emissive: "orange",
-        emissiveIntensity: 2,
-        transparent: true,
-        opacity: 1.0
-      })
-    );
+    const coreMesh = SphereMeshPool.acquire();
+    
+    // Set material properties
+    if (coreMesh.material instanceof MeshStandardMaterial) {
+      coreMesh.material.color.set("orange");
+      coreMesh.material.emissive.set("orange");
+      coreMesh.material.emissiveIntensity = 2;
+      coreMesh.material.transparent = true;
+      coreMesh.material.opacity = 1.0;
+    }
     
     // Add light
-    const light = new PointLight("orange", 2, 3);
+    const light = LightPool.acquire();
+    light.color.set("orange");
+    light.intensity = 2;
+    light.distance = 3;
     
     // Add meshes to the pooled group
     pooled.add(coreMesh);
@@ -67,6 +71,16 @@ export default function ProjectileVfx({
     ref.current = coreMesh;
     
     return () => {
+      // Release pooled objects
+      if (ref.current) {
+        SphereMeshPool.release(ref.current);
+      }
+      pooled.children.forEach(child => {
+        if (child instanceof PointLight) {
+          LightPool.release(child);
+        }
+      });
+      
       if (isActive.current && onDone) {
         isActive.current = false;
         onDone();
@@ -105,34 +119,60 @@ export default function ProjectileVfx({
     emissionRate: isFadingOut ? 5 : 15, // Reduce emission when fading out
     maxParticles: 40,
     generateParticle: () => {
-      return {
+      // Use pooled vectors for particle creation
+      const tempPos = Vector3Pool.acquire();
+      const tempVel = Vector3Pool.acquire();
+      const tempRot = Vector3Pool.acquire();
+      const tempRotSpeed = Vector3Pool.acquire();
+      const tempColor = ColorPool.acquire();
+      
+      tempPos.set(
+        position.x + (Math.random() - 0.5) * 0.2,
+        position.y + (Math.random() - 0.5) * 0.2,
+        position.z + (Math.random() - 0.5) * 0.2
+      );
+      
+      tempVel.set(
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.5,
+        (Math.random() - 0.5) * 0.5
+      );
+      
+      tempRot.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      
+      tempRotSpeed.set(
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2
+      );
+      
+      tempColor.set(0xff8c00);
+      
+      const particle = {
         id: `trail-${id}-${Math.random().toString(36).substring(2, 9)}`,
-        position: new Vector3(
-          position.x + (Math.random() - 0.5) * 0.2,
-          position.y + (Math.random() - 0.5) * 0.2,
-          position.z + (Math.random() - 0.5) * 0.2
-        ),
-        velocity: new Vector3(
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5
-        ),
+        position: new Vector3().copy(tempPos),
+        velocity: new Vector3().copy(tempVel),
         scale: 0.1 + Math.random() * 0.1,
         opacity: 0.6 * opacity, // Adjust for projectile opacity
         lifetime: 0,
         maxLifetime: 0.4 + Math.random() * 0.2,
-        color: new Color(0xff8c00),
-        rotation: new Vector3(
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2
-        ),
-        rotationSpeed: new Vector3(
-          (Math.random() - 0.5) * 2,
-          (Math.random() - 0.5) * 2,
-          (Math.random() - 0.5) * 2
-        ),
+        color: new Color().copy(tempColor),
+        rotation: new Vector3().copy(tempRot),
+        rotationSpeed: new Vector3().copy(tempRotSpeed),
       };
+      
+      // Release pooled objects
+      Vector3Pool.release(tempPos);
+      Vector3Pool.release(tempVel);
+      Vector3Pool.release(tempRot);
+      Vector3Pool.release(tempRotSpeed);
+      ColorPool.release(tempColor);
+      
+      return particle;
     },
     updateParticle: (particle: Particle, deltaTime: number) => {
       if (particle.lifetime + deltaTime > particle.maxLifetime) {

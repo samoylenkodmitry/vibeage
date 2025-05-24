@@ -11,6 +11,7 @@ import { InstantHit } from '../../../shared/messages';
 import { useProjectileStore, ProjectileData } from '../systems/projectileStore';
 import { get as poolGet, recycle, registerPool } from '../systems/vfxPool';
 import { useGameStore } from '../systems/gameStore';
+import { useProjectileSystem } from '../systems/ProjectileSystem';
 
 // Types for VFX instances
 interface BaseVfxInstance {
@@ -57,6 +58,9 @@ export default function VfxManager() {
   const liveProjectiles = useProjectileStore(state => state.live);
   const recycleProjectiles = useProjectileStore(state => state.toRecycle);
   const clearRecycled = useProjectileStore(state => state.clearRecycled);
+  
+  // Initialize centralized projectile system
+  useProjectileSystem();
   
   // Cache the projectiles array with useMemo to prevent unnecessary re-renders
   const projectileArray = useMemo(() => {

@@ -16,8 +16,8 @@ import { updateEnemyAI } from './ai/enemyAI.js';
 import { LOOT_TABLES, LootTable } from './lootTables.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
-import { persistPlayer, recordServerEvent } from './persistence.js';
 import { ITEMS } from '../shared/items.js';
+import { Vector2Pool, PositionHistoryPool } from './utils/ObjectPool.js';
 
 // Constants
 const TICK_MS = 1000 / 20; // 20 FPS / Hz world tick rate (reduced from 30 for better performance)
@@ -100,11 +100,16 @@ export function predictPosition(
 
 /**
  * Advances an entity's position based on its movement state
+ * Optimized with object pooling for temporary vector calculations
  */
 function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   if (!entity.movement?.targetPos) return;
   
-  const currentPosVec = { x: entity.position.x, z: entity.position.z }; // Current position before this tick's movement
+  // Use pooled vector for current position calculation
+  const currentPosVec = Vector2Pool.acquire();
+  currentPosVec.x = entity.position.x;
+  currentPosVec.z = entity.position.z;
+  
   const dest = entity.movement.targetPos;
   const speed = entity.movement.speed;
   
@@ -127,7 +132,10 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   const distToTargetBeforeMove = distance(currentPosVec, dest);
   const moveAmountThisTick = Math.sqrt(stepX * stepX + stepZ * stepZ);
 
-  const oldPosForGrid = { x: entity.position.x, z: entity.position.z }; // For spatial grid updates
+  // Use pooled vector for grid position tracking
+  const oldPosForGrid = Vector2Pool.acquire();
+  oldPosForGrid.x = entity.position.x;
+  oldPosForGrid.z = entity.position.z;
 
   // Check if the player will reach or overshoot the target in this step,
   // or if they are already very close to the target.
@@ -168,10 +176,15 @@ function advancePosition(entity: PlayerState, deltaTimeMs: number): void {
   
   // Update the position history after movement
   updatePositionHistory(entity, Date.now());
+  
+  // Return pooled objects
+  Vector2Pool.release(currentPosVec);
+  Vector2Pool.release(oldPosForGrid);
 }
 
 /**
  * Advances an enemy's position based on its velocity
+ * Optimized with object pooling for temporary vector calculations
  */
 function advanceEnemyPosition(enemy: Enemy, deltaTimeMs: number): void {
   if (!enemy.velocity || (enemy.velocity.x === 0 && enemy.velocity.z === 0)) return;
@@ -180,7 +193,10 @@ function advanceEnemyPosition(enemy: Enemy, deltaTimeMs: number): void {
   const stepX = enemy.velocity.x * deltaTimeSec;
   const stepZ = enemy.velocity.z * deltaTimeSec;
   
-  const oldPosForGrid = { x: enemy.position.x, z: enemy.position.z }; // For spatial grid updates
+  // Use pooled vector for grid position tracking
+  const oldPosForGrid = Vector2Pool.acquire();
+  oldPosForGrid.x = enemy.position.x;
+  oldPosForGrid.z = enemy.position.z;
   
   // Move the enemy
   enemy.position.x += stepX;
@@ -201,36 +217,58 @@ function advanceEnemyPosition(enemy: Enemy, deltaTimeMs: number): void {
   
   // Update last update time
   enemy.lastUpdateTime = Date.now();
+  
+  // Return pooled object
+  Vector2Pool.release(oldPosForGrid);
 }
 
 /**
  * Updates the position history of an entity, maintaining a limited history window
+ * Optimized with object pooling to reduce GC pressure
  */
 function updatePositionHistory(entity: PlayerState | Enemy, timestamp: number): void {
   if (!entity.posHistory) {
     entity.posHistory = [];
   }
   
+  // Get pooled position history object instead of creating new one
+  const historyEntry = PositionHistoryPool.acquire();
+  historyEntry.ts = timestamp;
+  historyEntry.x = entity.position.x;
+  historyEntry.z = entity.position.z;
+  
   // Add current position to history
-  entity.posHistory.push({
-    ts: timestamp,
-    x: entity.position.x,
-    z: entity.position.z
-  });
+  entity.posHistory.push(historyEntry);
   
   // Trim old entries to keep history within the time window (500ms)
   const MAX_HISTORY_AGE_MS = 500;
   while (entity.posHistory.length > 0 && 
          entity.posHistory[0].ts < timestamp - MAX_HISTORY_AGE_MS) {
-    entity.posHistory.shift();
+    const oldEntry = entity.posHistory.shift();
+    if (oldEntry) {
+      // Return removed entry to pool
+      PositionHistoryPool.release(oldEntry);
+    }
   }
 }
 
 /**
  * Advances all entities in the game world by the given time step
+ * Optimized with spatial hash early-out for better performance
  */
 function advanceAll(state: GameState, deltaTimeMs: number): void {
-  // Process player movements
+  // Early exit if no entities need processing
+  const hasMovingPlayers = Object.values(state.players).some(p => p.movement?.isMoving && p.movement?.targetPos);
+  const hasActiveEnemies = Object.values(state.enemies).some(e => e.isAlive && (
+    (e.velocity && (e.velocity.x !== 0 || e.velocity.z !== 0)) || 
+    (e.statusEffects && e.statusEffects.length > 0)
+  ));
+  
+  if (!hasMovingPlayers && !hasActiveEnemies) {
+    return; // Skip entire processing if nothing is moving or active
+  }
+  
+  // Process player movements only for moving players
   for (const playerId in state.players) {
     const player = state.players[playerId];
     if (player.movement?.isMoving && player.movement?.targetPos) {
@@ -238,20 +276,28 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
     }
   }
   
-  // Process enemy movements
+  // Process enemy movements with velocity check early-out
+  const now = Date.now();
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
-    if (enemy.isAlive) {
-      // Advance enemy position based on velocity
+    if (!enemy.isAlive) continue;
+    
+    // Early velocity check - skip if enemy is stationary and has no effects
+    const hasVelocity = enemy.velocity && (enemy.velocity.x !== 0 || enemy.velocity.z !== 0);
+    const hasEffects = enemy.statusEffects && enemy.statusEffects.length > 0;
+    
+    if (!hasVelocity && !hasEffects) continue;
+    
+    // Advance enemy position based on velocity
+    if (hasVelocity) {
       advanceEnemyPosition(enemy, deltaTimeMs);
-      
-      // Process status effects
-      if (enemy.statusEffects.length > 0) {
-        const now = Date.now();
-        enemy.statusEffects = enemy.statusEffects.filter(effect => {
-          return (effect.startTimeTs + effect.durationMs) > now;
-        });
-      }
+    }
+    
+    // Process status effects with batch filtering
+    if (hasEffects) {
+      enemy.statusEffects = enemy.statusEffects.filter(effect => {
+        return (effect.startTimeTs + effect.durationMs) > now;
+      });
     }
   }
 }
@@ -654,7 +700,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Game loop settings
   const TICK = 1000 / 20; // 20 FPS / Hz world tick rate (reduced from 30 for better performance)
   // TICK_MS is now defined at the module level
-  const SNAP_HZ = 8;      // 8 Hz position snapshots (reduced from 10 for better performance)
+  const SNAP_HZ = 5;      // 5 Hz position snapshots (reduced from 8 for better performance)
   let snapAccumulator = 0;
   
   // Start game loop
@@ -667,11 +713,31 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     // Step : Update all effects
     effects.updateAll(TICK/1000); // convert to seconds
     
-    // Step : Update Enemy AI
+    // Step : Update Enemy AI with spatial optimization
+    let activeEnemyCount = 0;
     for (const enemyId in state.enemies) {
       const enemy = state.enemies[enemyId];
-      if (enemy.isAlive) {
-        updateEnemyAI(enemy, state, io, spatial, TICK/1000); // deltaTime is in ms, convert to s
+      if (!enemy.isAlive) continue;
+      
+      activeEnemyCount++;
+      
+      // Use spatial hash to determine if enemy needs AI processing
+      // Only process AI for enemies that are near players or in active states
+      let needsAIUpdate = enemy.aiState !== 'idle';
+      
+      if (!needsAIUpdate) {
+        // Check if any players are within extended aggro radius using spatial hash
+        const nearbyPlayerIds = spatial.queryCircle(
+          { x: enemy.position.x, z: enemy.position.z }, 
+          enemy.aggroRadius * 1.5 // Check slightly larger radius for early detection
+        );
+        needsAIUpdate = nearbyPlayerIds.some(playerId => 
+          state.players[playerId] && state.players[playerId].isAlive
+        );
+      }
+      
+      if (needsAIUpdate) {
+        updateEnemyAI(enemy, state, io, spatial, TICK/1000); // deltaTime in seconds
       }
     }
     
@@ -686,7 +752,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Step : Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
-    if (snapAccumulator >= 20 / SNAP_HZ) { // Updated to match new 20Hz tick rate
+    if (snapAccumulator >= 20 / SNAP_HZ) { // Updated to match new 5Hz frequency (every 4 ticks)
       const msgs = collectDeltas(state, now, new Set());
       if (msgs.length > 0) {
         // Wrap the messages array in a container with its own type to prevent client errors
@@ -710,14 +776,44 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   }, TICK);
   
   // Setup periodic player state persistence (every 30s)
-  setInterval(() => {
+  setInterval(async () => {
     try {
       log(LOG_CATEGORIES.SYSTEM, 'Running periodic player state persistence...');
-      Object.values(state.players).forEach(player => {
-        persistPlayer(player).catch(error => {
+      for (const player of Object.values(state.players)) {
+        try {
+          const client = await db.connect();
+          try {
+            await client.query(`
+              UPDATE players SET
+                position_x = $2,
+                position_y = $3,
+                position_z = $4,
+                health = $5,
+                is_alive = $6,
+                level = $7,
+                experience = $8,
+                inventory = $9,
+                last_updated = $10
+              WHERE id = $1
+            `, [
+              player.id,
+              player.position.x,
+              player.position.y,
+              player.position.z,
+              player.health,
+              player.isAlive,
+              player.level,
+              player.experience,
+              JSON.stringify(player.inventory || []),
+              Date.now()
+            ]);
+          } finally {
+            client.release();
+          }
+        } catch (error) {
           console.error(`Failed to persist player ${player.id} in periodic update:`, error);
-        });
-      });
+        }
+      }
     } catch (error) {
       console.error('Error in periodic player persistence:', error);
     }
@@ -907,20 +1003,41 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
            returning *`,
           [name, socketId]);
         
-        // Record login for analytics
-        await recordServerEvent('player_login', `Player ${name} logged in`);
-        
         // Use playerId from database
         const playerId = row.id;
+        
+        // Record login for analytics
+        try {
+          const client = await db.connect();
+          try {
+            await client.query(`
+              INSERT INTO server_events (event_type, player_id, event_data, timestamp)
+              VALUES ($1, $2, $3, $4)
+            `, [
+              'player_login',
+              playerId,
+              JSON.stringify({ playerName: name, socketId }),
+              Date.now()
+            ]);
+          } finally {
+            client.release();
+          }
+        } catch (error) {
+          console.error('Failed to record player login event:', error);
+        }
         
         // Create player state, merging DB data with default values
         const player: PlayerState = {
           id: playerId,
           socketId,
           name,
-          position: { x: 0, y: 0.5, z: 0 },
+          position: { 
+            x: row.position_x || 0, 
+            y: row.position_y || 0.5, 
+            z: row.position_z || 0 
+          },
           rotation: { x: 0, y: 0, z: 0 },
-          health: 100,
+          health: row.health || 100,
           maxHealth: 100,
           mana: 100,
           maxMana: 100,
@@ -931,7 +1048,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
           skillCooldownEndTs: {},
           castingSkill: null,
           castingProgressMs: 0,
-          isAlive: true,
+          isAlive: row.is_alive !== undefined ? row.is_alive : true,
           className: row.class_name || 'mage', // Use class from DB or default
           unlockedSkills: row.skills || ['fireball'], // Use skills from DB or default
           skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
@@ -1000,11 +1117,56 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         const pos = { x: player.position.x, z: player.position.z };
         
         // Record disconnect for analytics
-        await recordServerEvent('player_disconnect', `Player ${player.name} disconnected`);
+        try {
+          const client = await db.connect();
+          try {
+            await client.query(`
+              INSERT INTO server_events (event_type, player_id, event_data, timestamp)
+              VALUES ($1, $2, $3, $4)
+            `, [
+              'player_disconnect',
+              playerId,
+              JSON.stringify({ playerName: player.name, socketId }),
+              Date.now()
+            ]);
+          } finally {
+            client.release();
+          }
+        } catch (error) {
+          console.error('Failed to record player disconnect event:', error);
+        }
         
         // Persist player data to database
         try {
-          await persistPlayer(player);
+          const client = await db.connect();
+          try {
+            await client.query(`
+              UPDATE players SET
+                position_x = $2,
+                position_y = $3,
+                position_z = $4,
+                health = $5,
+                is_alive = $6,
+                level = $7,
+                experience = $8,
+                inventory = $9,
+                last_updated = $10
+              WHERE id = $1
+            `, [
+              playerId,
+              player.position.x,
+              player.position.y,
+              player.position.z,
+              player.health,
+              player.isAlive,
+              player.level,
+              player.experience,
+              JSON.stringify(player.inventory || []),
+              Date.now()
+            ]);
+          } finally {
+            client.release();
+          }
         } catch (error) {
           console.error(`Failed to persist player ${playerId} on disconnect:`, error);
         }
@@ -1580,6 +1742,7 @@ function addItemsToInventory(
 
 /**
  * Predicts an entity's state at a future time offset from its current state
+ * Optimized with object pooling for temporary vector calculations
  * @param entity Player or Enemy entity
  * @param basePos Current position
  * @param baseVel Current velocity
@@ -1600,7 +1763,12 @@ function predictEntityStateAtOffset(
 ): { pos: VecXZ; rotY: number } {
     try {
         const deltaTimeSec = deltaTimeOffsetMs / 1000.0;
-        let predictedPos: VecXZ = { ...basePos };
+        
+        // Use pooled vector for predicted position calculation
+        const predictedPos = Vector2Pool.acquire();
+        predictedPos.x = basePos.x;
+        predictedPos.z = basePos.z;
+        
         let predictedRotY: number = baseRotY;
 
         // Player prediction (based on current movement intent)
@@ -1616,12 +1784,14 @@ function predictEntityStateAtOffset(
         const moveAmountThisTick = Math.sqrt(stepX * stepX + stepZ * stepZ);
 
         if (moveAmountThisTick >= distToTarget || distToTarget < 0.05) {
-            predictedPos = { ...targetPos }; // Will reach target
+            predictedPos.x = targetPos.x; // Will reach target
+            predictedPos.z = targetPos.z;
             if (dirToTarget.x !== 0 || dirToTarget.z !== 0) {
                  predictedRotY = Math.atan2(dirToTarget.x, dirToTarget.z);
             }
         } else {
-            predictedPos = { x: basePos.x + stepX, z: basePos.z + stepZ };
+            predictedPos.x = basePos.x + stepX;
+            predictedPos.z = basePos.z + stepZ;
             if (dirToTarget.x !== 0 || dirToTarget.z !== 0) {
                 predictedRotY = Math.atan2(dirToTarget.x, dirToTarget.z);
             }
@@ -1629,10 +1799,8 @@ function predictEntityStateAtOffset(
     }
     // General entity prediction (based on current velocity)
     else if (baseVel && (baseVel.x !== 0 || baseVel.z !== 0)) {
-        predictedPos = {
-            x: basePos.x + baseVel.x * deltaTimeSec,
-            z: basePos.z + baseVel.z * deltaTimeSec,
-        };
+        predictedPos.x = basePos.x + baseVel.x * deltaTimeSec;
+        predictedPos.z = basePos.z + baseVel.z * deltaTimeSec;
         // Predict rotation based on velocity direction
         if (baseVel.x !== 0 || baseVel.z !== 0) {
             predictedRotY = Math.atan2(baseVel.x, baseVel.z);
@@ -1649,7 +1817,10 @@ function predictEntityStateAtOffset(
         }
     }
 
-    return { pos: predictedPos, rotY: predictedRotY };
+    // Create result object and return pooled vector
+    const result = { pos: { x: predictedPos.x, z: predictedPos.z }, rotY: predictedRotY };
+    Vector2Pool.release(predictedPos);
+    return result;
 }
 catch (error) {
     console.error('Error in position prediction:', error);

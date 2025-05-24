@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, Mesh, Material, Vector3, MathUtils } from 'three';
+import { 
+  Vector3Pool, 
+  ColorPool 
+} from '../utils/ClientObjectPool';
 
 interface SplashVfxProps {
   position: {x: number; y: number; z: number};
@@ -32,32 +36,68 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0); // 1 second lifetime
 
-  // Generate water droplet particles
+  // Generate water droplet particles using object pools
   const particles = useMemo(() => {
     const particleCount = 10 + Math.floor(radius * 5); // Scale particles with radius
-    return Array.from({ length: particleCount }, () => ({
-      position: new Vector3(
+    return Array.from({ length: particleCount }, () => {
+      // Use pooled Vector3 and Color objects for initial creation
+      const particlePos = Vector3Pool.acquire();
+      const velocity = Vector3Pool.acquire();
+      const rotation = Vector3Pool.acquire();
+      const rotationSpeed = Vector3Pool.acquire();
+      const color = ColorPool.acquire();
+      
+      particlePos.set(
         position.x + (Math.random() - 0.5) * radius * 0.6,
         position.y + Math.random() * 0.5,
         position.z + (Math.random() - 0.5) * radius * 0.6
-      ),
-      initialY: position.y,
-      velocity: new Vector3(
+      );
+      
+      velocity.set(
         (Math.random() - 0.5) * 10,
         Math.random() * 8 + 6,
         (Math.random() - 0.5) * 10
-      ),
-      scale: 0.1 + Math.random() * 0.25,
-      opacity: 1.0,
-      color: new Color().setHSL(0.58 + Math.random() * 0.05, 0.8, 0.5 + Math.random() * 0.2),
-      rotation: new Vector3(),
-      rotationSpeed: new Vector3(
-        Math.random() * 5, 
-        Math.random() * 5, 
-        Math.random() * 5
-      ),
-      stretching: 1.0
-    }));
+      );
+      
+      rotation.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      
+      rotationSpeed.set(
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 8
+      );
+      
+      color.setRGB(
+        0.3 + Math.random() * 0.4,  // r: 0.3-0.7
+        0.7 + Math.random() * 0.3,  // g: 0.7-1.0
+        0.8 + Math.random() * 0.2   // b: 0.8-1.0
+      );
+      
+      const particle = {
+        position: new Vector3().copy(particlePos),
+        initialY: position.y,
+        velocity: new Vector3().copy(velocity),
+        scale: 0.1 + Math.random() * 0.25,
+        opacity: 0.6 + Math.random() * 0.4,
+        color: new Color().copy(color),
+        rotation: new Vector3().copy(rotation),
+        rotationSpeed: new Vector3().copy(rotationSpeed),
+        stretching: 1
+      };
+      
+      // Release pooled objects back to their pools
+      Vector3Pool.release(particlePos);
+      Vector3Pool.release(velocity);
+      Vector3Pool.release(rotation);
+      Vector3Pool.release(rotationSpeed);
+      ColorPool.release(color);
+      
+      return particle;
+    });
   }, [position, radius]);
   
   // State for tracking particles
@@ -77,22 +117,34 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
       const distance = (0.3 + Math.random() * 0.7) * radius;
       const maxLifetimeMs = 500 + Math.random() * 800;
       
+      // Use pooled Vector3 objects for mist particles
+      const mistPos = Vector3Pool.acquire();
+      const mistVelocity = Vector3Pool.acquire();
+      
+      mistPos.set(
+        position.x + Math.cos(angle) * distance * 0.7,
+        position.y + Math.random() * 0.5,
+        position.z + Math.sin(angle) * distance * 0.7
+      );
+      
+      mistVelocity.set(
+        Math.cos(angle) * (0.5 + Math.random()),
+        0.7 + Math.random() * 0.5,
+        Math.sin(angle) * (0.5 + Math.random())
+      );
+      
       mistParticlesRef.current.push({
-        position: new Vector3(
-          position.x + Math.cos(angle) * distance * 0.7,
-          position.y + Math.random() * 0.5,
-          position.z + Math.sin(angle) * distance * 0.7
-        ),
+        position: new Vector3().copy(mistPos),
         scale: 0.3 + Math.random() * 0.4,
         opacity: 0.4 + Math.random() * 0.3,
-        velocity: new Vector3(
-          Math.cos(angle) * (0.5 + Math.random()),
-          0.7 + Math.random() * 0.5,
-          Math.sin(angle) * (0.5 + Math.random())
-        ),
+        velocity: new Vector3().copy(mistVelocity),
         lifetimeMs: maxLifetimeMs,
         maxLifetimeMs
       });
+      
+      // Release pooled objects
+      Vector3Pool.release(mistPos);
+      Vector3Pool.release(mistVelocity);
     }
   }, [position, radius]);
   
@@ -118,13 +170,15 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
     // Update water particles
     setWaterParticles(prevParticles => 
       prevParticles.map(particle => {
+        // Use pooled Vector3 for physics calculations
+        const deltaMovement = Vector3Pool.acquire();
+        deltaMovement.copy(particle.velocity).multiplyScalar(cappedDelta);
+        
         // Apply gravity with capped delta
         particle.velocity.y -= 15 * cappedDelta;
         
         // Update position with capped delta
-        particle.position.x += particle.velocity.x * cappedDelta;
-        particle.position.y += particle.velocity.y * cappedDelta;
-        particle.position.z += particle.velocity.z * cappedDelta;
+        particle.position.add(deltaMovement);
         
         // Handle bouncing
         if (particle.position.y < particle.initialY && particle.velocity.y < 0) {
@@ -136,6 +190,9 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
           // Reduce opacity on bounce
           particle.opacity *= 0.7;
         }
+        
+        // Release pooled vector
+        Vector3Pool.release(deltaMovement);
         
         // Update rotation with capped delta
         particle.rotation.x += particle.rotationSpeed.x * cappedDelta;
@@ -157,13 +214,18 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
       // Update lifetime
       particle.lifetimeMs -= delta * 1000;
       
+      // Use pooled Vector3 for mist particle movement
+      const deltaMovement = Vector3Pool.acquire();
+      deltaMovement.copy(particle.velocity).multiplyScalar(delta * 0.5);
+      
       // Update position
-      particle.position.x += particle.velocity.x * delta * 0.5;
-      particle.position.y += particle.velocity.y * delta * 0.5;
-      particle.position.z += particle.velocity.z * delta * 0.5;
+      particle.position.add(deltaMovement);
       
       // Fade out particles
       particle.opacity = MathUtils.lerp(0, 0.7, particle.lifetimeMs / particle.maxLifetimeMs);
+      
+      // Release pooled vector
+      Vector3Pool.release(deltaMovement);
       
       // Remove dead particles
       if (particle.lifetimeMs <= 0) {
