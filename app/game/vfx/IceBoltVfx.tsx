@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, ConeGeometry, MeshBasicMaterial, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
@@ -17,7 +17,7 @@ interface IceBoltVfxProps {
 }
 
 // Define as a named function first
-export function IceBoltVfx({ 
+const IceBoltVfxComponent = ({ 
   id = `icebolt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
   dir, 
@@ -25,7 +25,7 @@ export function IceBoltVfx({
   launchTs = performance.now(),
   pooled, // Use the pooled group passed from VfxManager
   onDone
-}: IceBoltVfxProps) {
+}: IceBoltVfxProps) => {
   const coreRef = useRef<Mesh>(null);
   const isActive = useRef(true);
   
@@ -176,7 +176,8 @@ export function IceBoltVfx({
       ))}
     </group>
   );
-}
+};
 
-// Also export as default
+// Export the memoized component as both named and default exports
+export const IceBoltVfx = React.memo(IceBoltVfxComponent);
 export default IceBoltVfx;

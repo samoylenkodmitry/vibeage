@@ -8,7 +8,7 @@ import ConnectionStatus from './ConnectionStatus';
 import SkillTreeUI from './SkillTreeUI';
 import CombatLog from './HUD/CombatLog';
 import Inventory from './HUD/Inventory';
-import { GAME_ZONES } from '../systems/zoneSystem';
+import { GAME_ZONES } from '../../../shared/zoneSystem';
 import Image from 'next/image';
 import { tryStartCast } from '../systems/castController';
 
@@ -64,11 +64,11 @@ const SkillButton = React.memo(({ skill, cooldownEndMs, isCasting, castProgressM
     }
     
     const updateCastProgress = () => {
-      if (skill.castTimeMs <= 0) return; // Instant cast
-      
-      // Calculate progress percentage (0-100)
-      const progress = Math.min(100, (castProgressMs / skill.castTimeMs) * 100);
-      setCastProgress(progress);
+    if (skill.castTimeMs <= 0) return; // Instant cast
+    
+    // Calculate progress percentage (0-100)
+    const progress = Math.min(100, (castProgressMs / skill.castTimeMs) * 100);
+    setCastProgress(progress);
     };
     
     updateCastProgress();

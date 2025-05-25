@@ -3,21 +3,20 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
-         InventoryUpdateMsg, LootAcquiredMsg, PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../shared/messages.js';
+         PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../shared/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
-import { getDamage, hash, rng } from '../shared/combatMath.js';
-import { CM_PER_UNIT, POS_MAX_DELTA_CM } from '../shared/netConstants.js';
+import { hash, rng } from '../shared/combatMath.js';
+import { CM_PER_UNIT} from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
-import { LOOT_TABLES, LootTable } from './lootTables.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
-import { persistPlayer, recordServerEvent } from './persistence.js';
 import { ITEMS } from '../shared/items.js';
+import { persistPlayer, recordServerEvent } from './persistence.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -210,7 +209,7 @@ function updatePositionHistory(entity: PlayerState | Enemy, timestamp: number): 
   if (!entity.posHistory) {
     entity.posHistory = [];
   }
-  
+
   // Add current position to history
   entity.posHistory.push({
     ts: timestamp,
@@ -242,15 +241,15 @@ function advanceAll(state: GameState, deltaTimeMs: number): void {
   for (const enemyId in state.enemies) {
     const enemy = state.enemies[enemyId];
     if (enemy.isAlive) {
-      // Advance enemy position based on velocity
+    // Advance enemy position based on velocity
       advanceEnemyPosition(enemy, deltaTimeMs);
-      
+    
       // Process status effects
       if (enemy.statusEffects.length > 0) {
         const now = Date.now();
-        enemy.statusEffects = enemy.statusEffects.filter(effect => {
-          return (effect.startTimeTs + effect.durationMs) > now;
-        });
+      enemy.statusEffects = enemy.statusEffects.filter(effect => {
+        return (effect.startTimeTs + effect.durationMs) > now;
+      });
       }
     }
   }
@@ -710,14 +709,12 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   }, TICK);
   
   // Setup periodic player state persistence (every 30s)
-  setInterval(() => {
+  setInterval(async () => {
     try {
       log(LOG_CATEGORIES.SYSTEM, 'Running periodic player state persistence...');
-      Object.values(state.players).forEach(player => {
-        persistPlayer(player).catch(error => {
-          console.error(`Failed to persist player ${player.id} in periodic update:`, error);
-        });
-      });
+      for (const player of Object.values(state.players)) {
+        persistPlayer(player);
+      }
     } catch (error) {
       console.error('Error in periodic player persistence:', error);
     }
@@ -907,20 +904,23 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
            returning *`,
           [name, socketId]);
         
-        // Record login for analytics
-        await recordServerEvent('player_login', `Player ${name} logged in`);
-        
         // Use playerId from database
         const playerId = row.id;
         
+        await recordServerEvent('player_login', playerId, JSON.stringify({ playerName: name, socketId }),);
+
         // Create player state, merging DB data with default values
         const player: PlayerState = {
           id: playerId,
           socketId,
           name,
-          position: { x: 0, y: 0.5, z: 0 },
+          position: { 
+            x: row.position_x || 0, 
+            y: row.position_y || 0.5, 
+            z: row.position_z || 0 
+          },
           rotation: { x: 0, y: 0, z: 0 },
-          health: 100,
+          health: row.health || 100,
           maxHealth: 100,
           mana: 100,
           maxMana: 100,
@@ -931,7 +931,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
           skillCooldownEndTs: {},
           castingSkill: null,
           castingProgressMs: 0,
-          isAlive: true,
+          isAlive: row.is_alive !== undefined ? row.is_alive : true,
           className: row.class_name || 'mage', // Use class from DB or default
           unlockedSkills: row.skills || ['fireball'], // Use skills from DB or default
           skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
@@ -1000,15 +1000,15 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         const pos = { x: player.position.x, z: player.position.z };
         
         // Record disconnect for analytics
-        await recordServerEvent('player_disconnect', `Player ${player.name} disconnected`);
-        
+        await recordServerEvent('player_disconnect', playerId, JSON.stringify({ playerName: player.name, socketId }));
+
         // Persist player data to database
         try {
           await persistPlayer(player);
         } catch (error) {
           console.error(`Failed to persist player ${playerId} on disconnect:`, error);
         }
-        
+
         // Remove player from spatial hash grid
         spatial.remove(playerId, pos);
         
@@ -1454,127 +1454,6 @@ function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest,
   
   // Update spatial grid with new position
   spatial.move(player.id, player.position, player.position); // Force update of position in spatial grid
-}
-
-/**
- * Generates loot from an enemy's loot table (internal helper function)
- * @param lootTableId The ID of the loot table to use
- * @returns Array of inventory slots containing loot
- * @private
- */
-// @ts-ignore - This function is used in specific scenarios and maintained for future use
-function generateLoot(lootTableId: string): InventorySlot[] {
-  const lootTable = LOOT_TABLES[lootTableId];
-  if (!lootTable) {
-    log(LOG_CATEGORIES.SYSTEM, `Loot table ${lootTableId} not found`);
-    return [];
-  }
-
-  const generatedLoot: InventorySlot[] = [];
-
-  // Process each potential drop in the loot table
-  lootTable.drops.forEach(drop => {
-    // Roll for chance
-    const roll = Math.random();
-    if (roll <= drop.chance) {
-      // Determine quantity
-      const quantity = Math.floor(
-        drop.quantity.min + Math.random() * (drop.quantity.max - drop.quantity.min + 1)
-      );
-      
-      if (quantity > 0) {
-        generatedLoot.push({
-          itemId: drop.itemId,
-          quantity
-        });
-      }
-    }
-  });
-
-  return generatedLoot;
-}
-
-/**
- * Adds items to a player's inventory, handling stacking and inventory limits (internal helper function)
- * @param player The player to add items to
- * @param items The items to add
- * @returns Object containing successfully added items and overflow items
- * @private
- */
-// @ts-ignore - This function is maintained for future use
-function addItemsToInventory(
-  player: PlayerState, 
-  items: InventorySlot[]
-): { addedItems: InventorySlot[], overflowItems: InventorySlot[] } {
-  const addedItems: InventorySlot[] = [];
-  const overflowItems: InventorySlot[] = [];
-
-  // Process each item
-  items.forEach(item => {
-    let remainingQuantity = item.quantity;
-    const { itemId } = item;
-
-    // First try to merge with existing stacks of the same item
-    // This requires importing the item definitions to check stackability
-    const isStackable = true; // Default to stackable for now
-    const maxStack = 999; // Default max stack size
-    
-    if (isStackable) {
-      // Find existing stacks of this item that aren't full
-      for (let i = 0; i < player.inventory.length; i++) {
-        const slot = player.inventory[i];
-        
-        if (slot.itemId === itemId && slot.quantity < maxStack && remainingQuantity > 0) {
-          // Calculate how much we can add to this stack
-          const spaceInStack = maxStack - slot.quantity;
-          const amountToAdd = Math.min(spaceInStack, remainingQuantity);
-          
-          // Add to existing stack
-          player.inventory[i].quantity += amountToAdd;
-          remainingQuantity -= amountToAdd;
-          
-          // Add to addedItems for tracking
-          addedItems.push({
-            itemId,
-            quantity: amountToAdd
-          });
-          
-          // If we've added all of this item, break
-          if (remainingQuantity <= 0) break;
-        }
-      }
-    }
-    
-    // If we still have items to add, try to add to a new slot
-    if (remainingQuantity > 0) {
-      // Check if we have space for a new slot
-      if (player.inventory.length < player.maxInventorySlots) {
-        // Add to a new slot
-        player.inventory.push({
-          itemId,
-          quantity: remainingQuantity
-        });
-        
-        // Add to addedItems for tracking
-        addedItems.push({
-          itemId,
-          quantity: remainingQuantity
-        });
-        
-        remainingQuantity = 0;
-      }
-    }
-    
-    // If we still have items, they go to overflow
-    if (remainingQuantity > 0) {
-      overflowItems.push({
-        itemId,
-        quantity: remainingQuantity
-      });
-    }
-  });
-  
-  return { addedItems, overflowItems };
 }
 
 /**

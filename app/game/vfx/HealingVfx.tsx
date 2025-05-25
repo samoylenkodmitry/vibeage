@@ -21,7 +21,7 @@ interface HealParticle {
   maxLifetime: number;
 }
 
-export default function HealingVfx({ position, amount = 20, duration = 1.2 }: HealingVfxProps) {
+const HealingVfxComponent = ({ position, amount = 20, duration = 1.2 }: HealingVfxProps) => {
   const [lifetime, setLifetime] = useState(duration);
   const ringRef = useRef<Mesh>(null);
   
@@ -177,4 +177,6 @@ export function spawnHealingVfx(position: {x: number; y: number; z: number}, amo
       } 
     })
   );
-}
+};
+
+export default React.memo(HealingVfxComponent);

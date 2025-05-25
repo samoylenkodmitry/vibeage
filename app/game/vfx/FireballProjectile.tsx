@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, Group, MeshBasicMaterial, SphereGeometry } from 'three';
 import useParticleSystem, { Particle } from './useParticleSystem';
@@ -11,13 +11,13 @@ interface FireballProjectileProps {
   onDone?: () => void;
 }
 
-export default function FireballProjectile({ 
+const FireballProjectileComponent = ({ 
   id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
   pos,
   pooled,
   onDone
-}: FireballProjectileProps) {
+}: FireballProjectileProps) => {
   const coreRef = useRef<Mesh>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
 
@@ -203,4 +203,6 @@ export default function FireballProjectile({
       ))}
     </group>
   );
-}
+};
+
+export default React.memo(FireballProjectileComponent);

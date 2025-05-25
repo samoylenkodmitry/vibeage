@@ -7,7 +7,7 @@ import { GROUND_Y, getBuffer, damp, TELEPORT_THRESHOLD } from '../systems/interp
 import { VecXZ } from '../../../shared/messages';
 
 // Individual Player Character
-function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
+const PlayerCharacter = React.memo(function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {
   const playerRef = useRef<any>(null);
   const playerState = useGameStore(selectPlayer(playerId));
   const socket = useGameStore(state => state.socket);
@@ -308,7 +308,9 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
       }
       
       // Apply final position to RigidBody
-      playerRef.current.setNextKinematicTranslation(predictedPosRef.current);
+      playerRef.current.setNextKinematicTranslation(
+        new THREE.Vector3().copy(predictedPosRef.current)
+      );
       
       // Update game store with final render position for camera and UI
       useGameStore.getState().setControlledPlayerRenderPosition({
@@ -454,7 +456,8 @@ function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, i
 
     </>
   );
-}
+});
+PlayerCharacter.displayName = 'PlayerCharacter';
 
 // Main Players Component (Renders all players)
 export default function Player() {

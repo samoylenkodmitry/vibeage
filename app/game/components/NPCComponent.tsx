@@ -10,24 +10,14 @@ import { NPC } from '../systems/questSystem';
 interface NPCComponentProps {
   npc: NPC;
   onInteract?: (npcId: string) => void;
-  playerPosition?: { x: number; y: number; z: number };
 }
 
 const NPCComponent = memo<NPCComponentProps>(function NPCComponent({ 
   npc, 
   onInteract, 
-  playerPosition = { x: 0, y: 0, z: 0 } 
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [isHovered, setIsHovered] = useState(false);
-  
-  // Calculate distance to player
-  const distanceToPlayer = Math.sqrt(
-    Math.pow(npc.position.x - playerPosition.x, 2) +
-    Math.pow(npc.position.z - playerPosition.z, 2)
-  );
-  
-  const isNearPlayer = distanceToPlayer < 10; // Show interaction prompt when close
 
   // Gentle floating animation
   useFrame(({ clock }) => {
@@ -37,7 +27,7 @@ const NPCComponent = memo<NPCComponentProps>(function NPCComponent({
   });
 
   const handleClick = () => {
-    if (onInteract && isNearPlayer) {
+    if (onInteract) {
       onInteract(npc.id);
     }
   };

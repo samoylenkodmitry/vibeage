@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Group } from 'three';
 import useProjectileMovement from './useProjectileMovement';
@@ -12,13 +12,13 @@ interface IceBoltProjectileProps {
   launchTs?: number;
 }
 
-export function IceBoltProjectile({ 
+const IceBoltProjectileComponent = ({ 
   id = `icebolt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
   dir, 
   speed,
   launchTs = performance.now()
-}: IceBoltProjectileProps) {
+}: IceBoltProjectileProps) => {
   const coreRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
@@ -158,7 +158,8 @@ export function IceBoltProjectile({
       })}
     </group>
   );
-}
+};
 
-// Make sure to export both as named and default export for compatibility
+// Export the memoized component as both named and default exports
+export const IceBoltProjectile = React.memo(IceBoltProjectileComponent);
 export default IceBoltProjectile;

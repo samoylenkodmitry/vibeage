@@ -113,7 +113,7 @@ export function updateEnemyAI(
                 if (gridCellChanged(oldPos, enemy.position)) {
                     spatialGrid.move(enemy.id, oldPos, enemy.position);
                 }
-                
+
                 // Mark the enemy as needing a position update sent to clients
                 (enemy as any).dirtySnap = true;
             }
@@ -235,7 +235,7 @@ export function updateEnemyAI(
             if (gridCellChanged(oldPos, enemy.position)) {
                 spatialGrid.move(enemy.id, oldPos, enemy.position);
             }
-            
+
             // Mark the enemy as needing a position update sent to clients
             (enemy as any).dirtySnap = true;
         }

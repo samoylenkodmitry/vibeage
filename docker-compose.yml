@@ -5,12 +5,29 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - dbdata:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     ports: ['5432:5432']   # for local psql access
+
+  migrate:
+    image: postgres:16
+    depends_on:
+      - db
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    volumes:
+      - ./scripts/auto-migrate.sh:/auto-migrate.sh:ro
+      - ./scripts/migrations:/migrations:ro
+    command: ["/bin/sh", "/auto-migrate.sh"]
+    restart: "no"
 
   game:
     build: .
-    depends_on: [db]
+    depends_on:
+      - db
+      - migrate
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
       PORT: 3001

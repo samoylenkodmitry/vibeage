@@ -135,7 +135,7 @@ export function initProjectileListeners() {
   let animationFrameId: number;
   
   function updateLoop() {
-    useProjectileStoreLegacy.getState().updateOpacity();
+      useProjectileStoreLegacy.getState().updateOpacity();
     animationFrameId = requestAnimationFrame(updateLoop);
   }
   

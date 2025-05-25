@@ -89,7 +89,7 @@ const useProjectileMovement = ({
   // Update position each frame
   useFrame(() => {
     if (isDestroyed.current) return;
-    
+
     // Calculate elapsed time in seconds since launch using epoch time
     const clientNowEpoch = Date.now();
     

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useRef, useState, useEffect } from 'react';
 import { Vector3, Mesh, MathUtils, Color, Group, Material, SphereGeometry, MeshStandardMaterial, PointLight } from 'three';
@@ -15,7 +16,7 @@ interface ProjectileVfxProps {
   onDone?: () => void; // Add callback for when projectile is done
 }
 
-export default function ProjectileVfx({
+const ProjectileVfxComponent = ({
   id = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
   dir, 
@@ -23,7 +24,7 @@ export default function ProjectileVfx({
   launchTs = performance.now(),
   pooled, // Use the pooled group passed from VfxManager
   onDone
-}: ProjectileVfxProps) {
+}: ProjectileVfxProps) => {
   const ref = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
@@ -261,4 +262,6 @@ export default function ProjectileVfx({
       )}
     </>
   );
-}
+};
+
+export default React.memo(ProjectileVfxComponent);

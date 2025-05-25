@@ -4,46 +4,64 @@ import { PlayerState } from '../shared/types.js';
 /**
  * Persists player state to the database
  */
-export async function persistPlayer(p: PlayerState) {
-  try {
-    await db.query(
-      `update players
-          set level=$2, xp=$3, 
-              inventory=$4::jsonb, skills=$5::jsonb,
-              class_name=$6, last_login=now(),
-              updated_at = now()
-        where id = $1`,
-      [p.id, p.level, p.experience, JSON.stringify(p.inventory), JSON.stringify(p.unlockedSkills), p.className]
-    );
-  } catch (error) {
-    console.error(`Failed to persist player ${p.id}:`, error);
-  }
-}
-
-/**
- * Records player login for analytics
- */
-export async function recordPlayerLogin(playerId: string, socketId: string) {
-  try {
-    await db.query(
-      `insert into game_stats (category, name, value) values ('login', $1, 1)`,
-      [socketId]
-    );
-  } catch (error) {
-    console.error(`Failed to record login for ${playerId}:`, error);
-  }
+export async function persistPlayer(player: PlayerState) {
+    try {
+      const client = await db.connect();
+      try {
+        await client.query(`
+          UPDATE players SET
+            position_x = $2,
+            position_y = $3,
+            position_z = $4,
+            health = $5,
+            is_alive = $6,
+            level = $7,
+            experience = $8,
+            inventory = $9,
+            last_updated = $10
+          WHERE id = $1
+        `, [
+          player.id,
+          player.position.x,
+          player.position.y,
+          player.position.z,
+          player.health,
+          player.isAlive,
+          player.level,
+          player.experience,
+          JSON.stringify(player.inventory || []),
+          Date.now()
+        ]);
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error(`Failed to persist player ${player.id} in periodic update:`, error);
+    }
 }
 
 /**
  * Records a server event
  */
-export async function recordServerEvent(eventType: string, description?: string) {
-  try {
-    await db.query(
-      `insert into server_events (event_type, description) values ($1, $2)`,
-      [eventType, description]
-    );
-  } catch (error) {
-    console.error(`Failed to record server event ${eventType}:`, error);
-  }
+export async function recordServerEvent(event_type, player_id, event_data) {
+        // Record login for analytics
+        try {
+          const client = await db.connect();
+          try {
+            await client.query(`
+              INSERT INTO server_events (event_type, player_id, event_data, timestamp)
+              VALUES ($1, $2, $3, $4)
+            `, [
+              event_type,
+              player_id,
+              event_data,
+              Date.now()
+            ]);
+          } finally {
+            client.release();
+          }
+        } catch (error) {
+          console.error('Failed to record player login event:', error);
+        }
+
 }

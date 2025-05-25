@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh } from 'three';
 import useParticleSystem, { Particle } from './useParticleSystem';
@@ -10,7 +10,7 @@ interface PetrifyFlashProps {
 }
 
 // Export as named export
-export function PetrifyFlash({ position }: PetrifyFlashProps) {
+const PetrifyFlashComponent = ({ position }: PetrifyFlashProps) => {
   const coreRef = useRef<Mesh>(null);
   const positionVector = useRef(new Vector3(position.x, position.y + 1, position.z));
   
@@ -103,7 +103,8 @@ export function PetrifyFlash({ position }: PetrifyFlashProps) {
       ))}
     </group>
   );
-}
+};
 
-// Also export as default for consistency
+// Export the memoized component as both named and default exports
+export const PetrifyFlash = React.memo(PetrifyFlashComponent);
 export default PetrifyFlash;

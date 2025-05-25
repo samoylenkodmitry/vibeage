@@ -75,22 +75,22 @@ export default function CastingBar({ playerId }: CastingBarProps) {
     if (!skill) return;
 
     const castTimeMs = skill.castMs || 1000;
-
+    
     const interval = setInterval(() => {
-      // Use the ref value directly
-      const prevMs = currentProgressMsRef.current;
-      const newMs = prevMs + 50; // Increment local progress
-      
-      currentProgressMsRef.current = newMs;
-      
-      if (newMs >= castTimeMs) {
-        setProgressPercentInternal(100);
-        // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
-        currentProgressMsRef.current = castTimeMs;
-      } else {
-        const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
-        setProgressPercentInternal(newProgressPercent);
-      }
+    // Use the ref value directly
+    const prevMs = currentProgressMsRef.current;
+    const newMs = prevMs + 50; // Increment local progress
+    
+    currentProgressMsRef.current = newMs;
+    
+    if (newMs >= castTimeMs) {
+      setProgressPercentInternal(100);
+      // Server will eventually clear player.castingSkill, which will hide the bar via the other useEffect
+      currentProgressMsRef.current = castTimeMs;
+    } else {
+      const newProgressPercent = Math.min(100, (newMs / castTimeMs) * 100);
+      setProgressPercentInternal(newProgressPercent);
+    }
     }, 50);
     
     return () => clearInterval(interval);

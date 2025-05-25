@@ -28,7 +28,7 @@ interface MistParticle {
   maxLifetimeMs: number;
 }
 
-export default function SplashVfx({ position, radius }: SplashVfxProps) {
+const SplashVfxComponent = ({ position, radius }: SplashVfxProps) => {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0); // 1 second lifetime
 
@@ -98,7 +98,7 @@ export default function SplashVfx({ position, radius }: SplashVfxProps) {
   
   useFrame((_, delta) => {
     if (!ringRef.current) return;
-    
+
     // Shrink lifetime
     setLifetime(prev => Math.max(0, prev - delta));
     
@@ -239,7 +239,7 @@ export function spawnStunFlash(position: {x: number; y: number; z: number}) {
 }
 
 // Create a FireSplash component for fire effects
-export function FireSplash({ position, radius }: SplashVfxProps) {
+const FireSplashComponent = ({ position, radius }: SplashVfxProps) => {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0);
   
@@ -352,8 +352,12 @@ export function FireSplash({ position, radius }: SplashVfxProps) {
   );
 }
 
+// Memoized FireSplash component
+const FireSplash = React.memo(FireSplashComponent);
+FireSplash.displayName = 'FireSplash';
+
 // Create an IceSplash component for ice effects
-export function IceSplash({ position, radius }: SplashVfxProps) {
+const IceSplashComponent = ({ position, radius }: SplashVfxProps) => {
   const ringRef = useRef<Mesh>(null);
   const [lifetime, setLifetime] = useState(1.0);
   
@@ -471,4 +475,11 @@ export function IceSplash({ position, radius }: SplashVfxProps) {
       ))}
     </group>
   );
-}
+};
+
+// Memoized IceSplash component
+const IceSplash = React.memo(IceSplashComponent);
+IceSplash.displayName = 'IceSplash';
+
+export default React.memo(SplashVfxComponent);
+export { FireSplash, IceSplash };

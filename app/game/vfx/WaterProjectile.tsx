@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, Color, Group, SphereGeometry, MeshStandardMaterial } from 'three';
 import useProjectileMovement from './useProjectileMovement';
@@ -14,7 +14,7 @@ interface WaterProjectileProps {
   onDone?: () => void; // Add callback for when projectile is done
 }
 
-export default function WaterProjectile({ 
+const WaterProjectileComponent = ({ 
   id = `water-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
   dir, 
@@ -22,7 +22,7 @@ export default function WaterProjectile({
   launchTs = performance.now(),
   pooled, // Use the pooled group passed from VfxManager
   onDone
-}: WaterProjectileProps) {
+}: WaterProjectileProps) => {
   const mainRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
@@ -219,7 +219,9 @@ export default function WaterProjectile({
       })}
     </group>
   );
-}
+};
 
-// Maintain compatibility with both default and named exports
+// Export the memoized component as both default and named exports
+const WaterProjectile = React.memo(WaterProjectileComponent);
+export default WaterProjectile;
 export { WaterProjectile };
