@@ -16,8 +16,6 @@ import VfxManager from './VfxManager';
 import GameHud from './GameHud';
 import PredictionDebug from './PredictionDebug';
 import PredictionPath from './PredictionPath';
-import GameManager from './GameManager';
-import { GameUIContent, useGameManager, SystemsManager } from './gamemanager';
 import { useGameStore } from '../systems/gameStore';
 import { GROUND_Y } from '../systems/interpolation'; 
 import SocketManager from '../systems/SocketManager';
