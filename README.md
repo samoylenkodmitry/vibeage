@@ -4,6 +4,10 @@ A browser-first multiplayer game prototype with movement, combat, skills, loot, 
 
 The current repository is being stabilized before a cleaner web-native architecture. See [ROADMAP.md](ROADMAP.md) for the target stack and migration plan. See [AGENTS.md](AGENTS.md) for commands and rules for automated coding agents.
 
+## Branch Policy
+
+Use `server` as the canonical working branch. The live VPS deployment scripts are wired to `origin/server`, and `main` is currently a stale GitHub default branch. Do not target `main` for feature work or cleanup until the deployment scripts and VPS checkout have been intentionally migrated.
+
 ## Development
 
 ```bash

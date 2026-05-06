@@ -6,6 +6,15 @@ This repository is a browser multiplayer game prototype. Treat it as a codebase 
 
 The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and Vitest. The intended direction is documented in `ROADMAP.md`: Vite client, Colyseus server, shared Zod protocol schemas, Kysely persistence, Vitest and Playwright checks.
 
+## Branch Policy
+
+- Work from `server` unless the user explicitly says otherwise.
+- Treat `server` as the production branch: the VPS deployment scripts pull from `origin/server`.
+- Do not base work on `main`; it is stale and not representative of the deployed app.
+- Do not rename, delete, merge, rebase, or force-push `server` without explicit user approval.
+- For larger changes, create a feature branch from `server` and merge back to `server` only after checks pass.
+- Before changing deployment scripts, inspect `/opt/vibeage` assumptions in `scripts/setup-server.sh`, `scripts/setup-client.sh`, Docker Compose, Nginx, and the generated `manage.sh` behavior.
+
 ## Commands
 
 - Install: `pnpm install`

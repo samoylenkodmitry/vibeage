@@ -10,6 +10,15 @@ This project should become a browser-first multiplayer game that is easy for hum
 - Server remains authoritative for combat, inventory, loot, cooldowns, enemy AI, and final positions.
 - Client owns presentation, interpolation, prediction, input, UI, and VFX.
 
+## Branch And Deployment Policy
+
+- `server` is the canonical working branch for the current project.
+- The VPS deployment scripts and generated management scripts pull from `origin/server`.
+- `main` is currently stale and should not be used as the base for new work.
+- Feature branches should branch from `server` and merge back into `server`.
+- Do not rename, delete, or merge away `server` until the VPS checkout, Nginx config, Docker Compose stack, frontend update script, and backup/update cron jobs have been audited and migrated.
+- Treat pushes to `server` as production-affecting, even for documentation changes, because the VPS may update from that branch.
+
 ## Target Stack
 
 - Client: Vite, React, React Three Fiber, Drei, Three.js.
@@ -36,6 +45,13 @@ tests/
 ```
 
 ## Migration Phases
+
+### Phase -1: Confirm Production Baseline
+
+- SSH to the VPS and record `/opt/vibeage` branch, commit, remotes, Docker Compose status, Nginx site config, crontab entries, and frontend checkout state.
+- Confirm whether Vercel is still serving any production traffic or whether Nginx on the VPS serves both frontend and backend.
+- Protect `server` on GitHub or otherwise document that it is production.
+- Keep `main` untouched until there is a deliberate branch-normalization task.
 
 ### Phase 0: Stabilize Current Prototype
 
