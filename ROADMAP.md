@@ -12,12 +12,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 
 ## Branch And Deployment Policy
 
-- `server` is the canonical working branch for the current project.
-- The VPS deployment scripts and generated management scripts pull from `origin/server`.
-- `main` is currently stale and should not be used as the base for new work.
-- Feature branches should branch from `server` and merge back into `server`.
-- Do not rename, delete, or merge away `server` until the VPS checkout, Nginx config, Docker Compose stack, frontend update script, and backup/update cron jobs have been audited and migrated.
-- Treat pushes to `server` as production-affecting, even for documentation changes, because the VPS may update from that branch.
+- `main` is the canonical working and deployment branch.
+- `old_version` archives the previous stale GitHub `main`.
+- The former `server` branch has been moved to `main`; keep the remote `server` branch only as a temporary compatibility alias until the VPS checkout is verified on `main`.
+- Feature branches should branch from `main` and merge back into `main`.
+- Current deployment is VPS-only. Vercel is not part of the intended production path.
+- Treat pushes to `main` as production-affecting, because the VPS update scripts pull from this branch.
 
 ## Target Stack
 
@@ -48,10 +48,11 @@ tests/
 
 ### Phase -1: Confirm Production Baseline
 
-- SSH to the VPS and record `/opt/vibeage` branch, commit, remotes, Docker Compose status, Nginx site config, crontab entries, and frontend checkout state.
-- Confirm whether Vercel is still serving any production traffic or whether Nginx on the VPS serves both frontend and backend.
-- Protect `server` on GitHub or otherwise document that it is production.
-- Keep `main` untouched until there is a deliberate branch-normalization task.
+- SSH to the VPS and move `/opt/vibeage` and `/opt/vibeage-frontend` to `main` if they still track `server`.
+- Record deployed commit, remotes, Docker Compose status, Nginx site config, crontab entries, and frontend checkout state.
+- Confirm DNS points to the VPS and that Nginx serves both frontend and backend.
+- Protect `main` on GitHub or otherwise document that it is production.
+- Delete the remote `server` compatibility branch only after the VPS has been verified on `main`.
 
 ### Phase 0: Stabilize Current Prototype
 

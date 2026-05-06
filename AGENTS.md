@@ -8,11 +8,11 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 
 ## Branch Policy
 
-- Work from `server` unless the user explicitly says otherwise.
-- Treat `server` as the production branch: the VPS deployment scripts pull from `origin/server`.
-- Do not base work on `main`; it is stale and not representative of the deployed app.
-- Do not rename, delete, merge, rebase, or force-push `server` without explicit user approval.
-- For larger changes, create a feature branch from `server` and merge back to `server` only after checks pass.
+- Work from `main` unless the user explicitly says otherwise.
+- Treat `main` as production-affecting: the VPS deployment scripts are being standardized to pull from `origin/main`.
+- `old_version` archives the old stale GitHub main branch.
+- The former `server` branch is a temporary compatibility alias and should not receive new work.
+- For larger changes, create a feature branch from `main` and merge back to `main` only after checks pass.
 - Before changing deployment scripts, inspect `/opt/vibeage` assumptions in `scripts/setup-server.sh`, `scripts/setup-client.sh`, Docker Compose, Nginx, and the generated `manage.sh` behavior.
 
 ## Commands

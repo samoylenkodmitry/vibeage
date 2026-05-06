@@ -6,15 +6,16 @@ This document outlines how to deploy the dedicated game server for our multiplay
 
 - Node.js 20.x
 - Docker (optional, for containerized deployment)
-- A hosting platform (VPS, Railway, Fly.io, etc.)
+- A VPS with Nginx for production deployment
 
 ## Environment Variables
 
 | Key                           | Purpose                               | Where to Set |
 |-------------------------------|---------------------------------------|--------------|
-| `NEXT_PUBLIC_GAME_SERVER_URL` | Front-end WebSocket endpoint          | Vercel       |
+| `NEXT_PUBLIC_GAME_SERVER_URL` | Front-end WebSocket endpoint          | Frontend build |
 | `PORT`                        | Listening port inside container / VPS | Docker/host  |
 | `WS_COMPRESSION` (`0` or `1`) | Toggle per-message deflate            | Server       |
+| `CORS_ORIGINS`                | Comma-separated allowed client origins | Server       |
 
 ## Deployment Options
 
@@ -41,24 +42,13 @@ docker build -t game-server .
 docker run -p 3001:3001 -e PORT=3001 game-server
 ```
 
-### 3. Platform-Specific Deployment
+### 3. VPS Deployment
 
-#### Railway
-
-1. Connect your GitHub repository
-2. Set environment variables (PORT will be set automatically)
-3. Deploy
-
-#### Fly.io
-
-1. Install the Fly CLI
-2. Run `fly launch`
-3. Set secrets: `fly secrets set PORT=3001`
-4. Deploy: `fly deploy`
+Use `scripts/setup-server.sh` for the game server/database stack and `scripts/setup-client.sh` for the static frontend served by Nginx.
 
 ## Client Configuration
 
-Make sure to set the `NEXT_PUBLIC_GAME_SERVER_URL` environment variable in your Vercel project settings to point to your deployed game server's URL.
+Set `NEXT_PUBLIC_GAME_SERVER_URL` during the frontend build. The VPS setup script does this automatically with `https://<domain>`.
 
 ## Security Considerations
 

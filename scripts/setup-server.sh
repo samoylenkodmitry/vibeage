@@ -77,11 +77,13 @@ else
   # If not run from within the repo, clone it
   if [ -d "$APP_DIR/.git" ]; then
     cd $APP_DIR
-    git pull
+    git fetch origin main
+    git checkout main
+    git reset --hard origin/main
   else
     git clone https://github.com/samoylenkodmitry/vibeage.git $APP_DIR
     cd $APP_DIR
-    git checkout server
+    git checkout main
   fi
 fi
 
@@ -92,6 +94,7 @@ step "Creating environment file..."
 cat > $APP_DIR/.env << EOL
 DATABASE_URL=postgres://postgres:postgres@db:5432/postgres
 DOMAIN=$DOMAIN
+CORS_ORIGINS=https://$DOMAIN
 EOL
 
 # Create backup script
@@ -219,7 +222,6 @@ echo "  $APP_DIR/manage.sh logs    - View logs"
 echo "  $APP_DIR/manage.sh backup  - Create backup"
 echo "  $APP_DIR/manage.sh status  - Check status"
 echo
-echo "Remember to update your Vercel environment variable:"
-echo "  NEXT_PUBLIC_GAME_SERVER_URL=https://$DOMAIN"
+echo "Frontend is expected to be served from this VPS via scripts/setup-client.sh"
 echo 
 echo "To test the server connectivity: curl -I https://$DOMAIN"

@@ -1,14 +1,15 @@
-# Game Server with Postgres Persistence
+# VPS Deployment
 
-This project includes a complete game server with state persistence in PostgreSQL, packaged as a Docker Compose stack for easy deployment.
+This project is deployed on a VPS. The VPS runs the authoritative game server, PostgreSQL, and an Nginx-served static frontend build.
 
 ## Features
 
 - Real-time game server using WebSockets
 - PostgreSQL persistence for player data
-- Complete Docker Compose deployment
+- Docker Compose server/database deployment
+- Nginx static frontend hosting
 - Automated database backups
-- Easy scaling and deployment to a VPS
+- VPS-only production path
 
 ## Local Development
 
@@ -36,7 +37,7 @@ This project includes a complete game server with state persistence in PostgreSQ
 
 ## Docker Deployment
 
-The easiest way to deploy the game server is using Docker Compose:
+For local or VPS server management, Docker Compose is wrapped by `deploy.sh`:
 
 ```bash
 # Start the services
@@ -59,8 +60,9 @@ The easiest way to deploy the game server is using Docker Compose:
    ```
 3. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/game-repo.git
-   cd game-repo
+   git clone https://github.com/samoylenkodmitry/vibeage.git
+   cd vibeage
+   git checkout main
    ```
 4. Set up environment:
    ```bash
@@ -103,7 +105,7 @@ To deploy the game server on a VPS:
    ```bash
    git clone https://github.com/samoylenkodmitry/vibeage.git
    cd vibeage
-   git checkout server
+   git checkout main
    ```
 
 4. Run the setup script:
@@ -118,8 +120,10 @@ To deploy the game server on a VPS:
    - Start the server
    - Create management scripts for updates and backups
 
-6. Update your client environment:
-   - On Vercel: Set `NEXT_PUBLIC_GAME_SERVER_URL=https://yourdomain.com`
+6. Run the frontend setup script if the frontend is not already served from the VPS:
+   ```bash
+   sudo ./scripts/setup-client.sh
+   ```
 
 ### Managing the Server
 
@@ -143,7 +147,7 @@ The setup script creates a management script at `/opt/vibeage/manage.sh` with th
 
 - **Game Server**: Node.js/TypeScript authoritative server
 - **Database**: PostgreSQL for data persistence
-- **Web Client**: Next.js (deployed separately on Vercel)
+- **Web Client**: Next.js static export served by Nginx from the VPS
 
 ## Enabling Backups
 
@@ -170,60 +174,32 @@ backup:
 
 Also uncomment the `backups:` volume at the end.
 
-## Production Notes
-
-- Set `NEXT_PUBLIC_GAME_SERVER_URL` environment variable on Vercel to point to your game server
-- For production, consider adding a reverse proxy like Caddy or Nginx for HTTPS
-
 ## VPS Deployment for vibeage.eu
 
-We've created specialized scripts to deploy and manage the game server on our VPS.
-
-### Initial Deployment
-
-Run the deployment script to set up everything on the VPS:
-
-```bash
-./deploy-to-vps.sh
-```
-
-This script will:
-- Install Docker and Docker Compose on the VPS
-- Clone the repository
-- Configure environment variables
-- Set up Nginx with SSL
-- Start the Docker Compose stack
-- Configure automatic daily backups
+Use `scripts/setup-server.sh` to install Docker, configure `/opt/vibeage`, start Docker Compose, configure Nginx, enable SSL, and create backup/update management scripts. Use `scripts/setup-client.sh` to build and serve the frontend from the same VPS.
 
 ### Managing Your Deployment
 
-After the initial setup, use the management script to handle common operations:
+After setup, use the management script on the VPS:
 
 ```bash
-# Deploy latest code and restart
-./vps-manage.sh deploy
+# Update server only
+/opt/vibeage/manage.sh update-server
+
+# Update frontend only
+/opt/vibeage/manage.sh update-frontend
+
+# Update both server and frontend
+/opt/vibeage/manage.sh update-all
 
 # View logs
-./vps-manage.sh logs
-
-# Check status
-./vps-manage.sh status
+/opt/vibeage/manage.sh logs
 
 # Create backup
-./vps-manage.sh backup
+/opt/vibeage/manage.sh backup
 
-# Restart/stop/start server
-./vps-manage.sh restart
-./vps-manage.sh stop
-./vps-manage.sh start
-```
-
-### Client Configuration
-
-Once deployed, update the Vercel environment variables to point to the VPS:
-
-```
-NEXT_PUBLIC_GAME_SERVER_URL=https://vibeage.eu
+# Check status
+/opt/vibeage/manage.sh status
 ```
 
 ### Local Development with Database

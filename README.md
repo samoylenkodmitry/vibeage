@@ -6,7 +6,7 @@ The current repository is being stabilized before a cleaner web-native architect
 
 ## Branch Policy
 
-Use `server` as the canonical working branch. The live VPS deployment scripts are wired to `origin/server`, and `main` is currently a stale GitHub default branch. Do not target `main` for feature work or cleanup until the deployment scripts and VPS checkout have been intentionally migrated.
+Use `main` as the canonical working branch. The previous GitHub `main` has been archived as `old_version`; the former `server` branch was moved to `main`. Current deployment is VPS-only, with the game server and static frontend served from the VPS.
 
 ## Development
 

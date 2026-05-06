@@ -23,11 +23,13 @@ const httpServer = createServer(app);
 
 // WebSocket compression config
 const COMPRESSION = process.env.WS_COMPRESSION !== "0";
+const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "https://vibeage.eu"];
+const CORS_ORIGINS = (process.env.CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? []);
 
 // Configure Socket.IO with improved settings
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000", "https://vibeage.vercel.app"],
+    origin: CORS_ORIGINS.length > 0 ? CORS_ORIGINS : DEFAULT_CORS_ORIGINS,
     methods: ["GET", "POST"],
     credentials: true
   },

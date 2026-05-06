@@ -97,8 +97,8 @@ if [ -d "$FRONTEND_DIR/.git" ]; then
   # Git repo exists, update it
   step "Updating existing repository..."
   git fetch origin
-  git checkout server 2>/dev/null || git checkout -b server
-  git reset --hard origin/server
+  git checkout main 2>/dev/null || git checkout -b main
+  git reset --hard origin/main
 else
   # Initialize new git repo
   step "Initializing new repository..."
@@ -107,13 +107,13 @@ else
   git fetch origin
   
   # Try checkout
-  if ! git checkout -b server origin/server 2>/dev/null; then
+  if ! git checkout -b main origin/main 2>/dev/null; then
     warn "Checkout failed. Files may be conflicting."
     read -p "Force checkout and overwrite all local files? (y/n): " FORCE_CHECKOUT
     if [ "$FORCE_CHECKOUT" = "y" ] || [ "$FORCE_CHECKOUT" = "Y" ]; then
-      git checkout -f -b server origin/server || git checkout -f server
+      git checkout -f -b main origin/main || git checkout -f main
     else
-      error "Cannot proceed without checking out the server branch. Exiting."
+      error "Cannot proceed without checking out the main branch. Exiting."
     fi
   fi
 fi
@@ -193,9 +193,9 @@ git reset --hard HEAD
 git clean -fd
 
 # Pull latest changes
-git fetch origin server
-git checkout server
-git reset --hard origin/server
+git fetch origin main
+git checkout main
+git reset --hard origin/main
 
 echo "==> Installing dependencies..."
 pnpm install
