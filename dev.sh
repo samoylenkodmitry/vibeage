@@ -15,8 +15,11 @@ docker compose -f docker-compose.dev.yml up -d
 echo "Waiting for PostgreSQL to be ready..."
 sleep 3
 
-# Copy the environment file to the server directory
-cp server/.env.development .env
+# Create a local environment file if this checkout does not have one yet.
+if [ ! -f .env ]; then
+    cp .env.example .env
+    echo "Created .env from .env.example"
+fi
 
 # Run the development script
 echo "Starting development servers..."

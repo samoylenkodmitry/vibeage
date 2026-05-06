@@ -1,3 +1,1 @@
-testFiles: ["tests/**/*.test.ts"]
-reporter: "default"
-environment: "jsdom"
+export default ['vitest.config.ts'];

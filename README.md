@@ -1,6 +1,38 @@
-# Vibe Game
+# VibeAge
 
-A multiplayer game with movement and skill systems.
+A browser-first multiplayer game prototype with movement, combat, skills, loot, and server-authoritative state experiments.
+
+The current repository is being stabilized before a cleaner web-native architecture. See [ROADMAP.md](ROADMAP.md) for the target stack and migration plan. See [AGENTS.md](AGENTS.md) for commands and rules for automated coding agents.
+
+## Development
+
+```bash
+pnpm install
+cp .env.example .env
+
+# frontend only
+pnpm run dev
+
+# game server only
+pnpm run dev:server
+
+# frontend + game server
+pnpm run dev:all
+
+# local Postgres + frontend + game server
+pnpm run dev:db
+```
+
+## Checks
+
+```bash
+pnpm run build
+pnpm run build:server
+pnpm test
+pnpm run lint
+```
+
+Local secrets and environment-specific values belong in `.env`. Only `.env.example` and `server/.env.example` should be tracked.
 
 ## Network Architecture
 
@@ -21,7 +53,6 @@ The game uses a client-server architecture with the following components:
 | Type | When | Payload |
 |------|------|---------|
 | PosSnap | 10 Hz | `{snaps: [{id, pos, vel, snapTs}]}` |
-| PosDelta | On minor position changes | `{id, dx, dz, vdx?, vdz?, serverTs}` |
 | CastSnapshot | Skill state changes | `{castId, casterId, skillId, state, origin, target?, pos?, dir?, startedAt, castTimeMs}` |
 | EffectSnapshot | Status effects | `{targetId, effects: []}` |
 | CombatLog | Combat results | `{castId, skillId, casterId, targets, damages}` |
@@ -46,19 +77,6 @@ Clients implement:
 3. Interpolation for other player movement
 4. Rubber-band correction when server indicates position errors
 
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-
-# Build for production
-npm run build
-```
-
 ## Technical Notes
 
 ### Skill System Architecture
@@ -68,7 +86,7 @@ The skill system uses the following flow:
 1. **Skill Cast Request**: 
    - Client sends `CastReq` message with `skillId` and `targetId`
    - Server validates range, mana cost, cooldowns
-   - If valid, server broadcasts `CastStart` message
+   - If valid, server broadcasts `CastSnapshot` updates
 
 2. **Casting Period**:
    - Server waits for the skill's cast time
@@ -76,20 +94,16 @@ The skill system uses the following flow:
 
 3. **Skill Execution**:
    - Server applies skill effects (damage, status effects)
-   - Server broadcasts `CastEnd` message
-   - Server emits `skillEffect` event with source and target info
+   - Server broadcasts `CastSnapshot`, `EffectSnapshot`, and `CombatLog` messages
 
 4. **Visual Effects**:
-   - Client receives `skillEffect` event 
-   - `SocketManager` converts this to a DOM custom event `skillTriggered`
-   - `ActiveSkills` component listens for this event and creates the visual effect
-   - After effect animation completes, it's removed from the scene
+   - Client receives authoritative cast snapshots
+   - `SocketManager` updates projectile/VFX stores
+   - Render components play visuals from client-side state
 
 5. **State Updates**:
    - Server sends updated health/status via `enemyUpdated` and `playerUpdated`
    - Client UI reflects these changes
-
-This event-based system allows for decoupling of skill logic from visual effects and enables client-side prediction for responsive gameplay.
 
 - Movement system uses intent-based movement with server validation
 - Skills have range checks that account for player movement

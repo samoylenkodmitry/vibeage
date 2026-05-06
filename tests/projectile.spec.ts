@@ -11,7 +11,7 @@ vi.mock('crypto', () => ({
 describe('Projectile Contract Hardening', () => {
   // Reset the store before each test
   beforeEach(() => {
-    useProjectileStore.setState({ live: {} });
+    useProjectileStore.setState({ live: {}, toRecycle: {} });
   });
 
   test('should correctly add and remove projectiles', () => {
@@ -56,7 +56,7 @@ describe('Projectile Contract Hardening', () => {
       origin: { x: 10, z: 20 },
       pos: { x: 10, z: 20 },
       dir: { x: 0.707, z: 0.707 }, // Normalized vector (45 degrees)
-      startedAt: 1620000000000,
+      startedAt: Date.now(),
       castTimeMs: 1000,
       progressMs: 0
     };
