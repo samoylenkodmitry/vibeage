@@ -224,7 +224,9 @@ case "\$1" in
   update-server)
     echo "Updating server..."
     cd $SERVER_DIR
-    git pull
+    git fetch origin main
+    git checkout main
+    git reset --hard origin/main
     docker compose down
     docker compose up -d --build
     ;;
@@ -235,7 +237,9 @@ case "\$1" in
   update-all)
     echo "Updating everything..."
     cd $SERVER_DIR
-    git pull
+    git fetch origin main
+    git checkout main
+    git reset --hard origin/main
     docker compose down
     docker compose up -d --build
     $FRONTEND_DIR/update-frontend.sh

@@ -182,7 +182,9 @@ case "\$1" in
   update)
     echo "Updating server..."
     cd $APP_DIR
-    git pull
+    git fetch origin main
+    git checkout main
+    git reset --hard origin/main
     docker compose down
     docker compose up -d --build
     ;;

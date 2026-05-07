@@ -12,12 +12,20 @@ This project should become a browser-first multiplayer game that is easy for hum
 
 ## Branch And Deployment Policy
 
-- `main` is the canonical working and deployment branch.
+- As of 2026-05-07, GitHub `main` is the canonical working and deployment branch and contains the former `server` branch history.
 - `old_version` archives the previous stale GitHub `main`.
-- The former `server` branch has been moved to `main`; keep the remote `server` branch only as a temporary compatibility alias until the VPS checkout is verified on `main`.
+- The remote `server` branch is only a temporary compatibility alias for old VPS checkouts and must not receive new work.
 - Feature branches should branch from `main` and merge back into `main`.
 - Current deployment is VPS-only. Vercel is not part of the intended production path.
 - Treat pushes to `main` as production-affecting, because the VPS update scripts pull from this branch.
+
+## Immediate Roadmap
+
+1. Finish the branch migration on the VPS: make `/opt/vibeage` and `/opt/vibeage-frontend` track `main`.
+2. Run `/opt/vibeage/manage.sh update-all` and verify the Docker Compose stack, static frontend, WebSocket path, Nginx config, SSL, and backups.
+3. Protect `main` on GitHub once the VPS migration is confirmed.
+4. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
+5. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
 ## Target Stack
 

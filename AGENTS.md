@@ -9,7 +9,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 ## Branch Policy
 
 - Work from `main` unless the user explicitly says otherwise.
-- Treat `main` as production-affecting: the VPS deployment scripts are being standardized to pull from `origin/main`.
+- Treat `main` as production-affecting: the VPS deployment scripts pull from `origin/main`.
 - `old_version` archives the old stale GitHub main branch.
 - The former `server` branch is a temporary compatibility alias and should not receive new work.
 - For larger changes, create a feature branch from `main` and merge back to `main` only after checks pass.
