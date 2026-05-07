@@ -61,6 +61,9 @@ jobs:
       - name: Build server
         run: pnpm run build:server
 
+      - name: Build game Docker image
+        run: docker compose build game
+
       - name: Build frontend
         run: pnpm run build
 

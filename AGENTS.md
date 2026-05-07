@@ -43,7 +43,8 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - `shared/skillsDefinition.ts`: current skill content.
 - `shared/items.ts`: current item content.
 - `shared/combatMath.ts`: reusable combat math.
-- `shared/messages.ts`: current protocol types; this needs schema cleanup.
+- `packages/protocol/messages.ts`: current protocol schemas and types.
+- `shared/messages.ts`: compatibility re-export for older imports.
 - `server/world.ts`: current authoritative loop; do not grow this file except for targeted fixes.
 - `server/combat/skillSystem.ts`: current cast/combat flow.
 - `app/game/systems/SocketManager.tsx`: current network bridge; avoid adding more responsibilities here.

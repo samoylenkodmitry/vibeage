@@ -10,6 +10,7 @@ RUN addgroup -S vibeage && adduser -S vibeage -G vibeage
 COPY --chown=vibeage:vibeage tsconfig.json tsconfig.server.json ./
 COPY --chown=vibeage:vibeage server ./server
 COPY --chown=vibeage:vibeage shared ./shared
+COPY --chown=vibeage:vibeage packages ./packages
 
 USER vibeage
 EXPOSE 3001

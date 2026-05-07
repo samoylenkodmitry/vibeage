@@ -3,7 +3,7 @@ import {
   describeProtocolError,
   safeParseClientMessage,
   safeParseServerMessage,
-} from '../shared/messages';
+} from '../packages/protocol/messages';
 import { CastState } from '../shared/types';
 
 describe('client protocol schemas', () => {
