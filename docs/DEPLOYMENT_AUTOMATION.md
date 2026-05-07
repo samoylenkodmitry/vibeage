@@ -1,6 +1,12 @@
 # Deployment Automation
 
-Production deploys are VPS-only. GitHub Actions runs `Deploy` after `CI` succeeds on `main`; the deploy job then SSHes to the VPS and runs `scripts/deploy-production.sh`.
+Production deploys are VPS-only and local-initiated. Run the deploy from a trusted local machine with the existing VPS SSH key:
+
+```bash
+pnpm run deploy:production
+```
+
+GitHub-hosted SSH deployment is disabled and must not be re-enabled without explicit owner approval. Do not store VPS SSH private keys in GitHub repository secrets. The previous GitHub Actions deploy key was revoked on 2026-05-07 by deleting the repository secrets and removing the corresponding public key from the VPS `s` user's `authorized_keys`.
 
 The deploy script is deliberately narrow:
 
@@ -12,24 +18,36 @@ The deploy script is deliberately narrow:
 - it publishes static files into the existing Nginx root;
 - it fails if the game server is publicly bound on port `3001`.
 
-## Required GitHub Secrets
+## Current Deployment Position
 
-- `VPS_HOST`: VPS hostname or IP.
-- `VPS_USER`: SSH user.
-- `VPS_SSH_KEY`: private key for a dedicated deploy key, not a personal all-purpose key.
+- Keep GitHub CI as the quality gate.
+- Use `scripts/deploy-from-local.sh` from this workstation for no-hassle deployments.
+- Keep `scripts/deploy-production.sh` as the VPS-side deploy primitive.
+- Do not allow GitHub-hosted runners to SSH into the VPS unless the owner explicitly approves that risk.
 
-Optional secrets:
+## Local Deploy Script
 
-- `VPS_PORT`: SSH port, defaults to `22`.
-- `VPS_DOMAIN`: public game domain, defaults to `vibeage.eu`.
-- `VPS_DEPLOY_ROOT`: remote checkout/cache path, defaults to `$HOME/vibeage-deploy`.
-- `VPS_FRONTEND_PUBLIC_DIR`: static frontend root, defaults to `/opt/vibeage-frontend/out`.
+`scripts/deploy-from-local.sh`:
 
-If the required secrets are missing, the deploy workflow exits successfully without deploying.
+- refuses to deploy with a dirty worktree;
+- deploys only from `main`;
+- runs `pnpm run check` by default;
+- pushes `main` if local `main` is ahead of `origin/main`;
+- SSHes to the VPS with `${VPS_SSH_KEY:-~/.ssh/hetz}`;
+- makes the VPS checkout reset to the exact deployed commit;
+- runs `scripts/deploy-production.sh` on the VPS;
+- verifies local VPS `/healthz`, the `3001` port binding, and public HTTPS.
+
+Useful overrides:
+
+```bash
+RUN_LOCAL_CHECKS=0 pnpm run deploy:production
+VPS_HOST=159.69.33.249 VPS_USER=s VPS_SSH_KEY=~/.ssh/hetz pnpm run deploy:production
+```
 
 ## One-Time VPS Prep
 
-Do this with sudo/root access before enabling the deploy secrets. Preserve the existing mail vhost first.
+Do this with sudo/root access before enabling any future automation. Preserve the existing mail vhost first.
 
 ```bash
 sudo cp /etc/nginx/sites-available/vibeage.eu /root/vibeage.eu.before-vibeage-deploy
@@ -50,7 +68,7 @@ The VPS also has public listeners on `2106` and `7777`, likely leftovers from th
 
 ## Manual Smoke Check
 
-After the first automated deploy:
+After a deploy:
 
 ```bash
 curl -fsS https://vibeage.eu/ >/dev/null

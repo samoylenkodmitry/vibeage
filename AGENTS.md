@@ -14,7 +14,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - The former `server` branch is a temporary compatibility alias and should not receive new work.
 - For larger changes, create a feature branch from `main` and merge back to `main` only after checks pass.
 - Before changing deployment scripts, inspect `/opt/vibeage` assumptions in `scripts/setup-server.sh`, `scripts/setup-client.sh`, Docker Compose, Nginx, and the generated `manage.sh` behavior.
-- Current production automation is `scripts/deploy-production.sh` plus `.github/workflows/deploy.yml`; this path must not rewrite Nginx or Stalwart/mail configuration.
+- Current production automation is local-initiated: `scripts/deploy-from-local.sh` SSHes from this workstation and runs `scripts/deploy-production.sh` on the VPS. GitHub-hosted SSH deployment must stay disabled unless the owner explicitly approves it.
 
 ## Commands
 
@@ -29,6 +29,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - Browser smoke: `pnpm run test:e2e`
 - Lint: `pnpm run lint`
 - Full local quality gate: `pnpm run check`
+- Local production deploy: `pnpm run deploy:production`
 - Production deploy script syntax: `pnpm run check:scripts`
 
 Local configuration lives in `.env`. Start from `.env.example`. Do not commit real env files.

@@ -21,11 +21,11 @@ This project should become a browser-first multiplayer game that is easy for hum
 
 ## Immediate Roadmap
 
-1. Make deployment boring and automatic: GitHub `CI` must pass on `main`, then GitHub `Deploy` SSHes to the VPS and runs `scripts/deploy-production.sh`.
-2. Do the one-time VPS prep in `docs/DEPLOYMENT_AUTOMATION.md`: preserve mail Nginx config, make the frontend output path writable by the deploy user, and install a dedicated deploy key.
-3. Close unnecessary public exposure: redeploy with the game server bound to `127.0.0.1:3001`, identify/remove the `2106` and `7777` listeners, and remove WireGuard after sudo/root confirmation.
+1. Keep GitHub `CI` as the quality gate, but keep GitHub-hosted SSH deployment disabled unless explicitly approved.
+2. Use the local deploy path for no-hassle releases: `pnpm run deploy:production`, which runs checks, pushes `main`, SSHes from this workstation, and runs the VPS-side safe deploy script.
+3. Close unnecessary public exposure: identify/remove the `2106` and `7777` listeners, restrict Stalwart `8080` if it is an admin UI, and remove WireGuard after sudo/root confirmation.
 4. Finish the branch migration on the VPS: make active deploy automation use `main`; leave `/opt/vibeage` as legacy state until it is archived or cleaned.
-5. Protect `main` on GitHub once the first automated VPS deployment is verified.
+5. Protect `main` on GitHub once the final deployment model is confirmed.
 6. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
 7. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
