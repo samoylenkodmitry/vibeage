@@ -9,5 +9,8 @@ export default defineConfig({
       'vitest/**/*.{test,spec}.{ts,tsx}',
       'server/__tests__/**/*.{test,spec}.{ts,tsx}',
     ],
+    exclude: [
+      'tests/e2e/**',
+    ],
   },
 });

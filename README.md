@@ -30,11 +30,14 @@ pnpm run dev:db
 ## Checks
 
 ```bash
+pnpm run check
 pnpm run build
 pnpm run build:server
 pnpm test
 pnpm run lint
 ```
+
+See [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md) for the full local and CI gate.
 
 Local secrets and environment-specific values belong in `.env`. Only `.env.example` and `server/.env.example` should be tracked.
 

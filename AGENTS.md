@@ -25,6 +25,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - Frontend build: `pnpm run build`
 - Server build: `pnpm run build:server`
 - Tests: `pnpm test`
+- Browser smoke: `pnpm run test:e2e`
 - Lint: `pnpm run lint`
 - Full local quality gate: `pnpm run check`
 
@@ -46,6 +47,7 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - Keep generated output out of Git: `dist/`, `.next/`, `out/`, coverage, and local env files.
 - Do not add new gameplay systems directly into `world.ts`, `SocketManager.tsx`, or `gameStore.ts` unless the change is explicitly a small bug fix.
 - Prefer shared pure functions for simulation logic. They should be testable with Vitest and no browser.
+- Keep new files and functions inside `quality/maintainability.json` budgets. Only add a legacy exception when documenting an existing cleanup target.
 - Prefer runtime-validated protocol schemas over ad hoc TypeScript interfaces.
 - When changing protocol messages, update server handling, client handling, and tests in the same change.
 - When touching movement, combat, loot, or inventory, run `pnpm test` and `pnpm run build:server`.

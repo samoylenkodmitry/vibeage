@@ -26,6 +26,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6.0.5
         with:
@@ -49,6 +54,9 @@ jobs:
       - name: Validate deployment scripts
         run: pnpm run check:scripts
 
+      - name: Maintainability gate
+        run: pnpm run check:maintainability
+
       - name: Test
         run: pnpm test
 
@@ -57,3 +65,9 @@ jobs:
 
       - name: Build frontend
         run: pnpm run build
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser smoke
+        run: pnpm run test:e2e
