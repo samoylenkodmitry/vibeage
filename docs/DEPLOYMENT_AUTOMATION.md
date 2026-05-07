@@ -26,6 +26,7 @@ The deploy script is deliberately narrow:
 - Keep `scripts/deploy-production.sh` as the VPS-side deploy primitive.
 - Use `pnpm run deploy:rollback` from this workstation to redeploy the previous successful commit.
 - Do not allow GitHub-hosted runners to SSH into the VPS unless the owner explicitly approves that risk.
+- Keep deploys tied to commits already on `origin/main`; use GitHub CI before production deploys.
 
 ## Local Deploy Script
 
@@ -34,7 +35,7 @@ The deploy script is deliberately narrow:
 - refuses to deploy with a dirty worktree;
 - deploys only from `main`;
 - runs `pnpm run check` by default;
-- pushes `main` if local `main` is ahead of `origin/main`;
+- refuses to deploy local commits that are not on `origin/main` unless `ALLOW_DEPLOY_PUSH=1` is set intentionally;
 - SSHes to the VPS with `${VPS_SSH_KEY:-~/.ssh/hetz}`;
 - makes the VPS checkout reset to the exact deployed commit;
 - runs `scripts/deploy-production.sh` on the VPS;
@@ -45,8 +46,11 @@ Useful overrides:
 
 ```bash
 RUN_LOCAL_CHECKS=0 pnpm run deploy:production
+ALLOW_DEPLOY_PUSH=1 pnpm run deploy:production
 VPS_HOST=159.69.33.249 VPS_USER=s VPS_SSH_KEY=~/.ssh/hetz pnpm run deploy:production
 ```
+
+`ALLOW_DEPLOY_PUSH=1` is only for controlled maintenance when branch protection permits it. The normal flow is feature branch, passing GitHub CI, merge to `main`, then deploy.
 
 ## Rollback
 
@@ -97,6 +101,8 @@ sudo nginx -t
 ```
 
 The current Nginx `vibeage.eu` vhost already serves `/opt/vibeage-frontend/out` and proxies `/socket.io/` plus `/api/` to `localhost:3001`, so deploys do not need to modify Nginx.
+
+The old `/opt/vibeage` checkout has been archived and removed. `/opt/vibeage-frontend` now intentionally contains only the static `out` directory used by Nginx.
 
 ## Current Exposure
 

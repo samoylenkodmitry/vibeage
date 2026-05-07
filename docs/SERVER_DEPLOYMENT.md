@@ -44,11 +44,17 @@ docker run -p 3001:3001 -e PORT=3001 game-server
 
 ### 3. VPS Deployment
 
-Use `scripts/setup-server.sh` for the game server/database stack and `scripts/setup-client.sh` for the static frontend served by Nginx.
+Use the current local-initiated production deploy:
+
+```bash
+pnpm run deploy:production
+```
+
+`scripts/setup-server.sh` and `scripts/setup-client.sh` are bootstrap-era scripts. Do not use them as the update path on the live VPS.
 
 ## Client Configuration
 
-Set `NEXT_PUBLIC_GAME_SERVER_URL` during the frontend build. The VPS setup script does this automatically with `https://<domain>`.
+Set `NEXT_PUBLIC_GAME_SERVER_URL` during the frontend build. Production browser traffic goes through `https://vibeage.eu` and its `/socket.io/` proxy.
 
 ## Security Considerations
 

@@ -14,23 +14,24 @@ This project should become a browser-first multiplayer game that is easy for hum
 
 - As of 2026-05-07, GitHub `main` is the canonical working and deployment branch and contains the former `server` branch history.
 - `old_version` archives the previous stale GitHub `main`.
-- The remote `server` branch is only a temporary compatibility alias for old VPS checkouts and must not receive new work.
+- The remote `server` compatibility alias has been deleted after the VPS was verified on `main`.
 - Feature branches should branch from `main` and merge back into `main`.
 - Current deployment is VPS-only. Vercel is not part of the intended production path.
-- Treat pushes to `main` as production-affecting, because the VPS update scripts pull from this branch.
+- Treat `main` as production-affecting, because the VPS deploy script pulls from this branch.
 
 ## Immediate Roadmap
 
 1. Keep GitHub `CI` as the quality gate, but keep GitHub-hosted SSH deployment disabled unless explicitly approved.
-2. Use the local deploy path for no-hassle releases: `pnpm run deploy:production`, which runs checks, pushes `main`, SSHes from this workstation, and runs the VPS-side safe deploy script.
+2. Use the local deploy path for no-hassle releases: `pnpm run deploy:production`, which runs checks, deploys a commit already on `origin/main`, SSHes from this workstation, and runs the VPS-side safe deploy script.
 3. Use the local rollback path for bad releases: `pnpm run deploy:rollback` redeploys the previous successful commit from VPS deploy state.
 4. Done on 2026-05-07: closed unnecessary public exposure by disabling the Lineage stream listeners on `2106`/`7777`, restricting raw Stalwart `8080` to localhost, keeping game/Postgres on localhost, removing the old WireGuard `wg0` tunnel, and persisting a default-drop host firewall allow-list.
 5. Done on 2026-05-07: added automatic Postgres backups and a restore drill command.
-6. Next production safety item: copy backups off the VPS or configure remote backup storage.
-7. Finish legacy cleanup on the VPS: leave `/home/s/vibeage-deploy/repo` as the active `main` checkout and archive or remove old `/opt/vibeage` and `/opt/vibeage-frontend` leftovers after preserving any useful local notes.
-8. Protect `main` on GitHub once the final deployment model is confirmed.
-9. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
-10. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
+6. Done on 2026-05-07: added an off-VPS local backup pull to `/media/huge/vibeage-backups/postgres`, with daily scheduling, delayed first run, retention of the newest two copies, size reporting, and dunst notifications.
+7. Done on 2026-05-07: archived and removed old `/opt/vibeage`, reduced `/opt/vibeage-frontend` to the live `out` document root, verified Nginx, and redeployed from the active `/home/s/vibeage-deploy/repo` checkout.
+8. Done on 2026-05-07: protected `main` with required `Build and test` CI, linear history, conversation resolution, no force pushes, and no branch deletion.
+9. Done on 2026-05-07: deleted the remote `server` compatibility branch after confirming no live systemd, cron, or Nginx path references it.
+10. Next production safety item: keep watching the local backup timer for successful daily pulls and periodically run the restore drill.
+11. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
 ## Target Stack
 
@@ -65,8 +66,8 @@ tests/
 - Record deployed commit, remotes, Docker Compose status, Nginx site config, crontab entries, and frontend checkout state.
 - Confirm DNS points to the VPS and that Nginx serves both frontend and backend.
 - Keep public listeners limited to SSH, Nginx, and intended Stalwart mail ports.
-- Protect `main` on GitHub or otherwise document that it is production.
-- Delete the remote `server` compatibility branch only after the VPS has been verified on `main`.
+- Keep `main` protected by the GitHub `Build and test` gate.
+- Keep the deleted `server` branch retired; do not recreate it for new work.
 
 ### Phase 0: Stabilize Current Prototype
 
@@ -74,7 +75,7 @@ tests/
 - Keep env files out of Git; track only examples.
 - Maintain `pnpm run check` as the local and CI quality gate: lint, typecheck, deployment script syntax, maintainability budgets, tests, server build, frontend build, and browser smoke.
 - Document agent workflow in `AGENTS.md`.
-- Keep GitHub `main` protected by the passing CI gate once VPS migration is confirmed.
+- Keep GitHub `main` protected by the passing CI gate.
 - Keep secret scanning and Dependabot enabled in GitHub so accidental credentials and stale dependencies are caught before deployment.
 - Stop adding gameplay features to large monolithic files unless the change is a small fix.
 

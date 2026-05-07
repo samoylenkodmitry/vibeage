@@ -11,7 +11,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - Work from `main` unless the user explicitly says otherwise.
 - Treat `main` as production-affecting: the VPS deployment scripts pull from `origin/main`.
 - `old_version` archives the old stale GitHub main branch.
-- The former `server` branch is a temporary compatibility alias and should not receive new work.
+- The former `server` branch was deleted after the VPS was verified on `main`; do not recreate it.
 - For larger changes, create a feature branch from `main` and merge back to `main` only after checks pass.
 - Before changing deployment scripts, inspect `/opt/vibeage` assumptions in `scripts/setup-server.sh`, `scripts/setup-client.sh`, Docker Compose, Nginx, and the generated `manage.sh` behavior.
 - Current production automation is local-initiated: `scripts/deploy-from-local.sh` SSHes from this workstation and runs `scripts/deploy-production.sh` on the VPS. GitHub-hosted SSH deployment must stay disabled unless the owner explicitly approves it.

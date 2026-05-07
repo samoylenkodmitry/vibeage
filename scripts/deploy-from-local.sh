@@ -11,6 +11,7 @@ REPO_URL=${REPO_URL:-https://github.com/samoylenkodmitry/vibeage.git}
 RUN_LOCAL_CHECKS=${RUN_LOCAL_CHECKS:-1}
 BRANCH=${BRANCH:-main}
 DEPLOY_SHA=${DEPLOY_SHA:-}
+ALLOW_DEPLOY_PUSH=${ALLOW_DEPLOY_PUSH:-0}
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
@@ -57,6 +58,10 @@ push_if_needed() {
 
   if [ "$local_sha" = "$remote_sha" ]; then
     return
+  fi
+
+  if [ "$ALLOW_DEPLOY_PUSH" != "1" ]; then
+    fail "Local '$BRANCH' is ahead of origin/$BRANCH. Merge it through the protected GitHub path first, then deploy."
   fi
 
   log "Pushing $BRANCH to origin"
