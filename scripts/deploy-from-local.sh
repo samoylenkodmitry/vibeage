@@ -89,8 +89,30 @@ REMOTE
 
 run_smoke_checks() {
   log "Checking VPS health and port binding"
-  ssh -i "$VPS_SSH_KEY" -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
-    "curl -fsS http://127.0.0.1:3001/healthz; printf '\n'; ss -ltn | grep 3001; cat ~/.vibeage-deploy/last-deploy.json"
+  ssh -i "$VPS_SSH_KEY" -o BatchMode=yes "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+set -Eeuo pipefail
+
+for attempt in $(seq 1 15); do
+  if curl -fsS http://127.0.0.1:3001/healthz; then
+    printf '\n'
+    break
+  fi
+
+  if [ "$attempt" -eq 15 ]; then
+    exit 1
+  fi
+
+  sleep 2
+done
+
+if ss -ltn | awk '{print $4}' | grep -Eq '^(0\.0\.0\.0:3001|\[::\]:3001|\*:3001|:::3001)$'; then
+  printf 'ERROR: 3001 is publicly bound\n' >&2
+  exit 1
+fi
+
+ss -ltn | grep '127.0.0.1:3001'
+cat ~/.vibeage-deploy/last-deploy.json
+REMOTE
 
   log "Checking public HTTPS entrypoint"
   curl -fsSI "https://$DOMAIN/" >/dev/null
