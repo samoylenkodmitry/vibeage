@@ -26,6 +26,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - Server build: `pnpm run build:server`
 - Tests: `pnpm test`
 - Lint: `pnpm run lint`
+- Full local quality gate: `pnpm run check`
 
 Local configuration lives in `.env`. Start from `.env.example`. Do not commit real env files.
 
@@ -49,4 +50,5 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - When changing protocol messages, update server handling, client handling, and tests in the same change.
 - When touching movement, combat, loot, or inventory, run `pnpm test` and `pnpm run build:server`.
 - When touching rendering/UI, run `pnpm run build`; add or update a Playwright smoke test once Playwright exists.
+- Before pushing, prefer `pnpm run check` unless the change is clearly docs-only.
 - Never commit `.env`, private keys, tokens, real database URLs, or generated build folders.

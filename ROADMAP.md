@@ -66,8 +66,9 @@ tests/
 
 - Keep one Next config and one test config.
 - Keep env files out of Git; track only examples.
-- Make `pnpm run build`, `pnpm run build:server`, and `pnpm test` meaningful.
+- Maintain `pnpm run check` as the local and CI quality gate: lint, typecheck, deployment script syntax, tests, server build, and frontend build.
 - Document agent workflow in `AGENTS.md`.
+- Keep GitHub `main` protected by the passing CI gate once VPS migration is confirmed.
 - Stop adding gameplay features to large monolithic files unless the change is a small fix.
 
 ### Phase 1: Extract Contracts And Content
