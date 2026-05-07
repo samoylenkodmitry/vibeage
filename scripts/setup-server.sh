@@ -28,6 +28,10 @@ if [ "$(id -u)" -ne 0 ]; then
   error "This script must be run as root or with sudo"
 fi
 
+if [ "${ALLOW_LEGACY_BOOTSTRAP:-}" != "1" ]; then
+  error "Legacy bootstrap script blocked. Use scripts/deploy-production.sh for updates, or set ALLOW_LEGACY_BOOTSTRAP=1 only on a fresh VPS."
+fi
+
 step "Setting up Vibeage Game Server on $(hostname)"
 
 # Install Docker if not already installed

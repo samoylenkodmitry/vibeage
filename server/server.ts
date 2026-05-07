@@ -6,9 +6,16 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { initWorld } from './world.js';
 import { sendCastSnapshots } from './combat/skillSystem.js';
 import { RateLimiter } from './utils/rateLimiter.js';
+import {
+  getClientIp,
+  isOriginAllowed,
+  parseAllowedOrigins,
+  parseMaxHttpBufferSize,
+} from './security.js';
 
 // Create Express app
 const app = express();
+app.disable('x-powered-by');
 
 // Setup request logging
 app.use(morgan('combined'));
@@ -23,22 +30,27 @@ const httpServer = createServer(app);
 
 // WebSocket compression config
 const COMPRESSION = process.env.WS_COMPRESSION !== "0";
-const DEFAULT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "https://vibeage.eu"];
-const CORS_ORIGINS = (process.env.CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? []);
+const CORS_ORIGINS = parseAllowedOrigins(process.env.CORS_ORIGINS);
+const MAX_HTTP_BUFFER_SIZE = parseMaxHttpBufferSize(process.env.MAX_HTTP_BUFFER_SIZE);
+const ALLOW_MISSING_ORIGIN = process.env.ALLOW_MISSING_ORIGIN === '1';
 
 // Configure Socket.IO with improved settings
 const io = new Server(httpServer, {
   cors: {
-    origin: CORS_ORIGINS.length > 0 ? CORS_ORIGINS : DEFAULT_CORS_ORIGINS,
+    origin: CORS_ORIGINS,
     methods: ["GET", "POST"],
     credentials: true
+  },
+  allowRequest: (req, callback) => {
+    const allowed = isOriginAllowed(req.headers.origin, CORS_ORIGINS, ALLOW_MISSING_ORIGIN);
+    callback(null, allowed);
   },
   transports: ['websocket'], // Prefer WebSocket only for better performance
   pingTimeout: 60000,
   pingInterval: 30000, // Increased to avoid conflict with our 30Hz update rate
   connectTimeout: 45000,
   allowEIO3: true,
-  maxHttpBufferSize: 1e8,
+  maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
   path: '/socket.io/',
   perMessageDeflate: COMPRESSION
     ? { threshold: 0 }          // Compress everything
@@ -62,7 +74,7 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   // Get client IP address
-  const clientIp = socket.handshake.address;
+  const clientIp = getClientIp(socket.handshake.headers, socket.handshake.address);
 
   // Handle player joining
   socket.on('joinGame', async (data: { playerName: string, clientProtocolVersion?: number }) => {

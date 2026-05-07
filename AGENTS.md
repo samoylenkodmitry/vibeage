@@ -14,6 +14,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - The former `server` branch is a temporary compatibility alias and should not receive new work.
 - For larger changes, create a feature branch from `main` and merge back to `main` only after checks pass.
 - Before changing deployment scripts, inspect `/opt/vibeage` assumptions in `scripts/setup-server.sh`, `scripts/setup-client.sh`, Docker Compose, Nginx, and the generated `manage.sh` behavior.
+- Current production automation is `scripts/deploy-production.sh` plus `.github/workflows/deploy.yml`; this path must not rewrite Nginx or Stalwart/mail configuration.
 
 ## Commands
 
@@ -28,6 +29,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - Browser smoke: `pnpm run test:e2e`
 - Lint: `pnpm run lint`
 - Full local quality gate: `pnpm run check`
+- Production deploy script syntax: `pnpm run check:scripts`
 
 Local configuration lives in `.env`. Start from `.env.example`. Do not commit real env files.
 
@@ -54,3 +56,4 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - When touching rendering/UI, run `pnpm run build`; add or update a Playwright smoke test once Playwright exists.
 - Before pushing, prefer `pnpm run check` unless the change is clearly docs-only.
 - Never commit `.env`, private keys, tokens, real database URLs, or generated build folders.
+- Never use the old setup scripts as an update path on the live VPS; they are bootstrap-era scripts and can overwrite Nginx.

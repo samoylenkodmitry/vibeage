@@ -2,20 +2,26 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - dbdata:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     ports: ['127.0.0.1:5432:5432']   # Local access only for security
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   migrate:
     image: postgres:16
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       PGHOST: db
       PGUSER: postgres
-      PGPASSWORD: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
       PGDATABASE: postgres
     volumes:
       - ./scripts/auto-migrate.sh:/auto-migrate.sh:ro
@@ -26,12 +32,17 @@ services:
   game:
     build: .
     depends_on:
-      - db
-      - migrate
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      DATABASE_URL: ${SERVER_DATABASE_URL:-postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://vibeage.eu}
+      MAX_HTTP_BUFFER_SIZE: ${MAX_HTTP_BUFFER_SIZE:-1048576}
+      NODE_ENV: production
       PORT: 3001
-    ports: ['3001:3001']
+    ports: ['127.0.0.1:3001:3001']   # Nginx is the only public entrypoint
     restart: unless-stopped
 
   # Optional backup service - uncomment to enable

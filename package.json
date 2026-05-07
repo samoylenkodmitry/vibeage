@@ -12,7 +12,7 @@
     "typecheck": "pnpm run typecheck:client && pnpm run typecheck:server",
     "typecheck:client": "tsc -p tsconfig.json --noEmit",
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
-    "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh",
+    "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh",
     "check:maintainability": "node scripts/check-maintainability.mjs",
     "check": "pnpm run lint && pnpm run typecheck && pnpm run check:scripts && pnpm run check:maintainability && pnpm test && pnpm run build:server && pnpm run build && pnpm run test:e2e",
     "build:server": "tsc -p tsconfig.server.json",

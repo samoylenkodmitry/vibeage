@@ -13,13 +13,16 @@ export PGDATABASE=${PGDATABASE:-postgres}
 
 echo "[Migration] Waiting for database to be ready..."
 
-# Wait for database to be ready
-for i in {1..30}; do
+# Wait for database to be ready. Keep this POSIX-compatible because Compose
+# runs the script through /bin/sh inside the postgres image.
+i=1
+while [ "$i" -le 30 ]; do
     if psql -c "SELECT 1;" > /dev/null 2>&1; then
         echo "[Migration] Database is ready!"
         break
     fi
     echo "Waiting for database... ($i/30)"
+    i=$((i + 1))
     sleep 1
 done
 

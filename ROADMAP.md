@@ -21,11 +21,13 @@ This project should become a browser-first multiplayer game that is easy for hum
 
 ## Immediate Roadmap
 
-1. Finish the branch migration on the VPS: make `/opt/vibeage` and `/opt/vibeage-frontend` track `main`.
-2. Use the hand-audited VPS notes in `docs/VPS_AUDIT_2026-05-07.md`; do not run generated deploy scripts until the existing Nginx mail/game wiring is preserved.
-3. Protect `main` on GitHub once the VPS migration is confirmed.
-4. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
-5. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
+1. Make deployment boring and automatic: GitHub `CI` must pass on `main`, then GitHub `Deploy` SSHes to the VPS and runs `scripts/deploy-production.sh`.
+2. Do the one-time VPS prep in `docs/DEPLOYMENT_AUTOMATION.md`: preserve mail Nginx config, make the frontend output path writable by the deploy user, and install a dedicated deploy key.
+3. Close unnecessary public exposure: redeploy with the game server bound to `127.0.0.1:3001`, identify/remove the `2106` and `7777` listeners, and remove WireGuard after sudo/root confirmation.
+4. Finish the branch migration on the VPS: make active deploy automation use `main`; leave `/opt/vibeage` as legacy state until it is archived or cleaned.
+5. Protect `main` on GitHub once the first automated VPS deployment is verified.
+6. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
+7. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
 ## Target Stack
 

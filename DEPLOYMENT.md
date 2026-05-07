@@ -2,6 +2,8 @@
 
 This project is deployed on a VPS. The VPS runs the authoritative game server, PostgreSQL, and an Nginx-served static frontend build.
 
+Production updates should use the automated path in `docs/DEPLOYMENT_AUTOMATION.md`: GitHub `CI` passes on `main`, then GitHub `Deploy` SSHes to the VPS and runs `scripts/deploy-production.sh`. The old `scripts/setup-server.sh` and `scripts/setup-client.sh` scripts are bootstrap-era scripts and must not be used as routine updates on the live VPS because they can rewrite Nginx.
+
 ## Features
 
 - Real-time game server using WebSockets
