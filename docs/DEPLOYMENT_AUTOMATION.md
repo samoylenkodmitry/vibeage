@@ -120,6 +120,7 @@ The VPS host firewall is persisted through `netfilter-persistent` with default-d
 After a deploy:
 
 ```bash
+pnpm run health:production
 curl -fsS https://vibeage.eu/ >/dev/null
 ssh s@159.69.33.249 'curl -fsS http://127.0.0.1:3001/healthz'
 ssh s@159.69.33.249 'ss -ltn | grep 3001'

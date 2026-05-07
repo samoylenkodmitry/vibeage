@@ -12,11 +12,12 @@
     "typecheck": "pnpm run typecheck:client && pnpm run typecheck:server",
     "typecheck:client": "tsc -p tsconfig.json --noEmit",
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
-    "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/install-postgres-backup-cron.sh",
+    "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/install-postgres-backup-cron.sh && bash -n scripts/health-production.sh",
     "check:maintainability": "node scripts/check-maintainability.mjs",
     "check": "pnpm run lint && pnpm run typecheck && pnpm run check:scripts && pnpm run check:maintainability && pnpm test && pnpm run build:server && pnpm run build && pnpm run test:e2e",
     "deploy:production": "scripts/deploy-from-local.sh",
     "deploy:rollback": "scripts/rollback-production.sh",
+    "health:production": "scripts/health-production.sh",
     "db:backup": "scripts/backup-postgres.sh",
     "db:backup:install-cron": "scripts/install-postgres-backup-cron.sh",
     "db:restore:test": "scripts/test-postgres-restore.sh",
@@ -59,6 +60,7 @@
     "utf-8-validate": "^6.0.5",
     "uuid": "^11.1.0",
     "ws": "^8.18.1",
+    "zod": "3.24.3",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

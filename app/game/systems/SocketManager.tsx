@@ -17,6 +17,8 @@ import {
   CastSnapshotMsg,
   EffectSnapshotMsg,
   CombatLogMsg,
+  describeProtocolError,
+  safeParseServerMessage,
   // CastFail is used in the handleCastFail callback
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CastFail
@@ -317,10 +319,20 @@ export default function SocketManager() {
 
   // Handle effect snapshots from server
   const handleEffectSnapshot = useCallback((msg: EffectSnapshotMsg) => {
-    console.log(`Received EffectSnapshot for target ${msg.targetId}:`, msg);
-    
-    const targetId = msg.targetId;
-    const effects = msg.effects || [];
+    const targetId = msg.targetId ?? msg.id;
+    if (!targetId) {
+      console.warn('Received EffectSnapshot without target id:', msg);
+      return;
+    }
+
+    console.log(`Received EffectSnapshot for target ${targetId}:`, msg);
+
+    if (!Array.isArray(msg.effects)) {
+      console.log(`Received single EffectSnapshot update for target ${targetId}:`, msg);
+      return;
+    }
+
+    const effects = msg.effects;
     
     // Add to combat log
     if (effects.length > 0) {
@@ -476,56 +488,26 @@ export default function SocketManager() {
         addPlayer(player);
       });
 
-      socket.on('msg', (msg: any) => {
-        // Add validation to prevent "Unknown message type: undefined" errors
-        if (!msg) {
-          console.error('Received null or undefined message');
-          return;
-        }
-
-        // Handle case where we receive an array of messages instead of a single message
-        if (Array.isArray(msg)) {
-          console.log('Received array of messages, processing each one:', JSON.stringify(msg));
-          msg.forEach((item, index) => {
-            if (item && typeof item === 'object' && item.type) {
-              // Process each valid message in the array
-              console.log(`Processing array item ${index} with type: ${item.type}`);
-              processMessage(item);
-            } else {
-              console.warn(`Skipping invalid message in array at index ${index}:`, item);
-            }
-          });
-          return;
-        }
-        
-        // Handle single message object
-        if (typeof msg !== 'object') {
-          console.error('Received invalid message format:', msg);
-          return;
-        }
-        
-        if (!msg.type) {
-          console.error('Received message without type property:', msg);
-          return;
-        }
-        
-        // Process the single message
-        processMessage(msg);
+      socket.on('msg', (msg: unknown) => {
+        const messages = Array.isArray(msg) ? msg : [msg];
+        messages.forEach(processMessage);
       });
       
       // Helper function to process a single message
-      const processMessage = (msg: any) => {
+      const processMessage = (rawMsg: unknown) => {
+        const parsed = safeParseServerMessage(rawMsg);
+        if (!parsed.success) {
+          console.warn('Rejected invalid server message:', describeProtocolError(parsed.error));
+          return;
+        }
+
+        const msg = parsed.data;
         switch (msg.type) {
           case 'BatchUpdate': {
             // Handle batch updates from server
             if (Array.isArray(msg.updates)) {
               // Process each update in the batch
-              msg.updates.forEach(update => {
-                if (update && typeof update === 'object' && update.type) {
-                  // Process each valid message in the batch
-                  processMessage(update);
-                }
-              });
+              msg.updates.forEach(processMessage);
             }
             break;
           }
@@ -631,12 +613,13 @@ export default function SocketManager() {
             const enemy = useGameStore.getState().enemies[msg.enemyId];
             if (enemy) {
               // Get position from the message or use enemy position as fallback
-              const position = msg.position || { x: enemy.position.x, y: 0.2, z: enemy.position.z };
-              
-              // If position from server only has x,z, add y component for 3D rendering
-              if (position && !position.y) {
-                position.y = 0.2; // Default Y position for ground loot
-              }
+              const position = msg.position
+                ? {
+                    x: msg.position.x,
+                    y: 'y' in msg.position ? msg.position.y : 0.2,
+                    z: msg.position.z,
+                  }
+                : { x: enemy.position.x, y: 0.2, z: enemy.position.z };
               
               // We have the enemy position, create the loot at that position
               useGameStore.getState().addGroundLoot(

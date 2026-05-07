@@ -31,6 +31,7 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 - Full local quality gate: `pnpm run check`
 - Local production deploy: `pnpm run deploy:production`
 - Local production rollback: `pnpm run deploy:rollback`
+- Production healthcheck: `pnpm run health:production`
 - Manual Postgres backup: `pnpm run db:backup`
 - Postgres backup restore drill: `pnpm run db:restore:test`
 - Production deploy script syntax: `pnpm run check:scripts`
