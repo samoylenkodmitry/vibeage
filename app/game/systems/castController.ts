@@ -2,7 +2,7 @@
 
 import { useGameStore } from './gameStore';
 import { SkillId } from '../../../shared/skillsDefinition';
-import { VecXZ } from '../../../shared/messages';
+import { VecXZ } from '../../../packages/protocol/messages';
 
 /**
  * Tries to start casting a skill. This is a unified entry point for skill casting

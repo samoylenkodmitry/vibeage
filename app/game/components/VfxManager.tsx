@@ -7,7 +7,7 @@ import ProjectileVfx from '../vfx/ProjectileVfx';
 import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
 import HealingVfx from '../vfx/HealingVfx';
-import { InstantHit } from '../../../shared/messages';
+import { InstantHit } from '../../../packages/protocol/messages';
 import { useProjectileStore, ProjectileData } from '../systems/projectileStore';
 import { get as poolGet, recycle, registerPool } from '../systems/vfxPool';
 import { useGameStore } from '../systems/gameStore';

@@ -4,7 +4,7 @@ import { RigidBody, CapsuleCollider} from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore, selectPlayer, selectMyPlayerId, selectPlayerIds } from '../systems/gameStore';
 import { GROUND_Y, getBuffer, damp, TELEPORT_THRESHOLD } from '../systems/interpolation';
-import { VecXZ } from '../../../shared/messages';
+import { VecXZ } from '../../../packages/protocol/messages';
 
 // Individual Player Character
 const PlayerCharacter = React.memo(function PlayerCharacter({ playerId, isControlledPlayer }: { playerId: string, isControlledPlayer: boolean }) {

@@ -1,7 +1,7 @@
 import { Enemy } from '../../shared/types';
 import { LOOT_TABLES } from '../lootTables';
 import { rng } from '../utils/rng';
-import { ItemDrop } from '../../shared/messages';
+import { ItemDrop } from '../../packages/protocol/messages.js';
 
 export function generateLoot(enemy: Enemy): ItemDrop[] {
   const table = LOOT_TABLES[enemy.lootTableId!];

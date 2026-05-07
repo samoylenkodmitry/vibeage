@@ -1,5 +1,5 @@
 import { PlayerState, Enemy } from '../../../shared/types.js';
-import { VecXZ } from '../../../shared/messages.js';
+import { VecXZ } from '../../../packages/protocol/messages.js';
 import { SKILLS, SkillId } from '../../../shared/skillsDefinition.js';
 
 /**

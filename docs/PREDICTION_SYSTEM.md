@@ -28,7 +28,7 @@ Two debugging tools have been added to help visualize and troubleshoot the predi
 ## Files Modified
 
 ### Shared
-- `shared/messages.ts`: Added `PredictionKeyframe` interface and updated `PosSnap` interface
+- `packages/protocol/messages.ts`: Added `PredictionKeyframe` interface and updated `PosSnap` interface
 
 ### Server
 - `server/world.ts`: 

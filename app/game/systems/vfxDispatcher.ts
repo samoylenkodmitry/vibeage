@@ -1,5 +1,5 @@
 import { Socket } from 'socket.io-client';
-import { InstantHit } from '../../../shared/messages';
+import { InstantHit } from '../../../packages/protocol/messages';
 
 type Msg = InstantHit;
 

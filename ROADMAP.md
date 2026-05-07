@@ -78,7 +78,7 @@ tests/
 - Keep GitHub `main` protected by the passing CI gate.
 - Keep secret scanning and Dependabot enabled in GitHub so accidental credentials and stale dependencies are caught before deployment.
 - Stop adding gameplay features to large monolithic files unless the change is a small fix.
-- Protocol implementation now starts in `packages/protocol`, with `shared/messages.ts` kept as a temporary compatibility re-export.
+- Protocol implementation now lives in `packages/protocol`; new protocol imports should use that package directly.
 
 ### Phase 1: Extract Contracts And Content
 
