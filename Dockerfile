@@ -1,5 +1,5 @@
 # Single stage build for development
-FROM node:20-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3001
 
