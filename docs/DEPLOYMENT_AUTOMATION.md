@@ -93,6 +93,8 @@ As of 2026-05-07, the production game and database containers bind only to local
 
 The old Lineage stream listeners on `2106` and `7777` were disabled, Stalwart's raw `8080` listener was restricted to `127.0.0.1`, and the old WireGuard `wg0` tunnel was stopped, disabled, and removed.
 
+The VPS host firewall is persisted through `netfilter-persistent` with default-drop INPUT policy. The intentional public TCP allow-list is `22`, `25`, `80`, `143`, `443`, `465`, `587`, and `993`. Do not add public ports for the game server or database; keep them behind Nginx/local Docker networking.
+
 ## Manual Smoke Check
 
 After a deploy:
