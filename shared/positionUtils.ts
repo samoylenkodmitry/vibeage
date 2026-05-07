@@ -1,5 +1,5 @@
 // filepath: /home/s/develop/projects/vibe/1/shared/positionUtils.ts
-import { VecXZ } from './messages.js';
+import type { VecXZ } from '../packages/protocol/messages';
 
 /**
  * Predicts the position of an entity at a given time based on its movement state

@@ -1,4 +1,4 @@
-import type { PredictionKeyframe } from '../../../shared/messages';
+import type { PredictionKeyframe } from '../../../packages/protocol/messages';
 import * as THREE from 'three';
 
 export function damp(current:number, target:number, lambda:number, dt:number){

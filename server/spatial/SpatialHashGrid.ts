@@ -1,4 +1,4 @@
-import { VecXZ } from '../../shared/messages';
+import { VecXZ } from '../../packages/protocol/messages';
 
 // Define EntityId type locally to avoid dependency issues
 type EntityId = string;

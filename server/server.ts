@@ -12,7 +12,7 @@ import {
   parseAllowedOrigins,
   parseMaxHttpBufferSize,
 } from './security.js';
-import { describeProtocolError, safeParseClientMessage } from '../shared/messages.js';
+import { describeProtocolError, safeParseClientMessage } from '../packages/protocol/messages.js';
 
 // Create Express app
 const app = express();

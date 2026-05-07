@@ -1,5 +1,5 @@
 import { SkillId, SKILLS, SkillDef, SkillEffect as SharedSkillEffect } from '../shared/skillsDefinition.js';
-import { VecXZ } from '../shared/messages.js';
+import { VecXZ } from '../packages/protocol/messages.js';
 import { CharacterClass } from '../shared/classSystem.js';
 import { SkillType } from '../shared/skillsDefinition.js';
 

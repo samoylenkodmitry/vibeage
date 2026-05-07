@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProjSpawn2, ProjHit2 } from '../../../shared/messages';
+import { ProjSpawn2, ProjHit2 } from '../../../packages/protocol/messages';
 
 // Enhanced projectile live state
 export interface ProjectileLive {

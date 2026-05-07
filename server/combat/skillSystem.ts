@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
-import { VecXZ } from '../../shared/messages.js';
+import { VecXZ } from '../../packages/protocol/messages.js';
 import { CastState as CastStateEnum, CastSnapshot, Enemy } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';

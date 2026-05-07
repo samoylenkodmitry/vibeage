@@ -1,7 +1,7 @@
 // server/ai/enemyAI.ts
 import { Server } from 'socket.io';
 import { Enemy, PlayerState } from '../../shared/types.js';
-import { VecXZ } from '../../shared/messages.js';
+import { VecXZ } from '../../packages/protocol/messages.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 
 // Minimal GameState interface for this module

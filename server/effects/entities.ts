@@ -1,5 +1,5 @@
 import { SkillDef } from '../../shared/skillsDefinition';
-import { VecXZ, InstantHit } from '../../shared/messages';
+import { VecXZ, InstantHit } from '../../packages/protocol/messages';
 import { getDamage, hash } from '../../shared/combatMath';
 import { v4 as uuid } from 'uuid';
 import { handleEnemyLoot } from '../lootHandler';

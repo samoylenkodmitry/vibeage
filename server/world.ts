@@ -3,7 +3,7 @@ import { ZoneManager } from '../shared/zoneSystem.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
-         PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../shared/messages.js';
+         PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';

@@ -22,7 +22,7 @@ import {
   // CastFail is used in the handleCastFail callback
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CastFail
-} from '../../../shared/messages';
+} from '../../../packages/protocol/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
 import { CastState } from '../../../shared/types';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
