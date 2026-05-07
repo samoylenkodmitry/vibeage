@@ -22,7 +22,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 ## Immediate Roadmap
 
 1. Finish the branch migration on the VPS: make `/opt/vibeage` and `/opt/vibeage-frontend` track `main`.
-2. Run `/opt/vibeage/manage.sh update-all` and verify the Docker Compose stack, static frontend, WebSocket path, Nginx config, SSL, and backups.
+2. Use the hand-audited VPS notes in `docs/VPS_AUDIT_2026-05-07.md`; do not run generated deploy scripts until the existing Nginx mail/game wiring is preserved.
 3. Protect `main` on GitHub once the VPS migration is confirmed.
 4. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
 5. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
