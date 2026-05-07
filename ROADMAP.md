@@ -82,7 +82,8 @@ tests/
 
 ### Phase 1: Extract Contracts And Content
 
-- Move skills, items, effects, zones, and combat math into small shared packages.
+- Done on 2026-05-07: moved skill and item content into `packages/content`, with `shared/skillsDefinition.ts` and `shared/items.ts` kept as compatibility re-exports.
+- Move effects, zones, and combat math into small shared packages.
 - Replace loose message interfaces and `[key: string]: any` protocol types with Zod schemas.
 - Define the server-authoritative state model explicitly.
 - Delete legacy projectile/protocol types after the v2 path has tests.

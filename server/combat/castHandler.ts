@@ -1,5 +1,5 @@
 import { Socket, Server } from 'socket.io';
-import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
+import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastReq, CastFail, VecXZ } from '../../packages/protocol/messages.js';
 import { Enemy, PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';

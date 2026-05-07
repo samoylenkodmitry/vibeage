@@ -1,6 +1,6 @@
 import { PlayerState, Enemy } from '../../../shared/types.js';
 import { VecXZ } from '../../../packages/protocol/messages.js';
-import { SKILLS, SkillId } from '../../../shared/skillsDefinition.js';
+import { SKILLS, SkillId } from '../../../packages/content/skills.js';
 
 /**
  * Calculate distance between two points

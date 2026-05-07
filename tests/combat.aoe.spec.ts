@@ -12,7 +12,7 @@ vi.mock('nanoid', () => ({
   nanoid: () => 'test-id'
 }));
 
-vi.mock('../shared/skillsDefinition', () => ({
+vi.mock('../packages/content/skills', () => ({
   SKILLS: {
     'fireball': {
       name: 'Fireball',

@@ -24,10 +24,10 @@ import {
   CastFail,
   CastState
 } from '../../../packages/protocol/messages';
-import { SkillId } from '../../../shared/skillsDefinition';
+import { SkillId } from '../../../packages/content/skills';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
 import { useProjectileStore } from './projectileStore'; // Ensure this is imported
-import { SKILLS } from '../../../shared/skillsDefinition'; // Ensure SKILLS is imported
+import { SKILLS } from '../../../packages/content/skills'; // Ensure SKILLS is imported
 
 // Variable for generating unique log entry IDs
 let nextId = 1;

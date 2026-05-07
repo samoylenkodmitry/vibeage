@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Server } from 'socket.io';
-import { SKILLS, SkillId } from '../shared/skillsDefinition';
+import { SKILLS, SkillId } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
 import { PlayerState } from '../shared/types';
 

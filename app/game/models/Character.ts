@@ -1,6 +1,6 @@
 import { StatusEffect } from '../systems/gameStore';
 import { CharacterClass } from '../../../shared/classSystem';
-import { SkillId } from '../../../shared/skillsDefinition';
+import type { SkillId } from '../../../packages/content/skills';
 import { InventorySlot } from '../../../shared/types';
 
 export interface Character {

@@ -1,5 +1,5 @@
 import { EffectEntity, Projectile, Instant } from './entities';
-import { SKILLS, SkillId } from '../../shared/skillsDefinition';
+import { SKILLS, SkillId } from '../../packages/content/skills.js';
 
 import { Server } from 'socket.io';
 

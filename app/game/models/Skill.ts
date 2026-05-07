@@ -1,4 +1,4 @@
-import { SKILLS as SHARED_SKILLS, SkillId, SkillEffect as SharedSkillEffect, SkillEffectType as SharedSkillEffectType } from '../../../shared/skillsDefinition';
+import { SKILLS as SHARED_SKILLS, type SkillEffect as SharedSkillEffect, type SkillEffectType as SharedSkillEffectType, type SkillId } from '../../../packages/content/skills';
 
 // Client-side skill interface that extends the shared definition
 // with additional client-specific properties

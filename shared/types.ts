@@ -1,4 +1,4 @@
-import type { SkillId, SkillType } from './skillsDefinition';
+import type { SkillId, SkillType } from '../packages/content/skills';
 import type { CharacterClass } from './classSystem';
 import type {
     CastSnapshot,

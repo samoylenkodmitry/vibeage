@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { useProjectileStore } from '../app/game/systems/projectileStore';
 import { CastState } from '../packages/protocol/messages';
-import { SkillId } from '../shared/skillsDefinition';
+import { SkillId } from '../packages/content/skills';
 
 // Mock the uuid for consistent testing
 vi.mock('crypto', () => ({

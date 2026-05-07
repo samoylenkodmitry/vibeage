@@ -1,7 +1,7 @@
 'use client';
 
 import { useGameStore } from './gameStore';
-import { SkillId } from '../../../shared/skillsDefinition';
+import { SkillId } from '../../../packages/content/skills';
 import { VecXZ } from '../../../packages/protocol/messages';
 
 /**

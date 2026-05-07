@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { SkillId } from '../../shared/skillsDefinition';
-import type { ItemId } from '../../shared/items';
+import type { SkillId } from '../content/skills';
+import type { ItemId } from '../content/items';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 

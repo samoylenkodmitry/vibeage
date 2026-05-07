@@ -1,6 +1,6 @@
 import { Socket } from 'socket.io';
 import { LearnSkill, SetSkillShortcut } from '../packages/protocol/messages.js';
-import { SkillId } from '../shared/skillsDefinition.js';
+import { SkillId } from '../packages/content/skills.js';
 
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';
 
