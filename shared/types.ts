@@ -16,7 +16,7 @@ export interface CastSnapshot {
   state: CastState;
   origin: VecXZ;
   pos: VecXZ;       // Current projectile position for authoritative trajectories
-  dir: VecXZ;       // Velocity vector for traveling projectiles
+  dir?: VecXZ;      // Velocity vector for traveling projectiles
   startedAt: number; // Timestamp
   castTimeMs: number; // Cast time from skill definition
   progressMs: number; // Progress of the cast since cast started

@@ -12,6 +12,7 @@ import {
   parseAllowedOrigins,
   parseMaxHttpBufferSize,
 } from './security.js';
+import { describeProtocolError, safeParseClientMessage } from '../shared/messages.js';
 
 // Create Express app
 const app = express();
@@ -149,7 +150,13 @@ io.on('connection', (socket) => {
 
   // Handle new message format
   socket.on('msg', (message) => {
-    world.handleMessage(socket, message);
+    const parsed = safeParseClientMessage(message);
+    if (!parsed.success) {
+      console.warn(`Rejected invalid client message from ${socket.id}: ${describeProtocolError(parsed.error)}`);
+      return;
+    }
+
+    world.handleMessage(socket, parsed.data);
   });
 
   // Legacy handlers - keep for backwards compatibility

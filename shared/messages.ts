@@ -1,6 +1,283 @@
-import { SkillId } from './skillsDefinition';
-import { CastSnapshot, InventorySlot, StatusEffect } from './types';
-import { ItemId } from './items';
+import { z } from 'zod';
+import type { SkillId } from './skillsDefinition';
+import type { CastSnapshot, InventorySlot, StatusEffect } from './types';
+import type { ItemId } from './items';
+
+export const skillIdValues = ['fireball', 'iceBolt', 'waterSplash', 'petrify'] as const satisfies readonly SkillId[];
+export const skillIdSchema = z.enum(skillIdValues);
+
+export const vecXZSchema = z.object({
+  x: z.number(),
+  z: z.number(),
+}).passthrough();
+
+export const vec3DSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+}).passthrough();
+
+export const predictionKeyframeSchema = z.object({
+  pos: vecXZSchema,
+  rotY: z.number().optional(),
+  ts: z.number(),
+}).passthrough();
+
+export const playerMovementStateSchema = z.object({
+  isMoving: z.boolean(),
+  targetPos: vecXZSchema.nullable().optional(),
+  lastUpdateTime: z.number(),
+  speed: z.number(),
+}).passthrough();
+
+export const statusEffectSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  value: z.number(),
+  durationMs: z.number(),
+  startTimeTs: z.number(),
+  sourceSkill: z.string(),
+  stacks: z.number().optional(),
+}).passthrough();
+
+export const inventorySlotSchema = z.object({
+  itemId: z.string(),
+  quantity: z.number(),
+}).passthrough();
+
+export const castSnapshotSchema = z.object({
+  castId: z.string(),
+  casterId: z.string(),
+  skillId: skillIdSchema,
+  state: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  origin: vecXZSchema,
+  pos: vecXZSchema,
+  dir: vecXZSchema.optional(),
+  startedAt: z.number(),
+  castTimeMs: z.number(),
+  progressMs: z.number(),
+}).passthrough();
+
+export const moveIntentSchema = z.object({
+  type: z.literal('MoveIntent'),
+  id: z.string(),
+  targetPos: vecXZSchema,
+  clientTs: z.number(),
+  seq: z.number().optional(),
+}).passthrough();
+
+export const castReqSchema = z.object({
+  type: z.literal('CastReq'),
+  id: z.string(),
+  skillId: skillIdSchema,
+  targetId: z.string().optional(),
+  targetPos: vecXZSchema.optional(),
+  clientTs: z.number(),
+}).passthrough();
+
+export const learnSkillSchema = z.object({
+  type: z.literal('LearnSkill'),
+  skillId: skillIdSchema,
+}).passthrough();
+
+export const setSkillShortcutSchema = z.object({
+  type: z.literal('SetSkillShortcut'),
+  slotIndex: z.number().int().min(0).max(8),
+  skillId: skillIdSchema.nullable(),
+}).passthrough();
+
+export const selectClassSchema = z.object({
+  type: z.literal('SelectClass'),
+  className: z.string(),
+}).passthrough();
+
+export const respawnRequestSchema = z.object({
+  type: z.literal('RespawnRequest'),
+  id: z.string(),
+  clientTs: z.number(),
+}).passthrough();
+
+export const lootPickupSchema = z.object({
+  type: z.literal('LootPickup'),
+  lootId: z.string(),
+  playerId: z.string(),
+}).passthrough();
+
+export const useItemSchema = z.object({
+  type: z.literal('UseItem'),
+  slotIndex: z.number().int().min(0),
+  clientTs: z.number(),
+}).passthrough();
+
+export const requestInventorySchema = z.object({
+  type: z.literal('RequestInventory'),
+}).passthrough();
+
+export const clientMessageSchema = z.discriminatedUnion('type', [
+  moveIntentSchema,
+  castReqSchema,
+  learnSkillSchema,
+  setSkillShortcutSchema,
+  selectClassSchema,
+  respawnRequestSchema,
+  lootPickupSchema,
+  useItemSchema,
+  requestInventorySchema,
+]);
+
+export const posSnapSchema = z.object({
+  type: z.literal('PosSnap'),
+  id: z.string(),
+  pos: vecXZSchema,
+  vel: vecXZSchema,
+  rotY: z.number().optional(),
+  snapTs: z.number(),
+  seq: z.number().optional(),
+  predictions: z.array(predictionKeyframeSchema).optional(),
+}).passthrough();
+
+export const instantHitSchema = z.object({
+  type: z.literal('InstantHit'),
+  skillId: z.string(),
+  origin: vec3DSchema,
+  targetPos: vec3DSchema,
+  hitIds: z.array(z.string()),
+  dmg: z.array(z.number()).optional(),
+}).passthrough();
+
+export const skillLearnedSchema = z.object({
+  type: z.literal('SkillLearned'),
+  skillId: skillIdSchema,
+  remainingPoints: z.number(),
+}).passthrough();
+
+export const skillShortcutUpdatedSchema = z.object({
+  type: z.literal('SkillShortcutUpdated'),
+  slotIndex: z.number().int().min(0).max(8),
+  skillId: skillIdSchema.nullable(),
+}).passthrough();
+
+export const classSelectedSchema = z.object({
+  type: z.literal('ClassSelected'),
+  className: z.string(),
+  baseStats: z.object({
+    healthMultiplier: z.number(),
+    manaMultiplier: z.number(),
+    damageMultiplier: z.number(),
+    speedMultiplier: z.number(),
+  }).passthrough(),
+}).passthrough();
+
+export const castFailSchema = z.object({
+  type: z.literal('CastFail'),
+  clientSeq: z.number(),
+  reason: z.enum(['cooldown', 'nomana', 'invalid', 'outofrange']),
+}).passthrough();
+
+export const castSnapshotMsgSchema = z.object({
+  type: z.literal('CastSnapshot'),
+  data: castSnapshotSchema,
+}).passthrough();
+
+export const effectSnapshotMsgSchema = z.union([
+  z.object({
+    type: z.literal('EffectSnapshot'),
+    targetId: z.string(),
+    effects: z.array(statusEffectSchema),
+  }).passthrough(),
+  z.object({
+    type: z.literal('EffectSnapshot'),
+    id: z.string(),
+    src: z.string(),
+    effectId: z.string(),
+    stacks: z.number(),
+    remainingMs: z.number(),
+    seed: z.number(),
+  }).passthrough(),
+]);
+
+export const combatLogMsgSchema = z.object({
+  type: z.literal('CombatLog'),
+  castId: z.string(),
+  skillId: z.string(),
+  casterId: z.string(),
+  targets: z.array(z.string()),
+  damages: z.array(z.number()),
+}).passthrough();
+
+export const enemyAttackSchema = z.object({
+  type: z.literal('EnemyAttack'),
+  enemyId: z.string(),
+  targetId: z.string(),
+  damage: z.number(),
+}).passthrough();
+
+export const inventoryUpdateMsgSchema = z.object({
+  type: z.literal('InventoryUpdate'),
+  playerId: z.string().optional(),
+  inventory: z.array(inventorySlotSchema),
+  maxInventorySlots: z.number(),
+}).passthrough();
+
+export const lootAcquiredMsgSchema = z.object({
+  type: z.literal('LootAcquired'),
+  items: z.array(inventorySlotSchema),
+  sourceEnemyName: z.string().optional(),
+}).passthrough();
+
+export const itemDropSchema = z.object({
+  itemId: z.string(),
+  quantity: z.number(),
+}).passthrough();
+
+export const lootSpawnSchema = z.object({
+  type: z.literal('LootSpawn'),
+  enemyId: z.string(),
+  lootId: z.string().optional(),
+  position: z.union([vecXZSchema, vec3DSchema]).optional(),
+  loot: z.array(itemDropSchema),
+}).passthrough();
+
+export const itemUsedSchema = z.object({
+  type: z.literal('ItemUsed'),
+  slotIndex: z.number().int().min(0),
+  itemId: z.string(),
+  newQuantity: z.number(),
+  healthDelta: z.number().optional(),
+  manaDelta: z.number().optional(),
+}).passthrough();
+
+export const batchUpdateSchema = z.object({
+  type: z.literal('BatchUpdate'),
+  updates: z.array(z.unknown()),
+}).passthrough();
+
+export const serverMessageSchema = z.union([
+  posSnapSchema,
+  instantHitSchema,
+  skillLearnedSchema,
+  skillShortcutUpdatedSchema,
+  classSelectedSchema,
+  castFailSchema,
+  castSnapshotMsgSchema,
+  effectSnapshotMsgSchema,
+  combatLogMsgSchema,
+  enemyAttackSchema,
+  inventoryUpdateMsgSchema,
+  lootAcquiredMsgSchema,
+  lootPickupSchema,
+  lootSpawnSchema,
+  itemUsedSchema,
+  batchUpdateSchema,
+]);
+
+export interface ClientMsg {
+  type: string;
+}
+
+export interface ServerMsg {
+  type: string;
+}
 
 export interface VecXZ {
   x: number;
@@ -13,75 +290,36 @@ export interface Vec3D {
   z: number;
 }
 
-/**
- * A keyframe of predicted entity state at a specific future timestamp
- */
 export interface PredictionKeyframe {
-    pos: VecXZ;     // Predicted position
-    rotY?: number;  // Optional: Predicted Y rotation
-    ts: number;     // Server timestamp (epoch ms) this keyframe is valid for
+  pos: VecXZ;
+  rotY?: number;
+  ts: number;
 }
 
 export interface PlayerMovementState {
-  isMoving: boolean;            // True if actively moving towards a target
-  targetPos?: VecXZ | null;     // Server-acknowledged target position
-  lastUpdateTime: number;       // Server time of last movement state update
-  speed: number;                // Current server-authoritative speed for this player
+  isMoving: boolean;
+  targetPos?: VecXZ | null;
+  lastUpdateTime: number;
+  speed: number;
 }
 
-// Base message with type
-export interface ClientMsg {
-  type: string;
-  [key: string]: any;
-}
-
-// Movement messages
-// Client → Server: request to move
 export interface MoveIntent extends ClientMsg {
   type: 'MoveIntent';
-  id: string;          // Entity id (player uid)
-  targetPos: VecXZ;    // World coords (XZ plane)
-  clientTs: number;    // Ms since epoch on the client
-  seq?: number;        // Optional sequence number for reconciliation
+  id: string;
+  targetPos: VecXZ;
+  clientTs: number;
+  seq?: number;
 }
 
-// Server-driven position
-export interface PosSnap extends ServerMsg {
-  type: 'PosSnap';
-  id: string;                    // Entity id (player uid)
-  pos: VecXZ;                    // Current authoritative position at snapTs
-  vel: { x: number; z: number }; // Current authoritative velocity at snapTs
-  rotY?: number;                 // Optional: Current authoritative Y rotation (yaw)
-  snapTs: number;                // Server timestamp (epoch ms) when this snapshot was generated
-  seq?: number;                  // Optional sequence number for reconciliation
-  
-  /** Server's prediction of future states */
-  predictions?: PredictionKeyframe[];
-}
-
-// Skill casting
 export interface CastReq extends ClientMsg {
   type: 'CastReq';
   id: string;
-  skillId: string;
+  skillId: SkillId;
   targetId?: string;
   targetPos?: VecXZ;
   clientTs: number;
 }
 
-// Projectile messages - Legacy interfaces removed
-
-// Instant skill hit effect
-export interface InstantHit extends ClientMsg {
-  type: 'InstantHit';
-  skillId: string;
-  origin: { x: number; y: number; z: number };
-  targetPos: { x: number; y: number; z: number };
-  hitIds: string[];
-  dmg?: number[];  // Damage values for each hit target
-}
-
-// Skill management
 export interface LearnSkill extends ClientMsg {
   type: 'LearnSkill';
   skillId: SkillId;
@@ -89,29 +327,70 @@ export interface LearnSkill extends ClientMsg {
 
 export interface SetSkillShortcut extends ClientMsg {
   type: 'SetSkillShortcut';
-  slotIndex: number;  // 0-8 for keys 1-9
-  skillId: SkillId | null;  // null to clear the slot
-}
-
-export interface SkillLearned extends ClientMsg {
-  type: 'SkillLearned';
-  skillId: SkillId;
-  remainingPoints: number;
-}
-
-export interface SkillShortcutUpdated extends ClientMsg {
-  type: 'SkillShortcutUpdated';
   slotIndex: number;
   skillId: SkillId | null;
 }
 
-// Class system messages
 export interface SelectClass extends ClientMsg {
   type: 'SelectClass';
   className: string;
 }
 
-export interface ClassSelected extends ClientMsg {
+export interface RespawnRequest extends ClientMsg {
+  type: 'RespawnRequest';
+  id: string;
+  clientTs: number;
+}
+
+export interface LootPickup extends ClientMsg, ServerMsg {
+  type: 'LootPickup';
+  lootId: string;
+  playerId: string;
+}
+
+export interface UseItem extends ClientMsg {
+  type: 'UseItem';
+  slotIndex: number;
+  clientTs: number;
+}
+
+export interface RequestInventory extends ClientMsg {
+  type: 'RequestInventory';
+}
+
+export interface PosSnap extends ServerMsg {
+  type: 'PosSnap';
+  id: string;
+  pos: VecXZ;
+  vel: VecXZ;
+  rotY?: number;
+  snapTs: number;
+  seq?: number;
+  predictions?: PredictionKeyframe[];
+}
+
+export interface InstantHit extends ServerMsg {
+  type: 'InstantHit';
+  skillId: string;
+  origin: Vec3D;
+  targetPos: Vec3D;
+  hitIds: string[];
+  dmg?: number[];
+}
+
+export interface SkillLearned extends ServerMsg {
+  type: 'SkillLearned';
+  skillId: SkillId;
+  remainingPoints: number;
+}
+
+export interface SkillShortcutUpdated extends ServerMsg {
+  type: 'SkillShortcutUpdated';
+  slotIndex: number;
+  skillId: SkillId | null;
+}
+
+export interface ClassSelected extends ServerMsg {
   type: 'ClassSelected';
   className: string;
   baseStats: {
@@ -122,19 +401,12 @@ export interface ClassSelected extends ClientMsg {
   };
 }
 
-// Skill cast failure message
-export interface CastFail extends ClientMsg {
+export interface CastFail extends ServerMsg {
   type: 'CastFail';
   clientSeq: number;
   reason: 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 }
 
-// Server-facing message base type
-export interface ServerMsg extends ClientMsg {
-  type: string;
-}
-
-// New additive messages - do NOT edit old ones
 export interface CastSnapshotMsg extends ServerMsg {
   type: 'CastSnapshot';
   data: CastSnapshot;
@@ -142,8 +414,14 @@ export interface CastSnapshotMsg extends ServerMsg {
 
 export interface EffectSnapshotMsg extends ServerMsg {
   type: 'EffectSnapshot';
-  targetId: string;
-  effects: StatusEffect[];
+  targetId?: string;
+  effects?: StatusEffect[];
+  id?: string;
+  src?: string;
+  effectId?: string;
+  stacks?: number;
+  remainingMs?: number;
+  seed?: number;
 }
 
 export interface CombatLogMsg extends ServerMsg {
@@ -155,16 +433,92 @@ export interface CombatLogMsg extends ServerMsg {
   damages: number[];
 }
 
-/** @deprecated Removed in protocol v2 – use CastSnapshot pipeline instead. */
+export interface EnemyAttack extends ServerMsg {
+  type: 'EnemyAttack';
+  enemyId: string;
+  targetId: string;
+  damage: number;
+}
+
+export interface InventoryUpdateMsg extends ServerMsg {
+  type: 'InventoryUpdate';
+  playerId?: string;
+  inventory: InventorySlot[];
+  maxInventorySlots: number;
+}
+
+export interface LootAcquiredMsg extends ServerMsg {
+  type: 'LootAcquired';
+  items: InventorySlot[];
+  sourceEnemyName?: string;
+}
+
+export interface ItemDrop {
+  itemId: string;
+  quantity: number;
+}
+
+export interface LootSpawn extends ServerMsg {
+  type: 'LootSpawn';
+  enemyId: string;
+  lootId?: string;
+  position?: VecXZ | Vec3D;
+  loot: ItemDrop[];
+}
+
+export interface ItemUsed extends ServerMsg {
+  type: 'ItemUsed';
+  slotIndex: number;
+  itemId: ItemId;
+  newQuantity: number;
+  healthDelta?: number;
+  manaDelta?: number;
+}
+
+export interface BatchUpdate extends ServerMsg {
+  type: 'BatchUpdate';
+  updates: unknown[];
+}
+
+export type ClientMessage =
+  | MoveIntent
+  | CastReq
+  | LearnSkill
+  | SetSkillShortcut
+  | SelectClass
+  | RespawnRequest
+  | LootPickup
+  | UseItem
+  | RequestInventory;
+
+export type ServerMessage =
+  | PosSnap
+  | InstantHit
+  | SkillLearned
+  | SkillShortcutUpdated
+  | ClassSelected
+  | CastFail
+  | CastSnapshotMsg
+  | EffectSnapshotMsg
+  | CombatLogMsg
+  | EnemyAttack
+  | InventoryUpdateMsg
+  | LootAcquiredMsg
+  | LootPickup
+  | LootSpawn
+  | ItemUsed
+  | BatchUpdate;
+
+/** @deprecated Removed in protocol v2 - use CastSnapshot pipeline instead. */
 export interface ProjHit2 extends ServerMsg {
   type: 'ProjHit2';
   castId: string;
   hitIds: string[];
-  dmg: number[];   // Aligned with hitIds
-  impactPos?: VecXZ; // Position of the projectile impact (optional for backwards compatibility)
+  dmg: number[];
+  impactPos?: VecXZ;
 }
 
-/** @deprecated Removed in protocol v2 – use CastSnapshot pipeline instead. */
+/** @deprecated Removed in protocol v2 - use CastSnapshot pipeline instead. */
 export interface ProjSpawn2 extends ServerMsg {
   type: 'ProjSpawn2';
   castId: string;
@@ -175,76 +529,19 @@ export interface ProjSpawn2 extends ServerMsg {
   launchTs: number;
   casterId: string;
   hitRadius?: number;
+  travelMs?: number;
 }
 
-// Status effect messages
-export interface EffectSnapshotMsg extends ServerMsg {
-  type: 'EffectSnapshot';
-  id: string;       // Entity ID
-  src: string;      // Source entity ID
-  effectId: string; // Effect type identifier
-  stacks: number;   // Current stacks
-  remainingMs: number; // Remaining duration in ms
-  seed: number;     // RNG seed for deterministic calculations
+export function describeProtocolError(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+    .join('; ');
 }
 
-export interface EnemyAttack extends ServerMsg {
-  type: 'EnemyAttack';
-  enemyId: string;
-  targetId: string; // Player ID
-  damage: number;
+export function safeParseClientMessage(message: unknown): z.SafeParseReturnType<unknown, ClientMessage> {
+  return clientMessageSchema.safeParse(message) as z.SafeParseReturnType<unknown, ClientMessage>;
 }
 
-// Player respawn message - Client → Server request to resurrect
-export interface RespawnRequest extends ClientMsg {
-  type: 'RespawnRequest';
-  id: string;          // Player ID
-  clientTs: number;    // Ms since epoch on the client
-}
-
-// Inventory related messages
-export interface InventoryUpdateMsg extends ServerMsg {
-  type: 'InventoryUpdate';
-  inventory: InventorySlot[]; // The full updated inventory
-  maxInventorySlots: number;
-}
-
-export interface LootAcquiredMsg extends ServerMsg {
-  type: 'LootAcquired';
-  items: InventorySlot[]; // Items that were acquired
-  sourceEnemyName?: string;
-}
-
-// Loot related messages
-export interface ItemDrop {
-  itemId: string;
-  quantity: number;
-}
-
-export interface LootSpawn {
-  type: 'LootSpawn';
-  enemyId: string;
-  loot: ItemDrop[];
-}
-
-export interface LootPickup {
-  type: 'LootPickup';
-  lootId: string;
-  playerId: string;
-}
-
-// Item usage messages
-export interface UseItem extends ClientMsg {
-  type: 'UseItem';
-  slotIndex: number;        // inventory slot             (0-based)
-  clientTs: number;         // epoch-ms
-}
-
-export interface ItemUsed extends ServerMsg {
-  type: 'ItemUsed';
-  slotIndex: number;
-  itemId: ItemId;
-  newQuantity: number;      // 0 if stack emptied
-  healthDelta?: number;     // +HP applied (for VFX/UI)
-  manaDelta?: number;       // +MP applied (future-proof)
+export function safeParseServerMessage(message: unknown): z.SafeParseReturnType<unknown, ServerMessage> {
+  return serverMessageSchema.safeParse(message) as z.SafeParseReturnType<unknown, ServerMessage>;
 }
