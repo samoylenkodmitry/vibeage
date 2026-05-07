@@ -1,5 +1,5 @@
 // filepath: /home/s/develop/projects/vibe/1/shared/classSystem.ts
-import { SkillId } from './skillsDefinition';
+import type { SkillId } from '../packages/content/skills';
 
 // Class types in the game
 export type CharacterClass = 'mage' | 'warrior' | 'healer' | 'ranger';

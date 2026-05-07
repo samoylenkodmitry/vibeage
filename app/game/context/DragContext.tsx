@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import type { SkillId } from '../../../shared/skillsDefinition';
+import type { SkillId } from '../../../packages/content/skills';
 
 type Ctx = [SkillId|null, (s:SkillId|null)=>void];
 const DragCtx = createContext<Ctx|undefined>(undefined);

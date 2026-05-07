@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { SKILLS, SkillId } from '../../shared/skillsDefinition.js';
+import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messages.js';
 import { CastSnapshot, Enemy } from '../../shared/types.js';
 import { nanoid } from 'nanoid';

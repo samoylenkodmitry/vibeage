@@ -15,7 +15,7 @@ import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
-import { ITEMS } from '../shared/items.js';
+import { ITEMS } from '../packages/content/items.js';
 import { persistPlayer, recordServerEvent } from './persistence.js';
 
 // Constants

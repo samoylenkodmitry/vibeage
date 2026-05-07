@@ -1,4 +1,4 @@
-import { ItemId } from '../shared/items';
+import type { ItemId } from '../packages/content/items';
 
 export interface LootDrop {
   itemId: ItemId;

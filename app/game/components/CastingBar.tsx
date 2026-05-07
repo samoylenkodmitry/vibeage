@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../systems/gameStore';
 // Import getSkillById from the correct path using shared definitions
-import { SKILLS as skillsDefinitionShared, SkillId as SkillIdShared } from '../../../shared/skillsDefinition';
+import { SKILLS as skillsDefinitionShared, SkillId as SkillIdShared } from '../../../packages/content/skills';
 
 interface CastingBarProps {
   playerId: string;

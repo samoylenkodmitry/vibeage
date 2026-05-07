@@ -1,4 +1,4 @@
-import { SkillId, SKILLS } from './skillsDefinition';
+import { SKILLS, type SkillId } from '../packages/content/skills';
 
 /**
  * Calculate the mana cost of a skill, accounting for potential changes from player stats

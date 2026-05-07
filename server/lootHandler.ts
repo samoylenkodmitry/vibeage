@@ -1,7 +1,7 @@
 import { Enemy, InventorySlot, PlayerState } from '../shared/types';
 import { LOOT_TABLES } from './lootTables';
 import { log, LOG_CATEGORIES } from './logger';
-import { ITEMS } from '../shared/items';
+import { ITEMS } from '../packages/content/items.js';
 
 /**
  * Generates loot from an enemy's loot table
