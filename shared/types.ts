@@ -67,7 +67,7 @@ export interface Enemy {
 }
 
 // Intent-based movement messages
-// These have been moved to shared/messages.ts
+// These have been moved to packages/protocol/messages.ts
 // Only keeping old interface definitions for backward compatibility during migration
 import type { VecXZ, PlayerMovementState } from './messages';
 export type { VecXZ, PlayerMovementState };
