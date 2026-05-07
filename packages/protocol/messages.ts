@@ -1,8 +1,36 @@
 import { z } from 'zod';
 import type { SkillId } from '../../shared/skillsDefinition';
-import { CastState } from '../../shared/types';
-import type { CastSnapshot, InventorySlot, StatusEffect } from '../../shared/types';
 import type { ItemId } from '../../shared/items';
+
+export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
+
+export interface InventorySlot {
+  itemId: ItemId;
+  quantity: number;
+}
+
+export interface CastSnapshot {
+  castId: string;
+  casterId: string;
+  skillId: SkillId;
+  state: CastState;
+  origin: VecXZ;
+  pos: VecXZ;
+  dir?: VecXZ;
+  startedAt: number;
+  castTimeMs: number;
+  progressMs: number;
+}
+
+export interface StatusEffect {
+  id: string;
+  type: string;
+  value: number;
+  durationMs: number;
+  startTimeTs: number;
+  sourceSkill: string;
+  stacks?: number;
+}
 
 export const skillIdValues = ['fireball', 'iceBolt', 'waterSplash', 'petrify'] as const satisfies readonly SkillId[];
 export const skillIdSchema = z.enum(skillIdValues);
@@ -261,7 +289,7 @@ export const batchUpdateSchema = z.object({
   updates: z.array(z.lazy(() => serverMessageSchema)),
 }).passthrough();
 
-export const serverMessageSchema = z.union([
+export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   posSnapSchema,
   instantHitSchema,
   skillLearnedSchema,
@@ -269,7 +297,6 @@ export const serverMessageSchema = z.union([
   classSelectedSchema,
   castFailSchema,
   castSnapshotMsgSchema,
-  effectSnapshotMsgSchema,
   combatLogMsgSchema,
   enemyAttackSchema,
   inventoryUpdateMsgSchema,
@@ -278,6 +305,11 @@ export const serverMessageSchema = z.union([
   lootSpawnSchema,
   itemUsedSchema,
   batchUpdateSchema,
+]);
+
+export const serverMessageSchema = z.union([
+  nonEffectServerMessageSchema,
+  effectSnapshotMsgSchema,
 ]);
 
 export interface ClientMsg {
@@ -421,17 +453,26 @@ export interface CastSnapshotMsg extends ServerMsg {
   data: CastSnapshot;
 }
 
-export interface EffectSnapshotMsg extends ServerMsg {
+export interface EffectSnapshotTargetMsg extends ServerMsg {
   type: 'EffectSnapshot';
-  targetId?: string;
-  effects?: StatusEffect[];
-  id?: string;
-  src?: string;
-  effectId?: string;
-  stacks?: number;
-  remainingMs?: number;
-  seed?: number;
+  targetId: string;
+  effects: StatusEffect[];
+  id?: never;
 }
+
+export interface EffectSnapshotSingleMsg extends ServerMsg {
+  type: 'EffectSnapshot';
+  targetId?: never;
+  effects?: never;
+  id: string;
+  src: string;
+  effectId: string;
+  stacks: number;
+  remainingMs: number;
+  seed: number;
+}
+
+export type EffectSnapshotMsg = EffectSnapshotTargetMsg | EffectSnapshotSingleMsg;
 
 export interface CombatLogMsg extends ServerMsg {
   type: 'CombatLog';

@@ -1,36 +1,15 @@
-import { SkillId, SkillType } from './skillsDefinition';
-import { CharacterClass } from './classSystem';
-import { ItemId } from './items';
+import type { SkillId, SkillType } from './skillsDefinition';
+import type { CharacterClass } from './classSystem';
+import type {
+    CastSnapshot,
+    InventorySlot,
+    PlayerMovementState,
+    StatusEffect,
+    VecXZ,
+} from './messages';
 
-export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
-
-export interface InventorySlot {
-  itemId: ItemId;
-  quantity: number;
-}
-
-export interface CastSnapshot {
-  castId: string;
-  casterId: string;
-  skillId: SkillId;
-  state: CastState;
-  origin: VecXZ;
-  pos: VecXZ;       // Current projectile position for authoritative trajectories
-  dir?: VecXZ;      // Velocity vector for traveling projectiles
-  startedAt: number; // Timestamp
-  castTimeMs: number; // Cast time from skill definition
-  progressMs: number; // Progress of the cast since cast started
-}
-
-export interface StatusEffect {
-    id: string;
-    type: string;
-    value: number;
-    durationMs: number;
-    startTimeTs: number;
-    sourceSkill: string;
-    stacks?: number; // Optional: for stackable effects
-}
+export { CastState } from './messages';
+export type { CastSnapshot, InventorySlot, PlayerMovementState, StatusEffect, VecXZ };
 
 export interface Enemy {
     id: string;
@@ -69,9 +48,6 @@ export interface Enemy {
 // Intent-based movement messages
 // These have been moved to packages/protocol/messages.ts
 // Only keeping old interface definitions for backward compatibility during migration
-import type { VecXZ, PlayerMovementState } from './messages';
-export type { VecXZ, PlayerMovementState };
-
 export interface MoveStartMsg {
     type: 'moveStart';
     id: string;            // playerId
