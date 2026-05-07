@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CastState,
   describeProtocolError,
   safeParseClientMessage,
   safeParseServerMessage,
 } from '../packages/protocol/messages';
-import { CastState } from '../shared/types';
 
 describe('client protocol schemas', () => {
   it('accepts a valid client CastReq', () => {

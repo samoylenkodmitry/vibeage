@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../shared/skillsDefinition';
-import { CastState, PlayerState } from '../shared/types';
+import { CastState } from '../packages/protocol/messages';
+import { PlayerState } from '../shared/types';
 
 type SkillSystem = typeof import('../server/combat/skillSystem');
 

@@ -1,4 +1,4 @@
-import { VecXZ } from '../../packages/protocol/messages';
+import { VecXZ } from '../../packages/protocol/messages.js';
 
 // Define EntityId type locally to avoid dependency issues
 type EntityId = string;

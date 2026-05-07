@@ -21,10 +21,10 @@ import {
   safeParseServerMessage,
   // CastFail is used in the handleCastFail callback
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  CastFail
+  CastFail,
+  CastState
 } from '../../../packages/protocol/messages';
 import { SkillId } from '../../../shared/skillsDefinition';
-import { CastState } from '../../../shared/types';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
 import { useProjectileStore } from './projectileStore'; // Ensure this is imported
 import { SKILLS } from '../../../shared/skillsDefinition'; // Ensure SKILLS is imported

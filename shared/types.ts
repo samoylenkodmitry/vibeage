@@ -8,7 +8,6 @@ import type {
     VecXZ,
 } from '../packages/protocol/messages';
 
-export { CastState } from '../packages/protocol/messages';
 export type { CastSnapshot, InventorySlot, PlayerMovementState, StatusEffect, VecXZ };
 
 export interface Enemy {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { CastSnapshot, CastState } from '../../../shared/types';
+import { CastState } from '../../../packages/protocol/messages';
+import type { CastSnapshot } from '../../../shared/types';
 
 // Define a simplified projectile data structure for protocol v2+
 export interface ProjectileData {
