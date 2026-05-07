@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SkillId } from './skillsDefinition';
+import { CastState } from './types';
 import type { CastSnapshot, InventorySlot, StatusEffect } from './types';
 import type { ItemId } from './items';
 
@@ -9,7 +10,15 @@ export const skillIdSchema = z.enum(skillIdValues);
 export const vecXZSchema = z.object({
   x: z.number(),
   z: z.number(),
-}).passthrough();
+}).passthrough().superRefine((value, ctx) => {
+  if ('y' in value && typeof value.y !== 'number') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['y'],
+      message: 'Expected number',
+    });
+  }
+});
 
 export const vec3DSchema = z.object({
   x: z.number(),
@@ -49,7 +58,7 @@ export const castSnapshotSchema = z.object({
   castId: z.string(),
   casterId: z.string(),
   skillId: skillIdSchema,
-  state: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  state: z.nativeEnum(CastState),
   origin: vecXZSchema,
   pos: vecXZSchema,
   dir: vecXZSchema.optional(),
@@ -234,7 +243,7 @@ export const lootSpawnSchema = z.object({
   type: z.literal('LootSpawn'),
   enemyId: z.string(),
   lootId: z.string().optional(),
-  position: z.union([vecXZSchema, vec3DSchema]).optional(),
+  position: z.union([vec3DSchema, vecXZSchema]).optional(),
   loot: z.array(itemDropSchema),
 }).passthrough();
 
@@ -249,7 +258,7 @@ export const itemUsedSchema = z.object({
 
 export const batchUpdateSchema = z.object({
   type: z.literal('BatchUpdate'),
-  updates: z.array(z.unknown()),
+  updates: z.array(z.lazy(() => serverMessageSchema)),
 }).passthrough();
 
 export const serverMessageSchema = z.union([
@@ -477,7 +486,7 @@ export interface ItemUsed extends ServerMsg {
 
 export interface BatchUpdate extends ServerMsg {
   type: 'BatchUpdate';
-  updates: unknown[];
+  updates: ServerMessage[];
 }
 
 export type ClientMessage =

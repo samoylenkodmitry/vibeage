@@ -326,8 +326,13 @@ export default function SocketManager() {
     }
 
     console.log(`Received EffectSnapshot for target ${targetId}:`, msg);
-    
-    const effects = msg.effects ?? [];
+
+    if (!Array.isArray(msg.effects)) {
+      console.log(`Received single EffectSnapshot update for target ${targetId}:`, msg);
+      return;
+    }
+
+    const effects = msg.effects;
     
     // Add to combat log
     if (effects.length > 0) {
