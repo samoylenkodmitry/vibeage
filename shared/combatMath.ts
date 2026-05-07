@@ -1,1 +1,1 @@
-export * from '../packages/sim/combatMath';
+export * from '../packages/sim/combatMath.js';

@@ -1,4 +1,4 @@
-import { rng } from '../packages/sim/combatMath';
+import { rng } from '../packages/sim/combatMath.js';
 
 export type EffectId = 'burn' | 'bleed' | 'regen';
 

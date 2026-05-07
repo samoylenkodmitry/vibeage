@@ -1,1 +1,1 @@
-export * from './combatMath';
+export * from './combatMath.js';

@@ -1,9 +1,8 @@
-import { SKILLS, type SkillId } from '../content/skills';
+import { SKILLS, type SkillId } from '../content/skills.js';
 
 /**
- * Calculate the mana cost of a skill, accounting for potential changes from player stats
+ * Calculate the mana cost of a skill.
  * @param skillId The skill ID
- * @param playerLevel Current player level
  * @returns Mana cost for the skill
  */
 export function getManaCost(skillId: SkillId): number {
@@ -16,9 +15,8 @@ export function getManaCost(skillId: SkillId): number {
 }
 
 /**
- * Calculate the cooldown of a skill, accounting for potential changes from player stats
+ * Calculate the cooldown of a skill.
  * @param skillId The skill ID
- * @param playerLevel Current player level
  * @returns Cooldown time in milliseconds
  */
 export function getCooldownMs(skillId: SkillId): number {
@@ -30,9 +28,9 @@ export function getCooldownMs(skillId: SkillId): number {
   return baseCooldown;
 }
 
-/** xorshift32 - enough for crit and variability, seed != 0 */
+/** xorshift32 - enough for crit and variability. */
 export function rng(seed: number): () => number {
-  let x = seed >>> 0;
+  let x = (seed >>> 0) || 1;
   return () => {
     x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
     return (x >>> 0) / 0xffffffff;
