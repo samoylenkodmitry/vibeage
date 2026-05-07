@@ -23,11 +23,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 
 1. Keep GitHub `CI` as the quality gate, but keep GitHub-hosted SSH deployment disabled unless explicitly approved.
 2. Use the local deploy path for no-hassle releases: `pnpm run deploy:production`, which runs checks, pushes `main`, SSHes from this workstation, and runs the VPS-side safe deploy script.
-3. Close unnecessary public exposure: identify/remove the `2106` and `7777` listeners, restrict Stalwart `8080` if it is an admin UI, and remove WireGuard after sudo/root confirmation.
-4. Finish the branch migration on the VPS: make active deploy automation use `main`; leave `/opt/vibeage` as legacy state until it is archived or cleaned.
-5. Protect `main` on GitHub once the final deployment model is confirmed.
-6. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
-7. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
+3. Use the local rollback path for bad releases: `pnpm run deploy:rollback` redeploys the previous successful commit from VPS deploy state.
+4. Done on 2026-05-07: closed unnecessary public exposure by disabling the Lineage stream listeners on `2106`/`7777`, restricting raw Stalwart `8080` to localhost, keeping game/Postgres on localhost, and removing the old WireGuard `wg0` tunnel.
+5. Finish legacy cleanup on the VPS: leave `/home/s/vibeage-deploy/repo` as the active `main` checkout and archive or remove old `/opt/vibeage` and `/opt/vibeage-frontend` leftovers after preserving any useful local notes.
+6. Protect `main` on GitHub once the final deployment model is confirmed.
+7. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
+8. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
 ## Target Stack
 
@@ -58,9 +59,10 @@ tests/
 
 ### Phase -1: Confirm Production Baseline
 
-- SSH to the VPS and move `/opt/vibeage` and `/opt/vibeage-frontend` to `main` if they still track `server`.
+- Keep the active deploy checkout at `/home/s/vibeage-deploy/repo` on `main`.
 - Record deployed commit, remotes, Docker Compose status, Nginx site config, crontab entries, and frontend checkout state.
 - Confirm DNS points to the VPS and that Nginx serves both frontend and backend.
+- Keep public listeners limited to SSH, Nginx, and intended Stalwart mail ports.
 - Protect `main` on GitHub or otherwise document that it is production.
 - Delete the remote `server` compatibility branch only after the VPS has been verified on `main`.
 

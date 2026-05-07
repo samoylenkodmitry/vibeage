@@ -10,6 +10,7 @@ FRONTEND_PUBLIC_DIR=${FRONTEND_PUBLIC_DIR:-/opt/vibeage-frontend/out}
 REPO_URL=${REPO_URL:-https://github.com/samoylenkodmitry/vibeage.git}
 RUN_LOCAL_CHECKS=${RUN_LOCAL_CHECKS:-1}
 BRANCH=${BRANCH:-main}
+DEPLOY_SHA=${DEPLOY_SHA:-}
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
@@ -62,15 +63,29 @@ push_if_needed() {
   git push origin "$BRANCH"
 }
 
+resolve_requested_deploy_sha() {
+  local requested_sha=$1
+  local resolved_sha
+
+  resolved_sha=$(git rev-parse --verify "$requested_sha^{commit}") || fail "DEPLOY_SHA is not a commit: $requested_sha"
+
+  if ! git merge-base --is-ancestor "$resolved_sha" "origin/$BRANCH"; then
+    fail "DEPLOY_SHA must be reachable from origin/$BRANCH: $requested_sha"
+  fi
+
+  printf '%s\n' "$resolved_sha"
+}
+
 run_remote_deploy() {
   local deploy_sha=$1
 
   ssh -i "$VPS_SSH_KEY" -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
-    "DEPLOY_ROOT='$VPS_DEPLOY_ROOT' DEPLOY_SHA='$deploy_sha' DOMAIN='$DOMAIN' FRONTEND_PUBLIC_DIR='$FRONTEND_PUBLIC_DIR' REPO_URL='$REPO_URL' bash -s" <<'REMOTE'
+    "DEPLOY_ROOT='$VPS_DEPLOY_ROOT' DEPLOY_SHA='$deploy_sha' DOMAIN='$DOMAIN' FRONTEND_PUBLIC_DIR='$FRONTEND_PUBLIC_DIR' REPO_URL='$REPO_URL' BRANCH='$BRANCH' bash -s" <<'REMOTE'
 set -Eeuo pipefail
 
 deploy_root=${DEPLOY_ROOT:-$HOME/vibeage-deploy}
 repo_dir="$deploy_root/repo"
+branch=${BRANCH:-main}
 
 mkdir -p "$deploy_root"
 
@@ -79,8 +94,8 @@ if [ ! -d "$repo_dir/.git" ]; then
 fi
 
 cd "$repo_dir"
-git fetch --prune origin main
-git checkout main
+git fetch --prune origin "$branch"
+git checkout "$branch"
 git reset --hard "$DEPLOY_SHA"
 
 DOMAIN="$DOMAIN" FRONTEND_PUBLIC_DIR="$FRONTEND_PUBLIC_DIR" bash scripts/deploy-production.sh
@@ -130,16 +145,22 @@ main() {
   ensure_clean_worktree
   ensure_main_is_deployable
 
-  if [ "$RUN_LOCAL_CHECKS" = "1" ]; then
-    require_cmd pnpm
-    log "Running local quality gate"
-    pnpm run check
+  local deploy_sha
+
+  if [ -n "$DEPLOY_SHA" ]; then
+    deploy_sha=$(resolve_requested_deploy_sha "$DEPLOY_SHA")
+    log "Deploying requested commit $deploy_sha"
+  else
+    if [ "$RUN_LOCAL_CHECKS" = "1" ]; then
+      require_cmd pnpm
+      log "Running local quality gate"
+      pnpm run check
+    fi
+
+    push_if_needed
+    deploy_sha=$(git rev-parse HEAD)
   fi
 
-  push_if_needed
-
-  local deploy_sha
-  deploy_sha=$(git rev-parse HEAD)
   log "Deploying $deploy_sha to $VPS_USER@$VPS_HOST"
   run_remote_deploy "$deploy_sha"
   run_smoke_checks

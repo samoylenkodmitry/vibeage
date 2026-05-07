@@ -16,13 +16,15 @@ The deploy script is deliberately narrow:
 - it rebuilds the frontend and server from the requested Git commit;
 - it runs Docker Compose with `COMPOSE_PROJECT_NAME=vibeage` so the existing Postgres volume is reused;
 - it publishes static files into the existing Nginx root;
-- it fails if the game server is publicly bound on port `3001`.
+- it fails if the game server is publicly bound on port `3001`;
+- it records the last and previous successful deploy markers under `~/.vibeage-deploy`.
 
 ## Current Deployment Position
 
 - Keep GitHub CI as the quality gate.
 - Use `scripts/deploy-from-local.sh` from this workstation for no-hassle deployments.
 - Keep `scripts/deploy-production.sh` as the VPS-side deploy primitive.
+- Use `pnpm run deploy:rollback` from this workstation to redeploy the previous successful commit.
 - Do not allow GitHub-hosted runners to SSH into the VPS unless the owner explicitly approves that risk.
 
 ## Local Deploy Script
@@ -37,6 +39,7 @@ The deploy script is deliberately narrow:
 - makes the VPS checkout reset to the exact deployed commit;
 - runs `scripts/deploy-production.sh` on the VPS;
 - verifies local VPS `/healthz`, the `3001` port binding, and public HTTPS.
+- supports exact commit deploys through `DEPLOY_SHA=<sha> scripts/deploy-from-local.sh` for rollback use.
 
 Useful overrides:
 
@@ -44,6 +47,27 @@ Useful overrides:
 RUN_LOCAL_CHECKS=0 pnpm run deploy:production
 VPS_HOST=159.69.33.249 VPS_USER=s VPS_SSH_KEY=~/.ssh/hetz pnpm run deploy:production
 ```
+
+## Rollback
+
+After at least one deploy with the current scripts, the VPS keeps both:
+
+- `~/.vibeage-deploy/last-deploy.json`
+- `~/.vibeage-deploy/previous-deploy.json`
+
+Rollback to the previous successful deploy from this workstation:
+
+```bash
+pnpm run deploy:rollback
+```
+
+Rollback to a specific commit that is reachable from `origin/main`:
+
+```bash
+ROLLBACK_SHA=<git-sha> pnpm run deploy:rollback
+```
+
+The rollback path still uses the local SSH key, still runs the VPS-side health checks, and does not require GitHub repository secrets.
 
 ## One-Time VPS Prep
 
@@ -60,11 +84,14 @@ sudo nginx -t
 
 The current Nginx `vibeage.eu` vhost already serves `/opt/vibeage-frontend/out` and proxies `/socket.io/` plus `/api/` to `localhost:3001`, so deploys do not need to modify Nginx.
 
-## Current Exposure To Close
+## Current Exposure
 
-The production server was observed listening publicly on `0.0.0.0:3001` for the game container. The committed Compose config now binds the game server to `127.0.0.1:3001`, so only Nginx should be public.
+As of 2026-05-07, the production game and database containers bind only to localhost:
 
-The VPS also has public listeners on `2106` and `7777`, likely leftovers from the Lineage experiment. Remove them only after identifying the owning root process with sudo.
+- `127.0.0.1:3001` for the game server;
+- `127.0.0.1:5432` for Postgres.
+
+The old Lineage stream listeners on `2106` and `7777` were disabled, Stalwart's raw `8080` listener was restricted to `127.0.0.1`, and the old WireGuard `wg0` tunnel was stopped, disabled, and removed.
 
 ## Manual Smoke Check
 

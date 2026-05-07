@@ -41,14 +41,30 @@ acquire_lock() {
 }
 
 write_deploy_marker() {
-  local sha
-  sha=$(git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
+  local full_sha
+  local marker_path
+  local short_sha
+  local tmp_path
+
+  full_sha=$(git rev-parse HEAD 2>/dev/null || printf 'unknown')
+  short_sha=$(git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
+  marker_path="$DEPLOY_STATE_DIR/last-deploy.json"
+  tmp_path="$DEPLOY_STATE_DIR/last-deploy.json.tmp"
+
   mkdir -p "$DEPLOY_STATE_DIR"
-  printf '{"app":"%s","sha":"%s","deployedAt":"%s"}\n' \
+
+  if [ -s "$marker_path" ]; then
+    cp "$marker_path" "$DEPLOY_STATE_DIR/previous-deploy.json"
+  fi
+
+  printf '{"app":"%s","sha":"%s","fullSha":"%s","deployedAt":"%s"}\n' \
     "$APP_NAME" \
-    "$sha" \
+    "$short_sha" \
+    "$full_sha" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    > "$DEPLOY_STATE_DIR/last-deploy.json"
+    > "$tmp_path"
+  mv "$tmp_path" "$marker_path"
+  cat "$marker_path" >> "$DEPLOY_STATE_DIR/deploy-history.jsonl"
 }
 
 check_public_game_port() {
