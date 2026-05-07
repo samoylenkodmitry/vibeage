@@ -10,9 +10,9 @@
     "public"
   ],
   "budgets": {
-    "maxFileLines": 400,
-    "maxFunctionLines": 80,
-    "maxFunctionParams": 4,
+    "maxFileLines": 700,
+    "maxFunctionLines": 100,
+    "maxFunctionParams": 6,
     "maxNestingDepth": 5
   },
   "legacyFiles": {

@@ -36,6 +36,11 @@ server/.env.*
 !server/.env.example
 .env*.local
 
+# local/private mail deployment notes and scripts
+/docs/MAIL_DNS_SETUP.md
+/scripts/deploy-mail-server.sh
+/scripts/setup-stalwart-mail.sh
+
 # vercel
 .vercel
 

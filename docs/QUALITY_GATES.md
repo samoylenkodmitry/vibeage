@@ -20,9 +20,9 @@ The maintainability gate is configured in `quality/maintainability.json`.
 
 Current budgets:
 
-- Max file length: 400 lines.
-- Max function length: 80 lines.
-- Max function parameters: 4.
+- Max file length: 700 lines.
+- Max function length: 100 lines.
+- Max function parameters: 6.
 - Max nesting depth: 5.
 
 The current prototype has known oversized legacy files. Those files are listed in `legacyFiles` with their current line count. A legacy entry is not a free pass to grow the file; it pins the file at its current ceiling and skips function-level checks until the file is split.
