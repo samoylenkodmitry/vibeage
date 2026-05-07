@@ -10,6 +10,13 @@
 /playwright-report
 /test-results
 
+# database dumps and local backup output
+/backups
+/.vibeage-backups
+*.dump
+*.dump.sha256
+backup.log
+
 # next.js
 /.next/
 /out/

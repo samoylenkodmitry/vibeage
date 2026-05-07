@@ -69,6 +69,20 @@ ROLLBACK_SHA=<git-sha> pnpm run deploy:rollback
 
 The rollback path still uses the local SSH key, still runs the VPS-side health checks, and does not require GitHub repository secrets.
 
+## Database Backups
+
+Postgres backups are handled by `scripts/backup-postgres.sh` and documented in `docs/POSTGRES_BACKUPS.md`.
+
+Useful commands on the VPS active checkout:
+
+```bash
+pnpm run db:backup
+pnpm run db:restore:test
+pnpm run db:backup:install-cron
+```
+
+Backups live under `/home/s/.vibeage-backups/postgres` by default and are not part of the Git checkout.
+
 ## One-Time VPS Prep
 
 Do this with sudo/root access before enabling any future automation. Preserve the existing mail vhost first.

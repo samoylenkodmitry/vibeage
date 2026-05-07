@@ -25,11 +25,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 2. Use the local deploy path for no-hassle releases: `pnpm run deploy:production`, which runs checks, pushes `main`, SSHes from this workstation, and runs the VPS-side safe deploy script.
 3. Use the local rollback path for bad releases: `pnpm run deploy:rollback` redeploys the previous successful commit from VPS deploy state.
 4. Done on 2026-05-07: closed unnecessary public exposure by disabling the Lineage stream listeners on `2106`/`7777`, restricting raw Stalwart `8080` to localhost, keeping game/Postgres on localhost, removing the old WireGuard `wg0` tunnel, and persisting a default-drop host firewall allow-list.
-5. Next production safety item: add automatic Postgres backups and a tested restore command.
-6. Finish legacy cleanup on the VPS: leave `/home/s/vibeage-deploy/repo` as the active `main` checkout and archive or remove old `/opt/vibeage` and `/opt/vibeage-frontend` leftovers after preserving any useful local notes.
-7. Protect `main` on GitHub once the final deployment model is confirmed.
-8. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
-9. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
+5. Done on 2026-05-07: added automatic Postgres backups and a restore drill command.
+6. Next production safety item: copy backups off the VPS or configure remote backup storage.
+7. Finish legacy cleanup on the VPS: leave `/home/s/vibeage-deploy/repo` as the active `main` checkout and archive or remove old `/opt/vibeage` and `/opt/vibeage-frontend` leftovers after preserving any useful local notes.
+8. Protect `main` on GitHub once the final deployment model is confirmed.
+9. Delete the remote `server` compatibility branch only after no VPS script, cron job, or checkout references it.
+10. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
 ## Target Stack
 
