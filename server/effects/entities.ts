@@ -1,6 +1,6 @@
 import type { SkillDef } from '../../packages/content/skills.js';
 import { VecXZ, InstantHit } from '../../packages/protocol/messages.js';
-import { getDamage, hash } from '../../shared/combatMath';
+import { getDamage, hash } from '../../packages/sim/combatMath.js';
 import { v4 as uuid } from 'uuid';
 import { handleEnemyLoot } from '../lootHandler';
 
