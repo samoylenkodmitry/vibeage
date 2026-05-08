@@ -4,6 +4,7 @@ import { getDamage, hash } from '../../packages/sim/combatMath.js';
 import { v4 as uuid } from 'uuid';
 import { handleEnemyLoot } from '../lootHandler';
 import type { EntityState } from '../gameState.js';
+import type { Enemy, PlayerState } from '../../shared/types.js';
 
 // Represents hit data without using ProjHit2
 export interface HitResult {
@@ -128,7 +129,22 @@ export function distanceXZ(a: VecXZ, b: VecXZ): number {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
-export function applySkillDamage(skill: any, target: any, state: EntityState, precalculatedDmg?: number) {
+type SkillWithCaster = SkillDef & { casterId: string };
+type DamageTarget = Enemy | PlayerState;
+type EnemyWithLootResult = Enemy & {
+  lootResult?: ReturnType<typeof handleEnemyLoot>;
+};
+
+function isEnemyTarget(target: DamageTarget): target is EnemyWithLootResult {
+  return 'experienceValue' in target;
+}
+
+export function applySkillDamage(
+  skill: SkillWithCaster,
+  target: DamageTarget,
+  state: EntityState,
+  precalculatedDmg?: number
+) {
   // Apply all effects from the skill
   const now = Date.now();
   
@@ -140,8 +156,8 @@ export function applySkillDamage(skill: any, target: any, state: EntityState, pr
     // Get damage using the shared damage calculation
     const { dmg } = getDamage({
       caster: state.players[skill.casterId]?.stats || { dmgMult: 1 },
-      skill: { base: skill.effects?.find(e => e.type === 'damage')?.value || skill.dmg || 10, variance: 0.1 },
-      seed: `${skill.id || ''}:${target.id || ''}`
+      skill: { base: skill.effects.find(e => e.type === 'damage')?.value || skill.dmg || 10, variance: 0.1 },
+      seed: `${skill.id}:${target.id}`
     });
     dmgToApply = dmg;
   }
@@ -164,7 +180,7 @@ export function applySkillDamage(skill: any, target: any, state: EntityState, pr
         // If this is an enemy, grant XP to the player who killed it
         if (state.players && skill.casterId) {
           const killer = state.players[skill.casterId];
-          if (killer && target.experienceValue) {
+          if (killer && isEnemyTarget(target) && target.experienceValue) {
             killer.experience += target.experienceValue;
             
             // Check for level up
@@ -199,7 +215,7 @@ export function applySkillDamage(skill: any, target: any, state: EntityState, pr
         sourceSkill: skill.id
       };
       
-      const existingEffectIndex = target.statusEffects.findIndex((e: any) => e.type === effect.type);
+      const existingEffectIndex = target.statusEffects.findIndex(e => e.type === effect.type);
       if (existingEffectIndex >= 0) {
         target.statusEffects[existingEffectIndex] = statusEffect;
       } else {
