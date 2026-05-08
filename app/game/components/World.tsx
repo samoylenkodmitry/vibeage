@@ -5,7 +5,7 @@ import { useRef, memo, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '../systems/gameStore';
-import { GAME_ZONES } from '../../../shared/zoneSystem';
+import { GAME_ZONES } from '../../../packages/content/zones';
 import * as THREE from 'three';
 import Loot from './Loot';
 

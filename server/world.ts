@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { ZoneManager } from '../shared/zoneSystem.js';
+import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
 import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
