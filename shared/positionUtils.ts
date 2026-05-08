@@ -1,13 +1,22 @@
 // filepath: /home/s/develop/projects/vibe/1/shared/positionUtils.ts
 import type { VecXZ } from '../packages/protocol/messages';
 
+export interface PredictableEntity {
+  position?: VecXZ;
+  movement?: {
+    startTime?: number;
+    speed: number;
+    dir?: VecXZ;
+  };
+}
+
 /**
  * Predicts the position of an entity at a given time based on its movement state
  * @param entity The entity with position and movement
  * @param timestamp The time to predict position for
  * @returns The predicted position at the given time
  */
-export function predictPosition(entity: any, timestamp: number): VecXZ {
+export function predictPosition(entity: PredictableEntity | null | undefined, timestamp: number): VecXZ {
   if (!entity || !entity.position) {
     return { x: 0, z: 0 };
   }
