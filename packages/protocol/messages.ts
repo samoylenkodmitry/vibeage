@@ -312,14 +312,6 @@ export const serverMessageSchema = z.union([
   effectSnapshotMsgSchema,
 ]);
 
-export interface ClientMsg {
-  type: string;
-}
-
-export interface ServerMsg {
-  type: string;
-}
-
 export interface VecXZ {
   x: number;
   z: number;
@@ -344,7 +336,7 @@ export interface PlayerMovementState {
   speed: number;
 }
 
-export interface MoveIntent extends ClientMsg {
+export interface MoveIntent {
   type: 'MoveIntent';
   id: string;
   targetPos: VecXZ;
@@ -352,7 +344,7 @@ export interface MoveIntent extends ClientMsg {
   seq?: number;
 }
 
-export interface CastReq extends ClientMsg {
+export interface CastReq {
   type: 'CastReq';
   id: string;
   skillId: SkillId;
@@ -361,45 +353,45 @@ export interface CastReq extends ClientMsg {
   clientTs: number;
 }
 
-export interface LearnSkill extends ClientMsg {
+export interface LearnSkill {
   type: 'LearnSkill';
   skillId: SkillId;
 }
 
-export interface SetSkillShortcut extends ClientMsg {
+export interface SetSkillShortcut {
   type: 'SetSkillShortcut';
   slotIndex: number;
   skillId: SkillId | null;
 }
 
-export interface SelectClass extends ClientMsg {
+export interface SelectClass {
   type: 'SelectClass';
   className: string;
 }
 
-export interface RespawnRequest extends ClientMsg {
+export interface RespawnRequest {
   type: 'RespawnRequest';
   id: string;
   clientTs: number;
 }
 
-export interface LootPickup extends ClientMsg, ServerMsg {
+export interface LootPickup {
   type: 'LootPickup';
   lootId: string;
   playerId: string;
 }
 
-export interface UseItem extends ClientMsg {
+export interface UseItem {
   type: 'UseItem';
   slotIndex: number;
   clientTs: number;
 }
 
-export interface RequestInventory extends ClientMsg {
+export interface RequestInventory {
   type: 'RequestInventory';
 }
 
-export interface PosSnap extends ServerMsg {
+export interface PosSnap {
   type: 'PosSnap';
   id: string;
   pos: VecXZ;
@@ -410,7 +402,7 @@ export interface PosSnap extends ServerMsg {
   predictions?: PredictionKeyframe[];
 }
 
-export interface InstantHit extends ServerMsg {
+export interface InstantHit {
   type: 'InstantHit';
   skillId: string;
   origin: Vec3D;
@@ -419,19 +411,19 @@ export interface InstantHit extends ServerMsg {
   dmg?: number[];
 }
 
-export interface SkillLearned extends ServerMsg {
+export interface SkillLearned {
   type: 'SkillLearned';
   skillId: SkillId;
   remainingPoints: number;
 }
 
-export interface SkillShortcutUpdated extends ServerMsg {
+export interface SkillShortcutUpdated {
   type: 'SkillShortcutUpdated';
   slotIndex: number;
   skillId: SkillId | null;
 }
 
-export interface ClassSelected extends ServerMsg {
+export interface ClassSelected {
   type: 'ClassSelected';
   className: string;
   baseStats: {
@@ -442,25 +434,25 @@ export interface ClassSelected extends ServerMsg {
   };
 }
 
-export interface CastFail extends ServerMsg {
+export interface CastFail {
   type: 'CastFail';
   clientSeq: number;
   reason: 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 }
 
-export interface CastSnapshotMsg extends ServerMsg {
+export interface CastSnapshotMsg {
   type: 'CastSnapshot';
   data: CastSnapshot;
 }
 
-export interface EffectSnapshotTargetMsg extends ServerMsg {
+export interface EffectSnapshotTargetMsg {
   type: 'EffectSnapshot';
   targetId: string;
   effects: StatusEffect[];
   id?: never;
 }
 
-export interface EffectSnapshotSingleMsg extends ServerMsg {
+export interface EffectSnapshotSingleMsg {
   type: 'EffectSnapshot';
   targetId?: never;
   effects?: never;
@@ -474,7 +466,7 @@ export interface EffectSnapshotSingleMsg extends ServerMsg {
 
 export type EffectSnapshotMsg = EffectSnapshotTargetMsg | EffectSnapshotSingleMsg;
 
-export interface CombatLogMsg extends ServerMsg {
+export interface CombatLogMsg {
   type: 'CombatLog';
   castId: string;
   skillId: string;
@@ -483,21 +475,21 @@ export interface CombatLogMsg extends ServerMsg {
   damages: number[];
 }
 
-export interface EnemyAttack extends ServerMsg {
+export interface EnemyAttack {
   type: 'EnemyAttack';
   enemyId: string;
   targetId: string;
   damage: number;
 }
 
-export interface InventoryUpdateMsg extends ServerMsg {
+export interface InventoryUpdateMsg {
   type: 'InventoryUpdate';
   playerId?: string;
   inventory: InventorySlot[];
   maxInventorySlots: number;
 }
 
-export interface LootAcquiredMsg extends ServerMsg {
+export interface LootAcquiredMsg {
   type: 'LootAcquired';
   items: InventorySlot[];
   sourceEnemyName?: string;
@@ -508,7 +500,7 @@ export interface ItemDrop {
   quantity: number;
 }
 
-export interface LootSpawn extends ServerMsg {
+export interface LootSpawn {
   type: 'LootSpawn';
   enemyId: string;
   lootId?: string;
@@ -516,7 +508,7 @@ export interface LootSpawn extends ServerMsg {
   loot: ItemDrop[];
 }
 
-export interface ItemUsed extends ServerMsg {
+export interface ItemUsed {
   type: 'ItemUsed';
   slotIndex: number;
   itemId: ItemId;
@@ -525,7 +517,7 @@ export interface ItemUsed extends ServerMsg {
   manaDelta?: number;
 }
 
-export interface BatchUpdate extends ServerMsg {
+export interface BatchUpdate {
   type: 'BatchUpdate';
   updates: ServerMessage[];
 }
@@ -560,7 +552,7 @@ export type ServerMessage =
   | BatchUpdate;
 
 /** @deprecated Removed in protocol v2 - use CastSnapshot pipeline instead. */
-export interface ProjHit2 extends ServerMsg {
+export interface ProjHit2 {
   type: 'ProjHit2';
   castId: string;
   hitIds: string[];
@@ -569,7 +561,7 @@ export interface ProjHit2 extends ServerMsg {
 }
 
 /** @deprecated Removed in protocol v2 - use CastSnapshot pipeline instead. */
-export interface ProjSpawn2 extends ServerMsg {
+export interface ProjSpawn2 {
   type: 'ProjSpawn2';
   castId: string;
   skillId: string;
