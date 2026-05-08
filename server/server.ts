@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import express from 'express';
 import morgan from 'morgan';
-import { ZoneManager } from '../shared/zoneSystem.js';
+import { ZoneManager } from '../packages/content/zones.js';
 import { initWorld } from './world.js';
 import { sendCastSnapshots } from './combat/skillSystem.js';
 import { RateLimiter } from './utils/rateLimiter.js';
