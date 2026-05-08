@@ -77,6 +77,16 @@ io.on('connection', (socket) => {
   // Get client IP address
   const clientIp = getClientIp(socket.handshake.headers, socket.handshake.address);
 
+  const forwardClientMessage = (message: unknown, source: string) => {
+    const parsed = safeParseClientMessage(message);
+    if (!parsed.success) {
+      console.warn(`Rejected invalid client message from ${socket.id} via ${source}: ${describeProtocolError(parsed.error)}`);
+      return;
+    }
+
+    world.handleMessage(socket, parsed.data);
+  };
+
   // Handle player joining
   socket.on('joinGame', async (data: { playerName: string, clientProtocolVersion?: number }) => {
     // Apply rate limiting
@@ -150,13 +160,7 @@ io.on('connection', (socket) => {
 
   // Handle new message format
   socket.on('msg', (message) => {
-    const parsed = safeParseClientMessage(message);
-    if (!parsed.success) {
-      console.warn(`Rejected invalid client message from ${socket.id}: ${describeProtocolError(parsed.error)}`);
-      return;
-    }
-
-    world.handleMessage(socket, parsed.data);
+    forwardClientMessage(message, 'msg');
   });
 
   // Legacy handlers - keep for backwards compatibility
@@ -164,25 +168,25 @@ io.on('connection', (socket) => {
     console.log('Legacy moveStart received - should use msg type instead');
     // Convert to new format and pass to world
     const m = {
-      type: 'MoveStart',
+      type: 'MoveIntent',
       id: message.id,
-      path: [message.to],
+      targetPos: message.to,
       speed: message.speed,
       clientTs: message.ts
     };
-    world.handleMessage(socket, m);
+    forwardClientMessage(m, 'moveStart');
   });
 
   socket.on('moveStop', (message) => {
-    console.log('Legacy moveStop received - should use MoveSync instead');
+    console.log('Legacy moveStop received - should use MoveIntent instead');
     // Convert to new format and pass to world
     const m = {
-      type: 'MoveSync',
+      type: 'MoveIntent',
       id: message.id,
-      pos: message.pos,
+      targetPos: message.pos,
       clientTs: message.ts
     };
-    world.handleMessage(socket, m);
+    forwardClientMessage(m, 'moveStop');
   });
 
   socket.on('castSkillRequest', (data) => {
@@ -197,7 +201,7 @@ io.on('connection', (socket) => {
       targetId: data.targetId,
       clientTs: Date.now()
     };
-    world.handleMessage(socket, m);
+    forwardClientMessage(m, 'castSkillRequest');
   });
 
   // Handle disconnection

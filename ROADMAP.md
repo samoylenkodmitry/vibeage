@@ -86,6 +86,7 @@ tests/
 - Done on 2026-05-07: moved combat math into `packages/sim`, with `shared/combatMath.ts` kept as a compatibility re-export.
 - Done on 2026-05-08: moved effect definitions into `packages/sim`, with `shared/effectsDefinition.ts` kept as a compatibility re-export.
 - Done on 2026-05-08: moved zone content and lookup helpers into `packages/content`, with `shared/zoneSystem.ts` kept as a compatibility re-export.
+- Done on 2026-05-08: routed server world handling through the validated `ClientMessage` union.
 - Replace loose message interfaces and `[key: string]: any` protocol types with Zod schemas.
 - Define the server-authoritative state model explicitly.
 - Delete legacy projectile/protocol types after the v2 path has tests.

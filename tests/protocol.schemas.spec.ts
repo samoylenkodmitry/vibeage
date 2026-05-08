@@ -31,6 +31,30 @@ describe('client protocol schemas', () => {
       expect(describeProtocolError(parsed.error)).toContain('skillId');
     }
   });
+
+  it('rejects retired legacy movement messages before world handling', () => {
+    const parsed = safeParseClientMessage({
+      type: 'MoveStart',
+      id: 'player-1',
+      path: [{ x: 1, z: 2 }],
+      speed: 5,
+      clientTs: 1746316800000,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts legacy movement converted to current MoveIntent shape', () => {
+    const parsed = safeParseClientMessage({
+      type: 'MoveIntent',
+      id: 'player-1',
+      targetPos: { x: 1, z: 2 },
+      speed: 5,
+      clientTs: 1746316800000,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
 });
 
 describe('server protocol schemas', () => {
