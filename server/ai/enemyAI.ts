@@ -1,14 +1,9 @@
 // server/ai/enemyAI.ts
 import { Server } from 'socket.io';
-import { Enemy, PlayerState } from '../../shared/types.js';
+import { Enemy } from '../../shared/types.js';
 import { VecXZ } from '../../packages/protocol/messages.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
-
-// Minimal GameState interface for this module
-interface GameState {
-    players: Record<string, PlayerState>;
-    enemies: Record<string, Enemy>;
-}
+import type { EntityState } from '../gameState.js';
 
 // Helper: Calculate distance
 function localDistance(a: VecXZ, b: VecXZ): number {
@@ -38,7 +33,7 @@ export function gridCellChanged(oldPos: VecXZ, newPos: VecXZ, cellSize: number =
 
 export function updateEnemyAI(
     enemy: Enemy,
-    gameState: GameState,
+    gameState: EntityState,
     io: Server,
     spatialGrid: SpatialHashGrid,
     deltaTime: number // in seconds

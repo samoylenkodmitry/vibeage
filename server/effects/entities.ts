@@ -3,13 +3,8 @@ import { VecXZ, InstantHit } from '../../packages/protocol/messages.js';
 import { getDamage, hash } from '../../packages/sim/combatMath.js';
 import { v4 as uuid } from 'uuid';
 import { handleEnemyLoot } from '../lootHandler';
-
-// Define a simplified GameState interface for use in this file
-interface GameState {
-  enemies: Record<string, any>;
-  players: Record<string, any>;
-  sockets?: Record<string, any>; // Socket instances mapped by socket ID
-}
+import type { EntityState } from '../gameState.js';
+import type { Enemy, PlayerState } from '../../shared/types.js';
 
 // Represents hit data without using ProjHit2
 export interface HitResult {
@@ -22,7 +17,7 @@ export interface EffectEntity {
   id: string;
   skill: SkillDef;
   done: boolean;
-  update(dt: number, state: GameState): HitResult[] | InstantHit[];
+  update(dt: number, state: EntityState): HitResult[] | InstantHit[];
 }
 
 /* ---- Projectile ---------- */
@@ -36,7 +31,7 @@ export class Projectile implements EffectEntity {
      public casterId: string,
      public targetId?: string)
   {}
-  update(dt: number, state: GameState): HitResult[]{
+  update(dt: number, state: EntityState): HitResult[]{
      if(this.done) return [];
      
      // Use the standardized projectile speed from the skill definition
@@ -87,7 +82,7 @@ export class Instant implements EffectEntity {
               public targetIds: string[],
               public origin: {x: number; y: number; z: number}) {}
   
-  update(dt: number, state: GameState): InstantHit[] {
+  update(dt: number, state: EntityState): InstantHit[] {
      if(this.done) return [];
      this.done = true;
      
@@ -134,7 +129,22 @@ export function distanceXZ(a: VecXZ, b: VecXZ): number {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
-export function applySkillDamage(skill: any, target: any, state: GameState, precalculatedDmg?: number) {
+type SkillWithCaster = SkillDef & { casterId: string };
+type DamageTarget = Enemy | PlayerState;
+type EnemyWithLootResult = Enemy & {
+  lootResult?: ReturnType<typeof handleEnemyLoot>;
+};
+
+function isEnemyTarget(target: DamageTarget): target is EnemyWithLootResult {
+  return 'experienceValue' in target;
+}
+
+export function applySkillDamage(
+  skill: SkillWithCaster,
+  target: DamageTarget,
+  state: EntityState,
+  precalculatedDmg?: number
+) {
   // Apply all effects from the skill
   const now = Date.now();
   
@@ -146,8 +156,8 @@ export function applySkillDamage(skill: any, target: any, state: GameState, prec
     // Get damage using the shared damage calculation
     const { dmg } = getDamage({
       caster: state.players[skill.casterId]?.stats || { dmgMult: 1 },
-      skill: { base: skill.effects?.find(e => e.type === 'damage')?.value || skill.dmg || 10, variance: 0.1 },
-      seed: `${skill.id || ''}:${target.id || ''}`
+      skill: { base: skill.effects.find(e => e.type === 'damage')?.value || skill.dmg || 10, variance: 0.1 },
+      seed: `${skill.id}:${target.id}`
     });
     dmgToApply = dmg;
   }
@@ -170,7 +180,7 @@ export function applySkillDamage(skill: any, target: any, state: GameState, prec
         // If this is an enemy, grant XP to the player who killed it
         if (state.players && skill.casterId) {
           const killer = state.players[skill.casterId];
-          if (killer && target.experienceValue) {
+          if (killer && isEnemyTarget(target) && target.experienceValue) {
             killer.experience += target.experienceValue;
             
             // Check for level up
@@ -205,7 +215,7 @@ export function applySkillDamage(skill: any, target: any, state: GameState, prec
         sourceSkill: skill.id
       };
       
-      const existingEffectIndex = target.statusEffects.findIndex((e: any) => e.type === effect.type);
+      const existingEffectIndex = target.statusEffects.findIndex(e => e.type === effect.type);
       if (existingEffectIndex >= 0) {
         target.statusEffects[existingEffectIndex] = statusEffect;
       } else {

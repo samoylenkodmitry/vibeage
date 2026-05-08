@@ -1,14 +1,12 @@
 import { EffectEntity, Projectile, Instant } from './entities';
 import { SKILLS, SkillId } from '../../packages/content/skills.js';
+import type { VecXZ } from '../../packages/protocol/messages.js';
+import type { PlayerState } from '../../shared/types.js';
+import type { GameState } from '../gameState.js';
 
 import { Server } from 'socket.io';
 
-// Define a simplified GameState interface to match our usage
-interface GameState {
-  enemies: Record<string, any>;
-  players: Record<string, any>;
-  [key: string]: any;
-}
+type EffectDirection = VecXZ & { y: number };
 
 export class EffectManager {
   private effects: Record<string, EffectEntity> = {};
@@ -18,7 +16,12 @@ export class EffectManager {
     private state: GameState
   ) {}
   
-  spawnProjectile(skillId: SkillId, caster, dir, targetId?) {
+  spawnProjectile(
+    skillId: SkillId,
+    caster: PlayerState,
+    dir: EffectDirection,
+    targetId?: string
+  ) {
       const skill = SKILLS[skillId];
       if (!skill) return null;
       
@@ -29,7 +32,7 @@ export class EffectManager {
       return p.id;
   }
   
-  spawnInstant(skillId: SkillId, caster, targetIds) {
+  spawnInstant(skillId: SkillId, caster: PlayerState, targetIds: string[]) {
       const skill = SKILLS[skillId];
       if (!skill) return null;
       
@@ -38,7 +41,7 @@ export class EffectManager {
       return inst.id;
   }
   
-  updateAll(dt) {
+  updateAll(dt: number) {
       const updatedEnemies = new Set<string>();
       const updatedPlayers = new Set<string>();
       
