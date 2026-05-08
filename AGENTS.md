@@ -42,7 +42,7 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 
 - `packages/content/skills.ts`: current skill content.
 - `packages/content/items.ts`: current item content.
-- `shared/combatMath.ts`: reusable combat math.
+- `packages/sim/combatMath.ts`: reusable combat math.
 - `packages/protocol/messages.ts`: current protocol schemas and types.
 - `server/world.ts`: current authoritative loop; do not grow this file except for targeted fixes.
 - `server/combat/skillSystem.ts`: current cast/combat flow.
@@ -56,6 +56,7 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - Prefer shared pure functions for simulation logic. They should be testable with Vitest and no browser.
 - Keep new files and functions inside `quality/maintainability.json` budgets. Only add a legacy exception when documenting an existing cleanup target.
 - Import skill and item content from `packages/content`; `shared/skillsDefinition.ts` and `shared/items.ts` are compatibility re-exports only.
+- Import combat math from `packages/sim`; `shared/combatMath.ts` is a compatibility re-export only.
 - Prefer runtime-validated protocol schemas over ad hoc TypeScript interfaces.
 - When changing protocol messages, update server handling, client handling, and tests in the same change.
 - When touching movement, combat, loot, or inventory, run `pnpm test` and `pnpm run build:server`.

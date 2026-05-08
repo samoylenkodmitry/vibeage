@@ -8,7 +8,7 @@ import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
-import { hash, rng } from '../shared/combatMath.js';
+import { hash, rng } from '../packages/sim/combatMath.js';
 import { CM_PER_UNIT} from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';

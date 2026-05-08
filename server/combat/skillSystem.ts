@@ -4,7 +4,7 @@ import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messa
 import { CastSnapshot, Enemy } from '../../shared/types.js';
 import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';
-import { getDamage } from '../../shared/combatMath.js';
+import { getDamage } from '../../packages/sim/combatMath.js';
 import { sweptHit } from '../collision.js';
 
 // Set of constants for skill system
