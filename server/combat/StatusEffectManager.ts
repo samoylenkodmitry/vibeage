@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { PlayerState, Enemy, StatusEffect as ActiveStatusEffectShared } from '../../shared/types';
-import { EFFECTS, EffectDef, EffectTick, EffectId } from '../../shared/effectsDefinition';
+import { EFFECTS, EffectDef, EffectTick, EffectId } from '../../packages/sim/effects.js';
 import { applyEffectTick } from './effects/EffectApplicator';
 import { log, LOG_CATEGORIES } from '../logger'; // Adjust path if logger is elsewhere
 
