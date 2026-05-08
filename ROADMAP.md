@@ -84,7 +84,8 @@ tests/
 
 - Done on 2026-05-07: moved skill and item content into `packages/content`, with `shared/skillsDefinition.ts` and `shared/items.ts` kept as compatibility re-exports.
 - Done on 2026-05-07: moved combat math into `packages/sim`, with `shared/combatMath.ts` kept as a compatibility re-export.
-- Move effects and zones into small shared packages.
+- Done on 2026-05-08: moved effect definitions into `packages/sim`, with `shared/effectsDefinition.ts` kept as a compatibility re-export.
+- Move zones into a small shared package.
 - Replace loose message interfaces and `[key: string]: any` protocol types with Zod schemas.
 - Define the server-authoritative state model explicitly.
 - Delete legacy projectile/protocol types after the v2 path has tests.
