@@ -2,8 +2,8 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
 import { SkillType, Projectile } from './types.js';
-import { ClientMsg, CastReq, VecXZ, LearnSkill, SetSkillShortcut, MoveIntent, RespawnRequest, 
-         PosSnap, ItemDrop, PredictionKeyframe, UseItem, LootPickup } from '../packages/protocol/messages.js';
+import { CastReq, ClientMessage, MoveIntent, RespawnRequest, VecXZ, PosSnap,
+         ItemDrop, PredictionKeyframe, UseItem } from '../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
@@ -722,16 +722,16 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   
   // Create the world API
   const api = {
-    handleMessage(socket: Socket, msg: ClientMsg) {
+    handleMessage(socket: Socket, msg: ClientMessage) {
       switch (msg.type) {
-        case 'MoveIntent': return onMoveIntent(socket, state, msg as MoveIntent);
-        case 'CastReq': return onCastReq(socket, state, msg as CastReq, io);
-        case 'LearnSkill': return onLearnSkill(socket, state, msg as LearnSkill);
-        case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg as SetSkillShortcut);
-        case 'RespawnRequest': return onRespawnRequest(socket, state, msg as RespawnRequest, io);
-        case 'UseItem': return onUseItem(socket, state, msg as UseItem, io);
+        case 'MoveIntent': return onMoveIntent(socket, state, msg);
+        case 'CastReq': return onCastReq(socket, state, msg, io);
+        case 'LearnSkill': return onLearnSkill(socket, state, msg);
+        case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg);
+        case 'RespawnRequest': return onRespawnRequest(socket, state, msg, io);
+        case 'UseItem': return onUseItem(socket, state, msg, io);
         case 'LootPickup': {
-          const lootMsg = msg as LootPickup;
+          const lootMsg = msg;
           console.log(`[LootPickup] Received pickup request: lootId=${lootMsg.lootId}, playerId=${lootMsg.playerId}`);
           console.log(`[LootPickup] Player exists: ${!!state.players[lootMsg.playerId]}`);
           console.log(`[LootPickup] Socket ID matches: ${state.players[lootMsg.playerId]?.socketId === socket.id}`);

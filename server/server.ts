@@ -77,6 +77,16 @@ io.on('connection', (socket) => {
   // Get client IP address
   const clientIp = getClientIp(socket.handshake.headers, socket.handshake.address);
 
+  const forwardClientMessage = (message: unknown, source: string) => {
+    const parsed = safeParseClientMessage(message);
+    if (!parsed.success) {
+      console.warn(`Rejected invalid client message from ${socket.id} via ${source}: ${describeProtocolError(parsed.error)}`);
+      return;
+    }
+
+    world.handleMessage(socket, parsed.data);
+  };
+
   // Handle player joining
   socket.on('joinGame', async (data: { playerName: string, clientProtocolVersion?: number }) => {
     // Apply rate limiting
@@ -150,13 +160,7 @@ io.on('connection', (socket) => {
 
   // Handle new message format
   socket.on('msg', (message) => {
-    const parsed = safeParseClientMessage(message);
-    if (!parsed.success) {
-      console.warn(`Rejected invalid client message from ${socket.id}: ${describeProtocolError(parsed.error)}`);
-      return;
-    }
-
-    world.handleMessage(socket, parsed.data);
+    forwardClientMessage(message, 'msg');
   });
 
   // Legacy handlers - keep for backwards compatibility
@@ -170,7 +174,7 @@ io.on('connection', (socket) => {
       speed: message.speed,
       clientTs: message.ts
     };
-    world.handleMessage(socket, m);
+    forwardClientMessage(m, 'moveStart');
   });
 
   socket.on('moveStop', (message) => {
@@ -182,7 +186,7 @@ io.on('connection', (socket) => {
       pos: message.pos,
       clientTs: message.ts
     };
-    world.handleMessage(socket, m);
+    forwardClientMessage(m, 'moveStop');
   });
 
   socket.on('castSkillRequest', (data) => {
@@ -197,7 +201,7 @@ io.on('connection', (socket) => {
       targetId: data.targetId,
       clientTs: Date.now()
     };
-    world.handleMessage(socket, m);
+    forwardClientMessage(m, 'castSkillRequest');
   });
 
   // Handle disconnection

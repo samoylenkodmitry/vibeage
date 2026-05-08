@@ -31,6 +31,18 @@ describe('client protocol schemas', () => {
       expect(describeProtocolError(parsed.error)).toContain('skillId');
     }
   });
+
+  it('rejects retired legacy movement messages before world handling', () => {
+    const parsed = safeParseClientMessage({
+      type: 'MoveStart',
+      id: 'player-1',
+      path: [{ x: 1, z: 2 }],
+      speed: 5,
+      clientTs: 1746316800000,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
 });
 
 describe('server protocol schemas', () => {
