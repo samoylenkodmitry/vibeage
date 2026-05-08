@@ -44,25 +44,6 @@ export interface Enemy {
     velocity?: { x: number; z: number }; // Similar to player velocity
 }
 
-// Intent-based movement messages
-// These have been moved to packages/protocol/messages.ts
-// Only keeping old interface definitions for backward compatibility during migration
-export interface MoveStartMsg {
-    type: 'moveStart';
-    id: string;            // playerId
-    from: VecXZ;           // current server-accepted pos (xz only)
-    to: VecXZ;             // destination clicked on ground
-    speed: number;         // client's intended speed (u/s)
-    ts: number;            // client epoch ms when click happened
-}
-
-export interface MoveStopMsg {
-    type: 'moveStop';
-    id: string;
-    pos: VecXZ;            // here the client thinks he stopped
-    ts: number;
-}
-
 // Update PlayerState with optional movement field and class data
 export interface PlayerState {
     id: string;
