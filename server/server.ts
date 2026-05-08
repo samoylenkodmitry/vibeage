@@ -168,9 +168,9 @@ io.on('connection', (socket) => {
     console.log('Legacy moveStart received - should use msg type instead');
     // Convert to new format and pass to world
     const m = {
-      type: 'MoveStart',
+      type: 'MoveIntent',
       id: message.id,
-      path: [message.to],
+      targetPos: message.to,
       speed: message.speed,
       clientTs: message.ts
     };
@@ -178,12 +178,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('moveStop', (message) => {
-    console.log('Legacy moveStop received - should use MoveSync instead');
+    console.log('Legacy moveStop received - should use MoveIntent instead');
     // Convert to new format and pass to world
     const m = {
-      type: 'MoveSync',
+      type: 'MoveIntent',
       id: message.id,
-      pos: message.pos,
+      targetPos: message.pos,
       clientTs: message.ts
     };
     forwardClientMessage(m, 'moveStop');

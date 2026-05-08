@@ -43,6 +43,18 @@ describe('client protocol schemas', () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it('accepts legacy movement converted to current MoveIntent shape', () => {
+    const parsed = safeParseClientMessage({
+      type: 'MoveIntent',
+      id: 'player-1',
+      targetPos: { x: 1, z: 2 },
+      speed: 5,
+      clientTs: 1746316800000,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
 });
 
 describe('server protocol schemas', () => {
