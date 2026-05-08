@@ -89,6 +89,7 @@ tests/
 - Done on 2026-05-08: routed server world handling through the validated `ClientMessage` union.
 - Done on 2026-05-08: introduced a shared server `GameState` type for the world/effects/AI path.
 - Done on 2026-05-08: removed loose `ClientMsg` and `ServerMsg` protocol base interfaces.
+- Done on 2026-05-08: removed unused legacy `MoveStartMsg` and `MoveStopMsg` compatibility interfaces.
 - Replace loose message interfaces and `[key: string]: any` protocol types with Zod schemas.
 - Define the server-authoritative state model explicitly.
 - Delete legacy projectile/protocol types after the v2 path has tests.
