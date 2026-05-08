@@ -3,13 +3,7 @@ import { VecXZ, InstantHit } from '../../packages/protocol/messages.js';
 import { getDamage, hash } from '../../packages/sim/combatMath.js';
 import { v4 as uuid } from 'uuid';
 import { handleEnemyLoot } from '../lootHandler';
-
-// Define a simplified GameState interface for use in this file
-interface GameState {
-  enemies: Record<string, any>;
-  players: Record<string, any>;
-  sockets?: Record<string, any>; // Socket instances mapped by socket ID
-}
+import type { EntityState } from '../gameState.js';
 
 // Represents hit data without using ProjHit2
 export interface HitResult {
@@ -22,7 +16,7 @@ export interface EffectEntity {
   id: string;
   skill: SkillDef;
   done: boolean;
-  update(dt: number, state: GameState): HitResult[] | InstantHit[];
+  update(dt: number, state: EntityState): HitResult[] | InstantHit[];
 }
 
 /* ---- Projectile ---------- */
@@ -36,7 +30,7 @@ export class Projectile implements EffectEntity {
      public casterId: string,
      public targetId?: string)
   {}
-  update(dt: number, state: GameState): HitResult[]{
+  update(dt: number, state: EntityState): HitResult[]{
      if(this.done) return [];
      
      // Use the standardized projectile speed from the skill definition
@@ -87,7 +81,7 @@ export class Instant implements EffectEntity {
               public targetIds: string[],
               public origin: {x: number; y: number; z: number}) {}
   
-  update(dt: number, state: GameState): InstantHit[] {
+  update(dt: number, state: EntityState): InstantHit[] {
      if(this.done) return [];
      this.done = true;
      
@@ -134,7 +128,7 @@ export function distanceXZ(a: VecXZ, b: VecXZ): number {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
-export function applySkillDamage(skill: any, target: any, state: GameState, precalculatedDmg?: number) {
+export function applySkillDamage(skill: any, target: any, state: EntityState, precalculatedDmg?: number) {
   // Apply all effects from the skill
   const now = Date.now();
   

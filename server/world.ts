@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
-import { SkillType, Projectile } from './types.js';
+import { SkillType } from './types.js';
 import { CastReq, ClientMessage, MoveIntent, RespawnRequest, VecXZ, PosSnap,
          ItemDrop, PredictionKeyframe, UseItem } from '../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
@@ -17,21 +17,11 @@ import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
 import { ITEMS } from '../packages/content/items.js';
 import { persistPlayer, recordServerEvent } from './persistence.js';
+import type { GameState } from './gameState.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
 const PREDICTION_TICK_OFFSETS = [TICK_MS, TICK_MS * 2]; // Default prediction offsets
-
-/**
- * Defines the GameState interface
- */
-interface GameState {
-  players: Record<string, PlayerState>;
-  enemies: Record<string, Enemy>;
-  projectiles: Projectile[];
-  lastProjectileId: number;
-  groundLoot: Record<string, { position: VecXZ, items: ItemDrop[] }>;
-}
 
 /**
  * Calculates the distance between two positions
