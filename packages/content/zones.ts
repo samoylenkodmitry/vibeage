@@ -21,7 +21,7 @@ export interface MobSpawnConfig {
 }
 
 export class ZoneManager {
-    getZoneAtPosition(position: { x: number; y: number; z: number }): Zone | null {
+    getZoneAtPosition(position: { x: number; z: number; y?: number }): Zone | null {
         for (const zone of GAME_ZONES) {
             const dx = position.x - zone.position.x;
             const dz = position.z - zone.position.z;

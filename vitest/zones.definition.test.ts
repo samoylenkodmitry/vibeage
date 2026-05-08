@@ -9,8 +9,8 @@ describe('zone definitions', () => {
   it('finds a zone by position', () => {
     const zones = new ZoneManager();
 
-    expect(zones.getZoneAtPosition({ x: 0, y: 0, z: 0 })?.id).toBe('starter_meadow');
-    expect(zones.getZoneAtPosition({ x: 10000, y: 0, z: 10000 })).toBeNull();
+    expect(zones.getZoneAtPosition({ x: 0, z: 0 })?.id).toBe('starter_meadow');
+    expect(zones.getZoneAtPosition({ x: 10000, z: 10000 })).toBeNull();
   });
 
   it('returns spawn counts inside each configured range', () => {
