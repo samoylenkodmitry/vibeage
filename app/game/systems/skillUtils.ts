@@ -11,7 +11,7 @@ import { SKILLS, SkillId } from '../models/Skill';
  * @param skillId - A potential skill ID that needs validation
  * @returns A valid SkillId or null if invalid
  */
-export function validateSkillId(skillId: any): SkillId | null {
+export function validateSkillId(skillId: unknown): SkillId | null {
   if (!skillId) return null;
   
   // If it's already a valid skill ID
@@ -40,7 +40,7 @@ export function validateSkillId(skillId: any): SkillId | null {
  * @param skillId - The ID of the skill
  * @returns Path to the skill icon
  */
-function getSkillIconPath(skillId: string) {
+function getSkillIconPath(skillId: SkillId): string {
   // Special cases
   if (skillId === 'iceBolt') return '/game/skills/skill_icebolt.png';
   if (skillId === 'waterSplash') return '/game/skills/skill_water.png';
