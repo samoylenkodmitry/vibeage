@@ -3,6 +3,7 @@ import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastReq, CastFail, VecXZ } from '../../packages/protocol/messages.js';
 import { Enemy, PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
+import type { ActiveCastStore } from './skillSystem.js';
 import { canCast } from './utils/cast.js';
 
 /**
@@ -24,7 +25,8 @@ export function handleCastReq(
   player: PlayerState,
   msg: CastReq,
   io: Server,
-  world: World
+  world: World,
+  activeCasts: ActiveCastStore
 ): void {
   const playerId = msg.id;
   
@@ -85,6 +87,7 @@ export function handleCastReq(
   
   // Create a cast using the server authoritative skill system
   const castResult = handleCastRequest(
+    activeCasts,
     player,
     playerId,
     skillId,

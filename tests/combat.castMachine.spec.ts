@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
 import { PlayerState } from '../shared/types';
+import type { ActiveCastStore } from '../server/combat/skillSystem';
 
 type SkillSystem = typeof import('../server/combat/skillSystem');
 
@@ -45,6 +46,7 @@ const makeEnemy = () => ({
 
 describe('Cast State Machine', () => {
   let skillSystem: SkillSystem;
+  let activeCasts: ActiveCastStore;
   let emit: ReturnType<typeof vi.fn>;
   let io: Server;
   let player: PlayerState;
@@ -62,6 +64,7 @@ describe('Cast State Machine', () => {
     vi.setSystemTime(new Date('2025-05-04T00:00:00.000Z'));
 
     skillSystem = await import('../server/combat/skillSystem');
+    activeCasts = skillSystem.createActiveCastStore();
     emit = vi.fn();
     io = { emit } as unknown as Server;
     player = makePlayer();
@@ -76,6 +79,7 @@ describe('Cast State Machine', () => {
 
   it('transitions projectile casts from Casting to Traveling with CastSnapshot messages', () => {
     const castId = skillSystem.handleCastRequest(
+      activeCasts,
       player,
       player.id,
       'fireball',
@@ -87,9 +91,9 @@ describe('Cast State Machine', () => {
 
     expect(typeof castId).toBe('string');
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
-    skillSystem.tickCasts(100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, io, world);
 
-    const cast = skillSystem.getCastById(castId as string);
+    const cast = skillSystem.getCastById(activeCasts, castId as string);
     expect(cast?.state).toBe(CastState.Traveling);
     expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
       type: 'CastSnapshot',
@@ -103,6 +107,7 @@ describe('Cast State Machine', () => {
 
   it('resolves projectile impact through v2 snapshots and combat log messages', () => {
     const castId = skillSystem.handleCastRequest(
+      activeCasts,
       player,
       player.id,
       'fireball',
@@ -113,11 +118,11 @@ describe('Cast State Machine', () => {
     ) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
-    skillSystem.tickCasts(100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, io, world);
     vi.advanceTimersByTime(100);
-    skillSystem.tickCasts(100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, io, world);
 
-    const cast = skillSystem.getCastById(castId);
+    const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
     expect(enemy.health).toBeLessThan(enemy.maxHealth);
     expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
@@ -138,6 +143,7 @@ describe('Cast State Machine', () => {
   it('resolves instant skills without a Traveling state', () => {
     const skillId: SkillId = 'petrify';
     const castId = skillSystem.handleCastRequest(
+      activeCasts,
       player,
       player.id,
       skillId,
@@ -148,9 +154,9 @@ describe('Cast State Machine', () => {
     ) as string;
 
     vi.advanceTimersByTime(SKILLS[skillId].castMs);
-    skillSystem.tickCasts(100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, io, world);
 
-    const cast = skillSystem.getCastById(castId);
+    const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
     expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
       type: 'CastSnapshot',
@@ -168,6 +174,7 @@ describe('Cast State Machine', () => {
 
   it('keeps casts in Casting while cast time is incomplete', () => {
     const castId = skillSystem.handleCastRequest(
+      activeCasts,
       player,
       player.id,
       'fireball',
@@ -178,9 +185,9 @@ describe('Cast State Machine', () => {
     ) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs - 1);
-    skillSystem.tickCasts(100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, io, world);
 
-    const cast = skillSystem.getCastById(castId);
+    const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Casting);
   });
 });

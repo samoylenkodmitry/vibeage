@@ -41,8 +41,11 @@ export interface Cast {
   speed?: number; // Projectile speed
 }
 
-// Collection of active casts
-const activeCasts: Cast[] = [];
+export type ActiveCastStore = Record<string, Cast>;
+
+export function createActiveCastStore(): ActiveCastStore {
+  return {};
+}
 
 /**
  * Calculate damage for a skill based on the skill and caster stats
@@ -265,6 +268,7 @@ function reachedTarget(cast: Cast): boolean {
  * Handle a new cast request from a player
  */
 export function handleCastRequest(
+  activeCasts: ActiveCastStore,
   player: Player, 
   casterId: string,
   skillId: SkillId,
@@ -334,8 +338,8 @@ export function handleCastRequest(
   }
   
   // Add to active casts
-  activeCasts.push(newCast);
-  console.log(`[handleCastRequest] Added to activeCasts. Total active casts: ${activeCasts.length}`);
+  activeCasts[newCast.castId] = newCast;
+  console.log(`[handleCastRequest] Added to activeCasts. Total active casts: ${Object.keys(activeCasts).length}`);
   
   // Broadcast initial cast snapshot
   const snapshot = makeSnapshot(newCast);
@@ -368,26 +372,26 @@ export function handleCastRequest(
 /**
  * Get an existing cast by ID
  */
-export function getCastById(castId: string): Cast | undefined {
-  return activeCasts.find(cast => cast.castId === castId);
+export function getCastById(activeCasts: ActiveCastStore, castId: string): Cast | undefined {
+  return activeCasts[castId];
 }
 
 /**
  * Updates and progresses active casts, transitions them between states
  * Fully implemented server-authoritative state machine
  */
-export function tickCasts(dt: number, io: Server, world: World): void {
+export function tickCasts(activeCasts: ActiveCastStore, dt: number, io: Server, world: World): void {
   const now = Date.now();
   const lastTickMs = now - dt;
   
-  for (let i = activeCasts.length - 1; i >= 0; i--) {
-    const cast = activeCasts[i];
+  for (const castId of Object.keys(activeCasts)) {
+    const cast = activeCasts[castId];
     
     // Skip casts that are already in their final state and remove after delay
     if (cast.state === CastStateEnum.Impact) {
       // Remove completed casts
       console.log(`[tickCasts] Removing completed cast: castId=${cast.castId}, skillId=${cast.skillId}`);
-      activeCasts.splice(i, 1);
+      delete activeCasts[castId];
       continue;
     }
     
@@ -555,9 +559,9 @@ export function tickCasts(dt: number, io: Server, world: World): void {
  * Send snapshots of all active casts to a new client
  * @param client - Socket.IO socket or server instance to send snapshots to
  */
-export function sendCastSnapshots(client: any): void {
+export function sendCastSnapshots(activeCasts: ActiveCastStore, client: any): void {
   // Send all active casts to the client
-  for (const cast of activeCasts) {
+  for (const cast of Object.values(activeCasts)) {
     client.emit('msg', {
       type: 'CastSnapshot',
       data: makeSnapshot(cast)
@@ -568,15 +572,15 @@ export function sendCastSnapshots(client: any): void {
 /**
  * Cancel an active cast
  */
-export function cancelCast(casterId: string, skillId?: SkillId): boolean {
-  const index = activeCasts.findIndex(cast => 
-    cast.casterId === casterId && 
+export function cancelCast(activeCasts: ActiveCastStore, casterId: string, skillId?: SkillId): boolean {
+  const cast = Object.values(activeCasts).find(cast =>
+    cast.casterId === casterId &&
     (skillId ? cast.skillId === skillId : true) &&
     cast.state === CastStateEnum.Casting // Can only cancel during casting
   );
-  
-  if (index >= 0) {
-    activeCasts.splice(index, 1);
+
+  if (cast) {
+    delete activeCasts[cast.castId];
     return true;
   }
   
@@ -586,6 +590,6 @@ export function cancelCast(casterId: string, skillId?: SkillId): boolean {
 /**
  * Get all active casts
  */
-export function getActiveCasts(): Cast[] {
-  return [...activeCasts];
+export function getActiveCasts(activeCasts: ActiveCastStore): Cast[] {
+  return Object.values(activeCasts);
 }

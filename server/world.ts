@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
-import { Enemy, PlayerState, InventorySlot } from '../shared/types.js';
+import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType } from './types.js';
 import { CastReq, ClientMessage, MoveIntent, RespawnRequest, VecXZ, PosSnap,
          ItemDrop, PredictionKeyframe, UseItem } from '../packages/protocol/messages.js';
@@ -13,7 +13,7 @@ import { CM_PER_UNIT} from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
-import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
+import { addGroundLoot, spawnLootForEnemyDeath, tryGiveLoot } from './loot/groundLoot.js';
 import { db } from './db.js';
 import { ITEMS } from '../packages/content/items.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent } from './persistence.js';
@@ -471,7 +471,7 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq, ioServer: Ser
   };
   
   // Delegate to the server-authoritative castHandler
-  handleCastReq(socket, player, msg, ioServer, world);
+  handleCastReq(socket, player, msg, ioServer, world, state.activeCasts);
 }
 
 /**
@@ -666,7 +666,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
       getEntitiesInCircle: (pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius),
       onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => onTargetDied(caster, target, io)
     };
-    tickCasts(TICK, io, world);
+    tickCasts(state.activeCasts, TICK, io, world);
     
     // Step : Generate and broadcast position updates at the target rate
     snapAccumulator += 1;
@@ -772,109 +772,11 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Loot management methods
     addGroundLoot(enemyId: string, loot: ItemDrop[]) {
-      if (!loot.length) return;
-      
-      // Get the position of the enemy
-      const enemy = state.enemies[enemyId];
-      if (!enemy) return;
-      
-      // Create a unique ID for this loot pile
-      const lootId = `loot-${enemyId}-${Date.now()}`;
-      
-      // Add loot to the ground at enemy position
-      state.groundLoot[lootId] = {
-        position: { x: enemy.position.x, z: enemy.position.z },
-        items: loot
-      };
-      
-      console.log(`Added ground loot ${lootId} at position ${JSON.stringify({ x: enemy.position.x, z: enemy.position.z })}`);
-      
-      return lootId;
+      return addGroundLoot(state, enemyId, loot);
     },
     
     tryGiveLoot(playerId: string, lootId: string) {
-      // --- START ADDED LOGGING ---
-      console.log(`[tryGiveLoot] Attempting to find lootId: "${lootId}" for player: ${playerId}`);
-      console.log(`[tryGiveLoot] Current groundLoot keys: ${JSON.stringify(Object.keys(state.groundLoot))}`);
-      // Log a few actual keys and their values for comparison if the list is small
-      if (Object.keys(state.groundLoot).length < 10) {
-          console.log(`[tryGiveLoot] Current groundLoot content: ${JSON.stringify(state.groundLoot)}`);
-      }
-      // --- END ADDED LOGGING ---
-      
-      // Check if player and loot exist
-      const player = state.players[playerId];
-      const loot = state.groundLoot[lootId];
-      
-      if (!player) {
-        console.error(`[LootPickup] Player ${playerId} not found`);
-        return false;
-      }
-      
-      if (!loot) {
-        console.error(`[LootPickup] Loot "${lootId}" not found in state.groundLoot.`);
-        return false;
-      }
-      
-      console.log(`[LootPickup] Player ${playerId} picking up loot ${lootId}`);
-      
-      // Check distance between player and loot (server-side validation)
-      const PICKUP_DISTANCE = 3.0; // Maximum pickup distance in world units
-      const playerPos = player.position;
-      const lootPos = loot.position;
-      const distance = Math.sqrt(
-        Math.pow(playerPos.x - lootPos.x, 2) + 
-        Math.pow(playerPos.z - lootPos.z, 2)
-      );
-      
-      if (distance > PICKUP_DISTANCE) {
-        console.log(`[LootPickup] Player ${playerId} too far from loot ${lootId}. Distance: ${distance.toFixed(2)}, Max: ${PICKUP_DISTANCE}`);
-        return false; // Reject pickup attempt
-      }
-      
-      console.log(`[LootPickup] Distance check passed. Distance: ${distance.toFixed(2)}`);
-      
-      // Convert ItemDrop[] to InventorySlot[] format
-      const items: InventorySlot[] = loot.items.map(item => ({
-        itemId: item.itemId,
-        quantity: item.quantity
-      }));
-      
-      // Add items to player's inventory with stacking
-      for (const item of items) {
-        // Check if the player already has this item type in their inventory
-        const existingItemIndex = player.inventory.findIndex(inv => inv.itemId === item.itemId);
-        
-        if (existingItemIndex !== -1) {
-          // Item exists, stack with existing item
-          player.inventory[existingItemIndex].quantity += item.quantity;
-        } else {
-          // Item doesn't exist, add as new item
-          player.inventory.push(item);
-        }
-      }
-      
-      // Remove the loot from the ground
-      delete state.groundLoot[lootId];
-      
-      // Broadcast to all clients that the loot was picked up
-      io.emit('msg', { 
-        type: 'LootPickup', 
-        lootId, 
-        playerId 
-      });
-      
-      // Also send a LootAcquired message to inform the player about what they picked up
-      const lootNames = items.map(item => `${item.quantity}x ${item.itemId}`).join(', ');
-      io.to(player.socketId).emit('msg', {
-        type: 'LootAcquired',
-        items: items,
-        sourceEnemyName: lootId.split('-')[1] // Extract enemy type from lootId
-      });
-      
-      console.log(`[LootPickup] Sent loot acquired notification: ${lootNames}`);
-      
-      return true;
+      return tryGiveLoot(state, io, playerId, lootId);
     },
     
     async addPlayer(socketId: string, name: string) {
@@ -1110,38 +1012,8 @@ function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Serv
         const xpAmount = target.baseExperienceValue;
         awardPlayerXP(caster, xpAmount, `killing ${target.name}`, io);
         
-        // Generate loot for the killed enemy
-        if ('lootTableId' in target && target.lootTableId) {
-          const enemyTarget = target as Enemy;
-          // Use the imported function that expects an Enemy object
-          const loot = generateLootFromEnemy(enemyTarget);
-          if (loot.length) {
-            // Create a unique loot ID
-            const lootId = `loot-${target.id}-${Date.now()}`;
-            
-            // Enemy position
-            const enemyPos = { x: enemyTarget.position.x, z: enemyTarget.position.z };
-            
-            // Access the global state variable to add loot
-            if (globalState) {
-              globalState.groundLoot[lootId] = {
-                position: enemyPos,
-                items: loot
-              };
-              console.log(`Added ground loot ${lootId} at position ${JSON.stringify(enemyPos)} to game state.`);
-            }
-            
-            // Always broadcast the loot spawn to clients
-            io.emit('msg', { 
-              type: 'LootSpawn', 
-              enemyId: target.id,
-              lootId,
-              position: enemyPos,
-              loot 
-            });
-            
-            console.log(`Sent loot spawn broadcast for ${lootId} with ${loot.length} items`);
-          }
+        if ('lootTableId' in target && target.lootTableId && globalState) {
+          spawnLootForEnemyDeath(globalState, io, target as Enemy);
         }
       }
     }
