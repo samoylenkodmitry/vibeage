@@ -33,6 +33,19 @@ const controls = [
   { name: 'petrify', keys: ['Digit4', 'KeyF'] },
 ];
 
+function canCreateWebGLContext() {
+  if (typeof document === 'undefined') {
+    return true;
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
 function CameraFollowPlayer() {
   const myId = useGameStore(s => s.myPlayerId);
   const controlledPlayerRenderPos = useGameStore(s => s.controlledPlayerRenderPosition); // Get the render position
@@ -102,14 +115,19 @@ function CameraFollowPlayer() {
 export default function Game() {
   const [isGameStarted, setGameStarted] = useState(false);
   const [playerName, setPlayerName] = useState('');
+  const [startError, setStartError] = useState<string | null>(null);
+  const myPlayerId = useGameStore(state => state.myPlayerId);
   const isConnected = useGameStore(state => state.isConnected);
   const socket = useGameStore(state => state.socket);
   const hasJoinedGame = useGameStore(state => state.hasJoinedGame);
+  const connectionError = useGameStore(state => state.connectionError);
   const setHasJoinedGame = useGameStore(state => state.setHasJoinedGame);
+  const setConnectionError = useGameStore(state => state.setConnectionError);
 
   useEffect(() => {
-    if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame) {
+    if (isGameStarted && socket && isConnected && playerName.trim() && !hasJoinedGame && !connectionError) {
       console.log('Joining game with player name:', playerName);
+      setConnectionError(null);
       // Use protocol version 2 as required by the server
       socket.emit('joinGame', { 
         playerName,
@@ -117,13 +135,63 @@ export default function Game() {
       });
       setHasJoinedGame(true);
     }
-  }, [isGameStarted, socket, isConnected, playerName, hasJoinedGame, setHasJoinedGame]);
+  }, [
+    isGameStarted,
+    socket,
+    isConnected,
+    playerName,
+    hasJoinedGame,
+    connectionError,
+    setHasJoinedGame,
+    setConnectionError,
+  ]);
+
+  useEffect(() => {
+    if (!isGameStarted || myPlayerId || connectionError) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (!useGameStore.getState().myPlayerId) {
+        setConnectionError('Still waiting for the game server. Please retry in a moment.');
+        setHasJoinedGame(false);
+      }
+    }, 12000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isGameStarted, myPlayerId, connectionError, setConnectionError, setHasJoinedGame]);
 
   const handleStartGame = useCallback(() => {
-    if (playerName.trim()) {
-      setGameStarted(true);
+    if (!playerName.trim()) {
+      setStartError('Enter a character name first.');
+      return;
     }
-  }, [playerName, isConnected]);
+
+    if (!canCreateWebGLContext()) {
+      setStartError('This browser could not start WebGL. Enable hardware acceleration or try another browser.');
+      return;
+    }
+
+    setStartError(null);
+    setConnectionError(null);
+    setHasJoinedGame(false);
+    setGameStarted(true);
+  }, [playerName, setConnectionError, setHasJoinedGame]);
+
+  const handleRetryJoin = useCallback(() => {
+    setConnectionError(null);
+    setHasJoinedGame(false);
+
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+  }, [socket, setConnectionError, setHasJoinedGame]);
+
+  const handleBackToStart = useCallback(() => {
+    setConnectionError(null);
+    setHasJoinedGame(false);
+    setGameStarted(false);
+  }, [setConnectionError, setHasJoinedGame]);
 
   if (!isGameStarted) {
     return (
@@ -150,10 +218,16 @@ export default function Game() {
           </div>
           <button
             onClick={handleStartGame}
-            className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded transition-colors"
+            disabled={!playerName.trim()}
+            className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-400 text-white font-medium rounded transition-colors"
           >
             Enter the World
           </button>
+          {startError && (
+            <p className="mt-4 text-sm text-red-300" role="alert">
+              {startError}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -209,6 +283,34 @@ export default function Game() {
       <GameHud>
         <UI />
       </GameHud>
+      {(!myPlayerId || !isConnected) && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+          <div className="w-full max-w-sm rounded bg-gray-900 p-6 text-center shadow-xl">
+            <h2 className="mb-3 text-2xl font-bold text-purple-400">
+              {connectionError ? 'Could not enter the world' : 'Entering the world'}
+            </h2>
+            <p className="mb-5 text-sm text-gray-300" role={connectionError ? 'alert' : 'status'}>
+              {connectionError ?? 'Connecting to the game server...'}
+            </p>
+            {connectionError && (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleRetryJoin}
+                  className="flex-1 rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={handleBackToStart}
+                  className="flex-1 rounded bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600"
+                >
+                  Back
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <PredictionDebug />
     </div>
   );

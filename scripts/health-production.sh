@@ -58,6 +58,51 @@ check_expected_status() {
   fi
 }
 
+check_game_socket() {
+  log "Game WebSocket"
+
+  local output
+  if output=$(DOMAIN="$DOMAIN" node <<'NODE'
+(async () => {
+  const { io } = await import('socket.io-client');
+  const domain = process.env.DOMAIN || 'vibeage.eu';
+  const socket = io(`https://${domain}`, {
+    path: '/socket.io',
+    transports: ['websocket'],
+    upgrade: false,
+    timeout: 5000,
+    reconnection: false,
+    extraHeaders: {
+      Origin: `https://${domain}`,
+    },
+  });
+
+  let finished = false;
+  const finish = (code, message) => {
+    if (finished) return;
+    finished = true;
+    if (message) {
+      const stream = code === 0 ? process.stdout : process.stderr;
+      stream.write(`${message}\n`);
+    }
+    socket.close();
+    process.exit(code);
+  };
+
+  socket.on('connect', () => finish(0, `Socket.IO connected: ${socket.id}`));
+  socket.on('connect_error', (error) => finish(1, `Socket.IO connect_error: ${error.message}`));
+  setTimeout(() => finish(1, 'Socket.IO connection timed out'), 8000);
+})();
+NODE
+  ); then
+    printf '%s\n' "$output"
+    pass "Socket.IO WebSocket handshake succeeds through public HTTPS"
+  else
+    fail_check "Socket.IO WebSocket handshake failed through public HTTPS"
+    printf '%s\n' "$output" >&2
+  fi
+}
+
 tcp_is_open() {
   local host=$1
   local port=$2
@@ -213,6 +258,7 @@ main() {
   require_cmd bash
   require_cmd curl
   require_cmd git
+  require_cmd node
   require_cmd openssl
   require_cmd ssh
   require_cmd timeout
@@ -225,6 +271,7 @@ main() {
   check_https "https://$DOMAIN/"
   check_https "https://$MAIL_DOMAIN/"
   check_expected_status "https://$DOMAIN/l2.ini" "404"
+  check_game_socket
 
   log "External port exposure"
   for port in 143 465 587 993; do
