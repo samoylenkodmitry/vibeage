@@ -18,15 +18,19 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `PORT=${gameServerPort} VIBEAGE_DISABLE_PERSISTENCE=1 CORS_ORIGINS=${clientUrl},${clientLocalhostUrl} WS_COMPRESSION=0 pnpm run dev:server`,
+      command: `PORT=${gameServerPort} VIBEAGE_DISABLE_PERSISTENCE=1 CORS_ORIGINS=${clientUrl},${clientLocalhostUrl} WS_COMPRESSION=0 pnpm exec tsx server/server.ts`,
       url: `${gameServerUrl}/healthz`,
       reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
       timeout: 120_000
     },
     {
-      command: `GAME_SERVER_PROXY_TARGET=${gameServerUrl} pnpm run dev:vite-client -- --host 127.0.0.1 --port ${clientPort}`,
+      command: `GAME_SERVER_PROXY_TARGET=${gameServerUrl} pnpm exec vite --config apps/client/vite.config.ts --host 127.0.0.1 --port ${clientPort} --strictPort`,
       url: clientUrl,
       reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
       timeout: 120_000
     }
   ],
