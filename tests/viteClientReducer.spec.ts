@@ -97,4 +97,33 @@ describe('Vite game client reducer', () => {
     expect(nextState.combatLog[0].text).toContain('Health Potion');
     expect(nextState.combatLog[0].text).toContain('+25 HP');
   });
+
+  it('does not replace local inventory with another player inventory update', () => {
+    const otherPlayer = { ...basePlayer, id: 'player-2', name: 'Other' };
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: {
+        'player-1': basePlayer,
+        'player-2': otherPlayer,
+      },
+      inventory: [{ itemId: 'health_potion', quantity: 2 }],
+      maxInventorySlots: 20,
+    };
+    const nextState = gameClientReducer(state, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'InventoryUpdate',
+        playerId: 'player-2',
+        inventory: [{ itemId: 'gold_coin', quantity: 9 }],
+        maxInventorySlots: 30,
+      },
+    });
+
+    expect(nextState.inventory).toEqual([{ itemId: 'health_potion', quantity: 2 }]);
+    expect(nextState.maxInventorySlots).toBe(20);
+    expect(nextState.players['player-2'].inventory).toEqual([{ itemId: 'gold_coin', quantity: 9 }]);
+    expect(nextState.players['player-2'].maxInventorySlots).toBe(30);
+  });
 });

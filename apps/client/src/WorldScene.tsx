@@ -12,6 +12,7 @@ import type {
 } from './gameTypes';
 
 const GROUND_Y = 0;
+const reusableTargetVector = new THREE.Vector3();
 
 type WorldSceneProps = {
   state: GameClientState;
@@ -336,5 +337,5 @@ function lerpAngle(from: number, to: number, alpha: number): number {
 }
 
 function targetVector(position: Vec3): THREE.Vector3 {
-  return new THREE.Vector3(position.x, position.y, position.z);
+  return reusableTargetVector.set(position.x, position.y, position.z);
 }

@@ -324,23 +324,26 @@ function applyInventoryUpdate(
   maxInventorySlots: number,
   playerId: string | undefined,
 ): GameClientState {
-  const nextState = { ...state, inventory, maxInventorySlots };
+  const isLocalInventory = !playerId || playerId === state.myPlayerId;
+  let nextState = isLocalInventory ? { ...state, inventory, maxInventorySlots } : state;
 
-  if (!playerId || playerId !== state.myPlayerId || !state.players[playerId]) {
+  if (!playerId || !state.players[playerId]) {
     return nextState;
   }
 
-  return {
+  nextState = {
     ...nextState,
     players: {
-      ...state.players,
+      ...nextState.players,
       [playerId]: {
-        ...state.players[playerId],
+        ...nextState.players[playerId],
         inventory,
         maxInventorySlots,
       },
     },
   };
+
+  return nextState;
 }
 
 function applyItemUsed(
