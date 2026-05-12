@@ -3,7 +3,7 @@ import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType } from './types.js';
 import { CastReq, ClientMessage, MoveIntent, RespawnRequest, VecXZ, PosSnap,
-         ItemDrop, PredictionKeyframe, UseItem } from '../packages/protocol/messages.js';
+         ItemDrop, PredictionKeyframe } from '../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
@@ -14,16 +14,13 @@ import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
 import { addGroundLoot, spawnLootForEnemyDeath, tryGiveLoot } from './loot/groundLoot.js';
-import { db } from './db.js';
-import { ITEMS } from '../packages/content/items.js';
-import { isPersistenceDisabled, persistPlayer, recordServerEvent } from './persistence.js';
 import { createGameState, type GameState } from './gameState.js';
-import { createTransientPlayer } from './playerFactory.js';
 import {
-  normalizeAvailableSkillPoints,
-  normalizeSkillShortcuts,
-  normalizeUnlockedSkills,
-} from './players/playerProgression.js';
+  addPlayerSession,
+  persistActivePlayers,
+  removePlayerSessionBySocketId,
+} from './players/playerSession.js';
+import { onUseItem } from './inventory/itemUse.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -516,91 +513,6 @@ function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): any[
   return result;
 }
 
-/**
- * Handles UseItem requests from clients to use consumable items
- * @param socket The player's socket
- * @param state The game state
- * @param msg The UseItem message
- * @param io Server instance for broadcasting updates
- */
-function onUseItem(socket: Socket, state: GameState, msg: UseItem, io: Server): void {
-  // Find player by socket ID
-  const playerId = Object.keys(state.players).find(
-    id => state.players[id].socketId === socket.id
-  );
-  
-  if (!playerId) {
-    log(LOG_CATEGORIES.SYSTEM, 'error', `UseItem: No player found for socket ${socket.id}`);
-    return;
-  }
-  
-  const player = state.players[playerId];
-  
-  // Validate: player must be alive
-  if (!player.isAlive) {
-    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use item while dead`);
-    return;
-  }
-  
-  // Validate: slot exists, quantity > 0
-  const slot = player.inventory[msg.slotIndex];
-  if (!slot || slot.quantity <= 0) {
-    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use item from invalid or empty slot ${msg.slotIndex}`);
-    return;
-  }
-  
-  // Get item definition
-  const itemDef = ITEMS[slot.itemId];
-  if (!itemDef) {
-    log(LOG_CATEGORIES.SYSTEM, 'error', `Player ${playerId} tried to use unknown item ${slot.itemId}`);
-    return;
-  }
-  
-  // Validate: item is consumable
-  if (itemDef.type !== 'consumable') {
-    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use non-consumable item ${slot.itemId}`);
-    return;
-  }
-  
-  // Track effect changes
-  let healthDelta = 0;
-  const manaDelta = 0;
-  
-  // Apply item effects
-  if (itemDef.healAmount && itemDef.healAmount > 0) {
-    const oldHealth = player.health;
-    player.health = Math.min(player.maxHealth, player.health + itemDef.healAmount);
-    healthDelta = player.health - oldHealth;
-    
-    log(LOG_CATEGORIES.HEALING, 'info', `Player ${playerId} used ${slot.itemId} and healed for ${healthDelta} HP`);
-  }
-  
-  // Decrement item quantity
-  slot.quantity--;
-  
-  // Get new quantity (might be 0)
-  const newQuantity = slot.quantity;
-  
-  // Broadcast health change to all clients if there was healing
-  if (healthDelta > 0) {
-    io.emit('playerUpdated', {
-      id: playerId,
-      health: player.health
-    });
-  }
-  
-  // Send ItemUsed message to the player
-  socket.emit('msg', {
-    type: 'ItemUsed',
-    slotIndex: msg.slotIndex,
-    itemId: slot.itemId,
-    newQuantity: newQuantity,
-    healthDelta: healthDelta > 0 ? healthDelta : undefined,
-    manaDelta: manaDelta > 0 ? manaDelta : undefined
-  });
-}
-
-
 // Create effect manager and spatial hash grid instances at the module scope
 let effects: EffectManager;
 let spatial: SpatialHashGrid;
@@ -699,14 +611,21 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   }, TICK);
   
   // Setup periodic player state persistence (every 30s)
+  let persistenceInFlight = false;
   setInterval(async () => {
+    if (persistenceInFlight) {
+      log(LOG_CATEGORIES.SYSTEM, 'Skipping periodic player state persistence; previous cycle is still running.');
+      return;
+    }
+
+    persistenceInFlight = true;
     try {
       log(LOG_CATEGORIES.SYSTEM, 'Running periodic player state persistence...');
-      for (const player of Object.values(state.players)) {
-        persistPlayer(player);
-      }
+      await persistActivePlayers(state);
     } catch (error) {
       console.error('Error in periodic player persistence:', error);
+    } finally {
+      persistenceInFlight = false;
     }
   }, 30_000);
   
@@ -785,110 +704,11 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     },
     
     async addPlayer(socketId: string, name: string) {
-      const addTransientPlayer = () => {
-        const player = createTransientPlayer(socketId, name);
-        state.players[player.id] = player;
-        spatial.insert(player.id, { x: player.position.x, z: player.position.z });
-        return player;
-      };
-
-      if (isPersistenceDisabled()) {
-        return addTransientPlayer();
-      }
-
-      try {
-        // Insert player into database or fetch existing player
-        const { rows: [row] } = await db.query(
-          `insert into players (name, socket_id, last_login)
-             values ($1, $2, now())
-             on conflict (name) do update 
-             set socket_id = excluded.socket_id,
-                 last_login = now()
-           returning *`,
-          [name, socketId]);
-        
-        // Use playerId from database
-        const playerId = row.id;
-        
-        await recordServerEvent('player_login', playerId, JSON.stringify({ playerName: name, socketId }),);
-
-        const unlockedSkills = normalizeUnlockedSkills(row.skills);
-
-        // Create player state, merging DB data with default values
-        const player: PlayerState = {
-          id: playerId,
-          socketId,
-          name,
-          position: { 
-            x: row.position_x || 0, 
-            y: row.position_y || 0.5, 
-            z: row.position_z || 0 
-          },
-          rotation: { x: 0, y: 0, z: 0 },
-          health: row.health || 100,
-          maxHealth: 100,
-          mana: 100,
-          maxMana: 100,
-          level: row.level || 1,
-          experience: row.experience ?? row.xp ?? 0,
-          experienceToNextLevel: 100,
-          statusEffects: [],
-          skillCooldownEndTs: {},
-          castingSkill: null,
-          castingProgressMs: 0,
-          isAlive: row.is_alive !== undefined ? row.is_alive : true,
-          className: row.class_name || 'mage', // Use class from DB or default
-          unlockedSkills,
-          skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
-          availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
-          posHistory: [], // Initialize position history
-          lastUpdateTime: Date.now(),
-          inventory: row.inventory || [], // Use inventory from DB or empty
-          maxInventorySlots: 20 // Set default inventory size
-        };
-        
-        state.players[playerId] = player;
-        
-        // Add player to spatial hash grid
-        spatial.insert(playerId, { x: player.position.x, z: player.position.z });
-        
-        return player;
-      } catch (error) {
-        console.error('Error adding player to database:', error);
-        return addTransientPlayer();
-      }
+      return addPlayerSession(state, spatial, socketId, name);
     },
     
     async removePlayerBySocketId(socketId: string) {
-      const playerId = Object.keys(state.players).find(
-        id => state.players[id].socketId === socketId
-      );
-      
-      if (playerId) {
-        // Get player before removing
-        const player = state.players[playerId];
-        const pos = { x: player.position.x, z: player.position.z };
-        
-        // Record disconnect for analytics
-        await recordServerEvent('player_disconnect', playerId, JSON.stringify({ playerName: player.name, socketId }));
-
-        // Persist player data to database
-        try {
-          await persistPlayer(player);
-        } catch (error) {
-          console.error(`Failed to persist player ${playerId} on disconnect:`, error);
-        }
-
-        // Remove player from spatial hash grid
-        spatial.remove(playerId, pos);
-        
-        // Remove player from state
-        delete state.players[playerId];
-        
-        return playerId;
-      }
-      
-      return null;
+      return removePlayerSessionBySocketId(state, spatial, socketId);
     }
   };
 
