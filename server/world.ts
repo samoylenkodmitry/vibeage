@@ -2,13 +2,12 @@ import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { SkillType } from './types.js';
-import { CastReq, ClientMessage, MoveIntent, RespawnRequest, VecXZ, PosSnap,
+import { CastReq, ClientMessage, MoveIntent, VecXZ, PosSnap,
          ItemDrop, PredictionKeyframe } from '../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { onLearnSkill, onSetSkillShortcut } from './skillHandler.js';
 import { SpatialHashGrid, gridCellChanged } from './spatial/SpatialHashGrid';
-import { hash, rng } from '../packages/sim/combatMath.js';
 import { CM_PER_UNIT} from '../shared/netConstants.js';
 import { handleCastReq } from './combat/castHandler.js';
 import { tickCasts } from './combat/skillSystem.js';
@@ -21,6 +20,15 @@ import {
   removePlayerSessionBySocketId,
 } from './players/playerSession.js';
 import { onUseItem } from './inventory/itemUse.js';
+import {
+  awardPlayerXP,
+  handleManaRegeneration,
+  onRespawnRequest,
+} from './players/playerLifecycle.js';
+import {
+  respawnDeadEnemies,
+  spawnInitialEnemies,
+} from './enemies/enemyLifecycle.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -550,7 +558,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   spatial = new SpatialHashGrid();
   
   // Spawn initial enemies
-  spawnInitialEnemies(state, zoneManager);
+  spawnInitialEnemies(state, spatial, zoneManager);
   
   // Game loop settings
   const TICK = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -606,7 +614,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     
     // Step : Process enemy respawns (even less frequent)
     if (snapAccumulator === 2) {
-      handleEnemyRespawns(state, io);
+      respawnDeadEnemies(state, spatial, io);
     }
   }, TICK);
   
@@ -637,7 +645,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         case 'CastReq': return onCastReq(socket, state, msg, io);
         case 'LearnSkill': return onLearnSkill(socket, state, msg);
         case 'SetSkillShortcut': return onSetSkillShortcut(socket, state, msg);
-        case 'RespawnRequest': return onRespawnRequest(socket, state, msg, io);
+        case 'RespawnRequest': return onRespawnRequest(state, msg, io, spatial);
         case 'UseItem': return onUseItem(socket, state, msg, io);
         case 'LootPickup': {
           const lootMsg = msg;
@@ -716,112 +724,6 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   return api;
 }
 
-/**
- * Helper to spawn initial enemies
- */
-function spawnInitialEnemies(state: GameState, zoneManager: ZoneManager) {
-  const GAME_ZONES = zoneManager.getZones();
-  
-  GAME_ZONES.forEach((zone) => {
-    const mobsToSpawn = zoneManager.getMobsToSpawn(zone.id);
-    mobsToSpawn.forEach((mobConfig) => {
-      const { type, count } = mobConfig;
-      for (let i = 0; i < count; i++) {
-        const position = zoneManager.getRandomPositionInZone(zone.id);
-        if (!position) continue;
-
-        const enemyId = `${type}-${hash(`${type}-${Date.now()}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`;
-        const level = zoneManager.getMobLevel(zone.id);
-
-        state.enemies[enemyId] = {
-          id: enemyId,
-          type,
-          name: type.charAt(0).toUpperCase() + type.slice(1),
-          level,
-          position,
-          spawnPosition: { ...position },
-          rotation: { x: 0, y: rng(hash(`rotation-${Date.now()}-${position.x}-${position.z}`))() * Math.PI * 2, z: 0 },
-          health: 100 + (level * 20),
-          maxHealth: 100 + (level * 20),
-          isAlive: true,
-          attackDamage: 10 + (level * 2),
-          attackRange: 2,
-          baseExperienceValue: 50 + (level * 10),
-          experienceValue: 50 + (level * 10),
-          statusEffects: [],
-          targetId: null,
-          
-          // AI-related fields
-          aiState: 'idle',
-          aggroRadius: 15, // Default aggro radius
-          attackCooldownMs: 2000, // Default attack cooldown (2 seconds)
-          lastAttackTime: 0,
-          movementSpeed: 6, // Default movement speed
-          velocity: { x: 0, z: 0 },
-          
-          // Assign appropriate loot table ID based on enemy type
-          lootTableId: `${type}_loot`
-        };
-        
-        // Add enemy to spatial hash grid
-        spatial.insert(enemyId, { x: position.x, z: position.z });
-      }
-    });
-  });
-}
-
-/**
- * Awards XP to a player and handles level ups
- * @param player The player to award XP to
- * @param xpAmount Amount of XP to award
- * @param sourceInfo Information about the source of XP (for logging)
- * @param io Server instance for broadcasting updates
- */
-export function awardPlayerXP(player: PlayerState, xpAmount: number, sourceInfo: string, io: Server): void {
-  const oldExp = player.experience;
-  player.experience += xpAmount;
-  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained ${xpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`);
-  
-  // Check for level up
-  if (player.experience >= player.experienceToNextLevel) {
-    const oldLevel = player.level;
-    const oldSkillPoints = player.availableSkillPoints;
-    
-    player.level += 1;
-    const oldMaxExp = player.experienceToNextLevel;
-    player.experience -= player.experienceToNextLevel; // Keep excess XP
-    player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5); // 50% more XP needed for next level
-    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);
-    
-    // Increase max health and mana with level
-    player.maxHealth = 100 + (player.level - 1) * 20;
-    player.maxMana = 100 + (player.level - 1) * 10;
-    
-    // Heal player on level up
-    player.health = player.maxHealth;
-    player.mana = player.maxMana;
-    
-    // Award a skill point on level up
-    player.availableSkillPoints += 1;
-    log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints} (before: ${oldSkillPoints})`);
-    
-    console.log(`[LEVEL_UP] Player ${player.id}: Level ${oldLevel} -> ${player.level}, Skill Points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
-  }
-  
-  // Broadcast the updated player state so clients see XP and level changes
-  io.emit('playerUpdated', {
-    id: player.id,
-    experience: player.experience,
-    experienceToNextLevel: player.experienceToNextLevel,
-    level: player.level,
-    maxHealth: player.maxHealth,
-    health: player.health,
-    maxMana: player.maxMana,
-    mana: player.mana,
-    availableSkillPoints: player.availableSkillPoints
-  });
-}
-
 function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Server): void {
   console.log(`Target died: ${JSON.stringify(target)}`);
   if (target.isAlive) {
@@ -837,64 +739,11 @@ function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Serv
       if ('baseExperienceValue' in target) {
         // Handle mob kill
         const xpAmount = target.baseExperienceValue;
-        awardPlayerXP(caster, xpAmount, `killing ${target.name}`, io);
+        io.emit('playerUpdated', awardPlayerXP(caster, xpAmount, `killing ${target.name}`));
         
         if ('lootTableId' in target && target.lootTableId && globalState) {
           spawnLootForEnemyDeath(globalState, io, target as Enemy);
         }
-      }
-    }
-  }
-}
-
-/**
- * Handle mana regeneration for all players
- */
-function handleManaRegeneration(state: GameState, io: Server) {
-  const MANA_REGEN_PER_SECOND = 2;
-  
-  for (const playerId in state.players) {
-    const player = state.players[playerId];
-    if (player.isAlive && player.mana < player.maxMana) {
-      const oldMana = player.mana;
-      // Since this function is called less frequently than the old system,
-      // we regenerate more mana per call to achieve the same rate over time
-      player.mana = Math.min(player.maxMana, player.mana + MANA_REGEN_PER_SECOND);
-      
-      // Only broadcast if mana actually changed (avoiding precision issues)
-      if (Math.abs(player.mana - oldMana) > 0.01) {
-        // Broadcast mana update to all clients
-        io.emit('playerUpdated', {
-          id: player.id,
-          mana: player.mana
-        });
-      }
-    }
-  }
-}
-
-/**
- * Handle enemy respawns
- */
-function handleEnemyRespawns(state: GameState, io: Server) {
-  const now = Date.now();
-
-  for (const enemyId in state.enemies) {
-    const enemy = state.enemies[enemyId];
-    
-    if (!enemy.isAlive && enemy.deathTimeTs) {
-      const timeSinceDeath = now - enemy.deathTimeTs;
-      if (timeSinceDeath >= 30000) { // 30 seconds respawn time
-        enemy.isAlive = true;
-        enemy.health = enemy.maxHealth;
-        enemy.position = { ...enemy.spawnPosition };
-        enemy.targetId = null;
-        enemy.statusEffects = [];
-        
-        // Re-add enemy to spatial hash grid upon respawn
-        spatial.insert(enemyId, { x: enemy.position.x, z: enemy.position.z });
-        
-        io.emit('enemyUpdated', enemy);
       }
     }
   }
@@ -1065,55 +914,6 @@ function isValidPosition(pos: VecXZ): boolean {
   }
   
   return true;
-}
-
-/**
- * Handles respawn requests from players who have died
- * @param socket The socket of the player requesting respawn
- * @param state The game state
- * @param msg The respawn request message
- * @param io Server instance for broadcasting updates
- */
-function onRespawnRequest(socket: Socket, state: GameState, msg: RespawnRequest, io: Server): void {
-  const playerId = msg.id;
-  const player = state.players[playerId];
-  
-  if (!player) {
-    console.error(`[RespawnRequest] Player ${playerId} not found`);
-    return;
-  }
-  
-  // Verify the player is actually dead
-  if (player.isAlive) {
-    console.warn(`[RespawnRequest] Player ${playerId} is already alive`);
-    return;
-  }
-  
-  // Set spawn position (can be customized if you have multiple spawn points)
-  const spawnPos = { x: 0, y: 0.5, z: 0 };
-  
-  // Resurrect player with partial health and mana
-  player.isAlive = true;
-  player.health = Math.floor(player.maxHealth * 0.5); // 50% health on respawn
-  player.mana = Math.floor(player.maxMana * 0.5); // 50% mana on respawn
-  player.position = { ...spawnPos };
-  player.deathTimeTs = undefined;
-  player.velocity = { x: 0, z: 0 };
-  
-  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} (${player.name}) respawned at ${JSON.stringify(spawnPos)}`);
-  
-  // Inform all clients about the resurrection
-  io.emit('playerUpdated', {
-    id: player.id,
-    health: player.health,
-    mana: player.mana,
-    position: player.position,
-    isAlive: true,
-    deathTimeTs: undefined
-  });
-  
-  // Update spatial grid with new position
-  spatial.move(player.id, player.position, player.position); // Force update of position in spatial grid
 }
 
 /**

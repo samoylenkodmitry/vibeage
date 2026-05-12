@@ -33,7 +33,9 @@ This project should become a browser-first multiplayer game that is easy for hum
 10. Done on 2026-05-12: added a Playwright smoke that starts the local game server and verifies a browser can enter the connected game HUD.
 11. Done on 2026-05-12: verified the local backup restore drill against `/media/huge/vibeage-backups/postgres`; latest dump restored into an isolated temporary Postgres container.
 12. Done on 2026-05-12: added browser smoke coverage for movement intent and a fireball hotkey cast before new gameplay work.
-13. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
+13. Done on 2026-05-12: extracted player progression, mana regeneration, respawn handling, enemy spawn, and enemy respawn out of `server/world.ts` with focused Vitest coverage.
+14. Done on 2026-05-12: started the Vite browser client shell in `apps/client` with React, React Three Fiber, a minimal HUD, and a Socket.IO connection stub; CI now builds the shell.
+15. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
 ## Target Stack
 
@@ -99,7 +101,7 @@ tests/
 
 ### Phase 2: Build The New Browser Client
 
-- Create a Vite client app with one loading screen, one game canvas, and a minimal HUD.
+- Done on 2026-05-12: created the first Vite client shell in `apps/client` with one game canvas, a minimal HUD, and a Socket.IO connection stub.
 - Port only the best R3F/VFX pieces from the current app.
 - Keep visual state separate from authoritative network state.
 - Done in the current Next prototype: Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
@@ -107,6 +109,7 @@ tests/
 ### Phase 3: Build The Authoritative Server
 
 - Replace the raw Socket.IO world protocol with Colyseus rooms.
+- Done on 2026-05-12: moved player progression/respawn and enemy lifecycle out of `server/world.ts` into tested modules.
 - Move combat, cooldowns, inventory, loot, and enemy AI into testable simulation modules.
 - Add deterministic server tests that do not require a browser.
 - Persist only stable player/account data, not transient render state.
