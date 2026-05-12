@@ -40,10 +40,16 @@ Test a specific backup:
 BACKUP_FILE=/home/s/.vibeage-backups/postgres/vibeage_<timestamp>.dump pnpm run db:restore:test
 ```
 
-The restore test starts a temporary `postgres:16` container, streams the dump into it with `pg_restore`, verifies public tables exist, and removes the temporary container on exit.
+The restore test starts a temporary `docker.io/library/postgres:16` container, streams the dump into it with `pg_restore`, verifies public tables exist, and removes the temporary container on exit.
+
+The restore drill uses Docker when a Docker daemon is available and falls back to Podman when it is not. To force a runtime:
+
+```bash
+CONTAINER_RUNTIME=podman pnpm run db:restore:test
+```
 
 ## Emergency Notes
 
 - Do not restore into the production `vibeage-db-1` container until the target backup has passed `pnpm run db:restore:test`.
-- Keep Postgres bound to `127.0.0.1:5432`; backups and restore drills use Docker/local access.
+- Keep Postgres bound to `127.0.0.1:5432`; backups and restore drills use local container access.
 - Copy backups off the VPS separately if stronger disaster recovery is needed.
