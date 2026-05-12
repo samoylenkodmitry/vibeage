@@ -146,9 +146,6 @@ function bindSocket(
   socket.on('playerJoined', (player: PlayerEntity) => {
     dispatch({ type: 'playerJoined', player });
   });
-  socket.on('newPlayer', (player: PlayerEntity) => {
-    dispatch({ type: 'playerJoined', player });
-  });
   socket.on('playerLeft', (playerId: string) => {
     dispatch({ type: 'playerLeft', playerId });
   });

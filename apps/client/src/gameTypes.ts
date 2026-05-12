@@ -75,7 +75,7 @@ export type VisibleCast = {
 };
 
 export type CombatLine = {
-  id: number;
+  id: string;
   text: string;
 };
 

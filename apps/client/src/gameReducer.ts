@@ -159,7 +159,7 @@ function applyServerMessage(
 
   if (message.type === 'CombatLog') {
     return addCombatLine(state, {
-      id: now,
+      id: makeCombatLineId(message.castId, state.combatLog.length, now),
       text: `${message.skillId} hit ${message.targets.length} target(s)`,
     });
   }
@@ -214,6 +214,10 @@ function addCastSnapshot(
 
 function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
   return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
+}
+
+function makeCombatLineId(castId: string, currentLineCount: number, now: number): string {
+  return `${castId}:${now}:${currentLineCount}`;
 }
 
 function pruneCasts(casts: GameClientState['casts'], now: number): GameClientState['casts'] {

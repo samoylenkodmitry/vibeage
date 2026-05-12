@@ -203,7 +203,7 @@ function CameraRig({ focus }: { focus: Vec3 }) {
     };
   }, [gl]);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const distance = 24;
     const centerX = focus.x;
     const centerY = GROUND_Y + 1.4;
@@ -211,11 +211,12 @@ function CameraRig({ focus }: { focus: Vec3 }) {
     const nextX = centerX - Math.sin(angleRef.current) * Math.cos(pitchRef.current) * distance;
     const nextY = centerY + Math.sin(pitchRef.current) * distance;
     const nextZ = centerZ - Math.cos(angleRef.current) * Math.cos(pitchRef.current) * distance;
+    const alpha = 1 - Math.exp(-10 * delta);
 
     camera.position.set(
-      lerp(camera.position.x, nextX, 0.18),
-      lerp(camera.position.y, nextY, 0.18),
-      lerp(camera.position.z, nextZ, 0.18),
+      lerp(camera.position.x, nextX, alpha),
+      lerp(camera.position.y, nextY, alpha),
+      lerp(camera.position.z, nextZ, alpha),
     );
     camera.lookAt(centerX, centerY, centerZ);
   });

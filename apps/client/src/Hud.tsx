@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import { getHotkeySkill } from './gameReducer';
 import type { GameClientState, PlayerEntity } from './gameTypes';
@@ -155,6 +155,9 @@ function useSkillHotkeys(
   player: PlayerEntity | null,
   onCastSkill: (skillId: SkillId) => void,
 ) {
+  const playerRef = useRef(player);
+  playerRef.current = player;
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (isTypingTarget(event.target)) {
@@ -162,7 +165,7 @@ function useSkillHotkeys(
       }
 
       const slotIndex = getSlotIndex(event.code);
-      const skillId = slotIndex === null ? null : getHotkeySkill(player, slotIndex);
+      const skillId = slotIndex === null ? null : getHotkeySkill(playerRef.current, slotIndex);
       if (skillId) {
         event.preventDefault();
         onCastSkill(skillId);
@@ -171,7 +174,7 @@ function useSkillHotkeys(
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [player, onCastSkill]);
+  }, [onCastSkill]);
 }
 
 function getSlotIndex(code: string): number | null {
