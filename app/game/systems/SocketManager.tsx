@@ -27,26 +27,24 @@ import {
 import { SkillId } from '../../../packages/content/skills';
 import { useCombatLogStore } from '../stores/useCombatLogStore';
 import { useProjectileStore } from './projectileStore'; // Ensure this is imported
-import { SKILLS } from '../../../packages/content/skills'; // Ensure SKILLS is imported
+import { SKILLS } from '../../../packages/content/skills';
 
-// Variable for generating unique log entry IDs
 let nextId = 1;
 
 export default function SocketManager() {
-  // Use individual selectors to prevent unnecessary re-renders
   const setSocket = useGameStore(state => state.setSocket);
   const setMyPlayerId = useGameStore(state => state.setMyPlayerId);
+  const setConnectionError = useGameStore(state => state.setConnectionError);
+  const setHasJoinedGame = useGameStore(state => state.setHasJoinedGame);
   const setGameState = useGameStore(state => state.setGameState);
   const addPlayer = useGameStore(state => state.addPlayer);
   const removePlayer = useGameStore(state => state.removePlayer);
   const updatePlayer = useGameStore(state => state.updatePlayer);
   const updateEnemy = useGameStore(state => state.updateEnemy);
   
-  // Maps to track last positions and velocities for delta updates
   const lastPosMap = useRef<Record<string, VecXZ>>({});
   const lastVelMap = useRef<Record<string, VecXZ>>({});
 
-  // Get connection status update functions
   const setConnectionStatus = useCallback((isConnected: boolean) => {
     useGameStore.setState({ 
       isConnected, 
@@ -54,7 +52,6 @@ export default function SocketManager() {
     });
   }, []);
 
-  // Memoize event handlers to prevent recreating them on every render
   const handlePlayerLeft = useCallback((playerId: string) => {
     removePlayer(playerId);
   }, [removePlayer]);
@@ -70,8 +67,6 @@ export default function SocketManager() {
     updatePlayer(playerData);
   }, [updatePlayer]);
 
-  // Add a more efficient player move handler that directly updates player positions
-  // without triggering full state updates
   const handlePlayerMoved = useCallback((moveData: { 
     id: string; 
     x: number; 
@@ -419,29 +414,48 @@ export default function SocketManager() {
     }
   }, []);
 
-  // Memoize the socket connection handler
   const handleConnect = useCallback(() => {
-    // Connect to WebSocket server with improved configuration
     const WS_URL = process.env.NEXT_PUBLIC_GAME_SERVER_URL ?? 'http://localhost:3001';
     const socket = io(WS_URL, {
       path: '/socket.io',
       transports: ['websocket'],
-      perMessageDeflate: { threshold: 1024 },   // Enable compression with threshold
+      perMessageDeflate: { threshold: 1024 },
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5
     });
 
+    socket.on('connect_error', (error) => {
+      console.error('Could not connect to game server:', error.message);
+      setConnectionStatus(false);
+      setConnectionError('Could not connect to the game server. Please retry in a moment.');
+      setHasJoinedGame(false);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.warn('Disconnected from game server:', reason);
+      setConnectionStatus(false);
+      setHasJoinedGame(false);
+
+      if (reason !== 'io client disconnect') {
+        setConnectionError('Disconnected from the game server. Please retry in a moment.');
+      }
+    });
+
+    socket.on('connectionRejected', (data: { message?: string }) => {
+      console.warn('Game server rejected connection:', data);
+      setConnectionError(data.message ?? 'The game server rejected this connection.');
+      setHasJoinedGame(false);
+    });
+
     socket.on('connect', () => {
       console.log('Connected to game server, setting socket in game store');
       setConnectionStatus(true);
-      setSocket(socket);  // Make sure we set the socket in the game store
+      setConnectionError(null);
+      setSocket(socket);
       
-      // Hook up VFX event system
       hookVfx(socket);
-      
-      // Initialize projectile manager listeners
       initProjectileListeners();
 
       // Removed automatic joinGame emission to prevent duplicate player IDs
@@ -660,6 +674,8 @@ export default function SocketManager() {
   }, [
     setSocket, 
     setMyPlayerId, 
+    setConnectionError,
+    setHasJoinedGame,
     setGameState, 
     addPlayer, 
     handlePlayerLeft, 

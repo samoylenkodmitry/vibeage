@@ -39,7 +39,6 @@ interface ServerGameState {
 }
 
 interface GameState {
-  // --- State ---
   myPlayerId: string | null;
   players: Record<string, PlayerState>;
   enemies: Record<string, Enemy>;
@@ -62,6 +61,7 @@ interface GameState {
   castingSkill: string | null;
   castingProgressMs: number;
   isConnected: boolean;
+  connectionError: string | null;
   lastConnectionChangeTs: number;
   socket: any | null;
   hasJoinedGame: boolean;
@@ -70,11 +70,9 @@ interface GameState {
   lastMoveIntentSent: number; // Track the last time we sent a move intent
   controlledPlayerRenderPosition: { x: number, y: number, z: number } | null; // The rendered position of the controlled player
 
-  // --- Movement Reconciliation State ---
   pendingMoveSequences: number[];
   acknowledgedSequence: number;
 
-  // --- Methods ---
   setSocket: (socketInstance: any) => void;
   acknowledgeServerSequence: (seq: number) => void;
   recordMoveIntent: (seq: number) => void;
@@ -84,10 +82,8 @@ interface GameState {
   removePlayer: (playerId: string) => void;
   updatePlayer: (playerData: Partial<PlayerState> & { id: string }) => void;
   updateEnemy: (enemyData: Partial<Enemy> & { id: string }) => void;
-  // Movement - server authoritative
   sendMoveIntent: (targetPos: VecXZ) => void;
   sendCastReq: (skillId: string, targetId?: string, targetPos?: VecXZ) => void;
-  // Other methods
   sendSelectTarget: (targetId: string | null) => void;
   selectTarget: (targetId: string | null) => void;
   setSelectedSkill: (skillId: string | null) => void;
@@ -102,10 +98,10 @@ interface GameState {
   updatePlayerZone: () => void;
   applySkillEffect: (targetId: string, effects: any[]) => void;
   setHasJoinedGame: (joined: boolean) => void;
+  setConnectionError: (message: string | null) => void;
   handleSkillHotkey: (key: string) => void;
   setActiveSkill: (skillId: string | null) => void;
   
-  // --- New explicitly defined action functions ---
   setLocalPlayerPos: (pos: { x: number, y: number, z: number }) => void;
   setLocalPlayerVel: (vel: { x: number, z: number }) => void;
   setStatusEffects: (targetId: string, effects: StatusEffect[]) => void;
@@ -113,18 +109,12 @@ interface GameState {
   updateServerLastKnownPosition: (playerId: string, position: { x: number, z: number }) => void;
   setControlledPlayerRenderPosition: (pos: { x: number, y: number, z: number } | null) => void;
 
-  // --- Loot State Updating ---
-  // Add ground loot item
   addGroundLoot: (lootId: string, enemyId: string, position: { x: number, y: number, z: number }, items: { itemId: string, quantity: number }[]) => void;
-  // Remove ground loot item (when picked up)
   removeGroundLoot: (lootId: string) => void;
-  // Update player inventory
   updateInventory: (items: InventorySlot[]) => void;
 
-  // Update a single inventory slot
   updateInventorySlot: (slotIndex: number, newQuantity: number) => void;
 
-  // Send a request to use an item from inventory
   sendUseItem: (slotIndex: number) => void;
 }
 
@@ -207,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   castingSkill: null,
   castingProgressMs: 0,
   isConnected: false,
+  connectionError: null,
   lastConnectionChangeTs: Date.now(),
   socket: null,
   hasJoinedGame: false,
@@ -570,38 +561,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
-  updatePlayerZone: () => {
-    // Placeholder to be implemented when zones are added
-  },
+  updatePlayerZone: () => undefined,
   
   applySkillEffect: (targetId: string, effects: any[]) => {
-    // Get the socket to communicate with the server
     const socket = get().socket;
     if (!socket) return;
     
-    // Send the effects to be applied on the server
     socket.emit('applyEffects', { targetId, effects });
-    
     console.log('Applying skill effects to target:', targetId, effects);
-    
-    // For client-side feedback, we could also update the local state
-    // This is optional as the server will broadcast the updated state anyway
-    const enemy = get().enemies[targetId];
-    if (enemy) {
-      // For visual feedback only - the server will handle the actual logic
-      set(produce(state => {
-        const enemy = state.enemies[targetId];
-        if (enemy) {
-          // You might add a temporary visual effect here
-          // This is just for immediate feedback while waiting for the server update
-        }
-      }));
-    }
   },
 
   setHasJoinedGame: (joined: boolean) => {
     set(produce(state => {
       state.hasJoinedGame = joined;
+    }));
+  },
+
+  setConnectionError: (message: string | null) => {
+    set(produce(state => {
+      state.connectionError = message;
     }));
   },
 
