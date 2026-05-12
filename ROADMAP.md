@@ -93,8 +93,8 @@ tests/
 - Done on 2026-05-08: removed loose `ClientMsg` and `ServerMsg` protocol base interfaces.
 - Done on 2026-05-08: removed unused legacy `MoveStartMsg` and `MoveStopMsg` compatibility interfaces.
 - Done on 2026-05-12: removed remaining protocol message interfaces and deleted exported `ProjSpawn2`/`ProjHit2` protocol types; server messages are validated through `packages/protocol/messages.ts`.
-- Define the server-authoritative state model explicitly.
-- Delete the remaining legacy client projectile store after the v2 VFX path fully owns projectile fade/recycle behavior.
+- Done on 2026-05-12: defined the shared server-authoritative state model in `packages/sim/authoritativeState.ts` and wired the server to create state through `server/gameState.ts`.
+- Done on 2026-05-12: deleted the remaining legacy client projectile store; v2 `CastSnapshot` projectiles now own live, fade, and recycle state through `projectileStore.ts`.
 
 ### Phase 2: Build The New Browser Client
 

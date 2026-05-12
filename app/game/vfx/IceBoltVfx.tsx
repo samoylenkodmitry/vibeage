@@ -12,6 +12,8 @@ interface IceBoltVfxProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  opacity?: number;
+  isFadingOut?: boolean;
   pooled?: Group; // Add pooled group prop
   onDone?: () => void; // Add callback for when projectile is done
 }
@@ -23,11 +25,18 @@ const IceBoltVfxComponent = ({
   dir, 
   speed,
   launchTs = performance.now(),
+  opacity = 1,
+  isFadingOut = false,
   pooled, // Use the pooled group passed from VfxManager
   onDone
 }: IceBoltVfxProps) => {
   const coreRef = useRef<Mesh>(null);
   const isActive = useRef(true);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -66,22 +75,22 @@ const IceBoltVfxComponent = ({
     coreRef.current = coreMesh;
     
     return () => {
-      if (isActive.current && onDone) {
+      if (isActive.current && onDoneRef.current) {
         isActive.current = false;
-        onDone();
+        onDoneRef.current();
       }
     };
-  }, [pooled, onDone]);
+  }, [pooled]);
   
   // Handle cleanup when projectile is done
   useEffect(() => {
     return () => {
-      if (isActive.current && onDone) {
+      if (isActive.current && onDoneRef.current) {
         isActive.current = false;
-        onDone();
+        onDoneRef.current();
       }
     };
-  }, [onDone]);
+  }, []);
   
   // Setup particle system for ice mist effects
   const iceParticles = useParticleSystem({
@@ -92,7 +101,7 @@ const IceBoltVfxComponent = ({
     particleSpeed: { min: 0.3, max: 1 },
     particleSize: { min: 0.03, max: 0.1 },
     particleOpacity: { min: 0.5, max: 0.8 },
-    emissionRate: 25,
+    emissionRate: isFadingOut ? 5 : 25,
     maxParticles: 40,
     generateParticle: () => {
       return {
@@ -108,7 +117,7 @@ const IceBoltVfxComponent = ({
           (Math.random() - 0.5) * 1
         ),
         scale: 0.03 + Math.random() * 0.07,
-        opacity: 0.5 + Math.random() * 0.3,
+        opacity: (0.5 + Math.random() * 0.3) * opacity,
         lifetime: 0,
         maxLifetime: 0.1 + Math.random() * 0.2,
         color: new Color().setHSL(
@@ -126,7 +135,7 @@ const IceBoltVfxComponent = ({
       // Update particle
       return {
         ...particle,
-        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)),
+        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)) * opacity,
         lifetime: particle.lifetime + deltaTime
       };
     }
@@ -136,6 +145,9 @@ const IceBoltVfxComponent = ({
   useFrame((state) => {
     if (coreRef.current) {
       coreRef.current.rotation.z = state.clock.elapsedTime * 5;
+      if (coreRef.current.material instanceof MeshBasicMaterial) {
+        coreRef.current.material.opacity = 0.8 * opacity;
+      }
     }
     
     // Update pooled group position
@@ -156,7 +168,7 @@ const IceBoltVfxComponent = ({
       {/* Main ice bolt */}
       <mesh ref={coreRef} rotation={[0, 0, Math.PI / 2]}>
         <coneGeometry key={`icebolt-geo-${id}`} args={[0.25, 1]} />
-        <meshBasicMaterial key={`icebolt-mat-${id}`} color="skyblue" transparent opacity={0.8} />
+        <meshBasicMaterial key={`icebolt-mat-${id}`} color="skyblue" transparent opacity={0.8 * opacity} />
       </mesh>
       
       {/* Render ice mist particles */}

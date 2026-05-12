@@ -1,5 +1,9 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { useProjectileStore } from '../app/game/systems/projectileStore';
+import {
+  getProjectileOpacity,
+  PROJECTILE_RECYCLE_FADE_MS,
+  useProjectileStore,
+} from '../app/game/systems/projectileStore';
 import { CastState } from '../packages/protocol/messages';
 import { SkillId } from '../packages/content/skills';
 
@@ -73,5 +77,47 @@ describe('Projectile Contract Hardening', () => {
     expect(storedProj.velocity?.x).toBeCloseTo(0.707, 2);
     expect(storedProj.velocity?.z).toBeCloseTo(0.707, 2);
     expect(storedProj.skillId).toBe('iceBolt');
+    expect(storedProj.clientLaunchTs).toEqual(expect.any(Number));
+  });
+
+});
+
+describe('Projectile fade recycling', () => {
+  beforeEach(() => {
+    useProjectileStore.setState({ live: {}, toRecycle: {} });
+  });
+
+  test('should fade hit projectiles before recycling them', () => {
+    const castSnapshot = {
+      castId: 'fade-projectile',
+      casterId: 'player-1',
+      skillId: 'fireball' as SkillId,
+      state: CastState.Traveling,
+      origin: { x: 0, z: 0 },
+      pos: { x: 0, z: 0 },
+      dir: { x: 1, z: 0 },
+      startedAt: Date.now(),
+      castTimeMs: 1000,
+      progressMs: 0
+    };
+
+    useProjectileStore.getState().add(castSnapshot);
+    useProjectileStore.getState().markProjectileAsHit('fade-projectile');
+
+    const fadingProjectile = useProjectileStore.getState().toRecycle['fade-projectile'];
+    expect(fadingProjectile).toBeDefined();
+    expect(getProjectileOpacity(fadingProjectile, fadingProjectile.hitTs!)).toBe(1);
+    expect(getProjectileOpacity(
+      fadingProjectile,
+      fadingProjectile.hitTs! + PROJECTILE_RECYCLE_FADE_MS / 2,
+    )).toBeCloseTo(0.5);
+
+    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(
+      fadingProjectile.hitTs! + PROJECTILE_RECYCLE_FADE_MS + 1,
+    );
+    useProjectileStore.getState().recycleProjectiles(performance.now());
+    nowSpy.mockRestore();
+
+    expect(useProjectileStore.getState().toRecycle['fade-projectile']).toBeUndefined();
   });
 });

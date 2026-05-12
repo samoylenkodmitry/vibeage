@@ -17,7 +17,7 @@ import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
 import { ITEMS } from '../packages/content/items.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent } from './persistence.js';
-import type { GameState } from './gameState.js';
+import { createGameState, type GameState } from './gameState.js';
 import { createTransientPlayer } from './playerFactory.js';
 
 // Constants
@@ -621,13 +621,7 @@ function debugPrediction(id: string, predictions: PredictionKeyframe[]) {
 // Utility function to get worldAPI reference
 export function initWorld(io: Server, zoneManager: ZoneManager) {
   // Initialize game state
-  const state: GameState = {
-    players: {},
-    enemies: {},
-    projectiles: [],
-    lastProjectileId: 0,
-    groundLoot: {}
-  };
+  const state: GameState = createGameState();
   
   // Set the global state reference
   globalState = state;

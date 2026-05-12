@@ -8,7 +8,11 @@ import SplashVfx from '../vfx/SplashVfx';
 import { PetrifyFlash } from '../vfx/PetrifyFlash';
 import HealingVfx from '../vfx/HealingVfx';
 import { InstantHit } from '../../../packages/protocol/messages';
-import { useProjectileStore, ProjectileData } from '../systems/projectileStore';
+import {
+  getProjectileOpacity,
+  useProjectileStore,
+} from '../systems/projectileStore';
+import type { ProjectileData } from '../systems/projectileStore';
 import { get as poolGet, recycle, registerPool } from '../systems/vfxPool';
 import { useGameStore } from '../systems/gameStore';
 
@@ -48,6 +52,10 @@ interface HealingVfxInstance extends BaseVfxInstance {
 }
 
 type VfxInstance = ProjectileVfxInstance | SplashVfxInstance | FlashVfxInstance | HealingVfxInstance;
+type RenderableProjectileData = ProjectileData & {
+  isFadingOut: boolean;
+  opacity: number;
+};
 
 export default function VfxManager() {
   // Store all active VFX instances
@@ -57,10 +65,22 @@ export default function VfxManager() {
   const liveProjectiles = useProjectileStore(state => state.live);
   const recycleProjectiles = useProjectileStore(state => state.toRecycle);
   const clearRecycled = useProjectileStore(state => state.clearRecycled);
+  const recycleExpiredProjectiles = useProjectileStore(state => state.recycleProjectiles);
+  const [vfxNow, setVfxNow] = useState(() => performance.now());
   
   // Cache the projectiles array with useMemo to prevent unnecessary re-renders
   const projectileArray = useMemo(() => {
-    const projArray = Object.values(liveProjectiles);
+    const liveArray: RenderableProjectileData[] = Object.values(liveProjectiles).map(projectile => ({
+      ...projectile,
+      isFadingOut: false,
+      opacity: 1,
+    }));
+    const fadingArray: RenderableProjectileData[] = Object.values(recycleProjectiles).map(projectile => ({
+      ...projectile,
+      isFadingOut: true,
+      opacity: getProjectileOpacity(projectile, vfxNow),
+    }));
+    const projArray = [...liveArray, ...fadingArray].filter(projectile => projectile.opacity > 0);
     console.log('[VfxManager] Rendering projectileArray:', projArray.map(p => ({ 
       castId: p.castId, 
       skillId: p.skillId 
@@ -87,7 +107,7 @@ export default function VfxManager() {
     }
     
     return projArray;
-  }, [liveProjectiles]);
+  }, [liveProjectiles, recycleProjectiles, vfxNow]);
   
   // Track active pooled projectiles
   const [pooledInstances, setPooledInstances] = useState<Map<string, Group>>(new Map());
@@ -226,61 +246,16 @@ export default function VfxManager() {
     window.addEventListener('petrifyFlash', handleSpawnPetrifyFlash as EventListener);
     window.addEventListener('heal', handleHeal as EventListener);
     
-    // Use a set to track projectiles already processed in this cycle
-    const processedProjectiles = new Set<string>();
-    
     // Cleanup expired effects periodically
     const cleanupInterval = setInterval(() => {
       const now = performance.now();
+      setVfxNow(now);
+      recycleExpiredProjectiles(now);
       
       // Filter out expired and projectile effects (projectiles now come from the store)
       setVfxInstances(prev => prev.filter(vfx => 
         (vfx.type !== 'projectile') && (!vfx.expiresAt || vfx.expiresAt > now)
       ));
-      
-      // Process projectiles that need to be recycled
-      const projectilesToProcess = Object.entries(recycleProjectiles);
-      
-      if (projectilesToProcess.length > 0) {
-        // Process in a batch to avoid multiple state updates
-        const instancesToRemove: string[] = [];
-        
-        projectilesToProcess.forEach(([castId, projectile]) => {
-          // Skip if already processed in this cycle
-          if (processedProjectiles.has(castId)) return;
-          processedProjectiles.add(castId);
-          
-          if (pooledInstances.has(castId)) {
-            const type = projectile.skillId || 'default';
-            const instance = pooledInstances.get(castId);
-            
-            if (instance) {
-              console.log(`[VfxManager] Recycling projectile with castId: ${castId}`);
-              // Make sure the instance is invisible before recycling
-              instance.visible = false;
-              // Recycle the projectile
-              recycle(type, instance);
-              // Track for removal
-              instancesToRemove.push(castId);
-            }
-          }
-          
-          // Clear from store regardless
-          clearRecycled(castId);
-        });
-        
-        // Update the pooled instances in a single batch if needed
-        if (instancesToRemove.length > 0) {
-          setPooledInstances(prev => {
-            const newMap = new Map(prev);
-            instancesToRemove.forEach(id => newMap.delete(id));
-            return newMap;
-          });
-        }
-      }
-      
-      // Clear the processed set after each cycle
-      processedProjectiles.clear();
     }, 100);
     
     // Cleanup on unmount
@@ -298,27 +273,26 @@ export default function VfxManager() {
     handleSpawnStunFlash, 
     handleSpawnPetrifyFlash,
     handleHeal,
-    recycleProjectiles,
-    pooledInstances,
-    clearRecycled
+    recycleExpiredProjectiles
   ]);
   
   // Render all active VFX instances
   return (
     <>
       {/* Render projectiles from the store */}
-      {projectileArray.map((proj: ProjectileData) => {
+      {projectileArray.map((proj: RenderableProjectileData) => {
         // For each projectile in the store, create the appropriate VFX
         const skillId = proj.skillId || 'default';
         const origin = { 
-          x: proj.origin.x, 
+          x: proj.isFadingOut ? proj.pos.x : proj.origin.x,
           y: 1.5, // Default y position
-          z: proj.origin.z 
+          z: proj.isFadingOut ? proj.pos.z : proj.origin.z
         };
+        const velocity = proj.isFadingOut ? { x: 0, z: 0 } : (proj.velocity ?? { x: 0, z: 0 });
         const dir = { 
-          x: proj.velocity.x, 
+          x: velocity.x,
           y: 0, // No vertical movement
-          z: proj.velocity.z 
+          z: velocity.z
         };
         
         // Get or create a pooled group for this projectile
@@ -352,12 +326,12 @@ export default function VfxManager() {
             // Make sure it's invisible before recycling
             pooledGroup.visible = false;
             recycle(skillType, pooledGroup);
-            
-            // Instead of immediately updating state, mark this projectile for cleanup
-            // in the next cleanup cycle to avoid potential re-render loops
-            if (!recycleProjectiles[proj.castId]) {
-              clearRecycled(proj.castId);
-            }
+            clearRecycled(proj.castId);
+            setPooledInstances(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(proj.castId);
+              return newMap;
+            });
           }
         };
         
@@ -370,6 +344,8 @@ export default function VfxManager() {
                 id={proj.castId}
                 origin={origin}
                 pos={proj.pos}
+                opacity={proj.opacity}
+                isFadingOut={proj.isFadingOut}
                 pooled={group}
                 onDone={handleDone}
               />
@@ -382,7 +358,9 @@ export default function VfxManager() {
                 origin={origin}
                 dir={dir}
                 speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={proj.serverEpochLaunchTs} // Use server's epoch launch time
+                launchTs={proj.clientLaunchTs}
+                opacity={proj.opacity}
+                isFadingOut={proj.isFadingOut}
                 pooled={group}
                 onDone={handleDone}
               />
@@ -395,7 +373,9 @@ export default function VfxManager() {
                 origin={origin}
                 dir={dir}
                 speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={proj.serverEpochLaunchTs} // Use server's epoch launch time
+                launchTs={proj.clientLaunchTs}
+                opacity={proj.opacity}
+                isFadingOut={proj.isFadingOut}
                 pooled={group}
                 onDone={handleDone}
               />
@@ -408,7 +388,9 @@ export default function VfxManager() {
                 origin={origin}
                 dir={dir}
                 speed={Math.hypot(dir.x, dir.z) * 2 || 10} // Multiply speed for better visibility
-                launchTs={proj.serverEpochLaunchTs} // Use server's epoch launch time
+                launchTs={proj.clientLaunchTs}
+                opacity={proj.opacity}
+                isFadingOut={proj.isFadingOut}
                 pooled={group}
                 onDone={handleDone}
               />
