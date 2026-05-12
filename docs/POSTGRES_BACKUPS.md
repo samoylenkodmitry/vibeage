@@ -28,7 +28,13 @@ Backup files are written to:
 
 ## Restore Drill
 
-Test the latest backup without touching production:
+On this workstation, `pnpm run db:restore:test` defaults to the off-VPS local backup directory when it exists:
+
+```text
+/media/huge/vibeage-backups/postgres/
+```
+
+Test the latest local backup without touching production:
 
 ```bash
 pnpm run db:restore:test
@@ -37,7 +43,7 @@ pnpm run db:restore:test
 Test a specific backup:
 
 ```bash
-BACKUP_FILE=/home/s/.vibeage-backups/postgres/vibeage_<timestamp>.dump pnpm run db:restore:test
+BACKUP_FILE=/media/huge/vibeage-backups/postgres/vibeage_<timestamp>.dump pnpm run db:restore:test
 ```
 
 The restore test starts a temporary `docker.io/library/postgres:16` container, streams the dump into it with `pg_restore`, verifies public tables exist, and removes the temporary container on exit.

@@ -2,7 +2,13 @@
 set -Eeuo pipefail
 
 APP_NAME=${APP_NAME:-vibeage}
-BACKUP_ROOT=${BACKUP_ROOT:-$HOME/.vibeage-backups/postgres}
+if [ -z "${BACKUP_ROOT:-}" ]; then
+  if [ -d /media/huge/vibeage-backups/postgres ]; then
+    BACKUP_ROOT=/media/huge/vibeage-backups/postgres
+  else
+    BACKUP_ROOT=$HOME/.vibeage-backups/postgres
+  fi
+fi
 BACKUP_FILE=${BACKUP_FILE:-${1:-}}
 RESTORE_IMAGE=${RESTORE_IMAGE:-docker.io/library/postgres:16}
 CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-}

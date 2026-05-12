@@ -31,7 +31,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 8. Done on 2026-05-07: protected `main` with required `Build and test` CI, linear history, conversation resolution, no force pushes, and no branch deletion.
 9. Done on 2026-05-07: deleted the remote `server` compatibility branch after confirming no live systemd, cron, or Nginx path references it.
 10. Done on 2026-05-12: added a Playwright smoke that starts the local game server and verifies a browser can enter the connected game HUD.
-11. Next production safety item: keep watching the local backup timer for successful daily pulls and periodically run the restore drill.
+11. Done on 2026-05-12: verified the local backup restore drill against `/media/huge/vibeage-backups/postgres`; latest dump restored into an isolated temporary Postgres container.
 12. Done on 2026-05-12: added browser smoke coverage for movement intent and a fireball hotkey cast before new gameplay work.
 13. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
@@ -95,6 +95,7 @@ tests/
 - Done on 2026-05-12: removed remaining protocol message interfaces and deleted exported `ProjSpawn2`/`ProjHit2` protocol types; server messages are validated through `packages/protocol/messages.ts`.
 - Done on 2026-05-12: defined the shared server-authoritative state model in `packages/sim/authoritativeState.ts` and wired the server to create state through `server/gameState.ts`.
 - Done on 2026-05-12: deleted the remaining legacy client projectile store; v2 `CastSnapshot` projectiles now own live, fade, and recycle state through `projectileStore.ts`.
+- Done on 2026-05-12: moved active cast runtime storage into `GameState.activeCasts` instead of a module-global cast array.
 
 ### Phase 2: Build The New Browser Client
 

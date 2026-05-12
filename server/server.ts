@@ -126,7 +126,7 @@ io.on('connection', (socket) => {
       });
       
       // Send all active casts and projectiles to the new player
-      sendCastSnapshots(socket);
+      sendCastSnapshots(world.getGameState().activeCasts, socket);
       
       // Broadcast new player to others
       socket.broadcast.emit('playerJoined', player);
