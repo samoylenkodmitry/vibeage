@@ -23,7 +23,7 @@ export default defineConfig({
       timeout: 120_000
     },
     {
-      command: `NEXT_PUBLIC_GAME_SERVER_URL=${gameServerUrl} pnpm exec next dev`,
+      command: `NEXT_PUBLIC_GAME_SERVER_URL=${gameServerUrl} NEXT_PUBLIC_E2E=1 pnpm exec next dev`,
       url: clientUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000

@@ -4,34 +4,6 @@ import type { ItemId } from '../content/items';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 
-export interface InventorySlot {
-  itemId: ItemId;
-  quantity: number;
-}
-
-export interface CastSnapshot {
-  castId: string;
-  casterId: string;
-  skillId: SkillId;
-  state: CastState;
-  origin: VecXZ;
-  pos: VecXZ;
-  dir?: VecXZ;
-  startedAt: number;
-  castTimeMs: number;
-  progressMs: number;
-}
-
-export interface StatusEffect {
-  id: string;
-  type: string;
-  value: number;
-  durationMs: number;
-  startTimeTs: number;
-  sourceSkill: string;
-  stacks?: number;
-}
-
 export const skillIdValues = ['fireball', 'iceBolt', 'waterSplash', 'petrify'] as const satisfies readonly SkillId[];
 export const skillIdSchema = z.enum(skillIdValues);
 
@@ -216,21 +188,25 @@ export const castSnapshotMsgSchema = z.object({
   data: castSnapshotSchema,
 }).passthrough();
 
+export const effectSnapshotTargetMsgSchema = z.object({
+  type: z.literal('EffectSnapshot'),
+  targetId: z.string(),
+  effects: z.array(statusEffectSchema),
+}).passthrough();
+
+export const effectSnapshotSingleMsgSchema = z.object({
+  type: z.literal('EffectSnapshot'),
+  id: z.string(),
+  src: z.string(),
+  effectId: z.string(),
+  stacks: z.number(),
+  remainingMs: z.number(),
+  seed: z.number(),
+}).passthrough();
+
 export const effectSnapshotMsgSchema = z.union([
-  z.object({
-    type: z.literal('EffectSnapshot'),
-    targetId: z.string(),
-    effects: z.array(statusEffectSchema),
-  }).passthrough(),
-  z.object({
-    type: z.literal('EffectSnapshot'),
-    id: z.string(),
-    src: z.string(),
-    effectId: z.string(),
-    stacks: z.number(),
-    remainingMs: z.number(),
-    seed: z.number(),
-  }).passthrough(),
+  effectSnapshotTargetMsgSchema,
+  effectSnapshotSingleMsgSchema,
 ]);
 
 export const combatLogMsgSchema = z.object({
@@ -312,86 +288,114 @@ export const serverMessageSchema = z.union([
   effectSnapshotMsgSchema,
 ]);
 
-export interface VecXZ {
+export type VecXZ = {
   x: number;
   z: number;
-}
+};
 
-export interface Vec3D {
+export type Vec3D = {
   x: number;
   y: number;
   z: number;
-}
+};
 
-export interface PredictionKeyframe {
+export type PredictionKeyframe = {
   pos: VecXZ;
   rotY?: number;
   ts: number;
-}
+};
 
-export interface PlayerMovementState {
+export type PlayerMovementState = {
   isMoving: boolean;
   targetPos?: VecXZ | null;
   lastUpdateTime: number;
   speed: number;
-}
+};
 
-export interface MoveIntent {
+export type StatusEffect = {
+  id: string;
+  type: string;
+  value: number;
+  durationMs: number;
+  startTimeTs: number;
+  sourceSkill: string;
+  stacks?: number;
+};
+
+export type InventorySlot = {
+  itemId: ItemId;
+  quantity: number;
+};
+
+export type CastSnapshot = {
+  castId: string;
+  casterId: string;
+  skillId: SkillId;
+  state: CastState;
+  origin: VecXZ;
+  pos: VecXZ;
+  dir?: VecXZ;
+  startedAt: number;
+  castTimeMs: number;
+  progressMs: number;
+};
+
+export type MoveIntent = {
   type: 'MoveIntent';
   id: string;
   targetPos: VecXZ;
   clientTs: number;
   seq?: number;
-}
+};
 
-export interface CastReq {
+export type CastReq = {
   type: 'CastReq';
   id: string;
   skillId: SkillId;
   targetId?: string;
   targetPos?: VecXZ;
   clientTs: number;
-}
+};
 
-export interface LearnSkill {
+export type LearnSkill = {
   type: 'LearnSkill';
   skillId: SkillId;
-}
+};
 
-export interface SetSkillShortcut {
+export type SetSkillShortcut = {
   type: 'SetSkillShortcut';
   slotIndex: number;
   skillId: SkillId | null;
-}
+};
 
-export interface SelectClass {
+export type SelectClass = {
   type: 'SelectClass';
   className: string;
-}
+};
 
-export interface RespawnRequest {
+export type RespawnRequest = {
   type: 'RespawnRequest';
   id: string;
   clientTs: number;
-}
+};
 
-export interface LootPickup {
+export type LootPickup = {
   type: 'LootPickup';
   lootId: string;
   playerId: string;
-}
+};
 
-export interface UseItem {
+export type UseItem = {
   type: 'UseItem';
   slotIndex: number;
   clientTs: number;
-}
+};
 
-export interface RequestInventory {
+export type RequestInventory = {
   type: 'RequestInventory';
-}
+};
 
-export interface PosSnap {
+export type PosSnap = {
   type: 'PosSnap';
   id: string;
   pos: VecXZ;
@@ -400,30 +404,30 @@ export interface PosSnap {
   snapTs: number;
   seq?: number;
   predictions?: PredictionKeyframe[];
-}
+};
 
-export interface InstantHit {
+export type InstantHit = {
   type: 'InstantHit';
   skillId: string;
   origin: Vec3D;
   targetPos: Vec3D;
   hitIds: string[];
   dmg?: number[];
-}
+};
 
-export interface SkillLearned {
+export type SkillLearned = {
   type: 'SkillLearned';
   skillId: SkillId;
   remainingPoints: number;
-}
+};
 
-export interface SkillShortcutUpdated {
+export type SkillShortcutUpdated = {
   type: 'SkillShortcutUpdated';
   slotIndex: number;
   skillId: SkillId | null;
-}
+};
 
-export interface ClassSelected {
+export type ClassSelected = {
   type: 'ClassSelected';
   className: string;
   baseStats: {
@@ -432,27 +436,27 @@ export interface ClassSelected {
     damageMultiplier: number;
     speedMultiplier: number;
   };
-}
+};
 
-export interface CastFail {
+export type CastFail = {
   type: 'CastFail';
   clientSeq: number;
   reason: 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
-}
+};
 
-export interface CastSnapshotMsg {
+export type CastSnapshotMsg = {
   type: 'CastSnapshot';
   data: CastSnapshot;
-}
+};
 
-export interface EffectSnapshotTargetMsg {
+export type EffectSnapshotTargetMsg = {
   type: 'EffectSnapshot';
   targetId: string;
   effects: StatusEffect[];
   id?: never;
-}
+};
 
-export interface EffectSnapshotSingleMsg {
+export type EffectSnapshotSingleMsg = {
   type: 'EffectSnapshot';
   targetId?: never;
   effects?: never;
@@ -462,65 +466,65 @@ export interface EffectSnapshotSingleMsg {
   stacks: number;
   remainingMs: number;
   seed: number;
-}
+};
 
 export type EffectSnapshotMsg = EffectSnapshotTargetMsg | EffectSnapshotSingleMsg;
 
-export interface CombatLogMsg {
+export type CombatLogMsg = {
   type: 'CombatLog';
   castId: string;
   skillId: string;
   casterId: string;
   targets: string[];
   damages: number[];
-}
+};
 
-export interface EnemyAttack {
+export type EnemyAttack = {
   type: 'EnemyAttack';
   enemyId: string;
   targetId: string;
   damage: number;
-}
+};
 
-export interface InventoryUpdateMsg {
+export type InventoryUpdateMsg = {
   type: 'InventoryUpdate';
   playerId?: string;
   inventory: InventorySlot[];
   maxInventorySlots: number;
-}
+};
 
-export interface LootAcquiredMsg {
+export type LootAcquiredMsg = {
   type: 'LootAcquired';
   items: InventorySlot[];
   sourceEnemyName?: string;
-}
+};
 
-export interface ItemDrop {
+export type ItemDrop = {
   itemId: string;
   quantity: number;
-}
+};
 
-export interface LootSpawn {
+export type LootSpawn = {
   type: 'LootSpawn';
   enemyId: string;
   lootId?: string;
   position?: VecXZ | Vec3D;
   loot: ItemDrop[];
-}
+};
 
-export interface ItemUsed {
+export type ItemUsed = {
   type: 'ItemUsed';
   slotIndex: number;
   itemId: ItemId;
   newQuantity: number;
   healthDelta?: number;
   manaDelta?: number;
-}
+};
 
-export interface BatchUpdate {
+export type BatchUpdate = {
   type: 'BatchUpdate';
   updates: ServerMessage[];
-}
+};
 
 export type ClientMessage =
   | MoveIntent
@@ -550,29 +554,6 @@ export type ServerMessage =
   | LootSpawn
   | ItemUsed
   | BatchUpdate;
-
-/** @deprecated Removed in protocol v2 - use CastSnapshot pipeline instead. */
-export interface ProjHit2 {
-  type: 'ProjHit2';
-  castId: string;
-  hitIds: string[];
-  dmg: number[];
-  impactPos?: VecXZ;
-}
-
-/** @deprecated Removed in protocol v2 - use CastSnapshot pipeline instead. */
-export interface ProjSpawn2 {
-  type: 'ProjSpawn2';
-  castId: string;
-  skillId: string;
-  origin: Vec3D;
-  dir: VecXZ;
-  speed: number;
-  launchTs: number;
-  casterId: string;
-  hitRadius?: number;
-  travelMs?: number;
-}
 
 export function describeProtocolError(error: z.ZodError): string {
   return error.issues

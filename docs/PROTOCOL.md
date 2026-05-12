@@ -1,56 +1,55 @@
-# Game Protocol - v0.6.1
+# Game Protocol
 
 This document describes the current messaging protocol used for communication between the client and server.
 
 ## Core Message Types
+
+### MoveIntent
+
+Client request to move the controlled player toward a target position.
+
+```typescript
+type MoveIntent = {
+  type: 'MoveIntent';
+  id: string;
+  targetPos: VecXZ;
+  clientTs: number;
+  seq?: number;
+};
+```
+
+### CastReq
+
+Client request to cast a skill. The server validates ownership, mana, cooldown, range, and target state.
+
+```typescript
+type CastReq = {
+  type: 'CastReq';
+  id: string;
+  skillId: SkillId;
+  targetId?: string;
+  targetPos?: VecXZ;
+  clientTs: number;
+};
+```
 
 ### CastSnapshot
 
 Represents the current state of a skill cast, with all information needed to render VFX and predict outcomes.
 
 ```typescript
-interface CastSnapshot {
+type CastSnapshot = {
   castId: string;       // Unique ID for this cast
   casterId: string;     // Entity that initiated the cast
-  skillId: string;      // Type of skill being cast
-  state: CastStateEnum; // Current state (Casting, Release, Hit, Complete)
+  skillId: SkillId;     // Type of skill being cast
+  state: CastState;     // Casting, Traveling, or Impact
   origin: VecXZ;        // Starting position
-  target?: VecXZ;       // Target position (if any)
+  pos: VecXZ;           // Current position
+  dir?: VecXZ;          // Projectile direction, if any
   startedAt: number;    // Timestamp when cast began
-}
-```
-
-### ProjSpawn2
-
-Enhanced projectile spawn message that contains all information needed to render and track a projectile.
-
-```typescript
-interface ProjSpawn2 {
-  type: 'ProjSpawn2';
-  castId: string;       // ID that links to the cast 
-  origin: VecXZ;        // Starting position
-  dir: VecXZ;           // Direction vector (normalized)
-  speed: number;        // Movement speed
-  launchTs: number;     // Timestamp when launched
-  hitRadius?: number;   // Optional collision radius for VFX
-  casterId?: string;    // ID of the entity that cast this
-  skillId?: string;     // Type of skill
-  travelMs?: number;    // Flight time for client-side animation
-}
-```
-
-### ProjHit2
-
-Enhanced projectile hit message that contains hit information and damage values.
-
-```typescript
-interface ProjHit2 {
-  type: 'ProjHit2';
-  castId: string;       // ID that links to the cast
-  hitIds: string[];     // Entities hit by this projectile
-  dmg: number[];        // Damage values aligned with hitIds
-  impactPos?: VecXZ;    // Position of impact
-}
+  castTimeMs: number;
+  progressMs: number;
+};
 ```
 
 ## Legacy Messages (Removed)
@@ -62,5 +61,7 @@ The following message types have been removed in v0.5.0:
 - ~~ProjSpawn~~
 - ~~ProjHit~~
 - ~~ProjEnd~~
+- ~~ProjSpawn2~~
+- ~~ProjHit2~~
 
-These have been replaced by the enhanced messages above for a more efficient and consistent protocol.
+These have been replaced by `CastReq`, `CastSnapshot`, `InstantHit`, and `CombatLog` messages validated in `packages/protocol/messages.ts`.

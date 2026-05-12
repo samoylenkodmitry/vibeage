@@ -133,4 +133,24 @@ describe('server protocol schemas', () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it('rejects removed projectile protocol messages', () => {
+    expect(safeParseServerMessage({
+      type: 'ProjSpawn2',
+      castId: 'cast-1',
+      skillId: 'fireball',
+      origin: { x: 0, y: 1, z: 0 },
+      dir: { x: 1, z: 0 },
+      speed: 22,
+      launchTs: 1746316800000,
+      casterId: 'player-1',
+    }).success).toBe(false);
+
+    expect(safeParseServerMessage({
+      type: 'ProjHit2',
+      castId: 'cast-1',
+      hitIds: ['enemy-1'],
+      dmg: [100],
+    }).success).toBe(false);
+  });
 });
