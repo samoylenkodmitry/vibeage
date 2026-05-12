@@ -32,7 +32,8 @@ This project should become a browser-first multiplayer game that is easy for hum
 9. Done on 2026-05-07: deleted the remote `server` compatibility branch after confirming no live systemd, cron, or Nginx path references it.
 10. Done on 2026-05-12: added a Playwright smoke that starts the local game server and verifies a browser can enter the connected game HUD.
 11. Next production safety item: keep watching the local backup timer for successful daily pulls and periodically run the restore drill.
-12. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
+12. Done on 2026-05-12: added browser smoke coverage for movement intent and a fireball hotkey cast before new gameplay work.
+13. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
 ## Target Stack
 
@@ -91,16 +92,16 @@ tests/
 - Done on 2026-05-08: introduced a shared server `GameState` type for the world/effects/AI path.
 - Done on 2026-05-08: removed loose `ClientMsg` and `ServerMsg` protocol base interfaces.
 - Done on 2026-05-08: removed unused legacy `MoveStartMsg` and `MoveStopMsg` compatibility interfaces.
-- Replace loose message interfaces and `[key: string]: any` protocol types with Zod schemas.
+- Done on 2026-05-12: removed remaining protocol message interfaces and deleted exported `ProjSpawn2`/`ProjHit2` protocol types; server messages are validated through `packages/protocol/messages.ts`.
 - Define the server-authoritative state model explicitly.
-- Delete legacy projectile/protocol types after the v2 path has tests.
+- Delete the remaining legacy client projectile store after the v2 VFX path fully owns projectile fade/recycle behavior.
 
 ### Phase 2: Build The New Browser Client
 
 - Create a Vite client app with one loading screen, one game canvas, and a minimal HUD.
 - Port only the best R3F/VFX pieces from the current app.
 - Keep visual state separate from authoritative network state.
-- Add Playwright smoke tests for page load, canvas presence, server connection, movement, and one skill cast.
+- Done in the current Next prototype: Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
 
 ### Phase 3: Build The Authoritative Server
 

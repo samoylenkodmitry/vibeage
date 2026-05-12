@@ -6,11 +6,9 @@ import { useGameStore } from './gameStore';
 import { getBuffer, GROUND_Y } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
 import { initProjectileListeners } from './projectileManager';
+import { installE2EHooks } from './e2eHooks';
 import * as THREE from 'three';
 import { 
-  // MoveIntent is actually used in type definitions
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  MoveIntent,
   CastReq, 
   PosSnap,
   VecXZ,
@@ -19,9 +17,6 @@ import {
   CombatLogMsg,
   describeProtocolError,
   safeParseServerMessage,
-  // CastFail is used in the handleCastFail callback
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  CastFail,
   CastState
 } from '../../../packages/protocol/messages';
 import { SkillId } from '../../../packages/content/skills';
@@ -791,6 +786,7 @@ export default function SocketManager() {
       sendCastReq,
       sendMoveIntent
     });
+    return installE2EHooks();
   }, [sendCastReq, sendMoveIntent]);
 
   // Handle enemy attack message

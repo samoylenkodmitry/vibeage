@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { ProjSpawn2, ProjHit2 } from '../../../packages/protocol/messages';
 
 // Enhanced projectile live state
 export interface ProjectileLive {
@@ -17,13 +16,29 @@ export interface ProjectileLive {
   travelMs?: number; // Travel time in milliseconds for accurate client-side animation
 }
 
+interface LegacyProjectileSpawn {
+  castId: string;
+  skillId: string;
+  origin: { x: number; y: number; z: number };
+  dir: { x: number; z: number };
+  speed: number;
+  launchTs: number;
+  casterId?: string;
+  hitRadius?: number;
+  travelMs?: number;
+}
+
+interface LegacyProjectileHit {
+  castId: string;
+}
+
 interface ProjectileStore {
   enhanced: Record<string, ProjectileLive>; // Map for projectiles
   updateOpacity: () => void;
   
   // Methods for the projectile system
-  addEnhancedProjectile: (data: ProjSpawn2) => void;
-  handleEnhancedHit: (data: ProjHit2) => void;
+  addEnhancedProjectile: (data: LegacyProjectileSpawn) => void;
+  handleEnhancedHit: (data: LegacyProjectileHit) => void;
 }
 
 // Duration of fade-out effect in milliseconds
@@ -74,7 +89,7 @@ export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
     });
   },
   
-  addEnhancedProjectile: (data: ProjSpawn2) => {
+  addEnhancedProjectile: (data: LegacyProjectileSpawn) => {
     set(state => {
       console.log(`[ProjectileStoreLegacy] Adding enhanced projectile with castId: ${data.castId}, skillId: ${data.skillId}`);
       
@@ -105,7 +120,7 @@ export const useProjectileStoreLegacy = create<ProjectileStore>((set) => ({
     });
   },
   
-  handleEnhancedHit: (data: ProjHit2) => {
+  handleEnhancedHit: (data: LegacyProjectileHit) => {
     // Mark the projectile as hit and start fade-out
     set(state => {
       const projectile = state.enhanced[data.castId];
