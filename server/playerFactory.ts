@@ -1,5 +1,10 @@
 import { hash } from '../packages/sim/combatMath.js';
 import { PlayerState } from '../shared/types.js';
+import {
+  DEFAULT_AVAILABLE_SKILL_POINTS,
+  DEFAULT_UNLOCKED_SKILLS,
+  normalizeSkillShortcuts,
+} from './players/playerProgression.js';
 
 export function createTransientPlayer(socketId: string, name: string): PlayerState {
   return {
@@ -21,9 +26,9 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     castingProgressMs: 0,
     isAlive: true,
     className: 'mage',
-    unlockedSkills: ['fireball'],
-    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
-    availableSkillPoints: 1,
+    unlockedSkills: [...DEFAULT_UNLOCKED_SKILLS],
+    skillShortcuts: normalizeSkillShortcuts(undefined, DEFAULT_UNLOCKED_SKILLS),
+    availableSkillPoints: DEFAULT_AVAILABLE_SKILL_POINTS,
     posHistory: [],
     lastUpdateTime: Date.now(),
     inventory: [],

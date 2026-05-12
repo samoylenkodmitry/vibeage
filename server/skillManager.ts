@@ -63,9 +63,10 @@ export function learnNewSkill(player: Player, skillId: SkillId): boolean {
     
     console.log(`[LEARN_SKILL] Player ${player.id} learned ${skillId}. Skill points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
     
-    // Automatically assign to the first empty shortcut slot if available
+    // Automatically assign to the first empty shortcut slot if available.
+    const alreadyAssigned = player.skillShortcuts.includes(skillId);
     const emptySlotIndex = player.skillShortcuts.findIndex(slot => slot === null);
-    if (emptySlotIndex !== -1) {
+    if (!alreadyAssigned && emptySlotIndex !== -1) {
       player.skillShortcuts[emptySlotIndex] = skillId;
     }
     
