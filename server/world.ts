@@ -16,8 +16,9 @@ import { updateEnemyAI } from './ai/enemyAI.js';
 import { generateLoot as generateLootFromEnemy } from './loot/generateLoot.js';
 import { db } from './db.js';
 import { ITEMS } from '../packages/content/items.js';
-import { persistPlayer, recordServerEvent } from './persistence.js';
+import { isPersistenceDisabled, persistPlayer, recordServerEvent } from './persistence.js';
 import type { GameState } from './gameState.js';
+import { createTransientPlayer } from './playerFactory.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -883,6 +884,17 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
     },
     
     async addPlayer(socketId: string, name: string) {
+      const addTransientPlayer = () => {
+        const player = createTransientPlayer(socketId, name);
+        state.players[player.id] = player;
+        spatial.insert(player.id, { x: player.position.x, z: player.position.z });
+        return player;
+      };
+
+      if (isPersistenceDisabled()) {
+        return addTransientPlayer();
+      }
+
       try {
         // Insert player into database or fetch existing player
         const { rows: [row] } = await db.query(
@@ -940,42 +952,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         return player;
       } catch (error) {
         console.error('Error adding player to database:', error);
-        
-        // Fallback to old method if database fails
-        const fallbackId = `player-${hash(socketId + Date.now().toString())}`;
-        
-        const player: PlayerState = {
-          id: fallbackId,
-          socketId,
-          name,
-          position: { x: 0, y: 0.5, z: 0 },
-          rotation: { x: 0, y: 0, z: 0 },
-          health: 100,
-          maxHealth: 100,
-          mana: 100,
-          maxMana: 100,
-          level: 1,
-          experience: 0,
-          experienceToNextLevel: 100,
-          statusEffects: [],
-          skillCooldownEndTs: {},
-          castingSkill: null,
-          castingProgressMs: 0,
-          isAlive: true,
-          className: 'mage',
-          unlockedSkills: ['fireball'],
-          skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
-          availableSkillPoints: 1,
-          posHistory: [],
-          lastUpdateTime: Date.now(),
-          inventory: [],
-          maxInventorySlots: 20
-        };
-        
-        state.players[fallbackId] = player;
-        spatial.insert(fallbackId, { x: player.position.x, z: player.position.z });
-        
-        return player;
+        return addTransientPlayer();
       }
     },
     
