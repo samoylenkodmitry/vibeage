@@ -181,7 +181,11 @@ export default function Game() {
   const handleRetryJoin = useCallback(() => {
     setConnectionError(null);
     setHasJoinedGame(false);
-  }, [setConnectionError, setHasJoinedGame]);
+
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+  }, [socket, setConnectionError, setHasJoinedGame]);
 
   const handleBackToStart = useCallback(() => {
     setConnectionError(null);
@@ -279,7 +283,7 @@ export default function Game() {
       <GameHud>
         <UI />
       </GameHud>
-      {!myPlayerId && (
+      {(!myPlayerId || !isConnected) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
           <div className="w-full max-w-sm rounded bg-gray-900 p-6 text-center shadow-xl">
             <h2 className="mb-3 text-2xl font-bold text-purple-400">

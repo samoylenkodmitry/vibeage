@@ -425,6 +425,7 @@ export default function SocketManager() {
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5
     });
+    setSocket(socket);
 
     socket.on('connect_error', (error) => {
       console.error('Could not connect to game server:', error.message);
@@ -453,7 +454,6 @@ export default function SocketManager() {
       console.log('Connected to game server, setting socket in game store');
       setConnectionStatus(true);
       setConnectionError(null);
-      setSocket(socket);
       
       hookVfx(socket);
       initProjectileListeners();
