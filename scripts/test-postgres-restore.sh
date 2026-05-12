@@ -26,15 +26,12 @@ select_container_runtime() {
     return
   fi
 
-  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-    CONTAINER_RUNTIME=docker
-    return
-  fi
-
-  if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
-    CONTAINER_RUNTIME=podman
-    return
-  fi
+  for runtime in docker podman; do
+    if command -v "$runtime" >/dev/null 2>&1 && "$runtime" info >/dev/null 2>&1; then
+      CONTAINER_RUNTIME=$runtime
+      return
+    fi
+  done
 
   fail "Missing usable container runtime: docker daemon or podman"
 }
