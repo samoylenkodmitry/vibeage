@@ -75,3 +75,6 @@ jobs:
 
       - name: Browser smoke
         run: pnpm run test:e2e
+
+      - name: Vite browser smoke
+        run: pnpm run test:e2e:vite

@@ -17,7 +17,7 @@
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/install-postgres-backup-cron.sh && bash -n scripts/health-production.sh",
     "check:maintainability": "node scripts/check-maintainability.mjs",
-    "check": "pnpm run lint && pnpm run typecheck && pnpm run check:scripts && pnpm run check:maintainability && pnpm test && pnpm run build:server && pnpm run build && pnpm run build:vite-client && pnpm run test:e2e",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run check:scripts && pnpm run check:maintainability && pnpm test && pnpm run build:server && pnpm run build && pnpm run build:vite-client && pnpm run test:e2e && pnpm run test:e2e:vite",
     "deploy:production": "scripts/deploy-from-local.sh",
     "deploy:rollback": "scripts/rollback-production.sh",
     "health:production": "scripts/health-production.sh",
@@ -31,6 +31,7 @@
     "dev:db": "./dev.sh",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:vite": "playwright test -c playwright.vite.config.ts",
     "test:watch": "vitest",
     "bench": "vitest bench",
     "generate-docs": "tsx generate-project-doc.ts"
