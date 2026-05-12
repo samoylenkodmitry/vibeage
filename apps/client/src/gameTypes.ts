@@ -1,6 +1,7 @@
 import type { SkillId } from '../../../packages/content/skills';
 import type {
   CastSnapshot,
+  ItemDrop,
   InventorySlot,
   PlayerMovementState,
   StatusEffect,
@@ -59,6 +60,10 @@ export type EnemyEntity = {
 export type ServerGameState = {
   players?: Record<string, PlayerEntity>;
   enemies?: Record<string, EnemyEntity>;
+  groundLoot?: Record<string, {
+    position: VecXZ | Vec3;
+    items: ItemDrop[];
+  }>;
 };
 
 export type ConnectionState =
@@ -79,15 +84,23 @@ export type CombatLine = {
   text: string;
 };
 
+export type GroundLootStack = {
+  id: string;
+  position: Vec3;
+  items: ItemDrop[];
+};
+
 export type GameClientState = {
   connectionState: ConnectionState;
   message: string;
   myPlayerId: string | null;
   players: Record<string, PlayerEntity>;
   enemies: Record<string, EnemyEntity>;
+  groundLoot: Record<string, GroundLootStack>;
   selectedTargetId: string | null;
   targetWorldPos: Vec3 | null;
   casts: Record<string, VisibleCast>;
   inventory: InventorySlot[];
+  maxInventorySlots: number;
   combatLog: CombatLine[];
 };

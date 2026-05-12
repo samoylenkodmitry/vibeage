@@ -12,8 +12,19 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <WorldScene state={state} onMove={client.sendMoveIntent} onSelectTarget={client.selectTarget} />
-      <GameHud state={state} onDisconnect={client.disconnect} onCastSkill={client.castSkill} />
+      <WorldScene
+        state={state}
+        onMove={client.sendMoveIntent}
+        onSelectTarget={client.selectTarget}
+        onPickUpLoot={client.pickUpLoot}
+      />
+      <GameHud
+        state={state}
+        onDisconnect={client.disconnect}
+        onCastSkill={client.castSkill}
+        onUseItem={client.useItem}
+        onRespawn={client.respawn}
+      />
       {state.connectionState !== 'online' && (
         <div className="joining-overlay" role="status">
           <strong>{state.message}</strong>
