@@ -67,6 +67,9 @@ jobs:
       - name: Build frontend
         run: pnpm run build
 
+      - name: Build Vite client shell
+        run: pnpm run build:vite-client
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 

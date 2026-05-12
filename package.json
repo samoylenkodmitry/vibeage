@@ -6,7 +6,10 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:vite-client": "vite --config apps/client/vite.config.ts",
     "build": "next build",
+    "build:vite-client": "vite build --config apps/client/vite.config.ts",
+    "preview:vite-client": "vite preview --config apps/client/vite.config.ts",
     "start": "next start",
     "lint": "next lint --max-warnings=0",
     "typecheck": "pnpm run typecheck:client && pnpm run typecheck:server",
@@ -14,7 +17,7 @@
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/install-postgres-backup-cron.sh && bash -n scripts/health-production.sh",
     "check:maintainability": "node scripts/check-maintainability.mjs",
-    "check": "pnpm run lint && pnpm run typecheck && pnpm run check:scripts && pnpm run check:maintainability && pnpm test && pnpm run build:server && pnpm run build && pnpm run test:e2e",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run check:scripts && pnpm run check:maintainability && pnpm test && pnpm run build:server && pnpm run build && pnpm run build:vite-client && pnpm run test:e2e",
     "deploy:production": "scripts/deploy-from-local.sh",
     "deploy:rollback": "scripts/rollback-production.sh",
     "health:production": "scripts/health-production.sh",
@@ -76,6 +79,7 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.29.0",
     "@typescript-eslint/parser": "^8.29.0",
+    "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
@@ -88,6 +92,7 @@
     "tsx": "^4.19.3",
     "typescript": "^5",
     "typescript-eslint": "^8.29.0",
+    "vite": "^6.3.5",
     "vitest": "^3.1.2"
   }
 }

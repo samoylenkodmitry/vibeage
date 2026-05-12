@@ -4,6 +4,31 @@ export const SKILL_SHORTCUT_SLOTS = 9;
 export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = ['fireball'];
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
 
+export function numberOrFallback(value: unknown, fallback: number): number {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function normalizePlayerLevel(value: unknown): number {
+  return Math.max(1, Math.floor(numberOrFallback(value, 1)));
+}
+
+export function getMaxHealthForLevel(level: number): number {
+  return 100 + (level - 1) * 20;
+}
+
+export function getMaxManaForLevel(level: number): number {
+  return 100 + (level - 1) * 10;
+}
+
+export function getExperienceToNextLevel(level: number): number {
+  return Math.floor(100 * Math.pow(1.5, level - 1));
+}
+
 function isSkillId(value: unknown): value is SkillId {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, value);
 }

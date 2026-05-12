@@ -24,6 +24,7 @@ backup.log
 # production
 /build
 /dist/
+apps/client/dist/
 
 # misc
 .DS_Store

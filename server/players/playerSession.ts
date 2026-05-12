@@ -5,37 +5,17 @@ import { db } from '../db.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';
 import {
+  getExperienceToNextLevel,
+  getMaxHealthForLevel,
+  getMaxManaForLevel,
+  normalizePlayerLevel,
   normalizeAvailableSkillPoints,
+  numberOrFallback,
   normalizeSkillShortcuts,
   normalizeUnlockedSkills,
 } from './playerProgression.js';
 
 type PlayerRow = Record<string, any>;
-
-function numberOrFallback(value: unknown, fallback: number): number {
-  if (value === null || value === undefined || value === '') {
-    return fallback;
-  }
-
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function normalizePlayerLevel(value: unknown): number {
-  return Math.max(1, Math.floor(numberOrFallback(value, 1)));
-}
-
-function getMaxHealthForLevel(level: number): number {
-  return 100 + (level - 1) * 20;
-}
-
-function getMaxManaForLevel(level: number): number {
-  return 100 + (level - 1) * 10;
-}
-
-function getExperienceToNextLevel(level: number): number {
-  return Math.floor(100 * Math.pow(1.5, level - 1));
-}
 
 function addPlayerToState(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
   state.players[player.id] = player;
