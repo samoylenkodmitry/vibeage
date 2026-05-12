@@ -33,12 +33,12 @@ const useProjectileMovement = ({
   const originalDir = useRef(new Vector3(dir.x, dir.y, dir.z).normalize());
   const originalSpeed = useRef(speed);
   
-  // Store the server epoch launchTs directly
+  // Store the client-relative launch timestamp directly.
   const originalLaunchTs = useRef(launchTs);
   
   // Log when the launch timestamp is received
   useEffect(() => {
-    console.log(`[ProjMove] Received launchTs: ${launchTs}, Current client time: ${Date.now()}, Difference: ${Date.now() - launchTs}ms`);
+    console.log(`[ProjMove] Received launchTs: ${launchTs}, Current client time: ${performance.now()}, Difference: ${performance.now() - launchTs}ms`);
     // Update the ref if the prop changes
     originalLaunchTs.current = launchTs;
   }, [launchTs]);
@@ -57,10 +57,10 @@ const useProjectileMovement = ({
       dir: `(${dir?.x?.toFixed(2) || 'undefined'}, ${dir?.y?.toFixed(2) || 'undefined'}, ${dir?.z?.toFixed(2) || 'undefined'})`,
       speed: speed,
       originalTs: launchTs,
-      now: Date.now()
+      now: performance.now()
     });
     
-    console.log(`[ProjMove Hook] Initialized for a projectile. Origin: (${origin?.x?.toFixed(2)}, ${origin?.y?.toFixed(2)}, ${origin?.z?.toFixed(2)}), Dir: (${dir?.x?.toFixed(2)}, ${dir?.y?.toFixed(2)}, ${dir?.z?.toFixed(2)}), Speed: ${speed}, LaunchTs: ${launchTs}, ServerEpochTs: ${originalLaunchTs.current}`);
+    console.log(`[ProjMove Hook] Initialized for a projectile. Origin: (${origin?.x?.toFixed(2)}, ${origin?.y?.toFixed(2)}, ${origin?.z?.toFixed(2)}), Dir: (${dir?.x?.toFixed(2)}, ${dir?.y?.toFixed(2)}, ${dir?.z?.toFixed(2)}), Speed: ${speed}, LaunchTs: ${launchTs}, ClientLaunchTs: ${originalLaunchTs.current}`);
   }, [origin, dir, speed, launchTs]);
   
   // Function to calculate position at a given time
@@ -90,12 +90,11 @@ const useProjectileMovement = ({
   useFrame(() => {
     if (isDestroyed.current) return;
 
-    // Calculate elapsed time in seconds since launch using epoch time
-    const clientNowEpoch = Date.now();
+    // Calculate elapsed time in seconds since launch using the client's high-resolution timeline.
+    const clientNow = performance.now();
     
-    // Handle case where launchTs might be in the future due to clock mismatch
-    // or using a server timestamp that's ahead of client clock
-    let elapsedTimeSeconds = Math.max(0, (clientNowEpoch - originalLaunchTs.current) / 1000);
+    // Handle case where launchTs might be in the future due to a late prop update.
+    let elapsedTimeSeconds = Math.max(0, (clientNow - originalLaunchTs.current) / 1000);
     
     // Sanity check: if elapsed time is too large or negative, use a small value
     // and auto-destroy the projectile if it's been alive for more than 5 seconds

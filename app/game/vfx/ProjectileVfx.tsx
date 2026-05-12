@@ -2,7 +2,6 @@ import React from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useRef, useState, useEffect } from 'react';
 import { Vector3, Mesh, MathUtils, Color, Group, Material, SphereGeometry, MeshStandardMaterial, PointLight } from 'three';
-import { useProjectileStoreLegacy } from '../systems/projectileManager';
 import useProjectileMovement from './useProjectileMovement';
 import useParticleSystem, { Particle } from './useParticleSystem';
 
@@ -12,6 +11,8 @@ interface ProjectileVfxProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  opacity?: number;
+  isFadingOut?: boolean;
   pooled?: Group; // Add pooled group prop
   onDone?: () => void; // Add callback for when projectile is done
 }
@@ -22,6 +23,8 @@ const ProjectileVfxComponent = ({
   dir, 
   speed, 
   launchTs = performance.now(),
+  opacity = 1,
+  isFadingOut = false,
   pooled, // Use the pooled group passed from VfxManager
   onDone
 }: ProjectileVfxProps) => {
@@ -30,11 +33,11 @@ const ProjectileVfxComponent = ({
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const [intensity, setIntensity] = useState(2);
   const isActive = useRef(true);
-  
-  // Get projectile opacity from store
-  const projectileState = useProjectileStoreLegacy(state => state.enhanced[id]);
-  const opacity = projectileState?.opacity ?? 1.0;
-  const isFadingOut = projectileState?.fadeOutStartTs !== undefined;
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
   
   // Initialize pooled group on first mount if provided
   useEffect(() => {
@@ -68,22 +71,22 @@ const ProjectileVfxComponent = ({
     ref.current = coreMesh;
     
     return () => {
-      if (isActive.current && onDone) {
+      if (isActive.current && onDoneRef.current) {
         isActive.current = false;
-        onDone();
+        onDoneRef.current();
       }
     };
-  }, [pooled, onDone]);
+  }, [pooled]);
   
   // Handle cleanup when projectile is done
   useEffect(() => {
     return () => {
-      if (isActive.current && onDone) {
+      if (isActive.current && onDoneRef.current) {
         isActive.current = false;
-        onDone();
+        onDoneRef.current();
       }
     };
-  }, [onDone]);
+  }, []);
   
   // Use the projectile movement hook for consistent positioning
   const { position} = useProjectileMovement({

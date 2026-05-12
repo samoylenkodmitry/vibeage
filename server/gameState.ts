@@ -1,18 +1,40 @@
 import type { ItemDrop, VecXZ } from '../packages/protocol/messages.js';
+import type {
+  AuthoritativeEntityState,
+  AuthoritativeGroundLootStack,
+  AuthoritativeWorldState,
+} from '../packages/sim/authoritativeState.js';
 import type { Enemy, PlayerState } from '../shared/types.js';
 import type { Projectile } from './types.js';
 
-export interface GroundLootStack {
+export type GroundLootStack = AuthoritativeGroundLootStack<ItemDrop> & {
   position: VecXZ;
-  items: ItemDrop[];
+};
+
+export type GameState = AuthoritativeWorldState<
+  PlayerState,
+  Enemy,
+  Projectile,
+  never,
+  PlayerState['statusEffects'][number],
+  GroundLootStack
+>;
+
+export function createGameState(): GameState {
+  return {
+    players: {},
+    enemies: {},
+    activeCasts: {},
+    effectsByTarget: {},
+    projectiles: [],
+    lastProjectileId: 0,
+    groundLoot: {},
+    zones: {
+      activeZoneIds: [],
+      playerZoneIds: {},
+      enemyZoneIds: {},
+    },
+  };
 }
 
-export interface GameState {
-  players: Record<string, PlayerState>;
-  enemies: Record<string, Enemy>;
-  projectiles: Projectile[];
-  lastProjectileId: number;
-  groundLoot: Record<string, GroundLootStack>;
-}
-
-export type EntityState = Pick<GameState, 'players' | 'enemies'>;
+export type EntityState = AuthoritativeEntityState<GameState>;

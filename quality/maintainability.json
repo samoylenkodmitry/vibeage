@@ -34,7 +34,6 @@
     "app/game/systems/SocketManager.tsx": 898,
     "app/game/systems/gameStore.ts": 719,
     "app/game/systems/interpolation.ts": 166,
-    "app/game/systems/projectileManager.ts": 153,
     "app/game/systems/projectileStore.ts": 155,
     "app/game/vfx/FireballProjectile.tsx": 209,
     "app/game/vfx/HealingVfx.tsx": 183,

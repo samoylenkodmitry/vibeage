@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { CastState } from '../../../packages/protocol/messages';
 import type { CastSnapshot } from '../../../shared/types';
 
+export const PROJECTILE_RECYCLE_FADE_MS = 500;
+
 // Define a simplified projectile data structure for protocol v2+
 export interface ProjectileData {
   type: 'CastSnapshot';
@@ -12,9 +14,9 @@ export interface ProjectileData {
   pos: { x: number, z: number };
   velocity?: { x: number, z: number };
   travelTime?: number;
-  serverEpochLaunchTs: number; // NEW: To store server's Date.now() at projectile launch
+  serverEpochLaunchTs: number;
+  clientLaunchTs: number;
   hitTs?: number;
-  expired?: boolean;
 }
 
 export interface State {
@@ -31,6 +33,15 @@ export interface Actions {
   getProjectileByProjId: (projId: string) => ProjectileData | undefined;
 }
 
+export function getProjectileOpacity(projectile: ProjectileData, now: number): number {
+  if (!projectile.hitTs) {
+    return 1;
+  }
+
+  const fadeProgress = (now - projectile.hitTs) / PROJECTILE_RECYCLE_FADE_MS;
+  return Math.max(0, 1 - fadeProgress);
+}
+
 export const useProjectileStore = create<State & Actions>((set, get) => ({
   live: {},
   toRecycle: {},
@@ -39,6 +50,7 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
     console.log(`[ProjectileStore.add] Processing castId: ${snapshot.castId}, skillId: ${snapshot.skillId}, newPos: (${snapshot.pos.x.toFixed(2)}, ${snapshot.pos.z.toFixed(2)}), state: ${snapshot.state}`);
     
     const travelTime = Date.now() - snapshot.startedAt;
+    const clientNow = performance.now();
     if (travelTime < 0 || travelTime > 10000) {
       console.warn(`[ProjectileStore.add] Invalid travel time  ${snapshot}, travelTime: ${travelTime}`);
       return s; // Return unchanged state
@@ -53,9 +65,29 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
       origin: snapshot.origin,
       pos: snapshot.pos,
       velocity: snapshot.dir,
-      serverEpochLaunchTs: snapshot.startedAt, // Use the server's authoritative launch timestamp
+      serverEpochLaunchTs: snapshot.startedAt,
+      clientLaunchTs: clientNow - travelTime,
       travelTime: travelTime, 
     };
+
+    if (snapshot.state === CastState.Impact) {
+      console.log(`[ProjectileStore.add] Projectile ${snapshot.castId} is in Impact state. Moving to toRecycle.`);
+      const previousProjectile = s.live[snapshot.castId] ?? s.toRecycle[snapshot.castId] ?? projectileData;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [snapshot.castId]: _, ...restLive } = s.live;
+
+      return {
+        live: restLive,
+        toRecycle: {
+          ...s.toRecycle,
+          [snapshot.castId]: {
+            ...previousProjectile,
+            pos: snapshot.pos,
+            hitTs: performance.now(),
+          },
+        },
+      };
+    }
     
     // Create a new live object with the updated/added projectile.
     // This ensures that if s.live[castId] already exists, it's replaced with the new projectileData.
@@ -63,17 +95,7 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
       ...s.live,
       [snapshot.castId]: projectileData,
     };
-    
-    // If the projectile is now in Impact state, move it to toRecycle immediately
-    if (snapshot.state === CastState.Impact) {
-      console.log(`[ProjectileStore.add] Projectile ${snapshot.castId} is in Impact state. Moving to toRecycle.`);
-      delete newLive[snapshot.castId]; // Remove from live
-      return {
-        live: newLive,
-        toRecycle: { ...s.toRecycle, [snapshot.castId]: { ...projectileData, hitTs: performance.now() } }
-      };
-    }
-    
+
     return { 
       live: newLive
     };
@@ -106,22 +128,20 @@ export const useProjectileStore = create<State & Actions>((set, get) => ({
     return s;
   }),
   
-  recycleProjectiles: () => set((s) => {
-    // Recycle projectiles that are expired
-    const newLive = { ...s.live };
-    const newToRecycle = { ...s.toRecycle };
+  recycleProjectiles: (now = performance.now()) => set((s) => {
+    const newToRecycle: Record<string, ProjectileData> = {};
+    let changed = false;
     
     for (const [castId, projectile] of Object.entries(s.toRecycle)) {
-      if (projectile.expired) {
+      if (projectile.hitTs && now - projectile.hitTs >= PROJECTILE_RECYCLE_FADE_MS) {
         console.log(`[ProjectileStore.recycleProjectiles] Recycling expired projectile: ${castId}`);
-        delete newToRecycle[castId];
+        changed = true;
+      } else {
+        newToRecycle[castId] = projectile;
       }
     }
     
-    return {
-      live: newLive,
-      toRecycle: newToRecycle
-    };
+    return changed ? { toRecycle: newToRecycle } : s;
   }),
   
   clearRecycled: (castId: string) => set((s) => {

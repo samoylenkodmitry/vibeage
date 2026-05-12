@@ -7,6 +7,8 @@ interface FireballProjectileProps {
   id?: string;
   origin: {x: number; y: number; z: number};
   pos: {x: number; z: number};
+  opacity?: number;
+  isFadingOut?: boolean;
   pooled?: Group;
   onDone?: () => void;
 }
@@ -15,11 +17,18 @@ const FireballProjectileComponent = ({
   id = `fireball-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, 
   origin, 
   pos,
+  opacity = 1,
+  isFadingOut = false,
   pooled,
   onDone
 }: FireballProjectileProps) => {
   const coreRef = useRef<Mesh>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   // currentVisualPosition will update whenever 'pos' or 'origin.y' props change
   const currentVisualPosition = useMemo(() => new Vector3(pos.x, origin.y, pos.z), [pos, origin.y]);
@@ -73,12 +82,10 @@ const FireballProjectileComponent = ({
     return () => {
       // This cleanup runs ONLY when FireballProjectile unmounts from the scene.
       console.log(`[FireballProjectile ${id}] Unmount Cleanup. Pooled group ID: ${currentPooledGroup?.uuid}`);
-      if (onDone) {
-        onDone(); // Notifies VfxManager to recycle the pooled group.
-      }
+      onDoneRef.current?.(); // Notifies VfxManager to recycle the pooled group.
     };
-  // Dependencies: 'id', 'pooled', 'onDone'.
-  }, [id, pooled, onDone]);
+  // Keep setup tied to the pooled object; onDone is read from a ref to avoid remounting during fade ticks.
+  }, [id, pooled]);
   
   // Setup particle system for fire effects
   const fireParticles = useParticleSystem({
@@ -89,7 +96,7 @@ const FireballProjectileComponent = ({
     particleSpeed: { min: 0.5, max: 2 },
     particleSize: { min: 0.05, max: 0.2 },
     particleOpacity: { min: 0.6, max: 1.0 },
-    emissionRate: 40,
+    emissionRate: isFadingOut ? 8 : 40,
     maxParticles: 50,
     generateParticle: () => {
       return {
@@ -105,7 +112,7 @@ const FireballProjectileComponent = ({
           (Math.random() - 0.5) * 2
         ),
         scale: 0.05 + Math.random() * 0.15,
-        opacity: 0.6 + Math.random() * 0.4,
+        opacity: (0.6 + Math.random() * 0.4) * opacity,
         lifetime: 0,
         maxLifetime: 0.1 + Math.random() * 0.4,
         color: new Color().setHSL(
@@ -124,7 +131,7 @@ const FireballProjectileComponent = ({
       return {
         ...particle,
         position: particle.position.addScaledVector(particle.velocity, deltaTime),
-        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)),
+        opacity: particle.opacity * (1 - (particle.lifetime / particle.maxLifetime)) * opacity,
         lifetime: particle.lifetime + deltaTime
       };
     }
@@ -141,6 +148,11 @@ const FireballProjectileComponent = ({
     if (pooled) {
       pooled.position.copy(currentVisualPosition);
       pooled.visible = true; // Explicitly ensure visibility
+      pooled.children.forEach((child, index) => {
+        if (child instanceof Mesh && child.material instanceof MeshBasicMaterial) {
+          child.material.opacity = (index === 0 ? 0.9 : 0.6) * opacity;
+        }
+      });
     }
     
     if (coreRef.current) {
@@ -152,7 +164,7 @@ const FireballProjectileComponent = ({
       // Random fire flickering through material opacity
       if (coreRef.current.material instanceof MeshBasicMaterial) {
         const flickerOpacity = 0.8 + Math.sin(time * 20) * 0.2;
-        coreRef.current.material.opacity = flickerOpacity;
+        coreRef.current.material.opacity = flickerOpacity * opacity;
       }
     }
   });
@@ -172,7 +184,7 @@ const FireballProjectileComponent = ({
         <meshBasicMaterial 
           color={0xff5500}
           transparent={true}
-          opacity={0.9}
+          opacity={0.9 * opacity}
         />
       </mesh>
       
@@ -182,7 +194,7 @@ const FireballProjectileComponent = ({
         <meshBasicMaterial 
           color={0xff8800}
           transparent={true}
-          opacity={0.6}
+          opacity={0.6 * opacity}
         />
       </mesh>
       

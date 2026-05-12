@@ -10,6 +10,8 @@ interface WaterProjectileProps {
   dir: {x: number; y: number; z: number};
   speed: number;
   launchTs?: number;
+  opacity?: number;
+  isFadingOut?: boolean;
   pooled?: Group; // Add pooled group prop
   onDone?: () => void; // Add callback for when projectile is done
 }
@@ -20,6 +22,8 @@ const WaterProjectileComponent = ({
   dir, 
   speed, 
   launchTs = performance.now(),
+  opacity = 1,
+  isFadingOut = false,
   pooled, // Use the pooled group passed from VfxManager
   onDone
 }: WaterProjectileProps) => {
@@ -27,6 +31,11 @@ const WaterProjectileComponent = ({
   const groupRef = useRef<Group>(null);
   const timeOffset = useRef(Math.random() * Math.PI * 2);
   const isActive = useRef(true);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
   
   // Use the projectile movement hook for consistent positioning
   const { position } = useProjectileMovement({
@@ -64,22 +73,22 @@ const WaterProjectileComponent = ({
     mainRef.current = mainMesh;
     
     return () => {
-      if (isActive.current && onDone) {
+      if (isActive.current && onDoneRef.current) {
         isActive.current = false;
-        onDone();
+        onDoneRef.current();
       }
     };
-  }, [pooled, onDone]);
+  }, [pooled]);
   
   // Handle cleanup when projectile is done
   useEffect(() => {
     return () => {
-      if (isActive.current && onDone) {
+      if (isActive.current && onDoneRef.current) {
         isActive.current = false;
-        onDone();
+        onDoneRef.current();
       }
     };
-  }, [onDone]);
+  }, []);
   
   // Setup particle system for water droplet effects
   const dropletParticles = useParticleSystem({
@@ -90,7 +99,7 @@ const WaterProjectileComponent = ({
     particleSpeed: { min: 0.5, max: 2 },
     particleSize: { min: 0.05, max: 0.15 },
     particleOpacity: { min: 0.7, max: 1.0 },
-    emissionRate: 15,
+    emissionRate: isFadingOut ? 4 : 15,
     maxParticles: 30,
     gravity: new Vector3(0, -9.8, 0),
     generateParticle: () => {
@@ -110,7 +119,7 @@ const WaterProjectileComponent = ({
           (Math.random() - 0.5) * 1.5
         ),
         scale: 0.05 + Math.random() * 0.1,
-        opacity: 0.7 + Math.random() * 0.3,
+        opacity: (0.7 + Math.random() * 0.3) * opacity,
         lifetime: 0,
         maxLifetime: 0.3 + Math.random() * 0.2,
         color: new Color(0x57c1eb),
@@ -143,7 +152,7 @@ const WaterProjectileComponent = ({
       return {
         ...particle,
         rotation: newRotation || rotParticle.rotation,
-        opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime), // fade out
+        opacity: Math.max(0, (particle.maxLifetime - particle.lifetime) / particle.maxLifetime) * opacity,
         lifetime: particle.lifetime + deltaTime
       };
     }
@@ -162,6 +171,9 @@ const WaterProjectileComponent = ({
     // Water-like wobble effect
     const wobbleFactor = Math.sin(state.clock.elapsedTime * 12 + timeOffset.current) * 0.2 + 0.8;
     mainRef.current.scale.set(wobbleFactor, 1, wobbleFactor);
+    if (mainRef.current.material instanceof MeshStandardMaterial) {
+      mainRef.current.material.opacity = 0.7 * opacity;
+    }
     
     // Random movement for more natural water motion
     if (groupRef.current) {
@@ -188,7 +200,7 @@ const WaterProjectileComponent = ({
           key={`core-mat-${id}`}
           color="#57c1eb"
           transparent={true}
-          opacity={0.7}
+          opacity={0.7 * opacity}
           roughness={0.2}
           metalness={0.7}
         />

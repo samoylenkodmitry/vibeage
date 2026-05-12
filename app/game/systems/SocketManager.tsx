@@ -5,7 +5,6 @@ import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
 import { getBuffer, GROUND_Y } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
-import { initProjectileListeners } from './projectileManager';
 import { installE2EHooks } from './e2eHooks';
 import * as THREE from 'three';
 import { 
@@ -283,15 +282,19 @@ export default function SocketManager() {
         });
       }
     }
+
+    const skillDef = SKILLS[castData.skillId as SkillId];
     
     if (castData.state === CastState.Impact) {
       // Projectile impacted or instant skill resolved
       console.log(`[SocketManager] Marking projectile as hit: castId=${castData.castId}`);
-      // Use projectile tracking system for hit state
-      useProjectileStore.getState().markProjectileAsHit(castData.castId);
+      if (skillDef?.projectile) {
+        useProjectileStore.getState().add(castData);
+      } else {
+        useProjectileStore.getState().markProjectileAsHit(castData.castId);
+      }
     }
     
-    const skillDef = SKILLS[castData.skillId as SkillId];
     if (skillDef && skillDef.projectile && castData.state === CastState.Traveling) {
       // This is a projectile that has just started traveling
       console.log(`[SocketManager] Processing traveling projectile: castId=${castData.castId}, skillId=${castData.skillId}`);
@@ -451,7 +454,6 @@ export default function SocketManager() {
       setConnectionError(null);
       
       hookVfx(socket);
-      initProjectileListeners();
 
       // Removed automatic joinGame emission to prevent duplicate player IDs
 
