@@ -30,8 +30,9 @@ This project should become a browser-first multiplayer game that is easy for hum
 7. Done on 2026-05-07: archived and removed old `/opt/vibeage`, reduced `/opt/vibeage-frontend` to the live `out` document root, verified Nginx, and redeployed from the active `/home/s/vibeage-deploy/repo` checkout.
 8. Done on 2026-05-07: protected `main` with required `Build and test` CI, linear history, conversation resolution, no force pushes, and no branch deletion.
 9. Done on 2026-05-07: deleted the remote `server` compatibility branch after confirming no live systemd, cron, or Nginx path references it.
-10. Next production safety item: keep watching the local backup timer for successful daily pulls and periodically run the restore drill.
-11. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
+10. Done on 2026-05-12: added a Playwright smoke that starts the local game server and verifies a browser can enter the connected game HUD.
+11. Next production safety item: keep watching the local backup timer for successful daily pulls and periodically run the restore drill.
+12. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and add browser smoke tests before new gameplay work.
 
 ## Target Stack
 

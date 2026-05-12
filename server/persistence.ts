@@ -1,10 +1,18 @@
 import { db } from './db.js';
 import { PlayerState } from '../shared/types.js';
 
+export function isPersistenceDisabled(): boolean {
+    return process.env.VIBEAGE_DISABLE_PERSISTENCE === '1';
+}
+
 /**
  * Persists player state to the database
  */
 export async function persistPlayer(player: PlayerState) {
+    if (isPersistenceDisabled()) {
+      return;
+    }
+
     try {
       const client = await db.connect();
       try {
@@ -44,6 +52,10 @@ export async function persistPlayer(player: PlayerState) {
  * Records a server event
  */
 export async function recordServerEvent(event_type, player_id, event_data) {
+        if (isPersistenceDisabled()) {
+          return;
+        }
+
         // Record login for analytics
         try {
           const client = await db.connect();
