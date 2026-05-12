@@ -36,7 +36,9 @@ This project should become a browser-first multiplayer game that is easy for hum
 13. Done on 2026-05-12: extracted player progression, mana regeneration, respawn handling, enemy spawn, and enemy respawn out of `server/world.ts` with focused Vitest coverage.
 14. Done on 2026-05-12: started the Vite browser client shell in `apps/client` with React, React Three Fiber, a minimal HUD, and a Socket.IO connection stub; CI now builds the shell.
 15. Done on 2026-05-12: upgraded the Vite shell into a real playable migration slice that enters the current server, consumes authoritative game state, supports click movement, selects enemies, casts Fireball, and has its own Playwright smoke.
-16. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
+16. Done on 2026-05-12: smoothed Vite entity/camera presentation, added basic Vite HUD loops for cooldowns, XP, death/respawn, loot, inventory, item use, and combat/status feedback.
+17. Done on 2026-05-12: prepared an opt-in production Vite publish path with `FRONTEND_BUILD_TARGET=vite`; default deployment still serves the current Next client until parity is approved.
+18. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
 ## Target Stack
 
@@ -104,6 +106,7 @@ tests/
 
 - Done on 2026-05-12: created the first Vite client shell in `apps/client` with one game canvas, a minimal HUD, and a Socket.IO connection stub.
 - Done on 2026-05-12: connected the Vite client to the real Socket.IO server, rendered real players/enemies/projectiles, added left-click movement, right-drag camera, minimal HP/MP/target HUD, and a Fireball hotkey/button path.
+- Done on 2026-05-12: added Vite-side visual smoothing, cooldown/casting/XP/death/inventory/loot HUD loops, and browser/reducer coverage for the new path.
 - Port only the best R3F/VFX pieces from the current app.
 - Keep visual state separate from authoritative network state.
 - Done in the current Next prototype: Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.

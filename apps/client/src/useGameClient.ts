@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, type Dispatch } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, type Dispatch, type RefObject } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import { safeParseServerMessage, type VecXZ } from '../../../packages/protocol/messages';
@@ -18,6 +18,9 @@ type ClientApi = {
   sendMoveIntent: (target: VecXZ) => void;
   selectTarget: (targetId: string | null) => void;
   castSkill: (skillId: SkillId) => void;
+  pickUpLoot: (lootId: string) => void;
+  useItem: (slotIndex: number) => void;
+  respawn: () => void;
 };
 
 export function useGameClient(): ClientApi {
@@ -44,9 +47,37 @@ export function useGameClient(): ClientApi {
     bindSocket(socket, playerName, dispatch);
   }, []);
 
+  const actions = useClientActions(socketRef, stateRef, dispatch);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      dispatch({ type: 'pruneCasts', now: Date.now() });
+    }, 1_000);
+
+    return () => {
+      window.clearInterval(timer);
+      socketRef.current?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    installE2EHooks(state, actions);
+  }, [state, actions]);
+
+  return useMemo(
+    () => ({ state, connect, disconnect, ...actions }),
+    [state, connect, disconnect, actions],
+  );
+}
+
+function useClientActions(
+  socketRef: RefObject<Socket | null>,
+  stateRef: RefObject<GameClientState>,
+  dispatch: Dispatch<GameClientAction>,
+): Omit<ClientApi, 'state' | 'connect' | 'disconnect'> {
   const sendMoveIntent = useCallback((target: VecXZ) => {
     const socket = socketRef.current;
-    const playerId = stateRef.current.myPlayerId;
+    const playerId = stateRef.current?.myPlayerId;
     if (!socket || !playerId) {
       return;
     }
@@ -58,17 +89,17 @@ export function useGameClient(): ClientApi {
       clientTs: Date.now(),
     });
     dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
-  }, []);
+  }, [socketRef, stateRef, dispatch]);
 
   const selectTarget = useCallback((targetId: string | null) => {
     dispatch({ type: 'selectTarget', targetId });
-  }, []);
+  }, [dispatch]);
 
   const castSkill = useCallback((skillId: SkillId) => {
     const socket = socketRef.current;
     const current = stateRef.current;
-    const player = getMyPlayer(current);
-    if (!socket || !player || !player.isAlive || !isSkillKnown(player, skillId)) {
+    const player = current ? getMyPlayer(current) : null;
+    if (!socket || !current || !player || !player.isAlive || !isSkillKnown(player, skillId)) {
       return;
     }
 
@@ -88,26 +119,31 @@ export function useGameClient(): ClientApi {
     if (targetId) {
       dispatch({ type: 'selectTarget', targetId });
     }
-  }, []);
+  }, [socketRef, stateRef, dispatch]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      dispatch({ type: 'pruneCasts', now: Date.now() });
-    }, 1_000);
+  const pickUpLoot = useCallback((lootId: string) => {
+    const socket = socketRef.current;
+    const playerId = stateRef.current?.myPlayerId;
+    if (socket && playerId) {
+      socket.emit('msg', { type: 'LootPickup', lootId, playerId });
+    }
+  }, [socketRef, stateRef]);
 
-    return () => {
-      window.clearInterval(timer);
-      socketRef.current?.disconnect();
-    };
-  }, []);
+  const useItem = useCallback((slotIndex: number) => {
+    socketRef.current?.emit('msg', { type: 'UseItem', slotIndex, clientTs: Date.now() });
+  }, [socketRef]);
 
-  useEffect(() => {
-    installE2EHooks(state, { sendMoveIntent, selectTarget, castSkill });
-  }, [state, sendMoveIntent, selectTarget, castSkill]);
+  const respawn = useCallback(() => {
+    const socket = socketRef.current;
+    const playerId = stateRef.current?.myPlayerId;
+    if (socket && playerId) {
+      socket.emit('msg', { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
+    }
+  }, [socketRef, stateRef]);
 
   return useMemo(
-    () => ({ state, connect, disconnect, sendMoveIntent, selectTarget, castSkill }),
-    [state, connect, disconnect, sendMoveIntent, selectTarget, castSkill],
+    () => ({ sendMoveIntent, selectTarget, castSkill, pickUpLoot, useItem, respawn }),
+    [sendMoveIntent, selectTarget, castSkill, pickUpLoot, useItem, respawn],
   );
 }
 
@@ -138,6 +174,7 @@ function bindSocket(
     if (payload.playerId) {
       dispatch({ type: 'joined', playerId: payload.playerId });
       socket.emit('requestGameState');
+      socket.emit('msg', { type: 'RequestInventory' });
     }
   });
   socket.on('gameState', (serverState: ServerGameState) => {
@@ -204,6 +241,9 @@ function installE2EHooks(
     sendMoveIntent: (target: VecXZ) => void;
     selectTarget: (targetId: string | null) => void;
     castSkill: (skillId: SkillId) => void;
+    pickUpLoot: (lootId: string) => void;
+    useItem: (slotIndex: number) => void;
+    respawn: () => void;
   },
 ) {
   window.__VIBEAGE_VITE_E2E__ = {
@@ -213,6 +253,18 @@ function installE2EHooks(
       selectedTargetId: state.selectedTargetId,
       targetWorldPos: state.targetWorldPos,
       lastKnownPlayerPosition: state.myPlayerId ? state.players[state.myPlayerId]?.position ?? null : null,
+      playerVitals: state.myPlayerId ? {
+        health: state.players[state.myPlayerId]?.health ?? 0,
+        maxHealth: state.players[state.myPlayerId]?.maxHealth ?? 0,
+        mana: state.players[state.myPlayerId]?.mana ?? 0,
+        maxMana: state.players[state.myPlayerId]?.maxMana ?? 0,
+        level: state.players[state.myPlayerId]?.level ?? 1,
+        experience: state.players[state.myPlayerId]?.experience ?? 0,
+        experienceToNextLevel: state.players[state.myPlayerId]?.experienceToNextLevel ?? 100,
+        isAlive: state.players[state.myPlayerId]?.isAlive ?? false,
+      } : null,
+      inventoryItems: state.inventory.map((slot) => ({ itemId: slot.itemId, quantity: slot.quantity })),
+      groundLootIds: Object.keys(state.groundLoot),
       castSkillIds: Object.values(state.casts).map((cast) => cast.snapshot.skillId),
       liveProjectileSkillIds: Object.values(state.casts)
         .filter((cast) => cast.snapshot.state !== 2)
@@ -225,6 +277,17 @@ function installE2EHooks(
       return enemy?.id ?? null;
     },
     castSkill: api.castSkill,
+    pickUpFirstLoot: () => {
+      const loot = Object.values(state.groundLoot)[0];
+      if (!loot) {
+        return null;
+      }
+
+      api.pickUpLoot(loot.id);
+      return loot.id;
+    },
+    useItem: api.useItem,
+    respawn: api.respawn,
   };
 }
 
@@ -237,12 +300,27 @@ declare global {
         selectedTargetId: string | null;
         targetWorldPos: Vec3 | null;
         lastKnownPlayerPosition: Vec3 | null;
+        playerVitals: {
+          health: number;
+          maxHealth: number;
+          mana: number;
+          maxMana: number;
+          level: number;
+          experience: number;
+          experienceToNextLevel: number;
+          isAlive: boolean;
+        } | null;
+        inventoryItems: { itemId: string; quantity: number }[];
+        groundLootIds: string[];
         castSkillIds: SkillId[];
         liveProjectileSkillIds: SkillId[];
       };
       sendMoveIntent: (target: VecXZ) => void;
       selectFirstEnemy: () => string | null;
       castSkill: (skillId: SkillId) => void;
+      pickUpFirstLoot: () => string | null;
+      useItem: (slotIndex: number) => void;
+      respawn: () => void;
     };
   }
 }

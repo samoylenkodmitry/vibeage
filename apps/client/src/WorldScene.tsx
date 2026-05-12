@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type VecXZ } from '../../../packages/protocol/messages';
-import type { EnemyEntity, GameClientState, PlayerEntity, Vec3, VisibleCast } from './gameTypes';
+import type {
+  EnemyEntity,
+  GameClientState,
+  GroundLootStack,
+  PlayerEntity,
+  Vec3,
+  VisibleCast,
+} from './gameTypes';
 
 const GROUND_Y = 0;
 
@@ -10,9 +17,10 @@ type WorldSceneProps = {
   state: GameClientState;
   onMove: (target: VecXZ) => void;
   onSelectTarget: (targetId: string | null) => void;
+  onPickUpLoot: (lootId: string) => void;
 };
 
-export function WorldScene({ state, onMove, onSelectTarget }: WorldSceneProps) {
+export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
 
@@ -39,6 +47,9 @@ export function WorldScene({ state, onMove, onSelectTarget }: WorldSceneProps) {
           isSelected={enemy.id === state.selectedTargetId}
           onSelect={onSelectTarget}
         />
+      ))}
+      {Object.values(state.groundLoot).map((loot) => (
+        <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} />
       ))}
       {Object.values(state.casts).map((cast) => (
         <CastMarker key={cast.snapshot.castId} cast={cast} />
@@ -76,7 +87,11 @@ function PlayerMarker({ player, isSelf }: { player: PlayerEntity; isSelf: boolea
   const height = isSelf ? 1.8 : 1.55;
 
   return (
-    <group position={[player.position.x, GROUND_Y + height / 2, player.position.z]} rotation={[0, player.rotation?.y ?? 0, 0]}>
+    <SmoothedEntityGroup
+      position={{ x: player.position.x, y: GROUND_Y + height / 2, z: player.position.z }}
+      rotationY={player.rotation?.y ?? 0}
+      response={isSelf ? 16 : 10}
+    >
       <mesh castShadow>
         <capsuleGeometry args={[0.48, height - 0.8, 8, 16]} />
         <meshStandardMaterial color={color} roughness={0.48} metalness={0.12} />
@@ -87,7 +102,7 @@ function PlayerMarker({ player, isSelf }: { player: PlayerEntity; isSelf: boolea
           <meshStandardMaterial color="#facc15" emissive="#8a5f00" emissiveIntensity={0.5} />
         </mesh>
       )}
-    </group>
+    </SmoothedEntityGroup>
   );
 }
 
@@ -113,7 +128,11 @@ function EnemyMarker({
   }
 
   return (
-    <group position={[enemy.position.x, y, enemy.position.z]} rotation={[0, enemy.rotation?.y ?? 0, 0]}>
+    <SmoothedEntityGroup
+      position={{ x: enemy.position.x, y, z: enemy.position.z }}
+      rotationY={enemy.rotation?.y ?? 0}
+      response={9}
+    >
       {isSelected && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]}>
           <ringGeometry args={[1.05, 1.24, 42]} />
@@ -124,7 +143,7 @@ function EnemyMarker({
         <boxGeometry args={[1.05, enemy.isAlive ? 1.1 : 0.25, 1.05]} />
         <meshStandardMaterial color={color} roughness={0.82} />
       </mesh>
-    </group>
+    </SmoothedEntityGroup>
   );
 }
 
@@ -147,11 +166,90 @@ function CastMarker({ cast }: { cast: VisibleCast }) {
   const scale = snapshot.state === CastState.Impact ? 1.25 : 0.58;
 
   return (
-    <mesh position={[snapshot.pos.x, GROUND_Y + 1, snapshot.pos.z]} scale={scale}>
-      <sphereGeometry args={[0.42, 16, 16]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} />
-    </mesh>
+    <SmoothedEntityGroup position={{ x: snapshot.pos.x, y: GROUND_Y + 1, z: snapshot.pos.z }} response={18}>
+      <mesh scale={scale}>
+        <sphereGeometry args={[0.42, 16, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} />
+      </mesh>
+    </SmoothedEntityGroup>
   );
+}
+
+function LootMarker({
+  loot,
+  onPickUpLoot,
+}: {
+  loot: GroundLootStack;
+  onPickUpLoot: (lootId: string) => void;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const color = loot.items.length > 1 ? '#facc15' : '#eab308';
+
+  useFrame(({ clock }) => {
+    if (!meshRef.current) {
+      return;
+    }
+
+    meshRef.current.position.y = Math.sin(clock.elapsedTime * 2.4) * 0.08;
+    meshRef.current.rotation.y += 0.018;
+  });
+
+  function handlePointerDown(event: ThreeEvent<PointerEvent>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.stopPropagation();
+    onPickUpLoot(loot.id);
+  }
+
+  return (
+    <group position={[loot.position.x, GROUND_Y + 0.42, loot.position.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.38, 0]}>
+        <ringGeometry args={[0.62, 0.8, 28]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.45} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={meshRef} castShadow onPointerDown={handlePointerDown}>
+        <boxGeometry args={[0.62, 0.62, 0.62]} />
+        <meshStandardMaterial color={color} emissive="#7c4a03" emissiveIntensity={0.75} roughness={0.48} />
+      </mesh>
+    </group>
+  );
+}
+
+function SmoothedEntityGroup({
+  position,
+  rotationY = 0,
+  response,
+  children,
+}: {
+  position: Vec3;
+  rotationY?: number;
+  response: number;
+  children: ReactNode;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const hasInitializedRef = useRef(false);
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) {
+      return;
+    }
+
+    if (!hasInitializedRef.current) {
+      group.position.set(position.x, position.y, position.z);
+      group.rotation.y = rotationY;
+      hasInitializedRef.current = true;
+      return;
+    }
+
+    const alpha = 1 - Math.exp(-response * delta);
+    group.position.lerp(targetVector(position), alpha);
+    group.rotation.y = lerpAngle(group.rotation.y, rotationY, alpha);
+  });
+
+  return <group ref={groupRef}>{children}</group>;
 }
 
 function CameraRig({ focus }: { focus: Vec3 }) {
@@ -159,6 +257,7 @@ function CameraRig({ focus }: { focus: Vec3 }) {
   const angleRef = useRef(Math.PI * 0.82);
   const pitchRef = useRef(0.46);
   const draggingRef = useRef(false);
+  const focusRef = useRef(new THREE.Vector3(focus.x, GROUND_Y + 1.4, focus.z));
   const lastPointerRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -205,9 +304,12 @@ function CameraRig({ focus }: { focus: Vec3 }) {
 
   useFrame((_, delta) => {
     const distance = 24;
-    const centerX = focus.x;
-    const centerY = GROUND_Y + 1.4;
-    const centerZ = focus.z;
+    const targetFocus = targetVector({ x: focus.x, y: GROUND_Y + 1.4, z: focus.z });
+    focusRef.current.lerp(targetFocus, 1 - Math.exp(-12 * delta));
+
+    const centerX = focusRef.current.x;
+    const centerY = focusRef.current.y;
+    const centerZ = focusRef.current.z;
     const nextX = centerX - Math.sin(angleRef.current) * Math.cos(pitchRef.current) * distance;
     const nextY = centerY + Math.sin(pitchRef.current) * distance;
     const nextZ = centerZ - Math.cos(angleRef.current) * Math.cos(pitchRef.current) * distance;
@@ -226,4 +328,13 @@ function CameraRig({ focus }: { focus: Vec3 }) {
 
 function lerp(from: number, to: number, alpha: number): number {
   return from + (to - from) * alpha;
+}
+
+function lerpAngle(from: number, to: number, alpha: number): number {
+  const delta = Math.atan2(Math.sin(to - from), Math.cos(to - from));
+  return from + delta * alpha;
+}
+
+function targetVector(position: Vec3): THREE.Vector3 {
+  return new THREE.Vector3(position.x, position.y, position.z);
 }

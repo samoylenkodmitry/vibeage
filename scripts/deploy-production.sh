@@ -5,6 +5,7 @@ APP_NAME=${APP_NAME:-vibeage}
 DOMAIN=${DOMAIN:-vibeage.eu}
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-vibeage}
 FRONTEND_PUBLIC_DIR=${FRONTEND_PUBLIC_DIR:-/opt/vibeage-frontend/out}
+FRONTEND_BUILD_TARGET=${FRONTEND_BUILD_TARGET:-next}
 MAX_HTTP_BUFFER_SIZE=${MAX_HTTP_BUFFER_SIZE:-1048576}
 RELOAD_NGINX=${RELOAD_NGINX:-0}
 WS_COMPRESSION=${WS_COMPRESSION:-1}
@@ -102,14 +103,46 @@ reload_nginx_if_requested() {
   sudo -n systemctl reload nginx
 }
 
+frontend_source_dir() {
+  case "$FRONTEND_BUILD_TARGET" in
+    next)
+      printf '%s/out\n' "$REPO_ROOT"
+      ;;
+    vite)
+      printf '%s/apps/client/dist\n' "$REPO_ROOT"
+      ;;
+    *)
+      fail "Unsupported FRONTEND_BUILD_TARGET=$FRONTEND_BUILD_TARGET; expected next or vite"
+      ;;
+  esac
+}
+
+build_frontend() {
+  case "$FRONTEND_BUILD_TARGET" in
+    next)
+      pnpm run build
+      ;;
+    vite)
+      pnpm run build:vite-client
+      ;;
+    *)
+      fail "Unsupported FRONTEND_BUILD_TARGET=$FRONTEND_BUILD_TARGET; expected next or vite"
+      ;;
+  esac
+}
+
 publish_frontend() {
-  if [ ! -f "$REPO_ROOT/out/index.html" ]; then
-    fail "Frontend build missing out/index.html"
+  local source_dir
+
+  source_dir=$(frontend_source_dir)
+
+  if [ ! -f "$source_dir/index.html" ]; then
+    fail "Frontend build missing $source_dir/index.html"
   fi
 
   rm -rf "$FRONTEND_STAGING_DIR"
   mkdir -p "$FRONTEND_STAGING_DIR"
-  rsync -a --delete "$REPO_ROOT/out/" "$FRONTEND_STAGING_DIR/"
+  rsync -a --delete "$source_dir/" "$FRONTEND_STAGING_DIR/"
   test -f "$FRONTEND_STAGING_DIR/index.html"
   rsync -a --delete "$FRONTEND_STAGING_DIR/" "$FRONTEND_PUBLIC_DIR/"
   rm -rf "$FRONTEND_STAGING_DIR"
@@ -139,6 +172,7 @@ main() {
   export CORS_ORIGINS=${CORS_ORIGINS:-https://$DOMAIN}
   export MAX_HTTP_BUFFER_SIZE
   export NEXT_PUBLIC_GAME_SERVER_URL=${NEXT_PUBLIC_GAME_SERVER_URL:-https://$DOMAIN}
+  export VITE_GAME_SERVER_URL=${VITE_GAME_SERVER_URL:-https://$DOMAIN}
   export NODE_ENV=production
   export PORT=${PORT:-3001}
   export SERVER_DATABASE_URL=${SERVER_DATABASE_URL:-${DATABASE_URL:-postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres}}
@@ -147,8 +181,8 @@ main() {
   log "Installing dependencies"
   pnpm install --frozen-lockfile
 
-  log "Building frontend"
-  pnpm run build
+  log "Building $FRONTEND_BUILD_TARGET frontend"
+  build_frontend
 
   log "Building server"
   pnpm run build:server

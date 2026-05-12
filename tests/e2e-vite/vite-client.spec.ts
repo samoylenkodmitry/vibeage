@@ -20,6 +20,9 @@ test("enters the real game through the Vite client", async ({ page }) => {
   const state = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.getState());
   expect(state?.myPlayerId).toBeTruthy();
   expect(state?.enemyIds.length).toBeGreaterThan(0);
+  expect(state?.playerVitals?.isAlive).toBe(true);
+  await expect(page.getByLabel("Player status")).toContainText("XP");
+  await expect(page.getByRole("region", { name: "Inventory" })).toBeVisible();
 });
 
 test("sends click movement through the Vite canvas", async ({ page }) => {
