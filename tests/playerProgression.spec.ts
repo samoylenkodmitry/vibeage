@@ -1,0 +1,111 @@
+import { describe, expect, test, vi } from 'vitest';
+import type { Socket } from 'socket.io';
+import type { SkillId } from '../packages/content/skills';
+import { onLearnSkill } from '../server/skillHandler';
+import { learnNewSkill } from '../server/skillManager';
+import {
+  normalizeAvailableSkillPoints,
+  normalizeSkillShortcuts,
+  normalizeUnlockedSkills,
+} from '../server/players/playerProgression';
+
+type TestPlayer = {
+  id: string;
+  socketId: string;
+  level: number;
+  className: string;
+  unlockedSkills: SkillId[];
+  skillShortcuts: (SkillId | null)[];
+  availableSkillPoints: number;
+};
+
+const starterShortcuts = (): (SkillId | null)[] => [
+  'fireball',
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+];
+
+describe('player progression hydration', () => {
+  test('gives a persisted player the starter skill when the database has an empty skills array', () => {
+    const unlockedSkills = normalizeUnlockedSkills([]);
+    const skillShortcuts = normalizeSkillShortcuts(['fireball', null], unlockedSkills);
+
+    expect(unlockedSkills).toEqual(['fireball']);
+    expect(skillShortcuts).toEqual(['fireball', null, null, null, null, null, null, null, null]);
+  });
+
+  test('drops shortcuts for skills that are not unlocked', () => {
+    const unlockedSkills = normalizeUnlockedSkills(['fireball']);
+
+    expect(normalizeSkillShortcuts(['iceBolt', 'fireball'], unlockedSkills)).toEqual([
+      null,
+      'fireball',
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  test('normalizes persisted skill points', () => {
+    expect(normalizeAvailableSkillPoints(0)).toBe(0);
+    expect(normalizeAvailableSkillPoints('2')).toBe(2);
+    expect(normalizeAvailableSkillPoints(null)).toBe(1);
+  });
+});
+
+describe('skill learning state sync', () => {
+  test('does not duplicate a skill that is already on the shortcut panel', () => {
+    const player: TestPlayer = {
+      id: 'player1',
+      socketId: 'socket1',
+      level: 1,
+      className: 'mage',
+      unlockedSkills: [],
+      skillShortcuts: starterShortcuts(),
+      availableSkillPoints: 1,
+    };
+
+    expect(learnNewSkill(player, 'fireball')).toBe(true);
+    expect(player.unlockedSkills).toEqual(['fireball']);
+    expect(player.skillShortcuts.filter(skillId => skillId === 'fireball')).toHaveLength(1);
+  });
+
+  test('sends the learning player a full skill update after learning a skill', () => {
+    const player: TestPlayer = {
+      id: 'player1',
+      socketId: 'socket1',
+      level: 1,
+      className: 'mage',
+      unlockedSkills: [],
+      skillShortcuts: starterShortcuts(),
+      availableSkillPoints: 1,
+    };
+    const socket = {
+      id: 'socket1',
+      emit: vi.fn(),
+      broadcast: { emit: vi.fn() },
+    };
+
+    onLearnSkill(socket as unknown as Socket, { players: { player1: player } }, {
+      type: 'LearnSkill',
+      skillId: 'fireball',
+    });
+
+    expect(socket.emit).toHaveBeenCalledWith('playerUpdated', {
+      id: 'player1',
+      unlockedSkills: ['fireball'],
+      skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+      availableSkillPoints: 0,
+    });
+  });
+});

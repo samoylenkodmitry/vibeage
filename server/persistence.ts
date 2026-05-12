@@ -1,5 +1,10 @@
 import { db } from './db.js';
 import { PlayerState } from '../shared/types.js';
+import {
+  normalizeUnlockedSkills,
+  serializeSkillShortcuts,
+  serializeUnlockedSkills,
+} from './players/playerProgression.js';
 
 export function isPersistenceDisabled(): boolean {
     return process.env.VIBEAGE_DISABLE_PERSISTENCE === '1';
@@ -26,7 +31,10 @@ export async function persistPlayer(player: PlayerState) {
             level = $7,
             experience = $8,
             inventory = $9,
-            last_updated = $10
+            skills = $10,
+            skill_shortcuts = $11,
+            available_skill_points = $12,
+            last_updated = $13
           WHERE id = $1
         `, [
           player.id,
@@ -38,6 +46,9 @@ export async function persistPlayer(player: PlayerState) {
           player.level,
           player.experience,
           JSON.stringify(player.inventory || []),
+          serializeUnlockedSkills(player.unlockedSkills),
+          serializeSkillShortcuts(player.skillShortcuts, normalizeUnlockedSkills(player.unlockedSkills)),
+          player.availableSkillPoints,
           Date.now()
         ]);
       } finally {

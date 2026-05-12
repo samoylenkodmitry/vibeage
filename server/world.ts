@@ -19,6 +19,11 @@ import { ITEMS } from '../packages/content/items.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent } from './persistence.js';
 import { createGameState, type GameState } from './gameState.js';
 import { createTransientPlayer } from './playerFactory.js';
+import {
+  normalizeAvailableSkillPoints,
+  normalizeSkillShortcuts,
+  normalizeUnlockedSkills,
+} from './players/playerProgression.js';
 
 // Constants
 const TICK_MS = 1000 / 30; // 30 FPS / Hz world tick rate
@@ -807,6 +812,8 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
         
         await recordServerEvent('player_login', playerId, JSON.stringify({ playerName: name, socketId }),);
 
+        const unlockedSkills = normalizeUnlockedSkills(row.skills);
+
         // Create player state, merging DB data with default values
         const player: PlayerState = {
           id: playerId,
@@ -823,7 +830,7 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
           mana: 100,
           maxMana: 100,
           level: row.level || 1,
-          experience: row.xp || 0,
+          experience: row.experience ?? row.xp ?? 0,
           experienceToNextLevel: 100,
           statusEffects: [],
           skillCooldownEndTs: {},
@@ -831,9 +838,9 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
           castingProgressMs: 0,
           isAlive: row.is_alive !== undefined ? row.is_alive : true,
           className: row.class_name || 'mage', // Use class from DB or default
-          unlockedSkills: row.skills || ['fireball'], // Use skills from DB or default
-          skillShortcuts: ['fireball', null, null, null, null, null, null, null, null], // Assign fireball to shortcut 1
-          availableSkillPoints: 1, // Give the player 1 skill point to start
+          unlockedSkills,
+          skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
+          availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
           posHistory: [], // Initialize position history
           lastUpdateTime: Date.now(),
           inventory: row.inventory || [], // Use inventory from DB or empty

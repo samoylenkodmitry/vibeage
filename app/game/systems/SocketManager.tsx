@@ -572,8 +572,9 @@ export default function SocketManager() {
             if (useGameStore.getState().myPlayerId) {
               const player = useGameStore.getState().getMyPlayer();
               if (player) {
-                // Create a new array of unlocked skills with the new skill
-                const updatedUnlockedSkills = [...player.unlockedSkills, msg.skillId];
+                const updatedUnlockedSkills = player.unlockedSkills.includes(msg.skillId)
+                  ? player.unlockedSkills
+                  : [...player.unlockedSkills, msg.skillId];
                 // Update the player with the new skill and remaining points
                 useGameStore.getState().updatePlayer({
                   id: player.id,

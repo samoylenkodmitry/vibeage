@@ -72,6 +72,13 @@ export function onLearnSkill(socket: Socket, state: GameState, msg: LearnSkill):
         skillId: msg.skillId,
         remainingPoints: player.availableSkillPoints
       });
+
+      socket.emit('playerUpdated', {
+        id: player.id,
+        unlockedSkills: player.unlockedSkills,
+        skillShortcuts: player.skillShortcuts,
+        availableSkillPoints: player.availableSkillPoints
+      });
       
       // Broadcast player update to all clients
       socket.broadcast.emit('playerUpdated', {
