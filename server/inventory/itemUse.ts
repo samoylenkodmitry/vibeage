@@ -1,14 +1,9 @@
 import type { Server, Socket } from 'socket.io';
-import { ITEMS } from '../../packages/content/items.js';
 import type { ItemUsed, UseItem } from '../../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
-
-type ItemUsePlayerUpdate = {
-  id: string;
-  health: number;
-};
+import { applyInventoryItemUse, type ItemUsePlayerUpdate } from './itemRuntime.js';
 
 export type ItemUseResult =
   | {
@@ -21,6 +16,13 @@ export type ItemUseResult =
       reason: string;
     };
 
+const ITEM_USE_LOG_MESSAGES: Record<string, (playerId: string, slotIndex: number, itemId?: string) => string> = {
+  playerDead: (playerId) => `Player ${playerId} tried to use item while dead`,
+  invalidSlot: (playerId, slotIndex) => `Player ${playerId} tried to use item from invalid or empty slot ${slotIndex}`,
+  unknownItem: (playerId, _slotIndex, itemId) => `Player ${playerId} tried to use unknown item ${itemId ?? 'unknown'}`,
+  notConsumable: (playerId, _slotIndex, itemId) => `Player ${playerId} tried to use non-consumable item ${itemId ?? 'unknown'}`,
+};
+
 export function useItemForPlayer(state: GameState, playerId: string, slotIndex: number): ItemUseResult {
   const player = state.players[playerId];
 
@@ -29,52 +31,40 @@ export function useItemForPlayer(state: GameState, playerId: string, slotIndex: 
   }
 
   if (!player.isAlive) {
-    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use item while dead`);
+    logItemUseRejection('playerDead', playerId, slotIndex);
     return { ok: false, reason: 'playerDead' };
   }
 
   const slot = player.inventory[slotIndex];
-  if (!slot || slot.quantity <= 0) {
-    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use item from invalid or empty slot ${slotIndex}`);
-    return { ok: false, reason: 'invalidSlot' };
+  const result = applyInventoryItemUse(player, slotIndex);
+  if (result.ok === false) {
+    logItemUseRejection(result.reason, playerId, slotIndex, slot?.itemId);
+    return result;
   }
 
-  const itemDef = ITEMS[slot.itemId];
-  if (!itemDef) {
-    log(LOG_CATEGORIES.SYSTEM, 'error', `Player ${playerId} tried to use unknown item ${slot.itemId}`);
-    return { ok: false, reason: 'unknownItem' };
+  logItemUseSuccess(playerId, result.itemUsed);
+  return result;
+}
+
+function logItemUseRejection(reason: string, playerId: string, slotIndex: number, itemId?: string): void {
+  const message = ITEM_USE_LOG_MESSAGES[reason]?.(playerId, slotIndex, itemId);
+  if (!message) {
+    return;
   }
 
-  if (itemDef.type !== 'consumable') {
-    log(LOG_CATEGORIES.PLAYER, 'warn', `Player ${playerId} tried to use non-consumable item ${slot.itemId}`);
-    return { ok: false, reason: 'notConsumable' };
+  const category = reason === 'unknownItem' ? LOG_CATEGORIES.SYSTEM : LOG_CATEGORIES.PLAYER;
+  const level = reason === 'unknownItem' ? 'error' : 'warn';
+  log(category, level, message);
+}
+
+function logItemUseSuccess(playerId: string, itemUsed: ItemUsed): void {
+  if (itemUsed.healthDelta && itemUsed.healthDelta > 0) {
+    log(LOG_CATEGORIES.HEALING, 'info', `Player ${playerId} used ${itemUsed.itemId} and healed for ${itemUsed.healthDelta} HP`);
   }
 
-  let healthDelta = 0;
-  const manaDelta = 0;
-
-  if (itemDef.healAmount && itemDef.healAmount > 0) {
-    const oldHealth = player.health;
-    player.health = Math.min(player.maxHealth, player.health + itemDef.healAmount);
-    healthDelta = player.health - oldHealth;
-
-    log(LOG_CATEGORIES.HEALING, 'info', `Player ${playerId} used ${slot.itemId} and healed for ${healthDelta} HP`);
+  if (itemUsed.manaDelta && itemUsed.manaDelta > 0) {
+    log(LOG_CATEGORIES.MANA, 'info', `Player ${playerId} used ${itemUsed.itemId} and restored ${itemUsed.manaDelta} MP`);
   }
-
-  slot.quantity -= 1;
-
-  return {
-    ok: true,
-    playerUpdated: healthDelta > 0 ? { id: playerId, health: player.health } : undefined,
-    itemUsed: {
-      type: 'ItemUsed',
-      slotIndex,
-      itemId: slot.itemId,
-      newQuantity: slot.quantity,
-      healthDelta: healthDelta > 0 ? healthDelta : undefined,
-      manaDelta: manaDelta > 0 ? manaDelta : undefined,
-    },
-  };
 }
 
 export function onUseItem(socket: Socket, state: GameState, msg: UseItem, io: Server): void {

@@ -4,24 +4,14 @@ import type { Enemy } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import { generateLoot as generateLootFromEnemy } from './generateLoot.js';
 import { pickupGroundLoot } from './lootPickup.js';
-
-function createLootId(entityId: string): string {
-  return `loot-${entityId}-${Date.now()}`;
-}
+import { addGroundLootStack, createGroundLootStack } from './lootRuntime.js';
 
 export function addGroundLoot(state: GameState, enemyId: string, loot: ItemDrop[]): string | undefined {
-  if (!loot.length) return undefined;
+  const spawn = addGroundLootStack(state, enemyId, loot);
+  if (!spawn) return undefined;
 
-  const enemy = state.enemies[enemyId];
-  if (!enemy) return undefined;
-
-  const lootId = createLootId(enemyId);
-  const position = { x: enemy.position.x, z: enemy.position.z };
-
-  state.groundLoot[lootId] = { position, items: loot };
-
-  console.log(`Added ground loot ${lootId} at position ${JSON.stringify(position)}`);
-  return lootId;
+  console.log(`Added ground loot ${spawn.lootId} at position ${JSON.stringify(spawn.stack.position)}`);
+  return spawn.lootId;
 }
 
 export function spawnLootForEnemyDeath(state: GameState, io: Server, enemy: Enemy): void {
@@ -30,21 +20,20 @@ export function spawnLootForEnemyDeath(state: GameState, io: Server, enemy: Enem
   const loot = generateLootFromEnemy(enemy);
   if (!loot.length) return;
 
-  const lootId = createLootId(enemy.id);
-  const position = { x: enemy.position.x, z: enemy.position.z };
+  const spawn = createGroundLootStack(state, enemy, loot);
+  if (!spawn) return;
 
-  state.groundLoot[lootId] = { position, items: loot };
-  console.log(`Added ground loot ${lootId} at position ${JSON.stringify(position)} to game state.`);
+  console.log(`Added ground loot ${spawn.lootId} at position ${JSON.stringify(spawn.stack.position)} to game state.`);
 
   io.emit('msg', {
     type: 'LootSpawn',
     enemyId: enemy.id,
-    lootId,
-    position,
+    lootId: spawn.lootId,
+    position: spawn.stack.position,
     loot,
   });
 
-  console.log(`Sent loot spawn broadcast for ${lootId} with ${loot.length} items`);
+  console.log(`Sent loot spawn broadcast for ${spawn.lootId} with ${loot.length} items`);
 }
 
 export function tryGiveLoot(state: GameState, io: Server, playerId: string, lootId: string): boolean {
