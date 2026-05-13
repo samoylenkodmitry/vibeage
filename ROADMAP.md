@@ -45,7 +45,8 @@ This project should become a browser-first multiplayer game that is easy for hum
 22. Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death side effects, and Socket.IO session glue into focused modules; added a room-boundary contract for the future Colyseus migration and deterministic server runtime flow coverage.
 23. Done on 2026-05-13: added a Socket.IO outbound-event adapter for server messages/entity updates, a socket-backed authoritative-room adapter for the future Colyseus boundary, and a tested starter gameplay vertical-slice manifest.
 24. Done on 2026-05-13: ported useful VFX patterns into the Vite client, moved more lifecycle/item server emissions behind outbound adapters, and added baseline measurement tooling for bundle, tick cost, latency, and browser FPS.
-25. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
+25. Done on 2026-05-13: finished isolating runtime Socket.IO emissions behind outbound/direct message sinks, including combat, loot, AI, inventory, skill, lifecycle, and effect paths.
+26. Continue cleanup on `main`: convert the structural Colyseus room adapter into the real room implementation after the dependency/runtime boundary is chosen, then retire the Socket.IO compatibility adapter.
 
 ## Target Stack
 
@@ -130,8 +131,9 @@ tests/
 - Done on 2026-05-13: added a deterministic server runtime flow test covering movement, aggro, combat death, loot spawn, and inventory pickup without a browser.
 - Done on 2026-05-13: added an outbound-event adapter and socket-backed room adapter so remaining Socket.IO details can be isolated before introducing Colyseus.
 - Done on 2026-05-13: routed player lifecycle, enemy respawn, item-use, and target-death update emissions through the outbound adapter.
+- Done on 2026-05-13: routed combat casts, projectile impacts, enemy AI, status effects, skills, inventory, and loot through outbound/direct message sinks so raw Socket.IO emissions live only in transport adapters.
+- Done on 2026-05-13: added a tested structural Colyseus room/outbound adapter that uses the current room-boundary contract without adding the Colyseus runtime dependency yet.
 - Use `server/transport/roomBoundary.ts` as the current migration contract before introducing a Colyseus room implementation.
-- Continue moving remaining socket-emitting combat/effect adapters into smaller tested modules before the Colyseus migration.
 - Persist only stable player/account data, not transient render state.
 
 ### Phase 4: Iterate On Gameplay

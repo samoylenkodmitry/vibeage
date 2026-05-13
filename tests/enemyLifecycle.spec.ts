@@ -58,7 +58,7 @@ describe('enemy lifecycle', () => {
   test('respawns dead enemies after the respawn delay', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();
-    const io = { emit: vi.fn() };
+    const outbound = { publish: vi.fn() };
     const now = 100_000;
     const enemy = createEnemy('goblin', 2, { x: 4, y: 0.5, z: 7 }, 123);
     enemy.isAlive = false;
@@ -69,7 +69,7 @@ describe('enemy lifecycle', () => {
     enemy.deathTimeTs = now - ENEMY_RESPAWN_DELAY_MS;
     state.enemies[enemy.id] = enemy;
 
-    const respawned = respawnDeadEnemies(state, spatial, io as any, now);
+    const respawned = respawnDeadEnemies(state, spatial, outbound, now);
 
     expect(respawned).toBe(1);
     expect(enemy).toMatchObject({
@@ -80,6 +80,9 @@ describe('enemy lifecycle', () => {
       statusEffects: [],
     });
     expect(spatial.queryCircle({ x: 4, z: 7 }, 1)).toContain(enemy.id);
-    expect(io.emit).toHaveBeenCalledWith('enemyUpdated', enemy);
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'enemyUpdated',
+      update: enemy,
+    });
   });
 });

@@ -16,6 +16,7 @@ export type EnemyUpdate = Partial<Enemy> & Pick<Enemy, 'id'>;
 
 export type OutboundEvent =
   | { type: 'serverMessage'; message: ServerMessage }
+  | { type: 'directServerMessage'; socketId: string; message: ServerMessage }
   | { type: 'playerUpdated'; update: PlayerUpdate }
   | { type: 'enemyUpdated'; update: EnemyUpdate }
   | { type: 'playerJoined'; player: PlayerState }
@@ -53,6 +54,14 @@ export function emitServerMessage(sink: OutboundEventSink, message: ServerMessag
   sink.publish({ type: 'serverMessage', message });
 }
 
+export function emitServerMessageToClient(
+  sink: OutboundEventSink,
+  socketId: string,
+  message: ServerMessage,
+): void {
+  sink.publish({ type: 'directServerMessage', socketId, message });
+}
+
 export function emitBatchUpdate(sink: OutboundEventSink, updates: ServerMessage[]): void {
   if (updates.length === 0) {
     return;
@@ -69,10 +78,21 @@ export function emitEnemyUpdated(sink: OutboundEventSink, update: EnemyUpdate): 
   sink.publish({ type: 'enemyUpdated', update });
 }
 
+export function emitPlayerJoined(sink: OutboundEventSink, player: PlayerState): void {
+  sink.publish({ type: 'playerJoined', player });
+}
+
+export function emitPlayerLeft(sink: OutboundEventSink, playerId: string): void {
+  sink.publish({ type: 'playerLeft', playerId });
+}
+
 function emitSocketIoOutbound(io: Server, event: OutboundEvent): void {
   switch (event.type) {
     case 'serverMessage':
       io.emit(WORLD_BROADCAST_EVENTS.message, event.message);
+      return;
+    case 'directServerMessage':
+      io.to(event.socketId).emit(WORLD_BROADCAST_EVENTS.message, event.message);
       return;
     case 'playerUpdated':
       io.emit(WORLD_BROADCAST_EVENTS.playerUpdated, event.update);

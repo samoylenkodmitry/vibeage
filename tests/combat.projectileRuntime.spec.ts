@@ -3,6 +3,7 @@ import { CastState } from '../packages/protocol/messages';
 import { updateTravelingCast } from '../server/combat/projectileRuntime';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
+import type { OutboundEventSink } from '../server/transport/outboundEvents';
 import type { Enemy, PlayerState } from '../shared/types';
 
 describe('projectile runtime', () => {
@@ -32,8 +33,9 @@ describe('projectile runtime', () => {
       getEntitiesInCircle: vi.fn(() => []),
       onTargetDied: vi.fn(),
     };
+    const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    updateTravelingCast(cast, 0, 100, 50, { emit: vi.fn() } as any, world);
+    updateTravelingCast(cast, 0, 100, 50, outbound, world);
 
     expect(cast.dir?.x).toBeCloseTo(0);
     expect(cast.dir?.z).toBeCloseTo(1);

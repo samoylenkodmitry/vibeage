@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { Server } from 'socket.io';
 import { CastState } from '../packages/protocol/messages';
 import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import { createCombatWorld } from '../server/combat/combatWorld';
@@ -54,7 +53,7 @@ describe('deterministic server runtime flow', () => {
   test('moves, aggros, resolves combat death, spawns loot, and picks it up', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();
-    const io = { emit: vi.fn() } as unknown as Server;
+    const outbound = { publish: vi.fn() };
     const player = makePlayer();
     const enemy = createEnemy('goblin', 1, { x: 3.5, y: 0.5, z: 0 }, 1);
     enemy.id = 'enemy1';
@@ -96,14 +95,14 @@ describe('deterministic server runtime flow', () => {
     const world = createCombatWorld(state, (caster, target) => handleTargetDeath(caster, target, {
       state,
       spatial,
-      io,
+      outbound,
       now: 5_000,
-      spawnLoot: (lootState, _io, deadEnemy) => {
+      spawnLoot: (lootState, _outbound, deadEnemy) => {
         createGroundLootStack(lootState, deadEnemy, [{ itemId: 'health_potion', quantity: 2 }], 5_000);
       },
     }));
 
-    resolveCastImpact(makeFireballImpactCast(player.id, enemy.id, player.position), io, world);
+    resolveCastImpact(makeFireballImpactCast(player.id, enemy.id, player.position), outbound, world);
 
     expect(enemy.isAlive).toBe(false);
     expect(enemy.health).toBe(0);

@@ -1,4 +1,5 @@
 import type { CastSnapshot } from '../../shared/types.js';
+import { emitServerMessage, type DirectMessageSink, type OutboundEventSink } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 
 export function makeCastSnapshot(cast: Cast): CastSnapshot {
@@ -16,8 +17,15 @@ export function makeCastSnapshot(cast: Cast): CastSnapshot {
   };
 }
 
-export function emitCastSnapshot(client: { emit: (event: string, payload: unknown) => void }, cast: Cast): void {
-  client.emit('msg', {
+export function emitCastSnapshot(outbound: OutboundEventSink, cast: Cast): void {
+  emitServerMessage(outbound, {
+    type: 'CastSnapshot',
+    data: makeCastSnapshot(cast),
+  });
+}
+
+export function sendCastSnapshotToClient(client: DirectMessageSink, cast: Cast): void {
+  client.send({
     type: 'CastSnapshot',
     data: makeCastSnapshot(cast),
   });

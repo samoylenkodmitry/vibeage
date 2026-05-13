@@ -6,6 +6,7 @@ import {
   emitEnemyUpdated,
   emitPlayerUpdated,
   emitServerMessage,
+  emitServerMessageToClient,
   makeSocketIoOutbound,
   makeSocketMessageSink,
 } from '../server/transport/outboundEvents';
@@ -67,6 +68,26 @@ describe('outbound events', () => {
       type: 'SkillLearned',
       skillId: 'fireball',
       remainingPoints: 0,
+    });
+  });
+
+  test('direct outbound messages are sent only to the addressed socket id', () => {
+    const directEmit = vi.fn();
+    const io = {
+      emit: vi.fn(),
+      to: vi.fn(() => ({ emit: directEmit })),
+    } as unknown as Server;
+
+    emitServerMessageToClient(makeSocketIoOutbound(io), 'socket1', {
+      type: 'LootAcquired',
+      items: [{ itemId: 'gold_coin', quantity: 1 }],
+    });
+
+    expect(io.emit).not.toHaveBeenCalled();
+    expect(io.to).toHaveBeenCalledWith('socket1');
+    expect(directEmit).toHaveBeenCalledWith(WORLD_BROADCAST_EVENTS.message, {
+      type: 'LootAcquired',
+      items: [{ itemId: 'gold_coin', quantity: 1 }],
     });
   });
 });

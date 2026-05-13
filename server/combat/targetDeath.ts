@@ -1,17 +1,16 @@
-import type { Server } from 'socket.io';
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import { spawnLootForEnemyDeath } from '../loot/groundLoot.js';
 import { awardPlayerXP } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
-import { emitPlayerUpdated, makeSocketIoOutbound } from '../transport/outboundEvents.js';
+import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
 export type TargetDeathContext = {
   state: GameState;
   spatial: SpatialHashGrid;
-  io: Server;
+  outbound: OutboundEventSink;
   now?: number;
-  spawnLoot?: (state: GameState, io: Server, enemy: Enemy) => void;
+  spawnLoot?: (state: GameState, outbound: OutboundEventSink, enemy: Enemy) => void;
 };
 
 export function handleTargetDeath(
@@ -31,12 +30,12 @@ export function handleTargetDeath(
 
   if (caster.isAlive && isEnemy(target)) {
     emitPlayerUpdated(
-      makeSocketIoOutbound(context.io),
+      context.outbound,
       awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`),
     );
     if (target.lootTableId) {
       const spawnLoot = context.spawnLoot ?? spawnLootForEnemyDeath;
-      spawnLoot(context.state, context.io, target);
+      spawnLoot(context.state, context.outbound, target);
     }
   }
 

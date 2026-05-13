@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { Server, Socket } from 'socket.io';
 import { createGameState } from '../server/gameState';
 import { createWorldCombatBridge, handleClientMessage } from '../server/world/clientMessageRouter';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
@@ -36,13 +35,13 @@ describe('client message router', () => {
     const state = createGameState();
     state.players.player1 = makePlayer();
     const emit = vi.fn();
-    const socket = { id: 'socket1', emit } as unknown as Socket;
+    const socket = { id: 'socket1', emit };
 
     handleClientMessage(
       socket,
       state,
       { type: 'RequestInventory' },
-      { emit: vi.fn() } as unknown as Server,
+      { publish: vi.fn() },
       new SpatialHashGrid(),
     );
 
@@ -57,12 +56,12 @@ describe('client message router', () => {
   test('uses spatial membership for combat-world entity queries', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();
-    const io = { emit: vi.fn() } as unknown as Server;
+    const outbound = { publish: vi.fn() };
     state.enemies.enemy1 = makeEnemy({ id: 'enemy1', position: { x: 1, y: 0.5, z: 0 } });
     state.enemies.enemy2 = makeEnemy({ id: 'enemy2', position: { x: 1, y: 0.5, z: 0 } });
     spatial.insert('enemy1', { x: 1, z: 0 });
 
-    const world = createWorldCombatBridge(state, io, spatial);
+    const world = createWorldCombatBridge(state, outbound, spatial);
 
     expect(world.getEntitiesInCircle({ x: 0, z: 0 }, 2).map((entity) => entity.id)).toEqual(['enemy1']);
   });

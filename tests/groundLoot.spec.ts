@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { Server } from 'socket.io';
 import { createGameState } from '../server/gameState';
 import { tryGiveLoot } from '../server/loot/groundLoot';
 import type { PlayerState } from '../shared/types';
@@ -34,11 +33,7 @@ const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
 describe('ground loot', () => {
   test('gives nearby loot to player inventory and emits pickup messages', () => {
     const state = createGameState();
-    const directEmit = vi.fn();
-    const io = {
-      emit: vi.fn(),
-      to: vi.fn(() => ({ emit: directEmit })),
-    } as unknown as Server;
+    const outbound = { publish: vi.fn() };
 
     state.players.player1 = makePlayer();
     state.groundLoot.loot1 = {
@@ -49,30 +44,33 @@ describe('ground loot', () => {
       ],
     };
 
-    expect(tryGiveLoot(state, io, 'player1', 'loot1')).toBe(true);
+    expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
     expect(state.players.player1.inventory).toEqual([
       { itemId: 'health_potion', quantity: 3 },
       { itemId: 'gold_coin', quantity: 1 },
     ]);
-    expect(io.emit).toHaveBeenCalledWith('msg', {
-      type: 'LootPickup',
-      lootId: 'loot1',
-      playerId: 'player1',
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'serverMessage',
+      message: {
+        type: 'LootPickup',
+        lootId: 'loot1',
+        playerId: 'player1',
+      },
     });
-    expect(io.to).toHaveBeenCalledWith('socket1');
-    expect(directEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'LootAcquired',
-      items: expect.arrayContaining([{ itemId: 'gold_coin', quantity: 1 }]),
-    }));
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'directServerMessage',
+      socketId: 'socket1',
+      message: expect.objectContaining({
+        type: 'LootAcquired',
+        items: expect.arrayContaining([{ itemId: 'gold_coin', quantity: 1 }]),
+      }),
+    });
   });
 
   test('does not remove loot when inventory has no free slot for a new item', () => {
     const state = createGameState();
-    const io = {
-      emit: vi.fn(),
-      to: vi.fn(() => ({ emit: vi.fn() })),
-    } as unknown as Server;
+    const outbound = { publish: vi.fn() };
 
     state.players.player1 = makePlayer({
       inventory: [{ itemId: 'health_potion', quantity: 1 }],
@@ -83,19 +81,15 @@ describe('ground loot', () => {
       items: [{ itemId: 'gold_coin', quantity: 5 }],
     };
 
-    expect(tryGiveLoot(state, io, 'player1', 'loot1')).toBe(false);
+    expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(false);
     expect(state.groundLoot.loot1).toBeDefined();
     expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
-    expect(io.emit).not.toHaveBeenCalledWith('msg', expect.objectContaining({ type: 'LootPickup' }));
+    expect(outbound.publish).not.toHaveBeenCalled();
   });
 
   test('allows stacking existing inventory items even when slots are full', () => {
     const state = createGameState();
-    const directEmit = vi.fn();
-    const io = {
-      emit: vi.fn(),
-      to: vi.fn(() => ({ emit: directEmit })),
-    } as unknown as Server;
+    const outbound = { publish: vi.fn() };
 
     state.players.player1 = makePlayer({
       inventory: [{ itemId: 'health_potion', quantity: 1 }],
@@ -106,12 +100,16 @@ describe('ground loot', () => {
       items: [{ itemId: 'health_potion', quantity: 2 }],
     };
 
-    expect(tryGiveLoot(state, io, 'player1', 'loot1')).toBe(true);
+    expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
     expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 3 }]);
-    expect(directEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'LootAcquired',
-      items: [{ itemId: 'health_potion', quantity: 2 }],
-    }));
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'directServerMessage',
+      socketId: 'socket1',
+      message: expect.objectContaining({
+        type: 'LootAcquired',
+        items: [{ itemId: 'health_potion', quantity: 2 }],
+      }),
+    });
   });
 });

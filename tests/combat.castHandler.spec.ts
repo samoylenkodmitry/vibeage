@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import { SKILLS } from '../packages/content/skills';
 import type { CastReq, VecXZ } from '../packages/protocol/messages';
 import { handleCastReq } from '../server/combat/castHandler';
 import { createActiveCastStore, type ActiveCastStore } from '../server/combat/skillSystem';
+import { makeSocketIoOutbound, makeSocketMessageSink } from '../server/transport/outboundEvents';
 import type { PlayerState } from '../shared/types';
 
 const makePlayer = (): PlayerState => ({
@@ -36,7 +37,7 @@ describe('cast handler resources', () => {
   let player: PlayerState;
   let socketEmit: ReturnType<typeof vi.fn>;
   let ioEmit: ReturnType<typeof vi.fn>;
-  let socket: Socket;
+  let socket: { id: string; emit: ReturnType<typeof vi.fn> };
   let io: Server;
   let activeCasts: ActiveCastStore;
 
@@ -47,7 +48,7 @@ describe('cast handler resources', () => {
     player = makePlayer();
     socketEmit = vi.fn();
     ioEmit = vi.fn();
-    socket = { id: 'socket1', emit: socketEmit } as unknown as Socket;
+    socket = { id: 'socket1', emit: socketEmit };
     io = { emit: ioEmit } as unknown as Server;
     activeCasts = createActiveCastStore();
   });
@@ -70,7 +71,10 @@ describe('cast handler resources', () => {
       socket,
       player,
       msg,
-      io,
+      {
+        direct: makeSocketMessageSink(socket),
+        outbound: makeSocketIoOutbound(io),
+      },
       makeWorld(),
       activeCasts,
     );
