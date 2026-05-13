@@ -1,21 +1,12 @@
 import { Socket, Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../packages/content/skills.js';
-import { CastReq, CastFail, VecXZ } from '../../packages/protocol/messages.js';
-import { Enemy, PlayerState } from '../../shared/types.js';
+import { CastReq, CastFail } from '../../packages/protocol/messages.js';
+import { PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { canCast } from './utils/cast.js';
 import { applySkillCostAndCooldown } from './cooldowns.js';
-
-/**
- * World interface for interacting with game state
- */
-interface World {
-  getEnemyById: (id: string) => any | null;
-  getPlayerById: (id: string) => PlayerState | null;
-  getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
-  onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => void;
-}
+import type { CombatWorld } from './worldContract.js';
 
 type CastFailReason = CastFail['reason'];
 
@@ -28,7 +19,7 @@ export function handleCastReq(
   player: PlayerState,
   msg: CastReq,
   io: Server,
-  world: World,
+  world: CombatWorld,
   activeCasts: ActiveCastStore
 ): void {
   const playerId = msg.id;
