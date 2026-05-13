@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Server, Socket } from 'socket.io';
 import { SKILLS } from '../packages/content/skills';
+import type { CastReq, VecXZ } from '../packages/protocol/messages';
 import { handleCastReq } from '../server/combat/castHandler';
 import { createActiveCastStore, type ActiveCastStore } from '../server/combat/skillSystem';
 import type { PlayerState } from '../shared/types';
@@ -55,21 +56,28 @@ describe('cast handler resources', () => {
     vi.useRealTimers();
   });
 
-  test('does not spend mana or start cooldown when authoritative cast creation rejects the request', () => {
+  function sendFireball(targetPos?: VecXZ): void {
+    const msg: CastReq = {
+      type: 'CastReq',
+      id: player.id,
+      skillId: 'fireball',
+      clientTs: Date.now(),
+    };
+    if (targetPos) {
+      msg.targetPos = targetPos;
+    }
     handleCastReq(
       socket,
       player,
-      {
-        type: 'CastReq',
-        id: player.id,
-        skillId: 'fireball',
-        clientTs: Date.now(),
-      },
+      msg,
       io,
       makeWorld(),
       activeCasts,
     );
+  }
 
+  test('does not spend mana or start cooldown when authoritative cast creation rejects the request', () => {
+    sendFireball();
     expect(player.mana).toBe(100);
     expect(player.skillCooldownEndTs).toEqual({});
     expect(Object.keys(activeCasts)).toHaveLength(0);
@@ -81,21 +89,7 @@ describe('cast handler resources', () => {
   });
 
   test('spends mana and starts cooldown after authoritative cast creation succeeds', () => {
-    handleCastReq(
-      socket,
-      player,
-      {
-        type: 'CastReq',
-        id: player.id,
-        skillId: 'fireball',
-        targetPos: { x: 10, z: 0 },
-        clientTs: Date.now(),
-      },
-      io,
-      makeWorld(),
-      activeCasts,
-    );
-
+    sendFireball({ x: 10, z: 0 });
     expect(player.mana).toBe(100 - SKILLS.fireball.manaCost);
     expect(player.skillCooldownEndTs.fireball).toBe(Date.now() + SKILLS.fireball.cooldownMs);
     expect(Object.keys(activeCasts)).toHaveLength(1);
@@ -104,6 +98,19 @@ describe('cast handler resources', () => {
       mana: player.mana,
       skillCooldownEndTs: player.skillCooldownEndTs,
     }));
+  });
+
+  test('rejects locked skills before starting authoritative casts', () => {
+    player.unlockedSkills = [];
+    sendFireball({ x: 10, z: 0 });
+    expect(player.mana).toBe(100);
+    expect(Object.keys(activeCasts)).toHaveLength(0);
+    expect(socketEmit).toHaveBeenCalledWith('msg', {
+      type: 'CastFail',
+      clientSeq: Date.now(),
+      reason: 'invalid',
+    });
+    expect(ioEmit).not.toHaveBeenCalledWith('playerUpdated', expect.anything());
   });
 });
 

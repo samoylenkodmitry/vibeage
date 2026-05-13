@@ -1,7 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
-import { SkillType } from './types.js';
 import { CastReq, ClientMessage, MoveIntent, VecXZ, ItemDrop, type LootPickup } from '../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
@@ -46,17 +45,6 @@ function onCastReq(socket: Socket, state: GameState, msg: CastReq, ioServer: Ser
   
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
-    return;
-  }
-  
-  // Handle using the legacy system first for backwards compatibility
-  if (!player.unlockedSkills.includes(msg.skillId as SkillType)) {
-    console.warn(`Player ${playerId} tried to cast not owned skill: ${msg.skillId}`);
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: 'invalid'
-    });
     return;
   }
   

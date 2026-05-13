@@ -125,6 +125,6 @@ export function makeEnemyUpdate(enemy: Enemy): Pick<Enemy, 'id' | 'targetId' | '
   };
 }
 
-function markEnemyDirty(enemy: Enemy): void {
+export function markEnemyDirty(enemy: Enemy): void {
   (enemy as Enemy & { dirtySnap?: boolean }).dirtySnap = true;
 }

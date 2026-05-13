@@ -1,11 +1,9 @@
 import { Socket, Server } from 'socket.io';
-import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastReq, CastFail } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
 import type { ActiveCastStore } from './skillSystem.js';
-import { canCast } from './utils/cast.js';
-import { applySkillCostAndCooldown } from './cooldowns.js';
+import { applyCastResources, validateCastRequest } from './castRules.js';
 import type { CombatWorld } from './worldContract.js';
 
 type CastFailReason = CastFail['reason'];
@@ -30,30 +28,14 @@ export function handleCastReq(
     return;
   }
   
-  if (!player.unlockedSkills.includes(msg.skillId as SkillId)) {
-    console.warn(`Player ${playerId} tried to cast not owned skill: ${msg.skillId}`);
-    emitCastFail(socket, msg, 'invalid');
-    return;
-  }
-  
-  const skillId = msg.skillId as SkillId;
-  const skill = SKILLS[skillId];
-  
-  // Check if the skill exists
-  if (!skill) {
-    emitCastFail(socket, msg, 'invalid');
-    return;
-  }
-  
   // Get target if any
   const target = msg.targetId ? world.getEnemyById(msg.targetId) : null;
   const now = Date.now();
   
-  // Use the canCast utility function to validate the cast
-  const castCheck = canCast(player, { id: skillId, range: skill.range || 0 }, target, msg.targetPos, now);
-  if (!castCheck.canCast) {
-    console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castCheck.reason}`);
-    emitCastFail(socket, msg, castCheck.reason || 'invalid');
+  const castCheck = validateCastRequest(player, msg.skillId, target, msg.targetPos, now);
+  if (castCheck.ok === false) {
+    console.log(`Cast failed for player ${playerId}, skill ${msg.skillId}: ${castCheck.reason}`);
+    emitCastFail(socket, msg, castCheck.reason);
     return;
   }
   
@@ -62,7 +44,7 @@ export function handleCastReq(
     activeCasts,
     player,
     playerId,
-    skillId,
+    castCheck.skillId,
     msg.targetPos,
     msg.targetId,
     io,
@@ -71,13 +53,13 @@ export function handleCastReq(
   
   const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
   if (failReason) {
-    console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castResult}`);
+    console.log(`Cast failed for player ${playerId}, skill ${castCheck.skillId}: ${castResult}`);
     emitCastFail(socket, msg, failReason);
     return;
   }
   
   // If we got here, the cast was successful and castResult is the cast ID
-  const resourceUpdate = applySkillCostAndCooldown(player, skillId, skill, now);
+  const resourceUpdate = applyCastResources(player, castCheck.skillId, castCheck.skill, now);
   
   // Broadcast player update (mana consumed, cooldown set)
   io.emit('playerUpdated', {

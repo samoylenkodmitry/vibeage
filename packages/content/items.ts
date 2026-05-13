@@ -12,6 +12,7 @@ export interface Item {
   attackPower?: number;
   defenseValue?: number;
   healAmount?: number;
+  manaAmount?: number;
 }
 
 export const ITEMS: Record<ItemId, Item> = {
@@ -270,6 +271,7 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: true,
     maxStack: 20,
     type: 'consumable',
+    manaAmount: 100,
   },
   'greater_health_potion': {
     id: 'greater_health_potion',

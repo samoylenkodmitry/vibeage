@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { SKILLS } from '../packages/content/skills';
 import { applySkillCostAndCooldown, hasEnoughMana, isSkillOnCooldown } from '../server/combat/cooldowns';
-import { canCast } from '../server/combat/utils/cast';
+import { canCast, validateCastRequest } from '../server/combat/utils/cast';
 import type { PlayerState } from '../shared/types';
 
 const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
@@ -62,6 +62,28 @@ describe('combat cooldown resources', () => {
     expect(canCast(onCooldown, { id: 'fireball', range: SKILLS.fireball.range ?? 0 }, null, { x: 1, z: 0 }, now)).toEqual({
       canCast: false,
       reason: 'cooldown',
+    });
+  });
+
+  test('validates skill existence, ownership, and target range in one cast rule pass', () => {
+    const player = makePlayer({ unlockedSkills: [] });
+
+    expect(validateCastRequest(player, 'fireball', null, { x: 1, z: 0 })).toEqual({
+      ok: false,
+      reason: 'invalid',
+    });
+
+    player.unlockedSkills = ['fireball'];
+    expect(validateCastRequest(player, 'fireball', null, { x: SKILLS.fireball.range + 1, z: 0 })).toEqual({
+      ok: false,
+      reason: 'outofrange',
+    });
+
+    const valid = validateCastRequest(player, 'fireball', null, { x: 1, z: 0 });
+    expect(valid).toEqual({
+      ok: true,
+      skillId: 'fireball',
+      skill: SKILLS.fireball,
     });
   });
 });

@@ -2,6 +2,7 @@ import { Enemy, InventorySlot, PlayerState } from '../shared/types';
 import { LOOT_TABLES } from './lootTables';
 import { log, LOG_CATEGORIES } from './logger';
 import { ITEMS } from '../packages/content/items.js';
+import { addItemsToInventoryWithOverflow } from './inventory/inventorySlots.js';
 
 /**
  * Generates loot from an enemy's loot table
@@ -49,78 +50,12 @@ export function addItemsToInventory(
   player: PlayerState, 
   items: InventorySlot[]
 ): { addedItems: InventorySlot[], overflowItems: InventorySlot[] } {
-  const addedItems: InventorySlot[] = [];
-  const overflowItems: InventorySlot[] = [];
-
-  // Process each item
-  items.forEach(item => {
-    let remainingQuantity = item.quantity;
-    const { itemId } = item;
-
-    // First try to merge with existing stacks of the same item
-    // Check if the item is stackable
-    const itemDef = ITEMS[itemId];
-    const isStackable = itemDef?.stackable ?? true; // Default to stackable if definition not found
-    const maxStack = itemDef?.maxStack ?? 999; // Default max stack
-    
-    if (isStackable) {
-      // Find existing stacks of this item that aren't full
-      for (let i = 0; i < player.inventory.length && remainingQuantity > 0; i++) {
-        const slot = player.inventory[i];
-        
-        if (slot.itemId === itemId && slot.quantity < maxStack) {
-          // Calculate how much we can add to this stack
-          const spaceInStack = maxStack - slot.quantity;
-          const amountToAdd = Math.min(spaceInStack, remainingQuantity);
-          
-          // Add to existing stack
-          player.inventory[i].quantity += amountToAdd;
-          remainingQuantity -= amountToAdd;
-          
-          // Add to addedItems for tracking
-          addedItems.push({
-            itemId,
-            quantity: amountToAdd
-          });
-        }
-      }
-    }
-    
-    // If we still have items to add and item is not stackable or we need a new stack
-    while (remainingQuantity > 0) {
-      // Check if we have space for a new slot
-      if (player.inventory.length < player.maxInventorySlots) {
-        // How much to add in this new slot
-        const amountForNewSlot = isStackable ? Math.min(remainingQuantity, maxStack) : 1;
-        
-        // Add to a new slot
-        player.inventory.push({
-          itemId,
-          quantity: amountForNewSlot
-        });
-        
-        // Add to addedItems for tracking
-        addedItems.push({
-          itemId,
-          quantity: amountForNewSlot
-        });
-        
-        remainingQuantity -= amountForNewSlot;
-      } else {
-        // No more inventory space
-        break;
-      }
-    }
-    
-    // If we still have items, they go to overflow
-    if (remainingQuantity > 0) {
-      overflowItems.push({
-        itemId,
-        quantity: remainingQuantity
-      });
-    }
-  });
-  
+  const { inventory, addedItems, overflowItems } = addItemsToInventoryWithOverflow(
+    player.inventory,
+    items,
+    player.maxInventorySlots,
+  );
+  player.inventory = inventory;
   return { addedItems, overflowItems };
 }
 

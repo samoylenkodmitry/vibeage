@@ -41,7 +41,8 @@ This project should become a browser-first multiplayer game that is easy for hum
 18. Done on 2026-05-13: made Vite the default development/build/production frontend target; legacy Next remains an explicit fallback with `dev:next`, `build:next`, and `FRONTEND_BUILD_TARGET=next`.
 19. Done on 2026-05-13: reduced `server/world.ts` under the normal maintainability file budget by extracting movement and prediction simulation into `server/movement/worldMovement.ts`.
 20. Done on 2026-05-13: extracted combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers out of large runtime modules, with focused server tests.
-21. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
+21. Done on 2026-05-13: extracted enemy AI state transitions, inventory stacking/item-use runtime, ground-loot creation, and cast validation/resource rules into focused tested modules.
+22. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
 ## Target Stack
 
@@ -121,7 +122,8 @@ tests/
 - Done on 2026-05-12: moved player progression/respawn and enemy lifecycle out of `server/world.ts` into tested modules.
 - Done on 2026-05-13: moved movement, position history, position validation, and prediction keyframe simulation out of `server/world.ts` into a tested movement module.
 - Done on 2026-05-13: moved combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers into tested modules.
-- Continue moving cooldowns, inventory, loot, enemy AI state machines, and remaining combat rules into testable simulation modules.
+- Done on 2026-05-13: moved cooldown/resource validation, inventory/item-use mutation, ground-loot creation, and enemy AI state transitions into testable runtime modules.
+- Continue moving remaining socket adapters and world orchestration into smaller tested modules before the Colyseus migration.
 - Add deterministic server tests that do not require a browser.
 - Persist only stable player/account data, not transient render state.
 
