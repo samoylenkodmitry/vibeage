@@ -57,11 +57,6 @@ export function handleCastReq(
   // Get target if any
   const target = msg.targetId ? world.getEnemyById(msg.targetId) : null;
   const now = Date.now();
-
-  if (!target && !msg.targetPos) {
-    emitCastFail(socket, msg, 'invalid');
-    return;
-  }
   
   // Use the canCast utility function to validate the cast
   const castCheck = canCast(player, { id: skillId, range: skill.range || 0 }, target, msg.targetPos, now);
@@ -70,8 +65,6 @@ export function handleCastReq(
     emitCastFail(socket, msg, castCheck.reason || 'invalid');
     return;
   }
-  
-  const resourceUpdate = applySkillCostAndCooldown(player, skillId, skill, now);
   
   // Create a cast using the server authoritative skill system
   const castResult = handleCastRequest(
@@ -85,15 +78,15 @@ export function handleCastReq(
     world
   );
   
-  // If castResult is a string and it's one of our valid error reasons,
-  // it's an error. Otherwise, it's a successful cast ID (nanoid)
-  if (typeof castResult === 'string' && isCastFailReason(castResult)) {
+  const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
+  if (failReason) {
     console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castResult}`);
-    emitCastFail(socket, msg, castResult);
+    emitCastFail(socket, msg, failReason);
     return;
   }
   
   // If we got here, the cast was successful and castResult is the cast ID
+  const resourceUpdate = applySkillCostAndCooldown(player, skillId, skill, now);
   
   // Broadcast player update (mana consumed, cooldown set)
   io.emit('playerUpdated', {
@@ -110,6 +103,14 @@ function emitCastFail(socket: Socket, msg: CastReq, reason: CastFailReason): voi
   } as CastFail);
 }
 
-function isCastFailReason(reason: string): reason is CastFailReason {
-  return reason === 'cooldown' || reason === 'nomana' || reason === 'invalid' || reason === 'outofrange';
+function toCastFailReason(reason: string): CastFailReason | null {
+  if (reason === 'cooldown' || reason === 'nomana' || reason === 'invalid' || reason === 'outofrange') {
+    return reason;
+  }
+
+  if (reason === 'missingTarget' || reason === 'targetNotFound') {
+    return 'invalid';
+  }
+
+  return null;
 }

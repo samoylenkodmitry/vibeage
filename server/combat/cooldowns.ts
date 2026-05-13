@@ -15,7 +15,7 @@ export function isSkillOnCooldown(player: PlayerState, skillId: SkillId, now: nu
 }
 
 export function hasEnoughMana(player: PlayerState, skill: Pick<SkillDef, 'manaCost'>): boolean {
-  return player.mana >= skill.manaCost;
+  return player.mana >= (skill.manaCost ?? 0);
 }
 
 export function applySkillCostAndCooldown(
@@ -24,10 +24,10 @@ export function applySkillCostAndCooldown(
   skill: Pick<SkillDef, 'manaCost' | 'cooldownMs'>,
   now: number,
 ): PlayerResourceUpdate {
-  player.mana = Math.max(0, player.mana - skill.manaCost);
+  player.mana = Math.max(0, player.mana - (skill.manaCost ?? 0));
   player.skillCooldownEndTs = {
     ...(player.skillCooldownEndTs ?? {}),
-    [skillId]: now + skill.cooldownMs,
+    [skillId]: now + (skill.cooldownMs ?? 0),
   };
 
   return buildPlayerResourceUpdate(player);
