@@ -75,17 +75,17 @@ The rollback path still uses the local SSH key, still runs the VPS-side health c
 
 ## Database Backups
 
-Postgres backups are handled by `scripts/backup-postgres.sh` and documented in `docs/POSTGRES_BACKUPS.md`.
+Postgres backups are pulled by the workstation through `scripts/pull-postgres-backup-local.sh` and documented in `docs/POSTGRES_BACKUPS.md`. The VPS should not retain scheduled dump files.
 
-Useful commands on the VPS active checkout:
+Useful commands on this workstation:
 
 ```bash
-pnpm run db:backup
+pnpm run db:backup:pull-local --status
+pnpm run db:backup:pull-local --force
 pnpm run db:restore:test
-pnpm run db:backup:install-cron
 ```
 
-Backups live under `/home/s/.vibeage-backups/postgres` by default and are not part of the Git checkout.
+Backups live under `/media/huge/vibeage-backups/postgres` by default and are not part of the Git checkout.
 
 ## One-Time VPS Prep
 

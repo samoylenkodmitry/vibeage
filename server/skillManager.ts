@@ -126,7 +126,7 @@ export function getAvailableSkillsToLearn(player: Player): SkillId[] {
     }
     
     // Check all skills in class progression
-    for (const [skillId, requirement] of Object.entries(classTree.skillProgression)) {
+    for (const skillId of Object.keys(classTree.skillProgression)) {
       // Skip skills player already has
       if (player.unlockedSkills.includes(skillId as SkillId)) {
         continue;

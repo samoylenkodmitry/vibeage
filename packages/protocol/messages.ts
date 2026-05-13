@@ -561,10 +561,14 @@ export function describeProtocolError(error: z.ZodError): string {
     .join('; ');
 }
 
-export function safeParseClientMessage(message: unknown): z.SafeParseReturnType<unknown, ClientMessage> {
-  return clientMessageSchema.safeParse(message) as z.SafeParseReturnType<unknown, ClientMessage>;
+export type ProtocolParseResult<T> =
+  | { success: true; data: T; error?: never }
+  | { success: false; data?: never; error: z.ZodError };
+
+export function safeParseClientMessage(message: unknown): ProtocolParseResult<ClientMessage> {
+  return clientMessageSchema.safeParse(message) as ProtocolParseResult<ClientMessage>;
 }
 
-export function safeParseServerMessage(message: unknown): z.SafeParseReturnType<unknown, ServerMessage> {
-  return serverMessageSchema.safeParse(message) as z.SafeParseReturnType<unknown, ServerMessage>;
+export function safeParseServerMessage(message: unknown): ProtocolParseResult<ServerMessage> {
+  return serverMessageSchema.safeParse(message) as ProtocolParseResult<ServerMessage>;
 }

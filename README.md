@@ -17,9 +17,6 @@ cp .env.example .env
 # Vite frontend only
 pnpm run dev
 
-# legacy Next frontend only
-pnpm run dev:next
-
 # game server only
 pnpm run dev:server
 
@@ -35,7 +32,6 @@ pnpm run dev:db
 ```bash
 pnpm run check
 pnpm run build
-pnpm run build:next
 pnpm run build:server
 pnpm test
 pnpm run lint
@@ -109,7 +105,7 @@ The skill system uses the following flow:
 
 4. **Visual Effects**:
    - Client receives authoritative cast snapshots
-   - `SocketManager` updates projectile/VFX stores
+   - the Vite client reducer and scene components update projectile/VFX state
    - Render components play visuals from client-side state
 
 5. **State Updates**:

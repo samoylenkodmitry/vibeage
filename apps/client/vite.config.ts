@@ -6,6 +6,7 @@ const clientRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   root: clientRoot,
+  publicDir: '../../public',
   plugins: [react()],
   server: {
     host: '127.0.0.1',

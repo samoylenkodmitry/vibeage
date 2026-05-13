@@ -1,30 +1,44 @@
 # Postgres Backups
 
-Production backups are local to the VPS and run from the active checkout at `/home/s/vibeage-deploy/repo`. They do not use GitHub secrets and do not expose Postgres publicly.
+Production backups are pulled from this workstation into `/media/huge/vibeage-backups/postgres`. The script streams `pg_dump` over SSH and does not leave persistent dump files on the VPS. It does not use GitHub secrets and does not expose Postgres publicly.
 
 ## Schedule
 
-The VPS user crontab runs:
+The workstation systemd user timer runs `~/.local/bin/vibeage-pull-postgres-backup`, which wraps the tracked script:
 
 ```bash
-17 3 * * * cd /home/s/vibeage-deploy/repo && BACKUP_ROOT=/home/s/.vibeage-backups/postgres RETENTION_DAYS=14 scripts/backup-postgres.sh >> /home/s/.vibeage-backups/postgres/backup.log 2>&1
+pnpm run db:backup:pull-local
 ```
 
-This creates one compressed custom-format dump per day and prunes dumps older than 14 days.
+The timer waits about one hour after workstation startup, retries hourly, skips if a successful backup already happened today, sends a dunst notification on success or failure, and keeps only the newest two local dumps.
+
+Check local backup status:
+
+```bash
+pnpm run db:backup:pull-local --status
+```
+
+Force a fresh local pull:
+
+```bash
+pnpm run db:backup:pull-local --force
+```
 
 ## Manual Backup
 
-On the VPS or from the active checkout:
+From a checkout with access to the Docker Compose database:
 
 ```bash
 pnpm run db:backup
 ```
 
-Backup files are written to:
+By default this manual command writes to:
 
 ```text
-/home/s/.vibeage-backups/postgres/
+~/.vibeage-backups/postgres/
 ```
+
+Do not install this as a VPS cron job; scheduled production backups should be pulled to the workstation instead.
 
 ## Restore Drill
 
@@ -58,4 +72,4 @@ CONTAINER_RUNTIME=podman pnpm run db:restore:test
 
 - Do not restore into the production `vibeage-db-1` container until the target backup has passed `pnpm run db:restore:test`.
 - Keep Postgres bound to `127.0.0.1:5432`; backups and restore drills use local container access.
-- Copy backups off the VPS separately if stronger disaster recovery is needed.
+- Keep persistent backup dumps off the VPS; `/home/s/.vibeage-backups/postgres` is intentionally not used for scheduled production retention.

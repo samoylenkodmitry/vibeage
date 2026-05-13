@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import express from 'express';
 import morgan from 'morgan';
-import { Server as ColyseusServer } from 'colyseus';
+import { Server as ColyseusServer } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
   isOriginAllowed,
