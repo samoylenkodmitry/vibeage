@@ -43,7 +43,8 @@ This project should become a browser-first multiplayer game that is easy for hum
 20. Done on 2026-05-13: extracted combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers out of large runtime modules, with focused server tests.
 21. Done on 2026-05-13: extracted enemy AI state transitions, inventory stacking/item-use runtime, ground-loot creation, and cast validation/resource rules into focused tested modules.
 22. Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death side effects, and Socket.IO session glue into focused modules; added a room-boundary contract for the future Colyseus migration and deterministic server runtime flow coverage.
-23. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
+23. Done on 2026-05-13: added a Socket.IO outbound-event adapter for server messages/entity updates, a socket-backed authoritative-room adapter for the future Colyseus boundary, and a tested starter gameplay vertical-slice manifest.
+24. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
 ## Target Stack
 
@@ -126,13 +127,14 @@ tests/
 - Done on 2026-05-13: moved cooldown/resource validation, inventory/item-use mutation, ground-loot creation, and enemy AI state transitions into testable runtime modules.
 - Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death orchestration, and Socket.IO session wiring into smaller modules before the Colyseus migration.
 - Done on 2026-05-13: added a deterministic server runtime flow test covering movement, aggro, combat death, loot spawn, and inventory pickup without a browser.
+- Done on 2026-05-13: added an outbound-event adapter and socket-backed room adapter so remaining Socket.IO details can be isolated before introducing Colyseus.
 - Use `server/transport/roomBoundary.ts` as the current migration contract before introducing a Colyseus room implementation.
 - Continue moving remaining socket-emitting combat/effect adapters into smaller tested modules before the Colyseus migration.
 - Persist only stable player/account data, not transient render state.
 
 ### Phase 4: Iterate On Gameplay
 
-- Add a small vertical slice: one zone, one class, three skills, three enemy types, loot, leveling, and respawn.
+- Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, three enemy types, loot, leveling, and respawn, with content/runtime validation tests.
 - Measure latency, tick cost, bundle size, and browser FPS before scaling content.
 - Expand content only after protocol and simulation tests are stable.
 

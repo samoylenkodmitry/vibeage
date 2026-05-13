@@ -94,8 +94,9 @@ export const GAME_ZONES: Zone[] = [
         minLevel: 1,
         maxLevel: 3,
         mobs: [
-            { type: 'goblin', weight: 70, minCount: 5, maxCount: 8 },
-            { type: 'wolf', weight: 30, minCount: 2, maxCount: 4 }
+            { type: 'goblin', weight: 60, minCount: 5, maxCount: 8 },
+            { type: 'wolf', weight: 25, minCount: 2, maxCount: 4 },
+            { type: 'skeleton', weight: 15, minCount: 1, maxCount: 2 }
         ]
     },
     {
