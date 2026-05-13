@@ -14,8 +14,11 @@ Use `main` as the canonical working branch. The previous GitHub `main` has been 
 pnpm install
 cp .env.example .env
 
-# frontend only
+# Vite frontend only
 pnpm run dev
+
+# legacy Next frontend only
+pnpm run dev:next
 
 # game server only
 pnpm run dev:server
@@ -32,6 +35,7 @@ pnpm run dev:db
 ```bash
 pnpm run check
 pnpm run build
+pnpm run build:next
 pnpm run build:server
 pnpm test
 pnpm run lint

@@ -5,7 +5,7 @@ APP_NAME=${APP_NAME:-vibeage}
 DOMAIN=${DOMAIN:-vibeage.eu}
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-vibeage}
 FRONTEND_PUBLIC_DIR=${FRONTEND_PUBLIC_DIR:-/opt/vibeage-frontend/out}
-FRONTEND_BUILD_TARGET=${FRONTEND_BUILD_TARGET:-next}
+FRONTEND_BUILD_TARGET=${FRONTEND_BUILD_TARGET:-vite}
 MAX_HTTP_BUFFER_SIZE=${MAX_HTTP_BUFFER_SIZE:-1048576}
 RELOAD_NGINX=${RELOAD_NGINX:-0}
 WS_COMPRESSION=${WS_COMPRESSION:-1}
@@ -120,7 +120,7 @@ frontend_source_dir() {
 build_frontend() {
   case "$FRONTEND_BUILD_TARGET" in
     next)
-      pnpm run build
+      pnpm run build:next
       ;;
     vite)
       pnpm run build:vite-client

@@ -1,0 +1,151 @@
+import type { PosSnap, PredictionKeyframe, VecXZ } from '../../packages/protocol/messages.js';
+import type { Enemy, PlayerState } from '../../shared/types.js';
+import { CM_PER_UNIT } from '../../shared/netConstants.js';
+import type { GameState } from '../gameState.js';
+import {
+  createPredictionKeyframes,
+  predictPosition,
+} from './worldMovement.js';
+
+const TICK_MS = 1000 / 30;
+const PREDICTION_TICK_OFFSETS = [TICK_MS, TICK_MS * 2];
+const lastSentPos: Record<string, VecXZ> = {};
+
+type SnapInput = {
+  messages: PosSnap[];
+  id: string;
+  pos: VecXZ;
+  vel: VecXZ;
+  timestamp: number;
+  predictions: PredictionKeyframe[];
+};
+
+export function collectDeltas(
+  state: GameState,
+  timestamp: number,
+  playersToForceInclude: Set<string>,
+): PosSnap[] {
+  const messages: PosSnap[] = [];
+  collectPlayerDeltas(state, timestamp, playersToForceInclude, messages);
+  collectEnemyDeltas(state, timestamp, messages);
+  return messages;
+}
+
+export function forgetPositionDelta(id: string): void {
+  delete lastSentPos[id];
+}
+
+function collectPlayerDeltas(
+  state: GameState,
+  timestamp: number,
+  playersToForceInclude: Set<string>,
+  messages: PosSnap[],
+): void {
+  for (const [playerId, player] of Object.entries(state.players)) {
+    if (!player.isAlive) {
+      continue;
+    }
+
+    const pos = predictPosition(player, timestamp);
+    const vel = player.velocity || { x: 0, z: 0 };
+    const predictions = playerPredictions(state, player, pos, vel, timestamp);
+    debugPrediction(playerId, predictions);
+
+    if (playersToForceInclude.has(playerId) || shouldSendSnap(playerId, pos, player)) {
+      pushSnap({ messages, id: playerId, pos, vel, timestamp, predictions });
+      clearDirtySnap(player);
+    }
+  }
+}
+
+function collectEnemyDeltas(state: GameState, timestamp: number, messages: PosSnap[]): void {
+  for (const [enemyId, enemy] of Object.entries(state.enemies)) {
+    if (!enemy.isAlive) {
+      continue;
+    }
+
+    const pos = { x: enemy.position.x, z: enemy.position.z };
+    const vel = enemy.velocity || { x: 0, z: 0 };
+    const predictions = createPredictionKeyframes({
+      entity: enemy,
+      currentPos: pos,
+      currentVel: vel,
+      currentRotY: enemy.rotation?.y || 0,
+      timestamp,
+      offsetsMs: PREDICTION_TICK_OFFSETS,
+      state,
+    });
+
+    if (shouldSendSnap(enemyId, pos, enemy)) {
+      pushSnap({ messages, id: enemyId, pos, vel, timestamp, predictions });
+      clearDirtySnap(enemy);
+    }
+  }
+}
+
+function playerPredictions(
+  state: GameState,
+  player: PlayerState,
+  pos: VecXZ,
+  vel: VecXZ,
+  timestamp: number,
+): PredictionKeyframe[] {
+  return createPredictionKeyframes({
+    entity: player,
+    currentPos: pos,
+    currentVel: vel,
+    currentRotY: player.rotation?.y || 0,
+    timestamp,
+    offsetsMs: PREDICTION_TICK_OFFSETS,
+    state,
+  });
+}
+
+function shouldSendSnap(id: string, pos: VecXZ, entity: PlayerState | Enemy): boolean {
+  const last = lastSentPos[id];
+
+  if (!last || isDirtySnap(entity)) {
+    return true;
+  }
+
+  return hasCentimeterDelta(pos, last);
+}
+
+function pushSnap({ messages, id, pos, vel, timestamp, predictions }: SnapInput): void {
+  messages.push({
+    type: 'PosSnap',
+    id,
+    pos,
+    vel,
+    snapTs: timestamp,
+    predictions: predictions.length > 0 ? predictions : undefined,
+  });
+  lastSentPos[id] = { ...pos };
+}
+
+function hasCentimeterDelta(pos: VecXZ, last: VecXZ): boolean {
+  const dx = Math.round((pos.x - last.x) * CM_PER_UNIT);
+  const dz = Math.round((pos.z - last.z) * CM_PER_UNIT);
+  return dx !== 0 || dz !== 0;
+}
+
+function isDirtySnap(entity: PlayerState | Enemy): boolean {
+  return Boolean((entity as any).dirtySnap);
+}
+
+function clearDirtySnap(entity: PlayerState | Enemy): void {
+  if (isDirtySnap(entity)) {
+    (entity as any).dirtySnap = false;
+  }
+}
+
+function debugPrediction(id: string, predictions: PredictionKeyframe[]): void {
+  if (predictions.length === 0 || Math.random() >= 0.01) {
+    return;
+  }
+
+  console.log(`[Prediction] Entity ${id}: ${predictions.length} keyframes`);
+  predictions.forEach((prediction, index) => {
+    console.log(`  Keyframe ${index}: pos=(${prediction.pos.x.toFixed(2)}, ${prediction.pos.z.toFixed(2)}), ts=${prediction.ts}`);
+  });
+}

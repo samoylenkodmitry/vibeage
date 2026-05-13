@@ -4,7 +4,7 @@
 
 This repository is a browser multiplayer game prototype. Treat it as a codebase being stabilized before a web-native rewrite, not as a clean production architecture.
 
-The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and Vitest. The intended direction is documented in `ROADMAP.md`: Vite client, Colyseus server, shared Zod protocol schemas, Kysely persistence, Vitest and Playwright checks.
+The current production client uses Vite, React Three Fiber, Socket.IO, Postgres, and Vitest. Legacy Next code still exists during migration. The intended direction is documented in `ROADMAP.md`: Vite client, Colyseus server, shared Zod protocol schemas, Kysely persistence, Vitest and Playwright checks.
 
 ## Branch Policy
 
@@ -19,17 +19,19 @@ The current app uses Next, React Three Fiber, Rapier, Socket.IO, Postgres, and V
 ## Commands
 
 - Install: `pnpm install`
-- Frontend dev: `pnpm run dev`
+- Frontend dev: `pnpm run dev` (Vite)
+- Legacy Next dev: `pnpm run dev:next`
 - Server dev: `pnpm run dev:server`
 - Frontend and server dev: `pnpm run dev:all`
 - Docker-backed local DB plus dev servers: `pnpm run dev:db`
-- Frontend build: `pnpm run build`
+- Frontend build: `pnpm run build` (Vite)
+- Legacy Next build: `pnpm run build:next`
 - Server build: `pnpm run build:server`
 - Tests: `pnpm test`
 - Browser smoke: `pnpm run test:e2e`
 - Lint: `pnpm run lint`
 - Full local quality gate: `pnpm run check`
-- Local production deploy: `pnpm run deploy:production`
+- Local production deploy: `pnpm run deploy:production` (Vite frontend by default; legacy Next fallback is `FRONTEND_BUILD_TARGET=next pnpm run deploy:production`)
 - Local production rollback: `pnpm run deploy:rollback`
 - Production healthcheck: `pnpm run health:production`
 - Manual Postgres backup: `pnpm run db:backup`
