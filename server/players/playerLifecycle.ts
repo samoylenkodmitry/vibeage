@@ -4,6 +4,7 @@ import type { PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import { emitPlayerUpdated, makeSocketIoOutbound } from '../transport/outboundEvents.js';
 import {
   getMaxHealthForLevel,
   getMaxManaForLevel,
@@ -69,6 +70,7 @@ export function awardPlayerXP(
 }
 
 export function handleManaRegeneration(state: GameState, io: Server): void {
+  const outbound = makeSocketIoOutbound(io);
   for (const player of Object.values(state.players)) {
     if (!player.isAlive || player.mana >= player.maxMana) {
       continue;
@@ -78,7 +80,7 @@ export function handleManaRegeneration(state: GameState, io: Server): void {
     player.mana = Math.min(player.maxMana, player.mana + MANA_REGEN_PER_TICK);
 
     if (Math.abs(player.mana - oldMana) > 0.01) {
-      io.emit('playerUpdated', {
+      emitPlayerUpdated(outbound, {
         id: player.id,
         mana: player.mana,
       });
@@ -134,6 +136,6 @@ export function onRespawnRequest(
 ): void {
   const update = respawnPlayer(state, spatial, msg.id);
   if (update) {
-    io.emit('playerUpdated', update);
+    emitPlayerUpdated(makeSocketIoOutbound(io), update);
   }
 }

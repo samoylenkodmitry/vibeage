@@ -15,9 +15,11 @@ import type {
   PlayerEntity,
   ServerGameState,
   Vec3,
+  VisualEvent,
 } from './gameTypes';
 
 const CAST_VISIBLE_MS = 3_000;
+const VISUAL_EVENT_VISIBLE_MS = 1_800;
 const MAX_COMBAT_LINES = 5;
 
 export const initialGameClientState: GameClientState = {
@@ -30,6 +32,7 @@ export const initialGameClientState: GameClientState = {
   selectedTargetId: null,
   targetWorldPos: null,
   casts: {},
+  visualEvents: {},
   inventory: [],
   maxInventorySlots: 20,
   combatLog: [],
@@ -83,7 +86,11 @@ export function gameClientReducer(
     case 'serverMessage':
       return applyServerMessage(state, action.message, action.now);
     case 'pruneCasts':
-      return { ...state, casts: pruneCasts(state.casts, action.now) };
+      return {
+        ...state,
+        casts: pruneCasts(state.casts, action.now),
+        visualEvents: pruneVisualEvents(state.visualEvents, action.now),
+      };
   }
 }
 
@@ -168,7 +175,11 @@ function applyServerMessage(
   }
 
   if (message.type === 'CastSnapshot') {
-    return addCastSnapshot(state, message.data, now);
+    return applyCastSnapshot(state, message.data, now);
+  }
+
+  if (message.type === 'InstantHit') {
+    return applyInstantHit(state, message, now);
   }
 
   if (message.type === 'CombatLog') {
@@ -280,6 +291,58 @@ function addCastSnapshot(
   return { ...state, casts, message };
 }
 
+function applyCastSnapshot(
+  state: GameClientState,
+  snapshot: CastSnapshot,
+  now: number,
+): GameClientState {
+  const nextState = addCastSnapshot(state, snapshot, now);
+  if (snapshot.state !== CastState.Impact) {
+    return nextState;
+  }
+
+  return addSkillImpactVisualEvent(nextState, snapshot.skillId, normalizeVec3(snapshot.pos), now);
+}
+
+function applyInstantHit(
+  state: GameClientState,
+  message: ServerMessage & { type: 'InstantHit' },
+  now: number,
+): GameClientState {
+  return addSkillImpactVisualEvent(state, message.skillId, normalizeVec3(message.targetPos), now);
+}
+
+function addSkillImpactVisualEvent(
+  state: GameClientState,
+  skillId: string,
+  position: Vec3,
+  now: number,
+): GameClientState {
+  if (skillId === 'waterSplash') {
+    return addVisualEvent(state, { kind: 'splash', position, radius: 3, createdAt: now });
+  }
+
+  if (skillId === 'petrify') {
+    return addVisualEvent(state, { kind: 'petrify', position, createdAt: now });
+  }
+
+  return state;
+}
+
+function addVisualEvent(
+  state: GameClientState,
+  event: Omit<VisualEvent, 'id'>,
+): GameClientState {
+  const id = `${event.kind}:${event.createdAt}:${Object.keys(state.visualEvents).length}`;
+  return {
+    ...state,
+    visualEvents: {
+      ...state.visualEvents,
+      [id]: { id, ...event },
+    },
+  };
+}
+
 function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
   return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
 }
@@ -362,14 +425,46 @@ function applyItemUsed(
     itemUse.healthDelta ? `+${Math.round(itemUse.healthDelta)} HP` : null,
     itemUse.manaDelta ? `+${Math.round(itemUse.manaDelta)} MP` : null,
   ].filter(Boolean).join(', ');
+  const nextState = addItemUseVisualEvent({ ...state, inventory }, itemUse, now);
 
   return addCombatLine(
-    { ...state, inventory },
+    nextState,
     {
       id: makeCombatLineId(`item-${itemUse.slotIndex}`, state.combatLog.length, now),
       text: `Used ${getItemName(itemUse.itemId)}${deltas ? ` (${deltas})` : ''}`,
     },
   );
+}
+
+function addItemUseVisualEvent(
+  state: GameClientState,
+  itemUse: ServerMessage & { type: 'ItemUsed' },
+  now: number,
+): GameClientState {
+  const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+  if (!player) {
+    return state;
+  }
+
+  if (itemUse.healthDelta && itemUse.healthDelta > 0) {
+    return addVisualEvent(state, {
+      kind: 'healing',
+      position: player.position,
+      amount: itemUse.healthDelta,
+      createdAt: now,
+    });
+  }
+
+  if (itemUse.manaDelta && itemUse.manaDelta > 0) {
+    return addVisualEvent(state, {
+      kind: 'mana',
+      position: player.position,
+      amount: itemUse.manaDelta,
+      createdAt: now,
+    });
+  }
+
+  return state;
 }
 
 function applyEffectSnapshot(
@@ -467,6 +562,16 @@ function makeCombatLineId(castId: string, currentLineCount: number, now: number)
 function pruneCasts(casts: GameClientState['casts'], now: number): GameClientState['casts'] {
   return Object.fromEntries(
     Object.entries(casts).filter(([, cast]) => now - cast.seenAt < CAST_VISIBLE_MS),
+  );
+}
+
+function pruneVisualEvents(
+  visualEvents: GameClientState['visualEvents'],
+  now: number,
+): GameClientState['visualEvents'] {
+  return Object.fromEntries(
+    Object.entries(visualEvents)
+      .filter(([, event]) => now - event.createdAt < VISUAL_EVENT_VISIBLE_MS),
   );
 }
 

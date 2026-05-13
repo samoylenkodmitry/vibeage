@@ -4,6 +4,7 @@ import type { GameState } from '../gameState.js';
 import { spawnLootForEnemyDeath } from '../loot/groundLoot.js';
 import { awardPlayerXP } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import { emitPlayerUpdated, makeSocketIoOutbound } from '../transport/outboundEvents.js';
 
 export type TargetDeathContext = {
   state: GameState;
@@ -29,7 +30,10 @@ export function handleTargetDeath(
   context.spatial.remove(target.id, { x: target.position.x, z: target.position.z });
 
   if (caster.isAlive && isEnemy(target)) {
-    context.io.emit('playerUpdated', awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`));
+    emitPlayerUpdated(
+      makeSocketIoOutbound(context.io),
+      awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`),
+    );
     if (target.lootTableId) {
       const spawnLoot = context.spawnLoot ?? spawnLootForEnemyDeath;
       spawnLoot(context.state, context.io, target);

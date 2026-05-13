@@ -16,6 +16,7 @@ import {
   LootMarker,
   SelectedEnemyRing,
   TargetDestinationMarker,
+  WorldEventVfx,
 } from './SceneVfx';
 
 const GROUND_Y = 0;
@@ -67,6 +68,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       ))}
       {Object.values(state.casts).map((cast) => (
         <CastMarker key={cast.snapshot.castId} cast={cast} />
+      ))}
+      {Object.values(state.visualEvents).map((event) => (
+        <WorldEventVfx key={event.id} event={event} />
       ))}
       <CameraRig focus={focus} presentationFocusRef={cameraAnchorRef} />
     </Canvas>

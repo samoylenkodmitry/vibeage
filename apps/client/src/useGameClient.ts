@@ -266,6 +266,7 @@ function installE2EHooks(
       inventoryItems: state.inventory.map((slot) => ({ itemId: slot.itemId, quantity: slot.quantity })),
       groundLootIds: Object.keys(state.groundLoot),
       castSkillIds: Object.values(state.casts).map((cast) => cast.snapshot.skillId),
+      visualEventKinds: Object.values(state.visualEvents).map((event) => event.kind),
       liveProjectileSkillIds: Object.values(state.casts)
         .filter((cast) => cast.snapshot.state !== 2)
         .map((cast) => cast.snapshot.skillId),
@@ -313,6 +314,7 @@ declare global {
         inventoryItems: { itemId: string; quantity: number }[];
         groundLootIds: string[];
         castSkillIds: SkillId[];
+        visualEventKinds: string[];
         liveProjectileSkillIds: SkillId[];
       };
       sendMoveIntent: (target: VecXZ) => void;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CastState } from '../packages/protocol/messages';
 import {
   gameClientReducer,
   initialGameClientState,
@@ -96,6 +97,64 @@ describe('Vite game client reducer', () => {
     expect(nextState.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
     expect(nextState.combatLog[0].text).toContain('Health Potion');
     expect(nextState.combatLog[0].text).toContain('+25 HP');
+  });
+});
+
+describe('Vite game client reducer visual events', () => {
+  it('adds recovery visual events after local item use', () => {
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': basePlayer },
+      inventory: [{ itemId: 'health_potion', quantity: 2 }],
+    };
+
+    const nextState = gameClientReducer(state, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'ItemUsed',
+        slotIndex: 0,
+        itemId: 'health_potion',
+        newQuantity: 1,
+        healthDelta: 25,
+      },
+    });
+
+    expect(Object.values(nextState.visualEvents)).toContainEqual(expect.objectContaining({
+      kind: 'healing',
+      amount: 25,
+      position: basePlayer.position,
+    }));
+  });
+
+  it('adds impact visual events for water splash and prunes old visual events', () => {
+    const withImpact = gameClientReducer(initialGameClientState, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'CastSnapshot',
+        data: {
+          castId: 'cast-1',
+          casterId: 'player-1',
+          skillId: 'waterSplash',
+          state: CastState.Impact,
+          origin: { x: 0, z: 0 },
+          pos: { x: 3, z: 4 },
+          startedAt: 0,
+          castTimeMs: 100,
+          progressMs: 100,
+        },
+      },
+    });
+    const pruned = gameClientReducer(withImpact, { type: 'pruneCasts', now: 2_000 });
+
+    expect(Object.values(withImpact.visualEvents)).toContainEqual(expect.objectContaining({
+      kind: 'splash',
+      radius: 3,
+      position: { x: 3, y: 0.35, z: 4 },
+    }));
+    expect(Object.keys(pruned.visualEvents)).toHaveLength(0);
   });
 
   it('does not replace local inventory with another player inventory update', () => {
