@@ -276,17 +276,11 @@ function handleClientMessage(
 }
 
 function onLootPickup(socket: Socket, state: GameState, msg: LootPickup, io: Server): void {
-  console.log(`[LootPickup] Received pickup request: lootId=${msg.lootId}, playerId=${msg.playerId}`);
-  console.log(`[LootPickup] Player exists: ${!!state.players[msg.playerId]}`);
-  console.log(`[LootPickup] Socket ID matches: ${state.players[msg.playerId]?.socketId === socket.id}`);
-
   if (state.players[msg.playerId]?.socketId !== socket.id) {
-    console.log('[LootPickup] REJECTED: Socket ID mismatch or player not found');
     return;
   }
 
   if (!tryGiveLoot(state, io, msg.playerId, msg.lootId)) {
-    console.log(`[LootPickup] FAILED: Failed to pick up loot: ${msg.lootId} for player ${msg.playerId}`);
     return;
   }
 
@@ -296,7 +290,6 @@ function onLootPickup(socket: Socket, state: GameState, msg: LootPickup, io: Ser
     inventory: state.players[msg.playerId].inventory,
     maxInventorySlots: state.players[msg.playerId].maxInventorySlots
   });
-  console.log(`[LootPickup] SUCCESS: Player ${msg.playerId} picked up loot ${msg.lootId}`);
 }
 
 function onTargetDied(caster: PlayerState, target: Enemy | PlayerState, io: Server): void {

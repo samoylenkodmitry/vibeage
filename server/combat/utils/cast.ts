@@ -1,6 +1,7 @@
 import { PlayerState, Enemy } from '../../../shared/types.js';
 import { VecXZ } from '../../../packages/protocol/messages.js';
 import { SKILLS, SkillId } from '../../../packages/content/skills.js';
+import { applySkillCostAndCooldown, hasEnoughMana, isSkillOnCooldown } from '../cooldowns.js';
 
 /**
  * Calculate distance between two points
@@ -24,31 +25,24 @@ export function canCast(
 ): { canCast: boolean; reason?: 'cooldown' | 'nomana' | 'invalid' | 'outofrange' } {
   const skillId = skill.id;
   const skillDef = SKILLS[skillId];
-  
-  console.log(`canCast check for ${skillId}: player=${caster?.id || 'unknown'}, target=${target?.id || 'none'}, targetPos=${JSON.stringify(targetPos || 'none')}`);
-  
+
   // Validate skill exists
   if (!skillDef) {
-    console.log(`Cast failed: Skill ${skillId} not found in definitions`);
     return { canCast: false, reason: 'invalid' };
   }
   
   // Check if caster is alive
   if (!caster.isAlive) {
-    console.log(`Cast failed: Caster is not alive`);
     return { canCast: false, reason: 'invalid' };
   }
   
   // Check mana cost
-  if (skillDef.manaCost && caster.mana < skillDef.manaCost) {
-    console.log(`Cast failed: Not enough mana (have ${caster.mana}, need ${skillDef.manaCost})`);
+  if (!hasEnoughMana(caster, skillDef)) {
     return { canCast: false, reason: 'nomana' };
   }
   
   // Check if skill is on cooldown
-  const cooldownEnd = caster.skillCooldownEndTs?.[skillId] || 0;
-  if (timestamp < cooldownEnd) {
-    console.log(`Cast failed: Skill on cooldown until ${new Date(cooldownEnd).toISOString()}`);
+  if (isSkillOnCooldown(caster, skillId, timestamp)) {
     return { canCast: false, reason: 'cooldown' };
   }
   
@@ -81,8 +75,6 @@ export function canCast(
     }
   }
   
-  // All checks passed
-  console.log(`Cast check passed for skill ${skillId}`);
   return { canCast: true };
 }
 
@@ -94,22 +86,11 @@ export function applyCastCost(player: PlayerState, skillId: SkillId): PlayerStat
   const skill = SKILLS[skillId];
   if (!skill) return player;
   
-  const now = Date.now();
-  const updatedPlayer = { ...player };
-  
-  // Apply mana cost
-  if (skill.manaCost) {
-    updatedPlayer.mana = Math.max(0, player.mana - skill.manaCost);
-  }
-  
-  // Apply cooldown
-  if (skill.cooldownMs) {
-    const cooldownEndTime = now + skill.cooldownMs;
-    updatedPlayer.skillCooldownEndTs = {
-      ...(updatedPlayer.skillCooldownEndTs || {}),
-      [skillId]: cooldownEndTime
-    };
-  }
-  
+  const updatedPlayer = {
+    ...player,
+    skillCooldownEndTs: { ...(player.skillCooldownEndTs ?? {}) },
+  };
+
+  applySkillCostAndCooldown(updatedPlayer, skillId, skill, Date.now());
   return updatedPlayer;
 }

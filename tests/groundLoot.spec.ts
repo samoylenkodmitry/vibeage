@@ -4,7 +4,7 @@ import { createGameState } from '../server/gameState';
 import { tryGiveLoot } from '../server/loot/groundLoot';
 import type { PlayerState } from '../shared/types';
 
-const makePlayer = (): PlayerState => ({
+const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   id: 'player1',
   socketId: 'socket1',
   name: 'Looter',
@@ -26,8 +26,9 @@ const makePlayer = (): PlayerState => ({
   castingSkill: null,
   castingProgressMs: 0,
   isAlive: true,
-  inventory: [{ itemId: 'healthPotion', quantity: 1 }],
+  inventory: [{ itemId: 'health_potion', quantity: 1 }],
   maxInventorySlots: 20,
+  ...overrides,
 });
 
 describe('ground loot', () => {
@@ -43,16 +44,16 @@ describe('ground loot', () => {
     state.groundLoot.loot1 = {
       position: { x: 1, z: 0 },
       items: [
-        { itemId: 'healthPotion', quantity: 2 },
-        { itemId: 'manaPotion', quantity: 1 },
+        { itemId: 'health_potion', quantity: 2 },
+        { itemId: 'gold_coin', quantity: 1 },
       ],
     };
 
     expect(tryGiveLoot(state, io, 'player1', 'loot1')).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
     expect(state.players.player1.inventory).toEqual([
-      { itemId: 'healthPotion', quantity: 3 },
-      { itemId: 'manaPotion', quantity: 1 },
+      { itemId: 'health_potion', quantity: 3 },
+      { itemId: 'gold_coin', quantity: 1 },
     ]);
     expect(io.emit).toHaveBeenCalledWith('msg', {
       type: 'LootPickup',
@@ -62,7 +63,55 @@ describe('ground loot', () => {
     expect(io.to).toHaveBeenCalledWith('socket1');
     expect(directEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
       type: 'LootAcquired',
-      items: expect.arrayContaining([{ itemId: 'manaPotion', quantity: 1 }]),
+      items: expect.arrayContaining([{ itemId: 'gold_coin', quantity: 1 }]),
+    }));
+  });
+
+  test('does not remove loot when inventory has no free slot for a new item', () => {
+    const state = createGameState();
+    const io = {
+      emit: vi.fn(),
+      to: vi.fn(() => ({ emit: vi.fn() })),
+    } as unknown as Server;
+
+    state.players.player1 = makePlayer({
+      inventory: [{ itemId: 'health_potion', quantity: 1 }],
+      maxInventorySlots: 1,
+    });
+    state.groundLoot.loot1 = {
+      position: { x: 1, z: 0 },
+      items: [{ itemId: 'gold_coin', quantity: 5 }],
+    };
+
+    expect(tryGiveLoot(state, io, 'player1', 'loot1')).toBe(false);
+    expect(state.groundLoot.loot1).toBeDefined();
+    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(io.emit).not.toHaveBeenCalledWith('msg', expect.objectContaining({ type: 'LootPickup' }));
+  });
+
+  test('allows stacking existing inventory items even when slots are full', () => {
+    const state = createGameState();
+    const directEmit = vi.fn();
+    const io = {
+      emit: vi.fn(),
+      to: vi.fn(() => ({ emit: directEmit })),
+    } as unknown as Server;
+
+    state.players.player1 = makePlayer({
+      inventory: [{ itemId: 'health_potion', quantity: 1 }],
+      maxInventorySlots: 1,
+    });
+    state.groundLoot.loot1 = {
+      position: { x: 1, z: 0 },
+      items: [{ itemId: 'health_potion', quantity: 2 }],
+    };
+
+    expect(tryGiveLoot(state, io, 'player1', 'loot1')).toBe(true);
+    expect(state.groundLoot.loot1).toBeUndefined();
+    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 3 }]);
+    expect(directEmit).toHaveBeenCalledWith('msg', expect.objectContaining({
+      type: 'LootAcquired',
+      items: [{ itemId: 'health_potion', quantity: 2 }],
     }));
   });
 });

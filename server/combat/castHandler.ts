@@ -5,6 +5,7 @@ import { Enemy, PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { canCast } from './utils/cast.js';
+import { applySkillCostAndCooldown } from './cooldowns.js';
 
 /**
  * World interface for interacting with game state
@@ -15,6 +16,8 @@ interface World {
   getEntitiesInCircle: (pos: VecXZ, radius: number) => any[];
   onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => void;
 }
+
+type CastFailReason = CastFail['reason'];
 
 /**
  * Handles a cast request from the client
@@ -30,8 +33,6 @@ export function handleCastReq(
 ): void {
   const playerId = msg.id;
   
-  console.log(`Handling cast request: player=${playerId}, skill=${msg.skillId}, target=${msg.targetId || 'none'}`);
-  
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
     console.warn(`Invalid cast request: player=${playerId}, socketId mismatch`);
@@ -40,11 +41,7 @@ export function handleCastReq(
   
   if (!player.unlockedSkills.includes(msg.skillId as SkillId)) {
     console.warn(`Player ${playerId} tried to cast not owned skill: ${msg.skillId}`);
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: 'invalid'
-    } as CastFail);
+    emitCastFail(socket, msg, 'invalid');
     return;
   }
   
@@ -53,11 +50,7 @@ export function handleCastReq(
   
   // Check if the skill exists
   if (!skill) {
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: 'invalid'
-    } as CastFail);
+    emitCastFail(socket, msg, 'invalid');
     return;
   }
   
@@ -69,21 +62,9 @@ export function handleCastReq(
   const castCheck = canCast(player, { id: skillId, range: skill.range || 0 }, target, msg.targetPos, now);
   if (!castCheck.canCast) {
     console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castCheck.reason}`);
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: castCheck.reason || 'invalid'
-    } as CastFail);
+    emitCastFail(socket, msg, castCheck.reason || 'invalid');
     return;
   }
-  
-  // Apply mana cost and cooldown
-  player.mana -= skill.manaCost;
-  
-  if (!player.skillCooldownEndTs) {
-    player.skillCooldownEndTs = {};
-  }
-  player.skillCooldownEndTs[skillId] = now + skill.cooldownMs;
   
   // Create a cast using the server authoritative skill system
   const castResult = handleCastRequest(
@@ -97,28 +78,39 @@ export function handleCastReq(
     world
   );
   
-  // Valid error reasons
-  const validReasons = ['cooldown', 'nomana', 'invalid', 'outofrange'];
-  
-  // If castResult is a string and it's one of our valid error reasons,
-  // it's an error. Otherwise, it's a successful cast ID (nanoid)
-  if (typeof castResult === 'string' && validReasons.includes(castResult)) {
+  const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
+  if (failReason) {
     console.log(`Cast failed for player ${playerId}, skill ${skillId}: ${castResult}`);
-    
-    socket.emit('msg', {
-      type: 'CastFail',
-      clientSeq: msg.clientTs,
-      reason: castResult as 'cooldown' | 'nomana' | 'invalid' | 'outofrange'
-    } as CastFail);
+    emitCastFail(socket, msg, failReason);
     return;
   }
   
   // If we got here, the cast was successful and castResult is the cast ID
+  const resourceUpdate = applySkillCostAndCooldown(player, skillId, skill, now);
   
   // Broadcast player update (mana consumed, cooldown set)
   io.emit('playerUpdated', {
     id: player.id,
-    mana: player.mana,
-    skillCooldownEndTs: player.skillCooldownEndTs
+    ...resourceUpdate,
   });
+}
+
+function emitCastFail(socket: Socket, msg: CastReq, reason: CastFailReason): void {
+  socket.emit('msg', {
+    type: 'CastFail',
+    clientSeq: msg.clientTs,
+    reason,
+  } as CastFail);
+}
+
+function toCastFailReason(reason: string): CastFailReason | null {
+  if (reason === 'cooldown' || reason === 'nomana' || reason === 'invalid' || reason === 'outofrange') {
+    return reason;
+  }
+
+  if (reason === 'missingTarget' || reason === 'targetNotFound') {
+    return 'invalid';
+  }
+
+  return null;
 }
