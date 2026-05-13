@@ -446,8 +446,9 @@ function addItemUseVisualEvent(
     return state;
   }
 
+  let nextState = state;
   if (itemUse.healthDelta && itemUse.healthDelta > 0) {
-    return addVisualEvent(state, {
+    nextState = addVisualEvent(nextState, {
       kind: 'healing',
       position: player.position,
       amount: itemUse.healthDelta,
@@ -456,7 +457,7 @@ function addItemUseVisualEvent(
   }
 
   if (itemUse.manaDelta && itemUse.manaDelta > 0) {
-    return addVisualEvent(state, {
+    nextState = addVisualEvent(nextState, {
       kind: 'mana',
       position: player.position,
       amount: itemUse.manaDelta,
@@ -464,7 +465,7 @@ function addItemUseVisualEvent(
     });
   }
 
-  return state;
+  return nextState;
 }
 
 function applyEffectSnapshot(

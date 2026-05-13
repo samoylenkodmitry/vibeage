@@ -225,7 +225,7 @@ function stopChildProcesses() {
     }
 
     try {
-      process.kill(-child.pid, 'SIGTERM');
+      stopChildProcess(child);
     } catch {
       try {
         child.kill('SIGTERM');
@@ -234,6 +234,19 @@ function stopChildProcesses() {
       }
     }
   }
+}
+
+function stopChildProcess(child) {
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    killer.unref();
+    return;
+  }
+
+  process.kill(-child.pid, 'SIGTERM');
 }
 
 async function waitForHttp(url) {

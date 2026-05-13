@@ -474,6 +474,7 @@ function PetrifyFlashVfx({ position }: { position: Vec3 }) {
 
 function SplashImpactVfx({ event }: { event: VisualEvent }) {
   const ringRef = useRef<THREE.Mesh>(null);
+  const ringMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const startedAtRef = useRef<number | null>(null);
   const radius = event.radius ?? 1.4;
 
@@ -486,7 +487,10 @@ function SplashImpactVfx({ event }: { event: VisualEvent }) {
     const progress = Math.min(1, age / 1.1);
     if (ringRef.current) {
       ringRef.current.scale.setScalar(0.5 + progress * radius);
-      (ringRef.current.material as THREE.MeshBasicMaterial).opacity = 0.62 * (1 - progress);
+    }
+
+    if (ringMaterialRef.current) {
+      ringMaterialRef.current.opacity = 0.62 * (1 - progress);
     }
   });
 
@@ -494,7 +498,7 @@ function SplashImpactVfx({ event }: { event: VisualEvent }) {
     <group position={[event.position.x, GROUND_Y + 0.08, event.position.z]}>
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.24, 0.42, 48]} />
-        <meshBasicMaterial color="#7dd3fc" transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial ref={ringMaterialRef} color="#7dd3fc" transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <pointLight color="#38bdf8" intensity={0.8} distance={4} />
     </group>

@@ -118,12 +118,18 @@ describe('Vite game client reducer visual events', () => {
         itemId: 'health_potion',
         newQuantity: 1,
         healthDelta: 25,
+        manaDelta: 10,
       },
     });
 
     expect(Object.values(nextState.visualEvents)).toContainEqual(expect.objectContaining({
       kind: 'healing',
       amount: 25,
+      position: basePlayer.position,
+    }));
+    expect(Object.values(nextState.visualEvents)).toContainEqual(expect.objectContaining({
+      kind: 'mana',
+      amount: 10,
       position: basePlayer.position,
     }));
   });
