@@ -50,6 +50,9 @@ This project should become a browser-first multiplayer game that is easy for hum
 27. Done on 2026-05-13: removed the legacy Next fallback, leaving Vite as the only browser client path.
 28. Done on 2026-05-13: moved scheduled production database backups to local-only SSH streaming; the VPS no longer keeps scheduled dump files.
 29. Done on 2026-05-13: updated current safe dependency ranges and deferred the Colyseus 0.17 runtime jump because it changes the active matchmaker path; treat that as a dedicated migration, not routine Dependabot churn.
+30. Done on 2026-05-13: moved Vitest to `test.projects`, made Vite/Playwright/pnpm warning output intentional, and removed the `server/lootTables.ts` legacy maintainability exception by extracting starter loot tables.
+31. Done on 2026-05-13: documented and tested the Kysely persistence contract for stable player/session/event data and explicitly listed transient state that must not be persisted.
+32. Done on 2026-05-13: expanded the starter vertical slice with one additional low-level enemy/content drop through content manifests and runtime validation tests.
 
 ## Target Stack
 
@@ -94,7 +97,8 @@ tests/
 - Maintain `pnpm run check` as the local and CI quality gate: lint, typecheck, deployment script syntax, maintainability budgets, tests, server build, frontend build, and browser smoke.
 - Document agent workflow in `AGENTS.md`.
 - Keep GitHub `main` protected by the passing CI gate.
-- Keep secret scanning and Dependabot enabled in GitHub so accidental credentials and stale dependencies are caught before deployment.
+- Keep secret scanning enabled in GitHub so accidental credentials are caught before deployment.
+- Keep Dependabot configuration present, but version-update PRs are currently disabled to avoid automated dependency churn during the runtime migration; re-enable intentionally when dependency work is planned.
 - Stop adding gameplay features to large monolithic files unless the change is a small fix.
 - Protocol implementation now lives in `packages/protocol`; new protocol imports should use that package directly.
 
@@ -141,7 +145,7 @@ tests/
 
 ### Phase 4: Iterate On Gameplay
 
-- Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, three enemy types, loot, leveling, and respawn, with content/runtime validation tests.
+- Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, four enemy types, loot, leveling, and respawn, with content/runtime validation tests.
 - Done on 2026-05-13: added `pnpm run measure:baseline` to report Vite bundle size, deterministic server tick cost, Colyseus room join/game-state latency, and optional browser FPS.
 - Expand content only after protocol and simulation tests are stable.
 

@@ -38,6 +38,7 @@ pnpm run lint
 ```
 
 See [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md) for the full local and CI gate.
+See [docs/PERSISTENCE.md](docs/PERSISTENCE.md) for the current Postgres/Kysely persistence contract.
 
 Local secrets and environment-specific values belong in `.env`. Only `.env.example` and `server/.env.example` should be tracked.
 

@@ -1,4 +1,5 @@
 import type { ItemId } from '../packages/content/items';
+import { STARTER_LOOT_TABLES } from './loot/starterLootTables.js';
 
 export interface LootDrop {
   itemId: ItemId;
@@ -12,61 +13,7 @@ export interface LootTable {
 }
 
 export const LOOT_TABLES: Record<string, LootTable> = {
-  'goblin_loot': {
-    id: 'goblin_loot',
-    drops: [
-      {
-        itemId: 'gold_coin',
-        quantity: { min: 1, max: 5 },
-        chance: 1.0, // Always drops
-      },
-      {
-        itemId: 'goblin_ear',
-        quantity: { min: 1, max: 1 },
-        chance: 0.5, // 50% chance
-      },
-      {
-        itemId: 'health_potion',
-        quantity: { min: 1, max: 1 },
-        chance: 0.1, // 10% chance
-      },
-    ],
-  },
-  'wolf_loot': {
-    id: 'wolf_loot',
-    drops: [
-      {
-        itemId: 'gold_coin',
-        quantity: { min: 1, max: 3 },
-        chance: 0.8, // 80% chance
-      },
-      {
-        itemId: 'health_potion',
-        quantity: { min: 1, max: 1 },
-        chance: 0.15, // 15% chance
-      },
-      {
-        itemId: 'worn_sword',
-        quantity: { min: 1, max: 1 },
-        chance: 0.05, // 5% chance
-      },
-    ],
-  },
-  'skeleton_loot': {
-    id: 'skeleton_loot',
-    drops: [
-      {
-        itemId: 'gold_coin',
-        quantity: { min: 2, max: 6 },
-        chance: 0.9, // 90% chance
-      },
-      {
-        itemId: 'health_potion',
-        quantity: { min: 1, max: 2 },
-        chance: 0.2, // 20% chance
-      },
-    ],
-  },
+  ...STARTER_LOOT_TABLES,
   'spider_loot': {
     id: 'spider_loot',
     drops: [
