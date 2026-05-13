@@ -149,30 +149,52 @@ function EnemyMarker({
       rotationY={enemy.rotation?.y ?? 0}
       response={9}
     >
-      {isSelected && (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]}>
-          <ringGeometry args={[1.05, 1.24, 42]} />
-          <meshBasicMaterial color="#facc15" side={THREE.DoubleSide} />
-        </mesh>
-      )}
+      {isSelected && <SelectedEnemyRing />}
       <mesh castShadow onPointerDown={handlePointerDown}>
         <boxGeometry args={[1.05, enemy.isAlive ? 1.1 : 0.25, 1.05]} />
         <meshStandardMaterial color={color} roughness={0.82} />
       </mesh>
+      <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
     </SmoothedEntityGroup>
   );
 }
 
 function TargetDestination({ target }: { target: Vec3 | null }) {
+  const outerRef = useRef<THREE.Mesh>(null);
+  const innerRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) {
+      return;
+    }
+
+    const pulse = (Math.sin(clock.elapsedTime * 7) + 1) / 2;
+    outer.scale.setScalar(1 + pulse * 0.28);
+    inner.scale.setScalar(0.76 + pulse * 0.1);
+
+    const outerMaterial = outer.material as THREE.MeshBasicMaterial;
+    const innerMaterial = inner.material as THREE.MeshBasicMaterial;
+    outerMaterial.opacity = 0.34 + pulse * 0.38;
+    innerMaterial.opacity = 0.72 + pulse * 0.18;
+  });
+
   if (!target) {
     return null;
   }
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[target.x, GROUND_Y + 0.04, target.z]}>
-      <ringGeometry args={[0.5, 0.68, 36]} />
-      <meshBasicMaterial color="#8de9d7" side={THREE.DoubleSide} />
-    </mesh>
+    <group position={[target.x, GROUND_Y + 0.05, target.z]}>
+      <mesh ref={outerRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.54, 0.76, 42]} />
+        <meshBasicMaterial color="#8de9d7" transparent opacity={0.6} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={innerRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.18, 0.26, 28]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.86} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }
 
@@ -229,6 +251,72 @@ function LootMarker({
         <boxGeometry args={[0.62, 0.62, 0.62]} />
         <meshStandardMaterial color={color} emissive="#7c4a03" emissiveIntensity={0.75} roughness={0.48} />
       </mesh>
+    </group>
+  );
+}
+
+function SelectedEnemyRing() {
+  const outerRef = useRef<THREE.Mesh>(null);
+  const innerRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const pulse = (Math.sin(clock.elapsedTime * 6.5) + 1) / 2;
+    if (outerRef.current) {
+      outerRef.current.scale.setScalar(1 + pulse * 0.08);
+      (outerRef.current.material as THREE.MeshBasicMaterial).opacity = 0.72 + pulse * 0.2;
+    }
+
+    if (innerRef.current) {
+      innerRef.current.rotation.z -= 0.012;
+    }
+  });
+
+  return (
+    <group rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]}>
+      <mesh ref={outerRef}>
+        <ringGeometry args={[1.05, 1.25, 54]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.86} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={innerRef}>
+        <ringGeometry args={[0.78, 0.86, 6]} />
+        <meshBasicMaterial color="#8de9d7" transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function EnemyHealthBar({ enemy, visible }: { enemy: EnemyEntity; visible: boolean }) {
+  const width = 1.7;
+  const healthRatio = THREE.MathUtils.clamp(enemy.health / Math.max(1, enemy.maxHealth), 0, 1);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Billboard position={[0, 1.15, 0]}>
+      <mesh position={[0, 0, -0.002]}>
+        <planeGeometry args={[width, 0.18]} />
+        <meshBasicMaterial color="#111827" transparent opacity={0.86} depthTest={false} depthWrite={false} />
+      </mesh>
+      <mesh position={[-(width * (1 - healthRatio)) / 2, 0, 0]}>
+        <planeGeometry args={[width * healthRatio, 0.1]} />
+        <meshBasicMaterial color={healthRatio > 0.35 ? '#86efac' : '#fb7185'} depthTest={false} depthWrite={false} />
+      </mesh>
+    </Billboard>
+  );
+}
+
+function Billboard({ position, children }: { position: [number, number, number]; children: ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(({ camera }) => {
+    groupRef.current?.quaternion.copy(camera.quaternion);
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      {children}
     </group>
   );
 }
