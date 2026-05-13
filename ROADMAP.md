@@ -34,7 +34,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 11. Done on 2026-05-12: verified the local backup restore drill against `/media/huge/vibeage-backups/postgres`; latest dump restored into an isolated temporary Postgres container.
 12. Done on 2026-05-12: added browser smoke coverage for movement intent and a fireball hotkey cast before new gameplay work.
 13. Done on 2026-05-12: extracted player progression, mana regeneration, respawn handling, enemy spawn, and enemy respawn out of `server/world.ts` with focused Vitest coverage.
-14. Done on 2026-05-12: started the Vite browser client shell in `apps/client` with React, React Three Fiber, a minimal HUD, and a Socket.IO connection stub; CI now builds the shell.
+14. Done on 2026-05-12: started the Vite browser client shell in `apps/client` with React, React Three Fiber, a minimal HUD, and an initial network connection stub; CI now builds the shell.
 15. Done on 2026-05-12: upgraded the Vite shell into a real playable migration slice that enters the current server, consumes authoritative game state, supports click movement, selects enemies, casts Fireball, and has its own Playwright smoke.
 16. Done on 2026-05-12: smoothed Vite entity/camera presentation, added basic Vite HUD loops for cooldowns, XP, death/respawn, loot, inventory, item use, and combat/status feedback.
 17. Done on 2026-05-12: prepared an opt-in production Vite publish path with `FRONTEND_BUILD_TARGET=vite`.
@@ -42,11 +42,11 @@ This project should become a browser-first multiplayer game that is easy for hum
 19. Done on 2026-05-13: reduced `server/world.ts` under the normal maintainability file budget by extracting movement and prediction simulation into `server/movement/worldMovement.ts`.
 20. Done on 2026-05-13: extracted combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers out of large runtime modules, with focused server tests.
 21. Done on 2026-05-13: extracted enemy AI state transitions, inventory stacking/item-use runtime, ground-loot creation, and cast validation/resource rules into focused tested modules.
-22. Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death side effects, and Socket.IO session glue into focused modules; added a room-boundary contract for the future Colyseus migration and deterministic server runtime flow coverage.
-23. Done on 2026-05-13: added a Socket.IO outbound-event adapter for server messages/entity updates, a socket-backed authoritative-room adapter for the future Colyseus boundary, and a tested starter gameplay vertical-slice manifest.
+22. Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death side effects, and session glue into focused modules; added a room-boundary contract for the Colyseus migration and deterministic server runtime flow coverage.
+23. Done on 2026-05-13: added outbound/direct event sinks, a socket-backed authoritative-room adapter for the Colyseus boundary, and a tested starter gameplay vertical-slice manifest.
 24. Done on 2026-05-13: ported useful VFX patterns into the Vite client, moved more lifecycle/item server emissions behind outbound adapters, and added baseline measurement tooling for bundle, tick cost, latency, and browser FPS.
-25. Done on 2026-05-13: finished isolating runtime Socket.IO emissions behind outbound/direct message sinks, including combat, loot, AI, inventory, skill, lifecycle, and effect paths.
-26. Continue cleanup on `main`: convert the structural Colyseus room adapter into the real room implementation after the dependency/runtime boundary is chosen, then retire the Socket.IO compatibility adapter.
+25. Done on 2026-05-13: finished isolating runtime transport emissions behind outbound/direct message sinks, including combat, loot, AI, inventory, skill, lifecycle, and effect paths.
+26. Done on 2026-05-13: replaced the runtime Socket.IO server path with a real Colyseus `world` room, migrated the Vite client and production smoke checks to `/colyseus/`, and kept legacy Next as an explicit fallback only.
 
 ## Target Stack
 
@@ -112,8 +112,8 @@ tests/
 
 ### Phase 2: Build The New Browser Client
 
-- Done on 2026-05-12: created the first Vite client shell in `apps/client` with one game canvas, a minimal HUD, and a Socket.IO connection stub.
-- Done on 2026-05-12: connected the Vite client to the real Socket.IO server, rendered real players/enemies/projectiles, added left-click movement, right-drag camera, minimal HP/MP/target HUD, and a Fireball hotkey/button path.
+- Done on 2026-05-12: created the first Vite client shell in `apps/client` with one game canvas, a minimal HUD, and an initial network connection stub.
+- Done on 2026-05-12: connected the Vite client to the real server, rendered real players/enemies/projectiles, added left-click movement, right-drag camera, minimal HP/MP/target HUD, and a Fireball hotkey/button path.
 - Done on 2026-05-12: added Vite-side visual smoothing, cooldown/casting/XP/death/inventory/loot HUD loops, and browser/reducer coverage for the new path.
 - Done on 2026-05-13: made Vite the default production frontend path and added clearer movement destination, selected-target, and enemy health presentation.
 - Done on 2026-05-13: ported useful R3F/VFX patterns into the Vite client: recovery particles, water splash impact, petrify flash, and richer projectile trails without reusing the old pooled/global VFX manager.
@@ -122,24 +122,24 @@ tests/
 
 ### Phase 3: Build The Authoritative Server
 
-- Replace the raw Socket.IO world protocol with Colyseus rooms.
+- Done on 2026-05-13: replaced the raw Socket.IO server runtime with a Colyseus `world` room and migrated the Vite client to `colyseus.js`.
 - Done on 2026-05-12: moved player progression/respawn and enemy lifecycle out of `server/world.ts` into tested modules.
 - Done on 2026-05-13: moved movement, position history, position validation, and prediction keyframe simulation out of `server/world.ts` into a tested movement module.
 - Done on 2026-05-13: moved combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers into tested modules.
 - Done on 2026-05-13: moved cooldown/resource validation, inventory/item-use mutation, ground-loot creation, and enemy AI state transitions into testable runtime modules.
-- Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death orchestration, and Socket.IO session wiring into smaller modules before the Colyseus migration.
+- Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death orchestration, and session wiring into smaller modules before the Colyseus migration.
 - Done on 2026-05-13: added a deterministic server runtime flow test covering movement, aggro, combat death, loot spawn, and inventory pickup without a browser.
-- Done on 2026-05-13: added an outbound-event adapter and socket-backed room adapter so remaining Socket.IO details can be isolated before introducing Colyseus.
+- Done on 2026-05-13: added outbound-event and socket-backed room adapters so remaining transport details could be isolated before introducing Colyseus.
 - Done on 2026-05-13: routed player lifecycle, enemy respawn, item-use, and target-death update emissions through the outbound adapter.
-- Done on 2026-05-13: routed combat casts, projectile impacts, enemy AI, status effects, skills, inventory, and loot through outbound/direct message sinks so raw Socket.IO emissions live only in transport adapters.
-- Done on 2026-05-13: added a tested structural Colyseus room/outbound adapter that uses the current room-boundary contract without adding the Colyseus runtime dependency yet.
-- Use `server/transport/roomBoundary.ts` as the current migration contract before introducing a Colyseus room implementation.
+- Done on 2026-05-13: routed combat casts, projectile impacts, enemy AI, status effects, skills, inventory, and loot through outbound/direct message sinks so raw transport emissions live only in transport adapters.
+- Done on 2026-05-13: added a tested structural Colyseus room/outbound adapter that uses the current room-boundary contract.
+- Use `server/transport/vibeAgeRoom.ts` as the current Colyseus room implementation and keep `roomBoundary.ts` as the contract around the authoritative world.
 - Persist only stable player/account data, not transient render state.
 
 ### Phase 4: Iterate On Gameplay
 
 - Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, three enemy types, loot, leveling, and respawn, with content/runtime validation tests.
-- Done on 2026-05-13: added `pnpm run measure:baseline` to report Vite bundle size, deterministic server tick cost, Socket.IO handshake/game-state latency, and optional browser FPS.
+- Done on 2026-05-13: added `pnpm run measure:baseline` to report Vite bundle size, deterministic server tick cost, Colyseus room join/game-state latency, and optional browser FPS.
 - Expand content only after protocol and simulation tests are stable.
 
 ## Agent Rules

@@ -4,7 +4,7 @@
 
 This repository is a browser multiplayer game prototype. Treat it as a codebase being stabilized before a web-native rewrite, not as a clean production architecture.
 
-The current production client uses Vite, React Three Fiber, Socket.IO, Postgres, and Vitest. Legacy Next code still exists during migration. The intended direction is documented in `ROADMAP.md`: Vite client, Colyseus server, shared Zod protocol schemas, Kysely persistence, Vitest and Playwright checks.
+The current production client uses Vite, React Three Fiber, Colyseus, Postgres, and Vitest. Legacy Next code still exists during migration and is an explicit fallback only. The intended direction is documented in `ROADMAP.md`: Vite client, Colyseus server, shared Zod protocol schemas, Kysely persistence, Vitest and Playwright checks.
 
 ## Branch Policy
 

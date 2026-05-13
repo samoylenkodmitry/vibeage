@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
 import { PlayerState } from '../shared/types';
 import type { ActiveCastStore } from '../server/combat/skillSystem';
-import { makeSocketIoOutbound, type OutboundEventSink } from '../server/transport/outboundEvents';
+import type { OutboundEvent, OutboundEventSink } from '../server/transport/outboundEvents';
 
 type SkillSystem = typeof import('../server/combat/skillSystem');
 
@@ -48,8 +47,7 @@ const makeEnemy = () => ({
 describe('Cast State Machine', () => {
   let skillSystem: SkillSystem;
   let activeCasts: ActiveCastStore;
-  let emit: ReturnType<typeof vi.fn>;
-  let io: Server;
+  let outboundEvents: OutboundEvent[];
   let outbound: OutboundEventSink;
   let player: PlayerState;
   let enemy: ReturnType<typeof makeEnemy>;
@@ -67,9 +65,8 @@ describe('Cast State Machine', () => {
 
     skillSystem = await import('../server/combat/skillSystem');
     activeCasts = skillSystem.createActiveCastStore();
-    emit = vi.fn();
-    io = { emit } as unknown as Server;
-    outbound = makeSocketIoOutbound(io);
+    outboundEvents = [];
+    outbound = { publish: vi.fn((event: OutboundEvent) => outboundEvents.push(event)) };
     player = makePlayer();
     enemy = makeEnemy();
     world = {
@@ -98,14 +95,16 @@ describe('Cast State Machine', () => {
 
     const cast = skillSystem.getCastById(activeCasts, castId as string);
     expect(cast?.state).toBe(CastState.Traveling);
-    expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'CastSnapshot',
-      data: expect.objectContaining({
-        castId,
-        state: CastState.Traveling,
+    expect(outboundEvents).toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CastSnapshot',
+        data: expect.objectContaining({ castId, state: CastState.Traveling }),
       }),
     }));
-    expect(emit).not.toHaveBeenCalledWith('msg', expect.objectContaining({ type: 'ProjSpawn2' }));
+    expect(outboundEvents).not.toContainEqual(expect.objectContaining({
+      message: expect.objectContaining({ type: 'ProjSpawn2' }),
+    }));
   });
 
   it('resolves projectile impact through v2 snapshots and combat log messages', () => {
@@ -128,19 +127,24 @@ describe('Cast State Machine', () => {
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
     expect(enemy.health).toBeLessThan(enemy.maxHealth);
-    expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'CastSnapshot',
-      data: expect.objectContaining({
-        castId,
-        state: CastState.Impact,
+    expect(outboundEvents).toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CastSnapshot',
+        data: expect.objectContaining({ castId, state: CastState.Impact }),
       }),
     }));
-    expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'CombatLog',
-      castId,
-      targets: expect.arrayContaining([enemy.id]),
+    expect(outboundEvents).toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CombatLog',
+        castId,
+        targets: expect.arrayContaining([enemy.id]),
+      }),
     }));
-    expect(emit).not.toHaveBeenCalledWith('msg', expect.objectContaining({ type: 'ProjHit2' }));
+    expect(outboundEvents).not.toContainEqual(expect.objectContaining({
+      message: expect.objectContaining({ type: 'ProjHit2' }),
+    }));
   });
 
   it('resolves instant skills without a Traveling state', () => {
@@ -161,17 +165,20 @@ describe('Cast State Machine', () => {
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
-    expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'CastSnapshot',
-      data: expect.objectContaining({
-        castId,
-        state: CastState.Impact,
+    expect(outboundEvents).toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CastSnapshot',
+        data: expect.objectContaining({ castId, state: CastState.Impact }),
       }),
     }));
-    expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
-      type: 'CombatLog',
-      castId,
-      targets: expect.arrayContaining([enemy.id]),
+    expect(outboundEvents).toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CombatLog',
+        castId,
+        targets: expect.arrayContaining([enemy.id]),
+      }),
     }));
   });
 

@@ -1,4 +1,3 @@
-import type { Server } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { ClientMessage, VecXZ, ItemDrop } from '../packages/protocol/messages.js';
@@ -27,7 +26,6 @@ import { handleTargetDeath } from './combat/targetDeath.js';
 import { createWorldCombatBridge, handleClientMessage } from './world/clientMessageRouter.js';
 import {
   emitBatchUpdate,
-  makeSocketIoOutbound,
   type OutboundEventSink,
   type SocketMessageTarget,
 } from './transport/outboundEvents.js';
@@ -42,10 +40,8 @@ type WorldClient = SocketMessageTarget & { id: string };
  */
 
 // Utility function to get worldAPI reference
-export function initWorld(io: Server, zoneManager: ZoneManager) {
+export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager) {
   const state: GameState = createGameState();
-
-  const outbound = makeSocketIoOutbound(io);
   const effectManager = new EffectManager(outbound, state);
   const spatial = new SpatialHashGrid();
   spawnInitialEnemies(state, spatial, zoneManager);
@@ -165,8 +161,8 @@ function createWorldApi(state: GameState, spatial: SpatialHashGrid, outbound: Ou
  * Broadcasts position snapshots of all players to clients
  * Should be called regularly (e.g. 10 Hz) to keep clients in sync
  */
-export function broadcastSnaps(io: Server, state: GameState): void {
-    if (!io || !state.players) return;
+export function broadcastSnaps(outbound: OutboundEventSink, state: GameState): void {
+    if (!state.players) return;
     const now = Date.now();
     const playersToForceInclude = new Set<string>();
 
@@ -194,6 +190,6 @@ export function broadcastSnaps(io: Server, state: GameState): void {
     const snapItems = collectDeltas(state, now, playersToForceInclude);
 
     if (snapItems.length > 0) {
-        emitBatchUpdate(makeSocketIoOutbound(io), snapItems);
+        emitBatchUpdate(outbound, snapItems);
     }
 }

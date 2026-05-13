@@ -54,7 +54,7 @@ pnpm run deploy:production
 
 ## Client Configuration
 
-Set `NEXT_PUBLIC_GAME_SERVER_URL` during the frontend build. Production browser traffic goes through `https://vibeage.eu` and its `/socket.io/` proxy.
+For the Vite client, set `VITE_GAME_SERVER_URL` only when the game server is not same-origin. Production browser traffic normally goes through `https://vibeage.eu` and its `/colyseus/` proxy.
 
 ## Security Considerations
 

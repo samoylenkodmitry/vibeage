@@ -1,9 +1,11 @@
-import { Socket } from 'socket.io-client';
 import { InstantHit } from '../../../packages/protocol/messages';
 
 type Msg = InstantHit;
+type MessageSource = {
+  on(event: 'msg', callback: (message: Msg) => void): unknown;
+};
 
-export function hookVfx(socket:Socket){
+export function hookVfx(socket: MessageSource){
   const emit = (name:string, detail:any) =>
     window.dispatchEvent(new CustomEvent(name.toLowerCase(), {detail}));
 

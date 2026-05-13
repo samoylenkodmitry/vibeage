@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { Server } from 'socket.io';
 import { SKILLS } from '../packages/content/skills';
 import type { CastReq, VecXZ } from '../packages/protocol/messages';
 import { handleCastReq } from '../server/combat/castHandler';
 import { createActiveCastStore, type ActiveCastStore } from '../server/combat/skillSystem';
-import { makeSocketIoOutbound, makeSocketMessageSink } from '../server/transport/outboundEvents';
+import type { DirectMessageSink, OutboundEventSink } from '../server/transport/outboundEvents';
 import type { PlayerState } from '../shared/types';
 
 const makePlayer = (): PlayerState => ({
@@ -35,10 +34,11 @@ const makePlayer = (): PlayerState => ({
 
 describe('cast handler resources', () => {
   let player: PlayerState;
-  let socketEmit: ReturnType<typeof vi.fn>;
-  let ioEmit: ReturnType<typeof vi.fn>;
-  let socket: { id: string; emit: ReturnType<typeof vi.fn> };
-  let io: Server;
+  let directSend: ReturnType<typeof vi.fn>;
+  let outboundPublish: ReturnType<typeof vi.fn>;
+  let socket: { id: string };
+  let direct: DirectMessageSink;
+  let outbound: OutboundEventSink;
   let activeCasts: ActiveCastStore;
 
   beforeEach(() => {
@@ -46,10 +46,11 @@ describe('cast handler resources', () => {
     vi.setSystemTime(new Date('2026-05-13T00:00:00.000Z'));
 
     player = makePlayer();
-    socketEmit = vi.fn();
-    ioEmit = vi.fn();
-    socket = { id: 'socket1', emit: socketEmit };
-    io = { emit: ioEmit } as unknown as Server;
+    directSend = vi.fn();
+    outboundPublish = vi.fn();
+    socket = { id: 'socket1' };
+    direct = { send: directSend };
+    outbound = { publish: outboundPublish };
     activeCasts = createActiveCastStore();
   });
 
@@ -72,8 +73,8 @@ describe('cast handler resources', () => {
       player,
       msg,
       {
-        direct: makeSocketMessageSink(socket),
-        outbound: makeSocketIoOutbound(io),
+        direct,
+        outbound,
       },
       makeWorld(),
       activeCasts,
@@ -85,7 +86,7 @@ describe('cast handler resources', () => {
     expect(player.mana).toBe(100);
     expect(player.skillCooldownEndTs).toEqual({});
     expect(Object.keys(activeCasts)).toHaveLength(0);
-    expect(socketEmit).toHaveBeenCalledWith('msg', {
+    expect(directSend).toHaveBeenCalledWith({
       type: 'CastFail',
       clientSeq: Date.now(),
       reason: 'invalid',
@@ -97,10 +98,13 @@ describe('cast handler resources', () => {
     expect(player.mana).toBe(100 - SKILLS.fireball.manaCost);
     expect(player.skillCooldownEndTs.fireball).toBe(Date.now() + SKILLS.fireball.cooldownMs);
     expect(Object.keys(activeCasts)).toHaveLength(1);
-    expect(ioEmit).toHaveBeenCalledWith('playerUpdated', expect.objectContaining({
-      id: player.id,
-      mana: player.mana,
-      skillCooldownEndTs: player.skillCooldownEndTs,
+    expect(outboundPublish).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'playerUpdated',
+      update: expect.objectContaining({
+        id: player.id,
+        mana: player.mana,
+        skillCooldownEndTs: player.skillCooldownEndTs,
+      }),
     }));
   });
 
@@ -109,12 +113,12 @@ describe('cast handler resources', () => {
     sendFireball({ x: 10, z: 0 });
     expect(player.mana).toBe(100);
     expect(Object.keys(activeCasts)).toHaveLength(0);
-    expect(socketEmit).toHaveBeenCalledWith('msg', {
+    expect(directSend).toHaveBeenCalledWith({
       type: 'CastFail',
       clientSeq: Date.now(),
       reason: 'invalid',
     });
-    expect(ioEmit).not.toHaveBeenCalledWith('playerUpdated', expect.anything());
+    expect(outboundPublish).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'playerUpdated' }));
   });
 });
 

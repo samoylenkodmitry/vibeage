@@ -146,8 +146,8 @@ server {
     ssl_certificate     /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
-    # BACKEND – proxy to the Node game server
-    location /socket.io/ {
+    # BACKEND - proxy to the Node game server
+    location /colyseus/ {
         proxy_pass         http://localhost:3001;
         proxy_http_version 1.1;
         proxy_set_header   Upgrade \$http_upgrade;

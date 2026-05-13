@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, type Dispatch, type RefObject } from 'react';
-import { io, type Socket } from 'socket.io-client';
+import { Client as ColyseusClient, type Room } from 'colyseus.js';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import { safeParseServerMessage, type VecXZ } from '../../../packages/protocol/messages';
 import {
@@ -25,7 +25,7 @@ type ClientApi = {
 
 export function useGameClient(): ClientApi {
   const [state, dispatch] = useReducer(gameClientReducer, initialGameClientState);
-  const socketRef = useRef<Socket | null>(null);
+  const roomRef = useRef<Room | null>(null);
   const stateRef = useRef(state);
 
   useEffect(() => {
@@ -33,21 +33,26 @@ export function useGameClient(): ClientApi {
   }, [state]);
 
   const disconnect = useCallback(() => {
-    socketRef.current?.disconnect();
-    socketRef.current = null;
+    roomRef.current?.leave(true).catch(() => undefined);
+    roomRef.current = null;
     dispatch({ type: 'disconnected', message: 'Disconnected' });
   }, []);
 
   const connect = useCallback((playerName: string) => {
-    socketRef.current?.disconnect();
+    roomRef.current?.leave(true).catch(() => undefined);
     dispatch({ type: 'startConnecting' });
 
-    const socket = createSocket();
-    socketRef.current = socket;
-    bindSocket(socket, playerName, dispatch);
+    joinWorldRoom(playerName, dispatch)
+      .then((room) => {
+        roomRef.current = room;
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Connection rejected';
+        dispatch({ type: 'connectionRejected', message });
+      });
   }, []);
 
-  const actions = useClientActions(socketRef, stateRef, dispatch);
+  const actions = useClientActions(roomRef, stateRef, dispatch);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -56,7 +61,7 @@ export function useGameClient(): ClientApi {
 
     return () => {
       window.clearInterval(timer);
-      socketRef.current?.disconnect();
+      roomRef.current?.leave(true).catch(() => undefined);
     };
   }, []);
 
@@ -71,35 +76,35 @@ export function useGameClient(): ClientApi {
 }
 
 function useClientActions(
-  socketRef: RefObject<Socket | null>,
+  roomRef: RefObject<Room | null>,
   stateRef: RefObject<GameClientState>,
   dispatch: Dispatch<GameClientAction>,
 ): Omit<ClientApi, 'state' | 'connect' | 'disconnect'> {
   const sendMoveIntent = useCallback((target: VecXZ) => {
-    const socket = socketRef.current;
+    const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
-    if (!socket || !playerId) {
+    if (!room || !playerId) {
       return;
     }
 
-    socket.emit('msg', {
+    room.send('msg', {
       type: 'MoveIntent',
       id: playerId,
       targetPos: target,
       clientTs: Date.now(),
     });
     dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
-  }, [socketRef, stateRef, dispatch]);
+  }, [roomRef, stateRef, dispatch]);
 
   const selectTarget = useCallback((targetId: string | null) => {
     dispatch({ type: 'selectTarget', targetId });
   }, [dispatch]);
 
   const castSkill = useCallback((skillId: SkillId) => {
-    const socket = socketRef.current;
+    const room = roomRef.current;
     const current = stateRef.current;
     const player = current ? getMyPlayer(current) : null;
-    if (!socket || !current || !player || !player.isAlive || !isSkillKnown(player, skillId)) {
+    if (!room || !current || !player || !player.isAlive || !isSkillKnown(player, skillId)) {
       return;
     }
 
@@ -108,7 +113,7 @@ function useClientActions(
       return;
     }
 
-    socket.emit('msg', {
+    room.send('msg', {
       type: 'CastReq',
       id: player.id,
       skillId,
@@ -119,27 +124,27 @@ function useClientActions(
     if (targetId) {
       dispatch({ type: 'selectTarget', targetId });
     }
-  }, [socketRef, stateRef, dispatch]);
+  }, [roomRef, stateRef, dispatch]);
 
   const pickUpLoot = useCallback((lootId: string) => {
-    const socket = socketRef.current;
+    const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
-    if (socket && playerId) {
-      socket.emit('msg', { type: 'LootPickup', lootId, playerId });
+    if (room && playerId) {
+      room.send('msg', { type: 'LootPickup', lootId, playerId });
     }
-  }, [socketRef, stateRef]);
+  }, [roomRef, stateRef]);
 
   const useItem = useCallback((slotIndex: number) => {
-    socketRef.current?.emit('msg', { type: 'UseItem', slotIndex, clientTs: Date.now() });
-  }, [socketRef]);
+    roomRef.current?.send('msg', { type: 'UseItem', slotIndex, clientTs: Date.now() });
+  }, [roomRef]);
 
   const respawn = useCallback(() => {
-    const socket = socketRef.current;
+    const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
-    if (socket && playerId) {
-      socket.emit('msg', { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
+    if (room && playerId) {
+      room.send('msg', { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
     }
-  }, [socketRef, stateRef]);
+  }, [roomRef, stateRef]);
 
   return useMemo(
     () => ({ sendMoveIntent, selectTarget, castSkill, pickUpLoot, useItem, respawn }),
@@ -147,59 +152,63 @@ function useClientActions(
   );
 }
 
-function createSocket(): Socket {
-  return io(getServerUrl(), {
-    path: '/socket.io/',
-    transports: ['websocket'],
-    withCredentials: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-  });
-}
-
-function getServerUrl(): string {
-  return import.meta.env.VITE_GAME_SERVER_URL || window.location.origin;
-}
-
-function bindSocket(
-  socket: Socket,
+async function joinWorldRoom(
   playerName: string,
   dispatch: Dispatch<GameClientAction>,
-) {
-  socket.on('connect', () => {
-    dispatch({ type: 'connected' });
-    socket.emit('joinGame', { playerName, clientProtocolVersion: 2 });
+): Promise<Room> {
+  const client = new ColyseusClient(getColyseusUrl());
+  const room = await client.joinOrCreate('world', {
+    playerName,
+    clientProtocolVersion: 2,
   });
-  socket.on('joinGame', (payload: { playerId?: string }) => {
+
+  bindRoom(room, dispatch);
+  dispatch({ type: 'connected' });
+  room.send('requestGameState');
+  room.send('msg', { type: 'RequestInventory' });
+  return room;
+}
+
+function getColyseusUrl(): string {
+  const endpoint = new URL(import.meta.env.VITE_GAME_SERVER_URL || window.location.origin);
+  endpoint.pathname = '/colyseus';
+  endpoint.search = '';
+  endpoint.hash = '';
+  return endpoint.toString();
+}
+
+function bindRoom(
+  room: Room,
+  dispatch: Dispatch<GameClientAction>,
+) {
+  room.onMessage('joinGame', (payload: { playerId?: string }) => {
     if (payload.playerId) {
       dispatch({ type: 'joined', playerId: payload.playerId });
-      socket.emit('requestGameState');
-      socket.emit('msg', { type: 'RequestInventory' });
     }
   });
-  socket.on('gameState', (serverState: ServerGameState) => {
+  room.onMessage('gameState', (serverState: ServerGameState) => {
     dispatch({ type: 'gameState', state: serverState });
   });
-  socket.on('playerJoined', (player: PlayerEntity) => {
+  room.onMessage('playerJoined', (player: PlayerEntity) => {
     dispatch({ type: 'playerJoined', player });
   });
-  socket.on('playerLeft', (playerId: string) => {
+  room.onMessage('playerLeft', (playerId: string) => {
     dispatch({ type: 'playerLeft', playerId });
   });
-  socket.on('playerUpdated', (player: Partial<PlayerEntity> & { id: string }) => {
+  room.onMessage('playerUpdated', (player: Partial<PlayerEntity> & { id: string }) => {
     dispatch({ type: 'playerUpdated', player });
   });
-  socket.on('enemyUpdated', (enemy: Partial<EnemyEntity> & { id: string }) => {
+  room.onMessage('enemyUpdated', (enemy: Partial<EnemyEntity> & { id: string }) => {
     dispatch({ type: 'enemyUpdated', enemy });
   });
-  socket.on('msg', (payload: unknown) => processServerPayload(payload, dispatch));
-  socket.on('connect_error', (error) => {
-    dispatch({ type: 'connectionRejected', message: error.message });
-  });
-  socket.on('connectionRejected', (payload: { message?: string }) => {
+  room.onMessage('msg', (payload: unknown) => processServerPayload(payload, dispatch));
+  room.onMessage('connectionRejected', (payload: { message?: string }) => {
     dispatch({ type: 'connectionRejected', message: payload.message ?? 'Connection rejected' });
   });
-  socket.on('disconnect', () => {
+  room.onError((_code, message) => {
+    dispatch({ type: 'connectionRejected', message: message ?? 'Connection rejected' });
+  });
+  room.onLeave(() => {
     dispatch({ type: 'disconnected', message: 'Disconnected' });
   });
 }

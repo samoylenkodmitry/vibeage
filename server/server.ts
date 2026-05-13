@@ -1,16 +1,14 @@
 import { createServer } from 'node:http';
-import { Server } from 'socket.io';
 import express from 'express';
 import morgan from 'morgan';
-import { ZoneManager } from '../packages/content/zones.js';
-import { initWorld } from './world.js';
-import { RateLimiter } from './utils/rateLimiter.js';
+import { Server as ColyseusServer } from 'colyseus';
+import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
   isOriginAllowed,
   parseAllowedOrigins,
   parseMaxHttpBufferSize,
 } from './security.js';
-import { registerSocketSession } from './transport/socketSession.js';
+import { VibeAgeRoom } from './transport/vibeAgeRoom.js';
 
 // Create Express app
 const app = express();
@@ -27,48 +25,26 @@ app.get('/healthz', (req, res) => {
 // Create HTTP server with Express
 const httpServer = createServer(app);
 
-// WebSocket compression config
 const COMPRESSION = process.env.WS_COMPRESSION !== "0";
 const CORS_ORIGINS = parseAllowedOrigins(process.env.CORS_ORIGINS);
 const MAX_HTTP_BUFFER_SIZE = parseMaxHttpBufferSize(process.env.MAX_HTTP_BUFFER_SIZE);
 const ALLOW_MISSING_ORIGIN = process.env.ALLOW_MISSING_ORIGIN === '1';
 
-// Configure Socket.IO with improved settings
-const io = new Server(httpServer, {
-  cors: {
-    origin: CORS_ORIGINS,
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  allowRequest: (req, callback) => {
-    const allowed = isOriginAllowed(req.headers.origin, CORS_ORIGINS, ALLOW_MISSING_ORIGIN);
-    callback(null, allowed);
-  },
-  transports: ['websocket'], // Prefer WebSocket only for better performance
-  pingTimeout: 60000,
-  pingInterval: 30000, // Increased to avoid conflict with our 30Hz update rate
-  connectTimeout: 45000,
-  allowEIO3: true,
-  maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
-  path: '/socket.io/',
-  perMessageDeflate: COMPRESSION
-    ? { threshold: 0 }          // Compress everything
-    : false,                    // Easy kill-switch
-  httpCompression: COMPRESSION
-    ? { threshold: 0 }
-    : false,
+const gameServer = new ColyseusServer({
+  greet: false,
+  transport: new WebSocketTransport({
+    server: httpServer,
+    maxPayload: MAX_HTTP_BUFFER_SIZE,
+    pingInterval: 30_000,
+    pingMaxRetries: 2,
+    perMessageDeflate: COMPRESSION ? { threshold: 0 } : false,
+    verifyClient(info, callback) {
+      callback(isOriginAllowed(info.origin, CORS_ORIGINS, ALLOW_MISSING_ORIGIN));
+    },
+  }),
 });
 
-// Initialize zone manager
-const zoneManager = new ZoneManager();
-
-// Initialize game world with the IO instance and zone manager
-const world = initWorld(io, zoneManager);
-
-// Create rate limiter for joinGame events (5 attempts per minute per IP)
-const joinGameLimiter = new RateLimiter(60000, 5);
-
-registerSocketSession(io, world, joinGameLimiter);
+gameServer.define('world', VibeAgeRoom);
 
 // Error handling
 process.on('uncaughtException', (error) => {
@@ -93,19 +69,10 @@ export async function startServer(port: number = 3001): Promise<void> {
     return;
   }
 
-  return new Promise((resolve) => {
-    httpServer.listen(port, () => {
-      console.log(`Game server running on port ${port}`);
-      console.log(`Enemy count at startup: ${Object.keys(world.getGameState().enemies).length}`);
-      console.log('Game zones:', zoneManager.getZones().map(zone => zone.name).join(', '));
-      
-      // Start the enhanced world loop with the game state
-      console.log('Starting server-authoritative combat system...');
-      
-      isServerRunning = true;
-      resolve();
-    });
-  });
+  await gameServer.listen(port);
+  console.log(`Game server running on port ${port}`);
+  console.log('Starting Colyseus authoritative room transport...');
+  isServerRunning = true;
 }
 
 /**
@@ -118,11 +85,7 @@ export function stopServer(): void {
   }
 
 
-  // Close all socket connections
-  io.disconnectSockets();
-  
-  // Close the HTTP server
-  httpServer.close(() => {
+  gameServer.gracefullyShutdown(false).finally(() => {
     console.log('Game server stopped');
     isServerRunning = false;
   });

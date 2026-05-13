@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Server } from 'socket.io';
 
-// Mock socket.io server
 const mockEmit = vi.fn();
+type TestServer = { emit: ReturnType<typeof vi.fn> };
 const mockServer = {
   emit: mockEmit
-} as unknown as Server;
+} satisfies TestServer;
 
 // Mock module at the top level with vi.mock
 vi.mock('nanoid', () => ({
@@ -33,7 +32,7 @@ vi.mock('../packages/content/skills', () => ({
 // Create a mock implementation for the skillManager
 const mockActiveCastsNew: any[] = [];
 const mockProjectiles: any[] = [];
-const mockTickProjectiles = vi.fn().mockImplementation((deltaTime: number, server: Server, world: any) => {
+const mockTickProjectiles = vi.fn().mockImplementation((deltaTime: number, server: TestServer, world: any) => {
   // Process each projectile
   for (let i = mockProjectiles.length - 1; i >= 0; i--) {
     const proj = mockProjectiles[i];
