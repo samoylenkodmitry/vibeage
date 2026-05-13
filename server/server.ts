@@ -4,15 +4,13 @@ import express from 'express';
 import morgan from 'morgan';
 import { ZoneManager } from '../packages/content/zones.js';
 import { initWorld } from './world.js';
-import { sendCastSnapshots } from './combat/skillSystem.js';
 import { RateLimiter } from './utils/rateLimiter.js';
 import {
-  getClientIp,
   isOriginAllowed,
   parseAllowedOrigins,
   parseMaxHttpBufferSize,
 } from './security.js';
-import { describeProtocolError, safeParseClientMessage } from '../packages/protocol/messages.js';
+import { registerSocketSession } from './transport/socketSession.js';
 
 // Create Express app
 const app = express();
@@ -70,157 +68,7 @@ const world = initWorld(io, zoneManager);
 // Create rate limiter for joinGame events (5 attempts per minute per IP)
 const joinGameLimiter = new RateLimiter(60000, 5);
 
-// Handle socket connections
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  // Get client IP address
-  const clientIp = getClientIp(socket.handshake.headers, socket.handshake.address);
-
-  const forwardClientMessage = (message: unknown, source: string) => {
-    const parsed = safeParseClientMessage(message);
-    if (!parsed.success) {
-      console.warn(`Rejected invalid client message from ${socket.id} via ${source}: ${describeProtocolError(parsed.error)}`);
-      return;
-    }
-
-    world.handleMessage(socket, parsed.data);
-  };
-
-  // Handle player joining
-  socket.on('joinGame', async (data: { playerName: string, clientProtocolVersion?: number }) => {
-    // Apply rate limiting
-    if (!joinGameLimiter.isAllowed(clientIp)) {
-      console.warn(`Rate limit exceeded for ${clientIp}. Rejecting joinGame request.`);
-      socket.emit('connectionRejected', { reason: 'rateLimited', message: 'Too many join attempts. Please try again later.' });
-      return;
-    }
-    
-    // Check protocol version - require v2 or higher
-    const clientVersion = data.clientProtocolVersion || 1;
-    if (clientVersion < 2) {
-      console.warn(`Client ${socket.id} using outdated protocol version ${clientVersion}. Rejecting connection.`);
-      socket.emit('connectionRejected', { reason: 'outdatedProtocol', message: 'This server requires protocol v2 or higher.' });
-      socket.disconnect(true);
-      return;
-    }
-    
-    console.log(`Player joining: ${data.playerName} with protocol version ${clientVersion}`);
-    
-    try {
-      // Add the player to the world (now async)
-      const player = await world.addPlayer(socket.id, data.playerName);
-      
-      // Send player ID to the client
-      socket.emit('joinGame', { playerId: player.id });
-      
-      // Send full game state to the new player
-      socket.emit('gameState', world.getGameState());
-      
-      // Send explicit inventory update to ensure synchronization
-      socket.emit('msg', {
-        type: 'InventoryUpdate',
-        playerId: player.id,
-        inventory: player.inventory,
-        maxInventorySlots: player.maxInventorySlots
-      });
-      
-      // Send all active casts and projectiles to the new player
-      sendCastSnapshots(world.getGameState().activeCasts, socket);
-      
-      // Broadcast new player to others
-      socket.broadcast.emit('playerJoined', player);
-    } catch (error) {
-      console.error('Error during player join:', error);
-      socket.emit('connectionRejected', { reason: 'serverError', message: 'Server error during join process. Please try again.' });
-    }
-  });
-
-  // Handle game state requests
-  socket.on('requestGameState', () => {
-    const gameState = world.getGameState();
-    console.log('Client requested game state. Enemy count:', Object.keys(gameState.enemies).length);
-    socket.emit('gameState', gameState);
-    
-    // Find the player associated with this socket and send explicit inventory update
-    const playerId = Object.keys(gameState.players).find(
-      id => gameState.players[id].socketId === socket.id
-    );
-    
-    if (playerId && gameState.players[playerId]) {
-      const player = gameState.players[playerId];
-      socket.emit('msg', {
-        type: 'InventoryUpdate',
-        playerId: player.id,
-        inventory: player.inventory,
-        maxInventorySlots: player.maxInventorySlots
-      });
-    }
-  });
-
-  // Handle new message format
-  socket.on('msg', (message) => {
-    forwardClientMessage(message, 'msg');
-  });
-
-  // Legacy handlers - keep for backwards compatibility
-  socket.on('moveStart', (message) => {
-    console.log('Legacy moveStart received - should use msg type instead');
-    // Convert to new format and pass to world
-    const m = {
-      type: 'MoveIntent',
-      id: message.id,
-      targetPos: message.to,
-      speed: message.speed,
-      clientTs: message.ts
-    };
-    forwardClientMessage(m, 'moveStart');
-  });
-
-  socket.on('moveStop', (message) => {
-    console.log('Legacy moveStop received - should use MoveIntent instead');
-    // Convert to new format and pass to world
-    const m = {
-      type: 'MoveIntent',
-      id: message.id,
-      targetPos: message.pos,
-      clientTs: message.ts
-    };
-    forwardClientMessage(m, 'moveStop');
-  });
-
-  socket.on('castSkillRequest', (data) => {
-    console.log('Legacy castSkillRequest received - should use CastReq instead');
-    // Convert to new format and pass to world
-    const m = {
-      type: 'CastReq',
-      id: Object.keys(world.getGameState().players).find(
-        id => world.getGameState().players[id].socketId === socket.id
-      ) || '',
-      skillId: data.skillId,
-      targetId: data.targetId,
-      clientTs: Date.now()
-    };
-    forwardClientMessage(m, 'castSkillRequest');
-  });
-
-  // Handle disconnection
-  socket.on('disconnect', async () => {
-    console.log('Client disconnected:', socket.id);
-    
-    try {
-      // Remove the player from the world (now async)
-      const playerId = await world.removePlayerBySocketId(socket.id);
-      
-      if (playerId) {
-        // Broadcast player removal to all clients
-        io.emit('playerLeft', playerId);
-      }
-    } catch (error) {
-      console.error('Error during player disconnect:', error);
-    }
-  });
-});
+registerSocketSession(io, world, joinGameLimiter);
 
 // Error handling
 process.on('uncaughtException', (error) => {

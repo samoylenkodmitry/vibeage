@@ -1,0 +1,47 @@
+import type { VecXZ } from '../../packages/protocol/messages.js';
+import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { GameState } from '../gameState.js';
+import type { CombatWorld } from './worldContract.js';
+
+export type TargetDeathHandler = (caster: PlayerState, target: Enemy | PlayerState) => void;
+
+export function createCombatWorld(
+  state: GameState,
+  onTargetDied: TargetDeathHandler,
+  getEntitiesInCircleImpl?: (pos: VecXZ, radius: number) => Array<Enemy | PlayerState>,
+): CombatWorld {
+  return {
+    getEnemyById: (id: string) => state.enemies[id] || null,
+    getPlayerById: (id: string) => state.players[id] || null,
+    getEntitiesInCircle: getEntitiesInCircleImpl ?? ((pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)),
+    onTargetDied,
+  };
+}
+
+export function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): Array<Enemy | PlayerState> {
+  const result: Array<Enemy | PlayerState> = [];
+
+  for (const enemy of Object.values(state.enemies)) {
+    if (enemy.isAlive && isWithinRadius(enemy.position, pos, radius)) {
+      result.push(enemy);
+    }
+  }
+
+  for (const player of Object.values(state.players)) {
+    if (player.isAlive && isWithinRadius(player.position, pos, radius)) {
+      result.push(player);
+    }
+  }
+
+  return result;
+}
+
+function isWithinRadius(
+  position: { x: number; z: number },
+  origin: VecXZ,
+  radius: number,
+): boolean {
+  const dx = position.x - origin.x;
+  const dz = position.z - origin.z;
+  return dx * dx + dz * dz <= radius * radius;
+}
