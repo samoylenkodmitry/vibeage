@@ -38,7 +38,7 @@ export function updateTravelingCast(
 }
 
 function updateTrackedTarget(cast: Cast, world: CombatWorld): void {
-  if (!cast.targetId) {
+  if (!cast.targetId || !cast.pos) {
     return;
   }
 
@@ -48,7 +48,7 @@ function updateTrackedTarget(cast: Cast, world: CombatWorld): void {
   }
 
   cast.targetPos = { x: target.position.x, z: target.position.z };
-  cast.dir = direction(cast.origin, cast.targetPos);
+  cast.dir = direction(cast.pos, cast.targetPos);
 }
 
 function shouldImpact(cast: Cast, oldPos: VecXZ, world: CombatWorld): boolean {

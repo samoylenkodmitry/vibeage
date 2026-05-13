@@ -105,8 +105,11 @@ function applyDamageToTarget(
 }
 
 function applySkillEffects(target: Enemy | PlayerState, skill: SkillDef): void {
+  target.statusEffects = target.statusEffects ?? [];
+
   for (const effect of skill.effects ?? []) {
-    if (!effect.durationMs) {
+    const durationMs = effect.durationMs ?? 0;
+    if (!durationMs) {
       continue;
     }
 
@@ -114,7 +117,7 @@ function applySkillEffects(target: Enemy | PlayerState, skill: SkillDef): void {
       id: nanoid(),
       type: effect.type,
       value: effect.value,
-      durationMs: effect.durationMs || 0,
+      durationMs,
       startTimeTs: Date.now(),
       sourceSkill: skill.id,
     };
@@ -126,7 +129,7 @@ function applySkillEffects(target: Enemy | PlayerState, skill: SkillDef): void {
       if (stacking.stackable && existing) {
         target.statusEffects[existingIndex] = {
           ...statusEffect,
-          stacks: Math.min((existing.stacks || 1) + 1, stacking.maxStacks || 1),
+          stacks: Math.min((existing.stacks ?? 1) + 1, stacking.maxStacks ?? 1),
         };
       } else {
         target.statusEffects[existingIndex] = statusEffect;
