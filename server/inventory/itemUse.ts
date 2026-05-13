@@ -1,14 +1,15 @@
-import type { Server, Socket } from 'socket.io';
 import type { ItemUsed, UseItem } from '../../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import {
   emitPlayerUpdated,
-  makeSocketIoOutbound,
-  makeSocketMessageSink,
+  type DirectMessageSink,
+  type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { applyInventoryItemUse, type ItemUsePlayerUpdate } from './itemRuntime.js';
+
+type ItemUseClient = { id: string };
 
 export type ItemUseResult =
   | {
@@ -72,7 +73,13 @@ function logItemUseSuccess(playerId: string, itemUsed: ItemUsed): void {
   }
 }
 
-export function onUseItem(socket: Socket, state: GameState, msg: UseItem, io: Server): void {
+export function onUseItem(
+  socket: ItemUseClient,
+  direct: DirectMessageSink,
+  state: GameState,
+  msg: UseItem,
+  outbound: OutboundEventSink,
+): void {
   const playerId = findPlayerIdBySocket(state, socket.id);
 
   if (!playerId) {
@@ -86,8 +93,8 @@ export function onUseItem(socket: Socket, state: GameState, msg: UseItem, io: Se
   }
 
   if (result.playerUpdated) {
-    emitPlayerUpdated(makeSocketIoOutbound(io), result.playerUpdated);
+    emitPlayerUpdated(outbound, result.playerUpdated);
   }
 
-  makeSocketMessageSink(socket).send(result.itemUsed);
+  direct.send(result.itemUsed);
 }

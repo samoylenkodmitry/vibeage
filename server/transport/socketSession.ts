@@ -5,6 +5,7 @@ import type { GameState } from '../gameState.js';
 import { getClientIp } from '../security.js';
 import type { RateLimiter } from '../utils/rateLimiter.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
+import { makeSocketMessageSink } from './outboundEvents.js';
 import {
   legacyCastSkillRequestToClientMessage,
   legacyMoveStartToClientMessage,
@@ -103,8 +104,9 @@ async function handleJoinGame(
     const player = await world.addPlayer(socket.id, data.playerName);
     socket.emit(SOCKET_SESSION_EVENTS.joinGame, { playerId: player.id });
     socket.emit(SOCKET_SESSION_EVENTS.gameState, world.getGameState());
-    emitInventoryUpdate(socket, player);
-    sendCastSnapshots(world.getGameState().activeCasts, socket);
+    const direct = makeSocketMessageSink(socket);
+    emitInventoryUpdate(direct, player);
+    sendCastSnapshots(world.getGameState().activeCasts, direct);
     socket.broadcast.emit(SOCKET_SESSION_EVENTS.playerJoined, player);
   } catch (error) {
     console.error('Error during player join:', error);
@@ -119,7 +121,7 @@ function sendGameState(socket: Socket, world: WorldApi): void {
 
   const playerId = findPlayerIdForSocket(world, socket.id);
   if (playerId) {
-    emitInventoryUpdate(socket, gameState.players[playerId]);
+    emitInventoryUpdate(makeSocketMessageSink(socket), gameState.players[playerId]);
   }
 }
 

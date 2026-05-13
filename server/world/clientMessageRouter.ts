@@ -1,4 +1,3 @@
-import type { Server, Socket } from 'socket.io';
 import type { ClientMessage, LootPickup } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import { handleCastReq } from '../combat/castHandler.js';
@@ -13,31 +12,40 @@ import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
 import { onLearnSkill, onSetSkillShortcut } from '../skillHandler.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import {
+  makeSocketMessageSink,
+  type DirectMessageSink,
+  type OutboundEventSink,
+  type SocketMessageTarget,
+} from '../transport/outboundEvents.js';
+
+type WorldClient = SocketMessageTarget & { id: string };
 
 export function handleClientMessage(
-  socket: Socket,
+  socket: WorldClient,
   state: GameState,
   msg: ClientMessage,
-  io: Server,
+  outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ): void {
+  const direct = makeSocketMessageSink(socket);
   switch (msg.type) {
     case 'MoveIntent':
       return onMoveIntent(socket, state, msg);
     case 'CastReq':
-      return onCastReq(socket, state, msg, io, spatial);
+      return onCastReq(socket, direct, state, msg, outbound, spatial);
     case 'LearnSkill':
-      return onLearnSkill(socket, state, msg);
+      return onLearnSkill(socket, direct, outbound, state, msg);
     case 'SetSkillShortcut':
-      return onSetSkillShortcut(socket, state, msg);
+      return onSetSkillShortcut(socket, direct, outbound, state, msg);
     case 'RespawnRequest':
-      return onRespawnRequest(state, msg, io, spatial);
+      return onRespawnRequest(state, msg, outbound, spatial);
     case 'UseItem':
-      return onUseItem(socket, state, msg, io);
+      return onUseItem(socket, direct, state, msg, outbound);
     case 'LootPickup':
-      return onLootPickup(socket, state, msg, io);
+      return onLootPickup(socket, direct, state, msg, outbound);
     case 'RequestInventory':
-      return onRequestInventory(socket, state);
+      return onRequestInventory(socket, direct, state);
     case 'SelectClass':
       return;
   }
@@ -45,12 +53,12 @@ export function handleClientMessage(
 
 export function createWorldCombatBridge(
   state: GameState,
-  io: Server,
+  outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ) {
   return createCombatWorld(
     state,
-    (caster, target) => handleTargetDeath(caster, target, { state, spatial, io }),
+    (caster, target) => handleTargetDeath(caster, target, { state, spatial, outbound }),
     (pos, radius) => queryAliveSpatialEntities(state, spatial, pos, radius),
   );
 }
@@ -66,8 +74,8 @@ function queryAliveSpatialEntities(
     .filter((entity): entity is Enemy | PlayerState => Boolean(entity?.isAlive));
 }
 
-export function emitInventoryUpdate(socket: Socket, player: PlayerState): void {
-  socket.emit('msg', {
+export function emitInventoryUpdate(client: DirectMessageSink, player: PlayerState): void {
+  client.send({
     type: 'InventoryUpdate',
     playerId: player.id,
     inventory: player.inventory,
@@ -76,10 +84,11 @@ export function emitInventoryUpdate(socket: Socket, player: PlayerState): void {
 }
 
 function onCastReq(
-  socket: Socket,
+  socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'CastReq' }>,
-  io: Server,
+  outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ): void {
   const player = state.players[msg.id];
@@ -87,24 +96,37 @@ function onCastReq(
     return;
   }
 
-  handleCastReq(socket, player, msg, io, createWorldCombatBridge(state, io, spatial), state.activeCasts);
+  handleCastReq(
+    socket,
+    player,
+    msg,
+    { direct, outbound },
+    createWorldCombatBridge(state, outbound, spatial),
+    state.activeCasts,
+  );
 }
 
-function onLootPickup(socket: Socket, state: GameState, msg: LootPickup, io: Server): void {
+function onLootPickup(
+  socket: WorldClient,
+  direct: DirectMessageSink,
+  state: GameState,
+  msg: LootPickup,
+  outbound: OutboundEventSink,
+): void {
   const player = state.players[msg.playerId];
   if (player?.socketId !== socket.id) {
     return;
   }
 
-  if (!tryGiveLoot(state, io, msg.playerId, msg.lootId)) {
+  if (!tryGiveLoot(state, outbound, msg.playerId, msg.lootId)) {
     return;
   }
 
-  emitInventoryUpdate(socket, player);
+  emitInventoryUpdate(direct, player);
 }
 
 function onMoveIntent(
-  socket: Socket,
+  socket: WorldClient,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'MoveIntent' }>,
 ): void {
@@ -120,13 +142,13 @@ function onMoveIntent(
   }
 }
 
-function onRequestInventory(socket: Socket, state: GameState): void {
+function onRequestInventory(socket: WorldClient, direct: DirectMessageSink, state: GameState): void {
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     return;
   }
 
-  emitInventoryUpdate(socket, state.players[playerId]);
+  emitInventoryUpdate(direct, state.players[playerId]);
 }
 
 function warnRejectedMoveIntent(

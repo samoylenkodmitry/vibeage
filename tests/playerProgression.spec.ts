@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { Socket } from 'socket.io';
 import type { SkillId } from '../packages/content/skills';
 import { onLearnSkill } from '../server/skillHandler';
 import { learnNewSkill } from '../server/skillManager';
@@ -92,20 +91,23 @@ describe('skill learning state sync', () => {
     };
     const socket = {
       id: 'socket1',
-      emit: vi.fn(),
-      broadcast: { emit: vi.fn() },
     };
+    const direct = { send: vi.fn() };
+    const outbound = { publish: vi.fn() };
 
-    onLearnSkill(socket as unknown as Socket, { players: { player1: player } }, {
+    onLearnSkill(socket, direct, outbound, { players: { player1: player } }, {
       type: 'LearnSkill',
       skillId: 'fireball',
     });
 
-    expect(socket.emit).toHaveBeenCalledWith('playerUpdated', {
-      id: 'player1',
-      unlockedSkills: ['fireball'],
-      skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
-      availableSkillPoints: 0,
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'playerUpdated',
+      update: {
+        id: 'player1',
+        unlockedSkills: ['fireball'],
+        skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+        availableSkillPoints: 0,
+      },
     });
   });
 });

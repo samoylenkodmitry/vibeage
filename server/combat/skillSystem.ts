@@ -1,11 +1,15 @@
-import { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messages.js';
 import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../shared/types.js';
-import { emitCastSnapshot, makeCastSnapshot } from './castSnapshots.js';
+import { emitCastSnapshot, makeCastSnapshot, sendCastSnapshotToClient } from './castSnapshots.js';
 import { resolveCastImpact } from './impactResolver.js';
 import { updateTravelingCast } from './projectileRuntime.js';
+import {
+  emitPlayerUpdated,
+  type DirectMessageSink,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 import type { CombatWorld } from './worldContract.js';
 
 // Set of constants for skill system
@@ -48,7 +52,7 @@ export function handleCastRequest(
   skillId: SkillId,
   targetPos: VecXZ | undefined,
   targetId: string | undefined,
-  io: Server, 
+  outbound: OutboundEventSink,
   world: CombatWorld
 ): string | Cast['castId'] {
   const now = Date.now();
@@ -117,21 +121,17 @@ export function handleCastRequest(
   
   // Broadcast initial cast snapshot
   const snapshot = makeCastSnapshot(newCast);
+  emitCastSnapshot(outbound, newCast);
   console.log(`[handleCastRequest] Broadcasting initial CastSnapshot: ${JSON.stringify(snapshot)}`);
-  
-  io.emit('msg', {
-    type: 'CastSnapshot',
-    data: snapshot
-  });
-  
+
   // Set player UI info
   if (player) {
     player.castingSkill = skillId;
     player.castingProgressMs = 0;
-    
+
     // Also broadcast the player's updated casting state
     console.log(`[handleCastRequest] Broadcasting playerUpdated with castingSkill=${skillId}, castingProgressMs=0`);
-    io.emit('playerUpdated', {
+    emitPlayerUpdated(outbound, {
       id: player.id,
       mana: player.mana,
       skillCooldownEndTs: player.skillCooldownEndTs,
@@ -139,7 +139,7 @@ export function handleCastRequest(
       castingProgressMs: player.castingProgressMs
     });
   }
-  
+
   return newCast.castId;
 }
 
@@ -154,12 +154,12 @@ export function getCastById(activeCasts: ActiveCastStore, castId: string): Cast 
  * Updates and progresses active casts, transitions them between states
  * Fully implemented server-authoritative state machine
  */
-export function tickCasts(activeCasts: ActiveCastStore, dt: number, io: Server, world: CombatWorld): void {
+export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: OutboundEventSink, world: CombatWorld): void {
   const now = Date.now();
-  
+
   for (const castId of Object.keys(activeCasts)) {
     const cast = activeCasts[castId];
-    
+
     // Skip casts that are already in their final state and remove after delay
     if (cast.state === CastStateEnum.Impact) {
       // Remove completed casts
@@ -167,48 +167,45 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, io: Server, 
       delete activeCasts[castId];
       continue;
     }
-    
+
     // Check if cast time is complete for casts in Casting state
     if (cast.state === CastStateEnum.Casting && now - cast.startedAt >= cast.castTimeMs) {
       const skill = SKILLS[cast.skillId];
       const newState = skill.projectile ? CastStateEnum.Traveling : CastStateEnum.Impact;
       console.log(`[tickCasts] Cast complete, transitioning from Casting to ${newState}: castId=${cast.castId}, skillId=${cast.skillId}, casterId=${cast.casterId}`);
-      
+
       cast.state = newState;
-      
+
       // Update startedAt to when projectile *begins* traveling
       if (newState === CastStateEnum.Traveling) {
         cast.startedAt = now;
         console.log(`[tickCasts] Updated startedAt timestamp for traveling projectile: castId=${cast.castId}, startedAt=${cast.startedAt}`);
       }
-      
+
       // Clear the player's casting state when casting is complete
       const player = world.getPlayerById(cast.casterId);
       if (player) {
         player.castingSkill = null;
         player.castingProgressMs = 0;
-        
+
         // Broadcast that casting has finished for this player
         console.log(`[tickCasts] Broadcasting playerUpdated with null castingSkill for player: ${cast.casterId}`);
-        io.emit('playerUpdated', {
+        emitPlayerUpdated(outbound, {
           id: player.id,
           castingSkill: player.castingSkill,
           castingProgressMs: player.castingProgressMs
         });
       }
-      
+
       // Broadcast state change
       const snapshot = makeCastSnapshot(cast);
       console.log(`[tickCasts] Broadcasting CastSnapshot for state change: ${JSON.stringify(snapshot)}`);
-      io.emit('msg', {
-        type: 'CastSnapshot',
-        data: snapshot
-      });
-      
+      emitCastSnapshot(outbound, cast);
+
       // If instant skill, resolve impact immediately
       if (cast.state === CastStateEnum.Impact) {
         console.log(`[tickCasts] Resolving impact immediately for instant skill: castId=${cast.castId}, skillId=${cast.skillId}`);
-        resolveCastImpact(cast, io, world);
+        resolveCastImpact(cast, outbound, world);
       }
       continue;
     } else if (cast.state === CastStateEnum.Casting) {
@@ -219,7 +216,7 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, io: Server, 
         player.castingProgressMs = progressMs;
         // Broadcast casting progress
         console.log(`[tickCasts] Broadcasting casting progress: casterId=${cast.casterId}, castingProgressMs=${progressMs}`);
-        io.emit('playerUpdated', {
+        emitPlayerUpdated(outbound, {
           id: player.id,
           castingSkill: cast.skillId,
           castingProgressMs: cast.castTimeMs
@@ -229,27 +226,23 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, io: Server, 
       // Broadcast cast progress
       const snapshot = makeCastSnapshot(cast);
       console.log(`[tickCasts] Broadcasting CastSnapshot for casting progress: ${JSON.stringify(snapshot)}`);
-      io.emit('msg', {
-        type: 'CastSnapshot',
-        data: snapshot
-      });
+      emitCastSnapshot(outbound, cast);
       continue;
     }
-    
+
     if (cast.state === CastStateEnum.Traveling) {
-      updateTravelingCast(cast, dt / 1000, now, CAST_BROADCAST_RATE, io, world);
+      updateTravelingCast(cast, dt / 1000, now, CAST_BROADCAST_RATE, outbound, world);
     }
   }
 }
 
 /**
  * Send snapshots of all active casts to a new client
- * @param client - Socket.IO socket or server instance to send snapshots to
  */
-export function sendCastSnapshots(activeCasts: ActiveCastStore, client: any): void {
+export function sendCastSnapshots(activeCasts: ActiveCastStore, client: DirectMessageSink): void {
   // Send all active casts to the client
   for (const cast of Object.values(activeCasts)) {
-    emitCastSnapshot(client, cast);
+    sendCastSnapshotToClient(client, cast);
   }
 }
 
@@ -267,7 +260,7 @@ export function cancelCast(activeCasts: ActiveCastStore, casterId: string, skill
     delete activeCasts[cast.castId];
     return true;
   }
-  
+
   return false;
 }
 

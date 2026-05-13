@@ -1,4 +1,4 @@
-import { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { ClientMessage, VecXZ, ItemDrop } from '../packages/protocol/messages.js';
@@ -25,11 +25,17 @@ import { advanceAll } from './movement/worldMovement.js';
 import { collectDeltas, forgetPositionDelta } from './movement/snapshotDeltas.js';
 import { handleTargetDeath } from './combat/targetDeath.js';
 import { createWorldCombatBridge, handleClientMessage } from './world/clientMessageRouter.js';
-import { emitBatchUpdate, makeSocketIoOutbound, type OutboundEventSink } from './transport/outboundEvents.js';
+import {
+  emitBatchUpdate,
+  makeSocketIoOutbound,
+  type OutboundEventSink,
+  type SocketMessageTarget,
+} from './transport/outboundEvents.js';
 
 const TICK = 1000 / 30;
 const SNAP_HZ = 10;
 const PERSISTENCE_INTERVAL_MS = 30_000;
+type WorldClient = SocketMessageTarget & { id: string };
 
 /**
  * Initialize the game world
@@ -44,14 +50,13 @@ export function initWorld(io: Server, zoneManager: ZoneManager) {
   const spatial = new SpatialHashGrid();
   spawnInitialEnemies(state, spatial, zoneManager);
 
-  startWorldLoop(io, state, spatial, effectManager, outbound);
+  startWorldLoop(state, spatial, effectManager, outbound);
   startPersistenceLoop(state);
 
-  return createWorldApi(io, state, spatial);
+  return createWorldApi(state, spatial, outbound);
 }
 
 function startWorldLoop(
-  io: Server,
   state: GameState,
   spatial: SpatialHashGrid,
   effectManager: EffectManager,
@@ -64,8 +69,8 @@ function startWorldLoop(
 
     advanceAll(state, spatial, TICK, now);
     effectManager.updateAll(TICK / 1000);
-    updateAllEnemyAI(io, state, spatial);
-    tickCasts(state.activeCasts, TICK, io, createWorldCombatBridge(state, io, spatial));
+    updateAllEnemyAI(outbound, state, spatial);
+    tickCasts(state.activeCasts, TICK, outbound, createWorldCombatBridge(state, outbound, spatial));
 
     snapAccumulator += 1;
     if (snapAccumulator >= 30 / SNAP_HZ) {
@@ -77,19 +82,19 @@ function startWorldLoop(
     }
 
     if (snapAccumulator === 1) {
-      handleManaRegeneration(state, io);
+      handleManaRegeneration(state, outbound);
     }
 
     if (snapAccumulator === 2) {
-      respawnDeadEnemies(state, spatial, io);
+      respawnDeadEnemies(state, spatial, outbound);
     }
   }, TICK);
 }
 
-function updateAllEnemyAI(io: Server, state: GameState, spatial: SpatialHashGrid): void {
+function updateAllEnemyAI(outbound: OutboundEventSink, state: GameState, spatial: SpatialHashGrid): void {
   for (const enemy of Object.values(state.enemies)) {
     if (enemy.isAlive) {
-      updateEnemyAI(enemy, state, io, spatial, TICK / 1000);
+      updateEnemyAI(enemy, state, outbound, spatial, TICK / 1000);
     }
   }
 }
@@ -114,20 +119,20 @@ function startPersistenceLoop(state: GameState): void {
   }, PERSISTENCE_INTERVAL_MS);
 }
 
-function createWorldApi(io: Server, state: GameState, spatial: SpatialHashGrid) {
+function createWorldApi(state: GameState, spatial: SpatialHashGrid, outbound: OutboundEventSink) {
   return {
-    handleMessage(socket: Socket, msg: ClientMessage) {
-      return handleClientMessage(socket, state, msg, io, spatial);
+    handleMessage(socket: WorldClient, msg: ClientMessage) {
+      return handleClientMessage(socket, state, msg, outbound, spatial);
     },
     onTargetDied(caster: PlayerState, target: Enemy | PlayerState) {
-      return handleTargetDeath(caster, target, { state, spatial, io });
+      return handleTargetDeath(caster, target, { state, spatial, outbound });
     },
     getGameState() {
       return state;
     },
     
     getEntitiesInCircle(pos: VecXZ, radius: number) {
-      return createWorldCombatBridge(state, io, spatial).getEntitiesInCircle(pos, radius);
+      return createWorldCombatBridge(state, outbound, spatial).getEntitiesInCircle(pos, radius);
     },
     
     // Expose the spatial grid for direct access
@@ -139,7 +144,7 @@ function createWorldApi(io: Server, state: GameState, spatial: SpatialHashGrid) 
     },
     
     tryGiveLoot(playerId: string, lootId: string) {
-      return tryGiveLoot(state, io, playerId, lootId);
+      return tryGiveLoot(state, outbound, playerId, lootId);
     },
     
     async addPlayer(socketId: string, name: string) {

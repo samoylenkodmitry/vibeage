@@ -1,7 +1,11 @@
-import type { Server } from 'socket.io';
 import type { ItemDrop } from '../../packages/protocol/messages.js';
 import type { Enemy } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
+import {
+  emitServerMessage,
+  emitServerMessageToClient,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 import { generateLoot as generateLootFromEnemy } from './generateLoot.js';
 import { pickupGroundLoot } from './lootPickup.js';
 import { addGroundLootStack, createGroundLootStack } from './lootRuntime.js';
@@ -14,7 +18,7 @@ export function addGroundLoot(state: GameState, enemyId: string, loot: ItemDrop[
   return spawn.lootId;
 }
 
-export function spawnLootForEnemyDeath(state: GameState, io: Server, enemy: Enemy): void {
+export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEventSink, enemy: Enemy): void {
   if (!enemy.lootTableId) return;
 
   const loot = generateLootFromEnemy(enemy);
@@ -25,7 +29,7 @@ export function spawnLootForEnemyDeath(state: GameState, io: Server, enemy: Enem
 
   console.log(`Added ground loot ${spawn.lootId} at position ${JSON.stringify(spawn.stack.position)} to game state.`);
 
-  io.emit('msg', {
+  emitServerMessage(outbound, {
     type: 'LootSpawn',
     enemyId: enemy.id,
     lootId: spawn.lootId,
@@ -36,20 +40,20 @@ export function spawnLootForEnemyDeath(state: GameState, io: Server, enemy: Enem
   console.log(`Sent loot spawn broadcast for ${spawn.lootId} with ${loot.length} items`);
 }
 
-export function tryGiveLoot(state: GameState, io: Server, playerId: string, lootId: string): boolean {
+export function tryGiveLoot(state: GameState, outbound: OutboundEventSink, playerId: string, lootId: string): boolean {
   const result = pickupGroundLoot(state, playerId, lootId);
 
   if (result.ok === false) {
     return false;
   }
 
-  io.emit('msg', {
+  emitServerMessage(outbound, {
     type: 'LootPickup',
     lootId,
     playerId,
   });
 
-  io.to(result.player.socketId).emit('msg', {
+  emitServerMessageToClient(outbound, result.player.socketId, {
     type: 'LootAcquired',
     items: result.items,
     sourceEnemyName: result.sourceEnemyName,

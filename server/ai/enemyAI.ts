@@ -1,14 +1,19 @@
 // server/ai/enemyAI.ts
-import { Server } from 'socket.io';
 import { Enemy } from '../../shared/types.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { EntityState } from '../gameState.js';
+import {
+  emitEnemyUpdated,
+  emitPlayerUpdated,
+  emitServerMessage,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 import { advanceEnemyState, type EnemyAIEvent } from './enemyStateMachine.js';
 
 export function updateEnemyAI(
   enemy: Enemy,
   gameState: EntityState,
-  io: Server,
+  outbound: OutboundEventSink,
   spatialGrid: SpatialHashGrid,
   deltaTime: number,
 ): void {
@@ -20,15 +25,15 @@ export function updateEnemyAI(
   });
 
   for (const event of result.events) {
-    emitEnemyAIEvent(io, event);
+    emitEnemyAIEvent(outbound, event);
   }
 
   if (result.enemyUpdate) {
-    io.emit('enemyUpdated', result.enemyUpdate);
+    emitEnemyUpdated(outbound, result.enemyUpdate);
   }
 }
 
-function emitEnemyAIEvent(io: Server, event: EnemyAIEvent): void {
+function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): void {
   if (event.type === 'log') {
     console.log(event.message);
     return;
@@ -36,13 +41,13 @@ function emitEnemyAIEvent(io: Server, event: EnemyAIEvent): void {
 
   if (event.type === 'enemyAttack') {
     console.log(`[AI] Enemy ${event.enemyId} attacked player ${event.targetId} for ${event.damage} damage. Player HP: ${event.targetHealth}`);
-    io.emit('msg', {
+    emitServerMessage(outbound, {
       type: 'EnemyAttack',
       enemyId: event.enemyId,
       targetId: event.targetId,
       damage: event.damage,
     });
-    io.emit('playerUpdated', {
+    emitPlayerUpdated(outbound, {
       id: event.targetId,
       health: event.targetHealth,
     });
@@ -50,5 +55,5 @@ function emitEnemyAIEvent(io: Server, event: EnemyAIEvent): void {
   }
 
   console.log(event.message);
-  io.emit('playerUpdated', event.update);
+  emitPlayerUpdated(outbound, event.update);
 }

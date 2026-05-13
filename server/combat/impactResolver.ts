@@ -1,31 +1,35 @@
-import type { Server } from 'socket.io';
 import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../shared/types.js';
+import {
+  emitEnemyUpdated,
+  emitServerMessage,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 
 type ImpactContext = {
   caster: PlayerState | null;
   skill: SkillDef;
-  io: Server;
+  outbound: OutboundEventSink;
   world: CombatWorld;
 };
 
-export function resolveCastImpact(cast: Cast, io: Server, world: CombatWorld): void {
+export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld): void {
   const skill = SKILLS[cast.skillId];
   const targets = getTargetsInArea(cast, world);
   const caster = world.getPlayerById(cast.casterId);
   const damages = targets.map((target) => calculateDamage(skill, caster, cast.castId, target.id));
-  const context = { caster, skill, io, world };
+  const context = { caster, skill, outbound, world };
 
   targets.forEach((target, index) => {
     applyDamageToTarget(target, damages[index], context);
   });
 
-  io.emit('msg', {
+  emitServerMessage(outbound, {
     type: 'CombatLog',
     castId: cast.castId,
     skillId: cast.skillId,
@@ -77,7 +81,7 @@ function applyDamageToTarget(
   damage: number,
   context: ImpactContext,
 ): void {
-  const { caster, skill, io, world } = context;
+  const { caster, skill, outbound, world } = context;
 
   target.health = Math.max(0, target.health - damage);
 
@@ -93,14 +97,14 @@ function applyDamageToTarget(
     world.onTargetDied(caster, target);
   }
 
-  io.emit('msg', {
+  emitServerMessage(outbound, {
     type: 'EffectSnapshot',
     targetId: target.id,
     effects: target.statusEffects,
   });
 
   if (isEnemy(target)) {
-    io.emit('enemyUpdated', target);
+    emitEnemyUpdated(outbound, target);
   }
 }
 

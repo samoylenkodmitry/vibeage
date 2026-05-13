@@ -1,22 +1,31 @@
-import { Socket, Server } from 'socket.io';
 import { CastReq, CastFail } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../shared/types.js';
 import { handleCastRequest } from './skillSystem.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { applyCastResources, validateCastRequest } from './castRules.js';
 import type { CombatWorld } from './worldContract.js';
+import {
+  emitPlayerUpdated,
+  type DirectMessageSink,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 
 type CastFailReason = CastFail['reason'];
+type CastRequestClient = { id: string };
+type CastHandlerTransport = {
+  direct: DirectMessageSink;
+  outbound: OutboundEventSink;
+};
 
 /**
  * Handles a cast request from the client
  * Integration point between the world.ts and the new skillSystem.ts
  */
 export function handleCastReq(
-  socket: Socket,
+  socket: CastRequestClient,
   player: PlayerState,
   msg: CastReq,
-  io: Server,
+  transport: CastHandlerTransport,
   world: CombatWorld,
   activeCasts: ActiveCastStore
 ): void {
@@ -35,7 +44,7 @@ export function handleCastReq(
   const castCheck = validateCastRequest(player, msg.skillId, target, msg.targetPos, now);
   if (castCheck.ok === false) {
     console.log(`Cast failed for player ${playerId}, skill ${msg.skillId}: ${castCheck.reason}`);
-    emitCastFail(socket, msg, castCheck.reason);
+    emitCastFail(transport.direct, msg, castCheck.reason);
     return;
   }
   
@@ -47,33 +56,32 @@ export function handleCastReq(
     castCheck.skillId,
     msg.targetPos,
     msg.targetId,
-    io,
+    transport.outbound,
     world
   );
   
   const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
   if (failReason) {
     console.log(`Cast failed for player ${playerId}, skill ${castCheck.skillId}: ${castResult}`);
-    emitCastFail(socket, msg, failReason);
+    emitCastFail(transport.direct, msg, failReason);
     return;
   }
   
   // If we got here, the cast was successful and castResult is the cast ID
   const resourceUpdate = applyCastResources(player, castCheck.skillId, castCheck.skill, now);
-  
-  // Broadcast player update (mana consumed, cooldown set)
-  io.emit('playerUpdated', {
+
+  emitPlayerUpdated(transport.outbound, {
     id: player.id,
     ...resourceUpdate,
   });
 }
 
-function emitCastFail(socket: Socket, msg: CastReq, reason: CastFailReason): void {
-  socket.emit('msg', {
+function emitCastFail(direct: DirectMessageSink, msg: CastReq, reason: CastFailReason): void {
+  direct.send({
     type: 'CastFail',
     clientSeq: msg.clientTs,
     reason,
-  } as CastFail);
+  } satisfies CastFail);
 }
 
 function toCastFailReason(reason: string): CastFailReason | null {

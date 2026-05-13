@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Server } from 'socket.io';
+import type { Server } from 'socket.io';
 import { SKILLS, SkillId } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
 import { PlayerState } from '../shared/types';
 import type { ActiveCastStore } from '../server/combat/skillSystem';
+import { makeSocketIoOutbound, type OutboundEventSink } from '../server/transport/outboundEvents';
 
 type SkillSystem = typeof import('../server/combat/skillSystem');
 
@@ -49,6 +50,7 @@ describe('Cast State Machine', () => {
   let activeCasts: ActiveCastStore;
   let emit: ReturnType<typeof vi.fn>;
   let io: Server;
+  let outbound: OutboundEventSink;
   let player: PlayerState;
   let enemy: ReturnType<typeof makeEnemy>;
   let world: {
@@ -67,6 +69,7 @@ describe('Cast State Machine', () => {
     activeCasts = skillSystem.createActiveCastStore();
     emit = vi.fn();
     io = { emit } as unknown as Server;
+    outbound = makeSocketIoOutbound(io);
     player = makePlayer();
     enemy = makeEnemy();
     world = {
@@ -85,13 +88,13 @@ describe('Cast State Machine', () => {
       'fireball',
       { x: 10, z: 0 },
       undefined,
-      io,
+      outbound,
       world
     );
 
     expect(typeof castId).toBe('string');
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
-    skillSystem.tickCasts(activeCasts, 100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world);
 
     const cast = skillSystem.getCastById(activeCasts, castId as string);
     expect(cast?.state).toBe(CastState.Traveling);
@@ -113,14 +116,14 @@ describe('Cast State Machine', () => {
       'fireball',
       undefined,
       enemy.id,
-      io,
+      outbound,
       world
     ) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
-    skillSystem.tickCasts(activeCasts, 100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world);
     vi.advanceTimersByTime(100);
-    skillSystem.tickCasts(activeCasts, 100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world);
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
@@ -149,12 +152,12 @@ describe('Cast State Machine', () => {
       skillId,
       undefined,
       enemy.id,
-      io,
+      outbound,
       world
     ) as string;
 
     vi.advanceTimersByTime(SKILLS[skillId].castMs);
-    skillSystem.tickCasts(activeCasts, 100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world);
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
@@ -180,12 +183,12 @@ describe('Cast State Machine', () => {
       'fireball',
       { x: 10, z: 0 },
       undefined,
-      io,
+      outbound,
       world
     ) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs - 1);
-    skillSystem.tickCasts(activeCasts, 100, io, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world);
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Casting);

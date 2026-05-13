@@ -1,10 +1,9 @@
-import type { Server } from 'socket.io';
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
-import { emitPlayerUpdated, makeSocketIoOutbound } from '../transport/outboundEvents.js';
+import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import {
   getMaxHealthForLevel,
   getMaxManaForLevel,
@@ -69,8 +68,7 @@ export function awardPlayerXP(
   };
 }
 
-export function handleManaRegeneration(state: GameState, io: Server): void {
-  const outbound = makeSocketIoOutbound(io);
+export function handleManaRegeneration(state: GameState, outbound: OutboundEventSink): void {
   for (const player of Object.values(state.players)) {
     if (!player.isAlive || player.mana >= player.maxMana) {
       continue;
@@ -131,11 +129,11 @@ export function respawnPlayer(
 export function onRespawnRequest(
   state: GameState,
   msg: RespawnRequest,
-  io: Server,
+  outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ): void {
   const update = respawnPlayer(state, spatial, msg.id);
   if (update) {
-    emitPlayerUpdated(makeSocketIoOutbound(io), update);
+    emitPlayerUpdated(outbound, update);
   }
 }

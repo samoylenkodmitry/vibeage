@@ -1,8 +1,12 @@
-import { Socket } from 'socket.io';
 import { LearnSkill, SetSkillShortcut } from '../packages/protocol/messages.js';
 import { SkillId } from '../packages/content/skills.js';
 
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';
+import {
+  emitPlayerUpdated,
+  type DirectMessageSink,
+  type OutboundEventSink,
+} from './transport/outboundEvents.js';
 
 // Define simplified types for what we need from the game state
 interface Player {
@@ -19,10 +23,18 @@ interface GameState {
   players: Record<string, Player>;
 }
 
+type SkillClient = { id: string };
+
 /**
  * Handle the LearnSkill message 
  */
-export function onLearnSkill(socket: Socket, state: GameState, msg: LearnSkill): void {
+export function onLearnSkill(
+  socket: SkillClient,
+  direct: DirectMessageSink,
+  outbound: OutboundEventSink,
+  state: GameState,
+  msg: LearnSkill,
+): void {
   console.log(`[SKILL] Received LearnSkill request for skill: ${msg.skillId}`);
   
   // Get player by socket ID
@@ -46,7 +58,7 @@ export function onLearnSkill(socket: Socket, state: GameState, msg: LearnSkill):
   // Skip if player already has this skill
   if (player.unlockedSkills.includes(msg.skillId)) {
     console.log(`[SKILL] Player ${playerId} already has skill: ${msg.skillId}`);
-    socket.emit('msg', {
+    direct.send({
       type: 'SkillLearned',
       skillId: msg.skillId,
       remainingPoints: player.availableSkillPoints
@@ -67,21 +79,13 @@ export function onLearnSkill(socket: Socket, state: GameState, msg: LearnSkill):
       console.log(`[SKILL] Player ${playerId} learned skill: ${msg.skillId}`);
       
       // Send notification to client
-      socket.emit('msg', {
+      direct.send({
         type: 'SkillLearned',
         skillId: msg.skillId,
         remainingPoints: player.availableSkillPoints
       });
 
-      socket.emit('playerUpdated', {
-        id: player.id,
-        unlockedSkills: player.unlockedSkills,
-        skillShortcuts: player.skillShortcuts,
-        availableSkillPoints: player.availableSkillPoints
-      });
-      
-      // Broadcast player update to all clients
-      socket.broadcast.emit('playerUpdated', {
+      emitPlayerUpdated(outbound, {
         id: player.id,
         unlockedSkills: player.unlockedSkills,
         skillShortcuts: player.skillShortcuts,
@@ -98,7 +102,13 @@ export function onLearnSkill(socket: Socket, state: GameState, msg: LearnSkill):
 /**
  * Handle the SetSkillShortcut message
  */
-export function onSetSkillShortcut(socket: Socket, state: GameState, msg: SetSkillShortcut): void {
+export function onSetSkillShortcut(
+  socket: SkillClient,
+  direct: DirectMessageSink,
+  outbound: OutboundEventSink,
+  state: GameState,
+  msg: SetSkillShortcut,
+): void {
   console.log(`[SKILL] Received SetSkillShortcut request for slot ${msg.slotIndex}: ${msg.skillId}`);
   
   // Get player by socket ID
@@ -125,14 +135,13 @@ export function onSetSkillShortcut(socket: Socket, state: GameState, msg: SetSki
       console.log(`[SKILL] Player ${playerId} cleared shortcut slot ${msg.slotIndex}`);
       
       // Send confirmation to client
-      socket.emit('msg', {
+      direct.send({
         type: 'SkillShortcutUpdated',
         slotIndex: msg.slotIndex,
         skillId: null
       });
       
-      // Broadcast player update to all clients
-      socket.broadcast.emit('playerUpdated', {
+      emitPlayerUpdated(outbound, {
         id: player.id,
         skillShortcuts: player.skillShortcuts
       });
@@ -151,14 +160,13 @@ export function onSetSkillShortcut(socket: Socket, state: GameState, msg: SetSki
     console.log(`[SKILL] Player ${playerId} set shortcut slot ${msg.slotIndex} to skill: ${msg.skillId}`);
     
     // Send confirmation to client
-    socket.emit('msg', {
+    direct.send({
       type: 'SkillShortcutUpdated',
       slotIndex: msg.slotIndex,
       skillId: msg.skillId
     });
     
-    // Broadcast player update to all clients
-    socket.broadcast.emit('playerUpdated', {
+    emitPlayerUpdated(outbound, {
       id: player.id,
       skillShortcuts: player.skillShortcuts
     });

@@ -66,12 +66,15 @@ describe('player lifecycle', () => {
   test('regenerates mana for alive players and emits compact updates', () => {
     const state = createGameState();
     state.players.player1 = makePlayer({ mana: 95 });
-    const io = { emit: vi.fn() };
+    const outbound = { publish: vi.fn() };
 
-    handleManaRegeneration(state, io as any);
+    handleManaRegeneration(state, outbound);
 
     expect(state.players.player1.mana).toBe(97);
-    expect(io.emit).toHaveBeenCalledWith('playerUpdated', { id: 'player1', mana: 97 });
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'playerUpdated',
+      update: { id: 'player1', mana: 97 },
+    });
   });
 
   test('respawns a dead player at spawn and refreshes spatial membership', () => {
@@ -107,16 +110,19 @@ describe('player lifecycle', () => {
   test('emits respawn updates for respawn requests', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();
-    const io = { emit: vi.fn() };
+    const outbound = { publish: vi.fn() };
     state.players.player1 = makePlayer({ isAlive: false, health: 0, mana: 0 });
 
-    onRespawnRequest(state, { type: 'RespawnRequest', id: 'player1', clientTs: 1 }, io as any, spatial);
+    onRespawnRequest(state, { type: 'RespawnRequest', id: 'player1', clientTs: 1 }, outbound, spatial);
 
-    expect(io.emit).toHaveBeenCalledWith('playerUpdated', expect.objectContaining({
-      id: 'player1',
-      isAlive: true,
-      health: 50,
-      mana: 50,
-    }));
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'playerUpdated',
+      update: expect.objectContaining({
+        id: 'player1',
+        isAlive: true,
+        health: 50,
+        mana: 50,
+      }),
+    });
   });
 });

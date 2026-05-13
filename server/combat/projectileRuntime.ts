@@ -1,7 +1,7 @@
-import type { Server } from 'socket.io';
 import { SKILLS } from '../../packages/content/skills.js';
 import { CastState, type VecXZ } from '../../packages/protocol/messages.js';
 import { sweptHit } from '../collision.js';
+import type { OutboundEventSink } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 import { emitCastSnapshot } from './castSnapshots.js';
 import { resolveCastImpact } from './impactResolver.js';
@@ -12,7 +12,7 @@ export function updateTravelingCast(
   dtSeconds: number,
   now: number,
   broadcastRateMs: number,
-  io: Server,
+  outbound: OutboundEventSink,
   world: CombatWorld,
 ): void {
   if (!cast.pos || !cast.dir || !cast.speed) {
@@ -26,14 +26,14 @@ export function updateTravelingCast(
   cast.pos.z += cast.dir.z * cast.speed * dtSeconds;
 
   if (!cast.lastBroadcast || now - cast.lastBroadcast > broadcastRateMs) {
-    emitCastSnapshot(io, cast);
+    emitCastSnapshot(outbound, cast);
     cast.lastBroadcast = now;
   }
 
   if (shouldImpact(cast, oldPos, world)) {
     cast.state = CastState.Impact;
-    emitCastSnapshot(io, cast);
-    resolveCastImpact(cast, io, world);
+    emitCastSnapshot(outbound, cast);
+    resolveCastImpact(cast, outbound, world);
   }
 }
 

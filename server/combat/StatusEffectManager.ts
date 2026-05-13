@@ -1,8 +1,13 @@
-import { Server } from 'socket.io';
 import { PlayerState, Enemy, StatusEffect as ActiveStatusEffectShared } from '../../shared/types';
 import { EFFECTS, EffectDef, EffectTick, EffectId } from '../../packages/sim/effects.js';
 import { applyEffectTick } from './effects/EffectApplicator';
 import { log, LOG_CATEGORIES } from '../logger'; // Adjust path if logger is elsewhere
+import {
+    emitEnemyUpdated,
+    emitPlayerUpdated,
+    emitServerMessage,
+    type OutboundEventSink,
+} from '../transport/outboundEvents';
 
 // Interface for the game world, to be passed to the manager
 interface World {
@@ -29,9 +34,9 @@ export class StatusEffectManager {
      *
      * @param deltaTimeMs - The time elapsed since the last game tick, in milliseconds.
      * @param world - A reference to the current game world state.
-     * @param io - The Socket.IO server instance for broadcasting updates to clients.
+     * @param outbound - Transport-independent sink for broadcasting updates to clients.
      */
-    public update(deltaTimeMs: number, world: World, io: Server): void {
+    public update(deltaTimeMs: number, world: World, outbound: OutboundEventSink): void {
         // Combine players and enemies into a single list for easier iteration
         const allEntities: (PlayerState | Enemy)[] = [...Object.values(world.players), ...Object.values(world.enemies)];
 
@@ -142,14 +147,14 @@ export class StatusEffectManager {
                 };
 
                 if ((entity as PlayerState).socketId) { // Check if it's a player
-                    io.emit('playerUpdated', updatePayload);
+                    emitPlayerUpdated(outbound, updatePayload);
                 } else { // It's an enemy
-                    io.emit('enemyUpdated', updatePayload);
+                    emitEnemyUpdated(outbound, updatePayload);
                 }
 
                 // Also send a specific EffectSnapshot message for clients that might need more detailed/immediate effect updates
                 // This can be useful for UIs that show detailed timers or effect values.
-                io.emit('msg', {
+                emitServerMessage(outbound, {
                     type: 'EffectSnapshot',
                     targetId: entity.id,
                     effects: updatePayload.statusEffects, // Send the cleaned effects
