@@ -5,7 +5,7 @@ This project is deployed only on the VPS. Vercel is no longer part of the produc
 The live shape is:
 
 - Nginx serves the static frontend from `/opt/vibeage-frontend/out`.
-- Nginx proxies `/socket.io/` and `/api/` to the game server on `127.0.0.1:3001`.
+- Nginx proxies `/colyseus/` and `/api/` to the game server on `127.0.0.1:3001`.
 - Docker Compose runs the authoritative game server and Postgres from `/home/s/vibeage-deploy/repo`.
 - Stalwart mail has separate Nginx and Docker configuration and must not be touched by game deploys.
 
@@ -34,6 +34,7 @@ The local deploy script:
 - rebuilds the frontend and server;
 - publishes static files into `/opt/vibeage-frontend/out`;
 - verifies `/healthz`, public HTTPS, and that port `3001` is localhost-only.
+- verifies the public Colyseus `world` room can be joined through HTTPS.
 
 GitHub-hosted SSH deployment is disabled. Do not add VPS private keys, deploy keys, database URLs, tokens, or `.env` contents to GitHub repository secrets.
 

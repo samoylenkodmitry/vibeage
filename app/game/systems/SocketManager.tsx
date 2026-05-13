@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useCallback, useRef } from 'react';
-import { io } from 'socket.io-client';
 import { useGameStore } from './gameStore';
 import { getBuffer, GROUND_Y } from './interpolation';
 import { hookVfx } from './vfxDispatcher';
 import { installE2EHooks } from './e2eHooks';
+import { createColyseusRoomSocket } from './colyseusRoomSocket';
 import * as THREE from 'three';
 import { 
   CastReq, 
@@ -414,15 +414,7 @@ export default function SocketManager() {
 
   const handleConnect = useCallback(() => {
     const WS_URL = process.env.NEXT_PUBLIC_GAME_SERVER_URL ?? 'http://localhost:3001';
-    const socket = io(WS_URL, {
-      path: '/socket.io',
-      transports: ['websocket'],
-      perMessageDeflate: { threshold: 1024 },
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
-    });
+    const socket = createColyseusRoomSocket(WS_URL);
     setSocket(socket);
 
     socket.on('connect_error', (error) => {
@@ -661,13 +653,14 @@ export default function SocketManager() {
         }
       };
 
-      // Keep old handlers for compatibility during transition
+      // Keep old handlers while the legacy Next fallback still exists.
       socket.on('playerLeft', handlePlayerLeft);
       socket.on('playerUpdated', handlePlayerUpdated);
       socket.on('enemyUpdated', handleEnemyUpdated);
       socket.on('playerMoved', handlePlayerMoved);
     });
 
+    socket.connect();
     return socket;
   }, [
     setSocket, 

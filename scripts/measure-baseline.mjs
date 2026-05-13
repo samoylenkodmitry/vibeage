@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { gzipSync } from 'node:zlib';
 import { chromium } from '@playwright/test';
-import { io } from 'socket.io-client';
+import { Client as ColyseusClient } from 'colyseus.js';
 
 const root = process.cwd();
 const serverPort = Number(process.env.BASELINE_SERVER_PORT ?? 3122);
@@ -23,7 +23,7 @@ try {
     measuredAt: new Date().toISOString(),
     bundle: measureBundle(),
     tickCost: await measureTickCost(),
-    socketLatency: await measureSocketLatency(gameUrl),
+    roomLatency: await measureRoomLatency(gameUrl),
     browserFps: await measureBrowserFps(),
   };
 
@@ -61,17 +61,14 @@ async function measureTickCost() {
   return JSON.parse(output);
 }
 
-async function measureSocketLatency(url) {
+async function measureRoomLatency(url) {
   const startedAt = performance.now();
   return new Promise((resolve) => {
-    const socket = io(url, {
-      path: '/socket.io/',
-      transports: ['websocket'],
-      reconnection: false,
-      timeout: 5_000,
-      extraHeaders: { Origin: new URL(clientUrl).origin },
+    const client = new ColyseusClient(toColyseusEndpoint(url), {
+      headers: { Origin: new URL(clientUrl).origin },
     });
     let settled = false;
+    let room;
     const timeout = setTimeout(() => {
       finish({ available: false, url, reason: 'timed out waiting for gameState' });
     }, 8_000);
@@ -83,14 +80,20 @@ async function measureSocketLatency(url) {
 
       settled = true;
       clearTimeout(timeout);
-      socket.disconnect();
-      resolve(result);
+      Promise.resolve(room?.leave(true))
+        .catch(() => undefined)
+        .finally(() => resolve(result));
     }
 
-    socket.once('connect', () => {
+    client.joinOrCreate('world', {
+      playerName: `Baseline${Date.now()}`,
+      clientProtocolVersion: 2,
+    }).then((joinedRoom) => {
+      room = joinedRoom;
       const connectedAt = performance.now();
-      socket.emit('requestGameState');
-      socket.once('gameState', () => {
+      joinedRoom.onMessage('joinGame', () => undefined);
+      joinedRoom.onMessage('msg', () => undefined);
+      joinedRoom.onMessage('gameState', () => {
         const gameStateAt = performance.now();
         finish({
           available: true,
@@ -99,12 +102,23 @@ async function measureSocketLatency(url) {
           gameStateRoundTripMs: round(gameStateAt - connectedAt),
         });
       });
-    });
-
-    socket.once('connect_error', (error) => {
-      finish({ available: false, url, reason: error.message });
+      joinedRoom.send('requestGameState');
+    }).catch((error) => {
+      finish({
+        available: false,
+        url,
+        reason: error instanceof Error ? error.message : String(error),
+      });
     });
   });
+}
+
+function toColyseusEndpoint(url) {
+  const endpoint = new URL(url);
+  endpoint.pathname = '/colyseus';
+  endpoint.search = '';
+  endpoint.hash = '';
+  return endpoint.toString();
 }
 
 async function measureBrowserFps() {

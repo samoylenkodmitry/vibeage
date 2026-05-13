@@ -100,7 +100,7 @@ sudo chown -R s:s /opt/vibeage-frontend/out
 sudo nginx -t
 ```
 
-The current Nginx `vibeage.eu` vhost already serves `/opt/vibeage-frontend/out` and proxies `/socket.io/` plus `/api/` to `localhost:3001`, so deploys do not need to modify Nginx.
+The current Nginx `vibeage.eu` vhost serves `/opt/vibeage-frontend/out` and proxies `/colyseus/` plus `/api/` to `localhost:3001`, so normal deploys do not need to modify Nginx.
 
 The old `/opt/vibeage` checkout has been archived and removed. `/opt/vibeage-frontend` now intentionally contains only the static `out` directory used by Nginx.
 

@@ -1,0 +1,87 @@
+import { Room, type Client } from 'colyseus';
+import { ZoneManager } from '../../packages/content/zones.js';
+import type { ServerMessage } from '../../packages/protocol/messages.js';
+import { initWorld } from '../world.js';
+import { sendCastSnapshots } from '../combat/skillSystem.js';
+import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
+import { createSocketBackedAuthoritativeRoom } from './authoritativeRoomAdapter.js';
+import { ColyseusAuthoritativeRoomAdapter, makeColyseusOutbound } from './colyseusRoomAdapter.js';
+import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import type { DirectMessageSink } from './outboundEvents.js';
+
+const MAX_CLIENTS = 200;
+
+export class VibeAgeRoom extends Room {
+  private adapter!: ColyseusAuthoritativeRoomAdapter;
+  private world!: ReturnType<typeof initWorld>;
+
+  onCreate(): void {
+    this.maxClients = MAX_CLIENTS;
+    this.autoDispose = false;
+
+    const outbound = makeColyseusOutbound(this);
+    this.world = initWorld(outbound, new ZoneManager());
+    this.adapter = new ColyseusAuthoritativeRoomAdapter(
+      createSocketBackedAuthoritativeRoom(this.world),
+    );
+
+    this.onMessage(SOCKET_SESSION_EVENTS.message, (client, message) => {
+      this.adapter.handleMessage(client, message);
+    });
+    this.onMessage(SOCKET_SESSION_EVENTS.requestGameState, (client) => {
+      this.sendClientSnapshot(client);
+    });
+  }
+
+  async onJoin(client: Client, options?: unknown): Promise<void> {
+    const result = await this.adapter.handleJoin(client, toJoinOptions(options));
+    const player = this.world.getGameState().players[result.playerId];
+    if (player) {
+      this.broadcast(SOCKET_SESSION_EVENTS.playerJoined, player, { except: client });
+    }
+    this.sendClientSnapshot(client);
+  }
+
+  async onLeave(client: Client): Promise<void> {
+    const playerId = await this.adapter.handleLeave(client);
+    if (playerId) {
+      this.broadcast(SOCKET_SESSION_EVENTS.playerLeft, playerId);
+    }
+  }
+
+  private sendClientSnapshot(client: Client): void {
+    const state = this.world.getGameState();
+    const player = Object.values(state.players).find((candidate) => candidate.socketId === client.sessionId);
+    const direct = makeColyseusDirectSink(client);
+
+    if (player) {
+      client.send(SOCKET_SESSION_EVENTS.joinGame, { playerId: player.id });
+      emitInventoryUpdate(direct, player);
+    }
+
+    client.send(SOCKET_SESSION_EVENTS.gameState, state);
+    sendCastSnapshots(state.activeCasts, direct);
+  }
+}
+
+function makeColyseusDirectSink(client: Client): DirectMessageSink {
+  return {
+    send(message: ServerMessage) {
+      client.send(SOCKET_SESSION_EVENTS.message, message);
+    },
+  };
+}
+
+function toJoinOptions(options: unknown): { playerName?: string; clientProtocolVersion?: number } {
+  if (!options || typeof options !== 'object') {
+    return {};
+  }
+
+  const value = options as Record<string, unknown>;
+  return {
+    playerName: typeof value.playerName === 'string' ? value.playerName : undefined,
+    clientProtocolVersion: typeof value.clientProtocolVersion === 'number'
+      ? value.clientProtocolVersion
+      : undefined,
+  };
+}

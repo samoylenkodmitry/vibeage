@@ -59,25 +59,21 @@ check_expected_status() {
 }
 
 check_game_socket() {
-  log "Game WebSocket"
+  log "Game room"
 
   local output
   if output=$(DOMAIN="$DOMAIN" node <<'NODE'
 (async () => {
-  const { io } = await import('socket.io-client');
+  const { Client } = await import('colyseus.js');
   const domain = process.env.DOMAIN || 'vibeage.eu';
-  const socket = io(`https://${domain}`, {
-    path: '/socket.io',
-    transports: ['websocket'],
-    upgrade: false,
-    timeout: 5000,
-    reconnection: false,
-    extraHeaders: {
+  const client = new Client(`https://${domain}/colyseus`, {
+    headers: {
       Origin: `https://${domain}`,
     },
   });
 
   let finished = false;
+  let room;
   const finish = (code, message) => {
     if (finished) return;
     finished = true;
@@ -85,20 +81,30 @@ check_game_socket() {
       const stream = code === 0 ? process.stdout : process.stderr;
       stream.write(`${message}\n`);
     }
-    socket.close();
-    process.exit(code);
+    Promise.resolve(room?.leave(true))
+      .catch(() => undefined)
+      .finally(() => process.exit(code));
   };
 
-  socket.on('connect', () => finish(0, `Socket.IO connected: ${socket.id}`));
-  socket.on('connect_error', (error) => finish(1, `Socket.IO connect_error: ${error.message}`));
-  setTimeout(() => finish(1, 'Socket.IO connection timed out'), 8000);
+  const timeout = setTimeout(() => finish(1, 'Colyseus room join timed out'), 8000);
+  try {
+    room = await client.joinOrCreate('world', {
+      playerName: `HealthCheck${Date.now()}`,
+      clientProtocolVersion: 2,
+    });
+    clearTimeout(timeout);
+    finish(0, `Colyseus world room joined: ${room.sessionId}`);
+  } catch (error) {
+    clearTimeout(timeout);
+    finish(1, `Colyseus room join failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 })();
 NODE
   ); then
     printf '%s\n' "$output"
-    pass "Socket.IO WebSocket handshake succeeds through public HTTPS"
+    pass "Colyseus world room joins through public HTTPS"
   else
-    fail_check "Socket.IO WebSocket handshake failed through public HTTPS"
+    fail_check "Colyseus world room join failed through public HTTPS"
     printf '%s\n' "$output" >&2
   fi
 }

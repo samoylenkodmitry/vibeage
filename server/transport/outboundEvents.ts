@@ -1,4 +1,3 @@
-import type { Server } from 'socket.io';
 import type { ServerMessage } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
@@ -33,14 +32,6 @@ export interface DirectMessageSink {
 export type SocketMessageTarget = {
   emit(event: string, payload: unknown): unknown;
 };
-
-export function makeSocketIoOutbound(io: Server): OutboundEventSink {
-  return {
-    publish(event) {
-      emitSocketIoOutbound(io, event);
-    },
-  };
-}
 
 export function makeSocketMessageSink(target: SocketMessageTarget): DirectMessageSink {
   return {
@@ -84,26 +75,4 @@ export function emitPlayerJoined(sink: OutboundEventSink, player: PlayerState): 
 
 export function emitPlayerLeft(sink: OutboundEventSink, playerId: string): void {
   sink.publish({ type: 'playerLeft', playerId });
-}
-
-function emitSocketIoOutbound(io: Server, event: OutboundEvent): void {
-  switch (event.type) {
-    case 'serverMessage':
-      io.emit(WORLD_BROADCAST_EVENTS.message, event.message);
-      return;
-    case 'directServerMessage':
-      io.to(event.socketId).emit(WORLD_BROADCAST_EVENTS.message, event.message);
-      return;
-    case 'playerUpdated':
-      io.emit(WORLD_BROADCAST_EVENTS.playerUpdated, event.update);
-      return;
-    case 'enemyUpdated':
-      io.emit(WORLD_BROADCAST_EVENTS.enemyUpdated, event.update);
-      return;
-    case 'playerJoined':
-      io.emit(WORLD_BROADCAST_EVENTS.playerJoined, event.player);
-      return;
-    case 'playerLeft':
-      io.emit(WORLD_BROADCAST_EVENTS.playerLeft, event.playerId);
-  }
 }

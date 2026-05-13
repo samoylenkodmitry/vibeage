@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { Server } from 'socket.io';
 import {
   WORLD_BROADCAST_EVENTS,
   emitBatchUpdate,
@@ -7,14 +6,15 @@ import {
   emitPlayerUpdated,
   emitServerMessage,
   emitServerMessageToClient,
-  makeSocketIoOutbound,
   makeSocketMessageSink,
+  type OutboundEvent,
+  type OutboundEventSink,
 } from '../server/transport/outboundEvents';
 
 describe('outbound events', () => {
-  test('adapts server messages to the current Socket.IO event name', () => {
-    const io = { emit: vi.fn() } as unknown as Server;
-    const outbound = makeSocketIoOutbound(io);
+  test('publishes server messages through the outbound event contract', () => {
+    const events: OutboundEvent[] = [];
+    const outbound = makeRecordingOutbound(events);
 
     emitServerMessage(outbound, {
       type: 'InventoryUpdate',
@@ -22,36 +22,45 @@ describe('outbound events', () => {
       maxInventorySlots: 20,
     });
 
-    expect(io.emit).toHaveBeenCalledWith(WORLD_BROADCAST_EVENTS.message, {
-      type: 'InventoryUpdate',
-      inventory: [{ itemId: 'gold_coin', quantity: 1 }],
-      maxInventorySlots: 20,
-    });
+    expect(events).toEqual([{
+      type: 'serverMessage',
+      message: {
+        type: 'InventoryUpdate',
+        inventory: [{ itemId: 'gold_coin', quantity: 1 }],
+        maxInventorySlots: 20,
+      },
+    }]);
   });
 
-  test('keeps legacy entity update event names behind the adapter', () => {
-    const io = { emit: vi.fn() } as unknown as Server;
-    const outbound = makeSocketIoOutbound(io);
+  test('publishes entity updates through the outbound event contract', () => {
+    const events: OutboundEvent[] = [];
+    const outbound = makeRecordingOutbound(events);
 
     emitPlayerUpdated(outbound, { id: 'player1', health: 75 });
     emitEnemyUpdated(outbound, { id: 'enemy1', health: 10 });
 
-    expect(io.emit).toHaveBeenCalledWith(WORLD_BROADCAST_EVENTS.playerUpdated, {
-      id: 'player1',
-      health: 75,
+    expect(events).toContainEqual({
+      type: 'playerUpdated',
+      update: {
+        id: 'player1',
+        health: 75,
+      },
     });
-    expect(io.emit).toHaveBeenCalledWith(WORLD_BROADCAST_EVENTS.enemyUpdated, {
-      id: 'enemy1',
-      health: 10,
+    expect(events).toContainEqual({
+      type: 'enemyUpdated',
+      update: {
+        id: 'enemy1',
+        health: 10,
+      },
     });
   });
 
   test('batch updates are skipped when there are no deltas', () => {
-    const io = { emit: vi.fn() } as unknown as Server;
+    const publish = vi.fn();
 
-    emitBatchUpdate(makeSocketIoOutbound(io), []);
+    emitBatchUpdate({ publish }, []);
 
-    expect(io.emit).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
   });
 
   test('direct message sink sends one client message', () => {
@@ -71,23 +80,29 @@ describe('outbound events', () => {
     });
   });
 
-  test('direct outbound messages are sent only to the addressed socket id', () => {
-    const directEmit = vi.fn();
-    const io = {
-      emit: vi.fn(),
-      to: vi.fn(() => ({ emit: directEmit })),
-    } as unknown as Server;
+  test('direct outbound messages target one client id', () => {
+    const events: OutboundEvent[] = [];
 
-    emitServerMessageToClient(makeSocketIoOutbound(io), 'socket1', {
+    emitServerMessageToClient(makeRecordingOutbound(events), 'socket1', {
       type: 'LootAcquired',
       items: [{ itemId: 'gold_coin', quantity: 1 }],
     });
 
-    expect(io.emit).not.toHaveBeenCalled();
-    expect(io.to).toHaveBeenCalledWith('socket1');
-    expect(directEmit).toHaveBeenCalledWith(WORLD_BROADCAST_EVENTS.message, {
-      type: 'LootAcquired',
-      items: [{ itemId: 'gold_coin', quantity: 1 }],
-    });
+    expect(events).toEqual([{
+      type: 'directServerMessage',
+      socketId: 'socket1',
+      message: {
+        type: 'LootAcquired',
+        items: [{ itemId: 'gold_coin', quantity: 1 }],
+      },
+    }]);
   });
 });
+
+function makeRecordingOutbound(events: OutboundEvent[]): OutboundEventSink {
+  return {
+    publish(event) {
+      events.push(event);
+    },
+  };
+}
