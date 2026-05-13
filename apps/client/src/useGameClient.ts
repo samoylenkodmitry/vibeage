@@ -23,34 +23,18 @@ type ClientApi = {
   respawn: () => void;
 };
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const INITIAL_RECONNECT_DELAY_MS = 1_000;
+const MAX_RECONNECT_DELAY_MS = 5_000;
+
 export function useGameClient(): ClientApi {
   const [state, dispatch] = useReducer(gameClientReducer, initialGameClientState);
-  const roomRef = useRef<Room | null>(null);
+  const { roomRef, connect, disconnect } = useRoomConnection(dispatch);
   const stateRef = useRef(state);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-
-  const disconnect = useCallback(() => {
-    roomRef.current?.leave(true).catch(() => undefined);
-    roomRef.current = null;
-    dispatch({ type: 'disconnected', message: 'Disconnected' });
-  }, []);
-
-  const connect = useCallback((playerName: string) => {
-    roomRef.current?.leave(true).catch(() => undefined);
-    dispatch({ type: 'startConnecting' });
-
-    joinWorldRoom(playerName, dispatch)
-      .then((room) => {
-        roomRef.current = room;
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'Connection rejected';
-        dispatch({ type: 'connectionRejected', message });
-      });
-  }, []);
 
   const actions = useClientActions(roomRef, stateRef, dispatch);
 
@@ -73,6 +57,99 @@ export function useGameClient(): ClientApi {
     () => ({ state, connect, disconnect, ...actions }),
     [state, connect, disconnect, actions],
   );
+}
+
+function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
+  const roomRef = useRef<Room | null>(null);
+  const playerNameRef = useRef('');
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const shouldReconnectRef = useRef(false);
+  const startJoinRef = useRef<(playerName: string) => void>(() => undefined);
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleReconnect = useCallback((reason: string) => {
+    if (!shouldReconnectRef.current) {
+      return;
+    }
+
+    reconnectAttemptsRef.current += 1;
+    if (reconnectAttemptsRef.current > MAX_RECONNECT_ATTEMPTS) {
+      dispatch({ type: 'connectionRejected', message: reason });
+      return;
+    }
+
+    dispatch({ type: 'startConnecting' });
+    const delay = Math.min(
+      INITIAL_RECONNECT_DELAY_MS * 2 ** (reconnectAttemptsRef.current - 1),
+      MAX_RECONNECT_DELAY_MS,
+    );
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      startJoinRef.current(playerNameRef.current);
+    }, delay);
+  }, [dispatch]);
+
+  startJoinRef.current = (playerName: string) => {
+    joinWorldRoom(playerName, dispatch, {
+      onLeave(leftRoom) {
+        if (roomRef.current !== leftRoom) {
+          return;
+        }
+
+        roomRef.current = null;
+        scheduleReconnect('Disconnected from the game server.');
+      },
+    }).then((room) => {
+      clearReconnectTimer();
+      reconnectAttemptsRef.current = 0;
+      roomRef.current = room;
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Connection rejected';
+      scheduleReconnect(message);
+    });
+  };
+
+  const disconnect = useCallback(() => {
+    shouldReconnectRef.current = false;
+    clearReconnectTimer();
+    const room = roomRef.current;
+    roomRef.current = null;
+    room?.leave(true).catch(() => undefined);
+    dispatch({ type: 'disconnected', message: 'Disconnected' });
+  }, [clearReconnectTimer, dispatch]);
+
+  const connect = useCallback((playerName: string) => {
+    shouldReconnectRef.current = true;
+    playerNameRef.current = playerName;
+    reconnectAttemptsRef.current = 0;
+    clearReconnectTimer();
+
+    const previousRoom = roomRef.current;
+    roomRef.current = null;
+    previousRoom?.leave(true).catch(() => undefined);
+
+    dispatch({ type: 'startConnecting' });
+    startJoinRef.current(playerName);
+  }, [clearReconnectTimer, dispatch]);
+
+  useEffect(() => {
+    return () => {
+      shouldReconnectRef.current = false;
+      clearReconnectTimer();
+      const room = roomRef.current;
+      roomRef.current = null;
+      room?.leave(true).catch(() => undefined);
+    };
+  }, [clearReconnectTimer]);
+
+  return { roomRef, connect, disconnect };
 }
 
 function useClientActions(
@@ -155,6 +232,7 @@ function useClientActions(
 async function joinWorldRoom(
   playerName: string,
   dispatch: Dispatch<GameClientAction>,
+  lifecycle?: { onLeave: (room: Room) => void },
 ): Promise<Room> {
   const client = new ColyseusClient(getColyseusUrl());
   const room = await client.joinOrCreate('world', {
@@ -162,7 +240,7 @@ async function joinWorldRoom(
     clientProtocolVersion: 2,
   });
 
-  bindRoom(room, dispatch);
+  bindRoom(room, dispatch, lifecycle);
   dispatch({ type: 'connected' });
   room.send('requestGameState');
   room.send('msg', { type: 'RequestInventory' });
@@ -180,6 +258,7 @@ function getColyseusUrl(): string {
 function bindRoom(
   room: Room,
   dispatch: Dispatch<GameClientAction>,
+  lifecycle?: { onLeave: (room: Room) => void },
 ) {
   room.onMessage('joinGame', (payload: { playerId?: string }) => {
     if (payload.playerId) {
@@ -210,6 +289,7 @@ function bindRoom(
   });
   room.onLeave(() => {
     dispatch({ type: 'disconnected', message: 'Disconnected' });
+    lifecycle?.onLeave(room);
   });
 }
 
