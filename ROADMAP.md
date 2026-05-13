@@ -37,8 +37,8 @@ This project should become a browser-first multiplayer game that is easy for hum
 14. Done on 2026-05-12: started the Vite browser client shell in `apps/client` with React, React Three Fiber, a minimal HUD, and an initial network connection stub; CI now builds the shell.
 15. Done on 2026-05-12: upgraded the Vite shell into a real playable migration slice that enters the current server, consumes authoritative game state, supports click movement, selects enemies, casts Fireball, and has its own Playwright smoke.
 16. Done on 2026-05-12: smoothed Vite entity/camera presentation, added basic Vite HUD loops for cooldowns, XP, death/respawn, loot, inventory, item use, and combat/status feedback.
-17. Done on 2026-05-12: prepared an opt-in production Vite publish path with `FRONTEND_BUILD_TARGET=vite`.
-18. Done on 2026-05-13: made Vite the default development/build/production frontend target; legacy Next remains an explicit fallback with `dev:next`, `build:next`, and `FRONTEND_BUILD_TARGET=next`.
+17. Done on 2026-05-12: prepared the production Vite publish path.
+18. Done on 2026-05-13: made Vite the default development/build/production frontend target.
 19. Done on 2026-05-13: reduced `server/world.ts` under the normal maintainability file budget by extracting movement and prediction simulation into `server/movement/worldMovement.ts`.
 20. Done on 2026-05-13: extracted combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers out of large runtime modules, with focused server tests.
 21. Done on 2026-05-13: extracted enemy AI state transitions, inventory stacking/item-use runtime, ground-loot creation, and cast validation/resource rules into focused tested modules.
@@ -46,7 +46,10 @@ This project should become a browser-first multiplayer game that is easy for hum
 23. Done on 2026-05-13: added outbound/direct event sinks, a socket-backed authoritative-room adapter for the Colyseus boundary, and a tested starter gameplay vertical-slice manifest.
 24. Done on 2026-05-13: ported useful VFX patterns into the Vite client, moved more lifecycle/item server emissions behind outbound adapters, and added baseline measurement tooling for bundle, tick cost, latency, and browser FPS.
 25. Done on 2026-05-13: finished isolating runtime transport emissions behind outbound/direct message sinks, including combat, loot, AI, inventory, skill, lifecycle, and effect paths.
-26. Done on 2026-05-13: replaced the runtime Socket.IO server path with a real Colyseus `world` room, migrated the Vite client and production smoke checks to `/colyseus/`, and kept legacy Next as an explicit fallback only.
+26. Done on 2026-05-13: replaced the runtime Socket.IO server path with a real Colyseus `world` room and migrated the Vite client and production smoke checks to `/colyseus/`.
+27. Done on 2026-05-13: removed the legacy Next fallback, leaving Vite as the only browser client path.
+28. Done on 2026-05-13: moved scheduled production database backups to local-only SSH streaming; the VPS no longer keeps scheduled dump files.
+29. Done on 2026-05-13: updated current safe dependency ranges and deferred the Colyseus 0.17 runtime jump because it changes the active matchmaker path; treat that as a dedicated migration, not routine Dependabot churn.
 
 ## Target Stack
 
@@ -86,7 +89,7 @@ tests/
 
 ### Phase 0: Stabilize Current Prototype
 
-- Keep one Next config and one test config.
+- Keep one Vite client config and one active browser smoke config.
 - Keep env files out of Git; track only examples.
 - Maintain `pnpm run check` as the local and CI quality gate: lint, typecheck, deployment script syntax, maintainability budgets, tests, server build, frontend build, and browser smoke.
 - Document agent workflow in `AGENTS.md`.
@@ -118,7 +121,7 @@ tests/
 - Done on 2026-05-13: made Vite the default production frontend path and added clearer movement destination, selected-target, and enemy health presentation.
 - Done on 2026-05-13: ported useful R3F/VFX patterns into the Vite client: recovery particles, water splash impact, petrify flash, and richer projectile trails without reusing the old pooled/global VFX manager.
 - Keep visual state separate from authoritative network state.
-- Done in the current Next prototype: Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
+- Vite Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
 
 ### Phase 3: Build The Authoritative Server
 

@@ -1,8 +1,9 @@
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../shared/types.js';
-import { db } from '../db.js';
-import { isPersistenceDisabled, persistPlayer, recordServerEvent } from '../persistence.js';
+import type { CharacterClass } from '../../shared/classSystem.js';
+import type { InventorySlot } from '../../packages/protocol/messages.js';
+import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';
 import {
   getExperienceToNextLevel,
@@ -15,7 +16,27 @@ import {
   normalizeUnlockedSkills,
 } from './playerProgression.js';
 
-type PlayerRow = Record<string, any>;
+type PlayerRow = {
+  id: string;
+  position_x?: unknown;
+  position_y?: unknown;
+  position_z?: unknown;
+  health?: unknown;
+  mana?: unknown;
+  level?: unknown;
+  xp?: unknown;
+  experience?: unknown;
+  is_alive?: boolean | null;
+  class_name?: unknown;
+  skills?: unknown;
+  skill_shortcuts?: unknown;
+  available_skill_points?: unknown;
+  inventory?: InventorySlot[];
+};
+
+function normalizeClassName(value: unknown): CharacterClass {
+  return value === 'warrior' || value === 'healer' || value === 'ranger' ? value : 'mage';
+}
 
 function addPlayerToState(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
   state.players[player.id] = player;
@@ -38,9 +59,9 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     socketId,
     name,
     position: {
-      x: row.position_x || 0,
-      y: row.position_y || 0.5,
-      z: row.position_z || 0,
+      x: numberOrFallback(row.position_x, 0),
+      y: numberOrFallback(row.position_y, 0.5),
+      z: numberOrFallback(row.position_z, 0),
     },
     rotation: { x: 0, y: 0, z: 0 },
     health: numberOrFallback(row.health, maxHealth),
@@ -55,7 +76,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: row.is_alive !== undefined ? row.is_alive : true,
-    className: row.class_name || 'mage',
+    className: normalizeClassName(row.class_name),
     unlockedSkills,
     skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
     availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
@@ -79,17 +100,9 @@ export async function addPlayerSession(
   }
 
   try {
-    const { rows: [row] } = await db.query(
-      `insert into players (name, socket_id, last_login)
-         values ($1, $2, now())
-         on conflict (name) do update
-         set socket_id = excluded.socket_id,
-             last_login = now()
-       returning *`,
-      [name, socketId],
-    );
+    const row = await upsertPlayerSession(socketId, name);
 
-    await recordServerEvent('player_login', row.id, JSON.stringify({ playerName: name, socketId }));
+    await recordServerEvent('player_login', row.id, { playerName: name, socketId });
 
     return addPlayerToState(state, spatial, hydratePersistedPlayer(row, socketId, name));
   } catch (error) {
@@ -111,7 +124,7 @@ export async function removePlayerSessionBySocketId(
   const player = state.players[playerId];
   const pos = { x: player.position.x, z: player.position.z };
 
-  await recordServerEvent('player_disconnect', playerId, JSON.stringify({ playerName: player.name, socketId }));
+  await recordServerEvent('player_disconnect', playerId, { playerName: player.name, socketId });
 
   try {
     await persistPlayer(player);

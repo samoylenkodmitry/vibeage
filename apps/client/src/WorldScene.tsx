@@ -20,6 +20,8 @@ import {
 } from './SceneVfx';
 
 const GROUND_Y = 0;
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND_Y);
+const pointerWorldPoint = new THREE.Vector3();
 const reusableTargetVector = new THREE.Vector3();
 
 type WorldSceneProps = {
@@ -86,7 +88,12 @@ function WorldGround({ onMove }: { onMove: (target: VecXZ) => void }) {
     }
 
     event.stopPropagation();
-    onMove({ x: event.point.x, z: event.point.z });
+    const point = event.ray.intersectPlane(groundPlane, pointerWorldPoint);
+    if (!point) {
+      return;
+    }
+
+    onMove({ x: point.x, z: point.z });
   }
 
   return (

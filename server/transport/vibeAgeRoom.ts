@@ -1,4 +1,4 @@
-import { Room, type Client } from 'colyseus';
+import { Room, type Client } from '@colyseus/core';
 import { ZoneManager } from '../../packages/content/zones.js';
 import type { ServerMessage } from '../../packages/protocol/messages.js';
 import { initWorld } from '../world.js';

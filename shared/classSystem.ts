@@ -129,7 +129,7 @@ export function getAvailableSkills(
   
   const availableSkills: SkillId[] = [];
   
-  Object.entries(classTree.skillProgression).forEach(([skillId, req]) => {
+  Object.keys(classTree.skillProgression).forEach((skillId) => {
     const skill = skillId as SkillId;
     // Skip skills player already has
     if (playerSkills.includes(skill)) return;

@@ -128,7 +128,7 @@ cd $FRONTEND_DIR
 step "Installing dependencies..."
 pnpm install
 
-# Build the frontend (with static export enabled in next.config.js)
+# Build the Vite frontend
 step "Building the frontend..."
 NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
 

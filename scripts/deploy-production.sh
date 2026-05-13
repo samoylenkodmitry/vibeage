@@ -5,7 +5,6 @@ APP_NAME=${APP_NAME:-vibeage}
 DOMAIN=${DOMAIN:-vibeage.eu}
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-vibeage}
 FRONTEND_PUBLIC_DIR=${FRONTEND_PUBLIC_DIR:-/opt/vibeage-frontend/out}
-FRONTEND_BUILD_TARGET=${FRONTEND_BUILD_TARGET:-vite}
 MAX_HTTP_BUFFER_SIZE=${MAX_HTTP_BUFFER_SIZE:-1048576}
 RELOAD_NGINX=${RELOAD_NGINX:-0}
 WS_COMPRESSION=${WS_COMPRESSION:-1}
@@ -103,38 +102,14 @@ reload_nginx_if_requested() {
   sudo -n systemctl reload nginx
 }
 
-frontend_source_dir() {
-  case "$FRONTEND_BUILD_TARGET" in
-    next)
-      printf '%s/out\n' "$REPO_ROOT"
-      ;;
-    vite)
-      printf '%s/apps/client/dist\n' "$REPO_ROOT"
-      ;;
-    *)
-      fail "Unsupported FRONTEND_BUILD_TARGET=$FRONTEND_BUILD_TARGET; expected next or vite"
-      ;;
-  esac
-}
-
 build_frontend() {
-  case "$FRONTEND_BUILD_TARGET" in
-    next)
-      pnpm run build:next
-      ;;
-    vite)
-      pnpm run build:vite-client
-      ;;
-    *)
-      fail "Unsupported FRONTEND_BUILD_TARGET=$FRONTEND_BUILD_TARGET; expected next or vite"
-      ;;
-  esac
+  pnpm run build:vite-client
 }
 
 publish_frontend() {
   local source_dir
 
-  source_dir=$(frontend_source_dir)
+  source_dir="$REPO_ROOT/apps/client/dist"
 
   if [ ! -f "$source_dir/index.html" ]; then
     fail "Frontend build missing $source_dir/index.html"
@@ -171,7 +146,6 @@ main() {
   export COMPOSE_PROJECT_NAME
   export CORS_ORIGINS=${CORS_ORIGINS:-https://$DOMAIN}
   export MAX_HTTP_BUFFER_SIZE
-  export NEXT_PUBLIC_GAME_SERVER_URL=${NEXT_PUBLIC_GAME_SERVER_URL:-https://$DOMAIN}
   export VITE_GAME_SERVER_URL=${VITE_GAME_SERVER_URL:-https://$DOMAIN}
   export NODE_ENV=production
   export PORT=${PORT:-3001}
@@ -181,7 +155,7 @@ main() {
   log "Installing dependencies"
   pnpm install --frozen-lockfile
 
-  log "Building $FRONTEND_BUILD_TARGET frontend"
+  log "Building Vite frontend"
   build_frontend
 
   log "Building server"

@@ -7,7 +7,6 @@ VPS_SSH_KEY=${VPS_SSH_KEY:-$HOME/.ssh/hetz}
 VPS_DEPLOY_ROOT=${VPS_DEPLOY_ROOT:-/home/s/vibeage-deploy}
 DOMAIN=${DOMAIN:-vibeage.eu}
 FRONTEND_PUBLIC_DIR=${FRONTEND_PUBLIC_DIR:-/opt/vibeage-frontend/out}
-FRONTEND_BUILD_TARGET=${FRONTEND_BUILD_TARGET:-vite}
 REPO_URL=${REPO_URL:-https://github.com/samoylenkodmitry/vibeage.git}
 RUN_LOCAL_CHECKS=${RUN_LOCAL_CHECKS:-1}
 BRANCH=${BRANCH:-main}
@@ -86,7 +85,7 @@ run_remote_deploy() {
   local deploy_sha=$1
 
   ssh -i "$VPS_SSH_KEY" -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
-    "DEPLOY_ROOT='$VPS_DEPLOY_ROOT' DEPLOY_SHA='$deploy_sha' DOMAIN='$DOMAIN' FRONTEND_PUBLIC_DIR='$FRONTEND_PUBLIC_DIR' FRONTEND_BUILD_TARGET='$FRONTEND_BUILD_TARGET' REPO_URL='$REPO_URL' BRANCH='$BRANCH' bash -s" <<'REMOTE'
+    "DEPLOY_ROOT='$VPS_DEPLOY_ROOT' DEPLOY_SHA='$deploy_sha' DOMAIN='$DOMAIN' FRONTEND_PUBLIC_DIR='$FRONTEND_PUBLIC_DIR' REPO_URL='$REPO_URL' BRANCH='$BRANCH' bash -s" <<'REMOTE'
 set -Eeuo pipefail
 
 deploy_root=${DEPLOY_ROOT:-$HOME/vibeage-deploy}
@@ -104,7 +103,7 @@ git fetch --prune origin "$branch"
 git checkout "$branch"
 git reset --hard "$DEPLOY_SHA"
 
-DOMAIN="$DOMAIN" FRONTEND_PUBLIC_DIR="$FRONTEND_PUBLIC_DIR" FRONTEND_BUILD_TARGET="$FRONTEND_BUILD_TARGET" bash scripts/deploy-production.sh
+DOMAIN="$DOMAIN" FRONTEND_PUBLIC_DIR="$FRONTEND_PUBLIC_DIR" bash scripts/deploy-production.sh
 REMOTE
 }
 
