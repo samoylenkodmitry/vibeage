@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'reac
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
-import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
+import type { EnemyEntity, GroundLootStack, Vec3, VisualEvent } from './gameTypes';
 
 const GROUND_Y = 0;
 
@@ -25,6 +25,22 @@ const LOOT_SPARKS = [
   { angle: 1.7, height: 0.45, radius: 0.58 },
   { angle: 3.1, height: 0.34, radius: 0.68 },
   { angle: 4.6, height: 0.52, radius: 0.5 },
+];
+
+const PROJECTILE_TRAIL_POINTS = [
+  { offset: 0.38, radius: 0.16, opacity: 0.48, drift: 0.03 },
+  { offset: 0.74, radius: 0.12, opacity: 0.36, drift: -0.04 },
+  { offset: 1.06, radius: 0.09, opacity: 0.28, drift: 0.05 },
+  { offset: 1.34, radius: 0.07, opacity: 0.2, drift: -0.02 },
+];
+
+const RECOVERY_PARTICLES = [
+  { angle: 0.15, radius: 0.25, height: 0.25, size: 0.08 },
+  { angle: 1.2, radius: 0.45, height: 0.38, size: 0.06 },
+  { angle: 2.25, radius: 0.34, height: 0.58, size: 0.09 },
+  { angle: 3.4, radius: 0.5, height: 0.44, size: 0.07 },
+  { angle: 4.6, radius: 0.3, height: 0.7, size: 0.06 },
+  { angle: 5.45, radius: 0.42, height: 0.32, size: 0.08 },
 ];
 
 export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
@@ -138,6 +154,28 @@ function ProjectileVfx({ dir, theme }: { dir: CastSnapshot['dir']; theme: SkillT
         <mesh key={offset} position={[0, 0, -offset]} scale={1 - index * 0.2}>
           <sphereGeometry args={[0.2, 10, 10]} />
           <meshBasicMaterial color={theme.accent} transparent opacity={0.36 - index * 0.08} depthWrite={false} />
+        </mesh>
+      ))}
+      <ProjectileTrail theme={theme} />
+    </group>
+  );
+}
+
+function ProjectileTrail({ theme }: { theme: SkillTheme }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(clock.elapsedTime * 8) * 0.1;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      {PROJECTILE_TRAIL_POINTS.map((point, index) => (
+        <mesh key={point.offset} position={[point.drift, Math.sin(index) * 0.05, -point.offset]}>
+          <sphereGeometry args={[point.radius, 8, 8]} />
+          <meshBasicMaterial color={theme.glow} transparent opacity={point.opacity} depthWrite={false} />
         </mesh>
       ))}
     </group>
@@ -355,6 +393,115 @@ export function EnemyHealthBar({ enemy, visible }: { enemy: EnemyEntity; visible
         <meshBasicMaterial color={healthRatio > 0.35 ? '#86efac' : '#fb7185'} depthTest={false} depthWrite={false} />
       </mesh>
     </Billboard>
+  );
+}
+
+export function WorldEventVfx({ event }: { event: VisualEvent }) {
+  if (event.kind === 'healing' || event.kind === 'mana') {
+    return <RecoveryVfx event={event} />;
+  }
+
+  if (event.kind === 'petrify') {
+    return <PetrifyFlashVfx position={event.position} />;
+  }
+
+  return <SplashImpactVfx event={event} />;
+}
+
+function RecoveryVfx({ event }: { event: VisualEvent }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const color = event.kind === 'mana' ? '#60a5fa' : '#65f28f';
+
+  useFrame(({ clock }) => {
+    if (startedAtRef.current === null) {
+      startedAtRef.current = clock.elapsedTime;
+    }
+
+    const age = Math.max(0, clock.elapsedTime - startedAtRef.current);
+    const rise = Math.min(1, age / 1.4);
+    if (groupRef.current) {
+      groupRef.current.position.y = event.position.y + 0.2 + rise * 0.8;
+      groupRef.current.rotation.y += 0.018;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[event.position.x, event.position.y + 0.2, event.position.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.32, 0.56, 36]} />
+        <meshBasicMaterial color={color} transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      {RECOVERY_PARTICLES.map((particle) => (
+        <mesh key={`${particle.angle}-${particle.height}`} position={[
+          Math.cos(particle.angle) * particle.radius,
+          particle.height,
+          Math.sin(particle.angle) * particle.radius,
+        ]}>
+          <sphereGeometry args={[particle.size, 8, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={0.74} depthWrite={false} />
+        </mesh>
+      ))}
+      <pointLight color={color} intensity={0.9} distance={2.8} />
+    </group>
+  );
+}
+
+function PetrifyFlashVfx({ position }: { position: Vec3 }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    const pulse = (Math.sin(clock.elapsedTime * 18) + 1) / 2;
+    if (groupRef.current) {
+      groupRef.current.scale.setScalar(0.9 + pulse * 0.14);
+      groupRef.current.rotation.y += 0.012;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[position.x, position.y + 0.7, position.z]}>
+      <mesh>
+        <dodecahedronGeometry args={[0.62, 0]} />
+        <meshStandardMaterial color="#a8a29e" emissive="#78716c" emissiveIntensity={0.48} roughness={0.72} />
+      </mesh>
+      <mesh scale={1.28}>
+        <sphereGeometry args={[0.62, 16, 16]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.18} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function SplashImpactVfx({ event }: { event: VisualEvent }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const ringMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const radius = event.radius ?? 1.4;
+
+  useFrame(({ clock }) => {
+    if (startedAtRef.current === null) {
+      startedAtRef.current = clock.elapsedTime;
+    }
+
+    const age = Math.max(0, clock.elapsedTime - startedAtRef.current);
+    const progress = Math.min(1, age / 1.1);
+    if (ringRef.current) {
+      ringRef.current.scale.setScalar(0.5 + progress * radius);
+    }
+
+    if (ringMaterialRef.current) {
+      ringMaterialRef.current.opacity = 0.62 * (1 - progress);
+    }
+  });
+
+  return (
+    <group position={[event.position.x, GROUND_Y + 0.08, event.position.z]}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.24, 0.42, 48]} />
+        <meshBasicMaterial ref={ringMaterialRef} color="#7dd3fc" transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <pointLight color="#38bdf8" intensity={0.8} distance={4} />
+    </group>
   );
 }
 

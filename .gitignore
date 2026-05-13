@@ -9,6 +9,7 @@
 /coverage
 /playwright-report
 /test-results
+/baseline-metrics*.json
 
 # database dumps and local backup output
 /backups

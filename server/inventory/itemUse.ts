@@ -3,6 +3,11 @@ import type { ItemUsed, UseItem } from '../../packages/protocol/messages.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
+import {
+  emitPlayerUpdated,
+  makeSocketIoOutbound,
+  makeSocketMessageSink,
+} from '../transport/outboundEvents.js';
 import { applyInventoryItemUse, type ItemUsePlayerUpdate } from './itemRuntime.js';
 
 export type ItemUseResult =
@@ -81,8 +86,8 @@ export function onUseItem(socket: Socket, state: GameState, msg: UseItem, io: Se
   }
 
   if (result.playerUpdated) {
-    io.emit('playerUpdated', result.playerUpdated);
+    emitPlayerUpdated(makeSocketIoOutbound(io), result.playerUpdated);
   }
 
-  socket.emit('msg', result.itemUsed);
+  makeSocketMessageSink(socket).send(result.itemUsed);
 }

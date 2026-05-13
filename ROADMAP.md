@@ -44,7 +44,8 @@ This project should become a browser-first multiplayer game that is easy for hum
 21. Done on 2026-05-13: extracted enemy AI state transitions, inventory stacking/item-use runtime, ground-loot creation, and cast validation/resource rules into focused tested modules.
 22. Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death side effects, and Socket.IO session glue into focused modules; added a room-boundary contract for the future Colyseus migration and deterministic server runtime flow coverage.
 23. Done on 2026-05-13: added a Socket.IO outbound-event adapter for server messages/entity updates, a socket-backed authoritative-room adapter for the future Colyseus boundary, and a tested starter gameplay vertical-slice manifest.
-24. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
+24. Done on 2026-05-13: ported useful VFX patterns into the Vite client, moved more lifecycle/item server emissions behind outbound adapters, and added baseline measurement tooling for bundle, tick cost, latency, and browser FPS.
+25. Continue cleanup on `main`: reduce monolith growth, extract shared contracts/content, and keep moving protocol/server logic out of large compatibility files.
 
 ## Target Stack
 
@@ -114,7 +115,7 @@ tests/
 - Done on 2026-05-12: connected the Vite client to the real Socket.IO server, rendered real players/enemies/projectiles, added left-click movement, right-drag camera, minimal HP/MP/target HUD, and a Fireball hotkey/button path.
 - Done on 2026-05-12: added Vite-side visual smoothing, cooldown/casting/XP/death/inventory/loot HUD loops, and browser/reducer coverage for the new path.
 - Done on 2026-05-13: made Vite the default production frontend path and added clearer movement destination, selected-target, and enemy health presentation.
-- Port only the best R3F/VFX pieces from the current app.
+- Done on 2026-05-13: ported useful R3F/VFX patterns into the Vite client: recovery particles, water splash impact, petrify flash, and richer projectile trails without reusing the old pooled/global VFX manager.
 - Keep visual state separate from authoritative network state.
 - Done in the current Next prototype: Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
 
@@ -128,6 +129,7 @@ tests/
 - Done on 2026-05-13: moved client-message routing, move-intent mutation, target-death orchestration, and Socket.IO session wiring into smaller modules before the Colyseus migration.
 - Done on 2026-05-13: added a deterministic server runtime flow test covering movement, aggro, combat death, loot spawn, and inventory pickup without a browser.
 - Done on 2026-05-13: added an outbound-event adapter and socket-backed room adapter so remaining Socket.IO details can be isolated before introducing Colyseus.
+- Done on 2026-05-13: routed player lifecycle, enemy respawn, item-use, and target-death update emissions through the outbound adapter.
 - Use `server/transport/roomBoundary.ts` as the current migration contract before introducing a Colyseus room implementation.
 - Continue moving remaining socket-emitting combat/effect adapters into smaller tested modules before the Colyseus migration.
 - Persist only stable player/account data, not transient render state.
@@ -135,7 +137,7 @@ tests/
 ### Phase 4: Iterate On Gameplay
 
 - Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, three enemy types, loot, leveling, and respawn, with content/runtime validation tests.
-- Measure latency, tick cost, bundle size, and browser FPS before scaling content.
+- Done on 2026-05-13: added `pnpm run measure:baseline` to report Vite bundle size, deterministic server tick cost, Socket.IO handshake/game-state latency, and optional browser FPS.
 - Expand content only after protocol and simulation tests are stable.
 
 ## Agent Rules

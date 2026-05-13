@@ -34,6 +34,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:vite": "playwright test -c playwright.vite.config.ts",
+    "measure:baseline": "node scripts/measure-baseline.mjs",
     "test:watch": "vitest",
     "bench": "vitest bench",
     "generate-docs": "tsx generate-project-doc.ts"

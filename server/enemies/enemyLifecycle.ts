@@ -4,6 +4,7 @@ import { hash, rng } from '../../packages/sim/combatMath.js';
 import type { Enemy } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import { emitEnemyUpdated, makeSocketIoOutbound } from '../transport/outboundEvents.js';
 
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
 
@@ -73,6 +74,7 @@ export function respawnDeadEnemies(
   now: number = Date.now(),
 ): number {
   let respawned = 0;
+  const outbound = makeSocketIoOutbound(io);
 
   for (const [enemyId, enemy] of Object.entries(state.enemies)) {
     if (enemy.isAlive || enemy.deathTimeTs === undefined) {
@@ -90,7 +92,7 @@ export function respawnDeadEnemies(
     enemy.statusEffects = [];
 
     spatial.insert(enemyId, { x: enemy.position.x, z: enemy.position.z });
-    io.emit('enemyUpdated', enemy);
+    emitEnemyUpdated(outbound, enemy);
     respawned += 1;
   }
 

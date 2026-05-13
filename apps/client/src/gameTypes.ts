@@ -90,6 +90,17 @@ export type GroundLootStack = {
   items: ItemDrop[];
 };
 
+export type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify';
+
+export type VisualEvent = {
+  id: string;
+  kind: VisualEventKind;
+  position: Vec3;
+  amount?: number;
+  radius?: number;
+  createdAt: number;
+};
+
 export type GameClientState = {
   connectionState: ConnectionState;
   message: string;
@@ -100,6 +111,7 @@ export type GameClientState = {
   selectedTargetId: string | null;
   targetWorldPos: Vec3 | null;
   casts: Record<string, VisibleCast>;
+  visualEvents: Record<string, VisualEvent>;
   inventory: InventorySlot[];
   maxInventorySlots: number;
   combatLog: CombatLine[];
