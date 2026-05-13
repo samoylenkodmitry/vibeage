@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type VecXZ } from '../../../packages/protocol/messages';
@@ -24,6 +24,7 @@ type WorldSceneProps = {
 export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
+  const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
 
   return (
     <Canvas
@@ -39,7 +40,12 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       <WorldGround onMove={onMove} />
       <TargetDestination target={state.targetWorldPos} />
       {Object.values(state.players).map((player) => (
-        <PlayerMarker key={player.id} player={player} isSelf={player.id === state.myPlayerId} />
+        <PlayerMarker
+          key={player.id}
+          player={player}
+          isSelf={player.id === state.myPlayerId}
+          presentationRef={player.id === state.myPlayerId ? cameraAnchorRef : undefined}
+        />
       ))}
       {Object.values(state.enemies).map((enemy) => (
         <EnemyMarker
@@ -55,7 +61,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       {Object.values(state.casts).map((cast) => (
         <CastMarker key={cast.snapshot.castId} cast={cast} />
       ))}
-      <CameraRig focus={focus} />
+      <CameraRig focus={focus} presentationFocusRef={cameraAnchorRef} />
     </Canvas>
   );
 }
@@ -83,7 +89,15 @@ function WorldGround({ onMove }: { onMove: (target: VecXZ) => void }) {
   );
 }
 
-function PlayerMarker({ player, isSelf }: { player: PlayerEntity; isSelf: boolean }) {
+function PlayerMarker({
+  player,
+  isSelf,
+  presentationRef,
+}: {
+  player: PlayerEntity;
+  isSelf: boolean;
+  presentationRef?: MutableRefObject<THREE.Vector3 | null>;
+}) {
   const color = player.isAlive ? (isSelf ? '#75f5c8' : '#8bb5ff') : '#64748b';
   const height = isSelf ? 1.8 : 1.55;
 
@@ -92,6 +106,7 @@ function PlayerMarker({ player, isSelf }: { player: PlayerEntity; isSelf: boolea
       position={{ x: player.position.x, y: GROUND_Y + height / 2, z: player.position.z }}
       rotationY={player.rotation?.y ?? 0}
       response={isSelf ? 16 : 10}
+      presentationRef={presentationRef}
     >
       <mesh castShadow>
         <capsuleGeometry args={[0.48, height - 0.8, 8, 16]} />
@@ -223,14 +238,29 @@ function SmoothedEntityGroup({
   rotationY = 0,
   response,
   children,
+  presentationRef,
 }: {
   position: Vec3;
   rotationY?: number;
   response: number;
   children: ReactNode;
+  presentationRef?: MutableRefObject<THREE.Vector3 | null>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
+
+  useEffect(() => {
+    const group = groupRef.current;
+    if (presentationRef && group) {
+      presentationRef.current = group.position;
+    }
+
+    return () => {
+      if (presentationRef?.current === group?.position) {
+        presentationRef.current = null;
+      }
+    };
+  }, [presentationRef]);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -253,7 +283,13 @@ function SmoothedEntityGroup({
   return <group ref={groupRef}>{children}</group>;
 }
 
-function CameraRig({ focus }: { focus: Vec3 }) {
+function CameraRig({
+  focus,
+  presentationFocusRef,
+}: {
+  focus: Vec3;
+  presentationFocusRef: MutableRefObject<THREE.Vector3 | null>;
+}) {
   const { camera, gl } = useThree();
   const angleRef = useRef(Math.PI * 0.82);
   const pitchRef = useRef(0.46);
@@ -305,8 +341,13 @@ function CameraRig({ focus }: { focus: Vec3 }) {
 
   useFrame((_, delta) => {
     const distance = 24;
-    const targetFocus = targetVector({ x: focus.x, y: GROUND_Y + 1.4, z: focus.z });
-    focusRef.current.lerp(targetFocus, 1 - Math.exp(-12 * delta));
+    const presentationFocus = presentationFocusRef.current;
+    const targetFocus = targetVector({
+      x: presentationFocus?.x ?? focus.x,
+      y: GROUND_Y + 1.4,
+      z: presentationFocus?.z ?? focus.z,
+    });
+    focusRef.current.lerp(targetFocus, 1 - Math.exp(-8 * delta));
 
     const centerX = focusRef.current.x;
     const centerY = focusRef.current.y;
