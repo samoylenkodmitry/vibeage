@@ -3,8 +3,12 @@ import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import type { VecXZ } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
-
-import { Server } from 'socket.io';
+import {
+  emitEnemyUpdated,
+  emitPlayerUpdated,
+  emitServerMessage,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 
 type EffectDirection = VecXZ & { y: number };
 
@@ -12,7 +16,7 @@ export class EffectManager {
   private effects: Record<string, EffectEntity> = {};
   
   constructor(
-    private io: Server,
+    private outbound: OutboundEventSink,
     private state: GameState
   ) {}
   
@@ -63,7 +67,7 @@ export class EffectManager {
               } 
               // Handle InstantHit
               else if (result.type === 'InstantHit') {
-                  this.io.emit('msg', result);
+                  emitServerMessage(this.outbound, result);
                   (result.hitIds || []).forEach(hitId => {
                       if (this.state.enemies[hitId]) {
                           updatedEnemies.add(hitId);
@@ -82,11 +86,11 @@ export class EffectManager {
       
       // Send updates for all affected entities
       updatedEnemies.forEach(enemyId => {
-          this.io.emit('enemyUpdated', this.state.enemies[enemyId]);
+          emitEnemyUpdated(this.outbound, this.state.enemies[enemyId]);
       });
       
       updatedPlayers.forEach(playerId => {
-          this.io.emit('playerUpdated', this.state.players[playerId]);
+          emitPlayerUpdated(this.outbound, this.state.players[playerId]);
       });
   }
 }

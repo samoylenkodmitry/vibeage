@@ -25,6 +25,7 @@ import { advanceAll } from './movement/worldMovement.js';
 import { collectDeltas, forgetPositionDelta } from './movement/snapshotDeltas.js';
 import { handleTargetDeath } from './combat/targetDeath.js';
 import { createWorldCombatBridge, handleClientMessage } from './world/clientMessageRouter.js';
+import { emitBatchUpdate, makeSocketIoOutbound, type OutboundEventSink } from './transport/outboundEvents.js';
 
 const TICK = 1000 / 30;
 const SNAP_HZ = 10;
@@ -38,11 +39,12 @@ const PERSISTENCE_INTERVAL_MS = 30_000;
 export function initWorld(io: Server, zoneManager: ZoneManager) {
   const state: GameState = createGameState();
 
-  const effectManager = new EffectManager(io, state);
+  const outbound = makeSocketIoOutbound(io);
+  const effectManager = new EffectManager(outbound, state);
   const spatial = new SpatialHashGrid();
   spawnInitialEnemies(state, spatial, zoneManager);
 
-  startWorldLoop(io, state, spatial, effectManager);
+  startWorldLoop(io, state, spatial, effectManager, outbound);
   startPersistenceLoop(state);
 
   return createWorldApi(io, state, spatial);
@@ -53,6 +55,7 @@ function startWorldLoop(
   state: GameState,
   spatial: SpatialHashGrid,
   effectManager: EffectManager,
+  outbound: OutboundEventSink,
 ): void {
   let snapAccumulator = 0;
 
@@ -68,7 +71,7 @@ function startWorldLoop(
     if (snapAccumulator >= 30 / SNAP_HZ) {
       const msgs = collectDeltas(state, now, new Set());
       if (msgs.length > 0) {
-        io.emit('msg', { type: 'BatchUpdate', updates: msgs });
+        emitBatchUpdate(outbound, msgs);
       }
       snapAccumulator = 0;
     }
@@ -186,6 +189,6 @@ export function broadcastSnaps(io: Server, state: GameState): void {
     const snapItems = collectDeltas(state, now, playersToForceInclude);
 
     if (snapItems.length > 0) {
-        io.emit('msg', { type: 'BatchUpdate', updates: snapItems });
+        emitBatchUpdate(makeSocketIoOutbound(io), snapItems);
     }
 }

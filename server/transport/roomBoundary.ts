@@ -40,9 +40,25 @@ export const SOCKET_SESSION_EVENTS = {
 export type AuthoritativeRoomCommand = ClientMessage;
 export type AuthoritativeRoomEvent = ServerMessage;
 
+export interface AuthoritativeRoomClient {
+  emit(event: string, payload: unknown): unknown;
+}
+
+export interface AuthoritativeRoomSocket extends AuthoritativeRoomClient {
+  id: string;
+}
+
 export interface AuthoritativeRoomPort {
-  joinClient(socketId: string, playerName: string): Promise<{ playerId: string }>;
+  joinClient(
+    socketId: string,
+    playerName: string,
+    client?: AuthoritativeRoomClient,
+  ): Promise<{ playerId: string }>;
   leaveClient(socketId: string): Promise<string | undefined>;
-  dispatchCommand(socketId: string, command: AuthoritativeRoomCommand): void;
+  dispatchCommand(
+    socketId: string,
+    command: AuthoritativeRoomCommand,
+    client?: AuthoritativeRoomClient,
+  ): void;
   getStateSnapshot(): GameState;
 }
