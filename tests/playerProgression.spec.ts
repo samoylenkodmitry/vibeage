@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import type { SkillId } from '../packages/content/skills';
 import { onLearnSkill } from '../server/skillHandler';
 import { learnNewSkill } from '../server/skillManager';
+import type { PlayerState } from '../shared/types';
 import {
   normalizeAvailableSkillPoints,
   normalizeSkillShortcuts,
@@ -80,14 +81,30 @@ describe('skill learning state sync', () => {
   });
 
   test('sends the learning player a full skill update after learning a skill', () => {
-    const player: TestPlayer = {
+    const player: PlayerState = {
       id: 'player1',
       socketId: 'socket1',
+      name: 'Tester',
+      position: { x: 0, y: 0.5, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      health: 100,
+      maxHealth: 100,
+      mana: 100,
+      maxMana: 100,
       level: 1,
       className: 'mage',
       unlockedSkills: [],
       skillShortcuts: starterShortcuts(),
       availableSkillPoints: 1,
+      skillCooldownEndTs: {},
+      statusEffects: [],
+      experience: 0,
+      experienceToNextLevel: 100,
+      castingSkill: null,
+      castingProgressMs: 0,
+      isAlive: true,
+      inventory: [],
+      maxInventorySlots: 20,
     };
     const socket = {
       id: 'socket1',

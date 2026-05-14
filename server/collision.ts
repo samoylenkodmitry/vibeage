@@ -1,6 +1,6 @@
 import { WORLD_SETTINGS } from '../packages/content/world.js';
 import { VecXZ } from '../shared/types.js';
-import { debug, LOG_CATEGORIES } from './logger';
+import { debug, LOG_CATEGORIES } from './logger.js';
 
 // Constants for the game world
 const WORLD_BOUNDS = {

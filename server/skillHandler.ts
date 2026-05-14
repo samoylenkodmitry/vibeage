@@ -1,5 +1,5 @@
 import type { SkillId } from '../packages/content/skills.js';
-import type { LearnSkill, SetSkillShortcut, StarterProgressState } from '../packages/protocol/messages.js';
+import type { LearnSkill, SetSkillShortcut } from '../packages/protocol/messages.js';
 import type { PlayerState } from '../shared/types.js';
 
 import { debug, LOG_CATEGORIES, warn } from './logger.js';
@@ -11,19 +11,8 @@ import {
 } from './transport/outboundEvents.js';
 import { emitStarterProgressUpdate, syncPlayerStarterProgress } from './progression/starterPath.js';
 
-interface SkillPlayer {
-  id: string;
-  socketId: string;
-  level: number;
-  className: string;
-  unlockedSkills: SkillId[];
-  skillShortcuts: (SkillId | null)[];
-  availableSkillPoints: number;
-  starterProgress?: StarterProgressState;
-}
-
 interface GameState {
-  players: Record<string, SkillPlayer>;
+  players: Record<string, PlayerState>;
 }
 
 type SkillClient = { id: string };
@@ -79,7 +68,7 @@ export function onLearnSkill(
   }
 
   debug(LOG_CATEGORIES.SKILL, `Player ${player.id} learned skill: ${msg.skillId}`);
-  const starterProgress = syncPlayerStarterProgress(player as PlayerState);
+  const starterProgress = syncPlayerStarterProgress(player);
 
   sendSkillLearned(direct, msg.skillId, player.availableSkillPoints);
   emitPlayerUpdated(outbound, {
@@ -88,7 +77,7 @@ export function onLearnSkill(
     skillShortcuts: player.skillShortcuts,
     availableSkillPoints: player.availableSkillPoints,
   });
-  emitStarterProgressUpdate(outbound, player as PlayerState, starterProgress.rewardGranted);
+  emitStarterProgressUpdate(outbound, player, starterProgress.rewardGranted);
 }
 
 /**
@@ -139,7 +128,7 @@ export function onSetSkillShortcut(
   }
 }
 
-function findPlayerBySocket(state: GameState, socketId: string): SkillPlayer | undefined {
+function findPlayerBySocket(state: GameState, socketId: string): PlayerState | undefined {
   return Object.values(state.players).find((player) => player.socketId === socketId);
 }
 
@@ -154,7 +143,7 @@ function sendSkillLearned(direct: DirectMessageSink, skillId: SkillId, remaining
 function emitShortcutChange(
   direct: DirectMessageSink,
   outbound: OutboundEventSink,
-  player: SkillPlayer,
+  player: PlayerState,
   slotIndex: number,
   skillId: SkillId | null,
 ): void {

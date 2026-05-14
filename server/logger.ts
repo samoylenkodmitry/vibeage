@@ -19,9 +19,11 @@ export const LOG_CATEGORIES = {
   SKILL: 'skill',
   NETWORK: 'network',
   SYSTEM: 'system'
-};
+} as const;
 
-const DEFAULT_ENABLED_CATEGORIES = [
+export type LogCategory = typeof LOG_CATEGORIES[keyof typeof LOG_CATEGORIES];
+
+const DEFAULT_ENABLED_CATEGORIES: LogCategory[] = [
   LOG_CATEGORIES.DAMAGE,
   LOG_CATEGORIES.ENEMY,
   LOG_CATEGORIES.PLAYER,
@@ -46,7 +48,7 @@ const ENABLED_CATEGORIES = new Set(configuredCategories.length > 0
  * @param message The message to log
  * @param args Optional additional args to log
  */
-export function debug(category: string, message: string, ...args: unknown[]) {
+export function debug(category: LogCategory, message: string, ...args: unknown[]) {
   if (DEBUG && ENABLED_CATEGORIES.has(category)) {
     console.log(`[${category.toUpperCase()}] ${message}`, ...args);
   }
@@ -60,7 +62,7 @@ export const log = debug;
  * @param message The message to log
  * @param args Optional additional args to log
  */
-export function warn(category: string, message: string, ...args: unknown[]) {
+export function warn(category: LogCategory, message: string, ...args: unknown[]) {
   console.warn(`[${category.toUpperCase()}] WARNING: ${message}`, ...args);
 }
 
@@ -70,6 +72,6 @@ export function warn(category: string, message: string, ...args: unknown[]) {
  * @param message The message to log
  * @param args Optional additional args to log
  */
-export function error(category: string, message: string, ...args: unknown[]) {
+export function error(category: LogCategory, message: string, ...args: unknown[]) {
   console.error(`[${category.toUpperCase()}] ERROR: ${message}`, ...args);
 }
