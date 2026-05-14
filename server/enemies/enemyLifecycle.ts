@@ -1,4 +1,5 @@
 import type { ZoneManager } from '../../packages/content/zones.js';
+import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import { hash, rng } from '../../packages/sim/combatMath.js';
 import type { Enemy } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
@@ -6,6 +7,10 @@ import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
+
+export type SpawnInitialEnemiesOptions = {
+  maxEnemies?: number;
+};
 
 export function createEnemy(
   type: string,
@@ -44,12 +49,15 @@ export function spawnInitialEnemies(
   state: GameState,
   spatial: SpatialHashGrid,
   zoneManager: ZoneManager,
+  options: SpawnInitialEnemiesOptions = {},
 ): number {
+  const maxEnemies = options.maxEnemies ?? WORLD_SPAWN_BUDGETS.maxInitialEnemySpawns;
   let spawned = 0;
 
   for (const zone of zoneManager.getZones()) {
     for (const mobConfig of zoneManager.getMobsToSpawn(zone.id)) {
-      for (let index = 0; index < mobConfig.count; index += 1) {
+      const spawnCount = Math.min(mobConfig.count, maxEnemies - spawned);
+      for (let index = 0; index < spawnCount; index += 1) {
         const position = zoneManager.getRandomPositionInZone(zone.id);
         if (!position) {
           continue;
@@ -59,6 +67,10 @@ export function spawnInitialEnemies(
         state.enemies[enemy.id] = enemy;
         spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
         spawned += 1;
+      }
+
+      if (spawned >= maxEnemies) {
+        return spawned;
       }
     }
   }

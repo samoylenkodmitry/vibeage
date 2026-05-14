@@ -11,7 +11,7 @@ It currently enforces:
 - Vitest unit/server tests.
 - Server and frontend production builds.
 - Playwright browser smoke test.
-- Performance budget smoke for bundle size, deterministic server tick cost, and Colyseus room join/game-state latency in CI.
+- Performance budget smoke for bundle size, deterministic server tick cost, configured spawn scale, and Colyseus room join/game-state latency in CI.
 - GitHub secret scanning via gitleaks in CI.
 - Dependabot config is kept in Git, but version-update PRs are currently disabled with `open-pull-requests-limit: 0` to avoid dependency noise during runtime migration work.
 
@@ -40,5 +40,6 @@ The performance budget smoke is configured in `quality/performance-budgets.json`
 The latest local baseline sample is recorded in `quality/performance-baseline.json`.
 
 - CI runs `BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 pnpm run measure:baseline` after the frontend build.
-- Local full measurement is `pnpm run measure:check`, which also samples browser FPS.
-- Browser FPS is intentionally skipped in CI because headless CI rendering is noisy.
+- Local enforced measurement is `pnpm run measure:check`, using the same stable non-browser subset as CI.
+- Browser FPS is available through `pnpm run measure:browser`; it is diagnostic because headless rendering is noisy.
+- Spawn-scale budgets cover spawned enemies, configured maximum initial enemy spawns, maximum enemies per zone, and zone count.

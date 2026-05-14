@@ -124,21 +124,39 @@ describe('player session hydration', () => {
 });
 
 describe('active player session replacement', () => {
-  test('replaces an already active persisted player without leaving stale spatial entries', () => {
+  test('inserts a first active player into the spatial index', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const player = makePlayer('player1', 'socket1');
+    player.position = { x: 11, y: 0.5, z: -3 };
+
+    upsertActivePlayerSession(state, spatial, player);
+
+    expect(state.players.player1).toBe(player);
+    expect(spatial.queryCircle({ x: 11, z: -3 }, 1)).toContain('player1');
+  });
+
+  test('hands off an already active persisted player without losing live state', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();
     const oldPlayer = makePlayer('player1', 'old-socket');
     oldPlayer.position = { x: 30, y: 0.5, z: 30 };
+    oldPlayer.health = 42;
+    oldPlayer.inventory = [{ itemId: 'health_potion', quantity: 1 }];
     const newPlayer = makePlayer('player1', 'new-socket');
     newPlayer.position = { x: -8, y: 0.5, z: 4 };
+    newPlayer.health = 100;
 
     upsertActivePlayerSession(state, spatial, oldPlayer);
-    upsertActivePlayerSession(state, spatial, newPlayer);
+    const activePlayer = upsertActivePlayerSession(state, spatial, newPlayer);
 
+    expect(activePlayer).toBe(oldPlayer);
     expect(state.players.player1.socketId).toBe('new-socket');
+    expect(state.players.player1.health).toBe(42);
+    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
     expect(findPlayerIdBySocket(state, 'old-socket')).toBeUndefined();
-    expect(spatial.queryCircle({ x: 30, z: 30 }, 1)).not.toContain('player1');
-    expect(spatial.queryCircle({ x: -8, z: 4 }, 1)).toContain('player1');
+    expect(spatial.queryCircle({ x: 30, z: 30 }, 1)).toContain('player1');
+    expect(spatial.queryCircle({ x: -8, z: 4 }, 1)).not.toContain('player1');
   });
 });
 

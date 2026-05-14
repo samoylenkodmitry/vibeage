@@ -3,19 +3,13 @@ import { ITEMS } from './items.js';
 import { LOOT_TABLES } from './lootTables.js';
 import { SKILLS } from './skills.js';
 import { WORLD_SETTINGS } from './world.js';
+import { getWorldSpawnBudgetReport, type WorldSpawnBudgetReport } from './zoneSpawnBudget.js';
 import { GAME_ZONES } from './zones.js';
-
-export const WORLD_CONTENT_BUDGETS = {
-  maxInitialEnemySpawns: 260,
-} as const;
 
 export type WorldContentValidation = {
   ok: boolean;
   issues: string[];
-  spawnBudget: {
-    maxInitialEnemySpawns: number;
-    configuredMaxInitialEnemySpawns: number;
-  };
+  spawnBudget: WorldSpawnBudgetReport;
 };
 
 const finiteNumber = z.number().refine(Number.isFinite, 'must be finite');
@@ -133,20 +127,27 @@ export function validateWorldContent(): WorldContentValidation {
   collectZoneIssues(issues);
   collectLootIssues(issues);
 
-  const configuredMaxInitialEnemySpawns = getConfiguredMaxInitialEnemySpawns();
-  if (configuredMaxInitialEnemySpawns > WORLD_CONTENT_BUDGETS.maxInitialEnemySpawns) {
+  const spawnBudget = getWorldSpawnBudgetReport();
+  if (spawnBudget.configuredMaxInitialEnemySpawns > spawnBudget.maxInitialEnemySpawns) {
     issues.push(
-      `configured max initial enemies ${configuredMaxInitialEnemySpawns} exceeds budget ${WORLD_CONTENT_BUDGETS.maxInitialEnemySpawns}`,
+      `configured max initial enemies ${spawnBudget.configuredMaxInitialEnemySpawns} exceeds budget ${spawnBudget.maxInitialEnemySpawns}`,
+    );
+  }
+  if (spawnBudget.zoneCount > spawnBudget.maxZoneCount) {
+    issues.push(
+      `configured zones ${spawnBudget.zoneCount} exceeds budget ${spawnBudget.maxZoneCount}`,
+    );
+  }
+  if (spawnBudget.configuredMaxEnemiesPerZone > spawnBudget.maxEnemiesPerZone) {
+    issues.push(
+      `configured max enemies per zone ${spawnBudget.configuredMaxEnemiesPerZone} exceeds budget ${spawnBudget.maxEnemiesPerZone}`,
     );
   }
 
   return {
     ok: issues.length === 0,
     issues,
-    spawnBudget: {
-      maxInitialEnemySpawns: WORLD_CONTENT_BUDGETS.maxInitialEnemySpawns,
-      configuredMaxInitialEnemySpawns,
-    },
+    spawnBudget,
   };
 }
 
@@ -222,11 +223,4 @@ function collectSchemaIssues(
       issues.push(`${label}: ${issue.path.join('.') || '<root>'} ${issue.message}`);
     }
   }
-}
-
-function getConfiguredMaxInitialEnemySpawns(): number {
-  return GAME_ZONES.reduce(
-    (zoneSum, zone) => zoneSum + zone.mobs.reduce((mobSum, mob) => mobSum + mob.maxCount, 0),
-    0,
-  );
 }

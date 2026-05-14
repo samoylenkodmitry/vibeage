@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { ZoneManager } from '../packages/content/zones.js';
+import { getWorldSpawnBudgetReport } from '../packages/content/zoneSpawnBudget.js';
 import { spawnInitialEnemies } from '../server/enemies/enemyLifecycle.js';
 import { createGameState } from '../server/gameState.js';
 import { advanceAll } from '../server/movement/worldMovement.js';
@@ -10,7 +11,9 @@ const tickMs = Number(process.env.BASELINE_TICK_MS ?? 1000 / 30);
 const ticks = Number(process.env.BASELINE_TICKS ?? 600);
 const state = createGameState();
 const spatial = new SpatialHashGrid();
-const spawnedEnemies = spawnInitialEnemies(state, spatial, new ZoneManager());
+const zoneManager = new ZoneManager();
+const spawnBudget = getWorldSpawnBudgetReport(zoneManager.getZones());
+const spawnedEnemies = spawnInitialEnemies(state, spatial, zoneManager);
 const player = createTransientPlayer('baseline-socket', 'Baseline');
 
 state.players[player.id] = player;
@@ -25,6 +28,9 @@ const elapsedMs = performance.now() - startedAt;
 console.log(JSON.stringify({
   ticks,
   tickMs,
+  zoneCount: spawnBudget.zoneCount,
+  configuredMaxInitialEnemySpawns: spawnBudget.configuredMaxInitialEnemySpawns,
+  configuredMaxEnemiesPerZone: spawnBudget.configuredMaxEnemiesPerZone,
   spawnedEnemies,
   totalMs: round(elapsedMs),
   averageTickMs: round(elapsedMs / ticks),

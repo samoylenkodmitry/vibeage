@@ -3,9 +3,12 @@ import { ZoneManager } from '../../packages/content/zones.js';
 import { initWorld } from '../world.js';
 import { createSocketBackedAuthoritativeRoom } from './authoritativeRoomAdapter.js';
 import { ColyseusAuthoritativeRoomAdapter, makeColyseusOutbound } from './colyseusRoomAdapter.js';
-import { sanitizePlayerForPublic } from './clientState.js';
-import { makeClientDirectSink, sendClientInitialSnapshot } from './clientSnapshot.js';
-import { parseWorldRoomJoinOptions, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import {
+  joinWorldRoomClient,
+  leaveWorldRoomClient,
+  sendWorldRoomClientSnapshot,
+} from './worldRoomLifecycle.js';
 
 const MAX_CLIENTS = 200;
 
@@ -32,22 +35,14 @@ export class VibeAgeRoom extends Room {
   }
 
   async onJoin(client: Client, options?: unknown): Promise<void> {
-    const result = await this.adapter.handleJoin(client, parseWorldRoomJoinOptions(options));
-    const player = this.world.getGameState().players[result.playerId];
-    if (player) {
-      this.broadcast(SOCKET_SESSION_EVENTS.playerJoined, sanitizePlayerForPublic(player), { except: client });
-    }
-    this.sendClientSnapshot(client);
+    await joinWorldRoomClient<Client>(this, this.adapter, this.world, client, options);
   }
 
   async onLeave(client: Client): Promise<void> {
-    const playerId = await this.adapter.handleLeave(client);
-    if (playerId) {
-      this.broadcast(SOCKET_SESSION_EVENTS.playerLeft, playerId);
-    }
+    await leaveWorldRoomClient<Client>(this, this.adapter, client);
   }
 
   private sendClientSnapshot(client: Client): void {
-    sendClientInitialSnapshot(client, this.world.getGameState(), makeClientDirectSink(client));
+    sendWorldRoomClientSnapshot(this.world, client);
   }
 }

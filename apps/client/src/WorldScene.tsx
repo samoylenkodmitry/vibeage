@@ -57,7 +57,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
       <ambientLight intensity={0.62} />
       <directionalLight position={[24, 32, 18]} intensity={1.4} castShadow />
-      <WorldGround onMove={onMove} onClearTarget={() => onSelectTarget(null)} />
+      <WorldGround onMove={onMove} />
       <ZoneLandmarks />
       <TargetDestinationMarker target={state.targetWorldPos} />
       {Object.values(state.players).map((player) => (
@@ -92,10 +92,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
 
 function WorldGround({
   onMove,
-  onClearTarget,
 }: {
   onMove: (target: VecXZ) => void;
-  onClearTarget: () => void;
 }) {
   const grid = useMemo(
     () => new THREE.GridHelper(WORLD_SETTINGS.groundSize, WORLD_SETTINGS.gridDivisions, '#6ee7d8', '#253f47'),
@@ -113,7 +111,6 @@ function WorldGround({
       return;
     }
 
-    onClearTarget();
     onMove({ x: point.x, z: point.z });
   }
 
