@@ -22,6 +22,7 @@ const serverTests = [
   "tests/playerProgression.spec.ts",
   "tests/playerSession.spec.ts",
   "tests/runtimeMetrics.spec.ts",
+  "tests/scenarioFixtures.spec.ts",
   "tests/serverRuntimeFlow.spec.ts",
   "tests/starterPath.spec.ts",
   "tests/transportBoundary.spec.ts",
