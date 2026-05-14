@@ -43,6 +43,11 @@ export const STABLE_PLAYER_STATE_FIELDS = [
   'starterProgress',
 ] as const satisfies ReadonlyArray<keyof PlayerState>;
 
+export const PLAYER_IDENTITY_STATE_FIELDS = [
+  'id',
+  'name',
+] as const satisfies ReadonlyArray<keyof PlayerState>;
+
 export const TRANSIENT_PLAYER_STATE_FIELDS = [
   'socketId',
   'rotation',
@@ -62,7 +67,13 @@ export const TRANSIENT_PLAYER_STATE_FIELDS = [
   'posHistory',
   'stats',
   'maxInventorySlots',
-] as const;
+] as const satisfies ReadonlyArray<keyof PlayerState>;
+
+export const PLAYER_STATE_PERSISTENCE_POLICY = {
+  stable: STABLE_PLAYER_STATE_FIELDS,
+  identity: PLAYER_IDENTITY_STATE_FIELDS,
+  transient: TRANSIENT_PLAYER_STATE_FIELDS,
+} as const;
 
 export type { StablePlayerPersistenceData } from './persistence/playerRepository.js';
 

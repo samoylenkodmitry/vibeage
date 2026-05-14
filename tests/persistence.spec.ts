@@ -38,6 +38,8 @@ vi.mock('../server/db', () => ({
 
 const {
   PERSISTED_PLAYER_COLUMNS,
+  PLAYER_IDENTITY_STATE_FIELDS,
+  PLAYER_STATE_PERSISTENCE_POLICY,
   PLAYER_SESSION_COLUMNS,
   STABLE_PLAYER_STATE_FIELDS,
   TRANSIENT_PLAYER_STATE_FIELDS,
@@ -124,13 +126,6 @@ describe('stable persistence contract', () => {
     }
   });
 
-  test('keeps the stable persistence audit separate from transient runtime state', () => {
-    const transientFields = new Set<string>(TRANSIENT_PLAYER_STATE_FIELDS);
-    const overlap = STABLE_PLAYER_STATE_FIELDS.filter((field) => transientFields.has(field));
-
-    expect(overlap).toEqual([]);
-  });
-
   test('updates player rows by id through Kysely', async () => {
     await persistPlayer(makePlayer({ id: 'player-db-id' }));
 
@@ -169,5 +164,25 @@ describe('stable persistence contract', () => {
     await recordServerEvent('player_disconnect', 'player1', {});
 
     expect(dbMock.insertInto).not.toHaveBeenCalled();
+  });
+});
+
+describe('player persistence field policy', () => {
+  test('keeps stable, identity, and transient field groups separate', () => {
+    const policyGroups = Object.values(PLAYER_STATE_PERSISTENCE_POLICY) as ReadonlyArray<readonly string[]>;
+    const allPolicyFields = policyGroups.flat();
+    const uniquePolicyFields = new Set(allPolicyFields);
+
+    expect(uniquePolicyFields.size).toBe(allPolicyFields.length);
+  });
+
+  test('classifies every current player state field as stable, identity, or transient', () => {
+    const auditedFields = new Set<string>([
+      ...STABLE_PLAYER_STATE_FIELDS,
+      ...PLAYER_IDENTITY_STATE_FIELDS,
+      ...TRANSIENT_PLAYER_STATE_FIELDS,
+    ]);
+
+    expect(Object.keys(makePlayer()).filter((field) => !auditedFields.has(field))).toEqual([]);
   });
 });

@@ -20,12 +20,19 @@ import {
   WorldEventVfx,
 } from './SceneVfx';
 import { ZoneLandmarks } from './ZoneLandmarks';
+import {
+  applyCameraDragDelta,
+  CAMERA_FOCUS_RESPONSE,
+  CAMERA_POSITION_RESPONSE,
+  getCameraOrbitPosition,
+  hasMeaningfulCameraFocusDelta,
+  smoothingAlpha,
+} from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
 
 const GROUND_Y = 0;
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND_Y);
 const pointerWorldPoint = new THREE.Vector3();
-const reusableTargetVector = new THREE.Vector3();
 
 type WorldSceneProps = {
   state: GameClientState;
@@ -225,6 +232,7 @@ function SmoothedEntityGroup({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
+  const targetRef = useRef(new THREE.Vector3());
 
   useEffect(() => {
     const group = groupRef.current;
@@ -252,8 +260,8 @@ function SmoothedEntityGroup({
       return;
     }
 
-    const alpha = 1 - Math.exp(-response * delta);
-    group.position.lerp(targetVector(position), alpha);
+    const alpha = smoothingAlpha(response, delta);
+    group.position.lerp(targetRef.current.set(position.x, position.y, position.z), alpha);
     group.rotation.y = lerpAngle(group.rotation.y, rotationY, alpha);
   });
 
@@ -272,6 +280,8 @@ function CameraRig({
   const pitchRef = useRef(0.46);
   const draggingRef = useRef(false);
   const focusRef = useRef(new THREE.Vector3(focus.x, GROUND_Y + 1.4, focus.z));
+  const focusTargetRef = useRef(new THREE.Vector3(focus.x, GROUND_Y + 1.4, focus.z));
+  const cameraTargetRef = useRef(new THREE.Vector3());
   const lastPointerRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -291,13 +301,17 @@ function CameraRig({
         return;
       }
 
-      angleRef.current -= (event.clientX - lastPointerRef.current.x) * 0.012;
-      pitchRef.current = THREE.MathUtils.clamp(
-        pitchRef.current + (event.clientY - lastPointerRef.current.y) * 0.01,
-        0.14,
-        0.95,
+      const orbit = applyCameraDragDelta(
+        { angle: angleRef.current, pitch: pitchRef.current },
+        {
+          x: event.clientX - lastPointerRef.current.x,
+          y: event.clientY - lastPointerRef.current.y,
+        },
       );
+      angleRef.current = orbit.angle;
+      pitchRef.current = orbit.pitch;
       lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      event.preventDefault();
     };
     const onPointerUp = () => {
       draggingRef.current = false;
@@ -317,43 +331,32 @@ function CameraRig({
   }, [gl]);
 
   useFrame((_, delta) => {
-    const distance = 24;
     const presentationFocus = presentationFocusRef.current;
-    const targetFocus = targetVector({
-      x: presentationFocus?.x ?? focus.x,
-      y: GROUND_Y + 1.4,
-      z: presentationFocus?.z ?? focus.z,
-    });
-    focusRef.current.lerp(targetFocus, 1 - Math.exp(-8 * delta));
-
-    const centerX = focusRef.current.x;
-    const centerY = focusRef.current.y;
-    const centerZ = focusRef.current.z;
-    const nextX = centerX - Math.sin(angleRef.current) * Math.cos(pitchRef.current) * distance;
-    const nextY = centerY + Math.sin(pitchRef.current) * distance;
-    const nextZ = centerZ - Math.cos(angleRef.current) * Math.cos(pitchRef.current) * distance;
-    const alpha = 1 - Math.exp(-10 * delta);
-
-    camera.position.set(
-      lerp(camera.position.x, nextX, alpha),
-      lerp(camera.position.y, nextY, alpha),
-      lerp(camera.position.z, nextZ, alpha),
+    focusTargetRef.current.set(
+      presentationFocus?.x ?? focus.x,
+      GROUND_Y + 1.4,
+      presentationFocus?.z ?? focus.z,
     );
-    camera.lookAt(centerX, centerY, centerZ);
+    if (hasMeaningfulCameraFocusDelta(focusRef.current, focusTargetRef.current)) {
+      focusRef.current.lerp(focusTargetRef.current, smoothingAlpha(CAMERA_FOCUS_RESPONSE, delta));
+    }
+
+    const targetPosition = getCameraOrbitPosition(focusRef.current, {
+      angle: angleRef.current,
+      pitch: pitchRef.current,
+    });
+    const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
+    camera.position.lerp(
+      cameraTargetRef.current.set(targetPosition.x, targetPosition.y, targetPosition.z),
+      alpha,
+    );
+    camera.lookAt(focusRef.current);
   });
 
   return null;
 }
 
-function lerp(from: number, to: number, alpha: number): number {
-  return from + (to - from) * alpha;
-}
-
 function lerpAngle(from: number, to: number, alpha: number): number {
   const delta = Math.atan2(Math.sin(to - from), Math.cos(to - from));
   return from + delta * alpha;
-}
-
-function targetVector(position: Vec3): THREE.Vector3 {
-  return reusableTargetVector.set(position.x, position.y, position.z);
 }
