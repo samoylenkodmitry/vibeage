@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { useItemForPlayer } from '../server/inventory/itemUse';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   id: 'player1',

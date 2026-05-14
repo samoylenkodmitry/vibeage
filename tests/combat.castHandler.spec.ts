@@ -4,7 +4,7 @@ import type { CastReq, VecXZ } from '../packages/protocol/messages';
 import { handleCastReq } from '../server/combat/castHandler';
 import { createActiveCastStore, type ActiveCastStore } from '../server/combat/skillSystem';
 import type { DirectMessageSink, OutboundEventSink } from '../server/transport/outboundEvents';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (): PlayerState => ({
   id: 'player1',

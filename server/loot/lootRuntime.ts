@@ -1,5 +1,5 @@
 import type { ItemDrop } from '../../packages/protocol/messages.js';
-import type { Enemy } from '../../shared/types.js';
+import type { Enemy } from '../../packages/sim/entities.js';
 import type { GameState, GroundLootStack } from '../gameState.js';
 
 export type GroundLootSpawn = {

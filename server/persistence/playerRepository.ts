@@ -2,7 +2,7 @@ import { sql, type Insertable, type RawBuilder, type Selectable, type UpdateObje
 import { database, type GameDatabase, type PlayersTable, type ServerEventsTable } from '../db.js';
 import type { SkillId } from '../../packages/content/skills.js';
 import type { InventorySlot, StarterProgressState } from '../../packages/protocol/messages.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 
 export type StablePlayerPersistenceData = {
   position_x: number;

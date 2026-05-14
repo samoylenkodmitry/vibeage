@@ -8,7 +8,7 @@ import {
   sanitizePlayerForPublic,
   sanitizePlayerUpdateForPublic,
 } from '../server/transport/clientState';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 describe('client state privacy', () => {
   test('keeps owner-only player fields only on the requesting player snapshot', () => {

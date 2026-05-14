@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { SKILLS, SkillId } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
-import { PlayerState } from '../shared/types';
+import { PlayerState } from '../packages/sim/entities';
 import type { ActiveCastStore } from '../server/combat/skillSystem';
 import type { OutboundEvent, OutboundEventSink } from '../server/transport/outboundEvents';
 

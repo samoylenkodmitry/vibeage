@@ -1,10 +1,8 @@
 import { ZoneManager } from '../packages/content/zones.js';
-import { Enemy, PlayerState } from '../shared/types.js';
+import { Enemy, PlayerState } from '../packages/sim/entities.js';
 import { ClientMessage, VecXZ, ItemDrop } from '../packages/protocol/messages.js';
 import { debug, error as logError, LOG_CATEGORIES } from './logger.js';
 import { SpatialHashGrid } from './spatial/SpatialHashGrid';
-import { tickCasts } from './combat/skillSystem.js';
-import { updateEnemyAI } from './ai/enemyAI.js';
 import { addGroundLoot, tryGiveLoot } from './loot/groundLoot.js';
 import { createGameState, type GameState } from './gameState.js';
 import {
@@ -12,14 +10,7 @@ import {
   persistActivePlayers,
   removePlayerSessionBySocketId,
 } from './players/playerSession.js';
-import {
-  handleManaRegeneration,
-} from './players/playerLifecycle.js';
-import {
-  respawnDeadEnemies,
-  spawnInitialEnemies,
-} from './enemies/enemyLifecycle.js';
-import { advanceAll } from './movement/worldMovement.js';
+import { spawnInitialEnemies } from './enemies/enemyLifecycle.js';
 import { collectDeltas, forgetPositionDelta } from './movement/snapshotDeltas.js';
 import { handleTargetDeath } from './combat/targetDeath.js';
 import { createWorldCombatBridge, handleClientMessage } from './world/clientMessageRouter.js';
@@ -28,6 +19,11 @@ import {
   type OutboundEventSink,
   type SocketMessageTarget,
 } from './transport/outboundEvents.js';
+import {
+  DEFAULT_WORLD_ZONE_SPAWN_POLICY,
+  initializeServerDrivenZoneRuntime,
+} from './world/zoneRuntime.js';
+import { createWorldTickRunner } from './world/tickPipeline.js';
 
 const TICK = 1000 / 30;
 const SNAP_HZ = 10;
@@ -42,7 +38,12 @@ type WorldClient = SocketMessageTarget & { id: string };
 export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager) {
   const state: GameState = createGameState();
   const spatial = new SpatialHashGrid();
-  spawnInitialEnemies(state, spatial, zoneManager);
+  initializeServerDrivenZoneRuntime(state, zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
+  spawnInitialEnemies(state, spatial, zoneManager, {
+    activeZoneIds: state.zones.activeZoneIds,
+    maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,
+    maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,
+  });
 
   startWorldLoop(state, spatial, outbound);
   startPersistenceLoop(state);
@@ -55,40 +56,11 @@ function startWorldLoop(
   spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
 ): void {
-  let snapAccumulator = 0;
+  const runner = createWorldTickRunner({ state, spatial, outbound, tickMs: TICK, snapHz: SNAP_HZ });
 
   setInterval(() => {
-    const now = Date.now();
-
-    advanceAll(state, spatial, TICK, now);
-    updateAllEnemyAI(outbound, state, spatial);
-    tickCasts(state.activeCasts, TICK, outbound, createWorldCombatBridge(state, outbound, spatial));
-
-    snapAccumulator += 1;
-    if (snapAccumulator >= 30 / SNAP_HZ) {
-      const msgs = collectDeltas(state, now, new Set());
-      if (msgs.length > 0) {
-        emitBatchUpdate(outbound, msgs);
-      }
-      snapAccumulator = 0;
-    }
-
-    if (snapAccumulator === 1) {
-      handleManaRegeneration(state, outbound);
-    }
-
-    if (snapAccumulator === 2) {
-      respawnDeadEnemies(state, spatial, outbound);
-    }
+    runner.tick();
   }, TICK);
-}
-
-function updateAllEnemyAI(outbound: OutboundEventSink, state: GameState, spatial: SpatialHashGrid): void {
-  for (const enemy of Object.values(state.enemies)) {
-    if (enemy.isAlive) {
-      updateEnemyAI(enemy, state, outbound, spatial, TICK / 1000);
-    }
-  }
 }
 
 function startPersistenceLoop(state: GameState): void {

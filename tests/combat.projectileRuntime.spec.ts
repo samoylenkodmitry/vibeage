@@ -5,7 +5,7 @@ import { updateTravelingCast } from '../server/combat/projectileRuntime';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
 import type { OutboundEventSink } from '../server/transport/outboundEvents';
-import type { Enemy, PlayerState } from '../shared/types';
+import type { Enemy, PlayerState } from '../packages/sim/entities';
 
 describe('projectile runtime', () => {
   test('detects swept projectile hits without legacy collision obstacles', () => {

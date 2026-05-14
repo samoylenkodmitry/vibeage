@@ -12,7 +12,7 @@ import { pickupGroundLoot } from '../server/loot/lootPickup';
 import { applyMoveIntent } from '../server/movement/moveIntent';
 import { advanceAll } from '../server/movement/worldMovement';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (): PlayerState => ({
   id: 'player1',

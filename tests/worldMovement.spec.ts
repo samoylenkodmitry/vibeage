@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { Enemy, PlayerState } from '../shared/types';
+import type { Enemy, PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
 import {
   advanceAll,

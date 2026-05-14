@@ -1,5 +1,5 @@
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';

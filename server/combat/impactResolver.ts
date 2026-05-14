@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import {
   emitEnemyUpdated,
   emitServerMessage,

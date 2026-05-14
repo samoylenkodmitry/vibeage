@@ -1,5 +1,5 @@
 import type { ServerMessage } from '../../packages/protocol/messages.js';
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 
 export const WORLD_BROADCAST_EVENTS = {

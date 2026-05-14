@@ -1,7 +1,7 @@
 import { SKILLS, type SkillDef, type SkillId } from '../../packages/content/skills.js';
 import type { VecXZ } from '../../packages/protocol/messages.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { applySkillCostAndCooldown, hasEnoughMana, isSkillOnCooldown, type PlayerResourceUpdate } from './cooldowns.js';
 
 export type CastRuleFailReason = 'cooldown' | 'nomana' | 'invalid' | 'outofrange';

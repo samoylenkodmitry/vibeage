@@ -1,6 +1,6 @@
 import { ITEMS, isUsableConsumable, type Item } from '../../packages/content/items.js';
 import type { ItemUsed } from '../../packages/protocol/messages.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 
 export type ItemUsePlayerUpdate = {
   id: string;

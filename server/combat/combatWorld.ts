@@ -1,5 +1,5 @@
 import type { VecXZ } from '../../packages/protocol/messages.js';
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import type { CombatWorld } from './worldContract.js';
 

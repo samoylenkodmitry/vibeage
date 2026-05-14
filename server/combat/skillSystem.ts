@@ -1,7 +1,7 @@
 import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messages.js';
 import { nanoid } from 'nanoid';
-import { PlayerState as Player } from '../../shared/types.js';
+import { PlayerState as Player } from '../../packages/sim/entities.js';
 import { emitCastSnapshot, makeCastSnapshot, sendCastSnapshotToClient } from './castSnapshots.js';
 import { resolveCastImpact } from './impactResolver.js';
 import { updateTravelingCast } from './projectileRuntime.js';
