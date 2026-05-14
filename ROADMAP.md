@@ -76,14 +76,14 @@ Dead code or drift observed:
 
 Goal: make the repository comfortable for coding agents and LLMs by reducing orientation cost, shortening feedback loops, and making dead-code edits harder to mistake for real work.
 
-In progress:
+Implemented on `chore/ai-fy-foundation`:
 
 - Items 1-3 are implemented on the `chore/ai-fy-foundation` branch with architecture docs, agent playbooks, and scoped check scripts.
 - Item 4 is implemented with Knip, a blocking dead-code/dependency subset, and a non-blocking full dead-code report.
 - Item 5 is implemented with deterministic scenario fixtures under `tests/helpers/scenarioFixtures.ts`.
 - Item 6 is implemented in `docs/PROTOCOL.md` with transport lanes, state ownership, snapshot ordering, visibility, and change checks.
-- Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`.
-- Item 8 is started with Playwright HUD viewport assertions and per-run screenshot artifacts for desktop and mobile.
+- Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`; app/server strictness remains a future hardening track.
+- Item 8 is implemented with Playwright HUD viewport assertions and per-run screenshot artifacts for desktop and mobile.
 - Item 9 is implemented with module-level README files for core server, client, protocol, content, and sim boundaries.
 - Item 10 is implemented by removing stale Next/Vercel/Socket.IO references from env examples/docs, deleting combat compatibility exports, and guarding bootstrap-era scripts.
 
@@ -216,11 +216,11 @@ In progress:
    - `server/transport/colyseusRoomAdapter.ts`
    - `server/world/regions.ts`
 
-3. Tighten TypeScript gradually.
-   - Current `tsconfig.json` still has strictness disabled.
-   - Start with leaf packages (`packages/content`, `packages/sim`, `packages/protocol`) before app/server edges.
+3. [x] Tighten TypeScript gradually.
+   - Leaf packages (`packages/content`, `packages/sim`, `packages/protocol`) are covered by `tsconfig.packages.strict.json`.
+   - Current `tsconfig.json` still has strictness disabled; app/server strictness is future hardening, not part of this cleanup batch.
 
-4. Keep gameplay expansion behind cleanup.
+4. [x] Keep gameplay expansion behind cleanup.
    - Grow world size, encounters, and content only after streaming, tick scheduling, inventory semantics, and dead-code removal are stable.
    - Avoid major quest depth until client/server boundaries stay crisp under tests.
 
