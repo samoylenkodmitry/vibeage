@@ -7,7 +7,13 @@
     "warningAverageTickMs": 0.1,
     "maxAverageTickMs": 0.25,
     "warningSpawnedEnemies": 220,
-    "maxSpawnedEnemies": 260
+    "maxSpawnedEnemies": 260,
+    "warningConfiguredMaxInitialEnemySpawns": 240,
+    "maxConfiguredMaxInitialEnemySpawns": 260,
+    "warningConfiguredMaxEnemiesPerZone": 24,
+    "maxConfiguredMaxEnemiesPerZone": 36,
+    "warningZoneCount": 18,
+    "maxZoneCount": 24
   },
   "roomLatency": {
     "warningConnectMs": 500,

@@ -274,6 +274,18 @@ function evaluateBudgets(report, budgets) {
     warning: budgets.tickCost?.warningSpawnedEnemies,
     failure: budgets.tickCost?.maxSpawnedEnemies,
   });
+  evaluateMaxBudget(warnings, failures, 'tickCost.configuredMaxInitialEnemySpawns', report.tickCost.configuredMaxInitialEnemySpawns, {
+    warning: budgets.tickCost?.warningConfiguredMaxInitialEnemySpawns,
+    failure: budgets.tickCost?.maxConfiguredMaxInitialEnemySpawns,
+  });
+  evaluateMaxBudget(warnings, failures, 'tickCost.configuredMaxEnemiesPerZone', report.tickCost.configuredMaxEnemiesPerZone, {
+    warning: budgets.tickCost?.warningConfiguredMaxEnemiesPerZone,
+    failure: budgets.tickCost?.maxConfiguredMaxEnemiesPerZone,
+  });
+  evaluateMaxBudget(warnings, failures, 'tickCost.zoneCount', report.tickCost.zoneCount, {
+    warning: budgets.tickCost?.warningZoneCount,
+    failure: budgets.tickCost?.maxZoneCount,
+  });
   evaluateMaxBudget(warnings, failures, 'roomLatency.connectMs', report.roomLatency.connectMs, {
     warning: budgets.roomLatency?.warningConnectMs,
     failure: budgets.roomLatency?.maxConnectMs,

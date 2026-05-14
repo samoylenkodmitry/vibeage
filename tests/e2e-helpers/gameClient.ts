@@ -39,6 +39,10 @@ export async function movePlayerNear(page: Page, offset: Offset = DEFAULT_SMOKE_
   return target!;
 }
 
+export async function expectSelectedTargetCleared(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__VIBEAGE_VITE_E2E__?.getState().selectedTargetId === null);
+}
+
 export async function selectFirstEnemy(page: Page): Promise<string> {
   const selectedEnemyId = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.selectFirstEnemy() ?? null);
   expect(selectedEnemyId).toBeTruthy();

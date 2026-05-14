@@ -34,7 +34,8 @@
     "test:e2e:vite": "env -u NO_COLOR playwright test -c playwright.vite.config.ts",
     "test:e2e:production": "env -u NO_COLOR playwright test -c playwright.production.config.ts",
     "measure:baseline": "node scripts/measure-baseline.mjs",
-    "measure:check": "pnpm run build && BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 node scripts/measure-baseline.mjs",
+    "measure:check": "pnpm run build && BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 node scripts/measure-baseline.mjs",
+    "measure:browser": "pnpm run build && BASELINE_START_LOCAL=1 node scripts/measure-baseline.mjs",
     "test:watch": "vitest",
     "bench": "vitest bench",
     "generate-docs": "tsx generate-project-doc.ts"

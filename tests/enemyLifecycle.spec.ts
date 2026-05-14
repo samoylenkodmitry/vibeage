@@ -55,6 +55,26 @@ describe('enemy lifecycle', () => {
     expect(spatial.queryCircle({ x: 8, z: 1 }, 1)).toContain(enemyIds[1]);
   });
 
+  test('caps initial spawns for scale budgets', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    let nextPosition = 0;
+    const zoneManager = {
+      getZones: () => [{ id: 'test-zone' }],
+      getMobsToSpawn: () => [{ type: 'goblin', count: 5 }],
+      getRandomPositionInZone: () => {
+        nextPosition += 1;
+        return { x: nextPosition, y: 0.5, z: nextPosition };
+      },
+      getMobLevel: () => 2,
+    } as unknown as ZoneManager;
+
+    const spawned = spawnInitialEnemies(state, spatial, zoneManager, { maxEnemies: 3 });
+
+    expect(spawned).toBe(3);
+    expect(Object.keys(state.enemies)).toHaveLength(3);
+  });
+
   test('respawns dead enemies after the respawn delay', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();

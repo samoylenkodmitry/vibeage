@@ -79,6 +79,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 56. Done on 2026-05-14: hardened browser smoke helpers around real client state, kept combat messages out of connection status, and added a starter spawn exclusion so new players do not immediately enter enemy aggro.
 57. Done on 2026-05-14: moved loot tables and world content validation into `packages/content`, shared XZ geometry through `packages/sim`, narrowed initial client snapshots, hardened duplicate active session replacement, cleared targets on ground movement, and added spawned-enemy performance budget checks.
 58. Done on 2026-05-14: tightened client camera smoothing helpers, moved initial Colyseus client snapshot delivery into a dedicated transport module, and made the player persistence field policy exhaustive across stable, identity, and transient state.
+59. Done on 2026-05-14: moved room join/leave lifecycle handling out of the Colyseus room shell, made movement clear selected targets through one client action path, deleted stale deployment/shared-constant leftovers, added configured spawn-scale budgets, preserved live player state during duplicate-session handoff, and exposed zone spawn budget helpers for world expansion.
 
 ## Target Stack
 

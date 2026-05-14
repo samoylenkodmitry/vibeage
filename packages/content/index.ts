@@ -5,4 +5,5 @@ export * from './classes.js';
 export * from './skills.js';
 export * from './verticalSlice.js';
 export * from './world.js';
+export * from './zoneSpawnBudget.js';
 export * from './zones.js';

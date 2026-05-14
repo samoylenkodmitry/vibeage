@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   castFireballFromSkillBar,
   enterWorld,
+  expectSelectedTargetCleared,
   getClientState,
   movePlayerNear,
   selectFirstEnemy,
@@ -24,6 +25,15 @@ test("sends movement through the Vite client action path", async ({ page }) => {
 
   const target = await movePlayerNear(page);
   expect(target).toBeTruthy();
+});
+
+test("clears the selected target when issuing movement", async ({ page }) => {
+  await enterWorld(page, `Vite${Date.now()}`);
+
+  const selectedEnemyId = await selectFirstEnemy(page);
+  expect(selectedEnemyId).toBeTruthy();
+  await movePlayerNear(page, { x: 5, z: -3 });
+  await expectSelectedTargetCleared(page);
 });
 
 test("casts fireball from the Vite skill bar path", async ({ page }) => {

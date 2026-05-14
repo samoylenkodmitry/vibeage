@@ -23,9 +23,26 @@ export interface MobSpawnConfig {
     count: number;
 }
 
+export type ZoneManagerOptions = {
+    zones?: readonly Zone[];
+    zoneById?: ReadonlyMap<string, Zone>;
+};
+
 export class ZoneManager {
+    private readonly zones: readonly Zone[];
+    private readonly zoneById: ReadonlyMap<string, Zone>;
+
+    constructor(options: ZoneManagerOptions = {}) {
+        this.zones = options.zones ?? GAME_ZONES;
+        this.zoneById = options.zoneById ?? createZoneLookup(this.zones);
+    }
+
+    getZoneById(zoneId: string): Zone | null {
+        return this.zoneById.get(zoneId) ?? null;
+    }
+
     getZoneAtPosition(position: { x: number; z: number; y?: number }): Zone | null {
-        for (const zone of GAME_ZONES) {
+        for (const zone of this.zones) {
             const dx = position.x - zone.position.x;
             const dz = position.z - zone.position.z;
             const distanceSquared = dx * dx + dz * dz;
@@ -38,7 +55,7 @@ export class ZoneManager {
     }
 
     getMobsToSpawn(zoneId: string): MobSpawnConfig[] {
-        const zone = GAME_ZONES.find(z => z.id === zoneId);
+        const zone = this.getZoneById(zoneId);
         if (!zone) return [];
 
         return zone.mobs.map(mobConfig => {
@@ -54,7 +71,7 @@ export class ZoneManager {
     }
 
     getRandomPositionInZone(zoneId: string): { x: number; y: number; z: number } | null {
-        const zone = GAME_ZONES.find(z => z.id === zoneId);
+        const zone = this.getZoneById(zoneId);
         if (!zone) return null;
 
         const angle = Math.random() * Math.PI * 2;
@@ -69,7 +86,7 @@ export class ZoneManager {
     }
 
     getMobLevel(zoneId: string): number {
-        const zone = GAME_ZONES.find(z => z.id === zoneId);
+        const zone = this.getZoneById(zoneId);
         if (!zone) return 1;
 
         return Math.floor(
@@ -83,8 +100,12 @@ export class ZoneManager {
      * @returns Array of all zones
      */
     getZones(): Zone[] {
-        return GAME_ZONES;
+        return [...this.zones];
     }
+}
+
+export function createZoneLookup(zones: readonly Zone[] = GAME_ZONES): ReadonlyMap<string, Zone> {
+    return new Map(zones.map(zone => [zone.id, zone]));
 }
 
 export const GAME_ZONES: Zone[] = [

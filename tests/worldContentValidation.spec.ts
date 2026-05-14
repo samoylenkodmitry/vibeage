@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { GAME_ZONES, ZoneManager } from '../packages/content/zones';
+import { createZoneLookup, GAME_ZONES, ZoneManager } from '../packages/content/zones';
 import { validateWorldContent } from '../packages/content/worldContentValidation';
 
 describe('world content validation', () => {
@@ -14,6 +14,26 @@ describe('world content validation', () => {
     expect(report.ok).toBe(true);
     expect(report.spawnBudget.configuredMaxInitialEnemySpawns)
       .toBeLessThanOrEqual(report.spawnBudget.maxInitialEnemySpawns);
+    expect(report.spawnBudget.zoneCount).toBe(GAME_ZONES.length);
+    expect(report.spawnBudget.zoneCount).toBeLessThanOrEqual(report.spawnBudget.maxZoneCount);
+    expect(report.spawnBudget.configuredMaxEnemiesPerZone)
+      .toBeLessThanOrEqual(report.spawnBudget.maxEnemiesPerZone);
+  });
+
+  test('exposes zones by id for runtime and client lookup paths', () => {
+    const zoneManager = new ZoneManager();
+
+    expect(zoneManager.getZoneById('starter_meadow')?.name).toBe('Peaceful Meadows');
+    expect(zoneManager.getZoneById('missing-zone')).toBeNull();
+  });
+
+  test('supports injected zone lookup maps for large-world runtime paths', () => {
+    const starterZone = GAME_ZONES[0];
+    const zoneById = createZoneLookup([starterZone]);
+    const zoneManager = new ZoneManager({ zones: [starterZone], zoneById });
+
+    expect(zoneManager.getZoneById(starterZone.id)).toBe(starterZone);
+    expect(zoneManager.getZones()).toEqual([starterZone]);
   });
 
   test('keeps starter enemy spawns outside the immediate player spawn area', () => {

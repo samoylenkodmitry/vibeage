@@ -42,7 +42,9 @@ function normalizeClassName(value: unknown): CharacterClass {
 export function upsertActivePlayerSession(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
   const existing = state.players[player.id];
   if (existing) {
-    spatial.remove(existing.id, { x: existing.position.x, z: existing.position.z });
+    existing.socketId = player.socketId;
+    existing.name = player.name;
+    return existing;
   }
 
   state.players[player.id] = player;
