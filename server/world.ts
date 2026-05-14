@@ -11,14 +11,10 @@ import {
   removePlayerSessionBySocketId,
 } from './players/playerSession.js';
 import { spawnInitialEnemies } from './enemies/enemyLifecycle.js';
-import { collectDeltas, forgetPositionDelta } from './movement/snapshotDeltas.js';
+import { forgetPositionDelta } from './movement/snapshotDeltas.js';
 import { handleTargetDeath } from './combat/targetDeath.js';
 import { createWorldCombatBridge, handleClientMessage } from './world/clientMessageRouter.js';
-import {
-  emitBatchUpdate,
-  type OutboundEventSink,
-  type SocketMessageTarget,
-} from './transport/outboundEvents.js';
+import { type OutboundEventSink, type SocketMessageTarget } from './transport/outboundEvents.js';
 import {
   DEFAULT_WORLD_ZONE_SPAWN_POLICY,
   initializeServerDrivenZoneRuntime,
@@ -135,41 +131,4 @@ function createWorldApi(
       return playerId;
     }
   };
-}
-
-/**
- * Broadcasts position snapshots of all players to clients
- * Should be called regularly (e.g. 10 Hz) to keep clients in sync
- */
-export function broadcastSnaps(outbound: OutboundEventSink, state: GameState): void {
-    if (!state.players) return;
-    const now = Date.now();
-    const playersToForceInclude = new Set<string>();
-
-    for (const playerId in state.players) {
-        const player = state.players[playerId];
-        if (!player.isAlive) continue;
-
-        const isMoving = player.movement?.isMoving;
-        const timeSinceLastSnap = player.lastSnapTime ? (now - player.lastSnapTime) : Infinity;
-
-        // Determine if this player needs a "forced" full snapshot
-        // (e.g., for idle refresh or if it's the very first snap)
-        if (!isMoving && (!player.lastSnapTime || timeSinceLastSnap > 500)) {
-            playersToForceInclude.add(playerId);
-        }
-        // Always update lastSnapTime if we are considering sending a snap for this player due to idle timeout
-        if (playersToForceInclude.has(playerId) || isMoving) { // Or any other condition that leads to sending
-             player.lastSnapTime = now;
-        }
-    }
-
-    // Pass the set of players needing forced updates to collectDeltas
-    // collectDeltas will then decide whether to send a full snap or a delta for moving players
-    // not in the forced set.
-    const snapItems = collectDeltas(state, now, playersToForceInclude);
-
-    if (snapItems.length > 0) {
-        emitBatchUpdate(outbound, snapItems);
-    }
 }

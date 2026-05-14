@@ -11,6 +11,7 @@ import {
   CastVfx,
   EnemyHealthBar,
   EnemyHitFlash,
+  EnemyThreatRing,
   LootMarker,
   SelectedEnemyBeacon,
   SelectedEnemyRing,
@@ -84,6 +85,7 @@ export function EnemyMarker({
     >
       {isSelected && <SelectedEnemyRing />}
       {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
+      {enemy.isAlive && enemy.aiState && enemy.aiState !== 'idle' && <EnemyThreatRing state={enemy.aiState} />}
       <mesh castShadow onPointerDown={handlePointerDown}>
         {visual.shape === 'sphere' ? (
           <sphereGeometry args={[0.58, 18, 14]} />

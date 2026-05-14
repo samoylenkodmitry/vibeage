@@ -138,6 +138,37 @@ input {
   padding: 10px 12px;
 }
 
+.target-engaged {
+  border-color: rgba(250, 204, 21, 0.34);
+}
+
+.target-weak,
+.target-defeated {
+  border-color: rgba(251, 113, 133, 0.42);
+}
+
+.movement-panel {
+  top: 84px;
+  right: 18px;
+  min-height: 42px;
+  min-width: 150px;
+  justify-content: space-between;
+  border-radius: 6px;
+  padding: 0 12px;
+}
+
+.movement-panel span {
+  color: #9dded3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.movement-panel strong {
+  color: #fef3c7;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .starter-progress {
   position: absolute;
   top: 78px;
@@ -555,6 +586,13 @@ input {
 
   .starter-progress {
     top: 212px;
+    right: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .movement-panel {
+    top: 300px;
     right: 12px;
     left: 12px;
     width: calc(100vw - 24px);

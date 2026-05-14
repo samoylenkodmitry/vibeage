@@ -87,6 +87,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       </section>
       <PlayerPanel player={player} />
       <TargetPanel player={player} target={selectedTarget} />
+      <MovementPanel player={player} target={state.targetWorldPos} />
       <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       <CastingPanel player={player} />
@@ -136,9 +137,10 @@ function TargetPanel({
   const distance = player && target ? getDistance(player.position, target.position) : null;
   const healthRatio = target ? target.health / Math.max(1, target.maxHealth) : 0;
   const targetState = target ? getTargetState(target.isAlive, healthRatio) : 'No selection';
+  const targetTone = target ? getTargetTone(target.isAlive, healthRatio) : 'none';
 
   return (
-    <section className="hud hud-target" aria-label="Target">
+    <section className={`hud hud-target target-${targetTone}`} aria-label="Target">
       <div className="panel-title">
         <strong>{target ? target.name : 'No target'}</strong>
         <span>{target ? `Level ${target.level}` : '-'}</span>
@@ -149,6 +151,28 @@ function TargetPanel({
         <span>{distance === null ? '-' : `${distance.toFixed(1)}m`}</span>
       </div>
       <StatusPills effects={target?.statusEffects ?? []} />
+    </section>
+  );
+}
+
+function MovementPanel({
+  player,
+  target,
+}: {
+  player: PlayerEntity | null;
+  target: GameClientState['targetWorldPos'];
+}) {
+  if (!player?.isAlive || !target) {
+    return null;
+  }
+
+  const distance = getDistance(player.position, target);
+  const label = distance < 0.35 ? 'Arriving' : 'Moving';
+
+  return (
+    <section className="hud movement-panel" aria-label="Movement">
+      <span>{label}</span>
+      <strong>{distance.toFixed(1)}m</strong>
     </section>
   );
 }
@@ -396,6 +420,18 @@ function getTargetState(isAlive: boolean, healthRatio: number): string {
   }
 
   return 'Engaged';
+}
+
+function getTargetTone(isAlive: boolean, healthRatio: number): 'defeated' | 'weak' | 'engaged' {
+  if (!isAlive) {
+    return 'defeated';
+  }
+
+  if (healthRatio <= 0.35) {
+    return 'weak';
+  }
+
+  return 'engaged';
 }
 
 function getDistance(a: PlayerEntity['position'], b: PlayerEntity['position']): number {

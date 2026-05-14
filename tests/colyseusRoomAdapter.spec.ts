@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStarterProgressState } from '../packages/protocol/messages';
+import { createEnemy } from '../server/enemies/enemyLifecycle';
+import { createGameState } from '../server/gameState';
 import { runtimeMetrics } from '../server/observability/runtimeMetrics';
+import { createTransientPlayer } from '../server/playerFactory';
 import type { AuthoritativeRoomPort } from '../server/transport/roomBoundary';
 import {
   ColyseusAuthoritativeRoomAdapter,
   makeColyseusOutbound,
   type ColyseusClientLike,
 } from '../server/transport/colyseusRoomAdapter';
+import type { ServerWorldRegion } from '../server/world/regions';
 
 describe('Colyseus room adapter', () => {
   beforeEach(() => {
@@ -49,6 +53,61 @@ describe('Colyseus room adapter', () => {
       items: [{ itemId: 'gold_coin', quantity: 1 }],
     });
     expect(room.broadcast).toHaveBeenCalledWith('playerUpdated', { id: 'player1', health: 80 });
+  });
+
+  test('scopes entity updates and batched snapshots to each client stream region', () => {
+    const state = createGameState();
+    const playerA = createTransientPlayer('socket-a', 'A');
+    const playerB = createTransientPlayer('socket-b', 'B');
+    const enemyA = createEnemy('goblin', 1, { x: 6, y: 0.5, z: 0 }, 1);
+    const enemyB = createEnemy('wolf', 1, { x: 306, y: 0.5, z: 0 }, 2);
+    playerA.id = 'player-a';
+    playerB.id = 'player-b';
+    playerA.position = { x: 0, y: 0.5, z: 0 };
+    playerB.position = { x: 300, y: 0.5, z: 0 };
+    state.players[playerA.id] = playerA;
+    state.players[playerB.id] = playerB;
+    state.enemies[enemyA.id] = enemyA;
+    state.enemies[enemyB.id] = enemyB;
+    state.zones.activeZoneIds = ['zone-a', 'zone-b'];
+    state.zones.playerZoneIds = { [playerA.id]: 'zone-a', [playerB.id]: 'zone-b' };
+    state.zones.enemyZoneIds = { [enemyA.id]: 'zone-a', [enemyB.id]: 'zone-b' };
+
+    const clientA = makeClient('socket-a');
+    const clientB = makeClient('socket-b');
+    const room = { clients: [clientA, clientB], broadcast: vi.fn() };
+    const outbound = makeColyseusOutbound(room, {
+      getGameState: () => state,
+      getRegions: () => makeRegions(),
+    });
+
+    outbound.publish({ type: 'enemyUpdated', update: { id: enemyA.id, health: 72 } });
+
+    expect(clientA.send).toHaveBeenCalledWith('enemyUpdated', { id: enemyA.id, health: 72 });
+    expect(clientB.send).not.toHaveBeenCalledWith('enemyUpdated', expect.objectContaining({ id: enemyA.id }));
+    expect(room.broadcast).not.toHaveBeenCalledWith('enemyUpdated', expect.anything());
+
+    vi.clearAllMocks();
+    outbound.publish({
+      type: 'serverMessage',
+      message: {
+        type: 'BatchUpdate',
+        updates: [
+          { type: 'PosSnap', id: enemyA.id, pos: { x: 6, z: 0 }, vel: { x: 0, z: 0 }, snapTs: 1 },
+          { type: 'PosSnap', id: enemyB.id, pos: { x: 306, z: 0 }, vel: { x: 0, z: 0 }, snapTs: 1 },
+        ],
+      },
+    });
+
+    expect(clientA.send).toHaveBeenCalledWith('msg', {
+      type: 'BatchUpdate',
+      updates: [expect.objectContaining({ id: enemyA.id })],
+    });
+    expect(clientB.send).toHaveBeenCalledWith('msg', {
+      type: 'BatchUpdate',
+      updates: [expect.objectContaining({ id: enemyB.id })],
+    });
+    expect(runtimeMetrics.snapshot().counters['snapshot.scopedClientUpdates']).toBe(2);
   });
 });
 
@@ -126,5 +185,24 @@ function makePort(state: ReturnType<AuthoritativeRoomPort['getStateSnapshot']>):
     leaveClient: vi.fn(async () => 'player1'),
     dispatchCommand: vi.fn(),
     getStateSnapshot: vi.fn(() => state),
+  };
+}
+
+function makeRegions(): ServerWorldRegion[] {
+  return [
+    makeRegion('zone-a', 0),
+    makeRegion('zone-b', 300),
+  ];
+}
+
+function makeRegion(id: string, x: number): ServerWorldRegion {
+  return {
+    id,
+    zoneId: id,
+    name: id,
+    center: { x, y: 0, z: 0 },
+    radius: 50,
+    active: true,
+    maxEnemies: 4,
   };
 }

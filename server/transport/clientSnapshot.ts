@@ -4,6 +4,7 @@ import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { sendStarterProgressUpdate } from '../progression/starterPath.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
+import type { ServerWorldRegion } from '../world/regions.js';
 import { makeClientGameStateSnapshot } from './clientState.js';
 import type { DirectMessageSink } from './outboundEvents.js';
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
@@ -17,10 +18,19 @@ export function sendClientInitialSnapshot(
   client: SnapshotClient,
   state: GameState,
   direct: DirectMessageSink,
+  regions?: readonly ServerWorldRegion[],
 ): void {
   sendJoinedPlayerState(client, state, direct);
-  client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(state, client.sessionId));
+  sendClientGameStateSnapshot(client, state, regions);
   sendCastSnapshots(state.activeCasts, direct);
+}
+
+export function sendClientGameStateSnapshot(
+  client: SnapshotClient,
+  state: GameState,
+  regions?: readonly ServerWorldRegion[],
+): void {
+  client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(state, client.sessionId, regions));
 }
 
 function sendJoinedPlayerState(

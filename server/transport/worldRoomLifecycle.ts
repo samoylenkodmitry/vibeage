@@ -1,4 +1,5 @@
 import type { GameState } from '../gameState.js';
+import type { ServerWorldRegion } from '../world/regions.js';
 import { sanitizePlayerForPublic } from './clientState.js';
 import { makeClientDirectSink, sendClientInitialSnapshot, type SnapshotClient } from './clientSnapshot.js';
 import { parseWorldRoomJoinOptions, SOCKET_SESSION_EVENTS, type WorldRoomJoinOptions } from './roomBoundary.js';
@@ -10,6 +11,7 @@ export type WorldRoomAdapter = {
 
 export type WorldRoomStateSource = {
   getGameState(): GameState;
+  getRegions?(): readonly ServerWorldRegion[];
 };
 
 export type WorldRoomBroadcaster<ClientType extends SnapshotClient = SnapshotClient> = {
@@ -48,5 +50,5 @@ export function sendWorldRoomClientSnapshot(
   world: WorldRoomStateSource,
   client: SnapshotClient,
 ): void {
-  sendClientInitialSnapshot(client, world.getGameState(), makeClientDirectSink(client));
+  sendClientInitialSnapshot(client, world.getGameState(), makeClientDirectSink(client), world.getRegions?.());
 }
