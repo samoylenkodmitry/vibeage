@@ -68,6 +68,11 @@ export type ServerGameState = {
     position: VecXZ | Vec3;
     items: ItemDrop[];
   }>;
+  zones?: {
+    activeZoneIds?: string[];
+    playerZoneIds?: Record<string, string>;
+    enemyZoneIds?: Record<string, string>;
+  };
 };
 
 export type WorldRegionPublicState = {
@@ -139,9 +144,11 @@ export type GameClientState = {
   targetWorldPos: Vec3 | null;
   casts: Record<string, VisibleCast>;
   visualEvents: Record<string, VisualEvent>;
+  nextVisualEventSeq: number;
   inventory: InventorySlot[];
   maxInventorySlots: number;
   combatLog: CombatLine[];
   starterProgress: StarterProgress;
   worldPublicState: WorldPublicState | null;
+  streamedRegionIds: string[];
 };

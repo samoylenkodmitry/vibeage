@@ -178,16 +178,16 @@ In progress:
    - Replace `Object.values(...).filter(...)` in high-frequency paths with counted loops.
    - Type `dirtySnap` on runtime entities instead of using `as any`.
 
-4. Reduce client frame-loop allocation.
+4. [x] Reduce client frame-loop allocation.
    - Update camera orbit math to write into reusable vectors.
    - Audit `WorldScene`, entity markers, and VFX for allocations inside `useFrame`.
 
 ### P1: Client Polish
 
-1. Improve inventory and consumable feedback after slot semantics are fixed.
-2. Use skill content for all skill VFX radii, damage labels, and cast readability.
-3. Add a small debug overlay or test hook for streamed region IDs, visible entity counts, and reconnect state.
-4. Add mobile HUD screenshots or Playwright viewport assertions for the starter panel, movement panel, inventory, and skill bar.
+1. [x] Improve inventory and consumable feedback after slot semantics are fixed.
+2. [x] Use skill content for all skill VFX radii, damage labels, and cast readability.
+3. [x] Add a small debug overlay or test hook for streamed region IDs, visible entity counts, and reconnect state.
+4. [x] Add mobile HUD screenshots or Playwright viewport assertions for the starter panel, movement panel, inventory, and skill bar.
 
 ### P1: Dead Code And Drift
 

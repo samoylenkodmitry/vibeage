@@ -282,7 +282,7 @@ function InventoryPanel({
       {Array.from({ length: maxSlots }).map((_, index) => {
         const slot = inventory[index] ?? null;
         const item = slot ? ITEMS[slot.itemId] : null;
-        const canUse = isUsableConsumable(item);
+        const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
         const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
         const title = slot
           ? `${itemName} (${slot.quantity})${canUse ? '' : ' - not usable'}`

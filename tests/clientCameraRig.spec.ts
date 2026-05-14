@@ -8,6 +8,7 @@ import {
   getCameraOrbitPosition,
   hasMeaningfulCameraFocusDelta,
   smoothingAlpha,
+  writeCameraOrbitPosition,
 } from '../apps/client/src/cameraRig';
 
 describe('client camera rig helpers', () => {
@@ -25,10 +26,16 @@ describe('client camera rig helpers', () => {
 
   test('computes deterministic orbit positions around the focus point', () => {
     const position = getCameraOrbitPosition({ x: 10, y: 2, z: -4 }, { angle: 0, pitch: Math.PI / 2 }, 12);
+    const target = new THREE.Vector3();
+    const returnedTarget = writeCameraOrbitPosition(target, { x: 10, y: 2, z: -4 }, { angle: 0, pitch: Math.PI / 2 }, 12);
 
     expect(position.x).toBeCloseTo(10);
     expect(position.y).toBeCloseTo(14);
     expect(position.z).toBeCloseTo(-4);
+    expect(returnedTarget).toBe(target);
+    expect(target.x).toBeCloseTo(position.x);
+    expect(target.y).toBeCloseTo(position.y);
+    expect(target.z).toBeCloseTo(position.z);
   });
 
   test('filters tiny focus drift but accepts real movement', () => {

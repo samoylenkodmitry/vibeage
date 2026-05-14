@@ -40,11 +40,13 @@ export const initialGameClientState: GameClientState = {
   targetWorldPos: null,
   casts: {},
   visualEvents: {},
+  nextVisualEventSeq: 0,
   inventory: [],
   maxInventorySlots: 20,
   combatLog: [],
   starterProgress: createInitialStarterProgress(),
   worldPublicState: null,
+  streamedRegionIds: [],
 };
 
 export type GameClientAction =
@@ -115,8 +117,43 @@ function applyGameState(state: GameClientState, serverState: ServerGameState): G
   const starterProgress = myPlayer
     ? normalizeClientStarterProgress(myPlayer.starterProgress ?? state.starterProgress, myPlayer)
     : state.starterProgress;
+  const streamedRegionIds = deriveStreamedRegionIds(serverState, players, enemies);
 
-  return { ...state, players, enemies, groundLoot, selectedTargetId, inventory, maxInventorySlots, starterProgress };
+  return {
+    ...state,
+    players,
+    enemies,
+    groundLoot,
+    selectedTargetId,
+    inventory,
+    maxInventorySlots,
+    starterProgress,
+    streamedRegionIds,
+  };
+}
+
+function deriveStreamedRegionIds(
+  serverState: ServerGameState,
+  players: Record<string, PlayerEntity>,
+  enemies: Record<string, EnemyEntity>,
+): string[] {
+  const regionIds = new Set<string>();
+
+  for (const playerId of Object.keys(players)) {
+    const regionId = serverState.zones?.playerZoneIds?.[playerId];
+    if (regionId) {
+      regionIds.add(regionId);
+    }
+  }
+
+  for (const enemyId of Object.keys(enemies)) {
+    const regionId = serverState.zones?.enemyZoneIds?.[enemyId];
+    if (regionId) {
+      regionIds.add(regionId);
+    }
+  }
+
+  return [...regionIds].sort();
 }
 
 function removePlayer(state: GameClientState, playerId: string): GameClientState {
