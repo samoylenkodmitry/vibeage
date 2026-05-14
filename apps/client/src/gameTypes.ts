@@ -95,15 +95,6 @@ export type WorldPublicPlayerPresence = {
   regionId: string;
 };
 
-export type WorldPublicEnemyPresence = {
-  id: string;
-  type: string;
-  name: string;
-  level: number;
-  isAlive: boolean;
-  regionId: string;
-};
-
 export type WorldPublicState = {
   revision: number;
   playerCount: number;
@@ -113,7 +104,6 @@ export type WorldPublicState = {
   regionCount: number;
   regions: Record<string, WorldRegionPublicState>;
   players: Record<string, WorldPublicPlayerPresence>;
-  enemies: Record<string, WorldPublicEnemyPresence>;
 };
 
 export type ConnectionState =

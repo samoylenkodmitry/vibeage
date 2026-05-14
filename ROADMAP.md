@@ -208,6 +208,7 @@ Implemented on `chore/ai-fy-foundation`:
 ### P2: Architecture
 
 1. [x] Move more public entity state into Colyseus schemas once event filtering is stable.
+   - Colyseus public state now carries lightweight player presence; enemy detail stays in scoped snapshots and region counters to avoid oversize public patches.
 2. [x] Split large but under-budget files by domain:
    - `apps/client/src/SceneVfx.tsx`
    - `apps/client/src/Hud.tsx`

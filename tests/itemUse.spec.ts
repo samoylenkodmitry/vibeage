@@ -102,7 +102,9 @@ describe('item use', () => {
       }),
     }));
   });
+});
 
+describe('item use rejection', () => {
   test('rejects item use for dead players without changing inventory', () => {
     const state = createGameState();
     state.players.player1 = makePlayer({ isAlive: false });

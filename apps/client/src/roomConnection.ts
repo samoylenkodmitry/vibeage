@@ -7,7 +7,6 @@ import type {
   EnemyEntity,
   PlayerEntity,
   ServerGameState,
-  WorldPublicEnemyPresence,
   WorldPublicPlayerPresence,
   WorldPublicState,
   WorldRegionPublicState,
@@ -209,7 +208,6 @@ function normalizeWorldPublicState(payload: unknown): WorldPublicState | null {
     regionCount: numberField(payload.regionCount),
     regions: normalizeWorldPublicRegions(payload.regions),
     players: normalizeWorldPublicPlayers(payload.players),
-    enemies: normalizeWorldPublicEnemies(payload.enemies),
   };
 }
 
@@ -253,26 +251,6 @@ function normalizeWorldPublicPlayers(payload: unknown): Record<string, WorldPubl
     };
   });
   return players;
-}
-
-function normalizeWorldPublicEnemies(payload: unknown): Record<string, WorldPublicEnemyPresence> {
-  const enemies: Record<string, WorldPublicEnemyPresence> = {};
-  forEachPublicMapEntry(payload, (enemyId, value) => {
-    if (!isRecord(value)) {
-      return;
-    }
-
-    const id = stringField(value.id, enemyId);
-    enemies[id] = {
-      id,
-      type: stringField(value.type, 'unknown'),
-      name: stringField(value.name, 'Enemy'),
-      level: numberField(value.level),
-      isAlive: booleanField(value.isAlive),
-      regionId: stringField(value.regionId, ''),
-    };
-  });
-  return enemies;
 }
 
 function forEachPublicMapEntry(

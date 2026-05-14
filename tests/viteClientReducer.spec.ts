@@ -45,7 +45,6 @@ describe('Vite game client reducer', () => {
         activeRegionCount: 1,
         regionCount: 3,
         players: {},
-        enemies: {},
         regions: {
           starter: {
             id: 'starter',
@@ -103,7 +102,9 @@ describe('Vite game client reducer', () => {
     expect(state.groundLoot.loot1.position).toEqual({ x: 4, y: 0.35, z: 6 });
     expect(state.streamedRegionIds).toEqual(['starter-field']);
   });
+});
 
+describe('Vite game client reducer inventory and loot messages', () => {
   it('tracks loot spawns and pickup removal', () => {
     const withLoot = gameClientReducer(initialGameClientState, {
       type: 'serverMessage',
@@ -247,7 +248,9 @@ describe('Vite game client reducer visual events', () => {
     expect(Object.keys(withSecondEvent.visualEvents)).toEqual(['healing:100:1']);
     expect(withSecondEvent.nextVisualEventSeq).toBe(2);
   });
+});
 
+describe('Vite game client reducer cast visual events', () => {
   it('adds impact visual events for water splash and prunes old visual events', () => {
     const onlineState = {
       ...initialGameClientState,

@@ -46,7 +46,6 @@ export class VibeAgePublicState extends Schema {
   declare regionCount: number;
   declare regions: MapSchema<PublicWorldRegionState>;
   declare players: MapSchema<PublicPlayerPresenceState>;
-  declare enemies: MapSchema<PublicEnemyPresenceState>;
 
   constructor() {
     super();
@@ -58,7 +57,6 @@ export class VibeAgePublicState extends Schema {
     this.regionCount = 0;
     this.regions = new MapSchema<PublicWorldRegionState>();
     this.players = new MapSchema<PublicPlayerPresenceState>();
-    this.enemies = new MapSchema<PublicEnemyPresenceState>();
   }
 }
 
@@ -90,34 +88,6 @@ defineTypes(PublicPlayerPresenceState, {
   regionId: 'string',
 });
 
-export class PublicEnemyPresenceState extends Schema {
-  declare id: string;
-  declare type: string;
-  declare name: string;
-  declare level: number;
-  declare isAlive: boolean;
-  declare regionId: string;
-
-  constructor() {
-    super();
-    this.id = '';
-    this.type = '';
-    this.name = '';
-    this.level = 1;
-    this.isAlive = false;
-    this.regionId = '';
-  }
-}
-
-defineTypes(PublicEnemyPresenceState, {
-  id: 'string',
-  type: 'string',
-  name: 'string',
-  level: 'number',
-  isAlive: 'boolean',
-  regionId: 'string',
-});
-
 defineTypes(VibeAgePublicState, {
   revision: 'number',
   playerCount: 'number',
@@ -127,7 +97,6 @@ defineTypes(VibeAgePublicState, {
   regionCount: 'number',
   regions: { map: PublicWorldRegionState },
   players: { map: PublicPlayerPresenceState },
-  enemies: { map: PublicEnemyPresenceState },
 });
 
 export function createVibeAgePublicState(): VibeAgePublicState {
@@ -150,7 +119,6 @@ export function syncVibeAgePublicState(
   publicState.regionCount = regionStats.length;
 
   syncPublicPlayerPresence(publicState.players, gameState);
-  syncPublicEnemyPresence(publicState.enemies, gameState);
   const nextRegionIds = new Set(regionStats.map((region) => region.id));
   for (const regionId of publicState.regions.keys()) {
     if (!nextRegionIds.has(regionId)) {
@@ -220,29 +188,6 @@ function syncPublicPlayerPresence(
     playerState.isAlive = player.isAlive;
     playerState.regionId = gameState.zones.playerZoneIds[playerId] ?? '';
     target.set(playerId, playerState);
-  }
-}
-
-function syncPublicEnemyPresence(
-  target: MapSchema<PublicEnemyPresenceState>,
-  gameState: GameState,
-): void {
-  deleteMissingMapEntries(target, gameState.enemies);
-
-  for (const enemyId in gameState.enemies) {
-    if (!Object.prototype.hasOwnProperty.call(gameState.enemies, enemyId)) {
-      continue;
-    }
-
-    const enemy = gameState.enemies[enemyId];
-    const enemyState = target.get(enemyId) ?? new PublicEnemyPresenceState();
-    enemyState.id = enemy.id;
-    enemyState.type = enemy.type;
-    enemyState.name = enemy.name;
-    enemyState.level = enemy.level;
-    enemyState.isAlive = enemy.isAlive;
-    enemyState.regionId = gameState.zones.enemyZoneIds[enemyId] ?? '';
-    target.set(enemyId, enemyState);
   }
 }
 
