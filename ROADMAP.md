@@ -88,6 +88,7 @@ In progress:
 - Item 5 is implemented with deterministic scenario fixtures under `tests/helpers/scenarioFixtures.ts`.
 - Item 6 is implemented in `docs/PROTOCOL.md` with transport lanes, state ownership, snapshot ordering, visibility, and change checks.
 - Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`.
+- Item 8 is started with Playwright HUD viewport assertions and per-run screenshot artifacts for desktop and mobile.
 
 1. Add `docs/ARCHITECTURE.md`.
    - Document the live architecture and core flows: join, movement, combat/cast, loot/inventory, region streaming, persistence, deploy, and rollback.
