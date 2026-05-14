@@ -61,20 +61,15 @@ What is missing or weak:
 - No authenticated player account model; current identity is still prototype-grade.
 - No admin/debug console for inspecting rooms, players, regions, loot, or stuck sessions.
 - No formal protocol compatibility matrix beyond schema tests and minimum client protocol checks.
-- No automated dead-code/dependency checker, so unused exports and packages can survive if TypeScript still compiles.
+- Dead-code/dependency checking exists through Knip; the remaining gap is shrinking the non-blocking unused-export report.
 - TypeScript strictness is mostly disabled; correctness depends on local tests and discipline instead of compiler help.
 - Content is TS-authored and validated, but there is no content authoring workflow or editor.
 - Mobile/responsive coverage is thin; Playwright mostly checks the desktop happy path.
-- Docs and examples still drift: some files mention Next, old build targets, or old Socket.IO paths.
+- Docs are mostly aligned with Vite/Colyseus/VPS deployment; keep future drift out with scoped playbooks and checks.
 
 Dead code or drift observed:
 
-- `server/combat/utils/cast.ts` is a compatibility re-export used by tests, not active runtime code.
-- `applyCastCost` is exported but has no active runtime caller.
-- `SkillType` is a compatibility alias; `SkillId` should become canonical everywhere.
-- `uuid` appears unused by source imports.
-- `scripts/setup-server.sh` and `scripts/setup-client.sh` remain tracked even though they are bootstrap-era and unsafe as live update paths.
-- `.env.example`, `DB_DEV_README.md`, `DEPLOYMENT.md`, and `docs/SERVER_DEPLOYMENT.md` contain stale Next/Vite/Colyseus details.
+- `scripts/setup-server.sh` and `scripts/setup-client.sh` remain tracked for fresh-host bootstrap only; they are guarded by `ALLOW_LEGACY_BOOTSTRAP=1` and must not be used for live updates.
 - Local generated directories (`dist/`, `.next/`, `out/`) exist but are ignored and untracked.
 
 ## AI-Fy Plan
@@ -84,13 +79,13 @@ Goal: make the repository comfortable for coding agents and LLMs by reducing ori
 In progress:
 
 - Items 1-3 are implemented on the `chore/ai-fy-foundation` branch with architecture docs, agent playbooks, and scoped check scripts.
-- Item 4 is partially implemented with Knip, a blocking dead-code/dependency subset, and a non-blocking full dead-code report. The remaining unused-export baseline is tracked below.
+- Item 4 is implemented with Knip, a blocking dead-code/dependency subset, and a non-blocking full dead-code report.
 - Item 5 is implemented with deterministic scenario fixtures under `tests/helpers/scenarioFixtures.ts`.
 - Item 6 is implemented in `docs/PROTOCOL.md` with transport lanes, state ownership, snapshot ordering, visibility, and change checks.
 - Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`.
 - Item 8 is started with Playwright HUD viewport assertions and per-run screenshot artifacts for desktop and mobile.
 - Item 9 is implemented with module-level README files for core server, client, protocol, content, and sim boundaries.
-- Item 10 is started by removing stale Next/Vercel/Socket.IO references from env examples, docs, and the guarded bootstrap client script.
+- Item 10 is implemented by removing stale Next/Vercel/Socket.IO references from env examples/docs, deleting combat compatibility exports, and guarding bootstrap-era scripts.
 
 1. Add `docs/ARCHITECTURE.md`.
    - Document the live architecture and core flows: join, movement, combat/cast, loot/inventory, region streaming, persistence, deploy, and rollback.
@@ -113,7 +108,7 @@ In progress:
    - Evaluate Knip or an equivalent tool.
    - Catch unused exports, stale compatibility files, unused dependencies, and accidental orphan files.
    - Gate new dead code in CI once the first cleanup pass is complete.
-   - Current Knip cleanup baseline: unused exported constants/types in client helpers and server modules, `server/combat/utils/cast.ts`, `applyCastCost`, and a duplicate logger export.
+   - Current Knip cleanup baseline: remaining unused exports reported by the non-blocking full report.
 
 5. Add deterministic scenario fixtures.
    - Provide reusable test fixtures for: two players in separate regions, one combat encounter, loot pickup, full inventory, reconnect/persisted player, and scoped region streaming.
@@ -191,22 +186,22 @@ In progress:
 
 ### P1: Dead Code And Drift
 
-1. Remove remaining compatibility exports.
+1. [x] Remove remaining compatibility exports.
    - `server/combat/utils/cast.ts`
    - `applyCastCost` if no active runtime path uses it
    - `SkillType` alias after `packages/sim/entities.ts` uses `SkillId`
 
-2. Remove unused dependencies after verification.
-   - `uuid` appears unused by source imports.
-   - Add a dependency/dead-code checker such as Knip before doing broad removals.
+2. [x] Remove unused dependencies after verification.
+   - `uuid` is no longer a package dependency; remaining UUID mentions are Postgres column types.
+   - Knip is wired as `pnpm run check:deadcode` and currently passes its blocking subset.
 
-3. Clean bootstrap-era scripts and docs.
+3. [x] Clean bootstrap-era scripts and docs.
    - Audit `scripts/setup-server.sh` and `scripts/setup-client.sh`; either move them to documented legacy/bootstrap storage or make their danger impossible to miss.
    - Update `DB_DEV_README.md`, `DEPLOYMENT.md`, `docs/SERVER_DEPLOYMENT.md`, and `.env.example` for Vite/Colyseus-only development.
    - Remove stale `NEXT_PUBLIC_GAME_SERVER_URL`, `FRONTEND_BUILD_TARGET=next`, `build:next`, and old Socket.IO references where they no longer apply.
    - Update CORS examples to include the Vite dev port.
 
-4. Keep local ignored output out of Git.
+4. [x] Keep local ignored output out of Git.
    - `dist/`, `.next/`, `out/`, and local IDE shelves are ignored and currently untracked.
    - Do not add generated build output or local private scripts.
 

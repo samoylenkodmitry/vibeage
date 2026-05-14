@@ -87,6 +87,8 @@ pnpm run db:restore:test
 
 Backups live under `/media/huge/vibeage-backups/postgres` by default and are not part of the Git checkout.
 
+The deploy, health, diagnostics, and backup scripts are Linux workstation/VPS scripts. They assume GNU coreutils/findutils behavior such as `find -printf`; run them from this Linux machine or the VPS, not macOS/BSD shells.
+
 ## One-Time VPS Prep
 
 Do this with sudo/root access before enabling any future automation. Preserve the existing mail vhost first.

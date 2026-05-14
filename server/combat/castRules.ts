@@ -64,19 +64,6 @@ export function applyCastResources(
   return applySkillCostAndCooldown(player, skillId, skill, now);
 }
 
-export function applyCastCost(player: PlayerState, skillId: SkillId): PlayerState {
-  const skill = SKILLS[skillId];
-  if (!skill) return player;
-
-  const updatedPlayer = {
-    ...player,
-    skillCooldownEndTs: { ...(player.skillCooldownEndTs ?? {}) },
-  };
-
-  applyCastResources(updatedPlayer, skillId, skill, Date.now());
-  return updatedPlayer;
-}
-
 function getCastBlocker(
   caster: PlayerState,
   skillId: SkillId,

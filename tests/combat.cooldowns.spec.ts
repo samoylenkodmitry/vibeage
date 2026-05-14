@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { SKILLS } from '../packages/content/skills';
 import { applySkillCostAndCooldown, hasEnoughMana, isSkillOnCooldown } from '../server/combat/cooldowns';
-import { canCast, validateCastRequest } from '../server/combat/utils/cast';
+import { canCast, validateCastRequest } from '../server/combat/castRules';
 import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
