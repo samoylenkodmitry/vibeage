@@ -22,6 +22,7 @@ export default function App() {
         state={state}
         onDisconnect={client.disconnect}
         onCastSkill={client.castSkill}
+        onLearnSkill={client.learnSkill}
         onUseItem={client.useItem}
         onRespawn={client.respawn}
       />

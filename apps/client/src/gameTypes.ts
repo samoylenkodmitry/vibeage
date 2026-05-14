@@ -1,4 +1,5 @@
 import type { SkillId } from '../../../packages/content/skills';
+import type { CharacterClass } from '../../../packages/content/classes';
 import type {
   CastSnapshot,
   ItemDrop,
@@ -24,6 +25,7 @@ export type PlayerEntity = {
   maxHealth: number;
   mana: number;
   maxMana: number;
+  className: CharacterClass;
   level: number;
   experience: number;
   experienceToNextLevel: number;
@@ -90,7 +92,7 @@ export type GroundLootStack = {
   items: ItemDrop[];
 };
 
-export type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify';
+export type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage';
 
 export type VisualEvent = {
   id: string;
@@ -99,6 +101,14 @@ export type VisualEvent = {
   amount?: number;
   radius?: number;
   createdAt: number;
+};
+
+export type StarterProgress = {
+  defeatedEnemies: number;
+  defeatedEnemyIds: string[];
+  lootPickups: number;
+  levelReached: number;
+  learnedSkills: number;
 };
 
 export type GameClientState = {
@@ -115,4 +125,5 @@ export type GameClientState = {
   inventory: InventorySlot[];
   maxInventorySlots: number;
   combatLog: CombatLine[];
+  starterProgress: StarterProgress;
 };

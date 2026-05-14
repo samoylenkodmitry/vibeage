@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { findPlayerIdBySocket, hydratePersistedPlayer } from '../server/players/playerSession';
+import { buildStablePlayerPersistenceData } from '../server/persistence';
 import type { PlayerState } from '../shared/types';
 
 const makePlayer = (id: string, socketId: string): PlayerState => ({
@@ -96,5 +97,52 @@ describe('player session hydration', () => {
 
     expect(findPlayerIdBySocket(state, 'socket2')).toBe('player2');
     expect(findPlayerIdBySocket(state, 'missing')).toBeUndefined();
+  });
+});
+
+describe('player session relog persistence', () => {
+  test('round-trips relog-critical progression state through persistence data', () => {
+    const beforeRelog = makePlayer('player-db-id', 'old-socket');
+    beforeRelog.position = { x: 12, y: 0.5, z: -4 };
+    beforeRelog.health = 44;
+    beforeRelog.level = 3;
+    beforeRelog.experience = 80;
+    beforeRelog.unlockedSkills = ['fireball', 'waterSplash'];
+    beforeRelog.skillShortcuts = ['fireball', 'waterSplash', null, null, null, null, null, null, null];
+    beforeRelog.availableSkillPoints = 1;
+    beforeRelog.inventory = [
+      { itemId: 'health_potion', quantity: 2 },
+      { itemId: 'sprite_glow', quantity: 1 },
+    ];
+
+    const stable = buildStablePlayerPersistenceData(beforeRelog, 123);
+    const afterRelog = hydratePersistedPlayer({
+      id: beforeRelog.id,
+      position_x: stable.position_x,
+      position_y: stable.position_y,
+      position_z: stable.position_z,
+      health: stable.health,
+      level: stable.level,
+      experience: stable.experience,
+      is_alive: stable.is_alive,
+      class_name: stable.class_name,
+      skills: JSON.parse(stable.skills),
+      skill_shortcuts: JSON.parse(stable.skill_shortcuts),
+      available_skill_points: stable.available_skill_points,
+      inventory: stable.inventory,
+    }, 'new-socket', beforeRelog.name);
+
+    expect(afterRelog).toMatchObject({
+      id: beforeRelog.id,
+      socketId: 'new-socket',
+      position: beforeRelog.position,
+      health: beforeRelog.health,
+      level: beforeRelog.level,
+      experience: beforeRelog.experience,
+      unlockedSkills: beforeRelog.unlockedSkills,
+      skillShortcuts: beforeRelog.skillShortcuts,
+      availableSkillPoints: beforeRelog.availableSkillPoints,
+      inventory: beforeRelog.inventory,
+    });
   });
 });

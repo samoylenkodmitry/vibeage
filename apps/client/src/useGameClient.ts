@@ -18,6 +18,7 @@ type ClientApi = {
   sendMoveIntent: (target: VecXZ) => void;
   selectTarget: (targetId: string | null) => void;
   castSkill: (skillId: SkillId) => void;
+  learnSkill: (skillId: SkillId) => void;
   pickUpLoot: (lootId: string) => void;
   useItem: (slotIndex: number) => void;
   respawn: () => void;
@@ -211,6 +212,10 @@ function useClientActions(
     }
   }, [roomRef, stateRef]);
 
+  const learnSkill = useCallback((skillId: SkillId) => {
+    roomRef.current?.send('msg', { type: 'LearnSkill', skillId });
+  }, [roomRef]);
+
   const useItem = useCallback((slotIndex: number) => {
     roomRef.current?.send('msg', { type: 'UseItem', slotIndex, clientTs: Date.now() });
   }, [roomRef]);
@@ -224,8 +229,8 @@ function useClientActions(
   }, [roomRef, stateRef]);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, castSkill, pickUpLoot, useItem, respawn }),
-    [sendMoveIntent, selectTarget, castSkill, pickUpLoot, useItem, respawn],
+    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn }),
+    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn],
   );
 }
 
@@ -331,6 +336,7 @@ function installE2EHooks(
     selectTarget: (targetId: string | null) => void;
     castSkill: (skillId: SkillId) => void;
     pickUpLoot: (lootId: string) => void;
+    learnSkill: (skillId: SkillId) => void;
     useItem: (slotIndex: number) => void;
     respawn: () => void;
   },
@@ -352,6 +358,7 @@ function installE2EHooks(
         experienceToNextLevel: state.players[state.myPlayerId]?.experienceToNextLevel ?? 100,
         isAlive: state.players[state.myPlayerId]?.isAlive ?? false,
       } : null,
+      starterProgress: state.starterProgress,
       inventoryItems: state.inventory.map((slot) => ({ itemId: slot.itemId, quantity: slot.quantity })),
       groundLootIds: Object.keys(state.groundLoot),
       castSkillIds: Object.values(state.casts).map((cast) => cast.snapshot.skillId),
@@ -367,6 +374,7 @@ function installE2EHooks(
       return enemy?.id ?? null;
     },
     castSkill: api.castSkill,
+    learnSkill: api.learnSkill,
     pickUpFirstLoot: () => {
       const loot = Object.values(state.groundLoot)[0];
       if (!loot) {
@@ -400,6 +408,7 @@ declare global {
           experienceToNextLevel: number;
           isAlive: boolean;
         } | null;
+        starterProgress: GameClientState['starterProgress'];
         inventoryItems: { itemId: string; quantity: number }[];
         groundLootIds: string[];
         castSkillIds: SkillId[];
@@ -409,6 +418,7 @@ declare global {
       sendMoveIntent: (target: VecXZ) => void;
       selectFirstEnemy: () => string | null;
       castSkill: (skillId: SkillId) => void;
+      learnSkill: (skillId: SkillId) => void;
       pickUpFirstLoot: () => string | null;
       useItem: (slotIndex: number) => void;
       respawn: () => void;

@@ -15,6 +15,7 @@ export default defineConfig({
           ],
           exclude: [
             'tests/e2e/**',
+            'tests/e2e-production/**',
             'tests/e2e-vite/**',
           ],
         },

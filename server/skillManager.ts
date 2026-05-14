@@ -1,7 +1,5 @@
-// filepath: /home/s/develop/projects/vibe/1/server/skillManager.ts
-
 import { SkillId} from '../packages/content/skills.js';
-import { canLearnSkill, CharacterClass, CLASS_SKILL_TREES } from '../shared/classSystem.js';
+import { canLearnSkill, CharacterClass, CLASS_SKILL_TREES } from '../packages/content/classes.js';
 
 // Define simplified types for what we need from the game state
 interface Player {
@@ -29,7 +27,6 @@ export function canPlayerLearnSkill(player: Player, skillId: SkillId): boolean {
     return false;
   }
   
-  // Use the shared check from classSystem
   return canLearnSkill(
     skillId,
     player.className as CharacterClass,

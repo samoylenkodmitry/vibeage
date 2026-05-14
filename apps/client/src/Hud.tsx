@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { getAvailableSkills } from '../../../packages/content/classes';
 import { ITEMS } from '../../../packages/content/items';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { InventorySlot, StatusEffect } from '../../../packages/protocol/messages';
@@ -13,6 +14,7 @@ type GameHudProps = {
   state: GameClientState;
   onDisconnect: () => void;
   onCastSkill: (skillId: SkillId) => void;
+  onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
   onRespawn: () => void;
 };
@@ -48,7 +50,7 @@ export function StartPanel({ onStart }: StartPanelProps) {
   );
 }
 
-export function GameHud({ state, onDisconnect, onCastSkill, onUseItem, onRespawn }: GameHudProps) {
+export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseItem, onRespawn }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const selectedTarget = state.selectedTargetId ? state.enemies[state.selectedTargetId] ?? null : null;
   const playerCount = Object.keys(state.players).length;
@@ -74,6 +76,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onUseItem, onRespawn
       </section>
       <PlayerPanel player={player} />
       <TargetPanel target={selectedTarget} />
+      <StarterProgressPanel player={player} state={state} onLearnSkill={onLearnSkill} />
       <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       <CastingPanel player={player} />
       <SkillBar player={player} now={now} onCastSkill={onCastSkill} />
@@ -122,6 +125,58 @@ function TargetPanel({ target }: { target: GameClientState['enemies'][string] | 
       <Meter label="HP" value={target?.health} max={target?.maxHealth} className="meter-enemy" />
       <StatusPills effects={target?.statusEffects ?? []} />
     </section>
+  );
+}
+
+function StarterProgressPanel({
+  player,
+  state,
+  onLearnSkill,
+}: {
+  player: PlayerEntity | null;
+  state: GameClientState;
+  onLearnSkill: (skillId: SkillId) => void;
+}) {
+  const nextSkill = useMemo(() => {
+    if (!player || player.availableSkillPoints <= 0) {
+      return null;
+    }
+
+    return getAvailableSkills(player.className, player.level, player.unlockedSkills)[0] ?? null;
+  }, [player]);
+  const defeated = Math.min(state.starterProgress.defeatedEnemies, 3);
+  const gathered = Math.min(state.starterProgress.lootPickups, 3);
+  const levelReached = Math.max(player?.level ?? 1, state.starterProgress.levelReached);
+
+  return (
+    <section className="starter-progress" aria-label="Starter progress">
+      <div className="panel-title">
+        <strong>Starter Path</strong>
+        <span>{defeated >= 3 && gathered >= 3 ? 'Complete' : 'Active'}</span>
+      </div>
+      <ObjectiveRow label="Defeat" value={defeated} max={3} />
+      <ObjectiveRow label="Gather" value={gathered} max={3} />
+      <ObjectiveRow label="Reach L2" value={levelReached >= 2 ? 1 : 0} max={1} />
+      {nextSkill ? (
+        <button type="button" className="learn-skill-button" onClick={() => onLearnSkill(nextSkill)}>
+          Learn {SKILLS[nextSkill].name}
+        </button>
+      ) : (
+        <small>{player?.availableSkillPoints ? 'No skill ready' : 'No skill points'}</small>
+      )}
+    </section>
+  );
+}
+
+function ObjectiveRow({ label, value, max }: { label: string; value: number; max: number }) {
+  return (
+    <div className="objective-row">
+      <span>{label}</span>
+      <div className="meter-track">
+        <div className="meter-fill meter-objective" style={{ width: `${getMeterProgress(value, max)}%` }} />
+      </div>
+      <strong>{value}/{max}</strong>
+    </div>
   );
 }
 

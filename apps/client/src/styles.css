@@ -138,6 +138,21 @@ input {
   padding: 10px 12px;
 }
 
+.starter-progress {
+  position: absolute;
+  top: 78px;
+  left: 18px;
+  display: grid;
+  width: min(280px, calc(100vw - 36px));
+  gap: 8px;
+  border: 1px solid rgba(141, 233, 215, 0.22);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: rgba(5, 14, 18, 0.76);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
 .hud-stats span,
 .hud-top span,
 .hud-top strong {
@@ -278,6 +293,24 @@ input {
   font-size: 12px;
 }
 
+.objective-row {
+  display: grid;
+  grid-template-columns: 58px minmax(70px, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.objective-row > span {
+  color: #9dded3;
+  font-weight: 700;
+}
+
+.objective-row > strong {
+  justify-self: end;
+  font-size: 12px;
+}
+
 .meter-row > span {
   color: #9dded3;
   font-weight: 700;
@@ -316,6 +349,20 @@ input {
 
 .meter-cast {
   background: #facc15;
+}
+
+.meter-objective {
+  background: #8de9d7;
+}
+
+.learn-skill-button {
+  min-height: 34px;
+  color: #071015;
+  background: #facc15;
+}
+
+.learn-skill-button:hover {
+  background: #fde68a;
 }
 
 .status-pills {
@@ -483,6 +530,13 @@ input {
     left: 12px;
     width: calc(100vw - 24px);
     transform: none;
+  }
+
+  .starter-progress {
+    top: 212px;
+    right: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
   }
 
   .player-panel {

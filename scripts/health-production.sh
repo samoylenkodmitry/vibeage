@@ -62,49 +62,11 @@ check_game_socket() {
   log "Game room"
 
   local output
-  if output=$(DOMAIN="$DOMAIN" node <<'NODE'
-(async () => {
-  const { Client } = await import('@colyseus/sdk');
-  const domain = process.env.DOMAIN || 'vibeage.eu';
-  const client = new Client(`https://${domain}/colyseus`, {
-    headers: {
-      Origin: `https://${domain}`,
-    },
-  });
-
-  let finished = false;
-  let room;
-  const finish = (code, message) => {
-    if (finished) return;
-    finished = true;
-    if (message) {
-      const stream = code === 0 ? process.stdout : process.stderr;
-      stream.write(`${message}\n`);
-    }
-    Promise.resolve(room?.leave(true))
-      .catch(() => undefined)
-      .finally(() => process.exit(code));
-  };
-
-  const timeout = setTimeout(() => finish(1, 'Colyseus room join timed out'), 8000);
-  try {
-    room = await client.joinOrCreate('world', {
-      playerName: `HealthCheck${Date.now()}`,
-      clientProtocolVersion: 2,
-    });
-    clearTimeout(timeout);
-    finish(0, `Colyseus world room joined: ${room.sessionId}`);
-  } catch (error) {
-    clearTimeout(timeout);
-    finish(1, `Colyseus room join failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-})();
-NODE
-  ); then
+  if output=$(DOMAIN="$DOMAIN" node scripts/smoke-production.mjs); then
     printf '%s\n' "$output"
-    pass "Colyseus world room joins through public HTTPS"
+    pass "Colyseus world room sends joinGame and gameState through public HTTPS"
   else
-    fail_check "Colyseus world room join failed through public HTTPS"
+    fail_check "Colyseus world room smoke failed through public HTTPS"
     printf '%s\n' "$output" >&2
   fi
 }
