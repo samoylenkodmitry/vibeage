@@ -9,6 +9,7 @@ import {
   type SnapshotClient,
 } from '../server/transport/clientSnapshot';
 import { makeClientGameStateSnapshot } from '../server/transport/clientState';
+import type { ServerWorldRegion } from '../server/world/regions';
 
 describe('client initial snapshot transport', () => {
   test('sends owner identity, owner-only direct state, and public game state from one path', () => {
@@ -68,11 +69,59 @@ describe('client initial snapshot transport', () => {
 
     expect(Object.keys(snapshot.enemies)).toEqual([activeEnemy.id]);
   });
+
+  test('region-scoped snapshots include only entities and loot in the client stream', () => {
+    const state = createGameState();
+    const player = createTransientPlayer('socket1', 'Tester');
+    const otherPlayer = createTransientPlayer('socket2', 'Other');
+    const localEnemy = createEnemy('goblin', 1, { x: 6, y: 0.5, z: 0 }, 3);
+    const farEnemy = createEnemy('wolf', 1, { x: 306, y: 0.5, z: 0 }, 4);
+    player.id = 'player1';
+    otherPlayer.id = 'player2';
+    player.position = { x: 0, y: 0.5, z: 0 };
+    otherPlayer.position = { x: 300, y: 0.5, z: 0 };
+
+    state.players[player.id] = player;
+    state.players[otherPlayer.id] = otherPlayer;
+    state.enemies[localEnemy.id] = localEnemy;
+    state.enemies[farEnemy.id] = farEnemy;
+    state.groundLoot.local = { position: { x: 4, z: 0 }, items: [{ itemId: 'gold_coin', quantity: 1 }] };
+    state.groundLoot.far = { position: { x: 304, z: 0 }, items: [{ itemId: 'gold_coin', quantity: 1 }] };
+    state.zones.activeZoneIds = ['zone-a', 'zone-b'];
+    state.zones.playerZoneIds = { player1: 'zone-a', player2: 'zone-b' };
+    state.zones.enemyZoneIds = { [localEnemy.id]: 'zone-a', [farEnemy.id]: 'zone-b' };
+
+    const snapshot = makeClientGameStateSnapshot(state, 'socket1', makeRegions());
+
+    expect(Object.keys(snapshot.players)).toEqual(['player1']);
+    expect(Object.keys(snapshot.enemies)).toEqual([localEnemy.id]);
+    expect(Object.keys(snapshot.groundLoot)).toEqual(['local']);
+    expect(snapshot.zones.enemyZoneIds).toEqual({ [localEnemy.id]: 'zone-a' });
+  });
 });
 
 function makeClient(sessionId: string): SnapshotClient & { send: ReturnType<typeof vi.fn> } {
   return {
     sessionId,
     send: vi.fn(),
+  };
+}
+
+function makeRegions(): ServerWorldRegion[] {
+  return [
+    makeRegion('zone-a', 0),
+    makeRegion('zone-b', 300),
+  ];
+}
+
+function makeRegion(id: string, x: number): ServerWorldRegion {
+  return {
+    id,
+    zoneId: id,
+    name: id,
+    center: { x, y: 0, z: 0 },
+    radius: 50,
+    active: true,
+    maxEnemies: 4,
   };
 }

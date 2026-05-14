@@ -10,7 +10,7 @@ import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyMoveIntent } from '../movement/moveIntent.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
-import { onLearnSkill, onSetSkillShortcut } from '../skillHandler.js';
+import { onLearnSkill, onSetSkillShortcut } from '../players/playerSkills.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   makeSocketMessageSink,

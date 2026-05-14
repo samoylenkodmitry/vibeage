@@ -1,8 +1,10 @@
 import {
   describeProtocolError,
   safeParseClientMessage,
+  type ServerMessage,
   type ClientMessage,
 } from '../../packages/protocol/messages.js';
+import type { GameState } from '../gameState.js';
 import type {
   AuthoritativeRoomClient,
   AuthoritativeRoomPort,
@@ -15,6 +17,13 @@ import {
   sanitizePlayerUpdateForPublic,
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import {
+  getEntityRegionId,
+  getPositionRegionId,
+  isEntityVisibleToSocket,
+  isRegionVisibleToSocket,
+  type ServerWorldRegion,
+} from '../world/regions.js';
 
 export type ColyseusClientLike = {
   sessionId: string;
@@ -24,6 +33,11 @@ export type ColyseusClientLike = {
 export type ColyseusBroadcastLike = {
   clients?: Iterable<ColyseusClientLike>;
   broadcast(type: string, message?: unknown): unknown;
+};
+
+export type ColyseusVisibilitySource = {
+  getGameState(): GameState | undefined;
+  getRegions(): readonly ServerWorldRegion[] | undefined;
 };
 
 export class ColyseusAuthoritativeRoomAdapter {
@@ -73,26 +87,54 @@ export class ColyseusAuthoritativeRoomAdapter {
   }
 }
 
-export function makeColyseusOutbound(room: ColyseusBroadcastLike): OutboundEventSink {
+export function makeColyseusOutbound(
+  room: ColyseusBroadcastLike,
+  visibility?: ColyseusVisibilitySource,
+): OutboundEventSink {
   return {
     publish(event) {
-      emitColyseusOutbound(room, event);
+      emitColyseusOutbound(room, event, visibility);
     },
   };
 }
 
-function emitColyseusOutbound(room: ColyseusBroadcastLike, event: OutboundEvent): void {
+function emitColyseusOutbound(
+  room: ColyseusBroadcastLike,
+  event: OutboundEvent,
+  visibility?: ColyseusVisibilitySource,
+): void {
   switch (event.type) {
     case 'serverMessage':
+      if (emitScopedServerMessage(room, event.message, visibility)) {
+        return;
+      }
       room.broadcast(WORLD_BROADCAST_EVENTS.message, event.message);
       return;
     case 'directServerMessage':
       findClient(room, event.socketId)?.send(WORLD_BROADCAST_EVENTS.message, event.message);
       return;
     case 'playerUpdated':
+      if (emitScopedEntityEvent(
+        room,
+        WORLD_BROADCAST_EVENTS.playerUpdated,
+        sanitizePlayerUpdateForPublic(event.update),
+        event.update.id,
+        visibility,
+      )) {
+        return;
+      }
       room.broadcast(WORLD_BROADCAST_EVENTS.playerUpdated, sanitizePlayerUpdateForPublic(event.update));
       return;
     case 'enemyUpdated':
+      if (emitScopedEntityEvent(
+        room,
+        WORLD_BROADCAST_EVENTS.enemyUpdated,
+        event.update,
+        event.update.id,
+        visibility,
+      )) {
+        return;
+      }
       room.broadcast(WORLD_BROADCAST_EVENTS.enemyUpdated, event.update);
       return;
   }
@@ -114,4 +156,148 @@ function findClient(room: ColyseusBroadcastLike, sessionId: string): ColyseusCli
   }
 
   return undefined;
+}
+
+function emitScopedServerMessage(
+  room: ColyseusBroadcastLike,
+  message: ServerMessage,
+  visibility?: ColyseusVisibilitySource,
+): boolean {
+  const context = getVisibilityContext(visibility);
+  if (!context) {
+    return false;
+  }
+
+  for (const client of room.clients ?? []) {
+    const filteredMessage = filterServerMessageForClient(message, client.sessionId, context.state, context.regions);
+    if (filteredMessage) {
+      client.send(WORLD_BROADCAST_EVENTS.message, filteredMessage);
+    }
+  }
+
+  return true;
+}
+
+function emitScopedEntityEvent(
+  room: ColyseusBroadcastLike,
+  eventName: string,
+  payload: unknown,
+  entityId: string,
+  visibility?: ColyseusVisibilitySource,
+): boolean {
+  const context = getVisibilityContext(visibility);
+  if (!context) {
+    return false;
+  }
+
+  for (const client of room.clients ?? []) {
+    if (isEntityVisibleToSocket(context.state, context.regions, client.sessionId, entityId)) {
+      client.send(eventName, payload);
+    }
+  }
+
+  return true;
+}
+
+function filterServerMessageForClient(
+  message: ServerMessage,
+  socketId: string,
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+): ServerMessage | null {
+  if (message.type !== 'BatchUpdate') {
+    return isServerMessageVisibleToClient(message, socketId, state, regions) ? message : null;
+  }
+
+  const updates = message.updates
+    .map((update) => filterServerMessageForClient(update, socketId, state, regions))
+    .filter((update): update is ServerMessage => Boolean(update));
+
+  if (updates.length === 0) {
+    return null;
+  }
+
+  runtimeMetrics.increment('snapshot.scopedClientBatches');
+  runtimeMetrics.increment('snapshot.scopedClientUpdates', updates.length);
+  return { ...message, updates };
+}
+
+function isServerMessageVisibleToClient(
+  message: ServerMessage,
+  socketId: string,
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+): boolean {
+  const regionId = getServerMessageRegionId(message, state, regions);
+  return isRegionVisibleToSocket(state, regions, socketId, regionId);
+}
+
+function getServerMessageRegionId(
+  message: ServerMessage,
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+): string | undefined {
+  switch (message.type) {
+    case 'PosSnap':
+      return getEntityRegionId(state, regions, message.id) ?? getPositionRegionId(regions, message.pos);
+    case 'InstantHit':
+      return getFirstEntityRegionId(state, regions, message.hitIds) ?? getPositionRegionId(regions, message.targetPos);
+    case 'CastSnapshot':
+      return getEntityRegionId(state, regions, message.data.casterId) ?? getPositionRegionId(regions, message.data.pos);
+    case 'EffectSnapshot':
+      return getEffectSnapshotRegionId(message, state, regions);
+    case 'CombatLog':
+      return getEntityRegionId(state, regions, message.casterId)
+        ?? getFirstEntityRegionId(state, regions, message.targets);
+    case 'EnemyAttack':
+      return getEntityRegionId(state, regions, message.enemyId);
+    case 'LootSpawn':
+      return getEntityRegionId(state, regions, message.enemyId) ?? getPositionRegionId(regions, message.position);
+    case 'LootPickup':
+      return getEntityRegionId(state, regions, message.playerId);
+    case 'InventoryUpdate':
+      return message.playerId ? getEntityRegionId(state, regions, message.playerId) : undefined;
+    default:
+      return undefined;
+  }
+}
+
+function getEffectSnapshotRegionId(
+  message: Extract<ServerMessage, { type: 'EffectSnapshot' }>,
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+): string | undefined {
+  if ('targetId' in message) {
+    return getEntityRegionId(state, regions, message.targetId);
+  }
+
+  return getEntityRegionId(state, regions, message.id) ?? getEntityRegionId(state, regions, message.src);
+}
+
+function getFirstEntityRegionId(
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+  entityIds: readonly string[],
+): string | undefined {
+  for (const entityId of entityIds) {
+    const regionId = getEntityRegionId(state, regions, entityId);
+    if (regionId) {
+      return regionId;
+    }
+  }
+
+  return undefined;
+}
+
+function getVisibilityContext(visibility?: ColyseusVisibilitySource): {
+  state: GameState;
+  regions: readonly ServerWorldRegion[];
+} | null {
+  const state = visibility?.getGameState();
+  const regions = visibility?.getRegions();
+  if (!state || !regions) {
+    return null;
+  }
+
+  return { state, regions };
 }

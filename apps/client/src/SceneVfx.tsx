@@ -46,11 +46,13 @@ const RECOVERY_PARTICLES = [
 export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
   const outerRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);
+  const beamRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     const outer = outerRef.current;
     const inner = innerRef.current;
-    if (!outer || !inner) {
+    const beam = beamRef.current;
+    if (!outer || !inner || !beam) {
       return;
     }
 
@@ -59,6 +61,7 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
     inner.scale.setScalar(0.76 + pulse * 0.1);
     (outer.material as THREE.MeshBasicMaterial).opacity = 0.34 + pulse * 0.38;
     (inner.material as THREE.MeshBasicMaterial).opacity = 0.72 + pulse * 0.18;
+    (beam.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulse * 0.24;
   });
 
   if (!target) {
@@ -74,6 +77,10 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
       <mesh ref={innerRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.18, 0.26, 28]} />
         <meshBasicMaterial color="#facc15" transparent opacity={0.86} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={beamRef} position={[0, 0.52, 0]}>
+        <cylinderGeometry args={[0.04, 0.08, 1.04, 12]} />
+        <meshBasicMaterial color="#8de9d7" transparent opacity={0.28} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -370,6 +377,30 @@ export function SelectedEnemyBeacon() {
         <meshStandardMaterial color="#facc15" emissive="#8a5f00" emissiveIntensity={0.58} roughness={0.42} />
       </mesh>
     </group>
+  );
+}
+
+export function EnemyThreatRing({ state }: { state?: string }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const isAttacking = state === 'attacking';
+  const color = isAttacking ? '#fb7185' : '#f59e0b';
+
+  useFrame(({ clock }) => {
+    const ring = ringRef.current;
+    if (!ring) {
+      return;
+    }
+
+    const pulse = (Math.sin(clock.elapsedTime * (isAttacking ? 8 : 4.8)) + 1) / 2;
+    ring.scale.setScalar(0.95 + pulse * (isAttacking ? 0.14 : 0.08));
+    (ring.material as THREE.MeshBasicMaterial).opacity = 0.34 + pulse * (isAttacking ? 0.34 : 0.18);
+  });
+
+  return (
+    <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
+      <ringGeometry args={[0.9, 1.04, 44]} />
+      <meshBasicMaterial color={color} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
   );
 }
 

@@ -4,6 +4,7 @@ import { createGameState } from '../server/gameState';
 import { createTransientPlayer } from '../server/playerFactory';
 import {
   createServerOwnedRegions,
+  getPlayerStreamRegionIds,
   getWorldRegionStats,
   refreshWorldRegionRuntime,
 } from '../server/world/regions';
@@ -48,15 +49,31 @@ describe('server-owned world regions', () => {
       aliveEnemyCount: 1,
     }));
   });
+
+  test('keeps spawning regions global while bounding each player stream', () => {
+    const state = createGameState();
+    const player = createTransientPlayer('socket-1', 'Tester');
+    player.position = { x: 0, y: 0.5, z: 0 };
+    state.players[player.id] = player;
+
+    const regions = createServerOwnedRegions(makeZoneManager(['zone-a', 'zone-b', 'zone-c'], 300), {
+      maxActiveZones: 3,
+      maxEnemiesPerZone: 4,
+    });
+    refreshWorldRegionRuntime(state, regions);
+
+    expect(state.zones.activeZoneIds).toEqual(['zone-a', 'zone-b', 'zone-c']);
+    expect([...getPlayerStreamRegionIds(state, regions, 'socket-1')]).toEqual(['zone-a']);
+  });
 });
 
-function makeZoneManager(zoneIds: string[]): ZoneManager {
+function makeZoneManager(zoneIds: string[], spacing = 100): ZoneManager {
   return {
     getZones: () => zoneIds.map((id, index) => ({
       id,
       name: id,
       description: id,
-      position: { x: index * 100, y: 0, z: 0 },
+      position: { x: index * spacing, y: 0, z: 0 },
       radius: 50,
       minLevel: 1,
       maxLevel: 1,

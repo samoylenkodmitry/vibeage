@@ -1,8 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 import type { SkillId } from '../packages/content/skills';
-import { onLearnSkill } from '../server/skillHandler';
-import { learnNewSkill } from '../server/skillManager';
+import { learnNewSkill, onLearnSkill } from '../server/players/playerSkills';
 import type { PlayerState } from '../packages/sim/entities';
+import { createGameState } from '../server/gameState';
 import {
   normalizeAvailableSkillPoints,
   normalizeSkillShortcuts,
@@ -106,13 +106,15 @@ describe('skill learning state sync', () => {
       inventory: [],
       maxInventorySlots: 20,
     };
+    const state = createGameState();
+    state.players[player.id] = player;
     const socket = {
       id: 'socket1',
     };
     const direct = { send: vi.fn() };
     const outbound = { publish: vi.fn() };
 
-    onLearnSkill(socket, direct, outbound, { players: { player1: player } }, {
+    onLearnSkill(socket, direct, outbound, state, {
       type: 'LearnSkill',
       skillId: 'fireball',
     });
