@@ -163,17 +163,17 @@ In progress:
 
 ### P1: Hot-Path Performance
 
-1. Optimize region streaming visibility.
+1. [x] Optimize region streaming visibility.
    - Keep socket-to-player lookup O(1).
    - Build per-client visibility context once per outbound event or tick.
    - Reuse visible-region sets while filtering `BatchUpdate` children.
 
-2. Optimize region runtime loops.
+2. [x] Optimize region runtime loops.
    - Avoid per-entity set allocations in active-region checks.
    - Use simple loops in `refreshWorldRegionRuntime`.
    - Aggregate region stats in one enemy pass and one player pass.
 
-3. Reduce server tick allocation and O(N) work.
+3. [x] Reduce server tick allocation and O(N) work.
    - Throttle world gauges.
    - Replace `Object.values(...).filter(...)` in high-frequency paths with counted loops.
    - Type `dirtySnap` on runtime entities instead of using `as any`.

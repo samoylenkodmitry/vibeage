@@ -48,6 +48,7 @@ export interface Enemy {
   lastAttackTime: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
+  dirtySnap?: boolean;
 }
 
 export interface PlayerState {
@@ -79,6 +80,7 @@ export interface PlayerState {
   lastSnapTime?: number;
   movement?: PlayerMovementState;
   velocity?: { x: number; z: number };
+  dirtySnap?: boolean;
   posHistory?: { ts: number; x: number; z: number }[];
   stats?: {
     dmgMult?: number;

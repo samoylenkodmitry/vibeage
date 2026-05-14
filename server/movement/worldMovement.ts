@@ -178,7 +178,7 @@ function advancePlayerPosition(
   const speed = player.movement.speed;
   const dir = calculateDir(currentPos, dest);
   player.velocity = { x: dir.x * speed, z: dir.z * speed };
-  (player as any).dirtySnap = true;
+  player.dirtySnap = true;
 
   const step = velocityStep(player.velocity, deltaTimeMs);
   const oldPosForGrid = { ...currentPos };
@@ -233,7 +233,7 @@ function stopPlayerAtDestination(
   player.movement.isMoving = false;
   player.velocity = { x: 0, z: 0 };
   player.movement.lastUpdateTime = now;
-  (player as any).dirtySnap = true;
+  player.dirtySnap = true;
   updatePositionHistory(player, now);
 }
 

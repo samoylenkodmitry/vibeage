@@ -18,6 +18,8 @@ import {
   type ServerWorldRegion,
 } from './regions.js';
 
+const WORLD_GAUGE_INTERVAL_TICKS = 30;
+
 export type WorldTickRunnerOptions = {
   state: GameState;
   spatial: SpatialHashGrid;
@@ -34,6 +36,7 @@ export type WorldTickRunner = {
 export function createWorldTickRunner(options: WorldTickRunnerOptions): WorldTickRunner {
   let snapAccumulator = 0;
   let maintenanceTick = 0;
+  let worldGaugeTick = WORLD_GAUGE_INTERVAL_TICKS - 1;
   const snapshotEveryTicks = Math.max(1, Math.round(1000 / options.tickMs / options.snapHz));
   const maintenanceEveryTicks = snapshotEveryTicks;
 
@@ -50,7 +53,11 @@ export function createWorldTickRunner(options: WorldTickRunnerOptions): WorldTic
         maintenanceEveryTicks,
       });
       runtimeMetrics.recordTickMs(performance.now() - startedAt);
-      recordWorldGauges(options.state);
+      worldGaugeTick += 1;
+      if (worldGaugeTick >= WORLD_GAUGE_INTERVAL_TICKS) {
+        worldGaugeTick = 0;
+        recordWorldGauges(options.state);
+      }
     },
   };
 }
@@ -78,7 +85,12 @@ function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number 
 }
 
 function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
-  for (const enemy of Object.values(input.state.enemies)) {
+  for (const enemyId in input.state.enemies) {
+    if (!hasRecordKey(input.state.enemies, enemyId)) {
+      continue;
+    }
+
+    const enemy = input.state.enemies[enemyId];
     if (enemy.isAlive) {
       updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000);
     }
@@ -137,12 +149,38 @@ function shouldRunMaintenance(tick: number, interval: number, offset: number): b
 }
 
 function recordWorldGauges(state: GameState): void {
-  const enemies = Object.values(state.enemies);
-  runtimeMetrics.setGauge('players.active', Object.keys(state.players).length);
-  runtimeMetrics.setGauge('enemies.total', enemies.length);
-  runtimeMetrics.setGauge('enemies.alive', enemies.filter((enemy) => enemy.isAlive).length);
+  let enemyCount = 0;
+  let aliveEnemyCount = 0;
+  for (const enemyId in state.enemies) {
+    if (!hasRecordKey(state.enemies, enemyId)) {
+      continue;
+    }
+
+    enemyCount += 1;
+    if (state.enemies[enemyId].isAlive) {
+      aliveEnemyCount += 1;
+    }
+  }
+
+  runtimeMetrics.setGauge('players.active', countRecordEntries(state.players));
+  runtimeMetrics.setGauge('enemies.total', enemyCount);
+  runtimeMetrics.setGauge('enemies.alive', aliveEnemyCount);
   runtimeMetrics.setGauge('zones.active', state.zones.activeZoneIds.length);
-  runtimeMetrics.setGauge('zones.playersTracked', Object.keys(state.zones.playerZoneIds).length);
-  runtimeMetrics.setGauge('casts.active', Object.keys(state.activeCasts).length);
-  runtimeMetrics.setGauge('loot.groundStacks', Object.keys(state.groundLoot).length);
+  runtimeMetrics.setGauge('zones.playersTracked', countRecordEntries(state.zones.playerZoneIds));
+  runtimeMetrics.setGauge('casts.active', countRecordEntries(state.activeCasts));
+  runtimeMetrics.setGauge('loot.groundStacks', countRecordEntries(state.groundLoot));
+}
+
+function countRecordEntries(record: Record<string, unknown>): number {
+  let count = 0;
+  for (const key in record) {
+    if (hasRecordKey(record, key)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function hasRecordKey<T>(record: Record<string, T>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
 }
