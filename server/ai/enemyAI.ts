@@ -2,6 +2,7 @@
 import { Enemy } from '../../shared/types.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { EntityState } from '../gameState.js';
+import { debug, LOG_CATEGORIES } from '../logger.js';
 import {
   emitEnemyUpdated,
   emitPlayerUpdated,
@@ -35,12 +36,15 @@ export function updateEnemyAI(
 
 function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): void {
   if (event.type === 'log') {
-    console.log(event.message);
+    debug(LOG_CATEGORIES.ENEMY, event.message);
     return;
   }
 
   if (event.type === 'enemyAttack') {
-    console.log(`[AI] Enemy ${event.enemyId} attacked player ${event.targetId} for ${event.damage} damage. Player HP: ${event.targetHealth}`);
+    debug(LOG_CATEGORIES.ENEMY, `Enemy ${event.enemyId} attacked player ${event.targetId}`, {
+      damage: event.damage,
+      targetHealth: event.targetHealth,
+    });
     emitServerMessage(outbound, {
       type: 'EnemyAttack',
       enemyId: event.enemyId,
@@ -54,6 +58,6 @@ function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): voi
     return;
   }
 
-  console.log(event.message);
+  debug(LOG_CATEGORIES.ENEMY, event.message);
   emitPlayerUpdated(outbound, event.update);
 }

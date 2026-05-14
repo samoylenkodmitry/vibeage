@@ -1,12 +1,13 @@
+import { WORLD_SETTINGS } from '../packages/content/world.js';
 import { VecXZ } from '../shared/types.js';
-import { log, LOG_CATEGORIES } from './logger';
+import { debug, LOG_CATEGORIES } from './logger';
 
 // Constants for the game world
 const WORLD_BOUNDS = {
-    minX: -500,
-    maxX: 500,
-    minZ: -500,
-    maxZ: 500
+    minX: -WORLD_SETTINGS.playableRadius,
+    maxX: WORLD_SETTINGS.playableRadius,
+    minZ: -WORLD_SETTINGS.playableRadius,
+    maxZ: WORLD_SETTINGS.playableRadius
 };
 
 // Define obstacles - can be expanded with more complex shapes
@@ -167,24 +168,24 @@ export function isPathBlocked(start: VecXZ, dest: VecXZ): boolean {
     // Check world boundaries
     if (dest.x < WORLD_BOUNDS.minX || dest.x > WORLD_BOUNDS.maxX ||
         dest.z < WORLD_BOUNDS.minZ || dest.z > WORLD_BOUNDS.maxZ) {
-        console.log('[COLLISION] Blocked by world bounds', { start, dest, bounds: WORLD_BOUNDS });
+        debug(LOG_CATEGORIES.COLLISION, 'Blocked by world bounds', { start, dest, bounds: WORLD_BOUNDS });
         return true;
     }
     // Check obstacle collisions
     for (const obstacle of OBSTACLES) {
         if (obstacle.type === 'circle' && obstacle.center && obstacle.radius) {
             if (lineIntersectsCircle(start, dest, obstacle.center, obstacle.radius)) {
-                console.log('[COLLISION] Blocked by circle', { start, dest, center: obstacle.center, radius: obstacle.radius });
+                debug(LOG_CATEGORIES.COLLISION, 'Blocked by circle', { start, dest, center: obstacle.center, radius: obstacle.radius });
                 return true;
             }
         } else if (obstacle.type === 'rectangle' && obstacle.position && obstacle.width && obstacle.height) {
             if (lineIntersectsRectangle(start, dest, obstacle.position, obstacle.width, obstacle.height)) {
-                console.log('[COLLISION] Blocked by rectangle', { start, dest, position: obstacle.position, width: obstacle.width, height: obstacle.height });
+                debug(LOG_CATEGORIES.COLLISION, 'Blocked by rectangle', { start, dest, position: obstacle.position, width: obstacle.width, height: obstacle.height });
                 return true;
             }
         }
     }
-    console.log('[COLLISION] Path clear', { start, dest });
+    debug(LOG_CATEGORIES.COLLISION, 'Path clear', { start, dest });
     return false;
 }
 
@@ -210,11 +211,11 @@ export function findValidDestination(start: VecXZ, dest: VecXZ): VecXZ {
         };
         
         if (!isPathBlocked(start, testPoint)) {
-            console.log('[COLLISION] Clamped destination', { from: dest, to: testPoint });
+            debug(LOG_CATEGORIES.COLLISION, 'Clamped destination', { from: dest, to: testPoint });
             return testPoint;
         }
     }
-    console.log('[COLLISION] No valid destination found, returning start', { start, dest });
+    debug(LOG_CATEGORIES.COLLISION, 'No valid destination found, returning start', { start, dest });
     return { ...start };
 }
 
@@ -243,7 +244,7 @@ export function sweptHit(
   const effectiveHitRadius = projectileHitRadius + targetRadius; // Sum of radii
 
   // Log hit check details for debugging
-  log(LOG_CATEGORIES.COLLISION, `SweptHit: Proj from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with effective radius ${effectiveHitRadius}`);
+  debug(LOG_CATEGORIES.COLLISION, `SweptHit: Proj from (${a0.x.toFixed(2)}, ${a0.z.toFixed(2)}) to (${a1.x.toFixed(2)}, ${a1.z.toFixed(2)}), target at (${bPos.x.toFixed(2)}, ${bPos.z.toFixed(2)}) with effective radius ${effectiveHitRadius}`);
   
   // Vector from projectile start to target center
   const Px = bPos.x - a0.x;
@@ -276,7 +277,7 @@ export function sweptHit(
   const hit = distToClosestPointSq <= effectiveHitRadius * effectiveHitRadius;
 
   if (hit && Math.random() < 0.1) { // Reduce log spam
-    log(LOG_CATEGORIES.COLLISION, `Swept HIT! DistSq: ${distToClosestPointSq.toFixed(2)} <= RadiusSq: ${(effectiveHitRadius * effectiveHitRadius).toFixed(2)}`);
+    debug(LOG_CATEGORIES.COLLISION, `Swept HIT! DistSq: ${distToClosestPointSq.toFixed(2)} <= RadiusSq: ${(effectiveHitRadius * effectiveHitRadius).toFixed(2)}`);
   }
   
   return hit;

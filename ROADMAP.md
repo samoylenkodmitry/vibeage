@@ -116,8 +116,11 @@ tests/
 - Keep GitHub `main` protected by the passing CI gate.
 - Keep secret scanning enabled in GitHub so accidental credentials are caught before deployment.
 - Keep Dependabot configuration present, but version-update PRs are currently disabled to avoid automated dependency churn during the runtime migration; re-enable intentionally when dependency work is planned.
+- Done on 2026-05-14: kept deployment on the local-initiated VPS path for the privacy/logging/world cleanup and verified production health after `main` was green.
 - Stop adding gameplay features to large monolithic files unless the change is a small fix.
 - Protocol implementation now lives in `packages/protocol`; new protocol imports should use that package directly.
+- Done on 2026-05-14: documented and tested the protocol privacy boundary so `socketId`, starter progress, inventory, and inventory slot limits stay owner-only.
+- Done on 2026-05-14: gated noisy gameplay runtime logs behind explicit debug categories instead of printing normal combat, loot, AI, prediction, skill, and collision flow.
 
 ### Phase 1: Extract Contracts And Content
 
@@ -133,6 +136,7 @@ tests/
 - Done on 2026-05-12: defined the shared server-authoritative state model in `packages/sim/authoritativeState.ts` and wired the server to create state through `server/gameState.ts`.
 - Done on 2026-05-12: deleted the remaining legacy client projectile store; v2 `CastSnapshot` projectiles now own live, fade, and recycle state through `projectileStore.ts`.
 - Done on 2026-05-12: moved active cast runtime storage into `GameState.activeCasts` instead of a module-global cast array.
+- Done on 2026-05-14: deleted unused `shared` compatibility re-export files after all live imports had moved to `packages/content` and `packages/sim`.
 
 ### Phase 2: Build The New Browser Client
 
@@ -141,6 +145,7 @@ tests/
 - Done on 2026-05-12: added Vite-side visual smoothing, cooldown/casting/XP/death/inventory/loot HUD loops, and browser/reducer coverage for the new path.
 - Done on 2026-05-13: made Vite the default production frontend path and added clearer movement destination, selected-target, and enemy health presentation.
 - Done on 2026-05-13: ported useful R3F/VFX patterns into the Vite client: recovery particles, water splash impact, petrify flash, and richer projectile trails without reusing the old pooled/global VFX manager.
+- Done on 2026-05-14: extracted reusable Vite world visual config and rendered low-cost zone landmarks so the configured large world is visible in the browser.
 - Keep visual state separate from authoritative network state.
 - Vite Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
 
@@ -157,6 +162,7 @@ tests/
 - Done on 2026-05-13: routed player lifecycle, enemy respawn, item-use, and target-death update emissions through the outbound adapter.
 - Done on 2026-05-13: routed combat casts, projectile impacts, enemy AI, status effects, skills, inventory, and loot through outbound/direct message sinks so raw transport emissions live only in transport adapters.
 - Done on 2026-05-13: added a tested structural Colyseus room/outbound adapter that uses the current room-boundary contract.
+- Done on 2026-05-14: tightened skill-handler and client world-scene module boundaries without widening `world.ts`, the network bridge, or the reducer.
 - Use `server/transport/vibeAgeRoom.ts` as the current Colyseus room implementation and keep `roomBoundary.ts` as the contract around the authoritative world.
 - Persist only stable player/account data, not transient render state.
 
@@ -164,6 +170,7 @@ tests/
 
 - Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, five enemy types, loot, leveling, and respawn, with content/runtime validation tests.
 - Done on 2026-05-13: added `pnpm run measure:baseline` to report Vite bundle size, deterministic server tick cost, Colyseus room join/game-state latency, and optional browser FPS.
+- Done on 2026-05-14: aligned legacy collision bounds with the configured 1,200-unit playable radius so future movement checks match the expanded zone layout.
 - Expand content only after protocol and simulation tests are stable.
 
 ## Agent Rules

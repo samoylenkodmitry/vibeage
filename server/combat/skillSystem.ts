@@ -10,6 +10,7 @@ import {
   type DirectMessageSink,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
+import { debug, error, LOG_CATEGORIES, warn } from '../logger.js';
 import type { CombatWorld } from './worldContract.js';
 
 // Set of constants for skill system
@@ -59,11 +60,11 @@ export function handleCastRequest(
   const skill = SKILLS[skillId];
   
   if (!skill) {
-    console.error(`[handleCastRequest] Invalid skill ID: ${skillId}`);
+    error(LOG_CATEGORIES.COMBAT, `Invalid skill ID: ${skillId}`);
     return 'invalid';
   }
   
-  console.log(`[handleCastRequest] Creating new cast: casterId=${casterId}, skillId=${skillId}, targetId=${targetId}, targetPos=${JSON.stringify(targetPos)}`);
+  debug(LOG_CATEGORIES.COMBAT, 'Creating cast', { casterId, skillId, targetId, targetPos });
   
   // Create a new Cast
   const newCast: Cast = {
@@ -80,7 +81,7 @@ export function handleCastRequest(
   };
   
   if (!targetPos && !targetId) {
-    console.warn(`[handleCastRequest] No target position or ID provided for cast: ${newCast.castId}`);
+    warn(LOG_CATEGORIES.COMBAT, `No target position or ID provided for cast: ${newCast.castId}`);
     return 'missingTarget';
   }
   
@@ -95,7 +96,7 @@ export function handleCastRequest(
       if (target) {
         targetPosVec = { x: target.position.x, z: target.position.z };
       } else {
-        console.warn(`[handleCastRequest] Target ID ${targetId} not found for cast: ${newCast.castId}`);
+        warn(LOG_CATEGORIES.COMBAT, `Target ID ${targetId} not found for cast: ${newCast.castId}`);
         return 'targetNotFound';
       }
     }
@@ -110,27 +111,33 @@ export function handleCastRequest(
       if (dist > 0) {
         newCast.dir = { x: dx / dist, z: dz / dist };
         newCast.speed = skill.projectile.speed;
-        console.log(`[handleCastRequest] Set projectile direction: [${newCast.dir.x.toFixed(2)}, ${newCast.dir.z.toFixed(2)}], speed: ${newCast.speed}`);
+        debug(LOG_CATEGORIES.COMBAT, `Set projectile direction for cast ${newCast.castId}`, {
+          direction: {
+            x: Number(newCast.dir.x.toFixed(2)),
+            z: Number(newCast.dir.z.toFixed(2)),
+          },
+          speed: newCast.speed,
+        });
       }
     }
   }
   
   // Add to active casts
   activeCasts[newCast.castId] = newCast;
-  console.log(`[handleCastRequest] Added to activeCasts. Total active casts: ${Object.keys(activeCasts).length}`);
+  debug(LOG_CATEGORIES.COMBAT, `Added cast ${newCast.castId}`, {
+    activeCastCount: Object.keys(activeCasts).length,
+  });
   
   // Broadcast initial cast snapshot
   const snapshot = makeCastSnapshot(newCast);
   emitCastSnapshot(outbound, newCast);
-  console.log(`[handleCastRequest] Broadcasting initial CastSnapshot: ${JSON.stringify(snapshot)}`);
+  debug(LOG_CATEGORIES.COMBAT, `Broadcast initial cast snapshot ${newCast.castId}`, { snapshot });
 
   // Set player UI info
   if (player) {
     player.castingSkill = skillId;
     player.castingProgressMs = 0;
 
-    // Also broadcast the player's updated casting state
-    console.log(`[handleCastRequest] Broadcasting playerUpdated with castingSkill=${skillId}, castingProgressMs=0`);
     emitPlayerUpdated(outbound, {
       id: player.id,
       mana: player.mana,
@@ -163,7 +170,7 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
     // Skip casts that are already in their final state and remove after delay
     if (cast.state === CastStateEnum.Impact) {
       // Remove completed casts
-      console.log(`[tickCasts] Removing completed cast: castId=${cast.castId}, skillId=${cast.skillId}`);
+      debug(LOG_CATEGORIES.COMBAT, `Removing completed cast ${cast.castId}`, { skillId: cast.skillId });
       delete activeCasts[castId];
       continue;
     }
@@ -172,14 +179,16 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
     if (cast.state === CastStateEnum.Casting && now - cast.startedAt >= cast.castTimeMs) {
       const skill = SKILLS[cast.skillId];
       const newState = skill.projectile ? CastStateEnum.Traveling : CastStateEnum.Impact;
-      console.log(`[tickCasts] Cast complete, transitioning from Casting to ${newState}: castId=${cast.castId}, skillId=${cast.skillId}, casterId=${cast.casterId}`);
+      debug(LOG_CATEGORIES.COMBAT, `Cast ${cast.castId} transitioned to ${newState}`, {
+        skillId: cast.skillId,
+        casterId: cast.casterId,
+      });
 
       cast.state = newState;
 
       // Update startedAt to when projectile *begins* traveling
       if (newState === CastStateEnum.Traveling) {
         cast.startedAt = now;
-        console.log(`[tickCasts] Updated startedAt timestamp for traveling projectile: castId=${cast.castId}, startedAt=${cast.startedAt}`);
       }
 
       // Clear the player's casting state when casting is complete
@@ -188,8 +197,6 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
         player.castingSkill = null;
         player.castingProgressMs = 0;
 
-        // Broadcast that casting has finished for this player
-        console.log(`[tickCasts] Broadcasting playerUpdated with null castingSkill for player: ${cast.casterId}`);
         emitPlayerUpdated(outbound, {
           id: player.id,
           castingSkill: player.castingSkill,
@@ -199,12 +206,14 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
 
       // Broadcast state change
       const snapshot = makeCastSnapshot(cast);
-      console.log(`[tickCasts] Broadcasting CastSnapshot for state change: ${JSON.stringify(snapshot)}`);
+      debug(LOG_CATEGORIES.COMBAT, `Broadcast cast state change ${cast.castId}`, { snapshot });
       emitCastSnapshot(outbound, cast);
 
       // If instant skill, resolve impact immediately
       if (cast.state === CastStateEnum.Impact) {
-        console.log(`[tickCasts] Resolving impact immediately for instant skill: castId=${cast.castId}, skillId=${cast.skillId}`);
+        debug(LOG_CATEGORIES.COMBAT, `Resolving instant impact for cast ${cast.castId}`, {
+          skillId: cast.skillId,
+        });
         resolveCastImpact(cast, outbound, world);
       }
       continue;
@@ -214,8 +223,6 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
       const player = world.getPlayerById(cast.casterId);
       if (player) {
         player.castingProgressMs = progressMs;
-        // Broadcast casting progress
-        console.log(`[tickCasts] Broadcasting casting progress: casterId=${cast.casterId}, castingProgressMs=${progressMs}`);
         emitPlayerUpdated(outbound, {
           id: player.id,
           castingSkill: cast.skillId,
@@ -225,7 +232,7 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
       cast.progressMs = progressMs;
       // Broadcast cast progress
       const snapshot = makeCastSnapshot(cast);
-      console.log(`[tickCasts] Broadcasting CastSnapshot for casting progress: ${JSON.stringify(snapshot)}`);
+      debug(LOG_CATEGORIES.COMBAT, `Broadcast cast progress ${cast.castId}`, { snapshot });
       emitCastSnapshot(outbound, cast);
       continue;
     }

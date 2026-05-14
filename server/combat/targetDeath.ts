@@ -1,5 +1,6 @@
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
+import { debug, LOG_CATEGORIES } from '../logger.js';
 import { spawnLootForEnemyDeath } from '../loot/groundLoot.js';
 import { awardPlayerXP } from '../players/playerLifecycle.js';
 import { emitStarterProgressUpdate, recordStarterEnemyDefeat } from '../progression/starterPath.js';
@@ -23,7 +24,10 @@ export function handleTargetDeath(
     return false;
   }
 
-  console.log(`Target died: ${JSON.stringify(target)}`);
+  debug(LOG_CATEGORIES.COMBAT, `Target died: ${target.id}`, {
+    casterId: caster.id,
+    targetType: isEnemy(target) ? 'enemy' : 'player',
+  });
   target.isAlive = false;
   target.deathTimeTs = context.now ?? Date.now();
   target.health = 0;

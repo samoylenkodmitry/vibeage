@@ -19,6 +19,8 @@ import {
   TargetDestinationMarker,
   WorldEventVfx,
 } from './SceneVfx';
+import { ZoneLandmarks } from './ZoneLandmarks';
+import { getEnemyVisual } from './worldVisuals';
 
 const GROUND_Y = 0;
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND_Y);
@@ -49,6 +51,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       <ambientLight intensity={0.62} />
       <directionalLight position={[24, 32, 18]} intensity={1.4} castShadow />
       <WorldGround onMove={onMove} />
+      <ZoneLandmarks />
       <TargetDestinationMarker target={state.targetWorldPos} />
       {Object.values(state.players).map((player) => (
         <PlayerMarker
@@ -188,21 +191,6 @@ function EnemyMarker({
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
     </SmoothedEntityGroup>
   );
-}
-
-function getEnemyVisual(type: string): { color: string; height: number; shape: 'box' | 'sphere'; glow: boolean } {
-  switch (type) {
-    case 'slime':
-      return { color: '#56d88b', height: 0.85, shape: 'sphere', glow: false };
-    case 'meadow_sprite':
-      return { color: '#f9d66a', height: 0.9, shape: 'sphere', glow: true };
-    case 'wolf':
-      return { color: '#b08968', height: 0.9, shape: 'box', glow: false };
-    case 'skeleton':
-      return { color: '#d7d3c7', height: 1.1, shape: 'box', glow: false };
-    default:
-      return { color: '#ef6461', height: 1.1, shape: 'box', glow: false };
-  }
 }
 
 function CastMarker({ cast }: { cast: VisibleCast }) {

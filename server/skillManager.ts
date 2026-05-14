@@ -1,5 +1,6 @@
 import { SkillId} from '../packages/content/skills.js';
 import { canLearnSkill, CharacterClass, CLASS_SKILL_TREES } from '../packages/content/classes.js';
+import { debug, error as logError, LOG_CATEGORIES } from './logger.js';
 
 // Define simplified types for what we need from the game state
 interface Player {
@@ -47,7 +48,7 @@ export function learnNewSkill(player: Player, skillId: SkillId): boolean {
     
     // Check if player can learn this skill
     if (!canPlayerLearnSkill(player, skillId)) {
-      console.log(`[LEARN_SKILL] Player ${player.id} failed to learn ${skillId} - requirements not met`);
+      debug(LOG_CATEGORIES.SKILL, `Player ${player.id} failed to learn ${skillId} - requirements not met`);
       return false;
     }
 
@@ -58,7 +59,7 @@ export function learnNewSkill(player: Player, skillId: SkillId): boolean {
     // Deduct a skill point
     player.availableSkillPoints -= 1;
     
-    console.log(`[LEARN_SKILL] Player ${player.id} learned ${skillId}. Skill points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
+    debug(LOG_CATEGORIES.SKILL, `Player ${player.id} learned ${skillId}. Skill points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
     
     // Automatically assign to the first empty shortcut slot if available.
     const alreadyAssigned = player.skillShortcuts.includes(skillId);
@@ -69,7 +70,7 @@ export function learnNewSkill(player: Player, skillId: SkillId): boolean {
     
     return true;
   } catch (error) {
-    console.error(`Error learning skill ${skillId}:`, error);
+    logError(LOG_CATEGORIES.SKILL, `Error learning skill ${skillId}`, error);
     return false;
   }
 }
@@ -95,7 +96,7 @@ export function setSkillShortcut(player: Player, slotIndex: number, skillId: Ski
       const existingIndex = player.skillShortcuts.findIndex(id => id === skillId);
       if (existingIndex !== -1 && existingIndex !== slotIndex) {
         // Remove it from the existing slot to prevent duplicates
-        console.log(`Skill ${skillId} already exists in slot ${existingIndex + 1}, removing from that slot`);
+        debug(LOG_CATEGORIES.SKILL, `Skill ${skillId} already exists in slot ${existingIndex + 1}, removing from that slot`);
         player.skillShortcuts[existingIndex] = null;
       }
     }
@@ -105,7 +106,7 @@ export function setSkillShortcut(player: Player, slotIndex: number, skillId: Ski
     
     return true;
   } catch (error) {
-    console.error('Error setting skill shortcut:', error);
+    logError(LOG_CATEGORIES.SKILL, 'Error setting skill shortcut', error);
     return false;
   }
 }
@@ -142,7 +143,7 @@ export function getAvailableSkillsToLearn(player: Player): SkillId[] {
     
     return availableSkills;
   } catch (error) {
-    console.error('Error getting available skills:', error);
+    logError(LOG_CATEGORIES.SKILL, 'Error getting available skills', error);
     return [];
   }
 }

@@ -1,5 +1,6 @@
 import { CastReq, CastFail } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../shared/types.js';
+import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { applyCastResources, validateCastRequest } from './castRules.js';
@@ -33,7 +34,7 @@ export function handleCastReq(
   
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
-    console.warn(`Invalid cast request: player=${playerId}, socketId mismatch`);
+    warn(LOG_CATEGORIES.COMBAT, `Invalid cast request: player=${playerId}, socketId mismatch`);
     return;
   }
   
@@ -43,7 +44,10 @@ export function handleCastReq(
   
   const castCheck = validateCastRequest(player, msg.skillId, target, msg.targetPos, now);
   if (castCheck.ok === false) {
-    console.log(`Cast failed for player ${playerId}, skill ${msg.skillId}: ${castCheck.reason}`);
+    debug(LOG_CATEGORIES.COMBAT, `Cast failed for player ${playerId}`, {
+      skillId: msg.skillId,
+      reason: castCheck.reason,
+    });
     emitCastFail(transport.direct, msg, castCheck.reason);
     return;
   }
@@ -62,7 +66,10 @@ export function handleCastReq(
   
   const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
   if (failReason) {
-    console.log(`Cast failed for player ${playerId}, skill ${castCheck.skillId}: ${castResult}`);
+    debug(LOG_CATEGORIES.COMBAT, `Cast failed for player ${playerId}`, {
+      skillId: castCheck.skillId,
+      reason: castResult,
+    });
     emitCastFail(transport.direct, msg, failReason);
     return;
   }

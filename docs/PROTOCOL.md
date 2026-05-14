@@ -2,6 +2,29 @@
 
 This document describes the current messaging protocol used for communication between the client and server.
 
+## Visibility Boundary
+
+The server treats the authoritative `PlayerState` as owner-visible by default. Full snapshots sent to a joining or resyncing client keep private fields only for the player whose `socketId` matches that client. Other players are sanitized in `server/transport/clientState.ts`.
+
+Owner-only player fields:
+
+- `socketId`
+- `starterProgress`
+- `inventory`
+- `maxInventorySlots`
+
+Owner-only/direct messages:
+
+- `InventoryUpdate`
+- `LootAcquired`
+- `ItemUsed`
+- `SkillLearned`
+- `SkillShortcutUpdated`
+- `StarterProgressUpdate`
+- `CastFail`
+
+Public broadcasts may include combat, movement, loot visibility, enemy updates, and sanitized player joins/updates. Any new player field must be classified here and covered by a transport privacy test before it is broadcast.
+
 ## Core Message Types
 
 ### MoveIntent

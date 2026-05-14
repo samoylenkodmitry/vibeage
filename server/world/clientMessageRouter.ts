@@ -6,7 +6,7 @@ import { handleTargetDeath } from '../combat/targetDeath.js';
 import type { GameState } from '../gameState.js';
 import { onUseItem } from '../inventory/itemUse.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
-import { log, LOG_CATEGORIES } from '../logger.js';
+import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyMoveIntent } from '../movement/moveIntent.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
@@ -138,7 +138,10 @@ function onMoveIntent(
   }
 
   if (result.kind === 'move') {
-    log(LOG_CATEGORIES.MOVEMENT, 'debug', `Player ${result.playerId} moving to ${JSON.stringify(msg.targetPos)} at speed ${result.speed}`);
+    debug(LOG_CATEGORIES.MOVEMENT, `Player ${result.playerId} moving`, {
+      targetPos: msg.targetPos,
+      speed: result.speed,
+    });
   }
 }
 
@@ -157,9 +160,9 @@ function warnRejectedMoveIntent(
   targetPos: Extract<ClientMessage, { type: 'MoveIntent' }>['targetPos'],
 ): void {
   if (reason === 'invalidTarget') {
-    console.warn(`Invalid target position in MoveIntent from player ${playerId}: ${JSON.stringify(targetPos)}`);
+    warn(LOG_CATEGORIES.MOVEMENT, `Invalid target position in MoveIntent from player ${playerId}`, { targetPos });
     return;
   }
 
-  console.warn(`Invalid player ID or wrong socket for MoveIntent: ${playerId}`);
+  warn(LOG_CATEGORIES.MOVEMENT, `Invalid player ID or wrong socket for MoveIntent: ${playerId}`);
 }
