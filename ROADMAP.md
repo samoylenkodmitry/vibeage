@@ -207,8 +207,8 @@ In progress:
 
 ### P2: Architecture
 
-1. Move more public entity state into Colyseus schemas once event filtering is stable.
-2. Split large but under-budget files by domain:
+1. [x] Move more public entity state into Colyseus schemas once event filtering is stable.
+2. [x] Split large but under-budget files by domain:
    - `apps/client/src/SceneVfx.tsx`
    - `apps/client/src/Hud.tsx`
    - `apps/client/src/gameReducer.ts`

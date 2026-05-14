@@ -44,6 +44,8 @@ describe('Vite game client reducer', () => {
         aliveEnemyCount: 7,
         activeRegionCount: 1,
         regionCount: 3,
+        players: {},
+        enemies: {},
         regions: {
           starter: {
             id: 'starter',

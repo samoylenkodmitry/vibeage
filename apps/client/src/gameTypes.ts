@@ -86,6 +86,24 @@ export type WorldRegionPublicState = {
   maxEnemies: number;
 };
 
+export type WorldPublicPlayerPresence = {
+  id: string;
+  name: string;
+  className: CharacterClass | string;
+  level: number;
+  isAlive: boolean;
+  regionId: string;
+};
+
+export type WorldPublicEnemyPresence = {
+  id: string;
+  type: string;
+  name: string;
+  level: number;
+  isAlive: boolean;
+  regionId: string;
+};
+
 export type WorldPublicState = {
   revision: number;
   playerCount: number;
@@ -94,6 +112,8 @@ export type WorldPublicState = {
   activeRegionCount: number;
   regionCount: number;
   regions: Record<string, WorldRegionPublicState>;
+  players: Record<string, WorldPublicPlayerPresence>;
+  enemies: Record<string, WorldPublicEnemyPresence>;
 };
 
 export type ConnectionState =
