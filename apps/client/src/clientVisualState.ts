@@ -33,7 +33,7 @@ export function applyCastFailVisualState(
 ): GameClientState {
   const text = `Cast failed: ${message.reason}`;
   return addCombatLine(
-    { ...state, message: text },
+    state,
     { id: makeCombatLineId(`fail-${message.clientSeq}`, state.combatLog.length, now), text },
   );
 }
@@ -134,9 +134,8 @@ function addCastSnapshot(
     ...state.casts,
     [snapshot.castId]: { snapshot, seenAt: now },
   };
-  const message = snapshot.state === CastState.Impact ? `${snapshot.skillId} impact` : state.message;
 
-  return { ...state, casts, message };
+  return { ...state, casts };
 }
 
 function addSkillImpactVisualEvent(

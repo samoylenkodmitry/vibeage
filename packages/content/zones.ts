@@ -5,6 +5,7 @@ export interface Zone {
     description: string;
     position: { x: number; y: number; z: number };
     radius: number;
+    spawnExclusionRadius?: number;
     minLevel: number;
     maxLevel: number;
     mobs: {
@@ -54,9 +55,9 @@ export class ZoneManager {
         const zone = GAME_ZONES.find(z => z.id === zoneId);
         if (!zone) return null;
 
-        // Get a random angle and distance within the zone's radius
         const angle = Math.random() * Math.PI * 2;
-        const distance = Math.sqrt(Math.random()) * zone.radius;
+        const minDistance = zone.spawnExclusionRadius ?? 0;
+        const distance = getRandomAnnulusDistance(minDistance, zone.radius);
 
         return {
             x: zone.position.x + Math.cos(angle) * distance,
@@ -84,6 +85,12 @@ export class ZoneManager {
     }
 }
 
+function getRandomAnnulusDistance(minDistance: number, maxDistance: number): number {
+    const minArea = Math.min(minDistance, maxDistance) ** 2;
+    const maxArea = maxDistance ** 2;
+    return Math.sqrt(minArea + Math.random() * (maxArea - minArea));
+}
+
 export const GAME_ZONES: Zone[] = [
     {
         id: 'starter_meadow',
@@ -91,6 +98,7 @@ export const GAME_ZONES: Zone[] = [
         description: 'A tranquil starting area with gentle slopes and scattered trees',
         position: { x: 0, y: 0, z: 0 },
         radius: 100,
+        spawnExclusionRadius: 35,
         minLevel: 1,
         maxLevel: 3,
         mobs: [
