@@ -53,6 +53,11 @@ This project should become a browser-first multiplayer game that is easy for hum
 30. Done on 2026-05-13: moved Vitest to `test.projects`, made Vite/Playwright/pnpm warning output intentional, and removed the `server/lootTables.ts` legacy maintainability exception by extracting starter loot tables.
 31. Done on 2026-05-13: documented and tested the Kysely persistence contract for stable player/session/event data and explicitly listed transient state that must not be persisted.
 32. Done on 2026-05-13: expanded the starter vertical slice with one additional low-level enemy/content drop through content manifests and runtime validation tests.
+33. Done on 2026-05-14: deployed the green `main` build to the VPS and verified public HTTPS, Colyseus room join, closed raw game/database ports, Stalwart health, and local backup freshness.
+34. Done on 2026-05-14: added a second starter content slice with a new meadow enemy, validated loot table, and type-specific client enemy visuals.
+35. Done on 2026-05-14: moved the active server runtime entrypoint under `apps/server`, kept legacy modules behind that boundary, and updated dev, build, Docker, Playwright, and measurement entrypoints.
+36. Done on 2026-05-14: migrated the active Colyseus runtime window to the 0.17 package line and replaced the old browser `colyseus.js` package with `@colyseus/sdk`.
+37. Done on 2026-05-14: added performance budgets and a recorded baseline for bundle size, server tick cost, Colyseus room latency, and local browser FPS; CI enforces the stable non-browser subset.
 
 ## Target Stack
 
@@ -129,7 +134,7 @@ tests/
 
 ### Phase 3: Build The Authoritative Server
 
-- Done on 2026-05-13: replaced the raw Socket.IO server runtime with a Colyseus `world` room and migrated the Vite client to `colyseus.js`.
+- Done on 2026-05-13: replaced the raw Socket.IO server runtime with a Colyseus `world` room and migrated the Vite client to the Colyseus browser SDK.
 - Done on 2026-05-12: moved player progression/respawn and enemy lifecycle out of `server/world.ts` into tested modules.
 - Done on 2026-05-13: moved movement, position history, position validation, and prediction keyframe simulation out of `server/world.ts` into a tested movement module.
 - Done on 2026-05-13: moved combat cast snapshots, impact resolution, projectile travel, and enemy behavior helpers into tested modules.
@@ -145,7 +150,7 @@ tests/
 
 ### Phase 4: Iterate On Gameplay
 
-- Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, four enemy types, loot, leveling, and respawn, with content/runtime validation tests.
+- Done on 2026-05-13: added a small starter vertical-slice manifest for one zone, one class, three skills, five enemy types, loot, leveling, and respawn, with content/runtime validation tests.
 - Done on 2026-05-13: added `pnpm run measure:baseline` to report Vite bundle size, deterministic server tick cost, Colyseus room join/game-state latency, and optional browser FPS.
 - Expand content only after protocol and simulation tests are stable.
 

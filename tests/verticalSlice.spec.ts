@@ -9,7 +9,7 @@ import {
 import { validateStarterVerticalSlice } from '../server/gameplay/verticalSlice';
 
 describe('starter vertical slice', () => {
-  test('defines one low-level zone, one class, three skills, and four enemy types', () => {
+  test('defines one low-level zone, one class, three skills, and five enemy types', () => {
     const zone = getStarterVerticalSliceZone();
 
     expect(STARTER_VERTICAL_SLICE.className).toBe('mage');
@@ -26,6 +26,7 @@ describe('starter vertical slice', () => {
       'wolf',
       'skeleton',
       'slime',
+      'meadow_sprite',
     ]));
   });
 
@@ -37,6 +38,7 @@ describe('starter vertical slice', () => {
       'wolf',
       'skeleton',
       'slime',
+      'meadow_sprite',
     ]));
     expect(spawns.every((spawn) => spawn.count > 0)).toBe(true);
   });
@@ -50,7 +52,7 @@ describe('starter vertical slice', () => {
     expect(validateStarterVerticalSlice()).toEqual({
       ok: true,
       issues: [],
-      lootTableIds: ['goblin_loot', 'wolf_loot', 'skeleton_loot', 'slime_loot'],
+      lootTableIds: ['goblin_loot', 'wolf_loot', 'skeleton_loot', 'slime_loot', 'meadow_sprite_loot'],
     });
   });
 });

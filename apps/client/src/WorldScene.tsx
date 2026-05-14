@@ -149,7 +149,8 @@ function EnemyMarker({
   isSelected: boolean;
   onSelect: (targetId: string | null) => void;
 }) {
-  const color = enemy.isAlive ? '#ef6461' : '#4b5563';
+  const visual = getEnemyVisual(enemy.type);
+  const color = enemy.isAlive ? visual.color : '#4b5563';
   const y = enemy.isAlive ? GROUND_Y + 0.55 : GROUND_Y + 0.1;
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
@@ -169,13 +170,35 @@ function EnemyMarker({
     >
       {isSelected && <SelectedEnemyRing />}
       <mesh castShadow onPointerDown={handlePointerDown}>
-        <boxGeometry args={[1.05, enemy.isAlive ? 1.1 : 0.25, 1.05]} />
+        {visual.shape === 'sphere' ? (
+          <sphereGeometry args={[0.58, 18, 14]} />
+        ) : (
+          <boxGeometry args={[1.05, enemy.isAlive ? visual.height : 0.25, 1.05]} />
+        )}
         <meshStandardMaterial color={color} roughness={0.82} />
       </mesh>
+      {enemy.isAlive && visual.glow && (
+        <pointLight color={visual.color} intensity={0.9} distance={4} />
+      )}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
     </SmoothedEntityGroup>
   );
+}
+
+function getEnemyVisual(type: string): { color: string; height: number; shape: 'box' | 'sphere'; glow: boolean } {
+  switch (type) {
+    case 'slime':
+      return { color: '#56d88b', height: 0.85, shape: 'sphere', glow: false };
+    case 'meadow_sprite':
+      return { color: '#f9d66a', height: 0.9, shape: 'sphere', glow: true };
+    case 'wolf':
+      return { color: '#b08968', height: 0.9, shape: 'box', glow: false };
+    case 'skeleton':
+      return { color: '#d7d3c7', height: 1.1, shape: 'box', glow: false };
+    default:
+      return { color: '#ef6461', height: 1.1, shape: 'box', glow: false };
+  }
 }
 
 function CastMarker({ cast }: { cast: VisibleCast }) {

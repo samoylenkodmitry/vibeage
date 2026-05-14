@@ -18,7 +18,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `PORT=${gameServerPort} VIBEAGE_DISABLE_PERSISTENCE=1 CORS_ORIGINS=${clientUrl},${clientLocalhostUrl} WS_COMPRESSION=0 pnpm exec tsx server/server.ts`,
+      command: `PORT=${gameServerPort} VIBEAGE_DISABLE_PERSISTENCE=1 CORS_ORIGINS=${clientUrl},${clientLocalhostUrl} WS_COMPRESSION=0 pnpm exec tsx apps/server/src/main.ts`,
       url: `${gameServerUrl}/healthz`,
       reuseExistingServer: false,
       stdout: "pipe",

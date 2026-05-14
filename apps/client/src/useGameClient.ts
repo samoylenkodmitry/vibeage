@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, type Dispatch, type RefObject } from 'react';
-import { Client as ColyseusClient, type Room } from 'colyseus.js';
+import { Client as ColyseusClient, type Room } from '@colyseus/sdk';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import { safeParseServerMessage, type VecXZ } from '../../../packages/protocol/messages';
 import {

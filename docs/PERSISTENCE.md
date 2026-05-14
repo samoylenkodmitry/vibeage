@@ -24,3 +24,4 @@ When adding a new persisted field, update:
 - the Postgres migration
 - hydration in `server/players/playerSession.ts`
 - `tests/persistence.spec.ts`
+- `scripts/check-restored-postgres-compatibility.sql`, so restored backups are checked against the runtime schema

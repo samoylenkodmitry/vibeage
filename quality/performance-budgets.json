@@ -1,0 +1,22 @@
+{
+  "bundle": {
+    "warningTotalGzipBytes": 425000,
+    "maxTotalGzipBytes": 470000
+  },
+  "tickCost": {
+    "warningAverageTickMs": 0.1,
+    "maxAverageTickMs": 0.25
+  },
+  "roomLatency": {
+    "warningConnectMs": 500,
+    "maxConnectMs": 2000,
+    "warningGameStateRoundTripMs": 250,
+    "maxGameStateRoundTripMs": 1000
+  },
+  "browserFps": {
+    "warningAverageFps": 30,
+    "minAverageFps": 15,
+    "warningP95FrameMs": 70,
+    "maxP95FrameMs": 110
+  }
+}

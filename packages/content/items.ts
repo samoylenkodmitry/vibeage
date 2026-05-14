@@ -53,6 +53,15 @@ export const ITEMS: Record<ItemId, Item> = {
     maxStack: 40,
     type: 'material',
   },
+  'sprite_glow': {
+    id: 'sprite_glow',
+    name: 'Sprite Glow',
+    description: 'A small mote of light left behind by meadow sprites.',
+    icon: 'sprite_glow.svg',
+    stackable: true,
+    maxStack: 30,
+    type: 'material',
+  },
   'worn_sword': {
     id: 'worn_sword',
     name: 'Worn Sword',

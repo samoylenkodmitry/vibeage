@@ -5,7 +5,7 @@ export const STARTER_VERTICAL_SLICE = {
   zoneId: 'starter_meadow',
   className: 'mage',
   skillIds: ['fireball', 'waterSplash', 'iceBolt'],
-  enemyTypes: ['goblin', 'wolf', 'skeleton', 'slime'],
+  enemyTypes: ['goblin', 'wolf', 'skeleton', 'slime', 'meadow_sprite'],
   levelRange: { min: 1, max: 3 },
   loops: ['movement', 'combat', 'loot', 'leveling', 'respawn'],
 } as const satisfies {

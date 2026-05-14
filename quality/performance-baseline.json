@@ -1,0 +1,48 @@
+{
+  "measuredAt": "2026-05-14T03:20:12.357Z",
+  "bundle": {
+    "available": true,
+    "assets": [
+      {
+        "fileName": "index-B1l8_KHR.css",
+        "bytes": 6688,
+        "gzipBytes": 1937
+      },
+      {
+        "fileName": "index-DWn2l6OE.js",
+        "bytes": 1322786,
+        "gzipBytes": 369683
+      }
+    ],
+    "totalBytes": 1329474,
+    "totalGzipBytes": 371620
+  },
+  "tickCost": {
+    "ticks": 600,
+    "tickMs": 33.333333333333336,
+    "spawnedEnemies": 181,
+    "totalMs": 36.866,
+    "averageTickMs": 0.061
+  },
+  "roomLatency": {
+    "available": true,
+    "url": "http://127.0.0.1:3122",
+    "connectMs": 52.161,
+    "gameStateRoundTripMs": 7.01
+  },
+  "browserFps": {
+    "available": true,
+    "frames": 180,
+    "averageFrameMs": 44.485,
+    "averageFps": 22.5,
+    "p95FrameMs": 66.6
+  },
+  "budgets": {
+    "available": true,
+    "budgetPath": "quality/performance-budgets.json",
+    "warnings": [
+      "browserFps.averageFps 22.5 is below warning 30"
+    ],
+    "failures": []
+  }
+}
