@@ -1,6 +1,6 @@
 import { SKILLS } from '../../packages/content/skills.js';
 import { CastState, type VecXZ } from '../../packages/protocol/messages.js';
-import { sweptHit } from '../collision.js';
+import { sweptCircleHit } from '../../packages/sim/collision.js';
 import type { OutboundEventSink } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 import { emitCastSnapshot } from './castSnapshots.js';
@@ -70,7 +70,7 @@ function hasProjectileHitTarget(cast: Cast, oldPos: VecXZ, world: CombatWorld): 
     }
 
     const entityPos = { x: entity.position.x, z: entity.position.z };
-    if (sweptHit(oldPos, cast.pos ?? oldPos, entityPos, hitRadius)) {
+    if (sweptCircleHit(oldPos, cast.pos ?? oldPos, entityPos, hitRadius)) {
       return true;
     }
   }

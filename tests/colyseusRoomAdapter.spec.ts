@@ -1,6 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
 import { createStarterProgressState } from '../packages/protocol/messages';
-import type { PlayerState } from '../shared/types';
 import type { AuthoritativeRoomPort } from '../server/transport/roomBoundary';
 import {
   ColyseusAuthoritativeRoomAdapter,
@@ -34,15 +33,6 @@ describe('Colyseus room adapter', () => {
         starterProgress: createStarterProgressState({ defeatedEnemies: 1 }),
       },
     });
-    outbound.publish({
-      type: 'playerJoined',
-      player: {
-        id: 'player1',
-        socketId: 'socket1',
-        name: 'Tester',
-        starterProgress: createStarterProgressState({ defeatedEnemies: 1 }),
-      } as PlayerState,
-    });
 
     expect(room.broadcast).toHaveBeenCalledWith('msg', {
       type: 'LootPickup',
@@ -54,10 +44,6 @@ describe('Colyseus room adapter', () => {
       items: [{ itemId: 'gold_coin', quantity: 1 }],
     });
     expect(room.broadcast).toHaveBeenCalledWith('playerUpdated', { id: 'player1', health: 80 });
-    expect(room.broadcast).toHaveBeenCalledWith('playerJoined', {
-      id: 'player1',
-      name: 'Tester',
-    });
   });
 });
 
@@ -74,8 +60,7 @@ describe('Colyseus room adapter join and command handling', () => {
     })).resolves.toEqual({ playerId: 'player1' });
 
     expect(port.joinClient).toHaveBeenCalledWith('socket1', 'Tester', expect.anything());
-    expect(client.send).toHaveBeenCalledWith('joinGame', { playerId: 'player1' });
-    expect(client.send).toHaveBeenCalledWith('gameState', state);
+    expect(client.send).not.toHaveBeenCalled();
   });
 
   test('rejects outdated protocol clients before they enter the room port', async () => {

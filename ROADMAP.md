@@ -70,6 +70,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 47. Done on 2026-05-14: cleaned the Vite client boundary by extracting the starter path HUD and keeping starter progress normalization separate from the main reducer.
 48. Done on 2026-05-14: expanded the visible client world surface to cover every configured zone and added content coverage so the world size stays intentional.
 49. Done on 2026-05-14: strengthened local browser CI smoke coverage so the Vite Playwright path verifies the server-authored starter path panel during enter-world flow.
+50. Done on 2026-05-14: separated client visual/combat presentation state from the main reducer, moved hotkey and selector helpers into focused client modules, and made browser smoke cast through the real skill button.
+51. Done on 2026-05-14: simplified the Colyseus room boundary so join validation happens once and initial player/game snapshots are sent from one live room path using shared session event names.
+52. Done on 2026-05-14: deleted unused legacy collision/effect/loot/socket-era test paths and removed all maintainability legacy exceptions.
+53. Done on 2026-05-14: moved projectile swept-hit collision into tested shared simulation code; Rapier stays deferred until real terrain/body physics needs it.
+54. Done on 2026-05-14: added full world content validation for zones, spawn budgets, loot tables, and item links, and fixed missing drop item definitions.
+55. Done on 2026-05-14: added a stable/transient persistence audit check and made unsupported consumables non-usable on both client and server.
 
 ## Target Stack
 
@@ -146,7 +152,7 @@ tests/
 - Done on 2026-05-13: made Vite the default production frontend path and added clearer movement destination, selected-target, and enemy health presentation.
 - Done on 2026-05-13: ported useful R3F/VFX patterns into the Vite client: recovery particles, water splash impact, petrify flash, and richer projectile trails without reusing the old pooled/global VFX manager.
 - Done on 2026-05-14: extracted reusable Vite world visual config and rendered low-cost zone landmarks so the configured large world is visible in the browser.
-- Keep visual state separate from authoritative network state.
+- Done on 2026-05-14: kept client visual/combat presentation state separate from authoritative network state through `clientVisualState.ts`.
 - Vite Playwright smoke tests cover page load, canvas presence, server connection, movement intent, and one fireball cast.
 
 ### Phase 3: Build The Authoritative Server
@@ -165,6 +171,7 @@ tests/
 - Done on 2026-05-14: tightened skill-handler and client world-scene module boundaries without widening `world.ts`, the network bridge, or the reducer.
 - Use `server/transport/vibeAgeRoom.ts` as the current Colyseus room implementation and keep `roomBoundary.ts` as the contract around the authoritative world.
 - Persist only stable player/account data, not transient render state.
+- Done on 2026-05-14: removed the unused legacy effect manager and obstacle collision path; current projectile collision is a tested analytic sim helper.
 
 ### Phase 4: Iterate On Gameplay
 

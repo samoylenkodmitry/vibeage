@@ -53,16 +53,16 @@ export function handleCastReq(
   }
   
   // Create a cast using the server authoritative skill system
-  const castResult = handleCastRequest(
+  const castResult = handleCastRequest({
     activeCasts,
     player,
-    playerId,
-    castCheck.skillId,
-    msg.targetPos,
-    msg.targetId,
-    transport.outbound,
-    world
-  );
+    casterId: playerId,
+    skillId: castCheck.skillId,
+    targetPos: msg.targetPos,
+    targetId: msg.targetId,
+    outbound: transport.outbound,
+    world,
+  });
   
   const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
   if (failReason) {

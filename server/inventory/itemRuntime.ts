@@ -1,4 +1,4 @@
-import { ITEMS, type Item } from '../../packages/content/items.js';
+import { ITEMS, isUsableConsumable, type Item } from '../../packages/content/items.js';
 import type { ItemUsed } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../shared/types.js';
 
@@ -30,7 +30,7 @@ export function applyInventoryItemUse(player: PlayerState, slotIndex: number): C
     return { ok: false, reason: 'unknownItem' };
   }
 
-  if (itemDef.type !== 'consumable') {
+  if (!isUsableConsumable(itemDef)) {
     return { ok: false, reason: 'notConsumable' };
   }
 

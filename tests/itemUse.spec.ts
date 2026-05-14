@@ -102,4 +102,16 @@ describe('item use', () => {
     expect(result).toEqual({ ok: false, reason: 'notConsumable' });
     expect(state.players.player1.inventory[0].quantity).toBe(1);
   });
+
+  test('rejects unsupported consumables without changing inventory', () => {
+    const state = createGameState();
+    state.players.player1 = makePlayer({
+      inventory: [{ itemId: 'teleport_scroll', quantity: 1 }],
+    });
+
+    const result = useItemForPlayer(state, 'player1', 0);
+
+    expect(result).toEqual({ ok: false, reason: 'notConsumable' });
+    expect(state.players.player1.inventory[0].quantity).toBe(1);
+  });
 });

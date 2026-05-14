@@ -1,10 +1,17 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { ITEMS } from '../../../packages/content/items';
+import { ITEMS, isUsableConsumable } from '../../../packages/content/items';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { InventorySlot, StatusEffect } from '../../../packages/protocol/messages';
-import { getHotkeySkill } from './gameReducer';
 import type { GameClientState, PlayerEntity } from './gameTypes';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
+import {
+  getHotkeySkill,
+  getSkillSlotAriaHotkeys,
+  getSkillSlotIndexForKeyboardCode,
+  isEditableTarget,
+  SKILL_BAR_HOTKEYS,
+  SKILL_BAR_SLOT_COUNT,
+} from './skillShortcuts';
 
 type StartPanelProps = {
   onStart: (playerName: string) => void;
@@ -160,7 +167,7 @@ function SkillBar({
   onCastSkill: (skillId: SkillId) => void;
 }) {
   const slots = useMemo(() => {
-    return [0, 1, 2, 3].map((index) => getHotkeySkill(player, index));
+    return Array.from({ length: SKILL_BAR_SLOT_COUNT }, (_, index) => getHotkeySkill(player, index));
   }, [player]);
 
   return (
@@ -169,7 +176,8 @@ function SkillBar({
         <SkillButton
           key={`${index}:${skillId ?? 'empty'}`}
           skillId={skillId}
-          hotkey={index === 0 ? 'Q' : String(index + 1)}
+          hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
+          ariaHotkeys={getSkillSlotAriaHotkeys(index)}
           player={player}
           now={now}
           onCastSkill={onCastSkill}
@@ -182,12 +190,14 @@ function SkillBar({
 function SkillButton({
   skillId,
   hotkey,
+  ariaHotkeys,
   player,
   now,
   onCastSkill,
 }: {
   skillId: SkillId | null;
   hotkey: string;
+  ariaHotkeys: string;
   player: PlayerEntity | null;
   now: number;
   onCastSkill: (skillId: SkillId) => void;
@@ -205,6 +215,7 @@ function SkillButton({
       className="skill-button"
       disabled={disabled}
       aria-label={skill ? `Cast ${skill.name}` : 'Empty skill slot'}
+      aria-keyshortcuts={ariaHotkeys}
       style={{ '--cooldown-progress': cooldownProgress } as CSSProperties}
       onClick={() => skill && onCastSkill(skill.id)}
     >
@@ -229,16 +240,20 @@ function InventoryPanel({
       {Array.from({ length: maxSlots }).map((_, index) => {
         const slot = inventory[index] ?? null;
         const item = slot ? ITEMS[slot.itemId] : null;
-        const canUse = item?.type === 'consumable';
+        const canUse = isUsableConsumable(item);
+        const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
+        const title = slot
+          ? `${itemName} (${slot.quantity})${canUse ? '' : ' - not usable'}`
+          : 'Empty slot';
 
         return (
           <button
             key={index}
             type="button"
             className="inventory-slot"
-            disabled={!slot}
-            title={slot ? `${item?.name ?? slot.itemId} (${slot.quantity})` : 'Empty slot'}
-            aria-label={slot ? `Use ${item?.name ?? slot.itemId}` : `Empty inventory slot ${index + 1}`}
+            disabled={!canUse}
+            title={title}
+            aria-label={slot && canUse ? `Use ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
             onClick={() => canUse && onUseItem(index)}
             onContextMenu={(event) => {
               event.preventDefault();
@@ -247,7 +262,7 @@ function InventoryPanel({
               }
             }}
           >
-            <span>{slot ? getItemInitial(item?.name ?? slot.itemId) : ''}</span>
+            <span>{slot ? getItemInitial(itemName) : ''}</span>
             {slot && slot.quantity > 1 && <strong>{slot.quantity}</strong>}
           </button>
         );
@@ -324,11 +339,11 @@ function useSkillHotkeys(
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isTypingTarget(event.target)) {
+      if (isEditableTarget(event.target)) {
         return;
       }
 
-      const slotIndex = getSlotIndex(event.code);
+      const slotIndex = getSkillSlotIndexForKeyboardCode(event.code);
       const skillId = slotIndex === null ? null : getHotkeySkill(playerRef.current, slotIndex);
       if (skillId) {
         event.preventDefault();
@@ -339,31 +354,6 @@ function useSkillHotkeys(
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onCastSkill]);
-}
-
-function getSlotIndex(code: string): number | null {
-  if (code === 'KeyQ' || code === 'Digit1') {
-    return 0;
-  }
-
-  if (code === 'Digit2') {
-    return 1;
-  }
-
-  if (code === 'Digit3') {
-    return 2;
-  }
-
-  if (code === 'Digit4') {
-    return 3;
-  }
-
-  return null;
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  const element = target instanceof HTMLElement ? target : null;
-  return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'));
 }
 
 function formatMeter(value = 0, max = 0): string {

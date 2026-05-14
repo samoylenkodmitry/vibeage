@@ -39,6 +39,17 @@ export interface Cast {
 
 export type ActiveCastStore = Record<string, Cast>;
 
+export type CastRequestInput = {
+  activeCasts: ActiveCastStore;
+  player: Player;
+  casterId: string;
+  skillId: SkillId;
+  targetPos: VecXZ | undefined;
+  targetId: string | undefined;
+  outbound: OutboundEventSink;
+  world: CombatWorld;
+};
+
 export function createActiveCastStore(): ActiveCastStore {
   return {};
 }
@@ -46,16 +57,17 @@ export function createActiveCastStore(): ActiveCastStore {
 /**
  * Handle a new cast request from a player
  */
-export function handleCastRequest(
-  activeCasts: ActiveCastStore,
-  player: Player, 
-  casterId: string,
-  skillId: SkillId,
-  targetPos: VecXZ | undefined,
-  targetId: string | undefined,
-  outbound: OutboundEventSink,
-  world: CombatWorld
-): string | Cast['castId'] {
+export function handleCastRequest(input: CastRequestInput): string | Cast['castId'] {
+  const {
+    activeCasts,
+    player,
+    casterId,
+    skillId,
+    targetPos,
+    targetId,
+    outbound,
+    world,
+  } = input;
   const now = Date.now();
   const skill = SKILLS[skillId];
   
@@ -85,40 +97,10 @@ export function handleCastRequest(
     return 'missingTarget';
   }
   
-  // Calculate direction if projectile
   if (skill.projectile) {
-    let targetPosVec: VecXZ | undefined;
-    
-    if (targetPos) {
-      targetPosVec = targetPos;
-    } else if (targetId) {
-      const target = world.getEnemyById(targetId);
-      if (target) {
-        targetPosVec = { x: target.position.x, z: target.position.z };
-      } else {
-        warn(LOG_CATEGORIES.COMBAT, `Target ID ${targetId} not found for cast: ${newCast.castId}`);
-        return 'targetNotFound';
-      }
-    }
-    
-    if (targetPosVec) {
-      // Calculate direction
-      const dx = targetPosVec.x - newCast.origin.x;
-      const dz = targetPosVec.z - newCast.origin.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      
-      // Set direction and speed
-      if (dist > 0) {
-        newCast.dir = { x: dx / dist, z: dz / dist };
-        newCast.speed = skill.projectile.speed;
-        debug(LOG_CATEGORIES.COMBAT, `Set projectile direction for cast ${newCast.castId}`, {
-          direction: {
-            x: Number(newCast.dir.x.toFixed(2)),
-            z: Number(newCast.dir.z.toFixed(2)),
-          },
-          speed: newCast.speed,
-        });
-      }
+    const projectileFailure = configureProjectileCast(newCast, targetPos, targetId, skill.projectile.speed, world);
+    if (projectileFailure) {
+      return projectileFailure;
     }
   }
   
@@ -148,6 +130,55 @@ export function handleCastRequest(
   }
 
   return newCast.castId;
+}
+
+function configureProjectileCast(
+  cast: Cast,
+  targetPos: VecXZ | undefined,
+  targetId: string | undefined,
+  speed: number,
+  world: CombatWorld,
+): 'targetNotFound' | null {
+  const targetPosVec = resolveCastTargetPosition(targetPos, targetId, world);
+  if (!targetPosVec) {
+    warn(LOG_CATEGORIES.COMBAT, `Target ID ${targetId} not found for cast: ${cast.castId}`);
+    return 'targetNotFound';
+  }
+
+  const dx = targetPosVec.x - cast.origin.x;
+  const dz = targetPosVec.z - cast.origin.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+
+  if (dist > 0) {
+    cast.dir = { x: dx / dist, z: dz / dist };
+    cast.speed = speed;
+    debug(LOG_CATEGORIES.COMBAT, `Set projectile direction for cast ${cast.castId}`, {
+      direction: {
+        x: Number(cast.dir.x.toFixed(2)),
+        z: Number(cast.dir.z.toFixed(2)),
+      },
+      speed: cast.speed,
+    });
+  }
+
+  return null;
+}
+
+function resolveCastTargetPosition(
+  targetPos: VecXZ | undefined,
+  targetId: string | undefined,
+  world: CombatWorld,
+): VecXZ | undefined {
+  if (targetPos) {
+    return targetPos;
+  }
+
+  if (!targetId) {
+    return undefined;
+  }
+
+  const target = world.getEnemyById(targetId);
+  return target ? { x: target.position.x, z: target.position.z } : undefined;
 }
 
 /**
