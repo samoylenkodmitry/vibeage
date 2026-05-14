@@ -1,7 +1,9 @@
 import type { ItemDrop } from '../../packages/protocol/messages.js';
 import type { Enemy } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
+import { emitStarterProgressUpdate, recordStarterLootPickup } from '../progression/starterPath.js';
 import {
+  emitPlayerUpdated,
   emitServerMessage,
   emitServerMessageToClient,
   type OutboundEventSink,
@@ -58,6 +60,17 @@ export function tryGiveLoot(state: GameState, outbound: OutboundEventSink, playe
     items: result.items,
     sourceEnemyName: result.sourceEnemyName,
   });
+
+  const itemCount = result.items.reduce((sum, item) => sum + item.quantity, 0);
+  const starterProgress = recordStarterLootPickup(result.player, itemCount);
+  emitStarterProgressUpdate(outbound, result.player, starterProgress.rewardGranted);
+
+  if (starterProgress.rewardGranted) {
+    emitPlayerUpdated(outbound, {
+      id: result.player.id,
+      availableSkillPoints: result.player.availableSkillPoints,
+    });
+  }
 
   return true;
 }

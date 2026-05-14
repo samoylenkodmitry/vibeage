@@ -2,6 +2,7 @@ import type { Enemy, PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import { spawnLootForEnemyDeath } from '../loot/groundLoot.js';
 import { awardPlayerXP } from '../players/playerLifecycle.js';
+import { emitStarterProgressUpdate, recordStarterEnemyDefeat } from '../progression/starterPath.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
@@ -29,10 +30,17 @@ export function handleTargetDeath(
   context.spatial.remove(target.id, { x: target.position.x, z: target.position.z });
 
   if (caster.isAlive && isEnemy(target)) {
+    const xpUpdate = awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`);
+    const starterProgress = recordStarterEnemyDefeat(caster, target.id);
     emitPlayerUpdated(
       context.outbound,
-      awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`),
+      {
+        ...xpUpdate,
+        availableSkillPoints: caster.availableSkillPoints,
+      },
     );
+    emitStarterProgressUpdate(context.outbound, caster, starterProgress.rewardGranted);
+
     if (target.lootTableId) {
       const spawnLoot = context.spawnLoot ?? spawnLootForEnemyDeath;
       spawnLoot(context.state, context.outbound, target);

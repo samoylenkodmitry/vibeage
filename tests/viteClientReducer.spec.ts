@@ -195,7 +195,7 @@ describe('Vite game client reducer visual events', () => {
 });
 
 describe('Vite game client starter progress', () => {
-  it('tracks starter progress and damage feedback from combat and loot messages', () => {
+  it('uses server progress updates and keeps combat messages presentation-only', () => {
     const joined = gameClientReducer({
       ...initialGameClientState,
       myPlayerId: 'player-1',
@@ -236,14 +236,34 @@ describe('Vite game client starter progress', () => {
         ],
       },
     });
+    const withProgress = gameClientReducer(withLoot, {
+      type: 'serverMessage',
+      now: 300,
+      message: {
+        type: 'StarterProgressUpdate',
+        progress: {
+          defeatedEnemies: 1,
+          defeatedEnemyIds: ['enemy-1'],
+          lootPickups: 3,
+          levelReached: 1,
+          learnedSkills: 1,
+          isComplete: false,
+          rewardGranted: false,
+        },
+      },
+    });
 
-    expect(joined.starterProgress.defeatedEnemies).toBe(1);
+    expect(joined.starterProgress.defeatedEnemies).toBe(0);
     expect(Object.values(joined.visualEvents)).toContainEqual(expect.objectContaining({
       kind: 'damage',
       amount: 22,
       position: { x: 2, y: 0.5, z: 3 },
     }));
-    expect(withLoot.starterProgress.lootPickups).toBe(3);
+    expect(withLoot.starterProgress.lootPickups).toBe(0);
+    expect(withProgress.starterProgress).toMatchObject({
+      defeatedEnemies: 1,
+      lootPickups: 3,
+    });
   });
 
   it('assigns a learned skill to the first empty shortcut for immediate use', () => {

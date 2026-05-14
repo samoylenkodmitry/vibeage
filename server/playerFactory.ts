@@ -5,6 +5,7 @@ import {
   DEFAULT_UNLOCKED_SKILLS,
   normalizeSkillShortcuts,
 } from './players/playerProgression.js';
+import { createInitialPlayerStarterProgress } from './progression/starterPath.js';
 
 export function createTransientPlayer(socketId: string, name: string): PlayerState {
   return {
@@ -29,6 +30,10 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     unlockedSkills: [...DEFAULT_UNLOCKED_SKILLS],
     skillShortcuts: normalizeSkillShortcuts(undefined, DEFAULT_UNLOCKED_SKILLS),
     availableSkillPoints: DEFAULT_AVAILABLE_SKILL_POINTS,
+    starterProgress: createInitialPlayerStarterProgress({
+      level: 1,
+      unlockedSkills: DEFAULT_UNLOCKED_SKILLS,
+    }),
     posHistory: [],
     lastUpdateTime: Date.now(),
     inventory: [],

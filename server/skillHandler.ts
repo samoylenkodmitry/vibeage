@@ -1,5 +1,6 @@
-import { LearnSkill, SetSkillShortcut } from '../packages/protocol/messages.js';
-import { SkillId } from '../packages/content/skills.js';
+import type { SkillId } from '../packages/content/skills.js';
+import type { LearnSkill, SetSkillShortcut, StarterProgressState } from '../packages/protocol/messages.js';
+import type { PlayerState } from '../shared/types.js';
 
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';
 import {
@@ -7,9 +8,9 @@ import {
   type DirectMessageSink,
   type OutboundEventSink,
 } from './transport/outboundEvents.js';
+import { emitStarterProgressUpdate, syncPlayerStarterProgress } from './progression/starterPath.js';
 
-// Define simplified types for what we need from the game state
-interface Player {
+interface SkillPlayer {
   id: string;
   socketId: string;
   level: number;
@@ -17,10 +18,11 @@ interface Player {
   unlockedSkills: SkillId[];
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
+  starterProgress?: StarterProgressState;
 }
 
 interface GameState {
-  players: Record<string, Player>;
+  players: Record<string, SkillPlayer>;
 }
 
 type SkillClient = { id: string };
@@ -77,6 +79,7 @@ export function onLearnSkill(
     // Learn the skill using skillManager function
     if (learnNewSkill(player, msg.skillId)) {
       console.log(`[SKILL] Player ${playerId} learned skill: ${msg.skillId}`);
+      const starterProgress = syncPlayerStarterProgress(player as PlayerState);
       
       // Send notification to client
       direct.send({
@@ -89,8 +92,9 @@ export function onLearnSkill(
         id: player.id,
         unlockedSkills: player.unlockedSkills,
         skillShortcuts: player.skillShortcuts,
-        availableSkillPoints: player.availableSkillPoints
+        availableSkillPoints: player.availableSkillPoints,
       });
+      emitStarterProgressUpdate(outbound, player as PlayerState, starterProgress.rewardGranted);
     } else {
       console.warn(`[SKILL] Failed to learn skill ${msg.skillId} for player ${playerId}`);
     }

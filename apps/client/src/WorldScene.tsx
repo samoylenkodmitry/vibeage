@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
+import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type VecXZ } from '../../../packages/protocol/messages';
 import type {
   EnemyEntity,
@@ -38,13 +39,13 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
 
   return (
     <Canvas
-      camera={{ position: [0, 18, 22], fov: 55, near: 0.1, far: 600 }}
+      camera={{ position: [0, 18, 22], fov: 55, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
       onCreated={({ gl }) => {
         gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       }}
     >
       <color attach="background" args={['#071015']} />
-      <fog attach="fog" args={['#071015', 70, 210]} />
+      <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
       <ambientLight intensity={0.62} />
       <directionalLight position={[24, 32, 18]} intensity={1.4} castShadow />
       <WorldGround onMove={onMove} />
@@ -80,7 +81,10 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
 }
 
 function WorldGround({ onMove }: { onMove: (target: VecXZ) => void }) {
-  const grid = useMemo(() => new THREE.GridHelper(220, 44, '#6ee7d8', '#253f47'), []);
+  const grid = useMemo(
+    () => new THREE.GridHelper(WORLD_SETTINGS.groundSize, WORLD_SETTINGS.gridDivisions, '#6ee7d8', '#253f47'),
+    [],
+  );
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
     if (event.button !== 0) {
@@ -100,7 +104,7 @@ function WorldGround({ onMove }: { onMove: (target: VecXZ) => void }) {
     <group>
       <primitive object={grid} position={[0, GROUND_Y + 0.01, 0]} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} onPointerDown={handlePointerDown}>
-        <planeGeometry args={[240, 240]} />
+        <planeGeometry args={[WORLD_SETTINGS.groundSize, WORLD_SETTINGS.groundSize]} />
         <meshStandardMaterial color="#10252a" roughness={0.96} metalness={0.05} />
       </mesh>
     </group>

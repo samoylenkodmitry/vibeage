@@ -10,6 +10,11 @@ import type {
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 import type { OutboundEvent, OutboundEventSink } from './outboundEvents.js';
 import { WORLD_BROADCAST_EVENTS } from './outboundEvents.js';
+import {
+  makeClientGameStateSnapshot,
+  sanitizePlayerForPublic,
+  sanitizePlayerUpdateForPublic,
+} from './clientState.js';
 
 export type ColyseusClientLike = {
   sessionId: string;
@@ -42,7 +47,10 @@ export class ColyseusAuthoritativeRoomAdapter {
     const playerName = options.playerName?.trim() || 'Player';
     const result = await this.port.joinClient(client.sessionId, playerName, makeColyseusClient(client));
     client.send(SOCKET_SESSION_EVENTS.joinGame, result);
-    client.send(SOCKET_SESSION_EVENTS.gameState, this.port.getStateSnapshot());
+    client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(
+      this.port.getStateSnapshot(),
+      client.sessionId,
+    ));
     return result;
   }
 
@@ -83,13 +91,13 @@ function emitColyseusOutbound(room: ColyseusBroadcastLike, event: OutboundEvent)
       findClient(room, event.socketId)?.send(WORLD_BROADCAST_EVENTS.message, event.message);
       return;
     case 'playerUpdated':
-      room.broadcast(WORLD_BROADCAST_EVENTS.playerUpdated, event.update);
+      room.broadcast(WORLD_BROADCAST_EVENTS.playerUpdated, sanitizePlayerUpdateForPublic(event.update));
       return;
     case 'enemyUpdated':
       room.broadcast(WORLD_BROADCAST_EVENTS.enemyUpdated, event.update);
       return;
     case 'playerJoined':
-      room.broadcast(WORLD_BROADCAST_EVENTS.playerJoined, event.player);
+      room.broadcast(WORLD_BROADCAST_EVENTS.playerJoined, sanitizePlayerForPublic(event.player));
       return;
     case 'playerLeft':
       room.broadcast(WORLD_BROADCAST_EVENTS.playerLeft, event.playerId);

@@ -89,6 +89,27 @@ describe('server protocol schemas', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('accepts server-authored starter progress updates', () => {
+    const parsed = safeParseServerMessage({
+      type: 'StarterProgressUpdate',
+      progress: {
+        defeatedEnemies: 3,
+        defeatedEnemyIds: ['enemy-1', 'enemy-2', 'enemy-3'],
+        lootPickups: 3,
+        levelReached: 2,
+        learnedSkills: 1,
+        isComplete: true,
+        rewardGranted: true,
+      },
+      rewardGranted: true,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+});
+
+describe('server protocol rejection schemas', () => {
   it('validates nested messages inside BatchUpdate', () => {
     const parsed = safeParseServerMessage({
       type: 'BatchUpdate',

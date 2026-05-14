@@ -1,13 +1,14 @@
-import { sql, type Insertable, type RawBuilder, type UpdateObject } from 'kysely';
-import { database, type GameDatabase, type PlayersTable, type ServerEventsTable } from './db.js';
-import type { SkillId } from '../packages/content/skills.js';
 import type { PlayerState } from '../shared/types.js';
-import type { InventorySlot } from '../packages/protocol/messages.js';
+import { normalizeStarterProgressState } from '../packages/protocol/messages.js';
 import {
   normalizeUnlockedSkills,
   serializeSkillShortcuts,
   serializeUnlockedSkills,
 } from './players/playerProgression.js';
+import {
+  playerRepository,
+  type StablePlayerPersistenceData,
+} from './persistence/playerRepository.js';
 
 export const PLAYER_SESSION_COLUMNS = ['name', 'socket_id', 'last_login'] as const;
 
@@ -24,6 +25,7 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'skills',
   'skill_shortcuts',
   'available_skill_points',
+  'starter_progress',
   'last_updated',
 ] as const;
 
@@ -48,27 +50,7 @@ export const TRANSIENT_PLAYER_STATE_FIELDS = [
   'maxInventorySlots',
 ] as const;
 
-export type StablePlayerPersistenceData = {
-  position_x: number;
-  position_y: number;
-  position_z: number;
-  health: number;
-  is_alive: boolean;
-  level: number;
-  experience: number;
-  class_name: PlayerState['className'];
-  inventory: InventorySlot[];
-  skills: string;
-  skill_shortcuts: string;
-  available_skill_points: number;
-  last_updated: number;
-};
-
-type PlayerPersistencePatch = UpdateObject<GameDatabase, 'players'>;
-
-type PlayerSessionInsert = Pick<Insertable<PlayersTable>, 'name' | 'socket_id' | 'last_login'>;
-
-type ServerEventInsert = Pick<Insertable<ServerEventsTable>, 'event_type' | 'player_id' | 'event_data' | 'timestamp'>;
+export type { StablePlayerPersistenceData } from './persistence/playerRepository.js';
 
 export function isPersistenceDisabled(): boolean {
   return process.env.VIBEAGE_DISABLE_PERSISTENCE === '1';
@@ -82,20 +64,15 @@ function currentDate(): Date {
   return new Date();
 }
 
-function toJsonb<T>(value: unknown): RawBuilder<T> {
-  if (value === null || value === undefined) {
-    return sql<T>`null::jsonb`;
-  }
-
-  const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-  return sql<T>`${serialized}::jsonb`;
-}
-
 export function buildStablePlayerPersistenceData(
   player: PlayerState,
   timestamp: number = currentUnixMs(),
 ): StablePlayerPersistenceData {
   const unlockedSkills = normalizeUnlockedSkills(player.unlockedSkills);
+  const starterProgress = normalizeStarterProgressState(player.starterProgress, {
+    levelReached: player.level,
+    learnedSkills: unlockedSkills.length,
+  });
 
   return {
     position_x: player.position.x,
@@ -110,38 +87,13 @@ export function buildStablePlayerPersistenceData(
     skills: serializeUnlockedSkills(unlockedSkills),
     skill_shortcuts: serializeSkillShortcuts(player.skillShortcuts, unlockedSkills),
     available_skill_points: player.availableSkillPoints,
+    starter_progress: starterProgress,
     last_updated: timestamp,
   };
 }
 
-function toPlayerPersistencePatch(player: PlayerState): PlayerPersistencePatch {
-  const stableData = buildStablePlayerPersistenceData(player);
-
-  return {
-    ...stableData,
-    inventory: toJsonb<InventorySlot[]>(stableData.inventory),
-    skills: toJsonb<SkillId[]>(stableData.skills),
-    skill_shortcuts: toJsonb<Array<SkillId | null>>(stableData.skill_shortcuts),
-  };
-}
-
 export async function upsertPlayerSession(socketId: string, name: string) {
-  const loginTime = currentDate();
-  const values: PlayerSessionInsert = {
-    name,
-    socket_id: socketId,
-    last_login: loginTime,
-  };
-
-  return database
-    .insertInto('players')
-    .values(values as Insertable<PlayersTable>)
-    .onConflict((oc) => oc.column('name').doUpdateSet({
-      socket_id: socketId,
-      last_login: loginTime,
-    }))
-    .returningAll()
-    .executeTakeFirstOrThrow();
+  return playerRepository.upsertSession(socketId, name, currentDate());
 }
 
 /**
@@ -153,11 +105,7 @@ export async function persistPlayer(player: PlayerState) {
   }
 
   try {
-    await database
-      .updateTable('players')
-      .set(toPlayerPersistencePatch(player))
-      .where('id', '=', player.id)
-      .execute();
+    await playerRepository.updatePlayer(player.id, buildStablePlayerPersistenceData(player));
   } catch (error) {
     console.error(`Failed to persist player ${player.id} in periodic update:`, error);
   }
@@ -171,18 +119,8 @@ export async function recordServerEvent(eventType: string, playerId: string | nu
     return;
   }
 
-  const values: ServerEventInsert = {
-    event_type: eventType,
-    player_id: playerId,
-    event_data: toJsonb<unknown>(eventData),
-    timestamp: currentUnixMs(),
-  };
-
   try {
-    await database
-      .insertInto('server_events')
-      .values(values as Insertable<ServerEventsTable>)
-      .execute();
+    await playerRepository.insertServerEvent(eventType, playerId, eventData, currentUnixMs());
   } catch (error) {
     console.error(`Failed to record server event ${eventType}:`, error);
   }

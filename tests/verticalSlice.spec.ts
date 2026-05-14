@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { WORLD_SETTINGS } from '../packages/content/world';
 import { ZoneManager } from '../packages/content/zones';
 import {
   STARTER_VERTICAL_SLICE,
@@ -54,5 +55,16 @@ describe('starter vertical slice', () => {
       issues: [],
       lootTableIds: ['goblin_loot', 'wolf_loot', 'skeleton_loot', 'slime_loot', 'meadow_sprite_loot'],
     });
+  });
+
+  test('visible world settings cover every configured zone', () => {
+    const zones = new ZoneManager().getZones();
+
+    for (const zone of zones) {
+      const distanceFromOrigin = Math.hypot(zone.position.x, zone.position.z) + zone.radius;
+      expect(distanceFromOrigin).toBeLessThanOrEqual(WORLD_SETTINGS.playableRadius);
+    }
+
+    expect(WORLD_SETTINGS.groundSize).toBeGreaterThanOrEqual(WORLD_SETTINGS.playableRadius * 2);
   });
 });

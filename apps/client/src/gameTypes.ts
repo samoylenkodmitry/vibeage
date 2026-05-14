@@ -5,6 +5,7 @@ import type {
   ItemDrop,
   InventorySlot,
   PlayerMovementState,
+  StarterProgressState,
   StatusEffect,
   VecXZ,
 } from '../../../packages/protocol/messages';
@@ -33,6 +34,7 @@ export type PlayerEntity = {
   unlockedSkills: SkillId[];
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
+  starterProgress?: StarterProgressState;
   skillCooldownEndTs: Record<string, number>;
   castingSkill: SkillId | null;
   castingProgressMs: number;
@@ -103,13 +105,7 @@ export type VisualEvent = {
   createdAt: number;
 };
 
-export type StarterProgress = {
-  defeatedEnemies: number;
-  defeatedEnemyIds: string[];
-  lootPickups: number;
-  levelReached: number;
-  learnedSkills: number;
-};
+export type StarterProgress = StarterProgressState;
 
 export type GameClientState = {
   connectionState: ConnectionState;

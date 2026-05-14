@@ -45,6 +45,15 @@ describe('player session hydration', () => {
       skills: [],
       skill_shortcuts: ['fireball'],
       available_skill_points: 2,
+      starter_progress: {
+        defeatedEnemies: 2,
+        defeatedEnemyIds: ['enemy-1', 'enemy-2'],
+        lootPickups: 1,
+        levelReached: 2,
+        learnedSkills: 1,
+        isComplete: false,
+        rewardGranted: false,
+      },
       inventory: [{ itemId: 'health_potion', quantity: 1 }],
     }, 'socket1', 'PersistedMage');
 
@@ -63,6 +72,15 @@ describe('player session hydration', () => {
       unlockedSkills: ['fireball'],
       skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
       availableSkillPoints: 2,
+      starterProgress: {
+        defeatedEnemies: 2,
+        defeatedEnemyIds: ['enemy-1', 'enemy-2'],
+        lootPickups: 1,
+        levelReached: 3,
+        learnedSkills: 1,
+        isComplete: false,
+        rewardGranted: false,
+      },
       inventory: [{ itemId: 'health_potion', quantity: 1 }],
     });
   });
@@ -129,6 +147,7 @@ describe('player session relog persistence', () => {
       skills: JSON.parse(stable.skills),
       skill_shortcuts: JSON.parse(stable.skill_shortcuts),
       available_skill_points: stable.available_skill_points,
+      starter_progress: stable.starter_progress,
       inventory: stable.inventory,
     }, 'new-socket', beforeRelog.name);
 
@@ -142,6 +161,7 @@ describe('player session relog persistence', () => {
       unlockedSkills: beforeRelog.unlockedSkills,
       skillShortcuts: beforeRelog.skillShortcuts,
       availableSkillPoints: beforeRelog.availableSkillPoints,
+      starterProgress: stable.starter_progress,
       inventory: beforeRelog.inventory,
     });
   });

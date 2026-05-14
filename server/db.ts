@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Kysely, PostgresDialect, type ColumnType, type Generated } from 'kysely';
 import { Pool } from 'pg';
 import type { SkillId } from '../packages/content/skills.js';
-import type { InventorySlot } from '../packages/protocol/messages.js';
+import type { InventorySlot, StarterProgressState } from '../packages/protocol/messages.js';
 
 type DefaultColumn<T> = ColumnType<T, T | undefined, T>;
 type NullableDefaultColumn<T> = ColumnType<T | null, T | null | undefined, T | null>;
@@ -26,6 +26,7 @@ export interface PlayersTable {
   skills: JsonColumn<SkillId[]>;
   skill_shortcuts: JsonColumn<(SkillId | null)[]>;
   available_skill_points: DefaultColumn<number>;
+  starter_progress: JsonColumn<StarterProgressState>;
   class_name: DefaultColumn<string>;
   last_login: TimestampColumn;
   last_updated: NullableDefaultColumn<number>;

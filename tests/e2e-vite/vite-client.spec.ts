@@ -22,6 +22,7 @@ test("enters the real game through the Vite client", async ({ page }) => {
   expect(state?.enemyIds.length).toBeGreaterThan(0);
   expect(state?.playerVitals?.isAlive).toBe(true);
   await expect(page.getByLabel("Player status")).toContainText("XP");
+  await expect(page.getByRole("region", { name: "Starter progress" })).toContainText("Starter Path");
   await expect(page.getByRole("region", { name: "Inventory" })).toBeVisible();
 });
 

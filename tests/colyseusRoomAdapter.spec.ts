@@ -1,4 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
+import { createStarterProgressState } from '../packages/protocol/messages';
+import type { PlayerState } from '../shared/types';
 import type { AuthoritativeRoomPort } from '../server/transport/roomBoundary';
 import {
   ColyseusAuthoritativeRoomAdapter,
@@ -24,7 +26,23 @@ describe('Colyseus room adapter', () => {
       socketId: 'socket1',
       message: { type: 'LootAcquired', items: [{ itemId: 'gold_coin', quantity: 1 }] },
     });
-    outbound.publish({ type: 'playerUpdated', update: { id: 'player1', health: 80 } });
+    outbound.publish({
+      type: 'playerUpdated',
+      update: {
+        id: 'player1',
+        health: 80,
+        starterProgress: createStarterProgressState({ defeatedEnemies: 1 }),
+      },
+    });
+    outbound.publish({
+      type: 'playerJoined',
+      player: {
+        id: 'player1',
+        socketId: 'socket1',
+        name: 'Tester',
+        starterProgress: createStarterProgressState({ defeatedEnemies: 1 }),
+      } as PlayerState,
+    });
 
     expect(room.broadcast).toHaveBeenCalledWith('msg', {
       type: 'LootPickup',
@@ -36,8 +54,15 @@ describe('Colyseus room adapter', () => {
       items: [{ itemId: 'gold_coin', quantity: 1 }],
     });
     expect(room.broadcast).toHaveBeenCalledWith('playerUpdated', { id: 'player1', health: 80 });
+    expect(room.broadcast).toHaveBeenCalledWith('playerJoined', {
+      id: 'player1',
+      socketId: 'socket1',
+      name: 'Tester',
+    });
   });
+});
 
+describe('Colyseus room adapter join and command handling', () => {
   test('joins a protocol-v2 client through the authoritative room port', async () => {
     const state = { players: {}, enemies: {} } as ReturnType<AuthoritativeRoomPort['getStateSnapshot']>;
     const port = makePort(state);
