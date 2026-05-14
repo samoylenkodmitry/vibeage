@@ -8,6 +8,7 @@ It currently enforces:
 - Client and server TypeScript typechecks.
 - VPS deployment shell script syntax checks.
 - Maintainability budgets for file size, function size, function arguments, and nesting depth.
+- Dead-code/dependency scanning for unused files, dependencies, unlisted binaries, unresolved imports, and duplicate exports.
 - Vitest unit/server tests.
 - Server and frontend production builds.
 - Playwright browser smoke test.
@@ -23,6 +24,14 @@ Use these while iterating on focused changes. They do not replace `pnpm run chec
 - `pnpm run check:client`: lint client/shared runtime paths, typecheck the Vite client, run reducer/camera/visual tests, and build the client.
 - `pnpm run check:protocol`: lint protocol boundary files, typecheck server and client protocol users, and run schema/privacy/transport tests.
 - `pnpm run check:content`: lint content boundary files, run content validation, and run content behavior tests.
+- `pnpm run check:deadcode`: run the CI-blocking Knip subset for files, dependencies, unlisted binaries, unresolved imports, and duplicate exports.
+- `pnpm run deadcode:report`: run the full Knip report without failing; use it to work down the current unused-export baseline.
+
+## Dead-Code Baseline
+
+Knip is configured in `knip.json`.
+
+The blocking gate intentionally starts with issue types that are safe to enforce immediately. The full report still shows existing unused exports and exported types so cleanup work is visible, but those are not merged into the blocking gate until the baseline is reduced.
 
 ## Maintainability Budgets
 

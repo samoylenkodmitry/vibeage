@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "server/server.ts",
+    "packages/*/index.ts",
+    "scripts/*.{mjs,ts}",
+    "playwright*.config.ts",
+    "tests/**/*.ts",
+    "vitest/**/*.ts"
+  ],
+  "project": [
+    "apps/**/*.{ts,tsx}",
+    "server/**/*.ts",
+    "packages/**/*.ts",
+    "scripts/**/*.{mjs,ts}",
+    "tests/**/*.ts",
+    "vitest/**/*.ts",
+    "*.config.{mjs,ts}"
+  ],
+  "ignoreBinaries": [
+    "scripts/backup-postgres.sh",
+    "scripts/deploy-from-local.sh",
+    "scripts/health-production.sh",
+    "scripts/pull-postgres-backup-local.sh",
+    "scripts/rollback-production.sh",
+    "scripts/test-postgres-restore.sh"
+  ],
+  "ignoreIssues": {
+    "server/logger.ts": ["duplicates"]
+  }
+}

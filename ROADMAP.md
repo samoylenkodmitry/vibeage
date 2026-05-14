@@ -84,6 +84,7 @@ Goal: make the repository comfortable for coding agents and LLMs by reducing ori
 In progress:
 
 - Items 1-3 are implemented on the `chore/ai-fy-foundation` branch with architecture docs, agent playbooks, and scoped check scripts.
+- Item 4 is partially implemented with Knip, a blocking dead-code/dependency subset, and a non-blocking full dead-code report. The remaining unused-export baseline is tracked below.
 
 1. Add `docs/ARCHITECTURE.md`.
    - Document the live architecture and core flows: join, movement, combat/cast, loot/inventory, region streaming, persistence, deploy, and rollback.
@@ -106,6 +107,7 @@ In progress:
    - Evaluate Knip or an equivalent tool.
    - Catch unused exports, stale compatibility files, unused dependencies, and accidental orphan files.
    - Gate new dead code in CI once the first cleanup pass is complete.
+   - Current Knip cleanup baseline: unused exported constants/types in client helpers and server modules, `server/combat/utils/cast.ts`, `applyCastCost`, and a duplicate logger export.
 
 5. Add deterministic scenario fixtures.
    - Provide reusable test fixtures for: two players in separate regions, one combat encounter, loot pickup, full inventory, reconnect/persisted player, and scoped region streaming.
