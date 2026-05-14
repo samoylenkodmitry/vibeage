@@ -15,6 +15,15 @@ It currently enforces:
 - GitHub secret scanning via gitleaks in CI.
 - Dependabot config is kept in Git, but version-update PRs are currently disabled with `open-pull-requests-limit: 0` to avoid dependency noise during runtime migration work.
 
+## Scoped Checks
+
+Use these while iterating on focused changes. They do not replace `pnpm run check` before merge, but they keep agent work faster and more targeted.
+
+- `pnpm run check:server`: lint server/shared runtime paths, typecheck the server build, run focused server Vitest files, and build the server.
+- `pnpm run check:client`: lint client/shared runtime paths, typecheck the Vite client, run reducer/camera/visual tests, and build the client.
+- `pnpm run check:protocol`: lint protocol boundary files, typecheck server and client protocol users, and run schema/privacy/transport tests.
+- `pnpm run check:content`: lint content boundary files, run content validation, and run content behavior tests.
+
 ## Maintainability Budgets
 
 The maintainability gate is configured in `quality/maintainability.json`.
