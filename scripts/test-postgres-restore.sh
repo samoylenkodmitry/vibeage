@@ -12,6 +12,8 @@ fi
 BACKUP_FILE=${BACKUP_FILE:-${1:-}}
 RESTORE_IMAGE=${RESTORE_IMAGE:-docker.io/library/postgres:16}
 CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+COMPATIBILITY_SQL=${COMPATIBILITY_SQL:-"$SCRIPT_DIR/check-restored-postgres-compatibility.sql"}
 
 log() {
   printf '==> %s\n' "$1"
@@ -76,6 +78,7 @@ main() {
 
   test -n "$BACKUP_FILE" || fail "No backup file found under $BACKUP_ROOT"
   test -r "$BACKUP_FILE" || fail "Backup file is not readable: $BACKUP_FILE"
+  test -r "$COMPATIBILITY_SQL" || fail "Compatibility SQL is not readable: $COMPATIBILITY_SQL"
 
   local table_count
   local table_names
@@ -96,6 +99,10 @@ main() {
     "select count(*) from information_schema.tables where table_schema = 'public';")
   table_names=$("$CONTAINER_RUNTIME" exec "$container_name" psql -U postgres -d postgres -Atc \
     "select string_agg(table_name, ', ' order by table_name) from information_schema.tables where table_schema = 'public';")
+
+  log "Checking restored schema compatibility"
+  "$CONTAINER_RUNTIME" exec -i "$container_name" psql -U postgres -d postgres \
+    < "$COMPATIBILITY_SQL"
 
   log "Restore test passed"
   printf 'backup=%s\n' "$BACKUP_FILE"

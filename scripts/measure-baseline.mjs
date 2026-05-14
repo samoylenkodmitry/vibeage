@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { gzipSync } from 'node:zlib';
 import { chromium } from '@playwright/test';
-import { Client as ColyseusClient } from 'colyseus.js';
+import { Client as ColyseusClient } from '@colyseus/sdk';
 
 const root = process.cwd();
 const serverPort = Number(process.env.BASELINE_SERVER_PORT ?? 3122);
@@ -12,6 +12,9 @@ const clientPort = Number(process.env.BASELINE_CLIENT_PORT ?? 5176);
 const gameUrl = process.env.BASELINE_GAME_URL ?? `http://127.0.0.1:${serverPort}`;
 const clientUrl = process.env.BASELINE_BROWSER_URL ?? `http://127.0.0.1:${clientPort}`;
 const shouldStartLocal = process.env.BASELINE_START_LOCAL === '1';
+const shouldSkipBrowserFps = process.env.BASELINE_SKIP_BROWSER_FPS === '1';
+const shouldEnforceBudgets = process.env.BASELINE_ENFORCE === '1';
+const budgetPath = process.env.BASELINE_BUDGETS ?? join(root, 'quality/performance-budgets.json');
 const childProcesses = [];
 
 try {
@@ -24,12 +27,20 @@ try {
     bundle: measureBundle(),
     tickCost: await measureTickCost(),
     roomLatency: await measureRoomLatency(gameUrl),
-    browserFps: await measureBrowserFps(),
+    browserFps: shouldSkipBrowserFps
+      ? { available: false, reason: 'skipped by BASELINE_SKIP_BROWSER_FPS=1' }
+      : await measureBrowserFps(),
   };
+  report.budgets = evaluateBudgets(report, loadBudgets());
 
   console.log(JSON.stringify(report, null, 2));
   if (process.env.BASELINE_OUTPUT) {
     writeFileSync(process.env.BASELINE_OUTPUT, `${JSON.stringify(report, null, 2)}\n`);
+  }
+
+  printBudgetSummary(report.budgets);
+  if (shouldEnforceBudgets && report.budgets.failures.length > 0) {
+    process.exitCode = 1;
   }
 } finally {
   stopChildProcesses();
@@ -122,6 +133,10 @@ function toColyseusEndpoint(url) {
 }
 
 async function measureBrowserFps() {
+  if (shouldSkipBrowserFps) {
+    return { available: false, reason: 'skipped by BASELINE_SKIP_BROWSER_FPS=1' };
+  }
+
   if (!shouldStartLocal && !process.env.BASELINE_BROWSER_URL) {
     return { available: false, reason: 'set BASELINE_START_LOCAL=1 or BASELINE_BROWSER_URL' };
   }
@@ -146,7 +161,7 @@ async function measureBrowserFps() {
 
 async function startLocalStack() {
   const gameServerUrl = `http://127.0.0.1:${serverPort}`;
-  childProcesses.push(spawnCommand('pnpm', ['exec', 'tsx', 'server/server.ts'], {
+  childProcesses.push(spawnCommand('pnpm', ['exec', 'tsx', 'apps/server/src/main.ts'], {
     PORT: String(serverPort),
     VIBEAGE_DISABLE_PERSISTENCE: '1',
     CORS_ORIGINS: `${clientUrl},http://localhost:${clientPort}`,
@@ -219,6 +234,117 @@ function sampleAnimationFrames() {
     }
     requestAnimationFrame(sample);
   });
+}
+
+function loadBudgets() {
+  if (!existsSync(budgetPath)) {
+    return null;
+  }
+
+  return JSON.parse(readFileSync(budgetPath, 'utf8'));
+}
+
+function evaluateBudgets(report, budgets) {
+  const warnings = [];
+  const failures = [];
+  const displayBudgetPath = budgetPath.startsWith(`${root}/`)
+    ? budgetPath.slice(root.length + 1)
+    : budgetPath;
+
+  if (!budgets) {
+    return { available: false, budgetPath: displayBudgetPath, warnings, failures };
+  }
+
+  collectAvailabilityIssues(failures, report, budgets);
+  evaluateMaxBudget(warnings, failures, 'bundle.totalGzipBytes', report.bundle.totalGzipBytes, {
+    warning: budgets.bundle?.warningTotalGzipBytes,
+    failure: budgets.bundle?.maxTotalGzipBytes,
+  });
+  evaluateMaxBudget(warnings, failures, 'tickCost.averageTickMs', report.tickCost.averageTickMs, {
+    warning: budgets.tickCost?.warningAverageTickMs,
+    failure: budgets.tickCost?.maxAverageTickMs,
+  });
+  evaluateMaxBudget(warnings, failures, 'roomLatency.connectMs', report.roomLatency.connectMs, {
+    warning: budgets.roomLatency?.warningConnectMs,
+    failure: budgets.roomLatency?.maxConnectMs,
+  });
+  evaluateMaxBudget(warnings, failures, 'roomLatency.gameStateRoundTripMs', report.roomLatency.gameStateRoundTripMs, {
+    warning: budgets.roomLatency?.warningGameStateRoundTripMs,
+    failure: budgets.roomLatency?.maxGameStateRoundTripMs,
+  });
+  evaluateMinBudget(warnings, failures, 'browserFps.averageFps', report.browserFps.averageFps, {
+    warning: budgets.browserFps?.warningAverageFps,
+    failure: budgets.browserFps?.minAverageFps,
+  });
+  evaluateMaxBudget(warnings, failures, 'browserFps.p95FrameMs', report.browserFps.p95FrameMs, {
+    warning: budgets.browserFps?.warningP95FrameMs,
+    failure: budgets.browserFps?.maxP95FrameMs,
+  });
+
+  return { available: true, budgetPath: displayBudgetPath, warnings, failures };
+}
+
+function collectAvailabilityIssues(failures, report, budgets) {
+  if (budgets.bundle && report.bundle.available === false) {
+    failures.push(`bundle unavailable: ${report.bundle.reason ?? 'unknown reason'}`);
+  }
+
+  if (budgets.tickCost && typeof report.tickCost.averageTickMs !== 'number') {
+    failures.push('tickCost.averageTickMs unavailable');
+  }
+
+  if (budgets.roomLatency && report.roomLatency.available === false) {
+    failures.push(`roomLatency unavailable: ${report.roomLatency.reason ?? 'unknown reason'}`);
+  }
+
+  if (budgets.browserFps && !shouldSkipBrowserFps && report.browserFps.available === false) {
+    failures.push(`browserFps unavailable: ${report.browserFps.reason ?? 'unknown reason'}`);
+  }
+}
+
+function evaluateMaxBudget(warnings, failures, label, value, budget) {
+  if (typeof value !== 'number') {
+    return;
+  }
+
+  if (typeof budget.failure === 'number' && value > budget.failure) {
+    failures.push(`${label} ${value} exceeds max ${budget.failure}`);
+    return;
+  }
+
+  if (typeof budget.warning === 'number' && value > budget.warning) {
+    warnings.push(`${label} ${value} exceeds warning ${budget.warning}`);
+  }
+}
+
+function evaluateMinBudget(warnings, failures, label, value, budget) {
+  if (typeof value !== 'number') {
+    return;
+  }
+
+  if (typeof budget.failure === 'number' && value < budget.failure) {
+    failures.push(`${label} ${value} is below min ${budget.failure}`);
+    return;
+  }
+
+  if (typeof budget.warning === 'number' && value < budget.warning) {
+    warnings.push(`${label} ${value} is below warning ${budget.warning}`);
+  }
+}
+
+function printBudgetSummary(budgets) {
+  if (!budgets.available) {
+    console.error(`Performance budgets unavailable: ${budgets.budgetPath}`);
+    return;
+  }
+
+  for (const warning of budgets.warnings) {
+    console.error(`WARN: ${warning}`);
+  }
+
+  for (const failure of budgets.failures) {
+    console.error(`FAIL: ${failure}`);
+  }
 }
 
 function spawnCommand(command, args, env = {}) {

@@ -97,7 +97,8 @@ export const GAME_ZONES: Zone[] = [
             { type: 'goblin', weight: 60, minCount: 5, maxCount: 8 },
             { type: 'wolf', weight: 25, minCount: 2, maxCount: 4 },
             { type: 'skeleton', weight: 15, minCount: 1, maxCount: 2 },
-            { type: 'slime', weight: 10, minCount: 1, maxCount: 2 }
+            { type: 'slime', weight: 10, minCount: 1, maxCount: 2 },
+            { type: 'meadow_sprite', weight: 5, minCount: 1, maxCount: 1 }
         ]
     },
     {

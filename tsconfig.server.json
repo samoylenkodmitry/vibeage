@@ -12,5 +12,5 @@
     "emitDeclarationOnly": false,
     "noEmit": false
   },
-  "include": ["server/**/*", "shared/**/*", "packages/**/*"]
+  "include": ["apps/server/**/*", "server/**/*", "shared/**/*", "packages/**/*"]
 }

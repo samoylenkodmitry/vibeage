@@ -64,7 +64,7 @@ check_game_socket() {
   local output
   if output=$(DOMAIN="$DOMAIN" node <<'NODE'
 (async () => {
-  const { Client } = await import('colyseus.js');
+  const { Client } = await import('@colyseus/sdk');
   const domain = process.env.DOMAIN || 'vibeage.eu';
   const client = new Client(`https://${domain}/colyseus`, {
     headers: {

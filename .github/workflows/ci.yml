@@ -67,6 +67,9 @@ jobs:
       - name: Build frontend
         run: pnpm run build
 
+      - name: Performance budget smoke
+        run: BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 pnpm run measure:baseline
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 

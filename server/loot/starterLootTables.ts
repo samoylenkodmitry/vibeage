@@ -76,4 +76,24 @@ export const STARTER_LOOT_TABLES: Record<string, LootTable> = {
       },
     ],
   },
+  meadow_sprite_loot: {
+    id: 'meadow_sprite_loot',
+    drops: [
+      {
+        itemId: 'gold_coin',
+        quantity: { min: 1, max: 3 },
+        chance: 0.75,
+      },
+      {
+        itemId: 'sprite_glow',
+        quantity: { min: 1, max: 1 },
+        chance: 0.55,
+      },
+      {
+        itemId: 'mana_potion',
+        quantity: { min: 1, max: 1 },
+        chance: 0.12,
+      },
+    ],
+  },
 };

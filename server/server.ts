@@ -1,7 +1,13 @@
 import { createServer } from 'node:http';
 import express from 'express';
 import morgan from 'morgan';
-import { Server as ColyseusServer } from '@colyseus/core';
+import {
+  createEndpoint,
+  createRouter,
+  getBearerToken,
+  matchMaker,
+  Server as ColyseusServer,
+} from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
   isOriginAllowed,
@@ -41,6 +47,32 @@ const gameServer = new ColyseusServer({
     verifyClient(info, callback) {
       callback(isOriginAllowed(info.origin, CORS_ORIGINS, ALLOW_MISSING_ORIGIN));
     },
+  }),
+});
+
+gameServer.router = createRouter({
+  postColyseusPathMatchmake: createEndpoint('/colyseus/matchmake/:method/:roomName', { method: 'POST' }, async (ctx) => {
+    const response = await matchMaker.controller.invokeMethod(
+      ctx.params.method,
+      ctx.params.roomName,
+      ctx.body,
+      {
+        token: getBearerToken(ctx.request.headers.get('authorization')),
+        headers: ctx.request.headers,
+        ip: ctx.request.headers.get('x-forwarded-for')
+          ?? ctx.request.headers.get('x-client-ip')
+          ?? ctx.request.headers.get('x-real-ip'),
+        req: ctx.request,
+      },
+    );
+    const body = JSON.stringify(response);
+
+    return new Response(body, {
+      headers: {
+        'content-type': 'application/json',
+        'content-length': body.length.toString(),
+      },
+    });
   }),
 });
 
