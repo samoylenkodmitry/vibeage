@@ -6,6 +6,7 @@ It currently enforces:
 
 - ESLint with zero warnings.
 - Client and server TypeScript typechecks.
+- Strict TypeScript typecheck for leaf packages under `packages`.
 - VPS deployment shell script syntax checks.
 - Maintainability budgets for file size, function size, function arguments, and nesting depth.
 - Dead-code/dependency scanning for unused files, dependencies, unlisted binaries, unresolved imports, and duplicate exports.
@@ -24,6 +25,7 @@ Use these while iterating on focused changes. They do not replace `pnpm run chec
 - `pnpm run check:client`: lint client/shared runtime paths, typecheck the Vite client, run reducer/camera/visual tests, and build the client.
 - `pnpm run check:protocol`: lint protocol boundary files, typecheck server and client protocol users, and run schema/privacy/transport tests.
 - `pnpm run check:content`: lint content boundary files, run content validation, and run content behavior tests.
+- `pnpm run typecheck:packages`: strict TypeScript check for `packages/content`, `packages/protocol`, and `packages/sim`.
 - `pnpm run check:deadcode`: run the CI-blocking Knip subset for files, dependencies, unlisted binaries, unresolved imports, and duplicate exports.
 - `pnpm run deadcode:report`: run the full Knip report without failing; use it to work down the current unused-export baseline.
 

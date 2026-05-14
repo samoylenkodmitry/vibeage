@@ -87,6 +87,7 @@ In progress:
 - Item 4 is partially implemented with Knip, a blocking dead-code/dependency subset, and a non-blocking full dead-code report. The remaining unused-export baseline is tracked below.
 - Item 5 is implemented with deterministic scenario fixtures under `tests/helpers/scenarioFixtures.ts`.
 - Item 6 is implemented in `docs/PROTOCOL.md` with transport lanes, state ownership, snapshot ordering, visibility, and change checks.
+- Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`.
 
 1. Add `docs/ARCHITECTURE.md`.
    - Document the live architecture and core flows: join, movement, combat/cast, loot/inventory, region streaming, persistence, deploy, and rollback.
