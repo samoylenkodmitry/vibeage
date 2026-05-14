@@ -9,6 +9,7 @@ const gameServerUrl = `http://127.0.0.1:${gameServerPort}`;
 export default defineConfig({
   testDir: "./tests/e2e-vite",
   timeout: 35_000,
+  workers: process.env.CI ? 1 : undefined,
   expect: {
     timeout: 10_000
   },
