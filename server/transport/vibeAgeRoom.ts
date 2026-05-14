@@ -1,16 +1,11 @@
 import { Room, type Client } from '@colyseus/core';
 import { ZoneManager } from '../../packages/content/zones.js';
-import type { ServerMessage } from '../../packages/protocol/messages.js';
 import { initWorld } from '../world.js';
-import { sendCastSnapshots } from '../combat/skillSystem.js';
-import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
-import { sendStarterProgressUpdate } from '../progression/starterPath.js';
 import { createSocketBackedAuthoritativeRoom } from './authoritativeRoomAdapter.js';
 import { ColyseusAuthoritativeRoomAdapter, makeColyseusOutbound } from './colyseusRoomAdapter.js';
-import { makeClientGameStateSnapshot, sanitizePlayerForPublic } from './clientState.js';
+import { sanitizePlayerForPublic } from './clientState.js';
+import { makeClientDirectSink, sendClientInitialSnapshot } from './clientSnapshot.js';
 import { parseWorldRoomJoinOptions, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
-import type { DirectMessageSink } from './outboundEvents.js';
-import { findPlayerIdBySocket } from '../players/playerSession.js';
 
 const MAX_CLIENTS = 200;
 
@@ -53,26 +48,6 @@ export class VibeAgeRoom extends Room {
   }
 
   private sendClientSnapshot(client: Client): void {
-    const state = this.world.getGameState();
-    const playerId = findPlayerIdBySocket(state, client.sessionId);
-    const player = playerId ? state.players[playerId] : null;
-    const direct = makeColyseusDirectSink(client);
-
-    if (player) {
-      client.send(SOCKET_SESSION_EVENTS.joinGame, { playerId: player.id });
-      emitInventoryUpdate(direct, player);
-      sendStarterProgressUpdate(direct, player);
-    }
-
-    client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(state, client.sessionId));
-    sendCastSnapshots(state.activeCasts, direct);
+    sendClientInitialSnapshot(client, this.world.getGameState(), makeClientDirectSink(client));
   }
-}
-
-function makeColyseusDirectSink(client: Client): DirectMessageSink {
-  return {
-    send(message: ServerMessage) {
-      client.send(SOCKET_SESSION_EVENTS.message, message);
-    },
-  };
 }
