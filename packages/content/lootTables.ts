@@ -1,5 +1,5 @@
-import type { ItemId } from '../packages/content/items';
-import { STARTER_LOOT_TABLES } from './loot/starterLootTables.js';
+import type { ItemId } from './items.js';
+import { STARTER_LOOT_TABLES } from './starterLootTables.js';
 
 export interface LootDrop {
   itemId: ItemId;

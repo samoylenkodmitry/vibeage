@@ -5,7 +5,9 @@
   },
   "tickCost": {
     "warningAverageTickMs": 0.1,
-    "maxAverageTickMs": 0.25
+    "maxAverageTickMs": 0.25,
+    "warningSpawnedEnemies": 220,
+    "maxSpawnedEnemies": 260
   },
   "roomLatency": {
     "warningConnectMs": 500,

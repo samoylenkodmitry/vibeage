@@ -1,3 +1,5 @@
+import { randomAnnulusDistance } from '../sim/geometry.js';
+
 // Types for zone management
 export interface Zone {
     id: string;
@@ -57,7 +59,7 @@ export class ZoneManager {
 
         const angle = Math.random() * Math.PI * 2;
         const minDistance = zone.spawnExclusionRadius ?? 0;
-        const distance = getRandomAnnulusDistance(minDistance, zone.radius);
+        const distance = randomAnnulusDistance(minDistance, zone.radius);
 
         return {
             x: zone.position.x + Math.cos(angle) * distance,
@@ -83,12 +85,6 @@ export class ZoneManager {
     getZones(): Zone[] {
         return GAME_ZONES;
     }
-}
-
-function getRandomAnnulusDistance(minDistance: number, maxDistance: number): number {
-    const minArea = Math.min(minDistance, maxDistance) ** 2;
-    const maxArea = maxDistance ** 2;
-    return Math.sqrt(minArea + Math.random() * (maxArea - minArea));
 }
 
 export const GAME_ZONES: Zone[] = [

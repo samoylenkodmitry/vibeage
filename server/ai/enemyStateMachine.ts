@@ -1,8 +1,8 @@
 import type { Enemy, PlayerState } from '../../shared/types.js';
+import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   applyEnemyAttack,
-  distanceXZ,
   faceEnemyToward,
   findAggroTargetId,
   makeEnemyUpdate,

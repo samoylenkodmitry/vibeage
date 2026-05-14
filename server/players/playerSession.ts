@@ -39,7 +39,12 @@ function normalizeClassName(value: unknown): CharacterClass {
   return value === 'warrior' || value === 'healer' || value === 'ranger' ? value : 'mage';
 }
 
-function addPlayerToState(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
+export function upsertActivePlayerSession(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
+  const existing = state.players[player.id];
+  if (existing) {
+    spatial.remove(existing.id, { x: existing.position.x, z: existing.position.z });
+  }
+
   state.players[player.id] = player;
   spatial.insert(player.id, { x: player.position.x, z: player.position.z });
   return player;
@@ -99,7 +104,7 @@ export async function addPlayerSession(
   socketId: string,
   name: string,
 ): Promise<PlayerState> {
-  const addTransientPlayer = () => addPlayerToState(state, spatial, createTransientPlayer(socketId, name));
+  const addTransientPlayer = () => upsertActivePlayerSession(state, spatial, createTransientPlayer(socketId, name));
 
   if (isPersistenceDisabled()) {
     return addTransientPlayer();
@@ -110,7 +115,7 @@ export async function addPlayerSession(
 
     await recordServerEvent('player_login', row.id, { playerName: name, socketId });
 
-    return addPlayerToState(state, spatial, hydratePersistedPlayer(row, socketId, name));
+    return upsertActivePlayerSession(state, spatial, hydratePersistedPlayer(row, socketId, name));
   } catch (error) {
     console.error('Error adding player to database:', error);
     return addTransientPlayer();

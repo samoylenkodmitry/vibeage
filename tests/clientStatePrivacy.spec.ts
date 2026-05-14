@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { createStarterProgressState } from '../packages/protocol/messages';
 import { createGameState } from '../server/gameState';
 import {
+  CLIENT_GAME_STATE_FIELDS,
   PRIVATE_PLAYER_STATE_FIELDS,
   makeClientGameStateSnapshot,
   sanitizePlayerForPublic,
@@ -26,6 +27,10 @@ describe('client state privacy', () => {
     for (const field of PRIVATE_PLAYER_STATE_FIELDS) {
       expect(snapshot.players.other).not.toHaveProperty(field);
     }
+    expect(Object.keys(snapshot).sort()).toEqual([...CLIENT_GAME_STATE_FIELDS].sort());
+    expect(snapshot).not.toHaveProperty('activeCasts');
+    expect(snapshot).not.toHaveProperty('projectiles');
+    expect(snapshot).not.toHaveProperty('lastProjectileId');
   });
 
   test('strips private player fields from public broadcasts and update payloads', () => {

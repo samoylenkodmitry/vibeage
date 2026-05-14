@@ -6,7 +6,7 @@ import {
   inspectStarterVerticalSliceContent,
 } from '../../packages/content/verticalSlice.js';
 import { createEnemy } from '../enemies/enemyLifecycle.js';
-import { LOOT_TABLES } from '../lootTables.js';
+import { LOOT_TABLES } from '../../packages/content/lootTables.js';
 
 export type StarterVerticalSliceValidation = {
   ok: boolean;

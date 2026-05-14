@@ -77,6 +77,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 54. Done on 2026-05-14: added full world content validation for zones, spawn budgets, loot tables, and item links, and fixed missing drop item definitions.
 55. Done on 2026-05-14: added a stable/transient persistence audit check and made unsupported consumables non-usable on both client and server.
 56. Done on 2026-05-14: hardened browser smoke helpers around real client state, kept combat messages out of connection status, and added a starter spawn exclusion so new players do not immediately enter enemy aggro.
+57. Done on 2026-05-14: moved loot tables and world content validation into `packages/content`, shared XZ geometry through `packages/sim`, narrowed initial client snapshots, hardened duplicate active session replacement, cleared targets on ground movement, and added spawned-enemy performance budget checks.
 
 ## Target Stack
 

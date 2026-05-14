@@ -8,11 +8,17 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
   'inventory',
   'maxInventorySlots',
 ] as const;
+export const CLIENT_GAME_STATE_FIELDS = [
+  'players',
+  'enemies',
+  'groundLoot',
+  'zones',
+] as const satisfies ReadonlyArray<keyof GameState>;
 
 type PrivatePlayerStateField = typeof PRIVATE_PLAYER_STATE_FIELDS[number];
 export type PublicPlayerState = Omit<PlayerState, PrivatePlayerStateField>;
 export type ClientPlayerState = PlayerState | PublicPlayerState;
-export type ClientGameStateSnapshot = Omit<GameState, 'players'> & {
+export type ClientGameStateSnapshot = Pick<GameState, 'enemies' | 'groundLoot' | 'zones'> & {
   players: Record<string, ClientPlayerState>;
 };
 
@@ -24,7 +30,12 @@ export function makeClientGameStateSnapshot(state: GameState, socketId: string):
     ]),
   ) as ClientGameStateSnapshot['players'];
 
-  return { ...state, players };
+  return {
+    players,
+    enemies: state.enemies,
+    groundLoot: state.groundLoot,
+    zones: state.zones,
+  };
 }
 
 export function sanitizePlayerForPublic(player: PlayerState): PublicPlayerState {
