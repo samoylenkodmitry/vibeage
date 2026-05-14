@@ -6,12 +6,7 @@ import { SKILLS, type SkillId } from '../content/skills.js';
  * @returns Mana cost for the skill
  */
 export function getManaCost(skillId: SkillId): number {
-  const skill = SKILLS[skillId];
-  if (!skill) return 0;
-
-  const baseCost = skill.manaCost;
-
-  return baseCost;
+  return SKILLS[skillId]?.manaCost ?? 0;
 }
 
 /**
@@ -20,12 +15,7 @@ export function getManaCost(skillId: SkillId): number {
  * @returns Cooldown time in milliseconds
  */
 export function getCooldownMs(skillId: SkillId): number {
-  const skill = SKILLS[skillId];
-  if (!skill) return 0;
-
-  const baseCooldown = skill.cooldownMs;
-
-  return baseCooldown;
+  return SKILLS[skillId]?.cooldownMs ?? 0;
 }
 
 /** xorshift32 - enough for crit and variability. */

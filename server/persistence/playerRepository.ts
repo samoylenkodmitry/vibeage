@@ -14,8 +14,8 @@ export type StablePlayerPersistenceData = {
   experience: number;
   class_name: PlayerState['className'];
   inventory: InventorySlot[];
-  skills: string;
-  skill_shortcuts: string;
+  skills: SkillId[];
+  skill_shortcuts: Array<SkillId | null>;
   available_skill_points: number;
   starter_progress: StarterProgressState;
   last_updated: number;

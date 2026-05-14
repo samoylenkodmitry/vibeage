@@ -106,8 +106,8 @@ describe('stable persistence contract', () => {
       experience: 120,
       class_name: 'mage',
       inventory: [{ itemId: 'health_potion', quantity: 2 }],
-      skills: JSON.stringify(['fireball', 'waterSplash']),
-      skill_shortcuts: JSON.stringify(['waterSplash', null, 'fireball', null, null, null, null, null, null]),
+      skills: ['fireball', 'waterSplash'],
+      skill_shortcuts: ['waterSplash', null, 'fireball', null, null, null, null, null, null],
       available_skill_points: 2,
       starter_progress: {
         defeatedEnemies: 0,
