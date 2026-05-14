@@ -1,6 +1,11 @@
 import type { ZoneManager } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import type { GameState } from '../gameState.js';
+import {
+  createServerOwnedRegions,
+  getActiveRegionIds,
+  type ServerWorldRegion,
+} from './regions.js';
 
 export type WorldZoneSpawnPolicy = {
   maxActiveZones: number;
@@ -16,10 +21,13 @@ export const DEFAULT_WORLD_ZONE_SPAWN_POLICY: WorldZoneSpawnPolicy = {
 
 export function initializeServerDrivenZoneRuntime(
   state: GameState,
-  zoneManager: ZoneManager,
+  zoneManagerOrRegions: ZoneManager | readonly ServerWorldRegion[],
   policy: WorldZoneSpawnPolicy = DEFAULT_WORLD_ZONE_SPAWN_POLICY,
 ): string[] {
-  const activeZoneIds = selectServerActiveZoneIds(zoneManager, policy);
+  const regions = isServerWorldRegionList(zoneManagerOrRegions)
+    ? zoneManagerOrRegions
+    : createServerOwnedRegions(zoneManagerOrRegions, policy);
+  const activeZoneIds = getActiveRegionIds(regions);
   state.zones.activeZoneIds = activeZoneIds;
   state.zones.playerZoneIds = {};
   state.zones.enemyZoneIds = {};
@@ -41,4 +49,10 @@ export function getActiveZoneIdSet(state: GameState): ReadonlySet<string> {
 
 export function isZoneActive(state: GameState, zoneId: string | undefined): boolean {
   return Boolean(zoneId) && getActiveZoneIdSet(state).has(zoneId);
+}
+
+function isServerWorldRegionList(
+  value: ZoneManager | readonly ServerWorldRegion[],
+): value is readonly ServerWorldRegion[] {
+  return Array.isArray(value);
 }

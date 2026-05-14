@@ -380,6 +380,22 @@ input {
   font-size: 11px;
 }
 
+.target-meta {
+  display: flex;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 10px;
+  color: #fef3c7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.target-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .casting-panel {
   position: absolute;
   left: 50%;
@@ -472,6 +488,11 @@ input {
   color: #fef3c7;
   font-size: 13px;
   pointer-events: none;
+}
+
+.combat-log span:first-child {
+  color: #fff7ad;
+  text-shadow: 0 0 14px rgba(250, 204, 21, 0.36);
 }
 
 .joining-overlay {

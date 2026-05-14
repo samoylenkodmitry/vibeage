@@ -194,4 +194,21 @@ describe('world movement snapshot deltas', () => {
 
     expect(collectDeltas(state, 1020, new Set())).toHaveLength(1);
   });
+
+  test('does not emit enemy snapshots outside server-active regions', () => {
+    const state = createGameState();
+    const activeEnemy = makeEnemy({ id: 'enemy-active', position: { x: 20, y: 0.5, z: 20 } });
+    const inactiveEnemy = makeEnemy({ id: 'enemy-inactive', position: { x: 40, y: 0.5, z: 40 } });
+    state.enemies[activeEnemy.id] = activeEnemy;
+    state.enemies[inactiveEnemy.id] = inactiveEnemy;
+    state.zones.activeZoneIds = ['zone-a'];
+    state.zones.enemyZoneIds[activeEnemy.id] = 'zone-a';
+    state.zones.enemyZoneIds[inactiveEnemy.id] = 'zone-b';
+    forgetPositionDelta(activeEnemy.id);
+    forgetPositionDelta(inactiveEnemy.id);
+
+    const deltas = collectDeltas(state, 1000, new Set());
+
+    expect(deltas.map((delta) => delta.id)).toEqual(['enemy-active']);
+  });
 });

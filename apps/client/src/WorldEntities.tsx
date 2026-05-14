@@ -12,6 +12,7 @@ import {
   EnemyHealthBar,
   EnemyHitFlash,
   LootMarker,
+  SelectedEnemyBeacon,
   SelectedEnemyRing,
 } from './SceneVfx';
 import { smoothingAlpha } from './cameraRig';
@@ -82,6 +83,7 @@ export function EnemyMarker({
       response={9}
     >
       {isSelected && <SelectedEnemyRing />}
+      {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
       <mesh castShadow onPointerDown={handlePointerDown}>
         {visual.shape === 'sphere' ? (
           <sphereGeometry args={[0.58, 18, 14]} />

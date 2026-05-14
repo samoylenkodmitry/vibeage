@@ -81,6 +81,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 58. Done on 2026-05-14: tightened client camera smoothing helpers, moved initial Colyseus client snapshot delivery into a dedicated transport module, and made the player persistence field policy exhaustive across stable, identity, and transient state.
 59. Done on 2026-05-14: moved room join/leave lifecycle handling out of the Colyseus room shell, made movement clear selected targets through one client action path, deleted stale deployment/shared-constant leftovers, added configured spawn-scale budgets, preserved live player state during duplicate-session handoff, and exposed zone spawn budget helpers for world expansion.
 60. Done on 2026-05-14: deleted the remaining `shared/types.ts` island by moving runtime entity types into `packages/sim`, split protocol schemas by domain while keeping the existing public re-export, split the Vite connection/action/scene boundaries, added server-owned global zone activation and per-zone spawn caps, moved the world tick into named phases, and added lightweight runtime counters/gauges for joins, rejected messages, snapshots, tick timing, and active world counts.
+61. Done on 2026-05-14: added Colyseus schema-backed public world state for aggregate player, enemy, and region counts while keeping owner-only inventory, starter progress, and socket identity on direct messages.
+62. Done on 2026-05-14: introduced explicit server-owned world regions, refreshed player region membership from the authoritative tick, and filtered enemy position snapshots to active regions.
+63. Done on 2026-05-14: polished the Vite combat surface with clearer selected-target VFX, target distance/state HUD metadata, and public region status in the world HUD.
+64. Done on 2026-05-14: hardened active-session consistency tests for death-state handoff and stale socket leaves after duplicate relog.
+65. Done on 2026-05-14: made world content validation a first-class `pnpm run content:check` command and included it in the full quality gate.
+66. Done on 2026-05-14: added a local-only `pnpm run diagnose:production` operator command that checks public HTTPS, local backup size, VPS localhost health/runtime metrics, port bindings, Docker status, Stalwart status, and deploy marker over SSH.
 
 ## Target Stack
 
@@ -175,6 +181,7 @@ tests/
 - Done on 2026-05-13: added a tested structural Colyseus room/outbound adapter that uses the current room-boundary contract.
 - Done on 2026-05-14: tightened skill-handler and client world-scene module boundaries without widening `world.ts`, the network bridge, or the reducer.
 - Use `server/transport/vibeAgeRoom.ts` as the current Colyseus room implementation and keep `roomBoundary.ts` as the contract around the authoritative world.
+- Use Colyseus schema state only for public aggregate world state until gameplay state migration is deliberate; private per-player data remains on direct messages.
 - Persist only stable player/account data, not transient render state.
 - Done on 2026-05-14: removed the unused legacy effect manager and obstacle collision path; current projectile collision is a tested analytic sim helper.
 

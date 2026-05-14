@@ -33,6 +33,36 @@ const basePlayer: PlayerEntity = {
 };
 
 describe('Vite game client reducer', () => {
+  it('tracks Colyseus public world state separately from gameplay snapshots', () => {
+    const state = gameClientReducer(initialGameClientState, {
+      type: 'worldPublicState',
+      state: {
+        revision: 2,
+        playerCount: 1,
+        enemyCount: 8,
+        aliveEnemyCount: 7,
+        activeRegionCount: 1,
+        regionCount: 3,
+        regions: {
+          starter: {
+            id: 'starter',
+            zoneId: 'starter',
+            name: 'Starter',
+            active: true,
+            playerCount: 1,
+            enemyCount: 8,
+            aliveEnemyCount: 7,
+            maxEnemies: 10,
+          },
+        },
+      },
+    });
+
+    expect(state.worldPublicState?.activeRegionCount).toBe(1);
+    expect(state.players).toEqual({});
+    expect(state.enemies).toEqual({});
+  });
+
   it('normalizes server game state inventory and ground loot', () => {
     const joined = gameClientReducer(initialGameClientState, { type: 'joined', playerId: 'player-1' });
     const state = gameClientReducer(joined, {

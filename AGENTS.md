@@ -28,9 +28,11 @@ The current production client uses Vite, React Three Fiber, Colyseus, Postgres, 
 - Tests: `pnpm test`
 - Browser smoke: `pnpm run test:e2e`
 - Lint: `pnpm run lint`
+- Content validation: `pnpm run content:check`
 - Full local quality gate: `pnpm run check`
 - Local production deploy: `pnpm run deploy:production`
 - Local production rollback: `pnpm run deploy:rollback`
+- Private production diagnostics: `pnpm run diagnose:production`
 - Production healthcheck: `pnpm run health:production`
 - Manual local Postgres backup pull: `pnpm run db:backup:pull-local --force`
 - Postgres backup restore drill: `pnpm run db:restore:test`
@@ -48,7 +50,9 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - `packages/sim/entities.ts`: canonical runtime player/enemy entity types.
 - `packages/protocol/messages.ts`: protocol public re-export surface; domain schemas live in `common.ts`, `clientMessages.ts`, and `serverMessages.ts`.
 - `server/world.ts`: current authoritative loop shell; tick phases live in `server/world/tickPipeline.ts`.
+- `server/world/regions.ts`: server-owned region definitions, active-region filtering, and public region stats.
 - `server/world/zoneRuntime.ts`: server-owned global zone activation policy; do not make enemy spawning depend on a specific player.
+- `server/transport/worldStateSchema.ts`: public Colyseus schema state; keep private player data out of this path.
 - `server/combat/skillSystem.ts`: current cast/combat flow.
 - `apps/client/src/useGameClient.ts`: current network bridge; avoid adding more responsibilities here.
 - `apps/client/src/gameReducer.ts`: current client state reducer; avoid widening its scope.

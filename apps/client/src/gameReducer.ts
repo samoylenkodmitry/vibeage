@@ -9,6 +9,7 @@ import type {
   PlayerEntity,
   ServerGameState,
   Vec3,
+  WorldPublicState,
 } from './gameTypes';
 import {
   assignFirstEmptyShortcut,
@@ -43,6 +44,7 @@ export const initialGameClientState: GameClientState = {
   maxInventorySlots: 20,
   combatLog: [],
   starterProgress: createInitialStarterProgress(),
+  worldPublicState: null,
 };
 
 export type GameClientAction =
@@ -52,6 +54,7 @@ export type GameClientAction =
   | { type: 'connectionRejected'; message: string }
   | { type: 'disconnected'; message: string }
   | { type: 'gameState'; state: ServerGameState }
+  | { type: 'worldPublicState'; state: WorldPublicState }
   | { type: 'playerJoined'; player: PlayerEntity }
   | { type: 'playerLeft'; playerId: string }
   | { type: 'playerUpdated'; player: Partial<PlayerEntity> & { id: string } }
@@ -78,6 +81,8 @@ export function gameClientReducer(
       return { ...state, connectionState: 'offline', message: action.message };
     case 'gameState':
       return applyGameState(state, action.state);
+    case 'worldPublicState':
+      return { ...state, worldPublicState: action.state };
     case 'playerJoined':
       return { ...state, players: { ...state.players, [action.player.id]: action.player } };
     case 'playerLeft':

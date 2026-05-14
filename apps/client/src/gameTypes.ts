@@ -70,6 +70,27 @@ export type ServerGameState = {
   }>;
 };
 
+export type WorldRegionPublicState = {
+  id: string;
+  zoneId: string;
+  name: string;
+  active: boolean;
+  playerCount: number;
+  enemyCount: number;
+  aliveEnemyCount: number;
+  maxEnemies: number;
+};
+
+export type WorldPublicState = {
+  revision: number;
+  playerCount: number;
+  enemyCount: number;
+  aliveEnemyCount: number;
+  activeRegionCount: number;
+  regionCount: number;
+  regions: Record<string, WorldRegionPublicState>;
+};
+
 export type ConnectionState =
   | 'idle'
   | 'connecting'
@@ -122,4 +143,5 @@ export type GameClientState = {
   maxInventorySlots: number;
   combatLog: CombatLine[];
   starterProgress: StarterProgress;
+  worldPublicState: WorldPublicState | null;
 };

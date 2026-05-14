@@ -1,6 +1,7 @@
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { PlayerUpdate } from './outboundEvents.js';
+import { getEnemiesInActiveRegions } from '../world/regions.js';
 
 export const PRIVATE_PLAYER_STATE_FIELDS = [
   'socketId',
@@ -32,21 +33,10 @@ export function makeClientGameStateSnapshot(state: GameState, socketId: string):
 
   return {
     players,
-    enemies: getGloballyRelevantEnemies(state),
+    enemies: getEnemiesInActiveRegions(state),
     groundLoot: state.groundLoot,
     zones: state.zones,
   };
-}
-
-function getGloballyRelevantEnemies(state: GameState): GameState['enemies'] {
-  const activeZoneIds = new Set(state.zones.activeZoneIds);
-  if (activeZoneIds.size === 0) {
-    return state.enemies;
-  }
-
-  return Object.fromEntries(
-    Object.entries(state.enemies).filter(([enemyId]) => activeZoneIds.has(state.zones.enemyZoneIds[enemyId])),
-  );
 }
 
 export function sanitizePlayerForPublic(player: PlayerState): PublicPlayerState {
