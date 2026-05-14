@@ -1,7 +1,7 @@
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../shared/types.js';
-import type { CharacterClass } from '../../shared/classSystem.js';
+import type { CharacterClass } from '../../packages/content/classes.js';
 import type { InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';

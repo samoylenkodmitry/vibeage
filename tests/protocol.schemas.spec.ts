@@ -44,7 +44,7 @@ describe('client protocol schemas', () => {
     expect(parsed.success).toBe(false);
   });
 
-  it('accepts legacy movement converted to current MoveIntent shape', () => {
+  it('accepts the current movement command shape', () => {
     const parsed = safeParseClientMessage({
       type: 'MoveIntent',
       id: 'player-1',

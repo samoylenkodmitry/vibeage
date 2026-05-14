@@ -1,5 +1,5 @@
 import type { SkillId, SkillType } from '../packages/content/skills';
-import type { CharacterClass } from './classSystem';
+import type { CharacterClass } from '../packages/content/classes';
 import type {
     CastSnapshot,
     InventorySlot,

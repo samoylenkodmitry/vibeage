@@ -1,6 +1,6 @@
 import { SKILLS, type SkillDef, type SkillEffect as SharedSkillEffect, type SkillId, type SkillType } from '../packages/content/skills.js';
 import { VecXZ } from '../packages/protocol/messages.js';
-import { CharacterClass } from '../shared/classSystem.js';
+import { CharacterClass } from '../packages/content/classes.js';
 
 // Server-side representation of a skill effect
 export interface SkillEffect extends SharedSkillEffect {

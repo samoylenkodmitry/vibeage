@@ -397,6 +397,10 @@ export function EnemyHealthBar({ enemy, visible }: { enemy: EnemyEntity; visible
 }
 
 export function WorldEventVfx({ event }: { event: VisualEvent }) {
+  if (event.kind === 'damage') {
+    return <DamagePulseVfx event={event} />;
+  }
+
   if (event.kind === 'healing' || event.kind === 'mana') {
     return <RecoveryVfx event={event} />;
   }
@@ -406,6 +410,47 @@ export function WorldEventVfx({ event }: { event: VisualEvent }) {
   }
 
   return <SplashImpactVfx event={event} />;
+}
+
+function DamagePulseVfx({ event }: { event: VisualEvent }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const amount = Math.max(1, event.amount ?? 1);
+  const scale = THREE.MathUtils.clamp(amount / 35, 0.75, 1.8);
+
+  useFrame(({ clock }) => {
+    if (startedAtRef.current === null) {
+      startedAtRef.current = clock.elapsedTime;
+    }
+
+    const age = Math.max(0, clock.elapsedTime - startedAtRef.current);
+    const progress = Math.min(1, age / 0.9);
+    const fade = 1 - progress;
+
+    if (ringRef.current) {
+      ringRef.current.scale.setScalar(scale + progress * 0.7);
+      (ringRef.current.material as THREE.MeshBasicMaterial).opacity = 0.74 * fade;
+    }
+
+    if (flashRef.current) {
+      flashRef.current.position.y = event.position.y + 0.45 + progress * 0.55;
+      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5 * fade;
+    }
+  });
+
+  return (
+    <group position={[event.position.x, GROUND_Y + 0.12, event.position.z]}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.34, 0.52, 36]} />
+        <meshBasicMaterial color="#fb7185" transparent opacity={0.74} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={flashRef} position={[0, event.position.y + 0.45, 0]}>
+        <sphereGeometry args={[0.28, 12, 12]} />
+        <meshBasicMaterial color="#fff7ad" transparent opacity={0.5} depthWrite={false} />
+      </mesh>
+    </group>
+  );
 }
 
 function RecoveryVfx({ event }: { event: VisualEvent }) {

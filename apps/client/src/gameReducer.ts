@@ -17,6 +17,15 @@ import type {
   Vec3,
   VisualEvent,
 } from './gameTypes';
+import { addCombatDamageVisualEvents } from './combatFeedback';
+import {
+  assignFirstEmptyShortcut,
+  createInitialStarterProgress,
+  updateProgressDefeats,
+  updateProgressLearnedSkills,
+  updateProgressLevel,
+  updateProgressLoot,
+} from './starterProgress';
 
 const CAST_VISIBLE_MS = 3_000;
 const VISUAL_EVENT_VISIBLE_MS = 1_800;
@@ -36,6 +45,7 @@ export const initialGameClientState: GameClientState = {
   inventory: [],
   maxInventorySlots: 20,
   combatLog: [],
+  starterProgress: createInitialStarterProgress(),
 };
 
 export type GameClientAction =
@@ -103,8 +113,12 @@ function applyGameState(state: GameClientState, serverState: ServerGameState): G
     ? players[state.myPlayerId]?.maxInventorySlots ?? state.maxInventorySlots
     : state.maxInventorySlots;
   const groundLoot = normalizeGroundLoot(serverState.groundLoot ?? state.groundLoot);
+  const myPlayer = state.myPlayerId ? players[state.myPlayerId] : null;
+  const starterProgress = myPlayer
+    ? updateProgressLevel(state.starterProgress, myPlayer.level)
+    : state.starterProgress;
 
-  return { ...state, players, enemies, groundLoot, selectedTargetId, inventory, maxInventorySlots };
+  return { ...state, players, enemies, groundLoot, selectedTargetId, inventory, maxInventorySlots, starterProgress };
 }
 
 function removePlayer(state: GameClientState, playerId: string): GameClientState {
@@ -130,7 +144,14 @@ function updatePlayer(
   };
   const inventory = state.myPlayerId === update.id && update.inventory ? update.inventory : state.inventory;
 
-  return { ...state, players: { ...state.players, [update.id]: player }, inventory };
+  return {
+    ...state,
+    players: { ...state.players, [update.id]: player },
+    inventory,
+    starterProgress: update.id === state.myPlayerId
+      ? updateProgressLevel(state.starterProgress, player.level)
+      : state.starterProgress,
+  };
 }
 
 function updateEnemy(
@@ -183,10 +204,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'CombatLog') {
-    return addCombatLine(state, {
-      id: makeCombatLineId(message.castId, state.combatLog.length, now),
-      text: formatCombatLogLine(state, message.skillId, message.targets, message.damages),
-    });
+    return applyCombatLog(state, message, now);
   }
 
   if (message.type === 'CastFail') {
@@ -220,10 +238,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'LootAcquired') {
-    return addCombatLine(state, {
-      id: makeCombatLineId(`loot-${now}`, state.combatLog.length, now),
-      text: `Picked up ${formatItemDrops(message.items)}`,
-    });
+    return applyLootAcquired(state, message, now);
   }
 
   if (message.type === 'ItemUsed') {
@@ -242,16 +257,64 @@ function applyServerMessage(
   }
 
   if (message.type === 'SkillLearned') {
-    return updateMyPlayer(state, (player) => ({
-      ...player,
-      availableSkillPoints: message.remainingPoints,
-      unlockedSkills: player.unlockedSkills.includes(message.skillId)
-        ? player.unlockedSkills
-        : [...player.unlockedSkills, message.skillId],
-    }));
+    return applySkillLearned(state, message);
   }
 
   return state;
+}
+
+function applyCombatLog(
+  state: GameClientState,
+  message: ServerMessage & { type: 'CombatLog' },
+  now: number,
+): GameClientState {
+  const withDamageFeedback = addCombatDamageVisualEvents(state, message, now);
+  const withProgress = message.casterId === state.myPlayerId
+    ? {
+      ...withDamageFeedback,
+      starterProgress: updateProgressDefeats(
+        withDamageFeedback.starterProgress,
+        withDamageFeedback.enemies,
+        message.targets,
+      ),
+    }
+    : withDamageFeedback;
+
+  return addCombatLine(withProgress, {
+    id: makeCombatLineId(message.castId, state.combatLog.length, now),
+    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages),
+  });
+}
+
+function applyLootAcquired(
+  state: GameClientState,
+  message: ServerMessage & { type: 'LootAcquired' },
+  now: number,
+): GameClientState {
+  const totalItems = message.items.reduce((sum, item) => sum + item.quantity, 0);
+  return addCombatLine({
+    ...state,
+    starterProgress: updateProgressLoot(state.starterProgress, totalItems),
+  }, {
+    id: makeCombatLineId(`loot-${now}`, state.combatLog.length, now),
+    text: `Picked up ${formatItemDrops(message.items)}`,
+  });
+}
+
+function applySkillLearned(
+  state: GameClientState,
+  message: ServerMessage & { type: 'SkillLearned' },
+): GameClientState {
+  return updateMyPlayer(state, (player) => ({
+    ...player,
+    availableSkillPoints: message.remainingPoints,
+    unlockedSkills: player.unlockedSkills.includes(message.skillId)
+      ? player.unlockedSkills
+      : [...player.unlockedSkills, message.skillId],
+    skillShortcuts: player.skillShortcuts.includes(message.skillId)
+      ? player.skillShortcuts
+      : assignFirstEmptyShortcut(player.skillShortcuts, message.skillId),
+  }));
 }
 
 function applyPositionSnapshot(state: GameClientState, message: ServerMessage & { type: 'PosSnap' }) {
@@ -493,7 +556,13 @@ function updateMyPlayer(
   }
 
   const player = update(state.players[state.myPlayerId]);
-  return { ...state, players: { ...state.players, [player.id]: player } };
+  return {
+    ...state,
+    players: { ...state.players, [player.id]: player },
+    starterProgress: updateProgressLevel({
+      ...updateProgressLearnedSkills(state.starterProgress, player.unlockedSkills.length),
+    }, player.level),
+  };
 }
 
 function replaceAt<T>(items: T[], index: number, item: T): T[] {

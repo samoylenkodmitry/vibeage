@@ -58,6 +58,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 35. Done on 2026-05-14: moved the active server runtime entrypoint under `apps/server`, kept legacy modules behind that boundary, and updated dev, build, Docker, Playwright, and measurement entrypoints.
 36. Done on 2026-05-14: migrated the active Colyseus runtime window to the 0.17 package line and replaced the old browser `colyseus.js` package with `@colyseus/sdk`.
 37. Done on 2026-05-14: added performance budgets and a recorded baseline for bundle size, server tick cost, Colyseus room latency, and local browser FPS; CI enforces the stable non-browser subset.
+38. Done on 2026-05-14: added a reusable production smoke script that joins the public Colyseus room and asserts `joinGame` plus `gameState`.
+39. Done on 2026-05-14: added an opt-in production browser smoke that enters the live site, moves, targets, casts, reloads, and re-enters.
+40. Done on 2026-05-14: added client-side combat damage feedback and a starter progress HUD.
+41. Done on 2026-05-14: hardened relog coverage for persisted skills, shortcuts, inventory, position, health, level, XP, and skill points.
+42. Done on 2026-05-14: moved class progression data into `packages/content` and removed the unused legacy socket event converters.
+43. Done on 2026-05-14: added a small starter progression loop around defeats, loot pickup, level progress, and direct skill learning from the HUD.
 
 ## Target Stack
 

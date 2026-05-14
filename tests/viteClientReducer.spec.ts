@@ -16,6 +16,7 @@ const basePlayer: PlayerEntity = {
   maxHealth: 100,
   mana: 80,
   maxMana: 100,
+  className: 'mage',
   level: 1,
   experience: 20,
   experienceToNextLevel: 100,
@@ -190,5 +191,78 @@ describe('Vite game client reducer visual events', () => {
     expect(nextState.maxInventorySlots).toBe(20);
     expect(nextState.players['player-2'].inventory).toEqual([{ itemId: 'gold_coin', quantity: 9 }]);
     expect(nextState.players['player-2'].maxInventorySlots).toBe(30);
+  });
+});
+
+describe('Vite game client starter progress', () => {
+  it('tracks starter progress and damage feedback from combat and loot messages', () => {
+    const joined = gameClientReducer({
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': basePlayer },
+      enemies: {
+        'enemy-1': {
+          id: 'enemy-1',
+          type: 'slime',
+          name: 'Slime',
+          level: 1,
+          position: { x: 2, y: 0.5, z: 3 },
+          rotation: { x: 0, y: 0, z: 0 },
+          health: 0,
+          maxHealth: 20,
+          isAlive: false,
+        },
+      },
+    }, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'CombatLog',
+        castId: 'cast-1',
+        skillId: 'fireball',
+        casterId: 'player-1',
+        targets: ['enemy-1'],
+        damages: [22],
+      },
+    });
+    const withLoot = gameClientReducer(joined, {
+      type: 'serverMessage',
+      now: 200,
+      message: {
+        type: 'LootAcquired',
+        items: [
+          { itemId: 'gold_coin', quantity: 2 },
+          { itemId: 'slime_jelly', quantity: 1 },
+        ],
+      },
+    });
+
+    expect(joined.starterProgress.defeatedEnemies).toBe(1);
+    expect(Object.values(joined.visualEvents)).toContainEqual(expect.objectContaining({
+      kind: 'damage',
+      amount: 22,
+      position: { x: 2, y: 0.5, z: 3 },
+    }));
+    expect(withLoot.starterProgress.lootPickups).toBe(3);
+  });
+
+  it('assigns a learned skill to the first empty shortcut for immediate use', () => {
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': { ...basePlayer, level: 2, availableSkillPoints: 1 } },
+    };
+    const nextState = gameClientReducer(state, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'SkillLearned',
+        skillId: 'waterSplash',
+        remainingPoints: 0,
+      },
+    });
+
+    expect(nextState.players['player-1'].unlockedSkills).toContain('waterSplash');
+    expect(nextState.players['player-1'].skillShortcuts[1]).toBe('waterSplash');
   });
 });
