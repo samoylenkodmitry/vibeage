@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ITEMS } from '../../packages/content/items.js';
-import { SKILLS } from '../../packages/content/skills.js';
-import { GAME_ZONES } from '../../packages/content/zones.js';
-import { WORLD_SETTINGS } from '../../packages/content/world.js';
-import { LOOT_TABLES } from '../lootTables.js';
+import { ITEMS } from './items.js';
+import { LOOT_TABLES } from './lootTables.js';
+import { SKILLS } from './skills.js';
+import { WORLD_SETTINGS } from './world.js';
+import { GAME_ZONES } from './zones.js';
 
 export const WORLD_CONTENT_BUDGETS = {
   maxInitialEnemySpawns: 260,

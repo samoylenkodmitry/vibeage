@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { GAME_ZONES, ZoneManager } from '../packages/content/zones';
-import { validateWorldContent } from '../server/gameplay/worldContentValidation';
+import { validateWorldContent } from '../packages/content/worldContentValidation';
 
 describe('world content validation', () => {
   afterEach(() => {

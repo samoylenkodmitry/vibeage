@@ -1,5 +1,5 @@
 import { Enemy } from '../../shared/types';
-import { LOOT_TABLES } from '../lootTables';
+import { LOOT_TABLES } from '../../packages/content/lootTables.js';
 import { rng } from '../utils/rng';
 import { ItemDrop } from '../../packages/protocol/messages.js';
 

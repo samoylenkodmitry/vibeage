@@ -186,7 +186,13 @@ async function startLocalStack() {
 async function enterWorld(page) {
   await page.getByLabel('Character Name').fill(`Baseline${Date.now()}`);
   await page.getByRole('button', { name: 'Enter the World' }).click();
-  await page.getByText('Online').waitFor({ timeout: 20_000 });
+  await page.waitForFunction(() => {
+    const state = window.__VIBEAGE_VITE_E2E__?.getState();
+    return state?.connectionState === 'online'
+      && Boolean(state.myPlayerId)
+      && Boolean(state.lastKnownPlayerPosition)
+      && state.enemyIds.length > 0;
+  }, undefined, { timeout: 20_000 });
 }
 
 async function evaluateWithRetry(page, pageFunction) {
@@ -263,6 +269,10 @@ function evaluateBudgets(report, budgets) {
   evaluateMaxBudget(warnings, failures, 'tickCost.averageTickMs', report.tickCost.averageTickMs, {
     warning: budgets.tickCost?.warningAverageTickMs,
     failure: budgets.tickCost?.maxAverageTickMs,
+  });
+  evaluateMaxBudget(warnings, failures, 'tickCost.spawnedEnemies', report.tickCost.spawnedEnemies, {
+    warning: budgets.tickCost?.warningSpawnedEnemies,
+    failure: budgets.tickCost?.maxSpawnedEnemies,
   });
   evaluateMaxBudget(warnings, failures, 'roomLatency.connectMs', report.roomLatency.connectMs, {
     warning: budgets.roomLatency?.warningConnectMs,

@@ -1,5 +1,5 @@
+import { distanceSqXZ } from '../../../packages/sim/geometry';
 import type { EnemyEntity, PlayerEntity, Vec3 } from './gameTypes';
-import { distanceSqXZ } from './vec3';
 
 export function getPlayerPosition(player: PlayerEntity | null): Vec3 {
   return player?.position ?? { x: 0, y: 0.5, z: 0 };

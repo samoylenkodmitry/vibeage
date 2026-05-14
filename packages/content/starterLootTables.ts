@@ -1,4 +1,4 @@
-import type { LootTable } from '../lootTables.js';
+import type { LootTable } from './lootTables.js';
 
 export const STARTER_LOOT_TABLES: Record<string, LootTable> = {
   goblin_loot: {

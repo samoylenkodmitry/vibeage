@@ -1,4 +1,5 @@
-import type { InventorySlot, VecXZ } from '../../packages/protocol/messages.js';
+import type { InventorySlot } from '../../packages/protocol/messages.js';
+import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { PlayerState } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
 import { addItemsToInventory, dropsToInventorySlots } from '../inventory/inventorySlots.js';
@@ -51,12 +52,6 @@ export function pickupGroundLoot(state: GameState, playerId: string, lootId: str
     items: inventoryResult.addedItems,
     sourceEnemyName: getSourceEnemyName(lootId),
   };
-}
-
-function distanceXZ(a: VecXZ, b: VecXZ): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dz * dz);
 }
 
 function getSourceEnemyName(lootId: string): string | undefined {

@@ -1,4 +1,5 @@
 import type { VecXZ } from '../protocol/messages';
+import { clamp01, distanceSqXZ } from './geometry.js';
 
 export const DEFAULT_TARGET_RADIUS = 0.5;
 
@@ -33,14 +34,4 @@ export function sweptCircleHit(
   };
 
   return distanceSqXZ(closestPoint, targetCenter) <= effectiveRadius * effectiveRadius;
-}
-
-function distanceSqXZ(a: VecXZ, b: VecXZ): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return dx * dx + dz * dz;
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
 }

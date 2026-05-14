@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { createGameState } from '../server/gameState';
-import { findPlayerIdBySocket, hydratePersistedPlayer } from '../server/players/playerSession';
+import {
+  findPlayerIdBySocket,
+  hydratePersistedPlayer,
+  upsertActivePlayerSession,
+} from '../server/players/playerSession';
 import { buildStablePlayerPersistenceData } from '../server/persistence';
+import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { PlayerState } from '../shared/types';
 
 const makePlayer = (id: string, socketId: string): PlayerState => ({
@@ -115,6 +120,25 @@ describe('player session hydration', () => {
 
     expect(findPlayerIdBySocket(state, 'socket2')).toBe('player2');
     expect(findPlayerIdBySocket(state, 'missing')).toBeUndefined();
+  });
+});
+
+describe('active player session replacement', () => {
+  test('replaces an already active persisted player without leaving stale spatial entries', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const oldPlayer = makePlayer('player1', 'old-socket');
+    oldPlayer.position = { x: 30, y: 0.5, z: 30 };
+    const newPlayer = makePlayer('player1', 'new-socket');
+    newPlayer.position = { x: -8, y: 0.5, z: 4 };
+
+    upsertActivePlayerSession(state, spatial, oldPlayer);
+    upsertActivePlayerSession(state, spatial, newPlayer);
+
+    expect(state.players.player1.socketId).toBe('new-socket');
+    expect(findPlayerIdBySocket(state, 'old-socket')).toBeUndefined();
+    expect(spatial.queryCircle({ x: 30, z: 30 }, 1)).not.toContain('player1');
+    expect(spatial.queryCircle({ x: -8, z: 4 }, 1)).toContain('player1');
   });
 });
 

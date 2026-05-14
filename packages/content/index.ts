@@ -1,4 +1,6 @@
 export * from './items.js';
+export * from './lootTables.js';
+export * from './starterLootTables.js';
 export * from './classes.js';
 export * from './skills.js';
 export * from './verticalSlice.js';

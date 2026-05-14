@@ -1,4 +1,9 @@
 import type { VecXZ } from '../../packages/protocol/messages.js';
+import {
+  directionXZ,
+  distanceXZ,
+  rotationYForDirection,
+} from '../../packages/sim/geometry.js';
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 
@@ -6,28 +11,6 @@ export type EnemyAttackResult = {
   damage: number;
   killed: boolean;
 };
-
-export function distanceXZ(a: VecXZ, b: VecXZ): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dz * dz);
-}
-
-export function directionXZ(from: VecXZ, to: VecXZ): VecXZ {
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
-  const dist = Math.sqrt(dx * dx + dz * dz);
-
-  if (dist === 0) {
-    return { x: 0, z: 0 };
-  }
-
-  return { x: dx / dist, z: dz / dist };
-}
-
-export function rotationYForDirection(direction: VecXZ): number {
-  return Math.atan2(direction.x, direction.z);
-}
 
 export function findAggroTargetId(
   enemy: Enemy,

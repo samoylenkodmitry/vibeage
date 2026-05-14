@@ -1,5 +1,6 @@
 import { SKILLS, type SkillDef, type SkillId } from '../../packages/content/skills.js';
 import type { VecXZ } from '../../packages/protocol/messages.js';
+import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import { applySkillCostAndCooldown, hasEnoughMana, isSkillOnCooldown, type PlayerResourceUpdate } from './cooldowns.js';
 
@@ -119,10 +120,4 @@ function isOutOfRange(
   }
 
   return Boolean(target && distanceXZ(origin, { x: target.position.x, z: target.position.z }) > range);
-}
-
-function distanceXZ(a: VecXZ, b: VecXZ): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dz * dz);
 }

@@ -11,9 +11,3 @@ export function normalizeVec3(position: { x: number; y?: number; z: number } | u
 export function mergeVec3(current: Vec3, update: Partial<Vec3> | undefined): Vec3 {
   return update ? { ...current, ...update } : current;
 }
-
-export function distanceSqXZ(a: Vec3, b: Vec3): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return dx * dx + dz * dz;
-}
