@@ -1,5 +1,4 @@
-<img width="1848" height="1221" alt="image" src="https://github.com/user-attachments/assets/10974354-8ea5-47c4-8e7a-8dfe7563a268" />
-
+<img width="1848" height="1221" alt="VibeAge gameplay preview" src="https://github.com/user-attachments/assets/10974354-8ea5-47c4-8e7a-8dfe7563a268" />
 
 # VibeAge
 
