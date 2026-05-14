@@ -67,7 +67,6 @@ pnpm run lint
 pnpm test
 pnpm run build:server
 pnpm run build
-pnpm run build:next
 pnpm run check
 ```
 

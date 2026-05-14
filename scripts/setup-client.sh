@@ -130,10 +130,10 @@ pnpm install
 
 # Build the Vite frontend
 step "Building the frontend..."
-NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
+VITE_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
 
-if [ ! -f "$FRONTEND_DIR/out/index.html" ]; then
-  error "Build failed – out/index.html not found"
+if [ ! -f "$FRONTEND_DIR/apps/client/dist/index.html" ]; then
+  error "Build failed - apps/client/dist/index.html not found"
 fi
 
 # Configure Nginx for both client and server
@@ -174,7 +174,7 @@ server {
 EOL
 
 # Make sure the out/ directory is in place for Nginx
-rsync -a --delete out/ $FRONTEND_DIR/out/
+rsync -a --delete apps/client/dist/ $FRONTEND_DIR/out/
 
 # Enable the site
 systemctl reload nginx
@@ -205,13 +205,15 @@ echo "==> Installing dependencies..."
 pnpm install
 
 echo "==> Building the frontend..."
-NEXT_PUBLIC_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
+VITE_GAME_SERVER_URL="https://$DOMAIN" pnpm run build
 
 # Verify the build succeeded
-if [ ! -f "$FRONTEND_DIR/out/index.html" ]; then
-  echo "ERROR: Build failed - 'out/index.html' doesn't exist!"
+if [ ! -f "$FRONTEND_DIR/apps/client/dist/index.html" ]; then
+  echo "ERROR: Build failed - 'apps/client/dist/index.html' doesn't exist!"
   exit 1
 fi
+
+rsync -a --delete apps/client/dist/ $FRONTEND_DIR/out/
 
 echo "==> Reloading Nginx..."
 systemctl reload nginx

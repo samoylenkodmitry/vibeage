@@ -1,6 +1,6 @@
 # Game Server Deployment Guide
 
-This document outlines how to deploy the dedicated game server for our multiplayer game.
+This document outlines the current server deployment shape. Production uses the local-initiated VPS deploy in `DEPLOYMENT.md`.
 
 ## Prerequisites
 
@@ -10,12 +10,13 @@ This document outlines how to deploy the dedicated game server for our multiplay
 
 ## Environment Variables
 
-| Key                           | Purpose                               | Where to Set |
-|-------------------------------|---------------------------------------|--------------|
-| `NEXT_PUBLIC_GAME_SERVER_URL` | Front-end WebSocket endpoint          | Frontend build |
-| `PORT`                        | Listening port inside container / VPS | Docker/host  |
-| `WS_COMPRESSION` (`0` or `1`) | Toggle per-message deflate            | Server       |
-| `CORS_ORIGINS`                | Comma-separated allowed client origins | Server       |
+| Key | Purpose | Where to set |
+| --- | --- | --- |
+| `VITE_GAME_SERVER_URL` | Optional browser endpoint when the game server is not same-origin. | Frontend build |
+| `GAME_SERVER_PROXY_TARGET` | Local Vite dev proxy target for `/colyseus` and `/healthz`. | Local dev |
+| `PORT` | Server listen port inside container / VPS. | Docker/host |
+| `WS_COMPRESSION` (`0` or `1`) | Toggle per-message deflate. | Server |
+| `CORS_ORIGINS` | Comma-separated allowed browser origins. | Server |
 
 ## Deployment Options
 
@@ -26,10 +27,10 @@ This document outlines how to deploy the dedicated game server for our multiplay
 pnpm install
 
 # Build the server
-pnpm build:server
+pnpm run build:server
 
 # Start the server
-pnpm start:server
+pnpm run start:server
 ```
 
 ### 2. Docker Deployment
@@ -58,11 +59,11 @@ For the Vite client, set `VITE_GAME_SERVER_URL` only when the game server is not
 
 ## Security Considerations
 
-The server implements basic rate limiting for game join attempts, but you may want to enhance security with:
+The server validates Colyseus message payloads, checks socket ownership for player commands, restricts CORS origins, and disables `x-powered-by`. Possible next steps:
 
 1. JWT-based authentication
-2. More comprehensive rate limiting across all endpoints
-3. TLS termination (recommended to use Cloudflare or a similar service)
+2. More comprehensive rate limiting across HTTP and matchmaker endpoints
+3. External monitoring and alerting
 
 ## Scaling Strategy
 

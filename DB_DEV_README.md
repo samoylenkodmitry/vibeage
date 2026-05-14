@@ -11,7 +11,7 @@ pnpm run dev:db
 This command will:
 1. Start a PostgreSQL container using Docker Compose
 2. Set up the database schema
-3. Start the Next.js client and server in development mode
+3. Start the Vite client and Colyseus server in development mode
 4. Automatically clean up when you exit
 
 ## Running production-like environment

@@ -90,6 +90,7 @@ In progress:
 - Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`.
 - Item 8 is started with Playwright HUD viewport assertions and per-run screenshot artifacts for desktop and mobile.
 - Item 9 is implemented with module-level README files for core server, client, protocol, content, and sim boundaries.
+- Item 10 is started by removing stale Next/Vercel/Socket.IO references from env examples, docs, and the guarded bootstrap client script.
 
 1. Add `docs/ARCHITECTURE.md`.
    - Document the live architecture and core flows: join, movement, combat/cast, loot/inventory, region streaming, persistence, deploy, and rollback.
