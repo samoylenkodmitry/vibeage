@@ -343,6 +343,7 @@ function installE2EHooks(
 ) {
   window.__VIBEAGE_VITE_E2E__ = {
     getState: () => ({
+      connectionState: state.connectionState,
       myPlayerId: state.myPlayerId,
       enemyIds: Object.values(state.enemies).filter((enemy) => enemy.isAlive).map((enemy) => enemy.id),
       selectedTargetId: state.selectedTargetId,
@@ -406,6 +407,7 @@ declare global {
   interface Window {
     __VIBEAGE_VITE_E2E__?: {
       getState: () => {
+        connectionState: GameClientState['connectionState'];
         myPlayerId: string | null;
         enemyIds: string[];
         selectedTargetId: string | null;

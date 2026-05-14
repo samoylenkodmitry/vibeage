@@ -136,7 +136,12 @@ describe('Vite game client reducer visual events', () => {
   });
 
   it('adds impact visual events for water splash and prunes old visual events', () => {
-    const withImpact = gameClientReducer(initialGameClientState, {
+    const onlineState = {
+      ...initialGameClientState,
+      connectionState: 'online' as const,
+      message: 'Online',
+    };
+    const withImpact = gameClientReducer(onlineState, {
       type: 'serverMessage',
       now: 100,
       message: {
@@ -161,9 +166,32 @@ describe('Vite game client reducer visual events', () => {
       radius: 3,
       position: { x: 3, y: 0.35, z: 4 },
     }));
+    expect(withImpact.message).toBe('Online');
     expect(Object.keys(pruned.visualEvents)).toHaveLength(0);
   });
 
+  it('keeps cast failures out of connection status text', () => {
+    const onlineState = {
+      ...initialGameClientState,
+      connectionState: 'online' as const,
+      message: 'Online',
+    };
+    const nextState = gameClientReducer(onlineState, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'CastFail',
+        clientSeq: 1,
+        reason: 'outofrange',
+      },
+    });
+
+    expect(nextState.message).toBe('Online');
+    expect(nextState.combatLog[0].text).toBe('Cast failed: outofrange');
+  });
+});
+
+describe('Vite game client reducer inventory ownership', () => {
   it('does not replace local inventory with another player inventory update', () => {
     const otherPlayer = { ...basePlayer, id: 'player-2', name: 'Other' };
     const state = {

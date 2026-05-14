@@ -76,6 +76,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 53. Done on 2026-05-14: moved projectile swept-hit collision into tested shared simulation code; Rapier stays deferred until real terrain/body physics needs it.
 54. Done on 2026-05-14: added full world content validation for zones, spawn budgets, loot tables, and item links, and fixed missing drop item definitions.
 55. Done on 2026-05-14: added a stable/transient persistence audit check and made unsupported consumables non-usable on both client and server.
+56. Done on 2026-05-14: hardened browser smoke helpers around real client state, kept combat messages out of connection status, and added a starter spawn exclusion so new players do not immediately enter enemy aggro.
 
 ## Target Stack
 

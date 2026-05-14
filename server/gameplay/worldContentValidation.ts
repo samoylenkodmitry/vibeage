@@ -89,6 +89,7 @@ const ZoneSchema = z.object({
   name: z.string().min(1),
   position: z.object({ x: finiteNumber, y: finiteNumber, z: finiteNumber }),
   radius: positiveNumber,
+  spawnExclusionRadius: nonNegativeNumber.optional(),
   minLevel: positiveNumber,
   maxLevel: positiveNumber,
   mobs: z.array(z.object({
@@ -103,6 +104,13 @@ const ZoneSchema = z.object({
       code: 'custom',
       message: 'maxLevel must be at least minLevel',
       path: ['maxLevel'],
+    });
+  }
+  if (zone.spawnExclusionRadius !== undefined && zone.spawnExclusionRadius >= zone.radius) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'spawnExclusionRadius must be smaller than radius',
+      path: ['spawnExclusionRadius'],
     });
   }
 
