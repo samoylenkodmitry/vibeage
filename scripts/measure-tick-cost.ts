@@ -6,6 +6,10 @@ import { createGameState } from '../server/gameState.js';
 import { advanceAll } from '../server/movement/worldMovement.js';
 import { createTransientPlayer } from '../server/playerFactory.js';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid.js';
+import {
+  DEFAULT_WORLD_ZONE_SPAWN_POLICY,
+  initializeServerDrivenZoneRuntime,
+} from '../server/world/zoneRuntime.js';
 
 const tickMs = Number(process.env.BASELINE_TICK_MS ?? 1000 / 30);
 const ticks = Number(process.env.BASELINE_TICKS ?? 600);
@@ -13,7 +17,12 @@ const state = createGameState();
 const spatial = new SpatialHashGrid();
 const zoneManager = new ZoneManager();
 const spawnBudget = getWorldSpawnBudgetReport(zoneManager.getZones());
-const spawnedEnemies = spawnInitialEnemies(state, spatial, zoneManager);
+initializeServerDrivenZoneRuntime(state, zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
+const spawnedEnemies = spawnInitialEnemies(state, spatial, zoneManager, {
+  activeZoneIds: state.zones.activeZoneIds,
+  maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,
+  maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,
+});
 const player = createTransientPlayer('baseline-socket', 'Baseline');
 
 state.players[player.id] = player;
@@ -29,6 +38,7 @@ console.log(JSON.stringify({
   ticks,
   tickMs,
   zoneCount: spawnBudget.zoneCount,
+  activeZoneCount: state.zones.activeZoneIds.length,
   configuredMaxInitialEnemySpawns: spawnBudget.configuredMaxInitialEnemySpawns,
   configuredMaxEnemiesPerZone: spawnBudget.configuredMaxEnemiesPerZone,
   spawnedEnemies,

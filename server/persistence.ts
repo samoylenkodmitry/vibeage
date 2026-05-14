@@ -1,4 +1,4 @@
-import type { PlayerState } from '../shared/types.js';
+import type { PlayerState } from '../packages/sim/entities.js';
 import { normalizeStarterProgressState } from '../packages/protocol/messages.js';
 import {
   normalizeUnlockedSkills,

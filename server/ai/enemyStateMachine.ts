@@ -1,4 +1,4 @@
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {

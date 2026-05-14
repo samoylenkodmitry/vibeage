@@ -4,7 +4,7 @@ import {
   distanceXZ,
   rotationYForDirection,
 } from '../../packages/sim/geometry.js';
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 
 export type EnemyAttackResult = {

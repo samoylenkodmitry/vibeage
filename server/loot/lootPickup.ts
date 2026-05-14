@@ -1,6 +1,6 @@
 import type { InventorySlot } from '../../packages/protocol/messages.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { addItemsToInventory, dropsToInventorySlots } from '../inventory/inventorySlots.js';
 

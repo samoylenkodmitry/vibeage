@@ -1,5 +1,5 @@
 import { hash } from '../packages/sim/combatMath.js';
-import { PlayerState } from '../shared/types.js';
+import { PlayerState } from '../packages/sim/entities.js';
 import {
   DEFAULT_AVAILABLE_SKILL_POINTS,
   DEFAULT_UNLOCKED_SKILLS,

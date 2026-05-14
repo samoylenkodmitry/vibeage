@@ -1,6 +1,6 @@
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 import type { CharacterClass } from '../../packages/content/classes.js';
 import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';

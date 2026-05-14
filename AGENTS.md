@@ -45,8 +45,10 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - `packages/content/zones.ts`: current zone content and zone lookup helpers.
 - `packages/sim/combatMath.ts`: reusable combat math.
 - `packages/sim/effects.ts`: current deterministic effect definitions.
-- `packages/protocol/messages.ts`: current protocol schemas and types.
-- `server/world.ts`: current authoritative loop; do not grow this file except for targeted fixes.
+- `packages/sim/entities.ts`: canonical runtime player/enemy entity types.
+- `packages/protocol/messages.ts`: protocol public re-export surface; domain schemas live in `common.ts`, `clientMessages.ts`, and `serverMessages.ts`.
+- `server/world.ts`: current authoritative loop shell; tick phases live in `server/world/tickPipeline.ts`.
+- `server/world/zoneRuntime.ts`: server-owned global zone activation policy; do not make enemy spawning depend on a specific player.
 - `server/combat/skillSystem.ts`: current cast/combat flow.
 - `apps/client/src/useGameClient.ts`: current network bridge; avoid adding more responsibilities here.
 - `apps/client/src/gameReducer.ts`: current client state reducer; avoid widening its scope.
@@ -58,7 +60,8 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - Prefer shared pure functions for simulation logic. They should be testable with Vitest and no browser.
 - Keep new files and functions inside `quality/maintainability.json` budgets. Only add a legacy exception when documenting an existing cleanup target.
 - Import skill, item, and zone content from `packages/content`; do not restore deleted `shared/*Definition.ts` or other compatibility re-export paths.
-- Import combat math and effect definitions from `packages/sim`; do not route new code through deleted `shared` compatibility files.
+- Import combat math, effect definitions, and runtime entity types from `packages/sim`; do not route new code through deleted `shared` compatibility files.
+- Keep enemy spawn/activation server-driven and global. It may use zone policy and world budgets, but must not depend on one chosen player.
 - Prefer runtime-validated protocol schemas over ad hoc TypeScript interfaces.
 - When changing protocol messages, update server handling, client handling, and tests in the same change.
 - When touching movement, combat, loot, or inventory, run `pnpm test` and `pnpm run build:server`.

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const dbMock = vi.hoisted(() => {
   const updateExecute = vi.fn();

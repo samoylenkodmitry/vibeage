@@ -1,6 +1,6 @@
 import type { PosSnap, PredictionKeyframe, VecXZ } from '../../packages/protocol/messages.js';
 import { CM_PER_UNIT } from '../../packages/protocol/netConstants.js';
-import type { Enemy, PlayerState } from '../../shared/types.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import {

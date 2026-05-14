@@ -5,7 +5,7 @@ import {
   recordStarterLootPickup,
   syncPlayerStarterProgress,
 } from '../server/progression/starterPath';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   id: 'player1',

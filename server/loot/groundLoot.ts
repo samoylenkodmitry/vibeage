@@ -1,5 +1,5 @@
 import type { ItemDrop } from '../../packages/protocol/messages.js';
-import type { Enemy } from '../../shared/types.js';
+import type { Enemy } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import { emitStarterProgressUpdate, recordStarterLootPickup } from '../progression/starterPath.js';

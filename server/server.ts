@@ -15,6 +15,7 @@ import {
   parseMaxHttpBufferSize,
 } from './security.js';
 import { VibeAgeRoom } from './transport/vibeAgeRoom.js';
+import { runtimeMetrics } from './observability/runtimeMetrics.js';
 
 // Create Express app
 const app = express();
@@ -26,6 +27,10 @@ app.use(morgan('combined'));
 // Health check endpoint
 app.get('/healthz', (req, res) => {
   res.status(200).send({ status: 'ok', uptime: process.uptime() });
+});
+
+app.get('/runtimez', (req, res) => {
+  res.status(200).send(runtimeMetrics.snapshot());
 });
 
 // Create HTTP server with Express

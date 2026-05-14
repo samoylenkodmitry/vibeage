@@ -1,5 +1,5 @@
 import { CastReq, CastFail } from '../../packages/protocol/messages.js';
-import { PlayerState } from '../../shared/types.js';
+import { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
 import type { ActiveCastStore } from './skillSystem.js';

@@ -7,7 +7,7 @@ import {
 } from '../server/players/playerSession';
 import { buildStablePlayerPersistenceData } from '../server/persistence';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (id: string, socketId: string): PlayerState => ({
   id,

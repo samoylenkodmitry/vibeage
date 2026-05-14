@@ -39,7 +39,6 @@
     "apps/**/*.ts",
     "apps/**/*.tsx",
     "packages/**/*.ts",
-    "shared/**/*.ts",
     "tests/**/*.ts",
     "tests/**/*.tsx",
     "vitest/**/*.ts"

@@ -1,5 +1,5 @@
 import type { SkillDef, SkillId } from '../../packages/content/skills.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 
 export type PlayerResourceUpdate = {
   mana: number;

@@ -1,4 +1,4 @@
-import { Enemy } from '../../shared/types';
+import { Enemy } from '../../packages/sim/entities';
 import { LOOT_TABLES } from '../../packages/content/lootTables.js';
 import { rng } from '../utils/rng';
 import { ItemDrop } from '../../packages/protocol/messages.js';

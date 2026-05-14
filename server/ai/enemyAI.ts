@@ -1,5 +1,5 @@
 // server/ai/enemyAI.ts
-import { Enemy } from '../../shared/types.js';
+import { Enemy } from '../../packages/sim/entities.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { EntityState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';

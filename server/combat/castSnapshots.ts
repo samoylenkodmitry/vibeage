@@ -1,4 +1,4 @@
-import type { CastSnapshot } from '../../shared/types.js';
+import type { CastSnapshot } from '../../packages/sim/entities.js';
 import { emitServerMessage, type DirectMessageSink, type OutboundEventSink } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 

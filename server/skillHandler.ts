@@ -1,6 +1,6 @@
 import type { SkillId } from '../packages/content/skills.js';
 import type { LearnSkill, SetSkillShortcut } from '../packages/protocol/messages.js';
-import type { PlayerState } from '../shared/types.js';
+import type { PlayerState } from '../packages/sim/entities.js';
 
 import { debug, LOG_CATEGORIES, warn } from './logger.js';
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';

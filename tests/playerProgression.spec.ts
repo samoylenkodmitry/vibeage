@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import type { SkillId } from '../packages/content/skills';
 import { onLearnSkill } from '../server/skillHandler';
 import { learnNewSkill } from '../server/skillManager';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 import {
   normalizeAvailableSkillPoints,
   normalizeSkillShortcuts,

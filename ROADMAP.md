@@ -80,6 +80,7 @@ This project should become a browser-first multiplayer game that is easy for hum
 57. Done on 2026-05-14: moved loot tables and world content validation into `packages/content`, shared XZ geometry through `packages/sim`, narrowed initial client snapshots, hardened duplicate active session replacement, cleared targets on ground movement, and added spawned-enemy performance budget checks.
 58. Done on 2026-05-14: tightened client camera smoothing helpers, moved initial Colyseus client snapshot delivery into a dedicated transport module, and made the player persistence field policy exhaustive across stable, identity, and transient state.
 59. Done on 2026-05-14: moved room join/leave lifecycle handling out of the Colyseus room shell, made movement clear selected targets through one client action path, deleted stale deployment/shared-constant leftovers, added configured spawn-scale budgets, preserved live player state during duplicate-session handoff, and exposed zone spawn budget helpers for world expansion.
+60. Done on 2026-05-14: deleted the remaining `shared/types.ts` island by moving runtime entity types into `packages/sim`, split protocol schemas by domain while keeping the existing public re-export, split the Vite connection/action/scene boundaries, added server-owned global zone activation and per-zone spawn caps, moved the world tick into named phases, and added lightweight runtime counters/gauges for joins, rejected messages, snapshots, tick timing, and active world counts.
 
 ## Target Stack
 

@@ -5,7 +5,7 @@ import {
   type StarterProgressState,
   type StarterProgressUpdate,
 } from '../../packages/protocol/messages.js';
-import type { PlayerState } from '../../shared/types.js';
+import type { PlayerState } from '../../packages/sim/entities.js';
 import {
   emitServerMessageToClient,
   type DirectMessageSink,

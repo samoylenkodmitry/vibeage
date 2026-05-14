@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
-import type { PlayerState } from '../shared/types';
+import type { PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (id: string, x: number, z: number, overrides: Partial<PlayerState> = {}): PlayerState => ({
   id,

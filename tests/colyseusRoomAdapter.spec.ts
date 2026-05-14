@@ -1,5 +1,6 @@
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createStarterProgressState } from '../packages/protocol/messages';
+import { runtimeMetrics } from '../server/observability/runtimeMetrics';
 import type { AuthoritativeRoomPort } from '../server/transport/roomBoundary';
 import {
   ColyseusAuthoritativeRoomAdapter,
@@ -8,6 +9,10 @@ import {
 } from '../server/transport/colyseusRoomAdapter';
 
 describe('Colyseus room adapter', () => {
+  beforeEach(() => {
+    runtimeMetrics.resetForTests();
+  });
+
   test('maps room broadcasts onto the current outbound event contract', () => {
     const directClient = makeClient('socket1');
     const room = {
@@ -48,6 +53,10 @@ describe('Colyseus room adapter', () => {
 });
 
 describe('Colyseus room adapter join and command handling', () => {
+  beforeEach(() => {
+    runtimeMetrics.resetForTests();
+  });
+
   test('joins a protocol-v2 client through the authoritative room port', async () => {
     const state = { players: {}, enemies: {} } as ReturnType<AuthoritativeRoomPort['getStateSnapshot']>;
     const port = makePort(state);
@@ -61,6 +70,7 @@ describe('Colyseus room adapter join and command handling', () => {
 
     expect(port.joinClient).toHaveBeenCalledWith('socket1', 'Tester', expect.anything());
     expect(client.send).not.toHaveBeenCalled();
+    expect(runtimeMetrics.snapshot().counters['room.joins']).toBe(1);
   });
 
   test('rejects outdated protocol clients before they enter the room port', async () => {
@@ -78,6 +88,7 @@ describe('Colyseus room adapter join and command handling', () => {
       reason: 'outdatedProtocol',
       message: 'This server requires protocol v2 or higher.',
     });
+    expect(runtimeMetrics.snapshot().counters['room.joinRejected.outdatedProtocol']).toBe(1);
   });
 
   test('dispatches validated client commands through the room port', () => {
@@ -94,6 +105,11 @@ describe('Colyseus room adapter join and command handling', () => {
 
     expect(port.dispatchCommand).toHaveBeenCalledWith('socket1', { type: 'RequestInventory' }, expect.anything());
     expect(port.dispatchCommand).toHaveBeenCalledTimes(1);
+    expect(runtimeMetrics.snapshot().counters).toMatchObject({
+      'clientMessages.accepted': 1,
+      'clientMessages.rejected': 1,
+      'clientMessages.type.RequestInventory': 1,
+    });
   });
 });
 

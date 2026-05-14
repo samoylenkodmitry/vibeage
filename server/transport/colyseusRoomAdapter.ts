@@ -14,6 +14,7 @@ import { WORLD_BROADCAST_EVENTS } from './outboundEvents.js';
 import {
   sanitizePlayerUpdateForPublic,
 } from './clientState.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 
 export type ColyseusClientLike = {
   sessionId: string;
@@ -35,24 +36,34 @@ export class ColyseusAuthoritativeRoomAdapter {
         reason: 'outdatedProtocol',
         message: `This server requires protocol v${MIN_CLIENT_PROTOCOL_VERSION} or higher.`,
       });
+      runtimeMetrics.increment('room.joinRejected.outdatedProtocol');
       throw new Error(`Rejected outdated protocol version ${clientVersion}`);
     }
 
     const playerName = options.playerName?.trim() || 'Player';
-    return this.port.joinClient(client.sessionId, playerName, makeColyseusClient(client));
+    const result = await this.port.joinClient(client.sessionId, playerName, makeColyseusClient(client));
+    runtimeMetrics.increment('room.joins');
+    return result;
   }
 
   async handleLeave(client: ColyseusClientLike): Promise<string | undefined> {
-    return this.port.leaveClient(client.sessionId);
+    const playerId = await this.port.leaveClient(client.sessionId);
+    if (playerId) {
+      runtimeMetrics.increment('room.leaves');
+    }
+    return playerId;
   }
 
   handleMessage(client: ColyseusClientLike, message: unknown): boolean {
     const parsed = safeParseClientMessage(message);
     if (!parsed.success) {
       console.warn(`Rejected invalid Colyseus client message from ${client.sessionId}: ${describeProtocolError(parsed.error)}`);
+      runtimeMetrics.increment('clientMessages.rejected');
       return false;
     }
 
+    runtimeMetrics.increment('clientMessages.accepted');
+    runtimeMetrics.increment(`clientMessages.type.${parsed.data.type}`);
     this.dispatchCommand(client, parsed.data);
     return true;
   }

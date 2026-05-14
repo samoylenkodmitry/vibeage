@@ -5,7 +5,7 @@ import type {
   AuthoritativeProjectileState,
   AuthoritativeWorldState,
 } from '../packages/sim/authoritativeState.js';
-import type { Enemy, PlayerState } from '../shared/types.js';
+import type { Enemy, PlayerState } from '../packages/sim/entities.js';
 import type { Cast } from './combat/skillSystem.js';
 
 export type GroundLootStack = AuthoritativeGroundLootStack<ItemDrop> & {

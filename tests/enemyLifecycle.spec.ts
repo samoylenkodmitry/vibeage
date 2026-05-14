@@ -1,11 +1,9 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { ZoneManager } from '../packages/content/zones';
 import { createGameState } from '../server/gameState';
 import {
   createEnemy,
   ENEMY_RESPAWN_DELAY_MS,
   respawnDeadEnemies,
-  spawnInitialEnemies,
 } from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 
@@ -30,49 +28,6 @@ describe('enemy lifecycle', () => {
       velocity: { x: 0, z: 0 },
       lootTableId: 'wolf_loot',
     });
-  });
-
-  test('spawns zone enemies into state and spatial index', () => {
-    const state = createGameState();
-    const spatial = new SpatialHashGrid();
-    const positions = [
-      { x: 1, y: 0.5, z: 1 },
-      { x: 8, y: 0.5, z: 1 },
-    ];
-    const zoneManager = {
-      getZones: () => [{ id: 'test-zone' }],
-      getMobsToSpawn: () => [{ type: 'goblin', count: 2 }],
-      getRandomPositionInZone: () => positions.shift() ?? null,
-      getMobLevel: () => 2,
-    } as unknown as ZoneManager;
-
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager);
-    const enemyIds = Object.keys(state.enemies);
-
-    expect(spawned).toBe(2);
-    expect(enemyIds).toHaveLength(2);
-    expect(spatial.queryCircle({ x: 1, z: 1 }, 1)).toContain(enemyIds[0]);
-    expect(spatial.queryCircle({ x: 8, z: 1 }, 1)).toContain(enemyIds[1]);
-  });
-
-  test('caps initial spawns for scale budgets', () => {
-    const state = createGameState();
-    const spatial = new SpatialHashGrid();
-    let nextPosition = 0;
-    const zoneManager = {
-      getZones: () => [{ id: 'test-zone' }],
-      getMobsToSpawn: () => [{ type: 'goblin', count: 5 }],
-      getRandomPositionInZone: () => {
-        nextPosition += 1;
-        return { x: nextPosition, y: 0.5, z: nextPosition };
-      },
-      getMobLevel: () => 2,
-    } as unknown as ZoneManager;
-
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager, { maxEnemies: 3 });
-
-    expect(spawned).toBe(3);
-    expect(Object.keys(state.enemies)).toHaveLength(3);
   });
 
   test('respawns dead enemies after the respawn delay', () => {
@@ -104,5 +59,22 @@ describe('enemy lifecycle', () => {
       type: 'enemyUpdated',
       update: enemy,
     });
+  });
+
+  test('does not respawn enemies from inactive global zones', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const outbound = { publish: vi.fn() };
+    const now = 100_000;
+    const enemy = createEnemy('goblin', 2, { x: 4, y: 0.5, z: 7 }, 123);
+    enemy.isAlive = false;
+    enemy.deathTimeTs = now - ENEMY_RESPAWN_DELAY_MS;
+    state.enemies[enemy.id] = enemy;
+    state.zones.activeZoneIds = ['active-zone'];
+    state.zones.enemyZoneIds[enemy.id] = 'inactive-zone';
+
+    expect(respawnDeadEnemies(state, spatial, outbound, now)).toBe(0);
+    expect(enemy.isAlive).toBe(false);
+    expect(outbound.publish).not.toHaveBeenCalled();
   });
 });

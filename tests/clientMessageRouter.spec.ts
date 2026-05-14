@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { createWorldCombatBridge, handleClientMessage } from '../server/world/clientMessageRouter';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
-import type { Enemy, PlayerState } from '../shared/types';
+import type { Enemy, PlayerState } from '../packages/sim/entities';
 
 const makePlayer = (): PlayerState => ({
   id: 'player1',

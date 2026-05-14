@@ -1,7 +1,7 @@
 import type { ZoneManager } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import { hash, rng } from '../../packages/sim/combatMath.js';
-import type { Enemy } from '../../shared/types.js';
+import type { Enemy } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
@@ -9,7 +9,9 @@ import { emitEnemyUpdated, type OutboundEventSink } from '../transport/outboundE
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
 
 export type SpawnInitialEnemiesOptions = {
+  activeZoneIds?: readonly string[];
   maxEnemies?: number;
+  maxEnemiesPerZone?: number;
 };
 
 export function createEnemy(
@@ -52,26 +54,40 @@ export function spawnInitialEnemies(
   options: SpawnInitialEnemiesOptions = {},
 ): number {
   const maxEnemies = options.maxEnemies ?? WORLD_SPAWN_BUDGETS.maxInitialEnemySpawns;
+  const maxEnemiesPerZone = options.maxEnemiesPerZone ?? WORLD_SPAWN_BUDGETS.maxEnemiesPerZone;
+  const activeZoneIds = options.activeZoneIds
+    ?? (state.zones.activeZoneIds.length > 0
+      ? state.zones.activeZoneIds
+      : zoneManager.getZones().map((zone) => zone.id));
   let spawned = 0;
 
-  for (const zone of zoneManager.getZones()) {
-    for (const mobConfig of zoneManager.getMobsToSpawn(zone.id)) {
-      const spawnCount = Math.min(mobConfig.count, maxEnemies - spawned);
+  for (const zoneId of activeZoneIds) {
+    let spawnedInZone = 0;
+    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId)) {
+      const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
+      const worldBudgetRemaining = maxEnemies - spawned;
+      const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
       for (let index = 0; index < spawnCount; index += 1) {
-        const position = zoneManager.getRandomPositionInZone(zone.id);
+        const position = zoneManager.getRandomPositionInZone(zoneId);
         if (!position) {
           continue;
         }
 
-        const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zone.id), position);
+        const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position);
         state.enemies[enemy.id] = enemy;
+        state.zones.enemyZoneIds[enemy.id] = zoneId;
         spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
         spawned += 1;
+        spawnedInZone += 1;
       }
 
-      if (spawned >= maxEnemies) {
-        return spawned;
+      if (spawned >= maxEnemies || spawnedInZone >= maxEnemiesPerZone) {
+        break;
       }
+    }
+
+    if (spawned >= maxEnemies) {
+      return spawned;
     }
   }
 
@@ -85,9 +101,14 @@ export function respawnDeadEnemies(
   now: number = Date.now(),
 ): number {
   let respawned = 0;
+  const activeZoneIds = new Set(state.zones.activeZoneIds);
 
   for (const [enemyId, enemy] of Object.entries(state.enemies)) {
     if (enemy.isAlive || enemy.deathTimeTs === undefined) {
+      continue;
+    }
+
+    if (activeZoneIds.size > 0 && !activeZoneIds.has(state.zones.enemyZoneIds[enemyId])) {
       continue;
     }
 
