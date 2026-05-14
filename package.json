@@ -29,8 +29,8 @@
     "dev:all": "concurrently \"pnpm run dev\" \"pnpm run dev:server\"",
     "dev:db": "./dev.sh",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:vite": "playwright test -c playwright.vite.config.ts",
+    "test:e2e": "env -u NO_COLOR playwright test",
+    "test:e2e:vite": "env -u NO_COLOR playwright test -c playwright.vite.config.ts",
     "measure:baseline": "node scripts/measure-baseline.mjs",
     "test:watch": "vitest",
     "bench": "vitest bench",
@@ -74,5 +74,15 @@
     "typescript-eslint": "^8.59.3",
     "vite": "^6.4.2",
     "vitest": "^3.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "bufferutil",
+      "msgpackr-extract",
+      "utf-8-validate"
+    ]
   }
 }

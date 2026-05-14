@@ -44,6 +44,15 @@ export const ITEMS: Record<ItemId, Item> = {
     maxStack: 50,
     type: 'material',
   },
+  'slime_jelly': {
+    id: 'slime_jelly',
+    name: 'Slime Jelly',
+    description: 'A springy reagent from low-level meadow slimes.',
+    icon: 'slime_jelly.svg',
+    stackable: true,
+    maxStack: 40,
+    type: 'material',
+  },
   'worn_sword': {
     id: 'worn_sword',
     name: 'Worn Sword',

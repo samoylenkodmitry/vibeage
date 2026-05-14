@@ -12,7 +12,7 @@ It currently enforces:
 - Server and frontend production builds.
 - Playwright browser smoke test.
 - GitHub secret scanning via gitleaks in CI.
-- Dependabot update checks for npm, GitHub Actions, and Docker.
+- Dependabot config is kept in Git, but version-update PRs are currently disabled with `open-pull-requests-limit: 0` to avoid dependency noise during runtime migration work.
 
 ## Maintainability Budgets
 
