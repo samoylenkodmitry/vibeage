@@ -1,3 +1,6 @@
+<img width="1848" height="1221" alt="image" src="https://github.com/user-attachments/assets/10974354-8ea5-47c4-8e7a-8dfe7563a268" />
+
+
 # VibeAge
 
 A browser-first multiplayer game prototype with movement, combat, skills, loot, and server-authoritative state experiments.
