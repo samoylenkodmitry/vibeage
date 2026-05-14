@@ -23,28 +23,24 @@ Production target: VPS only. Production pulls from `origin/main` through local d
 
 Audit window: closed PRs from 2026-05-12 through 2026-05-14.
 
-Valid unresolved review findings to preserve:
+Valid review findings from the audit were carried into the cleanup plan and resolved on `chore/ai-fy-foundation`:
 
-| Priority | Source | Area | Roadmap item |
+| Priority | Source | Area | Resolution |
 | --- | --- | --- | --- |
-| P0 | PR #51 | `server/server.ts` | Add an allow-list for Colyseus matchmaker methods before calling `matchMaker.controller.invokeMethod`; do not expose arbitrary controller method names from URL params. |
-| P0 | PR #60 | `server/world/tickPipeline.ts` | Make maintenance scheduling independent of `snapAccumulator`; add a regression where `snapshotEveryTicks === 1` still runs mana regen and enemy respawn. |
-| P0 | PR #55 | `apps/client/src/clientVisualState.ts` / inventory runtime | Define inventory slot semantics and make client/server agree when a consumable reaches zero; avoid client-only `splice` if slots are stable. |
-| P1 | PR #62 | region streaming | Avoid `Object.entries(state.players).find(...)` in per-client visibility filtering; maintain or pass an O(1) socket-to-player lookup. |
-| P1 | PR #62 | region streaming | Compute visible regions once per client per broadcast/tick and reuse that context for batched message filtering. |
-| P1 | PR #61 | `server/movement/snapshotDeltas.ts` / `server/world/regions.ts` | Precompute active zone sets in snapshot loops; stop allocating a `Set` inside `isEnemyInActiveRegion` for every enemy. |
-| P1 | PR #61 | `server/world/regions.ts` | Replace allocation-heavy `refreshWorldRegionRuntime` array pipelines with simple loops. |
-| P1 | PR #61 | `server/world/regions.ts` | Make `getWorldRegionStats` O(R + E + P) by aggregating enemy/player counts in single passes. |
-| P1 | PR #60 | observability | Throttle O(N) world gauge recording to a lower-frequency cadence instead of every 30Hz tick. |
-| P1 | PR #58 | camera | Remove per-frame object allocation from camera orbit calculations; update a reusable `THREE.Vector3` target in place. |
-| P1 | PR #57 | `server/transport/clientState.ts` | Derive `ClientGameStateSnapshot` from `CLIENT_GAME_STATE_FIELDS`; keep region-scoped snapshot construction explicit and tested. |
-| P1 | PR #55 / PR #52 | client visuals | Replace visual-event IDs based on object length with a monotonic counter or other stable ID source. |
-| P1 | PR #55 | `apps/client/src/clientVisualState.ts` | Read splash impact radius from skill content instead of hardcoding `3`. |
-| P1 | PR #52 | starter progress | Cap or prune `defeatedEnemyIds` after the starter objective is met so persisted starter progress cannot grow forever. |
-| P1 | PR #40 | `server/combat/castRules.ts` | Remove unused compatibility `applyCastCost`/`server/combat/utils/cast.ts`, or make it deterministic by accepting `now`. |
-| P2 | PR #31 | progression | Decide whether XP awards should support multiple level-ups in one award; if yes, implement in a dedicated gameplay PR with tests. |
-| P2 | PR #49 | Dependabot config | Add the same "updates intentionally disabled" comment to GitHub Actions and Docker ecosystems for consistency. |
-| P2 | PR #61 | scripts | Either document production scripts as Linux-only or replace GNU `find -printf` usage with a portable equivalent. |
+| P0 | PR #51 | `server/server.ts` | Colyseus matchmaker routing is allow-listed and covered by tests. |
+| P0 | PR #60 | `server/world/tickPipeline.ts` | Maintenance scheduling now uses a dedicated tick counter with snapshot cadence regressions. |
+| P0 | PR #55 | inventory runtime | Inventory uses compact slot semantics consistently on server and client. |
+| P1 | PR #62 | region streaming | Socket-to-player lookup and per-client visible region context are O(1)/reused. |
+| P1 | PR #61 | `server/world/regions.ts` | Region runtime loops avoid per-entity allocations and aggregate stats in single passes. |
+| P1 | PR #60 | observability | World gauges are throttled off the 30Hz hot path. |
+| P1 | PR #58 | camera | Camera orbit updates reuse vector state in the frame loop. |
+| P1 | PR #57 | client snapshots | Client game state snapshot handling is split and tested. |
+| P1 | PR #55 / PR #52 | client visuals | Visual event IDs are monotonic and skill VFX reads from content. |
+| P1 | PR #52 | starter progress | Starter defeat IDs are capped/pruned after completion. |
+| P1 | PR #40 | combat compatibility | Unused cast compatibility code was removed. |
+| P2 | PR #31 | progression | XP multiple-level behavior is documented as future gameplay work. |
+| P2 | PR #49 | Dependabot config | Disabled ecosystems now have consistent comments. |
+| P2 | PR #61 | scripts | Linux/GNU script assumptions are documented. |
 
 Review findings intentionally not carried forward:
 
@@ -52,9 +48,9 @@ Review findings intentionally not carried forward:
 - PR #52 client-inferred starter defeat tracking is stale; starter progress is now server-authored, though server-side `defeatedEnemyIds` still needs a cap.
 - Resolved or outdated review threads from PRs #23, #24, #26, #27, #29, #30, #56, and #59 were ignored unless the current code still shows the same issue.
 
-## Project Observation
+## Future Backlog
 
-What is missing or weak:
+Useful future hardening that is intentionally outside this cleanup batch:
 
 - No load/soak test for many simultaneous Colyseus clients, region streaming, and reconnect churn.
 - No production alerting or external uptime check in Git; health checks are manual/local-script driven.
@@ -67,76 +63,25 @@ What is missing or weak:
 - Mobile/responsive coverage is thin; Playwright mostly checks the desktop happy path.
 - Docs are mostly aligned with Vite/Colyseus/VPS deployment; keep future drift out with scoped playbooks and checks.
 
-Dead code or drift observed:
+Known drift to keep contained:
 
 - `scripts/setup-server.sh` and `scripts/setup-client.sh` remain tracked for fresh-host bootstrap only; they are guarded by `ALLOW_LEGACY_BOOTSTRAP=1` and must not be used for live updates.
 - Local generated directories (`dist/`, `.next/`, `out/`) exist but are ignored and untracked.
 
-## AI-Fy Plan
+## Completed AI-Fy Work
 
 Goal: make the repository comfortable for coding agents and LLMs by reducing orientation cost, shortening feedback loops, and making dead-code edits harder to mistake for real work.
 
-Implemented on `chore/ai-fy-foundation`:
-
-- Items 1-3 are implemented on the `chore/ai-fy-foundation` branch with architecture docs, agent playbooks, and scoped check scripts.
-- Item 4 is implemented with Knip, a blocking dead-code/dependency subset, and a non-blocking full dead-code report.
-- Item 5 is implemented with deterministic scenario fixtures under `tests/helpers/scenarioFixtures.ts`.
-- Item 6 is implemented in `docs/PROTOCOL.md` with transport lanes, state ownership, snapshot ordering, visibility, and change checks.
-- Item 7 is started with strict TypeScript enabled for leaf packages through `tsconfig.packages.strict.json`; app/server strictness remains a future hardening track.
-- Item 8 is implemented with Playwright HUD viewport assertions and per-run screenshot artifacts for desktop and mobile.
-- Item 9 is implemented with module-level README files for core server, client, protocol, content, and sim boundaries.
-- Item 10 is implemented by removing stale Next/Vercel/Socket.IO references from env examples/docs, deleting combat compatibility exports, and guarding bootstrap-era scripts.
-
-1. Add `docs/ARCHITECTURE.md`.
-   - Document the live architecture and core flows: join, movement, combat/cast, loot/inventory, region streaming, persistence, deploy, and rollback.
-   - List the key files for each flow.
-   - Mark files that should stay orchestration-only or should not grow.
-
-2. Add `docs/AGENT_PLAYBOOKS.md`.
-   - Add short checklists for common changes: protocol messages, skills/items/enemies/content, movement/combat, client UI, persistence, deploy scripts, production deploy, and rollback.
-   - Include required tests for each change type.
-   - Include "do not touch live VPS setup scripts unless explicitly asked" guidance.
-
-3. Add targeted fast-check scripts.
-   - `check:server`: lint/typecheck relevant server/packages files, focused server tests, and `build:server`.
-   - `check:client`: lint/typecheck client files, Vite build, and client reducer/camera/HUD tests.
-   - `check:protocol`: protocol schema tests plus server/client handling tests.
-   - `check:content`: content validation plus content/unit tests.
-   - Keep `pnpm run check` as the full merge gate.
-
-4. Add automated dead-code/dependency scanning.
-   - Evaluate Knip or an equivalent tool.
-   - Catch unused exports, stale compatibility files, unused dependencies, and accidental orphan files.
-   - Gate new dead code in CI once the first cleanup pass is complete.
-   - Current Knip cleanup baseline: remaining unused exports reported by the non-blocking full report.
-
-5. Add deterministic scenario fixtures.
-   - Provide reusable test fixtures for: two players in separate regions, one combat encounter, loot pickup, full inventory, reconnect/persisted player, and scoped region streaming.
-   - Keep fixtures in a small test helper module so agents stop hand-building inconsistent game states.
-
-6. Add protocol and state contract docs.
-   - Document client messages, server messages, Colyseus public state, direct/private messages, initial snapshots, update events, and private player fields.
-   - Link docs to the Zod/schema source files and required regression tests.
-
-7. Tighten TypeScript in layers.
-   - Start with `packages/content`, `packages/sim`, and `packages/protocol`.
-   - Then move to server leaf modules.
-   - Leave app/server integration strictness for later after drift is reduced.
-
-8. Add visual regression hooks.
-   - Add Playwright screenshot or viewport assertions for desktop and mobile HUD.
-   - Cover starter panel, movement panel, target panel, inventory, skill bar, death overlay, and reconnect overlay.
-   - Keep screenshots deterministic enough to avoid noisy CI.
-
-9. Add module-level README files.
-   - Add short README files for `server/world`, `server/transport`, `server/combat`, `server/players`, `apps/client/src`, `packages/protocol`, `packages/content`, and `packages/sim`.
-   - Each README should explain ownership, entry points, common edits, and tests.
-
-10. Remove drift that confuses agents.
-    - Delete or quarantine stale Next/Socket.IO/bootstrap docs and examples.
-    - Remove compatibility re-exports after callers are migrated.
-    - Keep `.env.example` aligned with the active Vite/Colyseus flow.
-    - Keep `AGENTS.md` tiny; move details into docs/playbooks.
+- [x] Architecture docs in `docs/ARCHITECTURE.md`.
+- [x] Agent playbooks in `docs/AGENT_PLAYBOOKS.md`.
+- [x] Targeted fast-check scripts: `check:server`, `check:client`, `check:protocol`, and `check:content`.
+- [x] Knip-backed dead-code/dependency scanning with blocking and full-report modes.
+- [x] Deterministic scenario fixtures in `tests/helpers/scenarioFixtures.ts`.
+- [x] Protocol and state contract docs in `docs/PROTOCOL.md`.
+- [x] Strict TypeScript started for leaf packages through `tsconfig.packages.strict.json`.
+- [x] Playwright HUD viewport assertions and screenshot artifacts.
+- [x] Module-level README files for core server, client, protocol, content, and sim boundaries.
+- [x] Stale Next/Vercel/Socket.IO drift removed from active docs and env examples.
 
 ## Cleanup Plan
 
