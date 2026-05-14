@@ -64,6 +64,12 @@ This project should become a browser-first multiplayer game that is easy for hum
 41. Done on 2026-05-14: hardened relog coverage for persisted skills, shortcuts, inventory, position, health, level, XP, and skill points.
 42. Done on 2026-05-14: moved class progression data into `packages/content` and removed the unused legacy socket event converters.
 43. Done on 2026-05-14: added a small starter progression loop around defeats, loot pickup, level progress, and direct skill learning from the HUD.
+44. Done on 2026-05-14: made starter path progress server-authoritative through a shared `StarterProgressUpdate` protocol message instead of client-inferred combat and loot counters.
+45. Done on 2026-05-14: added the first real starter reward loop by granting one skill point exactly once after the server-owned defeat, loot, and level goals are complete.
+46. Done on 2026-05-14: moved stable player writes behind a Kysely-backed player repository boundary and added `starter_progress` persistence with migration, hydration, backup-restore schema checks, and tests.
+47. Done on 2026-05-14: cleaned the Vite client boundary by extracting the starter path HUD and keeping starter progress normalization separate from the main reducer.
+48. Done on 2026-05-14: expanded the visible client world surface to cover every configured zone and added content coverage so the world size stays intentional.
+49. Done on 2026-05-14: strengthened local browser CI smoke coverage so the Vite Playwright path verifies the server-authored starter path panel during enter-world flow.
 
 ## Target Stack
 

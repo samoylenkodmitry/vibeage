@@ -21,10 +21,7 @@ import { addCombatDamageVisualEvents } from './combatFeedback';
 import {
   assignFirstEmptyShortcut,
   createInitialStarterProgress,
-  updateProgressDefeats,
-  updateProgressLearnedSkills,
-  updateProgressLevel,
-  updateProgressLoot,
+  normalizeClientStarterProgress,
 } from './starterProgress';
 
 const CAST_VISIBLE_MS = 3_000;
@@ -115,7 +112,7 @@ function applyGameState(state: GameClientState, serverState: ServerGameState): G
   const groundLoot = normalizeGroundLoot(serverState.groundLoot ?? state.groundLoot);
   const myPlayer = state.myPlayerId ? players[state.myPlayerId] : null;
   const starterProgress = myPlayer
-    ? updateProgressLevel(state.starterProgress, myPlayer.level)
+    ? normalizeClientStarterProgress(myPlayer.starterProgress ?? state.starterProgress, myPlayer)
     : state.starterProgress;
 
   return { ...state, players, enemies, groundLoot, selectedTargetId, inventory, maxInventorySlots, starterProgress };
@@ -143,14 +140,15 @@ function updatePlayer(
     rotation: mergeVec3(current.rotation, update.rotation),
   };
   const inventory = state.myPlayerId === update.id && update.inventory ? update.inventory : state.inventory;
+  const starterProgress = update.id === state.myPlayerId
+    ? normalizeClientStarterProgress(player.starterProgress ?? state.starterProgress, player)
+    : state.starterProgress;
 
   return {
     ...state,
     players: { ...state.players, [update.id]: player },
     inventory,
-    starterProgress: update.id === state.myPlayerId
-      ? updateProgressLevel(state.starterProgress, player.level)
-      : state.starterProgress,
+    starterProgress,
   };
 }
 
@@ -241,6 +239,10 @@ function applyServerMessage(
     return applyLootAcquired(state, message, now);
   }
 
+  if (message.type === 'StarterProgressUpdate') {
+    return { ...state, starterProgress: normalizeClientStarterProgress(message.progress) };
+  }
+
   if (message.type === 'ItemUsed') {
     return applyItemUsed(state, message, now);
   }
@@ -269,18 +271,8 @@ function applyCombatLog(
   now: number,
 ): GameClientState {
   const withDamageFeedback = addCombatDamageVisualEvents(state, message, now);
-  const withProgress = message.casterId === state.myPlayerId
-    ? {
-      ...withDamageFeedback,
-      starterProgress: updateProgressDefeats(
-        withDamageFeedback.starterProgress,
-        withDamageFeedback.enemies,
-        message.targets,
-      ),
-    }
-    : withDamageFeedback;
 
-  return addCombatLine(withProgress, {
+  return addCombatLine(withDamageFeedback, {
     id: makeCombatLineId(message.castId, state.combatLog.length, now),
     text: formatCombatLogLine(state, message.skillId, message.targets, message.damages),
   });
@@ -291,11 +283,7 @@ function applyLootAcquired(
   message: ServerMessage & { type: 'LootAcquired' },
   now: number,
 ): GameClientState {
-  const totalItems = message.items.reduce((sum, item) => sum + item.quantity, 0);
-  return addCombatLine({
-    ...state,
-    starterProgress: updateProgressLoot(state.starterProgress, totalItems),
-  }, {
+  return addCombatLine(state, {
     id: makeCombatLineId(`loot-${now}`, state.combatLog.length, now),
     text: `Picked up ${formatItemDrops(message.items)}`,
   });
@@ -559,9 +547,7 @@ function updateMyPlayer(
   return {
     ...state,
     players: { ...state.players, [player.id]: player },
-    starterProgress: updateProgressLevel({
-      ...updateProgressLearnedSkills(state.starterProgress, player.unlockedSkills.length),
-    }, player.level),
+    starterProgress: normalizeClientStarterProgress(player.starterProgress ?? state.starterProgress, player),
   };
 }
 

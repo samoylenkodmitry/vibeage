@@ -106,6 +106,15 @@ describe('stable persistence contract', () => {
       skills: JSON.stringify(['fireball', 'waterSplash']),
       skill_shortcuts: JSON.stringify(['waterSplash', null, 'fireball', null, null, null, null, null, null]),
       available_skill_points: 2,
+      starter_progress: {
+        defeatedEnemies: 0,
+        defeatedEnemyIds: [],
+        lootPickups: 0,
+        levelReached: 3,
+        learnedSkills: 2,
+        isComplete: false,
+        rewardGranted: false,
+      },
       last_updated: 123456,
     });
 

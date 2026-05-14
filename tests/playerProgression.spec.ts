@@ -109,5 +109,13 @@ describe('skill learning state sync', () => {
         availableSkillPoints: 0,
       },
     });
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'directServerMessage',
+      socketId: 'socket1',
+      message: expect.objectContaining({
+        type: 'StarterProgressUpdate',
+        progress: expect.objectContaining({ learnedSkills: 1 }),
+      }),
+    });
   });
 });

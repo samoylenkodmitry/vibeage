@@ -1,59 +1,23 @@
 import type { SkillId } from '../../../packages/content/skills';
-import type { EnemyEntity, StarterProgress } from './gameTypes';
+import {
+  createStarterProgressState,
+  normalizeStarterProgressState,
+  type StarterProgressState,
+} from '../../../packages/protocol/messages';
+import type { PlayerEntity, StarterProgress } from './gameTypes';
 
 export function createInitialStarterProgress(): StarterProgress {
-  return {
-    defeatedEnemies: 0,
-    defeatedEnemyIds: [],
-    lootPickups: 0,
-    levelReached: 1,
-    learnedSkills: 0,
-  };
+  return createStarterProgressState();
 }
 
-export function updateProgressLevel(progress: StarterProgress, level: number): StarterProgress {
-  return {
-    ...progress,
-    levelReached: Math.max(progress.levelReached, level),
-  };
-}
-
-export function updateProgressLearnedSkills(
-  progress: StarterProgress,
-  skillCount: number,
-): StarterProgress {
-  return {
-    ...progress,
-    learnedSkills: Math.max(progress.learnedSkills, skillCount),
-  };
-}
-
-export function updateProgressLoot(progress: StarterProgress, itemCount: number): StarterProgress {
-  return {
-    ...progress,
-    lootPickups: progress.lootPickups + itemCount,
-  };
-}
-
-export function updateProgressDefeats(
-  progress: StarterProgress,
-  enemies: Record<string, EnemyEntity>,
-  targetIds: string[],
-): StarterProgress {
-  const defeatedIds = targetIds.filter((targetId) => {
-    const enemy = enemies[targetId];
-    return enemy && !enemy.isAlive && !progress.defeatedEnemyIds.includes(targetId);
+export function normalizeClientStarterProgress(
+  progress: unknown,
+  player?: PlayerEntity | null,
+): StarterProgressState {
+  return normalizeStarterProgressState(progress, {
+    levelReached: player?.level ?? undefined,
+    learnedSkills: player?.unlockedSkills.length ?? undefined,
   });
-
-  if (defeatedIds.length === 0) {
-    return progress;
-  }
-
-  return {
-    ...progress,
-    defeatedEnemies: progress.defeatedEnemies + defeatedIds.length,
-    defeatedEnemyIds: [...progress.defeatedEnemyIds, ...defeatedIds],
-  };
 }
 
 export function assignFirstEmptyShortcut(

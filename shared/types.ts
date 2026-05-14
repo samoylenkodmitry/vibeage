@@ -4,11 +4,12 @@ import type {
     CastSnapshot,
     InventorySlot,
     PlayerMovementState,
+    StarterProgressState,
     StatusEffect,
     VecXZ,
 } from '../packages/protocol/messages';
 
-export type { CastSnapshot, InventorySlot, PlayerMovementState, StatusEffect, VecXZ };
+export type { CastSnapshot, InventorySlot, PlayerMovementState, StarterProgressState, StatusEffect, VecXZ };
 
 export interface Enemy {
     id: string;
@@ -59,6 +60,7 @@ export interface PlayerState {
     unlockedSkills: SkillId[];     // All skills the player has learned
     skillShortcuts: (SkillId | null)[];  // Skills assigned to number keys 1-9
     availableSkillPoints: number;  // Points available to learn new skills
+    starterProgress?: StarterProgressState;
     skillCooldownEndTs: Record<string, number>;
     statusEffects: StatusEffect[];
     level: number;

@@ -5,6 +5,7 @@ import type {
   ItemDrop,
   PlayerMovementState,
   PredictionKeyframe,
+  StarterProgressState,
   StatusEffect,
   Vec3D,
   VecXZ,
@@ -46,6 +47,7 @@ export interface AuthoritativePlayerState extends AuthoritativeActorState {
   unlockedSkills: SkillId[];
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
+  starterProgress?: StarterProgressState;
   skillCooldownEndTs: Record<string, number>;
   level: number;
   experience: number;

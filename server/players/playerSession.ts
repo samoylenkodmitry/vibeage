@@ -2,7 +2,7 @@ import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../shared/types.js';
 import type { CharacterClass } from '../../packages/content/classes.js';
-import type { InventorySlot } from '../../packages/protocol/messages.js';
+import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';
 import {
@@ -31,6 +31,7 @@ type PlayerRow = {
   skills?: unknown;
   skill_shortcuts?: unknown;
   available_skill_points?: unknown;
+  starter_progress?: unknown;
   inventory?: InventorySlot[];
 };
 
@@ -53,6 +54,10 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   const level = normalizePlayerLevel(row.level);
   const maxHealth = getMaxHealthForLevel(level);
   const maxMana = getMaxManaForLevel(level);
+  const starterProgress = normalizeStarterProgressState(row.starter_progress, {
+    levelReached: level,
+    learnedSkills: unlockedSkills.length,
+  });
 
   return {
     id: row.id,
@@ -80,6 +85,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     unlockedSkills,
     skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
     availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
+    starterProgress,
     posHistory: [],
     lastUpdateTime: Date.now(),
     inventory: row.inventory || [],

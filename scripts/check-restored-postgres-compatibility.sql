@@ -58,6 +58,7 @@ BEGIN
       ('players', 'skill_shortcuts', 'jsonb'),
       ('players', 'skills', 'jsonb'),
       ('players', 'socket_id', 'text'),
+      ('players', 'starter_progress', 'jsonb'),
       ('players', 'updated_at', 'timestamptz'),
       ('server_events', 'created_at', 'timestamptz'),
       ('server_events', 'description', 'text'),

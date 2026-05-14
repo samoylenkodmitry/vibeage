@@ -1,6 +1,6 @@
 # Persistence Contract
 
-The server persists stable player/account state to Postgres through Kysely. Runtime-only presentation and combat state stays in memory and is rebuilt from authoritative defaults after reconnect.
+The server persists stable player/account state to Postgres through the Kysely-backed repository in `server/persistence/playerRepository.ts`. Runtime-only presentation and combat state stays in memory and is rebuilt from authoritative defaults after reconnect.
 
 ## Persisted Player Columns
 
@@ -10,6 +10,7 @@ The server persists stable player/account state to Postgres through Kysely. Runt
 - `health`, `is_alive`
 - `level`, `experience`, `class_name`
 - `inventory`, `skills`, `skill_shortcuts`, `available_skill_points`
+- `starter_progress`
 - `last_updated`
 
 Session login upserts only `name`, `socket_id`, and `last_login`.

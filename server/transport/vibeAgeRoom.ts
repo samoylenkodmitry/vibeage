@@ -4,8 +4,10 @@ import type { ServerMessage } from '../../packages/protocol/messages.js';
 import { initWorld } from '../world.js';
 import { sendCastSnapshots } from '../combat/skillSystem.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
+import { sendStarterProgressUpdate } from '../progression/starterPath.js';
 import { createSocketBackedAuthoritativeRoom } from './authoritativeRoomAdapter.js';
 import { ColyseusAuthoritativeRoomAdapter, makeColyseusOutbound } from './colyseusRoomAdapter.js';
+import { makeClientGameStateSnapshot, sanitizePlayerForPublic } from './clientState.js';
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 import type { DirectMessageSink } from './outboundEvents.js';
 
@@ -37,7 +39,7 @@ export class VibeAgeRoom extends Room {
     const result = await this.adapter.handleJoin(client, toJoinOptions(options));
     const player = this.world.getGameState().players[result.playerId];
     if (player) {
-      this.broadcast(SOCKET_SESSION_EVENTS.playerJoined, player, { except: client });
+      this.broadcast(SOCKET_SESSION_EVENTS.playerJoined, sanitizePlayerForPublic(player), { except: client });
     }
     this.sendClientSnapshot(client);
   }
@@ -57,9 +59,10 @@ export class VibeAgeRoom extends Room {
     if (player) {
       client.send(SOCKET_SESSION_EVENTS.joinGame, { playerId: player.id });
       emitInventoryUpdate(direct, player);
+      sendStarterProgressUpdate(direct, player);
     }
 
-    client.send(SOCKET_SESSION_EVENTS.gameState, state);
+    client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(state, client.sessionId));
     sendCastSnapshots(state.activeCasts, direct);
   }
 }

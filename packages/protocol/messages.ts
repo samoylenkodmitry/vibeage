@@ -1,6 +1,17 @@
 import { z } from 'zod';
 import type { SkillId } from '../content/skills';
 import type { ItemId } from '../content/items';
+import { starterProgressStateSchema, type StarterProgressState } from './starterProgress';
+
+export {
+  STARTER_PATH_GOALS,
+  STARTER_PATH_REWARD,
+  createStarterProgressState,
+  isStarterProgressComplete,
+  normalizeStarterProgressState,
+  starterProgressStateSchema,
+  type StarterProgressState,
+} from './starterProgress';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 
@@ -238,6 +249,12 @@ export const lootAcquiredMsgSchema = z.object({
   sourceEnemyName: z.string().optional(),
 }).passthrough();
 
+export const starterProgressUpdateSchema = z.object({
+  type: z.literal('StarterProgressUpdate'),
+  progress: starterProgressStateSchema,
+  rewardGranted: z.boolean().optional(),
+}).passthrough();
+
 export const itemDropSchema = z.object({
   itemId: z.string(),
   quantity: z.number(),
@@ -277,6 +294,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   enemyAttackSchema,
   inventoryUpdateMsgSchema,
   lootAcquiredMsgSchema,
+  starterProgressUpdateSchema,
   lootPickupSchema,
   lootSpawnSchema,
   itemUsedSchema,
@@ -499,6 +517,12 @@ export type LootAcquiredMsg = {
   sourceEnemyName?: string;
 };
 
+export type StarterProgressUpdate = {
+  type: 'StarterProgressUpdate';
+  progress: StarterProgressState;
+  rewardGranted?: boolean;
+};
+
 export type ItemDrop = {
   itemId: string;
   quantity: number;
@@ -550,6 +574,7 @@ export type ServerMessage =
   | EnemyAttack
   | InventoryUpdateMsg
   | LootAcquiredMsg
+  | StarterProgressUpdate
   | LootPickup
   | LootSpawn
   | ItemUsed
