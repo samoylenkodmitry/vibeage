@@ -3,6 +3,7 @@ import { CM_PER_UNIT } from '../../packages/protocol/netConstants.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
+import { isEnemyInActiveRegion } from '../world/regions.js';
 import {
   createPredictionKeyframes,
   predictPosition,
@@ -61,7 +62,7 @@ function collectPlayerDeltas(
 
 function collectEnemyDeltas(state: GameState, timestamp: number, messages: PosSnap[]): void {
   for (const [enemyId, enemy] of Object.entries(state.enemies)) {
-    if (!enemy.isAlive) {
+    if (!enemy.isAlive || !isEnemyInActiveRegion(state, enemyId)) {
       continue;
     }
 

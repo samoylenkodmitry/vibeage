@@ -3,7 +3,13 @@ import { Client as ColyseusClient, type Room } from '@colyseus/sdk';
 import { safeParseServerMessage } from '../../../packages/protocol/messages';
 import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
 import type { GameClientAction } from './gameReducer';
-import type { EnemyEntity, PlayerEntity, ServerGameState } from './gameTypes';
+import type {
+  EnemyEntity,
+  PlayerEntity,
+  ServerGameState,
+  WorldPublicState,
+  WorldRegionPublicState,
+} from './gameTypes';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY_MS = 1_000;
@@ -154,6 +160,12 @@ function bindRoom(
     dispatch({ type: 'enemyUpdated', enemy });
   });
   room.onMessage(SESSION_EVENTS.message, (payload: unknown) => processServerPayload(payload, dispatch));
+  room.onStateChange((payload: unknown) => {
+    const publicState = normalizeWorldPublicState(payload);
+    if (publicState) {
+      dispatch({ type: 'worldPublicState', state: publicState });
+    }
+  });
   room.onMessage(SESSION_EVENTS.connectionRejected, (payload: { message?: string }) => {
     dispatch({ type: 'connectionRejected', message: payload.message ?? 'Connection rejected' });
   });
@@ -179,4 +191,81 @@ function processServerMessage(payload: unknown, dispatch: Dispatch<GameClientAct
   }
 
   dispatch({ type: 'serverMessage', message: parsed.data, now: Date.now() });
+}
+
+function normalizeWorldPublicState(payload: unknown): WorldPublicState | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  return {
+    revision: numberField(payload.revision),
+    playerCount: numberField(payload.playerCount),
+    enemyCount: numberField(payload.enemyCount),
+    aliveEnemyCount: numberField(payload.aliveEnemyCount),
+    activeRegionCount: numberField(payload.activeRegionCount),
+    regionCount: numberField(payload.regionCount),
+    regions: normalizeWorldPublicRegions(payload.regions),
+  };
+}
+
+function normalizeWorldPublicRegions(payload: unknown): Record<string, WorldRegionPublicState> {
+  const regions: Record<string, WorldRegionPublicState> = {};
+  forEachPublicRegion(payload, (regionId, value) => {
+    if (!isRecord(value)) {
+      return;
+    }
+
+    const id = stringField(value.id, regionId);
+    regions[id] = {
+      id,
+      zoneId: stringField(value.zoneId, id),
+      name: stringField(value.name, id),
+      active: booleanField(value.active),
+      playerCount: numberField(value.playerCount),
+      enemyCount: numberField(value.enemyCount),
+      aliveEnemyCount: numberField(value.aliveEnemyCount),
+      maxEnemies: numberField(value.maxEnemies),
+    };
+  });
+  return regions;
+}
+
+function forEachPublicRegion(
+  payload: unknown,
+  visitor: (regionId: string, value: unknown) => void,
+): void {
+  if (payload instanceof Map) {
+    payload.forEach((value, key) => visitor(String(key), value));
+    return;
+  }
+
+  if (isMapLike(payload)) {
+    payload.forEach((value: unknown, key: unknown) => visitor(String(key), value));
+    return;
+  }
+
+  if (isRecord(payload)) {
+    Object.entries(payload).forEach(([key, value]) => visitor(key, value));
+  }
+}
+
+function isMapLike(value: unknown): value is { forEach: (visitor: (value: unknown, key: unknown) => void) => void } {
+  return isRecord(value) && typeof value.forEach === 'function';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function numberField(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function stringField(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.length > 0 ? value : fallback;
+}
+
+function booleanField(value: unknown): boolean {
+  return value === true;
 }

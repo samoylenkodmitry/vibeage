@@ -342,6 +342,37 @@ export function SelectedEnemyRing() {
   );
 }
 
+export function SelectedEnemyBeacon() {
+  const haloRef = useRef<THREE.Mesh>(null);
+  const pointerRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }, delta) => {
+    const pulse = (Math.sin(clock.elapsedTime * 5.5) + 1) / 2;
+    if (haloRef.current) {
+      haloRef.current.rotation.z += delta * 1.8;
+      (haloRef.current.material as THREE.MeshBasicMaterial).opacity = 0.38 + pulse * 0.24;
+    }
+
+    if (pointerRef.current) {
+      pointerRef.current.position.y = 1.52 + pulse * 0.12;
+      pointerRef.current.rotation.y += delta * 2.4;
+    }
+  });
+
+  return (
+    <group>
+      <mesh ref={haloRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 1.32, 0]}>
+        <ringGeometry args={[0.42, 0.58, 36]} />
+        <meshBasicMaterial color="#facc15" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={pointerRef} position={[0, 1.58, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.22, 0.42, 4]} />
+        <meshStandardMaterial color="#facc15" emissive="#8a5f00" emissiveIntensity={0.58} roughness={0.42} />
+      </mesh>
+    </group>
+  );
+}
+
 export function EnemyHitFlash({ health }: { health: number }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const previousHealthRef = useRef(health);

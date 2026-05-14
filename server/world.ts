@@ -24,6 +24,7 @@ import {
   initializeServerDrivenZoneRuntime,
 } from './world/zoneRuntime.js';
 import { createWorldTickRunner } from './world/tickPipeline.js';
+import { createServerOwnedRegions, type ServerWorldRegion } from './world/regions.js';
 
 const TICK = 1000 / 30;
 const SNAP_HZ = 10;
@@ -38,25 +39,27 @@ type WorldClient = SocketMessageTarget & { id: string };
 export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager) {
   const state: GameState = createGameState();
   const spatial = new SpatialHashGrid();
-  initializeServerDrivenZoneRuntime(state, zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
+  const regions = createServerOwnedRegions(zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
+  initializeServerDrivenZoneRuntime(state, regions, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
   spawnInitialEnemies(state, spatial, zoneManager, {
     activeZoneIds: state.zones.activeZoneIds,
     maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,
     maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,
   });
 
-  startWorldLoop(state, spatial, outbound);
+  startWorldLoop(state, spatial, outbound, regions);
   startPersistenceLoop(state);
 
-  return createWorldApi(state, spatial, outbound);
+  return createWorldApi(state, spatial, outbound, regions);
 }
 
 function startWorldLoop(
   state: GameState,
   spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
+  regions: readonly ServerWorldRegion[],
 ): void {
-  const runner = createWorldTickRunner({ state, spatial, outbound, tickMs: TICK, snapHz: SNAP_HZ });
+  const runner = createWorldTickRunner({ state, spatial, outbound, tickMs: TICK, snapHz: SNAP_HZ, regions });
 
   setInterval(() => {
     runner.tick();
@@ -83,7 +86,12 @@ function startPersistenceLoop(state: GameState): void {
   }, PERSISTENCE_INTERVAL_MS);
 }
 
-function createWorldApi(state: GameState, spatial: SpatialHashGrid, outbound: OutboundEventSink) {
+function createWorldApi(
+  state: GameState,
+  spatial: SpatialHashGrid,
+  outbound: OutboundEventSink,
+  regions: readonly ServerWorldRegion[],
+) {
   return {
     handleMessage(socket: WorldClient, msg: ClientMessage) {
       return handleClientMessage(socket, state, msg, outbound, spatial);
@@ -93,6 +101,10 @@ function createWorldApi(state: GameState, spatial: SpatialHashGrid, outbound: Ou
     },
     getGameState() {
       return state;
+    },
+
+    getRegions() {
+      return regions;
     },
     
     getEntitiesInCircle(pos: VecXZ, radius: number) {

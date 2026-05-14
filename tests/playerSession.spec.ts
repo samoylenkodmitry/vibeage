@@ -3,6 +3,7 @@ import { createGameState } from '../server/gameState';
 import {
   findPlayerIdBySocket,
   hydratePersistedPlayer,
+  removePlayerSessionBySocketId,
   upsertActivePlayerSession,
 } from '../server/players/playerSession';
 import { buildStablePlayerPersistenceData } from '../server/persistence';
@@ -157,6 +158,48 @@ describe('active player session replacement', () => {
     expect(findPlayerIdBySocket(state, 'old-socket')).toBeUndefined();
     expect(spatial.queryCircle({ x: 30, z: 30 }, 1)).toContain('player1');
     expect(spatial.queryCircle({ x: -8, z: 4 }, 1)).not.toContain('player1');
+  });
+
+  test('preserves death state during active-session handoff', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const oldPlayer = makePlayer('player1', 'old-socket');
+    oldPlayer.isAlive = false;
+    oldPlayer.health = 0;
+    oldPlayer.deathTimeTs = 1234;
+    const newPlayer = makePlayer('player1', 'new-socket');
+
+    upsertActivePlayerSession(state, spatial, oldPlayer);
+    const activePlayer = upsertActivePlayerSession(state, spatial, newPlayer);
+
+    expect(activePlayer).toBe(oldPlayer);
+    expect(activePlayer.socketId).toBe('new-socket');
+    expect(activePlayer.isAlive).toBe(false);
+    expect(activePlayer.health).toBe(0);
+    expect(activePlayer.deathTimeTs).toBe(1234);
+  });
+
+  test('ignores stale socket leave after active-session handoff', async () => {
+    const previousDisablePersistence = process.env.VIBEAGE_DISABLE_PERSISTENCE;
+    process.env.VIBEAGE_DISABLE_PERSISTENCE = '1';
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const oldPlayer = makePlayer('player1', 'old-socket');
+    const newPlayer = makePlayer('player1', 'new-socket');
+
+    try {
+      upsertActivePlayerSession(state, spatial, oldPlayer);
+      upsertActivePlayerSession(state, spatial, newPlayer);
+
+      await expect(removePlayerSessionBySocketId(state, spatial, 'old-socket')).resolves.toBeNull();
+      expect(state.players.player1?.socketId).toBe('new-socket');
+    } finally {
+      if (previousDisablePersistence === undefined) {
+        delete process.env.VIBEAGE_DISABLE_PERSISTENCE;
+      } else {
+        process.env.VIBEAGE_DISABLE_PERSISTENCE = previousDisablePersistence;
+      }
+    }
   });
 });
 

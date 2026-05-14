@@ -13,6 +13,10 @@ import {
 import { collectDeltas } from '../movement/snapshotDeltas.js';
 import { advanceAll } from '../movement/worldMovement.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import {
+  refreshWorldRegionRuntime,
+  type ServerWorldRegion,
+} from './regions.js';
 
 export type WorldTickRunnerOptions = {
   state: GameState;
@@ -20,6 +24,7 @@ export type WorldTickRunnerOptions = {
   outbound: OutboundEventSink;
   tickMs: number;
   snapHz: number;
+  regions?: readonly ServerWorldRegion[];
 };
 
 export type WorldTickRunner = {
@@ -55,6 +60,9 @@ function runWorldTick(input: WorldTickRunnerOptions & {
 
 function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number }): void {
   advanceAll(input.state, input.spatial, input.tickMs, input.now);
+  if (input.regions) {
+    refreshWorldRegionRuntime(input.state, input.regions);
+  }
 }
 
 function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
@@ -113,6 +121,7 @@ function recordWorldGauges(state: GameState): void {
   runtimeMetrics.setGauge('enemies.total', enemies.length);
   runtimeMetrics.setGauge('enemies.alive', enemies.filter((enemy) => enemy.isAlive).length);
   runtimeMetrics.setGauge('zones.active', state.zones.activeZoneIds.length);
+  runtimeMetrics.setGauge('zones.playersTracked', Object.keys(state.zones.playerZoneIds).length);
   runtimeMetrics.setGauge('casts.active', Object.keys(state.activeCasts).length);
   runtimeMetrics.setGauge('loot.groundStacks', Object.keys(state.groundLoot).length);
 }

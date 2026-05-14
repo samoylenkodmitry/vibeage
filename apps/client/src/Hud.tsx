@@ -62,6 +62,9 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
   const selectedTarget = state.selectedTargetId ? state.enemies[state.selectedTargetId] ?? null : null;
   const playerCount = Object.keys(state.players).length;
   const enemyCount = Object.values(state.enemies).filter((enemy) => enemy.isAlive).length;
+  const regionStatus = state.worldPublicState
+    ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
+    : '-';
   const now = useNow(100);
 
   useSkillHotkeys(player, onCastSkill);
@@ -79,10 +82,11 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       <section className="hud hud-stats" aria-label="World status">
         <Metric label="Players" value={String(playerCount)} />
         <Metric label="Enemies" value={String(enemyCount)} />
+        <Metric label="Regions" value={regionStatus} />
         <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
       </section>
       <PlayerPanel player={player} />
-      <TargetPanel target={selectedTarget} />
+      <TargetPanel player={player} target={selectedTarget} />
       <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       <CastingPanel player={player} />
@@ -122,7 +126,17 @@ function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   );
 }
 
-function TargetPanel({ target }: { target: GameClientState['enemies'][string] | null }) {
+function TargetPanel({
+  player,
+  target,
+}: {
+  player: PlayerEntity | null;
+  target: GameClientState['enemies'][string] | null;
+}) {
+  const distance = player && target ? getDistance(player.position, target.position) : null;
+  const healthRatio = target ? target.health / Math.max(1, target.maxHealth) : 0;
+  const targetState = target ? getTargetState(target.isAlive, healthRatio) : 'No selection';
+
   return (
     <section className="hud hud-target" aria-label="Target">
       <div className="panel-title">
@@ -130,6 +144,10 @@ function TargetPanel({ target }: { target: GameClientState['enemies'][string] | 
         <span>{target ? `Level ${target.level}` : '-'}</span>
       </div>
       <Meter label="HP" value={target?.health} max={target?.maxHealth} className="meter-enemy" />
+      <div className="target-meta">
+        <span>{targetState}</span>
+        <span>{distance === null ? '-' : `${distance.toFixed(1)}m`}</span>
+      </div>
       <StatusPills effects={target?.statusEffects ?? []} />
     </section>
   );
@@ -366,6 +384,22 @@ function getMeterProgress(value = 0, max = 0): number {
   }
 
   return Math.max(0, Math.min(100, (value / max) * 100));
+}
+
+function getTargetState(isAlive: boolean, healthRatio: number): string {
+  if (!isAlive) {
+    return 'Defeated';
+  }
+
+  if (healthRatio <= 0.35) {
+    return 'Weak';
+  }
+
+  return 'Engaged';
+}
+
+function getDistance(a: PlayerEntity['position'], b: PlayerEntity['position']): number {
+  return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
 function formatSkillFooter(manaCost: number | undefined, remainingMs: number): string {
