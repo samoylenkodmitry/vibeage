@@ -33,12 +33,22 @@ export type WorldTickRunner = {
 
 export function createWorldTickRunner(options: WorldTickRunnerOptions): WorldTickRunner {
   let snapAccumulator = 0;
+  let maintenanceTick = 0;
   const snapshotEveryTicks = Math.max(1, Math.round(1000 / options.tickMs / options.snapHz));
+  const maintenanceEveryTicks = snapshotEveryTicks;
 
   return {
     tick(now = Date.now()) {
       const startedAt = performance.now();
-      snapAccumulator = runWorldTick({ ...options, now, snapAccumulator, snapshotEveryTicks });
+      maintenanceTick += 1;
+      snapAccumulator = runWorldTick({
+        ...options,
+        now,
+        snapAccumulator,
+        snapshotEveryTicks,
+        maintenanceTick,
+        maintenanceEveryTicks,
+      });
       runtimeMetrics.recordTickMs(performance.now() - startedAt);
       recordWorldGauges(options.state);
     },
@@ -49,12 +59,14 @@ function runWorldTick(input: WorldTickRunnerOptions & {
   now: number;
   snapAccumulator: number;
   snapshotEveryTicks: number;
+  maintenanceTick: number;
+  maintenanceEveryTicks: number;
 }): number {
   runInputAndMovementPhase(input);
   runEnemyAiPhase(input);
   runCombatPhase(input);
   const nextAccumulator = runSnapshotPhase(input);
-  runMaintenancePhase({ ...input, snapAccumulator: nextAccumulator });
+  runMaintenancePhase(input);
   return nextAccumulator;
 }
 
@@ -103,16 +115,25 @@ function runSnapshotPhase(input: WorldTickRunnerOptions & {
 }
 
 function runMaintenancePhase(input: WorldTickRunnerOptions & {
+  maintenanceTick: number;
+  maintenanceEveryTicks: number;
   now: number;
-  snapAccumulator: number;
 }): void {
-  if (input.snapAccumulator === 1) {
+  if (shouldRunMaintenance(input.maintenanceTick, input.maintenanceEveryTicks, 1)) {
     handleManaRegeneration(input.state, input.outbound);
   }
 
-  if (input.snapAccumulator === 2) {
+  if (shouldRunMaintenance(input.maintenanceTick, input.maintenanceEveryTicks, 2)) {
     respawnDeadEnemies(input.state, input.spatial, input.outbound, input.now);
   }
+}
+
+function shouldRunMaintenance(tick: number, interval: number, offset: number): boolean {
+  if (interval <= 1) {
+    return true;
+  }
+
+  return tick % interval === offset % interval;
 }
 
 function recordWorldGauges(state: GameState): void {

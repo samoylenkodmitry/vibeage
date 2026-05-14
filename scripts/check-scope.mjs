@@ -28,6 +28,7 @@ const serverTests = [
   "tests/transportBoundary.spec.ts",
   "tests/verticalSlice.spec.ts",
   "tests/worldMovement.spec.ts",
+  "tests/worldTickPipeline.spec.ts",
   "tests/worldRegions.spec.ts",
   "tests/worldRoomLifecycle.spec.ts",
   "tests/worldStateSchema.spec.ts",

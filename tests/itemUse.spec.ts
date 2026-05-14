@@ -65,7 +65,7 @@ describe('item use', () => {
 
     expect(result.ok).toBe(true);
     expect(state.players.player1.mana).toBe(100);
-    expect(state.players.player1.inventory[0].quantity).toBe(0);
+    expect(state.players.player1.inventory).toEqual([]);
     expect(result).toEqual({
       ok: true,
       playerUpdated: { id: 'player1', mana: 100 },
@@ -78,6 +78,29 @@ describe('item use', () => {
         manaDelta: 80,
       },
     });
+  });
+
+  test('compacts inventory slots after consuming the first slot', () => {
+    const state = createGameState();
+    state.players.player1 = makePlayer({
+      mana: 20,
+      inventory: [
+        { itemId: 'mana_potion', quantity: 1 },
+        { itemId: 'health_potion', quantity: 1 },
+      ],
+    });
+
+    const result = useItemForPlayer(state, 'player1', 0);
+
+    expect(result.ok).toBe(true);
+    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(result).toEqual(expect.objectContaining({
+      itemUsed: expect.objectContaining({
+        slotIndex: 0,
+        itemId: 'mana_potion',
+        newQuantity: 0,
+      }),
+    }));
   });
 
   test('rejects item use for dead players without changing inventory', () => {

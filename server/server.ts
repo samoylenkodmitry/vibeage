@@ -10,6 +10,7 @@ import {
 } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
+  isAllowedColyseusMatchmakerMethod,
   isOriginAllowed,
   parseAllowedOrigins,
   parseMaxHttpBufferSize,
@@ -57,6 +58,10 @@ const gameServer = new ColyseusServer({
 
 gameServer.router = createRouter({
   postColyseusPathMatchmake: createEndpoint('/colyseus/matchmake/:method/:roomName', { method: 'POST' }, async (ctx) => {
+    if (!isAllowedColyseusMatchmakerMethod(ctx.params.method)) {
+      return jsonResponse({ error: 'Not found' }, { status: 404 });
+    }
+
     const response = await matchMaker.controller.invokeMethod(
       ctx.params.method,
       ctx.params.roomName,
@@ -70,14 +75,7 @@ gameServer.router = createRouter({
         req: ctx.request,
       },
     );
-    const body = JSON.stringify(response);
-
-    return new Response(body, {
-      headers: {
-        'content-type': 'application/json',
-        'content-length': body.length.toString(),
-      },
-    });
+    return jsonResponse(response);
   }),
 });
 
@@ -145,3 +143,12 @@ process.on('unhandledRejection', (reason) => {
   // Let the process exit to trigger container restart if needed
   process.exit(1);
 });
+
+function jsonResponse(body: unknown, init: { status?: number } = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status: init.status,
+    headers: {
+      'content-type': 'application/json',
+    },
+  });
+}

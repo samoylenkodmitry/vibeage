@@ -129,6 +129,31 @@ describe('Vite game client reducer', () => {
     expect(nextState.combatLog[0].text).toContain('Health Potion');
     expect(nextState.combatLog[0].text).toContain('+25 HP');
   });
+
+  it('compacts inventory after the server consumes the last item in a slot', () => {
+    const state = {
+      ...initialGameClientState,
+      inventory: [
+        { itemId: 'mana_potion', quantity: 1 },
+        { itemId: 'health_potion', quantity: 1 },
+      ],
+      maxInventorySlots: 20,
+    };
+
+    const nextState = gameClientReducer(state, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'ItemUsed',
+        slotIndex: 0,
+        itemId: 'mana_potion',
+        newQuantity: 0,
+        manaDelta: 80,
+      },
+    });
+
+    expect(nextState.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+  });
 });
 
 describe('Vite game client reducer visual events', () => {

@@ -147,17 +147,17 @@ In progress:
 
 ### P0: Safety And Correctness
 
-1. Harden Colyseus matchmaker routing.
+1. [x] Harden Colyseus matchmaker routing.
    - Allow only expected methods such as `joinOrCreate`, `join`, `create`, and `joinById`.
    - Add a server test for rejected matchmaker methods.
    - Remove manual `content-length` from JSON `Response` construction or calculate byte length correctly.
 
-2. Fix tick maintenance scheduling.
+2. [x] Fix tick maintenance scheduling.
    - Replace `snapAccumulator === 1/2` maintenance triggers with a dedicated tick counter or elapsed-time scheduler.
    - Cover `snapshotEveryTicks === 1`, default 30Hz/10Hz, and long-running ticks.
 
-3. Make inventory slot behavior explicit.
-   - Decide between compact inventory arrays and stable slot arrays.
+3. [x] Make inventory slot behavior explicit.
+   - Inventory uses compact arrays: consuming the final item removes the slot and shifts later slots left.
    - Update server item use, client item-use visuals, inventory updates, and tests together.
    - Add a regression for consuming slot 0 while slot 1 remains interactable as the same item.
 
