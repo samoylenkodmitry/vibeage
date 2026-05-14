@@ -25,6 +25,8 @@ export type WorldRegionStats = ServerWorldRegion & {
   aliveEnemyCount: number;
 };
 
+export type SocketPlayerLookup = ReadonlyMap<string, string>;
+
 export function createServerOwnedRegions(
   zoneManager: ZoneManager,
   policy: WorldRegionSpawnPolicy,
@@ -43,7 +45,13 @@ export function createServerOwnedRegions(
 }
 
 export function getActiveRegionIds(regions: readonly ServerWorldRegion[]): string[] {
-  return regions.filter((region) => region.active).map((region) => region.id);
+  const activeRegionIds: string[] = [];
+  for (const region of regions) {
+    if (region.active) {
+      activeRegionIds.push(region.id);
+    }
+  }
+  return activeRegionIds;
 }
 
 export function refreshWorldRegionRuntime(
@@ -51,26 +59,64 @@ export function refreshWorldRegionRuntime(
   regions: readonly ServerWorldRegion[],
 ): void {
   state.zones.activeZoneIds = getActiveRegionIds(regions);
-  state.zones.playerZoneIds = Object.fromEntries(
-    Object.entries(state.players)
-      .map(([playerId, player]) => [playerId, findActiveRegionIdAtPosition(regions, player.position)])
-      .filter((entry): entry is [string, string] => Boolean(entry[1])),
-  );
+  state.zones.playerZoneIds = {};
+
+  for (const playerId in state.players) {
+    if (!hasRecordKey(state.players, playerId)) {
+      continue;
+    }
+
+    const player = state.players[playerId];
+    const regionId = findActiveRegionIdAtPosition(regions, player.position);
+    if (regionId) {
+      state.zones.playerZoneIds[playerId] = regionId;
+    }
+  }
 }
 
 export function getEnemiesInActiveRegions(state: GameState): GameState['enemies'] {
-  if (state.zones.activeZoneIds.length === 0) {
+  const activeRegionIds = createActiveRegionIdSet(state);
+  if (!activeRegionIds) {
     return state.enemies;
   }
 
-  return Object.fromEntries(
-    Object.entries(state.enemies).filter(([enemyId]) => isEnemyInActiveRegion(state, enemyId)),
-  );
+  const enemies: GameState['enemies'] = {};
+  for (const enemyId in state.enemies) {
+    if (!hasRecordKey(state.enemies, enemyId)) {
+      continue;
+    }
+
+    if (isEnemyInActiveRegion(state, enemyId, activeRegionIds)) {
+      enemies[enemyId] = state.enemies[enemyId];
+    }
+  }
+  return enemies;
 }
 
-export function isEnemyInActiveRegion(state: GameState, enemyId: string): boolean {
-  const activeZoneIds = new Set(state.zones.activeZoneIds);
-  return activeZoneIds.size === 0 || activeZoneIds.has(state.zones.enemyZoneIds[enemyId]);
+export function createActiveRegionIdSet(state: GameState): ReadonlySet<string> | null {
+  return state.zones.activeZoneIds.length === 0
+    ? null
+    : new Set(state.zones.activeZoneIds);
+}
+
+export function isEnemyInActiveRegion(
+  state: GameState,
+  enemyId: string,
+  activeRegionIds: ReadonlySet<string> | null = createActiveRegionIdSet(state),
+): boolean {
+  return !activeRegionIds || activeRegionIds.has(state.zones.enemyZoneIds[enemyId]);
+}
+
+export function createSocketPlayerLookup(state: GameState): Map<string, string> {
+  const playerIdsBySocket = new Map<string, string>();
+  for (const playerId in state.players) {
+    if (!hasRecordKey(state.players, playerId)) {
+      continue;
+    }
+
+    playerIdsBySocket.set(state.players[playerId].socketId, playerId);
+  }
+  return playerIdsBySocket;
 }
 
 export function getPlayerStreamRegionIds(
@@ -79,17 +125,30 @@ export function getPlayerStreamRegionIds(
   socketId: string,
   margin = DEFAULT_REGION_STREAM_MARGIN,
 ): ReadonlySet<string> {
-  const activeRegions = regions.filter((region) => region.active);
+  return getPlayerStreamRegionIdsForPlayer(
+    state,
+    regions,
+    createSocketPlayerLookup(state).get(socketId),
+    margin,
+  );
+}
+
+export function getPlayerStreamRegionIdsForPlayer(
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+  playerId: string | undefined,
+  margin = DEFAULT_REGION_STREAM_MARGIN,
+): ReadonlySet<string> {
+  const activeRegions = getActiveRegions(regions);
   if (activeRegions.length === 0) {
     return new Set();
   }
 
-  const playerEntry = Object.entries(state.players).find(([, player]) => player.socketId === socketId);
-  if (!playerEntry) {
-    return new Set(activeRegions.map((region) => region.id));
+  const player = playerId ? state.players[playerId] : undefined;
+  if (!player || !playerId) {
+    return getActiveRegionIdSet(activeRegions);
   }
 
-  const [playerId, player] = playerEntry;
   const primaryRegionId = state.zones.playerZoneIds[playerId]
     ?? findActiveRegionIdAtPosition(regions, player.position)
     ?? findNearestActiveRegionId(regions, player.position);
@@ -174,32 +233,68 @@ export function getWorldRegionStats(
   state: GameState,
   regions: readonly ServerWorldRegion[],
 ): WorldRegionStats[] {
-  return regions.map((region) => {
-    let enemyCount = 0;
-    let aliveEnemyCount = 0;
+  const playerCounts = new Map<string, number>();
+  const enemyCounts = new Map<string, number>();
+  const aliveEnemyCounts = new Map<string, number>();
 
-    for (const [enemyId, enemy] of Object.entries(state.enemies)) {
-      if (state.zones.enemyZoneIds[enemyId] !== region.id) {
-        continue;
-      }
-
-      enemyCount += 1;
-      if (enemy.isAlive) {
-        aliveEnemyCount += 1;
-      }
+  for (const playerId in state.zones.playerZoneIds) {
+    if (!hasRecordKey(state.zones.playerZoneIds, playerId)) {
+      continue;
     }
 
-    return {
+    const regionId = state.zones.playerZoneIds[playerId];
+    playerCounts.set(regionId, (playerCounts.get(regionId) ?? 0) + 1);
+  }
+
+  for (const enemyId in state.enemies) {
+    if (!hasRecordKey(state.enemies, enemyId)) {
+      continue;
+    }
+
+    const enemy = state.enemies[enemyId];
+    const regionId = state.zones.enemyZoneIds[enemyId];
+    if (!regionId) {
+      continue;
+    }
+
+    enemyCounts.set(regionId, (enemyCounts.get(regionId) ?? 0) + 1);
+    if (enemy.isAlive) {
+      aliveEnemyCounts.set(regionId, (aliveEnemyCounts.get(regionId) ?? 0) + 1);
+    }
+  }
+
+  const stats: WorldRegionStats[] = [];
+  for (const region of regions) {
+    stats.push({
       ...region,
-      playerCount: countRegionPlayers(state, region.id),
-      enemyCount,
-      aliveEnemyCount,
-    };
-  });
+      playerCount: playerCounts.get(region.id) ?? 0,
+      enemyCount: enemyCounts.get(region.id) ?? 0,
+      aliveEnemyCount: aliveEnemyCounts.get(region.id) ?? 0,
+    });
+  }
+  return stats;
 }
 
 function selectActiveZoneIds(zones: readonly Zone[], maxActiveZones: number): string[] {
   return zones.slice(0, Math.max(0, maxActiveZones)).map((zone) => zone.id);
+}
+
+function getActiveRegions(regions: readonly ServerWorldRegion[]): ServerWorldRegion[] {
+  const activeRegions: ServerWorldRegion[] = [];
+  for (const region of regions) {
+    if (region.active) {
+      activeRegions.push(region);
+    }
+  }
+  return activeRegions;
+}
+
+function getActiveRegionIdSet(activeRegions: readonly ServerWorldRegion[]): Set<string> {
+  const activeRegionIds = new Set<string>();
+  for (const region of activeRegions) {
+    activeRegionIds.add(region.id);
+  }
+  return activeRegionIds;
 }
 
 export function findActiveRegionIdAtPosition(
@@ -262,6 +357,6 @@ function toVec3D(position: Vec3D | VecXZ): Vec3D {
   return { x: position.x, y: 'y' in position ? position.y : 0, z: position.z };
 }
 
-function countRegionPlayers(state: GameState, regionId: string): number {
-  return Object.values(state.zones.playerZoneIds).filter((playerRegionId) => playerRegionId === regionId).length;
+function hasRecordKey<T>(record: Record<string, T>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
 }

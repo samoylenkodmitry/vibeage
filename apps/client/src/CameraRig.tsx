@@ -5,9 +5,9 @@ import {
   applyCameraDragDelta,
   CAMERA_FOCUS_RESPONSE,
   CAMERA_POSITION_RESPONSE,
-  getCameraOrbitPosition,
   hasMeaningfulCameraFocusDelta,
   smoothingAlpha,
+  writeCameraOrbitPosition,
 } from './cameraRig';
 import type { Vec3 } from './gameTypes';
 import { GROUND_Y } from './worldSceneConfig';
@@ -85,15 +85,12 @@ export function CameraRig({
       focusRef.current.lerp(focusTargetRef.current, smoothingAlpha(CAMERA_FOCUS_RESPONSE, delta));
     }
 
-    const targetPosition = getCameraOrbitPosition(focusRef.current, {
+    writeCameraOrbitPosition(cameraTargetRef.current, focusRef.current, {
       angle: angleRef.current,
       pitch: pitchRef.current,
     });
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
-    camera.position.lerp(
-      cameraTargetRef.current.set(targetPosition.x, targetPosition.y, targetPosition.z),
-      alpha,
-    );
+    camera.position.lerp(cameraTargetRef.current, alpha);
     camera.lookAt(focusRef.current);
   });
 

@@ -68,6 +68,11 @@ export type ServerGameState = {
     position: VecXZ | Vec3;
     items: ItemDrop[];
   }>;
+  zones?: {
+    activeZoneIds?: string[];
+    playerZoneIds?: Record<string, string>;
+    enemyZoneIds?: Record<string, string>;
+  };
 };
 
 export type WorldRegionPublicState = {
@@ -81,6 +86,15 @@ export type WorldRegionPublicState = {
   maxEnemies: number;
 };
 
+export type WorldPublicPlayerPresence = {
+  id: string;
+  name: string;
+  className: CharacterClass | string;
+  level: number;
+  isAlive: boolean;
+  regionId: string;
+};
+
 export type WorldPublicState = {
   revision: number;
   playerCount: number;
@@ -89,6 +103,7 @@ export type WorldPublicState = {
   activeRegionCount: number;
   regionCount: number;
   regions: Record<string, WorldRegionPublicState>;
+  players: Record<string, WorldPublicPlayerPresence>;
 };
 
 export type ConnectionState =
@@ -139,9 +154,11 @@ export type GameClientState = {
   targetWorldPos: Vec3 | null;
   casts: Record<string, VisibleCast>;
   visualEvents: Record<string, VisualEvent>;
+  nextVisualEventSeq: number;
   inventory: InventorySlot[];
   maxInventorySlots: number;
   combatLog: CombatLine[];
   starterProgress: StarterProgress;
   worldPublicState: WorldPublicState | null;
+  streamedRegionIds: string[];
 };

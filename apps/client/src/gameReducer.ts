@@ -7,10 +7,10 @@ import type {
   GameClientState,
   GroundLootStack,
   PlayerEntity,
-  ServerGameState,
   Vec3,
   WorldPublicState,
 } from './gameTypes';
+import type { ServerGameState } from './gameTypes';
 import {
   assignFirstEmptyShortcut,
   createInitialStarterProgress,
@@ -27,6 +27,7 @@ import {
   applyOtherPlayerLootPickupVisualState,
   pruneClientVisualState,
 } from './clientVisualState';
+import { applyGameStateSnapshot } from './clientGameStateSnapshot';
 import { mergeVec3, normalizeVec3 } from './vec3';
 
 export const initialGameClientState: GameClientState = {
@@ -40,11 +41,13 @@ export const initialGameClientState: GameClientState = {
   targetWorldPos: null,
   casts: {},
   visualEvents: {},
+  nextVisualEventSeq: 0,
   inventory: [],
   maxInventorySlots: 20,
   combatLog: [],
   starterProgress: createInitialStarterProgress(),
   worldPublicState: null,
+  streamedRegionIds: [],
 };
 
 export type GameClientAction =
@@ -80,7 +83,7 @@ export function gameClientReducer(
     case 'disconnected':
       return { ...state, connectionState: 'offline', message: action.message };
     case 'gameState':
-      return applyGameState(state, action.state);
+      return applyGameStateSnapshot(state, action.state);
     case 'worldPublicState':
       return { ...state, worldPublicState: action.state };
     case 'playerJoined':
@@ -100,23 +103,6 @@ export function gameClientReducer(
     case 'pruneCasts':
       return pruneClientVisualState(state, action.now);
   }
-}
-
-function applyGameState(state: GameClientState, serverState: ServerGameState): GameClientState {
-  const players = serverState.players ?? {};
-  const enemies = serverState.enemies ?? {};
-  const selectedTargetId = enemies[state.selectedTargetId ?? ''] ? state.selectedTargetId : null;
-  const inventory = state.myPlayerId ? players[state.myPlayerId]?.inventory ?? state.inventory : state.inventory;
-  const maxInventorySlots = state.myPlayerId
-    ? players[state.myPlayerId]?.maxInventorySlots ?? state.maxInventorySlots
-    : state.maxInventorySlots;
-  const groundLoot = normalizeGroundLoot(serverState.groundLoot ?? state.groundLoot);
-  const myPlayer = state.myPlayerId ? players[state.myPlayerId] : null;
-  const starterProgress = myPlayer
-    ? normalizeClientStarterProgress(myPlayer.starterProgress ?? state.starterProgress, myPlayer)
-    : state.starterProgress;
-
-  return { ...state, players, enemies, groundLoot, selectedTargetId, inventory, maxInventorySlots, starterProgress };
 }
 
 function removePlayer(state: GameClientState, playerId: string): GameClientState {
@@ -394,21 +380,6 @@ function replaceAt<T>(items: T[], index: number, item: T): T[] {
   const nextItems = [...items];
   nextItems[index] = item;
   return nextItems;
-}
-
-function normalizeGroundLoot(
-  groundLoot: ServerGameState['groundLoot'] | Record<string, GroundLootStack>,
-): Record<string, GroundLootStack> {
-  return Object.fromEntries(
-    Object.entries(groundLoot ?? {}).map(([id, loot]) => [
-      id,
-      {
-        id,
-        position: normalizeVec3(loot.position),
-        items: loot.items,
-      },
-    ]),
-  );
 }
 
 function clearDeadTarget(state: GameClientState, enemyId: string): string | null {

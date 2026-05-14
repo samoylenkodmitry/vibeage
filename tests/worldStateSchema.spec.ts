@@ -32,6 +32,15 @@ describe('Colyseus public world state', () => {
       enemyCount: 1,
       aliveEnemyCount: 1,
     });
+    expect(publicState.players.get(player.id)).toMatchObject({
+      id: player.id,
+      name: 'Tester',
+      className: player.className,
+      level: player.level,
+      isAlive: true,
+      regionId: 'starter',
+    });
+    expect(publicState.players.get(player.id)).not.toHaveProperty('socketId');
     expect(() => new Encoder(publicState).encodeAll()).not.toThrow();
   });
 });

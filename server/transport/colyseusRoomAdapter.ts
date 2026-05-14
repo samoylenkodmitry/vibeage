@@ -18,11 +18,12 @@ import {
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import {
+  createSocketPlayerLookup,
   getEntityRegionId,
+  getPlayerStreamRegionIdsForPlayer,
   getPositionRegionId,
-  isEntityVisibleToSocket,
-  isRegionVisibleToSocket,
   type ServerWorldRegion,
+  type SocketPlayerLookup,
 } from '../world/regions.js';
 
 export type ColyseusClientLike = {
@@ -38,6 +39,18 @@ export type ColyseusBroadcastLike = {
 export type ColyseusVisibilitySource = {
   getGameState(): GameState | undefined;
   getRegions(): readonly ServerWorldRegion[] | undefined;
+};
+
+type VisibilityContext = {
+  state: GameState;
+  regions: readonly ServerWorldRegion[];
+  playerIdsBySocket: SocketPlayerLookup;
+};
+
+type ClientVisibilityContext = {
+  client: ColyseusClientLike;
+  socketId: string;
+  visibleRegionIds: ReadonlySet<string>;
 };
 
 export class ColyseusAuthoritativeRoomAdapter {
@@ -168,10 +181,10 @@ function emitScopedServerMessage(
     return false;
   }
 
-  for (const client of room.clients ?? []) {
-    const filteredMessage = filterServerMessageForClient(message, client.sessionId, context.state, context.regions);
+  for (const clientContext of createClientVisibilityContexts(room, context)) {
+    const filteredMessage = filterServerMessageForClient(message, clientContext, context.state, context.regions);
     if (filteredMessage) {
-      client.send(WORLD_BROADCAST_EVENTS.message, filteredMessage);
+      clientContext.client.send(WORLD_BROADCAST_EVENTS.message, filteredMessage);
     }
   }
 
@@ -190,9 +203,9 @@ function emitScopedEntityEvent(
     return false;
   }
 
-  for (const client of room.clients ?? []) {
-    if (isEntityVisibleToSocket(context.state, context.regions, client.sessionId, entityId)) {
-      client.send(eventName, payload);
+  for (const clientContext of createClientVisibilityContexts(room, context)) {
+    if (isEntityVisibleToClient(context.state, context.regions, clientContext, entityId)) {
+      clientContext.client.send(eventName, payload);
     }
   }
 
@@ -201,17 +214,21 @@ function emitScopedEntityEvent(
 
 function filterServerMessageForClient(
   message: ServerMessage,
-  socketId: string,
+  clientContext: ClientVisibilityContext,
   state: GameState,
   regions: readonly ServerWorldRegion[],
 ): ServerMessage | null {
   if (message.type !== 'BatchUpdate') {
-    return isServerMessageVisibleToClient(message, socketId, state, regions) ? message : null;
+    return isServerMessageVisibleToClient(message, clientContext, state, regions) ? message : null;
   }
 
-  const updates = message.updates
-    .map((update) => filterServerMessageForClient(update, socketId, state, regions))
-    .filter((update): update is ServerMessage => Boolean(update));
+  const updates: ServerMessage[] = [];
+  for (const update of message.updates) {
+    const filteredUpdate = filterServerMessageForClient(update, clientContext, state, regions);
+    if (filteredUpdate) {
+      updates.push(filteredUpdate);
+    }
+  }
 
   if (updates.length === 0) {
     return null;
@@ -224,12 +241,12 @@ function filterServerMessageForClient(
 
 function isServerMessageVisibleToClient(
   message: ServerMessage,
-  socketId: string,
+  clientContext: ClientVisibilityContext,
   state: GameState,
   regions: readonly ServerWorldRegion[],
 ): boolean {
   const regionId = getServerMessageRegionId(message, state, regions);
-  return isRegionVisibleToSocket(state, regions, socketId, regionId);
+  return isRegionVisibleToClient(clientContext, regionId);
 }
 
 function getServerMessageRegionId(
@@ -289,15 +306,54 @@ function getFirstEntityRegionId(
   return undefined;
 }
 
-function getVisibilityContext(visibility?: ColyseusVisibilitySource): {
-  state: GameState;
-  regions: readonly ServerWorldRegion[];
-} | null {
+function getVisibilityContext(visibility?: ColyseusVisibilitySource): VisibilityContext | null {
   const state = visibility?.getGameState();
   const regions = visibility?.getRegions();
   if (!state || !regions) {
     return null;
   }
 
-  return { state, regions };
+  return {
+    state,
+    regions,
+    playerIdsBySocket: createSocketPlayerLookup(state),
+  };
+}
+
+function createClientVisibilityContexts(
+  room: ColyseusBroadcastLike,
+  context: VisibilityContext,
+): ClientVisibilityContext[] {
+  const contexts: ClientVisibilityContext[] = [];
+  for (const client of room.clients ?? []) {
+    const playerId = context.playerIdsBySocket.get(client.sessionId);
+    contexts.push({
+      client,
+      socketId: client.sessionId,
+      visibleRegionIds: getPlayerStreamRegionIdsForPlayer(context.state, context.regions, playerId),
+    });
+  }
+  return contexts;
+}
+
+function isEntityVisibleToClient(
+  state: GameState,
+  regions: readonly ServerWorldRegion[],
+  clientContext: ClientVisibilityContext,
+  entityId: string,
+): boolean {
+  const player = state.players[entityId];
+  if (player?.socketId === clientContext.socketId) {
+    return true;
+  }
+
+  const regionId = getEntityRegionId(state, regions, entityId);
+  return isRegionVisibleToClient(clientContext, regionId);
+}
+
+function isRegionVisibleToClient(
+  clientContext: ClientVisibilityContext,
+  regionId: string | undefined,
+): boolean {
+  return !regionId || clientContext.visibleRegionIds.has(regionId);
 }

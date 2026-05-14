@@ -1,4 +1,5 @@
 import { ITEMS } from '../../../packages/content/items';
+import { SKILLS } from '../../../packages/content/skills';
 import {
   CastState,
   type CastSnapshot,
@@ -6,11 +7,11 @@ import {
   type ServerMessage,
 } from '../../../packages/protocol/messages';
 import { addCombatDamageVisualEvents } from './combatFeedback';
-import type { CombatLine, GameClientState, Vec3, VisualEvent } from './gameTypes';
+import type { CombatLine, GameClientState, Vec3 } from './gameTypes';
 import { normalizeVec3 } from './vec3';
+import { addVisualEvent, pruneVisualEvents } from './visualEventState';
 
 const CAST_VISIBLE_MS = 3_000;
-const VISUAL_EVENT_VISIBLE_MS = 1_800;
 const MAX_COMBAT_LINES = 5;
 
 export function applyCombatLogVisualState(
@@ -105,15 +106,16 @@ export function applyItemUsedVisualState(
     inventory.splice(itemUse.slotIndex, 1);
   }
 
-  const deltas = [
+  const usageDetails = [
     itemUse.healthDelta ? `+${Math.round(itemUse.healthDelta)} HP` : null,
     itemUse.manaDelta ? `+${Math.round(itemUse.manaDelta)} MP` : null,
+    itemUse.newQuantity > 0 ? `${itemUse.newQuantity} left` : 'empty',
   ].filter(Boolean).join(', ');
   const nextState = addItemUseVisualEvent({ ...state, inventory }, itemUse, now);
 
   return addCombatLine(nextState, {
     id: makeCombatLineId(`item-${itemUse.slotIndex}`, state.combatLog.length, now),
-    text: `Used ${getItemName(itemUse.itemId)}${deltas ? ` (${deltas})` : ''}`,
+    text: `Used ${getItemName(itemUse.itemId)}${usageDetails ? ` (${usageDetails})` : ''}`,
   });
 }
 
@@ -145,7 +147,12 @@ function addSkillImpactVisualEvent(
   now: number,
 ): GameClientState {
   if (skillId === 'waterSplash') {
-    return addVisualEvent(state, { kind: 'splash', position, radius: 3, createdAt: now });
+    return addVisualEvent(state, {
+      kind: 'splash',
+      position,
+      radius: getSkillImpactRadius(skillId),
+      createdAt: now,
+    });
   }
 
   if (skillId === 'petrify') {
@@ -187,20 +194,6 @@ function addItemUseVisualEvent(
   return nextState;
 }
 
-function addVisualEvent(
-  state: GameClientState,
-  event: Omit<VisualEvent, 'id'>,
-): GameClientState {
-  const id = `${event.kind}:${event.createdAt}:${Object.keys(state.visualEvents).length}`;
-  return {
-    ...state,
-    visualEvents: {
-      ...state.visualEvents,
-      [id]: { id, ...event },
-    },
-  };
-}
-
 function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
   return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
 }
@@ -214,7 +207,7 @@ function formatCombatLogLine(
   const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
   const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
   const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
-  return `${skillId} hit${targetText} for ${Math.round(totalDamage)} damage`;
+  return `${getSkillName(skillId)} hit${targetText} for ${Math.round(totalDamage)} damage`;
 }
 
 function formatEnemyAttackLine(
@@ -236,6 +229,22 @@ function getItemName(itemId: string): string {
   return ITEMS[itemId]?.name ?? itemId;
 }
 
+function getSkillImpactRadius(skillId: string): number {
+  const skill = getSkillDef(skillId);
+  return skill?.projectile?.splashRadius ?? skill?.area ?? 1.4;
+}
+
+function getSkillName(skillId: string): string {
+  return getSkillDef(skillId)?.name ?? skillId;
+}
+
+function getSkillDef(skillId: string): (typeof SKILLS)[keyof typeof SKILLS] | null {
+  const skill = Object.prototype.hasOwnProperty.call(SKILLS, skillId)
+    ? SKILLS[skillId as keyof typeof SKILLS]
+    : null;
+  return skill;
+}
+
 function makeCombatLineId(castId: string, currentLineCount: number, now: number): string {
   return `${castId}:${now}:${currentLineCount}`;
 }
@@ -243,15 +252,5 @@ function makeCombatLineId(castId: string, currentLineCount: number, now: number)
 function pruneCasts(casts: GameClientState['casts'], now: number): GameClientState['casts'] {
   return Object.fromEntries(
     Object.entries(casts).filter(([, cast]) => now - cast.seenAt < CAST_VISIBLE_MS),
-  );
-}
-
-function pruneVisualEvents(
-  visualEvents: GameClientState['visualEvents'],
-  now: number,
-): GameClientState['visualEvents'] {
-  return Object.fromEntries(
-    Object.entries(visualEvents)
-      .filter(([, event]) => now - event.createdAt < VISUAL_EVENT_VISIBLE_MS),
   );
 }

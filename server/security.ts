@@ -6,6 +6,15 @@ export const DEFAULT_CORS_ORIGINS = [
   'https://vibeage.eu',
 ];
 
+export const ALLOWED_COLYSEUS_MATCHMAKER_METHODS = [
+  'joinOrCreate',
+  'join',
+  'create',
+  'joinById',
+] as const;
+
+export type AllowedColyseusMatchmakerMethod = typeof ALLOWED_COLYSEUS_MATCHMAKER_METHODS[number];
+
 const DEFAULT_MAX_HTTP_BUFFER_SIZE = 1024 * 1024;
 const HARD_MAX_HTTP_BUFFER_SIZE = 4 * 1024 * 1024;
 
@@ -42,6 +51,12 @@ export function parseMaxHttpBufferSize(rawValue: string | undefined): number {
   }
 
   return Math.min(parsed, HARD_MAX_HTTP_BUFFER_SIZE);
+}
+
+export function isAllowedColyseusMatchmakerMethod(
+  method: string,
+): method is AllowedColyseusMatchmakerMethod {
+  return ALLOWED_COLYSEUS_MATCHMAKER_METHODS.includes(method as AllowedColyseusMatchmakerMethod);
 }
 
 export function getClientIp(headers: IncomingHttpHeaders, remoteAddress?: string): string {

@@ -34,7 +34,7 @@ function isSkillId(value: unknown): value is SkillId {
 }
 
 export function normalizeUnlockedSkills(rawSkills: unknown): SkillId[] {
-  const skills = Array.isArray(rawSkills) ? rawSkills : [];
+  const skills = arrayInput(rawSkills);
   const normalized: SkillId[] = [];
 
   for (const skill of skills) {
@@ -52,10 +52,11 @@ export function normalizeSkillShortcuts(
 ): (SkillId | null)[] {
   const unlocked = new Set(unlockedSkills);
   const shortcuts: (SkillId | null)[] = Array(SKILL_SHORTCUT_SLOTS).fill(null);
+  const rawShortcutValues = arrayInput(rawShortcuts);
 
-  if (Array.isArray(rawShortcuts)) {
+  if (rawShortcutValues.length > 0) {
     for (let index = 0; index < SKILL_SHORTCUT_SLOTS; index += 1) {
-      const skill = rawShortcuts[index];
+      const skill = rawShortcutValues[index];
       shortcuts[index] = isSkillId(skill) && unlocked.has(skill) ? skill : null;
     }
   }
@@ -71,6 +72,23 @@ export function normalizeSkillShortcuts(
   return shortcuts;
 }
 
+function arrayInput(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function normalizeAvailableSkillPoints(rawPoints: unknown): number {
   if (rawPoints === null || rawPoints === undefined) {
     return DEFAULT_AVAILABLE_SKILL_POINTS;
@@ -83,15 +101,4 @@ export function normalizeAvailableSkillPoints(rawPoints: unknown): number {
   }
 
   return Math.floor(points);
-}
-
-export function serializeUnlockedSkills(rawSkills: unknown): string {
-  return JSON.stringify(normalizeUnlockedSkills(rawSkills));
-}
-
-export function serializeSkillShortcuts(
-  rawShortcuts: unknown,
-  unlockedSkills: readonly SkillId[],
-): string {
-  return JSON.stringify(normalizeSkillShortcuts(rawShortcuts, unlockedSkills));
 }

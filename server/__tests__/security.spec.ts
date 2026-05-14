@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getClientIp,
+  isAllowedColyseusMatchmakerMethod,
   isOriginAllowed,
   parseAllowedOrigins,
   parseMaxHttpBufferSize,
@@ -32,5 +33,14 @@ describe('server security helpers', () => {
   it('uses forwarded client IPs only behind a local reverse proxy', () => {
     expect(getClientIp({ 'x-forwarded-for': '203.0.113.10, 10.0.0.2' }, '127.0.0.1')).toBe('203.0.113.10');
     expect(getClientIp({ 'x-forwarded-for': '203.0.113.10' }, '198.51.100.20')).toBe('198.51.100.20');
+  });
+
+  it('allows only expected Colyseus matchmaker controller methods', () => {
+    expect(isAllowedColyseusMatchmakerMethod('joinOrCreate')).toBe(true);
+    expect(isAllowedColyseusMatchmakerMethod('join')).toBe(true);
+    expect(isAllowedColyseusMatchmakerMethod('create')).toBe(true);
+    expect(isAllowedColyseusMatchmakerMethod('joinById')).toBe(true);
+    expect(isAllowedColyseusMatchmakerMethod('removeRoom')).toBe(false);
+    expect(isAllowedColyseusMatchmakerMethod('__proto__')).toBe(false);
   });
 });

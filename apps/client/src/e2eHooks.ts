@@ -7,8 +7,19 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
   window.__VIBEAGE_VITE_E2E__ = {
     getState: () => ({
       connectionState: state.connectionState,
+      reconnectState: {
+        connectionState: state.connectionState,
+        message: state.message,
+      },
       myPlayerId: state.myPlayerId,
       enemyIds: Object.values(state.enemies).filter((enemy) => enemy.isAlive).map((enemy) => enemy.id),
+      streamedRegionIds: state.streamedRegionIds,
+      visibleEntityCounts: {
+        players: Object.keys(state.players).length,
+        enemies: Object.values(state.enemies).filter((enemy) => enemy.isAlive).length,
+        groundLoot: Object.keys(state.groundLoot).length,
+        casts: Object.keys(state.casts).length,
+      },
       selectedTargetId: state.selectedTargetId,
       targetWorldPos: state.targetWorldPos,
       lastKnownPlayerPosition: state.myPlayerId ? state.players[state.myPlayerId]?.position ?? null : null,
@@ -71,8 +82,19 @@ declare global {
     __VIBEAGE_VITE_E2E__?: {
       getState: () => {
         connectionState: GameClientState['connectionState'];
+        reconnectState: {
+          connectionState: GameClientState['connectionState'];
+          message: string;
+        };
         myPlayerId: string | null;
         enemyIds: string[];
+        streamedRegionIds: string[];
+        visibleEntityCounts: {
+          players: number;
+          enemies: number;
+          groundLoot: number;
+          casts: number;
+        };
         selectedTargetId: string | null;
         targetWorldPos: Vec3 | null;
         lastKnownPlayerPosition: Vec3 | null;

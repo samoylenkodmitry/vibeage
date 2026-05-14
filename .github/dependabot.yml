@@ -46,6 +46,8 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+    # Keep version-update PRs disabled while the runtime architecture is moving.
+    # Re-enable with a small nonzero limit when dependency work is intentional.
     open-pull-requests-limit: 0
 
   - package-ecosystem: "docker"
@@ -66,4 +68,6 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+    # Keep version-update PRs disabled while the runtime architecture is moving.
+    # Re-enable with a small nonzero limit when dependency work is intentional.
     open-pull-requests-limit: 0

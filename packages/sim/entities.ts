@@ -1,5 +1,5 @@
 import type { CharacterClass } from '../content/classes.js';
-import type { SkillId, SkillType } from '../content/skills.js';
+import type { SkillId } from '../content/skills.js';
 import type {
   CastSnapshot,
   InventorySlot,
@@ -48,6 +48,7 @@ export interface Enemy {
   lastAttackTime: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
+  dirtySnap?: boolean;
 }
 
 export interface PlayerState {
@@ -70,7 +71,7 @@ export interface PlayerState {
   level: number;
   experience: number;
   experienceToNextLevel: number;
-  castingSkill: SkillType | null;
+  castingSkill: SkillId | null;
   castingProgressMs: number;
   isAlive: boolean;
   deathTimeTs?: number;
@@ -79,6 +80,7 @@ export interface PlayerState {
   lastSnapTime?: number;
   movement?: PlayerMovementState;
   velocity?: { x: number; z: number };
+  dirtySnap?: boolean;
   posHistory?: { ts: number; x: number; z: number }[];
   stats?: {
     dmgMult?: number;

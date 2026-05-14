@@ -1,5 +1,6 @@
 import type { ServerMessage } from '../../../packages/protocol/messages';
-import type { GameClientState, Vec3, VisualEvent } from './gameTypes';
+import type { GameClientState, Vec3 } from './gameTypes';
+import { addVisualEvent } from './visualEventState';
 
 export function addCombatDamageVisualEvents(
   state: GameClientState,
@@ -20,20 +21,6 @@ export function addCombatDamageVisualEvents(
       createdAt: now + index,
     });
   }, state);
-}
-
-function addVisualEvent(
-  state: GameClientState,
-  event: Omit<VisualEvent, 'id'>,
-): GameClientState {
-  const id = `${event.kind}:${event.createdAt}:${Object.keys(state.visualEvents).length}`;
-  return {
-    ...state,
-    visualEvents: {
-      ...state.visualEvents,
-      [id]: { id, ...event },
-    },
-  };
 }
 
 function normalizeEventPosition(position: { x: number; y?: number; z: number } | undefined): Vec3 {

@@ -34,10 +34,14 @@ export function applyInventoryItemUse(player: PlayerState, slotIndex: number): C
     return { ok: false, reason: 'notConsumable' };
   }
 
+  const itemId = slot.itemId;
   const healthDelta = applyHealthRestore(player, itemDef);
   const manaDelta = applyManaRestore(player, itemDef);
 
   slot.quantity -= 1;
+  if (slot.quantity <= 0) {
+    player.inventory.splice(slotIndex, 1);
+  }
 
   return {
     ok: true,
@@ -45,8 +49,8 @@ export function applyInventoryItemUse(player: PlayerState, slotIndex: number): C
     itemUsed: {
       type: 'ItemUsed',
       slotIndex,
-      itemId: slot.itemId,
-      newQuantity: slot.quantity,
+      itemId,
+      newQuantity: Math.max(slot.quantity, 0),
       healthDelta: healthDelta > 0 ? healthDelta : undefined,
       manaDelta: manaDelta > 0 ? manaDelta : undefined,
     },

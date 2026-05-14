@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type VecXZ } from '../../../packages/protocol/messages';
 import type { GameClientState } from './gameTypes';
-import { WorldEventVfx } from './SceneVfx';
+import { WorldEventVfx } from './SceneEventVfx';
 import { ZoneLandmarks } from './ZoneLandmarks';
 import { CameraRig } from './CameraRig';
 import {

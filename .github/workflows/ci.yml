@@ -55,6 +55,9 @@ jobs:
       - name: Maintainability gate
         run: pnpm run check:maintainability
 
+      - name: Dead-code gate
+        run: pnpm run check:deadcode
+
       - name: Test
         run: pnpm test
 

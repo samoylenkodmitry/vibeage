@@ -2,8 +2,7 @@ import type { PlayerState } from '../packages/sim/entities.js';
 import { normalizeStarterProgressState } from '../packages/protocol/messages.js';
 import {
   normalizeUnlockedSkills,
-  serializeSkillShortcuts,
-  serializeUnlockedSkills,
+  normalizeSkillShortcuts,
 } from './players/playerProgression.js';
 import {
   playerRepository,
@@ -109,8 +108,8 @@ export function buildStablePlayerPersistenceData(
     experience: player.experience,
     class_name: player.className,
     inventory: player.inventory || [],
-    skills: serializeUnlockedSkills(unlockedSkills),
-    skill_shortcuts: serializeSkillShortcuts(player.skillShortcuts, unlockedSkills),
+    skills: unlockedSkills,
+    skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),
     available_skill_points: player.availableSkillPoints,
     starter_progress: starterProgress,
     last_updated: timestamp,

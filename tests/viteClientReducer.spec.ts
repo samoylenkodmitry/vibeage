@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SKILLS } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
 import {
   gameClientReducer,
@@ -43,6 +44,7 @@ describe('Vite game client reducer', () => {
         aliveEnemyCount: 7,
         activeRegionCount: 1,
         regionCount: 3,
+        players: {},
         regions: {
           starter: {
             id: 'starter',
@@ -69,12 +71,28 @@ describe('Vite game client reducer', () => {
       type: 'gameState',
       state: {
         players: { 'player-1': basePlayer },
-        enemies: {},
+        enemies: {
+          'enemy-1': {
+            id: 'enemy-1',
+            type: 'goblin',
+            name: 'Goblin',
+            level: 1,
+            position: { x: 8, y: 0.5, z: 4 },
+            rotation: { x: 0, y: 0, z: 0 },
+            health: 20,
+            maxHealth: 20,
+            isAlive: true,
+          },
+        },
         groundLoot: {
           loot1: {
             position: { x: 4, z: 6 },
             items: [{ itemId: 'gold_coin', quantity: 3 }],
           },
+        },
+        zones: {
+          playerZoneIds: { 'player-1': 'starter-field' },
+          enemyZoneIds: { 'enemy-1': 'starter-field' },
         },
       },
     });
@@ -82,8 +100,11 @@ describe('Vite game client reducer', () => {
     expect(state.inventory).toEqual([{ itemId: 'health_potion', quantity: 2 }]);
     expect(state.maxInventorySlots).toBe(20);
     expect(state.groundLoot.loot1.position).toEqual({ x: 4, y: 0.35, z: 6 });
+    expect(state.streamedRegionIds).toEqual(['starter-field']);
   });
+});
 
+describe('Vite game client reducer inventory and loot messages', () => {
   it('tracks loot spawns and pickup removal', () => {
     const withLoot = gameClientReducer(initialGameClientState, {
       type: 'serverMessage',
@@ -129,6 +150,31 @@ describe('Vite game client reducer', () => {
     expect(nextState.combatLog[0].text).toContain('Health Potion');
     expect(nextState.combatLog[0].text).toContain('+25 HP');
   });
+
+  it('compacts inventory after the server consumes the last item in a slot', () => {
+    const state = {
+      ...initialGameClientState,
+      inventory: [
+        { itemId: 'mana_potion', quantity: 1 },
+        { itemId: 'health_potion', quantity: 1 },
+      ],
+      maxInventorySlots: 20,
+    };
+
+    const nextState = gameClientReducer(state, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'ItemUsed',
+        slotIndex: 0,
+        itemId: 'mana_potion',
+        newQuantity: 0,
+        manaDelta: 80,
+      },
+    });
+
+    expect(nextState.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+  });
 });
 
 describe('Vite game client reducer visual events', () => {
@@ -165,6 +211,46 @@ describe('Vite game client reducer visual events', () => {
     }));
   });
 
+  it('uses monotonic visual event ids after pruning old events', () => {
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': basePlayer },
+      inventory: [{ itemId: 'health_potion', quantity: 2 }],
+    };
+
+    const withFirstEvent = gameClientReducer(state, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'ItemUsed',
+        slotIndex: 0,
+        itemId: 'health_potion',
+        newQuantity: 1,
+        healthDelta: 25,
+      },
+    });
+    const pruned = gameClientReducer(withFirstEvent, { type: 'pruneCasts', now: 2_000 });
+    const withSecondEvent = gameClientReducer(pruned, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'ItemUsed',
+        slotIndex: 0,
+        itemId: 'health_potion',
+        newQuantity: 0,
+        healthDelta: 25,
+      },
+    });
+
+    expect(Object.keys(withFirstEvent.visualEvents)).toEqual(['healing:100:0']);
+    expect(Object.keys(pruned.visualEvents)).toEqual([]);
+    expect(Object.keys(withSecondEvent.visualEvents)).toEqual(['healing:100:1']);
+    expect(withSecondEvent.nextVisualEventSeq).toBe(2);
+  });
+});
+
+describe('Vite game client reducer cast visual events', () => {
   it('adds impact visual events for water splash and prunes old visual events', () => {
     const onlineState = {
       ...initialGameClientState,
@@ -193,7 +279,7 @@ describe('Vite game client reducer visual events', () => {
 
     expect(Object.values(withImpact.visualEvents)).toContainEqual(expect.objectContaining({
       kind: 'splash',
-      radius: 3,
+      radius: SKILLS.waterSplash.projectile?.splashRadius,
       position: { x: 3, y: 0.35, z: 4 },
     }));
     expect(withImpact.message).toBe('Online');

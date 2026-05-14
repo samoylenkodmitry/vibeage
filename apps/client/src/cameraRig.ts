@@ -49,6 +49,21 @@ export function getCameraOrbitPosition(
   };
 }
 
+export function writeCameraOrbitPosition(
+  target: THREE.Vector3,
+  focus: Vec3,
+  orbit: CameraOrbit,
+  distance = CAMERA_DISTANCE,
+): THREE.Vector3 {
+  const horizontalDistance = Math.cos(orbit.pitch) * distance;
+
+  return target.set(
+    focus.x - Math.sin(orbit.angle) * horizontalDistance,
+    focus.y + Math.sin(orbit.pitch) * distance,
+    focus.z - Math.cos(orbit.angle) * horizontalDistance,
+  );
+}
+
 export function hasMeaningfulCameraFocusDelta(
   current: THREE.Vector3,
   next: THREE.Vector3,

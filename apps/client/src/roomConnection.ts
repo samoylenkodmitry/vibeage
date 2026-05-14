@@ -7,6 +7,7 @@ import type {
   EnemyEntity,
   PlayerEntity,
   ServerGameState,
+  WorldPublicPlayerPresence,
   WorldPublicState,
   WorldRegionPublicState,
 } from './gameTypes';
@@ -206,12 +207,13 @@ function normalizeWorldPublicState(payload: unknown): WorldPublicState | null {
     activeRegionCount: numberField(payload.activeRegionCount),
     regionCount: numberField(payload.regionCount),
     regions: normalizeWorldPublicRegions(payload.regions),
+    players: normalizeWorldPublicPlayers(payload.players),
   };
 }
 
 function normalizeWorldPublicRegions(payload: unknown): Record<string, WorldRegionPublicState> {
   const regions: Record<string, WorldRegionPublicState> = {};
-  forEachPublicRegion(payload, (regionId, value) => {
+  forEachPublicMapEntry(payload, (regionId, value) => {
     if (!isRecord(value)) {
       return;
     }
@@ -231,9 +233,29 @@ function normalizeWorldPublicRegions(payload: unknown): Record<string, WorldRegi
   return regions;
 }
 
-function forEachPublicRegion(
+function normalizeWorldPublicPlayers(payload: unknown): Record<string, WorldPublicPlayerPresence> {
+  const players: Record<string, WorldPublicPlayerPresence> = {};
+  forEachPublicMapEntry(payload, (playerId, value) => {
+    if (!isRecord(value)) {
+      return;
+    }
+
+    const id = stringField(value.id, playerId);
+    players[id] = {
+      id,
+      name: stringField(value.name, 'Player'),
+      className: stringField(value.className, 'mage'),
+      level: numberField(value.level),
+      isAlive: booleanField(value.isAlive),
+      regionId: stringField(value.regionId, ''),
+    };
+  });
+  return players;
+}
+
+function forEachPublicMapEntry(
   payload: unknown,
-  visitor: (regionId: string, value: unknown) => void,
+  visitor: (id: string, value: unknown) => void,
 ): void {
   if (payload instanceof Map) {
     payload.forEach((value, key) => visitor(String(key), value));

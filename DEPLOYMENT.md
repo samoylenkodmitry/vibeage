@@ -67,7 +67,6 @@ pnpm run lint
 pnpm test
 pnpm run build:server
 pnpm run build
-pnpm run build:next
 pnpm run check
 ```
 
@@ -76,11 +75,14 @@ pnpm run check
 Postgres backup and restore drill commands:
 
 ```bash
-pnpm run db:backup
+pnpm run db:backup:pull-local --status
+pnpm run db:backup:pull-local --force
 pnpm run db:restore:test
 ```
 
-The VPS keeps daily Postgres dumps under `/home/s/.vibeage-backups/postgres`. This workstation also pulls one local backup per day to `/media/huge/vibeage-backups/postgres` and keeps the newest two copies.
+Scheduled production backups are pulled by this workstation to `/media/huge/vibeage-backups/postgres` and keep only the newest two copies. The pull streams `pg_dump` over SSH and does not leave persistent dump files on the VPS.
+
+`pnpm run db:backup` is a manual local/container backup helper for the machine where it is run. Do not install it as a VPS cron job.
 
 ## Bootstrap Scripts
 

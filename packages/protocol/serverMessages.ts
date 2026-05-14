@@ -148,9 +148,13 @@ export const itemUsedSchema = z.object({
   manaDelta: z.number().optional(),
 }).passthrough();
 
+function getServerMessageSchema(): z.ZodType<unknown> {
+  return serverMessageSchema;
+}
+
 export const batchUpdateSchema = z.object({
   type: z.literal('BatchUpdate'),
-  updates: z.array(z.lazy(() => serverMessageSchema)),
+  updates: z.array(z.lazy(getServerMessageSchema)),
 }).passthrough();
 
 export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [

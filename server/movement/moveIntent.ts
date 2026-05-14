@@ -60,5 +60,5 @@ export function applyMoveIntent(
 }
 
 function markPlayerDirty(player: GameState['players'][string]): void {
-  (player as typeof player & { dirtySnap?: boolean }).dirtySnap = true;
+  player.dirtySnap = true;
 }
