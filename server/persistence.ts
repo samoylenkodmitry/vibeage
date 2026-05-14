@@ -29,6 +29,20 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'last_updated',
 ] as const;
 
+export const STABLE_PLAYER_STATE_FIELDS = [
+  'position',
+  'health',
+  'isAlive',
+  'level',
+  'experience',
+  'className',
+  'inventory',
+  'unlockedSkills',
+  'skillShortcuts',
+  'availableSkillPoints',
+  'starterProgress',
+] as const satisfies ReadonlyArray<keyof PlayerState>;
+
 export const TRANSIENT_PLAYER_STATE_FIELDS = [
   'socketId',
   'rotation',

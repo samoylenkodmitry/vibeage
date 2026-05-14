@@ -22,16 +22,5 @@
     "maxFunctionParams": 6,
     "maxNestingDepth": 5
   },
-  "legacyFiles": {
-    "server/__tests__/combatProtocol.spec.ts": 192,
-    "server/collision.ts": 284,
-    "server/combat/StatusEffectManager.ts": 161,
-    "server/combat/skillSystem.ts": 592,
-    "server/effects/entities.ts": 217,
-    "tests/combat.aoe.spec.ts": 339,
-    "tests/combat.castMachine.spec.ts": 186,
-    "tests/projectile.predict.test.ts": 91,
-    "vitest/combat.damage.test.ts": 120,
-    "vitest/spatial.hash.test.ts": 161
-  }
+  "legacyFiles": {}
 }

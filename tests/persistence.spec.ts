@@ -39,6 +39,7 @@ vi.mock('../server/db', () => ({
 const {
   PERSISTED_PLAYER_COLUMNS,
   PLAYER_SESSION_COLUMNS,
+  STABLE_PLAYER_STATE_FIELDS,
   TRANSIENT_PLAYER_STATE_FIELDS,
   buildStablePlayerPersistenceData,
   persistPlayer,
@@ -121,6 +122,13 @@ describe('stable persistence contract', () => {
     for (const transientField of TRANSIENT_PLAYER_STATE_FIELDS) {
       expect(persisted).not.toHaveProperty(transientField);
     }
+  });
+
+  test('keeps the stable persistence audit separate from transient runtime state', () => {
+    const transientFields = new Set<string>(TRANSIENT_PLAYER_STATE_FIELDS);
+    const overlap = STABLE_PLAYER_STATE_FIELDS.filter((field) => transientFields.has(field));
+
+    expect(overlap).toEqual([]);
   });
 
   test('updates player rows by id through Kysely', async () => {

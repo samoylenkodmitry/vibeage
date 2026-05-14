@@ -2,11 +2,11 @@ import type { ItemDrop, VecXZ } from '../packages/protocol/messages.js';
 import type {
   AuthoritativeEntityState,
   AuthoritativeGroundLootStack,
+  AuthoritativeProjectileState,
   AuthoritativeWorldState,
 } from '../packages/sim/authoritativeState.js';
 import type { Enemy, PlayerState } from '../shared/types.js';
 import type { Cast } from './combat/skillSystem.js';
-import type { Projectile } from './types.js';
 
 export type GroundLootStack = AuthoritativeGroundLootStack<ItemDrop> & {
   position: VecXZ;
@@ -15,7 +15,7 @@ export type GroundLootStack = AuthoritativeGroundLootStack<ItemDrop> & {
 export type GameState = AuthoritativeWorldState<
   PlayerState,
   Enemy,
-  Projectile,
+  AuthoritativeProjectileState,
   Cast,
   PlayerState['statusEffects'][number],
   GroundLootStack

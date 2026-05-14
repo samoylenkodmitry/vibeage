@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { CastState } from '../packages/protocol/messages';
+import { sweptCircleHit } from '../packages/sim/collision';
 import { updateTravelingCast } from '../server/combat/projectileRuntime';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
@@ -7,6 +8,24 @@ import type { OutboundEventSink } from '../server/transport/outboundEvents';
 import type { Enemy, PlayerState } from '../shared/types';
 
 describe('projectile runtime', () => {
+  test('detects swept projectile hits without legacy collision obstacles', () => {
+    expect(sweptCircleHit(
+      { x: 0, z: 0 },
+      { x: 10, z: 0 },
+      { x: 5, z: 0.8 },
+      0.5,
+      0.5,
+    )).toBe(true);
+
+    expect(sweptCircleHit(
+      { x: 0, z: 0 },
+      { x: 10, z: 0 },
+      { x: 5, z: 3 },
+      0.5,
+      0.5,
+    )).toBe(false);
+  });
+
   test('retargets homing projectile direction from its current position', () => {
     const cast: Cast = {
       castId: 'cast1',

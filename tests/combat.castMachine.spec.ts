@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { SKILLS, SkillId } from '../packages/content/skills';
 import { CastState } from '../packages/protocol/messages';
 import { PlayerState } from '../shared/types';
@@ -44,50 +44,49 @@ const makeEnemy = () => ({
   aiState: 'idle',
 });
 
-describe('Cast State Machine', () => {
-  let skillSystem: SkillSystem;
-  let activeCasts: ActiveCastStore;
-  let outboundEvents: OutboundEvent[];
-  let outbound: OutboundEventSink;
-  let player: PlayerState;
-  let enemy: ReturnType<typeof makeEnemy>;
-  let world: {
-    getEnemyById: ReturnType<typeof vi.fn>;
-    getPlayerById: ReturnType<typeof vi.fn>;
-    getEntitiesInCircle: ReturnType<typeof vi.fn>;
-    onTargetDied: ReturnType<typeof vi.fn>;
+let skillSystem: SkillSystem;
+let activeCasts: ActiveCastStore;
+let outboundEvents: OutboundEvent[];
+let outbound: OutboundEventSink;
+let player: PlayerState;
+let enemy: ReturnType<typeof makeEnemy>;
+let world: {
+  getEnemyById: ReturnType<typeof vi.fn>;
+  getPlayerById: ReturnType<typeof vi.fn>;
+  getEntitiesInCircle: ReturnType<typeof vi.fn>;
+  onTargetDied: ReturnType<typeof vi.fn>;
+};
+
+beforeEach(async () => {
+  vi.resetModules();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2025-05-04T00:00:00.000Z'));
+
+  skillSystem = await import('../server/combat/skillSystem');
+  activeCasts = skillSystem.createActiveCastStore();
+  outboundEvents = [];
+  outbound = { publish: vi.fn((event: OutboundEvent) => outboundEvents.push(event)) };
+  player = makePlayer();
+  enemy = makeEnemy();
+  world = {
+    getEnemyById: vi.fn((id: string) => (id === enemy.id ? enemy : null)),
+    getPlayerById: vi.fn((id: string) => (id === player.id ? player : null)),
+    getEntitiesInCircle: vi.fn(() => [enemy]),
+    onTargetDied: vi.fn(),
   };
-
-  beforeEach(async () => {
-    vi.resetModules();
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2025-05-04T00:00:00.000Z'));
-
-    skillSystem = await import('../server/combat/skillSystem');
-    activeCasts = skillSystem.createActiveCastStore();
-    outboundEvents = [];
-    outbound = { publish: vi.fn((event: OutboundEvent) => outboundEvents.push(event)) };
-    player = makePlayer();
-    enemy = makeEnemy();
-    world = {
-      getEnemyById: vi.fn((id: string) => (id === enemy.id ? enemy : null)),
-      getPlayerById: vi.fn((id: string) => (id === player.id ? player : null)),
-      getEntitiesInCircle: vi.fn(() => [enemy]),
-      onTargetDied: vi.fn(),
-    };
-  });
+});
 
   it('transitions projectile casts from Casting to Traveling with CastSnapshot messages', () => {
-    const castId = skillSystem.handleCastRequest(
+    const castId = skillSystem.handleCastRequest({
       activeCasts,
       player,
-      player.id,
-      'fireball',
-      { x: 10, z: 0 },
-      undefined,
+      casterId: player.id,
+      skillId: 'fireball',
+      targetPos: { x: 10, z: 0 },
+      targetId: undefined,
       outbound,
-      world
-    );
+      world,
+    });
 
     expect(typeof castId).toBe('string');
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
@@ -108,16 +107,16 @@ describe('Cast State Machine', () => {
   });
 
   it('resolves projectile impact through v2 snapshots and combat log messages', () => {
-    const castId = skillSystem.handleCastRequest(
+    const castId = skillSystem.handleCastRequest({
       activeCasts,
       player,
-      player.id,
-      'fireball',
-      undefined,
-      enemy.id,
+      casterId: player.id,
+      skillId: 'fireball',
+      targetPos: undefined,
+      targetId: enemy.id,
       outbound,
-      world
-    ) as string;
+      world,
+    }) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
     skillSystem.tickCasts(activeCasts, 100, outbound, world);
@@ -149,16 +148,16 @@ describe('Cast State Machine', () => {
 
   it('resolves instant skills without a Traveling state', () => {
     const skillId: SkillId = 'petrify';
-    const castId = skillSystem.handleCastRequest(
+    const castId = skillSystem.handleCastRequest({
       activeCasts,
       player,
-      player.id,
+      casterId: player.id,
       skillId,
-      undefined,
-      enemy.id,
+      targetPos: undefined,
+      targetId: enemy.id,
       outbound,
-      world
-    ) as string;
+      world,
+    }) as string;
 
     vi.advanceTimersByTime(SKILLS[skillId].castMs);
     skillSystem.tickCasts(activeCasts, 100, outbound, world);
@@ -183,16 +182,16 @@ describe('Cast State Machine', () => {
   });
 
   it('keeps casts in Casting while cast time is incomplete', () => {
-    const castId = skillSystem.handleCastRequest(
+    const castId = skillSystem.handleCastRequest({
       activeCasts,
       player,
-      player.id,
-      'fireball',
-      { x: 10, z: 0 },
-      undefined,
+      casterId: player.id,
+      skillId: 'fireball',
+      targetPos: { x: 10, z: 0 },
+      targetId: undefined,
       outbound,
-      world
-    ) as string;
+      world,
+    }) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs - 1);
     skillSystem.tickCasts(activeCasts, 100, outbound, world);
@@ -200,4 +199,3 @@ describe('Cast State Machine', () => {
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Casting);
   });
-});

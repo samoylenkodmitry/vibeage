@@ -15,6 +15,10 @@ export interface Item {
   manaAmount?: number;
 }
 
+export function isUsableConsumable(item: Item | null | undefined): item is Item & { type: 'consumable' } {
+  return item?.type === 'consumable' && Boolean((item.healAmount ?? 0) > 0 || (item.manaAmount ?? 0) > 0);
+}
+
 export const ITEMS: Record<ItemId, Item> = {
   'gold_coin': {
     id: 'gold_coin',
@@ -178,6 +182,69 @@ export const ITEMS: Record<ItemId, Item> = {
     icon: 'celestial_dust.svg',
     stackable: true,
     maxStack: 30,
+    type: 'material',
+  },
+  'platinum_coin': {
+    id: 'platinum_coin',
+    name: 'Platinum Coin',
+    description: 'A rare high-value coin used by powerful traders.',
+    icon: 'platinum_coin.svg',
+    stackable: true,
+    maxStack: 9999,
+    type: 'currency',
+  },
+  'void_fragment': {
+    id: 'void_fragment',
+    name: 'Void Fragment',
+    description: 'A splinter of condensed void energy.',
+    icon: 'void_fragment.svg',
+    stackable: true,
+    maxStack: 30,
+    type: 'material',
+  },
+  'fire_gem': {
+    id: 'fire_gem',
+    name: 'Fire Gem',
+    description: 'A gem with a warm ember glow.',
+    icon: 'fire_gem.svg',
+    stackable: true,
+    maxStack: 25,
+    type: 'material',
+  },
+  'ice_crystal': {
+    id: 'ice_crystal',
+    name: 'Ice Crystal',
+    description: 'A frost-charged crystal shard.',
+    icon: 'ice_crystal.svg',
+    stackable: true,
+    maxStack: 25,
+    type: 'material',
+  },
+  'ethereal_dust': {
+    id: 'ethereal_dust',
+    name: 'Ethereal Dust',
+    description: 'Fine dust that flickers at the edge of sight.',
+    icon: 'ethereal_dust.svg',
+    stackable: true,
+    maxStack: 40,
+    type: 'material',
+  },
+  'star_essence': {
+    id: 'star_essence',
+    name: 'Star Essence',
+    description: 'A bright mote of condensed starlight.',
+    icon: 'star_essence.svg',
+    stackable: true,
+    maxStack: 30,
+    type: 'material',
+  },
+  'temporal_shard': {
+    id: 'temporal_shard',
+    name: 'Temporal Shard',
+    description: 'A sharp fragment that hums with unstable time magic.',
+    icon: 'temporal_shard.svg',
+    stackable: true,
+    maxStack: 20,
     type: 'material',
   },
   'abyssal_pearl': {

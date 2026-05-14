@@ -4,10 +4,8 @@ import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 
 export const WORLD_BROADCAST_EVENTS = {
   message: SOCKET_SESSION_EVENTS.message,
-  playerJoined: SOCKET_SESSION_EVENTS.playerJoined,
-  playerLeft: SOCKET_SESSION_EVENTS.playerLeft,
-  playerUpdated: 'playerUpdated',
-  enemyUpdated: 'enemyUpdated',
+  playerUpdated: SOCKET_SESSION_EVENTS.playerUpdated,
+  enemyUpdated: SOCKET_SESSION_EVENTS.enemyUpdated,
 } as const;
 
 export type PlayerUpdate = Partial<PlayerState> & Pick<PlayerState, 'id'>;
@@ -17,9 +15,7 @@ export type OutboundEvent =
   | { type: 'serverMessage'; message: ServerMessage }
   | { type: 'directServerMessage'; socketId: string; message: ServerMessage }
   | { type: 'playerUpdated'; update: PlayerUpdate }
-  | { type: 'enemyUpdated'; update: EnemyUpdate }
-  | { type: 'playerJoined'; player: PlayerState }
-  | { type: 'playerLeft'; playerId: string };
+  | { type: 'enemyUpdated'; update: EnemyUpdate };
 
 export interface OutboundEventSink {
   publish(event: OutboundEvent): void;
@@ -67,12 +63,4 @@ export function emitPlayerUpdated(sink: OutboundEventSink, update: PlayerUpdate)
 
 export function emitEnemyUpdated(sink: OutboundEventSink, update: EnemyUpdate): void {
   sink.publish({ type: 'enemyUpdated', update });
-}
-
-export function emitPlayerJoined(sink: OutboundEventSink, player: PlayerState): void {
-  sink.publish({ type: 'playerJoined', player });
-}
-
-export function emitPlayerLeft(sink: OutboundEventSink, playerId: string): void {
-  sink.publish({ type: 'playerLeft', playerId });
 }

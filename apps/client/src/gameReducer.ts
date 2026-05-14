@@ -1,32 +1,32 @@
-import type { SkillId } from '../../../packages/content/skills';
-import { ITEMS } from '../../../packages/content/items';
 import {
-  CastState,
-  type CastSnapshot,
   type InventorySlot,
-  type ItemDrop,
   type ServerMessage,
 } from '../../../packages/protocol/messages';
 import type {
-  CombatLine,
   EnemyEntity,
   GameClientState,
   GroundLootStack,
   PlayerEntity,
   ServerGameState,
   Vec3,
-  VisualEvent,
 } from './gameTypes';
-import { addCombatDamageVisualEvents } from './combatFeedback';
 import {
   assignFirstEmptyShortcut,
   createInitialStarterProgress,
   normalizeClientStarterProgress,
 } from './starterProgress';
-
-const CAST_VISIBLE_MS = 3_000;
-const VISUAL_EVENT_VISIBLE_MS = 1_800;
-const MAX_COMBAT_LINES = 5;
+import {
+  applyCastFailVisualState,
+  applyCastSnapshotVisualState,
+  applyCombatLogVisualState,
+  applyEnemyAttackVisualState,
+  applyInstantHitVisualState,
+  applyItemUsedVisualState,
+  applyLootAcquiredVisualState,
+  applyOtherPlayerLootPickupVisualState,
+  pruneClientVisualState,
+} from './clientVisualState';
+import { mergeVec3, normalizeVec3 } from './vec3';
 
 export const initialGameClientState: GameClientState = {
   connectionState: 'idle',
@@ -93,11 +93,7 @@ export function gameClientReducer(
     case 'serverMessage':
       return applyServerMessage(state, action.message, action.now);
     case 'pruneCasts':
-      return {
-        ...state,
-        casts: pruneCasts(state.casts, action.now),
-        visualEvents: pruneVisualEvents(state.visualEvents, action.now),
-      };
+      return pruneClientVisualState(state, action.now);
   }
 }
 
@@ -194,29 +190,23 @@ function applyServerMessage(
   }
 
   if (message.type === 'CastSnapshot') {
-    return applyCastSnapshot(state, message.data, now);
+    return applyCastSnapshotVisualState(state, message.data, now);
   }
 
   if (message.type === 'InstantHit') {
-    return applyInstantHit(state, message, now);
+    return applyInstantHitVisualState(state, message, now);
   }
 
   if (message.type === 'CombatLog') {
-    return applyCombatLog(state, message, now);
+    return applyCombatLogVisualState(state, message, now);
   }
 
   if (message.type === 'CastFail') {
-    return addCombatLine(
-      { ...state, message: `Cast failed: ${message.reason}` },
-      { id: makeCombatLineId(`fail-${message.clientSeq}`, state.combatLog.length, now), text: `Cast failed: ${message.reason}` },
-    );
+    return applyCastFailVisualState(state, message, now);
   }
 
   if (message.type === 'EnemyAttack') {
-    return addCombatLine(state, {
-      id: makeCombatLineId(`${message.enemyId}-${message.targetId}`, state.combatLog.length, now),
-      text: formatEnemyAttackLine(state, message.enemyId, message.targetId, message.damage),
-    });
+    return applyEnemyAttackVisualState(state, message, now);
   }
 
   if (message.type === 'InventoryUpdate') {
@@ -236,7 +226,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'LootAcquired') {
-    return applyLootAcquired(state, message, now);
+    return applyLootAcquiredVisualState(state, message, now);
   }
 
   if (message.type === 'StarterProgressUpdate') {
@@ -244,7 +234,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'ItemUsed') {
-    return applyItemUsed(state, message, now);
+    return applyItemUsedVisualState(state, message, now);
   }
 
   if (message.type === 'EffectSnapshot' && 'targetId' in message) {
@@ -263,30 +253,6 @@ function applyServerMessage(
   }
 
   return state;
-}
-
-function applyCombatLog(
-  state: GameClientState,
-  message: ServerMessage & { type: 'CombatLog' },
-  now: number,
-): GameClientState {
-  const withDamageFeedback = addCombatDamageVisualEvents(state, message, now);
-
-  return addCombatLine(withDamageFeedback, {
-    id: makeCombatLineId(message.castId, state.combatLog.length, now),
-    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages),
-  });
-}
-
-function applyLootAcquired(
-  state: GameClientState,
-  message: ServerMessage & { type: 'LootAcquired' },
-  now: number,
-): GameClientState {
-  return addCombatLine(state, {
-    id: makeCombatLineId(`loot-${now}`, state.combatLog.length, now),
-    text: `Picked up ${formatItemDrops(message.items)}`,
-  });
 }
 
 function applySkillLearned(
@@ -328,76 +294,6 @@ function applyPositionSnapshot(state: GameClientState, message: ServerMessage & 
   return state;
 }
 
-function addCastSnapshot(
-  state: GameClientState,
-  snapshot: CastSnapshot,
-  now: number,
-): GameClientState {
-  const casts = {
-    ...state.casts,
-    [snapshot.castId]: { snapshot, seenAt: now },
-  };
-  const message = snapshot.state === CastState.Impact ? `${snapshot.skillId} impact` : state.message;
-
-  return { ...state, casts, message };
-}
-
-function applyCastSnapshot(
-  state: GameClientState,
-  snapshot: CastSnapshot,
-  now: number,
-): GameClientState {
-  const nextState = addCastSnapshot(state, snapshot, now);
-  if (snapshot.state !== CastState.Impact) {
-    return nextState;
-  }
-
-  return addSkillImpactVisualEvent(nextState, snapshot.skillId, normalizeVec3(snapshot.pos), now);
-}
-
-function applyInstantHit(
-  state: GameClientState,
-  message: ServerMessage & { type: 'InstantHit' },
-  now: number,
-): GameClientState {
-  return addSkillImpactVisualEvent(state, message.skillId, normalizeVec3(message.targetPos), now);
-}
-
-function addSkillImpactVisualEvent(
-  state: GameClientState,
-  skillId: string,
-  position: Vec3,
-  now: number,
-): GameClientState {
-  if (skillId === 'waterSplash') {
-    return addVisualEvent(state, { kind: 'splash', position, radius: 3, createdAt: now });
-  }
-
-  if (skillId === 'petrify') {
-    return addVisualEvent(state, { kind: 'petrify', position, createdAt: now });
-  }
-
-  return state;
-}
-
-function addVisualEvent(
-  state: GameClientState,
-  event: Omit<VisualEvent, 'id'>,
-): GameClientState {
-  const id = `${event.kind}:${event.createdAt}:${Object.keys(state.visualEvents).length}`;
-  return {
-    ...state,
-    visualEvents: {
-      ...state.visualEvents,
-      [id]: { id, ...event },
-    },
-  };
-}
-
-function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
-  return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
-}
-
 function addGroundLoot(state: GameClientState, loot: GroundLootStack): GameClientState {
   return {
     ...state,
@@ -426,10 +322,7 @@ function removeGroundLoot(
   }
 
   const playerName = state.players[playerId]?.name ?? 'Another player';
-  return addCombatLine(
-    { ...state, groundLoot },
-    { id: makeCombatLineId(`pickup-${lootId}`, state.combatLog.length, now), text: `${playerName} picked up loot` },
-  );
+  return applyOtherPlayerLootPickupVisualState({ ...state, groundLoot }, lootId, playerName, now);
 }
 
 function applyInventoryUpdate(
@@ -456,65 +349,6 @@ function applyInventoryUpdate(
       },
     },
   };
-
-  return nextState;
-}
-
-function applyItemUsed(
-  state: GameClientState,
-  itemUse: ServerMessage & { type: 'ItemUsed' },
-  now: number,
-): GameClientState {
-  const inventory = [...state.inventory];
-  if (itemUse.newQuantity > 0) {
-    inventory[itemUse.slotIndex] = { itemId: itemUse.itemId, quantity: itemUse.newQuantity };
-  } else {
-    inventory.splice(itemUse.slotIndex, 1);
-  }
-
-  const deltas = [
-    itemUse.healthDelta ? `+${Math.round(itemUse.healthDelta)} HP` : null,
-    itemUse.manaDelta ? `+${Math.round(itemUse.manaDelta)} MP` : null,
-  ].filter(Boolean).join(', ');
-  const nextState = addItemUseVisualEvent({ ...state, inventory }, itemUse, now);
-
-  return addCombatLine(
-    nextState,
-    {
-      id: makeCombatLineId(`item-${itemUse.slotIndex}`, state.combatLog.length, now),
-      text: `Used ${getItemName(itemUse.itemId)}${deltas ? ` (${deltas})` : ''}`,
-    },
-  );
-}
-
-function addItemUseVisualEvent(
-  state: GameClientState,
-  itemUse: ServerMessage & { type: 'ItemUsed' },
-  now: number,
-): GameClientState {
-  const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
-  if (!player) {
-    return state;
-  }
-
-  let nextState = state;
-  if (itemUse.healthDelta && itemUse.healthDelta > 0) {
-    nextState = addVisualEvent(nextState, {
-      kind: 'healing',
-      position: player.position,
-      amount: itemUse.healthDelta,
-      createdAt: now,
-    });
-  }
-
-  if (itemUse.manaDelta && itemUse.manaDelta > 0) {
-    nextState = addVisualEvent(nextState, {
-      kind: 'mana',
-      position: player.position,
-      amount: itemUse.manaDelta,
-      createdAt: now,
-    });
-  }
 
   return nextState;
 }
@@ -572,108 +406,6 @@ function normalizeGroundLoot(
   );
 }
 
-function normalizeVec3(position: { x: number; y?: number; z: number } | undefined): Vec3 {
-  return {
-    x: position?.x ?? 0,
-    y: position?.y ?? 0.35,
-    z: position?.z ?? 0,
-  };
-}
-
-function formatCombatLogLine(
-  state: GameClientState,
-  skillId: string,
-  targetIds: string[],
-  damages: number[],
-): string {
-  const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
-  const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
-  const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
-  return `${skillId} hit${targetText} for ${Math.round(totalDamage)} damage`;
-}
-
-function formatEnemyAttackLine(
-  state: GameClientState,
-  enemyId: string,
-  targetId: string,
-  damage: number,
-): string {
-  const enemyName = state.enemies[enemyId]?.name ?? 'Enemy';
-  const playerName = state.players[targetId]?.name ?? 'player';
-  return `${enemyName} hit ${playerName} for ${Math.round(damage)} damage`;
-}
-
-function formatItemDrops(items: ItemDrop[]): string {
-  return items.map((item) => `${item.quantity}x ${getItemName(item.itemId)}`).join(', ');
-}
-
-function getItemName(itemId: string): string {
-  return ITEMS[itemId]?.name ?? itemId;
-}
-
-function makeCombatLineId(castId: string, currentLineCount: number, now: number): string {
-  return `${castId}:${now}:${currentLineCount}`;
-}
-
-function pruneCasts(casts: GameClientState['casts'], now: number): GameClientState['casts'] {
-  return Object.fromEntries(
-    Object.entries(casts).filter(([, cast]) => now - cast.seenAt < CAST_VISIBLE_MS),
-  );
-}
-
-function pruneVisualEvents(
-  visualEvents: GameClientState['visualEvents'],
-  now: number,
-): GameClientState['visualEvents'] {
-  return Object.fromEntries(
-    Object.entries(visualEvents)
-      .filter(([, event]) => now - event.createdAt < VISUAL_EVENT_VISIBLE_MS),
-  );
-}
-
-function mergeVec3(current: Vec3, update: Partial<Vec3> | undefined): Vec3 {
-  return update ? { ...current, ...update } : current;
-}
-
 function clearDeadTarget(state: GameClientState, enemyId: string): string | null {
   return state.selectedTargetId === enemyId ? null : state.selectedTargetId;
-}
-
-export function getPlayerPosition(player: PlayerEntity | null): Vec3 {
-  return player?.position ?? { x: 0, y: 0.5, z: 0 };
-}
-
-export function getNearestAliveEnemyId(
-  enemies: Record<string, EnemyEntity>,
-  origin: Vec3,
-): string | null {
-  let bestId: string | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-
-  for (const enemy of Object.values(enemies)) {
-    if (!enemy.isAlive) {
-      continue;
-    }
-
-    const distance = distanceSq(origin, enemy.position);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestId = enemy.id;
-    }
-  }
-
-  return bestId;
-}
-
-function distanceSq(a: Vec3, b: Vec3): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return dx * dx + dz * dz;
-}
-
-export function getHotkeySkill(
-  player: PlayerEntity | null,
-  slotIndex: number,
-): SkillId | null {
-  return player?.skillShortcuts?.[slotIndex] ?? player?.unlockedSkills?.[slotIndex] ?? null;
 }

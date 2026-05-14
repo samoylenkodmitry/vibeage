@@ -2,7 +2,6 @@ import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { ClientMessage, VecXZ, ItemDrop } from '../packages/protocol/messages.js';
 import { debug, error as logError, LOG_CATEGORIES } from './logger.js';
-import { EffectManager } from './effects/manager';
 import { SpatialHashGrid } from './spatial/SpatialHashGrid';
 import { tickCasts } from './combat/skillSystem.js';
 import { updateEnemyAI } from './ai/enemyAI.js';
@@ -42,11 +41,10 @@ type WorldClient = SocketMessageTarget & { id: string };
 // Utility function to get worldAPI reference
 export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager) {
   const state: GameState = createGameState();
-  const effectManager = new EffectManager(outbound, state);
   const spatial = new SpatialHashGrid();
   spawnInitialEnemies(state, spatial, zoneManager);
 
-  startWorldLoop(state, spatial, effectManager, outbound);
+  startWorldLoop(state, spatial, outbound);
   startPersistenceLoop(state);
 
   return createWorldApi(state, spatial, outbound);
@@ -55,7 +53,6 @@ export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager)
 function startWorldLoop(
   state: GameState,
   spatial: SpatialHashGrid,
-  effectManager: EffectManager,
   outbound: OutboundEventSink,
 ): void {
   let snapAccumulator = 0;
@@ -64,7 +61,6 @@ function startWorldLoop(
     const now = Date.now();
 
     advanceAll(state, spatial, TICK, now);
-    effectManager.updateAll(TICK / 1000);
     updateAllEnemyAI(outbound, state, spatial);
     tickCasts(state.activeCasts, TICK, outbound, createWorldCombatBridge(state, outbound, spatial));
 

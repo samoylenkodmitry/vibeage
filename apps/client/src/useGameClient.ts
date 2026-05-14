@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, type Dispatch, typ
 import { Client as ColyseusClient, type Room } from '@colyseus/sdk';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import { safeParseServerMessage, type VecXZ } from '../../../packages/protocol/messages';
+import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
 import {
   gameClientReducer,
   type GameClientAction,
-  getNearestAliveEnemyId,
-  getPlayerPosition,
   initialGameClientState,
 } from './gameReducer';
+import { getNearestAliveEnemyId, getPlayerPosition } from './clientSelectors';
 import type { EnemyEntity, GameClientState, PlayerEntity, ServerGameState, Vec3 } from './gameTypes';
 
 type ClientApi = {
@@ -165,7 +165,7 @@ function useClientActions(
       return;
     }
 
-    room.send('msg', {
+    room.send(SESSION_EVENTS.message, {
       type: 'MoveIntent',
       id: playerId,
       targetPos: target,
@@ -191,7 +191,7 @@ function useClientActions(
       return;
     }
 
-    room.send('msg', {
+    room.send(SESSION_EVENTS.message, {
       type: 'CastReq',
       id: player.id,
       skillId,
@@ -208,23 +208,23 @@ function useClientActions(
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
     if (room && playerId) {
-      room.send('msg', { type: 'LootPickup', lootId, playerId });
+      room.send(SESSION_EVENTS.message, { type: 'LootPickup', lootId, playerId });
     }
   }, [roomRef, stateRef]);
 
   const learnSkill = useCallback((skillId: SkillId) => {
-    roomRef.current?.send('msg', { type: 'LearnSkill', skillId });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'LearnSkill', skillId });
   }, [roomRef]);
 
   const useItem = useCallback((slotIndex: number) => {
-    roomRef.current?.send('msg', { type: 'UseItem', slotIndex, clientTs: Date.now() });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now() });
   }, [roomRef]);
 
   const respawn = useCallback(() => {
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
     if (room && playerId) {
-      room.send('msg', { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
+      room.send(SESSION_EVENTS.message, { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
     }
   }, [roomRef, stateRef]);
 
@@ -247,8 +247,8 @@ async function joinWorldRoom(
 
   bindRoom(room, dispatch, lifecycle);
   dispatch({ type: 'connected' });
-  room.send('requestGameState');
-  room.send('msg', { type: 'RequestInventory' });
+  room.send(SESSION_EVENTS.requestGameState);
+  room.send(SESSION_EVENTS.message, { type: 'RequestInventory' });
   return room;
 }
 
@@ -265,28 +265,28 @@ function bindRoom(
   dispatch: Dispatch<GameClientAction>,
   lifecycle?: { onLeave: (room: Room) => void },
 ) {
-  room.onMessage('joinGame', (payload: { playerId?: string }) => {
+  room.onMessage(SESSION_EVENTS.joinGame, (payload: { playerId?: string }) => {
     if (payload.playerId) {
       dispatch({ type: 'joined', playerId: payload.playerId });
     }
   });
-  room.onMessage('gameState', (serverState: ServerGameState) => {
+  room.onMessage(SESSION_EVENTS.gameState, (serverState: ServerGameState) => {
     dispatch({ type: 'gameState', state: serverState });
   });
-  room.onMessage('playerJoined', (player: PlayerEntity) => {
+  room.onMessage(SESSION_EVENTS.playerJoined, (player: PlayerEntity) => {
     dispatch({ type: 'playerJoined', player });
   });
-  room.onMessage('playerLeft', (playerId: string) => {
+  room.onMessage(SESSION_EVENTS.playerLeft, (playerId: string) => {
     dispatch({ type: 'playerLeft', playerId });
   });
-  room.onMessage('playerUpdated', (player: Partial<PlayerEntity> & { id: string }) => {
+  room.onMessage(SESSION_EVENTS.playerUpdated, (player: Partial<PlayerEntity> & { id: string }) => {
     dispatch({ type: 'playerUpdated', player });
   });
-  room.onMessage('enemyUpdated', (enemy: Partial<EnemyEntity> & { id: string }) => {
+  room.onMessage(SESSION_EVENTS.enemyUpdated, (enemy: Partial<EnemyEntity> & { id: string }) => {
     dispatch({ type: 'enemyUpdated', enemy });
   });
-  room.onMessage('msg', (payload: unknown) => processServerPayload(payload, dispatch));
-  room.onMessage('connectionRejected', (payload: { message?: string }) => {
+  room.onMessage(SESSION_EVENTS.message, (payload: unknown) => processServerPayload(payload, dispatch));
+  room.onMessage(SESSION_EVENTS.connectionRejected, (payload: { message?: string }) => {
     dispatch({ type: 'connectionRejected', message: payload.message ?? 'Connection rejected' });
   });
   room.onError((_code, message) => {
@@ -384,6 +384,19 @@ function installE2EHooks(
       api.pickUpLoot(loot.id);
       return loot.id;
     },
+    moveNearPlayer: (offset = { x: 12, z: -8 }) => {
+      const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+      if (!player) {
+        return null;
+      }
+
+      const target = {
+        x: player.position.x + offset.x,
+        z: player.position.z + offset.z,
+      };
+      api.sendMoveIntent(target);
+      return target;
+    },
     useItem: api.useItem,
     respawn: api.respawn,
   };
@@ -420,6 +433,7 @@ declare global {
       castSkill: (skillId: SkillId) => void;
       learnSkill: (skillId: SkillId) => void;
       pickUpFirstLoot: () => string | null;
+      moveNearPlayer: (offset?: VecXZ) => VecXZ | null;
       useItem: (slotIndex: number) => void;
       respawn: () => void;
     };

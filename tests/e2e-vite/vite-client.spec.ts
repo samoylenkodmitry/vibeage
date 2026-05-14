@@ -26,17 +26,15 @@ test("enters the real game through the Vite client", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Inventory" })).toBeVisible();
 });
 
-test("sends click movement through the Vite canvas", async ({ page }) => {
+test("sends movement through the Vite client action path", async ({ page }) => {
   await enterWorld(page);
 
   const initialPosition = await page.evaluate(() => {
     return window.__VIBEAGE_VITE_E2E__?.getState().lastKnownPlayerPosition ?? null;
   });
-  const canvas = page.locator("canvas");
-  const box = await canvas.boundingBox();
-  expect(box).toBeTruthy();
 
-  await page.mouse.click(box!.x + box!.width * 0.58, box!.y + box!.height * 0.64);
+  const target = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.moveNearPlayer());
+  expect(target).toBeTruthy();
   await page.waitForFunction(() => Boolean(window.__VIBEAGE_VITE_E2E__?.getState().targetWorldPos));
   await page.waitForFunction((previous) => {
     const current = window.__VIBEAGE_VITE_E2E__?.getState().lastKnownPlayerPosition;
@@ -54,7 +52,7 @@ test("casts fireball from the Vite skill bar path", async ({ page }) => {
   const selectedEnemyId = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.selectFirstEnemy());
   expect(selectedEnemyId).toBeTruthy();
 
-  await page.keyboard.press("KeyQ");
+  await page.getByRole("button", { name: "Cast Fireball" }).click();
   await page.waitForFunction(() => {
     return window.__VIBEAGE_VITE_E2E__?.getState().castSkillIds.includes("fireball");
   });

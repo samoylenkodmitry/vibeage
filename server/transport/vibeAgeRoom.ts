@@ -8,8 +8,9 @@ import { sendStarterProgressUpdate } from '../progression/starterPath.js';
 import { createSocketBackedAuthoritativeRoom } from './authoritativeRoomAdapter.js';
 import { ColyseusAuthoritativeRoomAdapter, makeColyseusOutbound } from './colyseusRoomAdapter.js';
 import { makeClientGameStateSnapshot, sanitizePlayerForPublic } from './clientState.js';
-import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import { parseWorldRoomJoinOptions, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 import type { DirectMessageSink } from './outboundEvents.js';
+import { findPlayerIdBySocket } from '../players/playerSession.js';
 
 const MAX_CLIENTS = 200;
 
@@ -36,7 +37,7 @@ export class VibeAgeRoom extends Room {
   }
 
   async onJoin(client: Client, options?: unknown): Promise<void> {
-    const result = await this.adapter.handleJoin(client, toJoinOptions(options));
+    const result = await this.adapter.handleJoin(client, parseWorldRoomJoinOptions(options));
     const player = this.world.getGameState().players[result.playerId];
     if (player) {
       this.broadcast(SOCKET_SESSION_EVENTS.playerJoined, sanitizePlayerForPublic(player), { except: client });
@@ -53,7 +54,8 @@ export class VibeAgeRoom extends Room {
 
   private sendClientSnapshot(client: Client): void {
     const state = this.world.getGameState();
-    const player = Object.values(state.players).find((candidate) => candidate.socketId === client.sessionId);
+    const playerId = findPlayerIdBySocket(state, client.sessionId);
+    const player = playerId ? state.players[playerId] : null;
     const direct = makeColyseusDirectSink(client);
 
     if (player) {
@@ -72,19 +74,5 @@ function makeColyseusDirectSink(client: Client): DirectMessageSink {
     send(message: ServerMessage) {
       client.send(SOCKET_SESSION_EVENTS.message, message);
     },
-  };
-}
-
-function toJoinOptions(options: unknown): { playerName?: string; clientProtocolVersion?: number } {
-  if (!options || typeof options !== 'object') {
-    return {};
-  }
-
-  const value = options as Record<string, unknown>;
-  return {
-    playerName: typeof value.playerName === 'string' ? value.playerName : undefined,
-    clientProtocolVersion: typeof value.clientProtocolVersion === 'number'
-      ? value.clientProtocolVersion
-      : undefined,
   };
 }

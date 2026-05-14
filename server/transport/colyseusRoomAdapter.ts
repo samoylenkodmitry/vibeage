@@ -6,13 +6,12 @@ import {
 import type {
   AuthoritativeRoomClient,
   AuthoritativeRoomPort,
+  WorldRoomJoinOptions,
 } from './roomBoundary.js';
-import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import { MIN_CLIENT_PROTOCOL_VERSION, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 import type { OutboundEvent, OutboundEventSink } from './outboundEvents.js';
 import { WORLD_BROADCAST_EVENTS } from './outboundEvents.js';
 import {
-  makeClientGameStateSnapshot,
-  sanitizePlayerForPublic,
   sanitizePlayerUpdateForPublic,
 } from './clientState.js';
 
@@ -26,32 +25,21 @@ export type ColyseusBroadcastLike = {
   broadcast(type: string, message?: unknown): unknown;
 };
 
-export type ColyseusJoinOptions = {
-  playerName?: string;
-  clientProtocolVersion?: number;
-};
-
 export class ColyseusAuthoritativeRoomAdapter {
   constructor(private readonly port: AuthoritativeRoomPort) {}
 
-  async handleJoin(client: ColyseusClientLike, options: ColyseusJoinOptions): Promise<{ playerId: string }> {
+  async handleJoin(client: ColyseusClientLike, options: WorldRoomJoinOptions): Promise<{ playerId: string }> {
     const clientVersion = options.clientProtocolVersion ?? 1;
-    if (clientVersion < 2) {
+    if (clientVersion < MIN_CLIENT_PROTOCOL_VERSION) {
       client.send(SOCKET_SESSION_EVENTS.connectionRejected, {
         reason: 'outdatedProtocol',
-        message: 'This server requires protocol v2 or higher.',
+        message: `This server requires protocol v${MIN_CLIENT_PROTOCOL_VERSION} or higher.`,
       });
       throw new Error(`Rejected outdated protocol version ${clientVersion}`);
     }
 
     const playerName = options.playerName?.trim() || 'Player';
-    const result = await this.port.joinClient(client.sessionId, playerName, makeColyseusClient(client));
-    client.send(SOCKET_SESSION_EVENTS.joinGame, result);
-    client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(
-      this.port.getStateSnapshot(),
-      client.sessionId,
-    ));
-    return result;
+    return this.port.joinClient(client.sessionId, playerName, makeColyseusClient(client));
   }
 
   async handleLeave(client: ColyseusClientLike): Promise<string | undefined> {
@@ -96,11 +84,6 @@ function emitColyseusOutbound(room: ColyseusBroadcastLike, event: OutboundEvent)
     case 'enemyUpdated':
       room.broadcast(WORLD_BROADCAST_EVENTS.enemyUpdated, event.update);
       return;
-    case 'playerJoined':
-      room.broadcast(WORLD_BROADCAST_EVENTS.playerJoined, sanitizePlayerForPublic(event.player));
-      return;
-    case 'playerLeft':
-      room.broadcast(WORLD_BROADCAST_EVENTS.playerLeft, event.playerId);
   }
 }
 

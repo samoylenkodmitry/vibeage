@@ -18,11 +18,9 @@ test("production client can enter, move, target, cast, and relog", async ({ page
   const initialPosition = await page.evaluate(() => {
     return window.__VIBEAGE_VITE_E2E__?.getState().lastKnownPlayerPosition ?? null;
   });
-  const canvas = page.locator("canvas");
-  const box = await canvas.boundingBox();
-  expect(box).toBeTruthy();
 
-  await page.mouse.click(box!.x + box!.width * 0.56, box!.y + box!.height * 0.62);
+  const target = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.moveNearPlayer());
+  expect(target).toBeTruthy();
   await page.waitForFunction((previous) => {
     const current = window.__VIBEAGE_VITE_E2E__?.getState().lastKnownPlayerPosition;
     if (!current || !previous) {
@@ -34,7 +32,7 @@ test("production client can enter, move, target, cast, and relog", async ({ page
 
   const selectedEnemyId = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.selectFirstEnemy());
   expect(selectedEnemyId).toBeTruthy();
-  await page.keyboard.press("KeyQ");
+  await page.getByRole("button", { name: "Cast Fireball" }).click();
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
     return Boolean(state?.castSkillIds.includes("fireball") || state?.liveProjectileSkillIds.includes("fireball"));

@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from '../../packages/protocol/messages.js';
+import { SESSION_EVENTS } from '../../packages/protocol/sessionEvents.js';
 import type { GameState } from '../gameState.js';
 
 export const AUTHORITATIVE_ROOM_STATE_KEYS = [
@@ -23,16 +24,27 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'RequestInventory',
 ] as const satisfies ReadonlyArray<ClientMessage['type']>;
 
-export const SOCKET_SESSION_EVENTS = {
-  joinGame: 'joinGame',
-  requestGameState: 'requestGameState',
-  message: 'msg',
-  disconnect: 'disconnect',
-  connectionRejected: 'connectionRejected',
-  playerJoined: 'playerJoined',
-  playerLeft: 'playerLeft',
-  gameState: 'gameState',
-} as const;
+export const MIN_CLIENT_PROTOCOL_VERSION = 2;
+export const SOCKET_SESSION_EVENTS = SESSION_EVENTS;
+
+export type WorldRoomJoinOptions = {
+  playerName?: string;
+  clientProtocolVersion?: number;
+};
+
+export function parseWorldRoomJoinOptions(options: unknown): WorldRoomJoinOptions {
+  if (!options || typeof options !== 'object') {
+    return {};
+  }
+
+  const value = options as Record<string, unknown>;
+  return {
+    playerName: typeof value.playerName === 'string' ? value.playerName : undefined,
+    clientProtocolVersion: typeof value.clientProtocolVersion === 'number'
+      ? value.clientProtocolVersion
+      : undefined,
+  };
+}
 
 export type AuthoritativeRoomCommand = ClientMessage;
 export type AuthoritativeRoomEvent = ServerMessage;

@@ -1,7 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { it, expect } from 'vitest';
 import { getDamage, hash } from '../packages/sim/combatMath';
 
-describe('Combat Damage Calculation', () => {
   // Test for determinism: same seed returns identical results
   it('produces deterministic damage values given the same seed', () => {
     const seed = 'player1:enemy2';
@@ -116,4 +115,3 @@ describe('Combat Damage Calculation', () => {
       expect(percentage).toBeLessThan(20);
     }
   });
-});
