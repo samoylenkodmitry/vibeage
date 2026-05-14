@@ -1,6 +1,7 @@
 import type { ItemDrop } from '../../packages/protocol/messages.js';
 import type { Enemy } from '../../shared/types.js';
 import type { GameState } from '../gameState.js';
+import { debug, LOG_CATEGORIES } from '../logger.js';
 import { emitStarterProgressUpdate, recordStarterLootPickup } from '../progression/starterPath.js';
 import {
   emitPlayerUpdated,
@@ -16,7 +17,7 @@ export function addGroundLoot(state: GameState, enemyId: string, loot: ItemDrop[
   const spawn = addGroundLootStack(state, enemyId, loot);
   if (!spawn) return undefined;
 
-  console.log(`Added ground loot ${spawn.lootId} at position ${JSON.stringify(spawn.stack.position)}`);
+  debug(LOG_CATEGORIES.LOOT, `Added ground loot ${spawn.lootId}`, { position: spawn.stack.position });
   return spawn.lootId;
 }
 
@@ -29,7 +30,10 @@ export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEvent
   const spawn = createGroundLootStack(state, enemy, loot);
   if (!spawn) return;
 
-  console.log(`Added ground loot ${spawn.lootId} at position ${JSON.stringify(spawn.stack.position)} to game state.`);
+  debug(LOG_CATEGORIES.LOOT, `Added ground loot ${spawn.lootId} to game state`, {
+    position: spawn.stack.position,
+    itemCount: loot.length,
+  });
 
   emitServerMessage(outbound, {
     type: 'LootSpawn',
@@ -39,7 +43,7 @@ export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEvent
     loot,
   });
 
-  console.log(`Sent loot spawn broadcast for ${spawn.lootId} with ${loot.length} items`);
+  debug(LOG_CATEGORIES.LOOT, `Broadcast loot spawn ${spawn.lootId}`, { itemCount: loot.length });
 }
 
 export function tryGiveLoot(state: GameState, outbound: OutboundEventSink, playerId: string, lootId: string): boolean {

@@ -1,7 +1,8 @@
 import type { SkillId } from '../packages/content/skills.js';
-import type { LearnSkill, SetSkillShortcut, StarterProgressState } from '../packages/protocol/messages.js';
+import type { LearnSkill, SetSkillShortcut } from '../packages/protocol/messages.js';
 import type { PlayerState } from '../shared/types.js';
 
+import { debug, LOG_CATEGORIES, warn } from './logger.js';
 import { canPlayerLearnSkill, learnNewSkill, setSkillShortcut } from './skillManager.js';
 import {
   emitPlayerUpdated,
@@ -10,19 +11,8 @@ import {
 } from './transport/outboundEvents.js';
 import { emitStarterProgressUpdate, syncPlayerStarterProgress } from './progression/starterPath.js';
 
-interface SkillPlayer {
-  id: string;
-  socketId: string;
-  level: number;
-  className: string;
-  unlockedSkills: SkillId[];
-  skillShortcuts: (SkillId | null)[];
-  availableSkillPoints: number;
-  starterProgress?: StarterProgressState;
-}
-
 interface GameState {
-  players: Record<string, SkillPlayer>;
+  players: Record<string, PlayerState>;
 }
 
 type SkillClient = { id: string };
@@ -37,70 +27,57 @@ export function onLearnSkill(
   state: GameState,
   msg: LearnSkill,
 ): void {
-  console.log(`[SKILL] Received LearnSkill request for skill: ${msg.skillId}`);
-  
-  // Get player by socket ID
-  const playerId = Object.keys(state.players).find(
-    id => state.players[id].socketId === socket.id
-  );
-  
-  if (!playerId) {
-    console.warn(`[SKILL] Learn skill request from unknown socket: ${socket.id}`);
+  debug(LOG_CATEGORIES.SKILL, `Received LearnSkill request for skill: ${msg.skillId}`);
+
+  const player = findPlayerBySocket(state, socket.id);
+  if (!player) {
+    warn(LOG_CATEGORIES.SKILL, `Learn skill request from unknown socket: ${socket.id}`);
     return;
   }
-  
-  const player = state.players[playerId];
-  console.log(`[SKILL] Player ${playerId} info:`, {
+
+  debug(LOG_CATEGORIES.SKILL, `Player ${player.id} skill state`, {
     className: player.className,
     level: player.level,
     unlockedSkills: player.unlockedSkills,
     availableSkillPoints: player.availableSkillPoints
   });
-  
+
   // Skip if player already has this skill
   if (player.unlockedSkills.includes(msg.skillId)) {
-    console.log(`[SKILL] Player ${playerId} already has skill: ${msg.skillId}`);
-    direct.send({
-      type: 'SkillLearned',
-      skillId: msg.skillId,
-      remainingPoints: player.availableSkillPoints
-    });
+    debug(LOG_CATEGORIES.SKILL, `Player ${player.id} already has skill: ${msg.skillId}`);
+    sendSkillLearned(direct, msg.skillId, player.availableSkillPoints);
     return;
   }
-  
+
   // Validate player has skill points to spend
   if (player.availableSkillPoints <= 0) {
-    console.warn(`[SKILL] Player ${playerId} has no skill points to learn ${msg.skillId}`);
+    warn(LOG_CATEGORIES.SKILL, `Player ${player.id} has no skill points to learn ${msg.skillId}`);
     return;
   }
-  
-  // Check if player can learn this skill based on class and level requirements
-  if (canPlayerLearnSkill(player, msg.skillId)) {
-    // Learn the skill using skillManager function
-    if (learnNewSkill(player, msg.skillId)) {
-      console.log(`[SKILL] Player ${playerId} learned skill: ${msg.skillId}`);
-      const starterProgress = syncPlayerStarterProgress(player as PlayerState);
-      
-      // Send notification to client
-      direct.send({
-        type: 'SkillLearned',
-        skillId: msg.skillId,
-        remainingPoints: player.availableSkillPoints
-      });
 
-      emitPlayerUpdated(outbound, {
-        id: player.id,
-        unlockedSkills: player.unlockedSkills,
-        skillShortcuts: player.skillShortcuts,
-        availableSkillPoints: player.availableSkillPoints,
-      });
-      emitStarterProgressUpdate(outbound, player as PlayerState, starterProgress.rewardGranted);
-    } else {
-      console.warn(`[SKILL] Failed to learn skill ${msg.skillId} for player ${playerId}`);
-    }
-  } else {
-    console.warn(`[SKILL] Player ${playerId} cannot learn skill: ${msg.skillId}`);
+  // Check if player can learn this skill based on class and level requirements
+  if (!canPlayerLearnSkill(player, msg.skillId)) {
+    warn(LOG_CATEGORIES.SKILL, `Player ${player.id} cannot learn skill: ${msg.skillId}`);
+    return;
   }
+
+  // Learn the skill using skillManager function
+  if (!learnNewSkill(player, msg.skillId)) {
+    warn(LOG_CATEGORIES.SKILL, `Failed to learn skill ${msg.skillId} for player ${player.id}`);
+    return;
+  }
+
+  debug(LOG_CATEGORIES.SKILL, `Player ${player.id} learned skill: ${msg.skillId}`);
+  const starterProgress = syncPlayerStarterProgress(player);
+
+  sendSkillLearned(direct, msg.skillId, player.availableSkillPoints);
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    unlockedSkills: player.unlockedSkills,
+    skillShortcuts: player.skillShortcuts,
+    availableSkillPoints: player.availableSkillPoints,
+  });
+  emitStarterProgressUpdate(outbound, player, starterProgress.rewardGranted);
 }
 
 /**
@@ -113,68 +90,75 @@ export function onSetSkillShortcut(
   state: GameState,
   msg: SetSkillShortcut,
 ): void {
-  console.log(`[SKILL] Received SetSkillShortcut request for slot ${msg.slotIndex}: ${msg.skillId}`);
-  
-  // Get player by socket ID
-  const playerId = Object.keys(state.players).find(
-    id => state.players[id].socketId === socket.id
-  );
-  
-  if (!playerId) {
-    console.warn(`[SKILL] Set skill shortcut request from unknown socket: ${socket.id}`);
+  debug(LOG_CATEGORIES.SKILL, `Received SetSkillShortcut request for slot ${msg.slotIndex}: ${msg.skillId}`);
+
+  const player = findPlayerBySocket(state, socket.id);
+  if (!player) {
+    warn(LOG_CATEGORIES.SKILL, `Set skill shortcut request from unknown socket: ${socket.id}`);
     return;
   }
-  
-  const player = state.players[playerId];
-  
+
   // Validate slot index is valid (0-8 for keys 1-9)
-  if (msg.slotIndex < 0 || msg.slotIndex > 8) {
-    console.warn(`[SKILL] Invalid shortcut slot index: ${msg.slotIndex}`);
+  if (!isValidShortcutSlot(msg.slotIndex)) {
+    warn(LOG_CATEGORIES.SKILL, `Invalid shortcut slot index: ${msg.slotIndex}`);
     return;
   }
-  
+
   // If clearing the slot, allow it
   if (msg.skillId === null) {
     if (setSkillShortcut(player, msg.slotIndex, null)) {
-      console.log(`[SKILL] Player ${playerId} cleared shortcut slot ${msg.slotIndex}`);
-      
-      // Send confirmation to client
-      direct.send({
-        type: 'SkillShortcutUpdated',
-        slotIndex: msg.slotIndex,
-        skillId: null
-      });
-      
-      emitPlayerUpdated(outbound, {
-        id: player.id,
-        skillShortcuts: player.skillShortcuts
-      });
+      debug(LOG_CATEGORIES.SKILL, `Player ${player.id} cleared shortcut slot ${msg.slotIndex}`);
+      emitShortcutChange(direct, outbound, player, msg.slotIndex, null);
     }
     return;
   }
-  
+
   // Validate skill is unlocked
   if (!player.unlockedSkills.includes(msg.skillId)) {
-    console.warn(`[SKILL] Player ${playerId} tried to shortcut skill they don't have: ${msg.skillId}`);
+    warn(LOG_CATEGORIES.SKILL, `Player ${player.id} tried to shortcut skill they don't have: ${msg.skillId}`);
     return;
   }
-  
+
   // Update skill shortcut
   if (setSkillShortcut(player, msg.slotIndex, msg.skillId)) {
-    console.log(`[SKILL] Player ${playerId} set shortcut slot ${msg.slotIndex} to skill: ${msg.skillId}`);
-    
-    // Send confirmation to client
-    direct.send({
-      type: 'SkillShortcutUpdated',
-      slotIndex: msg.slotIndex,
-      skillId: msg.skillId
-    });
-    
-    emitPlayerUpdated(outbound, {
-      id: player.id,
-      skillShortcuts: player.skillShortcuts
-    });
+    debug(LOG_CATEGORIES.SKILL, `Player ${player.id} set shortcut slot ${msg.slotIndex} to skill: ${msg.skillId}`);
+    emitShortcutChange(direct, outbound, player, msg.slotIndex, msg.skillId);
   } else {
-    console.warn(`[SKILL] Failed to set shortcut for player ${playerId}`);
+    warn(LOG_CATEGORIES.SKILL, `Failed to set shortcut for player ${player.id}`);
   }
+}
+
+function findPlayerBySocket(state: GameState, socketId: string): PlayerState | undefined {
+  return Object.values(state.players).find((player) => player.socketId === socketId);
+}
+
+function sendSkillLearned(direct: DirectMessageSink, skillId: SkillId, remainingPoints: number): void {
+  direct.send({
+    type: 'SkillLearned',
+    skillId,
+    remainingPoints
+  });
+}
+
+function emitShortcutChange(
+  direct: DirectMessageSink,
+  outbound: OutboundEventSink,
+  player: PlayerState,
+  slotIndex: number,
+  skillId: SkillId | null,
+): void {
+  direct.send({
+    type: 'SkillShortcutUpdated',
+    slotIndex,
+    skillId
+  });
+
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    skillShortcuts: player.skillShortcuts
+  });
+}
+
+function isValidShortcutSlot(slotIndex: number): boolean {
+  return slotIndex >= 0 && slotIndex <= 8;
 }

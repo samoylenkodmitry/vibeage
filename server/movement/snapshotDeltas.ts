@@ -2,6 +2,7 @@ import type { PosSnap, PredictionKeyframe, VecXZ } from '../../packages/protocol
 import type { Enemy, PlayerState } from '../../shared/types.js';
 import { CM_PER_UNIT } from '../../shared/netConstants.js';
 import type { GameState } from '../gameState.js';
+import { debug, LOG_CATEGORIES } from '../logger.js';
 import {
   createPredictionKeyframes,
   predictPosition,
@@ -144,8 +145,11 @@ function debugPrediction(id: string, predictions: PredictionKeyframe[]): void {
     return;
   }
 
-  console.log(`[Prediction] Entity ${id}: ${predictions.length} keyframes`);
-  predictions.forEach((prediction, index) => {
-    console.log(`  Keyframe ${index}: pos=(${prediction.pos.x.toFixed(2)}, ${prediction.pos.z.toFixed(2)}), ts=${prediction.ts}`);
+  debug(LOG_CATEGORIES.MOVEMENT, `Prediction keyframes for entity ${id}`, {
+    keyframes: predictions.map((prediction) => ({
+      x: Number(prediction.pos.x.toFixed(2)),
+      z: Number(prediction.pos.z.toFixed(2)),
+      ts: prediction.ts,
+    })),
   });
 }

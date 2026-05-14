@@ -1,7 +1,7 @@
 import { ZoneManager } from '../packages/content/zones.js';
 import { Enemy, PlayerState } from '../shared/types.js';
 import { ClientMessage, VecXZ, ItemDrop } from '../packages/protocol/messages.js';
-import { log, LOG_CATEGORIES } from './logger.js';
+import { debug, error as logError, LOG_CATEGORIES } from './logger.js';
 import { EffectManager } from './effects/manager';
 import { SpatialHashGrid } from './spatial/SpatialHashGrid';
 import { tickCasts } from './combat/skillSystem.js';
@@ -99,16 +99,16 @@ function startPersistenceLoop(state: GameState): void {
   let persistenceInFlight = false;
   setInterval(async () => {
     if (persistenceInFlight) {
-      log(LOG_CATEGORIES.SYSTEM, 'Skipping periodic player state persistence; previous cycle is still running.');
+      debug(LOG_CATEGORIES.SYSTEM, 'Skipping periodic player state persistence; previous cycle is still running.');
       return;
     }
 
     persistenceInFlight = true;
     try {
-      log(LOG_CATEGORIES.SYSTEM, 'Running periodic player state persistence...');
+      debug(LOG_CATEGORIES.SYSTEM, 'Running periodic player state persistence...');
       await persistActivePlayers(state);
     } catch (error) {
-      console.error('Error in periodic player persistence:', error);
+      logError(LOG_CATEGORIES.SYSTEM, 'Error in periodic player persistence', error);
     } finally {
       persistenceInFlight = false;
     }

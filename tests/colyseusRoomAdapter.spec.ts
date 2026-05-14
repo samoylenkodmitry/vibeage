@@ -56,7 +56,6 @@ describe('Colyseus room adapter', () => {
     expect(room.broadcast).toHaveBeenCalledWith('playerUpdated', { id: 'player1', health: 80 });
     expect(room.broadcast).toHaveBeenCalledWith('playerJoined', {
       id: 'player1',
-      socketId: 'socket1',
       name: 'Tester',
     });
   });

@@ -37,7 +37,6 @@ export function awardPlayerXP(
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained ${xpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`);
 
   if (player.experience >= player.experienceToNextLevel) {
-    const oldLevel = player.level;
     const oldSkillPoints = player.availableSkillPoints;
     const oldMaxExp = player.experienceToNextLevel;
 
@@ -52,7 +51,6 @@ export function awardPlayerXP(
 
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints} (before: ${oldSkillPoints})`);
-    console.log(`[LEVEL_UP] Player ${player.id}: Level ${oldLevel} -> ${player.level}, Skill Points: ${oldSkillPoints} -> ${player.availableSkillPoints}`);
   }
 
   return {

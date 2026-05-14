@@ -1,5 +1,5 @@
 import type { ItemUsed, UseItem } from '../../packages/protocol/messages.js';
-import { log, LOG_CATEGORIES } from '../logger.js';
+import { debug, error, LOG_CATEGORIES, warn } from '../logger.js';
 import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import {
@@ -58,18 +58,21 @@ function logItemUseRejection(reason: string, playerId: string, slotIndex: number
     return;
   }
 
-  const category = reason === 'unknownItem' ? LOG_CATEGORIES.SYSTEM : LOG_CATEGORIES.PLAYER;
-  const level = reason === 'unknownItem' ? 'error' : 'warn';
-  log(category, level, message);
+  if (reason === 'unknownItem') {
+    error(LOG_CATEGORIES.SYSTEM, message);
+    return;
+  }
+
+  warn(LOG_CATEGORIES.PLAYER, message);
 }
 
 function logItemUseSuccess(playerId: string, itemUsed: ItemUsed): void {
   if (itemUsed.healthDelta && itemUsed.healthDelta > 0) {
-    log(LOG_CATEGORIES.HEALING, 'info', `Player ${playerId} used ${itemUsed.itemId} and healed for ${itemUsed.healthDelta} HP`);
+    debug(LOG_CATEGORIES.HEALING, `Player ${playerId} used ${itemUsed.itemId} and healed for ${itemUsed.healthDelta} HP`);
   }
 
   if (itemUsed.manaDelta && itemUsed.manaDelta > 0) {
-    log(LOG_CATEGORIES.MANA, 'info', `Player ${playerId} used ${itemUsed.itemId} and restored ${itemUsed.manaDelta} MP`);
+    debug(LOG_CATEGORIES.MANA, `Player ${playerId} used ${itemUsed.itemId} and restored ${itemUsed.manaDelta} MP`);
   }
 }
 
@@ -83,7 +86,7 @@ export function onUseItem(
   const playerId = findPlayerIdBySocket(state, socket.id);
 
   if (!playerId) {
-    log(LOG_CATEGORIES.SYSTEM, 'error', `UseItem: No player found for socket ${socket.id}`);
+    error(LOG_CATEGORIES.SYSTEM, `UseItem: No player found for socket ${socket.id}`);
     return;
   }
 

@@ -57,9 +57,8 @@ Local configuration lives in `.env`. Start from `.env.example`. Do not commit re
 - Do not add new gameplay systems directly into `world.ts`, `useGameClient.ts`, or `gameReducer.ts` unless the change is explicitly a small bug fix.
 - Prefer shared pure functions for simulation logic. They should be testable with Vitest and no browser.
 - Keep new files and functions inside `quality/maintainability.json` budgets. Only add a legacy exception when documenting an existing cleanup target.
-- Import skill, item, and zone content from `packages/content`; `shared/skillsDefinition.ts`, `shared/items.ts`, and `shared/zoneSystem.ts` are compatibility re-exports only.
-- Import combat math from `packages/sim`; `shared/combatMath.ts` is a compatibility re-export only.
-- Import effect definitions from `packages/sim`; `shared/effectsDefinition.ts` is a compatibility re-export only.
+- Import skill, item, and zone content from `packages/content`; do not restore deleted `shared/*Definition.ts` or other compatibility re-export paths.
+- Import combat math and effect definitions from `packages/sim`; do not route new code through deleted `shared` compatibility files.
 - Prefer runtime-validated protocol schemas over ad hoc TypeScript interfaces.
 - When changing protocol messages, update server handling, client handling, and tests in the same change.
 - When touching movement, combat, loot, or inventory, run `pnpm test` and `pnpm run build:server`.

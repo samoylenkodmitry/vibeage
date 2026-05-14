@@ -28,7 +28,6 @@
     "server/combat/StatusEffectManager.ts": 161,
     "server/combat/skillSystem.ts": 592,
     "server/effects/entities.ts": 217,
-    "shared/items.ts": 438,
     "tests/combat.aoe.spec.ts": 339,
     "tests/combat.castMachine.spec.ts": 186,
     "tests/projectile.predict.test.ts": 91,
