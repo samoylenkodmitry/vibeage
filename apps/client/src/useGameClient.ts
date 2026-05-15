@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef } from 'react';
 import type { SkillId } from '../../../packages/content/skills';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import { useClientActions, type ClientActions } from './clientActions';
+import { installDevCommands } from './devCommands';
 import { installE2EHooks } from './e2eHooks';
 import {
   gameClientReducer,
@@ -43,6 +44,10 @@ export function useGameClient(): ClientApi {
   useEffect(() => {
     installE2EHooks(state, actions);
   }, [state, actions]);
+
+  useEffect(() => {
+    installDevCommands(actions);
+  }, [actions]);
 
   return useMemo(
     () => ({ state, connect, disconnect, ...actions }),
