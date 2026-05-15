@@ -15,7 +15,7 @@ export type WorldTravelLane = {
   points: WorldPoint[];
 };
 
-export type WorldLandmarkKind = 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep';
+export type WorldLandmarkKind = 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep' | 'ancient_tree';
 
 export type WorldLandmark = {
   id: string;
@@ -134,6 +134,15 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     position: { x: 18, z: -24 },
     radius: 5,
     height: 18,
+  },
+  {
+    id: 'ancient-gnarled-tree',
+    name: 'The Ancient Gnarled Tree',
+    kind: 'ancient_tree',
+    zoneId: 'starter_meadow',
+    position: { x: 80, z: 60 },
+    radius: 14,
+    height: 24,
   },
   {
     id: 'starter-watchtower',

@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
+import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
+import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js';
 import { sampleTerrain } from '../../../packages/content/terrain';
 import {
   getTravelLaneSegments,
@@ -124,6 +126,13 @@ function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
 }
 
 function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolean) {
+  if (landmark.kind === 'ancient_tree') {
+    return (
+      <Suspense fallback={renderTreeLandmark(landmark, color, fog)}>
+        <AncientTreeMesh landmark={landmark} />
+      </Suspense>
+    );
+  }
   if (landmark.kind === 'tree') {
     return renderTreeLandmark(landmark, color, fog);
   }
@@ -259,6 +268,31 @@ function renderSpireLandmark(landmark: WorldLandmark, color: string, fog: boolea
   );
 }
 
+const ANCIENT_TREE_URL = '/models/ancient-tree.usdz';
+
+function AncientTreeMesh({ landmark }: { landmark: WorldLandmark }) {
+  const root = useLoader(USDZLoader, ANCIENT_TREE_URL);
+  const cloned = useMemo(() => root.clone(true), [root]);
+  const fitted = useMemo(() => fitGroupToHeight(cloned, landmark.height), [cloned, landmark.height]);
+  return <primitive object={fitted} />;
+}
+
+function fitGroupToHeight(group: THREE.Object3D, targetHeight: number): THREE.Object3D {
+  const box = new THREE.Box3().setFromObject(group);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const wrapper = new THREE.Group();
+  if (size.y > 0.001) {
+    const scale = targetHeight / size.y;
+    group.position.set(-center.x, -box.min.y, -center.z);
+    wrapper.add(group);
+    wrapper.scale.setScalar(scale);
+  } else {
+    wrapper.add(group);
+  }
+  return wrapper;
+}
+
 function renderCrystalLandmark(landmark: WorldLandmark, color: string, fog: boolean) {
   const shards = landmark.mega ? 5 : 1;
   return (
@@ -331,6 +365,7 @@ function getLandmarkColor(landmark: WorldLandmark): string {
     case 'crystal':
       return '#8de9d7';
     case 'tree':
+    case 'ancient_tree':
       return '#67d982';
     case 'gate':
       return '#facc15';
