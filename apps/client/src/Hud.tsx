@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'r
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
+import { ChatPanel } from './hud/ChatPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
@@ -29,6 +30,7 @@ type GameHudProps = {
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
   onRespawn: () => void;
+  onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
 export function StartPanel({ onStart }: StartPanelProps) {
@@ -72,6 +74,7 @@ export function GameHud({
   onLearnSkill,
   onUseItem,
   onRespawn,
+  onSendChat,
 }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const selectedTarget = state.selectedTargetId ? state.enemies[state.selectedTargetId] ?? null : null;
@@ -81,11 +84,7 @@ export function GameHud({
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
   const now = useNow(100);
-  const [statsOpen, setStatsOpen] = useState(true);
-  const [questOpen, setQuestOpen] = useState(false);
-  const [bagOpen, setBagOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [treeOpen, setTreeOpen] = useState(false);
+  const panels = usePanelState();
 
   useSkillHotkeys(player, onCastSkill);
 
@@ -106,17 +105,17 @@ export function GameHud({
         <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
       </section>
       <VitalsStrip player={player} />
-      {statsOpen && <PlayerPanel player={player} />}
+      {panels.statsOpen && <PlayerPanel player={player} />}
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
       <NavigationPanel state={state} player={player} />
-      {questOpen && (
+      {panels.questOpen && (
         <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       )}
-      {bagOpen && (
+      {panels.bagOpen && (
         <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       )}
-      {mapOpen && (
+      {panels.mapOpen && (
         <MapPanel
           player={player}
           cameraAngleRef={cameraAngleRef}
@@ -124,7 +123,14 @@ export function GameHud({
           onSetNavigationMarker={onSetNavigationMarker}
         />
       )}
-      {treeOpen && <SkillTreePanel player={player} onLearnSkill={onLearnSkill} />}
+      {panels.treeOpen && <SkillTreePanel player={player} onLearnSkill={onLearnSkill} />}
+      {panels.chatOpen && onSendChat && (
+        <ChatPanel
+          lines={state.chatLines}
+          myPlayerId={state.myPlayerId}
+          onSendChat={onSendChat}
+        />
+      )}
       <CastingPanel player={player} />
       <SkillBar
         player={player}
@@ -132,18 +138,7 @@ export function GameHud({
         hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
         onCastSkill={onCastSkill}
       />
-      <PanelToggleStrip
-        statsOpen={statsOpen}
-        questOpen={questOpen}
-        bagOpen={bagOpen}
-        mapOpen={mapOpen}
-        treeOpen={treeOpen}
-        onToggleStats={() => setStatsOpen((prev) => !prev)}
-        onToggleQuest={() => setQuestOpen((prev) => !prev)}
-        onToggleBag={() => setBagOpen((prev) => !prev)}
-        onToggleMap={() => setMapOpen((prev) => !prev)}
-        onToggleTree={() => setTreeOpen((prev) => !prev)}
-      />
+      <PanelToggleStrip panels={panels} />
       {state.combatLog.length > 0 && (
         <section className="combat-log" aria-label="Combat log">
           {state.combatLog.map((line) => (
@@ -156,38 +151,42 @@ export function GameHud({
   );
 }
 
-function PanelToggleStrip({
-  statsOpen,
-  questOpen,
-  bagOpen,
-  mapOpen,
-  treeOpen,
-  onToggleStats,
-  onToggleQuest,
-  onToggleBag,
-  onToggleMap,
-  onToggleTree,
-}: {
-  statsOpen: boolean;
-  questOpen: boolean;
-  bagOpen: boolean;
-  mapOpen: boolean;
-  treeOpen: boolean;
-  onToggleStats: () => void;
-  onToggleQuest: () => void;
-  onToggleBag: () => void;
-  onToggleMap: () => void;
-  onToggleTree: () => void;
-}) {
+function PanelToggleStrip({ panels }: { panels: PanelState }) {
   return (
     <aside className="panel-toggles" aria-label="Panel toggles">
-      <PanelToggleButton open={statsOpen} label="Stats" onClick={onToggleStats} />
-      <PanelToggleButton open={treeOpen} label="Tree" onClick={onToggleTree} />
-      <PanelToggleButton open={questOpen} label="Quest" onClick={onToggleQuest} />
-      <PanelToggleButton open={bagOpen} label="Bag" onClick={onToggleBag} />
-      <PanelToggleButton open={mapOpen} label="Map" onClick={onToggleMap} />
+      <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
+      <PanelToggleButton open={panels.treeOpen} label="Tree" onClick={panels.toggleTree} />
+      <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
+      <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
+      <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
+      <PanelToggleButton open={panels.chatOpen} label="Chat" onClick={panels.toggleChat} />
     </aside>
   );
+}
+
+type PanelState = ReturnType<typeof usePanelState>;
+
+function usePanelState() {
+  const [statsOpen, setStatsOpen] = useState(true);
+  const [questOpen, setQuestOpen] = useState(false);
+  const [bagOpen, setBagOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [treeOpen, setTreeOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  return {
+    statsOpen,
+    questOpen,
+    bagOpen,
+    mapOpen,
+    treeOpen,
+    chatOpen,
+    toggleStats: () => setStatsOpen((prev) => !prev),
+    toggleQuest: () => setQuestOpen((prev) => !prev),
+    toggleBag: () => setBagOpen((prev) => !prev),
+    toggleMap: () => setMapOpen((prev) => !prev),
+    toggleTree: () => setTreeOpen((prev) => !prev),
+    toggleChat: () => setChatOpen((prev) => !prev),
+  };
 }
 
 function PanelToggleButton({

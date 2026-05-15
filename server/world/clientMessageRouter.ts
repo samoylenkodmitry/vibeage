@@ -51,6 +51,54 @@ export function handleClientMessage(
       return;
     case 'DevTeleport':
       return onDevTeleport(socket, state, msg);
+    case 'ChatRequest':
+      return onChatRequest(socket, state, msg, outbound, spatial);
+  }
+}
+
+const CHAT_NEAR_RADIUS = 150;
+
+function onChatRequest(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'ChatRequest' }>,
+  outbound: OutboundEventSink,
+  spatial: SpatialHashGrid,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) {
+    return;
+  }
+  const player = state.players[playerId];
+  if (!player) {
+    return;
+  }
+  const text = msg.text.trim().slice(0, 240);
+  if (!text) {
+    return;
+  }
+  const broadcast = {
+    type: 'ChatBroadcast' as const,
+    fromId: playerId,
+    fromName: player.name,
+    text,
+    scope: msg.scope,
+    ts: Date.now(),
+  };
+
+  if (msg.scope === 'all') {
+    outbound.publish({ type: 'serverMessage', message: broadcast });
+    return;
+  }
+
+  const nearbyIds = spatial.queryCircle({ x: player.position.x, z: player.position.z }, CHAT_NEAR_RADIUS);
+  const seen = new Set<string>();
+  for (const id of nearbyIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const other = state.players[id];
+    if (!other?.socketId) continue;
+    outbound.publish({ type: 'directServerMessage', socketId: other.socketId, message: broadcast });
   }
 }
 

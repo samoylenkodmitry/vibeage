@@ -186,7 +186,27 @@ Live items requested after the latest deploy.
 
 5. [ ] **Lineage 2-style stat lineup** — extend Stats from STR/DEX/INT to STR + DEX + CON + INT + WIT + MEN. Derived from class+level for now.
 
-6. [ ] **Class skill tree learn panel** — new toggle that opens a class skill tree window listing every class skill with state (unlocked / available-to-learn-with-cost / locked-by-level), with a learn button when skill points are available.
+6. [x] **Class skill tree learn panel** — new toggle that opens a class skill tree window listing every class skill with state (unlocked / available-to-learn-with-cost / locked-by-level), with a learn button when skill points are available.
+
+## Player Polish v4
+
+Live items requested after the latest deploy.
+
+1. [ ] **Restore single starter skill** — `DEFAULT_UNLOCKED_SKILLS` back to `['fireball']`. Players learn the rest from the skill tree as they level up.
+
+2. [ ] **Mobile skill bar above Android nav** — current `safe-area-inset-bottom` doesn't account for the Android navigation bar; bump fallback bottom padding so the bar isn't covered.
+
+3. [ ] **Map fullscreen toggle** — header button on the Map panel that maximizes it to fill the viewport for easier navigation.
+
+4. [ ] **Camera look up to sky** — instead of dipping below ground at very negative pitch, keep camera above terrain and shift the lookAt target upward so tilting up shows the sky vertically.
+
+5. [ ] **Smooth player movement** — derive entity ground Y from the current lerped xz each frame so terrain bumps no longer cause snap-rate microjumps.
+
+6. [ ] **Chat with near / all tabs** — new ChatRequest protocol; server broadcasts to all clients (all) or to clients within ~150 m (near). No persistence. Client renders a Chat panel with two tabs and a 50-message ring buffer per tab.
+
+7. [ ] **Deeper class & skill content (deferred)** — more skills per class with prereqs and level gates, more class identities, more level-derived stats. Big enough to land in its own slice.
+
+8. [ ] **Populate the world (deferred)** — more enemy species and zone-spec spawn rules so the vast empty spaces feel alive. Big enough to land in its own slice.
 
 ## Quality Gate
 

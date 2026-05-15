@@ -160,7 +160,7 @@ export function createPersistedPlayerReconnectScenario(): {
       { itemId: 'health_potion', quantity: 2 },
       { itemId: 'gold_coin', quantity: 5 },
     ],
-    skills: ['fireball', 'waterSplash', 'iceBolt', 'petrify'],
+    skills: ['fireball', 'waterSplash'],
   });
   beforeRelog.health = 44;
   beforeRelog.level = 3;

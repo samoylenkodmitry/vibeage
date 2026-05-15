@@ -45,6 +45,7 @@ export const initialGameClientState: GameClientState = {
   inventory: [],
   maxInventorySlots: 20,
   combatLog: [],
+  chatLines: [],
   starterProgress: createInitialStarterProgress(),
   worldPublicState: null,
   streamedRegionIds: [],
@@ -243,7 +244,31 @@ function applyServerMessage(
     return applySkillLearned(state, message);
   }
 
+  if (message.type === 'ChatBroadcast') {
+    return appendChatLine(state, message);
+  }
+
   return state;
+}
+
+const CHAT_RING_BUFFER = 50;
+
+function appendChatLine(
+  state: GameClientState,
+  message: ServerMessage & { type: 'ChatBroadcast' },
+): GameClientState {
+  const newLine = {
+    id: `chat-${message.fromId}-${message.ts}-${state.chatLines.length}`,
+    fromId: message.fromId,
+    fromName: message.fromName,
+    text: message.text,
+    scope: message.scope,
+    ts: message.ts,
+  };
+  const sameScope = state.chatLines.filter((line) => line.scope === message.scope);
+  const otherScope = state.chatLines.filter((line) => line.scope !== message.scope);
+  const trimmedSameScope = [...sameScope, newLine].slice(-CHAT_RING_BUFFER);
+  return { ...state, chatLines: [...otherScope, ...trimmedSameScope] };
 }
 
 function applySkillLearned(

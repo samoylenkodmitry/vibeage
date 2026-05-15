@@ -642,6 +642,21 @@ input {
   transform: translateX(-50%);
 }
 
+.map-panel--fullscreen {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: auto;
+  max-height: none;
+  transform: none;
+}
+
+.map-panel--fullscreen .map-svg {
+  height: calc(100vh - 168px);
+  max-height: none;
+}
+
 .map-svg {
   width: 100%;
   height: min(540px, calc(100vh - 280px));
@@ -717,6 +732,105 @@ input {
 
 .quest-panel {
   width: min(320px, calc(100vw - 36px));
+}
+
+.chat-panel {
+  position: absolute;
+  bottom: 130px;
+  right: 18px;
+  z-index: 7;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  width: min(320px, calc(100vw - 36px));
+  height: min(360px, calc(100vh - 240px));
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 8px;
+  background: rgba(5, 14, 18, 0.92);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+}
+
+.chat-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-tab {
+  flex: 1;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  border: 1px solid rgba(141, 233, 215, 0.3);
+  border-radius: 6px;
+  background: rgba(141, 233, 215, 0.18);
+  color: #c4f1e2;
+}
+
+.chat-tab--active {
+  background: #facc15;
+  color: #04100d;
+  border-color: #facc15;
+}
+
+.chat-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 6px;
+  background: rgba(2, 6, 12, 0.6);
+}
+
+.chat-empty {
+  margin: 8px 4px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.chat-line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.chat-line strong {
+  color: #facc15;
+  font-size: 11px;
+}
+
+.chat-line span {
+  color: #f9fafb;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.chat-line--self strong {
+  color: #75f5c8;
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.chat-form input {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 6px;
+  background: rgba(2, 6, 12, 0.7);
+  color: #f9fafb;
+  font-size: 13px;
+}
+
+.chat-form button {
+  min-height: 32px;
+  padding: 0 12px;
 }
 
 .skill-tree-panel {
@@ -1087,7 +1201,7 @@ input {
   .skill-bar {
     right: 8px;
     left: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
     width: calc(100vw - 16px);
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
@@ -1139,7 +1253,7 @@ input {
 
   .inventory-panel {
     right: 8px;
-    bottom: 88px;
+    bottom: calc(108px + env(safe-area-inset-bottom, 0px));
     left: 8px;
     display: grid;
     width: calc(100vw - 16px);
@@ -1177,7 +1291,7 @@ input {
 
   .panel-toggles {
     right: 8px;
-    bottom: 158px;
+    bottom: calc(178px + env(safe-area-inset-bottom, 0px));
     gap: 6px;
   }
 

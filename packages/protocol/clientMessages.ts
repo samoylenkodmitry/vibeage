@@ -64,6 +64,13 @@ export const devTeleportSchema = z.object({
   clientTs: z.number(),
 }).passthrough();
 
+export const chatRequestSchema = z.object({
+  type: z.literal('ChatRequest'),
+  text: z.string().min(1).max(240),
+  scope: z.union([z.literal('near'), z.literal('all')]),
+  clientTs: z.number(),
+}).passthrough();
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
@@ -75,6 +82,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   useItemSchema,
   requestInventorySchema,
   devTeleportSchema,
+  chatRequestSchema,
 ]);
 
 export type MoveIntent = {
@@ -139,6 +147,15 @@ export type DevTeleport = {
   clientTs: number;
 };
 
+export type ChatScope = 'near' | 'all';
+
+export type ChatRequest = {
+  type: 'ChatRequest';
+  text: string;
+  scope: ChatScope;
+  clientTs: number;
+};
+
 export type ClientMessage =
   | MoveIntent
   | CastReq
@@ -149,4 +166,5 @@ export type ClientMessage =
   | LootPickup
   | UseItem
   | RequestInventory
-  | DevTeleport;
+  | DevTeleport
+  | ChatRequest;

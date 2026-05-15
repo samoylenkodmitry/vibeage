@@ -37,6 +37,7 @@ export default function App() {
         onLearnSkill={client.learnSkill}
         onUseItem={client.useItem}
         onRespawn={client.respawn}
+        onSendChat={client.sendChat}
       />
       {state.connectionState !== 'online' && (
         <div className="joining-overlay" role="status">
