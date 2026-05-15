@@ -166,7 +166,11 @@ Live items requested after the latest deploy. Each is a single-PR slice.
 
 4. [ ] **Quest checklist** — the Quest panel becomes a list of available quests. Each row has a checkbox; ticking it expands the row to show the current progress for that quest. Starter Path is the first item; later quests slot in as content lands.
 
-5. [ ] **Smoother walk** — drop the residual vertical bounce so the figure travels at a stable y. Keep leg swing and torso sway as the only motion cues. If snapshot-rate jitter persists, extrapolate position with velocity between server snaps.
+5. [x] **Smoother walk** — drop the residual vertical bounce so the figure travels at a stable y. Keep leg swing and torso sway as the only motion cues. If snapshot-rate jitter persists, extrapolate position with velocity between server snaps.
+
+6. [ ] **Mobile camera rotation** — single-finger orbit on touch devices. Add an on-screen camera handle (visible only on touch) that captures pointer drags and rotates the camera. Two-finger gesture stays as the fallback. Discoverable from the moment a new player enters the world.
+
+7. [ ] **Starter skill kit** — new characters spawn with Fireball + Ice Bolt + Water Splash + Petrify wired into the four bar slots, so the first kill is achievable without grinding for skill points first.
 
 ## Quality Gate
 

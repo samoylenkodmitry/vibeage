@@ -2,11 +2,13 @@ import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'r
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
+import { CameraTouchHandle } from './hud/CameraTouchHandle';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
 import { useDraggablePanel } from './hud/useDraggablePanel';
+import type { CameraControls } from './CameraRig';
 import {
   getHotkeySkill,
   getSkillSlotIndexForKeyboardCode,
@@ -20,6 +22,7 @@ type StartPanelProps = {
 type GameHudProps = {
   state: GameClientState;
   cameraAngleRef?: MutableRefObject<number>;
+  cameraControlsRef?: MutableRefObject<CameraControls | null>;
   navigationMarker?: { x: number; z: number } | null;
   onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
   onDisconnect: () => void;
@@ -63,6 +66,7 @@ export function StartPanel({ onStart }: StartPanelProps) {
 export function GameHud({
   state,
   cameraAngleRef,
+  cameraControlsRef,
   navigationMarker,
   onSetNavigationMarker,
   onDisconnect,
@@ -138,6 +142,7 @@ export function GameHud({
         onToggleBag={() => setBagOpen((prev) => !prev)}
         onToggleMap={() => setMapOpen((prev) => !prev)}
       />
+      {cameraControlsRef && <CameraTouchHandle cameraControlsRef={cameraControlsRef} />}
       {state.combatLog.length > 0 && (
         <section className="combat-log" aria-label="Combat log">
           {state.combatLog.map((line) => (
