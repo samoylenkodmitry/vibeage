@@ -22,7 +22,11 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
     }
 
     event.stopPropagation();
-    onMove({ x: event.point.x, z: event.point.z });
+    const terrainHit = event.intersections[0]?.point;
+
+    if (terrainHit) {
+      onMove({ x: terrainHit.x, z: terrainHit.z });
+    }
   }
 
   return (
