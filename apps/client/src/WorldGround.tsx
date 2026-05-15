@@ -10,6 +10,9 @@ type WorldGroundProps = {
   onMove: (target: VecXZ) => void;
 };
 
+const groundClickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const groundClickPoint = new THREE.Vector3();
+
 export function WorldGround({ focus, onMove }: WorldGroundProps) {
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focus.x, focus.z),
@@ -22,7 +25,7 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
     }
 
     event.stopPropagation();
-    const terrainHit = event.intersections[0]?.point;
+    const terrainHit = event.ray.intersectPlane(groundClickPlane, groundClickPoint);
 
     if (terrainHit) {
       onMove({ x: terrainHit.x, z: terrainHit.z });
