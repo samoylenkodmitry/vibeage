@@ -73,16 +73,14 @@ function useCameraYaw(angleRef?: MutableRefObject<number>): number {
     if (!angleRef) {
       return undefined;
     }
-    const id = window.setInterval(() => {
-      setYaw((prev) => {
-        const next = angleRef.current;
-        if (Math.abs(prev - next) < 0.01) {
-          return prev;
-        }
-        return next;
-      });
-    }, 100);
-    return () => window.clearInterval(id);
+    let frame = 0;
+    const tick = () => {
+      const next = angleRef.current;
+      setYaw((prev) => (Math.abs(prev - next) < 0.005 ? prev : next));
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
   }, [angleRef]);
 
   return yaw;

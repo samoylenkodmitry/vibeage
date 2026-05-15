@@ -68,7 +68,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
 
   useFrame(({ clock }, delta) => {
     const palette = computeDayPhase(clock.elapsedTime * 1_000);
-    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, moonMaterial, scene, focus, palette, delta });
+    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta });
   });
 
   return (
@@ -104,11 +104,10 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   );
 }
 
-function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, moonMaterial, scene, focus, palette, delta }: {
+function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
   refs: DayCycleRefs;
   sunMaterial: THREE.MeshBasicMaterial;
   cloudMaterial: THREE.MeshStandardMaterial;
-  moonMaterial: THREE.MeshBasicMaterial;
   scene: THREE.Scene;
   focus: Vec3D;
   palette: ReturnType<typeof computeDayPhase>;
@@ -147,7 +146,6 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, moonMaterial, 
     refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 0.8;
   }
   sunMaterial.color.set(palette.sunColor);
-  moonMaterial.color.set('#dde6ff');
   cloudMaterial.color.set(palette.cloudColor);
   cloudMaterial.opacity = palette.cloudOpacity;
   if (refs.cloudGroup.current) {
