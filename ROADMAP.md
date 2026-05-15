@@ -170,7 +170,23 @@ Live items requested after the latest deploy. Each is a single-PR slice.
 
 6. [ ] **Mobile camera rotation** — single-finger orbit on touch devices. Add an on-screen camera handle (visible only on touch) that captures pointer drags and rotates the camera. Two-finger gesture stays as the fallback. Discoverable from the moment a new player enters the world.
 
-7. [ ] **Starter skill kit** — new characters spawn with Fireball + Ice Bolt + Water Splash + Petrify wired into the four bar slots, so the first kill is achievable without grinding for skill points first.
+7. [x] **Starter skill kit** — new characters spawn with Fireball + Ice Bolt + Water Splash + Petrify wired into the four bar slots, so the first kill is achievable without grinding for skill points first.
+
+## Player Polish v3
+
+Live items requested after the latest deploy.
+
+1. [ ] **Always-visible navigation pin + 3D pointer** — the in-world pin is too small to spot from distance. Make it big and add an in-world arrow above the player that rotates to point at the pin so the player always knows where to go.
+
+2. [ ] **No text selection on UI controls** — globally apply `user-select: none` to HUD chrome (panels, buttons, toggles, vitals strip, map UI). Inputs and textareas still allow selection.
+
+3. [ ] **Mobile new-player skill bar visibility** — fresh mobile session reports an invisible skill bar. Audit safe-area, contrast, and layering; bring the bar above iOS home-indicator and make it unmissable.
+
+4. [ ] **Camera doesn't dip below ground** — when the player tilts the camera up the orbit can drop the camera below the terrain. Move the focus point down toward the player feet so looking up rises the camera less, and clamp the camera y to be above the local terrain height.
+
+5. [ ] **Lineage 2-style stat lineup** — extend Stats from STR/DEX/INT to STR + DEX + CON + INT + WIT + MEN. Derived from class+level for now.
+
+6. [ ] **Class skill tree learn panel** — new toggle that opens a class skill tree window listing every class skill with state (unlocked / available-to-learn-with-cost / locked-by-level), with a learn button when skill points are available.
 
 ## Quality Gate
 
