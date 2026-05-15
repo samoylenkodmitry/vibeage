@@ -76,6 +76,34 @@ describe('enemy spawning', () => {
     expect(Object.values(state.zones.enemyZoneIds)).toEqual(['zone-b', 'zone-b']);
   });
 
+  test('caps each active zone independently from the global enemy cap', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    let nextPosition = 0;
+    const zoneManager = {
+      getZones: () => [{ id: 'zone-a' }, { id: 'zone-b' }],
+      getMobsToSpawn: () => [{ type: 'goblin', count: 5 }],
+      getRandomPositionInZone: () => {
+        nextPosition += 1;
+        return { x: nextPosition, y: 0.5, z: 1 };
+      },
+      getMobLevel: () => 2,
+      getMiniBoss: () => null,
+    } as unknown as ZoneManager;
+
+    const spawned = spawnInitialEnemies(state, spatial, zoneManager, {
+      activeZoneIds: ['zone-a', 'zone-b'],
+      maxEnemies: 10,
+      maxEnemiesPerZone: 3,
+    });
+
+    expect(spawned).toBe(6);
+    expect(Object.values(state.zones.enemyZoneIds).filter((zoneId) => zoneId === 'zone-a')).toHaveLength(3);
+    expect(Object.values(state.zones.enemyZoneIds).filter((zoneId) => zoneId === 'zone-b')).toHaveLength(3);
+  });
+});
+
+describe('enemy spawning packs and bosses', () => {
   test('spawns a mini-boss before regular mobs when configured', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();
@@ -127,31 +155,5 @@ describe('enemy spawning', () => {
 
     expect(enemies).toHaveLength(6);
     expect([...packIds].filter((id) => id !== undefined)).toHaveLength(2);
-  });
-
-  test('caps each active zone independently from the global enemy cap', () => {
-    const state = createGameState();
-    const spatial = new SpatialHashGrid();
-    let nextPosition = 0;
-    const zoneManager = {
-      getZones: () => [{ id: 'zone-a' }, { id: 'zone-b' }],
-      getMobsToSpawn: () => [{ type: 'goblin', count: 5 }],
-      getRandomPositionInZone: () => {
-        nextPosition += 1;
-        return { x: nextPosition, y: 0.5, z: 1 };
-      },
-      getMobLevel: () => 2,
-      getMiniBoss: () => null,
-    } as unknown as ZoneManager;
-
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager, {
-      activeZoneIds: ['zone-a', 'zone-b'],
-      maxEnemies: 10,
-      maxEnemiesPerZone: 3,
-    });
-
-    expect(spawned).toBe(6);
-    expect(Object.values(state.zones.enemyZoneIds).filter((zoneId) => zoneId === 'zone-a')).toHaveLength(3);
-    expect(Object.values(state.zones.enemyZoneIds).filter((zoneId) => zoneId === 'zone-b')).toHaveLength(3);
   });
 });

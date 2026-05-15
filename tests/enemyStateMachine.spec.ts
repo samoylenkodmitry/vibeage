@@ -127,7 +127,9 @@ describe('enemy state machine', () => {
       aiState: 'idle',
     });
   });
+});
 
+describe('enemy state machine pack aggro', () => {
   test('emits a packAggro event when a pack member aggros a player', () => {
     const enemy = createEnemy('wolf', 2, { x: 0, y: 0, z: 0 }, 4, { packId: 'pack-1' });
     const player = makePlayer('player1', 1, 0);
