@@ -149,6 +149,25 @@ This branch starts with the highest-leverage foundation:
 - [x] traversal HUD
 - [x] two-finger mobile camera mode
 
+## Player Polish v2
+
+Live items requested after the latest deploy. Each is a single-PR slice.
+
+1. [ ] **Skyward camera** — orbit pitch should dip below the player so the sky / sun / moon are visible when rotating. Lower `CAMERA_MIN_PITCH` and update the spec.
+
+2. [ ] **Interactive map** — the world map needs:
+   - mouse-wheel zoom of the SVG viewBox,
+   - drag-pan,
+   - left-click drops a navigation marker,
+   - the same marker also renders as a tall, fog-bypassing pin in the 3D world so the player can walk to it,
+   - right-click clears the marker.
+
+3. [ ] **Persistent HUD window positions** — `useDraggablePanel` takes a storage key, reads initial offset from `localStorage`, writes on drag-end. Each panel uses its own key so positions survive reload.
+
+4. [ ] **Quest checklist** — the Quest panel becomes a list of available quests. Each row has a checkbox; ticking it expands the row to show the current progress for that quest. Starter Path is the first item; later quests slot in as content lands.
+
+5. [ ] **Smoother walk** — drop the residual vertical bounce so the figure travels at a stable y. Keep leg swing and torso sway as the only motion cues. If snapshot-rate jitter persists, extrapolate position with velocity between server snaps.
+
 ## Quality Gate
 
 Before merge:

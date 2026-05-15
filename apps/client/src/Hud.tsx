@@ -20,6 +20,8 @@ type StartPanelProps = {
 type GameHudProps = {
   state: GameClientState;
   cameraAngleRef?: MutableRefObject<number>;
+  navigationMarker?: { x: number; z: number } | null;
+  onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
   onDisconnect: () => void;
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
@@ -58,7 +60,17 @@ export function StartPanel({ onStart }: StartPanelProps) {
   );
 }
 
-export function GameHud({ state, cameraAngleRef, onDisconnect, onCastSkill, onLearnSkill, onUseItem, onRespawn }: GameHudProps) {
+export function GameHud({
+  state,
+  cameraAngleRef,
+  navigationMarker,
+  onSetNavigationMarker,
+  onDisconnect,
+  onCastSkill,
+  onLearnSkill,
+  onUseItem,
+  onRespawn,
+}: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const selectedTarget = state.selectedTargetId ? state.enemies[state.selectedTargetId] ?? null : null;
   const playerCount = Object.keys(state.players).length;
@@ -101,7 +113,14 @@ export function GameHud({ state, cameraAngleRef, onDisconnect, onCastSkill, onLe
       {bagOpen && (
         <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       )}
-      {mapOpen && <MapPanel player={player} cameraAngleRef={cameraAngleRef} />}
+      {mapOpen && (
+        <MapPanel
+          player={player}
+          cameraAngleRef={cameraAngleRef}
+          navigationMarker={navigationMarker ?? null}
+          onSetNavigationMarker={onSetNavigationMarker}
+        />
+      )}
       <CastingPanel player={player} />
       <SkillBar
         player={player}
@@ -204,7 +223,7 @@ function VitalsStrip({ player }: { player: PlayerEntity | null }) {
 
 function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   const stats = derivePlayerStats(player);
-  const panelRef = useDraggablePanel<HTMLElement>();
+  const panelRef = useDraggablePanel<HTMLElement>('stats');
 
   return (
     <section ref={panelRef} className="hud player-panel" aria-label="Player status">
