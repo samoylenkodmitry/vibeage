@@ -600,7 +600,7 @@ input {
 
   .player-panel {
     right: 12px;
-    bottom: 156px;
+    bottom: 214px;
     left: 12px;
     width: calc(100vw - 24px);
     transform: none;
@@ -617,14 +617,26 @@ input {
 
   .casting-panel {
     right: 12px;
-    bottom: 312px;
+    bottom: 382px;
     left: 12px;
     width: calc(100vw - 24px);
     transform: none;
   }
 
   .inventory-panel {
-    display: none;
+    right: 12px;
+    bottom: 150px;
+    left: 12px;
+    display: grid;
+    width: calc(100vw - 24px);
+    max-width: 366px;
+    grid-auto-flow: column;
+    grid-auto-columns: 42px;
+    grid-template-columns: repeat(5, 42px);
+    overflow-x: auto;
+    justify-content: start;
+    justify-self: center;
+    scrollbar-width: thin;
   }
 
   .combat-log {

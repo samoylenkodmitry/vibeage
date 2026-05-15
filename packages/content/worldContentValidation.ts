@@ -23,6 +23,11 @@ const WorldSettingsSchema = z.object({
   cameraFar: positiveNumber,
   fogNear: nonNegativeNumber,
   fogFar: positiveNumber,
+  terrainChunkSize: positiveNumber,
+  terrainChunkSegments: positiveNumber,
+  visibleTerrainChunkRadius: positiveNumber,
+  foliageCellSize: positiveNumber,
+  visibleFoliageCellRadius: positiveNumber,
 }).superRefine((settings, ctx) => {
   if (settings.groundSize < settings.playableRadius * 2) {
     ctx.addIssue({

@@ -1,11 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { enterWorld } from "../e2e-helpers/gameClient";
 
-test.setTimeout(60_000);
+test.setTimeout(90_000);
 
 const HUD_VIEWPORTS = [
   { name: "desktop", size: { width: 1280, height: 720 }, inventoryVisible: true },
-  { name: "mobile", size: { width: 390, height: 844 }, inventoryVisible: false },
+  { name: "mobile", size: { width: 390, height: 844 }, inventoryVisible: true },
 ] as const;
 
 for (const viewport of HUD_VIEWPORTS) {

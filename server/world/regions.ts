@@ -1,6 +1,7 @@
 import type { Zone, ZoneManager } from '../../packages/content/zones.js';
 import type { Vec3D, VecXZ } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
+import { getRegionCandidatesAtPosition } from './regionIndex.js';
 
 export const DEFAULT_REGION_STREAM_MARGIN = 80;
 
@@ -301,7 +302,7 @@ export function findActiveRegionIdAtPosition(
   regions: readonly ServerWorldRegion[],
   position: Vec3D,
 ): string | null {
-  for (const region of regions) {
+  for (const region of getRegionCandidatesAtPosition(regions, position)) {
     if (region.active && isInsideRegion(region, position)) {
       return region.id;
     }

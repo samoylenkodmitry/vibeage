@@ -1,10 +1,12 @@
 import { GAME_ZONES, type Zone } from './zones.js';
 
 export const WORLD_SPAWN_BUDGETS = {
-  warningInitialEnemySpawns: 240,
-  maxInitialEnemySpawns: 260,
-  warningZoneCount: 18,
-  maxZoneCount: 24,
+  warningInitialEnemySpawns: 300,
+  maxInitialEnemySpawns: 360,
+  maxRuntimeActiveEnemies: 220,
+  maxRuntimeActiveZones: 8,
+  warningZoneCount: 24,
+  maxZoneCount: 36,
   warningEnemiesPerZone: 24,
   maxEnemiesPerZone: 36,
 } as const;
@@ -21,6 +23,8 @@ export type WorldSpawnBudgetReport = {
   configuredMaxEnemiesPerZone: number;
   warningInitialEnemySpawns: number;
   maxInitialEnemySpawns: number;
+  maxRuntimeActiveEnemies: number;
+  maxRuntimeActiveZones: number;
   warningZoneCount: number;
   maxZoneCount: number;
   warningEnemiesPerZone: number;

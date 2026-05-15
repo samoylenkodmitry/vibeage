@@ -14,8 +14,8 @@ export type WorldZoneSpawnPolicy = {
 };
 
 export const DEFAULT_WORLD_ZONE_SPAWN_POLICY: WorldZoneSpawnPolicy = {
-  maxActiveZones: WORLD_SPAWN_BUDGETS.maxZoneCount,
-  maxActiveEnemies: WORLD_SPAWN_BUDGETS.maxInitialEnemySpawns,
+  maxActiveZones: WORLD_SPAWN_BUDGETS.maxRuntimeActiveZones,
+  maxActiveEnemies: WORLD_SPAWN_BUDGETS.maxRuntimeActiveEnemies,
   maxEnemiesPerZone: WORLD_SPAWN_BUDGETS.maxEnemiesPerZone,
 };
 

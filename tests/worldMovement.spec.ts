@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { WORLD_SETTINGS } from '../packages/content/world';
 import type { Enemy, PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
 import {
@@ -68,8 +69,8 @@ const makeEnemy = (overrides: Partial<Enemy> = {}): Enemy => ({
 
 describe('world movement helpers', () => {
   test('validates movement bounds and finite coordinates', () => {
-    expect(isValidPosition({ x: 1000, z: -1000 })).toBe(true);
-    expect(isValidPosition({ x: 1000.1, z: 0 })).toBe(false);
+    expect(isValidPosition({ x: WORLD_SETTINGS.playableRadius, z: -WORLD_SETTINGS.playableRadius })).toBe(true);
+    expect(isValidPosition({ x: WORLD_SETTINGS.playableRadius + 0.1, z: 0 })).toBe(false);
     expect(isValidPosition({ x: Number.NaN, z: 0 })).toBe(false);
     expect(isValidPosition({ x: 0, z: Number.POSITIVE_INFINITY })).toBe(false);
   });

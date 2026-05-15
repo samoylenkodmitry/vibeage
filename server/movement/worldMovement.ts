@@ -1,10 +1,10 @@
 import type { PredictionKeyframe, VecXZ } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import { WORLD_SETTINGS } from '../../packages/content/world.js';
 import type { GameState } from '../gameState.js';
 import { gridCellChanged, type SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 
 const MAX_HISTORY_AGE_MS = 500;
-const MAX_POSITION = 1000;
 const DEFAULT_PLAYER_SPEED = 20;
 const MAX_PLAYER_SPEED = 40;
 
@@ -114,7 +114,10 @@ export function getPlayerSpeed(player: PlayerState): number {
 }
 
 export function isValidPosition(pos: VecXZ): boolean {
-  return Number.isFinite(pos.x) && Number.isFinite(pos.z) && Math.abs(pos.x) <= MAX_POSITION && Math.abs(pos.z) <= MAX_POSITION;
+  return Number.isFinite(pos.x)
+    && Number.isFinite(pos.z)
+    && Math.abs(pos.x) <= WORLD_SETTINGS.playableRadius
+    && Math.abs(pos.z) <= WORLD_SETTINGS.playableRadius;
 }
 
 export function predictEntityStateAtOffset(
