@@ -153,22 +153,17 @@ This branch starts with the highest-leverage foundation:
 
 Live items requested after the latest deploy. Each is a single-PR slice.
 
-1. [ ] **Skyward camera** — orbit pitch should dip below the player so the sky / sun / moon are visible when rotating. Lower `CAMERA_MIN_PITCH` and update the spec.
+1. [x] **Skyward camera** — orbit pitch should dip below the player so the sky / sun / moon are visible when rotating. Lower `CAMERA_MIN_PITCH` and update the spec. Delivered alongside v4 #4 (camera lookAt sky offset) and v6 #1 (sky-start single-finger drag).
 
-2. [ ] **Interactive map** — the world map needs:
-   - mouse-wheel zoom of the SVG viewBox,
-   - drag-pan,
-   - left-click drops a navigation marker,
-   - the same marker also renders as a tall, fog-bypassing pin in the 3D world so the player can walk to it,
-   - right-click clears the marker.
+2. [x] **Interactive map** — the world map has wheel zoom, drag-pan, left-click navigation marker that also renders as a 3D pin, right-click clear, and now mobile pinch-zoom (v5 #2). The 2D pin and the 3D follow-arrow are wired together.
 
-3. [ ] **Persistent HUD window positions** — `useDraggablePanel` takes a storage key, reads initial offset from `localStorage`, writes on drag-end. Each panel uses its own key so positions survive reload.
+3. [x] **Persistent HUD window positions** — `useDraggablePanel` takes a per-panel storage key and writes offset to `localStorage` on drag-end.
 
-4. [ ] **Quest checklist** — the Quest panel becomes a list of available quests. Each row has a checkbox; ticking it expands the row to show the current progress for that quest. Starter Path is the first item; later quests slot in as content lands.
+4. [x] **Quest checklist** — the Quest panel renders as a list of quest rows with checkboxes that expand to show the current progress. Starter Path is the first row; later quests slot in once their content lands.
 
 5. [x] **Smoother walk** — drop the residual vertical bounce so the figure travels at a stable y. Keep leg swing and torso sway as the only motion cues. If snapshot-rate jitter persists, extrapolate position with velocity between server snaps.
 
-6. [ ] **Mobile camera rotation** — single-finger orbit on touch devices. Add an on-screen camera handle (visible only on touch) that captures pointer drags and rotates the camera. Two-finger gesture stays as the fallback. Discoverable from the moment a new player enters the world.
+6. [x] **Mobile camera rotation** — single-finger drag rotates the camera anywhere on the canvas (terrain or sky), and two-finger gestures stay available for pinch zoom. No on-screen handle needed since the gesture works from anywhere.
 
 7. [x] **Starter skill kit** — new characters spawn with Fireball + Ice Bolt + Water Splash + Petrify wired into the four bar slots, so the first kill is achievable without grinding for skill points first.
 
