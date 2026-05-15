@@ -87,25 +87,44 @@ async function issueMoveIntent(page: Page, expectMovementPanelVisible: boolean):
   }
 }
 
+type PanelBox = { name: string; x: number; y: number; width: number; height: number };
+
+async function measurePanels(page: Page, panels: HudPanel[]): Promise<PanelBox[]> {
+  const selectors = panels.map(({ name, locator }) => ({ name, selector: locatorSelector(locator) }));
+  return await page.evaluate((items) => {
+    return items.map(({ name, selector }) => {
+      const element = document.querySelector(selector);
+      const rect = element?.getBoundingClientRect();
+      return {
+        name,
+        x: rect?.x ?? 0,
+        y: rect?.y ?? 0,
+        width: rect?.width ?? 0,
+        height: rect?.height ?? 0,
+      };
+    });
+  }, selectors);
+}
+
+function locatorSelector(locator: Locator): string {
+  const description = locator.toString();
+  const match = description.match(/locator\('([^']+)'\)/);
+  if (!match) {
+    throw new Error(`Cannot extract selector from locator: ${description}`);
+  }
+  return match[1];
+}
+
 async function expectInsideViewport(page: Page, panels: HudPanel[]): Promise<void> {
   const viewport = page.viewportSize();
   expect(viewport).toBeTruthy();
 
-  for (const { name, locator } of panels) {
-    const box = await locator.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return {
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-      };
-    });
-
-    expect(box.x, `${name} x`).toBeGreaterThanOrEqual(0);
-    expect(box.y, `${name} y`).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width, `${name} right edge`).toBeLessThanOrEqual(viewport!.width + 1);
-    expect(box.y + box.height, `${name} bottom edge`).toBeLessThanOrEqual(viewport!.height + 1);
+  const boxes = await measurePanels(page, panels);
+  for (const box of boxes) {
+    expect(box.x, `${box.name} x`).toBeGreaterThanOrEqual(0);
+    expect(box.y, `${box.name} y`).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, `${box.name} right edge`).toBeLessThanOrEqual(viewport!.width + 1);
+    expect(box.y + box.height, `${box.name} bottom edge`).toBeLessThanOrEqual(viewport!.height + 1);
   }
 }
 
@@ -126,15 +145,7 @@ async function expectWorldVisible(
   expect(viewport).toBeTruthy();
   const totalArea = viewport!.width * viewport!.height;
 
-  const boxes: Array<{ name: string; x: number; y: number; width: number; height: number }> = [];
-  for (const { name, locator } of panels) {
-    const box = await locator.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-    });
-    boxes.push({ name, ...box });
-  }
-
+  const boxes = await measurePanels(page, panels);
   const coveredArea = computeUnionArea(boxes, viewport!.width, viewport!.height);
   const visibleRatio = Math.max(0, 1 - coveredArea / totalArea);
   expect(
