@@ -36,7 +36,6 @@ export function useClientActions(
       targetPos: target,
       clientTs: Date.now(),
     });
-    dispatch({ type: 'selectTarget', targetId: null });
     dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
   }, [roomRef, stateRef, dispatch]);
 

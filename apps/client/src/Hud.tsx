@@ -3,6 +3,7 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
 import { InventoryPanel } from './hud/InventoryPanel';
+import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
 import {
@@ -67,6 +68,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
   const [statsOpen, setStatsOpen] = useState(true);
   const [questOpen, setQuestOpen] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   useSkillHotkeys(player, onCastSkill);
 
@@ -86,6 +88,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
         <Metric label="Regions" value={regionStatus} />
         <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
       </section>
+      <VitalsStrip player={player} />
       {statsOpen && <PlayerPanel player={player} />}
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
@@ -96,6 +99,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       {bagOpen && (
         <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       )}
+      {mapOpen && <MapPanel player={player} />}
       <CastingPanel player={player} />
       <SkillBar
         player={player}
@@ -107,9 +111,11 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
         statsOpen={statsOpen}
         questOpen={questOpen}
         bagOpen={bagOpen}
+        mapOpen={mapOpen}
         onToggleStats={() => setStatsOpen((prev) => !prev)}
         onToggleQuest={() => setQuestOpen((prev) => !prev)}
         onToggleBag={() => setBagOpen((prev) => !prev)}
+        onToggleMap={() => setMapOpen((prev) => !prev)}
       />
       {state.combatLog.length > 0 && (
         <section className="combat-log" aria-label="Combat log">
@@ -127,22 +133,27 @@ function PanelToggleStrip({
   statsOpen,
   questOpen,
   bagOpen,
+  mapOpen,
   onToggleStats,
   onToggleQuest,
   onToggleBag,
+  onToggleMap,
 }: {
   statsOpen: boolean;
   questOpen: boolean;
   bagOpen: boolean;
+  mapOpen: boolean;
   onToggleStats: () => void;
   onToggleQuest: () => void;
   onToggleBag: () => void;
+  onToggleMap: () => void;
 }) {
   return (
     <aside className="panel-toggles" aria-label="Panel toggles">
       <PanelToggleButton open={statsOpen} label="Stats" onClick={onToggleStats} />
       <PanelToggleButton open={questOpen} label="Quest" onClick={onToggleQuest} />
       <PanelToggleButton open={bagOpen} label="Bag" onClick={onToggleBag} />
+      <PanelToggleButton open={mapOpen} label="Map" onClick={onToggleMap} />
     </aside>
   );
 }
@@ -168,8 +179,18 @@ function PanelToggleButton({
   );
 }
 
+function VitalsStrip({ player }: { player: PlayerEntity | null }) {
+  return (
+    <section className="vitals-strip" aria-label="Vitals">
+      <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" />
+      <Meter label="MP" value={player?.mana} max={player?.maxMana} className="meter-mp" />
+    </section>
+  );
+}
+
 function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   const xpProgress = getMeterProgress(player?.experience, player?.experienceToNextLevel);
+  const stats = derivePlayerStats(player);
 
   return (
     <section className="hud player-panel" aria-label="Player status">
@@ -186,9 +207,52 @@ function PlayerPanel({ player }: { player: PlayerEntity | null }) {
         </div>
         <strong>{formatMeter(player?.experience, player?.experienceToNextLevel)}</strong>
       </div>
+      <dl className="player-stats">
+        <div><dt>Class</dt><dd>{stats.className}</dd></div>
+        <div><dt>STR</dt><dd>{stats.strength}</dd></div>
+        <div><dt>DEX</dt><dd>{stats.dexterity}</dd></div>
+        <div><dt>INT</dt><dd>{stats.intellect}</dd></div>
+        <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
+        <div><dt>Skills</dt><dd>{stats.unlockedSkills}</dd></div>
+      </dl>
       <StatusPills effects={player?.statusEffects ?? []} />
     </section>
   );
+}
+
+function derivePlayerStats(player: PlayerEntity | null): {
+  className: string;
+  strength: number;
+  dexterity: number;
+  intellect: number;
+  skillPoints: number;
+  unlockedSkills: number;
+} {
+  const className = player?.className ?? 'wanderer';
+  const level = player?.level ?? 1;
+  const weights = STAT_WEIGHTS[className] ?? STAT_WEIGHTS.default;
+  return {
+    className: capitalize(className),
+    strength: 6 + Math.floor(level * weights.str),
+    dexterity: 6 + Math.floor(level * weights.dex),
+    intellect: 6 + Math.floor(level * weights.int),
+    skillPoints: player?.availableSkillPoints ?? 0,
+    unlockedSkills: player?.unlockedSkills?.length ?? 0,
+  };
+}
+
+const STAT_WEIGHTS: Record<string, { str: number; dex: number; int: number }> = {
+  fighter: { str: 2.4, dex: 1.2, int: 0.8 },
+  warrior: { str: 2.4, dex: 1.2, int: 0.8 },
+  rogue: { str: 1.0, dex: 2.4, int: 1.2 },
+  ranger: { str: 1.2, dex: 2.4, int: 1.0 },
+  mage: { str: 0.8, dex: 1.0, int: 2.6 },
+  cleric: { str: 1.4, dex: 1.0, int: 2.0 },
+  default: { str: 1.5, dex: 1.5, int: 1.5 },
+};
+
+function capitalize(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
 function TargetPanel({
