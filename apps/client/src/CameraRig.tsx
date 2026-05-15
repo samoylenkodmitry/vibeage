@@ -3,14 +3,15 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   applyCameraDragDelta,
+  applyPinchZoom,
   applyWheelZoom,
   CAMERA_DISTANCE,
   CAMERA_FOCUS_RESPONSE,
   CAMERA_POSITION_RESPONSE,
   getTouchCentroid,
   hasMeaningfulCameraFocusDelta,
+  pinchDistance,
   smoothingAlpha,
-  shouldStartCameraDrag,
   writeCameraOrbitPosition,
 } from './cameraRig';
 import type { Vec3 } from './gameTypes';
@@ -27,16 +28,20 @@ const SKY_LOOKUP_GAIN = 3.0;
 const SKY_LOOKUP_MAX_RATIO = 4.5;
 const lookAtTempVec = new THREE.Vector3();
 
+type TouchPoint = { x: number; y: number };
+
 export function CameraRig({
   focus,
   presentationFocusRef,
   cameraAngleRef,
   cameraControlsRef,
+  touchClaimRef,
 }: {
   focus: Vec3;
   presentationFocusRef: MutableRefObject<THREE.Vector3 | null>;
   cameraAngleRef?: MutableRefObject<number>;
   cameraControlsRef?: MutableRefObject<CameraControls | null>;
+  touchClaimRef?: MutableRefObject<Set<number>>;
 }) {
   const { camera, gl } = useThree();
   const angleRef = useRef(Math.PI * 0.82);
@@ -46,7 +51,7 @@ export function CameraRig({
   const focusRef = useRef(new THREE.Vector3(focus.x, initialFocusY, focus.z));
   const focusTargetRef = useRef(new THREE.Vector3(focus.x, initialFocusY, focus.z));
   const cameraTargetRef = useRef(new THREE.Vector3());
-  useCameraDragControls(gl, angleRef, pitchRef);
+  useCameraDragControls(gl, angleRef, pitchRef, distanceRef, touchClaimRef);
   useCameraWheelZoom(gl, distanceRef);
 
   useEffect(() => {
@@ -139,51 +144,75 @@ function useCameraWheelZoom(
   }, [distanceRef, gl]);
 }
 
+type DragMode = 'idle' | 'mouse' | 'touchSingle' | 'touchPinch';
+
+type DragState = {
+  modeRef: MutableRefObject<DragMode>;
+  lastPointerRef: MutableRefObject<TouchPoint>;
+  lastPinchPxRef: MutableRefObject<number>;
+  activeTouchesRef: MutableRefObject<Map<number, TouchPoint>>;
+};
+
+type DragTargets = {
+  angleRef: MutableRefObject<number>;
+  pitchRef: MutableRefObject<number>;
+  distanceRef: MutableRefObject<number>;
+};
+
 function useCameraDragControls(
   gl: THREE.WebGLRenderer,
   angleRef: MutableRefObject<number>,
   pitchRef: MutableRefObject<number>,
+  distanceRef: MutableRefObject<number>,
+  touchClaimRef?: MutableRefObject<Set<number>>,
 ): void {
-  const draggingRef = useRef(false);
-  const lastPointerRef = useRef({ x: 0, y: 0 });
-  const activeTouchesRef = useRef(new Map<number, { x: number; y: number }>());
+  const modeRef = useRef<DragMode>('idle');
+  const lastPointerRef = useRef<TouchPoint>({ x: 0, y: 0 });
+  const lastPinchPxRef = useRef(0);
+  const activeTouchesRef = useRef(new Map<number, TouchPoint>());
 
   useEffect(() => {
     const canvas = gl.domElement;
+    const state: DragState = { modeRef, lastPointerRef, lastPinchPxRef, activeTouchesRef };
+    const targets: DragTargets = { angleRef, pitchRef, distanceRef };
+
     const onContextMenu = (event: MouseEvent) => event.preventDefault();
     const onPointerDown = (event: PointerEvent) => {
-      updateTouchPointer(event, activeTouchesRef.current);
-      if (!shouldStartCameraDrag(event, activeTouchesRef.current.size)) {
+      if (event.pointerType === 'touch') {
+        activeTouchesRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        startOrTransitionTouchDrag(state, touchClaimRef);
         return;
       }
-
-      draggingRef.current = true;
-      lastPointerRef.current = getCurrentPointer(event, activeTouchesRef.current)
-        ?? { x: event.clientX, y: event.clientY };
-      event.preventDefault();
+      if (event.button === 2) {
+        modeRef.current = 'mouse';
+        lastPointerRef.current = { x: event.clientX, y: event.clientY };
+        event.preventDefault();
+      }
     };
     const onPointerMove = (event: PointerEvent) => {
-      updateTouchPointer(event, activeTouchesRef.current);
-      if (!draggingRef.current) {
+      if (event.pointerType === 'touch') {
+        activeTouchesRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+      const mode = modeRef.current;
+      if (mode === 'idle') {
         return;
       }
-
-      const pointer = getCurrentPointer(event, activeTouchesRef.current);
-      if (!pointer) {
+      if (mode === 'mouse') {
+        applyMouseDelta(event, targets, lastPointerRef);
         return;
       }
-
-      const orbit = applyCameraDragDelta(
-        { angle: angleRef.current, pitch: pitchRef.current },
-        { x: pointer.x - lastPointerRef.current.x, y: pointer.y - lastPointerRef.current.y },
-      );
-      angleRef.current = orbit.angle;
-      pitchRef.current = orbit.pitch;
-      lastPointerRef.current = pointer;
+      applyTouchDelta(state, targets, touchClaimRef);
       event.preventDefault();
     };
     const onPointerUp = (event: PointerEvent) => {
-      releasePointer(event, activeTouchesRef.current, draggingRef);
+      if (event.pointerType === 'touch') {
+        activeTouchesRef.current.delete(event.pointerId);
+        recomputeTouchMode(state, touchClaimRef);
+        return;
+      }
+      if (event.button === 2 && modeRef.current === 'mouse') {
+        modeRef.current = 'idle';
+      }
     };
 
     canvas.addEventListener('contextmenu', onContextMenu);
@@ -199,43 +228,124 @@ function useCameraDragControls(
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
     };
-  }, [angleRef, gl, pitchRef]);
+  }, [angleRef, distanceRef, gl, pitchRef, touchClaimRef]);
 }
 
-function updateTouchPointer(
+function applyMouseDelta(
   event: PointerEvent,
-  activeTouches: Map<number, { x: number; y: number }>,
+  targets: DragTargets,
+  lastPointerRef: MutableRefObject<TouchPoint>,
 ): void {
-  if (event.pointerType === 'touch') {
-    activeTouches.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  }
+  const dx = event.clientX - lastPointerRef.current.x;
+  const dy = event.clientY - lastPointerRef.current.y;
+  const orbit = applyCameraDragDelta(
+    { angle: targets.angleRef.current, pitch: targets.pitchRef.current },
+    { x: dx, y: dy },
+  );
+  targets.angleRef.current = orbit.angle;
+  targets.pitchRef.current = orbit.pitch;
+  lastPointerRef.current = { x: event.clientX, y: event.clientY };
 }
 
-function releasePointer(
-  event: PointerEvent,
-  activeTouches: Map<number, { x: number; y: number }>,
-  draggingRef: MutableRefObject<boolean>,
+function startOrTransitionTouchDrag(
+  state: DragState,
+  touchClaimRef?: MutableRefObject<Set<number>>,
 ): void {
-  if (event.pointerType === 'touch') {
-    activeTouches.delete(event.pointerId);
-    if (activeTouches.size < 2) {
-      draggingRef.current = false;
+  const touches = [...state.activeTouchesRef.current.entries()];
+  if (touches.length >= 2) {
+    const points = touches.map(([, point]) => point);
+    const centroid = getTouchCentroid(points);
+    if (centroid) {
+      state.modeRef.current = 'touchPinch';
+      state.lastPointerRef.current = centroid;
+      state.lastPinchPxRef.current = pinchDistance(points[0], points[1]);
     }
     return;
   }
+  const [pointerId, point] = touches[0] ?? [];
+  if (pointerId === undefined || !point) {
+    return;
+  }
+  if (touchClaimRef?.current.has(pointerId)) {
+    state.modeRef.current = 'idle';
+    return;
+  }
+  state.modeRef.current = 'touchSingle';
+  state.lastPointerRef.current = point;
+}
 
-  if (event.button === 2) {
-    draggingRef.current = false;
+function applyTouchDelta(
+  state: DragState,
+  targets: DragTargets,
+  touchClaimRef?: MutableRefObject<Set<number>>,
+): void {
+  const touches = [...state.activeTouchesRef.current.entries()];
+  if (state.modeRef.current === 'touchPinch' && touches.length >= 2) {
+    applyPinchDelta(state, targets, touches.map(([, point]) => point));
+    return;
+  }
+  if (state.modeRef.current === 'touchSingle' && touches.length === 1) {
+    applySingleTouchDelta(state, targets, touches[0], touchClaimRef);
   }
 }
 
-function getCurrentPointer(
-  event: PointerEvent,
-  activeTouches: ReadonlyMap<number, { x: number; y: number }>,
-): { x: number; y: number } | null {
-  if (event.pointerType !== 'touch') {
-    return { x: event.clientX, y: event.clientY };
+function applyPinchDelta(
+  state: DragState,
+  targets: DragTargets,
+  points: TouchPoint[],
+): void {
+  const centroid = getTouchCentroid(points);
+  if (!centroid) {
+    return;
   }
+  const dx = centroid.x - state.lastPointerRef.current.x;
+  const dy = centroid.y - state.lastPointerRef.current.y;
+  const orbit = applyCameraDragDelta(
+    { angle: targets.angleRef.current, pitch: targets.pitchRef.current },
+    { x: dx, y: dy },
+  );
+  targets.angleRef.current = orbit.angle;
+  targets.pitchRef.current = orbit.pitch;
+  state.lastPointerRef.current = centroid;
+  const nextPinch = pinchDistance(points[0], points[1]);
+  targets.distanceRef.current = applyPinchZoom(
+    targets.distanceRef.current,
+    state.lastPinchPxRef.current,
+    nextPinch,
+  );
+  state.lastPinchPxRef.current = nextPinch;
+}
 
-  return getTouchCentroid([...activeTouches.values()]);
+function applySingleTouchDelta(
+  state: DragState,
+  targets: DragTargets,
+  entry: [number, TouchPoint],
+  touchClaimRef?: MutableRefObject<Set<number>>,
+): void {
+  const [pointerId, point] = entry;
+  if (touchClaimRef?.current.has(pointerId)) {
+    state.modeRef.current = 'idle';
+    return;
+  }
+  const dx = point.x - state.lastPointerRef.current.x;
+  const dy = point.y - state.lastPointerRef.current.y;
+  const orbit = applyCameraDragDelta(
+    { angle: targets.angleRef.current, pitch: targets.pitchRef.current },
+    { x: dx, y: dy },
+  );
+  targets.angleRef.current = orbit.angle;
+  targets.pitchRef.current = orbit.pitch;
+  state.lastPointerRef.current = point;
+}
+
+function recomputeTouchMode(
+  state: DragState,
+  touchClaimRef?: MutableRefObject<Set<number>>,
+): void {
+  if (state.activeTouchesRef.current.size === 0) {
+    state.modeRef.current = 'idle';
+    state.lastPinchPxRef.current = 0;
+    return;
+  }
+  startOrTransitionTouchDrag(state, touchClaimRef);
 }
