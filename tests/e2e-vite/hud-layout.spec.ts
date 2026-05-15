@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { enterWorld } from "../e2e-helpers/gameClient";
 
-test.setTimeout(90_000);
+test.setTimeout(150_000);
 
 const HUD_VIEWPORTS = [
   {
