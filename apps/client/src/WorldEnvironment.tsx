@@ -66,8 +66,8 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     };
   }, [sunMaterial, cloudMaterial, moonMaterial]);
 
-  useFrame(({ clock }, delta) => {
-    const palette = computeDayPhase(clock.elapsedTime * 1_000);
+  useFrame((_, delta) => {
+    const palette = computeDayPhase(Date.now());
     applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta });
   });
 

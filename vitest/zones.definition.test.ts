@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_ZONES, ZoneManager } from '../packages/content/zones.js';
+import { DEFAULT_DAY_DURATION_MS, dayPhaseLabel, isMobAllowedInPhase } from '../packages/sim/timeOfDay.js';
 
 describe('zone definitions', () => {
   it('exports the current starter zone first', () => {
@@ -13,14 +14,17 @@ describe('zone definitions', () => {
     expect(zones.getZoneAtPosition({ x: 10000, z: 10000 })).toBeNull();
   });
 
-  it('returns spawn counts inside each configured range', () => {
+  it('returns spawn counts inside each configured range for the current phase', () => {
     const zones = new ZoneManager();
-    const spawnConfig = zones.getMobsToSpawn('starter_meadow');
-    const starterMobs = GAME_ZONES[0]?.mobs ?? [];
+    const noonMs = DEFAULT_DAY_DURATION_MS * 0.3;
+    const spawnConfig = zones.getMobsToSpawn('starter_meadow', noonMs);
+    const eligibleMobs = (GAME_ZONES[0]?.mobs ?? []).filter((mob) =>
+      isMobAllowedInPhase(mob.activePhases, dayPhaseLabel(noonMs)),
+    );
 
-    expect(spawnConfig).toHaveLength(starterMobs.length);
+    expect(spawnConfig).toHaveLength(eligibleMobs.length);
     for (const [index, spawn] of spawnConfig.entries()) {
-      const mob = starterMobs[index];
+      const mob = eligibleMobs[index];
       expect(spawn.type).toBe(mob.type);
       expect(spawn.count).toBeGreaterThanOrEqual(mob.minCount);
       expect(spawn.count).toBeLessThanOrEqual(mob.maxCount);

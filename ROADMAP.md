@@ -237,7 +237,7 @@ Live items requested after the v5 deploy.
 
 4. [x] **Pack formations + mini-bosses + loot variety** — some species spawn in small groups that share aggro, each zone has one named mini-boss with richer loot, and every species owns its own loot table.
 
-5. [ ] **Day / night spawn variation** — different mobs active in different timeOfDay phases.
+5. [x] **Day / night spawn variation** — different mobs active in different timeOfDay phases.
 
 6. [ ] **More classes + more skills per class** — add Knight, Paladin, Rogue alongside the existing four with distinct stat curves; at least 6-8 skills per class with prereqs, level gates, and explicit cooldowns/costs balanced server-side.
 
