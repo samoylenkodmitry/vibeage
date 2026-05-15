@@ -13,11 +13,23 @@ type SkillTheme = {
   shape: 'sphere' | 'crystal' | 'stone';
 };
 
-const SKILL_THEMES: Record<CastSnapshot['skillId'], SkillTheme> = {
+const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
   fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere' },
   iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal' },
   waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere' },
   petrify: { core: '#d6d3d1', glow: '#a8a29e', accent: '#facc15', shape: 'stone' },
+  smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere' },
+  arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal' },
+  volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal' },
+  poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal' },
+  holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere' },
+};
+
+const DEFAULT_SKILL_THEME: SkillTheme = {
+  core: '#fde68a',
+  glow: '#fbbf24',
+  accent: '#fde68a',
+  shape: 'sphere',
 };
 
 const LOOT_SPARKS = [
@@ -78,7 +90,7 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
 }
 
 export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
-  const theme = SKILL_THEMES[snapshot.skillId];
+  const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
   if (snapshot.state === CastState.Impact) {

@@ -1,6 +1,6 @@
 import type { SkillId } from './skills.js';
 
-export type CharacterClass = 'mage' | 'warrior' | 'healer' | 'ranger';
+export type CharacterClass = 'mage' | 'warrior' | 'healer' | 'ranger' | 'knight' | 'paladin' | 'rogue';
 
 export interface SkillRequirement {
   level: number;
@@ -17,7 +17,7 @@ export interface ClassSkillTree {
     damageMultiplier: number;
     speedMultiplier: number;
   };
-  skillProgression: Record<SkillId, SkillRequirement>;
+  skillProgression: Partial<Record<SkillId, SkillRequirement>>;
 }
 
 export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
@@ -35,6 +35,8 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       waterSplash: { level: 2, requiredSkills: ['fireball'] },
       iceBolt: { level: 3, requiredSkills: ['waterSplash'] },
       petrify: { level: 4, requiredSkills: ['iceBolt'] },
+      smite: { level: 5, requiredSkills: ['fireball'] },
+      dispel: { level: 6 },
     },
   },
   warrior: {
@@ -47,10 +49,12 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.0,
     },
     skillProgression: {
-      fireball: { level: 2 },
-      waterSplash: { level: 4 },
-      iceBolt: { level: 5 },
-      petrify: { level: 3 },
+      slash: { level: 1 },
+      bash: { level: 3, requiredSkills: ['slash'] },
+      taunt: { level: 4 },
+      powerStrike: { level: 5, requiredSkills: ['slash'] },
+      shieldWall: { level: 7 },
+      fireball: { level: 6 },
     },
   },
   healer: {
@@ -63,10 +67,12 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.0,
     },
     skillProgression: {
-      fireball: { level: 4 },
-      waterSplash: { level: 1 },
-      iceBolt: { level: 3 },
-      petrify: { level: 5 },
+      holyLight: { level: 1 },
+      bless: { level: 3 },
+      smite: { level: 4 },
+      dispel: { level: 5 },
+      waterSplash: { level: 2 },
+      divineShield: { level: 7, requiredSkills: ['bless'] },
     },
   },
   ranger: {
@@ -79,10 +85,68 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       speedMultiplier: 1.2,
     },
     skillProgression: {
-      iceBolt: { level: 1 },
-      fireball: { level: 2 },
-      waterSplash: { level: 3 },
-      petrify: { level: 4 },
+      arrowShot: { level: 1 },
+      iceBolt: { level: 2 },
+      poisonBlade: { level: 3 },
+      volley: { level: 5, requiredSkills: ['arrowShot'] },
+      evade: { level: 4 },
+      rapidFire: { level: 7, requiredSkills: ['volley'] },
+    },
+  },
+  knight: {
+    className: 'knight',
+    description: 'Disciplined defenders trained to hold the line',
+    baseStats: {
+      healthMultiplier: 1.45,
+      manaMultiplier: 0.6,
+      damageMultiplier: 1.0,
+      speedMultiplier: 0.95,
+    },
+    skillProgression: {
+      slash: { level: 1 },
+      taunt: { level: 2 },
+      bash: { level: 3, requiredSkills: ['slash'] },
+      shieldWall: { level: 4 },
+      powerStrike: { level: 5, requiredSkills: ['bash'] },
+      smite: { level: 6 },
+      divineShield: { level: 8, requiredSkills: ['shieldWall'] },
+    },
+  },
+  paladin: {
+    className: 'paladin',
+    description: 'Holy warriors who blend martial discipline with light magic',
+    baseStats: {
+      healthMultiplier: 1.2,
+      manaMultiplier: 1.0,
+      damageMultiplier: 1.0,
+      speedMultiplier: 1.0,
+    },
+    skillProgression: {
+      slash: { level: 1 },
+      holyLight: { level: 2 },
+      smite: { level: 3, requiredSkills: ['slash'] },
+      bless: { level: 4 },
+      bash: { level: 5 },
+      divineShield: { level: 7, requiredSkills: ['holyLight'] },
+      dispel: { level: 6 },
+    },
+  },
+  rogue: {
+    className: 'rogue',
+    description: 'Agile striker who blends shadow with venom',
+    baseStats: {
+      healthMultiplier: 0.9,
+      manaMultiplier: 0.9,
+      damageMultiplier: 1.25,
+      speedMultiplier: 1.25,
+    },
+    skillProgression: {
+      evade: { level: 1 },
+      backstab: { level: 3 },
+      poisonBlade: { level: 5, requiredSkills: ['backstab'] },
+      slash: { level: 1 },
+      iceBolt: { level: 4 },
+      vanish: { level: 7, requiredSkills: ['evade'] },
     },
   },
 };

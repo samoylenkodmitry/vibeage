@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="stealthBg" cx="0.5" cy="0.4" r="0.8">
+      <stop offset="0" stop-color="#312e81"/>
+      <stop offset="1" stop-color="#0c0c1f"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="10" fill="url(#stealthBg)"/>
+  <path d="M14 38 C24 18 40 18 50 38 C40 50 24 50 14 38 Z" fill="#c4b5fd" stroke="#1e1b4b" stroke-width="2"/>
+  <circle cx="32" cy="36" r="6" fill="#1e1b4b"/>
+  <circle cx="32" cy="36" r="3" fill="#c4b5fd"/>
+</svg>
