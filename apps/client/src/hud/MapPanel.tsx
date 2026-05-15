@@ -129,26 +129,20 @@ function useMapInteraction(input: MapInteractionInput) {
     lastClientY: number;
     pixelsPerWorldUnit: number;
   } | null>(null);
-  const { svgRef, viewMinX, viewMinZ, viewWidth, viewHeight, setView, onSetNavigationMarker } = input;
+  const { svgRef, viewWidth, setView, onSetNavigationMarker } = input;
 
-  const screenToWorld = (event: ReactPointerEvent<SVGSVGElement>): Marker | null => {
-    const svg = svgRef.current;
-    if (!svg) return null;
-    const rect = svg.getBoundingClientRect();
-    const sx = (event.clientX - rect.left) / rect.width;
-    const sy = (event.clientY - rect.top) / rect.height;
-    return { x: viewMinX + sx * viewWidth, z: viewMinZ + sy * viewHeight };
+  const screenToWorld = (event: { clientX: number; clientY: number }): Marker | null => {
+    return svgClientToWorld(svgRef.current, event);
   };
 
   const onWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
     event.preventDefault();
-    const svg = svgRef.current;
-    if (!svg) return;
+    const world = svgClientToWorld(svgRef.current, event);
+    if (!world) return;
+    const svg = svgRef.current!;
     const rect = svg.getBoundingClientRect();
     const sx = (event.clientX - rect.left) / rect.width;
     const sy = (event.clientY - rect.top) / rect.height;
-    const worldX = viewMinX + sx * viewWidth;
-    const worldZ = viewMinZ + sy * viewHeight;
     const factor = event.deltaY < 0 ? 1.18 : 1 / 1.18;
     setView((prev) => {
       const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * factor));
@@ -156,8 +150,8 @@ function useMapInteraction(input: MapInteractionInput) {
       const nextHeight = WORLD_BOUNDS.height / nextZoom;
       return {
         zoom: nextZoom,
-        centerX: worldX + (0.5 - sx) * nextWidth,
-        centerZ: worldZ + (0.5 - sy) * nextHeight,
+        centerX: world.x + (0.5 - sx) * nextWidth,
+        centerZ: world.z + (0.5 - sy) * nextHeight,
       };
     });
   };
@@ -213,6 +207,21 @@ function useMapInteraction(input: MapInteractionInput) {
   const onContextMenu = (event: ReactPointerEvent<SVGSVGElement>) => event.preventDefault();
 
   return { onWheel, onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onContextMenu };
+}
+
+function svgClientToWorld(
+  svg: SVGSVGElement | null,
+  event: { clientX: number; clientY: number },
+): Marker | null {
+  if (!svg) return null;
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return null;
+  const inverse = matrix.inverse();
+  const pt = svg.createSVGPoint();
+  pt.x = event.clientX;
+  pt.y = event.clientY;
+  const transformed = pt.matrixTransform(inverse);
+  return { x: transformed.x, z: transformed.y };
 }
 
 function useCameraYaw(angleRef?: MutableRefObject<number>): number {

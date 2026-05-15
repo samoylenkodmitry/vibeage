@@ -11,9 +11,13 @@ function readStoredOffset(key: string | undefined): { x: number; y: number } {
     if (!raw) {
       return { x: 0, y: 0 };
     }
-    const parsed = JSON.parse(raw) as { x?: unknown; y?: unknown };
-    const x = typeof parsed.x === 'number' ? parsed.x : 0;
-    const y = typeof parsed.y === 'number' ? parsed.y : 0;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return { x: 0, y: 0 };
+    }
+    const record = parsed as Record<string, unknown>;
+    const x = typeof record.x === 'number' && Number.isFinite(record.x) ? record.x : 0;
+    const y = typeof record.y === 'number' && Number.isFinite(record.y) ? record.y : 0;
     return { x, y };
   } catch {
     return { x: 0, y: 0 };

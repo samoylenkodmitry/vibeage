@@ -94,7 +94,7 @@ function NavigationPin({ marker }: { marker: VecXZ }) {
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
         <ringGeometry args={[2.2, 3.2, 36]} />
-        <meshBasicMaterial color="#facc15" side={1} transparent opacity={0.6} depthWrite={false} fog={false} />
+        <meshBasicMaterial color="#facc15" side={THREE.DoubleSide} transparent opacity={0.6} depthWrite={false} fog={false} />
       </mesh>
     </group>
   );
