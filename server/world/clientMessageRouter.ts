@@ -52,7 +52,7 @@ export function handleClientMessage(
     case 'DevTeleport':
       return onDevTeleport(socket, state, msg);
     case 'ChatRequest':
-      return onChatRequest(socket, state, msg, outbound);
+      return onChatRequest(socket, state, msg, outbound, spatial);
   }
 }
 
@@ -63,6 +63,7 @@ function onChatRequest(
   state: GameState,
   msg: Extract<ClientMessage, { type: 'ChatRequest' }>,
   outbound: OutboundEventSink,
+  spatial: SpatialHashGrid,
 ): void {
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
@@ -90,15 +91,13 @@ function onChatRequest(
     return;
   }
 
-  for (const other of Object.values(state.players)) {
-    if (!other.socketId) {
-      continue;
-    }
-    const dx = other.position.x - player.position.x;
-    const dz = other.position.z - player.position.z;
-    if (dx * dx + dz * dz > CHAT_NEAR_RADIUS * CHAT_NEAR_RADIUS) {
-      continue;
-    }
+  const nearbyIds = spatial.queryCircle({ x: player.position.x, z: player.position.z }, CHAT_NEAR_RADIUS);
+  const seen = new Set<string>();
+  for (const id of nearbyIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const other = state.players[id];
+    if (!other?.socketId) continue;
     outbound.publish({ type: 'directServerMessage', socketId: other.socketId, message: broadcast });
   }
 }
