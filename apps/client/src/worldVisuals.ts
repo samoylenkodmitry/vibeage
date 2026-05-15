@@ -1,11 +1,7 @@
+import { getEnemyTemplate, type EnemyVisualSpec } from '../../../packages/content/enemies';
 import { GAME_ZONES, type Zone } from '../../../packages/content/zones';
 
-export type EnemyVisual = {
-  color: string;
-  height: number;
-  shape: 'box' | 'sphere';
-  glow: boolean;
-};
+export type EnemyVisual = EnemyVisualSpec;
 
 export type ZoneLandmarkVisual = {
   id: string;
@@ -30,18 +26,7 @@ const ZONE_PALETTE = [
 ] as const;
 
 export function getEnemyVisual(type: string): EnemyVisual {
-  switch (type) {
-    case 'slime':
-      return { color: '#56d88b', height: 0.85, shape: 'sphere', glow: false };
-    case 'meadow_sprite':
-      return { color: '#f9d66a', height: 0.9, shape: 'sphere', glow: true };
-    case 'wolf':
-      return { color: '#b08968', height: 0.9, shape: 'box', glow: false };
-    case 'skeleton':
-      return { color: '#d7d3c7', height: 1.1, shape: 'box', glow: false };
-    default:
-      return { color: '#ef6461', height: 1.1, shape: 'box', glow: false };
-  }
+  return getEnemyTemplate(type).visual;
 }
 
 export function getZoneLandmarks(zones: Zone[] = GAME_ZONES): ZoneLandmarkVisual[] {

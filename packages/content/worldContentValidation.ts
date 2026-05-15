@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ENEMY_TEMPLATES } from './enemies.js';
 import { ITEMS } from './items.js';
 import { LOOT_TABLES } from './lootTables.js';
 import { SKILLS } from './skills.js';
@@ -217,6 +218,9 @@ function collectZoneIssues(issues: string[]): void {
       const tableId = `${mob.type}_loot`;
       if (!LOOT_TABLES[tableId]) {
         issues.push(`zone ${zone.id} mob ${mob.type} references missing loot table ${tableId}`);
+      }
+      if (!ENEMY_TEMPLATES[mob.type]) {
+        issues.push(`zone ${zone.id} mob ${mob.type} has no enemy template`);
       }
     }
   }
