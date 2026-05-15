@@ -46,6 +46,7 @@ export function PlayerMarker({
   return (
     <SmoothedEntityGroup
       position={{ x: player.position.x, y: groundY, z: player.position.z }}
+      velocity={player.velocity}
       rotationY={facingY}
       response={isSelf ? 16 : 10}
       presentationRef={presentationRef}
@@ -232,6 +233,7 @@ export function EnemyMarker({
   return (
     <SmoothedEntityGroup
       position={{ x: enemy.position.x, y, z: enemy.position.z }}
+      velocity={enemy.velocity}
       rotationY={enemy.rotation?.y ?? 0}
       response={9}
       groundedOffset={groundedYOffset}
@@ -315,8 +317,11 @@ export function CastMarker({ cast }: { cast: VisibleCast }) {
   );
 }
 
+const MAX_EXTRAPOLATE_SECONDS = 0.2;
+
 function SmoothedEntityGroup({
   position,
+  velocity,
   rotationY = 0,
   response,
   children,
@@ -324,6 +329,7 @@ function SmoothedEntityGroup({
   groundedOffset,
 }: {
   position: Vec3;
+  velocity?: { x: number; z: number };
   rotationY?: number;
   response: number;
   children: ReactNode;
@@ -334,6 +340,23 @@ function SmoothedEntityGroup({
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
   const targetRef = useRef(new THREE.Vector3());
+  const lastPosRef = useRef({ x: position.x, y: position.y, z: position.z });
+  const lastVelRef = useRef({ x: velocity?.x ?? 0, z: velocity?.z ?? 0 });
+  const lastSnapTimeRef = useRef(performance.now());
+
+  const vxNow = velocity?.x ?? 0;
+  const vzNow = velocity?.z ?? 0;
+  if (
+    lastPosRef.current.x !== position.x ||
+    lastPosRef.current.y !== position.y ||
+    lastPosRef.current.z !== position.z ||
+    lastVelRef.current.x !== vxNow ||
+    lastVelRef.current.z !== vzNow
+  ) {
+    lastPosRef.current = { x: position.x, y: position.y, z: position.z };
+    lastVelRef.current = { x: vxNow, z: vzNow };
+    lastSnapTimeRef.current = performance.now();
+  }
 
   useEffect(() => {
     const group = groupRef.current;
@@ -354,8 +377,17 @@ function SmoothedEntityGroup({
       return;
     }
 
+    const elapsed = Math.min(
+      (performance.now() - lastSnapTimeRef.current) / 1000,
+      MAX_EXTRAPOLATE_SECONDS,
+    );
+    const vx = velocity?.x ?? 0;
+    const vz = velocity?.z ?? 0;
+    const targetX = position.x + vx * elapsed;
+    const targetZ = position.z + vz * elapsed;
+
     if (!hasInitializedRef.current) {
-      group.position.set(position.x, position.y, position.z);
+      group.position.set(targetX, position.y, targetZ);
       group.rotation.y = rotationY;
       hasInitializedRef.current = true;
       if (typeof groundedOffset === 'number') {
@@ -365,7 +397,7 @@ function SmoothedEntityGroup({
     }
 
     const alpha = smoothingAlpha(response, delta);
-    group.position.lerp(targetRef.current.set(position.x, position.y, position.z), alpha);
+    group.position.lerp(targetRef.current.set(targetX, position.y, targetZ), alpha);
     if (typeof groundedOffset === 'number') {
       group.position.y = getTerrainY(group.position.x, group.position.z) + groundedOffset;
     }

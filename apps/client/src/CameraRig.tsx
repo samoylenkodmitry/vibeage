@@ -23,7 +23,8 @@ export type CameraControls = {
 const CAMERA_FOCUS_HEIGHT = 0.6;
 const CAMERA_GROUND_BUFFER = 1.4;
 const SKY_LOOKUP_PITCH_MIN = 0.06;
-const SKY_LOOKUP_GAIN = 4.5;
+const SKY_LOOKUP_GAIN = 3.0;
+const SKY_LOOKUP_MAX_RATIO = 4.5;
 const lookAtTempVec = new THREE.Vector3();
 
 export function CameraRig({
@@ -98,8 +99,12 @@ export function CameraRig({
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
     camera.position.lerp(cameraTargetRef.current, alpha);
 
-    const skyOffset = pitchRef.current < SKY_LOOKUP_PITCH_MIN
-      ? (SKY_LOOKUP_PITCH_MIN - pitchRef.current) * distanceRef.current * SKY_LOOKUP_GAIN
+    const skyDeficit = SKY_LOOKUP_PITCH_MIN - pitchRef.current;
+    const skyOffset = skyDeficit > 0
+      ? Math.min(
+          skyDeficit * distanceRef.current * SKY_LOOKUP_GAIN,
+          distanceRef.current * SKY_LOOKUP_MAX_RATIO,
+        )
       : 0;
     if (skyOffset > 0) {
       lookAtTempVec.copy(focusRef.current);

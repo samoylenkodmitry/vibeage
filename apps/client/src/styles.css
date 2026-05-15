@@ -1201,7 +1201,7 @@ input {
   .skill-bar {
     right: 8px;
     left: 8px;
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     width: calc(100vw - 16px);
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
@@ -1253,7 +1253,7 @@ input {
 
   .inventory-panel {
     right: 8px;
-    bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
     left: 8px;
     display: grid;
     width: calc(100vw - 16px);
@@ -1291,7 +1291,7 @@ input {
 
   .panel-toggles {
     right: 8px;
-    bottom: calc(178px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(210px + env(safe-area-inset-bottom, 0px));
     gap: 6px;
   }
 
