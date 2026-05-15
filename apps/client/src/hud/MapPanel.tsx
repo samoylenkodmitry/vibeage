@@ -1,31 +1,62 @@
-import { useEffect, useState, type MutableRefObject, type ReactElement } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+  type WheelEvent as ReactWheelEvent,
+} from 'react';
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
 import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/content/worldFeatures';
 import type { PlayerEntity } from '../gameTypes';
 import { useDraggablePanel } from './useDraggablePanel';
 
+type Marker = { x: number; z: number };
+
 type MapPanelProps = {
   player: PlayerEntity | null;
   cameraAngleRef?: MutableRefObject<number>;
+  navigationMarker?: Marker | null;
+  onSetNavigationMarker?: (marker: Marker | null) => void;
 };
 
 const VIEW_PADDING = 0.08;
 const WORLD_BOUNDS = computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS);
 const TICK_SPACING = chooseTickSpacing(WORLD_BOUNDS);
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 60;
+const DRAG_PIXEL_THRESHOLD = 5;
 
-export function MapPanel({ player, cameraAngleRef }: MapPanelProps) {
-  const bounds = WORLD_BOUNDS;
+type ViewState = {
+  zoom: number;
+  centerX: number;
+  centerZ: number;
+};
+
+export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNavigationMarker }: MapPanelProps) {
   const px = player?.position.x ?? 0;
   const pz = player?.position.z ?? 0;
   const cameraYaw = useCameraYaw(cameraAngleRef);
   const fallbackYaw = player?.rotation?.y ?? 0;
   const yaw = cameraAngleRef ? cameraYaw : fallbackYaw;
-  const arrowDir = {
-    x: Math.sin(yaw),
-    z: Math.cos(yaw),
-  };
-  const tickSpacing = TICK_SPACING;
-  const panelRef = useDraggablePanel<HTMLElement>();
+  const arrowDir = { x: Math.sin(yaw), z: Math.cos(yaw) };
+  const panelRef = useDraggablePanel<HTMLElement>('map');
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [view, setView] = useState<ViewState>(() => ({
+    zoom: 1,
+    centerX: WORLD_BOUNDS.minX + WORLD_BOUNDS.width / 2,
+    centerZ: WORLD_BOUNDS.minZ + WORLD_BOUNDS.height / 2,
+  }));
+
+  const viewWidth = WORLD_BOUNDS.width / view.zoom;
+  const viewHeight = WORLD_BOUNDS.height / view.zoom;
+  const viewMinX = view.centerX - viewWidth / 2;
+  const viewMinZ = view.centerZ - viewHeight / 2;
+  const tickSpacing = chooseTickSpacingForWidth(viewWidth);
+
+  const handlers = useMapInteraction({ svgRef, view, viewMinX, viewMinZ, viewWidth, viewHeight, setView, onSetNavigationMarker });
+  const recenterOnPlayer = () => setView((prev) => ({ ...prev, centerX: px, centerZ: pz }));
 
   return (
     <section ref={panelRef} className="map-panel" aria-label="World map">
@@ -33,12 +64,23 @@ export function MapPanel({ player, cameraAngleRef }: MapPanelProps) {
         <strong>World Map</strong>
         <span>{Math.round(px)}, {Math.round(pz)}</span>
       </div>
+      <div className="map-toolbar">
+        <button type="button" onClick={() => setView((p) => ({ ...p, zoom: Math.min(MAX_ZOOM, p.zoom * 1.5) }))}>+</button>
+        <button type="button" onClick={() => setView((p) => ({ ...p, zoom: Math.max(MIN_ZOOM, p.zoom / 1.5) }))}>−</button>
+        <button type="button" onClick={recenterOnPlayer}>Center</button>
+        {navigationMarker && (
+          <button type="button" onClick={() => onSetNavigationMarker?.(null)}>Clear pin</button>
+        )}
+        <span className="map-toolbar-hint">click: drop pin · drag: pan · wheel: zoom · right-click: clear</span>
+      </div>
       <svg
+        ref={svgRef}
         className="map-svg"
-        viewBox={`${bounds.minX} ${bounds.minZ} ${bounds.width} ${bounds.height}`}
+        viewBox={`${viewMinX} ${viewMinZ} ${viewWidth} ${viewHeight}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Top-down view of the world"
+        {...handlers}
       >
         <defs>
           <radialGradient id="map-bg-gradient" cx="50%" cy="50%" r="60%">
@@ -46,24 +88,131 @@ export function MapPanel({ player, cameraAngleRef }: MapPanelProps) {
             <stop offset="100%" stopColor="#02060c" stopOpacity="1" />
           </radialGradient>
         </defs>
-        <rect x={bounds.minX} y={bounds.minZ} width={bounds.width} height={bounds.height} fill="url(#map-bg-gradient)" />
-        {tickSpacing > 0 && renderGridLines(bounds, tickSpacing)}
+        <rect x={viewMinX} y={viewMinZ} width={viewWidth} height={viewHeight} fill="url(#map-bg-gradient)" />
+        {tickSpacing > 0 && renderGridLines({ minX: viewMinX, minZ: viewMinZ, width: viewWidth, height: viewHeight }, tickSpacing)}
         {GAME_ZONES.map((zone) => (
-          <ZoneShape key={zone.id} zone={zone} viewWidth={bounds.width} />
+          <ZoneShape key={zone.id} zone={zone} viewWidth={viewWidth} />
         ))}
         {WORLD_LANDMARKS.map((landmark) => (
-          <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={bounds.width} />
+          <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} />
         ))}
-        <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={bounds.width} />
+        {navigationMarker && <NavigationDot marker={navigationMarker} viewWidth={viewWidth} />}
+        <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={viewWidth} />
       </svg>
       <ol className="map-legend">
         <li><span className="map-legend-dot map-legend-dot--player" />You</li>
         <li><span className="map-legend-dot map-legend-dot--zone" />Zone</li>
         <li><span className="map-legend-dot map-legend-dot--mega" />Mega</li>
         <li><span className="map-legend-dot map-legend-dot--landmark" />Landmark</li>
+        <li><span className="map-legend-dot map-legend-dot--pin" />Pin</li>
       </ol>
     </section>
   );
+}
+
+type MapInteractionInput = {
+  svgRef: React.MutableRefObject<SVGSVGElement | null>;
+  view: ViewState;
+  viewMinX: number;
+  viewMinZ: number;
+  viewWidth: number;
+  viewHeight: number;
+  setView: React.Dispatch<React.SetStateAction<ViewState>>;
+  onSetNavigationMarker?: (marker: Marker | null) => void;
+};
+
+function useMapInteraction(input: MapInteractionInput) {
+  const dragRef = useRef<{
+    pointerId: number;
+    moved: number;
+    lastClientX: number;
+    lastClientY: number;
+    pixelsPerWorldUnit: number;
+  } | null>(null);
+  const { svgRef, viewMinX, viewMinZ, viewWidth, viewHeight, setView, onSetNavigationMarker } = input;
+
+  const screenToWorld = (event: ReactPointerEvent<SVGSVGElement>): Marker | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    const sx = (event.clientX - rect.left) / rect.width;
+    const sy = (event.clientY - rect.top) / rect.height;
+    return { x: viewMinX + sx * viewWidth, z: viewMinZ + sy * viewHeight };
+  };
+
+  const onWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
+    event.preventDefault();
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const sx = (event.clientX - rect.left) / rect.width;
+    const sy = (event.clientY - rect.top) / rect.height;
+    const worldX = viewMinX + sx * viewWidth;
+    const worldZ = viewMinZ + sy * viewHeight;
+    const factor = event.deltaY < 0 ? 1.18 : 1 / 1.18;
+    setView((prev) => {
+      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * factor));
+      const nextWidth = WORLD_BOUNDS.width / nextZoom;
+      const nextHeight = WORLD_BOUNDS.height / nextZoom;
+      return {
+        zoom: nextZoom,
+        centerX: worldX + (0.5 - sx) * nextWidth,
+        centerZ: worldZ + (0.5 - sy) * nextHeight,
+      };
+    });
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (event.button === 2) {
+      event.preventDefault();
+      onSetNavigationMarker?.(null);
+      return;
+    }
+    if (event.button !== 0) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    dragRef.current = {
+      pointerId: event.pointerId,
+      moved: 0,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
+      pixelsPerWorldUnit: rect.width / viewWidth,
+    };
+    svg.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.lastClientX;
+    const dy = event.clientY - drag.lastClientY;
+    drag.moved += Math.hypot(dx, dy);
+    drag.lastClientX = event.clientX;
+    drag.lastClientY = event.clientY;
+    if (drag.moved < DRAG_PIXEL_THRESHOLD) return;
+    setView((prev) => ({
+      ...prev,
+      centerX: prev.centerX - dx / drag.pixelsPerWorldUnit,
+      centerZ: prev.centerZ - dy / drag.pixelsPerWorldUnit,
+    }));
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const wasClick = drag.moved < DRAG_PIXEL_THRESHOLD;
+    dragRef.current = null;
+    try { svgRef.current?.releasePointerCapture(event.pointerId); } catch { /* released */ }
+    if (wasClick && onSetNavigationMarker) {
+      const target = screenToWorld(event);
+      if (target) onSetNavigationMarker(target);
+    }
+  };
+
+  const onContextMenu = (event: ReactPointerEvent<SVGSVGElement>) => event.preventDefault();
+
+  return { onWheel, onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onContextMenu };
 }
 
 function useCameraYaw(angleRef?: MutableRefObject<number>): number {
@@ -132,6 +281,16 @@ function LandmarkDot({ landmark, viewWidth }: { landmark: WorldLandmark; viewWid
       >
         {landmark.name}
       </text>
+    </g>
+  );
+}
+
+function NavigationDot({ marker, viewWidth }: { marker: Marker; viewWidth: number }) {
+  const size = Math.max(viewWidth * 0.01, 800);
+  return (
+    <g>
+      <circle cx={marker.x} cy={marker.z} r={size * 1.6} fill="rgba(250,204,21,0.22)" />
+      <circle cx={marker.x} cy={marker.z} r={size * 0.7} fill="#facc15" stroke="#04100d" strokeWidth={Math.max(viewWidth * 0.0006, 400)} />
     </g>
   );
 }
@@ -206,7 +365,11 @@ function renderGridLines(
 }
 
 function chooseTickSpacing(bounds: { width: number }): number {
-  const target = bounds.width / 8;
+  return chooseTickSpacingForWidth(bounds.width);
+}
+
+function chooseTickSpacingForWidth(width: number): number {
+  const target = width / 8;
   const magnitude = 10 ** Math.floor(Math.log10(target));
   const candidates = [1, 2, 5, 10];
   for (const c of candidates) {
@@ -253,3 +416,5 @@ function computeWorldBounds(zones: readonly Zone[], landmarks: readonly WorldLan
     height: height + padZ * 2,
   };
 }
+
+void TICK_SPACING;

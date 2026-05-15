@@ -104,9 +104,8 @@ function drivePlayerAnimation(
   const w = blend.value;
 
   const swing = Math.sin(time * 7.4);
-  const idleBob = Math.sin(time * 2.2) * 0.04;
-  const walkBob = Math.abs(swing) * 0.05;
-  group.position.y = idleBob * (1 - w) + walkBob * w;
+  const idleBob = Math.sin(time * 2.2) * 0.03;
+  group.position.y = idleBob * (1 - w);
 
   if (leftLeg) {
     leftLeg.position.set(-0.32, legPivotY, swing * 0.32 * w);

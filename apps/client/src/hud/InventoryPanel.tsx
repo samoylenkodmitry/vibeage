@@ -9,7 +9,7 @@ type InventoryPanelProps = {
 };
 
 export function InventoryPanel({ inventory, maxSlots, onUseItem }: InventoryPanelProps) {
-  const panelRef = useDraggablePanel<HTMLElement>();
+  const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   return (
     <section ref={panelRef} className="inventory-panel" aria-label="Inventory">

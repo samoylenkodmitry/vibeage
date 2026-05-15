@@ -17,6 +17,7 @@ import {
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { TargetDestinationMarker } from './SceneVfx';
+import { getTerrainY } from './worldSceneConfig';
 
 type WorldSceneProps = {
   state: GameClientState;
@@ -24,9 +25,10 @@ type WorldSceneProps = {
   onSelectTarget: (targetId: string | null) => void;
   onPickUpLoot: (lootId: string) => void;
   cameraAngleRef?: MutableRefObject<number>;
+  navigationMarker?: VecXZ | null;
 };
 
-export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef }: WorldSceneProps) {
+export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
@@ -45,6 +47,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
+      {navigationMarker && <NavigationPin marker={navigationMarker} />}
       {Object.values(state.players).map((player) => (
         <PlayerMarker
           key={player.id}
@@ -72,5 +75,27 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
       ))}
       <CameraRig focus={focus} presentationFocusRef={cameraAnchorRef} cameraAngleRef={cameraAngleRef} />
     </Canvas>
+  );
+}
+
+function NavigationPin({ marker }: { marker: VecXZ }) {
+  const groundY = getTerrainY(marker.x, marker.z);
+  const pillarHeight = 60;
+  const pillarRadius = 1.2;
+  return (
+    <group position={[marker.x, groundY, marker.z]}>
+      <mesh position={[0, pillarHeight / 2, 0]}>
+        <cylinderGeometry args={[pillarRadius, pillarRadius * 0.6, pillarHeight, 12]} />
+        <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={0.6} fog={false} transparent opacity={0.85} />
+      </mesh>
+      <mesh position={[0, pillarHeight + 3.5, 0]}>
+        <octahedronGeometry args={[3.4, 1]} />
+        <meshStandardMaterial color="#fff7ad" emissive="#facc15" emissiveIntensity={1.2} fog={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+        <ringGeometry args={[2.2, 3.2, 36]} />
+        <meshBasicMaterial color="#facc15" side={1} transparent opacity={0.6} depthWrite={false} fog={false} />
+      </mesh>
+    </group>
   );
 }

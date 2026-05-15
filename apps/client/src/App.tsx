@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { GameHud, StartPanel } from './Hud';
+import type { VecXZ } from '../../../packages/protocol/messages';
 import { useGameClient } from './useGameClient';
 import { WorldScene } from './WorldScene';
 
@@ -7,6 +8,7 @@ export default function App() {
   const client = useGameClient();
   const { state } = client;
   const cameraAngleRef = useRef(Math.PI * 0.82);
+  const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
 
   if (state.connectionState === 'idle') {
     return <StartPanel onStart={client.connect} />;
@@ -20,10 +22,13 @@ export default function App() {
         onSelectTarget={client.selectTarget}
         onPickUpLoot={client.pickUpLoot}
         cameraAngleRef={cameraAngleRef}
+        navigationMarker={navigationMarker}
       />
       <GameHud
         state={state}
         cameraAngleRef={cameraAngleRef}
+        navigationMarker={navigationMarker}
+        onSetNavigationMarker={setNavigationMarker}
         onDisconnect={client.disconnect}
         onCastSkill={client.castSkill}
         onLearnSkill={client.learnSkill}
