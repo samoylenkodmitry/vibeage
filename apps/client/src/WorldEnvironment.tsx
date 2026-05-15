@@ -25,12 +25,22 @@ const scale = new THREE.Vector3();
 const position = new THREE.Vector3();
 const rotation = new THREE.Euler();
 
+type DayCycleRefs = {
+  hemisphere: React.MutableRefObject<THREE.HemisphereLight | null>;
+  directional: React.MutableRefObject<THREE.DirectionalLight | null>;
+  sunGroup: React.MutableRefObject<THREE.Group | null>;
+  sunPointLight: React.MutableRefObject<THREE.PointLight | null>;
+  cloudGroup: React.MutableRefObject<THREE.Group | null>;
+};
+
 export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
-  const hemisphereRef = useRef<THREE.HemisphereLight>(null);
-  const directionalRef = useRef<THREE.DirectionalLight>(null);
-  const sunGroupRef = useRef<THREE.Group>(null);
-  const sunPointLightRef = useRef<THREE.PointLight>(null);
-  const cloudGroupRef = useRef<THREE.Group>(null);
+  const refs: DayCycleRefs = {
+    hemisphere: useRef<THREE.HemisphereLight>(null),
+    directional: useRef<THREE.DirectionalLight>(null),
+    sunGroup: useRef<THREE.Group>(null),
+    sunPointLight: useRef<THREE.PointLight>(null),
+    cloudGroup: useRef<THREE.Group>(null),
+  };
   const sunMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#fff1a6' }), []);
   const cloudMaterial = useMemo(
     () => new THREE.MeshStandardMaterial({
@@ -52,70 +62,25 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
 
   useFrame(({ clock }, delta) => {
     const palette = computeDayPhase(clock.elapsedTime * 1_000);
-
-    if (hemisphereRef.current) {
-      hemisphereRef.current.color.set(palette.hemisphereSky);
-      hemisphereRef.current.groundColor.set(palette.hemisphereGround);
-      hemisphereRef.current.intensity = palette.hemisphereIntensity;
-    }
-
-    if (directionalRef.current) {
-      directionalRef.current.position.set(
-        focus.x + palette.sunDir.x * SUN_DISTANCE,
-        palette.sunDir.y * SUN_DISTANCE,
-        focus.z + palette.sunDir.z * SUN_DISTANCE,
-      );
-      directionalRef.current.color.set(palette.sunColor);
-      directionalRef.current.intensity = palette.sunIntensity;
-    }
-
-    if (sunGroupRef.current) {
-      sunGroupRef.current.position.set(
-        focus.x + palette.sunDir.x * SUN_DISTANCE,
-        palette.sunDir.y * SUN_DISTANCE,
-        focus.z + palette.sunDir.z * SUN_DISTANCE,
-      );
-      sunGroupRef.current.visible = palette.sunDir.y > -0.05;
-    }
-
-    if (sunPointLightRef.current) {
-      sunPointLightRef.current.color.set(palette.sunColor);
-      sunPointLightRef.current.intensity = Math.max(0, palette.sunDir.y) * 2.2;
-    }
-
-    sunMaterial.color.set(palette.sunColor);
-    cloudMaterial.color.set(palette.cloudColor);
-    cloudMaterial.opacity = palette.cloudOpacity;
-
-    if (cloudGroupRef.current) {
-      cloudGroupRef.current.rotation.y += delta * 0.012;
-      cloudGroupRef.current.position.set(focus.x, 180, focus.z);
-    }
-
-    if (scene.background instanceof THREE.Color) {
-      scene.background.set(palette.backgroundColor);
-    }
-    if (scene.fog instanceof THREE.Fog) {
-      scene.fog.color.set(palette.fogColor);
-    }
+    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta });
   });
 
   return (
     <>
-      <hemisphereLight ref={hemisphereRef} args={['#ccecff', '#21402d', 0.82]} />
+      <hemisphereLight ref={refs.hemisphere} args={['#ccecff', '#21402d', 0.82]} />
       <directionalLight
-        ref={directionalRef}
+        ref={refs.directional}
         position={[focus.x + 240, 420, focus.z + 180]}
         intensity={1.55}
         castShadow
       />
-      <group ref={sunGroupRef}>
+      <group ref={refs.sunGroup}>
         <mesh material={sunMaterial}>
           <sphereGeometry args={[34, 24, 16]} />
         </mesh>
-        <pointLight ref={sunPointLightRef} color="#ffe7a3" intensity={2.2} distance={1_400} />
+        <pointLight ref={refs.sunPointLight} color="#ffe7a3" intensity={2.2} distance={1_400} />
       </group>
-      <group ref={cloudGroupRef}>
+      <group ref={refs.cloudGroup}>
         {CLOUDS.map((cloud) => (
           <mesh key={cloud.id} position={cloud.position} scale={cloud.scale} material={cloudMaterial}>
             <sphereGeometry args={[1, 12, 8]} />
@@ -125,6 +90,52 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
       <FoliageField focus={focus} />
     </>
   );
+}
+
+function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
+  refs: DayCycleRefs;
+  sunMaterial: THREE.MeshBasicMaterial;
+  cloudMaterial: THREE.MeshStandardMaterial;
+  scene: THREE.Scene;
+  focus: Vec3D;
+  palette: ReturnType<typeof computeDayPhase>;
+  delta: number;
+}): void {
+  const sunX = focus.x + palette.sunDir.x * SUN_DISTANCE;
+  const sunY = palette.sunDir.y * SUN_DISTANCE;
+  const sunZ = focus.z + palette.sunDir.z * SUN_DISTANCE;
+
+  if (refs.hemisphere.current) {
+    refs.hemisphere.current.color.set(palette.hemisphereSky);
+    refs.hemisphere.current.groundColor.set(palette.hemisphereGround);
+    refs.hemisphere.current.intensity = palette.hemisphereIntensity;
+  }
+  if (refs.directional.current) {
+    refs.directional.current.position.set(sunX, sunY, sunZ);
+    refs.directional.current.color.set(palette.sunColor);
+    refs.directional.current.intensity = palette.sunIntensity;
+  }
+  if (refs.sunGroup.current) {
+    refs.sunGroup.current.position.set(sunX, sunY, sunZ);
+    refs.sunGroup.current.visible = palette.sunDir.y > -0.05;
+  }
+  if (refs.sunPointLight.current) {
+    refs.sunPointLight.current.color.set(palette.sunColor);
+    refs.sunPointLight.current.intensity = Math.max(0, palette.sunDir.y) * 2.2;
+  }
+  sunMaterial.color.set(palette.sunColor);
+  cloudMaterial.color.set(palette.cloudColor);
+  cloudMaterial.opacity = palette.cloudOpacity;
+  if (refs.cloudGroup.current) {
+    refs.cloudGroup.current.rotation.y += delta * 0.012;
+    refs.cloudGroup.current.position.set(focus.x, 180, focus.z);
+  }
+  if (scene.background instanceof THREE.Color) {
+    scene.background.set(palette.backgroundColor);
+  }
+  if (scene.fog instanceof THREE.Fog) {
+    scene.fog.color.set(palette.fogColor);
+  }
 }
 
 function FoliageField({ focus }: WorldEnvironmentProps) {
