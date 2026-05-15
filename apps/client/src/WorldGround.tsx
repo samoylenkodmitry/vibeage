@@ -48,6 +48,13 @@ export function WorldGround({ focus, onMove, cameraControlsRef }: WorldGroundPro
   const touchRef = useRef<TouchPendingState | null>(null);
   const activeTouchCountRef = useActiveTouchCount();
 
+  useEffect(() => {
+    return () => {
+      touchRef.current?.cleanup?.();
+      touchRef.current = null;
+    };
+  }, []);
+
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
     if (event.pointerType === 'touch') {
       handleTouchDown(event, touchRef, activeTouchCountRef);

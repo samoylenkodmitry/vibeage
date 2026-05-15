@@ -135,7 +135,7 @@ function useMapInteraction(input: MapInteractionInput) {
   } | null>(null);
   const pinchRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
-  const { svgRef, viewWidth, setView, onSetNavigationMarker } = input;
+  const { svgRef, view, viewWidth, setView, onSetNavigationMarker } = input;
 
   const screenToWorld = (event: { clientX: number; clientY: number }): Marker | null => {
     return svgClientToWorld(svgRef.current, event);
@@ -157,9 +157,10 @@ function useMapInteraction(input: MapInteractionInput) {
     if (!svg) return;
     if (event.pointerType === 'touch') {
       pinchRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      svg.setPointerCapture(event.pointerId);
       if (pinchRef.current.size >= 2) {
         dragRef.current = null;
-        startPinch(pinchRef.current, pinchStartRef);
+        startPinch(pinchRef.current, pinchStartRef, view.zoom);
         return;
       }
     }
@@ -200,11 +201,11 @@ function useMapInteraction(input: MapInteractionInput) {
         pinchStartRef.current = null;
       }
     }
+    try { svgRef.current?.releasePointerCapture(event.pointerId); } catch { /* released */ }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const wasClick = drag.moved < DRAG_PIXEL_THRESHOLD;
     dragRef.current = null;
-    try { svgRef.current?.releasePointerCapture(event.pointerId); } catch { /* released */ }
     if (wasClick && onSetNavigationMarker) {
       const target = screenToWorld(event);
       if (target) onSetNavigationMarker(target);
@@ -248,8 +249,9 @@ function pinchDistance(points: Map<number, { x: number; y: number }>): number {
 function startPinch(
   points: Map<number, { x: number; y: number }>,
   pinchStartRef: React.MutableRefObject<{ distance: number; zoom: number } | null>,
+  zoom: number,
 ): void {
-  pinchStartRef.current = { distance: pinchDistance(points), zoom: 0 };
+  pinchStartRef.current = { distance: pinchDistance(points), zoom };
 }
 
 function handlePinchMove(
@@ -265,15 +267,7 @@ function handlePinchMove(
   if (points.size < 2 || !pinchStartRef.current) {
     return true;
   }
-  const distance = pinchDistance(points);
-  if (pinchStartRef.current.zoom === 0) {
-    setView((prev) => {
-      pinchStartRef.current = { distance, zoom: prev.zoom };
-      return prev;
-    });
-    return true;
-  }
-  const ratio = distance / pinchStartRef.current.distance;
+  const ratio = pinchDistance(points) / pinchStartRef.current.distance;
   setView((prev) => ({
     ...prev,
     zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartRef.current!.zoom * ratio)),
