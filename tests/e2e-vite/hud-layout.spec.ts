@@ -19,7 +19,7 @@ const HUD_VIEWPORTS = [
 ] as const;
 
 for (const viewport of HUD_VIEWPORTS) {
-  test(`keeps core HUD panels inside the ${viewport.name} viewport`, async ({ page }, testInfo) => {
+  test(`keeps core HUD panels inside the ${viewport.name} viewport`, async ({ page }) => {
     await page.setViewportSize(viewport.size);
     await enterWorld(page, `Hud${viewport.name}${Date.now()}`);
     await issueMoveIntent(page, viewport.infoPanelsVisible);
@@ -61,12 +61,6 @@ for (const viewport of HUD_VIEWPORTS) {
     await expect(page.locator(".starter-progress")).toBeVisible();
     await page.getByRole("button", { name: /hide stats/i }).click();
     await expect(page.locator(".player-panel")).toBeHidden();
-
-    await page.screenshot({
-      path: testInfo.outputPath(`${viewport.name}-hud.png`),
-      animations: "disabled",
-      fullPage: false,
-    });
   });
 }
 

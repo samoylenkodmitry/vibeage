@@ -322,12 +322,20 @@ function getConiferShare(biome: TerrainBiome): number {
   }
 }
 
+const coniferColorCache = new Map<string, string>();
+
 function darkenForConifer(hex: string): string {
+  const cached = coniferColorCache.get(hex);
+  if (cached !== undefined) {
+    return cached;
+  }
   const value = parseInt(hex.startsWith('#') ? hex.slice(1) : hex, 16);
   const r = Math.max(0, ((value >> 16) & 0xff) - 56);
   const g = Math.max(0, ((value >> 8) & 0xff) - 28);
   const b = Math.max(0, (value & 0xff) - 56);
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  const result = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  coniferColorCache.set(hex, result);
+  return result;
 }
 
 function getFoliageGeometry(
