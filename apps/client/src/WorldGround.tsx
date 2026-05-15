@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type Vec3D, type VecXZ } from '../../../packages/protocol/messages';
+import type { CameraControls } from './CameraRig';
 import {
   shouldContinueDragMove,
   shouldEmitDragMove,
@@ -14,6 +15,7 @@ import {
 type WorldGroundProps = {
   focus: Vec3D;
   onMove: (target: VecXZ) => void;
+  cameraControlsRef?: MutableRefObject<CameraControls | null>;
 };
 
 type DragMoveState = {
@@ -22,7 +24,19 @@ type DragMoveState = {
   lastSentMs: number;
 };
 
-export function WorldGround({ focus, onMove }: WorldGroundProps) {
+type TouchPendingState = {
+  pointerId: number;
+  hit: VecXZ;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  rotating: boolean;
+};
+
+const TOUCH_DRAG_THRESHOLD_PX = 6;
+
+export function WorldGround({ focus, onMove, cameraControlsRef }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
@@ -30,53 +44,28 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
   );
 
   const dragRef = useRef<DragMoveState | null>(null);
+  const touchRef = useRef<TouchPendingState | null>(null);
   const activeTouchCountRef = useActiveTouchCount();
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
-    if (!shouldStartDragMove(event, activeTouchCountRef.current)) {
+    if (event.pointerType === 'touch') {
+      handleTouchDown(event, touchRef, activeTouchCountRef);
       return;
     }
-
-    const hit = event.intersections[0]?.point;
-    if (!hit) {
-      return;
-    }
-
-    event.stopPropagation();
-    dragRef.current = {
-      pointerId: event.pointerId,
-      isTouch: event.pointerType === 'touch',
-      lastSentMs: performance.now(),
-    };
-    onMove({ x: hit.x, z: hit.z });
+    handleMouseDown(event, dragRef, activeTouchCountRef, onMove);
   }
 
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) {
+    if (handleTouchMove(event, touchRef, cameraControlsRef)) {
       return;
     }
-
-    if (!shouldContinueDragMove(activeTouchCountRef.current, drag.isTouch)) {
-      dragRef.current = null;
-      return;
-    }
-
-    const now = performance.now();
-    if (!shouldEmitDragMove(now, drag.lastSentMs, TOUCH_MOVE_THROTTLE_MS)) {
-      return;
-    }
-
-    const hit = event.intersections[0]?.point;
-    if (!hit) {
-      return;
-    }
-
-    drag.lastSentMs = now;
-    onMove({ x: hit.x, z: hit.z });
+    handleMouseMove(event, dragRef, activeTouchCountRef, onMove);
   }
 
   function handlePointerUp(event: ThreeEvent<PointerEvent>) {
+    if (handleTouchUp(event, touchRef, onMove)) {
+      return;
+    }
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
     }
@@ -96,6 +85,115 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
       ))}
     </group>
   );
+}
+
+function handleTouchDown(
+  event: ThreeEvent<PointerEvent>,
+  touchRef: MutableRefObject<TouchPendingState | null>,
+  activeTouchCountRef: MutableRefObject<number>,
+): void {
+  const hit = event.intersections[0]?.point;
+  if (!hit || activeTouchCountRef.current >= 2) {
+    return;
+  }
+  event.stopPropagation();
+  touchRef.current = {
+    pointerId: event.pointerId,
+    hit: { x: hit.x, z: hit.z },
+    startX: event.clientX,
+    startY: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+    rotating: false,
+  };
+}
+
+function handleMouseDown(
+  event: ThreeEvent<PointerEvent>,
+  dragRef: MutableRefObject<DragMoveState | null>,
+  activeTouchCountRef: MutableRefObject<number>,
+  onMove: (target: VecXZ) => void,
+): void {
+  if (!shouldStartDragMove(event, activeTouchCountRef.current)) {
+    return;
+  }
+  const hit = event.intersections[0]?.point;
+  if (!hit) {
+    return;
+  }
+  event.stopPropagation();
+  dragRef.current = {
+    pointerId: event.pointerId,
+    isTouch: false,
+    lastSentMs: performance.now(),
+  };
+  onMove({ x: hit.x, z: hit.z });
+}
+
+function handleTouchMove(
+  event: ThreeEvent<PointerEvent>,
+  touchRef: MutableRefObject<TouchPendingState | null>,
+  cameraControlsRef?: MutableRefObject<CameraControls | null>,
+): boolean {
+  const touch = touchRef.current;
+  if (!touch || touch.pointerId !== event.pointerId) {
+    return false;
+  }
+  const dx = event.clientX - touch.lastX;
+  const dy = event.clientY - touch.lastY;
+  touch.lastX = event.clientX;
+  touch.lastY = event.clientY;
+  const totalDx = event.clientX - touch.startX;
+  const totalDy = event.clientY - touch.startY;
+  if (!touch.rotating && Math.hypot(totalDx, totalDy) >= TOUCH_DRAG_THRESHOLD_PX) {
+    touch.rotating = true;
+  }
+  if (touch.rotating) {
+    cameraControlsRef?.current?.applyDelta({ x: dx, y: dy });
+  }
+  return true;
+}
+
+function handleMouseMove(
+  event: ThreeEvent<PointerEvent>,
+  dragRef: MutableRefObject<DragMoveState | null>,
+  activeTouchCountRef: MutableRefObject<number>,
+  onMove: (target: VecXZ) => void,
+): void {
+  const drag = dragRef.current;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+  if (!shouldContinueDragMove(activeTouchCountRef.current, drag.isTouch)) {
+    dragRef.current = null;
+    return;
+  }
+  const now = performance.now();
+  if (!shouldEmitDragMove(now, drag.lastSentMs, TOUCH_MOVE_THROTTLE_MS)) {
+    return;
+  }
+  const hit = event.intersections[0]?.point;
+  if (!hit) {
+    return;
+  }
+  drag.lastSentMs = now;
+  onMove({ x: hit.x, z: hit.z });
+}
+
+function handleTouchUp(
+  event: ThreeEvent<PointerEvent>,
+  touchRef: MutableRefObject<TouchPendingState | null>,
+  onMove: (target: VecXZ) => void,
+): boolean {
+  const touch = touchRef.current;
+  if (!touch || touch.pointerId !== event.pointerId) {
+    return false;
+  }
+  touchRef.current = null;
+  if (!touch.rotating) {
+    onMove(touch.hit);
+  }
+  return true;
 }
 
 function useActiveTouchCount() {

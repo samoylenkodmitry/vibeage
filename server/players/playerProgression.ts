@@ -43,7 +43,13 @@ export function normalizeUnlockedSkills(rawSkills: unknown): SkillId[] {
     }
   }
 
-  return normalized.length > 0 ? normalized : [...DEFAULT_UNLOCKED_SKILLS];
+  for (const defaultSkill of DEFAULT_UNLOCKED_SKILLS) {
+    if (!normalized.includes(defaultSkill)) {
+      normalized.push(defaultSkill);
+    }
+  }
+
+  return normalized;
 }
 
 export function normalizeSkillShortcuts(

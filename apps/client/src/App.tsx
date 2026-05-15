@@ -30,7 +30,6 @@ export default function App() {
       <GameHud
         state={state}
         cameraAngleRef={cameraAngleRef}
-        cameraControlsRef={cameraControlsRef}
         navigationMarker={navigationMarker}
         onSetNavigationMarker={setNavigationMarker}
         onDisconnect={client.disconnect}

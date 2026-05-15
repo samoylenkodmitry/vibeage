@@ -40,10 +40,10 @@ describe('player progression hydration', () => {
     expect(skillShortcuts).toEqual(['fireball', null, null, null, null, null, null, null, null]);
   });
 
-  test('drops shortcuts for skills that are not unlocked', () => {
+  test('drops shortcuts for unknown skill ids', () => {
     const unlockedSkills = normalizeUnlockedSkills(['fireball']);
 
-    expect(normalizeSkillShortcuts(['iceBolt', 'fireball'], unlockedSkills)).toEqual([
+    expect(normalizeSkillShortcuts(['mysticBlast', 'fireball'], unlockedSkills)).toEqual([
       null,
       'fireball',
       null,
