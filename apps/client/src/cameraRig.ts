@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import type { Vec3 } from './gameTypes';
 
 export const CAMERA_DISTANCE = 24;
+export const CAMERA_MIN_DISTANCE = 6;
+export const CAMERA_MAX_DISTANCE = 90;
+export const CAMERA_WHEEL_ZOOM_SPEED = 0.0028;
 export const CAMERA_FOCUS_RESPONSE = 8;
 export const CAMERA_POSITION_RESPONSE = 10;
 export const CAMERA_MAX_FRAME_DELTA = 1 / 30;
@@ -45,6 +48,15 @@ export function shouldStartCameraDrag(
   activeTouchCount: number,
 ): boolean {
   return pointer.button === 2 || (pointer.pointerType === 'touch' && activeTouchCount >= 2);
+}
+
+export function applyWheelZoom(
+  currentDistance: number,
+  wheelDeltaY: number,
+  speed: number = CAMERA_WHEEL_ZOOM_SPEED,
+): number {
+  const next = currentDistance * Math.exp(wheelDeltaY * speed);
+  return THREE.MathUtils.clamp(next, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE);
 }
 
 export function getTouchCentroid(points: readonly CameraPointer[]): CameraPointer | null {

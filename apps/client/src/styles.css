@@ -577,6 +577,33 @@ input {
   font-size: 30px;
 }
 
+.controls-toggle {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 6px;
+  color: #04100d;
+  background: rgba(141, 233, 215, 0.92);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 80ms ease-out, background-color 120ms ease-out;
+}
+
+.controls-toggle:hover {
+  background: rgba(200, 255, 240, 0.95);
+}
+
+.controls-toggle:active {
+  transform: scale(0.95);
+}
+
+.controls-toggle--collapsed {
+  background: rgba(15, 23, 42, 0.85);
+  color: #c4f1e2;
+}
+
 .combat-log {
   position: absolute;
   left: 18px;
@@ -783,6 +810,12 @@ input {
   }
 
   .inventory-slot strong {
+    font-size: 12px;
+  }
+
+  .controls-toggle {
+    min-height: 32px;
+    padding: 0 10px;
     font-size: 12px;
   }
 }

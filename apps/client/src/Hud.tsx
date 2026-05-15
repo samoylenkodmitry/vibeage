@@ -64,6 +64,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
   const now = useNow(100);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
 
   useSkillHotkeys(player, onCastSkill);
 
@@ -73,6 +74,10 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
         <strong>VibeAge</strong>
         <span className={`status-dot status-${state.connectionState}`} />
         <span>{state.message}</span>
+        <ControlsToggle
+          collapsed={controlsCollapsed}
+          onToggle={() => setControlsCollapsed((prev) => !prev)}
+        />
         <button type="button" className="ghost-button" onClick={onDisconnect}>
           Disconnect
         </button>
@@ -87,15 +92,19 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
       <NavigationPanel state={state} player={player} />
-      <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
-      <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
-      <CastingPanel player={player} />
-      <SkillBar
-        player={player}
-        now={now}
-        hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
-        onCastSkill={onCastSkill}
-      />
+      {!controlsCollapsed && (
+        <>
+          <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
+          <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
+          <CastingPanel player={player} />
+          <SkillBar
+            player={player}
+            now={now}
+            hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
+            onCastSkill={onCastSkill}
+          />
+        </>
+      )}
       {state.combatLog.length > 0 && (
         <section className="combat-log" aria-label="Combat log">
           {state.combatLog.map((line) => (
@@ -105,6 +114,25 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       )}
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
     </>
+  );
+}
+
+function ControlsToggle({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`controls-toggle${collapsed ? ' controls-toggle--collapsed' : ''}`}
+      aria-label={collapsed ? 'Show skills and inventory' : 'Hide skills and inventory'}
+      onClick={onToggle}
+    >
+      {collapsed ? 'Show controls' : 'Hide controls'}
+    </button>
   );
 }
 
