@@ -64,7 +64,11 @@ function SunAndClouds({ focus }: WorldEnvironmentProps) {
 }
 
 function FoliageField({ focus }: WorldEnvironmentProps) {
-  const instances = useMemo(() => getFoliageInstances(focus.x, focus.z), [focus.x, focus.z]);
+  const focusCell = getFoliageCell(focus.x, focus.z);
+  const instances = useMemo(
+    () => getFoliageInstances(focusCell.x, focusCell.z),
+    [focusCell.x, focusCell.z],
+  );
 
   return (
     <>
@@ -127,7 +131,15 @@ function InstancedFoliage({
   );
 }
 
-function getFoliageInstances(focusX: number, focusZ: number): {
+function getFoliageCell(focusX: number, focusZ: number): { x: number; z: number } {
+  const cellSize = WORLD_SETTINGS.foliageCellSize;
+  return {
+    x: Math.floor(focusX / cellSize),
+    z: Math.floor(focusZ / cellSize),
+  };
+}
+
+function getFoliageInstances(centerX: number, centerZ: number): {
   trees: FoliageInstance[];
   trunks: FoliageInstance[];
   grass: FoliageInstance[];
@@ -135,8 +147,6 @@ function getFoliageInstances(focusX: number, focusZ: number): {
 } {
   const cellSize = WORLD_SETTINGS.foliageCellSize;
   const radius = WORLD_SETTINGS.visibleFoliageCellRadius;
-  const centerX = Math.floor(focusX / cellSize);
-  const centerZ = Math.floor(focusZ / cellSize);
   const trees: FoliageInstance[] = [];
   const grass: FoliageInstance[] = [];
   const accents: FoliageInstance[] = [];

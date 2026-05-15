@@ -14,9 +14,10 @@ const groundClickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const groundClickPoint = new THREE.Vector3();
 
 export function WorldGround({ focus, onMove }: WorldGroundProps) {
+  const focusChunk = getTerrainChunk(focus.x, focus.z);
   const chunks = useMemo(
-    () => getVisibleTerrainChunks(focus.x, focus.z),
-    [focus.x, focus.z],
+    () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
+    [focusChunk.x, focusChunk.z],
   );
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
@@ -67,11 +68,17 @@ function TerrainChunk({
   );
 }
 
-function getVisibleTerrainChunks(focusX: number, focusZ: number): Array<{ x: number; z: number }> {
+function getTerrainChunk(focusX: number, focusZ: number): { x: number; z: number } {
+  const chunkSize = WORLD_SETTINGS.terrainChunkSize;
+  return {
+    x: Math.floor(focusX / chunkSize),
+    z: Math.floor(focusZ / chunkSize),
+  };
+}
+
+function getVisibleTerrainChunks(centerChunkX: number, centerChunkZ: number): Array<{ x: number; z: number }> {
   const chunkSize = WORLD_SETTINGS.terrainChunkSize;
   const radius = WORLD_SETTINGS.visibleTerrainChunkRadius;
-  const centerChunkX = Math.floor(focusX / chunkSize);
-  const centerChunkZ = Math.floor(focusZ / chunkSize);
   const chunks: Array<{ x: number; z: number }> = [];
 
   for (let dz = -radius; dz <= radius; dz += 1) {
@@ -95,6 +102,7 @@ function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGe
   const colors = new Float32Array(vertexCount * 3);
   const indices: number[] = [];
   const color = new THREE.Color();
+  const accentColor = new THREE.Color();
 
   for (let zIndex = 0; zIndex < verticesPerSide; zIndex += 1) {
     for (let xIndex = 0; xIndex < verticesPerSide; xIndex += 1) {
@@ -109,7 +117,7 @@ function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGe
       positions[base] = worldX;
       positions[base + 1] = terrain.height;
       positions[base + 2] = worldZ;
-      color.set(terrain.groundColor).lerp(new THREE.Color(terrain.accentColor), heightTint(terrain.height));
+      color.set(terrain.groundColor).lerp(accentColor.set(terrain.accentColor), heightTint(terrain.height));
       color.toArray(colors, base);
     }
   }
