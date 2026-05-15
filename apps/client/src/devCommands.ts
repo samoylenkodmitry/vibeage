@@ -7,9 +7,11 @@ declare global {
   }
 }
 
+const noop = () => undefined;
+
 export function installDevCommands(api: ClientActions): () => void {
   if (!import.meta.env.DEV) {
-    return () => {};
+    return noop;
   }
 
   window.__vibeageDevTeleport = (x: number, z: number) => {
