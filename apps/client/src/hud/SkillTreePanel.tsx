@@ -6,6 +6,7 @@ import {
 } from '../../../../packages/content/classes';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
+import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 
 type SkillTreePanelProps = {
@@ -23,7 +24,7 @@ type Row = {
 export function SkillTreePanel({ player, onLearnSkill }: SkillTreePanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('skill-tree');
   const rows = useMemo(() => buildSkillRows(player), [player]);
-  const className = player?.className ?? 'wanderer';
+  const className = player?.className ?? DEFAULT_CLASS_NAME;
   const skillPoints = player?.availableSkillPoints ?? 0;
 
   return (
@@ -59,7 +60,7 @@ export function SkillTreePanel({ player, onLearnSkill }: SkillTreePanelProps) {
 }
 
 function buildSkillRows(player: PlayerEntity | null): Row[] {
-  const className = (player?.className ?? 'mage') as CharacterClass;
+  const className = (player?.className ?? DEFAULT_CLASS_NAME) as CharacterClass;
   const tree = CLASS_SKILL_TREES[className] ?? CLASS_SKILL_TREES.mage;
   const level = player?.level ?? 1;
   const unlocked = player?.unlockedSkills ?? [];
@@ -77,6 +78,3 @@ function buildSkillRows(player: PlayerEntity | null): Row[] {
   });
 }
 
-function capitalize(value: string): string {
-  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
-}

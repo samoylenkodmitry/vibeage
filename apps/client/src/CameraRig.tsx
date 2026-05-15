@@ -70,7 +70,7 @@ export function CameraRig({
     const baselineFocusY = groundY + CAMERA_FOCUS_HEIGHT;
     const presentationY = presentationFocus?.y;
     const focusY = typeof presentationY === 'number'
-      ? Math.min(presentationY, presentationY - 1.0 + CAMERA_FOCUS_HEIGHT)
+      ? presentationY - 1.0 + CAMERA_FOCUS_HEIGHT
       : baselineFocusY;
     focusTargetRef.current.set(
       presentationFocus?.x ?? focus.x,

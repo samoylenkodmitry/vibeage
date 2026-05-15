@@ -7,6 +7,7 @@ import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
 import { SkillTreePanel } from './hud/SkillTreePanel';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
+import { capitalize, DEFAULT_CLASS_NAME } from './hud/textUtils';
 import { useDraggablePanel } from './hud/useDraggablePanel';
 import {
   getHotkeySkill,
@@ -270,7 +271,7 @@ type DerivedStats = {
 };
 
 function derivePlayerStats(player: PlayerEntity | null): DerivedStats {
-  const className = player?.className ?? 'wanderer';
+  const className = player?.className ?? DEFAULT_CLASS_NAME;
   const level = player?.level ?? 1;
   const weights = STAT_WEIGHTS[className] ?? STAT_WEIGHTS.default;
   return {
@@ -289,18 +290,13 @@ function derivePlayerStats(player: PlayerEntity | null): DerivedStats {
 type StatWeights = { str: number; dex: number; con: number; int: number; wit: number; men: number };
 
 const STAT_WEIGHTS: Record<string, StatWeights> = {
-  fighter: { str: 2.4, dex: 1.2, con: 2.0, int: 0.8, wit: 0.8, men: 0.8 },
   warrior: { str: 2.4, dex: 1.2, con: 2.0, int: 0.8, wit: 0.8, men: 0.8 },
-  rogue: { str: 1.2, dex: 2.4, con: 1.2, int: 1.2, wit: 2.0, men: 1.0 },
   ranger: { str: 1.4, dex: 2.4, con: 1.4, int: 1.0, wit: 1.6, men: 1.0 },
   mage: { str: 0.8, dex: 1.0, con: 1.0, int: 2.6, wit: 2.2, men: 1.4 },
-  cleric: { str: 1.4, dex: 1.0, con: 1.6, int: 2.0, wit: 1.4, men: 2.4 },
+  healer: { str: 1.4, dex: 1.0, con: 1.6, int: 2.0, wit: 1.4, men: 2.4 },
   default: { str: 1.5, dex: 1.5, con: 1.5, int: 1.5, wit: 1.5, men: 1.5 },
 };
 
-function capitalize(value: string): string {
-  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
-}
 
 function TargetPanel({
   player,

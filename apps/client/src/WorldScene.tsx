@@ -111,24 +111,25 @@ function NavigationPin({ marker }: { marker: VecXZ }) {
 
 function NavigationArrow({ marker, player }: { marker: VecXZ; player: { x: number; y: number; z: number } }) {
   const groupRef = useRef<THREE.Group>(null);
-  const playerY = getTerrainY(player.x, player.z);
 
   useFrame(({ clock }) => {
-    if (!groupRef.current) return;
+    const group = groupRef.current;
+    if (!group) return;
     const dx = marker.x - player.x;
     const dz = marker.z - player.z;
     const dist = Math.hypot(dx, dz);
     if (dist < 5) {
-      groupRef.current.visible = false;
+      group.visible = false;
       return;
     }
-    groupRef.current.visible = true;
-    groupRef.current.rotation.y = Math.atan2(dx, dz);
-    groupRef.current.position.y = playerY + 4.4 + Math.sin(clock.elapsedTime * 3) * 0.18;
+    group.visible = true;
+    const playerY = getTerrainY(player.x, player.z);
+    group.position.set(player.x, playerY + 4.4 + Math.sin(clock.elapsedTime * 3) * 0.18, player.z);
+    group.rotation.y = Math.atan2(dx, dz);
   });
 
   return (
-    <group ref={groupRef} position={[player.x, playerY + 4.4, player.z]}>
+    <group ref={groupRef}>
       <mesh position={[0, 0, 1.6]} rotation={[Math.PI / 2, 0, 0]} castShadow={false}>
         <coneGeometry args={[0.6, 1.6, 4]} />
         <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={1.2} fog={false} />
