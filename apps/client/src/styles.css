@@ -632,137 +632,157 @@ input {
 }
 
 @media (max-width: 680px) {
+  .hud-stats,
+  .starter-progress,
+  .movement-panel,
+  .navigation-panel,
+  .combat-log {
+    display: none;
+  }
+
   .hud-top {
-    right: 12px;
-    left: 12px;
-    top: 12px;
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    padding: 4px 10px;
+    gap: 8px;
+    font-size: 12px;
   }
 
-  .hud-stats {
-    top: 68px;
-    right: 12px;
-    left: 12px;
-    flex-wrap: wrap;
-  }
-
-  .hud-target {
-    top: 130px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
-    transform: none;
-  }
-
-  .starter-progress {
-    top: 212px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
-  }
-
-  .movement-panel {
-    top: 300px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
-  }
-
-  .navigation-panel {
-    top: 350px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
+  .hud-top button {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
   .player-panel {
-    right: 12px;
-    bottom: 224px;
-    left: 12px;
-    width: calc(100vw - 24px);
+    top: 56px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: min(190px, calc(50vw - 8px));
+    padding: 6px 8px;
+    gap: 4px;
+    font-size: 11px;
     transform: none;
   }
 
+  .player-panel .panel-title strong {
+    font-size: 12px;
+  }
+
+  .player-panel .meter-row {
+    grid-template-columns: 24px 1fr 44px;
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .player-panel .meter-row .meter-track {
+    height: 6px;
+  }
+
+  .player-panel .meter-xp,
+  .player-panel .status-pills {
+    display: none;
+  }
+
+  .hud-target {
+    top: 56px;
+    left: 8px;
+    right: auto;
+    width: min(190px, calc(50vw - 8px));
+    padding: 6px 8px;
+    gap: 4px;
+    font-size: 11px;
+    transform: none;
+  }
+
+  .hud-target .panel-title strong {
+    font-size: 12px;
+  }
+
+  .hud-target .target-meta {
+    font-size: 10px;
+  }
+
   .skill-bar {
-    right: 12px;
-    left: 12px;
-    bottom: 12px;
-    width: calc(100vw - 24px);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
     transform: none;
   }
 
   .skill-button {
-    min-height: 88px;
-    grid-template-columns: 44px 1fr;
-    gap: 4px 10px;
-    padding: 6px 12px;
-    font-size: 15px;
+    min-height: 64px;
+    grid-template-columns: 30px 1fr;
+    gap: 2px 6px;
+    padding: 4px 8px;
+    font-size: 12px;
   }
 
   .skill-button__hotkey {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
-  }
-
-  .skill-button__name {
-    font-size: 15px;
-  }
-
-  .skill-button__footer {
+    width: 30px;
+    height: 30px;
     font-size: 13px;
   }
 
-  .skill-button__cooldown {
-    font-size: 32px;
+  .skill-button__name {
+    font-size: 12px;
   }
 
-  .skill-button__hint {
+  .skill-button__footer {
     font-size: 11px;
   }
 
+  .skill-button__cooldown {
+    font-size: 22px;
+  }
+
+  .skill-button__hint {
+    font-size: 9px;
+  }
+
   .casting-panel {
-    right: 12px;
-    bottom: 412px;
-    left: 12px;
-    width: calc(100vw - 24px);
+    right: 8px;
+    bottom: 158px;
+    left: 8px;
+    width: calc(100vw - 16px);
     transform: none;
   }
 
   .inventory-panel {
-    right: 12px;
-    bottom: 132px;
-    left: 12px;
+    right: 8px;
+    bottom: 88px;
+    left: 8px;
     display: grid;
-    width: calc(100vw - 24px);
-    max-width: 420px;
-    gap: 8px;
+    width: calc(100vw - 16px);
+    max-width: 360px;
+    gap: 6px;
     grid-auto-flow: column;
-    grid-auto-columns: 56px;
-    grid-template-columns: repeat(5, 56px);
+    grid-auto-columns: 48px;
+    grid-template-columns: repeat(5, 48px);
     overflow-x: auto;
     justify-content: start;
     justify-self: center;
     scrollbar-width: thin;
+    padding: 6px;
   }
 
   .inventory-slot {
-    min-height: 56px;
-    width: 56px;
+    min-height: 48px;
+    width: 48px;
   }
 
   .inventory-slot span {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
   }
 
   .inventory-slot strong {
-    font-size: 13px;
-  }
-
-  .combat-log {
-    display: none;
+    font-size: 12px;
   }
 }

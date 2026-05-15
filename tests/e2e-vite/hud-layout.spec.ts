@@ -4,26 +4,47 @@ import { enterWorld } from "../e2e-helpers/gameClient";
 test.setTimeout(90_000);
 
 const HUD_VIEWPORTS = [
-  { name: "desktop", size: { width: 1280, height: 720 }, inventoryVisible: true },
-  { name: "mobile", size: { width: 390, height: 844 }, inventoryVisible: true },
+  {
+    name: "desktop",
+    size: { width: 1280, height: 720 },
+    inventoryVisible: true,
+    infoPanelsVisible: true,
+    minWorldVisibilityRatio: 0.55,
+  },
+  {
+    name: "mobile",
+    size: { width: 390, height: 844 },
+    inventoryVisible: true,
+    infoPanelsVisible: false,
+    minWorldVisibilityRatio: 0.55,
+  },
 ] as const;
 
 for (const viewport of HUD_VIEWPORTS) {
   test(`keeps core HUD panels inside the ${viewport.name} viewport`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport.size);
     await enterWorld(page, `Hud${viewport.name}${Date.now()}`);
-    await showMovementPanel(page);
+    await issueMoveIntent(page, viewport.infoPanelsVisible);
 
     const panels = [
       panel("Connection", page.locator(".hud-top")),
-      panel("World status", page.locator(".hud-stats")),
       panel("Player status", page.locator(".player-panel")),
       panel("Target", page.locator(".hud-target")),
-      panel("Starter progress", page.locator(".starter-progress")),
-      panel("Movement", page.locator(".movement-panel")),
-      panel("Navigation", page.locator(".navigation-panel")),
       panel("Skills", page.locator(".skill-bar")),
     ];
+
+    if (viewport.infoPanelsVisible) {
+      panels.push(
+        panel("World status", page.locator(".hud-stats")),
+        panel("Starter progress", page.locator(".starter-progress")),
+        panel("Movement", page.locator(".movement-panel")),
+        panel("Navigation", page.locator(".navigation-panel")),
+      );
+    } else {
+      await expect(page.locator(".hud-stats")).toBeHidden();
+      await expect(page.locator(".navigation-panel")).toBeHidden();
+      await expect(page.locator(".movement-panel")).toBeHidden();
+    }
 
     if (viewport.inventoryVisible) {
       panels.push(panel("Inventory", page.locator(".inventory-panel")));
@@ -37,6 +58,7 @@ for (const viewport of HUD_VIEWPORTS) {
 
     await expectInsideViewport(page, panels);
     await expectSkillButtonsFit(page);
+    await expectWorldVisible(page, panels, viewport.minWorldVisibilityRatio);
     await page.screenshot({
       path: testInfo.outputPath(`${viewport.name}-hud.png`),
       animations: "disabled",
@@ -54,13 +76,15 @@ function panel(name: string, locator: Locator): HudPanel {
   return { name, locator };
 }
 
-async function showMovementPanel(page: Page): Promise<void> {
+async function issueMoveIntent(page: Page, expectMovementPanelVisible: boolean): Promise<void> {
   const target = await page.evaluate(() => {
     return window.__VIBEAGE_VITE_E2E__?.moveNearPlayer({ x: 6, z: -4 }) ?? null;
   });
 
   expect(target).toBeTruthy();
-  await expect(page.locator(".movement-panel")).toBeVisible();
+  if (expectMovementPanelVisible) {
+    await expect(page.locator(".movement-panel")).toBeVisible();
+  }
 }
 
 async function expectInsideViewport(page: Page, panels: HudPanel[]): Promise<void> {
@@ -91,4 +115,63 @@ async function expectSkillButtonsFit(page: Page): Promise<void> {
   });
 
   expect(overflowCount).toBe(0);
+}
+
+async function expectWorldVisible(
+  page: Page,
+  panels: HudPanel[],
+  minRatio: number,
+): Promise<void> {
+  const viewport = page.viewportSize();
+  expect(viewport).toBeTruthy();
+  const totalArea = viewport!.width * viewport!.height;
+
+  const boxes: Array<{ name: string; x: number; y: number; width: number; height: number }> = [];
+  for (const { name, locator } of panels) {
+    const box = await locator.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    });
+    boxes.push({ name, ...box });
+  }
+
+  const coveredArea = computeUnionArea(boxes, viewport!.width, viewport!.height);
+  const visibleRatio = Math.max(0, 1 - coveredArea / totalArea);
+  expect(
+    visibleRatio,
+    `world visibility ratio. Boxes: ${JSON.stringify(boxes.map((box) => ({
+      name: box.name,
+      area: Math.round(Math.max(0, box.width) * Math.max(0, box.height)),
+    })))}`,
+  ).toBeGreaterThanOrEqual(minRatio);
+}
+
+function computeUnionArea(
+  boxes: Array<{ x: number; y: number; width: number; height: number }>,
+  vpWidth: number,
+  vpHeight: number,
+): number {
+  if (boxes.length === 0) {
+    return 0;
+  }
+  const sampleStep = 4;
+  const cols = Math.ceil(vpWidth / sampleStep);
+  const rows = Math.ceil(vpHeight / sampleStep);
+  const cells = new Uint8Array(cols * rows);
+  for (const box of boxes) {
+    const x0 = Math.max(0, Math.floor(box.x / sampleStep));
+    const y0 = Math.max(0, Math.floor(box.y / sampleStep));
+    const x1 = Math.min(cols, Math.ceil((box.x + box.width) / sampleStep));
+    const y1 = Math.min(rows, Math.ceil((box.y + box.height) / sampleStep));
+    for (let row = y0; row < y1; row += 1) {
+      for (let col = x0; col < x1; col += 1) {
+        cells[row * cols + col] = 1;
+      }
+    }
+  }
+  let count = 0;
+  for (const cell of cells) {
+    count += cell;
+  }
+  return count * sampleStep * sampleStep;
 }
