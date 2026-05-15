@@ -155,7 +155,7 @@ Live items requested after the latest deploy. Each is a single-PR slice.
 
 1. [x] **Skyward camera** — orbit pitch should dip below the player so the sky / sun / moon are visible when rotating. Lower `CAMERA_MIN_PITCH` and update the spec. Delivered alongside v4 #4 (camera lookAt sky offset) and v6 #1 (sky-start single-finger drag).
 
-2. [x] **Interactive map** — the world map has wheel zoom, drag-pan, left-click navigation marker that also renders as a 3D pin, right-click clear, and now mobile pinch-zoom (v5 #2). The 2D pin and the 3D follow-arrow are wired together.
+2. [x] **Interactive map** — the world map has wheel zoom, drag-pan, left-click navigation marker that also renders as a 3D pin, right-click clear, and now mobile pinch-zoom (v5 #2). The 2D pin and the 3D follow-arrow are wired together (v3 #1).
 
 3. [x] **Persistent HUD window positions** — `useDraggablePanel` takes a per-panel storage key and writes offset to `localStorage` on drag-end.
 
@@ -163,7 +163,7 @@ Live items requested after the latest deploy. Each is a single-PR slice.
 
 5. [x] **Smoother walk** — drop the residual vertical bounce so the figure travels at a stable y. Keep leg swing and torso sway as the only motion cues. If snapshot-rate jitter persists, extrapolate position with velocity between server snaps.
 
-6. [x] **Mobile camera rotation** — single-finger drag rotates the camera anywhere on the canvas (terrain or sky), and two-finger gestures stay available for pinch zoom. No on-screen handle needed since the gesture works from anywhere.
+6. [x] **Mobile camera rotation** — single-finger drag rotates the camera anywhere on the canvas (terrain or sky), and two-finger gestures stay available for pinch zoom. No on-screen handle needed since the gesture works from anywhere. Delivered alongside v6 #1 (sky-start single-finger drag).
 
 7. [x] **Starter skill kit** — new characters spawn with Fireball + Ice Bolt + Water Splash + Petrify wired into the four bar slots, so the first kill is achievable without grinding for skill points first.
 
