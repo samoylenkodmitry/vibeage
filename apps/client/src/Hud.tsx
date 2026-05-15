@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
@@ -6,6 +6,7 @@ import { InventoryPanel } from './hud/InventoryPanel';
 import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
+import { useDraggablePanel } from './hud/useDraggablePanel';
 import {
   getHotkeySkill,
   getSkillSlotIndexForKeyboardCode,
@@ -18,6 +19,7 @@ type StartPanelProps = {
 
 type GameHudProps = {
   state: GameClientState;
+  cameraAngleRef?: MutableRefObject<number>;
   onDisconnect: () => void;
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
@@ -56,7 +58,7 @@ export function StartPanel({ onStart }: StartPanelProps) {
   );
 }
 
-export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseItem, onRespawn }: GameHudProps) {
+export function GameHud({ state, cameraAngleRef, onDisconnect, onCastSkill, onLearnSkill, onUseItem, onRespawn }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const selectedTarget = state.selectedTargetId ? state.enemies[state.selectedTargetId] ?? null : null;
   const playerCount = Object.keys(state.players).length;
@@ -99,7 +101,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       {bagOpen && (
         <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       )}
-      {mapOpen && <MapPanel player={player} />}
+      {mapOpen && <MapPanel player={player} cameraAngleRef={cameraAngleRef} />}
       <CastingPanel player={player} />
       <SkillBar
         player={player}
@@ -180,23 +182,12 @@ function PanelToggleButton({
 }
 
 function VitalsStrip({ player }: { player: PlayerEntity | null }) {
+  const xpProgress = getMeterProgress(player?.experience, player?.experienceToNextLevel);
   return (
     <section className="vitals-strip" aria-label="Vitals">
-      <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" />
-      <Meter label="MP" value={player?.mana} max={player?.maxMana} className="meter-mp" />
-    </section>
-  );
-}
-
-function PlayerPanel({ player }: { player: PlayerEntity | null }) {
-  const xpProgress = getMeterProgress(player?.experience, player?.experienceToNextLevel);
-  const stats = derivePlayerStats(player);
-
-  return (
-    <section className="hud player-panel" aria-label="Player status">
-      <div className="panel-title">
-        <strong>{player?.name ?? 'Player'}</strong>
-        <span>Level {player?.level ?? 1}</span>
+      <div className="vitals-header">
+        <strong>{player?.name ?? 'Hero'}</strong>
+        <span>Lv {player?.level ?? 1}</span>
       </div>
       <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" />
       <Meter label="MP" value={player?.mana} max={player?.maxMana} className="meter-mp" />
@@ -207,8 +198,22 @@ function PlayerPanel({ player }: { player: PlayerEntity | null }) {
         </div>
         <strong>{formatMeter(player?.experience, player?.experienceToNextLevel)}</strong>
       </div>
+    </section>
+  );
+}
+
+function PlayerPanel({ player }: { player: PlayerEntity | null }) {
+  const stats = derivePlayerStats(player);
+  const panelRef = useDraggablePanel<HTMLElement>();
+
+  return (
+    <section ref={panelRef} className="hud player-panel" aria-label="Player status">
+      <div className="panel-title">
+        <strong>Stats</strong>
+        <span>{stats.className}</span>
+      </div>
       <dl className="player-stats">
-        <div><dt>Class</dt><dd>{stats.className}</dd></div>
+        <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
         <div><dt>STR</dt><dd>{stats.strength}</dd></div>
         <div><dt>DEX</dt><dd>{stats.dexterity}</dd></div>
         <div><dt>INT</dt><dd>{stats.intellect}</dd></div>

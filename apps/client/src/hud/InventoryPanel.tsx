@@ -1,5 +1,6 @@
 import { ITEMS, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
+import { useDraggablePanel } from './useDraggablePanel';
 
 type InventoryPanelProps = {
   inventory: InventorySlot[];
@@ -8,8 +9,15 @@ type InventoryPanelProps = {
 };
 
 export function InventoryPanel({ inventory, maxSlots, onUseItem }: InventoryPanelProps) {
+  const panelRef = useDraggablePanel<HTMLElement>();
+  const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   return (
-    <section className="inventory-panel" aria-label="Inventory">
+    <section ref={panelRef} className="inventory-panel" aria-label="Inventory">
+      <div className="panel-title">
+        <strong>Bag</strong>
+        <span>{usedSlots}/{maxSlots}</span>
+      </div>
+      <div className="inventory-grid">
       {Array.from({ length: maxSlots }).map((_, index) => {
         const slot = inventory[index] ?? null;
         const item = slot ? ITEMS[slot.itemId] : null;
@@ -40,6 +48,7 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem }: InventoryPane
           </button>
         );
       })}
+      </div>
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { getAvailableSkills } from '../../../../packages/content/classes';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import { STARTER_PATH_GOALS } from '../../../../packages/protocol/messages';
 import type { PlayerEntity, StarterProgress } from '../gameTypes';
+import { useDraggablePanel } from './useDraggablePanel';
 
 type StarterProgressPanelProps = {
   player: PlayerEntity | null;
@@ -11,6 +12,7 @@ type StarterProgressPanelProps = {
 };
 
 export function StarterProgressPanel({ player, progress, onLearnSkill }: StarterProgressPanelProps) {
+  const panelRef = useDraggablePanel<HTMLElement>();
   const nextSkill = useMemo(() => {
     if (!player || player.availableSkillPoints <= 0) {
       return null;
@@ -24,7 +26,7 @@ export function StarterProgressPanel({ player, progress, onLearnSkill }: Starter
   const status = progress.rewardGranted ? 'Rewarded' : progress.isComplete ? 'Complete' : 'Active';
 
   return (
-    <section className="starter-progress" aria-label="Starter progress">
+    <section ref={panelRef} className="starter-progress" aria-label="Starter progress">
       <div className="panel-title">
         <strong>Starter Path</strong>
         <span>{status}</span>

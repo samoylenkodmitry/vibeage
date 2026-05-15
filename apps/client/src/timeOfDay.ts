@@ -6,6 +6,7 @@ export type Vec3 = { x: number; y: number; z: number };
 export type DayPhasePalette = {
   phase: number;
   sunDir: Vec3;
+  moonDir: Vec3;
   sunColor: string;
   sunIntensity: number;
   hemisphereSky: string;
@@ -17,7 +18,7 @@ export type DayPhasePalette = {
   cloudOpacity: number;
 };
 
-type Keyframe = Omit<DayPhasePalette, 'sunDir'>;
+type Keyframe = Omit<DayPhasePalette, 'sunDir' | 'moonDir'>;
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -73,14 +74,14 @@ const KEYFRAMES: Keyframe[] = [
   },
   {
     phase: 0.86,
-    sunColor: '#7d8bb0',
-    sunIntensity: 0.18,
-    hemisphereSky: '#0c1530',
-    hemisphereGround: '#050a14',
-    hemisphereIntensity: 0.22,
-    fogColor: '#040912',
-    backgroundColor: '#020611',
-    cloudColor: '#101a30',
+    sunColor: '#9aa9d4',
+    sunIntensity: 0.42,
+    hemisphereSky: '#1a2848',
+    hemisphereGround: '#0c1726',
+    hemisphereIntensity: 0.48,
+    fogColor: '#0d1530',
+    backgroundColor: '#08122a',
+    cloudColor: '#243558',
     cloudOpacity: 0.55,
   },
 ];
@@ -121,6 +122,15 @@ export function computeSunDirection(phase: number): Vec3 {
   return { x: x / len, y: y / len, z: z / len };
 }
 
+export function computeMoonDirection(phase: number): Vec3 {
+  const angle = phaseToSunAngle(phase) + Math.PI;
+  const x = Math.cos(angle);
+  const y = Math.sin(angle);
+  const z = 0.32;
+  const len = Math.hypot(x, y, z) || 1;
+  return { x: x / len, y: y / len, z: z / len };
+}
+
 export function computeDayPhase(timestampMs: number, dayDurationMs: number = DEFAULT_DAY_DURATION_MS): DayPhasePalette {
   const phase = normalizePhase(timestampMs, dayDurationMs);
   const palette = interpolateKeyframes(phase);
@@ -128,6 +138,7 @@ export function computeDayPhase(timestampMs: number, dayDurationMs: number = DEF
     ...palette,
     phase,
     sunDir: computeSunDirection(phase),
+    moonDir: computeMoonDirection(phase),
   };
 }
 
@@ -144,7 +155,7 @@ const PARSED_KEYFRAMES: ParsedKeyframe[] = KEYFRAMES.map((frame) => ({
   cloudColor: parseHex(frame.cloudColor),
 }));
 
-function interpolateKeyframes(phase: number): Omit<DayPhasePalette, 'sunDir'> {
+function interpolateKeyframes(phase: number): Omit<DayPhasePalette, 'sunDir' | 'moonDir'> {
   const sorted = PARSED_KEYFRAMES;
   let next = sorted[0];
   let prev = sorted[sorted.length - 1];

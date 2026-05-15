@@ -15,7 +15,7 @@ export type WorldTravelLane = {
   points: WorldPoint[];
 };
 
-export type WorldLandmarkKind = 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep';
+export type WorldLandmarkKind = 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep' | 'ancient_tree';
 
 export type WorldLandmark = {
   id: string;
@@ -136,6 +136,15 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     height: 18,
   },
   {
+    id: 'ancient-gnarled-tree',
+    name: 'The Ancient Gnarled Tree',
+    kind: 'ancient_tree',
+    zoneId: 'starter_meadow',
+    position: { x: 80, z: 60 },
+    radius: 14,
+    height: 24,
+  },
+  {
     id: 'starter-watchtower',
     name: 'Watchtower of the First Dawn',
     kind: 'spire',
@@ -209,6 +218,36 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     position: { x: -6_200, z: -5_800 },
     radius: 240,
     height: 1_350,
+    mega: true,
+  },
+  {
+    id: 'mega-sunward-gate',
+    name: 'Sunward Gate',
+    kind: 'gate',
+    zoneId: 'starter_meadow',
+    position: { x: 8_400, z: 1_200 },
+    radius: 320,
+    height: 1_000,
+    mega: true,
+  },
+  {
+    id: 'mega-twin-spires',
+    name: 'Twin Spires of Auros',
+    kind: 'spire',
+    zoneId: 'starter_meadow',
+    position: { x: -1_400, z: 7_600 },
+    radius: 180,
+    height: 1_500,
+    mega: true,
+  },
+  {
+    id: 'mega-iron-keep',
+    name: 'Iron Keep of Kalt',
+    kind: 'keep',
+    zoneId: 'starter_meadow',
+    position: { x: 2_400, z: -7_800 },
+    radius: 300,
+    height: 1_280,
     mega: true,
   },
   {

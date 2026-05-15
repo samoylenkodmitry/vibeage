@@ -19,9 +19,11 @@ import { getTerrainY } from './worldSceneConfig';
 export function CameraRig({
   focus,
   presentationFocusRef,
+  cameraAngleRef,
 }: {
   focus: Vec3;
   presentationFocusRef: MutableRefObject<THREE.Vector3 | null>;
+  cameraAngleRef?: MutableRefObject<number>;
 }) {
   const { camera, gl } = useThree();
   const angleRef = useRef(Math.PI * 0.82);
@@ -54,6 +56,9 @@ export function CameraRig({
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
     camera.position.lerp(cameraTargetRef.current, alpha);
     camera.lookAt(focusRef.current);
+    if (cameraAngleRef) {
+      cameraAngleRef.current = angleRef.current;
+    }
   });
 
   return null;
