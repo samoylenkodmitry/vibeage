@@ -11,10 +11,11 @@ import {
 type SkillBarProps = {
   player: PlayerEntity | null;
   now: number;
+  hasSelectedTarget: boolean;
   onCastSkill: (skillId: SkillId) => void;
 };
 
-export function SkillBar({ player, now, onCastSkill }: SkillBarProps) {
+export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillBarProps) {
   const slots = useMemo(() => {
     return Array.from({ length: SKILL_BAR_SLOT_COUNT }, (_, index) => getHotkeySkill(player, index));
   }, [player]);
@@ -29,6 +30,7 @@ export function SkillBar({ player, now, onCastSkill }: SkillBarProps) {
           ariaHotkeys={getSkillSlotAriaHotkeys(index)}
           player={player}
           now={now}
+          hasSelectedTarget={hasSelectedTarget}
           onCastSkill={onCastSkill}
         />
       ))}
@@ -42,6 +44,7 @@ function SkillButton({
   ariaHotkeys,
   player,
   now,
+  hasSelectedTarget,
   onCastSkill,
 }: {
   skillId: SkillId | null;
@@ -49,28 +52,41 @@ function SkillButton({
   ariaHotkeys: string;
   player: PlayerEntity | null;
   now: number;
+  hasSelectedTarget: boolean;
   onCastSkill: (skillId: SkillId) => void;
 }) {
   const skill = skillId ? SKILLS[skillId] : null;
   const cooldownEnd = skillId ? player?.skillCooldownEndTs?.[skillId] ?? 0 : 0;
   const remainingMs = Math.max(0, cooldownEnd - now);
   const isReady = remainingMs === 0;
+  const needsTarget = Boolean(skill?.requiresTarget && !hasSelectedTarget);
   const disabled = !skill || !player?.isAlive || !isReady;
   const cooldownProgress = skill ? Math.min(1, remainingMs / skill.cooldownMs) : 0;
+  const targetState = needsTarget ? 'needs-target' : skill?.requiresTarget ? 'has-target' : 'self-cast';
 
   return (
     <button
       type="button"
-      className="skill-button"
+      className={`skill-button skill-button--${targetState}${remainingMs > 0 ? ' skill-button--cooling' : ''}`}
       disabled={disabled}
       aria-label={skill ? `Cast ${skill.name}` : 'Empty skill slot'}
       aria-keyshortcuts={ariaHotkeys}
       style={{ '--cooldown-progress': cooldownProgress } as CSSProperties}
       onClick={() => skill && onCastSkill(skill.id)}
     >
-      <span>{hotkey}</span>
-      <strong>{skill?.name ?? 'Empty'}</strong>
-      <small>{formatSkillFooter(skill?.manaCost, remainingMs)}</small>
+      <span className="skill-button__hotkey">{hotkey}</span>
+      <strong className="skill-button__name">{skill?.name ?? 'Empty'}</strong>
+      <small className="skill-button__footer">{formatSkillFooter(skill?.manaCost, remainingMs)}</small>
+      {remainingMs > 0 && (
+        <span className="skill-button__cooldown" aria-hidden="true">
+          {formatCooldown(remainingMs)}
+        </span>
+      )}
+      {needsTarget && skill && (
+        <span className="skill-button__hint" aria-hidden="true">
+          Pick target
+        </span>
+      )}
     </button>
   );
 }
@@ -85,4 +101,11 @@ function formatSkillFooter(manaCost: number | undefined, remainingMs: number): s
   }
 
   return `${manaCost} MP`;
+}
+
+function formatCooldown(remainingMs: number): string {
+  if (remainingMs >= 10_000) {
+    return `${Math.ceil(remainingMs / 1_000)}`;
+  }
+  return `${(remainingMs / 1_000).toFixed(1)}`;
 }

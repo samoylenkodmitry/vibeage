@@ -70,9 +70,9 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Split spawn tables by biome and danger tier.
    - Stop duplicating mob mixes directly inside every large zone where a shared biome table works.
 
-4. [ ] Add world traversal tooling.
+4. [x] Add world traversal tooling.
    - [x] HUD should show coordinates, current zone, streamed zones, and estimated travel time.
-   - Add admin/debug teleport only for local/dev mode, never for regular production play.
+   - [x] Add admin/debug teleport only for local/dev mode, never for regular production play.
 
 ### P1: Living Fantasy Client View
 
@@ -91,7 +91,7 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Distinct flora, rock, ruin, water, snow, crystal, and volcanic accents per biome.
    - Keep assets procedural or small until an art pipeline exists.
 
-5. [ ] Add weather and time-of-day.
+5. [x] Add weather and time-of-day.
    - Server may expose broad world time later.
    - Client can start with deterministic cosmetic cycles that do not affect combat.
 
@@ -101,7 +101,7 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Do not hide core gameplay panels on mobile.
    - Keep panels inside viewport with Playwright coverage.
 
-2. [ ] Add touch movement affordance.
+2. [x] Add touch movement affordance.
    - Tap-to-move stays primary.
    - Add press/drag movement or a virtual stick only if it does not fight camera gestures.
 
@@ -109,7 +109,7 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - One-finger movement selection and two-finger/or explicit camera controls should not conflict.
    - Add Playwright or unit coverage for touch intent routing.
 
-4. [ ] Add mobile combat ergonomics.
+4. [x] Add mobile combat ergonomics.
    - Skill buttons must be thumb-sized, cooldown readable, and target state obvious.
    - Inventory consumables need predictable touch feedback.
 

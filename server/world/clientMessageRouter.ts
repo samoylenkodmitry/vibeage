@@ -7,6 +7,7 @@ import type { GameState } from '../gameState.js';
 import { onUseItem } from '../inventory/itemUse.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
+import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
 import { applyMoveIntent } from '../movement/moveIntent.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
@@ -48,7 +49,32 @@ export function handleClientMessage(
       return onRequestInventory(socket, direct, state);
     case 'SelectClass':
       return;
+    case 'DevTeleport':
+      return onDevTeleport(socket, state, msg);
   }
+}
+
+function onDevTeleport(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'DevTeleport' }>,
+): void {
+  if (!isDevCommandsEnabled()) {
+    warn(LOG_CATEGORIES.MOVEMENT, `DevTeleport rejected (VIBEAGE_ENABLE_DEV_COMMANDS not set) for ${msg.id}`);
+    return;
+  }
+
+  const result = applyDevTeleport(state, socket.id, msg);
+
+  if (result.ok === false) {
+    warn(LOG_CATEGORIES.MOVEMENT, `DevTeleport rejected: ${result.reason}`, {
+      playerId: result.playerId,
+      targetPos: msg.targetPos,
+    });
+    return;
+  }
+
+  debug(LOG_CATEGORIES.MOVEMENT, `Player ${result.playerId} teleported`, { targetPos: msg.targetPos });
 }
 
 export function createWorldCombatBridge(

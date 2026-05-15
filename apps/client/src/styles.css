@@ -293,6 +293,7 @@ input {
   color: #f9fafb;
   background: rgba(18, 24, 27, 0.82);
   text-align: left;
+  transition: transform 80ms ease-out, background-color 120ms ease-out;
 }
 
 .skill-button::after {
@@ -309,12 +310,27 @@ input {
   background: rgba(44, 52, 55, 0.92);
 }
 
+.skill-button:not(:disabled):active {
+  transform: scale(0.96);
+  background: rgba(60, 80, 70, 0.92);
+}
+
+.skill-button--needs-target:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.32);
+}
+
+.skill-button--has-target:not(:disabled) {
+  border-color: rgba(141, 233, 215, 0.66);
+  box-shadow: inset 0 0 0 1px rgba(141, 233, 215, 0.34);
+}
+
 .skill-button > * {
   position: relative;
   z-index: 1;
 }
 
-.skill-button span {
+.skill-button__hotkey {
   display: grid;
   width: 28px;
   height: 28px;
@@ -326,15 +342,41 @@ input {
   font-weight: 800;
 }
 
-.skill-button strong {
+.skill-button__name {
   overflow: hidden;
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.skill-button small {
+.skill-button__footer {
   color: #9dded3;
+}
+
+.skill-button__cooldown {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: #fef3c7;
+  font-size: 22px;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
+  pointer-events: none;
+}
+
+.skill-button__hint {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  z-index: 2;
+  color: #fda4af;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 .meter-row {
@@ -489,10 +531,16 @@ input {
   padding: 0;
   color: #e7f7f1;
   background: rgba(15, 23, 42, 0.72);
+  transition: transform 80ms ease-out, background-color 120ms ease-out;
 }
 
 .inventory-slot:hover {
   background: rgba(30, 41, 59, 0.92);
+}
+
+.inventory-slot:not(:disabled):active {
+  transform: scale(0.92);
+  background: rgba(56, 189, 248, 0.32);
 }
 
 .inventory-slot span {
@@ -584,90 +632,157 @@ input {
 }
 
 @media (max-width: 680px) {
+  .hud-stats,
+  .starter-progress,
+  .movement-panel,
+  .navigation-panel,
+  .combat-log {
+    display: none;
+  }
+
   .hud-top {
-    right: 12px;
-    left: 12px;
-    top: 12px;
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    padding: 4px 10px;
+    gap: 8px;
+    font-size: 12px;
   }
 
-  .hud-stats {
-    top: 68px;
-    right: 12px;
-    left: 12px;
-    flex-wrap: wrap;
-  }
-
-  .hud-target {
-    top: 130px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
-    transform: none;
-  }
-
-  .starter-progress {
-    top: 212px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
-  }
-
-  .movement-panel {
-    top: 300px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
-  }
-
-  .navigation-panel {
-    top: 350px;
-    right: 12px;
-    left: 12px;
-    width: calc(100vw - 24px);
+  .hud-top button {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
   .player-panel {
-    right: 12px;
-    bottom: 214px;
-    left: 12px;
-    width: calc(100vw - 24px);
+    top: 56px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: min(190px, calc(50vw - 8px));
+    padding: 6px 8px;
+    gap: 4px;
+    font-size: 11px;
     transform: none;
+  }
+
+  .player-panel .panel-title strong {
+    font-size: 12px;
+  }
+
+  .player-panel .meter-row {
+    grid-template-columns: 24px 1fr 44px;
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .player-panel .meter-row .meter-track {
+    height: 6px;
+  }
+
+  .player-panel .meter-xp,
+  .player-panel .status-pills {
+    display: none;
+  }
+
+  .hud-target {
+    top: 56px;
+    left: 8px;
+    right: auto;
+    width: min(190px, calc(50vw - 8px));
+    padding: 6px 8px;
+    gap: 4px;
+    font-size: 11px;
+    transform: none;
+  }
+
+  .hud-target .panel-title strong {
+    font-size: 12px;
+  }
+
+  .hud-target .target-meta {
+    font-size: 10px;
   }
 
   .skill-bar {
-    right: 12px;
-    left: 12px;
-    bottom: 12px;
-    width: calc(100vw - 24px);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
     transform: none;
   }
 
+  .skill-button {
+    min-height: 64px;
+    grid-template-columns: 30px 1fr;
+    gap: 2px 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .skill-button__hotkey {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+
+  .skill-button__name {
+    font-size: 12px;
+  }
+
+  .skill-button__footer {
+    font-size: 11px;
+  }
+
+  .skill-button__cooldown {
+    font-size: 22px;
+  }
+
+  .skill-button__hint {
+    font-size: 9px;
+  }
+
   .casting-panel {
-    right: 12px;
-    bottom: 382px;
-    left: 12px;
-    width: calc(100vw - 24px);
+    right: 8px;
+    bottom: 158px;
+    left: 8px;
+    width: calc(100vw - 16px);
     transform: none;
   }
 
   .inventory-panel {
-    right: 12px;
-    bottom: 150px;
-    left: 12px;
+    right: 8px;
+    bottom: 88px;
+    left: 8px;
     display: grid;
-    width: calc(100vw - 24px);
-    max-width: 366px;
+    width: calc(100vw - 16px);
+    max-width: 360px;
+    gap: 6px;
     grid-auto-flow: column;
-    grid-auto-columns: 42px;
-    grid-template-columns: repeat(5, 42px);
+    grid-auto-columns: 48px;
+    grid-template-columns: repeat(5, 48px);
     overflow-x: auto;
     justify-content: start;
     justify-self: center;
     scrollbar-width: thin;
+    padding: 6px;
   }
 
-  .combat-log {
-    display: none;
+  .inventory-slot {
+    min-height: 48px;
+    width: 48px;
+  }
+
+  .inventory-slot span {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .inventory-slot strong {
+    font-size: 12px;
   }
 }

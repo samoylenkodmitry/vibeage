@@ -15,6 +15,7 @@ export type ClientActions = {
   pickUpLoot: (lootId: string) => void;
   useItem: (slotIndex: number) => void;
   respawn: () => void;
+  devTeleport: (target: VecXZ) => void;
 };
 
 export function useClientActions(
@@ -93,9 +94,23 @@ export function useClientActions(
     }
   }, [roomRef, stateRef]);
 
+  const devTeleport = useCallback((target: VecXZ) => {
+    const room = roomRef.current;
+    const playerId = stateRef.current?.myPlayerId;
+    if (!room || !playerId) {
+      return;
+    }
+    room.send(SESSION_EVENTS.message, {
+      type: 'DevTeleport',
+      id: playerId,
+      targetPos: target,
+      clientTs: Date.now(),
+    });
+  }, [roomRef, stateRef]);
+
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn }),
-    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn],
+    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport }),
+    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport],
   );
 }
 

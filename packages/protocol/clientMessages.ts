@@ -57,6 +57,13 @@ export const requestInventorySchema = z.object({
   type: z.literal('RequestInventory'),
 }).passthrough();
 
+export const devTeleportSchema = z.object({
+  type: z.literal('DevTeleport'),
+  id: z.string(),
+  targetPos: vecXZSchema,
+  clientTs: z.number(),
+}).passthrough();
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
@@ -67,6 +74,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   lootPickupSchema,
   useItemSchema,
   requestInventorySchema,
+  devTeleportSchema,
 ]);
 
 export type MoveIntent = {
@@ -124,6 +132,13 @@ export type RequestInventory = {
   type: 'RequestInventory';
 };
 
+export type DevTeleport = {
+  type: 'DevTeleport';
+  id: string;
+  targetPos: VecXZ;
+  clientTs: number;
+};
+
 export type ClientMessage =
   | MoveIntent
   | CastReq
@@ -133,4 +148,5 @@ export type ClientMessage =
   | RespawnRequest
   | LootPickup
   | UseItem
-  | RequestInventory;
+  | RequestInventory
+  | DevTeleport;

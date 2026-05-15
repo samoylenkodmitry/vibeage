@@ -1,9 +1,15 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type Vec3D, type VecXZ } from '../../../packages/protocol/messages';
+import {
+  shouldContinueDragMove,
+  shouldEmitDragMove,
+  shouldStartDragMove,
+  TOUCH_MOVE_THROTTLE_MS,
+} from './touchMovement';
 
 type WorldGroundProps = {
   focus: Vec3D;
@@ -13,6 +19,12 @@ type WorldGroundProps = {
 const groundClickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const groundClickPoint = new THREE.Vector3();
 
+type DragMoveState = {
+  pointerId: number;
+  isTouch: boolean;
+  lastSentMs: number;
+};
+
 export function WorldGround({ focus, onMove }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
   const chunks = useMemo(
@@ -20,16 +32,56 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
     [focusChunk.x, focusChunk.z],
   );
 
+  const dragRef = useRef<DragMoveState | null>(null);
+  const activeTouchCountRef = useActiveTouchCount();
+
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
-    if (event.button !== 0) {
+    if (!shouldStartDragMove(event, activeTouchCountRef.current)) {
+      return;
+    }
+
+    const terrainHit = event.ray.intersectPlane(groundClickPlane, groundClickPoint);
+    if (!terrainHit) {
       return;
     }
 
     event.stopPropagation();
-    const terrainHit = event.ray.intersectPlane(groundClickPlane, groundClickPoint);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      isTouch: event.pointerType === 'touch',
+      lastSentMs: performance.now(),
+    };
+    onMove({ x: terrainHit.x, z: terrainHit.z });
+  }
 
-    if (terrainHit) {
-      onMove({ x: terrainHit.x, z: terrainHit.z });
+  function handlePointerMove(event: ThreeEvent<PointerEvent>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (!shouldContinueDragMove(activeTouchCountRef.current, drag.isTouch)) {
+      dragRef.current = null;
+      return;
+    }
+
+    const now = performance.now();
+    if (!shouldEmitDragMove(now, drag.lastSentMs, TOUCH_MOVE_THROTTLE_MS)) {
+      return;
+    }
+
+    const terrainHit = event.ray.intersectPlane(groundClickPlane, groundClickPoint);
+    if (!terrainHit) {
+      return;
+    }
+
+    drag.lastSentMs = now;
+    onMove({ x: terrainHit.x, z: terrainHit.z });
+  }
+
+  function handlePointerUp(event: ThreeEvent<PointerEvent>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
     }
   }
 
@@ -41,20 +93,58 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
           originX={chunk.x}
           originZ={chunk.z}
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
         />
       ))}
     </group>
   );
 }
 
+function useActiveTouchCount() {
+  const countRef = useRef(0);
+
+  useEffect(() => {
+    const activePointers = new Set<number>();
+    const onDown = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        activePointers.add(event.pointerId);
+        countRef.current = activePointers.size;
+      }
+    };
+    const onUp = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        activePointers.delete(event.pointerId);
+        countRef.current = activePointers.size;
+      }
+    };
+
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
+
+  return countRef;
+}
+
 function TerrainChunk({
   originX,
   originZ,
   onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
   originX: number;
   originZ: number;
   onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerMove: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerUp: (event: ThreeEvent<PointerEvent>) => void;
 }) {
   const geometry = useMemo(
     () => createTerrainGeometry(originX, originZ),
@@ -62,7 +152,13 @@ function TerrainChunk({
   );
 
   return (
-    <mesh geometry={geometry} onPointerDown={onPointerDown} receiveShadow>
+    <mesh
+      geometry={geometry}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      receiveShadow
+    >
       <meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />
     </mesh>
   );
