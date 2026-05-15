@@ -1,4 +1,6 @@
+import { getBiomeEncounterMobs } from './encounters.js';
 import { randomAnnulusDistance } from '../sim/geometry.js';
+import { getTerrainHeight } from './terrain.js';
 
 // Types for zone management
 export interface Zone {
@@ -78,10 +80,13 @@ export class ZoneManager {
         const minDistance = zone.spawnExclusionRadius ?? 0;
         const distance = randomAnnulusDistance(minDistance, zone.radius);
 
+        const x = zone.position.x + Math.cos(angle) * distance;
+        const z = zone.position.z + Math.sin(angle) * distance;
+
         return {
-            x: zone.position.x + Math.cos(angle) * distance,
-            y: 0.5, // Slightly above ground
-            z: zone.position.z + Math.sin(angle) * distance
+            x,
+            y: getTerrainHeight(x, z) + 0.5,
+            z
         };
     }
 
@@ -305,5 +310,71 @@ export const GAME_ZONES: Zone[] = [
             { type: 'chrono_stalker', weight: 35, minCount: 4, maxCount: 7 },
             { type: 'temporal_overlord', weight: 30, minCount: 1, maxCount: 3 }
         ]
+    },
+    {
+        id: 'emerald_expanse',
+        name: 'Emerald Expanse',
+        description: 'A continent-scale sea of rolling grass, ancient roads, and far green horizons',
+        position: { x: 90_000, y: 0, z: 150_000 },
+        radius: 115_000,
+        spawnExclusionRadius: 2_000,
+        minLevel: 8,
+        maxLevel: 18,
+        mobs: getBiomeEncounterMobs('emerald_grassland')
+    },
+    {
+        id: 'silverwood_ocean',
+        name: 'Silverwood Ocean',
+        description: 'An enormous forest where silver-barked trees turn the sky into a green cathedral',
+        position: { x: -190_000, y: 0, z: 120_000 },
+        radius: 140_000,
+        spawnExclusionRadius: 2_500,
+        minLevel: 14,
+        maxLevel: 24,
+        mobs: getBiomeEncounterMobs('silverwood_forest')
+    },
+    {
+        id: 'sunspire_steppe',
+        name: 'Sunspire Steppe',
+        description: 'A huge golden steppe broken by sunlit stone spires and fire-scarred ridges',
+        position: { x: 260_000, y: 0, z: -120_000 },
+        radius: 150_000,
+        spawnExclusionRadius: 3_000,
+        minLevel: 18,
+        maxLevel: 28,
+        mobs: getBiomeEncounterMobs('sunspire_steppe')
+    },
+    {
+        id: 'moonfall_highlands',
+        name: 'Moonfall Highlands',
+        description: 'A vast cold highland of pale cliffs, moonlit grass, and distant ruined keeps',
+        position: { x: -320_000, y: 0, z: -260_000 },
+        radius: 135_000,
+        spawnExclusionRadius: 3_000,
+        minLevel: 20,
+        maxLevel: 32,
+        mobs: getBiomeEncounterMobs('moonfall_highland')
+    },
+    {
+        id: 'abyssal_march',
+        name: 'Abyssal March',
+        description: 'A near-endless dark wetland where blue lights drift over black water and old stones',
+        position: { x: 150_000, y: 0, z: 390_000 },
+        radius: 125_000,
+        spawnExclusionRadius: 2_500,
+        minLevel: 24,
+        maxLevel: 36,
+        mobs: getBiomeEncounterMobs('abyssal_wetland')
+    },
+    {
+        id: 'chronoglass_desert',
+        name: 'Chronoglass Desert',
+        description: 'An immense glassy desert where mirages bend time and stars shine in daylight',
+        position: { x: -420_000, y: 0, z: 360_000 },
+        radius: 130_000,
+        spawnExclusionRadius: 2_500,
+        minLevel: 28,
+        maxLevel: 40,
+        mobs: getBiomeEncounterMobs('chronoglass_desert')
     }
 ];

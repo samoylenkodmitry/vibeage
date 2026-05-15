@@ -1,11 +1,16 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { WORLD_SETTINGS } from '../../../packages/content/world';
+import type { Vec3D } from '../../../packages/protocol/messages';
 import { getZoneLandmarks, type ZoneLandmarkVisual } from './worldVisuals';
 
 const RING_THICKNESS = 2.8;
 
-export function ZoneLandmarks() {
-  const landmarks = useMemo(() => getZoneLandmarks(), []);
+export function ZoneLandmarks({ focus }: { focus: Vec3D }) {
+  const landmarks = useMemo(
+    () => getZoneLandmarks().filter((landmark) => isLandmarkNearFocus(landmark, focus)),
+    [focus.x, focus.z],
+  );
 
   return (
     <group>
@@ -14,6 +19,13 @@ export function ZoneLandmarks() {
       ))}
     </group>
   );
+}
+
+function isLandmarkNearFocus(landmark: ZoneLandmarkVisual, focus: Vec3D): boolean {
+  const dx = landmark.position.x - focus.x;
+  const dz = landmark.position.z - focus.z;
+  const visibleDistance = landmark.radius + WORLD_SETTINGS.fogFar * 1.5;
+  return dx * dx + dz * dz <= visibleDistance * visibleDistance;
 }
 
 function ZoneLandmark({ landmark }: { landmark: ZoneLandmarkVisual }) {

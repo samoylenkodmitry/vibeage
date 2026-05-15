@@ -5,6 +5,8 @@ import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type VecXZ } from '../../../packages/protocol/messages';
 import type { GameClientState } from './gameTypes';
 import { WorldEventVfx } from './SceneEventVfx';
+import { WorldEnvironment } from './WorldEnvironment';
+import { WorldFeatures } from './WorldFeatures';
 import { ZoneLandmarks } from './ZoneLandmarks';
 import { CameraRig } from './CameraRig';
 import {
@@ -37,10 +39,10 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
     >
       <color attach="background" args={['#071015']} />
       <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
-      <ambientLight intensity={0.62} />
-      <directionalLight position={[24, 32, 18]} intensity={1.4} castShadow />
-      <WorldGround onMove={onMove} />
-      <ZoneLandmarks />
+      <WorldEnvironment focus={focus} />
+      <WorldGround focus={focus} onMove={onMove} />
+      <WorldFeatures focus={focus} />
+      <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
       {Object.values(state.players).map((player) => (
         <PlayerMarker

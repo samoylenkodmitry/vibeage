@@ -86,6 +86,7 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       <PlayerPanel player={player} />
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
+      <NavigationPanel state={state} player={player} />
       <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       <CastingPanel player={player} />
@@ -171,6 +172,34 @@ function MovementPanel({
     <section className="hud movement-panel" aria-label="Movement">
       <span>{label}</span>
       <strong>{distance.toFixed(1)}m</strong>
+    </section>
+  );
+}
+
+function NavigationPanel({
+  state,
+  player,
+}: {
+  state: GameClientState;
+  player: PlayerEntity | null;
+}) {
+  if (!player) {
+    return null;
+  }
+
+  const regionId = state.worldPublicState?.players[player.id]?.regionId
+    ?? state.streamedRegionIds[0]
+    ?? '';
+  const region = regionId ? state.worldPublicState?.regions[regionId] : null;
+  const targetDistance = state.targetWorldPos ? getDistance(player.position, state.targetWorldPos) : null;
+  const speed = player.movement?.speed ?? 0;
+
+  return (
+    <section className="hud navigation-panel" aria-label="Navigation">
+      <Metric label="Position" value={`${Math.round(player.position.x)}, ${Math.round(player.position.z)}`} />
+      <Metric label="Zone" value={region?.name ?? 'Wilderness'} />
+      <Metric label="Stream" value={`${state.streamedRegionIds.length}/${state.worldPublicState?.activeRegionCount ?? 0}`} />
+      <Metric label="ETA" value={formatTravelEta(targetDistance, speed)} />
     </section>
   );
 }
@@ -320,6 +349,21 @@ function getTargetTone(isAlive: boolean, healthRatio: number): 'defeated' | 'wea
 
 function getDistance(a: PlayerEntity['position'], b: PlayerEntity['position']): number {
   return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+function formatTravelEta(distance: number | null, speed: number): string {
+  if (distance === null || speed <= 0) {
+    return '-';
+  }
+
+  const seconds = Math.ceil(distance / speed);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
 }
 
 function useNow(intervalMs: number): number {

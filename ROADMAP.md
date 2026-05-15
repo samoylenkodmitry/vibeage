@@ -1,184 +1,163 @@
 # VibeAge Roadmap
 
-Last cleaned: 2026-05-14
+Last rewritten: 2026-05-15
 
 ## Direction
 
-VibeAge is a browser-first multiplayer RPG prototype. Keep it easy to run, easy for agents to modify, and built on proven libraries instead of custom engine code where practical.
+VibeAge should become a browser-first multiplayer RPG with a very large fantasy world, server-owned simulation, mobile-friendly controls, and a world view that feels alive instead of a flat prototype grid.
 
-Current stack: Vite, React Three Fiber, Colyseus, Postgres/Kysely, shared protocol/content/simulation packages, Vitest, Playwright smoke checks, and local VPS deployment.
+Production target remains the VPS. `main` is production-affecting and deployment pulls from `origin/main` through local scripts.
 
-Production target: VPS only. Production pulls from `origin/main` through local deploy scripts.
+## Non-Negotiables
+
+- The server owns movement validation, region activation, enemy spawning, combat, loot, inventory, and persistence.
+- The client renders presentation, local smoothing, input, HUD, and visual atmosphere only.
+- Huge world content must not imply huge per-tick server work. Runtime activation, spawning, visibility, and broadcasts stay budgeted.
+- Mobile must be playable in-browser without app install, keyboard, or desktop-only panels.
+- Do not grow `server/world.ts`, `app/game/systems/SocketManager.tsx`, or current client state roots with new gameplay systems.
+- Before merge, prefer `pnpm run check`.
+- Before production deploy, use the local deploy script and `pnpm run health:production`.
 
 ## Current Baseline
 
-- `main` is production-affecting and deployed to `vibeage.eu`.
-- The old `server` branch is retired.
-- Server owns world activation, enemy spawning, combat, loot, inventory, and persistence.
-- The client renders presentation, input, local smoothing, and UI state.
-- Region activation is global; per-player logic may only scope streamed visibility.
-- The CI gate covers secret scan, lint, typecheck, script syntax, maintainability, content validation, unit tests, server build, Docker build, frontend build, performance smoke, and Playwright browser smoke.
+- Stack: Vite, React Three Fiber, Colyseus, Postgres/Kysely, shared protocol/content/simulation packages, Vitest, Playwright.
+- Region streaming already scopes direct server events per client-visible region.
+- Server activation is global, not tied to any one player. Per-player logic only scopes visibility.
+- Current world content is zone-based and content-validated, but the world is still visually flat and too small.
+- Current mobile HUD has viewport checks, but mobile inventory and touch-first movement need more work.
 
-## PR Review Audit
+## World Scale Roadmap
 
-Audit window: closed PRs from 2026-05-12 through 2026-05-14.
+### P0: Scalable World Contract
 
-Valid review findings from the audit were carried into the cleanup plan and resolved on `chore/ai-fy-foundation`:
+1. [x] Split configured-world budgets from runtime-active budgets.
+   - Content can define many huge zones.
+   - Server startup activates only a bounded number of zones and spawns only within that runtime budget.
+   - CI content checks should validate both configured content and runtime spawn budgets.
 
-| Priority | Source | Area | Resolution |
-| --- | --- | --- | --- |
-| P0 | PR #51 | `server/server.ts` | Colyseus matchmaker routing is allow-listed and covered by tests. |
-| P0 | PR #60 | `server/world/tickPipeline.ts` | Maintenance scheduling now uses a dedicated tick counter with snapshot cadence regressions. |
-| P0 | PR #55 | inventory runtime | Inventory uses compact slot semantics consistently on server and client. |
-| P1 | PR #62 | region streaming | Socket-to-player lookup and per-client visible region context are O(1)/reused. |
-| P1 | PR #61 | `server/world/regions.ts` | Region runtime loops avoid per-entity allocations and aggregate stats in single passes. |
-| P1 | PR #60 | observability | World gauges are throttled off the 30Hz hot path. |
-| P1 | PR #58 | camera | Camera orbit updates reuse vector state in the frame loop. |
-| P1 | PR #57 | client snapshots | Client game state snapshot handling is split and tested. |
-| P1 | PR #55 / PR #52 | client visuals | Visual event IDs are monotonic and skill VFX reads from content. |
-| P1 | PR #52 | starter progress | Starter defeat IDs are capped/pruned after completion. |
-| P1 | PR #40 | combat compatibility | Unused cast compatibility code was removed. |
-| P2 | PR #31 | progression | XP multiple-level behavior is documented as future gameplay work. |
-| P2 | PR #49 | Dependabot config | Disabled ecosystems now have consistent comments. |
-| P2 | PR #61 | scripts | Linux/GNU script assumptions are documented. |
+2. [x] Raise movement/world bounds from prototype scale to continent scale.
+   - Movement validation must read shared world settings instead of a hardcoded small coordinate limit.
+   - Tests must cover large valid coordinates and rejected out-of-world coordinates.
 
-Review findings intentionally not carried forward:
+3. [x] Add shared procedural terrain contracts.
+   - Shared content code defines terrain height, slope, biome, and visual palette from world coordinates.
+   - Server spawning uses terrain height so newly spawned enemies are not locked to a flat y-plane.
+   - Client rendering uses the same deterministic terrain contract.
 
-- PR #31 `apps/client/src/App.tsx` Socket.IO cleanup comments are stale; the active client uses Colyseus `useRoomConnection` and already leaves rooms on unmount.
-- PR #52 client-inferred starter defeat tracking is stale; starter progress is now server-authored, though server-side `defeatedEnemyIds` still needs a cap.
-- Resolved or outdated review threads from PRs #23, #24, #26, #27, #29, #30, #56, and #59 were ignored unless the current code still shows the same issue.
+4. [x] Add region indexing for high zone counts.
+   - Replace linear region position lookup with a static spatial index or grid keyed by region bounds.
+   - Keep lookup behavior identical for overlapping/nearest regions.
+   - Add a regression with hundreds of synthetic regions.
 
-## Future Backlog
+5. [x] Add dynamic server-owned activation.
+   - Activation remains server policy, not player-owned.
+   - Activate zones by server budget, world events, population pressure, and neighboring frontier rules.
+   - Keep inactive zones persistent but cheap: no per-tick enemy AI, no broadcasts, no respawn churn.
 
-Useful future hardening that is intentionally outside this cleanup batch:
+### P1: Enormous Fantasy World Content
 
-- No load/soak test for many simultaneous Colyseus clients, region streaming, and reconnect churn.
-- No production alerting or external uptime check in Git; health checks are manual/local-script driven.
-- No authenticated player account model; current identity is still prototype-grade.
-- No admin/debug console for inspecting rooms, players, regions, loot, or stuck sessions.
-- No formal protocol compatibility matrix beyond schema tests and minimum client protocol checks.
-- Dead-code/dependency checking exists through Knip; the remaining gap is shrinking the non-blocking unused-export report.
-- TypeScript strictness is mostly disabled; correctness depends on local tests and discipline instead of compiler help.
-- Content is TS-authored and validated, but there is no content authoring workflow or editor.
-- Mobile/responsive coverage is thin; Playwright mostly checks the desktop happy path.
-- Docs are mostly aligned with Vite/Colyseus/VPS deployment; keep future drift out with scoped playbooks and checks.
+1. [x] Add continent-scale zones.
+   - Introduce zones large enough that walking across them is a long journey.
+   - Keep starter content near origin and safe.
+   - Keep high-level regions far away without causing startup spawn explosions.
 
-Known drift to keep contained:
+2. [x] Add zone travel lanes and landmarks.
+   - Define roads, passes, rivers, ruins, and horizon landmarks as content.
+   - The server should understand safe lanes for future encounters and pathing.
+   - The client should render readable silhouettes so walking has orientation.
 
-- `scripts/setup-server.sh` and `scripts/setup-client.sh` remain tracked for fresh-host bootstrap only; they are guarded by `ALLOW_LEGACY_BOOTSTRAP=1` and must not be used for live updates.
-- Local generated directories (`dist/`, `.next/`, `out/`) exist but are ignored and untracked.
+3. [x] Add biome-driven encounter tables.
+   - Split spawn tables by biome and danger tier.
+   - Stop duplicating mob mixes directly inside every large zone where a shared biome table works.
 
-## Completed AI-Fy Work
+4. [ ] Add world traversal tooling.
+   - [x] HUD should show coordinates, current zone, streamed zones, and estimated travel time.
+   - Add admin/debug teleport only for local/dev mode, never for regular production play.
 
-Goal: make the repository comfortable for coding agents and LLMs by reducing orientation cost, shortening feedback loops, and making dead-code edits harder to mistake for real work.
+### P1: Living Fantasy Client View
 
-- [x] Architecture docs in `docs/ARCHITECTURE.md`.
-- [x] Agent playbooks in `docs/AGENT_PLAYBOOKS.md`.
-- [x] Targeted fast-check scripts: `check:server`, `check:client`, `check:protocol`, and `check:content`.
-- [x] Knip-backed dead-code/dependency scanning with blocking and full-report modes.
-- [x] Deterministic scenario fixtures in `tests/helpers/scenarioFixtures.ts`.
-- [x] Protocol and state contract docs in `docs/PROTOCOL.md`.
-- [x] Strict TypeScript started for leaf packages through `tsconfig.packages.strict.json`.
-- [x] Playwright HUD viewport assertions and screenshot artifacts.
-- [x] Module-level README files for core server, client, protocol, content, and sim boundaries.
-- [x] Stale Next/Vercel/Socket.IO drift removed from active docs and env examples.
+1. [x] Replace the flat grid-only ground with local procedural terrain chunks.
+   - Terrain follows the player in chunks to avoid giant mesh precision and memory problems.
+   - Movement clicks land on rendered terrain while server still receives x/z intents.
 
-## Cleanup Plan
+2. [x] Add fantasy atmosphere.
+   - Sky, fog, sun, horizon tone, hemisphere light, and subtle cloud motion should make the scene feel less empty.
 
-### P0: Safety And Correctness
+3. [x] Add lightweight biome foliage.
+   - Trees/grass/rocks render around the player from deterministic world coordinates.
+   - Use instancing and bounded counts; never render the whole continent.
 
-1. [x] Harden Colyseus matchmaker routing.
-   - Allow only expected methods such as `joinOrCreate`, `join`, `create`, and `joinById`.
-   - Add a server test for rejected matchmaker methods.
-   - Remove manual `content-length` from JSON `Response` construction or calculate byte length correctly.
+4. [x] Add richer zone-specific visuals.
+   - Distinct flora, rock, ruin, water, snow, crystal, and volcanic accents per biome.
+   - Keep assets procedural or small until an art pipeline exists.
 
-2. [x] Fix tick maintenance scheduling.
-   - Replace `snapAccumulator === 1/2` maintenance triggers with a dedicated tick counter or elapsed-time scheduler.
-   - Cover `snapshotEveryTicks === 1`, default 30Hz/10Hz, and long-running ticks.
+5. [ ] Add weather and time-of-day.
+   - Server may expose broad world time later.
+   - Client can start with deterministic cosmetic cycles that do not affect combat.
 
-3. [x] Make inventory slot behavior explicit.
-   - Inventory uses compact arrays: consuming the final item removes the slot and shifts later slots left.
-   - Update server item use, client item-use visuals, inventory updates, and tests together.
-   - Add a regression for consuming slot 0 while slot 1 remains interactable as the same item.
+### P1: Mobile UX
 
-### P1: Hot-Path Performance
+1. [x] Make inventory visible and usable on mobile.
+   - Do not hide core gameplay panels on mobile.
+   - Keep panels inside viewport with Playwright coverage.
 
-1. [x] Optimize region streaming visibility.
-   - Keep socket-to-player lookup O(1).
-   - Build per-client visibility context once per outbound event or tick.
-   - Reuse visible-region sets while filtering `BatchUpdate` children.
+2. [ ] Add touch movement affordance.
+   - Tap-to-move stays primary.
+   - Add press/drag movement or a virtual stick only if it does not fight camera gestures.
 
-2. [x] Optimize region runtime loops.
-   - Avoid per-entity set allocations in active-region checks.
-   - Use simple loops in `refreshWorldRegionRuntime`.
-   - Aggregate region stats in one enemy pass and one player pass.
+3. [x] Add mobile camera mode.
+   - One-finger movement selection and two-finger/or explicit camera controls should not conflict.
+   - Add Playwright or unit coverage for touch intent routing.
 
-3. [x] Reduce server tick allocation and O(N) work.
-   - Throttle world gauges.
-   - Replace `Object.values(...).filter(...)` in high-frequency paths with counted loops.
-   - Type `dirtySnap` on runtime entities instead of using `as any`.
+4. [ ] Add mobile combat ergonomics.
+   - Skill buttons must be thumb-sized, cooldown readable, and target state obvious.
+   - Inventory consumables need predictable touch feedback.
 
-4. [x] Reduce client frame-loop allocation.
-   - Update camera orbit math to write into reusable vectors.
-   - Audit `WorldScene`, entity markers, and VFX for allocations inside `useFrame`.
+### P2: Server Scale Hardening
 
-### P1: Client Polish
+1. [ ] Add load and soak tests.
+   - Simulate many Colyseus clients, reconnect churn, movement, combat, and region transitions.
+   - Track CPU, memory, outbound messages, region visibility counts, and snapshot size.
 
-1. [x] Improve inventory and consumable feedback after slot semantics are fixed.
-2. [x] Use skill content for all skill VFX radii, damage labels, and cast readability.
-3. [x] Add a small debug overlay or test hook for streamed region IDs, visible entity counts, and reconnect state.
-4. [x] Add mobile HUD screenshots or Playwright viewport assertions for the starter panel, movement panel, inventory, and skill bar.
+2. [ ] Add room/shard strategy.
+   - Decide whether one world room can handle current goals or whether zones should be split across rooms.
+   - Keep protocol contracts stable before sharding.
 
-### P1: Dead Code And Drift
+3. [ ] Add persistence strategy for huge worlds.
+   - Persist inactive zone state cheaply.
+   - Avoid writing noisy per-tick world state.
+   - Keep player state durable and reconnect-safe.
 
-1. [x] Remove remaining compatibility exports.
-   - `server/combat/utils/cast.ts`
-   - `applyCastCost` if no active runtime path uses it
-   - `SkillType` alias after `packages/sim/entities.ts` uses `SkillId`
+4. [ ] Add production observability.
+   - External uptime checks, structured runtime metrics, and alert thresholds.
+   - Keep mail/Stalwart and custom Nginx assumptions protected.
 
-2. [x] Remove unused dependencies after verification.
-   - `uuid` is no longer a package dependency; remaining UUID mentions are Postgres column types.
-   - Knip is wired as `pnpm run check:deadcode` and currently passes its blocking subset.
+## Active Implementation Slice
 
-3. [x] Clean bootstrap-era scripts and docs.
-   - Audit `scripts/setup-server.sh` and `scripts/setup-client.sh`; either move them to documented legacy/bootstrap storage or make their danger impossible to miss.
-   - Update `DB_DEV_README.md`, `DEPLOYMENT.md`, `docs/SERVER_DEPLOYMENT.md`, and `.env.example` for Vite/Colyseus-only development.
-   - Remove stale `NEXT_PUBLIC_GAME_SERVER_URL`, `FRONTEND_BUILD_TARGET=next`, `build:next`, and old Socket.IO references where they no longer apply.
-   - Update CORS examples to include the Vite dev port.
+This branch starts with the highest-leverage foundation:
 
-4. [x] Keep local ignored output out of Git.
-   - `dist/`, `.next/`, `out/`, and local IDE shelves are ignored and currently untracked.
-   - Do not add generated build output or local private scripts.
-
-### P2: Architecture
-
-1. [x] Move more public entity state into Colyseus schemas once event filtering is stable.
-   - Colyseus public state now carries lightweight player presence; enemy detail stays in scoped snapshots and region counters to avoid oversize public patches.
-2. [x] Split large but under-budget files by domain:
-   - `apps/client/src/SceneVfx.tsx`
-   - `apps/client/src/Hud.tsx`
-   - `apps/client/src/gameReducer.ts`
-   - `apps/client/src/clientVisualState.ts`
-   - `server/transport/colyseusRoomAdapter.ts`
-   - `server/world/regions.ts`
-
-3. [x] Tighten TypeScript gradually.
-   - Leaf packages (`packages/content`, `packages/sim`, `packages/protocol`) are covered by `tsconfig.packages.strict.json`.
-   - Current `tsconfig.json` still has strictness disabled; app/server strictness is future hardening, not part of this cleanup batch.
-
-4. [x] Keep gameplay expansion behind cleanup.
-   - Grow world size, encounters, and content only after streaming, tick scheduling, inventory semantics, and dead-code removal are stable.
-   - Avoid major quest depth until client/server boundaries stay crisp under tests.
+- [x] world-scale settings and movement bounds
+- [x] runtime active-zone budget
+- [x] shared terrain contract
+- [x] continent-scale content zones
+- [x] local procedural terrain rendering
+- [x] fantasy sky/sun/fog/foliage pass
+- [x] mobile inventory visibility
+- [x] dynamic server-owned region activation
+- [x] shared roads, rivers, passes, and landmark content
+- [x] biome encounter tables for huge zones
+- [x] traversal HUD
+- [x] two-finger mobile camera mode
 
 ## Quality Gate
 
-Before merge, prefer:
+Before merge:
 
 ```bash
 pnpm run check
 ```
 
-For production changes, deploy locally and verify:
+For production deployment:
 
 ```bash
 pnpm run deploy:production

@@ -16,6 +16,11 @@ export type CameraOrbit = {
   pitch: number;
 };
 
+export type CameraPointer = {
+  x: number;
+  y: number;
+};
+
 export function smoothingAlpha(response: number, deltaSeconds: number): number {
   const boundedDelta = Math.min(Math.max(deltaSeconds, 0), CAMERA_MAX_FRAME_DELTA);
   return 1 - Math.exp(-response * boundedDelta);
@@ -32,6 +37,29 @@ export function applyCameraDragDelta(
       CAMERA_MIN_PITCH,
       CAMERA_MAX_PITCH,
     ),
+  };
+}
+
+export function shouldStartCameraDrag(
+  pointer: { button: number; pointerType?: string },
+  activeTouchCount: number,
+): boolean {
+  return pointer.button === 2 || (pointer.pointerType === 'touch' && activeTouchCount >= 2);
+}
+
+export function getTouchCentroid(points: readonly CameraPointer[]): CameraPointer | null {
+  if (points.length < 2) {
+    return null;
+  }
+
+  const sum = points.reduce(
+    (total, point) => ({ x: total.x + point.x, y: total.y + point.y }),
+    { x: 0, y: 0 },
+  );
+
+  return {
+    x: sum.x / points.length,
+    y: sum.y / points.length,
   };
 }
 
