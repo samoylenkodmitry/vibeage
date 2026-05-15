@@ -1,13 +1,10 @@
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
+import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
-import {
-  getMaxHealthForLevel,
-  getMaxManaForLevel,
-} from './playerProgression.js';
 
 const MANA_REGEN_PER_TICK = 2;
 const RESPAWN_POSITION = { x: 0, y: 0.5, z: 0 };
@@ -43,10 +40,16 @@ export function awardPlayerXP(
     player.level += 1;
     player.experience -= oldMaxExp;
     player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5);
-    player.maxHealth = getMaxHealthForLevel(player.level);
-    player.maxMana = getMaxManaForLevel(player.level);
+    const newStats = derivePlayerStats(player.level, player.className);
+    player.maxHealth = newStats.maxHealth;
+    player.maxMana = newStats.maxMana;
     player.health = player.maxHealth;
     player.mana = player.maxMana;
+    player.stats = {
+      dmgMult: newStats.dmgMult,
+      critChance: newStats.critChance,
+      critMult: newStats.critMult,
+    };
     player.availableSkillPoints += 1;
 
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);

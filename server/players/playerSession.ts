@@ -7,14 +7,13 @@ import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSe
 import { createTransientPlayer } from '../playerFactory.js';
 import {
   getExperienceToNextLevel,
-  getMaxHealthForLevel,
-  getMaxManaForLevel,
   normalizePlayerLevel,
   normalizeAvailableSkillPoints,
   numberOrFallback,
   normalizeSkillShortcuts,
   normalizeUnlockedSkills,
 } from './playerProgression.js';
+import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 
 type PlayerRow = {
   id: string;
@@ -36,7 +35,11 @@ type PlayerRow = {
 };
 
 function normalizeClassName(value: unknown): CharacterClass {
-  return value === 'warrior' || value === 'healer' || value === 'ranger' ? value : 'mage';
+  if (value === 'warrior' || value === 'healer' || value === 'ranger'
+    || value === 'knight' || value === 'paladin' || value === 'rogue') {
+    return value;
+  }
+  return 'mage';
 }
 
 export function upsertActivePlayerSession(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
@@ -59,8 +62,8 @@ export function findPlayerIdBySocket(state: GameState, socketId: string): string
 export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: string): PlayerState {
   const unlockedSkills = normalizeUnlockedSkills(row.skills);
   const level = normalizePlayerLevel(row.level);
-  const maxHealth = getMaxHealthForLevel(level);
-  const maxMana = getMaxManaForLevel(level);
+  const className = normalizeClassName(row.class_name);
+  const derived = derivePlayerStats(level, className);
   const starterProgress = normalizeStarterProgressState(row.starter_progress, {
     levelReached: level,
     learnedSkills: unlockedSkills.length,
@@ -76,10 +79,10 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
       z: numberOrFallback(row.position_z, 0),
     },
     rotation: { x: 0, y: 0, z: 0 },
-    health: numberOrFallback(row.health, maxHealth),
-    maxHealth,
-    mana: numberOrFallback(row.mana, maxMana),
-    maxMana,
+    health: numberOrFallback(row.health, derived.maxHealth),
+    maxHealth: derived.maxHealth,
+    mana: numberOrFallback(row.mana, derived.maxMana),
+    maxMana: derived.maxMana,
     level,
     experience: numberOrFallback(row.experience ?? row.xp, 0),
     experienceToNextLevel: getExperienceToNextLevel(level),
@@ -88,7 +91,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: row.is_alive !== undefined ? row.is_alive : true,
-    className: normalizeClassName(row.class_name),
+    className,
     unlockedSkills,
     skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
     availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
@@ -97,6 +100,11 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     lastUpdateTime: Date.now(),
     inventory: row.inventory || [],
     maxInventorySlots: 20,
+    stats: {
+      dmgMult: derived.dmgMult,
+      critChance: derived.critChance,
+      critMult: derived.critMult,
+    },
   };
 }
 

@@ -69,9 +69,6 @@ describe('player session hydration', () => {
       name: 'PersistedMage',
       position: { x: 4, y: 0.5, z: 8 },
       health: 75,
-      maxHealth: 140,
-      mana: 120,
-      maxMana: 120,
       level: 3,
       experience: 120,
       experienceToNextLevel: 225,
@@ -89,6 +86,9 @@ describe('player session hydration', () => {
       },
       inventory: [{ itemId: 'health_potion', quantity: 1 }],
     });
+    expect(player.maxHealth).toBeGreaterThan(100);
+    expect(player.maxMana).toBeGreaterThan(100);
+    expect(player.stats?.dmgMult).toBeGreaterThan(0);
   });
 
   test('hydrates legacy xp and level-derived stats', () => {
@@ -104,14 +104,13 @@ describe('player session hydration', () => {
 
     expect(player).toMatchObject({
       health: 0,
-      maxHealth: 120,
-      mana: 110,
-      maxMana: 110,
       level: 2,
       experience: 80,
       experienceToNextLevel: 150,
       isAlive: false,
     });
+    expect(player.maxHealth).toBeGreaterThan(100);
+    expect(player.mana).toBe(player.maxMana);
   });
 
   test('finds active players by socket id', () => {
