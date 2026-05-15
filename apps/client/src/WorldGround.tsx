@@ -105,14 +105,17 @@ function useActiveTouchCount() {
   const countRef = useRef(0);
 
   useEffect(() => {
+    const activePointers = new Set<number>();
     const onDown = (event: PointerEvent) => {
       if (event.pointerType === 'touch') {
-        countRef.current += 1;
+        activePointers.add(event.pointerId);
+        countRef.current = activePointers.size;
       }
     };
     const onUp = (event: PointerEvent) => {
       if (event.pointerType === 'touch') {
-        countRef.current = Math.max(0, countRef.current - 1);
+        activePointers.delete(event.pointerId);
+        countRef.current = activePointers.size;
       }
     };
 

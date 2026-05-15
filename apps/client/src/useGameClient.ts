@@ -46,7 +46,7 @@ export function useGameClient(): ClientApi {
   }, [state, actions]);
 
   useEffect(() => {
-    installDevCommands(actions);
+    return installDevCommands(actions);
   }, [actions]);
 
   return useMemo(

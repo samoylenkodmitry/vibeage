@@ -7,14 +7,18 @@ declare global {
   }
 }
 
-export function installDevCommands(api: ClientActions): void {
+export function installDevCommands(api: ClientActions): () => void {
   if (!import.meta.env.DEV) {
-    return;
+    return () => {};
   }
 
   window.__vibeageDevTeleport = (x: number, z: number) => {
     const target: VecXZ = { x, z };
     api.devTeleport(target);
     console.info(`[vibeage] dev teleport requested: ${x}, ${z}`);
+  };
+
+  return () => {
+    delete window.__vibeageDevTeleport;
   };
 }

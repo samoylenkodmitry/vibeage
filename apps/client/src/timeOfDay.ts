@@ -19,6 +19,21 @@ export type DayPhasePalette = {
 
 type Keyframe = Omit<DayPhasePalette, 'sunDir'>;
 
+type Rgb = { r: number; g: number; b: number };
+
+type ParsedKeyframe = {
+  phase: number;
+  sunIntensity: number;
+  hemisphereIntensity: number;
+  cloudOpacity: number;
+  sunColor: Rgb;
+  hemisphereSky: Rgb;
+  hemisphereGround: Rgb;
+  fogColor: Rgb;
+  backgroundColor: Rgb;
+  cloudColor: Rgb;
+};
+
 const KEYFRAMES: Keyframe[] = [
   {
     phase: 0,
@@ -97,8 +112,21 @@ export function computeDayPhase(timestampMs: number, dayDurationMs: number = DEF
   };
 }
 
+const PARSED_KEYFRAMES: ParsedKeyframe[] = KEYFRAMES.map((frame) => ({
+  phase: frame.phase,
+  sunIntensity: frame.sunIntensity,
+  hemisphereIntensity: frame.hemisphereIntensity,
+  cloudOpacity: frame.cloudOpacity,
+  sunColor: parseHex(frame.sunColor),
+  hemisphereSky: parseHex(frame.hemisphereSky),
+  hemisphereGround: parseHex(frame.hemisphereGround),
+  fogColor: parseHex(frame.fogColor),
+  backgroundColor: parseHex(frame.backgroundColor),
+  cloudColor: parseHex(frame.cloudColor),
+}));
+
 function interpolateKeyframes(phase: number): Omit<DayPhasePalette, 'sunDir'> {
-  const sorted = KEYFRAMES;
+  const sorted = PARSED_KEYFRAMES;
   let next = sorted[0];
   let prev = sorted[sorted.length - 1];
   let prevPhase = prev.phase - 1;
@@ -123,14 +151,14 @@ function interpolateKeyframes(phase: number): Omit<DayPhasePalette, 'sunDir'> {
 
   return {
     phase,
-    sunColor: lerpHex(prev.sunColor, next.sunColor, t),
+    sunColor: lerpRgbHex(prev.sunColor, next.sunColor, t),
     sunIntensity: lerp(prev.sunIntensity, next.sunIntensity, t),
-    hemisphereSky: lerpHex(prev.hemisphereSky, next.hemisphereSky, t),
-    hemisphereGround: lerpHex(prev.hemisphereGround, next.hemisphereGround, t),
+    hemisphereSky: lerpRgbHex(prev.hemisphereSky, next.hemisphereSky, t),
+    hemisphereGround: lerpRgbHex(prev.hemisphereGround, next.hemisphereGround, t),
     hemisphereIntensity: lerp(prev.hemisphereIntensity, next.hemisphereIntensity, t),
-    fogColor: lerpHex(prev.fogColor, next.fogColor, t),
-    backgroundColor: lerpHex(prev.backgroundColor, next.backgroundColor, t),
-    cloudColor: lerpHex(prev.cloudColor, next.cloudColor, t),
+    fogColor: lerpRgbHex(prev.fogColor, next.fogColor, t),
+    backgroundColor: lerpRgbHex(prev.backgroundColor, next.backgroundColor, t),
+    cloudColor: lerpRgbHex(prev.cloudColor, next.cloudColor, t),
     cloudOpacity: lerp(prev.cloudOpacity, next.cloudOpacity, t),
   };
 }
@@ -139,16 +167,14 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function lerpHex(a: string, b: string, t: number): string {
-  const ca = parseHex(a);
-  const cb = parseHex(b);
-  const r = Math.round(lerp(ca.r, cb.r, t));
-  const g = Math.round(lerp(ca.g, cb.g, t));
-  const blue = Math.round(lerp(ca.b, cb.b, t));
+function lerpRgbHex(a: Rgb, b: Rgb, t: number): string {
+  const r = Math.round(lerp(a.r, b.r, t));
+  const g = Math.round(lerp(a.g, b.g, t));
+  const blue = Math.round(lerp(a.b, b.b, t));
   return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(blue)}`;
 }
 
-function parseHex(value: string): { r: number; g: number; b: number } {
+function parseHex(value: string): Rgb {
   const hex = value.startsWith('#') ? value.slice(1) : value;
   const expanded = hex.length === 3
     ? hex.split('').map((ch) => ch + ch).join('')

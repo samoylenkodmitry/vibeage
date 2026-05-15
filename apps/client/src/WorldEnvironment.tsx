@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../packages/content/terrain';
@@ -42,6 +42,13 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     [],
   );
   const { scene } = useThree();
+
+  useEffect(() => {
+    return () => {
+      sunMaterial.dispose();
+      cloudMaterial.dispose();
+    };
+  }, [sunMaterial, cloudMaterial]);
 
   useFrame(({ clock }, delta) => {
     const palette = computeDayPhase(clock.elapsedTime * 1_000);
