@@ -59,6 +59,8 @@ export type EnemyEntity = {
   statusEffects?: StatusEffect[];
   velocity?: VecXZ;
   aiState?: string;
+  packId?: string;
+  isMiniBoss?: boolean;
 };
 
 export type ServerGameState = {

@@ -17,6 +17,7 @@ describe('enemy spawning', () => {
       getMobsToSpawn: () => [{ type: 'goblin', count: 2 }],
       getRandomPositionInZone: () => positions.shift() ?? null,
       getMobLevel: () => 2,
+      getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
     const spawned = spawnInitialEnemies(state, spatial, zoneManager);
@@ -40,6 +41,7 @@ describe('enemy spawning', () => {
         return { x: nextPosition, y: 0.5, z: nextPosition };
       },
       getMobLevel: () => 2,
+      getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
     const spawned = spawnInitialEnemies(state, spatial, zoneManager, { maxEnemies: 3 });
@@ -61,6 +63,7 @@ describe('enemy spawning', () => {
         return { x: zoneId === 'zone-b' ? nextPosition : 1, y: 0.5, z: 2 };
       },
       getMobLevel: () => 2,
+      getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
     const spawned = spawnInitialEnemies(state, spatial, zoneManager);
@@ -85,6 +88,7 @@ describe('enemy spawning', () => {
         return { x: nextPosition, y: 0.5, z: 1 };
       },
       getMobLevel: () => 2,
+      getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
     const spawned = spawnInitialEnemies(state, spatial, zoneManager, {
@@ -96,5 +100,60 @@ describe('enemy spawning', () => {
     expect(spawned).toBe(6);
     expect(Object.values(state.zones.enemyZoneIds).filter((zoneId) => zoneId === 'zone-a')).toHaveLength(3);
     expect(Object.values(state.zones.enemyZoneIds).filter((zoneId) => zoneId === 'zone-b')).toHaveLength(3);
+  });
+});
+
+describe('enemy spawning packs and bosses', () => {
+  test('spawns a mini-boss before regular mobs when configured', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    let nextPosition = 0;
+    const zoneManager = {
+      getZones: () => [{ id: 'zone-a' }],
+      getMobsToSpawn: () => [{ type: 'goblin', count: 0 }],
+      getRandomPositionInZone: () => {
+        nextPosition += 1;
+        return { x: nextPosition, y: 0.5, z: 1 };
+      },
+      getMobLevel: () => 5,
+      getMiniBoss: () => ({
+        type: 'troll',
+        name: 'Hammerback',
+        levelBonus: 2,
+        healthMultiplier: 3,
+        damageMultiplier: 1.5,
+      }),
+    } as unknown as ZoneManager;
+
+    spawnInitialEnemies(state, spatial, zoneManager, { activeZoneIds: ['zone-a'] });
+    const enemies = Object.values(state.enemies);
+    const boss = enemies.find((enemy) => enemy.isMiniBoss);
+
+    expect(boss).toBeDefined();
+    expect(boss?.name).toBe('Hammerback');
+    expect(boss?.level).toBe(7);
+  });
+
+  test('groups pack mobs into clusters with shared packId', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    let nextPosition = 0;
+    const zoneManager = {
+      getZones: () => [{ id: 'zone-a' }],
+      getMobsToSpawn: () => [{ type: 'wolf', count: 6, packSize: 3 }],
+      getRandomPositionInZone: () => {
+        nextPosition += 100;
+        return { x: nextPosition, y: 0.5, z: 1 };
+      },
+      getMobLevel: () => 1,
+      getMiniBoss: () => null,
+    } as unknown as ZoneManager;
+
+    spawnInitialEnemies(state, spatial, zoneManager, { activeZoneIds: ['zone-a'] });
+    const enemies = Object.values(state.enemies);
+    const packIds = new Set(enemies.map((enemy) => enemy.packId));
+
+    expect(enemies).toHaveLength(6);
+    expect([...packIds].filter((id) => id !== undefined)).toHaveLength(2);
   });
 });

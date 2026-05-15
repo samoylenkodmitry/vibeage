@@ -211,7 +211,10 @@ export function EnemyMarker({
   isSelected: boolean;
   onSelect: (targetId: string | null) => void;
 }) {
-  const visual = getEnemyVisual(enemy.type);
+  const baseVisual = getEnemyVisual(enemy.type);
+  const visual = enemy.isMiniBoss
+    ? { ...baseVisual, height: baseVisual.height * 1.6, glow: true }
+    : baseVisual;
   const color = enemy.isAlive ? visual.color : '#4b5563';
   const groundY = getTerrainY(enemy.position.x, enemy.position.z);
   const y = enemy.isAlive ? groundY + 0.55 : groundY + 0.1;
@@ -250,11 +253,27 @@ export function EnemyMarker({
         onPointerDown={handlePointerDown}
       />
       {enemy.isAlive && visual.glow && (
-        <pointLight color={visual.color} intensity={0.9} distance={4} />
+        <pointLight color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} />
       )}
+      {enemy.isAlive && enemy.isMiniBoss && <MiniBossCrown color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
     </SmoothedEntityGroup>
+  );
+}
+
+function MiniBossCrown({ color, height }: { color: string; height: number }) {
+  return (
+    <group position={[0, height + 0.6, 0]}>
+      <mesh>
+        <torusGeometry args={[0.5, 0.12, 12, 24]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} fog={false} />
+      </mesh>
+      <mesh position={[0, 0.35, 0]}>
+        <coneGeometry args={[0.2, 0.4, 6]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.4} fog={false} />
+      </mesh>
+    </group>
   );
 }
 

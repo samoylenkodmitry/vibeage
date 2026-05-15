@@ -98,7 +98,16 @@ const ZoneSchema = z.object({
     weight: positiveNumber,
     minCount: nonNegativeNumber,
     maxCount: nonNegativeNumber,
+    packSize: positiveNumber.optional(),
   })).min(1),
+  miniBoss: z.object({
+    type: z.string().min(1),
+    name: z.string().min(1),
+    levelBonus: nonNegativeNumber.optional(),
+    healthMultiplier: positiveNumber.optional(),
+    damageMultiplier: positiveNumber.optional(),
+    lootTableId: z.string().min(1).optional(),
+  }).optional(),
 }).superRefine((zone, ctx) => {
   if (zone.maxLevel < zone.minLevel) {
     ctx.addIssue({
@@ -222,6 +231,17 @@ function collectZoneIssues(issues: string[]): void {
       const tableId = template?.lootTableId ?? `${mob.type}_loot`;
       if (!LOOT_TABLES[tableId]) {
         issues.push(`zone ${zone.id} mob ${mob.type} references missing loot table ${tableId}`);
+      }
+    }
+    if (zone.miniBoss) {
+      if (!ENEMY_TEMPLATES[zone.miniBoss.type]) {
+        issues.push(`zone ${zone.id} miniBoss ${zone.miniBoss.type} has no enemy template`);
+      }
+      const bossLoot = zone.miniBoss.lootTableId
+        ?? ENEMY_TEMPLATES[zone.miniBoss.type]?.lootTableId
+        ?? `${zone.miniBoss.type}_loot`;
+      if (!LOOT_TABLES[bossLoot]) {
+        issues.push(`zone ${zone.id} miniBoss references missing loot table ${bossLoot}`);
       }
     }
   }

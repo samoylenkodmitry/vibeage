@@ -1,11 +1,14 @@
 import { getEnemyTemplate } from '../../packages/content/enemies.js';
-import type { ZoneManager } from '../../packages/content/zones.js';
+import { getTerrainHeight } from '../../packages/content/terrain.js';
+import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import { hash, rng } from '../../packages/sim/combatMath.js';
 import type { Enemy } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+
+const PACK_CLUSTER_RADIUS = 4;
 
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
 
@@ -15,19 +18,33 @@ export type SpawnInitialEnemiesOptions = {
   maxEnemiesPerZone?: number;
 };
 
+export type CreateEnemyOptions = {
+  packId?: string;
+  isMiniBoss?: boolean;
+  nameOverride?: string;
+  healthMultiplier?: number;
+  damageMultiplier?: number;
+  experienceMultiplier?: number;
+  lootTableIdOverride?: string;
+};
+
 export function createEnemy(
   type: string,
   level: number,
   position: Enemy['position'],
   now: number = Date.now(),
+  options: CreateEnemyOptions = {},
 ): Enemy {
   const template = getEnemyTemplate(type);
-  const baseHealth = (100 + level * 20) * template.stats.health;
-  const baseExp = (50 + level * 10) * template.stats.experience;
+  const healthMult = options.healthMultiplier ?? 1;
+  const damageMult = options.damageMultiplier ?? 1;
+  const expMult = options.experienceMultiplier ?? (options.isMiniBoss ? 4 : 1);
+  const baseHealth = (100 + level * 20) * template.stats.health * healthMult;
+  const baseExp = (50 + level * 10) * template.stats.experience * expMult;
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
-    name: template.displayName,
+    name: options.nameOverride ?? template.displayName,
     level,
     position,
     spawnPosition: { ...position },
@@ -35,7 +52,7 @@ export function createEnemy(
     health: baseHealth,
     maxHealth: baseHealth,
     isAlive: true,
-    attackDamage: (10 + level * 2) * template.stats.damage,
+    attackDamage: (10 + level * 2) * template.stats.damage * damageMult,
     attackRange: 2 * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,
@@ -47,7 +64,9 @@ export function createEnemy(
     lastAttackTime: 0,
     movementSpeed: 6 * template.stats.movementSpeed,
     velocity: { x: 0, z: 0 },
-    lootTableId: template.lootTableId ?? `${type}_loot`,
+    lootTableId: options.lootTableIdOverride ?? template.lootTableId ?? `${type}_loot`,
+    packId: options.packId,
+    isMiniBoss: options.isMiniBoss,
   };
 }
 
@@ -67,23 +86,28 @@ export function spawnInitialEnemies(
 
   for (const zoneId of activeZoneIds) {
     let spawnedInZone = 0;
-    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId)) {
-      const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
-      const worldBudgetRemaining = maxEnemies - spawned;
-      const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
-      for (let index = 0; index < spawnCount; index += 1) {
-        const position = zoneManager.getRandomPositionInZone(zoneId);
-        if (!position) {
-          continue;
-        }
 
-        const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position);
+    const miniBoss = zoneManager.getMiniBoss(zoneId);
+    if (miniBoss && spawned < maxEnemies && spawnedInZone < maxEnemiesPerZone) {
+      const position = zoneManager.getRandomPositionInZone(zoneId);
+      if (position) {
+        const zoneBaseLevel = zoneManager.getMobLevel(zoneId);
+        const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position);
         state.enemies[enemy.id] = enemy;
         state.zones.enemyZoneIds[enemy.id] = zoneId;
         spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
         spawned += 1;
         spawnedInZone += 1;
       }
+    }
+
+    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId)) {
+      const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
+      const worldBudgetRemaining = maxEnemies - spawned;
+      const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
+      const result = spawnMobBatch(state, spatial, zoneManager, zoneId, mobConfig, spawnCount);
+      spawned += result;
+      spawnedInZone += result;
 
       if (spawned >= maxEnemies || spawnedInZone >= maxEnemiesPerZone) {
         break;
@@ -96,6 +120,61 @@ export function spawnInitialEnemies(
   }
 
   return spawned;
+}
+
+function createMiniBoss(
+  miniBoss: ZoneMiniBoss,
+  zoneBaseLevel: number,
+  position: Enemy['position'],
+): Enemy {
+  return createEnemy(miniBoss.type, zoneBaseLevel + (miniBoss.levelBonus ?? 2), position, Date.now(), {
+    isMiniBoss: true,
+    nameOverride: miniBoss.name,
+    healthMultiplier: miniBoss.healthMultiplier ?? 3,
+    damageMultiplier: miniBoss.damageMultiplier ?? 1.5,
+    lootTableIdOverride: miniBoss.lootTableId,
+  });
+}
+
+function spawnMobBatch(
+  state: GameState,
+  spatial: SpatialHashGrid,
+  zoneManager: ZoneManager,
+  zoneId: string,
+  mobConfig: MobSpawnConfig,
+  spawnCount: number,
+): number {
+  let spawned = 0;
+  const packSize = mobConfig.packSize ?? 1;
+  while (spawned < spawnCount) {
+    const remaining = spawnCount - spawned;
+    const groupSize = Math.min(packSize, remaining);
+    const center = zoneManager.getRandomPositionInZone(zoneId);
+    if (!center) {
+      break;
+    }
+    const packId = groupSize > 1 ? `pack-${zoneId}-${mobConfig.type}-${spawned}-${Date.now()}` : undefined;
+    for (let i = 0; i < groupSize; i += 1) {
+      const position = packId ? clusterAround(center, i) : center;
+      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position, Date.now(), { packId });
+      state.enemies[enemy.id] = enemy;
+      state.zones.enemyZoneIds[enemy.id] = zoneId;
+      spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
+      spawned += 1;
+    }
+  }
+  return spawned;
+}
+
+function clusterAround(center: Enemy['position'], offsetIndex: number): Enemy['position'] {
+  if (offsetIndex === 0) {
+    return { ...center };
+  }
+  const angle = (offsetIndex / 6) * Math.PI * 2;
+  const radius = PACK_CLUSTER_RADIUS * (0.4 + Math.random() * 0.6);
+  const x = center.x + Math.cos(angle) * radius;
+  const z = center.z + Math.sin(angle) * radius;
+  return { x, y: getTerrainHeight(x, z) + 0.5, z };
 }
 
 export function respawnDeadEnemies(

@@ -128,3 +128,27 @@ describe('enemy state machine', () => {
     });
   });
 });
+
+describe('enemy state machine pack aggro', () => {
+  test('emits a packAggro event when a pack member aggros a player', () => {
+    const enemy = createEnemy('wolf', 2, { x: 0, y: 0, z: 0 }, 4, { packId: 'pack-1' });
+    const player = makePlayer('player1', 1, 0);
+    const spatial = new SpatialHashGrid(1);
+    spatial.insert(enemy.id, enemy.position);
+    spatial.insert(player.id, player.position);
+
+    const result = advanceEnemyState(enemy, {
+      players: { player1: player },
+      spatialGrid: spatial,
+      deltaTime: 1 / 30,
+      now: 1_000,
+    });
+
+    expect(result.events).toContainEqual({
+      type: 'packAggro',
+      packId: 'pack-1',
+      targetId: player.id,
+      sourceEnemyId: enemy.id,
+    });
+  });
+});

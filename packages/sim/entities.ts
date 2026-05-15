@@ -51,6 +51,8 @@ export interface Enemy {
   dirtySnap?: boolean;
   patrolTarget?: { x: number; z: number };
   patrolWaitUntilTs?: number;
+  packId?: string;
+  isMiniBoss?: boolean;
 }
 
 export interface PlayerState {

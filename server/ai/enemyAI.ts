@@ -11,6 +11,8 @@ import {
 } from '../transport/outboundEvents.js';
 import { advanceEnemyState, type EnemyAIEvent } from './enemyStateMachine.js';
 
+const PACK_AGGRO_QUERY_RADIUS = 60;
+
 export function updateEnemyAI(
   enemy: Enemy,
   gameState: EntityState,
@@ -26,7 +28,7 @@ export function updateEnemyAI(
   });
 
   for (const event of result.events) {
-    emitEnemyAIEvent(outbound, event);
+    emitEnemyAIEvent(outbound, event, gameState, spatialGrid, enemy);
   }
 
   if (result.enemyUpdate) {
@@ -34,7 +36,13 @@ export function updateEnemyAI(
   }
 }
 
-function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): void {
+function emitEnemyAIEvent(
+  outbound: OutboundEventSink,
+  event: EnemyAIEvent,
+  gameState: EntityState,
+  spatialGrid: SpatialHashGrid,
+  source: Enemy,
+): void {
   if (event.type === 'log') {
     debug(LOG_CATEGORIES.ENEMY, event.message);
     return;
@@ -58,6 +66,49 @@ function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): voi
     return;
   }
 
+  if (event.type === 'packAggro') {
+    propagatePackAggro({
+      gameState,
+      spatialGrid,
+      outbound,
+      packId: event.packId,
+      targetId: event.targetId,
+      sourceEnemyId: event.sourceEnemyId,
+      source,
+    });
+    return;
+  }
+
   debug(LOG_CATEGORIES.ENEMY, event.message);
   emitPlayerUpdated(outbound, event.update);
+}
+
+type PackAggroArgs = {
+  gameState: EntityState;
+  spatialGrid: SpatialHashGrid;
+  outbound: OutboundEventSink;
+  packId: string;
+  targetId: string;
+  sourceEnemyId: string;
+  source: Enemy;
+};
+
+function propagatePackAggro({ gameState, spatialGrid, outbound, packId, targetId, sourceEnemyId, source }: PackAggroArgs): void {
+  const candidateIds = spatialGrid.queryCircle(
+    { x: source.position.x, z: source.position.z },
+    PACK_AGGRO_QUERY_RADIUS,
+  );
+  for (const id of candidateIds) {
+    const enemy = gameState.enemies[id];
+    if (!enemy || enemy.packId !== packId || enemy.id === sourceEnemyId || !enemy.isAlive) {
+      continue;
+    }
+    if (enemy.aiState !== 'idle' && enemy.aiState !== 'patrolling') {
+      continue;
+    }
+    enemy.targetId = targetId;
+    enemy.aiState = 'chasing';
+    enemy.patrolTarget = undefined;
+    emitEnemyUpdated(outbound, { id: enemy.id, targetId: enemy.targetId, aiState: enemy.aiState });
+  }
 }

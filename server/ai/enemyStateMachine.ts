@@ -17,6 +17,7 @@ type EnemyUpdate = Pick<Enemy, 'id' | 'targetId' | 'aiState'>;
 export type EnemyAIEvent =
   | { type: 'log'; message: string }
   | { type: 'enemyAttack'; enemyId: string; targetId: string; damage: number; targetHealth: number }
+  | { type: 'packAggro'; packId: string; targetId: string; sourceEnemyId: string }
   | {
       type: 'playerKilled';
       message: string;
@@ -89,6 +90,9 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} aggroed player ${targetId}` });
+    if (enemy.packId) {
+      progress.events.push({ type: 'packAggro', packId: enemy.packId, targetId, sourceEnemyId: enemy.id });
+    }
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -122,6 +126,9 @@ function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress:
     enemy.aiState = 'chasing';
     enemy.patrolTarget = undefined;
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} aggroed player ${targetId} during patrol` });
+    if (enemy.packId) {
+      progress.events.push({ type: 'packAggro', packId: enemy.packId, targetId, sourceEnemyId: enemy.id });
+    }
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
