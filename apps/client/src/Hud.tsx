@@ -90,7 +90,12 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
       <CastingPanel player={player} />
-      <SkillBar player={player} now={now} onCastSkill={onCastSkill} />
+      <SkillBar
+        player={player}
+        now={now}
+        hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
+        onCastSkill={onCastSkill}
+      />
       {state.combatLog.length > 0 && (
         <section className="combat-log" aria-label="Combat log">
           {state.combatLog.map((line) => (
