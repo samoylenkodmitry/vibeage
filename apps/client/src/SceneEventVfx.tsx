@@ -2,8 +2,7 @@ import { useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3, VisualEvent } from './gameTypes';
-
-const GROUND_Y = 0;
+import { getTerrainY } from './worldSceneConfig';
 
 const RECOVERY_PARTICLES = [
   { angle: 0.15, radius: 0.25, height: 0.25, size: 0.08 },
@@ -58,7 +57,7 @@ function DamagePulseVfx({ event }: { event: VisualEvent }) {
   });
 
   return (
-    <group position={[event.position.x, GROUND_Y + 0.12, event.position.z]}>
+    <group position={[event.position.x, getTerrainY(event.position.x, event.position.z) + 0.12, event.position.z]}>
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.34, 0.52, 36]} />
         <meshBasicMaterial color="#fb7185" transparent opacity={0.74} side={THREE.DoubleSide} depthWrite={false} />
@@ -158,7 +157,7 @@ function SplashImpactVfx({ event }: { event: VisualEvent }) {
   });
 
   return (
-    <group position={[event.position.x, GROUND_Y + 0.08, event.position.z]}>
+    <group position={[event.position.x, getTerrainY(event.position.x, event.position.z) + 0.08, event.position.z]}>
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.24, 0.42, 48]} />
         <meshBasicMaterial ref={ringMaterialRef} color="#7dd3fc" transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />

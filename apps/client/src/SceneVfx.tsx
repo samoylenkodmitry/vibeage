@@ -4,8 +4,7 @@ import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
 import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
 import { Billboard } from './SceneEventVfx';
-
-const GROUND_Y = 0;
+import { getTerrainY } from './worldSceneConfig';
 
 type SkillTheme = {
   core: string;
@@ -61,7 +60,7 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
   }
 
   return (
-    <group position={[target.x, GROUND_Y + 0.05, target.z]}>
+    <group position={[target.x, getTerrainY(target.x, target.z) + 0.05, target.z]}>
       <mesh ref={outerRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.54, 0.76, 42]} />
         <meshBasicMaterial color="#8de9d7" transparent opacity={0.6} side={THREE.DoubleSide} depthWrite={false} />
@@ -283,7 +282,7 @@ export function LootMarker({
   }
 
   return (
-    <group position={[loot.position.x, GROUND_Y + 0.42, loot.position.z]}>
+    <group position={[loot.position.x, getTerrainY(loot.position.x, loot.position.z) + 0.42, loot.position.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.38, 0]}>
         <ringGeometry args={[0.62, 0.8, 28]} />
         <meshBasicMaterial color="#facc15" transparent opacity={0.45} side={THREE.DoubleSide} />
