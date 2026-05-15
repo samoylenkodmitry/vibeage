@@ -18,15 +18,35 @@ type ImpactContext = {
   world: CombatWorld;
 };
 
+const NEGATIVE_EFFECT_TYPES: ReadonlySet<string> = new Set([
+  'slow',
+  'stun',
+  'burn',
+  'poison',
+  'dot',
+  'freeze',
+  'waterWeakness',
+]);
+
+const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
+  'heal',
+  'shield',
+  'bless',
+  'dispel',
+  'evasion',
+  'invisible',
+]);
+
 export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld): void {
   const skill = SKILLS[cast.skillId];
-  const targets = getTargetsInArea(cast, world);
   const caster = world.getPlayerById(cast.casterId);
-  const damages = targets.map((target) => calculateDamage(skill, caster, cast.castId, target.id));
   const context = { caster, skill, outbound, world };
 
+  const targets = resolveCastTargets(cast, world, skill, caster);
+  const damages = targets.map((target) => calculateDamage(skill, caster, cast.castId, target.id));
+
   targets.forEach((target, index) => {
-    applyDamageToTarget(target, damages[index], context);
+    applyCastToTarget(target, damages[index], context);
   });
 
   emitServerMessage(outbound, {
@@ -39,9 +59,28 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   });
 }
 
+function isBeneficialOnly(skill: SkillDef): boolean {
+  if (!skill.effects?.length) {
+    return false;
+  }
+  return skill.effects.every((effect) => BENEFICIAL_EFFECT_TYPES.has(effect.type));
+}
+
+function resolveCastTargets(
+  cast: Cast,
+  world: CombatWorld,
+  skill: SkillDef,
+  caster: PlayerState | null,
+): Array<Enemy | PlayerState> {
+  if (caster && !cast.targetId && (!skill.area || skill.area <= 0) && isBeneficialOnly(skill)) {
+    return [caster];
+  }
+  return getTargetsInArea(cast, world);
+}
+
 function calculateDamage(skill: SkillDef, caster?: PlayerState | null, castId?: string, targetId?: string): number {
   if (!skill?.dmg) {
-    return 10;
+    return 0;
   }
 
   const result = getDamage({
@@ -76,16 +115,17 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
   return targets;
 }
 
-function applyDamageToTarget(
+function applyCastToTarget(
   target: Enemy | PlayerState,
   damage: number,
   context: ImpactContext,
 ): void {
   const { caster, skill, outbound, world } = context;
+  const incoming = absorbWithShield(target, damage);
 
-  target.health = Math.max(0, target.health - damage);
+  target.health = Math.max(0, target.health - incoming);
 
-  if (isEnemy(target) && damage > 0 && caster && target.isAlive) {
+  if (isEnemy(target) && incoming > 0 && caster && target.isAlive) {
     target.targetId = caster.id;
     target.aiState = 'chasing';
   }
@@ -112,36 +152,78 @@ function applySkillEffects(target: Enemy | PlayerState, skill: SkillDef): void {
   target.statusEffects = target.statusEffects ?? [];
 
   for (const effect of skill.effects ?? []) {
-    const durationMs = effect.durationMs ?? 0;
-    if (!durationMs) {
+    if (effect.type === 'heal') {
+      applyHealEffect(target, effect);
       continue;
     }
+    if (effect.type === 'dispel') {
+      target.statusEffects = target.statusEffects.filter((existing) => !NEGATIVE_EFFECT_TYPES.has(existing.type));
+      continue;
+    }
+    upsertStatusEffect(target, effect, skill.id);
+  }
+}
 
-    const statusEffect = {
-      id: nanoid(),
-      type: effect.type,
-      value: effect.value,
-      durationMs,
-      startTimeTs: Date.now(),
-      sourceSkill: skill.id,
-    };
+function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect): void {
+  const max = isEnemy(target) ? target.maxHealth : target.maxHealth;
+  target.health = Math.min(max, target.health + effect.value);
+}
 
-    const stacking = effect as SkillEffect & { stackable?: boolean; maxStacks?: number };
-    const existingIndex = target.statusEffects.findIndex((existing) => existing.type === effect.type);
-    if (existingIndex >= 0) {
-      const existing = target.statusEffects[existingIndex];
-      if (stacking.stackable && existing) {
-        target.statusEffects[existingIndex] = {
-          ...statusEffect,
-          stacks: Math.min((existing.stacks ?? 1) + 1, stacking.maxStacks ?? 1),
-        };
-      } else {
-        target.statusEffects[existingIndex] = statusEffect;
-      }
+function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, skillId: string): void {
+  const durationMs = effect.durationMs ?? 0;
+  if (!durationMs) {
+    return;
+  }
+
+  const statusEffect = {
+    id: nanoid(),
+    type: effect.type,
+    value: effect.value,
+    durationMs,
+    startTimeTs: Date.now(),
+    sourceSkill: skillId,
+  };
+
+  const stacking = effect as SkillEffect & { stackable?: boolean; maxStacks?: number };
+  target.statusEffects = target.statusEffects ?? [];
+  const existingIndex = target.statusEffects.findIndex((existing) => existing.type === effect.type);
+  if (existingIndex >= 0) {
+    const existing = target.statusEffects[existingIndex];
+    if (stacking.stackable && existing) {
+      target.statusEffects[existingIndex] = {
+        ...statusEffect,
+        stacks: Math.min((existing.stacks ?? 1) + 1, stacking.maxStacks ?? 1),
+      };
     } else {
-      target.statusEffects.push(stacking.stackable ? { ...statusEffect, stacks: 1 } : statusEffect);
+      target.statusEffects[existingIndex] = statusEffect;
+    }
+  } else {
+    target.statusEffects.push(stacking.stackable ? { ...statusEffect, stacks: 1 } : statusEffect);
+  }
+}
+
+function absorbWithShield(target: Enemy | PlayerState, damage: number): number {
+  if (damage <= 0) {
+    return damage;
+  }
+  const effects = target.statusEffects;
+  if (!effects?.length) {
+    return damage;
+  }
+  let remaining = damage;
+  for (const effect of effects) {
+    if (effect.type !== 'shield' || effect.value <= 0) {
+      continue;
+    }
+    const absorbed = Math.min(effect.value, remaining);
+    effect.value -= absorbed;
+    remaining -= absorbed;
+    if (remaining <= 0) {
+      break;
     }
   }
+  target.statusEffects = effects.filter((effect) => effect.type !== 'shield' || effect.value > 0);
+  return remaining;
 }
 
 function isEnemy(target: Enemy | PlayerState): target is Enemy {

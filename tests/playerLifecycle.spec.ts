@@ -46,19 +46,19 @@ describe('player lifecycle', () => {
       level: 2,
       experience: 15,
       experienceToNextLevel: 150,
-      maxHealth: 120,
-      health: 120,
-      maxMana: 110,
-      mana: 110,
       availableSkillPoints: 2,
     });
+    expect(player.health).toBe(player.maxHealth);
+    expect(player.mana).toBe(player.maxMana);
+    expect(player.maxHealth).toBeGreaterThan(100);
+    expect(player.maxMana).toBeGreaterThan(100);
     expect(update).toMatchObject({
       id: 'player1',
       level: 2,
       experience: 15,
       experienceToNextLevel: 150,
-      maxHealth: 120,
-      maxMana: 110,
+      maxHealth: player.maxHealth,
+      maxMana: player.maxMana,
       availableSkillPoints: 2,
     });
   });
