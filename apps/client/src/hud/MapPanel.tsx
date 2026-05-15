@@ -57,9 +57,10 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
 
   const handlers = useMapInteraction({ svgRef, view, viewMinX, viewMinZ, viewWidth, viewHeight, setView, onSetNavigationMarker });
   const recenterOnPlayer = () => setView((prev) => ({ ...prev, centerX: px, centerZ: pz }));
+  const [fullscreen, setFullscreen] = useState(false);
 
   return (
-    <section ref={panelRef} className="map-panel" aria-label="World map">
+    <section ref={panelRef} className={`map-panel${fullscreen ? ' map-panel--fullscreen' : ''}`} aria-label="World map">
       <div className="panel-title">
         <strong>World Map</strong>
         <span>{Math.round(px)}, {Math.round(pz)}</span>
@@ -68,6 +69,9 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         <button type="button" onClick={() => setView((p) => ({ ...p, zoom: Math.min(MAX_ZOOM, p.zoom * 1.5) }))}>+</button>
         <button type="button" onClick={() => setView((p) => ({ ...p, zoom: Math.max(MIN_ZOOM, p.zoom / 1.5) }))}>−</button>
         <button type="button" onClick={recenterOnPlayer}>Center</button>
+        <button type="button" onClick={() => setFullscreen((prev) => !prev)}>
+          {fullscreen ? 'Windowed' : 'Fullscreen'}
+        </button>
         {navigationMarker && (
           <button type="button" onClick={() => onSetNavigationMarker?.(null)}>Clear pin</button>
         )}

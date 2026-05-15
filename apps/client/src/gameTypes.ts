@@ -143,6 +143,17 @@ export type VisualEvent = {
 
 export type StarterProgress = StarterProgressState;
 
+export type ChatScopeView = 'near' | 'all';
+
+export type ChatLine = {
+  id: string;
+  fromId: string;
+  fromName: string;
+  text: string;
+  scope: ChatScopeView;
+  ts: number;
+};
+
 export type GameClientState = {
   connectionState: ConnectionState;
   message: string;
@@ -158,6 +169,7 @@ export type GameClientState = {
   inventory: InventorySlot[];
   maxInventorySlots: number;
   combatLog: CombatLine[];
+  chatLines: ChatLine[];
   starterProgress: StarterProgress;
   worldPublicState: WorldPublicState | null;
   streamedRegionIds: string[];

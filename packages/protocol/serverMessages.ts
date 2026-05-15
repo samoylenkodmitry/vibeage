@@ -148,6 +148,15 @@ export const itemUsedSchema = z.object({
   manaDelta: z.number().optional(),
 }).passthrough();
 
+export const chatBroadcastSchema = z.object({
+  type: z.literal('ChatBroadcast'),
+  fromId: z.string(),
+  fromName: z.string(),
+  text: z.string(),
+  scope: z.union([z.literal('near'), z.literal('all')]),
+  ts: z.number(),
+}).passthrough();
+
 function getServerMessageSchema(): z.ZodType<unknown> {
   return serverMessageSchema;
 }
@@ -174,6 +183,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   lootSpawnSchema,
   itemUsedSchema,
   batchUpdateSchema,
+  chatBroadcastSchema,
 ]);
 
 export const serverMessageSchema = z.union([
@@ -313,6 +323,15 @@ export type BatchUpdate = {
   updates: ServerMessage[];
 };
 
+export type ChatBroadcast = {
+  type: 'ChatBroadcast';
+  fromId: string;
+  fromName: string;
+  text: string;
+  scope: 'near' | 'all';
+  ts: number;
+};
+
 export type ServerMessage =
   | PosSnap
   | InstantHit
@@ -330,4 +349,5 @@ export type ServerMessage =
   | LootPickup
   | LootSpawn
   | ItemUsed
-  | BatchUpdate;
+  | BatchUpdate
+  | ChatBroadcast;

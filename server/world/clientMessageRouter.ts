@@ -51,6 +51,55 @@ export function handleClientMessage(
       return;
     case 'DevTeleport':
       return onDevTeleport(socket, state, msg);
+    case 'ChatRequest':
+      return onChatRequest(socket, state, msg, outbound);
+  }
+}
+
+const CHAT_NEAR_RADIUS = 150;
+
+function onChatRequest(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'ChatRequest' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) {
+    return;
+  }
+  const player = state.players[playerId];
+  if (!player) {
+    return;
+  }
+  const text = msg.text.trim().slice(0, 240);
+  if (!text) {
+    return;
+  }
+  const broadcast = {
+    type: 'ChatBroadcast' as const,
+    fromId: playerId,
+    fromName: player.name,
+    text,
+    scope: msg.scope,
+    ts: Date.now(),
+  };
+
+  if (msg.scope === 'all') {
+    outbound.publish({ type: 'serverMessage', message: broadcast });
+    return;
+  }
+
+  for (const other of Object.values(state.players)) {
+    if (!other.socketId) {
+      continue;
+    }
+    const dx = other.position.x - player.position.x;
+    const dz = other.position.z - player.position.z;
+    if (dx * dx + dz * dz > CHAT_NEAR_RADIUS * CHAT_NEAR_RADIUS) {
+      continue;
+    }
+    outbound.publish({ type: 'directServerMessage', socketId: other.socketId, message: broadcast });
   }
 }
 

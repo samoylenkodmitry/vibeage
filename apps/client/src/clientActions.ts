@@ -16,6 +16,7 @@ export type ClientActions = {
   useItem: (slotIndex: number) => void;
   respawn: () => void;
   devTeleport: (target: VecXZ) => void;
+  sendChat: (text: string, scope: 'near' | 'all') => void;
 };
 
 export function useClientActions(
@@ -93,6 +94,18 @@ export function useClientActions(
     }
   }, [roomRef, stateRef]);
 
+  const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
+
+  return useMemo(
+    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport, sendChat }),
+    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport, sendChat],
+  );
+}
+
+function useCommandActions(
+  roomRef: RefObject<Room | null>,
+  stateRef: RefObject<GameClientState>,
+) {
   const devTeleport = useCallback((target: VecXZ) => {
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
@@ -107,10 +120,21 @@ export function useClientActions(
     });
   }, [roomRef, stateRef]);
 
-  return useMemo(
-    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport }),
-    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport],
-  );
+  const sendChat = useCallback((text: string, scope: 'near' | 'all') => {
+    const room = roomRef.current;
+    const trimmed = text.trim();
+    if (!room || !trimmed) {
+      return;
+    }
+    room.send(SESSION_EVENTS.message, {
+      type: 'ChatRequest',
+      text: trimmed.slice(0, 240),
+      scope,
+      clientTs: Date.now(),
+    });
+  }, [roomRef]);
+
+  return { devTeleport, sendChat };
 }
 
 function getMyPlayer(state: GameClientState): PlayerEntity | null {

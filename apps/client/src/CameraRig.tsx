@@ -22,6 +22,9 @@ export type CameraControls = {
 
 const CAMERA_FOCUS_HEIGHT = 0.6;
 const CAMERA_GROUND_BUFFER = 1.4;
+const SKY_LOOKUP_PITCH_MIN = 0.06;
+const SKY_LOOKUP_GAIN = 4.5;
+const lookAtTempVec = new THREE.Vector3();
 
 export function CameraRig({
   focus,
@@ -81,10 +84,11 @@ export function CameraRig({
       focusRef.current.lerp(focusTargetRef.current, smoothingAlpha(CAMERA_FOCUS_RESPONSE, delta));
     }
 
+    const orbitPitch = Math.max(SKY_LOOKUP_PITCH_MIN, pitchRef.current);
     writeCameraOrbitPosition(
       cameraTargetRef.current,
       focusRef.current,
-      { angle: angleRef.current, pitch: pitchRef.current },
+      { angle: angleRef.current, pitch: orbitPitch },
       distanceRef.current,
     );
     const cameraTerrainY = getTerrainY(cameraTargetRef.current.x, cameraTargetRef.current.z);
@@ -93,7 +97,17 @@ export function CameraRig({
     }
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
     camera.position.lerp(cameraTargetRef.current, alpha);
-    camera.lookAt(focusRef.current);
+
+    const skyOffset = pitchRef.current < SKY_LOOKUP_PITCH_MIN
+      ? (SKY_LOOKUP_PITCH_MIN - pitchRef.current) * distanceRef.current * SKY_LOOKUP_GAIN
+      : 0;
+    if (skyOffset > 0) {
+      lookAtTempVec.copy(focusRef.current);
+      lookAtTempVec.y += skyOffset;
+      camera.lookAt(lookAtTempVec);
+    } else {
+      camera.lookAt(focusRef.current);
+    }
     if (cameraAngleRef) {
       cameraAngleRef.current = angleRef.current;
     }

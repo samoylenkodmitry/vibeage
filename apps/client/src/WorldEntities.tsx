@@ -49,6 +49,7 @@ export function PlayerMarker({
       rotationY={facingY}
       response={isSelf ? 16 : 10}
       presentationRef={presentationRef}
+      groundedOffset={0}
     >
       <PlayerFigure
         height={height}
@@ -226,11 +227,14 @@ export function EnemyMarker({
   const speedSq = (enemy.velocity?.x ?? 0) ** 2 + (enemy.velocity?.z ?? 0) ** 2;
   const isMoving = enemy.isAlive && speedSq > 0.5;
 
+  const groundedYOffset = enemy.isAlive ? 0.55 : 0.1;
+
   return (
     <SmoothedEntityGroup
       position={{ x: enemy.position.x, y, z: enemy.position.z }}
       rotationY={enemy.rotation?.y ?? 0}
       response={9}
+      groundedOffset={groundedYOffset}
     >
       {isSelected && <SelectedEnemyRing />}
       {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
@@ -317,12 +321,15 @@ function SmoothedEntityGroup({
   response,
   children,
   presentationRef,
+  groundedOffset,
 }: {
   position: Vec3;
   rotationY?: number;
   response: number;
   children: ReactNode;
   presentationRef?: MutableRefObject<THREE.Vector3 | null>;
+  /** When set, the group's y is derived from getTerrainY(lerped x, z) + this offset each frame. */
+  groundedOffset?: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
@@ -351,11 +358,17 @@ function SmoothedEntityGroup({
       group.position.set(position.x, position.y, position.z);
       group.rotation.y = rotationY;
       hasInitializedRef.current = true;
+      if (typeof groundedOffset === 'number') {
+        group.position.y = getTerrainY(group.position.x, group.position.z) + groundedOffset;
+      }
       return;
     }
 
     const alpha = smoothingAlpha(response, delta);
     group.position.lerp(targetRef.current.set(position.x, position.y, position.z), alpha);
+    if (typeof groundedOffset === 'number') {
+      group.position.y = getTerrainY(group.position.x, group.position.z) + groundedOffset;
+    }
     group.rotation.y = lerpAngle(group.rotation.y, rotationY, alpha);
   });
 

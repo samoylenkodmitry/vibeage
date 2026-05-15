@@ -1,7 +1,7 @@
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 
 export const SKILL_SHORTCUT_SLOTS = 9;
-export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = ['fireball', 'iceBolt', 'waterSplash', 'petrify'];
+export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = ['fireball'];
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
 
 export function numberOrFallback(value: unknown, fallback: number): number {
