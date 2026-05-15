@@ -92,9 +92,9 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
       <NavigationPanel state={state} player={player} />
-      <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       {!controlsCollapsed && (
         <>
+          <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
           <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
           <CastingPanel player={player} />
           <SkillBar
@@ -129,7 +129,6 @@ function ControlsToggle({
       type="button"
       className={`controls-toggle${collapsed ? ' controls-toggle--collapsed' : ''}`}
       aria-label={collapsed ? 'Show skills and inventory' : 'Hide skills and inventory'}
-      aria-pressed={!collapsed}
       onClick={onToggle}
     >
       {collapsed ? 'Show controls' : 'Hide controls'}
