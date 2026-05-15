@@ -139,10 +139,10 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
 }
 
 function FoliageField({ focus }: WorldEnvironmentProps) {
-  const focusCell = getFoliageCell(focus.x, focus.z);
+  const regenCell = getFoliageRegenCell(focus.x, focus.z);
   const instances = useMemo(
-    () => getFoliageInstances(focusCell.x, focusCell.z),
-    [focusCell.x, focusCell.z],
+    () => getFoliageInstances(regenCell.x, regenCell.z),
+    [regenCell.x, regenCell.z],
   );
 
   return (
@@ -220,11 +220,11 @@ function InstancedFoliage({
   );
 }
 
-function getFoliageCell(focusX: number, focusZ: number): { x: number; z: number } {
-  const cellSize = WORLD_SETTINGS.foliageCellSize;
+function getFoliageRegenCell(focusX: number, focusZ: number): { x: number; z: number } {
+  const stride = WORLD_SETTINGS.foliageCellSize * WORLD_SETTINGS.foliageRegenStride;
   return {
-    x: Math.floor(focusX / cellSize),
-    z: Math.floor(focusZ / cellSize),
+    x: Math.floor(focusX / stride) * WORLD_SETTINGS.foliageRegenStride,
+    z: Math.floor(focusZ / stride) * WORLD_SETTINGS.foliageRegenStride,
   };
 }
 

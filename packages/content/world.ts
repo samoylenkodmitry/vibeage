@@ -9,5 +9,6 @@ export const WORLD_SETTINGS = {
   terrainChunkSegments: 24,
   visibleTerrainChunkRadius: 4,
   foliageCellSize: 32,
-  visibleFoliageCellRadius: 18,
+  visibleFoliageCellRadius: 28,
+  foliageRegenStride: 4,
 } as const;

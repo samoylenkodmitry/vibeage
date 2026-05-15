@@ -44,12 +44,22 @@ function TravelLaneMesh({ segment }: { segment: TravelLaneSegment }) {
 
   return (
     <mesh
-      position={[midX, terrain.height + 0.055, midZ]}
-      rotation={[0, Math.atan2(dx, dz), 0]}
+      position={[midX, terrain.height + 0.04, midZ]}
+      rotation={[-Math.PI / 2, 0, Math.atan2(dx, dz)]}
       receiveShadow
     >
-      <boxGeometry args={[segment.lane.width, 0.08, length]} />
-      <meshStandardMaterial color={color} roughness={0.96} metalness={0.01} transparent opacity={0.82} />
+      <planeGeometry args={[segment.lane.width, length]} />
+      <meshStandardMaterial
+        color={color}
+        roughness={0.96}
+        metalness={0.01}
+        transparent
+        opacity={0.78}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+        side={THREE.DoubleSide}
+      />
     </mesh>
   );
 }
