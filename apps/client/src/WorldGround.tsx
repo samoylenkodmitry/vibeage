@@ -37,13 +37,18 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
       return;
     }
 
+    const hit = event.intersections[0]?.point;
+    if (!hit) {
+      return;
+    }
+
     event.stopPropagation();
     dragRef.current = {
       pointerId: event.pointerId,
       isTouch: event.pointerType === 'touch',
       lastSentMs: performance.now(),
     };
-    onMove({ x: event.point.x, z: event.point.z });
+    onMove({ x: hit.x, z: hit.z });
   }
 
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
@@ -62,8 +67,13 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
       return;
     }
 
+    const hit = event.intersections[0]?.point;
+    if (!hit) {
+      return;
+    }
+
     drag.lastSentMs = now;
-    onMove({ x: event.point.x, z: event.point.z });
+    onMove({ x: hit.x, z: hit.z });
   }
 
   function handlePointerUp(event: ThreeEvent<PointerEvent>) {
