@@ -18,7 +18,7 @@ import {
 } from './SceneVfx';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
-import { GROUND_Y } from './worldSceneConfig';
+import { getTerrainY } from './worldSceneConfig';
 
 export { LootMarker };
 
@@ -33,10 +33,11 @@ export function PlayerMarker({
 }) {
   const color = player.isAlive ? (isSelf ? '#75f5c8' : '#8bb5ff') : '#64748b';
   const height = isSelf ? 1.8 : 1.55;
+  const groundY = getTerrainY(player.position.x, player.position.z);
 
   return (
     <SmoothedEntityGroup
-      position={{ x: player.position.x, y: GROUND_Y + height / 2, z: player.position.z }}
+      position={{ x: player.position.x, y: groundY + height / 2, z: player.position.z }}
       rotationY={player.rotation?.y ?? 0}
       response={isSelf ? 16 : 10}
       presentationRef={presentationRef}
@@ -66,7 +67,8 @@ export function EnemyMarker({
 }) {
   const visual = getEnemyVisual(enemy.type);
   const color = enemy.isAlive ? visual.color : '#4b5563';
-  const y = enemy.isAlive ? GROUND_Y + 0.55 : GROUND_Y + 0.1;
+  const groundY = getTerrainY(enemy.position.x, enemy.position.z);
+  const y = enemy.isAlive ? groundY + 0.55 : groundY + 0.1;
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
     if (event.button !== 0 || !enemy.isAlive) {
@@ -105,9 +107,10 @@ export function EnemyMarker({
 
 export function CastMarker({ cast }: { cast: VisibleCast }) {
   const snapshot = cast.snapshot;
+  const groundY = getTerrainY(snapshot.pos.x, snapshot.pos.z);
 
   return (
-    <SmoothedEntityGroup position={{ x: snapshot.pos.x, y: GROUND_Y + 1, z: snapshot.pos.z }} response={18}>
+    <SmoothedEntityGroup position={{ x: snapshot.pos.x, y: groundY + 1, z: snapshot.pos.z }} response={18}>
       <CastVfx snapshot={snapshot} />
     </SmoothedEntityGroup>
   );

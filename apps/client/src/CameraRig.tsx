@@ -12,7 +12,7 @@ import {
   writeCameraOrbitPosition,
 } from './cameraRig';
 import type { Vec3 } from './gameTypes';
-import { GROUND_Y } from './worldSceneConfig';
+import { getTerrainY } from './worldSceneConfig';
 
 export function CameraRig({
   focus,
@@ -24,8 +24,9 @@ export function CameraRig({
   const { camera, gl } = useThree();
   const angleRef = useRef(Math.PI * 0.82);
   const pitchRef = useRef(0.46);
-  const focusRef = useRef(new THREE.Vector3(focus.x, GROUND_Y + 1.4, focus.z));
-  const focusTargetRef = useRef(new THREE.Vector3(focus.x, GROUND_Y + 1.4, focus.z));
+  const initialY = getTerrainY(focus.x, focus.z) + 1.4;
+  const focusRef = useRef(new THREE.Vector3(focus.x, initialY, focus.z));
+  const focusTargetRef = useRef(new THREE.Vector3(focus.x, initialY, focus.z));
   const cameraTargetRef = useRef(new THREE.Vector3());
   useCameraDragControls(gl, angleRef, pitchRef);
 
@@ -33,7 +34,7 @@ export function CameraRig({
     const presentationFocus = presentationFocusRef.current;
     focusTargetRef.current.set(
       presentationFocus?.x ?? focus.x,
-      GROUND_Y + 1.4,
+      presentationFocus?.y ?? (getTerrainY(focus.x, focus.z) + 1.4),
       presentationFocus?.z ?? focus.z,
     );
     if (hasMeaningfulCameraFocusDelta(focusRef.current, focusTargetRef.current)) {
