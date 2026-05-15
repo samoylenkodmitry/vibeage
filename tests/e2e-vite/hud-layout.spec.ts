@@ -7,14 +7,12 @@ const HUD_VIEWPORTS = [
   {
     name: "desktop",
     size: { width: 1280, height: 720 },
-    inventoryVisible: true,
     infoPanelsVisible: true,
     minWorldVisibilityRatio: 0.55,
   },
   {
     name: "mobile",
     size: { width: 390, height: 844 },
-    inventoryVisible: true,
     infoPanelsVisible: false,
     minWorldVisibilityRatio: 0.55,
   },
@@ -26,17 +24,17 @@ for (const viewport of HUD_VIEWPORTS) {
     await enterWorld(page, `Hud${viewport.name}${Date.now()}`);
     await issueMoveIntent(page, viewport.infoPanelsVisible);
 
-    const panels = [
+    const corePanels = [
       panel("Connection", page.locator(".hud-top")),
       panel("Player status", page.locator(".player-panel")),
       panel("Target", page.locator(".hud-target")),
       panel("Skills", page.locator(".skill-bar")),
+      panel("Panel toggles", page.locator(".panel-toggles")),
     ];
 
     if (viewport.infoPanelsVisible) {
-      panels.push(
+      corePanels.push(
         panel("World status", page.locator(".hud-stats")),
-        panel("Starter progress", page.locator(".starter-progress")),
         panel("Movement", page.locator(".movement-panel")),
         panel("Navigation", page.locator(".navigation-panel")),
       );
@@ -46,19 +44,24 @@ for (const viewport of HUD_VIEWPORTS) {
       await expect(page.locator(".movement-panel")).toBeHidden();
     }
 
-    if (viewport.inventoryVisible) {
-      panels.push(panel("Inventory", page.locator(".inventory-panel")));
-    } else {
-      await expect(page.locator(".inventory-panel")).toBeHidden();
+    await expect(page.locator(".inventory-panel")).toBeHidden();
+    await expect(page.locator(".starter-progress")).toBeHidden();
+
+    for (const corePanel of corePanels) {
+      await expect(corePanel.locator, corePanel.name).toBeVisible();
     }
 
-    for (const panel of panels) {
-      await expect(panel.locator, panel.name).toBeVisible();
-    }
-
-    await expectInsideViewport(page, panels);
+    await expectInsideViewport(page, corePanels);
     await expectSkillButtonsFit(page);
-    await expectWorldVisible(page, panels, viewport.minWorldVisibilityRatio);
+    await expectWorldVisible(page, corePanels, viewport.minWorldVisibilityRatio);
+
+    await page.getByRole("button", { name: /show bag/i }).click();
+    await expect(page.locator(".inventory-panel")).toBeVisible();
+    await page.getByRole("button", { name: /show quest/i }).click();
+    await expect(page.locator(".starter-progress")).toBeVisible();
+    await page.getByRole("button", { name: /hide stats/i }).click();
+    await expect(page.locator(".player-panel")).toBeHidden();
+
     await page.screenshot({
       path: testInfo.outputPath(`${viewport.name}-hud.png`),
       animations: "disabled",

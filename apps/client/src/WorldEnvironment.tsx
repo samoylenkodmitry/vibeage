@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { sampleTerrain } from '../../../packages/content/terrain';
+import { sampleTerrain, type TerrainBiome } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { computeDayPhase, SUN_DISTANCE } from './timeOfDay';
@@ -155,6 +155,20 @@ function FoliageField({ focus }: WorldEnvironmentProps) {
         height={2.4}
         yOffset={1.2}
       />
+      <InstancedFoliage
+        instances={instances.conifers}
+        geometry="cone"
+        radius={0.95}
+        height={9.2}
+        yOffset={4.6}
+      />
+      <InstancedFoliage
+        instances={instances.coniferTrunks}
+        geometry="cylinder"
+        radius={0.42}
+        height={3.2}
+        yOffset={1.6}
+      />
       <InstancedFoliage instances={instances.grass} geometry="cone" radius={0.22} height={0.9} yOffset={0.45} />
       <InstancedFoliage instances={instances.accents} geometry="dodecahedron" radius={0.72} height={1} yOffset={0.5} />
     </>
@@ -217,12 +231,15 @@ function getFoliageCell(focusX: number, focusZ: number): { x: number; z: number 
 function getFoliageInstances(centerX: number, centerZ: number): {
   trees: FoliageInstance[];
   trunks: FoliageInstance[];
+  conifers: FoliageInstance[];
+  coniferTrunks: FoliageInstance[];
   grass: FoliageInstance[];
   accents: FoliageInstance[];
 } {
   const cellSize = WORLD_SETTINGS.foliageCellSize;
   const radius = WORLD_SETTINGS.visibleFoliageCellRadius;
   const trees: FoliageInstance[] = [];
+  const conifers: FoliageInstance[] = [];
   const grass: FoliageInstance[] = [];
   const accents: FoliageInstance[] = [];
 
@@ -235,15 +252,18 @@ function getFoliageInstances(centerX: number, centerZ: number): {
       const z = (cellZ + random()) * cellSize;
       const sample = sampleTerrain(x, z);
       const distanceFalloff = Math.max(0, 1 - Math.hypot(dx, dz) / (radius + 1));
+      const coniferShare = getConiferShare(sample.biome);
 
       if (random() < sample.treeDensity * distanceFalloff) {
-        trees.push({
+        const isConifer = random() < coniferShare;
+        const target = isConifer ? conifers : trees;
+        target.push({
           x,
           y: sample.height,
           z,
-          scale: 0.72 + random() * 0.92,
+          scale: isConifer ? 0.78 + random() * 0.78 : 0.72 + random() * 0.92,
           rotation: random() * Math.PI * 2,
-          color: sample.foliageColor,
+          color: isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor,
         });
       }
 
@@ -274,9 +294,40 @@ function getFoliageInstances(centerX: number, centerZ: number): {
   return {
     trees,
     trunks: trees.map((tree) => ({ ...tree, color: '#76543a' })),
+    conifers,
+    coniferTrunks: conifers.map((tree) => ({ ...tree, color: '#3a2615' })),
     grass,
     accents,
   };
+}
+
+function getConiferShare(biome: TerrainBiome): number {
+  switch (biome) {
+    case 'forest':
+    case 'highland':
+    case 'tundra':
+      return 0.78;
+    case 'wetland':
+    case 'ethereal':
+      return 0.34;
+    case 'celestial':
+    case 'temporal':
+      return 0.4;
+    case 'meadow':
+    case 'ruins':
+      return 0.18;
+    case 'volcanic':
+    case 'abyssal':
+      return 0;
+  }
+}
+
+function darkenForConifer(hex: string): string {
+  const value = parseInt(hex.startsWith('#') ? hex.slice(1) : hex, 16);
+  const r = Math.max(0, ((value >> 16) & 0xff) - 56);
+  const g = Math.max(0, ((value >> 8) & 0xff) - 28);
+  const b = Math.max(0, (value & 0xff) - 56);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
 function getFoliageGeometry(
