@@ -1,5 +1,10 @@
 import { getBiomeEncounterMobs } from './encounters.js';
 import { randomAnnulusDistance } from '../sim/geometry.js';
+import {
+  dayPhaseLabel,
+  isMobAllowedInPhase,
+  type DayPhaseLabel,
+} from '../sim/timeOfDay.js';
 import { getTerrainHeight } from './terrain.js';
 
 // Types for zone management
@@ -9,6 +14,7 @@ export interface ZoneMob {
     minCount: number;
     maxCount: number;
     packSize?: number;
+    activePhases?: readonly DayPhaseLabel[];
 }
 
 export interface ZoneMiniBoss {
@@ -18,6 +24,7 @@ export interface ZoneMiniBoss {
     healthMultiplier?: number;
     damageMultiplier?: number;
     lootTableId?: string;
+    activePhases?: readonly DayPhaseLabel[];
 }
 
 export interface Zone {
@@ -70,25 +77,33 @@ export class ZoneManager {
         return null;
     }
 
-    getMobsToSpawn(zoneId: string): MobSpawnConfig[] {
+    getMobsToSpawn(zoneId: string, nowMs: number = Date.now()): MobSpawnConfig[] {
         const zone = this.getZoneById(zoneId);
         if (!zone) return [];
+        const phase = dayPhaseLabel(nowMs);
 
-        return zone.mobs.map(mobConfig => {
-            const count = Math.floor(
-                Math.random() * (mobConfig.maxCount - mobConfig.minCount + 1) +
-                mobConfig.minCount
-            );
-            return {
-                type: mobConfig.type,
-                count,
-                packSize: mobConfig.packSize,
-            };
-        });
+        return zone.mobs
+            .filter((mobConfig) => isMobAllowedInPhase(mobConfig.activePhases, phase))
+            .map(mobConfig => {
+                const count = Math.floor(
+                    Math.random() * (mobConfig.maxCount - mobConfig.minCount + 1) +
+                    mobConfig.minCount
+                );
+                return {
+                    type: mobConfig.type,
+                    count,
+                    packSize: mobConfig.packSize,
+                };
+            });
     }
 
-    getMiniBoss(zoneId: string): ZoneMiniBoss | null {
-        return this.getZoneById(zoneId)?.miniBoss ?? null;
+    getMiniBoss(zoneId: string, nowMs: number = Date.now()): ZoneMiniBoss | null {
+        const miniBoss = this.getZoneById(zoneId)?.miniBoss;
+        if (!miniBoss) return null;
+        if (!isMobAllowedInPhase(miniBoss.activePhases, dayPhaseLabel(nowMs))) {
+            return null;
+        }
+        return miniBoss;
     }
 
     getRandomPositionInZone(zoneId: string): { x: number; y: number; z: number } | null {
@@ -145,9 +160,9 @@ export const GAME_ZONES: Zone[] = [
         mobs: [
             { type: 'goblin', weight: 60, minCount: 5, maxCount: 8 },
             { type: 'wolf', weight: 25, minCount: 2, maxCount: 4, packSize: 3 },
-            { type: 'skeleton', weight: 15, minCount: 1, maxCount: 2 },
+            { type: 'skeleton', weight: 15, minCount: 1, maxCount: 2, activePhases: ['dusk', 'night'] },
             { type: 'slime', weight: 10, minCount: 1, maxCount: 2 },
-            { type: 'meadow_sprite', weight: 5, minCount: 1, maxCount: 1 }
+            { type: 'meadow_sprite', weight: 5, minCount: 1, maxCount: 1, activePhases: ['dawn', 'day'] }
         ],
         miniBoss: { type: 'goblin', name: 'Grakk the Goblin Chief', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.5, lootTableId: 'boss_loot' }
     },
@@ -203,7 +218,7 @@ export const GAME_ZONES: Zone[] = [
         maxLevel: 9,
         mobs: [
             { type: 'skeleton', weight: 50, minCount: 6, maxCount: 10 },
-            { type: 'wraith', weight: 30, minCount: 3, maxCount: 5 },
+            { type: 'wraith', weight: 30, minCount: 3, maxCount: 5, activePhases: ['dusk', 'night'] },
             { type: 'necromancer', weight: 20, minCount: 1, maxCount: 3 }
         ],
         miniBoss: { type: 'necromancer', name: 'Vereth the Bone Lord', levelBonus: 2, healthMultiplier: 3.5, damageMultiplier: 1.7, lootTableId: 'boss_loot' }
@@ -232,8 +247,8 @@ export const GAME_ZONES: Zone[] = [
         minLevel: 10,
         maxLevel: 12,
         mobs: [
-            { type: 'shadowbeast', weight: 50, minCount: 5, maxCount: 8, packSize: 3 },
-            { type: 'darkstalker', weight: 30, minCount: 3, maxCount: 5 },
+            { type: 'shadowbeast', weight: 50, minCount: 5, maxCount: 8, packSize: 3, activePhases: ['dusk', 'night'] },
+            { type: 'darkstalker', weight: 30, minCount: 3, maxCount: 5, activePhases: ['dusk', 'night'] },
             { type: 'voidwalker', weight: 20, minCount: 2, maxCount: 4 }
         ],
         miniBoss: { type: 'voidwalker', name: 'Nyaraal of the Hollow Path', levelBonus: 3, healthMultiplier: 4, damageMultiplier: 1.8, lootTableId: 'boss_loot' }

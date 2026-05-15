@@ -99,6 +99,7 @@ const ZoneSchema = z.object({
     minCount: nonNegativeNumber,
     maxCount: nonNegativeNumber,
     packSize: positiveNumber.optional(),
+    activePhases: z.array(z.enum(['dawn', 'day', 'dusk', 'night'])).optional(),
   })).min(1),
   miniBoss: z.object({
     type: z.string().min(1),
@@ -107,6 +108,7 @@ const ZoneSchema = z.object({
     healthMultiplier: positiveNumber.optional(),
     damageMultiplier: positiveNumber.optional(),
     lootTableId: z.string().min(1).optional(),
+    activePhases: z.array(z.enum(['dawn', 'day', 'dusk', 'night'])).optional(),
   }).optional(),
 }).superRefine((zone, ctx) => {
   if (zone.maxLevel < zone.minLevel) {

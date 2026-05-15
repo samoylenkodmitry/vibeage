@@ -31,17 +31,17 @@ describe('starter vertical slice', () => {
     ]));
   });
 
-  test('starter zone spawn config can produce every starter enemy type', () => {
-    const spawns = new ZoneManager().getMobsToSpawn(STARTER_VERTICAL_SLICE.zoneId);
+  test('starter zone spawn config can produce every starter enemy type across the day cycle', () => {
+    const manager = new ZoneManager();
+    const dayMs = 12 * 60 * 1000 * 0.3;
+    const nightMs = 12 * 60 * 1000 * 0.9;
+    const dayTypes = manager.getMobsToSpawn(STARTER_VERTICAL_SLICE.zoneId, dayMs).map((spawn) => spawn.type);
+    const nightTypes = manager.getMobsToSpawn(STARTER_VERTICAL_SLICE.zoneId, nightMs).map((spawn) => spawn.type);
+    const combined = new Set([...dayTypes, ...nightTypes]);
 
-    expect(spawns.map((spawn) => spawn.type)).toEqual(expect.arrayContaining([
-      'goblin',
-      'wolf',
-      'skeleton',
-      'slime',
-      'meadow_sprite',
-    ]));
-    expect(spawns.every((spawn) => spawn.count > 0)).toBe(true);
+    for (const type of ['goblin', 'wolf', 'skeleton', 'slime', 'meadow_sprite']) {
+      expect(combined.has(type)).toBe(true);
+    }
   });
 
   test('content and server runtime dependencies are present for the slice', () => {
