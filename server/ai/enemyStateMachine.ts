@@ -53,6 +53,10 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
     advanceIdleEnemy(enemy, context, progress);
   }
 
+  if (enemy.aiState === 'patrolling') {
+    advancePatrollingEnemy(enemy, context, progress);
+  }
+
   if (enemy.aiState === 'chasing') {
     advanceChasingEnemy(enemy, context, progress);
   }
@@ -74,6 +78,11 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
   };
 }
 
+const PATROL_RADIUS = 8;
+const PATROL_WAIT_MIN_MS = 2_000;
+const PATROL_WAIT_MAX_MS = 6_000;
+const PATROL_ARRIVAL_DISTANCE = 0.7;
+
 function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
   const targetId = findNearbyAggroTarget(enemy, context);
   if (targetId) {
@@ -81,12 +90,56 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
     enemy.aiState = 'chasing';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} aggroed player ${targetId}` });
     progress.shouldBroadcastEnemyUpdate = true;
+    return;
   }
 
-  if (enemy.aiState === 'idle' && distanceXZ(enemy.position, enemy.spawnPosition) > 1) {
+  if (enemy.aiState === 'idle' && distanceXZ(enemy.position, enemy.spawnPosition) > PATROL_RADIUS + 1) {
     enemy.aiState = 'returning';
     progress.shouldBroadcastEnemyUpdate = true;
+    return;
   }
+
+  const now = context.now;
+  if (enemy.patrolWaitUntilTs && enemy.patrolWaitUntilTs > now) {
+    return;
+  }
+  if (!enemy.patrolTarget) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * PATROL_RADIUS;
+    enemy.patrolTarget = {
+      x: enemy.spawnPosition.x + Math.cos(angle) * radius,
+      z: enemy.spawnPosition.z + Math.sin(angle) * radius,
+    };
+  }
+  enemy.aiState = 'patrolling';
+  progress.shouldBroadcastEnemyUpdate = true;
+}
+
+function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
+  const targetId = findNearbyAggroTarget(enemy, context);
+  if (targetId) {
+    enemy.targetId = targetId;
+    enemy.aiState = 'chasing';
+    enemy.patrolTarget = undefined;
+    progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} aggroed player ${targetId} during patrol` });
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+  if (!enemy.patrolTarget) {
+    enemy.aiState = 'idle';
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+  const dist = distanceXZ(enemy.position, enemy.patrolTarget);
+  if (dist <= PATROL_ARRIVAL_DISTANCE) {
+    stopEnemy(enemy);
+    enemy.patrolTarget = undefined;
+    enemy.patrolWaitUntilTs = context.now + PATROL_WAIT_MIN_MS + Math.random() * (PATROL_WAIT_MAX_MS - PATROL_WAIT_MIN_MS);
+    enemy.aiState = 'idle';
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+  moveEnemyToward(enemy, enemy.patrolTarget, context.spatialGrid, context.deltaTime);
 }
 
 function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {

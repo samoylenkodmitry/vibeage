@@ -32,6 +32,7 @@ type TouchPendingState = {
   lastX: number;
   lastY: number;
   rotating: boolean;
+  cleanup?: () => void;
 };
 
 const TOUCH_DRAG_THRESHOLD_PX = 6;
@@ -46,6 +47,13 @@ export function WorldGround({ focus, onMove, cameraControlsRef }: WorldGroundPro
   const dragRef = useRef<DragMoveState | null>(null);
   const touchRef = useRef<TouchPendingState | null>(null);
   const activeTouchCountRef = useActiveTouchCount();
+
+  useEffect(() => {
+    return () => {
+      touchRef.current?.cleanup?.();
+      touchRef.current = null;
+    };
+  }, []);
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
     if (event.pointerType === 'touch') {
@@ -139,6 +147,10 @@ function handleTouchMove(
   if (!touch || touch.pointerId !== event.pointerId) {
     return false;
   }
+  if (touch.cleanup) {
+    // window-level handler is in charge once rotation is hot
+    return true;
+  }
   const dx = event.clientX - touch.lastX;
   const dy = event.clientY - touch.lastY;
   touch.lastX = event.clientX;
@@ -147,11 +159,42 @@ function handleTouchMove(
   const totalDy = event.clientY - touch.startY;
   if (!touch.rotating && Math.hypot(totalDx, totalDy) >= TOUCH_DRAG_THRESHOLD_PX) {
     touch.rotating = true;
+    touch.cleanup = installWindowRotation(touchRef, cameraControlsRef);
   }
   if (touch.rotating) {
     cameraControlsRef?.current?.applyDelta({ x: dx, y: dy });
   }
   return true;
+}
+
+function installWindowRotation(
+  touchRef: MutableRefObject<TouchPendingState | null>,
+  cameraControlsRef?: MutableRefObject<CameraControls | null>,
+): () => void {
+  const onMove = (event: PointerEvent) => {
+    const touch = touchRef.current;
+    if (!touch || touch.pointerId !== event.pointerId) return;
+    const dx = event.clientX - touch.lastX;
+    const dy = event.clientY - touch.lastY;
+    touch.lastX = event.clientX;
+    touch.lastY = event.clientY;
+    cameraControlsRef?.current?.applyDelta({ x: dx, y: dy });
+  };
+  const onUp = (event: PointerEvent) => {
+    const touch = touchRef.current;
+    if (!touch || touch.pointerId !== event.pointerId) return;
+    touch.cleanup?.();
+    touch.cleanup = undefined;
+    touchRef.current = null;
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+  return () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
 }
 
 function handleMouseMove(
@@ -189,6 +232,7 @@ function handleTouchUp(
   if (!touch || touch.pointerId !== event.pointerId) {
     return false;
   }
+  touch.cleanup?.();
   touchRef.current = null;
   if (!touch.rotating) {
     onMove(touch.hit);

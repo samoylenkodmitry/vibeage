@@ -133,7 +133,9 @@ function useMapInteraction(input: MapInteractionInput) {
     lastClientY: number;
     pixelsPerWorldUnit: number;
   } | null>(null);
-  const { svgRef, viewWidth, setView, onSetNavigationMarker } = input;
+  const pinchRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const { svgRef, view, viewWidth, setView, onSetNavigationMarker } = input;
 
   const screenToWorld = (event: { clientX: number; clientY: number }): Marker | null => {
     return svgClientToWorld(svgRef.current, event);
@@ -141,23 +143,7 @@ function useMapInteraction(input: MapInteractionInput) {
 
   const onWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
     event.preventDefault();
-    const world = svgClientToWorld(svgRef.current, event);
-    if (!world) return;
-    const svg = svgRef.current!;
-    const rect = svg.getBoundingClientRect();
-    const sx = (event.clientX - rect.left) / rect.width;
-    const sy = (event.clientY - rect.top) / rect.height;
-    const factor = event.deltaY < 0 ? 1.18 : 1 / 1.18;
-    setView((prev) => {
-      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * factor));
-      const nextWidth = WORLD_BOUNDS.width / nextZoom;
-      const nextHeight = WORLD_BOUNDS.height / nextZoom;
-      return {
-        zoom: nextZoom,
-        centerX: world.x + (0.5 - sx) * nextWidth,
-        centerZ: world.z + (0.5 - sy) * nextHeight,
-      };
-    });
+    applyWheelZoomToView(svgRef.current, event, setView);
   };
 
   const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -169,6 +155,15 @@ function useMapInteraction(input: MapInteractionInput) {
     if (event.button !== 0) return;
     const svg = svgRef.current;
     if (!svg) return;
+    if (event.pointerType === 'touch') {
+      pinchRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      svg.setPointerCapture(event.pointerId);
+      if (pinchRef.current.size >= 2) {
+        dragRef.current = null;
+        startPinch(pinchRef.current, pinchStartRef, view.zoom);
+        return;
+      }
+    }
     const rect = svg.getBoundingClientRect();
     dragRef.current = {
       pointerId: event.pointerId,
@@ -181,6 +176,9 @@ function useMapInteraction(input: MapInteractionInput) {
   };
 
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (handlePinchMove(event, pinchRef.current, pinchStartRef, setView)) {
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.lastClientX;
@@ -197,11 +195,17 @@ function useMapInteraction(input: MapInteractionInput) {
   };
 
   const onPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (event.pointerType === 'touch') {
+      pinchRef.current.delete(event.pointerId);
+      if (pinchRef.current.size < 2) {
+        pinchStartRef.current = null;
+      }
+    }
+    try { svgRef.current?.releasePointerCapture(event.pointerId); } catch { /* released */ }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const wasClick = drag.moved < DRAG_PIXEL_THRESHOLD;
     dragRef.current = null;
-    try { svgRef.current?.releasePointerCapture(event.pointerId); } catch { /* released */ }
     if (wasClick && onSetNavigationMarker) {
       const target = screenToWorld(event);
       if (target) onSetNavigationMarker(target);
@@ -211,6 +215,64 @@ function useMapInteraction(input: MapInteractionInput) {
   const onContextMenu = (event: ReactPointerEvent<SVGSVGElement>) => event.preventDefault();
 
   return { onWheel, onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onContextMenu };
+}
+
+function applyWheelZoomToView(
+  svg: SVGSVGElement | null,
+  event: ReactWheelEvent<SVGSVGElement>,
+  setView: React.Dispatch<React.SetStateAction<ViewState>>,
+): void {
+  const world = svgClientToWorld(svg, event);
+  if (!svg || !world) return;
+  const rect = svg.getBoundingClientRect();
+  const sx = (event.clientX - rect.left) / rect.width;
+  const sy = (event.clientY - rect.top) / rect.height;
+  const factor = event.deltaY < 0 ? 1.18 : 1 / 1.18;
+  setView((prev) => {
+    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * factor));
+    const nextWidth = WORLD_BOUNDS.width / nextZoom;
+    const nextHeight = WORLD_BOUNDS.height / nextZoom;
+    return {
+      zoom: nextZoom,
+      centerX: world.x + (0.5 - sx) * nextWidth,
+      centerZ: world.z + (0.5 - sy) * nextHeight,
+    };
+  });
+}
+
+function pinchDistance(points: Map<number, { x: number; y: number }>): number {
+  const pts = Array.from(points.values());
+  if (pts.length < 2) return 1;
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+}
+
+function startPinch(
+  points: Map<number, { x: number; y: number }>,
+  pinchStartRef: React.MutableRefObject<{ distance: number; zoom: number } | null>,
+  zoom: number,
+): void {
+  pinchStartRef.current = { distance: pinchDistance(points), zoom };
+}
+
+function handlePinchMove(
+  event: ReactPointerEvent<SVGSVGElement>,
+  points: Map<number, { x: number; y: number }>,
+  pinchStartRef: React.MutableRefObject<{ distance: number; zoom: number } | null>,
+  setView: React.Dispatch<React.SetStateAction<ViewState>>,
+): boolean {
+  if (event.pointerType !== 'touch' || !points.has(event.pointerId)) {
+    return false;
+  }
+  points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (points.size < 2 || !pinchStartRef.current) {
+    return true;
+  }
+  const ratio = pinchDistance(points) / pinchStartRef.current.distance;
+  setView((prev) => ({
+    ...prev,
+    zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartRef.current!.zoom * ratio)),
+  }));
+  return true;
 }
 
 function svgClientToWorld(

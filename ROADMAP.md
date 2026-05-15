@@ -174,39 +174,56 @@ Live items requested after the latest deploy. Each is a single-PR slice.
 
 ## Player Polish v3
 
-Live items requested after the latest deploy.
+1. [x] **Always-visible navigation pin + 3D pointer** — the in-world pin is too small to spot from distance. Make it big and add an in-world arrow above the player that rotates to point at the pin so the player always knows where to go.
 
-1. [ ] **Always-visible navigation pin + 3D pointer** — the in-world pin is too small to spot from distance. Make it big and add an in-world arrow above the player that rotates to point at the pin so the player always knows where to go.
+2. [x] **No text selection on UI controls** — globally apply `user-select: none` to HUD chrome (panels, buttons, toggles, vitals strip, map UI). Inputs and textareas still allow selection.
 
-2. [ ] **No text selection on UI controls** — globally apply `user-select: none` to HUD chrome (panels, buttons, toggles, vitals strip, map UI). Inputs and textareas still allow selection.
+3. [x] **Mobile new-player skill bar visibility** — fresh mobile session reports an invisible skill bar. Audit safe-area, contrast, and layering; bring the bar above iOS home-indicator and make it unmissable.
 
-3. [ ] **Mobile new-player skill bar visibility** — fresh mobile session reports an invisible skill bar. Audit safe-area, contrast, and layering; bring the bar above iOS home-indicator and make it unmissable.
+4. [x] **Camera doesn't dip below ground** — when the player tilts the camera up the orbit can drop the camera below the terrain. Move the focus point down toward the player feet so looking up rises the camera less, and clamp the camera y to be above the local terrain height.
 
-4. [ ] **Camera doesn't dip below ground** — when the player tilts the camera up the orbit can drop the camera below the terrain. Move the focus point down toward the player feet so looking up rises the camera less, and clamp the camera y to be above the local terrain height.
-
-5. [ ] **Lineage 2-style stat lineup** — extend Stats from STR/DEX/INT to STR + DEX + CON + INT + WIT + MEN. Derived from class+level for now.
+5. [x] **Lineage 2-style stat lineup** — extend Stats from STR/DEX/INT to STR + DEX + CON + INT + WIT + MEN. Derived from class+level for now.
 
 6. [x] **Class skill tree learn panel** — new toggle that opens a class skill tree window listing every class skill with state (unlocked / available-to-learn-with-cost / locked-by-level), with a learn button when skill points are available.
 
 ## Player Polish v4
 
+1. [x] **Restore single starter skill** — `DEFAULT_UNLOCKED_SKILLS` back to `['fireball']`. Players learn the rest from the skill tree as they level up.
+
+2. [x] **Mobile skill bar above Android nav** — current `safe-area-inset-bottom` doesn't account for the Android navigation bar; bump fallback bottom padding so the bar isn't covered.
+
+3. [x] **Map fullscreen toggle** — header button on the Map panel that maximizes it to fill the viewport for easier navigation.
+
+4. [x] **Camera look up to sky** — instead of dipping below ground at very negative pitch, keep camera above terrain and shift the lookAt target upward so tilting up shows the sky vertically.
+
+5. [x] **Smooth player movement** — derive entity ground Y from the current lerped xz each frame so terrain bumps no longer cause snap-rate microjumps.
+
+6. [x] **Chat with near / all tabs** — new ChatRequest protocol; server broadcasts to all clients (all) or to clients within ~150 m (near). No persistence. Client renders a Chat panel with two tabs and a 50-message ring buffer per tab.
+
+7. **Deeper class & skill content** — broken into smaller subitems:
+   - [ ] **More skills per class** — at least 6-8 skills per class with prereqs, level gates, and explicit cooldowns/costs balanced server-side.
+   - [ ] **More class identities** — add Knight, Paladin, Rogue alongside the existing four with distinct stat curves.
+   - [ ] **Server stat scaling** — STR/DEX/CON/INT/WIT/MEN actually drive damage / hit / HP / MP regen in the simulation instead of being cosmetic.
+   - [ ] **Skill effect variety** — DoT, slow, knock-back, shield, dispel; reuse the existing StatusEffect plumbing.
+
+8. **Populate the world** — broken into smaller subitems:
+   - [ ] **More enemy species** — add at least 6 distinct mob types (e.g., wolf, bandit, ghoul, treant, elemental, drake) with art and stats.
+   - [ ] **Zone-specific spawn rules** — bind species to biome / level band so each zone reads differently.
+   - [ ] **Mob patrol AI** — idle mobs wander a patrol radius around their spawn instead of standing still.
+   - [ ] **Pack formations** — some species spawn in small groups that share aggro.
+   - [ ] **Mini-bosses** — one designated tougher mob per zone with a name and richer loot.
+   - [ ] **Loot variety** — each species owns its own loot table beyond the shared starter drops.
+   - [ ] **Day / night spawn variation** — different mobs active in different timeOfDay phases.
+
+## Player Polish v5
+
 Live items requested after the latest deploy.
 
-1. [ ] **Restore single starter skill** — `DEFAULT_UNLOCKED_SKILLS` back to `['fireball']`. Players learn the rest from the skill tree as they level up.
+1. [ ] **One-finger sky look on mobile** — single-finger drag past the mesh edge loses pointer events because Three.js mesh handlers don't fire off-mesh. Install a window-level pointermove listener once WorldGround enters touch rotation mode so the camera keeps tilting until the finger lifts.
 
-2. [ ] **Mobile skill bar above Android nav** — current `safe-area-inset-bottom` doesn't account for the Android navigation bar; bump fallback bottom padding so the bar isn't covered.
+2. [ ] **Map pinch-zoom on mobile** — two-finger pinch on the map SVG scales the zoom by the touch-distance ratio and pans toward the centroid.
 
-3. [ ] **Map fullscreen toggle** — header button on the Map panel that maximizes it to fill the viewport for easier navigation.
-
-4. [ ] **Camera look up to sky** — instead of dipping below ground at very negative pitch, keep camera above terrain and shift the lookAt target upward so tilting up shows the sky vertically.
-
-5. [ ] **Smooth player movement** — derive entity ground Y from the current lerped xz each frame so terrain bumps no longer cause snap-rate microjumps.
-
-6. [ ] **Chat with near / all tabs** — new ChatRequest protocol; server broadcasts to all clients (all) or to clients within ~150 m (near). No persistence. Client renders a Chat panel with two tabs and a 50-message ring buffer per tab.
-
-7. [ ] **Deeper class & skill content (deferred)** — more skills per class with prereqs and level gates, more class identities, more level-derived stats. Big enough to land in its own slice.
-
-8. [ ] **Populate the world (deferred)** — more enemy species and zone-spec spawn rules so the vast empty spaces feel alive. Big enough to land in its own slice.
+3. [ ] **Mob patrol AI (first slice from v4 item 8)** — new `patrolling` aiState; idle mobs occasionally pick a random target inside their patrolRadius, walk there, idle for 2-6 s, repeat. Aggro / attack still take priority.
 
 ## Quality Gate
 

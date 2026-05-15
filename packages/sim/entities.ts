@@ -42,13 +42,15 @@ export interface Enemy {
   posHistory?: { ts: number; x: number; z: number }[];
   lastUpdateTime?: number;
   lootTableId?: string;
-  aiState: 'idle' | 'chasing' | 'attacking' | 'returning';
+  aiState: 'idle' | 'patrolling' | 'chasing' | 'attacking' | 'returning';
   aggroRadius: number;
   attackCooldownMs: number;
   lastAttackTime: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
   dirtySnap?: boolean;
+  patrolTarget?: { x: number; z: number };
+  patrolWaitUntilTs?: number;
 }
 
 export interface PlayerState {
