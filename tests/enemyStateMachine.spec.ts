@@ -49,13 +49,13 @@ describe('enemy state machine', () => {
 
     expect(enemy.targetId).toBe(player.id);
     expect(enemy.aiState).toBe('attacking');
-    expect(player.health).toBe(88);
+    expect(player.health).toBeCloseTo(89.2, 5);
     expect(result.events).toContainEqual({
       type: 'enemyAttack',
       enemyId: enemy.id,
       targetId: player.id,
-      damage: 12,
-      targetHealth: 88,
+      damage: enemy.attackDamage,
+      targetHealth: player.health,
     });
     expect(result.enemyUpdate).toEqual({
       id: enemy.id,

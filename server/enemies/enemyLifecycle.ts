@@ -1,3 +1,4 @@
+import { getEnemyTemplate } from '../../packages/content/enemies.js';
 import type { ZoneManager } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import { hash, rng } from '../../packages/sim/combatMath.js';
@@ -20,30 +21,33 @@ export function createEnemy(
   position: Enemy['position'],
   now: number = Date.now(),
 ): Enemy {
+  const template = getEnemyTemplate(type);
+  const baseHealth = (100 + level * 20) * template.stats.health;
+  const baseExp = (50 + level * 10) * template.stats.experience;
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
-    name: type.charAt(0).toUpperCase() + type.slice(1),
+    name: template.displayName,
     level,
     position,
     spawnPosition: { ...position },
     rotation: { x: 0, y: rng(hash(`rotation-${now}-${position.x}-${position.z}`))() * Math.PI * 2, z: 0 },
-    health: 100 + level * 20,
-    maxHealth: 100 + level * 20,
+    health: baseHealth,
+    maxHealth: baseHealth,
     isAlive: true,
-    attackDamage: 10 + level * 2,
-    attackRange: 2,
-    baseExperienceValue: 50 + level * 10,
-    experienceValue: 50 + level * 10,
+    attackDamage: (10 + level * 2) * template.stats.damage,
+    attackRange: 2 * template.stats.attackRange,
+    baseExperienceValue: baseExp,
+    experienceValue: baseExp,
     statusEffects: [],
     targetId: null,
     aiState: 'idle',
-    aggroRadius: 15,
-    attackCooldownMs: 2000,
+    aggroRadius: 15 * template.stats.aggroRadius,
+    attackCooldownMs: 2000 * template.stats.attackCooldownMs,
     lastAttackTime: 0,
-    movementSpeed: 6,
+    movementSpeed: 6 * template.stats.movementSpeed,
     velocity: { x: 0, z: 0 },
-    lootTableId: `${type}_loot`,
+    lootTableId: template.lootTableId ?? `${type}_loot`,
   };
 }
 
