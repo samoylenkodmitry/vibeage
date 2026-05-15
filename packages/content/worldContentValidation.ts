@@ -215,12 +215,13 @@ function collectZoneIssues(issues: string[]): void {
     }
 
     for (const mob of zone.mobs) {
-      const tableId = `${mob.type}_loot`;
+      const template = ENEMY_TEMPLATES[mob.type];
+      if (!template) {
+        issues.push(`zone ${zone.id} mob ${mob.type} has no enemy template`);
+      }
+      const tableId = template?.lootTableId ?? `${mob.type}_loot`;
       if (!LOOT_TABLES[tableId]) {
         issues.push(`zone ${zone.id} mob ${mob.type} references missing loot table ${tableId}`);
-      }
-      if (!ENEMY_TEMPLATES[mob.type]) {
-        issues.push(`zone ${zone.id} mob ${mob.type} has no enemy template`);
       }
     }
   }
