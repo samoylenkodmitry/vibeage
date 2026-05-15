@@ -44,7 +44,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
       <color attach="background" args={['#071015']} />
       <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
       <WorldEnvironment focus={focus} />
-      <WorldGround focus={focus} onMove={onMove} />
+      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
