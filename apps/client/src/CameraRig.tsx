@@ -16,14 +16,20 @@ import {
 import type { Vec3 } from './gameTypes';
 import { getTerrainY } from './worldSceneConfig';
 
+export type CameraControls = {
+  applyDelta: (delta: { x: number; y: number }) => void;
+};
+
 export function CameraRig({
   focus,
   presentationFocusRef,
   cameraAngleRef,
+  cameraControlsRef,
 }: {
   focus: Vec3;
   presentationFocusRef: MutableRefObject<THREE.Vector3 | null>;
   cameraAngleRef?: MutableRefObject<number>;
+  cameraControlsRef?: MutableRefObject<CameraControls | null>;
 }) {
   const { camera, gl } = useThree();
   const angleRef = useRef(Math.PI * 0.82);
@@ -35,6 +41,25 @@ export function CameraRig({
   const cameraTargetRef = useRef(new THREE.Vector3());
   useCameraDragControls(gl, angleRef, pitchRef);
   useCameraWheelZoom(gl, distanceRef);
+
+  useEffect(() => {
+    if (!cameraControlsRef) {
+      return undefined;
+    }
+    cameraControlsRef.current = {
+      applyDelta: (delta) => {
+        const orbit = applyCameraDragDelta(
+          { angle: angleRef.current, pitch: pitchRef.current },
+          delta,
+        );
+        angleRef.current = orbit.angle;
+        pitchRef.current = orbit.pitch;
+      },
+    };
+    return () => {
+      cameraControlsRef.current = null;
+    };
+  }, [cameraControlsRef]);
 
   useFrame((_, delta) => {
     const presentationFocus = presentationFocusRef.current;

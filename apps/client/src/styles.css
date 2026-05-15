@@ -791,6 +791,34 @@ input {
   touch-action: none;
 }
 
+.camera-touch-handle {
+  position: absolute;
+  bottom: 110px;
+  left: 18px;
+  z-index: 6;
+  display: none;
+  min-width: 92px;
+  min-height: 92px;
+  padding: 8px;
+  border: 1px solid rgba(141, 233, 215, 0.42);
+  border-radius: 999px;
+  color: #04100d;
+  background: rgba(141, 233, 215, 0.78);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.camera-touch-handle:active {
+  cursor: grabbing;
+  background: rgba(200, 255, 240, 0.92);
+}
+
 .panel-drag-handle:active {
   cursor: grabbing;
 }
@@ -1099,6 +1127,14 @@ input {
     right: 8px;
     bottom: 158px;
     gap: 6px;
+  }
+
+  .camera-touch-handle {
+    left: 8px;
+    bottom: 158px;
+    min-width: 78px;
+    min-height: 78px;
+    font-size: 12px;
   }
 
   .panel-toggle {

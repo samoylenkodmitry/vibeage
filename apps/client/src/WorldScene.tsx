@@ -8,7 +8,7 @@ import { WorldEventVfx } from './SceneEventVfx';
 import { WorldEnvironment } from './WorldEnvironment';
 import { WorldFeatures } from './WorldFeatures';
 import { ZoneLandmarks } from './ZoneLandmarks';
-import { CameraRig } from './CameraRig';
+import { CameraRig, type CameraControls } from './CameraRig';
 import {
   CastMarker,
   EnemyMarker,
@@ -25,10 +25,11 @@ type WorldSceneProps = {
   onSelectTarget: (targetId: string | null) => void;
   onPickUpLoot: (lootId: string) => void;
   cameraAngleRef?: MutableRefObject<number>;
+  cameraControlsRef?: MutableRefObject<CameraControls | null>;
   navigationMarker?: VecXZ | null;
 };
 
-export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef, navigationMarker }: WorldSceneProps) {
+export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
@@ -73,7 +74,12 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
       {Object.values(state.visualEvents).map((event) => (
         <WorldEventVfx key={event.id} event={event} />
       ))}
-      <CameraRig focus={focus} presentationFocusRef={cameraAnchorRef} cameraAngleRef={cameraAngleRef} />
+      <CameraRig
+        focus={focus}
+        presentationFocusRef={cameraAnchorRef}
+        cameraAngleRef={cameraAngleRef}
+        cameraControlsRef={cameraControlsRef}
+      />
     </Canvas>
   );
 }

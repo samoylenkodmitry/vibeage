@@ -32,11 +32,11 @@ const starterShortcuts = (): (SkillId | null)[] => [
 ];
 
 describe('player progression hydration', () => {
-  test('gives a persisted player the starter skill when the database has an empty skills array', () => {
+  test('gives a persisted player the starter kit when the database has an empty skills array', () => {
     const unlockedSkills = normalizeUnlockedSkills([]);
     const skillShortcuts = normalizeSkillShortcuts(['fireball', null], unlockedSkills);
 
-    expect(unlockedSkills).toEqual(['fireball']);
+    expect(unlockedSkills).toEqual(['fireball', 'iceBolt', 'waterSplash', 'petrify']);
     expect(skillShortcuts).toEqual(['fireball', null, null, null, null, null, null, null, null]);
   });
 
