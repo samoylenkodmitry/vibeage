@@ -20,6 +20,9 @@ export type CameraControls = {
   applyDelta: (delta: { x: number; y: number }) => void;
 };
 
+const CAMERA_FOCUS_HEIGHT = 0.6;
+const CAMERA_GROUND_BUFFER = 1.4;
+
 export function CameraRig({
   focus,
   presentationFocusRef,
@@ -35,9 +38,9 @@ export function CameraRig({
   const angleRef = useRef(Math.PI * 0.82);
   const pitchRef = useRef(0.46);
   const distanceRef = useRef(CAMERA_DISTANCE);
-  const initialY = getTerrainY(focus.x, focus.z) + 1.4;
-  const focusRef = useRef(new THREE.Vector3(focus.x, initialY, focus.z));
-  const focusTargetRef = useRef(new THREE.Vector3(focus.x, initialY, focus.z));
+  const initialFocusY = getTerrainY(focus.x, focus.z) + CAMERA_FOCUS_HEIGHT;
+  const focusRef = useRef(new THREE.Vector3(focus.x, initialFocusY, focus.z));
+  const focusTargetRef = useRef(new THREE.Vector3(focus.x, initialFocusY, focus.z));
   const cameraTargetRef = useRef(new THREE.Vector3());
   useCameraDragControls(gl, angleRef, pitchRef);
   useCameraWheelZoom(gl, distanceRef);
@@ -63,9 +66,15 @@ export function CameraRig({
 
   useFrame((_, delta) => {
     const presentationFocus = presentationFocusRef.current;
+    const groundY = getTerrainY(focus.x, focus.z);
+    const baselineFocusY = groundY + CAMERA_FOCUS_HEIGHT;
+    const presentationY = presentationFocus?.y;
+    const focusY = typeof presentationY === 'number'
+      ? Math.min(presentationY, presentationY - 1.0 + CAMERA_FOCUS_HEIGHT)
+      : baselineFocusY;
     focusTargetRef.current.set(
       presentationFocus?.x ?? focus.x,
-      presentationFocus?.y ?? (getTerrainY(focus.x, focus.z) + 1.4),
+      focusY,
       presentationFocus?.z ?? focus.z,
     );
     if (hasMeaningfulCameraFocusDelta(focusRef.current, focusTargetRef.current)) {
@@ -78,6 +87,10 @@ export function CameraRig({
       { angle: angleRef.current, pitch: pitchRef.current },
       distanceRef.current,
     );
+    const cameraTerrainY = getTerrainY(cameraTargetRef.current.x, cameraTargetRef.current.z);
+    if (cameraTargetRef.current.y < cameraTerrainY + CAMERA_GROUND_BUFFER) {
+      cameraTargetRef.current.y = cameraTerrainY + CAMERA_GROUND_BUFFER;
+    }
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
     camera.position.lerp(cameraTargetRef.current, alpha);
     camera.lookAt(focusRef.current);
