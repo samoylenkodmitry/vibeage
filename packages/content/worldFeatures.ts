@@ -25,6 +25,8 @@ export type WorldLandmark = {
   position: WorldPoint;
   radius: number;
   height: number;
+  /** Mega landmarks render with fog disabled and stay visible at huge range. */
+  mega?: boolean;
 };
 
 export const WORLD_TRAVEL_LANES: WorldTravelLane[] = [
@@ -168,6 +170,46 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     position: { x: 640, z: -480 },
     radius: 36,
     height: 130,
+  },
+  {
+    id: 'mega-skyspire-of-aetheris',
+    name: 'Skyspire of Aetheris',
+    kind: 'spire',
+    zoneId: 'starter_meadow',
+    position: { x: 4_800, z: 5_400 },
+    radius: 220,
+    height: 1_200,
+    mega: true,
+  },
+  {
+    id: 'mega-worldroot-tree',
+    name: 'Worldroot',
+    kind: 'tree',
+    zoneId: 'starter_meadow',
+    position: { x: -5_600, z: 4_800 },
+    radius: 360,
+    height: 1_400,
+    mega: true,
+  },
+  {
+    id: 'mega-forgotten-colossus',
+    name: 'The Forgotten Colossus',
+    kind: 'keep',
+    zoneId: 'starter_meadow',
+    position: { x: 6_400, z: -5_200 },
+    radius: 280,
+    height: 1_600,
+    mega: true,
+  },
+  {
+    id: 'mega-crystal-heart',
+    name: 'Crystal Heart',
+    kind: 'crystal',
+    zoneId: 'starter_meadow',
+    position: { x: -6_200, z: -5_800 },
+    radius: 240,
+    height: 1_350,
+    mega: true,
   },
   {
     id: 'emerald-horizon-gate',

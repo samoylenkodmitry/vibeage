@@ -51,9 +51,62 @@ export function PlayerMarker({
         color={color}
         isSelf={isSelf}
         isAlive={player.isAlive}
+        isMoving={Boolean(player.movement?.isMoving)}
       />
     </SmoothedEntityGroup>
   );
+}
+
+type PlayerAnimationRefs = {
+  group: THREE.Group | null;
+  leftLeg: THREE.Mesh | null;
+  rightLeg: THREE.Mesh | null;
+  torso: THREE.Mesh | null;
+  torsoHeight: number;
+  legPivotY: number;
+  isMoving: boolean;
+  isAlive: boolean;
+};
+
+function drivePlayerAnimation(time: number, refs: PlayerAnimationRefs): void {
+  const { group, leftLeg, rightLeg, torso, torsoHeight, legPivotY, isMoving, isAlive } = refs;
+  if (!group) {
+    return;
+  }
+  if (!isAlive) {
+    group.position.y = -torsoHeight * 0.4;
+    group.rotation.x = -Math.PI / 2;
+    return;
+  }
+  group.rotation.x = 0;
+  if (isMoving) {
+    const swing = Math.sin(time * 8.4);
+    group.position.y = Math.abs(swing) * 0.12;
+    if (leftLeg) {
+      leftLeg.position.set(-0.32, legPivotY + swing * 0.06, swing * 0.32);
+      leftLeg.rotation.x = swing * 0.55;
+    }
+    if (rightLeg) {
+      rightLeg.position.set(0.32, legPivotY - swing * 0.06, -swing * 0.32);
+      rightLeg.rotation.x = -swing * 0.55;
+    }
+    if (torso) {
+      torso.rotation.z = Math.sin(time * 8.4 + Math.PI) * 0.05;
+    }
+    return;
+  }
+  group.position.y = Math.sin(time * 2.2) * 0.04;
+  if (leftLeg) {
+    leftLeg.position.set(-0.32, legPivotY, 0);
+    leftLeg.rotation.x = 0;
+  }
+  if (rightLeg) {
+    rightLeg.position.set(0.32, legPivotY, 0);
+    rightLeg.rotation.x = 0;
+  }
+  if (torso) {
+    torso.rotation.z = 0;
+  }
 }
 
 function PlayerFigure({
@@ -63,6 +116,7 @@ function PlayerFigure({
   color,
   isSelf,
   isAlive,
+  isMoving,
 }: {
   height: number;
   torsoHeight: number;
@@ -70,8 +124,12 @@ function PlayerFigure({
   color: string;
   isSelf: boolean;
   isAlive: boolean;
+  isMoving: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const leftLegRef = useRef<THREE.Mesh>(null);
+  const rightLegRef = useRef<THREE.Mesh>(null);
+  const torsoRef = useRef<THREE.Mesh>(null);
   const cloakColor = isSelf ? '#1f2937' : '#374151';
   const skinColor = '#f5d9b8';
   const trimColor = isSelf ? '#facc15' : '#94a3b8';
@@ -79,32 +137,32 @@ function PlayerFigure({
   const cloakY = torsoY - torsoHeight * 0.18;
   const headY = torsoY + torsoHeight * 0.5 + headRadius * 0.55;
   const ringY = torsoY + torsoHeight * 0.55 + headRadius * 1.65;
-  const ankleY = 0.06;
+  const legPivotY = 0.55;
 
   useFrame(({ clock }) => {
-    const group = groupRef.current;
-    if (!group) {
-      return;
-    }
-    if (!isAlive) {
-      group.position.y = -torsoHeight * 0.4;
-      return;
-    }
-    const bob = Math.sin(clock.elapsedTime * 2.2) * 0.04;
-    group.position.y = bob;
+    drivePlayerAnimation(clock.elapsedTime, {
+      group: groupRef.current,
+      leftLeg: leftLegRef.current,
+      rightLeg: rightLegRef.current,
+      torso: torsoRef.current,
+      torsoHeight,
+      legPivotY,
+      isMoving,
+      isAlive,
+    });
   });
 
   return (
     <group ref={groupRef}>
-      <mesh position={[-0.32, ankleY + 0.45, 0]} castShadow>
+      <mesh ref={leftLegRef} position={[-0.32, legPivotY, 0]} castShadow>
         <capsuleGeometry args={[0.16, 0.42, 6, 10]} />
         <meshStandardMaterial color={cloakColor} roughness={0.78} />
       </mesh>
-      <mesh position={[0.32, ankleY + 0.45, 0]} castShadow>
+      <mesh ref={rightLegRef} position={[0.32, legPivotY, 0]} castShadow>
         <capsuleGeometry args={[0.16, 0.42, 6, 10]} />
         <meshStandardMaterial color={cloakColor} roughness={0.78} />
       </mesh>
-      <mesh position={[0, torsoY, 0]} castShadow>
+      <mesh ref={torsoRef} position={[0, torsoY, 0]} castShadow>
         <capsuleGeometry args={[0.4, torsoHeight, 8, 14]} />
         <meshStandardMaterial color={color} roughness={0.5} metalness={0.16} />
       </mesh>
@@ -153,6 +211,9 @@ export function EnemyMarker({
     onSelect(enemy.id);
   }
 
+  const speedSq = (enemy.velocity?.x ?? 0) ** 2 + (enemy.velocity?.z ?? 0) ** 2;
+  const isMoving = enemy.isAlive && speedSq > 0.5;
+
   return (
     <SmoothedEntityGroup
       position={{ x: enemy.position.x, y, z: enemy.position.z }}
@@ -162,20 +223,68 @@ export function EnemyMarker({
       {isSelected && <SelectedEnemyRing />}
       {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
       {enemy.isAlive && enemy.aiState && enemy.aiState !== 'idle' && <EnemyThreatRing state={enemy.aiState} />}
-      <mesh castShadow onPointerDown={handlePointerDown}>
-        {visual.shape === 'sphere' ? (
-          <sphereGeometry args={[0.58, 18, 14]} />
-        ) : (
-          <boxGeometry args={[1.05, enemy.isAlive ? visual.height : 0.25, 1.05]} />
-        )}
-        <meshStandardMaterial color={color} roughness={0.82} />
-      </mesh>
+      <EnemyBody
+        shape={visual.shape}
+        color={color}
+        height={enemy.isAlive ? visual.height : 0.25}
+        isMoving={isMoving}
+        isAlive={enemy.isAlive}
+        onPointerDown={handlePointerDown}
+      />
       {enemy.isAlive && visual.glow && (
         <pointLight color={visual.color} intensity={0.9} distance={4} />
       )}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
     </SmoothedEntityGroup>
+  );
+}
+
+function EnemyBody({
+  shape,
+  color,
+  height,
+  isMoving,
+  isAlive,
+  onPointerDown,
+}: {
+  shape: 'sphere' | 'box';
+  color: string;
+  height: number;
+  isMoving: boolean;
+  isAlive: boolean;
+  onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (!mesh) {
+      return;
+    }
+    if (!isAlive) {
+      mesh.rotation.set(Math.PI / 2, 0, 0);
+      mesh.position.y = -height * 0.3;
+      return;
+    }
+    const t = clock.elapsedTime;
+    if (isMoving) {
+      mesh.position.y = Math.abs(Math.sin(t * 9)) * 0.18;
+      mesh.rotation.z = Math.sin(t * 9) * 0.16;
+      mesh.rotation.x = Math.sin(t * 9 + Math.PI / 2) * 0.08;
+    } else {
+      mesh.position.y = Math.sin(t * 1.6) * 0.04;
+      mesh.rotation.set(0, 0, 0);
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} castShadow onPointerDown={onPointerDown}>
+      {shape === 'sphere'
+        ? <sphereGeometry args={[0.58, 18, 14]} />
+        : <boxGeometry args={[1.05, height, 1.05]} />}
+      <meshStandardMaterial color={color} roughness={0.82} />
+    </mesh>
   );
 }
 

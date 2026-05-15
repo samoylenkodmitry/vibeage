@@ -38,41 +38,41 @@ const KEYFRAMES: Keyframe[] = [
   {
     phase: 0,
     sunColor: '#ffb27a',
-    sunIntensity: 0.85,
+    sunIntensity: 0.95,
     hemisphereSky: '#ffd1a5',
     hemisphereGround: '#3a2d2a',
-    hemisphereIntensity: 0.62,
+    hemisphereIntensity: 0.7,
     fogColor: '#3a2740',
     backgroundColor: '#2a1f33',
     cloudColor: '#ffd9b8',
-    cloudOpacity: 0.42,
+    cloudOpacity: 0.4,
   },
   {
-    phase: 0.25,
+    phase: 0.32,
     sunColor: '#fff1a6',
     sunIntensity: 1.55,
     hemisphereSky: '#ccecff',
     hemisphereGround: '#21402d',
-    hemisphereIntensity: 0.82,
+    hemisphereIntensity: 0.85,
     fogColor: '#a4d2e3',
     backgroundColor: '#7fb6dd',
     cloudColor: '#dff8ff',
     cloudOpacity: 0.3,
   },
   {
-    phase: 0.5,
+    phase: 0.7,
     sunColor: '#ff8a4d',
-    sunIntensity: 0.78,
+    sunIntensity: 0.85,
     hemisphereSky: '#ff8a5b',
     hemisphereGround: '#2a1320',
-    hemisphereIntensity: 0.52,
+    hemisphereIntensity: 0.55,
     fogColor: '#3d1f2c',
     backgroundColor: '#1f1226',
     cloudColor: '#ff9466',
     cloudOpacity: 0.46,
   },
   {
-    phase: 0.75,
+    phase: 0.86,
     sunColor: '#7d8bb0',
     sunIntensity: 0.18,
     hemisphereSky: '#0c1530',
@@ -93,8 +93,27 @@ export function normalizePhase(timestampMs: number, dayDurationMs: number = DEFA
   return wrapped / dayDurationMs;
 }
 
+const SUN_PHASE_ANGLES: ReadonlyArray<{ phase: number; angle: number }> = [
+  { phase: 0, angle: 0 },
+  { phase: 0.32, angle: Math.PI / 2 },
+  { phase: 0.7, angle: Math.PI },
+  { phase: 0.86, angle: Math.PI * 1.5 },
+  { phase: 1, angle: Math.PI * 2 },
+];
+
+function phaseToSunAngle(phase: number): number {
+  for (let i = 1; i < SUN_PHASE_ANGLES.length; i += 1) {
+    if (phase < SUN_PHASE_ANGLES[i].phase) {
+      const span = SUN_PHASE_ANGLES[i].phase - SUN_PHASE_ANGLES[i - 1].phase;
+      const t = span > 0 ? (phase - SUN_PHASE_ANGLES[i - 1].phase) / span : 0;
+      return SUN_PHASE_ANGLES[i - 1].angle + (SUN_PHASE_ANGLES[i].angle - SUN_PHASE_ANGLES[i - 1].angle) * t;
+    }
+  }
+  return Math.PI * 2;
+}
+
 export function computeSunDirection(phase: number): Vec3 {
-  const angle = phase * Math.PI * 2;
+  const angle = phaseToSunAngle(phase);
   const x = Math.cos(angle);
   const y = Math.sin(angle);
   const z = -0.42;
