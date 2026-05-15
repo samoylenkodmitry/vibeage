@@ -1,9 +1,10 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
+import { computeDayPhase, SUN_DISTANCE } from './timeOfDay';
 
 type WorldEnvironmentProps = {
   focus: Vec3D;
@@ -25,41 +26,97 @@ const position = new THREE.Vector3();
 const rotation = new THREE.Euler();
 
 export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
-  return (
-    <>
-      <hemisphereLight args={['#ccecff', '#21402d', 0.82]} />
-      <directionalLight position={[focus.x + 240, 420, focus.z + 180]} intensity={1.55} castShadow />
-      <SunAndClouds focus={focus} />
-      <FoliageField focus={focus} />
-    </>
+  const hemisphereRef = useRef<THREE.HemisphereLight>(null);
+  const directionalRef = useRef<THREE.DirectionalLight>(null);
+  const sunGroupRef = useRef<THREE.Group>(null);
+  const sunPointLightRef = useRef<THREE.PointLight>(null);
+  const cloudGroupRef = useRef<THREE.Group>(null);
+  const sunMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#fff1a6' }), []);
+  const cloudMaterial = useMemo(
+    () => new THREE.MeshStandardMaterial({
+      color: new THREE.Color('#dff8ff'),
+      transparent: true,
+      opacity: 0.32,
+      depthWrite: false,
+    }),
+    [],
   );
-}
+  const { scene } = useThree();
 
-function SunAndClouds({ focus }: WorldEnvironmentProps) {
-  const cloudRef = useRef<THREE.Group>(null);
+  useFrame(({ clock }, delta) => {
+    const palette = computeDayPhase(clock.elapsedTime * 1_000);
 
-  useFrame((_, delta) => {
-    if (cloudRef.current) {
-      cloudRef.current.rotation.y += delta * 0.012;
+    if (hemisphereRef.current) {
+      hemisphereRef.current.color.set(palette.hemisphereSky);
+      hemisphereRef.current.groundColor.set(palette.hemisphereGround);
+      hemisphereRef.current.intensity = palette.hemisphereIntensity;
+    }
+
+    if (directionalRef.current) {
+      directionalRef.current.position.set(
+        focus.x + palette.sunDir.x * SUN_DISTANCE,
+        palette.sunDir.y * SUN_DISTANCE,
+        focus.z + palette.sunDir.z * SUN_DISTANCE,
+      );
+      directionalRef.current.color.set(palette.sunColor);
+      directionalRef.current.intensity = palette.sunIntensity;
+    }
+
+    if (sunGroupRef.current) {
+      sunGroupRef.current.position.set(
+        focus.x + palette.sunDir.x * SUN_DISTANCE,
+        palette.sunDir.y * SUN_DISTANCE,
+        focus.z + palette.sunDir.z * SUN_DISTANCE,
+      );
+      sunGroupRef.current.visible = palette.sunDir.y > -0.05;
+    }
+
+    if (sunPointLightRef.current) {
+      sunPointLightRef.current.color.set(palette.sunColor);
+      sunPointLightRef.current.intensity = Math.max(0, palette.sunDir.y) * 2.2;
+    }
+
+    sunMaterial.color.set(palette.sunColor);
+    cloudMaterial.color.set(palette.cloudColor);
+    cloudMaterial.opacity = palette.cloudOpacity;
+
+    if (cloudGroupRef.current) {
+      cloudGroupRef.current.rotation.y += delta * 0.012;
+      cloudGroupRef.current.position.set(focus.x, 180, focus.z);
+    }
+
+    if (scene.background instanceof THREE.Color) {
+      scene.background.set(palette.backgroundColor);
+    }
+    if (scene.fog instanceof THREE.Fog) {
+      scene.fog.color.set(palette.fogColor);
     }
   });
 
   return (
-    <group position={[focus.x, 0, focus.z]}>
-      <mesh position={[340, 520, -420]}>
-        <sphereGeometry args={[34, 24, 16]} />
-        <meshBasicMaterial color="#fff1a6" />
-      </mesh>
-      <pointLight position={[340, 520, -420]} color="#ffe7a3" intensity={2.2} distance={1_400} />
-      <group ref={cloudRef} position={[0, 180, 0]}>
+    <>
+      <hemisphereLight ref={hemisphereRef} args={['#ccecff', '#21402d', 0.82]} />
+      <directionalLight
+        ref={directionalRef}
+        position={[focus.x + 240, 420, focus.z + 180]}
+        intensity={1.55}
+        castShadow
+      />
+      <group ref={sunGroupRef}>
+        <mesh material={sunMaterial}>
+          <sphereGeometry args={[34, 24, 16]} />
+        </mesh>
+        <pointLight ref={sunPointLightRef} color="#ffe7a3" intensity={2.2} distance={1_400} />
+      </group>
+      <group ref={cloudGroupRef}>
         {CLOUDS.map((cloud) => (
-          <mesh key={cloud.id} position={cloud.position} scale={cloud.scale}>
+          <mesh key={cloud.id} position={cloud.position} scale={cloud.scale} material={cloudMaterial}>
             <sphereGeometry args={[1, 12, 8]} />
-            <meshStandardMaterial color="#dff8ff" transparent opacity={0.32} depthWrite={false} />
           </mesh>
         ))}
       </group>
-    </group>
+      <FoliageField focus={focus} />
+    </>
   );
 }
 
