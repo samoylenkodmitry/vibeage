@@ -340,11 +340,21 @@ function SmoothedEntityGroup({
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
   const targetRef = useRef(new THREE.Vector3());
-  const lastPosRef = useRef({ x: position.x, z: position.z });
+  const lastPosRef = useRef({ x: position.x, y: position.y, z: position.z });
+  const lastVelRef = useRef({ x: velocity?.x ?? 0, z: velocity?.z ?? 0 });
   const lastSnapTimeRef = useRef(performance.now());
 
-  if (lastPosRef.current.x !== position.x || lastPosRef.current.z !== position.z) {
-    lastPosRef.current = { x: position.x, z: position.z };
+  const vxNow = velocity?.x ?? 0;
+  const vzNow = velocity?.z ?? 0;
+  if (
+    lastPosRef.current.x !== position.x ||
+    lastPosRef.current.y !== position.y ||
+    lastPosRef.current.z !== position.z ||
+    lastVelRef.current.x !== vxNow ||
+    lastVelRef.current.z !== vzNow
+  ) {
+    lastPosRef.current = { x: position.x, y: position.y, z: position.z };
+    lastVelRef.current = { x: vxNow, z: vzNow };
     lastSnapTimeRef.current = performance.now();
   }
 
