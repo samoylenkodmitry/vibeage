@@ -1,4 +1,4 @@
-import { useMemo, type ReactElement } from 'react';
+import { type ReactElement } from 'react';
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
 import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/content/worldFeatures';
 import type { PlayerEntity } from '../gameTypes';
@@ -8,9 +8,11 @@ type MapPanelProps = {
 };
 
 const VIEW_PADDING = 0.08;
+const WORLD_BOUNDS = computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS);
+const TICK_SPACING = chooseTickSpacing(WORLD_BOUNDS);
 
 export function MapPanel({ player }: MapPanelProps) {
-  const bounds = useMemo(() => computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS), []);
+  const bounds = WORLD_BOUNDS;
   const px = player?.position.x ?? 0;
   const pz = player?.position.z ?? 0;
   const yaw = player?.rotation?.y ?? 0;
@@ -18,7 +20,7 @@ export function MapPanel({ player }: MapPanelProps) {
     x: Math.sin(yaw),
     z: Math.cos(yaw),
   };
-  const tickSpacing = chooseTickSpacing(bounds);
+  const tickSpacing = TICK_SPACING;
 
   return (
     <section className="map-panel" aria-label="World map">

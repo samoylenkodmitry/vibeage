@@ -12,9 +12,13 @@ import type { Vec3D } from '../../../packages/protocol/messages';
 
 type TravelLaneSegment = ReturnType<typeof getTravelLaneSegments>[number];
 
+const ALL_TRAVEL_LANE_SEGMENTS = getTravelLaneSegments();
+const ROAD_VISIBLE_RADIUS = 520;
+const ROAD_SLAB_STEP = 10;
+
 export function WorldFeatures({ focus }: { focus: Vec3D }) {
   const visibleFeatures = useMemo(() => ({
-    lanes: getTravelLaneSegments().filter((segment) => isSegmentNearFocus(segment, focus)),
+    lanes: ALL_TRAVEL_LANE_SEGMENTS.filter((segment) => isSegmentNearFocus(segment, focus)),
     landmarks: WORLD_LANDMARKS.filter((landmark) => isLandmarkNearFocus(landmark, focus)),
   }), [focus.x, focus.z]);
 
@@ -24,6 +28,7 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
         <TravelLaneMesh
           key={`${segment.lane.id}:${segment.from.x}:${segment.from.z}`}
           segment={segment}
+          focus={focus}
         />
       ))}
       {visibleFeatures.landmarks.map((landmark) => (
@@ -33,11 +38,12 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
   );
 }
 
-const ROAD_SUBDIVIDE_STEP = 8;
-
-function TravelLaneMesh({ segment }: { segment: TravelLaneSegment }) {
+function TravelLaneMesh({ segment, focus }: { segment: TravelLaneSegment; focus: Vec3D }) {
   const color = getLaneColor(segment.lane);
-  const slabs = useMemo(() => buildLaneSlabs(segment), [segment]);
+  const slabs = useMemo(
+    () => buildVisibleLaneSlabs(segment, focus),
+    [segment, focus.x, focus.z],
+  );
 
   return (
     <group>
@@ -66,25 +72,30 @@ function TravelLaneMesh({ segment }: { segment: TravelLaneSegment }) {
   );
 }
 
-function buildLaneSlabs(segment: TravelLaneSegment): Array<{
-  x: number;
-  y: number;
-  z: number;
-  rotY: number;
-  length: number;
-}> {
+function buildVisibleLaneSlabs(
+  segment: TravelLaneSegment,
+  focus: Vec3D,
+): Array<{ x: number; y: number; z: number; rotY: number; length: number }> {
   const dx = segment.to.x - segment.from.x;
   const dz = segment.to.z - segment.from.z;
   const length = Math.hypot(dx, dz);
   if (length < 0.01) {
     return [];
   }
-  const steps = Math.max(1, Math.ceil(length / ROAD_SUBDIVIDE_STEP));
-  const stepLength = length / steps;
+  const tFocus = ((focus.x - segment.from.x) * dx + (focus.z - segment.from.z) * dz) / (length * length);
+  const tRadius = ROAD_VISIBLE_RADIUS / length;
+  const tMin = Math.max(0, tFocus - tRadius);
+  const tMax = Math.min(1, tFocus + tRadius);
+  if (tMax <= tMin) {
+    return [];
+  }
+  const visibleLength = (tMax - tMin) * length;
+  const steps = Math.max(1, Math.ceil(visibleLength / ROAD_SLAB_STEP));
+  const stepLength = visibleLength / steps;
   const rotY = Math.atan2(dx, dz);
   const slabs: Array<{ x: number; y: number; z: number; rotY: number; length: number }> = [];
   for (let i = 0; i < steps; i += 1) {
-    const t = (i + 0.5) / steps;
+    const t = tMin + ((i + 0.5) / steps) * (tMax - tMin);
     const x = segment.from.x + dx * t;
     const z = segment.from.z + dz * t;
     const terrain = sampleTerrain(x, z);
