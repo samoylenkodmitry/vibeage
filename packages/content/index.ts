@@ -1,3 +1,4 @@
+export * from './encounters.js';
 export * from './items.js';
 export * from './lootTables.js';
 export * from './starterLootTables.js';
@@ -5,5 +6,6 @@ export * from './classes.js';
 export * from './skills.js';
 export * from './verticalSlice.js';
 export * from './world.js';
+export * from './worldFeatures.js';
 export * from './zoneSpawnBudget.js';
 export * from './zones.js';

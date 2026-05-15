@@ -21,6 +21,7 @@ for (const viewport of HUD_VIEWPORTS) {
       panel("Target", page.locator(".hud-target")),
       panel("Starter progress", page.locator(".starter-progress")),
       panel("Movement", page.locator(".movement-panel")),
+      panel("Navigation", page.locator(".navigation-panel")),
       panel("Skills", page.locator(".skill-bar")),
     ];
 

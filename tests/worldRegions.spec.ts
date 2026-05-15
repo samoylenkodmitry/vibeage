@@ -5,10 +5,12 @@ import { createTransientPlayer } from '../server/playerFactory';
 import {
   createServerOwnedRegions,
   findActiveRegionIdAtPosition,
+  findRegionIdAtPosition,
   getPlayerStreamRegionIds,
   getWorldRegionStats,
   refreshWorldRegionRuntime,
 } from '../server/world/regions';
+import { refreshServerOwnedRegionActivation } from '../server/world/regionActivation';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 
 describe('server-owned world regions', () => {
@@ -74,7 +76,37 @@ describe('server-owned world regions', () => {
     });
 
     expect(findActiveRegionIdAtPosition(regions, { x: 31 * 20_000, y: 0, z: 9 * 20_000 })).toBe('zone-319');
+    expect(findRegionIdAtPosition(regions, { x: 31 * 20_000, y: 0, z: 9 * 20_000 })).toBe('zone-319');
     expect(findActiveRegionIdAtPosition(regions, { x: 810_000, y: 0, z: 0 })).toBeNull();
+  });
+
+  test('dynamically activates populated frontier regions within the server budget', () => {
+    const state = createGameState();
+    const player = createTransientPlayer('socket-1', 'FarTraveler');
+    player.position = { x: 200, y: 0.5, z: 0 };
+    state.players[player.id] = player;
+
+    const regions = createServerOwnedRegions(makeZoneManager(['zone-a', 'zone-b', 'zone-c']), {
+      maxActiveZones: 1,
+      maxEnemiesPerZone: 4,
+    });
+
+    const activeRegionIds = refreshServerOwnedRegionActivation(state, regions, {
+      maxActiveZones: 2,
+      anchorRegionId: 'zone-a',
+      frontierNeighborCount: 1,
+      frontierMargin: 20,
+    });
+    refreshWorldRegionRuntime(state, regions);
+
+    expect(activeRegionIds).toEqual(['zone-c', 'zone-b']);
+    expect(regions.map((region) => [region.id, region.active])).toEqual([
+      ['zone-a', false],
+      ['zone-b', true],
+      ['zone-c', true],
+    ]);
+    expect(state.zones.activeZoneIds).toEqual(['zone-b', 'zone-c']);
+    expect(state.zones.playerZoneIds[player.id]).toBe('zone-c');
   });
 });
 

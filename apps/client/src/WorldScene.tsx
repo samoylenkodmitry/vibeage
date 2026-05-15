@@ -6,6 +6,7 @@ import { type VecXZ } from '../../../packages/protocol/messages';
 import type { GameClientState } from './gameTypes';
 import { WorldEventVfx } from './SceneEventVfx';
 import { WorldEnvironment } from './WorldEnvironment';
+import { WorldFeatures } from './WorldFeatures';
 import { ZoneLandmarks } from './ZoneLandmarks';
 import { CameraRig } from './CameraRig';
 import {
@@ -40,6 +41,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
       <WorldEnvironment focus={focus} />
       <WorldGround focus={focus} onMove={onMove} />
+      <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
       {Object.values(state.players).map((player) => (

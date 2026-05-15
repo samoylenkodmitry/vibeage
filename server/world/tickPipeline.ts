@@ -14,9 +14,14 @@ import { collectDeltas } from '../movement/snapshotDeltas.js';
 import { advanceAll } from '../movement/worldMovement.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import {
+  isEnemyInActiveRegion,
   refreshWorldRegionRuntime,
   type ServerWorldRegion,
 } from './regions.js';
+import {
+  refreshServerOwnedRegionActivation,
+  type WorldRegionActivationPolicy,
+} from './regionActivation.js';
 
 const WORLD_GAUGE_INTERVAL_TICKS = 30;
 
@@ -27,6 +32,7 @@ export type WorldTickRunnerOptions = {
   tickMs: number;
   snapHz: number;
   regions?: readonly ServerWorldRegion[];
+  regionActivationPolicy?: WorldRegionActivationPolicy;
 };
 
 export type WorldTickRunner = {
@@ -80,6 +86,7 @@ function runWorldTick(input: WorldTickRunnerOptions & {
 function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number }): void {
   advanceAll(input.state, input.spatial, input.tickMs, input.now);
   if (input.regions) {
+    refreshServerOwnedRegionActivation(input.state, input.regions, input.regionActivationPolicy);
     refreshWorldRegionRuntime(input.state, input.regions);
   }
 }
@@ -91,7 +98,7 @@ function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
     }
 
     const enemy = input.state.enemies[enemyId];
-    if (enemy.isAlive) {
+    if (enemy.isAlive && isEnemyInActiveRegion(input.state, enemyId)) {
       updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000);
     }
   }

@@ -49,7 +49,7 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Keep lookup behavior identical for overlapping/nearest regions.
    - Add a regression with hundreds of synthetic regions.
 
-5. [ ] Add dynamic server-owned activation.
+5. [x] Add dynamic server-owned activation.
    - Activation remains server policy, not player-owned.
    - Activate zones by server budget, world events, population pressure, and neighboring frontier rules.
    - Keep inactive zones persistent but cheap: no per-tick enemy AI, no broadcasts, no respawn churn.
@@ -61,17 +61,17 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Keep starter content near origin and safe.
    - Keep high-level regions far away without causing startup spawn explosions.
 
-2. [ ] Add zone travel lanes and landmarks.
+2. [x] Add zone travel lanes and landmarks.
    - Define roads, passes, rivers, ruins, and horizon landmarks as content.
    - The server should understand safe lanes for future encounters and pathing.
    - The client should render readable silhouettes so walking has orientation.
 
-3. [ ] Add biome-driven encounter tables.
+3. [x] Add biome-driven encounter tables.
    - Split spawn tables by biome and danger tier.
    - Stop duplicating mob mixes directly inside every large zone where a shared biome table works.
 
 4. [ ] Add world traversal tooling.
-   - Debug overlay should show coordinates, current zone, streamed zones, and estimated travel time.
+   - [x] HUD should show coordinates, current zone, streamed zones, and estimated travel time.
    - Add admin/debug teleport only for local/dev mode, never for regular production play.
 
 ### P1: Living Fantasy Client View
@@ -87,7 +87,7 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Trees/grass/rocks render around the player from deterministic world coordinates.
    - Use instancing and bounded counts; never render the whole continent.
 
-4. [ ] Add richer zone-specific visuals.
+4. [x] Add richer zone-specific visuals.
    - Distinct flora, rock, ruin, water, snow, crystal, and volcanic accents per biome.
    - Keep assets procedural or small until an art pipeline exists.
 
@@ -105,7 +105,7 @@ Production target remains the VPS. `main` is production-affecting and deployment
    - Tap-to-move stays primary.
    - Add press/drag movement or a virtual stick only if it does not fight camera gestures.
 
-3. [ ] Add mobile camera mode.
+3. [x] Add mobile camera mode.
    - One-finger movement selection and two-finger/or explicit camera controls should not conflict.
    - Add Playwright or unit coverage for touch intent routing.
 
@@ -143,6 +143,11 @@ This branch starts with the highest-leverage foundation:
 - [x] local procedural terrain rendering
 - [x] fantasy sky/sun/fog/foliage pass
 - [x] mobile inventory visibility
+- [x] dynamic server-owned region activation
+- [x] shared roads, rivers, passes, and landmark content
+- [x] biome encounter tables for huge zones
+- [x] traversal HUD
+- [x] two-finger mobile camera mode
 
 ## Quality Gate
 

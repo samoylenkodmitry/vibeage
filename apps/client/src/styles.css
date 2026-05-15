@@ -97,6 +97,7 @@ input {
 
 .app-shell canvas {
   display: block;
+  touch-action: none;
 }
 
 .hud {
@@ -166,6 +167,26 @@ input {
 .movement-panel strong {
   color: #fef3c7;
   font-size: 13px;
+  white-space: nowrap;
+}
+
+.navigation-panel {
+  top: 204px;
+  left: 18px;
+  display: grid;
+  width: min(300px, calc(100vw - 36px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.navigation-panel .metric {
+  min-width: 0;
+}
+
+.navigation-panel .metric strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -593,6 +614,13 @@ input {
 
   .movement-panel {
     top: 300px;
+    right: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .navigation-panel {
+    top: 350px;
     right: 12px;
     left: 12px;
     width: calc(100vw - 24px);

@@ -6,8 +6,10 @@ import {
   CAMERA_MAX_PITCH,
   CAMERA_MIN_PITCH,
   getCameraOrbitPosition,
+  getTouchCentroid,
   hasMeaningfulCameraFocusDelta,
   smoothingAlpha,
+  shouldStartCameraDrag,
   writeCameraOrbitPosition,
 } from '../apps/client/src/cameraRig';
 
@@ -43,5 +45,17 @@ describe('client camera rig helpers', () => {
 
     expect(hasMeaningfulCameraFocusDelta(current, new THREE.Vector3(1.01, 2, 3))).toBe(false);
     expect(hasMeaningfulCameraFocusDelta(current, new THREE.Vector3(1.1, 2, 3))).toBe(true);
+  });
+
+  test('routes camera drag to right mouse or two-finger touch', () => {
+    expect(shouldStartCameraDrag({ button: 2, pointerType: 'mouse' }, 0)).toBe(true);
+    expect(shouldStartCameraDrag({ button: 0, pointerType: 'mouse' }, 0)).toBe(false);
+    expect(shouldStartCameraDrag({ button: 0, pointerType: 'touch' }, 1)).toBe(false);
+    expect(shouldStartCameraDrag({ button: 0, pointerType: 'touch' }, 2)).toBe(true);
+  });
+
+  test('uses a touch centroid only after two active touches', () => {
+    expect(getTouchCentroid([{ x: 10, y: 20 }])).toBeNull();
+    expect(getTouchCentroid([{ x: 10, y: 20 }, { x: 30, y: 60 }])).toEqual({ x: 20, y: 40 });
   });
 });

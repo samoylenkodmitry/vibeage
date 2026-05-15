@@ -311,6 +311,19 @@ export function findActiveRegionIdAtPosition(
   return null;
 }
 
+export function findRegionIdAtPosition(
+  regions: readonly ServerWorldRegion[],
+  position: Vec3D,
+): string | null {
+  for (const region of getRegionCandidatesAtPosition(regions, position)) {
+    if (isInsideRegion(region, position)) {
+      return region.id;
+    }
+  }
+
+  return null;
+}
+
 function isInsideRegion(region: ServerWorldRegion, position: Vec3D): boolean {
   const dx = position.x - region.center.x;
   const dz = position.z - region.center.z;

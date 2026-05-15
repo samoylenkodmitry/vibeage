@@ -15,6 +15,7 @@ type FoliageInstance = {
   z: number;
   scale: number;
   rotation: number;
+  color: string;
 };
 
 const matrix = new THREE.Matrix4();
@@ -67,50 +68,35 @@ function FoliageField({ focus }: WorldEnvironmentProps) {
 
   return (
     <>
-      <InstancedFoliage
-        instances={instances.trees}
-        color="#3f9f63"
-        geometry="cone"
-        radius={1.4}
-        height={5.8}
-        yOffset={2.9}
-      />
+      <InstancedFoliage instances={instances.trees} geometry="cone" radius={1.4} height={5.8} yOffset={2.9} />
       <InstancedFoliage
         instances={instances.trunks}
-        color="#79553c"
         geometry="cylinder"
         radius={0.32}
         height={2.4}
         yOffset={1.2}
       />
-      <InstancedFoliage
-        instances={instances.grass}
-        color="#75d483"
-        geometry="cone"
-        radius={0.22}
-        height={0.9}
-        yOffset={0.45}
-      />
+      <InstancedFoliage instances={instances.grass} geometry="cone" radius={0.22} height={0.9} yOffset={0.45} />
+      <InstancedFoliage instances={instances.accents} geometry="dodecahedron" radius={0.72} height={1} yOffset={0.5} />
     </>
   );
 }
 
 function InstancedFoliage({
   instances,
-  color,
   geometry,
   radius,
   height,
   yOffset,
 }: {
   instances: FoliageInstance[];
-  color: string;
-  geometry: 'cone' | 'cylinder';
+  geometry: 'cone' | 'cylinder' | 'dodecahedron';
   radius: number;
   height: number;
   yOffset: number;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  const instanceColor = useMemo(() => new THREE.Color(), []);
 
   useLayoutEffect(() => {
     const mesh = ref.current;
@@ -125,16 +111,18 @@ function InstancedFoliage({
       scale.set(instance.scale, instance.scale, instance.scale);
       matrix.compose(position, quaternion, scale);
       mesh.setMatrixAt(index, matrix);
+      mesh.setColorAt(index, instanceColor.set(instance.color));
     });
     mesh.instanceMatrix.needsUpdate = true;
-  }, [instances, yOffset]);
+    if (mesh.instanceColor) {
+      mesh.instanceColor.needsUpdate = true;
+    }
+  }, [instanceColor, instances, yOffset]);
 
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, Math.max(1, instances.length)]} castShadow receiveShadow>
-      {geometry === 'cone'
-        ? <coneGeometry args={[radius, height, 5]} />
-        : <cylinderGeometry args={[radius, radius * 0.72, height, 6]} />}
-      <meshStandardMaterial color={color} roughness={0.88} />
+      {getFoliageGeometry(geometry, radius, height)}
+      <meshStandardMaterial roughness={0.88} vertexColors />
     </instancedMesh>
   );
 }
@@ -143,6 +131,7 @@ function getFoliageInstances(focusX: number, focusZ: number): {
   trees: FoliageInstance[];
   trunks: FoliageInstance[];
   grass: FoliageInstance[];
+  accents: FoliageInstance[];
 } {
   const cellSize = WORLD_SETTINGS.foliageCellSize;
   const radius = WORLD_SETTINGS.visibleFoliageCellRadius;
@@ -150,6 +139,7 @@ function getFoliageInstances(focusX: number, focusZ: number): {
   const centerZ = Math.floor(focusZ / cellSize);
   const trees: FoliageInstance[] = [];
   const grass: FoliageInstance[] = [];
+  const accents: FoliageInstance[] = [];
 
   for (let dz = -radius; dz <= radius; dz += 1) {
     for (let dx = -radius; dx <= radius; dx += 1) {
@@ -168,6 +158,7 @@ function getFoliageInstances(focusX: number, focusZ: number): {
           z,
           scale: 0.72 + random() * 0.92,
           rotation: random() * Math.PI * 2,
+          color: sample.foliageColor,
         });
       }
 
@@ -178,12 +169,45 @@ function getFoliageInstances(focusX: number, focusZ: number): {
           z: z + (random() - 0.5) * cellSize * 0.5,
           scale: 0.7 + random() * 0.8,
           rotation: random() * Math.PI * 2,
+          color: sample.foliageColor,
+        });
+      }
+
+      if (random() < sample.roughness * 0.08 * Math.max(0.24, distanceFalloff)) {
+        accents.push({
+          x: x + (random() - 0.5) * cellSize * 0.34,
+          y: sample.height,
+          z: z + (random() - 0.5) * cellSize * 0.34,
+          scale: 0.45 + random() * 0.9,
+          rotation: random() * Math.PI * 2,
+          color: sample.accentColor,
         });
       }
     }
   }
 
-  return { trees, trunks: trees, grass };
+  return {
+    trees,
+    trunks: trees.map((tree) => ({ ...tree, color: '#76543a' })),
+    grass,
+    accents,
+  };
+}
+
+function getFoliageGeometry(
+  geometry: 'cone' | 'cylinder' | 'dodecahedron',
+  radius: number,
+  height: number,
+) {
+  if (geometry === 'cone') {
+    return <coneGeometry args={[radius, height, 5]} />;
+  }
+
+  if (geometry === 'cylinder') {
+    return <cylinderGeometry args={[radius, radius * 0.72, height, 6]} />;
+  }
+
+  return <dodecahedronGeometry args={[radius, 0]} />;
 }
 
 function seededRandom(cellX: number, cellZ: number): () => number {

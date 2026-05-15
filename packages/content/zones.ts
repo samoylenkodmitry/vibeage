@@ -1,3 +1,4 @@
+import { getBiomeEncounterMobs } from './encounters.js';
 import { randomAnnulusDistance } from '../sim/geometry.js';
 import { getTerrainHeight } from './terrain.js';
 
@@ -319,11 +320,7 @@ export const GAME_ZONES: Zone[] = [
         spawnExclusionRadius: 2_000,
         minLevel: 8,
         maxLevel: 18,
-        mobs: [
-            { type: 'wolf', weight: 35, minCount: 3, maxCount: 5 },
-            { type: 'meadow_sprite', weight: 35, minCount: 3, maxCount: 5 },
-            { type: 'ancient_treant', weight: 30, minCount: 1, maxCount: 3 }
-        ]
+        mobs: getBiomeEncounterMobs('emerald_grassland')
     },
     {
         id: 'silverwood_ocean',
@@ -334,11 +331,7 @@ export const GAME_ZONES: Zone[] = [
         spawnExclusionRadius: 2_500,
         minLevel: 14,
         maxLevel: 24,
-        mobs: [
-            { type: 'spirit_guardian', weight: 35, minCount: 2, maxCount: 4 },
-            { type: 'ethereal_sprite', weight: 40, minCount: 3, maxCount: 6 },
-            { type: 'ancient_treant', weight: 25, minCount: 1, maxCount: 3 }
-        ]
+        mobs: getBiomeEncounterMobs('silverwood_forest')
     },
     {
         id: 'sunspire_steppe',
@@ -349,11 +342,7 @@ export const GAME_ZONES: Zone[] = [
         spawnExclusionRadius: 3_000,
         minLevel: 18,
         maxLevel: 28,
-        mobs: [
-            { type: 'fire_elemental', weight: 40, minCount: 3, maxCount: 5 },
-            { type: 'lava_golem', weight: 30, minCount: 2, maxCount: 4 },
-            { type: 'drake', weight: 30, minCount: 1, maxCount: 2 }
-        ]
+        mobs: getBiomeEncounterMobs('sunspire_steppe')
     },
     {
         id: 'moonfall_highlands',
@@ -364,11 +353,7 @@ export const GAME_ZONES: Zone[] = [
         spawnExclusionRadius: 3_000,
         minLevel: 20,
         maxLevel: 32,
-        mobs: [
-            { type: 'frost_wolf', weight: 40, minCount: 3, maxCount: 5 },
-            { type: 'ice_giant', weight: 25, minCount: 1, maxCount: 3 },
-            { type: 'star_weaver', weight: 35, minCount: 2, maxCount: 4 }
-        ]
+        mobs: getBiomeEncounterMobs('moonfall_highland')
     },
     {
         id: 'abyssal_march',
@@ -379,11 +364,7 @@ export const GAME_ZONES: Zone[] = [
         spawnExclusionRadius: 2_500,
         minLevel: 24,
         maxLevel: 36,
-        mobs: [
-            { type: 'tentacle_horror', weight: 40, minCount: 2, maxCount: 4 },
-            { type: 'void_spawner', weight: 35, minCount: 2, maxCount: 4 },
-            { type: 'deep_leviathan', weight: 25, minCount: 1, maxCount: 2 }
-        ]
+        mobs: getBiomeEncounterMobs('abyssal_wetland')
     },
     {
         id: 'chronoglass_desert',
@@ -394,10 +375,6 @@ export const GAME_ZONES: Zone[] = [
         spawnExclusionRadius: 2_500,
         minLevel: 28,
         maxLevel: 40,
-        mobs: [
-            { type: 'time_wraith', weight: 35, minCount: 2, maxCount: 4 },
-            { type: 'chrono_stalker', weight: 40, minCount: 2, maxCount: 5 },
-            { type: 'temporal_overlord', weight: 25, minCount: 1, maxCount: 2 }
-        ]
+        mobs: getBiomeEncounterMobs('chronoglass_desert')
     }
 ];
