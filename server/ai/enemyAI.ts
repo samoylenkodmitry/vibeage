@@ -26,7 +26,7 @@ export function updateEnemyAI(
   });
 
   for (const event of result.events) {
-    emitEnemyAIEvent(outbound, event);
+    emitEnemyAIEvent(outbound, event, gameState);
   }
 
   if (result.enemyUpdate) {
@@ -34,7 +34,7 @@ export function updateEnemyAI(
   }
 }
 
-function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): void {
+function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent, gameState: EntityState): void {
   if (event.type === 'log') {
     debug(LOG_CATEGORIES.ENEMY, event.message);
     return;
@@ -58,6 +58,32 @@ function emitEnemyAIEvent(outbound: OutboundEventSink, event: EnemyAIEvent): voi
     return;
   }
 
+  if (event.type === 'packAggro') {
+    propagatePackAggro(gameState, outbound, event.packId, event.targetId, event.sourceEnemyId);
+    return;
+  }
+
   debug(LOG_CATEGORIES.ENEMY, event.message);
   emitPlayerUpdated(outbound, event.update);
+}
+
+function propagatePackAggro(
+  gameState: EntityState,
+  outbound: OutboundEventSink,
+  packId: string,
+  targetId: string,
+  sourceEnemyId: string,
+): void {
+  for (const enemy of Object.values(gameState.enemies)) {
+    if (enemy.packId !== packId || enemy.id === sourceEnemyId || !enemy.isAlive) {
+      continue;
+    }
+    if (enemy.aiState !== 'idle' && enemy.aiState !== 'patrolling') {
+      continue;
+    }
+    enemy.targetId = targetId;
+    enemy.aiState = 'chasing';
+    enemy.patrolTarget = undefined;
+    emitEnemyUpdated(outbound, { id: enemy.id, targetId: enemy.targetId, aiState: enemy.aiState });
+  }
 }

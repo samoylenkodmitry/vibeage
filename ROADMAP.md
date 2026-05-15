@@ -235,7 +235,7 @@ Live items requested after the v5 deploy.
 
 3. [x] **More enemy species** — add at least 6 distinct mob types (e.g., wolf, bandit, ghoul, treant, elemental, drake) with art and stats, bound to biome / level band so each zone reads differently.
 
-4. [ ] **Pack formations + mini-bosses + loot variety** — some species spawn in small groups that share aggro, each zone has one named mini-boss with richer loot, and every species owns its own loot table.
+4. [x] **Pack formations + mini-bosses + loot variety** — some species spawn in small groups that share aggro, each zone has one named mini-boss with richer loot, and every species owns its own loot table.
 
 5. [ ] **Day / night spawn variation** — different mobs active in different timeOfDay phases.
 
