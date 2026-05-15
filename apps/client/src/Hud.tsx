@@ -64,7 +64,9 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
   const now = useNow(100);
-  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(true);
+  const [questOpen, setQuestOpen] = useState(false);
+  const [bagOpen, setBagOpen] = useState(false);
 
   useSkillHotkeys(player, onCastSkill);
 
@@ -74,10 +76,6 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
         <strong>VibeAge</strong>
         <span className={`status-dot status-${state.connectionState}`} />
         <span>{state.message}</span>
-        <ControlsToggle
-          collapsed={controlsCollapsed}
-          onToggle={() => setControlsCollapsed((prev) => !prev)}
-        />
         <button type="button" className="ghost-button" onClick={onDisconnect}>
           Disconnect
         </button>
@@ -88,23 +86,31 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
         <Metric label="Regions" value={regionStatus} />
         <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
       </section>
-      <PlayerPanel player={player} />
+      {statsOpen && <PlayerPanel player={player} />}
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
       <NavigationPanel state={state} player={player} />
-      {!controlsCollapsed && (
-        <>
-          <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
-          <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
-          <CastingPanel player={player} />
-          <SkillBar
-            player={player}
-            now={now}
-            hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
-            onCastSkill={onCastSkill}
-          />
-        </>
+      {questOpen && (
+        <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       )}
+      {bagOpen && (
+        <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
+      )}
+      <CastingPanel player={player} />
+      <SkillBar
+        player={player}
+        now={now}
+        hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
+        onCastSkill={onCastSkill}
+      />
+      <PanelToggleStrip
+        statsOpen={statsOpen}
+        questOpen={questOpen}
+        bagOpen={bagOpen}
+        onToggleStats={() => setStatsOpen((prev) => !prev)}
+        onToggleQuest={() => setQuestOpen((prev) => !prev)}
+        onToggleBag={() => setBagOpen((prev) => !prev)}
+      />
       {state.combatLog.length > 0 && (
         <section className="combat-log" aria-label="Combat log">
           {state.combatLog.map((line) => (
@@ -117,21 +123,47 @@ export function GameHud({ state, onDisconnect, onCastSkill, onLearnSkill, onUseI
   );
 }
 
-function ControlsToggle({
-  collapsed,
-  onToggle,
+function PanelToggleStrip({
+  statsOpen,
+  questOpen,
+  bagOpen,
+  onToggleStats,
+  onToggleQuest,
+  onToggleBag,
 }: {
-  collapsed: boolean;
-  onToggle: () => void;
+  statsOpen: boolean;
+  questOpen: boolean;
+  bagOpen: boolean;
+  onToggleStats: () => void;
+  onToggleQuest: () => void;
+  onToggleBag: () => void;
+}) {
+  return (
+    <aside className="panel-toggles" aria-label="Panel toggles">
+      <PanelToggleButton open={statsOpen} label="Stats" onClick={onToggleStats} />
+      <PanelToggleButton open={questOpen} label="Quest" onClick={onToggleQuest} />
+      <PanelToggleButton open={bagOpen} label="Bag" onClick={onToggleBag} />
+    </aside>
+  );
+}
+
+function PanelToggleButton({
+  open,
+  label,
+  onClick,
+}: {
+  open: boolean;
+  label: string;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      className={`controls-toggle${collapsed ? ' controls-toggle--collapsed' : ''}`}
-      aria-label={collapsed ? 'Show skills and inventory' : 'Hide skills and inventory'}
-      onClick={onToggle}
+      className={`panel-toggle${open ? ' panel-toggle--open' : ''}`}
+      aria-label={open ? `Hide ${label}` : `Show ${label}`}
+      onClick={onClick}
     >
-      {collapsed ? 'Show controls' : 'Hide controls'}
+      {label}
     </button>
   );
 }

@@ -34,25 +34,99 @@ export function PlayerMarker({
   const color = player.isAlive ? (isSelf ? '#75f5c8' : '#8bb5ff') : '#64748b';
   const height = isSelf ? 1.8 : 1.55;
   const groundY = getTerrainY(player.position.x, player.position.z);
+  const torsoHeight = height * 0.46;
+  const headRadius = height * 0.16;
 
   return (
     <SmoothedEntityGroup
-      position={{ x: player.position.x, y: groundY + height / 2, z: player.position.z }}
+      position={{ x: player.position.x, y: groundY, z: player.position.z }}
       rotationY={player.rotation?.y ?? 0}
       response={isSelf ? 16 : 10}
       presentationRef={presentationRef}
     >
-      <mesh castShadow>
-        <capsuleGeometry args={[0.48, height - 0.8, 8, 16]} />
-        <meshStandardMaterial color={color} roughness={0.48} metalness={0.12} />
+      <PlayerFigure
+        height={height}
+        torsoHeight={torsoHeight}
+        headRadius={headRadius}
+        color={color}
+        isSelf={isSelf}
+        isAlive={player.isAlive}
+      />
+    </SmoothedEntityGroup>
+  );
+}
+
+function PlayerFigure({
+  height,
+  torsoHeight,
+  headRadius,
+  color,
+  isSelf,
+  isAlive,
+}: {
+  height: number;
+  torsoHeight: number;
+  headRadius: number;
+  color: string;
+  isSelf: boolean;
+  isAlive: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const cloakColor = isSelf ? '#1f2937' : '#374151';
+  const skinColor = '#f5d9b8';
+  const trimColor = isSelf ? '#facc15' : '#94a3b8';
+  const torsoY = height * 0.45;
+  const cloakY = torsoY - torsoHeight * 0.18;
+  const headY = torsoY + torsoHeight * 0.5 + headRadius * 0.55;
+  const ringY = torsoY + torsoHeight * 0.55 + headRadius * 1.65;
+  const ankleY = 0.06;
+
+  useFrame(({ clock }) => {
+    const group = groupRef.current;
+    if (!group) {
+      return;
+    }
+    if (!isAlive) {
+      group.position.y = -torsoHeight * 0.4;
+      return;
+    }
+    const bob = Math.sin(clock.elapsedTime * 2.2) * 0.04;
+    group.position.y = bob;
+  });
+
+  return (
+    <group ref={groupRef}>
+      <mesh position={[-0.32, ankleY + 0.45, 0]} castShadow>
+        <capsuleGeometry args={[0.16, 0.42, 6, 10]} />
+        <meshStandardMaterial color={cloakColor} roughness={0.78} />
+      </mesh>
+      <mesh position={[0.32, ankleY + 0.45, 0]} castShadow>
+        <capsuleGeometry args={[0.16, 0.42, 6, 10]} />
+        <meshStandardMaterial color={cloakColor} roughness={0.78} />
+      </mesh>
+      <mesh position={[0, torsoY, 0]} castShadow>
+        <capsuleGeometry args={[0.4, torsoHeight, 8, 14]} />
+        <meshStandardMaterial color={color} roughness={0.5} metalness={0.16} />
+      </mesh>
+      <mesh position={[0, cloakY, -0.12]} castShadow>
+        <coneGeometry args={[0.78, torsoHeight * 1.05, 14, 1, true]} />
+        <meshStandardMaterial color={cloakColor} roughness={0.82} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, torsoY + torsoHeight * 0.46, 0]} castShadow>
+        <torusGeometry args={[0.46, 0.06, 8, 18]} />
+        <meshStandardMaterial color={trimColor} roughness={0.42} metalness={0.36} />
+      </mesh>
+      <mesh position={[0, headY, 0]} castShadow>
+        <sphereGeometry args={[headRadius, 18, 14]} />
+        <meshStandardMaterial color={skinColor} roughness={0.62} />
       </mesh>
       {isSelf && (
-        <mesh position={[0, height * 0.65, 0]}>
-          <torusGeometry args={[0.72, 0.035, 8, 36]} />
-          <meshStandardMaterial color="#facc15" emissive="#8a5f00" emissiveIntensity={0.5} />
+        <mesh position={[0, ringY, 0]}>
+          <torusGeometry args={[0.62, 0.04, 8, 36]} />
+          <meshStandardMaterial color="#facc15" emissive="#8a5f00" emissiveIntensity={0.55} />
         </mesh>
       )}
-    </SmoothedEntityGroup>
+    </group>
   );
 }
 
