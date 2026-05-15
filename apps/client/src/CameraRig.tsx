@@ -32,10 +32,9 @@ export function CameraRig({
 
   useFrame((_, delta) => {
     const presentationFocus = presentationFocusRef.current;
-    const fallbackY = getTerrainY(focus.x, focus.z) + 1.4;
     focusTargetRef.current.set(
       presentationFocus?.x ?? focus.x,
-      presentationFocus?.y ?? fallbackY,
+      presentationFocus?.y ?? (getTerrainY(focus.x, focus.z) + 1.4),
       presentationFocus?.z ?? focus.z,
     );
     if (hasMeaningfulCameraFocusDelta(focusRef.current, focusTargetRef.current)) {

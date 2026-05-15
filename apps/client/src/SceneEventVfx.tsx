@@ -51,7 +51,7 @@ function DamagePulseVfx({ event }: { event: VisualEvent }) {
     }
 
     if (flashRef.current) {
-      flashRef.current.position.y = event.position.y + 0.45 + progress * 0.55;
+      flashRef.current.position.y = 0.45 + progress * 0.55;
       (flashRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5 * fade;
     }
   });
@@ -62,7 +62,7 @@ function DamagePulseVfx({ event }: { event: VisualEvent }) {
         <ringGeometry args={[0.34, 0.52, 36]} />
         <meshBasicMaterial color="#fb7185" transparent opacity={0.74} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <mesh ref={flashRef} position={[0, event.position.y + 0.45, 0]}>
+      <mesh ref={flashRef} position={[0, 0.45, 0]}>
         <sphereGeometry args={[0.28, 12, 12]} />
         <meshBasicMaterial color="#fff7ad" transparent opacity={0.5} depthWrite={false} />
       </mesh>
@@ -74,6 +74,7 @@ function RecoveryVfx({ event }: { event: VisualEvent }) {
   const groupRef = useRef<THREE.Group>(null);
   const startedAtRef = useRef<number | null>(null);
   const color = event.kind === 'mana' ? '#60a5fa' : '#65f28f';
+  const baseY = getTerrainY(event.position.x, event.position.z) + 0.2;
 
   useFrame(({ clock }) => {
     if (startedAtRef.current === null) {
@@ -83,13 +84,13 @@ function RecoveryVfx({ event }: { event: VisualEvent }) {
     const age = Math.max(0, clock.elapsedTime - startedAtRef.current);
     const rise = Math.min(1, age / 1.4);
     if (groupRef.current) {
-      groupRef.current.position.y = event.position.y + 0.2 + rise * 0.8;
+      groupRef.current.position.y = baseY + rise * 0.8;
       groupRef.current.rotation.y += 0.018;
     }
   });
 
   return (
-    <group ref={groupRef} position={[event.position.x, event.position.y + 0.2, event.position.z]}>
+    <group ref={groupRef} position={[event.position.x, baseY, event.position.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.32, 0.56, 36]} />
         <meshBasicMaterial color={color} transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
@@ -121,7 +122,7 @@ function PetrifyFlashVfx({ position }: { position: Vec3 }) {
   });
 
   return (
-    <group ref={groupRef} position={[position.x, position.y + 0.7, position.z]}>
+    <group ref={groupRef} position={[position.x, getTerrainY(position.x, position.z) + 0.7, position.z]}>
       <mesh>
         <dodecahedronGeometry args={[0.62, 0]} />
         <meshStandardMaterial color="#a8a29e" emissive="#78716c" emissiveIntensity={0.48} roughness={0.72} />
