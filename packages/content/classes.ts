@@ -17,10 +17,8 @@ export interface ClassSkillTree {
     damageMultiplier: number;
     speedMultiplier: number;
   };
-  skillProgression: Record<SkillId, SkillRequirement>;
+  skillProgression: Partial<Record<SkillId, SkillRequirement>>;
 }
-
-type PartialSkillProgression = Partial<Record<SkillId, SkillRequirement>>;
 
 export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
   mage: {
@@ -32,14 +30,14 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 1.2,
       speedMultiplier: 0.9,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       fireball: { level: 1 },
       waterSplash: { level: 2, requiredSkills: ['fireball'] },
       iceBolt: { level: 3, requiredSkills: ['waterSplash'] },
       petrify: { level: 4, requiredSkills: ['iceBolt'] },
       smite: { level: 5, requiredSkills: ['fireball'] },
       dispel: { level: 6 },
-    }),
+    },
   },
   warrior: {
     className: 'warrior',
@@ -50,14 +48,14 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 1.1,
       speedMultiplier: 1.0,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       slash: { level: 1 },
       bash: { level: 3, requiredSkills: ['slash'] },
       taunt: { level: 4 },
       powerStrike: { level: 5, requiredSkills: ['slash'] },
       shieldWall: { level: 7 },
       fireball: { level: 6 },
-    }),
+    },
   },
   healer: {
     className: 'healer',
@@ -68,14 +66,14 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 0.8,
       speedMultiplier: 1.0,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       holyLight: { level: 1 },
       bless: { level: 3 },
       smite: { level: 4 },
       dispel: { level: 5 },
       waterSplash: { level: 2 },
       divineShield: { level: 7, requiredSkills: ['bless'] },
-    }),
+    },
   },
   ranger: {
     className: 'ranger',
@@ -86,14 +84,14 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 1.1,
       speedMultiplier: 1.2,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       arrowShot: { level: 1 },
       iceBolt: { level: 2 },
       poisonBlade: { level: 3 },
       volley: { level: 5, requiredSkills: ['arrowShot'] },
       evade: { level: 4 },
       rapidFire: { level: 7, requiredSkills: ['volley'] },
-    }),
+    },
   },
   knight: {
     className: 'knight',
@@ -104,7 +102,7 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 1.0,
       speedMultiplier: 0.95,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       slash: { level: 1 },
       taunt: { level: 2 },
       bash: { level: 3, requiredSkills: ['slash'] },
@@ -112,7 +110,7 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       powerStrike: { level: 5, requiredSkills: ['bash'] },
       smite: { level: 6 },
       divineShield: { level: 8, requiredSkills: ['shieldWall'] },
-    }),
+    },
   },
   paladin: {
     className: 'paladin',
@@ -123,7 +121,7 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 1.0,
       speedMultiplier: 1.0,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       slash: { level: 1 },
       holyLight: { level: 2 },
       smite: { level: 3, requiredSkills: ['slash'] },
@@ -131,7 +129,7 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       bash: { level: 5 },
       divineShield: { level: 7, requiredSkills: ['holyLight'] },
       dispel: { level: 6 },
-    }),
+    },
   },
   rogue: {
     className: 'rogue',
@@ -142,20 +140,16 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
       damageMultiplier: 1.25,
       speedMultiplier: 1.25,
     },
-    skillProgression: completeProgression({
+    skillProgression: {
       evade: { level: 1 },
       backstab: { level: 3 },
       poisonBlade: { level: 5, requiredSkills: ['backstab'] },
       slash: { level: 1 },
       iceBolt: { level: 4 },
       vanish: { level: 7, requiredSkills: ['evade'] },
-    }),
+    },
   },
 };
-
-function completeProgression(progression: PartialSkillProgression): Record<SkillId, SkillRequirement> {
-  return progression as Record<SkillId, SkillRequirement>;
-}
 
 export function canLearnSkill(
   skillId: SkillId,
