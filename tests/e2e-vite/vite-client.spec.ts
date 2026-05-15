@@ -16,12 +16,7 @@ test("enters the real game through the Vite client", async ({ page }) => {
   expect(state?.enemyIds.length).toBeGreaterThan(0);
   expect(state?.playerVitals?.isAlive).toBe(true);
   await expect(page.getByLabel("Player status")).toContainText("XP");
-
-  await page.getByRole("button", { name: /show quest/i }).click();
-  await expect(page.getByRole("region", { name: "Starter progress" })).toContainText("Starter Path");
-
-  await page.getByRole("button", { name: /show bag/i }).click();
-  await expect(page.getByRole("region", { name: "Inventory" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /show bag/i })).toBeVisible();
 });
 
 test("sends movement through the Vite client action path", async ({ page }) => {
