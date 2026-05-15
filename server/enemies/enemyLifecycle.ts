@@ -1,4 +1,5 @@
 import { getEnemyTemplate } from '../../packages/content/enemies.js';
+import { getTerrainHeight } from '../../packages/content/terrain.js';
 import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import { hash, rng } from '../../packages/sim/combatMath.js';
@@ -171,11 +172,9 @@ function clusterAround(center: Enemy['position'], offsetIndex: number): Enemy['p
   }
   const angle = (offsetIndex / 6) * Math.PI * 2;
   const radius = PACK_CLUSTER_RADIUS * (0.4 + Math.random() * 0.6);
-  return {
-    x: center.x + Math.cos(angle) * radius,
-    y: center.y,
-    z: center.z + Math.sin(angle) * radius,
-  };
+  const x = center.x + Math.cos(angle) * radius;
+  const z = center.z + Math.sin(angle) * radius;
+  return { x, y: getTerrainHeight(x, z) + 0.5, z };
 }
 
 export function respawnDeadEnemies(
