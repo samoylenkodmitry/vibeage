@@ -2,8 +2,12 @@ import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import {
   applyCameraDragDelta,
+  applyWheelZoom,
+  CAMERA_DISTANCE,
+  CAMERA_MAX_DISTANCE,
   CAMERA_MAX_FRAME_DELTA,
   CAMERA_MAX_PITCH,
+  CAMERA_MIN_DISTANCE,
   CAMERA_MIN_PITCH,
   getCameraOrbitPosition,
   getTouchCentroid,
@@ -57,5 +61,17 @@ describe('client camera rig helpers', () => {
   test('uses a touch centroid only after two active touches', () => {
     expect(getTouchCentroid([{ x: 10, y: 20 }])).toBeNull();
     expect(getTouchCentroid([{ x: 10, y: 20 }, { x: 30, y: 60 }])).toEqual({ x: 20, y: 40 });
+  });
+
+  test('zooms camera distance multiplicatively, scrolling up brings closer and down further', () => {
+    const closer = applyWheelZoom(CAMERA_DISTANCE, -100);
+    const further = applyWheelZoom(CAMERA_DISTANCE, 100);
+    expect(closer).toBeLessThan(CAMERA_DISTANCE);
+    expect(further).toBeGreaterThan(CAMERA_DISTANCE);
+  });
+
+  test('clamps wheel zoom inside the playable distance range', () => {
+    expect(applyWheelZoom(CAMERA_DISTANCE, -1_000_000)).toBe(CAMERA_MIN_DISTANCE);
+    expect(applyWheelZoom(CAMERA_DISTANCE, 1_000_000)).toBe(CAMERA_MAX_DISTANCE);
   });
 });

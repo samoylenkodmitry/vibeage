@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   applyCameraDragDelta,
+  applyWheelZoom,
+  CAMERA_DISTANCE,
   CAMERA_FOCUS_RESPONSE,
   CAMERA_POSITION_RESPONSE,
   getTouchCentroid,
@@ -24,11 +26,13 @@ export function CameraRig({
   const { camera, gl } = useThree();
   const angleRef = useRef(Math.PI * 0.82);
   const pitchRef = useRef(0.46);
+  const distanceRef = useRef(CAMERA_DISTANCE);
   const initialY = getTerrainY(focus.x, focus.z) + 1.4;
   const focusRef = useRef(new THREE.Vector3(focus.x, initialY, focus.z));
   const focusTargetRef = useRef(new THREE.Vector3(focus.x, initialY, focus.z));
   const cameraTargetRef = useRef(new THREE.Vector3());
   useCameraDragControls(gl, angleRef, pitchRef);
+  useCameraWheelZoom(gl, distanceRef);
 
   useFrame((_, delta) => {
     const presentationFocus = presentationFocusRef.current;
@@ -41,16 +45,36 @@ export function CameraRig({
       focusRef.current.lerp(focusTargetRef.current, smoothingAlpha(CAMERA_FOCUS_RESPONSE, delta));
     }
 
-    writeCameraOrbitPosition(cameraTargetRef.current, focusRef.current, {
-      angle: angleRef.current,
-      pitch: pitchRef.current,
-    });
+    writeCameraOrbitPosition(
+      cameraTargetRef.current,
+      focusRef.current,
+      { angle: angleRef.current, pitch: pitchRef.current },
+      distanceRef.current,
+    );
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
     camera.position.lerp(cameraTargetRef.current, alpha);
     camera.lookAt(focusRef.current);
   });
 
   return null;
+}
+
+function useCameraWheelZoom(
+  gl: THREE.WebGLRenderer,
+  distanceRef: MutableRefObject<number>,
+): void {
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onWheel = (event: WheelEvent) => {
+      distanceRef.current = applyWheelZoom(distanceRef.current, event.deltaY);
+      event.preventDefault();
+    };
+
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheel);
+    };
+  }, [distanceRef, gl]);
 }
 
 function useCameraDragControls(

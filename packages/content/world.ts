@@ -5,9 +5,9 @@ export const WORLD_SETTINGS = {
   cameraFar: 7_200,
   fogNear: 720,
   fogFar: 3_600,
-  terrainChunkSize: 96,
+  terrainChunkSize: 128,
   terrainChunkSegments: 16,
-  visibleTerrainChunkRadius: 1,
+  visibleTerrainChunkRadius: 3,
   foliageCellSize: 18,
   visibleFoliageCellRadius: 5,
 } as const;

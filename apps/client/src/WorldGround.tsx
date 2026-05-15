@@ -16,9 +16,6 @@ type WorldGroundProps = {
   onMove: (target: VecXZ) => void;
 };
 
-const groundClickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const groundClickPoint = new THREE.Vector3();
-
 type DragMoveState = {
   pointerId: number;
   isTouch: boolean;
@@ -40,18 +37,13 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
       return;
     }
 
-    const terrainHit = event.ray.intersectPlane(groundClickPlane, groundClickPoint);
-    if (!terrainHit) {
-      return;
-    }
-
     event.stopPropagation();
     dragRef.current = {
       pointerId: event.pointerId,
       isTouch: event.pointerType === 'touch',
       lastSentMs: performance.now(),
     };
-    onMove({ x: terrainHit.x, z: terrainHit.z });
+    onMove({ x: event.point.x, z: event.point.z });
   }
 
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
@@ -70,13 +62,8 @@ export function WorldGround({ focus, onMove }: WorldGroundProps) {
       return;
     }
 
-    const terrainHit = event.ray.intersectPlane(groundClickPlane, groundClickPoint);
-    if (!terrainHit) {
-      return;
-    }
-
     drag.lastSentMs = now;
-    onMove({ x: terrainHit.x, z: terrainHit.z });
+    onMove({ x: event.point.x, z: event.point.z });
   }
 
   function handlePointerUp(event: ThreeEvent<PointerEvent>) {
