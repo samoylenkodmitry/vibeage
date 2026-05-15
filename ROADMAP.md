@@ -219,11 +219,31 @@ Live items requested after the latest deploy. Each is a single-PR slice.
 
 Live items requested after the latest deploy.
 
-1. [ ] **One-finger sky look on mobile** — single-finger drag past the mesh edge loses pointer events because Three.js mesh handlers don't fire off-mesh. Install a window-level pointermove listener once WorldGround enters touch rotation mode so the camera keeps tilting until the finger lifts.
+1. [x] **One-finger sky look on mobile** — single-finger drag past the mesh edge loses pointer events because Three.js mesh handlers don't fire off-mesh. Install a window-level pointermove listener once WorldGround enters touch rotation mode so the camera keeps tilting until the finger lifts.
 
-2. [ ] **Map pinch-zoom on mobile** — two-finger pinch on the map SVG scales the zoom by the touch-distance ratio and pans toward the centroid.
+2. [x] **Map pinch-zoom on mobile** — two-finger pinch on the map SVG scales the zoom by the touch-distance ratio and pans toward the centroid.
 
-3. [ ] **Mob patrol AI (first slice from v4 item 8)** — new `patrolling` aiState; idle mobs occasionally pick a random target inside their patrolRadius, walk there, idle for 2-6 s, repeat. Aggro / attack still take priority.
+3. [x] **Mob patrol AI (first slice from v4 item 8)** — new `patrolling` aiState; idle mobs occasionally pick a random target inside their patrolRadius, walk there, idle for 2-6 s, repeat. Aggro / attack still take priority.
+
+## Player Polish v6
+
+Live items requested after the v5 deploy.
+
+1. [x] **Sky-start single-finger camera rotation** — even when a touch starts on the sky (not terrain mesh), single-finger drag should still rotate the camera. CameraRig now listens on the canvas and owns any touch pointer WorldGround has not claimed.
+
+2. [x] **Two-finger pinch camera zoom on the world** — pinch in/out on the world canvas scales `distanceRef` by the inverse touch-distance ratio, clamped to the playable distance range.
+
+3. [ ] **More enemy species** — add at least 6 distinct mob types (e.g., wolf, bandit, ghoul, treant, elemental, drake) with art and stats, bound to biome / level band so each zone reads differently.
+
+4. [ ] **Pack formations + mini-bosses + loot variety** — some species spawn in small groups that share aggro, each zone has one named mini-boss with richer loot, and every species owns its own loot table.
+
+5. [ ] **Day / night spawn variation** — different mobs active in different timeOfDay phases.
+
+6. [ ] **More classes + more skills per class** — add Knight, Paladin, Rogue alongside the existing four with distinct stat curves; at least 6-8 skills per class with prereqs, level gates, and explicit cooldowns/costs balanced server-side.
+
+7. [ ] **Server stat scaling** — STR/DEX/CON/INT/WIT/MEN actually drive damage / hit / HP / MP regen in the simulation instead of being cosmetic.
+
+8. [ ] **Skill effect variety** — DoT, slow, knock-back, shield, dispel; reuse the existing StatusEffect plumbing.
 
 ## Quality Gate
 

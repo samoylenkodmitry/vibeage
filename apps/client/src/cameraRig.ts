@@ -59,6 +59,25 @@ export function applyWheelZoom(
   return THREE.MathUtils.clamp(next, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE);
 }
 
+export function applyPinchZoom(
+  currentDistance: number,
+  previousPinchPx: number,
+  currentPinchPx: number,
+): number {
+  if (previousPinchPx <= 0 || currentPinchPx <= 0) {
+    return currentDistance;
+  }
+  const next = (currentDistance * previousPinchPx) / currentPinchPx;
+  return THREE.MathUtils.clamp(next, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE);
+}
+
+export function pinchDistance(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 export function getTouchCentroid(points: readonly CameraPointer[]): CameraPointer | null {
   if (points.length < 2) {
     return null;

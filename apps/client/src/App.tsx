@@ -10,6 +10,7 @@ export default function App() {
   const { state } = client;
   const cameraAngleRef = useRef(Math.PI * 0.82);
   const cameraControlsRef = useRef<CameraControls | null>(null);
+  const touchClaimRef = useRef<Set<number>>(new Set());
   const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
 
   if (state.connectionState === 'idle') {
@@ -25,6 +26,7 @@ export default function App() {
         onPickUpLoot={client.pickUpLoot}
         cameraAngleRef={cameraAngleRef}
         cameraControlsRef={cameraControlsRef}
+        touchClaimRef={touchClaimRef}
         navigationMarker={navigationMarker}
       />
       <GameHud

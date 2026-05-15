@@ -26,10 +26,11 @@ type WorldSceneProps = {
   onPickUpLoot: (lootId: string) => void;
   cameraAngleRef?: MutableRefObject<number>;
   cameraControlsRef?: MutableRefObject<CameraControls | null>;
+  touchClaimRef?: MutableRefObject<Set<number>>;
   navigationMarker?: VecXZ | null;
 };
 
-export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, navigationMarker }: WorldSceneProps) {
+export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
@@ -44,7 +45,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
       <color attach="background" args={['#071015']} />
       <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
       <WorldEnvironment focus={focus} />
-      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} />
+      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
@@ -82,6 +83,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
         presentationFocusRef={cameraAnchorRef}
         cameraAngleRef={cameraAngleRef}
         cameraControlsRef={cameraControlsRef}
+        touchClaimRef={touchClaimRef}
       />
     </Canvas>
   );

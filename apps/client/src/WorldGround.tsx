@@ -16,6 +16,7 @@ type WorldGroundProps = {
   focus: Vec3D;
   onMove: (target: VecXZ) => void;
   cameraControlsRef?: MutableRefObject<CameraControls | null>;
+  touchClaimRef?: MutableRefObject<Set<number>>;
 };
 
 type DragMoveState = {
@@ -37,7 +38,7 @@ type TouchPendingState = {
 
 const TOUCH_DRAG_THRESHOLD_PX = 6;
 
-export function WorldGround({ focus, onMove, cameraControlsRef }: WorldGroundProps) {
+export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
@@ -46,32 +47,35 @@ export function WorldGround({ focus, onMove, cameraControlsRef }: WorldGroundPro
 
   const dragRef = useRef<DragMoveState | null>(null);
   const touchRef = useRef<TouchPendingState | null>(null);
-  const activeTouchCountRef = useActiveTouchCount();
+  const activeTouchCountRef = useActiveTouchCount(() => {
+    if (activeTouchCountRef.current >= 2) {
+      releaseActiveTouch(touchRef, touchClaimRef);
+    }
+  });
 
   useEffect(() => {
     return () => {
-      touchRef.current?.cleanup?.();
-      touchRef.current = null;
+      releaseActiveTouch(touchRef, touchClaimRef);
     };
-  }, []);
+  }, [touchClaimRef]);
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
     if (event.pointerType === 'touch') {
-      handleTouchDown(event, touchRef, activeTouchCountRef);
+      handleTouchDown(event, touchRef, activeTouchCountRef, touchClaimRef);
       return;
     }
     handleMouseDown(event, dragRef, activeTouchCountRef, onMove);
   }
 
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
-    if (handleTouchMove(event, touchRef, cameraControlsRef)) {
+    if (handleTouchMove(event, touchRef, cameraControlsRef, touchClaimRef)) {
       return;
     }
     handleMouseMove(event, dragRef, activeTouchCountRef, onMove);
   }
 
   function handlePointerUp(event: ThreeEvent<PointerEvent>) {
-    if (handleTouchUp(event, touchRef, onMove)) {
+    if (handleTouchUp(event, touchRef, onMove, touchClaimRef)) {
       return;
     }
     if (dragRef.current?.pointerId === event.pointerId) {
@@ -99,6 +103,7 @@ function handleTouchDown(
   event: ThreeEvent<PointerEvent>,
   touchRef: MutableRefObject<TouchPendingState | null>,
   activeTouchCountRef: MutableRefObject<number>,
+  touchClaimRef?: MutableRefObject<Set<number>>,
 ): void {
   const hit = event.intersections[0]?.point;
   if (!hit || activeTouchCountRef.current >= 2) {
@@ -114,6 +119,20 @@ function handleTouchDown(
     lastY: event.clientY,
     rotating: false,
   };
+  touchClaimRef?.current.add(event.pointerId);
+}
+
+function releaseActiveTouch(
+  touchRef: MutableRefObject<TouchPendingState | null>,
+  touchClaimRef?: MutableRefObject<Set<number>>,
+): void {
+  const touch = touchRef.current;
+  if (!touch) {
+    return;
+  }
+  touch.cleanup?.();
+  touchClaimRef?.current.delete(touch.pointerId);
+  touchRef.current = null;
 }
 
 function handleMouseDown(
@@ -142,6 +161,7 @@ function handleTouchMove(
   event: ThreeEvent<PointerEvent>,
   touchRef: MutableRefObject<TouchPendingState | null>,
   cameraControlsRef?: MutableRefObject<CameraControls | null>,
+  touchClaimRef?: MutableRefObject<Set<number>>,
 ): boolean {
   const touch = touchRef.current;
   if (!touch || touch.pointerId !== event.pointerId) {
@@ -159,7 +179,7 @@ function handleTouchMove(
   const totalDy = event.clientY - touch.startY;
   if (!touch.rotating && Math.hypot(totalDx, totalDy) >= TOUCH_DRAG_THRESHOLD_PX) {
     touch.rotating = true;
-    touch.cleanup = installWindowRotation(touchRef, cameraControlsRef);
+    touch.cleanup = installWindowRotation(touchRef, cameraControlsRef, touchClaimRef);
   }
   if (touch.rotating) {
     cameraControlsRef?.current?.applyDelta({ x: dx, y: dy });
@@ -170,6 +190,7 @@ function handleTouchMove(
 function installWindowRotation(
   touchRef: MutableRefObject<TouchPendingState | null>,
   cameraControlsRef?: MutableRefObject<CameraControls | null>,
+  touchClaimRef?: MutableRefObject<Set<number>>,
 ): () => void {
   const onMove = (event: PointerEvent) => {
     const touch = touchRef.current;
@@ -185,6 +206,7 @@ function installWindowRotation(
     if (!touch || touch.pointerId !== event.pointerId) return;
     touch.cleanup?.();
     touch.cleanup = undefined;
+    touchClaimRef?.current.delete(touch.pointerId);
     touchRef.current = null;
   };
   window.addEventListener('pointermove', onMove);
@@ -227,12 +249,14 @@ function handleTouchUp(
   event: ThreeEvent<PointerEvent>,
   touchRef: MutableRefObject<TouchPendingState | null>,
   onMove: (target: VecXZ) => void,
+  touchClaimRef?: MutableRefObject<Set<number>>,
 ): boolean {
   const touch = touchRef.current;
   if (!touch || touch.pointerId !== event.pointerId) {
     return false;
   }
   touch.cleanup?.();
+  touchClaimRef?.current.delete(touch.pointerId);
   touchRef.current = null;
   if (!touch.rotating) {
     onMove(touch.hit);
@@ -240,8 +264,10 @@ function handleTouchUp(
   return true;
 }
 
-function useActiveTouchCount() {
+function useActiveTouchCount(onChange?: () => void) {
   const countRef = useRef(0);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     const activePointers = new Set<number>();
@@ -249,12 +275,14 @@ function useActiveTouchCount() {
       if (event.pointerType === 'touch') {
         activePointers.add(event.pointerId);
         countRef.current = activePointers.size;
+        onChangeRef.current?.();
       }
     };
     const onUp = (event: PointerEvent) => {
       if (event.pointerType === 'touch') {
         activePointers.delete(event.pointerId);
         countRef.current = activePointers.size;
+        onChangeRef.current?.();
       }
     };
 

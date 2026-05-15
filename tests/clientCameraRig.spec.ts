@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import {
   applyCameraDragDelta,
+  applyPinchZoom,
   applyWheelZoom,
   CAMERA_DISTANCE,
   CAMERA_MAX_DISTANCE,
@@ -12,6 +13,7 @@ import {
   getCameraOrbitPosition,
   getTouchCentroid,
   hasMeaningfulCameraFocusDelta,
+  pinchDistance,
   smoothingAlpha,
   shouldStartCameraDrag,
   writeCameraOrbitPosition,
@@ -73,5 +75,24 @@ describe('client camera rig helpers', () => {
   test('clamps wheel zoom inside the playable distance range', () => {
     expect(applyWheelZoom(CAMERA_DISTANCE, -1_000_000)).toBe(CAMERA_MIN_DISTANCE);
     expect(applyWheelZoom(CAMERA_DISTANCE, 1_000_000)).toBe(CAMERA_MAX_DISTANCE);
+  });
+
+  test('pinch zoom scales distance by the inverse pinch ratio', () => {
+    const closer = applyPinchZoom(20, 100, 200);
+    const further = applyPinchZoom(20, 200, 100);
+    expect(closer).toBeCloseTo(10);
+    expect(further).toBeCloseTo(40);
+  });
+
+  test('pinch zoom clamps to playable distance and ignores zero pinch', () => {
+    expect(applyPinchZoom(CAMERA_DISTANCE, 100, 0.0001)).toBe(CAMERA_MAX_DISTANCE);
+    expect(applyPinchZoom(CAMERA_DISTANCE, 0.0001, 100)).toBe(CAMERA_MIN_DISTANCE);
+    expect(applyPinchZoom(CAMERA_DISTANCE, 0, 100)).toBe(CAMERA_DISTANCE);
+    expect(applyPinchZoom(CAMERA_DISTANCE, 100, 0)).toBe(CAMERA_DISTANCE);
+  });
+
+  test('pinchDistance returns the euclidean distance between two touch points', () => {
+    expect(pinchDistance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBeCloseTo(5);
+    expect(pinchDistance({ x: 10, y: -10 }, { x: 10, y: -10 })).toBe(0);
   });
 });
