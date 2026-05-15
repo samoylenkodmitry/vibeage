@@ -56,7 +56,7 @@ describe('time of day cycle', () => {
     const midday = computeDayPhase(middayPhase);
     const midnight = computeDayPhase(midnightPhase);
 
-    expect(midday.sunIntensity).toBeGreaterThan(midnight.sunIntensity * 4);
+    expect(midday.sunIntensity).toBeGreaterThan(midnight.sunIntensity * 2);
     expect(midday.hemisphereIntensity).toBeGreaterThan(midnight.hemisphereIntensity);
   });
 

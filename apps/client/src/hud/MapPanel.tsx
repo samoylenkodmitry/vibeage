@@ -1,29 +1,34 @@
-import { type ReactElement } from 'react';
+import { useEffect, useState, type MutableRefObject, type ReactElement } from 'react';
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
 import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/content/worldFeatures';
 import type { PlayerEntity } from '../gameTypes';
+import { useDraggablePanel } from './useDraggablePanel';
 
 type MapPanelProps = {
   player: PlayerEntity | null;
+  cameraAngleRef?: MutableRefObject<number>;
 };
 
 const VIEW_PADDING = 0.08;
 const WORLD_BOUNDS = computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS);
 const TICK_SPACING = chooseTickSpacing(WORLD_BOUNDS);
 
-export function MapPanel({ player }: MapPanelProps) {
+export function MapPanel({ player, cameraAngleRef }: MapPanelProps) {
   const bounds = WORLD_BOUNDS;
   const px = player?.position.x ?? 0;
   const pz = player?.position.z ?? 0;
-  const yaw = player?.rotation?.y ?? 0;
+  const cameraYaw = useCameraYaw(cameraAngleRef);
+  const fallbackYaw = player?.rotation?.y ?? 0;
+  const yaw = cameraAngleRef ? cameraYaw : fallbackYaw;
   const arrowDir = {
     x: Math.sin(yaw),
     z: Math.cos(yaw),
   };
   const tickSpacing = TICK_SPACING;
+  const panelRef = useDraggablePanel<HTMLElement>();
 
   return (
-    <section className="map-panel" aria-label="World map">
+    <section ref={panelRef} className="map-panel" aria-label="World map">
       <div className="panel-title">
         <strong>World Map</strong>
         <span>{Math.round(px)}, {Math.round(pz)}</span>
@@ -59,6 +64,28 @@ export function MapPanel({ player }: MapPanelProps) {
       </ol>
     </section>
   );
+}
+
+function useCameraYaw(angleRef?: MutableRefObject<number>): number {
+  const [yaw, setYaw] = useState(angleRef?.current ?? 0);
+
+  useEffect(() => {
+    if (!angleRef) {
+      return undefined;
+    }
+    const id = window.setInterval(() => {
+      setYaw((prev) => {
+        const next = angleRef.current;
+        if (Math.abs(prev - next) < 0.01) {
+          return prev;
+        }
+        return next;
+      });
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [angleRef]);
+
+  return yaw;
 }
 
 function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {

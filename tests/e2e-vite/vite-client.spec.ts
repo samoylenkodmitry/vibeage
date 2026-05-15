@@ -14,7 +14,7 @@ test("enters the real game through the Vite client", async ({ page }) => {
   expect(state?.myPlayerId).toBeTruthy();
   expect(state?.enemyIds.length).toBeGreaterThan(0);
   expect(state?.playerVitals?.isAlive).toBe(true);
-  await expect(page.getByLabel("Player status")).toContainText("XP");
+  await expect(page.getByLabel("Vitals")).toContainText("XP");
   await expect(page.getByRole("button", { name: /show bag/i })).toBeVisible();
 });
 

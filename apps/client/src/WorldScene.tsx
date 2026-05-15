@@ -23,9 +23,10 @@ type WorldSceneProps = {
   onMove: (target: VecXZ) => void;
   onSelectTarget: (targetId: string | null) => void;
   onPickUpLoot: (lootId: string) => void;
+  cameraAngleRef?: MutableRefObject<number>;
 };
 
-export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: WorldSceneProps) {
+export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
@@ -69,7 +70,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot }: Worl
       {Object.values(state.visualEvents).map((event) => (
         <WorldEventVfx key={event.id} event={event} />
       ))}
-      <CameraRig focus={focus} presentationFocusRef={cameraAnchorRef} />
+      <CameraRig focus={focus} presentationFocusRef={cameraAnchorRef} cameraAngleRef={cameraAngleRef} />
     </Canvas>
   );
 }

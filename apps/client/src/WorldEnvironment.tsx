@@ -31,6 +31,8 @@ type DayCycleRefs = {
   sunGroup: React.MutableRefObject<THREE.Group | null>;
   sunPointLight: React.MutableRefObject<THREE.PointLight | null>;
   cloudGroup: React.MutableRefObject<THREE.Group | null>;
+  moonGroup: React.MutableRefObject<THREE.Group | null>;
+  moonLight: React.MutableRefObject<THREE.PointLight | null>;
 };
 
 export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
@@ -40,7 +42,10 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     sunGroup: useRef<THREE.Group>(null),
     sunPointLight: useRef<THREE.PointLight>(null),
     cloudGroup: useRef<THREE.Group>(null),
+    moonGroup: useRef<THREE.Group>(null),
+    moonLight: useRef<THREE.PointLight>(null),
   };
+  const moonMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#dde6ff' }), []);
   const sunMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#fff1a6' }), []);
   const cloudMaterial = useMemo(
     () => new THREE.MeshStandardMaterial({
@@ -57,12 +62,13 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     return () => {
       sunMaterial.dispose();
       cloudMaterial.dispose();
+      moonMaterial.dispose();
     };
-  }, [sunMaterial, cloudMaterial]);
+  }, [sunMaterial, cloudMaterial, moonMaterial]);
 
   useFrame(({ clock }, delta) => {
     const palette = computeDayPhase(clock.elapsedTime * 1_000);
-    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta });
+    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, moonMaterial, scene, focus, palette, delta });
   });
 
   return (
@@ -80,6 +86,12 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
         </mesh>
         <pointLight ref={refs.sunPointLight} color="#ffe7a3" intensity={2.2} distance={1_400} />
       </group>
+      <group ref={refs.moonGroup}>
+        <mesh material={moonMaterial}>
+          <sphereGeometry args={[24, 20, 14]} />
+        </mesh>
+        <pointLight ref={refs.moonLight} color="#9aafe0" intensity={0.0} distance={1_400} />
+      </group>
       <group ref={refs.cloudGroup}>
         {CLOUDS.map((cloud) => (
           <mesh key={cloud.id} position={cloud.position} scale={cloud.scale} material={cloudMaterial}>
@@ -92,10 +104,11 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   );
 }
 
-function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
+function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, moonMaterial, scene, focus, palette, delta }: {
   refs: DayCycleRefs;
   sunMaterial: THREE.MeshBasicMaterial;
   cloudMaterial: THREE.MeshStandardMaterial;
+  moonMaterial: THREE.MeshBasicMaterial;
   scene: THREE.Scene;
   focus: Vec3D;
   palette: ReturnType<typeof computeDayPhase>;
@@ -104,6 +117,9 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
   const sunX = focus.x + palette.sunDir.x * SUN_DISTANCE;
   const sunY = palette.sunDir.y * SUN_DISTANCE;
   const sunZ = focus.z + palette.sunDir.z * SUN_DISTANCE;
+  const moonX = focus.x + palette.moonDir.x * SUN_DISTANCE;
+  const moonY = palette.moonDir.y * SUN_DISTANCE;
+  const moonZ = focus.z + palette.moonDir.z * SUN_DISTANCE;
 
   if (refs.hemisphere.current) {
     refs.hemisphere.current.color.set(palette.hemisphereSky);
@@ -123,7 +139,15 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
     refs.sunPointLight.current.color.set(palette.sunColor);
     refs.sunPointLight.current.intensity = Math.max(0, palette.sunDir.y) * 2.2;
   }
+  if (refs.moonGroup.current) {
+    refs.moonGroup.current.position.set(moonX, moonY, moonZ);
+    refs.moonGroup.current.visible = palette.moonDir.y > -0.05;
+  }
+  if (refs.moonLight.current) {
+    refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 0.8;
+  }
   sunMaterial.color.set(palette.sunColor);
+  moonMaterial.color.set('#dde6ff');
   cloudMaterial.color.set(palette.cloudColor);
   cloudMaterial.opacity = palette.cloudOpacity;
   if (refs.cloudGroup.current) {
@@ -147,27 +171,26 @@ function FoliageField({ focus }: WorldEnvironmentProps) {
 
   return (
     <>
-      <InstancedFoliage instances={instances.trees} geometry="cone" radius={1.4} height={5.8} yOffset={2.9} />
+      {/* Broadleaf canopy: tall trunk, wide cone canopy, sphere crown */}
+      <InstancedFoliage instances={instances.trees} geometry="cone" radius={2.4} height={6.4} yOffset={4.6} />
+      <InstancedFoliage instances={instances.trees} geometry="sphere" radius={1.9} height={1} yOffset={7.6} />
       <InstancedFoliage
         instances={instances.trunks}
         geometry="cylinder"
-        radius={0.32}
-        height={2.4}
-        yOffset={1.2}
+        radius={0.5}
+        height={4.2}
+        yOffset={2.1}
       />
-      <InstancedFoliage
-        instances={instances.conifers}
-        geometry="cone"
-        radius={0.95}
-        height={9.2}
-        yOffset={4.6}
-      />
+      {/* Conifer: three stacked cones produce a fir silhouette */}
+      <InstancedFoliage instances={instances.conifers} geometry="cone" radius={1.7} height={5.0} yOffset={4.8} />
+      <InstancedFoliage instances={instances.conifers} geometry="cone" radius={1.25} height={4.4} yOffset={8.2} />
+      <InstancedFoliage instances={instances.conifers} geometry="cone" radius={0.8} height={3.8} yOffset={11.4} />
       <InstancedFoliage
         instances={instances.coniferTrunks}
         geometry="cylinder"
-        radius={0.42}
-        height={3.2}
-        yOffset={1.6}
+        radius={0.55}
+        height={5.0}
+        yOffset={2.5}
       />
       <InstancedFoliage instances={instances.grass} geometry="cone" radius={0.22} height={0.9} yOffset={0.45} />
       <InstancedFoliage instances={instances.accents} geometry="dodecahedron" radius={0.72} height={1} yOffset={0.5} />
@@ -183,7 +206,7 @@ function InstancedFoliage({
   yOffset,
 }: {
   instances: FoliageInstance[];
-  geometry: 'cone' | 'cylinder' | 'dodecahedron';
+  geometry: 'cone' | 'cylinder' | 'dodecahedron' | 'sphere';
   radius: number;
   height: number;
   yOffset: number;
@@ -339,16 +362,20 @@ function darkenForConifer(hex: string): string {
 }
 
 function getFoliageGeometry(
-  geometry: 'cone' | 'cylinder' | 'dodecahedron',
+  geometry: 'cone' | 'cylinder' | 'dodecahedron' | 'sphere',
   radius: number,
   height: number,
 ) {
   if (geometry === 'cone') {
-    return <coneGeometry args={[radius, height, 5]} />;
+    return <coneGeometry args={[radius, height, 6]} />;
   }
 
   if (geometry === 'cylinder') {
     return <cylinderGeometry args={[radius, radius * 0.72, height, 6]} />;
+  }
+
+  if (geometry === 'sphere') {
+    return <sphereGeometry args={[radius, 10, 8]} />;
   }
 
   return <dodecahedronGeometry args={[radius, 0]} />;

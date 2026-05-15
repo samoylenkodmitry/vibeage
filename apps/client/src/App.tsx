@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { GameHud, StartPanel } from './Hud';
 import { useGameClient } from './useGameClient';
 import { WorldScene } from './WorldScene';
@@ -5,6 +6,7 @@ import { WorldScene } from './WorldScene';
 export default function App() {
   const client = useGameClient();
   const { state } = client;
+  const cameraAngleRef = useRef(Math.PI * 0.82);
 
   if (state.connectionState === 'idle') {
     return <StartPanel onStart={client.connect} />;
@@ -17,9 +19,11 @@ export default function App() {
         onMove={client.sendMoveIntent}
         onSelectTarget={client.selectTarget}
         onPickUpLoot={client.pickUpLoot}
+        cameraAngleRef={cameraAngleRef}
       />
       <GameHud
         state={state}
+        cameraAngleRef={cameraAngleRef}
         onDisconnect={client.disconnect}
         onCastSkill={client.castSkill}
         onLearnSkill={client.learnSkill}

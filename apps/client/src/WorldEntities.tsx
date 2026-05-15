@@ -37,10 +37,16 @@ export function PlayerMarker({
   const torsoHeight = height * 0.46;
   const headRadius = height * 0.16;
 
+  const vx = player.velocity?.x ?? 0;
+  const vz = player.velocity?.z ?? 0;
+  const speedSq = vx * vx + vz * vz;
+  const isMoving = player.isAlive && speedSq > 0.5;
+  const facingY = isMoving ? Math.atan2(vx, vz) : (player.rotation?.y ?? 0);
+
   return (
     <SmoothedEntityGroup
       position={{ x: player.position.x, y: groundY, z: player.position.z }}
-      rotationY={player.rotation?.y ?? 0}
+      rotationY={facingY}
       response={isSelf ? 16 : 10}
       presentationRef={presentationRef}
     >
@@ -51,7 +57,7 @@ export function PlayerMarker({
         color={color}
         isSelf={isSelf}
         isAlive={player.isAlive}
-        isMoving={Boolean(player.movement?.isMoving)}
+        isMoving={isMoving}
       />
     </SmoothedEntityGroup>
   );
@@ -68,44 +74,50 @@ type PlayerAnimationRefs = {
   isAlive: boolean;
 };
 
-function drivePlayerAnimation(time: number, refs: PlayerAnimationRefs): void {
+type WalkBlendState = { value: number };
+
+function makeWalkBlend(): WalkBlendState {
+  return { value: 0 };
+}
+
+function drivePlayerAnimation(
+  time: number,
+  delta: number,
+  blend: WalkBlendState,
+  refs: PlayerAnimationRefs,
+): void {
   const { group, leftLeg, rightLeg, torso, torsoHeight, legPivotY, isMoving, isAlive } = refs;
   if (!group) {
     return;
   }
   if (!isAlive) {
+    blend.value = 0;
     group.position.y = -torsoHeight * 0.4;
     group.rotation.x = -Math.PI / 2;
     return;
   }
   group.rotation.x = 0;
-  if (isMoving) {
-    const swing = Math.sin(time * 8.4);
-    group.position.y = Math.abs(swing) * 0.12;
-    if (leftLeg) {
-      leftLeg.position.set(-0.32, legPivotY + swing * 0.06, swing * 0.32);
-      leftLeg.rotation.x = swing * 0.55;
-    }
-    if (rightLeg) {
-      rightLeg.position.set(0.32, legPivotY - swing * 0.06, -swing * 0.32);
-      rightLeg.rotation.x = -swing * 0.55;
-    }
-    if (torso) {
-      torso.rotation.z = Math.sin(time * 8.4 + Math.PI) * 0.05;
-    }
-    return;
-  }
-  group.position.y = Math.sin(time * 2.2) * 0.04;
+
+  const target = isMoving ? 1 : 0;
+  const blendSpeed = isMoving ? 6 : 4;
+  blend.value += (target - blend.value) * Math.min(1, delta * blendSpeed);
+  const w = blend.value;
+
+  const swing = Math.sin(time * 7.4);
+  const idleBob = Math.sin(time * 2.2) * 0.04;
+  const walkBob = Math.abs(swing) * 0.05;
+  group.position.y = idleBob * (1 - w) + walkBob * w;
+
   if (leftLeg) {
-    leftLeg.position.set(-0.32, legPivotY, 0);
-    leftLeg.rotation.x = 0;
+    leftLeg.position.set(-0.32, legPivotY, swing * 0.32 * w);
+    leftLeg.rotation.x = swing * 0.45 * w;
   }
   if (rightLeg) {
-    rightLeg.position.set(0.32, legPivotY, 0);
-    rightLeg.rotation.x = 0;
+    rightLeg.position.set(0.32, legPivotY, -swing * 0.32 * w);
+    rightLeg.rotation.x = -swing * 0.45 * w;
   }
   if (torso) {
-    torso.rotation.z = 0;
+    torso.rotation.z = Math.sin(time * 7.4 + Math.PI) * 0.04 * w;
   }
 }
 
@@ -130,6 +142,7 @@ function PlayerFigure({
   const leftLegRef = useRef<THREE.Mesh>(null);
   const rightLegRef = useRef<THREE.Mesh>(null);
   const torsoRef = useRef<THREE.Mesh>(null);
+  const blendRef = useRef<WalkBlendState>(makeWalkBlend());
   const cloakColor = isSelf ? '#1f2937' : '#374151';
   const skinColor = '#f5d9b8';
   const trimColor = isSelf ? '#facc15' : '#94a3b8';
@@ -139,8 +152,8 @@ function PlayerFigure({
   const ringY = torsoY + torsoHeight * 0.55 + headRadius * 1.65;
   const legPivotY = 0.55;
 
-  useFrame(({ clock }) => {
-    drivePlayerAnimation(clock.elapsedTime, {
+  useFrame(({ clock }, delta) => {
+    drivePlayerAnimation(clock.elapsedTime, delta, blendRef.current, {
       group: groupRef.current,
       leftLeg: leftLegRef.current,
       rightLeg: rightLegRef.current,

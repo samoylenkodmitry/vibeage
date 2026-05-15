@@ -511,8 +511,7 @@ input {
   right: 18px;
   bottom: 18px;
   display: grid;
-  grid-template-columns: repeat(5, 42px);
-  gap: 6px;
+  gap: 8px;
   border: 1px solid rgba(141, 233, 215, 0.2);
   border-radius: 6px;
   padding: 8px;
@@ -590,6 +589,21 @@ input {
   border-radius: 8px;
   background: rgba(5, 14, 18, 0.78);
   font-size: 11px;
+}
+
+.vitals-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+  color: #c4f1e2;
+  font-size: 12px;
+}
+
+.vitals-header strong {
+  color: #f9fafb;
+  font-size: 13px;
 }
 
 .vitals-strip .meter-row {
@@ -680,6 +694,22 @@ input {
   margin: 0;
   color: #f9fafb;
   font-weight: 700;
+}
+
+.panel-drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.panel-drag-handle:active {
+  cursor: grabbing;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 42px);
+  gap: 6px;
 }
 
 .panel-toggles {
@@ -946,14 +976,19 @@ input {
     width: calc(100vw - 16px);
     max-width: 360px;
     gap: 6px;
+    justify-self: center;
+    padding: 6px;
+  }
+
+  .inventory-panel .inventory-grid {
+    display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 48px;
     grid-template-columns: repeat(5, 48px);
+    gap: 6px;
     overflow-x: auto;
     justify-content: start;
-    justify-self: center;
     scrollbar-width: thin;
-    padding: 6px;
   }
 
   .inventory-slot {
