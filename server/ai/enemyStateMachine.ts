@@ -50,6 +50,16 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
   const previousState = enemy.aiState;
   const progress: EnemyAIProgress = { events: [], shouldBroadcastEnemyUpdate: false };
 
+  // Stun: skip all state actions while a stun effect is active. The
+  // enemy keeps its current aiState (so chase resumes immediately
+  // after the stun expires) but does not move, attack, or re-aggro.
+  if (isEnemyStunned(enemy, context.now)) {
+    stopEnemy(enemy);
+    enemy.lastUpdateTime = context.now;
+    markDirtyIfMotionChanged(enemy, previousState, previousVelocity);
+    return { events: progress.events };
+  }
+
   // The if-cascade intentionally lets a single tick walk through
   // related transitions (e.g., idle→chasing→attacking on aggro at
   // melee range). The leash bounce is prevented inside
@@ -278,6 +288,15 @@ function applyAttackIfReady(
     enemy.aiState = 'returning';
     progress.shouldBroadcastEnemyUpdate = true;
   }
+}
+
+function isEnemyStunned(enemy: Enemy, now: number): boolean {
+  for (const effect of enemy.statusEffects) {
+    if (effect.type !== 'stun') continue;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt > now) return true;
+  }
+  return false;
 }
 
 function findNearbyAggroTarget(enemy: Enemy, context: EnemyAIContext): string | null {
