@@ -78,4 +78,10 @@ describe('deriveEquipmentStats', () => {
   test('EQUIPMENT_SETS exports include leather_set', () => {
     expect(EQUIPMENT_SETS.leather_set).toBeDefined();
   });
+
+  test('activeSetBonuses dedupes repeated template ids', () => {
+    // Three identical pieces should NOT pass the 3-piece threshold.
+    const bonuses = activeSetBonuses('leather_set', ['leather_helmet', 'leather_helmet', 'leather_helmet']);
+    expect(bonuses).toEqual([]);
+  });
 });

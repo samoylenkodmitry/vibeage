@@ -35,9 +35,12 @@ export const EQUIPMENT_SETS: Record<EquipmentSetId, EquipmentSet> = {
 };
 
 /**
- * Returns the bonus tiers that fire given which templates from a set are
- * currently equipped. Picks the highest tier whose requiredCount is met for
- * a deterministic, additive result.
+ * Returns every bonus tier whose `requiredCount` is met by the unique pieces
+ * the character has equipped from this set. Tiers are additive — a 5-piece
+ * leather wearer gets both the 3-piece and 5-piece bonuses.
+ *
+ * Duplicate template ids are collapsed before counting so a (currently
+ * impossible) double-equip wouldn't inflate the count.
  */
 export function activeSetBonuses(
   setId: EquipmentSetId,
@@ -47,10 +50,11 @@ export function activeSetBonuses(
   if (!set) {
     return [];
   }
-  const equippedFromSet = equippedTemplateIds.filter(
-    (templateId) =>
-      set.requiredPieces.includes(templateId)
-      || set.optionalPieces?.includes(templateId),
-  );
-  return set.bonuses.filter((bonus) => equippedFromSet.length >= bonus.requiredCount);
+  const uniqueEquipped = new Set<ItemId>();
+  for (const templateId of equippedTemplateIds) {
+    if (set.requiredPieces.includes(templateId) || set.optionalPieces?.includes(templateId)) {
+      uniqueEquipped.add(templateId);
+    }
+  }
+  return set.bonuses.filter((bonus) => uniqueEquipped.size >= bonus.requiredCount);
 }
