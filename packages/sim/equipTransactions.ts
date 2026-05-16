@@ -152,10 +152,18 @@ export function equipItem(
   }
 
   const draft = cloneInventory(inventory);
+  const equippedInstance = draft.items[instance.instanceId];
+  if (!equippedInstance) {
+    return { ok: false, error: 'itemNotFound' };
+  }
+  // Vacate the bag slot the new item came from before refunding replaced gear,
+  // so a 1-for-1 swap can succeed even when the bag was full.
+  equippedInstance.location = equippedLocation(targetSlot);
+
   const replacedIds = new Set<ItemInstanceId>();
   for (const slot of occupied) {
     const existing = entryForSlot(draft, slot, templates);
-    if (existing) {
+    if (existing && existing.instanceId !== instance.instanceId) {
       replacedIds.add(existing.instanceId);
     }
   }
@@ -166,7 +174,7 @@ export function equipItem(
     if (!replaced) {
       continue;
     }
-    const refundError = stowEquippedItem(draft, replaced);
+    const refundError = stowEquippedItem(draft, replaced, templates);
     if (refundError) {
       return { ok: false, error: refundError };
     }
@@ -177,11 +185,6 @@ export function equipItem(
     draft.occupancy[slot] = instance.instanceId;
   }
   draft.equipment[targetSlot] = instance.instanceId;
-  const equippedInstance = draft.items[instance.instanceId];
-  if (!equippedInstance) {
-    return { ok: false, error: 'itemNotFound' };
-  }
-  equippedInstance.location = equippedLocation(targetSlot);
 
   const violations = validateInvariants(draft, templates);
   if (violations.length > 0) {
@@ -207,7 +210,7 @@ export function unequipSlot(
   if (!instance) {
     return { ok: false, error: 'itemNotFound' };
   }
-  const refundError = stowEquippedItem(draft, instance);
+  const refundError = stowEquippedItem(draft, instance, templates);
   if (refundError === 'inventoryFullForUnequippedItems') {
     return { ok: false, error: 'inventoryFullForUnequippedItems' };
   }
@@ -218,12 +221,16 @@ export function unequipSlot(
   return { ok: true, unequipped: instance };
 }
 
-function stowEquippedItem(draft: CharacterInventory, instance: ItemInstance): EquipError | null {
+function stowEquippedItem(
+  draft: CharacterInventory,
+  instance: ItemInstance,
+  templates: Record<string, Item>,
+): EquipError | null {
   if (instance.location.kind !== 'equipped') {
     return null;
   }
   const primarySlot = instance.location.slot;
-  const template = ITEMS[instance.templateId];
+  const template = templates[instance.templateId];
   const spec = template?.equip;
   const occupied = spec ? occupiedSlotsForSpec(spec, primarySlot) : [primarySlot];
   for (const slot of occupied) {

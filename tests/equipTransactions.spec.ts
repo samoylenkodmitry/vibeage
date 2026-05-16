@@ -116,6 +116,23 @@ describe('equipItem replacement rules', () => {
   });
 });
 
+describe('equipItem in a tight bag', () => {
+  test('swapping the equipped sword for another sword succeeds even with a full bag', () => {
+    const tight = { baseSlots: 2, bonusSlots: 0, maxWeight: 100_000 };
+    const inv = createEmptyInventory('char-1', tight);
+    addItems(inv, { templateId: 'worn_sword', count: 1 }, services());
+    addItems(inv, { templateId: 'flame_blade', count: 1 }, services());
+    const sword = instanceIdOf(inv, 'worn_sword');
+    const flame = instanceIdOf(inv, 'flame_blade');
+    expect(equipItem(inv, sword, undefined, context).ok).toBe(true);
+    // Bag now has flame_blade in slot 0 and the freed slot at index 1.
+    const result = equipItem(inv, flame, undefined, context);
+    expect(result.ok).toBe(true);
+    expect(inv.equipment.MAIN_HAND).toBe(flame);
+    expect(inv.items[sword].location.kind).toBe('inventory');
+  });
+});
+
 describe('unequipSlot', () => {
   test('unequipping a two-handed weapon via OFF_HAND removes the whole weapon', () => {
     const inv = inventoryWith(['crystal_staff']);
