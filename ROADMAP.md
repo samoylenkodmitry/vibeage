@@ -312,9 +312,9 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Fix public snapshot privacy so `characterInventory` can never be sent to other players.
 - [x] Add `characterInventory` to the private-player-field audit until explicit public equipment DTOs are in place.
 - [ ] Replace the current deny-list privacy test with an exact-key allow-list test for owner player snapshots.
-- [ ] Replace the current deny-list privacy test with an exact-key allow-list test for public player snapshots.
-- [ ] Add a regression test proving public `playerJoined`, `playerUpdated`, and resync snapshots never include `socketId`, `inventory`, `characterInventory`, `starterProgress`, or other owner-only state.
-- [ ] Add a regression test proving direct owner messages are only sent to the matching socket.
+- [x] Replace the current deny-list privacy test with an exact-key allow-list test for public player snapshots.
+- [x] Add a regression test proving public `playerJoined`, `playerUpdated`, and resync snapshots never include `socketId`, `inventory`, `characterInventory`, `starterProgress`, or other owner-only state.
+- [x] Add a regression test proving direct owner messages are only sent to the matching socket.
 - [ ] Stop using `playerName` as the durable account key.
 - [ ] Add signed identity or authenticated account ownership before treating the public game as production-safe.
 - [ ] Persist equipped items and equipment slot state; do not rely on the legacy flat bag inventory for durable equipment.
