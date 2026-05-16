@@ -1,18 +1,19 @@
 import { describe, expect, test } from 'vitest';
 import { clientMessageSchema, type ClientMessage } from '../packages/protocol/clientMessages';
 import {
+  learnSkillFailedReasonSchema,
   learnSkillFailedSchema,
-  type LearnSkillFailedMsg,
 } from '../packages/protocol/serverMessages';
 import { WORLD_CLIENT_COMMAND_TYPES } from '../server/transport/roomBoundary';
 
 type ClientMessageType = ClientMessage['type'];
 
 function collectClientMessageTypes(): readonly ClientMessageType[] {
-  // discriminatedUnion exposes its option schemas; pull the literal `type`
-  // from each so the test is exhaustive even when a new command is added.
-  const options = (clientMessageSchema as unknown as { _def: { options: Array<{ shape: { type: { value: ClientMessageType } } }> } })._def.options;
-  return options.map((option) => option.shape.type.value);
+  // ZodDiscriminatedUnion exposes its option schemas via the public `.options`
+  // property so the test stays exhaustive when a new command is added.
+  return clientMessageSchema.options.map(
+    (option) => (option.shape.type as { value: ClientMessageType }).value,
+  );
 }
 
 describe('protocol boundary', () => {
@@ -34,15 +35,10 @@ describe('protocol boundary', () => {
     expect(extras).toEqual([]);
   });
 
-  test('LearnSkillFailed schema accepts every reason in the TS union', () => {
-    const reasons: LearnSkillFailedMsg['reason'][] = [
-      'noSkillPoints',
-      'levelTooLow',
-      'missingPrereq',
-      'unknownSkill',
-      'wrongClass',
-      'alreadyKnown',
-    ];
+  test('LearnSkillFailed schema accepts every reason its enum defines', () => {
+    // Derive the reason list straight from the schema so this stays exhaustive.
+    const reasons = learnSkillFailedReasonSchema.options;
+    expect(reasons.length).toBeGreaterThan(0);
     for (const reason of reasons) {
       const parsed = learnSkillFailedSchema.safeParse({
         type: 'LearnSkillFailed',

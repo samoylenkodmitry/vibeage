@@ -185,7 +185,7 @@ export const learnSkillFailedSchema = z.object({
   type: z.literal('LearnSkillFailed'),
   skillId: skillIdSchema,
   reason: learnSkillFailedReasonSchema,
-}).passthrough();
+}).strict();
 
 function getServerMessageSchema(): z.ZodType<unknown> {
   return serverMessageSchema;
