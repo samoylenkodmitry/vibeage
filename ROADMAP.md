@@ -248,7 +248,7 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 2. [x] **Item instances + locations** — define `ItemInstance` and `ItemLocation`; add a `CharacterInventory` aggregate with `items` + `equipment`; write the invariant validator; ship a flatten/inflate adapter to keep the existing `InventorySlot[]` wire format working.
 
-3. [ ] **Inventory transactions** — atomic `addItem`, `removeItem`, `moveSlot`, `splitStack`, `mergeStacks` with weight + slot-count enforcement. Loot pickup uses the new pipeline.
+3. [x] **Inventory transactions** — atomic `addItem`, `removeItem`, `moveSlot`, `splitStack`, `mergeStacks` with weight + slot-count enforcement.
 
 4. [ ] **Equip / unequip pipeline** — `equip(instanceId, slot?)` / `unequip(slot)` with full validation, multi-slot occupancy, ring/earring auto-pick, atomic refund of replaced items, new protocol messages, server handlers.
 
