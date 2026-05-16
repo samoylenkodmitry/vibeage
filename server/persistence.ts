@@ -1,3 +1,4 @@
+import { DEFAULT_RACE } from '../packages/content/races.js';
 import type { PlayerState } from '../packages/sim/entities.js';
 import { normalizeStarterProgressState } from '../packages/protocol/messages.js';
 import {
@@ -109,7 +110,7 @@ export function buildStablePlayerPersistenceData(
     level: player.level,
     experience: player.experience,
     class_name: player.className,
-    race: player.race ?? 'human',
+    race: player.race ?? DEFAULT_RACE,
     inventory: player.inventory || [],
     skills: unlockedSkills,
     skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),
