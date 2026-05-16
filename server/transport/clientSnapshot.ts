@@ -1,6 +1,7 @@
 import type { ServerMessage } from '../../packages/protocol/messages.js';
 import { sendCastSnapshots } from '../combat/skillSystem.js';
 import type { GameState } from '../gameState.js';
+import { sendEquipment } from '../inventory/equipHandlers.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { sendStarterProgressUpdate } from '../progression/starterPath.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
@@ -47,6 +48,7 @@ function sendJoinedPlayerState(
 
   client.send(SOCKET_SESSION_EVENTS.joinGame, { playerId: player.id });
   emitInventoryUpdate(direct, player);
+  sendEquipment(direct, player);
   sendStarterProgressUpdate(direct, player);
 }
 

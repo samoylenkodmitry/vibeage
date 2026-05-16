@@ -44,6 +44,7 @@ export const initialGameClientState: GameClientState = {
   nextVisualEventSeq: 0,
   inventory: [],
   maxInventorySlots: 20,
+  equipment: {},
   combatLog: [],
   chatLines: [],
   starterProgress: createInitialStarterProgress(),
@@ -203,6 +204,14 @@ function applyServerMessage(
 
   if (message.type === 'InventoryUpdate') {
     return applyInventoryUpdate(state, message.inventory, message.maxInventorySlots, message.playerId);
+  }
+
+  if (message.type === 'EquipmentUpdate') {
+    const equipment: Record<string, string> = {};
+    for (const entry of message.equipment) {
+      equipment[entry.slot] = entry.itemId;
+    }
+    return { ...state, equipment };
   }
 
   if (message.type === 'LootSpawn') {

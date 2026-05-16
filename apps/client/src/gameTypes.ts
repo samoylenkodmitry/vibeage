@@ -170,6 +170,7 @@ export type GameClientState = {
   nextVisualEventSeq: number;
   inventory: InventorySlot[];
   maxInventorySlots: number;
+  equipment: Record<string, string>;
   combatLog: CombatLine[];
   chatLines: ChatLine[];
   starterProgress: StarterProgress;

@@ -1303,3 +1303,77 @@ input {
     font-size: 11px;
   }
 }
+
+.paperdoll-panel {
+  position: absolute;
+  right: 18px;
+  top: 96px;
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  max-width: 260px;
+  border: 1px solid rgba(141, 233, 215, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(5, 14, 18, 0.78);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.paperdoll-list {
+  display: grid;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.paperdoll-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 22px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.54);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.paperdoll-row--filled {
+  background: rgba(30, 41, 59, 0.78);
+  color: #e7f7f1;
+}
+
+.paperdoll-slot-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.paperdoll-slot-item {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paperdoll-unequip {
+  display: grid;
+  place-items: center;
+  min-height: 22px;
+  width: 22px;
+  padding: 0;
+  font-size: 14px;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.32);
+  border: 1px solid rgba(252, 165, 165, 0.32);
+  border-radius: 999px;
+}
+
+.paperdoll-unequip:disabled {
+  opacity: 0.25;
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.18);
+}

@@ -6,9 +6,10 @@ type InventoryPanelProps = {
   inventory: InventorySlot[];
   maxSlots: number;
   onUseItem: (slotIndex: number) => void;
+  onEquipItem: (slotIndex: number) => void;
 };
 
-export function InventoryPanel({ inventory, maxSlots, onUseItem }: InventoryPanelProps) {
+export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   return (
@@ -22,25 +23,27 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem }: InventoryPane
         const slot = inventory[index] ?? null;
         const item = slot ? ITEMS[slot.itemId] : null;
         const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
+        const canEquip = Boolean(slot && item?.equip);
         const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
+        const action = canUse ? 'Use' : canEquip ? 'Equip' : '';
         const title = slot
-          ? `${itemName} (${slot.quantity})${canUse ? '' : ' - not usable'}`
+          ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''}`
           : 'Empty slot';
+
+        const onClick = canUse ? () => onUseItem(index) : canEquip ? () => onEquipItem(index) : undefined;
 
         return (
           <button
             key={index}
             type="button"
             className="inventory-slot"
-            disabled={!canUse}
+            disabled={!onClick}
             title={title}
-            aria-label={slot && canUse ? `Use ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
-            onClick={() => canUse && onUseItem(index)}
+            aria-label={slot && action ? `${action} ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
+            onClick={onClick}
             onContextMenu={(event) => {
               event.preventDefault();
-              if (canUse) {
-                onUseItem(index);
-              }
+              onClick?.();
             }}
           >
             <span>{slot ? getItemInitial(itemName) : ''}</span>

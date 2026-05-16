@@ -4,6 +4,7 @@ import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
 import { ChatPanel } from './hud/ChatPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
+import { PaperdollPanel } from './hud/PaperdollPanel';
 import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
 import { SkillTreePanel } from './hud/SkillTreePanel';
@@ -29,6 +30,8 @@ type GameHudProps = {
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
+  onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
+  onUnequipItem: (slot: string) => void;
   onRespawn: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
@@ -73,6 +76,8 @@ export function GameHud({
   onCastSkill,
   onLearnSkill,
   onUseItem,
+  onEquipItem,
+  onUnequipItem,
   onRespawn,
   onSendChat,
 }: GameHudProps) {
@@ -113,7 +118,15 @@ export function GameHud({
         <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       )}
       {panels.bagOpen && (
-        <InventoryPanel inventory={state.inventory} maxSlots={state.maxInventorySlots} onUseItem={onUseItem} />
+        <InventoryPanel
+          inventory={state.inventory}
+          maxSlots={state.maxInventorySlots}
+          onUseItem={onUseItem}
+          onEquipItem={onEquipItem}
+        />
+      )}
+      {panels.gearOpen && (
+        <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
       )}
       {panels.mapOpen && (
         <MapPanel
@@ -158,6 +171,7 @@ function PanelToggleStrip({ panels }: { panels: PanelState }) {
       <PanelToggleButton open={panels.treeOpen} label="Tree" onClick={panels.toggleTree} />
       <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
       <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
+      <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
       <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
       <PanelToggleButton open={panels.chatOpen} label="Chat" onClick={panels.toggleChat} />
     </aside>
@@ -170,6 +184,7 @@ function usePanelState() {
   const [statsOpen, setStatsOpen] = useState(true);
   const [questOpen, setQuestOpen] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
+  const [gearOpen, setGearOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -177,12 +192,14 @@ function usePanelState() {
     statsOpen,
     questOpen,
     bagOpen,
+    gearOpen,
     mapOpen,
     treeOpen,
     chatOpen,
     toggleStats: () => setStatsOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
     toggleBag: () => setBagOpen((prev) => !prev),
+    toggleGear: () => setGearOpen((prev) => !prev),
     toggleMap: () => setMapOpen((prev) => !prev),
     toggleTree: () => setTreeOpen((prev) => !prev),
     toggleChat: () => setChatOpen((prev) => !prev),

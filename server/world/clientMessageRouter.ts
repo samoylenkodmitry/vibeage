@@ -4,6 +4,7 @@ import { handleCastReq } from '../combat/castHandler.js';
 import { createCombatWorld } from '../combat/combatWorld.js';
 import { handleTargetDeath } from '../combat/targetDeath.js';
 import type { GameState } from '../gameState.js';
+import { handleEquipItem, handleUnequipItem } from '../inventory/equipHandlers.js';
 import { onUseItem } from '../inventory/itemUse.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
@@ -53,7 +54,39 @@ export function handleClientMessage(
       return onDevTeleport(socket, state, msg);
     case 'ChatRequest':
       return onChatRequest(socket, state, msg, outbound, spatial);
+    case 'EquipItem':
+      return onEquipItem(socket, direct, state, msg);
+    case 'UnequipItem':
+      return onUnequipItem(socket, direct, state, msg);
   }
+}
+
+function onEquipItem(
+  socket: WorldClient,
+  direct: DirectMessageSink,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'EquipItem' }>,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  handleEquipItem(player, msg, direct);
+  emitInventoryUpdate(direct, player);
+}
+
+function onUnequipItem(
+  socket: WorldClient,
+  direct: DirectMessageSink,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'UnequipItem' }>,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  handleUnequipItem(player, msg, direct);
+  emitInventoryUpdate(direct, player);
 }
 
 const CHAT_NEAR_RADIUS = 150;

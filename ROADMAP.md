@@ -254,6 +254,10 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 5. [x] **Derived equipment stats + set bonuses (model)** — `deriveEquipmentStats(inventory)` sums every equipped item's `ItemStatBlock` and layers active set bonuses (threshold-based, e.g. 3-piece / 5-piece leather). The HUD wiring + protocol messages + paperdoll panel are tracked separately under Inventory v2 so the math can ship first and be exercised by tests.
 
+## Inventory & Equipment v2 (live wiring)
+
+1. [x] **End-to-end equip from inventory** — `PlayerState` now carries the `CharacterInventory` aggregate alongside the legacy `InventorySlot[]`. Loot pickup and consumable use go through the new transactions; new `EquipItem` / `UnequipItem` client messages route through `equipItem` / `unequipSlot`; the server emits an `EquipmentUpdate` (and refreshes `player.stats` via `derivePlayerStats(level, class, equipmentStats)` so equipping a sword actually bumps damage in combat); the client renders a draggable Paperdoll panel listing every slot and a Bag panel that turns each equippable item into an Equip button.
+
 ## Quality Gate
 
 Before merge:
