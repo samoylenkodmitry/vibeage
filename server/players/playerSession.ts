@@ -71,9 +71,9 @@ export function findPlayerIdBySocket(state: GameState, socketId: string): string
 }
 
 export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: string): PlayerState {
-  const unlockedSkills = normalizeUnlockedSkills(row.skills);
   const level = normalizePlayerLevel(row.level);
   const className = normalizeClassName(row.class_name);
+  const unlockedSkills = normalizeUnlockedSkills(row.skills, className);
   const race = normalizeRace(row.race);
   const derived = derivePlayerStats(level, className, {}, race);
   const starterProgress = normalizeStarterProgressState(row.starter_progress, {

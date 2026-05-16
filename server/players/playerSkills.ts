@@ -1,6 +1,6 @@
-import type { SkillId } from '../../packages/content/skills.js';
-import { canLearnSkill, type CharacterClass } from '../../packages/content/classes.js';
-import type { LearnSkill, SetSkillShortcut } from '../../packages/protocol/messages.js';
+import { SKILLS, type SkillId } from '../../packages/content/skills.js';
+import { canLearnSkill, CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
+import type { LearnSkill, LearnSkillFailedMsg, SetSkillShortcut } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, error as logError, LOG_CATEGORIES, warn } from '../logger.js';
@@ -41,8 +41,17 @@ export function onLearnSkill(
     return;
   }
 
+  const rejection = classifyLearnRejection(player, msg.skillId);
+  if (rejection) {
+    warn(LOG_CATEGORIES.SKILL, `Player ${player.id} cannot learn skill: ${msg.skillId} (${rejection})`);
+    sendLearnSkillFailed(direct, msg.skillId, rejection);
+    return;
+  }
+
   if (!learnNewSkill(player, msg.skillId)) {
-    warn(LOG_CATEGORIES.SKILL, `Player ${player.id} cannot learn skill: ${msg.skillId}`);
+    // Catch-all if the actual mutation still rejects (shouldn't happen after the
+    // classifier above passed). Surface a generic missingPrereq.
+    sendLearnSkillFailed(direct, msg.skillId, 'missingPrereq');
     return;
   }
 
@@ -55,6 +64,41 @@ export function onLearnSkill(
     availableSkillPoints: player.availableSkillPoints,
   });
   emitStarterProgressUpdate(outbound, player, starterProgress.rewardGranted);
+}
+
+function classifyLearnRejection(
+  player: SkillPlayer,
+  skillId: SkillId,
+): LearnSkillFailedMsg['reason'] | null {
+  if (!SKILLS[skillId]) {
+    return 'unknownSkill';
+  }
+  const classTree = CLASS_SKILL_TREES[player.className as CharacterClass];
+  if (!classTree) {
+    return 'wrongClass';
+  }
+  const requirement = classTree.skillProgression[skillId];
+  if (!requirement) {
+    return 'wrongClass';
+  }
+  if (player.level < requirement.level) {
+    return 'levelTooLow';
+  }
+  if (requirement.requiredSkills && !requirement.requiredSkills.every((prereq) => player.unlockedSkills.includes(prereq))) {
+    return 'missingPrereq';
+  }
+  if (player.availableSkillPoints <= 0) {
+    return 'noSkillPoints';
+  }
+  return null;
+}
+
+function sendLearnSkillFailed(
+  direct: DirectMessageSink,
+  skillId: SkillId,
+  reason: LearnSkillFailedMsg['reason'],
+): void {
+  direct.send({ type: 'LearnSkillFailed', skillId, reason });
 }
 
 export function onSetSkillShortcut(

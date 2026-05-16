@@ -194,6 +194,8 @@ export type GameClientState = {
   inventory: InventorySlot[];
   maxInventorySlots: number;
   equipment: Record<string, string>;
+  /** Last server reject of a LearnSkill attempt, keyed by SkillId. */
+  learnSkillRejections: Record<string, string>;
   combatLog: CombatLine[];
   chatLines: ChatLine[];
   starterProgress: StarterProgress;
