@@ -6,11 +6,16 @@ import { createTransientPlayer } from '../server/playerFactory';
 function withTinyBag() {
   const state = createGameState();
   const player = createTransientPlayer('socket-1', 'TightBag');
-  // Force a one-slot bag so a 2-item drop has to partially fail.
-  player.maxInventorySlots = 1;
+  // Clear the starter loadout, then force a one-slot bag so a 2-item drop has
+  // to partially fail and must roll back atomically.
+  player.inventory = [];
   if (player.characterInventory) {
+    player.characterInventory.items = {};
+    player.characterInventory.equipment = {};
+    player.characterInventory.occupancy = {};
     player.characterInventory.limits = { ...player.characterInventory.limits, baseSlots: 1 };
   }
+  player.maxInventorySlots = 1;
   state.players[player.id] = player;
   return { state, player };
 }

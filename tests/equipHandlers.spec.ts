@@ -8,7 +8,15 @@ import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
 import { createTransientPlayer } from '../server/playerFactory';
 
 function freshPlayer() {
-  return createTransientPlayer('socket-1', 'TesterPlayer');
+  const player = createTransientPlayer('socket-1', 'TesterPlayer');
+  // Start with an empty bag so tests control exactly what's in slot 0.
+  player.inventory = [];
+  if (player.characterInventory) {
+    player.characterInventory.items = {};
+    player.characterInventory.equipment = {};
+    player.characterInventory.occupancy = {};
+  }
+  return player;
 }
 
 function captureSink() {

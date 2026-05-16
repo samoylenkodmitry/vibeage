@@ -1,6 +1,8 @@
 import { EQUIP_SLOTS, type EquipSlot } from '../../../../packages/content/equipmentTypes';
 import { ITEMS } from '../../../../packages/content/items';
+import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
+import { useLongPress } from './useLongPress';
 
 type PaperdollPanelProps = {
   equipment: Record<string, string>;
@@ -28,6 +30,7 @@ const SLOT_LABELS: Record<EquipSlot, string> = {
 export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('paperdoll');
   const equippedCount = Object.values(equipment).filter(Boolean).length;
+  const longPress = useLongPress<string>();
   return (
     <section ref={panelRef} className="paperdoll-panel" aria-label="Equipment">
       <div className="panel-title">
@@ -43,7 +46,48 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
           return (
             <li key={slot} className={`paperdoll-row${canUnequip ? ' paperdoll-row--filled' : ''}`}>
               <span className="paperdoll-slot-label">{SLOT_LABELS[slot]}</span>
-              <span className="paperdoll-slot-item">{itemName}</span>
+              <button
+                type="button"
+                className="paperdoll-slot-item"
+                disabled={!itemId}
+                title={canUnequip ? `${itemName} — long-press for details` : 'Empty'}
+                onClick={(event) => {
+                  if (longPress.consumePendingClick()) {
+                    event.stopPropagation();
+                    return;
+                  }
+                  if (itemId) {
+                    longPress.start(itemId, event.clientX || 0, event.clientY || 0, { instant: true });
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    if (itemId) {
+                      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                      longPress.start(itemId, rect.left, rect.bottom, { instant: true });
+                    }
+                  }
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  if (itemId) longPress.start(itemId, event.clientX, event.clientY, { instant: true });
+                }}
+                onPointerDown={(event) => {
+                  if (itemId && event.pointerType === 'touch') {
+                    longPress.start(itemId, event.clientX, event.clientY);
+                  }
+                }}
+                onPointerMove={(event) => {
+                  if (event.pointerType === 'touch') {
+                    longPress.move(event.clientX, event.clientY);
+                  }
+                }}
+                onPointerUp={() => longPress.cancel()}
+                onPointerCancel={() => longPress.cancel()}
+              >
+                {itemName}
+              </button>
               <button
                 type="button"
                 className="paperdoll-unequip"
@@ -58,6 +102,13 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
           );
         })}
       </ul>
+      {longPress.info && (
+        <ItemTooltip
+          itemId={longPress.info.payload}
+          clientX={longPress.info.clientX}
+          clientY={longPress.info.clientY}
+        />
+      )}
     </section>
   );
 }
