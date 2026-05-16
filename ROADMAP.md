@@ -246,7 +246,7 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 1. [x] **Templates + slot enum** — extend `Item` with `equip`, `kind`, `grade`, `weight`; introduce `EquipSlot`, `BodyPart`, `HandUsage`, `EquipSpec`, `EquipRequirements`. Annotate the existing items. Unit tests for template metadata.
 
-2. [ ] **Item instances + locations** — define `ItemInstance` and `ItemLocation`; add a `CharacterInventory` aggregate with `items` + `equipment`; write the invariant validator; migrate `PlayerState` to hold the aggregate while keeping the wire format on the existing `InventorySlot[]`.
+2. [x] **Item instances + locations** — define `ItemInstance` and `ItemLocation`; add a `CharacterInventory` aggregate with `items` + `equipment`; write the invariant validator; ship a flatten/inflate adapter to keep the existing `InventorySlot[]` wire format working.
 
 3. [ ] **Inventory transactions** — atomic `addItem`, `removeItem`, `moveSlot`, `splitStack`, `mergeStacks` with weight + slot-count enforcement. Loot pickup uses the new pipeline.
 
