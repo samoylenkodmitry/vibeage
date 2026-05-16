@@ -16,11 +16,41 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
-function extractCheckSubcommands(checkScript: string): string[] {
-  return checkScript
-    .split('&&')
-    .map(s => s.trim())
-    .filter(Boolean);
+/**
+ * Reduce a chained subcommand to its canonical script name. We treat
+ * `pnpm run <name>` and `pnpm <name>` as equivalent because pnpm itself
+ * does (`pnpm test` and `pnpm run test` execute the same script).
+ */
+function canonicalScriptName(rawCmd: string): string | null {
+  const normalized = rawCmd.trim().replace(/\s+/g, ' ');
+  const runMatch = normalized.match(/^pnpm\s+run\s+([^\s]+)/);
+  if (runMatch) return runMatch[1];
+  const shortMatch = normalized.match(/^pnpm\s+([^\s]+)/);
+  if (shortMatch) return shortMatch[1];
+  return null;
+}
+
+function extractCheckScriptNames(checkScript: string): string[] {
+  const names: string[] = [];
+  for (const segment of checkScript.split('&&')) {
+    const name = canonicalScriptName(segment);
+    if (name) names.push(name);
+  }
+  return names;
+}
+
+function extractWorkflowScriptNames(workflowYaml: string): Set<string> {
+  const names = new Set<string>();
+  // Match `run: <cmd>` lines (any whitespace, optional trailing args). Multi-line
+  // `run: |` blocks would need yaml parsing; CI today uses one-liners only, but
+  // we include any `pnpm <name>` token anywhere in the file so future block
+  // styles still match.
+  const re = /pnpm\s+(?:run\s+)?([a-zA-Z0-9:_-]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(workflowYaml)) !== null) {
+    names.add(match[1]);
+  }
+  return names;
 }
 
 describe('CI ↔ pnpm run check parity', () => {
@@ -31,20 +61,17 @@ describe('CI ↔ pnpm run check parity', () => {
 
     const workflow = readFileSync(path.join(REPO_ROOT, '.github/workflows/ci.yml'), 'utf8');
 
-    const subcommands = extractCheckSubcommands(check);
-    expect(subcommands.length, 'parsed at least one subcommand from check').toBeGreaterThan(0);
+    const checkNames = extractCheckScriptNames(check);
+    expect(checkNames.length, 'parsed at least one subcommand from check').toBeGreaterThan(0);
 
-    const missing: string[] = [];
-    for (const cmd of subcommands) {
-      if (!workflow.includes(`run: ${cmd}`)) {
-        missing.push(cmd);
-      }
-    }
+    const workflowNames = extractWorkflowScriptNames(workflow);
+
+    const missing = checkNames.filter(name => !workflowNames.has(name));
 
     expect(
       missing,
       `CI workflow is missing these \`pnpm run check\` subcommands: ${missing.join(', ')}. ` +
-      'Add a matching `run: <cmd>` step to .github/workflows/ci.yml, or remove the command from the check script.',
+      'Add a matching `run: pnpm run <name>` step to .github/workflows/ci.yml, or remove the command from the check script.',
     ).toEqual([]);
   });
 });
