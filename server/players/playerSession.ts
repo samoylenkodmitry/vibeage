@@ -17,6 +17,7 @@ import {
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 import { projectPlayerStats } from '../inventory/equipHandlers.js';
 import { applyStarterLoadout } from '../inventory/starterLoadout.js';
+import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 
 type PlayerRow = {
   id: string;
@@ -152,6 +153,7 @@ export async function removePlayerSessionBySocketId(
   spatial: SpatialHashGrid,
   socketId: string,
 ): Promise<string | null> {
+  forgetSocketRateLimits(socketId);
   const playerId = findPlayerIdBySocket(state, socketId);
   if (!playerId) {
     return null;
