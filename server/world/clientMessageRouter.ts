@@ -11,6 +11,7 @@ import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
 import { applyMoveIntent } from '../movement/moveIntent.js';
+import { sharedMovementFreshness, type StaleIntentReason } from '../movement/staleIntentTracker.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
 import { onLearnSkill, onSetSkillShortcut } from '../players/playerSkills.js';
@@ -285,6 +286,13 @@ function onMoveIntent(
   state: GameState,
   msg: Extract<ClientMessage, { type: 'MoveIntent' }>,
 ): void {
+  const staleReason = sharedMovementFreshness().check(socket.id, msg.clientTs);
+  if (staleReason) {
+    incrementStaleMovementCounter(staleReason);
+    debug(LOG_CATEGORIES.MOVEMENT, `Dropped stale MoveIntent from ${socket.id}: ${staleReason}`);
+    return;
+  }
+
   const result = applyMoveIntent(state, socket.id, msg);
 
   if (result.ok === false) {
@@ -307,6 +315,11 @@ function onRequestInventory(socket: WorldClient, direct: DirectMessageSink, stat
   }
 
   emitInventoryUpdate(direct, state.players[playerId]);
+}
+
+function incrementStaleMovementCounter(reason: StaleIntentReason): void {
+  runtimeMetrics.increment(`movement.staleIntent.${reason}`);
+  runtimeMetrics.increment('movement.staleIntent.total');
 }
 
 function warnRejectedMoveIntent(

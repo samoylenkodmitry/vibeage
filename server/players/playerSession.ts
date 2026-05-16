@@ -18,6 +18,7 @@ import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 import { projectPlayerStats } from '../inventory/equipHandlers.js';
 import { applyStarterLoadout } from '../inventory/starterLoadout.js';
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
+import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
 
 type PlayerRow = {
   id: string;
@@ -154,6 +155,7 @@ export async function removePlayerSessionBySocketId(
   socketId: string,
 ): Promise<string | null> {
   forgetSocketRateLimits(socketId);
+  forgetMovementFreshness(socketId);
   const playerId = findPlayerIdBySocket(state, socketId);
   if (!playerId) {
     return null;

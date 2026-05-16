@@ -569,7 +569,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 ## 10. Movement, Prediction, Anti-Cheat, and World Bounds
 
 - [ ] Add server-side sequence numbers to movement intents.
-- [ ] Reject stale movement intents older than an allowed window.
+- [x] Reject stale movement intents older than an allowed window.
 - [ ] Reject movement intents too far from current authoritative position if not explained by normal travel.
 - [ ] Reject movement targets outside playable world bounds.
 - [ ] Reject movement targets into impassable terrain once collision/navmesh exists.
