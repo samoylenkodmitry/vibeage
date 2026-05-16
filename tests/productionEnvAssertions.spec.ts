@@ -8,6 +8,7 @@ import {
 const baseProdEnv = (): NodeJS.ProcessEnv => ({
   NODE_ENV: 'production',
   CORS_ORIGINS: 'https://example.com',
+  RUNTIMEZ_TOKEN: 'secret-token',
 });
 
 describe('isProductionEnv', () => {
@@ -48,6 +49,24 @@ describe('findProductionEnvViolations', () => {
 
   it('returns no violations when prod is configured safely', () => {
     expect(findProductionEnvViolations(baseProdEnv())).toEqual([]);
+  });
+
+  it('flags missing RUNTIMEZ_TOKEN in production without RUNTIMEZ_DISABLE', () => {
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: 'production',
+      CORS_ORIGINS: 'https://example.com',
+    };
+    const violations = findProductionEnvViolations(env);
+    expect(violations.map(v => v.variable)).toContain('RUNTIMEZ_TOKEN');
+  });
+
+  it('accepts production with RUNTIMEZ_DISABLE=1 instead of a token', () => {
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: 'production',
+      CORS_ORIGINS: 'https://example.com',
+      RUNTIMEZ_DISABLE: '1',
+    };
+    expect(findProductionEnvViolations(env)).toEqual([]);
   });
 });
 

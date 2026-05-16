@@ -33,9 +33,15 @@ app.get('/healthz', (req, res) => {
 
 // /runtimez exposes process internals (heap, event-loop lag, room counts). In
 // production we require a shared token so it's not casually scrapable by anyone
-// who finds the URL. In dev (no RUNTIMEZ_TOKEN set) it's open.
+// who finds the URL. Setting RUNTIMEZ_DISABLE=1 turns the endpoint off entirely
+// (acknowledged operator opt-out, enforced by productionEnvAssertions).
 const RUNTIMEZ_TOKEN = process.env.RUNTIMEZ_TOKEN;
+const RUNTIMEZ_DISABLED = process.env.RUNTIMEZ_DISABLE === '1';
 app.get('/runtimez', (req, res) => {
+  if (RUNTIMEZ_DISABLED) {
+    res.status(404).send({ error: 'Not found' });
+    return;
+  }
   if (RUNTIMEZ_TOKEN) {
     const provided = req.header('x-runtimez-token');
     if (provided !== RUNTIMEZ_TOKEN) {

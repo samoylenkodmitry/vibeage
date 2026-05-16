@@ -50,6 +50,9 @@ export class SocketRateLimiter {
     }
     const existing = perSocket.get(bucket);
     if (!existing) {
+      if (limit.capacity < 1) {
+        return false;
+      }
       perSocket.set(bucket, { tokens: limit.capacity - 1, lastRefillMs: nowMs });
       return true;
     }

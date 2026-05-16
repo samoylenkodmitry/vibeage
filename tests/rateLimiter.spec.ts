@@ -59,6 +59,14 @@ describe('SocketRateLimiter', () => {
     expect(limiter.allow('socket-b', 'cast', t0)).toBe(true);
   });
 
+  it('rejects on first call when capacity is configured below 1', () => {
+    const limiter = new SocketRateLimiter({
+      ...RATE_LIMITS,
+      chat: { capacity: 0.5, refillPerSecond: 1 },
+    });
+    expect(limiter.allow('socket-z', 'chat', 1_000_000)).toBe(false);
+  });
+
   it('forget clears all per-socket state so the next action gets a full bucket', () => {
     const limiter = new SocketRateLimiter();
     const t0 = 1_000_000;

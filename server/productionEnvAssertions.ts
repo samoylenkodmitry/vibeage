@@ -43,6 +43,18 @@ export function findProductionEnvViolations(
     });
   }
 
+  // /runtimez is the live metrics endpoint. In production we require either
+  // RUNTIMEZ_TOKEN (caller must present x-runtimez-token) or an explicit
+  // RUNTIMEZ_DISABLE=1 to acknowledge the operator deliberately turned it off.
+  // Defaulting to silent-404-in-prod (the old behaviour) hid metrics with no
+  // breadcrumb; require an explicit decision instead.
+  if (!env.RUNTIMEZ_TOKEN && env.RUNTIMEZ_DISABLE !== '1') {
+    violations.push({
+      variable: 'RUNTIMEZ_TOKEN',
+      message: 'RUNTIMEZ_TOKEN must be set in production so the metrics endpoint is reachable to operators, or set RUNTIMEZ_DISABLE=1 to acknowledge it is intentionally off.',
+    });
+  }
+
   return violations;
 }
 
