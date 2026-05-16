@@ -49,6 +49,9 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      - name: Typecheck packages (strict)
+        run: pnpm run typecheck:packages
+
       - name: Validate deployment scripts
         run: pnpm run check:scripts
 
@@ -57,6 +60,9 @@ jobs:
 
       - name: Dead-code gate
         run: pnpm run check:deadcode
+
+      - name: Content validation
+        run: pnpm run content:check
 
       - name: Test
         run: pnpm test

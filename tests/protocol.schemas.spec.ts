@@ -49,11 +49,22 @@ describe('client protocol schemas', () => {
       type: 'MoveIntent',
       id: 'player-1',
       targetPos: { x: 1, z: 2 },
-      speed: 5,
       clientTs: 1746316800000,
     });
 
     expect(parsed.success).toBe(true);
+  });
+
+  it('rejects unknown extra fields on a client message (strict boundary)', () => {
+    const parsed = safeParseClientMessage({
+      type: 'MoveIntent',
+      id: 'player-1',
+      targetPos: { x: 1, z: 2 },
+      clientTs: 1746316800000,
+      unexpected: 'should be rejected',
+    });
+
+    expect(parsed.success).toBe(false);
   });
 });
 

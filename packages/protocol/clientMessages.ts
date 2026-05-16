@@ -8,7 +8,7 @@ export const moveIntentSchema = z.object({
   targetPos: vecXZSchema,
   clientTs: z.number(),
   seq: z.number().optional(),
-}).passthrough();
+}).strict();
 
 export const castReqSchema = z.object({
   type: z.literal('CastReq'),
@@ -17,75 +17,75 @@ export const castReqSchema = z.object({
   targetId: z.string().optional(),
   targetPos: vecXZSchema.optional(),
   clientTs: z.number(),
-}).passthrough();
+}).strict();
 
 export const learnSkillSchema = z.object({
   type: z.literal('LearnSkill'),
   skillId: skillIdSchema,
-}).passthrough();
+}).strict();
 
 export const setSkillShortcutSchema = z.object({
   type: z.literal('SetSkillShortcut'),
   slotIndex: z.number().int().min(0).max(8),
   skillId: skillIdSchema.nullable(),
-}).passthrough();
+}).strict();
 
 export const selectClassSchema = z.object({
   type: z.literal('SelectClass'),
   className: z.string(),
-}).passthrough();
+}).strict();
 
 export const selectRaceSchema = z.object({
   type: z.literal('SelectRace'),
   race: z.string(),
-}).passthrough();
+}).strict();
 
 export const respawnRequestSchema = z.object({
   type: z.literal('RespawnRequest'),
   id: z.string(),
   clientTs: z.number(),
-}).passthrough();
+}).strict();
 
 export const lootPickupSchema = z.object({
   type: z.literal('LootPickup'),
   lootId: z.string(),
   playerId: z.string(),
-}).passthrough();
+}).strict();
 
 export const useItemSchema = z.object({
   type: z.literal('UseItem'),
   slotIndex: z.number().int().min(0),
   clientTs: z.number(),
-}).passthrough();
+}).strict();
 
 export const requestInventorySchema = z.object({
   type: z.literal('RequestInventory'),
-}).passthrough();
+}).strict();
 
 export const devTeleportSchema = z.object({
   type: z.literal('DevTeleport'),
   id: z.string(),
   targetPos: vecXZSchema,
   clientTs: z.number(),
-}).passthrough();
+}).strict();
 
 export const chatRequestSchema = z.object({
   type: z.literal('ChatRequest'),
   text: z.string().min(1).max(240),
   scope: z.union([z.literal('near'), z.literal('all')]),
   clientTs: z.number(),
-}).passthrough();
+}).strict();
 
 export const equipItemSchema = z.object({
   type: z.literal('EquipItem'),
   slotIndex: z.number().int().min(0),
   requestedSlot: z.string().optional(),
-}).passthrough();
+}).strict();
 
 export const unequipItemSchema = z.object({
   type: z.literal('UnequipItem'),
   slot: z.string(),
-}).passthrough();
+}).strict();
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
