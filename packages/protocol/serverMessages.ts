@@ -157,6 +157,21 @@ export const chatBroadcastSchema = z.object({
   ts: z.number(),
 }).passthrough();
 
+export const equipmentEntrySchema = z.object({
+  slot: z.string(),
+  itemId: z.string(),
+}).passthrough();
+
+export const equipmentUpdateSchema = z.object({
+  type: z.literal('EquipmentUpdate'),
+  equipment: z.array(equipmentEntrySchema),
+}).passthrough();
+
+export const equipFailedSchema = z.object({
+  type: z.literal('EquipFailed'),
+  reason: z.string(),
+}).passthrough();
+
 function getServerMessageSchema(): z.ZodType<unknown> {
   return serverMessageSchema;
 }
@@ -184,6 +199,8 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   itemUsedSchema,
   batchUpdateSchema,
   chatBroadcastSchema,
+  equipmentUpdateSchema,
+  equipFailedSchema,
 ]);
 
 export const serverMessageSchema = z.union([
@@ -332,6 +349,21 @@ export type ChatBroadcast = {
   ts: number;
 };
 
+export type EquipmentEntry = {
+  slot: string;
+  itemId: string;
+};
+
+export type EquipmentUpdateMsg = {
+  type: 'EquipmentUpdate';
+  equipment: EquipmentEntry[];
+};
+
+export type EquipFailedMsg = {
+  type: 'EquipFailed';
+  reason: string;
+};
+
 export type ServerMessage =
   | PosSnap
   | InstantHit
@@ -350,4 +382,6 @@ export type ServerMessage =
   | LootSpawn
   | ItemUsed
   | BatchUpdate
-  | ChatBroadcast;
+  | ChatBroadcast
+  | EquipmentUpdateMsg
+  | EquipFailedMsg;

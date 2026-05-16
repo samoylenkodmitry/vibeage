@@ -1,4 +1,5 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../content/classes.js';
+import type { ItemStatBlock } from '../content/equipmentTypes.js';
 
 export type DerivedPlayerStats = {
   str: number;
@@ -46,7 +47,14 @@ const CRIT_MULT_PER_WIT = 0.01;
 const HP_LEVEL_BONUS = 14;
 const MP_LEVEL_BONUS = 6;
 
-export function derivePlayerStats(level: number, className: CharacterClass): DerivedPlayerStats {
+const EQUIPMENT_PATK_TO_DMG = 0.01;
+const EQUIPMENT_MATK_TO_DMG = 0.01;
+
+export function derivePlayerStats(
+  level: number,
+  className: CharacterClass,
+  equipment: ItemStatBlock = {},
+): DerivedPlayerStats {
   const weights = STAT_WEIGHTS[className] ?? DEFAULT_WEIGHTS;
   const safeLevel = Math.max(1, Math.floor(level));
   const str = 8 + Math.floor(safeLevel * weights.str);
@@ -62,14 +70,19 @@ export function derivePlayerStats(level: number, className: CharacterClass): Der
   const manaMultiplier = baseStats?.manaMultiplier ?? 1;
   const damageMultiplier = baseStats?.damageMultiplier ?? 1;
   const primary = isMagicClass(className) ? int : str;
-  const dmgMult = damageMultiplier * (1 + (primary - 8) * DMG_PER_PRIMARY);
-  const critChance = (dex - 8) * CRIT_PER_DEX;
+  const equipmentDmg = isMagicClass(className)
+    ? (equipment.mAtk ?? 0) * EQUIPMENT_MATK_TO_DMG
+    : (equipment.pAtk ?? 0) * EQUIPMENT_PATK_TO_DMG;
+  const dmgMult = damageMultiplier * (1 + (primary - 8) * DMG_PER_PRIMARY + equipmentDmg);
+  const critChance = (dex - 8) * CRIT_PER_DEX + (equipment.critRate ?? 0) * 0.01;
   const critMult = CRIT_MULT_BASE + (wit - 8) * CRIT_MULT_PER_WIT;
 
   const maxHealth = Math.round((BASE_HEALTH + safeLevel * HP_LEVEL_BONUS) * healthMultiplier * (1 + (con - 8) * 0.05))
-    + (con - 8) * HEALTH_PER_CON;
+    + (con - 8) * HEALTH_PER_CON
+    + (equipment.hp ?? 0);
   const maxMana = Math.round((BASE_MANA + safeLevel * MP_LEVEL_BONUS) * manaMultiplier)
-    + (men - 8) * MANA_PER_MEN;
+    + (men - 8) * MANA_PER_MEN
+    + (equipment.mp ?? 0);
 
   return {
     str,

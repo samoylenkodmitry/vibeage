@@ -8,6 +8,7 @@ import type {
   StatusEffect,
   VecXZ,
 } from '../protocol/messages.js';
+import type { CharacterInventory } from './characterInventory.js';
 
 export type {
   CastSnapshot,
@@ -93,4 +94,5 @@ export interface PlayerState {
   };
   inventory: InventorySlot[];
   maxInventorySlots: number;
+  characterInventory?: CharacterInventory;
 }

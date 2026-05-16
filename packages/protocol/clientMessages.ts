@@ -71,6 +71,17 @@ export const chatRequestSchema = z.object({
   clientTs: z.number(),
 }).passthrough();
 
+export const equipItemSchema = z.object({
+  type: z.literal('EquipItem'),
+  slotIndex: z.number().int().min(0),
+  requestedSlot: z.string().optional(),
+}).passthrough();
+
+export const unequipItemSchema = z.object({
+  type: z.literal('UnequipItem'),
+  slot: z.string(),
+}).passthrough();
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
@@ -83,6 +94,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   requestInventorySchema,
   devTeleportSchema,
   chatRequestSchema,
+  equipItemSchema,
+  unequipItemSchema,
 ]);
 
 export type MoveIntent = {
@@ -156,6 +169,17 @@ export type ChatRequest = {
   clientTs: number;
 };
 
+export type EquipItem = {
+  type: 'EquipItem';
+  slotIndex: number;
+  requestedSlot?: string;
+};
+
+export type UnequipItem = {
+  type: 'UnequipItem';
+  slot: string;
+};
+
 export type ClientMessage =
   | MoveIntent
   | CastReq
@@ -167,4 +191,6 @@ export type ClientMessage =
   | UseItem
   | RequestInventory
   | DevTeleport
-  | ChatRequest;
+  | ChatRequest
+  | EquipItem
+  | UnequipItem;

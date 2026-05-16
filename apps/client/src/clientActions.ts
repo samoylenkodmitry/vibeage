@@ -14,6 +14,8 @@ export type ClientActions = {
   learnSkill: (skillId: SkillId) => void;
   pickUpLoot: (lootId: string) => void;
   useItem: (slotIndex: number) => void;
+  equipItem: (slotIndex: number, requestedSlot?: string) => void;
+  unequipItem: (slot: string) => void;
   respawn: () => void;
   devTeleport: (target: VecXZ) => void;
   sendChat: (text: string, scope: 'near' | 'all') => void;
@@ -86,6 +88,14 @@ export function useClientActions(
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now() });
   }, [roomRef]);
 
+  const equipItem = useCallback((slotIndex: number, requestedSlot?: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'EquipItem', slotIndex, requestedSlot });
+  }, [roomRef]);
+
+  const unequipItem = useCallback((slot: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UnequipItem', slot });
+  }, [roomRef]);
+
   const respawn = useCallback(() => {
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
@@ -97,8 +107,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport, sendChat }),
-    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, respawn, devTeleport, sendChat],
+    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, respawn, devTeleport, sendChat }),
+    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, respawn, devTeleport, sendChat],
   );
 }
 

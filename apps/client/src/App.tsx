@@ -38,6 +38,8 @@ export default function App() {
         onCastSkill={client.castSkill}
         onLearnSkill={client.learnSkill}
         onUseItem={client.useItem}
+        onEquipItem={client.equipItem}
+        onUnequipItem={client.unequipItem}
         onRespawn={client.respawn}
         onSendChat={client.sendChat}
       />

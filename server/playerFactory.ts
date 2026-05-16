@@ -1,3 +1,4 @@
+import { createEmptyInventory } from '../packages/sim/characterInventory.js';
 import { hash } from '../packages/sim/combatMath.js';
 import { PlayerState } from '../packages/sim/entities.js';
 import { derivePlayerStats } from '../packages/sim/playerStats.js';
@@ -8,10 +9,17 @@ import {
 } from './players/playerProgression.js';
 import { createInitialPlayerStarterProgress } from './progression/starterPath.js';
 
+const PLAYER_INVENTORY_LIMITS = {
+  baseSlots: 20,
+  bonusSlots: 0,
+  maxWeight: 80_000,
+};
+
 export function createTransientPlayer(socketId: string, name: string): PlayerState {
   const stats = derivePlayerStats(1, 'mage');
+  const playerId = `player-${hash(socketId + Date.now().toString())}`;
   return {
-    id: `player-${hash(socketId + Date.now().toString())}`,
+    id: playerId,
     socketId,
     name,
     position: { x: 0, y: 0.5, z: 0 },
@@ -45,5 +53,6 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
       critChance: stats.critChance,
       critMult: stats.critMult,
     },
+    characterInventory: createEmptyInventory(playerId, PLAYER_INVENTORY_LIMITS),
   };
 }
