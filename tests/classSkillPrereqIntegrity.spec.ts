@@ -14,6 +14,7 @@ import { SKILLS, type SkillId } from '../packages/content/skills';
 function detectCycle(
   rootSkill: SkillId,
   progression: ReturnType<typeof prereqMap>,
+  visited: Set<SkillId>,
 ): { cycle: SkillId[] } | null {
   const stack: SkillId[] = [];
   const visiting = new Set<SkillId>();
@@ -23,6 +24,11 @@ function detectCycle(
       const start = stack.indexOf(skill);
       return start >= 0 ? [...stack.slice(start), skill] : [skill];
     }
+    // Already proven cycle-free from a prior root — skip re-traversal.
+    // Together with `visiting`, this gives O(V+E) instead of potentially
+    // exponential on a denser graph.
+    if (visited.has(skill)) return null;
+
     visiting.add(skill);
     stack.push(skill);
     for (const prereq of progression.get(skill) ?? []) {
@@ -30,6 +36,7 @@ function detectCycle(
       if (found) return found;
     }
     visiting.delete(skill);
+    visited.add(skill);
     stack.pop();
     return null;
   };
@@ -73,8 +80,9 @@ describe('class skill prereq graphs', () => {
       });
 
       it('has no prereq cycles', () => {
+        const visited = new Set<SkillId>();
         for (const skill of skills) {
-          const cycle = detectCycle(skill, graph);
+          const cycle = detectCycle(skill, graph, visited);
           expect(cycle, `cycle detected starting at ${className}.${skill}: ${cycle?.cycle.join(' → ')}`).toBeNull();
         }
       });
