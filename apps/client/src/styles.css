@@ -1599,3 +1599,9 @@ button.character-option {
   text-transform: uppercase;
   color: #94a3b8;
 }
+
+.player-stats-combat {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(141, 233, 215, 0.18);
+}

@@ -27,6 +27,29 @@ describe('derivePlayerStats', () => {
     expect(knight.maxHealth).toBeGreaterThan(rogue.maxHealth);
   });
 
+  test('exposes the full L2-style derived block', () => {
+    const stats = derivePlayerStats(10, 'warrior');
+    expect(stats.pAtk).toBeGreaterThan(0);
+    expect(stats.mAtk).toBeGreaterThan(0);
+    expect(stats.pDef).toBeGreaterThan(0);
+    expect(stats.mDef).toBeGreaterThan(0);
+    expect(stats.hpRegen).toBeGreaterThan(0);
+    expect(stats.mpRegen).toBeGreaterThan(0);
+    expect(stats.accuracy).toBeGreaterThan(0);
+    expect(stats.evasion).toBeGreaterThan(0);
+    expect(stats.attackSpeed).toBeGreaterThan(0);
+    expect(stats.castSpeed).toBeGreaterThan(0);
+    expect(stats.castSpeed).toBeLessThanOrEqual(1);
+    expect(stats.runSpeed).toBeGreaterThan(0);
+  });
+
+  test('mage has higher M.Atk than warrior at same level', () => {
+    const mage = derivePlayerStats(10, 'mage');
+    const warrior = derivePlayerStats(10, 'warrior');
+    expect(mage.mAtk).toBeGreaterThan(warrior.mAtk);
+    expect(warrior.pAtk).toBeGreaterThan(mage.pAtk);
+  });
+
   test('paladin sits between warrior and healer for HP and MP', () => {
     const paladin = derivePlayerStats(5, 'paladin');
     const warrior = derivePlayerStats(5, 'warrior');

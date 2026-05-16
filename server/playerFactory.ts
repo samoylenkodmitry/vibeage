@@ -3,6 +3,7 @@ import { createEmptyInventory } from '../packages/sim/characterInventory.js';
 import { hash } from '../packages/sim/combatMath.js';
 import { PlayerState } from '../packages/sim/entities.js';
 import { derivePlayerStats } from '../packages/sim/playerStats.js';
+import { projectPlayerStats } from './inventory/equipHandlers.js';
 import { applyStarterLoadout } from './inventory/starterLoadout.js';
 import {
   DEFAULT_AVAILABLE_SKILL_POINTS,
@@ -51,11 +52,7 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     lastUpdateTime: Date.now(),
     inventory: [],
     maxInventorySlots: 20,
-    stats: {
-      dmgMult: stats.dmgMult,
-      critChance: stats.critChance,
-      critMult: stats.critMult,
-    },
+    stats: projectPlayerStats(stats),
     characterInventory: createEmptyInventory(playerId, PLAYER_INVENTORY_LIMITS),
   };
   // Stocking the starter loadout populates both the aggregate and the

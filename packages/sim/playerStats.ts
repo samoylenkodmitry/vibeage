@@ -14,6 +14,22 @@ export type DerivedPlayerStats = {
   critMult: number;
   maxHealth: number;
   maxMana: number;
+  /** L2-style combat numbers derived on the server so the HUD can render them. */
+  pAtk: number;
+  mAtk: number;
+  pDef: number;
+  mDef: number;
+  /** Points restored per server regen tick. */
+  hpRegen: number;
+  mpRegen: number;
+  accuracy: number;
+  evasion: number;
+  /** Attacks per minute (legacy L2 unit). */
+  attackSpeed: number;
+  /** Cast time multiplier — 1.0 is baseline; lower = faster. */
+  castSpeed: number;
+  /** Movement speed in units per second. */
+  runSpeed: number;
 };
 
 type StatWeights = {
@@ -50,6 +66,15 @@ const MP_LEVEL_BONUS = 6;
 
 const EQUIPMENT_PATK_TO_DMG = 0.01;
 const EQUIPMENT_MATK_TO_DMG = 0.01;
+
+const BASE_PATK = 6;
+const BASE_MATK = 6;
+const BASE_PDEF = 6;
+const BASE_MDEF = 6;
+const BASE_RUN_SPEED = 7;
+const BASE_ATTACK_SPEED = 300;
+const BASE_ACCURACY = 90;
+const BASE_EVASION = 5;
 
 export function derivePlayerStats(
   level: number,
@@ -95,6 +120,26 @@ export function derivePlayerStats(
     + (men - 8) * MANA_PER_MEN
     + (equipment.mp ?? 0);
 
+  const speedMultiplier = baseStats?.speedMultiplier ?? 1;
+  const equipPAtk = equipment.pAtk ?? 0;
+  const equipMAtk = equipment.mAtk ?? 0;
+  const equipPDef = equipment.pDef ?? 0;
+  const equipMDef = equipment.mDef ?? 0;
+  const pAtk = Math.round((BASE_PATK + str * 1.4 + safeLevel * 2) * damageMultiplier + equipPAtk);
+  const mAtk = Math.round((BASE_MATK + int * 1.6 + safeLevel * 2) * damageMultiplier + equipMAtk);
+  const pDef = Math.round(BASE_PDEF + con * 1.1 + safeLevel * 1.5 + equipPDef);
+  const mDef = Math.round(BASE_MDEF + men * 1.1 + safeLevel * 1.4 + equipMDef);
+  const hpRegen = Math.max(1, Math.round((con * 0.18 + safeLevel * 0.4) * 10) / 10);
+  const mpRegen = Math.max(1, Math.round((men * 0.22 + safeLevel * 0.5) * 10) / 10);
+  const accuracy = Math.round(BASE_ACCURACY + dex * 0.5 + safeLevel * 0.6);
+  const evasion = Math.round(BASE_EVASION + dex * 0.4 + safeLevel * 0.3);
+  const attackSpeed = Math.round((BASE_ATTACK_SPEED + dex * 4 + (equipment.attackSpeed ?? 0)) * 10) / 10;
+  // Cast speed: WIT lowers the multiplier (faster). Clamp so it never goes
+  // below 0.4 (i.e. 2.5x normal speed) to avoid runaway scaling.
+  const castSpeed = Math.max(0.4, Math.round((1 - wit * 0.005) * 100) / 100);
+  const runSpeed = Math.max(2, Math.round((BASE_RUN_SPEED + dex * 0.05) * speedMultiplier * 10) / 10
+    + (equipment.moveSpeed ?? 0));
+
   return {
     str,
     dex,
@@ -107,6 +152,17 @@ export function derivePlayerStats(
     critMult,
     maxHealth,
     maxMana,
+    pAtk,
+    mAtk,
+    pDef,
+    mDef,
+    hpRegen,
+    mpRegen,
+    accuracy,
+    evasion,
+    attackSpeed,
+    castSpeed,
+    runSpeed,
   };
 }
 
