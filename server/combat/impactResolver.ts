@@ -125,12 +125,15 @@ function applyCastToTarget(
 
   target.health = Math.max(0, target.health - incoming);
 
-  if (isEnemy(target) && incoming > 0 && caster && target.isAlive) {
+  // Damage-based aggro: don't retarget while a taunt is active — that
+  // would let any other attacker break the taunt by hitting the mob,
+  // defeating the whole point of the skill.
+  if (isEnemy(target) && incoming > 0 && caster && target.isAlive && !isEntityTaunted(target)) {
     target.targetId = caster.id;
     target.aiState = 'chasing';
   }
 
-  applySkillEffects(target, skill);
+  applySkillEffects(target, skill, caster);
 
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = Date.now();
@@ -148,7 +151,11 @@ function applyCastToTarget(
   }
 }
 
-function applySkillEffects(target: Enemy | PlayerState, skill: SkillDef): void {
+function applySkillEffects(
+  target: Enemy | PlayerState,
+  skill: SkillDef,
+  caster: PlayerState | null,
+): void {
   target.statusEffects = target.statusEffects ?? [];
 
   for (const effect of skill.effects ?? []) {
@@ -161,7 +168,27 @@ function applySkillEffects(target: Enemy | PlayerState, skill: SkillDef): void {
       continue;
     }
     upsertStatusEffect(target, effect, skill.id);
+    // Taunt: force the enemy to focus the caster for the duration of
+    // the effect. Damage-based aggro (above) is suppressed while
+    // isEntityTaunted is true, so the caster keeps the lock.
+    if (effect.type === 'taunt' && isEnemy(target) && caster) {
+      target.targetId = caster.id;
+      target.aiState = 'chasing';
+    }
   }
+}
+
+/**
+ * True when the entity carries an active taunt effect. Currently used
+ * to suppress damage-based retargeting in applyCastToTarget so a
+ * taunted enemy stays glued to its taunter for the effect duration.
+ */
+export function isEntityTaunted(entity: Enemy | PlayerState, now: number = Date.now()): boolean {
+  return (entity.statusEffects ?? []).some((effect) => {
+    if (effect.type !== 'taunt') return false;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    return expiresAt > now;
+  });
 }
 
 function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect): void {
