@@ -3,9 +3,12 @@ import { createGameState } from '../server/gameState';
 import { runtimeMetrics } from '../server/observability/runtimeMetrics';
 import { handleClientMessage } from '../server/world/clientMessageRouter';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
+import { forgetMovementFreshness } from '../server/movement/staleIntentTracker';
 import { forgetSocketRateLimits, RATE_LIMITS } from '../server/world/rateLimiter';
 import type { ClientMessage } from '../packages/protocol/clientMessages';
 import type { PlayerState } from '../packages/sim/entities';
+
+const NOW = 1_700_000_000_000;
 
 const makePlayer = (id: string, socketId: string): PlayerState => ({
   id,
@@ -71,11 +74,15 @@ describe('invalid-ownership counter', () => {
     runtimeMetrics.resetForTests();
     forgetSocketRateLimits('socket1');
     forgetSocketRateLimits('socket2');
+    forgetMovementFreshness('socket1');
+    forgetMovementFreshness('socket2');
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
   });
 
   it('increments invalidOwnership.MoveIntent when a player sends a MoveIntent for someone else', () => {
     dispatch(
-      { type: 'MoveIntent', id: 'player2', targetPos: { x: 1, z: 1 }, clientTs: 1 },
+      { type: 'MoveIntent', id: 'player2', targetPos: { x: 1, z: 1 }, clientTs: NOW },
       'socket1',
     );
     const counters = runtimeMetrics.snapshot().counters;
@@ -125,7 +132,7 @@ describe('invalid-ownership counter', () => {
 
   it('does not increment invalidOwnership for valid same-socket actions', () => {
     dispatch(
-      { type: 'MoveIntent', id: 'player1', targetPos: { x: 1, z: 1 }, clientTs: 1 },
+      { type: 'MoveIntent', id: 'player1', targetPos: { x: 1, z: 1 }, clientTs: NOW },
       'socket1',
     );
     const counters = runtimeMetrics.snapshot().counters;
