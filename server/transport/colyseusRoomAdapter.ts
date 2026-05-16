@@ -132,8 +132,16 @@ const OWNER_ONLY_SERVER_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'StarterProgressUpdate',
 ]);
 
-function isOwnerOnlyServerMessage(message: { type: string }): boolean {
-  return OWNER_ONLY_SERVER_MESSAGE_TYPES.has(message.type);
+function isOwnerOnlyServerMessage(message: ServerMessage): boolean {
+  if (OWNER_ONLY_SERVER_MESSAGE_TYPES.has(message.type)) {
+    return true;
+  }
+  // BatchUpdate must be inspected recursively: wrapping an owner-only
+  // message inside a batch must not bypass the guard.
+  if (message.type === 'BatchUpdate') {
+    return message.updates.some(isOwnerOnlyServerMessage);
+  }
+  return false;
 }
 
 function emitColyseusOutbound(
