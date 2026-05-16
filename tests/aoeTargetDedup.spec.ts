@@ -68,8 +68,9 @@ function makeWaterSplashCast(casterId: string, primaryTargetId: string): Cast {
 describe('AoE target dedup (Section 8 L536)', () => {
   it('primary target hit by an explicit targetId is not also damaged via the area circle', () => {
     const caster = makeCaster('p1');
-    const primary = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, 1);
-    const sibling = createEnemy('goblin', 1, { x: 6, y: 0, z: 0 }, 2);
+    // createEnemy(type, level, position, now) — last arg is timestamp, not an id.
+    const primary = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW);
+    const sibling = createEnemy('goblin', 1, { x: 6, y: 0, z: 0 }, NOW);
     const primaryHealthBefore = primary.health;
     const siblingHealthBefore = sibling.health;
 
@@ -85,15 +86,19 @@ describe('AoE target dedup (Section 8 L536)', () => {
     // Primary's damage matches a single hit, not a double.
     const primaryDamage = primaryHealthBefore - primary.health;
     const siblingDamage = siblingHealthBefore - sibling.health;
+    // Damage variance is 10%; two single hits should differ by less than
+    // ~20% of one hit. A double-hit on the primary would be ~2× sibling,
+    // a 100% gap — well outside this bound.
     expect(
       Math.abs(primaryDamage - siblingDamage),
-      'primary and sibling should each have been hit exactly once (no double-hit on primary)',
-    ).toBeLessThan(primaryHealthBefore * 0.5);
+      `primary and sibling should each have been hit exactly once. ` +
+      `primary=${primaryDamage}, sibling=${siblingDamage}`,
+    ).toBeLessThan(siblingDamage * 0.2);
   });
 
   it('caster is excluded from the area circle even if standing inside it', () => {
     const caster = makeCaster('p1');
-    const primary = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, 3);
+    const primary = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW);
     const casterBefore = caster.health;
 
     // World reports caster inside the AoE — dedup should exclude them.
