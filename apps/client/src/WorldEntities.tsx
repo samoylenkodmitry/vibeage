@@ -16,6 +16,7 @@ import {
   SelectedEnemyBeacon,
   SelectedEnemyRing,
 } from './SceneVfx';
+import { ITEMS } from '../../../packages/content/items';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
 import { getTerrainY } from './worldSceneConfig';
@@ -26,10 +27,12 @@ export function PlayerMarker({
   player,
   isSelf,
   presentationRef,
+  equipment,
 }: {
   player: PlayerEntity;
   isSelf: boolean;
   presentationRef?: MutableRefObject<THREE.Vector3 | null>;
+  equipment?: Record<string, string>;
 }) {
   const color = player.isAlive ? (isSelf ? '#75f5c8' : '#8bb5ff') : '#64748b';
   const height = isSelf ? 1.8 : 1.55;
@@ -60,6 +63,7 @@ export function PlayerMarker({
         isSelf={isSelf}
         isAlive={player.isAlive}
         isMoving={isMoving}
+        equipment={equipment}
       />
     </SmoothedEntityGroup>
   );
@@ -130,6 +134,7 @@ function PlayerFigure({
   isSelf,
   isAlive,
   isMoving,
+  equipment,
 }: {
   height: number;
   torsoHeight: number;
@@ -138,6 +143,7 @@ function PlayerFigure({
   isSelf: boolean;
   isAlive: boolean;
   isMoving: boolean;
+  equipment?: Record<string, string>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const leftLegRef = useRef<THREE.Mesh>(null);
@@ -179,6 +185,13 @@ function PlayerFigure({
       <mesh ref={torsoRef} position={[0, torsoY, 0]} castShadow>
         <capsuleGeometry args={[0.4, torsoHeight, 8, 14]} />
         <meshStandardMaterial color={color} roughness={0.5} metalness={0.16} />
+        {/* Chest armour rides on the torso so it tilts with the walk sway. */}
+        {isAlive && equipment?.CHEST && (
+          <mesh>
+            <capsuleGeometry args={[0.46, torsoHeight * 0.9, 8, 14]} />
+            <meshStandardMaterial color={templateColor(equipment.CHEST, '#7c2d12')} roughness={0.45} metalness={0.32} transparent opacity={0.92} />
+          </mesh>
+        )}
       </mesh>
       <mesh position={[0, cloakY, -0.12]} castShadow>
         <coneGeometry args={[0.78, torsoHeight * 1.05, 14, 1, true]} />
@@ -198,8 +211,119 @@ function PlayerFigure({
           <meshStandardMaterial color="#facc15" emissive="#8a5f00" emissiveIntensity={0.55} />
         </mesh>
       )}
+      {isAlive && equipment && (
+        <EquipmentOverlay
+          equipment={equipment}
+          torsoY={torsoY}
+          torsoHeight={torsoHeight}
+          headY={headY}
+          headRadius={headRadius}
+        />
+      )}
     </group>
   );
+}
+
+function EquipmentOverlay({
+  equipment,
+  torsoY,
+  torsoHeight,
+  headY,
+  headRadius,
+}: {
+  equipment: Record<string, string>;
+  torsoY: number;
+  torsoHeight: number;
+  headY: number;
+  headRadius: number;
+}) {
+  const helmetColor = templateColor(equipment.HEAD, '#a8a29e');
+  const mainHand = equipment.MAIN_HAND;
+  const offHand = equipment.OFF_HAND;
+  const handY = torsoY - torsoHeight * 0.1;
+  return (
+    <group>
+      {equipment.HEAD && (
+        <mesh position={[0, headY + headRadius * 0.4, 0]} castShadow>
+          <sphereGeometry args={[headRadius * 1.18, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color={helmetColor} roughness={0.4} metalness={0.5} />
+        </mesh>
+      )}
+      {mainHand && (
+        <WeaponMesh templateId={mainHand} y={handY} x={0.45} hand="main" />
+      )}
+      {offHand && (
+        offHandIsShield(offHand)
+          ? <ShieldMesh templateId={offHand} y={torsoY} x={-0.48} />
+          : <WeaponMesh templateId={offHand} y={handY} x={-0.45} hand="off" />
+      )}
+    </group>
+  );
+}
+
+function WeaponMesh({ templateId, y, x, hand }: { templateId: string; y: number; x: number; hand: 'main' | 'off' }) {
+  const template = ITEMS[templateId];
+  const handUsage = template?.equip?.handUsage;
+  const weaponType = template?.equip?.weaponType ?? 'sword';
+  const color = templateColor(templateId, '#94a3b8');
+  const isOrb = weaponType === 'staff' || weaponType === 'orb';
+  const isTwoHanded = handUsage === 'twoHand' || handUsage === 'bow' || handUsage === 'dualWield';
+  const length = isOrb || isTwoHanded ? 1.6 : 1.0;
+  const radius = weaponType === 'mace' ? 0.07 : weaponType === 'dagger' ? 0.04 : 0.05;
+  // Swords / daggers / staves taper toward the tip; maces flare outward.
+  const radiusTop = weaponType === 'mace' ? radius : radius * 0.6;
+  const radiusBottom = weaponType === 'mace' ? radius * 0.8 : radius;
+  const angle = hand === 'main' ? -0.35 : 0.35;
+  return (
+    <group position={[x, y, 0.1]} rotation={[0, 0, angle]}>
+      <mesh position={[0, length / 2, 0]} castShadow>
+        <cylinderGeometry args={[radiusTop, radiusBottom, length, 10]} />
+        <meshStandardMaterial color={color} roughness={0.5} metalness={0.6} />
+      </mesh>
+      {weaponType === 'mace' && (
+        <mesh position={[0, length, 0]} castShadow>
+          <icosahedronGeometry args={[0.16, 0]} />
+          <meshStandardMaterial color={color} roughness={0.5} metalness={0.7} />
+        </mesh>
+      )}
+      {isOrb && (
+        <mesh position={[0, length, 0]} castShadow>
+          <sphereGeometry args={[0.14, 12, 8]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function ShieldMesh({ templateId, y, x }: { templateId: string; y: number; x: number }) {
+  const color = templateColor(templateId, '#9a5b2c');
+  return (
+    <mesh position={[x, y, 0.15]} rotation={[0, Math.PI / 2, 0]} castShadow>
+      <cylinderGeometry args={[0.32, 0.32, 0.08, 18]} />
+      <meshStandardMaterial color={color} roughness={0.5} metalness={0.4} />
+    </mesh>
+  );
+}
+
+function offHandIsShield(templateId: string): boolean {
+  const spec = ITEMS[templateId]?.equip;
+  return spec?.bodyPart === 'shield';
+}
+
+function templateColor(templateId: string | undefined, fallback: string): string {
+  if (!templateId) return fallback;
+  // Future: read from ItemTemplate.visual once it's added. For now, derive a
+  // stable colour from the item grade so different grades read differently.
+  const grade = ITEMS[templateId]?.grade ?? 'none';
+  switch (grade) {
+    case 'd': return '#9ca3af';
+    case 'c': return '#86efac';
+    case 'b': return '#7dd3fc';
+    case 'a': return '#fde68a';
+    case 's': return '#fca5a5';
+    default: return fallback;
+  }
 }
 
 export function EnemyMarker({
