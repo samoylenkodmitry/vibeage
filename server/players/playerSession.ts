@@ -2,6 +2,7 @@ import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { CharacterClass } from '../../packages/content/classes.js';
+import { CHARACTER_RACES, DEFAULT_RACE, type CharacterRace } from '../../packages/content/races.js';
 import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';
@@ -33,6 +34,7 @@ type PlayerRow = {
   available_skill_points?: unknown;
   starter_progress?: unknown;
   inventory?: InventorySlot[];
+  race?: unknown;
 };
 
 function normalizeClassName(value: unknown): CharacterClass {
@@ -41,6 +43,13 @@ function normalizeClassName(value: unknown): CharacterClass {
     return value;
   }
   return 'mage';
+}
+
+function normalizeRace(value: unknown): CharacterRace {
+  if (typeof value === 'string' && CHARACTER_RACES.includes(value as CharacterRace)) {
+    return value as CharacterRace;
+  }
+  return DEFAULT_RACE;
 }
 
 export function upsertActivePlayerSession(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
@@ -64,7 +73,8 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   const unlockedSkills = normalizeUnlockedSkills(row.skills);
   const level = normalizePlayerLevel(row.level);
   const className = normalizeClassName(row.class_name);
-  const derived = derivePlayerStats(level, className);
+  const race = normalizeRace(row.race);
+  const derived = derivePlayerStats(level, className, {}, race);
   const starterProgress = normalizeStarterProgressState(row.starter_progress, {
     levelReached: level,
     learnedSkills: unlockedSkills.length,
@@ -93,6 +103,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     castingProgressMs: 0,
     isAlive: row.is_alive !== undefined ? row.is_alive : true,
     className,
+    race,
     unlockedSkills,
     skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
     availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),

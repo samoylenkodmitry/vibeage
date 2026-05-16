@@ -1,4 +1,5 @@
 import type { CharacterClass } from '../content/classes.js';
+import type { CharacterRace } from '../content/races.js';
 import type { SkillId } from '../content/skills.js';
 import type {
   CastSnapshot,
@@ -67,6 +68,7 @@ export interface PlayerState {
   mana: number;
   maxMana: number;
   className: CharacterClass;
+  race?: CharacterRace;
   unlockedSkills: SkillId[];
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;

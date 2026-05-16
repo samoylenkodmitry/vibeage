@@ -1,3 +1,4 @@
+import { DEFAULT_RACE } from '../packages/content/races.js';
 import { createEmptyInventory } from '../packages/sim/characterInventory.js';
 import { hash } from '../packages/sim/combatMath.js';
 import { PlayerState } from '../packages/sim/entities.js';
@@ -17,7 +18,7 @@ const PLAYER_INVENTORY_LIMITS = {
 };
 
 export function createTransientPlayer(socketId: string, name: string): PlayerState {
-  const stats = derivePlayerStats(1, 'mage');
+  const stats = derivePlayerStats(1, 'mage', {}, DEFAULT_RACE);
   const playerId = `player-${hash(socketId + Date.now().toString())}`;
   const player: PlayerState = {
     id: playerId,
@@ -38,6 +39,7 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     castingProgressMs: 0,
     isAlive: true,
     className: 'mage',
+    race: DEFAULT_RACE,
     unlockedSkills: [...DEFAULT_UNLOCKED_SKILLS],
     skillShortcuts: normalizeSkillShortcuts(undefined, DEFAULT_UNLOCKED_SKILLS),
     availableSkillPoints: DEFAULT_AVAILABLE_SKILL_POINTS,
