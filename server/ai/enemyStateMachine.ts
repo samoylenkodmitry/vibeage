@@ -168,7 +168,7 @@ function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress:
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
-  moveEnemyToward(enemy, enemy.patrolTarget, context.spatialGrid, context.deltaTime);
+  moveEnemyToward(enemy, enemy.patrolTarget, context.spatialGrid, context.deltaTime, context.now);
 }
 
 function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
@@ -203,7 +203,7 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     return;
   }
 
-  moveEnemyToward(enemy, targetPlayer.position, context.spatialGrid, context.deltaTime);
+  moveEnemyToward(enemy, targetPlayer.position, context.spatialGrid, context.deltaTime, context.now);
 }
 
 function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
@@ -233,7 +233,7 @@ function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
     snapEnemyToSpawn(enemy, context.spatialGrid);
     progress.shouldBroadcastEnemyUpdate = true;
   } else {
-    moveEnemyToward(enemy, enemy.spawnPosition, context.spatialGrid, context.deltaTime);
+    moveEnemyToward(enemy, enemy.spawnPosition, context.spatialGrid, context.deltaTime, context.now);
   }
 
   // Don't re-aggro while still beyond the leash boundary, otherwise a

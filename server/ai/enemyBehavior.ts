@@ -31,18 +31,40 @@ export function findAggroTargetId(
   return null;
 }
 
+/**
+ * Returns the enemy's current effective movement speed, accounting for
+ * active slow / speed_boost status effects. Matches the player-side
+ * convention in `worldMovement.getPlayerSpeed` (multiplicative, fixed
+ * factors per effect type — `effect.value` is ignored).
+ */
+export function getEnemyMovementSpeed(enemy: Enemy, now: number = Date.now()): number {
+  let speed = enemy.movementSpeed;
+  for (const effect of enemy.statusEffects) {
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt <= now) continue;
+    if (effect.type === 'slow') {
+      speed *= 0.7;
+    } else if (effect.type === 'speed_boost') {
+      speed *= 1.3;
+    }
+  }
+  return speed;
+}
+
 export function moveEnemyToward(
   enemy: Enemy,
   targetPosition: VecXZ,
   spatialGrid: SpatialHashGrid,
   deltaTime: number,
+  now: number = Date.now(),
 ): void {
   const oldPos = { x: enemy.position.x, z: enemy.position.z };
   const direction = directionXZ(enemy.position, targetPosition);
+  const speed = getEnemyMovementSpeed(enemy, now);
 
   enemy.velocity = {
-    x: direction.x * enemy.movementSpeed,
-    z: direction.z * enemy.movementSpeed,
+    x: direction.x * speed,
+    z: direction.z * speed,
   };
   enemy.position.x += enemy.velocity.x * deltaTime;
   enemy.position.z += enemy.velocity.z * deltaTime;
