@@ -87,6 +87,76 @@ describe('enemy chase leash', () => {
     });
   });
 
+});
+
+describe('enemy chase leash: bounce prevention', () => {
+  it('does not bounce back to chasing in the same tick when the player hovers at the leash boundary', () => {
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 4);
+    enemy.position = { x: MAX_CHASE_DISTANCE_FROM_SPAWN + 0.1, y: 0, z: 0 };
+    enemy.aiState = 'chasing';
+    enemy.targetId = 'p1';
+    enemy.aggroRadius = 100; // player is well within aggro
+    const player = makePlayer('p1', MAX_CHASE_DISTANCE_FROM_SPAWN + 1, 0);
+    const spatial = new SpatialHashGrid(1);
+    spatial.insert(enemy.id, enemy.position);
+    spatial.insert(player.id, player.position);
+
+    advanceEnemyState(enemy, {
+      players: { p1: player },
+      spatialGrid: spatial,
+      deltaTime: 1 / 30,
+      now: 4_000,
+    });
+
+    // After the leash trip: enemy should be returning, not chasing.
+    expect(enemy.aiState).toBe('returning');
+    expect(enemy.targetId).toBeNull();
+  });
+
+  it('does not re-aggro while returning if still beyond the leash boundary', () => {
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 5);
+    enemy.position = { x: MAX_CHASE_DISTANCE_FROM_SPAWN + 5, y: 0, z: 0 };
+    enemy.aiState = 'returning';
+    enemy.targetId = null;
+    enemy.aggroRadius = 100;
+    const player = makePlayer('p1', MAX_CHASE_DISTANCE_FROM_SPAWN + 10, 0);
+    const spatial = new SpatialHashGrid(1);
+    spatial.insert(enemy.id, enemy.position);
+    spatial.insert(player.id, player.position);
+
+    advanceEnemyState(enemy, {
+      players: { p1: player },
+      spatialGrid: spatial,
+      deltaTime: 1 / 30,
+      now: 5_000,
+    });
+
+    expect(enemy.aiState).toBe('returning');
+    expect(enemy.targetId).toBeNull();
+  });
+
+  it('re-aggros once back inside the leash boundary while returning', () => {
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 6);
+    enemy.position = { x: 30, y: 0, z: 0 }; // within leash, returning to spawn
+    enemy.aiState = 'returning';
+    enemy.targetId = null;
+    enemy.aggroRadius = 100;
+    const player = makePlayer('p1', 35, 0);
+    const spatial = new SpatialHashGrid(1);
+    spatial.insert(enemy.id, enemy.position);
+    spatial.insert(player.id, player.position);
+
+    advanceEnemyState(enemy, {
+      players: { p1: player },
+      spatialGrid: spatial,
+      deltaTime: 1 / 30,
+      now: 6_000,
+    });
+
+    expect(enemy.aiState).toBe('chasing');
+    expect(enemy.targetId).toBe('p1');
+  });
+
   it('does not apply the leash check when the target is already dead (existing behaviour preserved)', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 3);
     enemy.position = { x: MAX_CHASE_DISTANCE_FROM_SPAWN + 100, y: 0, z: 0 };

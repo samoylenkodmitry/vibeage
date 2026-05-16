@@ -528,7 +528,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for shield absorption order.
 - [ ] Add tests for effect expiration during combat.
 - [ ] Add tests for death while affected by DoT.
-- [x] Add tests for self-cast skills.
+- [ ] Add tests for self-cast skills.
 - [ ] Add tests for ground-target skills.
 - [ ] Add tests for target-required skills.
 - [ ] Add tests for projectile impact at max range.
