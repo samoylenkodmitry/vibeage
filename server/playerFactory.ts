@@ -2,6 +2,7 @@ import { createEmptyInventory } from '../packages/sim/characterInventory.js';
 import { hash } from '../packages/sim/combatMath.js';
 import { PlayerState } from '../packages/sim/entities.js';
 import { derivePlayerStats } from '../packages/sim/playerStats.js';
+import { applyStarterLoadout } from './inventory/starterLoadout.js';
 import {
   DEFAULT_AVAILABLE_SKILL_POINTS,
   DEFAULT_UNLOCKED_SKILLS,
@@ -18,7 +19,7 @@ const PLAYER_INVENTORY_LIMITS = {
 export function createTransientPlayer(socketId: string, name: string): PlayerState {
   const stats = derivePlayerStats(1, 'mage');
   const playerId = `player-${hash(socketId + Date.now().toString())}`;
-  return {
+  const player: PlayerState = {
     id: playerId,
     socketId,
     name,
@@ -55,4 +56,9 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     },
     characterInventory: createEmptyInventory(playerId, PLAYER_INVENTORY_LIMITS),
   };
+  // Stocking the starter loadout populates both the aggregate and the
+  // legacy slot array via the bridge, so the new Bag / Paperdoll panels
+  // have something to show on the very first spawn.
+  applyStarterLoadout(player);
+  return player;
 }

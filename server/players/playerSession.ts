@@ -14,6 +14,7 @@ import {
   normalizeUnlockedSkills,
 } from './playerProgression.js';
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
+import { applyStarterLoadout } from '../inventory/starterLoadout.js';
 
 type PlayerRow = {
   id: string;
@@ -69,7 +70,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     learnedSkills: unlockedSkills.length,
   });
 
-  return {
+  const player: PlayerState = {
     id: row.id,
     socketId,
     name,
@@ -106,6 +107,12 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
       critMult: derived.critMult,
     },
   };
+  // Fresh persisted accounts (level 1, empty inventory) get the starter
+  // loadout so they see the new equipment system immediately.
+  if (player.level === 1 && player.inventory.length === 0) {
+    applyStarterLoadout(player);
+  }
+  return player;
 }
 
 export async function addPlayerSession(
