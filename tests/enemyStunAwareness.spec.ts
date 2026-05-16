@@ -73,6 +73,29 @@ describe('stunned enemies skip all AI actions', () => {
     expect(enemy.targetId).toBe('p1');
   });
 
+  it('marks the enemy dirty when stun zeros a non-zero velocity (so the snapshot reaches the client)', () => {
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 5);
+    enemy.position = { x: 5, y: 0, z: 0 };
+    enemy.aiState = 'chasing';
+    enemy.targetId = 'p1';
+    enemy.velocity = { x: 4, z: 0 };
+    enemy.statusEffects = [stunEffect()];
+    (enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap = false;
+    const player = makePlayer('p1', 10, 0);
+    const spatial = new SpatialHashGrid(1);
+    spatial.insert(enemy.id, enemy.position);
+    spatial.insert(player.id, player.position);
+
+    advanceEnemyState(enemy, {
+      players: { p1: player },
+      spatialGrid: spatial,
+      deltaTime: 1 / 30,
+      now: NOW,
+    });
+
+    expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(true);
+  });
+
   it('stunned attacking enemy does not damage the player', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 2);
     enemy.position = { x: 1, y: 0, z: 0 };
@@ -118,6 +141,9 @@ describe('stunned enemies skip all AI actions', () => {
     expect(enemy.aiState).toBe('idle');
   });
 
+});
+
+describe('stunned enemies: expiration', () => {
   it('expired stun no longer blocks enemy actions (chase resumes)', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 4);
     enemy.position = { x: 5, y: 0, z: 0 };

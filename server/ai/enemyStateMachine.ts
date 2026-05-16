@@ -291,12 +291,11 @@ function applyAttackIfReady(
 }
 
 function isEnemyStunned(enemy: Enemy, now: number): boolean {
-  for (const effect of enemy.statusEffects) {
-    if (effect.type !== 'stun') continue;
+  return enemy.statusEffects.some((effect) => {
+    if (effect.type !== 'stun') return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
-    if (expiresAt > now) return true;
-  }
-  return false;
+    return expiresAt > now;
+  });
 }
 
 function findNearbyAggroTarget(enemy: Enemy, context: EnemyAIContext): string | null {
