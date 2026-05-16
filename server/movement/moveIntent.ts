@@ -1,10 +1,11 @@
 import type { MoveIntent } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
+import { isEntityStunned } from '../combat/statusQueries.js';
 import { calculateDir, distance, getPlayerSpeed, isValidPosition } from './worldMovement.js';
 
 export type MoveIntentResult =
   | { ok: true; kind: 'move' | 'stop'; playerId: string; speed: number }
-  | { ok: false; reason: 'playerNotFound' | 'socketMismatch' | 'invalidTarget'; playerId: string };
+  | { ok: false; reason: 'playerNotFound' | 'socketMismatch' | 'invalidTarget' | 'stunned'; playerId: string };
 
 export function applyMoveIntent(
   state: GameState,
@@ -21,6 +22,14 @@ export function applyMoveIntent(
 
   if (player.socketId !== socketId) {
     return { ok: false, reason: 'socketMismatch', playerId };
+  }
+
+  if (isEntityStunned(player, now)) {
+    // Stop any in-flight movement so the player visibly freezes.
+    player.movement = { isMoving: false, lastUpdateTime: now, speed: 0 };
+    player.velocity = { x: 0, z: 0 };
+    player.dirtySnap = true;
+    return { ok: false, reason: 'stunned', playerId };
   }
 
   if (!isValidPosition(msg.targetPos)) {
