@@ -17,6 +17,7 @@ import {
 } from './security.js';
 import { VibeAgeRoom } from './transport/vibeAgeRoom.js';
 import { runtimeMetrics } from './observability/runtimeMetrics.js';
+import { assertProductionEnv, isProductionEnv } from './productionEnvAssertions.js';
 
 // Create Express app
 const app = express();
@@ -30,7 +31,21 @@ app.get('/healthz', (req, res) => {
   res.status(200).send({ status: 'ok', uptime: process.uptime() });
 });
 
+// /runtimez exposes process internals (heap, event-loop lag, room counts). In
+// production we require a shared token so it's not casually scrapable by anyone
+// who finds the URL. In dev (no RUNTIMEZ_TOKEN set) it's open.
+const RUNTIMEZ_TOKEN = process.env.RUNTIMEZ_TOKEN;
 app.get('/runtimez', (req, res) => {
+  if (RUNTIMEZ_TOKEN) {
+    const provided = req.header('x-runtimez-token');
+    if (provided !== RUNTIMEZ_TOKEN) {
+      res.status(404).send({ error: 'Not found' });
+      return;
+    }
+  } else if (isProductionEnv()) {
+    res.status(404).send({ error: 'Not found' });
+    return;
+  }
   res.status(200).send(runtimeMetrics.snapshot());
 });
 
@@ -103,6 +118,8 @@ export async function startServer(port: number = 3001): Promise<void> {
     console.warn('Server is already running');
     return;
   }
+
+  assertProductionEnv();
 
   await gameServer.listen(port);
   console.log(`Game server running on port ${port}`);

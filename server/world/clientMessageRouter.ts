@@ -21,6 +21,7 @@ import {
   type OutboundEventSink,
   type SocketMessageTarget,
 } from '../transport/outboundEvents.js';
+import { bucketForCommand, sharedRateLimiter } from './rateLimiter.js';
 
 type WorldClient = SocketMessageTarget & { id: string };
 
@@ -31,6 +32,11 @@ export function handleClientMessage(
   outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ): void {
+  const bucket = bucketForCommand(msg.type);
+  if (bucket && !sharedRateLimiter().allow(socket.id, bucket)) {
+    debug(LOG_CATEGORIES.SYSTEM, `Rate-limited ${msg.type} from ${socket.id}`);
+    return;
+  }
   const direct = makeSocketMessageSink(socket);
   switch (msg.type) {
     case 'MoveIntent':

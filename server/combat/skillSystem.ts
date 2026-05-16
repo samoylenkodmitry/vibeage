@@ -92,7 +92,11 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
     pos: { x: player.position.x, z: player.position.z }
   };
   
-  if (!targetPos && !targetId) {
+  // Self-buff / no-target beneficial skills (Holy Light, Divine Shield, Evade,
+  // Vanish, Dispel, Shield Wall, Bless, Rapid Fire) reach the impact resolver
+  // with no targetId / targetPos and have it resolve to the caster. Only
+  // explicitly target-requiring skills need to bail here.
+  if (!targetPos && !targetId && skill.requiresTarget) {
     warn(LOG_CATEGORIES.COMBAT, `No target position or ID provided for cast: ${newCast.castId}`);
     return 'missingTarget';
   }
