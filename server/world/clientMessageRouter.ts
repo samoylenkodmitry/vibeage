@@ -5,6 +5,7 @@ import { createCombatWorld } from '../combat/combatWorld.js';
 import { handleTargetDeath } from '../combat/targetDeath.js';
 import type { GameState } from '../gameState.js';
 import { handleEquipItem, handleUnequipItem } from '../inventory/equipHandlers.js';
+import { applyClassChange, applyRaceChange } from '../players/playerIdentity.js';
 import { onUseItem } from '../inventory/itemUse.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
@@ -49,7 +50,9 @@ export function handleClientMessage(
     case 'RequestInventory':
       return onRequestInventory(socket, direct, state);
     case 'SelectClass':
-      return;
+      return onSelectClass(socket, state, msg, outbound);
+    case 'SelectRace':
+      return onSelectRace(socket, state, msg, outbound);
     case 'DevTeleport':
       return onDevTeleport(socket, state, msg);
     case 'ChatRequest':
@@ -59,6 +62,32 @@ export function handleClientMessage(
     case 'UnequipItem':
       return onUnequipItem(socket, direct, state, msg);
   }
+}
+
+function onSelectClass(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'SelectClass' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applyClassChange(player, msg.className, outbound);
+}
+
+function onSelectRace(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'SelectRace' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applyRaceChange(player, msg.race, outbound);
 }
 
 function onEquipItem(

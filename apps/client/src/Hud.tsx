@@ -3,8 +3,11 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
 import { ChatPanel } from './hud/ChatPanel';
+import { CharacterPanel } from './hud/CharacterPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { PaperdollPanel } from './hud/PaperdollPanel';
+import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
+import { CLASS_SKILL_TREES, type CharacterClass } from '../../../packages/content/classes';
 import { MapPanel } from './hud/MapPanel';
 import { SkillBar } from './hud/SkillBar';
 import { SkillTreePanel } from './hud/SkillTreePanel';
@@ -18,8 +21,10 @@ import {
 } from './skillShortcuts';
 
 type StartPanelProps = {
-  onStart: (playerName: string) => void;
+  onStart: (playerName: string, race: string, className: string) => void;
 };
+
+const CLASS_NAMES = Object.keys(CLASS_SKILL_TREES) as CharacterClass[];
 
 type GameHudProps = {
   state: GameClientState;
@@ -32,24 +37,31 @@ type GameHudProps = {
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
+  onSelectClass: (className: string) => void;
+  onSelectRace: (race: string) => void;
   onRespawn: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
 export function StartPanel({ onStart }: StartPanelProps) {
   const [playerName, setPlayerName] = useState('');
+  const [race, setRace] = useState<CharacterRace>('human');
+  const [className, setClassName] = useState<CharacterClass>('mage');
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedName = playerName.trim();
     if (trimmedName) {
-      onStart(trimmedName);
+      onStart(trimmedName, race, className);
     }
   }
 
+  const raceProfile = RACE_PROFILES[race];
+  const classTree = CLASS_SKILL_TREES[className];
+
   return (
     <main className="start-screen">
-      <form className="start-panel" onSubmit={submit}>
+      <form className="start-panel start-panel-character" onSubmit={submit}>
         <h1>VibeAge</h1>
         <label htmlFor="player-name">Character Name</label>
         <input
@@ -59,6 +71,30 @@ export function StartPanel({ onStart }: StartPanelProps) {
           placeholder="Enter your character name"
           autoComplete="off"
         />
+        <fieldset className="character-fieldset">
+          <legend>Race</legend>
+          <div className="character-grid">
+            {CHARACTER_RACES.map((option) => (
+              <label key={option} className={`character-option${race === option ? ' character-option--active' : ''}`}>
+                <input type="radio" name="race" value={option} checked={race === option} onChange={() => setRace(option)} />
+                <span>{RACE_PROFILES[option].name}</span>
+              </label>
+            ))}
+          </div>
+          <small className="character-blurb">{raceProfile.description}</small>
+        </fieldset>
+        <fieldset className="character-fieldset">
+          <legend>Class</legend>
+          <div className="character-grid">
+            {CLASS_NAMES.map((option) => (
+              <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
+                <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
+                <span>{capitalize(option)}</span>
+              </label>
+            ))}
+          </div>
+          <small className="character-blurb">{classTree?.description ?? ''}</small>
+        </fieldset>
         <button type="submit" disabled={!playerName.trim()}>
           Enter the World
         </button>
@@ -78,6 +114,8 @@ export function GameHud({
   onUseItem,
   onEquipItem,
   onUnequipItem,
+  onSelectClass,
+  onSelectRace,
   onRespawn,
   onSendChat,
 }: GameHudProps) {
@@ -110,40 +148,24 @@ export function GameHud({
         <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
       </section>
       <VitalsStrip player={player} />
-      {panels.statsOpen && <PlayerPanel player={player} />}
       <TargetPanel player={player} target={selectedTarget} />
       <MovementPanel player={player} target={state.targetWorldPos} />
       <NavigationPanel state={state} player={player} />
-      {panels.questOpen && (
-        <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
-      )}
-      {panels.bagOpen && (
-        <InventoryPanel
-          inventory={state.inventory}
-          maxSlots={state.maxInventorySlots}
-          onUseItem={onUseItem}
-          onEquipItem={onEquipItem}
-        />
-      )}
-      {panels.gearOpen && (
-        <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
-      )}
-      {panels.mapOpen && (
-        <MapPanel
-          player={player}
-          cameraAngleRef={cameraAngleRef}
-          navigationMarker={navigationMarker ?? null}
-          onSetNavigationMarker={onSetNavigationMarker}
-        />
-      )}
-      {panels.treeOpen && <SkillTreePanel player={player} onLearnSkill={onLearnSkill} />}
-      {panels.chatOpen && onSendChat && (
-        <ChatPanel
-          lines={state.chatLines}
-          myPlayerId={state.myPlayerId}
-          onSendChat={onSendChat}
-        />
-      )}
+      <HudPanels
+        panels={panels}
+        state={state}
+        player={player}
+        cameraAngleRef={cameraAngleRef}
+        navigationMarker={navigationMarker}
+        onSetNavigationMarker={onSetNavigationMarker}
+        onLearnSkill={onLearnSkill}
+        onUseItem={onUseItem}
+        onEquipItem={onEquipItem}
+        onUnequipItem={onUnequipItem}
+        onSelectClass={onSelectClass}
+        onSelectRace={onSelectRace}
+        onSendChat={onSendChat}
+      />
       <CastingPanel player={player} />
       <SkillBar
         player={player}
@@ -164,10 +186,78 @@ export function GameHud({
   );
 }
 
+type HudPanelsProps = {
+  panels: PanelState;
+  state: GameClientState;
+  player: PlayerEntity | null;
+  cameraAngleRef?: MutableRefObject<number>;
+  navigationMarker?: { x: number; z: number } | null;
+  onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
+  onLearnSkill: (skillId: SkillId) => void;
+  onUseItem: (slotIndex: number) => void;
+  onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
+  onUnequipItem: (slot: string) => void;
+  onSelectClass: (className: string) => void;
+  onSelectRace: (race: string) => void;
+  onSendChat?: (text: string, scope: 'near' | 'all') => void;
+};
+
+function HudPanels({
+  panels,
+  state,
+  player,
+  cameraAngleRef,
+  navigationMarker,
+  onSetNavigationMarker,
+  onLearnSkill,
+  onUseItem,
+  onEquipItem,
+  onUnequipItem,
+  onSelectClass,
+  onSelectRace,
+  onSendChat,
+}: HudPanelsProps) {
+  return (
+    <>
+      {panels.statsOpen && <PlayerPanel player={player} />}
+      {panels.questOpen && (
+        <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
+      )}
+      {panels.bagOpen && (
+        <InventoryPanel
+          inventory={state.inventory}
+          maxSlots={state.maxInventorySlots}
+          onUseItem={onUseItem}
+          onEquipItem={onEquipItem}
+        />
+      )}
+      {panels.gearOpen && (
+        <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
+      )}
+      {panels.characterOpen && (
+        <CharacterPanel player={player} onSelectClass={onSelectClass} onSelectRace={onSelectRace} />
+      )}
+      {panels.mapOpen && (
+        <MapPanel
+          player={player}
+          cameraAngleRef={cameraAngleRef}
+          navigationMarker={navigationMarker ?? null}
+          onSetNavigationMarker={onSetNavigationMarker}
+        />
+      )}
+      {panels.treeOpen && <SkillTreePanel player={player} onLearnSkill={onLearnSkill} />}
+      {panels.chatOpen && onSendChat && (
+        <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
+      )}
+    </>
+  );
+}
+
 function PanelToggleStrip({ panels }: { panels: PanelState }) {
   return (
     <aside className="panel-toggles" aria-label="Panel toggles">
       <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
+      <PanelToggleButton open={panels.characterOpen} label="Char" onClick={panels.toggleCharacter} />
       <PanelToggleButton open={panels.treeOpen} label="Tree" onClick={panels.toggleTree} />
       <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
       <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
@@ -182,6 +272,7 @@ type PanelState = ReturnType<typeof usePanelState>;
 
 function usePanelState() {
   const [statsOpen, setStatsOpen] = useState(true);
+  const [characterOpen, setCharacterOpen] = useState(false);
   const [questOpen, setQuestOpen] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
   const [gearOpen, setGearOpen] = useState(false);
@@ -190,6 +281,7 @@ function usePanelState() {
   const [chatOpen, setChatOpen] = useState(false);
   return {
     statsOpen,
+    characterOpen,
     questOpen,
     bagOpen,
     gearOpen,
@@ -197,6 +289,7 @@ function usePanelState() {
     treeOpen,
     chatOpen,
     toggleStats: () => setStatsOpen((prev) => !prev),
+    toggleCharacter: () => setCharacterOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
     toggleBag: () => setBagOpen((prev) => !prev),
     toggleGear: () => setGearOpen((prev) => !prev),

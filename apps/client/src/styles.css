@@ -1507,3 +1507,95 @@ button.paperdoll-slot-item:focus-visible {
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+.start-panel-character {
+  display: grid;
+  gap: 14px;
+}
+
+.character-fieldset {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(141, 233, 215, 0.18);
+  border-radius: 6px;
+  padding: 8px 10px 10px;
+  margin: 0;
+}
+
+.character-fieldset legend {
+  padding: 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 6px;
+}
+
+.character-option {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid rgba(141, 233, 215, 0.2);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #e7f7f1;
+  font-size: 12px;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+button.character-option {
+  font: inherit;
+}
+
+.character-option input[type="radio"] {
+  display: none;
+}
+
+.character-option--active {
+  border-color: rgba(250, 204, 21, 0.6);
+  background: rgba(56, 189, 248, 0.18);
+  color: #fde68a;
+  font-weight: 700;
+}
+
+.character-blurb {
+  display: block;
+  min-height: 32px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.character-panel {
+  position: absolute;
+  left: 18px;
+  top: 240px;
+  display: grid;
+  gap: 10px;
+  width: min(280px, calc(100vw - 36px));
+  padding: 10px 12px;
+  border: 1px solid rgba(141, 233, 215, 0.2);
+  border-radius: 6px;
+  background: rgba(5, 14, 18, 0.78);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.character-section {
+  display: grid;
+  gap: 6px;
+}
+
+.character-section-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}

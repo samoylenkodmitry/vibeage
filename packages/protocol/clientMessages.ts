@@ -35,6 +35,11 @@ export const selectClassSchema = z.object({
   className: z.string(),
 }).passthrough();
 
+export const selectRaceSchema = z.object({
+  type: z.literal('SelectRace'),
+  race: z.string(),
+}).passthrough();
+
 export const respawnRequestSchema = z.object({
   type: z.literal('RespawnRequest'),
   id: z.string(),
@@ -96,6 +101,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   chatRequestSchema,
   equipItemSchema,
   unequipItemSchema,
+  selectRaceSchema,
 ]);
 
 export type MoveIntent = {
@@ -129,6 +135,11 @@ export type SetSkillShortcut = {
 export type SelectClass = {
   type: 'SelectClass';
   className: string;
+};
+
+export type SelectRace = {
+  type: 'SelectRace';
+  race: string;
 };
 
 export type RespawnRequest = {
@@ -193,4 +204,5 @@ export type ClientMessage =
   | DevTeleport
   | ChatRequest
   | EquipItem
-  | UnequipItem;
+  | UnequipItem
+  | SelectRace;
