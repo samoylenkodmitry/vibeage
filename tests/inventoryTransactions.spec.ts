@@ -140,6 +140,37 @@ describe('moveSlot', () => {
   });
 });
 
+describe('slot allocation with gaps', () => {
+  test('addItems fills a freed-up slot before extending the tail', () => {
+    const inv = freshInventory();
+    addItems(inv, { templateId: 'worn_sword', count: 3 }, services());
+    const items = listInventoryItems(inv);
+    // Carve a gap in the middle by destroying the slot-1 sword
+    delete inv.items[items[1].instanceId];
+
+    addItems(inv, { templateId: 'gold_coin', count: 5 }, services());
+    const refreshed = listInventoryItems(inv);
+    const gold = refreshed.find((item) => item.templateId === 'gold_coin');
+    expect(gold).toBeDefined();
+    expect(gold && gold.location.kind === 'inventory' && gold.location.slotIndex).toBe(1);
+    expect(validateInvariants(inv)).toEqual([]);
+  });
+
+  test('splitStack picks the lowest free slot index when a gap is open', () => {
+    const inv = freshInventory();
+    addItems(inv, { templateId: 'gold_coin', count: 50 }, services());
+    addItems(inv, { templateId: 'worn_sword', count: 1 }, services());
+    const items = listInventoryItems(inv);
+    delete inv.items[items[1].instanceId];
+
+    const stackItem = listInventoryItems(inv)[0];
+    const result = splitStack(inv, stackItem.instanceId, 10, services());
+    expect(result.ok).toBe(true);
+    const refreshed = listInventoryItems(inv).find((item) => item.count === 10);
+    expect(refreshed && refreshed.location.kind === 'inventory' && refreshed.location.slotIndex).toBe(1);
+  });
+});
+
 describe('totalInventoryWeight', () => {
   test('sums weight across bag stacks', () => {
     const inv = freshInventory();

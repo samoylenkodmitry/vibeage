@@ -19,7 +19,8 @@ export type TransactionError =
   | 'notStackable'
   | 'invalidSplitAmount'
   | 'templateMismatch'
-  | 'stackOverflow';
+  | 'stackOverflow'
+  | 'invariantViolation';
 
 export type AddItemsRequest = {
   templateId: ItemId;
@@ -119,9 +120,11 @@ export function addItems(
     }
   }
 
+  const slotCap = maxInventorySlotCount(draft.limits);
+  const occupiedSlots = collectOccupiedBagSlots(draft);
   while (remaining > 0) {
-    const slotsUsed = listInventoryItems(draft).length;
-    if (slotsUsed >= maxInventorySlotCount(draft.limits)) {
+    const nextIndex = nextFreeBagSlot(occupiedSlots, slotCap);
+    if (nextIndex === null) {
       return { ok: false, error: 'inventoryFull' };
     }
     const perStack = template.stackable
@@ -131,13 +134,14 @@ export function addItems(
       instanceId: instanceIdFactory(),
       ownerId: draft.characterId,
       templateId: template.id,
-      location: inventoryLocation(slotsUsed),
+      location: inventoryLocation(nextIndex),
       count: perStack,
       enchantLevel: 0,
       bound: false,
       createdAtTs: now(),
     };
     draft.items[instance.instanceId] = instance;
+    occupiedSlots.add(nextIndex);
     added.push(instance);
     remaining -= perStack;
   }
@@ -149,11 +153,30 @@ export function addItems(
 
   const violations = validateInvariants(draft, templates);
   if (violations.length > 0) {
-    return { ok: false, error: 'inventoryFull' };
+    return { ok: false, error: 'invariantViolation' };
   }
 
   applyDraft(inventory, draft);
   return { ok: true, value: { added, changed } };
+}
+
+function collectOccupiedBagSlots(inventory: CharacterInventory): Set<number> {
+  const used = new Set<number>();
+  for (const instance of Object.values(inventory.items)) {
+    if (instance.location.kind === 'inventory' && instance.location.slotIndex !== undefined) {
+      used.add(instance.location.slotIndex);
+    }
+  }
+  return used;
+}
+
+function nextFreeBagSlot(used: Set<number>, slotCap: number): number | null {
+  for (let i = 0; i < slotCap; i += 1) {
+    if (!used.has(i)) {
+      return i;
+    }
+  }
+  return null;
 }
 
 export function removeItems(
@@ -215,7 +238,7 @@ export function moveSlot(
   if (targetSlotIndex < 0 || targetSlotIndex >= cap) {
     return { ok: false, error: 'inventoryFull' };
   }
-  const occupant = listInventoryItems(draft).find((other) =>
+  const occupant = Object.values(draft.items).find((other) =>
     other.instanceId !== instance.instanceId
     && other.location.kind === 'inventory'
     && other.location.slotIndex === targetSlotIndex,
@@ -251,8 +274,9 @@ export function splitStack(
   if (amount <= 0 || amount >= source.count) {
     return { ok: false, error: 'invalidSplitAmount' };
   }
-  const slotsUsed = listInventoryItems(draft).length;
-  if (slotsUsed >= maxInventorySlotCount(draft.limits)) {
+  const cap = maxInventorySlotCount(draft.limits);
+  const nextIndex = nextFreeBagSlot(collectOccupiedBagSlots(draft), cap);
+  if (nextIndex === null) {
     return { ok: false, error: 'inventoryFull' };
   }
   source.count -= amount;
@@ -260,7 +284,7 @@ export function splitStack(
     instanceId: instanceIdFactory(),
     ownerId: draft.characterId,
     templateId: source.templateId,
-    location: inventoryLocation(slotsUsed),
+    location: inventoryLocation(nextIndex),
     count: amount,
     enchantLevel: 0,
     bound: source.bound,
