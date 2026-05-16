@@ -27,6 +27,7 @@ export type PlayerEntity = {
   mana: number;
   maxMana: number;
   className: CharacterClass;
+  race?: string;
   level: number;
   experience: number;
   experienceToNextLevel: number;

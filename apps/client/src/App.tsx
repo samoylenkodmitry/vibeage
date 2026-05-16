@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GameHud, StartPanel } from './Hud';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
@@ -12,9 +12,35 @@ export default function App() {
   const cameraControlsRef = useRef<CameraControls | null>(null);
   const touchClaimRef = useRef<Set<number>>(new Set());
   const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
+  const pendingIdentity = useRef<{ race: string; className: string } | null>(null);
+  const [appliedIdentity, setAppliedIdentity] = useState(false);
+
+  // Once the join handshake completes, push the race + class the player picked
+  // on the start screen to the server. Avoids changing the join protocol.
+  useEffect(() => {
+    if (state.connectionState !== 'online' || appliedIdentity) {
+      return;
+    }
+    const choice = pendingIdentity.current;
+    if (!choice) {
+      return;
+    }
+    client.selectRace(choice.race);
+    client.selectClass(choice.className);
+    pendingIdentity.current = null;
+    setAppliedIdentity(true);
+  }, [state.connectionState, appliedIdentity, client]);
 
   if (state.connectionState === 'idle') {
-    return <StartPanel onStart={client.connect} />;
+    return (
+      <StartPanel
+        onStart={(name, race, className) => {
+          pendingIdentity.current = { race, className };
+          setAppliedIdentity(false);
+          client.connect(name);
+        }}
+      />
+    );
   }
 
   return (
@@ -40,6 +66,8 @@ export default function App() {
         onUseItem={client.useItem}
         onEquipItem={client.equipItem}
         onUnequipItem={client.unequipItem}
+        onSelectClass={client.selectClass}
+        onSelectRace={client.selectRace}
         onRespawn={client.respawn}
         onSendChat={client.sendChat}
       />

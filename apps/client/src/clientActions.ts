@@ -16,6 +16,8 @@ export type ClientActions = {
   useItem: (slotIndex: number) => void;
   equipItem: (slotIndex: number, requestedSlot?: string) => void;
   unequipItem: (slot: string) => void;
+  selectClass: (className: string) => void;
+  selectRace: (race: string) => void;
   respawn: () => void;
   devTeleport: (target: VecXZ) => void;
   sendChat: (text: string, scope: 'near' | 'all') => void;
@@ -96,6 +98,14 @@ export function useClientActions(
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'UnequipItem', slot });
   }, [roomRef]);
 
+  const selectClass = useCallback((className: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectClass', className });
+  }, [roomRef]);
+
+  const selectRace = useCallback((race: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectRace', race });
+  }, [roomRef]);
+
   const respawn = useCallback(() => {
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
@@ -107,8 +117,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, respawn, devTeleport, sendChat }),
-    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, respawn, devTeleport, sendChat],
+    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat }),
+    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat],
   );
 }
 

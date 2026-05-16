@@ -264,7 +264,7 @@ Live items requested after Inventory v2 went out. Each ships as its own slice.
 
 1. [x] **Race system + per-race stat weights** — add `CharacterRace` (`human`, `elf`, `dark_elf`, `orc`, `dwarf`) with its own STR/DEX/CON/INT/WIT/MEN weights. `derivePlayerStats` multiplies race × class so two characters of the same class on different races feel different (orc warrior tankier than elf warrior, etc.). Default `human` for legacy / unselected players. Persisted alongside `className` (DB column `race`, migration `005_add_player_race.sql`).
 
-2. [ ] **Race + class picker at character creation** — `StartPanel` becomes a chooser: pick race, pick class, then enter the world. Class is also re-selectable from the existing Tree / Stats panel (for now — a real respec gate lands later). New `SelectRace` client message + server handler.
+2. [x] **Race + class picker at character creation** — `StartPanel` is a chooser (name + race + class). The chosen race/class are pushed via the existing `SelectClass` (now wired) and a new `SelectRace` message right after the join handshake. A new draggable `CharacterPanel` (toggle "Char") lets the player switch race or class in-world; stats refresh immediately.
 
 3. [ ] **Full L2 derived stats panel** — extend `derivePlayerStats` to also produce `pAtk`, `mAtk`, `pDef`, `mDef`, `hpRegen`, `mpRegen`, `accuracy`, `evasion`, `attackSpeed`, `castSpeed`, `runSpeed`, `critRate`, `critMult` from base + race + class + level + equipment + (future) buffs. Server publishes the full block on every recalc; the HUD Stats panel renders all of them.
 
