@@ -79,3 +79,32 @@ export function emptyAggregateForPlayer(player: PlayerState): CharacterInventory
 export function templateOf(templateId: string) {
   return ITEMS[templateId];
 }
+
+/**
+ * Snapshot the player's aggregate + legacy inventory so a multi-step
+ * transaction (e.g., loot pickup that adds several drops) can roll back
+ * atomically when any step fails.
+ */
+export function snapshotInventory(player: PlayerState) {
+  const aggregate = ensureCharacterInventory(player);
+  return {
+    aggregate: {
+      characterId: aggregate.characterId,
+      items: Object.fromEntries(
+        Object.entries(aggregate.items).map(([id, instance]) => [
+          id,
+          { ...instance, location: { ...instance.location } },
+        ]),
+      ),
+      equipment: { ...aggregate.equipment },
+      occupancy: { ...aggregate.occupancy },
+      limits: aggregate.limits,
+    },
+    legacy: player.inventory.map((slot) => ({ ...slot })),
+  };
+}
+
+export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeof snapshotInventory>): void {
+  player.characterInventory = snapshot.aggregate;
+  player.inventory = snapshot.legacy;
+}

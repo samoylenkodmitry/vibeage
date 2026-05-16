@@ -2,7 +2,7 @@ import type { InventorySlot } from '../../packages/protocol/messages.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
-import { addItemsToPlayer } from '../inventory/aggregateBridge.js';
+import { addItemsToPlayer, restoreInventory, snapshotInventory } from '../inventory/aggregateBridge.js';
 import { dropsToInventorySlots } from '../inventory/inventorySlots.js';
 
 export const PICKUP_DISTANCE = 3.0;
@@ -38,10 +38,14 @@ export function pickupGroundLoot(state: GameState, playerId: string, lootId: str
   }
 
   const items = dropsToInventorySlots(loot.items);
+  const snapshot = snapshotInventory(player);
   const addedItems: InventorySlot[] = [];
   for (const drop of items) {
     const result = addItemsToPlayer(player, drop.itemId, drop.quantity);
     if (!result.ok) {
+      // Anti-dupe: any partial add is rolled back so the loot pile stays on
+      // the ground for another attempt. Caller sees a clean failure.
+      restoreInventory(player, snapshot);
       return { ok: false, reason: 'inventoryFull' };
     }
     addedItems.push({ itemId: drop.itemId, quantity: drop.quantity });

@@ -1,7 +1,7 @@
 import { ITEMS, isUsableConsumable, type Item } from '../../packages/content/items.js';
 import type { ItemUsed } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import { ensureCharacterInventory, removeItemsFromPlayer, syncLegacyInventory } from './aggregateBridge.js';
+import { ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 
 export type ItemUsePlayerUpdate = {
   id: string;
@@ -47,7 +47,6 @@ export function applyInventoryItemUse(player: PlayerState, slotIndex: number): C
   if (removeResult.ok === false) {
     return { ok: false, reason: 'invalidSlot' };
   }
-  syncLegacyInventory(player);
   const newQuantity = Math.max(previousQuantity - 1, 0);
 
   return {
