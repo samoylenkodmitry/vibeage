@@ -258,6 +258,20 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 1. [x] **End-to-end equip from inventory** — `PlayerState` now carries the `CharacterInventory` aggregate alongside the legacy `InventorySlot[]`. Loot pickup and consumable use go through the new transactions; new `EquipItem` / `UnequipItem` client messages route through `equipItem` / `unequipSlot`; the server emits an `EquipmentUpdate` (and refreshes `player.stats` via `derivePlayerStats(level, class, equipmentStats)` so equipping a sword actually bumps damage in combat); the client renders a draggable Paperdoll panel listing every slot and a Bag panel that turns each equippable item into an Equip button.
 
+## Lineage II Character System
+
+Live items requested after Inventory v2 went out. Each ships as its own slice.
+
+1. [ ] **Race system + per-race stat weights** — add `CharacterRace` (`human`, `elf`, `dark_elf`, `orc`, `dwarf`) with its own STR/DEX/CON/INT/WIT/MEN weights. `derivePlayerStats` multiplies race × class so two characters of the same class on different races feel different (orc warrior tankier than elf warrior, etc.). Default `human` for legacy / unselected players. Persisted alongside `className` (DB column `class_name`).
+
+2. [ ] **Race + class picker at character creation** — `StartPanel` becomes a chooser: pick race, pick class, then enter the world. Class is also re-selectable from the existing Tree / Stats panel (for now — a real respec gate lands later). New `SelectRace` client message + server handler.
+
+3. [ ] **Full L2 derived stats panel** — extend `derivePlayerStats` to also produce `pAtk`, `mAtk`, `pDef`, `mDef`, `hpRegen`, `mpRegen`, `accuracy`, `evasion`, `attackSpeed`, `castSpeed`, `runSpeed`, `critRate`, `critMult` from base + race + class + level + equipment + (future) buffs. Server publishes the full block on every recalc; the HUD Stats panel renders all of them.
+
+4. [ ] **Skill learning bug + per-class starter** — replace the single `DEFAULT_UNLOCKED_SKILLS = ['fireball']` with a per-class starter map (warrior → slash, ranger → arrowShot, healer → holyLight, …). Server emits a typed `LearnSkillFailed` with a reason (`noSkillPoints`, `levelTooLow`, `missingPrereq`, `unknownSkill`); the Skill Tree panel surfaces the rejection inline so it's obvious why a button is greyed out.
+
+5. [ ] **Wearable visuals modify the avatar** — `ItemTemplate.visual` (color, accessory shape) overlays onto the rendered `PlayerFigure` per slot. Helmet appears on the head, chest piece tints the torso, weapon shows in the main hand, shield in the off-hand. Client reads `state.equipment` (already populated by Inventory v2) and renders overlay meshes per equipped slot.
+
 ## Quality Gate
 
 Before merge:
