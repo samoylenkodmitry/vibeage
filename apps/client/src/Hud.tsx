@@ -202,39 +202,52 @@ type HudPanelsProps = {
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
-function HudPanels(props: HudPanelsProps) {
-  const { panels, state, player } = props;
+function HudPanels({
+  panels,
+  state,
+  player,
+  cameraAngleRef,
+  navigationMarker,
+  onSetNavigationMarker,
+  onLearnSkill,
+  onUseItem,
+  onEquipItem,
+  onUnequipItem,
+  onSelectClass,
+  onSelectRace,
+  onSendChat,
+}: HudPanelsProps) {
   return (
     <>
       {panels.statsOpen && <PlayerPanel player={player} />}
       {panels.questOpen && (
-        <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={props.onLearnSkill} />
+        <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
       )}
       {panels.bagOpen && (
         <InventoryPanel
           inventory={state.inventory}
           maxSlots={state.maxInventorySlots}
-          onUseItem={props.onUseItem}
-          onEquipItem={props.onEquipItem}
+          onUseItem={onUseItem}
+          onEquipItem={onEquipItem}
         />
       )}
       {panels.gearOpen && (
-        <PaperdollPanel equipment={state.equipment} onUnequip={props.onUnequipItem} />
+        <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
       )}
       {panels.characterOpen && (
-        <CharacterPanel player={player} onSelectClass={props.onSelectClass} onSelectRace={props.onSelectRace} />
+        <CharacterPanel player={player} onSelectClass={onSelectClass} onSelectRace={onSelectRace} />
       )}
       {panels.mapOpen && (
         <MapPanel
           player={player}
-          cameraAngleRef={props.cameraAngleRef}
-          navigationMarker={props.navigationMarker ?? null}
-          onSetNavigationMarker={props.onSetNavigationMarker}
+          cameraAngleRef={cameraAngleRef}
+          navigationMarker={navigationMarker ?? null}
+          onSetNavigationMarker={onSetNavigationMarker}
         />
       )}
-      {panels.treeOpen && <SkillTreePanel player={player} onLearnSkill={props.onLearnSkill} />}
-      {panels.chatOpen && props.onSendChat && (
-        <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={props.onSendChat} />
+      {panels.treeOpen && <SkillTreePanel player={player} onLearnSkill={onLearnSkill} />}
+      {panels.chatOpen && onSendChat && (
+        <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
       )}
     </>
   );

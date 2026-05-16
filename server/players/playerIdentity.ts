@@ -24,6 +24,8 @@ export function applyClassChange(
     return false;
   }
   player.className = className;
+  // refreshPlayerStatsFromEquipment also clamps health/mana to the new max
+  // when the new class lowers them — see equipHandlers.ts.
   refreshPlayerStatsFromEquipment(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} class -> ${className}`);
   emitPlayerUpdated(outbound, {
@@ -50,6 +52,8 @@ export function applyRaceChange(
     return false;
   }
   player.race = race;
+  // refreshPlayerStatsFromEquipment clamps health/mana to the new max — see
+  // equipHandlers.ts.
   refreshPlayerStatsFromEquipment(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} race -> ${race}`);
   emitPlayerUpdated(outbound, {
