@@ -319,18 +319,18 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add signed identity or authenticated account ownership before treating the public game as production-safe.
 - [ ] Persist equipped items and equipment slot state; do not rely on the legacy flat bag inventory for durable equipment.
 - [ ] Add a migration and restore-compatibility check for the new durable inventory/equipment shape.
-- [ ] Fix self-target and no-target beneficial skills so shields, buffs, heals, evasions, and invisibility cannot be rejected by a generic "missing target" branch.
+- [x] Fix self-target and no-target beneficial skills so shields, buffs, heals, evasions, and invisibility cannot be rejected by a generic "missing target" branch.
 - [x] Make `LearnSkillFailed` protocol schema match the exact TypeScript reason union.
 - [x] Update `WORLD_CLIENT_COMMAND_TYPES` so it includes every current command type or remove it if it is no longer the authoritative command surface.
 - [x] Add an exhaustive protocol-boundary test that fails when a client message type exists in schema but not in the documented transport command list.
-- [ ] Add per-socket rate limiting for chat messages.
-- [ ] Add per-socket rate limiting for movement intents.
-- [ ] Add per-socket rate limiting for cast requests.
-- [ ] Add per-socket rate limiting for inventory/equipment actions.
-- [ ] Add a production check that dev commands are disabled unless an explicit local/dev environment flag is present.
-- [ ] Add a production check that `ALLOW_MISSING_ORIGIN` is not enabled in production.
-- [ ] Add a production check that `/runtimez` does not expose sensitive data and is either protected, minimized, or intentionally public.
-- [ ] Add CI steps for `pnpm run typecheck:packages` and `pnpm run content:check` if they are not already covered by an equivalent step.
+- [x] Add per-socket rate limiting for chat messages.
+- [x] Add per-socket rate limiting for movement intents.
+- [x] Add per-socket rate limiting for cast requests.
+- [x] Add per-socket rate limiting for inventory/equipment actions.
+- [x] Add a production check that dev commands are disabled unless an explicit local/dev environment flag is present.
+- [x] Add a production check that `ALLOW_MISSING_ORIGIN` is not enabled in production.
+- [x] Add a production check that `/runtimez` does not expose sensitive data and is either protected, minimized, or intentionally public.
+- [x] Add CI steps for `pnpm run typecheck:packages` and `pnpm run content:check` if they are not already covered by an equivalent step.
 - [ ] Add a full `pnpm run check` CI job or prove that the CI workflow exactly matches the local check script.
 
 ## 2. Things That Should Be Redone First
@@ -378,7 +378,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 4. Protocol and Network Contract
 
-- [ ] Convert every client message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
+- [x] Convert every client message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
 - [ ] Convert every server message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
 - [ ] Add protocol version constants in one shared file consumed by client and server.
 - [ ] Add a migration path for protocol versions rather than a single hardcoded minimum only.
