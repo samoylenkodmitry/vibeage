@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
 
 type ItemTooltipProps = {
@@ -7,15 +8,36 @@ type ItemTooltipProps = {
 };
 
 export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
+    left: Math.max(8, clientX),
+    top: Math.max(8, clientY - 12),
+  }));
   const item = ITEMS[itemId];
+
+  // Measure the tooltip after mount and clamp it inside the viewport for real.
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.min(
+      Math.max(margin, clientX),
+      Math.max(margin, window.innerWidth - rect.width - margin),
+    );
+    const top = Math.min(
+      Math.max(margin, clientY - rect.height - 12),
+      Math.max(margin, window.innerHeight - rect.height - margin),
+    );
+    setPos({ left, top });
+  }, [clientX, clientY, itemId]);
+
   if (!item) {
     return null;
   }
   const stats = item.stats ?? {};
   const grade = getItemGrade(item);
   const weight = getItemWeight(item);
-  const left = Math.min(Math.max(clientX, 16), window.innerWidth - 220);
-  const top = Math.min(Math.max(clientY - 12, 16), window.innerHeight - 180);
   const statRows: Array<[string, number]> = [
     ['P.Atk', stats.pAtk ?? 0],
     ['M.Atk', stats.mAtk ?? 0],
@@ -28,9 +50,10 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
   const visibleStats = statRows.filter(([, value]) => value !== 0);
   return (
     <div
+      ref={ref}
       className="item-tooltip"
       role="tooltip"
-      style={{ position: 'fixed', left, top, zIndex: 9999 }}
+      style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
     >
       <header>
         <strong>{item.name}</strong>

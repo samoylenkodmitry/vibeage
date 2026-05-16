@@ -46,11 +46,32 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
           return (
             <li key={slot} className={`paperdoll-row${canUnequip ? ' paperdoll-row--filled' : ''}`}>
               <span className="paperdoll-slot-label">{SLOT_LABELS[slot]}</span>
-              <span
+              <button
+                type="button"
                 className="paperdoll-slot-item"
+                disabled={!itemId}
+                title={canUnequip ? `${itemName} — long-press for details` : 'Empty'}
+                onClick={(event) => {
+                  if (longPress.consumePendingClick()) {
+                    event.stopPropagation();
+                    return;
+                  }
+                  if (itemId) {
+                    longPress.start(itemId, event.clientX || 0, event.clientY || 0, { instant: true });
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    if (itemId) {
+                      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                      longPress.start(itemId, rect.left, rect.bottom, { instant: true });
+                    }
+                  }
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault();
-                  if (itemId) longPress.start(itemId, event.clientX, event.clientY);
+                  if (itemId) longPress.start(itemId, event.clientX, event.clientY, { instant: true });
                 }}
                 onPointerDown={(event) => {
                   if (itemId && event.pointerType === 'touch') {
@@ -66,7 +87,7 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
                 onPointerCancel={() => longPress.cancel()}
               >
                 {itemName}
-              </span>
+              </button>
               <button
                 type="button"
                 className="paperdoll-unequip"

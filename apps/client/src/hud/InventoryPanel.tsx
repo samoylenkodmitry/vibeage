@@ -44,18 +44,17 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: 
             title={title}
             aria-label={slot && action ? `${action} ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
             onClick={(event) => {
-              if (longPress.info) {
-                longPress.dismiss();
+              if (longPress.consumePendingClick()) {
+                event.stopPropagation();
                 return;
               }
               onClick?.();
-              // Avoid the synthetic click also dismissing the tooltip below.
               event.stopPropagation();
             }}
             onContextMenu={(event) => {
               event.preventDefault();
               if (slot) {
-                longPress.start(slot.itemId, event.clientX, event.clientY);
+                longPress.start(slot.itemId, event.clientX, event.clientY, { instant: true });
               }
             }}
             onPointerDown={(event) => {

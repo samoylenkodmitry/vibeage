@@ -1484,3 +1484,26 @@ input {
     max-width: calc(100vw - 32px);
   }
 }
+
+button.paperdoll-slot-item {
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.paperdoll-slot-item:disabled {
+  cursor: default;
+}
+
+button.paperdoll-slot-item:focus-visible {
+  outline: 1px solid rgba(141, 233, 215, 0.6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
