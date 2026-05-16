@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { createTransientPlayer } from '../server/playerFactory';
 import { onLearnSkill } from '../server/players/playerSkills';
+import { STARTER_SKILL_BY_CLASS, starterSkillsFor } from '../server/players/playerProgression';
 
 function fakeOutbound() {
   return { publish: vi.fn() };
@@ -62,13 +63,19 @@ describe('learn skill rejections', () => {
     expect(reject?.reason).toBe('noSkillPoints');
   });
 
-  test('a healer starts with holyLight in their kit, not fireball', () => {
-    const state = createGameState();
-    const player = createTransientPlayer('socket-h', 'Healing');
-    state.players[player.id] = player;
-    // playerFactory creates a mage by default — but the starter map ensures
-    // every class has at least one tree skill. Switch to healer + reseed.
-    expect(player.unlockedSkills).toContain('fireball');
-    // Sanity: starterSkillsFor maps healer -> holyLight (covered in the change).
+  test('STARTER_SKILL_BY_CLASS maps every class to a sensible starter', () => {
+    expect(STARTER_SKILL_BY_CLASS.mage).toBe('fireball');
+    expect(STARTER_SKILL_BY_CLASS.warrior).toBe('slash');
+    expect(STARTER_SKILL_BY_CLASS.healer).toBe('holyLight');
+    expect(STARTER_SKILL_BY_CLASS.ranger).toBe('arrowShot');
+    expect(STARTER_SKILL_BY_CLASS.rogue).toBe('evade');
+  });
+
+  test('starterSkillsFor returns the class starter for known classes', () => {
+    expect(starterSkillsFor('warrior')).toEqual(['slash']);
+    expect(starterSkillsFor('healer')).toEqual(['holyLight']);
+    expect(starterSkillsFor('rogue')).toEqual(['evade']);
+    // Unknown class falls back to the mage starter so the bar is never empty.
+    expect(starterSkillsFor('made-up')).toEqual(['fireball']);
   });
 });

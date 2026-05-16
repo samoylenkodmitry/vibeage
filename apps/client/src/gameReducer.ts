@@ -294,9 +294,8 @@ function applySkillLearned(
 ): GameClientState {
   // Clear any previous LearnSkillFailed rejection for this skill so the panel
   // chip disappears once the learn finally succeeds.
-  const rejections = state.learnSkillRejections[message.skillId]
-    ? Object.fromEntries(Object.entries(state.learnSkillRejections).filter(([k]) => k !== message.skillId))
-    : state.learnSkillRejections;
+  const { [message.skillId]: removed, ...remainingRejections } = state.learnSkillRejections;
+  const rejections = removed ? remainingRejections : state.learnSkillRejections;
   const next = updateMyPlayer(state, (player) => ({
     ...player,
     availableSkillPoints: message.remainingPoints,

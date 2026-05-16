@@ -55,7 +55,10 @@ function isSkillId(value: unknown): value is SkillId {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, value);
 }
 
-export function normalizeUnlockedSkills(rawSkills: unknown): SkillId[] {
+export function normalizeUnlockedSkills(
+  rawSkills: unknown,
+  className?: CharacterClass | string,
+): SkillId[] {
   const skills = arrayInput(rawSkills);
   const normalized: SkillId[] = [];
 
@@ -65,9 +68,15 @@ export function normalizeUnlockedSkills(rawSkills: unknown): SkillId[] {
     }
   }
 
-  for (const defaultSkill of DEFAULT_UNLOCKED_SKILLS) {
-    if (!normalized.includes(defaultSkill)) {
-      normalized.push(defaultSkill);
+  // Guarantee at least one starter skill so the bar isn't empty. When the
+  // caller knows the class, use that class's starter; otherwise fall back to
+  // the legacy DEFAULT_UNLOCKED_SKILLS (mage).
+  const starters = className ? starterSkillsFor(className) : DEFAULT_UNLOCKED_SKILLS;
+  if (!starters.some((starter) => normalized.includes(starter))) {
+    for (const starter of starters) {
+      if (!normalized.includes(starter)) {
+        normalized.push(starter);
+      }
     }
   }
 

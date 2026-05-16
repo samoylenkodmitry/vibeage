@@ -95,7 +95,7 @@ export function buildStablePlayerPersistenceData(
   player: PlayerState,
   timestamp: number = currentUnixMs(),
 ): StablePlayerPersistenceData {
-  const unlockedSkills = normalizeUnlockedSkills(player.unlockedSkills);
+  const unlockedSkills = normalizeUnlockedSkills(player.unlockedSkills, player.className);
   const starterProgress = normalizeStarterProgressState(player.starterProgress, {
     levelReached: player.level,
     learnedSkills: unlockedSkills.length,
