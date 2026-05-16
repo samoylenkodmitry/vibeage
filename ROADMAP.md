@@ -252,7 +252,7 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 4. [x] **Equip / unequip pipeline (model)** — `equipItem(instanceId, slot?)` / `unequipSlot(slot)` with full validation, multi-slot occupancy, ring/earring auto-pick, atomic refund of replaced items. Protocol messages + server handlers land alongside the paperdoll HUD in slice 5.
 
-5. [ ] **Derived stats + set bonuses + paperdoll HUD** — extend `derivePlayerStats` to consume per-item bonuses + set bonuses; ship the client paperdoll panel that lists every slot and lets the player click to unequip.
+5. [x] **Derived equipment stats + set bonuses (model)** — `deriveEquipmentStats(inventory)` sums every equipped item's `ItemStatBlock` and layers active set bonuses (threshold-based, e.g. 3-piece / 5-piece leather). The HUD wiring + protocol messages + paperdoll panel are tracked separately under Inventory v2 so the math can ship first and be exercised by tests.
 
 ## Quality Gate
 
