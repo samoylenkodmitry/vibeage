@@ -511,7 +511,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add periodic damage for generic DoT.
 - [ ] Add periodic healing if future HoTs are added.
 - [ ] Add slow effect behavior that reliably changes movement speed while active.
-- [ ] Add stun behavior that blocks movement, casting, and attacking while active.
+- [x] Add stun behavior that blocks movement, casting, and attacking while active.
 - [ ] Add freeze/root behavior if distinct from stun.
 - [ ] Add taunt behavior that changes enemy target priority for the duration.
 - [ ] Add knockback behavior with server-owned position changes and collision/bounds validation.

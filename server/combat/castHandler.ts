@@ -2,6 +2,8 @@ import { CastReq, CastFail } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
+import { isEntityStunned } from './statusQueries.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { applyCastResources, validateCastRequest } from './castRules.js';
 import type { CombatWorld } from './worldContract.js';
@@ -37,10 +39,21 @@ export function handleCastReq(
     warn(LOG_CATEGORIES.COMBAT, `Invalid cast request: player=${playerId}, socketId mismatch`);
     return;
   }
-  
+
+  const now = Date.now();
+
+  // Stun blocks casting entirely. CastFail.reason has no 'stunned'
+  // literal so we route through 'invalid' — clients see a generic cast
+  // failure; the metric distinguishes the cause for operators.
+  if (isEntityStunned(player, now)) {
+    runtimeMetrics.increment('cast.rejectedStunned');
+    debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is stunned`);
+    emitCastFail(transport.direct, msg, 'invalid');
+    return;
+  }
+
   // Get target if any
   const target = msg.targetId ? world.getEnemyById(msg.targetId) : null;
-  const now = Date.now();
   
   const castCheck = validateCastRequest(player, msg.skillId, target, msg.targetPos, now);
   if (castCheck.ok === false) {
