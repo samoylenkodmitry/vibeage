@@ -79,6 +79,7 @@ export function advanceAll(
     if (player.movement?.isMoving && player.movement?.targetPos) {
       advancePlayerPosition(player, spatial, deltaTimeMs, now);
     }
+    pruneExpiredStatusEffects(player, now);
   }
 
   for (const enemy of Object.values(state.enemies)) {
@@ -280,12 +281,12 @@ function updatePositionHistory(entity: PlayerState | Enemy, timestamp: number): 
   }
 }
 
-function pruneExpiredStatusEffects(enemy: Enemy, now: number): void {
-  if (enemy.statusEffects.length === 0) {
+function pruneExpiredStatusEffects(entity: PlayerState | Enemy, now: number): void {
+  if (entity.statusEffects.length === 0) {
     return;
   }
 
-  enemy.statusEffects = enemy.statusEffects.filter((effect) => effect.startTimeTs + effect.durationMs > now);
+  entity.statusEffects = entity.statusEffects.filter((effect) => effect.startTimeTs + effect.durationMs > now);
 }
 
 function predictLinearState(

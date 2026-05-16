@@ -504,7 +504,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Make attack speed and cast speed affect relevant cooldown/cast-time rules only if intended.
 - [ ] Make run speed feed movement consistently through shared stats.
 - [ ] Add an effect tick system for players and enemies.
-- [ ] Add expiration pruning for player status effects.
+- [x] Add expiration pruning for player status effects.
 - [ ] Add expiration pruning for enemy status effects.
 - [ ] Add periodic damage for burn.
 - [ ] Add periodic damage for poison.
@@ -571,7 +571,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add server-side sequence numbers to movement intents.
 - [x] Reject stale movement intents older than an allowed window.
 - [ ] Reject movement intents too far from current authoritative position if not explained by normal travel.
-- [ ] Reject movement targets outside playable world bounds.
+- [x] Reject movement targets outside playable world bounds.
 - [ ] Reject movement targets into impassable terrain once collision/navmesh exists.
 - [ ] Add per-player movement speed budget based on stats and effects.
 - [ ] Add speed-hack detection metrics.
@@ -583,7 +583,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for movement after stun/freeze/root.
 - [ ] Add tests for movement after death and respawn.
 - [ ] Add tests for crossing region boundaries while moving.
-- [ ] Add tests for client sending movement for another player ID.
+- [x] Add tests for client sending movement for another player ID.
 - [ ] Add pathing constraints if terrain, water, cliffs, or obstacles should block movement.
 - [ ] Add collision rules for enemies, players, world props, and loot if collision is desired.
 - [ ] Add navmesh or lightweight walkability grid for server validation if needed.
