@@ -111,6 +111,31 @@ export function makeColyseusOutbound(
   };
 }
 
+/**
+ * Message types that are *only* meaningful for a specific socket. Sending
+ * them via the broadcast path (serverMessage) leaks owner state (inventory
+ * contents, skill failure reasons, item-use results) to other players in
+ * the same region. Every call site today routes these through the direct
+ * sink — this guard catches future regressions before they hit the wire.
+ */
+const OWNER_ONLY_SERVER_MESSAGE_TYPES: ReadonlySet<string> = new Set([
+  'InventoryUpdate',
+  'EquipmentUpdate',
+  'EquipFailed',
+  'LearnSkillFailed',
+  'SkillLearned',
+  'SkillShortcutUpdated',
+  'ClassSelected',
+  'CastFail',
+  'ItemUsed',
+  'LootAcquired',
+  'StarterProgressUpdate',
+]);
+
+function isOwnerOnlyServerMessage(message: { type: string }): boolean {
+  return OWNER_ONLY_SERVER_MESSAGE_TYPES.has(message.type);
+}
+
 function emitColyseusOutbound(
   room: ColyseusBroadcastLike,
   event: OutboundEvent,
@@ -118,6 +143,17 @@ function emitColyseusOutbound(
 ): void {
   switch (event.type) {
     case 'serverMessage':
+      if (isOwnerOnlyServerMessage(event.message)) {
+        // Owner-only messages must use `directServerMessage` so they only
+        // reach the matching socket. Dropping here with a warning surfaces
+        // the misuse immediately instead of leaking to nearby players.
+        console.warn(
+          `[colyseusRoomAdapter] dropped owner-only message broadcast: ${event.message.type}. ` +
+          'Use directServerMessage instead.',
+        );
+        runtimeMetrics.increment('outbound.ownerOnlyBroadcastDropped');
+        return;
+      }
       if (emitScopedServerMessage(room, event.message, visibility)) {
         return;
       }

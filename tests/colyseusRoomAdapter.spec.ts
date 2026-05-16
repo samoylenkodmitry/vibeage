@@ -109,6 +109,50 @@ describe('Colyseus room adapter', () => {
     });
     expect(runtimeMetrics.snapshot().counters['snapshot.scopedClientUpdates']).toBe(2);
   });
+
+  test('drops an empty filtered BatchUpdate instead of sending an empty wire payload', () => {
+    const state = createGameState();
+    const playerA = createTransientPlayer('socket-a', 'A');
+    const playerB = createTransientPlayer('socket-b', 'B');
+    const enemyB = createEnemy('wolf', 1, { x: 306, y: 0.5, z: 0 }, 2);
+    playerA.id = 'player-a';
+    playerB.id = 'player-b';
+    playerA.position = { x: 0, y: 0.5, z: 0 };
+    playerB.position = { x: 300, y: 0.5, z: 0 };
+    state.players[playerA.id] = playerA;
+    state.players[playerB.id] = playerB;
+    state.enemies[enemyB.id] = enemyB;
+    state.zones.activeZoneIds = ['zone-a', 'zone-b'];
+    state.zones.playerZoneIds = { [playerA.id]: 'zone-a', [playerB.id]: 'zone-b' };
+    state.zones.enemyZoneIds = { [enemyB.id]: 'zone-b' };
+
+    const clientA = makeClient('socket-a');
+    const clientB = makeClient('socket-b');
+    const room = { clients: [clientA, clientB], broadcast: vi.fn() };
+    const outbound = makeColyseusOutbound(room, {
+      getGameState: () => state,
+      getRegions: () => makeRegions(),
+    });
+
+    // Batch containing only updates visible to zone-b (enemy B). Client A
+    // (in zone-a) should receive nothing rather than an empty batch.
+    outbound.publish({
+      type: 'serverMessage',
+      message: {
+        type: 'BatchUpdate',
+        updates: [
+          { type: 'PosSnap', id: enemyB.id, pos: { x: 306, z: 0 }, vel: { x: 0, z: 0 }, snapTs: 1 },
+        ],
+      },
+    });
+
+    expect(clientB.send).toHaveBeenCalledWith('msg', expect.objectContaining({
+      type: 'BatchUpdate',
+      updates: [expect.objectContaining({ id: enemyB.id })],
+    }));
+    expect(clientA.send).not.toHaveBeenCalled();
+    expect(room.broadcast).not.toHaveBeenCalled();
+  });
 });
 
 describe('Colyseus room adapter join and command handling', () => {
