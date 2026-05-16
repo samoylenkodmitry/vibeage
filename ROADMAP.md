@@ -384,15 +384,15 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add a migration path for protocol versions rather than a single hardcoded minimum only.
 - [ ] Add a `serverProtocolVersion` message or join response so clients can display useful upgrade errors.
 - [ ] Generate TypeScript message types from Zod schemas or generate Zod schemas from TypeScript types.
-- [ ] Add a test that schema-inferred types match exported message types for every protocol message.
-- [ ] Add an exhaustive discriminated-union test for client messages.
-- [ ] Add an exhaustive discriminated-union test for server messages.
+- [x] Add a test that schema-inferred types match exported message types for every protocol message.
+- [x] Add an exhaustive discriminated-union test for client messages.
+- [x] Add an exhaustive discriminated-union test for server messages.
 - [ ] Add explicit `clientSeq` fields to commands that need acknowledgement or rejection.
 - [ ] Stop overloading `clientTs` as an acknowledgement key.
 - [ ] Add request IDs for inventory, equipment, class, race, skill, chat, and admin commands where user feedback matters.
 - [ ] Add structured rejection messages for all client commands, not only cast, learn-skill, and equip.
 - [ ] Add a standard error envelope with `requestId`, `commandType`, `reason`, and optional safe detail.
-- [ ] Add protocol tests for unknown fields, wrong types, invalid enums, oversized text, invalid coordinates, and stale versions.
+- [x] Add protocol tests for unknown fields, wrong types, invalid enums, oversized text, invalid coordinates, and stale versions.
 - [ ] Add message-size budget tests for initial snapshot, batch updates, inventory update, equipment update, and chat messages.
 - [ ] Add snapshot compression and payload-size tracking as explicit metrics.
 - [ ] Add a changelog for protocol changes.
