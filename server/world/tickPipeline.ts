@@ -12,6 +12,7 @@ import {
 } from '../transport/outboundEvents.js';
 import { collectDeltas } from '../movement/snapshotDeltas.js';
 import { advanceAll } from '../movement/worldMovement.js';
+import { tickDamageOverTimeEffects } from '../combat/dotTicker.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import {
   isEnemyInActiveRegion,
@@ -104,13 +105,14 @@ function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
   }
 }
 
-function runCombatPhase(input: WorldTickRunnerOptions): void {
+function runCombatPhase(input: WorldTickRunnerOptions & { now: number }): void {
   tickCasts(
     input.state.activeCasts,
     input.tickMs,
     input.outbound,
     createWorldCombatBridge(input.state, input.outbound, input.spatial),
   );
+  tickDamageOverTimeEffects(input.state, input.outbound, input.now);
 }
 
 function runSnapshotPhase(input: WorldTickRunnerOptions & {

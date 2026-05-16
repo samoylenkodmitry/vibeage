@@ -506,9 +506,9 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add an effect tick system for players and enemies.
 - [x] Add expiration pruning for player status effects.
 - [ ] Add expiration pruning for enemy status effects.
-- [ ] Add periodic damage for burn.
-- [ ] Add periodic damage for poison.
-- [ ] Add periodic damage for generic DoT.
+- [x] Add periodic damage for burn.
+- [x] Add periodic damage for poison.
+- [x] Add periodic damage for generic DoT.
 - [ ] Add periodic healing if future HoTs are added.
 - [ ] Add slow effect behavior that reliably changes movement speed while active.
 - [ ] Add stun behavior that blocks movement, casting, and attacking while active.
