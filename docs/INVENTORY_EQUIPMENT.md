@@ -43,7 +43,7 @@ type ItemTemplate = {
   grade: ItemGrade;
   weight: number;
   stackable: boolean;
-  maxStack: number;
+  maxStack?: number;       // required when stackable, ignored otherwise (stays optional to match existing Item)
   equip?: EquipSpec;
   stats?: ItemStatBlock;
   setId?: EquipmentSetId;
@@ -71,7 +71,7 @@ type ItemInstance = {
   durability?: number;
   augmentationId?: string;
   bound: boolean;
-  createdAtTs: number;
+  createdAtTs: number;      // Unix milliseconds
 };
 ```
 
@@ -133,7 +133,7 @@ type ItemLocation =
   | { kind: 'warehouse'; warehouseId: string; slotIndex?: number }
   | { kind: 'trade'; tradeId: string }
   | { kind: 'mail'; mailId: string }
-  | { kind: 'ground'; worldId: string; position: Vec3 }
+  | { kind: 'ground'; worldId: string; position: VecXZ }
   | { kind: 'destroyed' };
 ```
 
@@ -163,6 +163,8 @@ Hard invariants enforced by a validator that runs in tests and in dev builds:
 - Non-stackable items must have `count === 1`.
 - `Destroyed` instances must not appear in `equipment`.
 - `ownerId === characterId`.
+
+`destroyed` is a terminal state. The runtime aggregate **drops** destroyed instances from `items` once persistence has acknowledged the write — they do not linger in memory. A separate `item_history` audit table receives the row if we need a destruction log; the active aggregate stays bounded.
 
 ## Slot rules
 
@@ -275,9 +277,8 @@ Support both styles: exact-piece sets (Blue Wolf armour) and threshold sets (2/4
 
 ## Persistence
 
-- One table for items: `(instance_id, owner_character_id, template_id, location_kind, location_value, count, enchant_level, durability, augmentation_id, bound, created_at, updated_at)`.
-- Derive `character_equipment` from `items.location_kind = 'equipped'`. Build the equipment map at load time.
-- Add a uniqueness constraint to prevent two items claiming the same slot: `equipment_occupancy(character_id, slot, instance_id, primary_slot)` with `UNIQUE(character_id, slot)`.
+- One table for items: `(instance_id, owner_character_id, template_id, location_kind, location jsonb, count, enchant_level, durability, augmentation_id, bound, created_at, updated_at)`. We store the polymorphic location payload as **JSONB** so each `kind` carries its own typed shape — Kysely's generics keep the read path safe — instead of a single overloaded `location_value` string column that would lose type safety and force ad-hoc parsing.
+- `character_equipment` is **not** a view. We keep a physical `equipment_occupancy(character_id, slot, instance_id, primary_slot)` table with `UNIQUE(character_id, slot)`. Every equip / unequip transaction writes both `items.location` and the matching rows in `equipment_occupancy` inside the same DB transaction, so the constraint genuinely prevents two items from claiming a slot. On load we rebuild the in-memory equipment map from `equipment_occupancy` and cross-check it against `items.location` to fail loud if they ever diverge.
 
 ## Network protocol
 
