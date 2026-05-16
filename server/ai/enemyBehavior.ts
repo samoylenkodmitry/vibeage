@@ -51,6 +51,15 @@ export function getEnemyMovementSpeed(enemy: Enemy, now: number = Date.now()): n
   return speed;
 }
 
+/**
+ * KNOWN ISSUE (pre-existing): the position integration below is a
+ * double-step. `worldMovement.advanceEnemyPosition` runs in the same
+ * tick (input/movement phase) and *also* adds `velocity * dt` to the
+ * position, so enemies effectively move at 2× their `movementSpeed`.
+ * The current enemy speed values are tuned around this. Removing the
+ * double-step is a balance change that belongs in its own PR — see
+ * ROADMAP "## 10. Movement... Per-player movement speed budget".
+ */
 export function moveEnemyToward(
   enemy: Enemy,
   targetPosition: VecXZ,

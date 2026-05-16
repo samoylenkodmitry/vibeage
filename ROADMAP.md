@@ -574,6 +574,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Reject movement targets outside playable world bounds.
 - [ ] Reject movement targets into impassable terrain once collision/navmesh exists.
 - [ ] Add per-player movement speed budget based on stats and effects.
+- [ ] **Enemy movement double-step**: `moveEnemyToward` integrates `velocity * dt` into position, and `worldMovement.advanceEnemyPosition` does it again in the same tick. Enemies effectively move at 2× their nominal speed. Fix requires removing one integration AND rebalancing every enemy template's `movementSpeed`.
 - [ ] Add speed-hack detection metrics.
 - [ ] Add teleport detection metrics.
 - [ ] Add client reconciliation acknowledgements using movement sequence numbers.
