@@ -25,10 +25,18 @@ export function applyMoveIntent(
   }
 
   if (isEntityStunned(player, now)) {
-    // Stop any in-flight movement so the player visibly freezes.
-    player.movement = { isMoving: false, lastUpdateTime: now, speed: 0 };
-    player.velocity = { x: 0, z: 0 };
-    player.dirtySnap = true;
+    // Stop any in-flight movement so the player visibly freezes. Only
+    // mark dirty if there's actually something to stop — otherwise a
+    // stunned player spamming MoveIntent would flood the snapshot bus
+    // with redundant freeze updates every tick.
+    const hasMotion = player.movement?.isMoving
+      || (player.velocity?.x ?? 0) !== 0
+      || (player.velocity?.z ?? 0) !== 0;
+    if (hasMotion) {
+      player.movement = { isMoving: false, lastUpdateTime: now, speed: 0 };
+      player.velocity = { x: 0, z: 0 };
+      player.dirtySnap = true;
+    }
     return { ok: false, reason: 'stunned', playerId };
   }
 

@@ -94,6 +94,22 @@ describe('applyMoveIntent rejects stunned players', () => {
     expect(player.movement?.isMoving).toBe(false);
   });
 
+  it('does not mark dirty when a stunned player was already stopped (no redundant snapshot)', () => {
+    const state = createGameState();
+    const player = makePlayer({ statusEffects: [stunEffect()] });
+    player.dirtySnap = false;
+    state.players[player.id] = player;
+
+    applyMoveIntent(
+      state,
+      's1',
+      { type: 'MoveIntent', id: player.id, targetPos: { x: 1, z: 1 }, clientTs: NOW },
+      NOW,
+    );
+
+    expect(player.dirtySnap).toBe(false);
+  });
+
   it('accepts MoveIntent normally when the player is not stunned', () => {
     const state = createGameState();
     const player = makePlayer();
