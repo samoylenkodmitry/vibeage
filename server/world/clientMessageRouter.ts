@@ -22,6 +22,7 @@ import {
   type SocketMessageTarget,
 } from '../transport/outboundEvents.js';
 import { bucketForCommand, sharedRateLimiter } from './rateLimiter.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 
 type WorldClient = SocketMessageTarget & { id: string };
 
@@ -35,6 +36,8 @@ export function handleClientMessage(
   const bucket = bucketForCommand(msg.type);
   if (bucket && !sharedRateLimiter().allow(socket.id, bucket)) {
     debug(LOG_CATEGORIES.SYSTEM, `Rate-limited ${msg.type} from ${socket.id}`);
+    runtimeMetrics.increment(`rateLimit.dropped.${msg.type}`);
+    runtimeMetrics.increment('rateLimit.dropped.total');
     return;
   }
   const direct = makeSocketMessageSink(socket);
@@ -234,7 +237,12 @@ function onCastReq(
   spatial: SpatialHashGrid,
 ): void {
   const player = state.players[msg.id];
-  if (!player || player.socketId !== socket.id) {
+  if (!player) {
+    return;
+  }
+  if (player.socketId !== socket.id) {
+    runtimeMetrics.increment('clientMessages.invalidOwnership.CastReq');
+    runtimeMetrics.increment('clientMessages.invalidOwnership.total');
     return;
   }
 
@@ -256,7 +264,12 @@ function onLootPickup(
   outbound: OutboundEventSink,
 ): void {
   const player = state.players[msg.playerId];
-  if (player?.socketId !== socket.id) {
+  if (!player) {
+    return;
+  }
+  if (player.socketId !== socket.id) {
+    runtimeMetrics.increment('clientMessages.invalidOwnership.LootPickup');
+    runtimeMetrics.increment('clientMessages.invalidOwnership.total');
     return;
   }
 
@@ -304,6 +317,11 @@ function warnRejectedMoveIntent(
   if (reason === 'invalidTarget') {
     warn(LOG_CATEGORIES.MOVEMENT, `Invalid target position in MoveIntent from player ${playerId}`, { targetPos });
     return;
+  }
+
+  if (reason === 'socketMismatch') {
+    runtimeMetrics.increment('clientMessages.invalidOwnership.MoveIntent');
+    runtimeMetrics.increment('clientMessages.invalidOwnership.total');
   }
 
   warn(LOG_CATEGORIES.MOVEMENT, `Invalid player ID or wrong socket for MoveIntent: ${playerId}`);

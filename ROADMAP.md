@@ -695,14 +695,14 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 14. Server Operations, Observability, and Alerting
 
-- [ ] Protect or intentionally scope `/runtimez`.
+- [x] Protect or intentionally scope `/runtimez`.
 - [ ] Add structured logs with request/session/player IDs where safe.
 - [ ] Add log levels configurable by environment.
 - [ ] Add metrics endpoint suitable for scraping or export.
-- [ ] Add counters for accepted and rejected messages by type.
-- [ ] Add counters for rate-limit hits by command type.
-- [ ] Add counters for invalid ownership attempts.
-- [ ] Add counters for protocol-version rejections.
+- [x] Add counters for accepted and rejected messages by type.
+- [x] Add counters for rate-limit hits by command type.
+- [x] Add counters for invalid ownership attempts.
+- [x] Add counters for protocol-version rejections.
 - [ ] Add counters for chat moderation rejections.
 - [ ] Add gauges for active rooms.
 - [ ] Add gauges for connected clients.
