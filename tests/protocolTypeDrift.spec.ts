@@ -26,57 +26,63 @@ import {
  * forcing a conscious decision rather than silent drift.
  */
 
-/** Every `type` literal currently present in the ClientMessage TS union. */
-const CLIENT_MESSAGE_TYPE_LITERALS: ClientMessage['type'][] = [
-  'MoveIntent',
-  'CastReq',
-  'LearnSkill',
-  'SetSkillShortcut',
-  'SelectClass',
-  'SelectRace',
-  'RespawnRequest',
-  'LootPickup',
-  'UseItem',
-  'RequestInventory',
-  'DevTeleport',
-  'ChatRequest',
-  'EquipItem',
-  'UnequipItem',
-];
+/**
+ * Each map below is typed as `Record<Union, true>` so the compiler refuses
+ * to build if a new variant is added to the TS union without a matching key
+ * here — exhaustiveness is enforced at typecheck time, not just test time.
+ */
+const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
+  MoveIntent: true,
+  CastReq: true,
+  LearnSkill: true,
+  SetSkillShortcut: true,
+  SelectClass: true,
+  SelectRace: true,
+  RespawnRequest: true,
+  LootPickup: true,
+  UseItem: true,
+  RequestInventory: true,
+  DevTeleport: true,
+  ChatRequest: true,
+  EquipItem: true,
+  UnequipItem: true,
+};
+const CLIENT_MESSAGE_TYPE_LITERALS = Object.keys(CLIENT_MESSAGE_TYPES) as ClientMessage['type'][];
 
-/** Every `type` literal currently present in the ServerMessage TS union. */
-const SERVER_MESSAGE_TYPE_LITERALS: ServerMessage['type'][] = [
-  'PosSnap',
-  'InstantHit',
-  'SkillLearned',
-  'SkillShortcutUpdated',
-  'ClassSelected',
-  'CastFail',
-  'CastSnapshot',
-  'EffectSnapshot',
-  'CombatLog',
-  'EnemyAttack',
-  'InventoryUpdate',
-  'LootAcquired',
-  'StarterProgressUpdate',
-  'LootPickup',
-  'LootSpawn',
-  'ItemUsed',
-  'BatchUpdate',
-  'ChatBroadcast',
-  'EquipmentUpdate',
-  'EquipFailed',
-  'LearnSkillFailed',
-];
+const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
+  PosSnap: true,
+  InstantHit: true,
+  SkillLearned: true,
+  SkillShortcutUpdated: true,
+  ClassSelected: true,
+  CastFail: true,
+  CastSnapshot: true,
+  EffectSnapshot: true,
+  CombatLog: true,
+  EnemyAttack: true,
+  InventoryUpdate: true,
+  LootAcquired: true,
+  StarterProgressUpdate: true,
+  LootPickup: true,
+  LootSpawn: true,
+  ItemUsed: true,
+  BatchUpdate: true,
+  ChatBroadcast: true,
+  EquipmentUpdate: true,
+  EquipFailed: true,
+  LearnSkillFailed: true,
+};
+const SERVER_MESSAGE_TYPE_LITERALS = Object.keys(SERVER_MESSAGE_TYPES) as ServerMessage['type'][];
 
-const LEARN_SKILL_FAILED_REASONS: LearnSkillFailedReason[] = [
-  'noSkillPoints',
-  'levelTooLow',
-  'missingPrereq',
-  'unknownSkill',
-  'wrongClass',
-  'alreadyKnown',
-];
+const LEARN_SKILL_FAILED_REASON_MAP: Record<LearnSkillFailedReason, true> = {
+  noSkillPoints: true,
+  levelTooLow: true,
+  missingPrereq: true,
+  unknownSkill: true,
+  wrongClass: true,
+  alreadyKnown: true,
+};
+const LEARN_SKILL_FAILED_REASONS = Object.keys(LEARN_SKILL_FAILED_REASON_MAP) as LearnSkillFailedReason[];
 
 function discriminatorLiteralsFromOptions(options: readonly z.ZodTypeAny[]): string[] {
   return options
