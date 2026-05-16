@@ -90,7 +90,7 @@ export function sendEquipment(direct: DirectMessageSink, player: PlayerState): v
 export function refreshPlayerStatsFromEquipment(player: PlayerState): void {
   const inv = ensureCharacterInventory(player);
   const equipmentStats = deriveEquipmentStats(inv);
-  const derived = derivePlayerStats(player.level, player.className, equipmentStats);
+  const derived = derivePlayerStats(player.level, player.className, equipmentStats, player.race);
   player.stats = {
     dmgMult: derived.dmgMult,
     critChance: derived.critChance,

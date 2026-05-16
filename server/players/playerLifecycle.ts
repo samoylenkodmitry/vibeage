@@ -40,7 +40,7 @@ export function awardPlayerXP(
     player.level += 1;
     player.experience -= oldMaxExp;
     player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5);
-    const newStats = derivePlayerStats(player.level, player.className);
+    const newStats = derivePlayerStats(player.level, player.className, {}, player.race);
     player.maxHealth = newStats.maxHealth;
     player.maxMana = newStats.maxMana;
     player.health = player.maxHealth;

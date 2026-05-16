@@ -1,5 +1,6 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../content/classes.js';
 import type { ItemStatBlock } from '../content/equipmentTypes.js';
+import { DEFAULT_RACE, RACE_PROFILES, type CharacterRace } from '../content/races.js';
 
 export type DerivedPlayerStats = {
   str: number;
@@ -54,8 +55,18 @@ export function derivePlayerStats(
   level: number,
   className: CharacterClass,
   equipment: ItemStatBlock = {},
+  race: CharacterRace = DEFAULT_RACE,
 ): DerivedPlayerStats {
-  const weights = STAT_WEIGHTS[className] ?? DEFAULT_WEIGHTS;
+  const classWeights = STAT_WEIGHTS[className] ?? DEFAULT_WEIGHTS;
+  const raceMul = (RACE_PROFILES[race] ?? RACE_PROFILES[DEFAULT_RACE]).statMultipliers;
+  const weights: StatWeights = {
+    str: classWeights.str * raceMul.str,
+    dex: classWeights.dex * raceMul.dex,
+    con: classWeights.con * raceMul.con,
+    int: classWeights.int * raceMul.int,
+    wit: classWeights.wit * raceMul.wit,
+    men: classWeights.men * raceMul.men,
+  };
   const safeLevel = Math.max(1, Math.floor(level));
   const str = 8 + Math.floor(safeLevel * weights.str);
   const dex = 8 + Math.floor(safeLevel * weights.dex);

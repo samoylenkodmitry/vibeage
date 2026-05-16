@@ -13,6 +13,7 @@ export type StablePlayerPersistenceData = {
   level: number;
   experience: number;
   class_name: PlayerState['className'];
+  race: NonNullable<PlayerState['race']>;
   inventory: InventorySlot[];
   skills: SkillId[];
   skill_shortcuts: Array<SkillId | null>;

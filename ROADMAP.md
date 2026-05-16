@@ -262,7 +262,7 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 Live items requested after Inventory v2 went out. Each ships as its own slice.
 
-1. [ ] **Race system + per-race stat weights** — add `CharacterRace` (`human`, `elf`, `dark_elf`, `orc`, `dwarf`) with its own STR/DEX/CON/INT/WIT/MEN weights. `derivePlayerStats` multiplies race × class so two characters of the same class on different races feel different (orc warrior tankier than elf warrior, etc.). Default `human` for legacy / unselected players. Persisted alongside `className` (DB column `class_name`).
+1. [x] **Race system + per-race stat weights** — add `CharacterRace` (`human`, `elf`, `dark_elf`, `orc`, `dwarf`) with its own STR/DEX/CON/INT/WIT/MEN weights. `derivePlayerStats` multiplies race × class so two characters of the same class on different races feel different (orc warrior tankier than elf warrior, etc.). Default `human` for legacy / unselected players. Persisted alongside `className` (DB column `race`, migration `005_add_player_race.sql`).
 
 2. [ ] **Race + class picker at character creation** — `StartPanel` becomes a chooser: pick race, pick class, then enter the world. Class is also re-selectable from the existing Tree / Stats panel (for now — a real respec gate lands later). New `SelectRace` client message + server handler.
 
