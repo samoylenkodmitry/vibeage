@@ -526,14 +526,14 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for each skill effect type currently present in content.
 - [ ] Add tests for simultaneous effects on one target.
 - [ ] Add tests for shield absorption order.
-- [ ] Add tests for effect expiration during combat.
-- [ ] Add tests for death while affected by DoT.
-- [ ] Add tests for self-cast skills.
+- [x] Add tests for effect expiration during combat.
+- [x] Add tests for death while affected by DoT.
+- [x] Add tests for self-cast skills.
 - [ ] Add tests for ground-target skills.
-- [ ] Add tests for target-required skills.
+- [x] Add tests for target-required skills.
 - [ ] Add tests for projectile impact at max range.
 - [ ] Add tests for projectile piercing and max-pierce hits.
-- [ ] Add tests for AoE target deduplication.
+- [x] Add tests for AoE target deduplication.
 - [ ] Add tests for player-vs-player behavior if PvP will exist, or explicitly disable PvP in protocol and server rules.
 
 ## 9. Skills, Classes, Races, and Progression
