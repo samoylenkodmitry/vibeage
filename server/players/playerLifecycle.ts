@@ -1,6 +1,7 @@
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
+import { projectPlayerStats } from '../inventory/equipHandlers.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
@@ -45,11 +46,7 @@ export function awardPlayerXP(
     player.maxMana = newStats.maxMana;
     player.health = player.maxHealth;
     player.mana = player.maxMana;
-    player.stats = {
-      dmgMult: newStats.dmgMult,
-      critChance: newStats.critChance,
-      critMult: newStats.critMult,
-    };
+    player.stats = projectPlayerStats(newStats);
     player.availableSkillPoints += 1;
 
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);

@@ -44,6 +44,28 @@ export type PlayerEntity = {
   velocity?: VecXZ;
   inventory?: InventorySlot[];
   maxInventorySlots?: number;
+  stats?: {
+    dmgMult?: number;
+    critChance?: number;
+    critMult?: number;
+    pAtk?: number;
+    mAtk?: number;
+    pDef?: number;
+    mDef?: number;
+    hpRegen?: number;
+    mpRegen?: number;
+    accuracy?: number;
+    evasion?: number;
+    attackSpeed?: number;
+    castSpeed?: number;
+    runSpeed?: number;
+    str?: number;
+    dex?: number;
+    con?: number;
+    int?: number;
+    wit?: number;
+    men?: number;
+  };
 };
 
 export type EnemyEntity = {

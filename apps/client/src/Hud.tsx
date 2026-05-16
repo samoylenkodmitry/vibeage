@@ -343,25 +343,42 @@ function VitalsStrip({ player }: { player: PlayerEntity | null }) {
 
 function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   const stats = derivePlayerStats(player);
+  const derived = player?.stats ?? {};
   const panelRef = useDraggablePanel<HTMLElement>('stats');
+  const raceLabel = player?.race ? capitalize(player.race) : '';
 
   return (
     <section ref={panelRef} className="hud player-panel" aria-label="Player status">
       <div className="panel-title">
         <strong>Stats</strong>
-        <span>{stats.className}</span>
+        <span>{raceLabel ? `${raceLabel} ${stats.className}` : stats.className}</span>
       </div>
       <dl className="player-stats">
         <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
         <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
-        <div><dt>STR</dt><dd>{stats.strength}</dd></div>
-        <div><dt>DEX</dt><dd>{stats.dexterity}</dd></div>
-        <div><dt>CON</dt><dd>{stats.constitution}</dd></div>
-        <div><dt>INT</dt><dd>{stats.intellect}</dd></div>
-        <div><dt>WIT</dt><dd>{stats.wit}</dd></div>
-        <div><dt>MEN</dt><dd>{stats.mental}</dd></div>
-        <div><dt>Skills</dt><dd>{stats.unlockedSkills}</dd></div>
+        <div><dt>STR</dt><dd>{derived.str ?? stats.strength}</dd></div>
+        <div><dt>DEX</dt><dd>{derived.dex ?? stats.dexterity}</dd></div>
+        <div><dt>CON</dt><dd>{derived.con ?? stats.constitution}</dd></div>
+        <div><dt>INT</dt><dd>{derived.int ?? stats.intellect}</dd></div>
+        <div><dt>WIT</dt><dd>{derived.wit ?? stats.wit}</dd></div>
+        <div><dt>MEN</dt><dd>{derived.men ?? stats.mental}</dd></div>
       </dl>
+      {derived.pAtk !== undefined && (
+        <dl className="player-stats player-stats-combat">
+          <div><dt>P.Atk</dt><dd>{derived.pAtk}</dd></div>
+          <div><dt>M.Atk</dt><dd>{derived.mAtk}</dd></div>
+          <div><dt>P.Def</dt><dd>{derived.pDef}</dd></div>
+          <div><dt>M.Def</dt><dd>{derived.mDef}</dd></div>
+          <div><dt>HP/s</dt><dd>{derived.hpRegen}</dd></div>
+          <div><dt>MP/s</dt><dd>{derived.mpRegen}</dd></div>
+          <div><dt>Acc</dt><dd>{derived.accuracy}</dd></div>
+          <div><dt>Evd</dt><dd>{derived.evasion}</dd></div>
+          <div><dt>Atk Spd</dt><dd>{derived.attackSpeed}</dd></div>
+          <div><dt>Cast Spd</dt><dd>{derived.castSpeed?.toFixed(2)}</dd></div>
+          <div><dt>Speed</dt><dd>{derived.runSpeed}</dd></div>
+          <div><dt>Crit %</dt><dd>{derived.critChance ? Math.round(derived.critChance * 100) : 0}</dd></div>
+        </dl>
+      )}
       <StatusPills effects={player?.statusEffects ?? []} />
     </section>
   );

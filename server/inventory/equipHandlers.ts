@@ -84,6 +84,35 @@ export function sendEquipment(direct: DirectMessageSink, player: PlayerState): v
 }
 
 /**
+ * Project the full DerivedPlayerStats block into the PlayerState.stats shape
+ * the wire / HUD consumes.
+ */
+export function projectPlayerStats(derived: ReturnType<typeof derivePlayerStats>): NonNullable<PlayerState['stats']> {
+  return {
+    dmgMult: derived.dmgMult,
+    critChance: derived.critChance,
+    critMult: derived.critMult,
+    pAtk: derived.pAtk,
+    mAtk: derived.mAtk,
+    pDef: derived.pDef,
+    mDef: derived.mDef,
+    hpRegen: derived.hpRegen,
+    mpRegen: derived.mpRegen,
+    accuracy: derived.accuracy,
+    evasion: derived.evasion,
+    attackSpeed: derived.attackSpeed,
+    castSpeed: derived.castSpeed,
+    runSpeed: derived.runSpeed,
+    str: derived.str,
+    dex: derived.dex,
+    con: derived.con,
+    int: derived.int,
+    wit: derived.wit,
+    men: derived.men,
+  };
+}
+
+/**
  * Re-derive the player's combat multipliers + HP/MP caps from level + class +
  * currently equipped items so equipping a sword actually shows up in damage.
  */
@@ -91,11 +120,7 @@ export function refreshPlayerStatsFromEquipment(player: PlayerState): void {
   const inv = ensureCharacterInventory(player);
   const equipmentStats = deriveEquipmentStats(inv);
   const derived = derivePlayerStats(player.level, player.className, equipmentStats, player.race);
-  player.stats = {
-    dmgMult: derived.dmgMult,
-    critChance: derived.critChance,
-    critMult: derived.critMult,
-  };
+  player.stats = projectPlayerStats(derived);
   player.maxHealth = derived.maxHealth;
   player.maxMana = derived.maxMana;
   if (player.health > player.maxHealth) {

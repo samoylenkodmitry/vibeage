@@ -266,7 +266,7 @@ Live items requested after Inventory v2 went out. Each ships as its own slice.
 
 2. [x] **Race + class picker at character creation** — `StartPanel` is a chooser (name + race + class). The chosen race/class are pushed via the existing `SelectClass` (now wired) and a new `SelectRace` message right after the join handshake. A new draggable `CharacterPanel` (toggle "Char") lets the player switch race or class in-world; stats refresh immediately.
 
-3. [ ] **Full L2 derived stats panel** — extend `derivePlayerStats` to also produce `pAtk`, `mAtk`, `pDef`, `mDef`, `hpRegen`, `mpRegen`, `accuracy`, `evasion`, `attackSpeed`, `castSpeed`, `runSpeed`, `critRate`, `critMult` from base + race + class + level + equipment + (future) buffs. Server publishes the full block on every recalc; the HUD Stats panel renders all of them.
+3. [x] **Full L2 derived stats panel** — `derivePlayerStats` now produces `pAtk`, `mAtk`, `pDef`, `mDef`, `hpRegen`, `mpRegen`, `accuracy`, `evasion`, `attackSpeed`, `castSpeed`, `runSpeed`, `critChance`, `critMult` from base + race + class + level + equipment. Server projects the full block into `player.stats` on every recalc (factory / level-up / equip / class change / race change). The HUD Stats panel renders the full block under the base STR/DEX/CON/INT/WIT/MEN strip.
 
 4. [ ] **Skill learning bug + per-class starter** — replace the single `DEFAULT_UNLOCKED_SKILLS = ['fireball']` with a per-class starter map (warrior → slash, ranger → arrowShot, healer → holyLight, …). Server emits a typed `LearnSkillFailed` with a reason (`noSkillPoints`, `levelTooLow`, `missingPrereq`, `unknownSkill`); the Skill Tree panel surfaces the rejection inline so it's obvious why a button is greyed out.
 
