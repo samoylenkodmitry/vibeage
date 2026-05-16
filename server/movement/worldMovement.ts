@@ -285,8 +285,19 @@ function pruneExpiredStatusEffects(entity: PlayerState | Enemy, now: number): vo
   if (entity.statusEffects.length === 0) {
     return;
   }
-
-  entity.statusEffects = entity.statusEffects.filter((effect) => effect.startTimeTs + effect.durationMs > now);
+  // Cheap pre-check: if nothing's expired, skip the filter allocation.
+  // `?? 0` keeps the arithmetic safe if a malformed effect slips past
+  // schema validation — NaN comparisons would all be false, leaking the
+  // effect forever; falling back to 0 forces immediate pruning instead.
+  const hasExpired = entity.statusEffects.some(
+    (effect) => (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) <= now,
+  );
+  if (!hasExpired) {
+    return;
+  }
+  entity.statusEffects = entity.statusEffects.filter(
+    (effect) => (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) > now,
+  );
 }
 
 function predictLinearState(

@@ -63,18 +63,36 @@ describe('player status effect pruning', () => {
     expect(state.players[player.id].statusEffects.map(e => e.id)).toEqual(['still-active']);
   });
 
-  it('leaves status effects untouched if none are expired', () => {
+  it('leaves status effects untouched and skips reallocation if none are expired', () => {
     const state = createGameState();
     const player = makePlayer();
-    player.statusEffects = [
+    const original = [
       makeEffect({ id: 'fresh-1', durationMs: 5_000, startTimeTs: NOW }),
       makeEffect({ id: 'fresh-2', durationMs: 5_000, startTimeTs: NOW, type: 'slow' }),
     ];
+    player.statusEffects = original;
     state.players[player.id] = player;
 
     advanceAll(state, new SpatialHashGrid(), 100, NOW);
 
-    expect(state.players[player.id].statusEffects).toHaveLength(2);
+    // Same array reference: the `some` short-circuit skipped the filter
+    // allocation when nothing was expired.
+    expect(state.players[player.id].statusEffects).toBe(original);
+  });
+
+  it('prunes malformed effects (missing startTimeTs/durationMs) instead of leaking them forever', () => {
+    const state = createGameState();
+    const player = makePlayer();
+    const malformed = makeEffect({ id: 'malformed' });
+    // Simulate a malformed effect that slipped past schema validation.
+    delete (malformed as Partial<typeof malformed>).startTimeTs;
+    delete (malformed as Partial<typeof malformed>).durationMs;
+    player.statusEffects = [malformed];
+    state.players[player.id] = player;
+
+    advanceAll(state, new SpatialHashGrid(), 100, NOW);
+
+    expect(state.players[player.id].statusEffects).toEqual([]);
   });
 
   it('does not mutate when the player has no status effects', () => {
