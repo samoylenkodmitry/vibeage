@@ -311,7 +311,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 - [x] Fix public snapshot privacy so `characterInventory` can never be sent to other players.
 - [x] Add `characterInventory` to the private-player-field audit until explicit public equipment DTOs are in place.
-- [ ] Replace the current deny-list privacy test with an exact-key allow-list test for owner player snapshots.
+- [x] Replace the current deny-list privacy test with an exact-key allow-list test for owner player snapshots.
 - [x] Replace the current deny-list privacy test with an exact-key allow-list test for public player snapshots.
 - [x] Add a regression test proving public `playerJoined`, `playerUpdated`, and resync snapshots never include `socketId`, `inventory`, `characterInventory`, `starterProgress`, or other owner-only state.
 - [x] Add a regression test proving direct owner messages are only sent to the matching socket.
@@ -331,7 +331,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add a production check that `ALLOW_MISSING_ORIGIN` is not enabled in production.
 - [x] Add a production check that `/runtimez` does not expose sensitive data and is either protected, minimized, or intentionally public.
 - [x] Add CI steps for `pnpm run typecheck:packages` and `pnpm run content:check` if they are not already covered by an equivalent step.
-- [ ] Add a full `pnpm run check` CI job or prove that the CI workflow exactly matches the local check script.
+- [x] Add a full `pnpm run check` CI job or prove that the CI workflow exactly matches the local check script.
 
 ## 2. Things That Should Be Redone First
 

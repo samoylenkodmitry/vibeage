@@ -3,9 +3,11 @@ import { createStarterProgressState } from '../packages/protocol/messages';
 import { createEmptyInventory } from '../packages/sim/characterInventory';
 import {
   PRIVATE_PLAYER_STATE_FIELDS,
+  makeClientGameStateSnapshot,
   sanitizePlayerForPublic,
   sanitizePlayerUpdateForPublic,
 } from '../server/transport/clientState';
+import { createGameState } from '../server/gameState';
 import { makeColyseusOutbound } from '../server/transport/colyseusRoomAdapter';
 import type { PlayerState } from '../packages/sim/entities';
 import type { ColyseusBroadcastLike, ColyseusClientLike } from '../server/transport/colyseusRoomAdapter';
@@ -81,6 +83,45 @@ function makePlayer(id: string, socketId: string): PlayerState {
   player.characterInventory.equipment.MAIN_HAND = 'fake-instance-id';
   return player;
 }
+
+/**
+ * Allow-list of fields the *owner* of a player is permitted to see in their
+ * own snapshot. This is the union of PUBLIC_PLAYER_KEYS + every field in
+ * PRIVATE_PLAYER_STATE_FIELDS (the owner sees everything). Plus
+ * `inventory` and `maxInventorySlots` because the makePlayer fixture below
+ * sets them; if the live PlayerState shape changes, this set needs to
+ * reflect the union so it doesn't drift.
+ */
+const OWNER_PLAYER_KEYS = new Set<string>([
+  ...PUBLIC_PLAYER_KEYS,
+  ...PRIVATE_PLAYER_STATE_FIELDS,
+]);
+
+describe('owner snapshot allow-list', () => {
+  it('every key on the owner snapshot is in the owner allow-list (no surprise fields)', () => {
+    const state = createGameState();
+    state.players.own = makePlayer('own', 'own-socket');
+    state.players.other = makePlayer('other', 'other-socket');
+
+    const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
+    const ownKeys = Object.keys(snapshot.players.own);
+    const extras = ownKeys.filter(k => !OWNER_PLAYER_KEYS.has(k));
+    expect(
+      extras,
+      `unexpected keys in owner snapshot: ${extras.join(', ')}. ` +
+      'Either add the field to PUBLIC/PRIVATE allow-lists or remove it from PlayerState.',
+    ).toEqual([]);
+  });
+
+  it('owner snapshot includes every PRIVATE_PLAYER_STATE_FIELDS entry (the owner sees their own state)', () => {
+    const state = createGameState();
+    state.players.own = makePlayer('own', 'own-socket');
+    const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
+    for (const field of PRIVATE_PLAYER_STATE_FIELDS) {
+      expect(snapshot.players.own, `owner is missing their own ${field}`).toHaveProperty(field);
+    }
+  });
+});
 
 describe('public snapshot allow-list', () => {
   it('every key remaining after public sanitisation is in the public allow-list', () => {
