@@ -5,6 +5,7 @@ import {
   applyEnemyAttack,
   faceEnemyToward,
   findAggroTargetId,
+  isPlayerInvisible,
   makeEnemyUpdate,
   markEnemyDirty,
   moveEnemyToward,
@@ -181,6 +182,15 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     return;
   }
 
+  // Vanish/Stealth: lose the target lock if they go invisible.
+  if (isPlayerInvisible(targetPlayer, context.now)) {
+    enemy.targetId = null;
+    enemy.aiState = 'returning';
+    progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} lost sight of invisible target, returning.` });
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+
   // Leash: stop chasing once we've strayed too far from spawn so a
   // player can't kite a mob across the world. The enemy gives up on
   // its current target and heads home.
@@ -212,6 +222,14 @@ function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
     enemy.targetId = null;
     enemy.aiState = 'returning';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} target died while attacking, returning.` });
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+
+  if (isPlayerInvisible(targetPlayer, context.now)) {
+    enemy.targetId = null;
+    enemy.aiState = 'returning';
+    progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} lost sight of invisible target mid-attack, returning.` });
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -303,7 +321,7 @@ function findNearbyAggroTarget(enemy: Enemy, context: EnemyAIContext): string | 
     { x: enemy.position.x, z: enemy.position.z },
     enemy.aggroRadius,
   );
-  return findAggroTargetId(enemy, context.players, nearbyPlayerIds);
+  return findAggroTargetId(enemy, context.players, nearbyPlayerIds, context.now);
 }
 
 function markDirtyIfMotionChanged(

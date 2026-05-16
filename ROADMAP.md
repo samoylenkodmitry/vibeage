@@ -599,7 +599,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add stun handling for enemies.
 - [x] Add slow handling for enemies.
 - [x] Add taunt priority handling for enemies.
-- [ ] Add invisibility handling for enemies.
+- [x] Add invisibility handling for enemies.
 - [x] Add return-to-spawn leash rules with max chase distance.
 - [ ] Add anti-kite rules if enemies should not chase forever.
 - [ ] Add pack aggro rules with configurable radius per species or encounter.
