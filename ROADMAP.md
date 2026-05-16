@@ -270,7 +270,7 @@ Live items requested after Inventory v2 went out. Each ships as its own slice.
 
 4. [x] **Skill learning bug + per-class starter** — new `STARTER_SKILL_BY_CLASS` (warrior → slash, ranger → arrowShot, healer → holyLight, rogue → evade, knight/paladin → slash, mage → fireball). Server emits a typed `LearnSkillFailed { skillId, reason }` with `noSkillPoints | levelTooLow | missingPrereq | unknownSkill | wrongClass`. Switching class via `CharacterPanel` now also auto-grants a starter skill from the new tree if the player has nothing from it. The Skill Tree panel surfaces the rejection inline as a pill so it's obvious why a Learn button is greyed out.
 
-5. [ ] **Wearable visuals modify the avatar** — `ItemTemplate.visual` (color, accessory shape) overlays onto the rendered `PlayerFigure` per slot. Helmet appears on the head, chest piece tints the torso, weapon shows in the main hand, shield in the off-hand. Client reads `state.equipment` (already populated by Inventory v2) and renders overlay meshes per equipped slot.
+5. [x] **Wearable visuals modify the avatar** — `PlayerMarker` now reads the local player's `state.equipment` map and renders an `EquipmentOverlay` per equipped slot: helmet hemisphere on the head, chest plate over the torso, weapon mesh (sword / dagger / staff / mace) in the main hand with grade-tinted material, shield disc in the off-hand. Colours derive from the item grade today (default → D → C → B → A → S). Other players' overlays land alongside snapshot-broadcast equipment in a follow-up.
 
 ## Quality Gate
 

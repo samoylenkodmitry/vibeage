@@ -59,6 +59,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
           player={player}
           isSelf={player.id === state.myPlayerId}
           presentationRef={player.id === state.myPlayerId ? cameraAnchorRef : undefined}
+          equipment={player.id === state.myPlayerId ? state.equipment : undefined}
         />
       ))}
       {Object.values(state.enemies).map((enemy) => (
