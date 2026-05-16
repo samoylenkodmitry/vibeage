@@ -528,7 +528,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for shield absorption order.
 - [ ] Add tests for effect expiration during combat.
 - [ ] Add tests for death while affected by DoT.
-- [ ] Add tests for self-cast skills.
+- [x] Add tests for self-cast skills.
 - [ ] Add tests for ground-target skills.
 - [ ] Add tests for target-required skills.
 - [ ] Add tests for projectile impact at max range.
@@ -599,7 +599,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add slow handling for enemies.
 - [ ] Add taunt priority handling for enemies.
 - [ ] Add invisibility handling for enemies.
-- [ ] Add return-to-spawn leash rules with max chase distance.
+- [x] Add return-to-spawn leash rules with max chase distance.
 - [ ] Add anti-kite rules if enemies should not chase forever.
 - [ ] Add pack aggro rules with configurable radius per species or encounter.
 - [ ] Add pack disengage rules.

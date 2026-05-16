@@ -83,6 +83,12 @@ const PATROL_RADIUS = 8;
 const PATROL_WAIT_MIN_MS = 2_000;
 const PATROL_WAIT_MAX_MS = 6_000;
 const PATROL_ARRIVAL_DISTANCE = 0.7;
+/**
+ * Max distance from spawn point an enemy will chase before giving up
+ * and returning. Without this leash a player could kite any enemy
+ * across the entire world (and have it never reset).
+ */
+export const MAX_CHASE_DISTANCE_FROM_SPAWN = 60;
 
 function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
   const targetId = findNearbyAggroTarget(enemy, context);
@@ -155,6 +161,21 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     enemy.targetId = null;
     enemy.aiState = 'returning';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} lost target or target died, returning.` });
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+
+  // Leash: stop chasing once we've strayed too far from spawn so a
+  // player can't kite a mob across the world. The enemy gives up on
+  // its current target and heads home.
+  if (distanceXZ(enemy.position, enemy.spawnPosition) > MAX_CHASE_DISTANCE_FROM_SPAWN) {
+    enemy.targetId = null;
+    enemy.aiState = 'returning';
+    stopEnemy(enemy);
+    progress.events.push({
+      type: 'log',
+      message: `[AI] Enemy ${enemy.id} exceeded leash distance from spawn, returning.`,
+    });
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
