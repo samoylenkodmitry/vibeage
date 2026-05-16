@@ -1,8 +1,30 @@
+import type { CharacterClass } from '../../packages/content/classes.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 
 export const SKILL_SHORTCUT_SLOTS = 9;
-export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = ['fireball'];
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
+
+/**
+ * Per-class starter skill so every fresh character begins with a skill that
+ * actually belongs to their tree. Anyone missing from the map (e.g. an
+ * unknown class string) falls back to `fireball` for backwards compatibility.
+ */
+export const STARTER_SKILL_BY_CLASS: Record<CharacterClass, SkillId> = {
+  mage: 'fireball',
+  warrior: 'slash',
+  healer: 'holyLight',
+  ranger: 'arrowShot',
+  knight: 'slash',
+  paladin: 'slash',
+  rogue: 'evade',
+};
+
+export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = [STARTER_SKILL_BY_CLASS.mage];
+
+export function starterSkillsFor(className: CharacterClass | string | undefined): SkillId[] {
+  const key = className as CharacterClass;
+  return [STARTER_SKILL_BY_CLASS[key] ?? STARTER_SKILL_BY_CLASS.mage];
+}
 
 export function numberOrFallback(value: unknown, fallback: number): number {
   if (value === null || value === undefined || value === '') {

@@ -172,6 +172,12 @@ export const equipFailedSchema = z.object({
   reason: z.string(),
 }).passthrough();
 
+export const learnSkillFailedSchema = z.object({
+  type: z.literal('LearnSkillFailed'),
+  skillId: skillIdSchema,
+  reason: z.string(),
+}).passthrough();
+
 function getServerMessageSchema(): z.ZodType<unknown> {
   return serverMessageSchema;
 }
@@ -201,6 +207,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   chatBroadcastSchema,
   equipmentUpdateSchema,
   equipFailedSchema,
+  learnSkillFailedSchema,
 ]);
 
 export const serverMessageSchema = z.union([
@@ -364,6 +371,12 @@ export type EquipFailedMsg = {
   reason: string;
 };
 
+export type LearnSkillFailedMsg = {
+  type: 'LearnSkillFailed';
+  skillId: SkillId;
+  reason: 'noSkillPoints' | 'levelTooLow' | 'missingPrereq' | 'unknownSkill' | 'wrongClass' | 'alreadyKnown';
+};
+
 export type ServerMessage =
   | PosSnap
   | InstantHit
@@ -384,4 +397,5 @@ export type ServerMessage =
   | BatchUpdate
   | ChatBroadcast
   | EquipmentUpdateMsg
-  | EquipFailedMsg;
+  | EquipFailedMsg
+  | LearnSkillFailedMsg;

@@ -245,7 +245,9 @@ function HudPanels({
           onSetNavigationMarker={onSetNavigationMarker}
         />
       )}
-      {panels.treeOpen && <SkillTreePanel player={player} onLearnSkill={onLearnSkill} />}
+      {panels.treeOpen && (
+        <SkillTreePanel player={player} onLearnSkill={onLearnSkill} rejections={state.learnSkillRejections} />
+      )}
       {panels.chatOpen && onSendChat && (
         <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
       )}

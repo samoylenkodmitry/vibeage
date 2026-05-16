@@ -12,6 +12,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 type SkillTreePanelProps = {
   player: PlayerEntity | null;
   onLearnSkill: (skillId: SkillId) => void;
+  rejections?: Record<string, string>;
 };
 
 type Row = {
@@ -21,7 +22,16 @@ type Row = {
   detail: string;
 };
 
-export function SkillTreePanel({ player, onLearnSkill }: SkillTreePanelProps) {
+const REJECTION_LABEL: Record<string, string> = {
+  noSkillPoints: 'No skill points',
+  levelTooLow: 'Level too low',
+  missingPrereq: 'Missing prereq',
+  unknownSkill: 'Unknown skill',
+  wrongClass: 'Not for this class',
+  alreadyKnown: 'Already known',
+};
+
+export function SkillTreePanel({ player, onLearnSkill, rejections }: SkillTreePanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('skill-tree');
   const rows = useMemo(() => buildSkillRows(player), [player]);
   const className = player?.className ?? DEFAULT_CLASS_NAME;
@@ -34,26 +44,31 @@ export function SkillTreePanel({ player, onLearnSkill }: SkillTreePanelProps) {
         <span>{skillPoints} SP</span>
       </div>
       <ul className="skill-tree-list">
-        {rows.map((row) => (
-          <li key={row.skillId} className={`skill-tree-row skill-tree-row--${row.status}`}>
-            <div className="skill-tree-row-head">
-              <strong>{row.name}</strong>
-              <small>{row.detail}</small>
-            </div>
-            {row.status === 'available' && (
-              <button
-                type="button"
-                className="learn-skill-button"
-                disabled={skillPoints <= 0}
-                onClick={() => onLearnSkill(row.skillId)}
-              >
-                {skillPoints > 0 ? 'Learn' : 'Need SP'}
-              </button>
-            )}
-            {row.status === 'unlocked' && <span className="skill-tree-tag">Owned</span>}
-            {row.status === 'locked' && <span className="skill-tree-tag skill-tree-tag--locked">Locked</span>}
-          </li>
-        ))}
+        {rows.map((row) => {
+          const rejectReason = rejections?.[row.skillId];
+          const rejectLabel = rejectReason ? (REJECTION_LABEL[rejectReason] ?? rejectReason) : '';
+          return (
+            <li key={row.skillId} className={`skill-tree-row skill-tree-row--${row.status}`}>
+              <div className="skill-tree-row-head">
+                <strong>{row.name}</strong>
+                <small>{row.detail}</small>
+              </div>
+              {rejectLabel && <small className="skill-tree-reject">{rejectLabel}</small>}
+              {row.status === 'available' && (
+                <button
+                  type="button"
+                  className="learn-skill-button"
+                  disabled={skillPoints <= 0}
+                  onClick={() => onLearnSkill(row.skillId)}
+                >
+                  {skillPoints > 0 ? 'Learn' : 'Need SP'}
+                </button>
+              )}
+              {row.status === 'unlocked' && <span className="skill-tree-tag">Owned</span>}
+              {row.status === 'locked' && <span className="skill-tree-tag skill-tree-tag--locked">Locked</span>}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

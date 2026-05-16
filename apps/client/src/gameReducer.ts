@@ -45,6 +45,7 @@ export const initialGameClientState: GameClientState = {
   inventory: [],
   maxInventorySlots: 20,
   equipment: {},
+  learnSkillRejections: {},
   combatLog: [],
   chatLines: [],
   starterProgress: createInitialStarterProgress(),
@@ -214,6 +215,13 @@ function applyServerMessage(
     return { ...state, equipment };
   }
 
+  if (message.type === 'LearnSkillFailed') {
+    return {
+      ...state,
+      learnSkillRejections: { ...state.learnSkillRejections, [message.skillId]: message.reason },
+    };
+  }
+
   if (message.type === 'LootSpawn') {
     return addGroundLoot(state, {
       id: message.lootId ?? `loot-${message.enemyId}`,
@@ -284,7 +292,12 @@ function applySkillLearned(
   state: GameClientState,
   message: ServerMessage & { type: 'SkillLearned' },
 ): GameClientState {
-  return updateMyPlayer(state, (player) => ({
+  // Clear any previous LearnSkillFailed rejection for this skill so the panel
+  // chip disappears once the learn finally succeeds.
+  const rejections = state.learnSkillRejections[message.skillId]
+    ? Object.fromEntries(Object.entries(state.learnSkillRejections).filter(([k]) => k !== message.skillId))
+    : state.learnSkillRejections;
+  const next = updateMyPlayer(state, (player) => ({
     ...player,
     availableSkillPoints: message.remainingPoints,
     unlockedSkills: player.unlockedSkills.includes(message.skillId)
@@ -294,6 +307,7 @@ function applySkillLearned(
       ? player.skillShortcuts
       : assignFirstEmptyShortcut(player.skillShortcuts, message.skillId),
   }));
+  return rejections === state.learnSkillRejections ? next : { ...next, learnSkillRejections: rejections };
 }
 
 function applyPositionSnapshot(state: GameClientState, message: ServerMessage & { type: 'PosSnap' }) {

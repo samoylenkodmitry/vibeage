@@ -4,6 +4,7 @@ import type { PlayerState } from '../../packages/sim/entities.js';
 import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
 import { log, LOG_CATEGORIES } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { starterSkillsFor } from './playerProgression.js';
 
 const VALID_CLASSES: ReadonlySet<CharacterClass> = new Set(
   Object.keys(CLASS_SKILL_TREES) as CharacterClass[],
@@ -27,6 +28,7 @@ export function applyClassChange(
   // refreshPlayerStatsFromEquipment also clamps health/mana to the new max
   // when the new class lowers them — see equipHandlers.ts.
   refreshPlayerStatsFromEquipment(player);
+  ensureClassHasStarterSkill(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} class -> ${className}`);
   emitPlayerUpdated(outbound, {
     id: player.id,
@@ -35,8 +37,35 @@ export function applyClassChange(
     maxMana: player.maxMana,
     health: player.health,
     mana: player.mana,
+    unlockedSkills: player.unlockedSkills,
+    skillShortcuts: player.skillShortcuts,
   });
   return true;
+}
+
+/**
+ * When a player switches class, make sure they have at least one skill from
+ * the new class's tree — otherwise their skill bar can be empty (or stuck on
+ * a skill from the previous class that isn't actually usable any more).
+ */
+function ensureClassHasStarterSkill(player: PlayerState): void {
+  const tree = CLASS_SKILL_TREES[player.className];
+  if (!tree) return;
+  const treeSkills = Object.keys(tree.skillProgression);
+  if (player.unlockedSkills.some((skill) => treeSkills.includes(skill))) {
+    return;
+  }
+  const [starter] = starterSkillsFor(player.className);
+  if (!starter) return;
+  if (!player.unlockedSkills.includes(starter)) {
+    player.unlockedSkills.push(starter);
+  }
+  // Drop the starter into the first empty shortcut slot so the player can
+  // actually cast it.
+  const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
+  if (emptySlotIndex !== -1 && !player.skillShortcuts.includes(starter)) {
+    player.skillShortcuts[emptySlotIndex] = starter;
+  }
 }
 
 export function applyRaceChange(

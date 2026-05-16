@@ -7,8 +7,8 @@ import { projectPlayerStats } from './inventory/equipHandlers.js';
 import { applyStarterLoadout } from './inventory/starterLoadout.js';
 import {
   DEFAULT_AVAILABLE_SKILL_POINTS,
-  DEFAULT_UNLOCKED_SKILLS,
   normalizeSkillShortcuts,
+  starterSkillsFor,
 } from './players/playerProgression.js';
 import { createInitialPlayerStarterProgress } from './progression/starterPath.js';
 
@@ -41,12 +41,12 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     isAlive: true,
     className: 'mage',
     race: DEFAULT_RACE,
-    unlockedSkills: [...DEFAULT_UNLOCKED_SKILLS],
-    skillShortcuts: normalizeSkillShortcuts(undefined, DEFAULT_UNLOCKED_SKILLS),
+    unlockedSkills: starterSkillsFor('mage'),
+    skillShortcuts: normalizeSkillShortcuts(undefined, starterSkillsFor('mage')),
     availableSkillPoints: DEFAULT_AVAILABLE_SKILL_POINTS,
     starterProgress: createInitialPlayerStarterProgress({
       level: 1,
-      unlockedSkills: DEFAULT_UNLOCKED_SKILLS,
+      unlockedSkills: starterSkillsFor('mage'),
     }),
     posHistory: [],
     lastUpdateTime: Date.now(),
