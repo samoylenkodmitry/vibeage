@@ -1,3 +1,12 @@
+import { EQUIPMENT_STARTER_ITEMS } from './equipmentItems.js';
+import type {
+  EquipSpec,
+  ItemFlag,
+  ItemGrade,
+  ItemKind,
+  ItemStatBlock,
+} from './equipmentTypes.js';
+
 export type ItemId = string;
 
 export interface Item {
@@ -13,6 +22,37 @@ export interface Item {
   defenseValue?: number;
   healAmount?: number;
   manaAmount?: number;
+  // L2-style equipment metadata. Optional during the migration; future slices
+  // require these on every weapon/armor/jewelry template.
+  kind?: ItemKind;
+  grade?: ItemGrade;
+  weight?: number;
+  equip?: EquipSpec;
+  stats?: ItemStatBlock;
+  setId?: string;
+  flags?: readonly ItemFlag[];
+}
+
+/** Resolve the item kind, falling back to the legacy `type` field. */
+export function getItemKind(item: Item): ItemKind {
+  if (item.kind) {
+    return item.kind;
+  }
+  switch (item.type) {
+    case 'weapon': return 'weapon';
+    case 'armor': return 'armor';
+    case 'consumable': return 'consumable';
+    case 'material': return 'material';
+    case 'currency': return 'currency';
+  }
+}
+
+export function getItemGrade(item: Item): ItemGrade {
+  return item.grade ?? 'none';
+}
+
+export function getItemWeight(item: Item): number {
+  return item.weight ?? 0;
 }
 
 export function isUsableConsumable(item: Item | null | undefined): item is Item & { type: 'consumable' } {
@@ -74,6 +114,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 5,
+    kind: 'weapon',
+    grade: 'none',
+    weight: 1500,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'sword' },
+    stats: { pAtk: 5 },
   },
   // New material drops
   'wolf_pelt': {
@@ -265,6 +310,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 18,
+    kind: 'weapon',
+    grade: 'c',
+    weight: 1600,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'sword' },
+    stats: { pAtk: 18, mAtk: 4 },
   },
   'frost_hammer': {
     id: 'frost_hammer',
@@ -274,6 +324,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 22,
+    kind: 'weapon',
+    grade: 'c',
+    weight: 3200,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'twoHand', weaponType: 'mace' },
+    stats: { pAtk: 22 },
   },
   'void_dagger': {
     id: 'void_dagger',
@@ -283,6 +338,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 16,
+    kind: 'weapon',
+    grade: 'c',
+    weight: 600,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'dagger' },
+    stats: { pAtk: 16, critRate: 5 },
   },
   'crystal_staff': {
     id: 'crystal_staff',
@@ -292,6 +352,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 14,
+    kind: 'weapon',
+    grade: 'c',
+    weight: 1800,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'twoHand', weaponType: 'staff' },
+    stats: { pAtk: 14, mAtk: 22 },
   },
   'celestial_sword': {
     id: 'celestial_sword',
@@ -301,6 +366,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 28,
+    kind: 'weapon',
+    grade: 'a',
+    weight: 1700,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'sword' },
+    stats: { pAtk: 28, mAtk: 6 },
   },
   'flame_sword': {
     id: 'flame_sword',
@@ -310,6 +380,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 45,
+    kind: 'weapon',
+    grade: 'a',
+    weight: 1700,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'sword' },
+    stats: { pAtk: 45, mAtk: 10 },
   },
   'frost_blade': {
     id: 'frost_blade',
@@ -319,6 +394,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 42,
+    kind: 'weapon',
+    grade: 'a',
+    weight: 1700,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'sword' },
+    stats: { pAtk: 42, mAtk: 8 },
   },
   'shadow_dagger': {
     id: 'shadow_dagger',
@@ -328,6 +408,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 38,
+    kind: 'weapon',
+    grade: 'a',
+    weight: 600,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'oneHand', weaponType: 'dagger' },
+    stats: { pAtk: 38, critRate: 8 },
   },
   'celestial_staff': {
     id: 'celestial_staff',
@@ -337,6 +422,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 50,
+    kind: 'weapon',
+    grade: 'a',
+    weight: 1900,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'twoHand', weaponType: 'staff' },
+    stats: { pAtk: 50, mAtk: 60 },
   },
   'temporal_orb': {
     id: 'temporal_orb',
@@ -346,6 +436,11 @@ export const ITEMS: Record<ItemId, Item> = {
     stackable: false,
     type: 'weapon',
     attackPower: 55,
+    kind: 'weapon',
+    grade: 's',
+    weight: 1400,
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'twoHand', weaponType: 'orb' },
+    stats: { pAtk: 30, mAtk: 70 },
   },
   // New potions and consumables
   'mana_potion': {
@@ -520,4 +615,5 @@ export const ITEMS: Record<ItemId, Item> = {
     maxStack: 20,
     type: 'consumable',
   },
+  ...EQUIPMENT_STARTER_ITEMS,
 };
