@@ -598,7 +598,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add status-effect awareness to enemy AI.
 - [x] Add stun handling for enemies.
 - [x] Add slow handling for enemies.
-- [ ] Add taunt priority handling for enemies.
+- [x] Add taunt priority handling for enemies.
 - [ ] Add invisibility handling for enemies.
 - [x] Add return-to-spawn leash rules with max chase distance.
 - [ ] Add anti-kite rules if enemies should not chase forever.
