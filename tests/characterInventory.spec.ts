@@ -97,6 +97,9 @@ describe('character inventory invariants', () => {
     expect(entry?.occupiedSlots).toEqual(['MAIN_HAND', 'OFF_HAND']);
   });
 
+});
+
+describe('character inventory multi-slot invariants', () => {
   test('two-handed weapon missing its OFF_HAND occupancy entry is flagged', () => {
     const inv = createEmptyInventory('char-1', limits);
     inv.items['staff-1'] = instance({
