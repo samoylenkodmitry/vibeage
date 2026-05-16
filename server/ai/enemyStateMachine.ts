@@ -50,6 +50,12 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
   const previousState = enemy.aiState;
   const progress: EnemyAIProgress = { events: [], shouldBroadcastEnemyUpdate: false };
 
+  // The if-cascade intentionally lets a single tick walk through
+  // related transitions (e.g., idle→chasing→attacking on aggro at
+  // melee range). The leash bounce is prevented inside
+  // advanceReturningEnemy by refusing to re-aggro while still beyond
+  // MAX_CHASE_DISTANCE_FROM_SPAWN, not by structurally forbidding the
+  // cascade.
   if (enemy.aiState === 'idle') {
     advanceIdleEnemy(enemy, context, progress);
   }
@@ -83,6 +89,12 @@ const PATROL_RADIUS = 8;
 const PATROL_WAIT_MIN_MS = 2_000;
 const PATROL_WAIT_MAX_MS = 6_000;
 const PATROL_ARRIVAL_DISTANCE = 0.7;
+/**
+ * Max distance from spawn point an enemy will chase before giving up
+ * and returning. Without this leash a player could kite any enemy
+ * across the entire world (and have it never reset).
+ */
+export const MAX_CHASE_DISTANCE_FROM_SPAWN = 60;
 
 function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
   const targetId = findNearbyAggroTarget(enemy, context);
@@ -159,6 +171,21 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     return;
   }
 
+  // Leash: stop chasing once we've strayed too far from spawn so a
+  // player can't kite a mob across the world. The enemy gives up on
+  // its current target and heads home.
+  if (distanceXZ(enemy.position, enemy.spawnPosition) > MAX_CHASE_DISTANCE_FROM_SPAWN) {
+    enemy.targetId = null;
+    enemy.aiState = 'returning';
+    stopEnemy(enemy);
+    progress.events.push({
+      type: 'log',
+      message: `[AI] Enemy ${enemy.id} exceeded leash distance from spawn, returning.`,
+    });
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+
   if (distanceXZ(enemy.position, targetPlayer.position) <= enemy.attackRange) {
     enemy.aiState = 'attacking';
     stopEnemy(enemy);
@@ -190,12 +217,20 @@ function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
 }
 
 function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
-  if (distanceXZ(enemy.position, enemy.spawnPosition) <= 1.0) {
+  const distanceFromSpawn = distanceXZ(enemy.position, enemy.spawnPosition);
+  if (distanceFromSpawn <= 1.0) {
     enemy.aiState = 'idle';
     snapEnemyToSpawn(enemy, context.spatialGrid);
     progress.shouldBroadcastEnemyUpdate = true;
   } else {
     moveEnemyToward(enemy, enemy.spawnPosition, context.spatialGrid, context.deltaTime);
+  }
+
+  // Don't re-aggro while still beyond the leash boundary, otherwise a
+  // hovering player would flip the enemy back to chasing immediately
+  // and the leash never holds.
+  if (distanceFromSpawn > MAX_CHASE_DISTANCE_FROM_SPAWN) {
+    return;
   }
 
   const targetId = findNearbyAggroTarget(enemy, context);
