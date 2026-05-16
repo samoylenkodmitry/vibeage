@@ -46,7 +46,7 @@ export function validateInvariants(
   templates: Record<string, Item> = ITEMS,
 ): InvariantViolation[] {
   const violations: InvariantViolation[] = [];
-  const seenSlots = new Set<EquipSlot>();
+  const equippedInstances = new Set<ItemInstanceId>();
 
   for (const [instanceId, instance] of Object.entries(inventory.items)) {
     if (instance.instanceId !== instanceId) {
@@ -69,6 +69,9 @@ export function validateInvariants(
     if (!template.stackable && instance.count !== 1) {
       violations.push(`non-stackable item ${instanceId} (${instance.templateId}) has count ${instance.count}`);
     }
+    if (template.stackable && template.maxStack !== undefined && instance.count > template.maxStack) {
+      violations.push(`item ${instanceId} (${instance.templateId}) count ${instance.count} exceeds max stack ${template.maxStack}`);
+    }
   }
 
   for (const [slotKey, instanceId] of Object.entries(inventory.equipment)) {
@@ -76,6 +79,10 @@ export function validateInvariants(
     if (!instanceId) {
       continue;
     }
+    if (equippedInstances.has(instanceId)) {
+      violations.push(`item ${instanceId} appears as the primary in more than one equipment slot`);
+    }
+    equippedInstances.add(instanceId);
     const instance = inventory.items[instanceId];
     if (!instance) {
       violations.push(`equipment slot ${slot} references missing instance ${instanceId}`);
@@ -83,11 +90,20 @@ export function validateInvariants(
     }
     if (instance.location.kind !== 'equipped' || instance.location.slot !== slot) {
       violations.push(`item ${instanceId} equipped in ${slot} but location is ${JSON.stringify(instance.location)}`);
+      continue;
     }
-    if (seenSlots.has(slot)) {
-      violations.push(`primary slot ${slot} referenced twice in equipment map`);
+    const spec = templates[instance.templateId]?.equip;
+    if (!spec) {
+      continue;
     }
-    seenSlots.add(slot);
+    const expected = occupiedSlotsForSpec(spec, slot);
+    for (const expectedSlot of expected) {
+      if (inventory.occupancy[expectedSlot] !== instanceId) {
+        violations.push(
+          `item ${instanceId} equipped in ${slot} should occupy ${expectedSlot} but occupancy map has ${inventory.occupancy[expectedSlot] ?? 'nothing'}`,
+        );
+      }
+    }
   }
 
   for (const [slotKey, instanceId] of Object.entries(inventory.occupancy)) {
@@ -100,15 +116,21 @@ export function validateInvariants(
       violations.push(`occupancy slot ${slot} references missing instance ${instanceId}`);
       continue;
     }
-    const template = templates[instance.templateId];
-    const spec = template?.equip;
+    if (instance.location.kind !== 'equipped') {
+      violations.push(`occupancy slot ${slot} held by ${instanceId} but item is not equipped`);
+      continue;
+    }
+    const spec = templates[instance.templateId]?.equip;
     if (!spec) {
       violations.push(`occupancy slot ${slot} held by ${instanceId} which has no EquipSpec`);
       continue;
     }
-    const occupied = occupiedSlotsForSpec(spec, instance.location.kind === 'equipped' ? instance.location.slot : undefined);
+    const occupied = occupiedSlotsForSpec(spec, instance.location.slot);
     if (!occupied.includes(slot)) {
       violations.push(`occupancy slot ${slot} held by ${instanceId} but its spec does not cover ${slot}`);
+    }
+    if (inventory.equipment[instance.location.slot] !== instanceId) {
+      violations.push(`occupancy slot ${slot} held by ${instanceId} but equipment map does not have it at primary slot ${instance.location.slot}`);
     }
   }
 
@@ -156,13 +178,15 @@ function makeEntry(
   };
 }
 
+type BagItem = ItemInstance & { location: Extract<ItemInstance['location'], { kind: 'inventory' }> };
+
 /** Items currently inside the player's bag, ordered by their slotIndex. */
 export function listInventoryItems(inventory: CharacterInventory): ItemInstance[] {
   return Object.values(inventory.items)
-    .filter((instance): instance is ItemInstance => instance.location.kind === 'inventory')
+    .filter((instance): instance is BagItem => instance.location.kind === 'inventory')
     .sort((a, b) => {
-      const ai = a.location.kind === 'inventory' ? a.location.slotIndex ?? Number.MAX_SAFE_INTEGER : 0;
-      const bi = b.location.kind === 'inventory' ? b.location.slotIndex ?? Number.MAX_SAFE_INTEGER : 0;
+      const ai = a.location.slotIndex ?? Number.MAX_SAFE_INTEGER;
+      const bi = b.location.slotIndex ?? Number.MAX_SAFE_INTEGER;
       return ai - bi;
     });
 }

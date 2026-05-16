@@ -40,6 +40,7 @@ describe('character inventory invariants', () => {
   test('equipped item must live in items map and have matching location', () => {
     const inv = createEmptyInventory('char-1', limits);
     inv.equipment.MAIN_HAND = 'item-1';
+    inv.occupancy.MAIN_HAND = 'item-1';
     inv.items['item-1'] = instance({ location: equippedLocation('MAIN_HAND') });
     expect(validateInvariants(inv)).toEqual([]);
   });
@@ -54,6 +55,7 @@ describe('character inventory invariants', () => {
   test('equipped item location must match the slot', () => {
     const inv = createEmptyInventory('char-1', limits);
     inv.equipment.MAIN_HAND = 'item-1';
+    inv.occupancy.MAIN_HAND = 'item-1';
     inv.items['item-1'] = instance({ location: equippedLocation('OFF_HAND') });
     const violations = validateInvariants(inv);
     expect(violations.some((v) => v.includes('equipped in MAIN_HAND'))).toBe(true);
@@ -93,6 +95,32 @@ describe('character inventory invariants', () => {
     expect(entry?.instanceId).toBe('staff-1');
     expect(entry?.primarySlot).toBe('MAIN_HAND');
     expect(entry?.occupiedSlots).toEqual(['MAIN_HAND', 'OFF_HAND']);
+  });
+
+  test('two-handed weapon missing its OFF_HAND occupancy entry is flagged', () => {
+    const inv = createEmptyInventory('char-1', limits);
+    inv.items['staff-1'] = instance({
+      instanceId: 'staff-1',
+      templateId: 'crystal_staff',
+      location: equippedLocation('MAIN_HAND'),
+    });
+    inv.equipment.MAIN_HAND = 'staff-1';
+    inv.occupancy.MAIN_HAND = 'staff-1';
+    // OFF_HAND occupancy missing — should be flagged
+    const violations = validateInvariants(inv);
+    expect(violations.some((v) => v.includes('should occupy OFF_HAND'))).toBe(true);
+  });
+
+  test('stackable item exceeding maxStack is flagged', () => {
+    const inv = createEmptyInventory('char-1', limits);
+    inv.items['stack-1'] = instance({
+      instanceId: 'stack-1',
+      templateId: 'health_potion',
+      count: 999,
+      location: inventoryLocation(0),
+    });
+    const violations = validateInvariants(inv);
+    expect(violations.some((v) => v.includes('exceeds max stack'))).toBe(true);
   });
 
   test('occupancy slot pointing to an item whose spec does not cover it is flagged', () => {
