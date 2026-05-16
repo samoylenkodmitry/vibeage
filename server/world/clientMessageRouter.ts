@@ -237,7 +237,10 @@ function onCastReq(
   spatial: SpatialHashGrid,
 ): void {
   const player = state.players[msg.id];
-  if (!player || player.socketId !== socket.id) {
+  if (!player) {
+    return;
+  }
+  if (player.socketId !== socket.id) {
     runtimeMetrics.increment('clientMessages.invalidOwnership.CastReq');
     runtimeMetrics.increment('clientMessages.invalidOwnership.total');
     return;
@@ -261,7 +264,10 @@ function onLootPickup(
   outbound: OutboundEventSink,
 ): void {
   const player = state.players[msg.playerId];
-  if (player?.socketId !== socket.id) {
+  if (!player) {
+    return;
+  }
+  if (player.socketId !== socket.id) {
     runtimeMetrics.increment('clientMessages.invalidOwnership.LootPickup');
     runtimeMetrics.increment('clientMessages.invalidOwnership.total');
     return;

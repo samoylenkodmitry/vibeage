@@ -103,6 +103,26 @@ describe('invalid-ownership counter', () => {
     expect(counters['clientMessages.invalidOwnership.total']).toBe(1);
   });
 
+  it('does not increment invalidOwnership when the player ID does not exist (CastReq)', () => {
+    dispatch(
+      { type: 'CastReq', id: 'nonexistent-player', skillId: 'fireball', clientTs: 1 },
+      'socket1',
+    );
+    const counters = runtimeMetrics.snapshot().counters;
+    expect(counters['clientMessages.invalidOwnership.CastReq']).toBeUndefined();
+    expect(counters['clientMessages.invalidOwnership.total']).toBeUndefined();
+  });
+
+  it('does not increment invalidOwnership when the player ID does not exist (LootPickup)', () => {
+    dispatch(
+      { type: 'LootPickup', lootId: 'loot1', playerId: 'nonexistent-player' },
+      'socket1',
+    );
+    const counters = runtimeMetrics.snapshot().counters;
+    expect(counters['clientMessages.invalidOwnership.LootPickup']).toBeUndefined();
+    expect(counters['clientMessages.invalidOwnership.total']).toBeUndefined();
+  });
+
   it('does not increment invalidOwnership for valid same-socket actions', () => {
     dispatch(
       { type: 'MoveIntent', id: 'player1', targetPos: { x: 1, z: 1 }, clientTs: 1 },
