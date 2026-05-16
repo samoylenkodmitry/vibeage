@@ -184,7 +184,7 @@ function applySkillEffects(
  * taunted enemy stays glued to its taunter for the effect duration.
  */
 export function isEntityTaunted(entity: Enemy | PlayerState, now: number = Date.now()): boolean {
-  return entity.statusEffects.some((effect) => {
+  return (entity.statusEffects ?? []).some((effect) => {
     if (effect.type !== 'taunt') return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
     return expiresAt > now;

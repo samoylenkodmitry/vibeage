@@ -130,6 +130,12 @@ describe('isEntityTaunted helper', () => {
     expect(isEntityTaunted(enemy, NOW)).toBe(true);
   });
 
+  it('returns false when statusEffects is missing entirely', () => {
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 6);
+    (enemy as Partial<typeof enemy>).statusEffects = undefined;
+    expect(isEntityTaunted(enemy as typeof enemy, NOW)).toBe(false);
+  });
+
   it('returns false for an expired taunt effect', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 5);
     enemy.statusEffects = [
