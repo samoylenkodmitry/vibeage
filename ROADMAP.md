@@ -250,7 +250,7 @@ Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). G
 
 3. [x] **Inventory transactions** — atomic `addItem`, `removeItem`, `moveSlot`, `splitStack`, `mergeStacks` with weight + slot-count enforcement.
 
-4. [ ] **Equip / unequip pipeline** — `equip(instanceId, slot?)` / `unequip(slot)` with full validation, multi-slot occupancy, ring/earring auto-pick, atomic refund of replaced items, new protocol messages, server handlers.
+4. [x] **Equip / unequip pipeline (model)** — `equipItem(instanceId, slot?)` / `unequipSlot(slot)` with full validation, multi-slot occupancy, ring/earring auto-pick, atomic refund of replaced items. Protocol messages + server handlers land alongside the paperdoll HUD in slice 5.
 
 5. [ ] **Derived stats + set bonuses + paperdoll HUD** — extend `derivePlayerStats` to consume per-item bonuses + set bonuses; ship the client paperdoll panel that lists every slot and lets the player click to unequip.
 
