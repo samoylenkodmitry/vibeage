@@ -14,6 +14,10 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
   'starterProgress',
   'inventory',
   'maxInventorySlots',
+  // Owner-only: the full instance-aware bag + equipped slot map. Other
+  // players must only see a public equipment-visual DTO (planned), never
+  // every item instance the owner has.
+  'characterInventory',
 ] as const;
 export const CLIENT_GAME_STATE_FIELDS = [
   'players',

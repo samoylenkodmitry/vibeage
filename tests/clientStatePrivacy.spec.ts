@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { createStarterProgressState } from '../packages/protocol/messages';
+import { createEmptyInventory } from '../packages/sim/characterInventory';
 import { createGameState } from '../server/gameState';
 import {
   CLIENT_GAME_STATE_FIELDS,
@@ -27,6 +28,9 @@ describe('client state privacy', () => {
     for (const field of PRIVATE_PLAYER_STATE_FIELDS) {
       expect(snapshot.players.other).not.toHaveProperty(field);
     }
+    // Belt-and-suspenders: characterInventory was the recent leak and
+    // shouldn't ride along even if the field list is edited carelessly.
+    expect(snapshot.players.other).not.toHaveProperty('characterInventory');
     expect(Object.keys(snapshot).sort()).toEqual([...CLIENT_GAME_STATE_FIELDS].sort());
     expect(snapshot).not.toHaveProperty('activeCasts');
     expect(snapshot).not.toHaveProperty('projectiles');
@@ -40,6 +44,7 @@ describe('client state privacy', () => {
     expect(sanitizePlayerForPublic(player)).not.toHaveProperty('starterProgress');
     expect(sanitizePlayerForPublic(player)).not.toHaveProperty('inventory');
     expect(sanitizePlayerForPublic(player)).not.toHaveProperty('maxInventorySlots');
+    expect(sanitizePlayerForPublic(player)).not.toHaveProperty('characterInventory');
 
     const update = sanitizePlayerUpdateForPublic({
       id: player.id,
@@ -48,9 +53,20 @@ describe('client state privacy', () => {
       starterProgress: player.starterProgress,
       inventory: player.inventory,
       maxInventorySlots: player.maxInventorySlots,
+      characterInventory: player.characterInventory,
     });
 
     expect(update).toEqual({ id: 'player1', health: 10 });
+  });
+
+  test('public sanitiser drops the full characterInventory aggregate', () => {
+    const player = makePlayer('player1', 'socket1');
+    player.characterInventory = createEmptyInventory(player.id, { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 });
+    player.characterInventory.equipment.MAIN_HAND = 'fake-item-id';
+    const publicView = sanitizePlayerForPublic(player);
+    expect(publicView).not.toHaveProperty('characterInventory');
+    // The original player still has it — we mutated a copy, not the source.
+    expect(player.characterInventory).toBeDefined();
   });
 });
 
