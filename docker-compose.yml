@@ -43,8 +43,9 @@ services:
       NODE_ENV: production
       PORT: 3001
       # /runtimez is not exposed publicly through Nginx; default to disabled so
-      # the production guardrail accepts the deploy. Set RUNTIMEZ_TOKEN on the
-      # host (and unset RUNTIMEZ_DISABLE) when an operator dashboard wants it.
+      # the production guardrail accepts the deploy. To enable the metrics
+      # endpoint, set both RUNTIMEZ_DISABLE=0 and RUNTIMEZ_TOKEN=<secret> on
+      # the host — unsetting RUNTIMEZ_DISABLE falls back to "1" here.
       RUNTIMEZ_DISABLE: ${RUNTIMEZ_DISABLE:-1}
       RUNTIMEZ_TOKEN: ${RUNTIMEZ_TOKEN:-}
     ports: ['127.0.0.1:3001:3001']   # Nginx is the only public entrypoint
