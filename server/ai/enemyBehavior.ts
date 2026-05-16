@@ -16,10 +16,15 @@ export function findAggroTargetId(
   enemy: Enemy,
   players: Record<string, PlayerState>,
   candidateIds: string[],
+  now: number = Date.now(),
 ): string | null {
   for (const playerId of candidateIds) {
     const player = players[playerId];
     if (!player?.isAlive) {
+      continue;
+    }
+    // Invisible players cannot be aggro'd (Vanish/Stealth effects).
+    if (isPlayerInvisible(player, now)) {
       continue;
     }
 
@@ -29,6 +34,18 @@ export function findAggroTargetId(
   }
 
   return null;
+}
+
+/**
+ * True when the player carries an active invisibility effect (Vanish).
+ * Used by enemy AI to skip aggro and to drop existing target locks.
+ */
+export function isPlayerInvisible(player: PlayerState, now: number = Date.now()): boolean {
+  return (player.statusEffects ?? []).some((effect) => {
+    if (effect.type !== 'invisible') return false;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    return expiresAt > now;
+  });
 }
 
 /**
