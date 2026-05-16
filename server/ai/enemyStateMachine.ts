@@ -35,6 +35,12 @@ export type EnemyAIContext = {
   spatialGrid: SpatialHashGrid;
   deltaTime: number;
   now: number;
+  /**
+   * Returns a uniform value in [0, 1). Defaults to Math.random in
+   * production; tests pass a seeded fn so patrol target picks +
+   * patrol-wait jitter become reproducible.
+   */
+  rng?: () => number;
 };
 
 type EnemyAIProgress = {
@@ -131,8 +137,9 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
     return;
   }
   if (!enemy.patrolTarget) {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * PATROL_RADIUS;
+    const rng = context.rng ?? Math.random;
+    const angle = rng() * Math.PI * 2;
+    const radius = rng() * PATROL_RADIUS;
     enemy.patrolTarget = {
       x: enemy.spawnPosition.x + Math.cos(angle) * radius,
       z: enemy.spawnPosition.z + Math.sin(angle) * radius,
@@ -164,7 +171,8 @@ function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress:
   if (dist <= PATROL_ARRIVAL_DISTANCE) {
     stopEnemy(enemy);
     enemy.patrolTarget = undefined;
-    enemy.patrolWaitUntilTs = context.now + PATROL_WAIT_MIN_MS + Math.random() * (PATROL_WAIT_MAX_MS - PATROL_WAIT_MIN_MS);
+    const rng = context.rng ?? Math.random;
+    enemy.patrolWaitUntilTs = context.now + PATROL_WAIT_MIN_MS + rng() * (PATROL_WAIT_MAX_MS - PATROL_WAIT_MIN_MS);
     enemy.aiState = 'idle';
     progress.shouldBroadcastEnemyUpdate = true;
     return;
