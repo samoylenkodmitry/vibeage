@@ -286,3 +286,868 @@ For production deployment:
 pnpm run deploy:production
 pnpm run health:production
 ```
+
+# VibeAge Full Remediation Roadmap
+
+Status: every checkbox is intentionally open. Use this as a hardening, rewrite, and feature-completion backlog for the current VibeAge repo.
+
+## 0. Operating Principles
+
+- [ ] Keep the server authoritative for movement, combat, loot, inventory, equipment, region activation, spawning, persistence, and any economy-relevant state.
+- [ ] Keep the browser client responsible only for input, prediction, smoothing, camera, rendering, HUD, audio, and cosmetic-only atmosphere.
+- [ ] Treat every network message as hostile input, even when it comes from the official browser client.
+- [ ] Treat `PlayerState` and other runtime objects as private server memory, not as direct wire payloads.
+- [ ] Prefer explicit DTOs over object spreading across the network boundary.
+- [ ] Prefer small vertical slices that ship with protocol schema, server behavior, client behavior, tests, docs, and production checks together.
+- [ ] Avoid adding new gameplay to `server/world.ts`, client root reducers, or transport glue unless it is tiny and temporary.
+- [ ] Move reusable gameplay rules into `packages/content`, `packages/sim`, and `packages/protocol` before client or server feature code depends on them.
+- [ ] Make every content definition executable: no skill, item, race, class, loot, enemy, quest, or zone rule should exist without a runtime behavior test.
+- [ ] Maintain a single source of truth for each gameplay number: damage, range, cooldown, movement speed, stat scaling, loot chance, XP, weight, slots, and region budgets.
+- [ ] Add a test before fixing each bug when the bug can be reproduced deterministically.
+- [ ] Convert every safety assumption into an invariant test or CI gate.
+- [ ] Make production deployment boring: clean branch, passing CI, explicit deploy, health check, smoke check, rollback path.
+
+## 1. Immediate P0 Production Blockers
+
+- [x] Fix public snapshot privacy so `characterInventory` can never be sent to other players.
+- [x] Add `characterInventory` to the private-player-field audit until explicit public equipment DTOs are in place.
+- [ ] Replace the current deny-list privacy test with an exact-key allow-list test for owner player snapshots.
+- [ ] Replace the current deny-list privacy test with an exact-key allow-list test for public player snapshots.
+- [ ] Add a regression test proving public `playerJoined`, `playerUpdated`, and resync snapshots never include `socketId`, `inventory`, `characterInventory`, `starterProgress`, or other owner-only state.
+- [ ] Add a regression test proving direct owner messages are only sent to the matching socket.
+- [ ] Stop using `playerName` as the durable account key.
+- [ ] Add signed identity or authenticated account ownership before treating the public game as production-safe.
+- [ ] Persist equipped items and equipment slot state; do not rely on the legacy flat bag inventory for durable equipment.
+- [ ] Add a migration and restore-compatibility check for the new durable inventory/equipment shape.
+- [ ] Fix self-target and no-target beneficial skills so shields, buffs, heals, evasions, and invisibility cannot be rejected by a generic "missing target" branch.
+- [x] Make `LearnSkillFailed` protocol schema match the exact TypeScript reason union.
+- [x] Update `WORLD_CLIENT_COMMAND_TYPES` so it includes every current command type or remove it if it is no longer the authoritative command surface.
+- [x] Add an exhaustive protocol-boundary test that fails when a client message type exists in schema but not in the documented transport command list.
+- [ ] Add per-socket rate limiting for chat messages.
+- [ ] Add per-socket rate limiting for movement intents.
+- [ ] Add per-socket rate limiting for cast requests.
+- [ ] Add per-socket rate limiting for inventory/equipment actions.
+- [ ] Add a production check that dev commands are disabled unless an explicit local/dev environment flag is present.
+- [ ] Add a production check that `ALLOW_MISSING_ORIGIN` is not enabled in production.
+- [ ] Add a production check that `/runtimez` does not expose sensitive data and is either protected, minimized, or intentionally public.
+- [ ] Add CI steps for `pnpm run typecheck:packages` and `pnpm run content:check` if they are not already covered by an equivalent step.
+- [ ] Add a full `pnpm run check` CI job or prove that the CI workflow exactly matches the local check script.
+
+## 2. Things That Should Be Redone First
+
+- [ ] Redo player identity around accounts and characters instead of name-based session ownership.
+- [ ] Redo the network DTO boundary so internal runtime types are never broadcast directly.
+- [ ] Redo inventory persistence around item instances, equipment locations, and versioned aggregate state.
+- [ ] Redo status effects as a server-owned effect engine rather than mostly passive arrays.
+- [ ] Redo combat damage resolution so player attacks, enemy attacks, shields, defense, crits, evasion, buffs, debuffs, and death all pass through one combat pipeline.
+- [ ] Redo protocol schemas to be strict at the network boundary unless a field is explicitly versioned and documented.
+- [ ] Redo protocol typing so Zod schemas and TypeScript message types cannot drift.
+- [ ] Redo public player updates as minimal patch DTOs instead of sanitized runtime partials.
+- [ ] Redo the legacy inventory bridge as a temporary migration adapter with a planned removal date.
+- [ ] Redo client game state so inventory, equipment, character panel, paperdoll, and avatar visuals consume one normalized owner state model.
+- [ ] Redo skill casting to support self, target, ground-target, direction-target, area-self, area-ground, passive, toggle, and aura categories explicitly.
+- [ ] Redo enemy AI damage and aggro to understand status effects such as taunt, invisibility, stun, slow, root, knockback, and packs.
+- [ ] Redo level-up stat recalculation so it includes current equipment and race/class modifiers, not only empty equipment stats.
+- [ ] Redo mana and health regeneration so they use derived stats and active effects, not hardcoded constants only.
+- [ ] Redo Colyseus room scaling assumptions after load tests, not before.
+- [ ] Redo documentation after each rewrite so docs describe live behavior, not intended behavior.
+
+## 3. Identity, Accounts, Characters, and Sessions
+
+- [ ] Create an `accounts` table with stable account IDs.
+- [ ] Create a `characters` table with stable character IDs owned by accounts.
+- [ ] Split account identity from character name.
+- [ ] Make character names unique only where product rules require it, not as authentication keys.
+- [ ] Add signed guest sessions for unauthenticated play.
+- [ ] Add passwordless login, OAuth, or another chosen authentication path.
+- [ ] Add secure session cookies or signed bearer tokens.
+- [ ] Add server-side token verification on Colyseus join.
+- [ ] Add token expiration and refresh policy.
+- [ ] Add logout and token revocation policy.
+- [ ] Add device/session listing if persistent accounts are supported.
+- [ ] Add account deletion flow.
+- [ ] Add character creation flow that writes race, class, name, initial position, starter state, and inventory atomically.
+- [ ] Add character selection flow for accounts with multiple characters.
+- [ ] Add character rename policy.
+- [ ] Add account ban and character ban support.
+- [ ] Add server checks that a socket can only control the character bound to its authenticated session.
+- [ ] Add tests for attempting to join as another player name or character ID.
+- [ ] Add tests for reconnecting with a valid token and restoring the correct character.
+- [ ] Add tests for expired, malformed, and revoked tokens.
+- [ ] Add audit events for login, logout, character creation, character selection, reconnect, and suspicious ownership attempts.
+
+## 4. Protocol and Network Contract
+
+- [ ] Convert every client message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
+- [ ] Convert every server message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
+- [ ] Add protocol version constants in one shared file consumed by client and server.
+- [ ] Add a migration path for protocol versions rather than a single hardcoded minimum only.
+- [ ] Add a `serverProtocolVersion` message or join response so clients can display useful upgrade errors.
+- [ ] Generate TypeScript message types from Zod schemas or generate Zod schemas from TypeScript types.
+- [ ] Add a test that schema-inferred types match exported message types for every protocol message.
+- [ ] Add an exhaustive discriminated-union test for client messages.
+- [ ] Add an exhaustive discriminated-union test for server messages.
+- [ ] Add explicit `clientSeq` fields to commands that need acknowledgement or rejection.
+- [ ] Stop overloading `clientTs` as an acknowledgement key.
+- [ ] Add request IDs for inventory, equipment, class, race, skill, chat, and admin commands where user feedback matters.
+- [ ] Add structured rejection messages for all client commands, not only cast, learn-skill, and equip.
+- [ ] Add a standard error envelope with `requestId`, `commandType`, `reason`, and optional safe detail.
+- [ ] Add protocol tests for unknown fields, wrong types, invalid enums, oversized text, invalid coordinates, and stale versions.
+- [ ] Add message-size budget tests for initial snapshot, batch updates, inventory update, equipment update, and chat messages.
+- [ ] Add snapshot compression and payload-size tracking as explicit metrics.
+- [ ] Add a changelog for protocol changes.
+- [ ] Add protocol fixtures for old-client compatibility tests.
+- [ ] Add schema docs generated from protocol definitions.
+
+## 5. Player State Privacy and DTO Boundary
+
+- [ ] Define `OwnerPlayerSnapshot` with only fields the owning client needs.
+- [ ] Define `PublicPlayerSnapshot` with only fields other players may see.
+- [ ] Define `PlayerPresenceSnapshot` for world/public room state.
+- [ ] Define `OwnerInventorySnapshot` separately from player state.
+- [ ] Define `OwnerEquipmentSnapshot` separately from player state.
+- [ ] Define `PublicEquipmentVisualSnapshot` for visible gear cosmetics only.
+- [ ] Define `PlayerCombatPatch` for health, mana, cast state, death, and status effects.
+- [ ] Define `PlayerMovementPatch` for position, rotation, velocity, and prediction data.
+- [ ] Define `PlayerProgressionPatch` for owner-only level, XP, skills, and starter path changes.
+- [ ] Replace `sanitizePlayerForPublic` with constructors that build public DTOs from scratch.
+- [ ] Replace `sanitizePlayerUpdateForPublic` with explicit patch mappers.
+- [ ] Add exact-key tests for every DTO constructor.
+- [ ] Add tests that new fields added to `PlayerState` fail privacy audits until classified.
+- [ ] Add tests that owner-only fields never appear in public room state.
+- [ ] Add tests that owner-only fields never appear in public server messages.
+- [ ] Add tests that region-scoped messages do not leak hidden entity IDs through nested arrays.
+- [ ] Add tests that batch updates preserve privacy after filtering.
+- [ ] Add tests that empty filtered batches are not sent.
+- [ ] Add a privacy classification table in docs for every player field.
+- [ ] Add a privacy classification table in docs for every server message type.
+
+## 6. Inventory, Equipment, Items, and Persistence
+
+- [ ] Decide whether durable inventory is normalized relational tables, JSONB aggregate, or a staged JSONB-to-relational migration.
+- [ ] Persist every item instance with stable `instanceId`.
+- [ ] Persist item template ID.
+- [ ] Persist item owner ID.
+- [ ] Persist item count.
+- [ ] Persist item location kind.
+- [ ] Persist bag slot index.
+- [ ] Persist equipped slot.
+- [ ] Persist secondary occupancy for multi-slot items or derive it safely on hydration.
+- [ ] Persist enchant level.
+- [ ] Persist bound/tradeable state.
+- [ ] Persist creation timestamp.
+- [ ] Persist durability if durability will exist.
+- [ ] Persist sockets/gems/augments if those will exist.
+- [ ] Persist item custom names only if product rules allow them.
+- [ ] Add schema versioning for inventory aggregates.
+- [ ] Add migration from legacy `InventorySlot[]` to item instances.
+- [ ] Add restore compatibility checks for item instances and equipment.
+- [ ] Add hydration tests for equipped weapon, shield, armor, jewelry, consumables, stackables, and multi-slot items.
+- [ ] Add persistence tests proving equipped items survive disconnect/reconnect.
+- [ ] Add persistence tests proving equipped items are not duplicated on reconnect.
+- [ ] Add persistence tests proving bag order survives reconnect.
+- [ ] Add persistence tests proving stack counts survive reconnect.
+- [ ] Add persistence tests proving invalid persisted inventories are repaired or rejected safely.
+- [ ] Add atomic transaction tests for multi-item loot pickup.
+- [ ] Add atomic transaction tests for equip with replacement.
+- [ ] Add atomic transaction tests for unequip when bag is full.
+- [ ] Add atomic transaction tests for split stack.
+- [ ] Add atomic transaction tests for merge stack.
+- [ ] Add atomic transaction tests for item use during concurrent equip or pickup attempts.
+- [ ] Add inventory capacity rules for slots and weight together.
+- [ ] Add equipment requirement checks for race, class, level, grade, hand usage, and body part.
+- [ ] Add item stat sanity validation in `content:check`.
+- [ ] Add item visual metadata validation in `content:check`.
+- [ ] Add set bonus validation in `content:check`.
+- [ ] Add loot table validation that every referenced item template exists.
+- [ ] Add economy flags for no-drop, no-trade, quest item, bound-on-pickup, bound-on-equip, and unique-equipped.
+- [ ] Add item deletion audit logs.
+- [ ] Add item creation audit logs.
+- [ ] Add equip/unequip audit logs for debugging dupes.
+- [ ] Add admin inventory inspection tool.
+- [ ] Add admin item grant tool restricted to authorized local/admin sessions.
+- [ ] Remove the legacy flat inventory wire shape once the client fully consumes instance-aware inventory.
+
+## 7. Equipment Visuals and Avatar Presentation
+
+- [ ] Implement `ItemTemplate.visual` for helmet, chest, legs, gloves, boots, weapon, shield, cloak, jewelry, and accessory classes.
+- [ ] Add content validation for visual IDs, colors, shapes, scale, and slot compatibility.
+- [ ] Add `PublicEquipmentVisualSnapshot` so other clients can see cosmetics without seeing private item instances.
+- [ ] Add owner equipment DTO with enough data for paperdoll and bag UI.
+- [ ] Render helmet overlays on player heads.
+- [ ] Render chest armor tint or mesh on torso.
+- [ ] Render leg armor tint or mesh on legs.
+- [ ] Render gloves on hands if visible at current camera scale.
+- [ ] Render boots on feet if visible at current camera scale.
+- [ ] Render main-hand weapon in the correct hand.
+- [ ] Render off-hand shield or off-hand weapon in the correct hand.
+- [ ] Render cloak/back item without clipping the body.
+- [ ] Render robe/tunic variants differently from leather/plate variants.
+- [ ] Add LOD rules for wearable visuals.
+- [ ] Add mobile performance budgets for wearable overlays.
+- [ ] Add snapshot tests or visual smoke tests for equipped gear appearing after `EquipmentUpdate`.
+- [ ] Add regression tests that equipping an item updates local paperdoll and public avatar visuals.
+- [ ] Add regression tests that unequipping an item removes local paperdoll and public avatar visuals.
+- [ ] Add fallback visuals for unknown item templates.
+- [ ] Add art pipeline guidelines for future gear assets.
+
+## 8. Combat System and Status Effects
+
+- [ ] Build a central combat resolution pipeline used by player attacks and enemy attacks.
+- [ ] Make physical attack damage use `pAtk`, target `pDef`, level, skill power, variance, crit, and mitigation.
+- [ ] Make magical attack damage use `mAtk`, target `mDef`, level, skill power, variance, crit, and mitigation.
+- [ ] Make healing use healer stats and target modifiers.
+- [ ] Make shield effects absorb damage from all damage sources.
+- [ ] Make evasion affect enemy attacks and relevant player attacks.
+- [ ] Make accuracy affect hit chance.
+- [ ] Make crit chance and crit multiplier affect eligible skills only.
+- [ ] Make attack speed and cast speed affect relevant cooldown/cast-time rules only if intended.
+- [ ] Make run speed feed movement consistently through shared stats.
+- [ ] Add an effect tick system for players and enemies.
+- [ ] Add expiration pruning for player status effects.
+- [ ] Add expiration pruning for enemy status effects.
+- [ ] Add periodic damage for burn.
+- [ ] Add periodic damage for poison.
+- [ ] Add periodic damage for generic DoT.
+- [ ] Add periodic healing if future HoTs are added.
+- [ ] Add slow effect behavior that reliably changes movement speed while active.
+- [ ] Add stun behavior that blocks movement, casting, and attacking while active.
+- [ ] Add freeze/root behavior if distinct from stun.
+- [ ] Add taunt behavior that changes enemy target priority for the duration.
+- [ ] Add knockback behavior with server-owned position changes and collision/bounds validation.
+- [ ] Add invisibility behavior that breaks or suppresses aggro according to product rules.
+- [ ] Add dispel behavior with configurable categories: negative, positive, magic, poison, bleed, stun, shield.
+- [ ] Add buff stacking policy: replace, stack, refresh, or reject.
+- [ ] Add debuff stacking policy: replace, stack, refresh, or reject.
+- [ ] Add maximum stack validation per effect type.
+- [ ] Add effect source tracking for ownership, threat, and combat logs.
+- [ ] Add status-effect snapshots that avoid leaking hidden entity IDs.
+- [ ] Add combat logs that distinguish raw damage, absorbed damage, resisted damage, crits, misses, heals, and kills.
+- [ ] Add tests for each skill effect type currently present in content.
+- [ ] Add tests for simultaneous effects on one target.
+- [ ] Add tests for shield absorption order.
+- [ ] Add tests for effect expiration during combat.
+- [ ] Add tests for death while affected by DoT.
+- [ ] Add tests for self-cast skills.
+- [ ] Add tests for ground-target skills.
+- [ ] Add tests for target-required skills.
+- [ ] Add tests for projectile impact at max range.
+- [ ] Add tests for projectile piercing and max-pierce hits.
+- [ ] Add tests for AoE target deduplication.
+- [ ] Add tests for player-vs-player behavior if PvP will exist, or explicitly disable PvP in protocol and server rules.
+
+## 9. Skills, Classes, Races, and Progression
+
+- [ ] Define a complete skill taxonomy: instant, projectile, ground AoE, self buff, target buff, target debuff, aura, passive, toggle, channeled, summon.
+- [ ] Add schema validation that skill definitions match their taxonomy.
+- [ ] Add class skill trees with consistent level gates and prerequisites.
+- [ ] Add race/class compatibility rules if not every race can play every class.
+- [ ] Add class-change product policy: free switching, restricted switching, respec cost, or creation-only.
+- [ ] Add race-change product policy: free switching, restricted switching, paid/admin only, or creation-only.
+- [ ] Add server validation for race/class changes according to policy.
+- [ ] Add server validation that learned skills still belong to current class if switching is allowed.
+- [ ] Add migration logic for legacy players with invalid skill/class combinations.
+- [ ] Add skill respec support if switching classes can invalidate skills.
+- [ ] Add skill point refund rules.
+- [ ] Add starter skill rules per class and race.
+- [ ] Add tests for each starter class loadout.
+- [ ] Add tests for learning available skills.
+- [ ] Add tests for rejecting wrong-class skills.
+- [ ] Add tests for rejecting insufficient-level skills.
+- [ ] Add tests for rejecting missing-prerequisite skills.
+- [ ] Add tests for rejecting duplicate skill learn attempts.
+- [ ] Add tests for skill shortcut persistence.
+- [ ] Add tests for skill shortcut validation after class changes.
+- [ ] Add balance sheet for all class stats from level 1 to target cap.
+- [ ] Add balance sheet for all race modifiers.
+- [ ] Add balance sheet for all skills by DPS, burst, cost, cooldown, range, and utility.
+- [ ] Add target level cap and XP curve.
+- [ ] Add XP overflow handling for multiple level-ups from one reward.
+- [ ] Add level-down policy if none is intended, explicitly prevent it.
+- [ ] Add progression telemetry for level time, deaths, skill usage, and class choice.
+
+## 10. Movement, Prediction, Anti-Cheat, and World Bounds
+
+- [ ] Add server-side sequence numbers to movement intents.
+- [ ] Reject stale movement intents older than an allowed window.
+- [ ] Reject movement intents too far from current authoritative position if not explained by normal travel.
+- [ ] Reject movement targets outside playable world bounds.
+- [ ] Reject movement targets into impassable terrain once collision/navmesh exists.
+- [ ] Add per-player movement speed budget based on stats and effects.
+- [ ] Add speed-hack detection metrics.
+- [ ] Add teleport detection metrics.
+- [ ] Add client reconciliation acknowledgements using movement sequence numbers.
+- [ ] Add server snapshots with authoritative sequence acknowledgement.
+- [ ] Add tests for long-walk synchronization.
+- [ ] Add tests for movement under slow and speed boost effects.
+- [ ] Add tests for movement after stun/freeze/root.
+- [ ] Add tests for movement after death and respawn.
+- [ ] Add tests for crossing region boundaries while moving.
+- [ ] Add tests for client sending movement for another player ID.
+- [ ] Add pathing constraints if terrain, water, cliffs, or obstacles should block movement.
+- [ ] Add collision rules for enemies, players, world props, and loot if collision is desired.
+- [ ] Add navmesh or lightweight walkability grid for server validation if needed.
+- [ ] Add server/client agreement for terrain height at a coordinate.
+- [ ] Add safeguards against floating-point precision issues in continent-scale coordinates.
+- [ ] Add coordinate origin rebasing on the client if visual precision degrades far from origin.
+
+## 11. Enemy AI, Spawning, Packs, and Encounters
+
+- [ ] Add deterministic or seeded patrol target generation if reproducibility matters for tests.
+- [ ] Add status-effect awareness to enemy AI.
+- [ ] Add stun handling for enemies.
+- [ ] Add slow handling for enemies.
+- [ ] Add taunt priority handling for enemies.
+- [ ] Add invisibility handling for enemies.
+- [ ] Add return-to-spawn leash rules with max chase distance.
+- [ ] Add anti-kite rules if enemies should not chase forever.
+- [ ] Add pack aggro rules with configurable radius per species or encounter.
+- [ ] Add pack disengage rules.
+- [ ] Add mini-boss leash rules.
+- [ ] Add mini-boss respawn rules.
+- [ ] Add named encounter state tracking.
+- [ ] Add spawn protection against spawning on top of players.
+- [ ] Add terrain-aware spawn placement.
+- [ ] Add biome-aware spawn validation.
+- [ ] Add day/night spawn validation.
+- [ ] Add encounter density budgets per active region.
+- [ ] Add enemy update throttling so patrolling mobs do not flood clients.
+- [ ] Add tests for idle to patrol transitions.
+- [ ] Add tests for patrol to chase transitions.
+- [ ] Add tests for chase to attack transitions.
+- [ ] Add tests for attack cooldowns.
+- [ ] Add tests for returning to spawn.
+- [ ] Add tests for pack aggro propagation.
+- [ ] Add tests for inactive-zone enemies not ticking AI.
+- [ ] Add tests for respawn after death.
+- [ ] Add tests for loot generation on death.
+- [ ] Add tests for XP rewards on death.
+- [ ] Add enemy behavior telemetry: aggro count, attacks, kills, deaths, average lifespan, stuck count.
+
+## 12. World, Regions, Streaming, and Sharding
+
+- [ ] Define target maximum concurrent players for the first production milestone.
+- [ ] Define target maximum active enemies for the first production milestone.
+- [ ] Define target active regions per room.
+- [ ] Define target snapshot payload budget per client.
+- [ ] Add load tests with 10 simulated clients.
+- [ ] Add load tests with 50 simulated clients.
+- [ ] Add load tests with 100 simulated clients.
+- [ ] Add load tests with 200 simulated clients if that remains the room cap.
+- [ ] Add soak tests running for at least one hour.
+- [ ] Add reconnect churn tests.
+- [ ] Add region-transition churn tests.
+- [ ] Add combat-heavy tests.
+- [ ] Add loot-heavy tests.
+- [ ] Add chat-heavy tests.
+- [ ] Add inventory/equipment-heavy tests.
+- [ ] Track CPU per tick during load tests.
+- [ ] Track memory during load tests.
+- [ ] Track outbound messages per second during load tests.
+- [ ] Track bytes per second per client during load tests.
+- [ ] Track initial snapshot size during load tests.
+- [ ] Track batch update size during load tests.
+- [ ] Track region visibility count per client during load tests.
+- [ ] Decide whether one Colyseus `world` room can meet the target.
+- [ ] Design shard strategy if one room cannot meet the target.
+- [ ] Design zone-to-room mapping if sharding is needed.
+- [ ] Design cross-room handoff protocol if sharding is needed.
+- [ ] Design cross-room chat if sharding is needed.
+- [ ] Design cross-room party/guild visibility if sharding is needed.
+- [ ] Design cross-room persistence consistency if sharding is needed.
+- [ ] Add region event hooks for activation, deactivation, spawn, despawn, and handoff.
+- [ ] Add tests that inactive zones remain cheap.
+- [ ] Add tests that inactive zone state is preserved as intended.
+- [ ] Add tests that player movement changes visibility but not global spawn ownership.
+- [ ] Add tests for overlapping regions and nearest-region lookup.
+- [ ] Add tests for hundreds or thousands of region definitions.
+
+## 13. Persistence, Database, Migrations, and Backups
+
+- [ ] Split players/accounts/characters if identity rewrite is adopted.
+- [ ] Add inventory/equipment durable schema.
+- [ ] Add quest state durable schema.
+- [ ] Add mail state durable schema if mail exists.
+- [ ] Add party/guild durable schema if social systems exist.
+- [ ] Add world-event durable schema if inactive zones need persistent events.
+- [ ] Add schema migration order documentation.
+- [ ] Add migration rollback documentation.
+- [ ] Add migration smoke tests against an empty database.
+- [ ] Add migration smoke tests against a restored production-like backup.
+- [ ] Add backup restore drill to CI or scheduled local workflow if feasible.
+- [ ] Add explicit backup retention policy.
+- [ ] Add backup encryption policy if backups contain account data.
+- [ ] Add backup integrity verification.
+- [ ] Add DB write batching for frequent player persistence if needed.
+- [ ] Add dirty-player tracking so persistence does not write unchanged players every cycle.
+- [ ] Add persistence queue metrics.
+- [ ] Add DB error retry policy.
+- [ ] Add DB connection pool sizing policy.
+- [ ] Add graceful shutdown that persists active players before process exit.
+- [ ] Add crash recovery tests for player state.
+- [ ] Add tests for disconnect persistence.
+- [ ] Add tests for periodic persistence.
+- [ ] Add tests for persistence disabled mode.
+- [ ] Add tests for partial persistence failure.
+- [ ] Add tests for invalid JSONB values.
+- [ ] Add tests for legacy row hydration.
+- [ ] Update `docs/PERSISTENCE.md` whenever a persisted field changes.
+
+## 14. Server Operations, Observability, and Alerting
+
+- [ ] Protect or intentionally scope `/runtimez`.
+- [ ] Add structured logs with request/session/player IDs where safe.
+- [ ] Add log levels configurable by environment.
+- [ ] Add metrics endpoint suitable for scraping or export.
+- [ ] Add counters for accepted and rejected messages by type.
+- [ ] Add counters for rate-limit hits by command type.
+- [ ] Add counters for invalid ownership attempts.
+- [ ] Add counters for protocol-version rejections.
+- [ ] Add counters for chat moderation rejections.
+- [ ] Add gauges for active rooms.
+- [ ] Add gauges for connected clients.
+- [ ] Add gauges for active players.
+- [ ] Add gauges for active enemies.
+- [ ] Add gauges for active casts.
+- [ ] Add gauges for ground loot stacks.
+- [ ] Add histograms for tick duration.
+- [ ] Add histograms for initial snapshot size.
+- [ ] Add histograms for batch update size.
+- [ ] Add histograms for DB write latency.
+- [ ] Add histograms for Colyseus join latency.
+- [ ] Add histograms for reconnect latency.
+- [ ] Add alert threshold for server tick average.
+- [ ] Add alert threshold for server tick max.
+- [ ] Add alert threshold for memory usage.
+- [ ] Add alert threshold for DB failures.
+- [ ] Add alert threshold for reconnect spikes.
+- [ ] Add alert threshold for invalid message spikes.
+- [ ] Add external uptime check for public frontend.
+- [ ] Add external uptime check for `/healthz` through production HTTPS path if safe.
+- [ ] Add external WebSocket/Colyseus join check.
+- [ ] Add deploy marker logs and metrics.
+- [ ] Add rollback marker logs and metrics.
+- [ ] Add incident runbook.
+- [ ] Add dashboard for runtime metrics.
+
+## 15. Security and Abuse Prevention
+
+- [ ] Add account/session authentication before durable player ownership matters.
+- [ ] Add CSRF policy for any HTTP endpoints that mutate state.
+- [ ] Add origin checks for WebSocket and matchmaker paths.
+- [ ] Add production validation for allowed origins.
+- [ ] Add maximum message size per protocol type.
+- [ ] Add rate limits per socket.
+- [ ] Add rate limits per account.
+- [ ] Add rate limits per IP if safe behind proxy headers.
+- [ ] Add proxy-header trust policy.
+- [ ] Add suspicious activity metrics.
+- [ ] Add temporary mute for chat spam.
+- [ ] Add temporary disconnect or cooldown for severe spam.
+- [ ] Add ban support for abusive accounts.
+- [ ] Add server-side profanity or unsafe-content filtering if public chat is kept.
+- [ ] Add chat report tools if public social features grow.
+- [ ] Add admin permission model.
+- [ ] Add audit logs for admin actions.
+- [ ] Add dev-command access control beyond environment flag if any admin tools exist online.
+- [ ] Add dependency vulnerability scanning.
+- [ ] Add secret scanning for full Git history if not already done.
+- [ ] Add security review checklist before production deploy.
+- [ ] Add safe handling for unhandled exceptions and rejections without duplicate handlers.
+- [ ] Add graceful process shutdown path.
+- [ ] Add container user hardening if the Docker image currently runs as root.
+- [ ] Add Nginx security header checks for the frontend.
+
+## 16. Client Architecture and State Management
+
+- [ ] Normalize owner player state separately from public players.
+- [ ] Normalize inventory state separately from player snapshots.
+- [ ] Normalize equipment state separately from player snapshots.
+- [ ] Normalize world public state separately from gameplay state.
+- [ ] Split `gameReducer` into domain reducers: connection, entities, combat visuals, inventory, equipment, chat, world, progression.
+- [ ] Add reducer tests for every server message type.
+- [ ] Add reducer tests for snapshot resync.
+- [ ] Add reducer tests for region visibility changes.
+- [ ] Add reducer tests for equipment update.
+- [ ] Add reducer tests for inventory update after equip/unequip.
+- [ ] Add reducer tests for duplicate or out-of-order updates.
+- [ ] Add reducer tests for disconnected/reconnected state transitions.
+- [ ] Add explicit client-side handling for command rejections.
+- [ ] Add UI feedback for rate-limited actions.
+- [ ] Add UI feedback for protocol rejection.
+- [ ] Add UI feedback for inventory full.
+- [ ] Add UI feedback for invalid equip slot.
+- [ ] Add UI feedback for wrong class/race/level requirements.
+- [ ] Add UI feedback for out-of-range casts.
+- [ ] Add UI feedback for missing target.
+- [ ] Add a local event bus or domain action layer if reducer actions become too broad.
+- [ ] Add client telemetry hooks for load time, FPS, WebSocket reconnects, and major UI errors.
+- [ ] Add error boundary around the game UI.
+- [ ] Add fallback screen for WebGL unsupported or failed context.
+- [ ] Add fallback screen for server unavailable.
+
+## 17. Mobile UX, Input, and Accessibility
+
+- [ ] Define supported mobile browsers and minimum device class.
+- [ ] Add mobile safe-area tests for iOS Safari.
+- [ ] Add mobile safe-area tests for Android Chrome.
+- [ ] Add touch target size standards for skill buttons, inventory items, map controls, and panel buttons.
+- [ ] Add input conflict tests for tap-to-move vs camera drag.
+- [ ] Add input conflict tests for world pinch zoom vs map pinch zoom.
+- [ ] Add long-press behavior for item details.
+- [ ] Add drag behavior for inventory only where it does not fight scroll/touch gestures.
+- [ ] Add combat target selection that works without precise mouse clicks.
+- [ ] Add clear target indicator on mobile.
+- [ ] Add clear cooldown indicator on mobile.
+- [ ] Add clear cast progress indicator on mobile.
+- [ ] Add readable floating damage/heal numbers on mobile.
+- [ ] Add compact mobile chat mode.
+- [ ] Add mobile keyboard avoidance for chat input.
+- [ ] Add mobile map fullscreen QA.
+- [ ] Add mobile character panel QA.
+- [ ] Add mobile paperdoll and bag QA.
+- [ ] Add mobile quest panel QA.
+- [ ] Add mobile performance budget for draw calls.
+- [ ] Add mobile performance budget for terrain chunks.
+- [ ] Add mobile performance budget for foliage instances.
+- [ ] Add accessibility labels for major buttons and panels.
+- [ ] Add color contrast checks for HUD text.
+- [ ] Add reduced-motion option for camera and effects.
+- [ ] Add volume controls and mute option.
+- [ ] Add keyboard-only usability for desktop.
+
+## 18. UI, HUD, Panels, and Player Feedback
+
+- [ ] Add consistent panel framework for draggable, resizable, fullscreen, minimized, and persistent panels.
+- [ ] Add panel z-index management.
+- [ ] Add panel reset layout button.
+- [ ] Add panel safe-area clamping after viewport resize.
+- [ ] Add inventory item tooltip details.
+- [ ] Add equipment item tooltip details.
+- [ ] Add skill tooltip details with requirements and reasons unavailable.
+- [ ] Add enemy tooltip details with level, status, and difficulty.
+- [ ] Add player tooltip details with public-safe fields only.
+- [ ] Add combat log filters.
+- [ ] Add chat tabs for near/all/system/party/guild if those channels exist.
+- [ ] Add system messages for level up, death, respawn, loot, learn skill, equip, unequip, and errors.
+- [ ] Add quest tracker objective states.
+- [ ] Add minimap or compass if world navigation remains large.
+- [ ] Add navigation pin persistence per session.
+- [ ] Add clear region/zone transition feedback.
+- [ ] Add latency/connection indicator.
+- [ ] Add reconnecting overlay.
+- [ ] Add server maintenance or deploy message support.
+- [ ] Add settings panel.
+- [ ] Add keybinding panel for desktop.
+- [ ] Add screenshot-safe HUD mode if useful.
+
+## 19. Content Validation and Authoring Tools
+
+- [ ] Add content schema validation for classes.
+- [ ] Add content schema validation for races.
+- [ ] Add content schema validation for skills.
+- [ ] Add content schema validation for items.
+- [ ] Add content schema validation for equipment specs.
+- [ ] Add content schema validation for loot tables.
+- [ ] Add content schema validation for enemies.
+- [ ] Add content schema validation for zones.
+- [ ] Add content schema validation for roads, rivers, passes, landmarks, and biome data.
+- [ ] Add content schema validation for quests.
+- [ ] Add validation that every skill icon exists or has fallback.
+- [ ] Add validation that every item icon exists or has fallback.
+- [ ] Add validation that every enemy visual exists or has fallback.
+- [ ] Add validation that every loot table referenced by enemies exists.
+- [ ] Add validation that every zone spawn table references valid enemy species.
+- [ ] Add validation that every level gate is reachable.
+- [ ] Add validation that class skill prerequisites do not form impossible cycles.
+- [ ] Add validation that item stats remain within balance budgets.
+- [ ] Add validation that enemy stats remain within balance budgets.
+- [ ] Add validation that spawn budgets remain within runtime limits.
+- [ ] Add authoring docs for adding a new skill.
+- [ ] Add authoring docs for adding a new item.
+- [ ] Add authoring docs for adding a new enemy.
+- [ ] Add authoring docs for adding a new zone.
+- [ ] Add authoring docs for adding a new quest.
+- [ ] Add a generated content catalog for designers and testers.
+
+## 20. Quests, Starter Path, and Progression Content
+
+- [ ] Define quest data schema.
+- [ ] Define quest objective types: kill, collect, talk, explore, equip, learn skill, reach level, use item, discover zone.
+- [ ] Define quest reward types: XP, item, currency, skill point, unlock, title.
+- [ ] Persist quest state per character.
+- [ ] Add server-owned quest progress updates.
+- [ ] Add quest visibility rules.
+- [ ] Add quest acceptance rules.
+- [ ] Add quest completion rules.
+- [ ] Add quest reward claiming rules.
+- [ ] Add quest rollback protection against duplicate rewards.
+- [ ] Add tests for starter path progress.
+- [ ] Add tests for kill objectives.
+- [ ] Add tests for collect objectives.
+- [ ] Add tests for level objectives.
+- [ ] Add tests for equip objectives.
+- [ ] Add tests for reward claiming.
+- [ ] Add tests for reconnect restoring quest state.
+- [ ] Add initial quest chain beyond starter path.
+- [ ] Add zone discovery quests.
+- [ ] Add class tutorial quests.
+- [ ] Add equipment tutorial quests.
+- [ ] Add map/navigation tutorial quest.
+- [ ] Add mobile-control tutorial hints.
+
+## 21. Loot, Economy, Vendors, Trading, and Currency
+
+- [ ] Decide whether the game has currency in the first public milestone.
+- [ ] Add currency to durable character state if needed.
+- [ ] Add server-owned currency transaction model.
+- [ ] Add loot roll model with deterministic seeded tests.
+- [ ] Add per-species loot tables.
+- [ ] Add per-zone loot modifiers.
+- [ ] Add mini-boss loot tables.
+- [ ] Add quest item loot rules.
+- [ ] Add rare drop announcements only if product rules allow them.
+- [ ] Add anti-dupe tests around loot pickup.
+- [ ] Add ground loot expiration policy.
+- [ ] Add ground loot owner reservation policy if needed.
+- [ ] Add tests for two players trying to pick up the same loot.
+- [ ] Add tests for full inventory during loot pickup.
+- [ ] Add tests for partial stack pickup.
+- [ ] Add vendor NPC model if vendors are planned.
+- [ ] Add buy/sell transaction tests if vendors are planned.
+- [ ] Add player trading model if trading is planned.
+- [ ] Add atomic trade transaction tests if trading is planned.
+- [ ] Add trade cancel tests if trading is planned.
+- [ ] Add trade scam-prevention UI if trading is planned.
+- [ ] Add item sink systems if economy inflation matters.
+- [ ] Add economy telemetry for item creation, deletion, currency creation, currency deletion, and trade volume.
+
+## 22. Chat, Social, Moderation, Party, and Guilds
+
+- [ ] Add server-side chat rate limit.
+- [ ] Add message normalization and trimming on the server.
+- [ ] Add blocked word or moderation hook if public chat is enabled.
+- [ ] Add chat mute system.
+- [ ] Add chat report system if public chat grows.
+- [ ] Add system messages separated from player chat.
+- [ ] Add party chat only after party system exists.
+- [ ] Add guild chat only after guild system exists.
+- [ ] Add private whisper only after identity and moderation exist.
+- [ ] Add chat persistence policy: none, short-lived, or moderated logs.
+- [ ] Add tests for near-chat radius.
+- [ ] Add tests for all-chat broadcast.
+- [ ] Add tests for hidden region players not receiving inappropriate local messages if region scoping should apply.
+- [ ] Add tests for empty/whitespace messages.
+- [ ] Add tests for maximum length messages.
+- [ ] Add tests for rate-limited messages.
+- [ ] Add party model if grouping is planned.
+- [ ] Add party invitation protocol.
+- [ ] Add party join/leave/kick/leader rules.
+- [ ] Add party loot rules.
+- [ ] Add party XP sharing rules.
+- [ ] Add party member map indicators.
+- [ ] Add guild model only after identity/account system is stable.
+
+## 23. Map, Navigation, Terrain, and World Feel
+
+- [ ] Add terrain collision/walkability policy.
+- [ ] Add impassable terrain support if mountains, water, cliffs, or walls are meant to block movement.
+- [ ] Add roads and safe lanes as server-understood navigation metadata.
+- [ ] Add landmark discovery state if landmarks should be tracked.
+- [ ] Add map fog-of-war if exploration matters.
+- [ ] Add map marker persistence if users should keep markers across sessions.
+- [ ] Add multi-marker support if needed.
+- [ ] Add quest markers.
+- [ ] Add party member markers if party exists.
+- [ ] Add region border visualization.
+- [ ] Add zone danger-level visualization.
+- [ ] Add biome labels.
+- [ ] Add terrain chunk memory budget.
+- [ ] Add terrain chunk generation benchmark.
+- [ ] Add foliage instance budget.
+- [ ] Add weather visual budget.
+- [ ] Add time-of-day visual budget.
+- [ ] Add deterministic terrain tests for shared server/client terrain contract.
+- [ ] Add tests that server spawn height matches terrain height.
+- [ ] Add tests that click-to-move target resolves correct x/z on terrain.
+- [ ] Add tests for movement near world bounds.
+- [ ] Add tests for very large coordinates.
+
+## 24. Audio, VFX, Animation, and Presentation Polish
+
+- [ ] Add audio settings and mute support.
+- [ ] Add skill cast sounds.
+- [ ] Add impact sounds.
+- [ ] Add enemy attack sounds.
+- [ ] Add loot pickup sounds.
+- [ ] Add UI click sounds if desired.
+- [ ] Add ambient biome audio.
+- [ ] Add weather audio if weather remains cosmetic.
+- [ ] Add animation states for idle, walk, cast, attack, hit, death, respawn, and equip weapon stance.
+- [ ] Add class-specific animation differences if useful.
+- [ ] Add projectile VFX per skill family.
+- [ ] Add AoE VFX per skill family.
+- [ ] Add buff/debuff VFX per effect type.
+- [ ] Add hit reaction VFX.
+- [ ] Add death VFX.
+- [ ] Add mini-boss VFX accents.
+- [ ] Add performance budgets for particles and transparencies.
+- [ ] Add cleanup of expired visual events.
+- [ ] Add visual fallback when assets fail to load.
+- [ ] Add screenshots or visual smoke tests for core scenes.
+
+## 25. Testing Strategy and Quality Gates
+
+- [ ] Make CI run the exact same full gate as local `pnpm run check` or document every intentional difference.
+- [ ] Add `typecheck:packages` to CI if not already covered.
+- [ ] Add `content:check` to CI if not already covered.
+- [ ] Add tests for all protocol schema changes.
+- [ ] Add tests for all content validation changes.
+- [ ] Add tests for all persistence migrations.
+- [ ] Add tests for all privacy DTOs.
+- [ ] Add tests for all combat effect behaviors.
+- [ ] Add tests for all inventory transactions.
+- [ ] Add tests for all equipment transactions.
+- [ ] Add tests for all client reducer server-message handling.
+- [ ] Add tests for all region visibility filters.
+- [ ] Add tests for all admin/dev commands.
+- [ ] Add tests for all production deploy script assumptions.
+- [ ] Add Playwright desktop smoke for connect, move, cast, loot, inventory, equip, map, chat, respawn.
+- [ ] Add Playwright mobile smoke for connect, move, camera, cast, inventory, equip, map, chat.
+- [ ] Add Playwright reconnect smoke.
+- [ ] Add Playwright protocol rejection smoke if feasible.
+- [ ] Add load-test suite separate from normal CI if too slow.
+- [ ] Add nightly or manual soak-test script.
+- [ ] Add benchmark baselines for server tick, snapshot size, join latency, and build bundle size.
+- [ ] Add flaky-test tracking if Playwright becomes unstable.
+- [ ] Add coverage reports for server and sim packages if useful.
+- [ ] Add mutation or property tests for inventory transactions if bugs appear.
+
+## 26. Deployment, Infrastructure, and Release Management
+
+- [ ] Add branch protection for `main` if not already enabled.
+- [ ] Require CI success before merging to `main`.
+- [ ] Require review for deployment script changes.
+- [ ] Add release tags or deployment records for production deploys.
+- [ ] Add changelog entry per production deploy.
+- [ ] Add migration-before-deploy and migration-after-deploy policy.
+- [ ] Add zero-downtime or low-downtime deploy strategy if uptime matters.
+- [ ] Add graceful shutdown before replacing the game server container.
+- [ ] Add active-player warning before deploy if needed.
+- [ ] Add rollback test after major migration changes.
+- [ ] Add Docker image hardening.
+- [ ] Add production environment validation script.
+- [ ] Add Nginx config validation step.
+- [ ] Add check that game server only listens on localhost in production.
+- [ ] Add check that frontend can reach Colyseus through HTTPS.
+- [ ] Add check that static assets are cache-busted after deploy.
+- [ ] Add check that old assets do not break active clients during deploy.
+- [ ] Add deployment smoke that creates a real room, joins it, receives snapshot, sends move, and disconnects.
+- [ ] Add production database backup before migrations.
+- [ ] Add post-deploy metrics sanity check.
+- [ ] Add deploy failure notification.
+- [ ] Add rollback notification.
+
+## 27. Documentation and Developer Experience
+
+- [ ] Update README to focus on current architecture and remove stale protocol notes.
+- [ ] Keep ROADMAP focused on product milestones, not every bug or implementation detail.
+- [ ] Keep this remediation roadmap as a separate hardening backlog.
+- [ ] Update `docs/ARCHITECTURE.md` after DTO, identity, inventory, and sharding changes.
+- [ ] Update `docs/PROTOCOL.md` after every protocol change.
+- [ ] Update `docs/PERSISTENCE.md` after every persistence change.
+- [ ] Add `docs/SECURITY.md` for auth, rate limits, origins, admin tools, and abuse handling.
+- [ ] Add `docs/OBSERVABILITY.md` for metrics, logs, dashboards, and alerts.
+- [ ] Add `docs/LOAD_TESTING.md` for bot harness and soak tests.
+- [ ] Add `docs/CONTENT_AUTHORING.md` for skills, items, enemies, zones, quests, and loot.
+- [ ] Add `docs/INVENTORY_MIGRATION.md` while legacy inventory bridge exists.
+- [ ] Add local development troubleshooting guide.
+- [ ] Add production troubleshooting guide.
+- [ ] Add rollback runbook.
+- [ ] Add incident runbook.
+- [ ] Add contribution rules for future agents or collaborators.
+- [ ] Add dependency update policy.
+- [ ] Add architecture diagrams if the project grows beyond solo development.
+
+## 28. Product Roadmap and Milestone Gates
+
+### Milestone A: Safe Public Prototype
+
+- [ ] Identity is no longer name-based.
+- [ ] Public snapshots cannot leak private player state.
+- [ ] Inventory and equipment persist across reconnect.
+- [ ] Protocol schemas are strict and tested.
+- [ ] Basic rate limits are active.
+- [ ] Basic load test passes target concurrency.
+- [ ] Production deploy and rollback are verified.
+- [ ] External uptime and join checks exist.
+- [ ] Core mobile flow works: connect, move, fight, loot, equip, chat, respawn.
+
+### Milestone B: Combat and Progression Foundation
+
+- [ ] Combat pipeline is unified for player and enemy attacks.
+- [ ] Status effect engine handles all content effect types.
+- [ ] Class/race/stat scaling is tested and balanced.
+- [ ] Skill learning and shortcuts persist and survive class/race changes according to policy.
+- [ ] Enemy AI respects combat effects.
+- [ ] Starter path and first quest chain are persisted and tested.
+- [ ] Loot, XP, and equipment rewards are balanced for early levels.
+
+### Milestone C: Scalable World Foundation
+
+- [ ] Region streaming passes load and visibility tests.
+- [ ] Sharding decision is made based on measured data.
+- [ ] Inactive zone persistence strategy is chosen.
+- [ ] Snapshot size and update rate are within budget.
+- [ ] Terrain, landmarks, map, and navigation remain performant on mobile.
+- [ ] World content validation catches bad zones, spawns, and landmarks.
+
+### Milestone D: RPG Depth
+
+- [ ] Wearable visuals are visible on avatars.
+- [ ] More enemies and mini-bosses have distinct behaviors and loot.
+- [ ] Quests go beyond starter checklist.
+- [ ] Economy rules are defined.
+- [ ] Vendors or trading are implemented only if transaction safety is ready.
+- [ ] Party system is implemented only after identity and chat moderation are ready.
+- [ ] Guild system is implemented only after account identity and social moderation are ready.
+
+### Milestone E: Production-Ready Live Game
+
+- [ ] Authentication, abuse controls, persistence, backups, observability, and alerts are all active.
+- [ ] Load/soak tests pass expected production concurrency.
+- [ ] Rollback and restore drills are practiced.
+- [ ] Admin tooling has permissions and audit logs.
+- [ ] Public docs and player onboarding are clear.
+- [ ] Live operations playbook exists.
+- [ ] Content pipeline is repeatable without breaking runtime contracts.
+
+## 29. Suggested First 10 PRs
+
+- [ ] PR 1: Privacy hardening for `characterInventory`, exact-key DTO tests, and public snapshot regression tests.
+- [ ] PR 2: Protocol strictness audit, `LearnSkillFailed` schema fix, and exhaustive command type test.
+- [ ] PR 3: Instance-aware inventory/equipment persistence design, migration, hydration, and reconnect tests.
+- [ ] PR 4: Auth/session design slice with signed guest sessions and ownership validation on join.
+- [ ] PR 5: Self-cast and beneficial-skill targeting fix with tests for heal, shield, bless, evasion, and invisibility.
+- [ ] PR 6: Status effect engine foundation with expiration, shield absorption, slow, stun, and DoT tests.
+- [ ] PR 7: Unified enemy/player damage pipeline with defense, crit, evasion, shield, and combat log details.
+- [ ] PR 8: Rate limits for chat, movement, casts, and inventory/equipment commands with metrics and tests.
+- [ ] PR 9: CI parity with local `pnpm run check`, including package typecheck and content validation.
+- [ ] PR 10: Load-test harness for simulated clients joining, moving, fighting, chatting, looting, equipping, and reconnecting.
+
+## 30. Definition of Done for Future Gameplay Slices
+
+- [ ] The feature has a server-authoritative implementation.
+- [ ] The feature has explicit protocol schemas.
+- [ ] The feature has strict network validation.
+- [ ] The feature has owner/public privacy classification.
+- [ ] The feature has persistence if it affects durable character state.
+- [ ] The feature has migration and restore compatibility checks if schema changes.
+- [ ] The feature has unit tests for pure rules.
+- [ ] The feature has server tests for authority and ownership.
+- [ ] The feature has client reducer tests for messages and snapshots.
+- [ ] The feature has Playwright coverage if it affects core UI.
+- [ ] The feature has content validation if it adds content definitions.
+- [ ] The feature has observability if it affects runtime cost or production behavior.
+- [ ] The feature updates docs in the same PR.
+- [ ] The feature passes the full local and CI quality gate before merge.

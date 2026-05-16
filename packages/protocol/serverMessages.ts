@@ -172,10 +172,19 @@ export const equipFailedSchema = z.object({
   reason: z.string(),
 }).passthrough();
 
+export const learnSkillFailedReasonSchema = z.enum([
+  'noSkillPoints',
+  'levelTooLow',
+  'missingPrereq',
+  'unknownSkill',
+  'wrongClass',
+  'alreadyKnown',
+]);
+
 export const learnSkillFailedSchema = z.object({
   type: z.literal('LearnSkillFailed'),
   skillId: skillIdSchema,
-  reason: z.string(),
+  reason: learnSkillFailedReasonSchema,
 }).passthrough();
 
 function getServerMessageSchema(): z.ZodType<unknown> {
@@ -371,10 +380,12 @@ export type EquipFailedMsg = {
   reason: string;
 };
 
+export type LearnSkillFailedReason = z.infer<typeof learnSkillFailedReasonSchema>;
+
 export type LearnSkillFailedMsg = {
   type: 'LearnSkillFailed';
   skillId: SkillId;
-  reason: 'noSkillPoints' | 'levelTooLow' | 'missingPrereq' | 'unknownSkill' | 'wrongClass' | 'alreadyKnown';
+  reason: LearnSkillFailedReason;
 };
 
 export type ServerMessage =

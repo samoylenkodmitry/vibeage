@@ -18,10 +18,15 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'LearnSkill',
   'SetSkillShortcut',
   'SelectClass',
+  'SelectRace',
   'RespawnRequest',
   'LootPickup',
   'UseItem',
   'RequestInventory',
+  'EquipItem',
+  'UnequipItem',
+  'DevTeleport',
+  'ChatRequest',
 ] as const satisfies ReadonlyArray<ClientMessage['type']>;
 
 export const MIN_CLIENT_PROTOCOL_VERSION = 2;
