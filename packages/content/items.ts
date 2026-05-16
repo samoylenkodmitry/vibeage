@@ -44,6 +44,7 @@ export function getItemKind(item: Item): ItemKind {
     case 'consumable': return 'consumable';
     case 'material': return 'material';
     case 'currency': return 'currency';
+    default: return 'etc';
   }
 }
 

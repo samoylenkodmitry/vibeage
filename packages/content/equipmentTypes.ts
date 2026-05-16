@@ -128,14 +128,8 @@ export function occupiedSlotsForSpec(spec: EquipSpec, requestedSlot?: EquipSlot)
   if (spec.bodyPart === 'shield') {
     return ['OFF_HAND'];
   }
-  if (spec.bodyPart === 'ring' || spec.bodyPart === 'earring') {
-    if (requestedSlot && spec.allowedSlots.includes(requestedSlot)) {
-      return [requestedSlot];
-    }
-    return [spec.allowedSlots[0]];
-  }
   if (requestedSlot && spec.allowedSlots.includes(requestedSlot)) {
     return [requestedSlot];
   }
-  return [spec.allowedSlots[0]];
+  return spec.allowedSlots.length > 0 ? [spec.allowedSlots[0]] : [];
 }
