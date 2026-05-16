@@ -415,10 +415,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add exact-key tests for every DTO constructor.
 - [ ] Add tests that new fields added to `PlayerState` fail privacy audits until classified.
 - [ ] Add tests that owner-only fields never appear in public room state.
-- [ ] Add tests that owner-only fields never appear in public server messages.
+- [x] Add tests that owner-only fields never appear in public server messages.
 - [ ] Add tests that region-scoped messages do not leak hidden entity IDs through nested arrays.
-- [ ] Add tests that batch updates preserve privacy after filtering.
-- [ ] Add tests that empty filtered batches are not sent.
+- [x] Add tests that batch updates preserve privacy after filtering.
+- [x] Add tests that empty filtered batches are not sent.
 - [ ] Add a privacy classification table in docs for every player field.
 - [ ] Add a privacy classification table in docs for every server message type.
 
