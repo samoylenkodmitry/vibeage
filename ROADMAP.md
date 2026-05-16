@@ -240,6 +240,20 @@ Live items requested after the v5 deploy.
 
 8. [x] **Skill effect variety** — DoT, slow, knock-back, shield, dispel; reuse the existing StatusEffect plumbing.
 
+## Inventory & Equipment v1
+
+Full spec lives in [docs/INVENTORY_EQUIPMENT.md](docs/INVENTORY_EQUIPMENT.md). Goal: server-authoritative L2-style inventory with paperdoll slots, multi-slot occupancy, set bonuses, atomic equip/unequip, derived stats. Each item below is one PR.
+
+1. [ ] **Templates + slot enum** — extend `Item` with `equip`, `kind`, `grade`, `weight`; introduce `EquipSlot`, `BodyPart`, `HandUsage`, `EquipSpec`, `EquipRequirements`. Annotate the existing items. Unit tests for template metadata.
+
+2. [ ] **Item instances + locations** — define `ItemInstance` and `ItemLocation`; add a `CharacterInventory` aggregate with `items` + `equipment`; write the invariant validator; migrate `PlayerState` to hold the aggregate while keeping the wire format on the existing `InventorySlot[]`.
+
+3. [ ] **Inventory transactions** — atomic `addItem`, `removeItem`, `moveSlot`, `splitStack`, `mergeStacks` with weight + slot-count enforcement. Loot pickup uses the new pipeline.
+
+4. [ ] **Equip / unequip pipeline** — `equip(instanceId, slot?)` / `unequip(slot)` with full validation, multi-slot occupancy, ring/earring auto-pick, atomic refund of replaced items, new protocol messages, server handlers.
+
+5. [ ] **Derived stats + set bonuses + paperdoll HUD** — extend `derivePlayerStats` to consume per-item bonuses + set bonuses; ship the client paperdoll panel that lists every slot and lets the player click to unequip.
+
 ## Quality Gate
 
 Before merge:
