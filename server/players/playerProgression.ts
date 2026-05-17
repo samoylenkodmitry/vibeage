@@ -1,7 +1,11 @@
 import type { CharacterClass } from '../../packages/content/classes.js';
 import { SKILLS, UNIVERSAL_SKILLS, type SkillId } from '../../packages/content/skills.js';
 
-export const SKILL_SHORTCUT_SLOTS = 9;
+// 24 = 12 (F1-F12) primary row + 12 (Ctrl+F1..F12) secondary row,
+// matching the foldable two-row skill bar the client renders. Older
+// 4- or 9-slot saves are padded to 24 with nulls by
+// normalizeSkillShortcuts on hydrate.
+export const SKILL_SHORTCUT_SLOTS = 24;
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
 
 /**
