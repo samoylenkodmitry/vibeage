@@ -41,12 +41,25 @@ export interface SkillEffect {
   durationMs?: number; // how long the effect lasts, in ms
 }
 
+/**
+ * Damage flavour. Drives client UX (auto-attack after a physical
+ * weapon swing) and could later affect mitigation, resistances, and
+ * VFX. 'utility' covers buffs/heals/etc. with no damage flavour.
+ */
+export type SkillKind = 'physical' | 'magical' | 'utility';
+
 export interface SkillDef {
   id: SkillId;
   name: string;
   description: string;
   icon: string; // Path to icon image
   cat: SkillCategory;
+  /**
+   * Damage flavour: physical (sword/bow/punch), magical (spells),
+   * utility (buffs/heals/dispels with no inherent damage type).
+   * Default 'magical' for backwards compat when unset.
+   */
+  kind?: SkillKind;
   manaCost: number;     // Mana cost for casting
   castMs: number;       // Time to cast in milliseconds
   cooldownMs: number;   // Cooldown time in milliseconds
@@ -82,6 +95,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Strike the target with your equipped weapon (or fists).',
     icon: '/game/skills/skill_melee.svg',
     cat: 'instant',
+    kind: 'physical',
     manaCost: 0,
     castMs: 0,
     cooldownMs: 1200,
@@ -104,6 +118,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Launches a ball of fire that deals damage and applies a burn effect',
     icon: '/game/skills/skill_fireball.png',
     cat: 'projectile',
+    kind: 'magical',
     manaCost: 20,
     castMs: 300,
     cooldownMs: 500,
@@ -127,6 +142,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Fires a bolt of ice that poisons enemies and slows their movement',
     icon: '/game/skills/skill_icebolt.png',
     cat: 'projectile',
+    kind: 'magical',
     manaCost: 15,
     castMs: 500,
     cooldownMs: 3000,
@@ -152,6 +168,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Creates a splash of water that damages enemies and slows them down',
     icon: '/game/skills/skill_water.png',
     cat: 'projectile',
+    kind: 'magical',
     manaCost: 25,
     castMs: 1500,
     cooldownMs: 8000,
@@ -177,6 +194,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Temporarily stuns an enemy, preventing them from moving or attacking',
     icon: '/game/skills/skill_petrify.png',
     cat: 'instant',
+    kind: 'magical',
     manaCost: 40,
     castMs: 2000,
     cooldownMs: 15000,
@@ -194,6 +212,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'A quick melee strike that bleeds the target',
     icon: '/game/skills/skill_melee.svg',
     cat: 'instant',
+    kind: 'physical',
     manaCost: 4,
     castMs: 200,
     cooldownMs: 600,
@@ -212,6 +231,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'A heavy two-handed swing that knocks the target back',
     icon: '/game/skills/skill_melee.svg',
     cat: 'instant',
+    kind: 'physical',
     manaCost: 18,
     castMs: 800,
     cooldownMs: 6000,
@@ -230,6 +250,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Brace your shield to absorb a portion of incoming damage',
     icon: '/game/skills/skill_defense.svg',
     cat: 'aura',
+    kind: 'utility',
     manaCost: 20,
     castMs: 0,
     cooldownMs: 30000,
@@ -244,6 +265,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Force a target to attack you',
     icon: '/game/skills/skill_defense.svg',
     cat: 'instant',
+    kind: 'utility',
     manaCost: 12,
     castMs: 200,
     cooldownMs: 12000,
@@ -260,6 +282,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Slam the target with your shield, stunning them briefly',
     icon: '/game/skills/skill_melee.svg',
     cat: 'instant',
+    kind: 'physical',
     manaCost: 14,
     castMs: 400,
     cooldownMs: 9000,
@@ -278,6 +301,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Bathe yourself in light, restoring health',
     icon: '/game/skills/skill_holy.svg',
     cat: 'instant',
+    kind: 'utility',
     manaCost: 25,
     castMs: 1500,
     cooldownMs: 4000,
@@ -292,6 +316,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Boost your damage and hit chance for a short time',
     icon: '/game/skills/skill_holy.svg',
     cat: 'aura',
+    kind: 'utility',
     manaCost: 18,
     castMs: 800,
     cooldownMs: 20000,
@@ -306,6 +331,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Remove negative status effects from yourself',
     icon: '/game/skills/skill_holy.svg',
     cat: 'instant',
+    kind: 'utility',
     manaCost: 30,
     castMs: 600,
     cooldownMs: 25000,
@@ -320,6 +346,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Hammer of holy energy that damages and briefly stuns the target',
     icon: '/game/skills/skill_holy.svg',
     cat: 'instant',
+    kind: 'magical',
     manaCost: 22,
     castMs: 700,
     cooldownMs: 5000,
@@ -338,6 +365,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'A radiant ward absorbs a large amount of incoming damage',
     icon: '/game/skills/skill_defense.svg',
     cat: 'aura',
+    kind: 'utility',
     manaCost: 35,
     castMs: 0,
     cooldownMs: 60000,
@@ -352,6 +380,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'A swift arrow that pierces lightly armored foes',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'projectile',
+    kind: 'physical',
     manaCost: 5,
     castMs: 400,
     cooldownMs: 800,
@@ -371,6 +400,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Loose three arrows that pierce through their targets',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'projectile',
+    kind: 'physical',
     manaCost: 28,
     castMs: 1200,
     cooldownMs: 12000,
@@ -390,6 +420,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Increase your attack speed for a short burst',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'aura',
+    kind: 'utility',
     manaCost: 20,
     castMs: 0,
     cooldownMs: 30000,
@@ -404,6 +435,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Boost your dodge chance briefly',
     icon: '/game/skills/skill_stealth.svg',
     cat: 'aura',
+    kind: 'utility',
     manaCost: 12,
     castMs: 0,
     cooldownMs: 15000,
@@ -418,6 +450,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'A deadly strike from behind for massive damage',
     icon: '/game/skills/skill_stealth.svg',
     cat: 'instant',
+    kind: 'physical',
     manaCost: 22,
     castMs: 250,
     cooldownMs: 8000,
@@ -435,6 +468,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Coat your blades, leaving lingering poison on hit',
     icon: '/game/skills/skill_stealth.svg',
     cat: 'instant',
+    kind: 'physical',
     manaCost: 18,
     castMs: 250,
     cooldownMs: 6000,
@@ -453,6 +487,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     description: 'Disappear from sight, breaking enemy aggro',
     icon: '/game/skills/skill_stealth.svg',
     cat: 'aura',
+    kind: 'utility',
     manaCost: 30,
     castMs: 0,
     cooldownMs: 60000,
