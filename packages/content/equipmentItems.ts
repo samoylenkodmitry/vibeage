@@ -151,4 +151,21 @@ export const EQUIPMENT_STARTER_ITEMS: Record<string, Item> = {
     equip: { bodyPart: 'ring', allowedSlots: ['RING_LEFT', 'RING_RIGHT'] },
     stats: { mDef: 2 },
   },
+  short_bow: {
+    id: 'short_bow',
+    name: 'Short Bow',
+    description: 'A simple wooden bow strung with hemp. Light enough for any ranger.',
+    icon: 'short_bow.svg',
+    stackable: false,
+    type: 'weapon',
+    attackPower: 6,
+    kind: 'weapon',
+    grade: 'none',
+    weight: 1200,
+    // Bow uses the 'bow' hand-usage so the equip transaction
+    // atomically frees the off-hand (a shield can't coexist with a
+    // drawn bow).
+    equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], handUsage: 'bow', weaponType: 'bow' },
+    stats: { pAtk: 6 },
+  },
 };
