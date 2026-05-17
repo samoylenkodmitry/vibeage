@@ -282,16 +282,15 @@ input {
   left: 50%;
   bottom: 18px;
   display: grid;
-  /* Wide enough for the F1..F12 row at desktop. Mobile override
-     below shrinks it. */
-  width: min(960px, calc(100vw - 36px));
+  /* 10 columns (number row 1..0). Mobile shrinks below. */
+  width: min(840px, calc(100vw - 36px));
   gap: 4px;
   transform: translateX(-50%);
 }
 
 .skill-bar-row {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -1422,9 +1421,9 @@ input {
   }
 
   .skill-bar-row {
-    /* 12-column F1..F12 row is too cramped at 390px width — wrap to
-       a 6×2 grid on mobile so each button is finger-sized. */
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    /* 10-column number/QWERTY row wraps to 5×2 on mobile for finger
+       size. Each row of the skill bar becomes two visual rows. */
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
   }
 
