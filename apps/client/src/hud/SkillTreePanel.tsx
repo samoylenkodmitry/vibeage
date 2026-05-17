@@ -115,8 +115,8 @@ function SkillDetail({ skill }: { skill: SkillDef }) {
       <p className="skill-tree-detail-desc">{skill.description}</p>
       <dl className="skill-tree-detail-stats">
         {skill.dmg !== undefined && <Stat label="Damage" value={String(skill.dmg)} />}
-        {skill.range !== undefined && <Stat label="Range" value={`${skill.range}m`} />}
-        {skill.area !== undefined && <Stat label="Area" value={`${skill.area}m`} />}
+        {skill.range !== undefined && <Stat label="Range" value={String(skill.range)} />}
+        {skill.area !== undefined && <Stat label="Area" value={String(skill.area)} />}
         <Stat label="Mana" value={skill.manaCost > 0 ? String(skill.manaCost) : 'free'} />
         <Stat label="Cast" value={skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant'} />
         <Stat label="Cooldown" value={skill.cooldownMs > 0 ? `${(skill.cooldownMs / 1000).toFixed(1)}s` : '-'} />
