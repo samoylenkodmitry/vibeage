@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest';
+import { hydratePersistedPlayer } from '../server/players/playerSession';
+
+describe('hydratePersistedPlayer backfills the class starter skill', () => {
+  it('unlocks slash for a saved warrior with only fireball (legacy pre-slice-20 record)', () => {
+    const player = hydratePersistedPlayer(
+      {
+        id: 'legacy-warrior',
+        class_name: 'warrior',
+        race: 'human',
+        skills: ['fireball'],
+        skill_shortcuts: ['fireball', null, null, null, null, null, null, null, null],
+        available_skill_points: 0,
+        level: 5,
+        experience: 0,
+        health: 100,
+        is_alive: true,
+        position_x: 0,
+        position_y: 0.5,
+        position_z: 0,
+        inventory: [],
+        starter_progress: undefined,
+      },
+      'socket1',
+      'LegacyWarrior',
+    );
+
+    expect(player.className).toBe('warrior');
+    expect(player.unlockedSkills).toContain('slash');
+    expect(player.skillShortcuts).toContain('slash');
+  });
+
+  it('unlocks evade for a saved rogue with no rogue skill (legacy record)', () => {
+    const player = hydratePersistedPlayer(
+      {
+        id: 'legacy-rogue',
+        class_name: 'rogue',
+        race: 'human',
+        skills: ['fireball'],
+        skill_shortcuts: ['fireball', null, null, null, null, null, null, null, null],
+        available_skill_points: 0,
+        level: 5,
+        experience: 0,
+        health: 100,
+        is_alive: true,
+        position_x: 0,
+        position_y: 0.5,
+        position_z: 0,
+        inventory: [],
+        starter_progress: undefined,
+      },
+      'socket2',
+      'LegacyRogue',
+    );
+
+    expect(player.unlockedSkills).toContain('evade');
+  });
+
+  it('does not duplicate the starter if already unlocked', () => {
+    const player = hydratePersistedPlayer(
+      {
+        id: 'warrior-with-slash',
+        class_name: 'warrior',
+        race: 'human',
+        skills: ['slash', 'bash'],
+        skill_shortcuts: ['slash', 'bash', null, null, null, null, null, null, null],
+        available_skill_points: 0,
+        level: 5,
+        experience: 0,
+        health: 100,
+        is_alive: true,
+        position_x: 0,
+        position_y: 0.5,
+        position_z: 0,
+        inventory: [],
+        starter_progress: undefined,
+      },
+      'socket3',
+      'WarriorWithSlash',
+    );
+
+    const slashCount = player.unlockedSkills.filter(s => s === 'slash').length;
+    expect(slashCount).toBe(1);
+  });
+});
