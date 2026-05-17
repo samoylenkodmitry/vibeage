@@ -11,19 +11,31 @@ describe('derivePlayerStats', () => {
     expect(level10.maxMana).toBeGreaterThan(level1.maxMana);
   });
 
-  test('warrior has more health and physical damage than mage at the same level', () => {
+  test('warrior has more health than mage at the same level (class HP multiplier)', () => {
     const warrior = derivePlayerStats(5, 'warrior');
     const mage = derivePlayerStats(5, 'mage');
 
+    // Class baseStats.healthMultiplier still differentiates HP/MP/dmg
+    // (interim until passive skills replace it). Raw STR/DEX/etc are
+    // now race-owned and identical for same-race characters.
     expect(warrior.maxHealth).toBeGreaterThan(mage.maxHealth);
-    expect(warrior.str).toBeGreaterThan(mage.str);
+    expect(warrior.str).toBe(mage.str);
   });
 
-  test('rogue has higher crit chance than knight at the same level', () => {
+  test('orc warrior has higher STR than dark_elf mage (race owns base attrs)', () => {
+    const orcWarrior = derivePlayerStats(5, 'warrior', {}, 'orc');
+    const darkElfMage = derivePlayerStats(5, 'mage', {}, 'dark_elf');
+
+    // Race differentiation drives STR/INT/etc; class only affects
+    // derived HP/MP/dmg multipliers.
+    expect(orcWarrior.str).toBeGreaterThan(darkElfMage.str);
+    expect(darkElfMage.int).toBeGreaterThan(orcWarrior.int);
+  });
+
+  test('knight has more health than rogue (class HP multiplier)', () => {
     const rogue = derivePlayerStats(5, 'rogue');
     const knight = derivePlayerStats(5, 'knight');
 
-    expect(rogue.critChance).toBeGreaterThan(knight.critChance);
     expect(knight.maxHealth).toBeGreaterThan(rogue.maxHealth);
   });
 
@@ -43,11 +55,14 @@ describe('derivePlayerStats', () => {
     expect(stats.runSpeed).toBeGreaterThan(0);
   });
 
-  test('mage has higher M.Atk than warrior at same level', () => {
+  test('class damageMultiplier still tilts pAtk/mAtk (interim — passive skills will replace)', () => {
+    // Mage has damageMultiplier 1.2, warrior 1.1; with same base attrs
+    // mage's multiplier wins. Once passive skills land (Section 8
+    // L520), warrior's "Power Strike" passive will reverse this for
+    // pAtk while mage's "Arcane Focus" boosts mAtk further.
     const mage = derivePlayerStats(10, 'mage');
     const warrior = derivePlayerStats(10, 'warrior');
-    expect(mage.mAtk).toBeGreaterThan(warrior.mAtk);
-    expect(warrior.pAtk).toBeGreaterThan(mage.pAtk);
+    expect(mage.dmgMult).toBeGreaterThan(warrior.dmgMult);
   });
 
   test('paladin sits between warrior and healer for HP and MP', () => {

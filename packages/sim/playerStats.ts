@@ -32,26 +32,12 @@ export type DerivedPlayerStats = {
   runSpeed: number;
 };
 
-type StatWeights = {
-  str: number;
-  dex: number;
-  con: number;
-  int: number;
-  wit: number;
-  men: number;
-};
-
-const STAT_WEIGHTS: Record<CharacterClass, StatWeights> = {
-  warrior: { str: 2.4, dex: 1.2, con: 2.0, int: 0.8, wit: 0.8, men: 0.8 },
-  ranger: { str: 1.4, dex: 2.4, con: 1.4, int: 1.0, wit: 1.6, men: 1.0 },
-  mage: { str: 0.8, dex: 1.0, con: 1.0, int: 2.6, wit: 2.2, men: 1.4 },
-  healer: { str: 1.4, dex: 1.0, con: 1.6, int: 2.0, wit: 1.4, men: 2.4 },
-  knight: { str: 2.2, dex: 1.0, con: 2.4, int: 1.0, wit: 0.8, men: 1.0 },
-  paladin: { str: 1.8, dex: 1.0, con: 2.0, int: 1.6, wit: 1.0, men: 2.0 },
-  rogue: { str: 1.4, dex: 2.6, con: 1.2, int: 0.8, wit: 1.6, men: 1.0 },
-};
-
-const DEFAULT_WEIGHTS: StatWeights = { str: 1.5, dex: 1.5, con: 1.5, int: 1.5, wit: 1.5, men: 1.5 };
+// Note: per-class STAT_WEIGHTS were removed in the race=base-attrs
+// refactor. Base STR/DEX/CON/INT/WIT/MEN come from RACE_PROFILES now;
+// class differentiation moves to passive skills (ROADMAP Section 8 L520).
+// Class-owned HP/MP/damage *multipliers* (healthMultiplier etc. on
+// CLASS_SKILL_TREES[c].baseStats) still apply below as an interim
+// "passive bonus" until the passive-skill system lands.
 
 const BASE_HEALTH = 100;
 const BASE_MANA = 100;
@@ -82,23 +68,22 @@ export function derivePlayerStats(
   equipment: ItemStatBlock = {},
   race: CharacterRace = DEFAULT_RACE,
 ): DerivedPlayerStats {
-  const classWeights = STAT_WEIGHTS[className] ?? DEFAULT_WEIGHTS;
-  const raceMul = (RACE_PROFILES[race] ?? RACE_PROFILES[DEFAULT_RACE]).statMultipliers;
-  const weights: StatWeights = {
-    str: classWeights.str * raceMul.str,
-    dex: classWeights.dex * raceMul.dex,
-    con: classWeights.con * raceMul.con,
-    int: classWeights.int * raceMul.int,
-    wit: classWeights.wit * raceMul.wit,
-    men: classWeights.men * raceMul.men,
-  };
+  // Base attributes are race-owned. Class no longer multiplies STR/DEX/
+  // CON/INT/WIT/MEN — class differentiation now happens via passive
+  // skills that modify the *derived* combat stats (pAtk/mAtk/etc.).
+  // See ROADMAP Section 8 L520 + the "race=attrs, class=skills,
+  // equipment=skills" architecture note.
+  const profile = RACE_PROFILES[race] ?? RACE_PROFILES[DEFAULT_RACE];
+  const baseAttrs = profile.baseAttrs;
+  const growth = profile.growthPerLevel;
   const safeLevel = Math.max(1, Math.floor(level));
-  const str = 8 + Math.floor(safeLevel * weights.str);
-  const dex = 8 + Math.floor(safeLevel * weights.dex);
-  const con = 8 + Math.floor(safeLevel * weights.con);
-  const int = 8 + Math.floor(safeLevel * weights.int);
-  const wit = 8 + Math.floor(safeLevel * weights.wit);
-  const men = 8 + Math.floor(safeLevel * weights.men);
+  const levelDelta = safeLevel - 1;
+  const str = Math.floor(baseAttrs.str + growth.str * levelDelta);
+  const dex = Math.floor(baseAttrs.dex + growth.dex * levelDelta);
+  const con = Math.floor(baseAttrs.con + growth.con * levelDelta);
+  const int = Math.floor(baseAttrs.int + growth.int * levelDelta);
+  const wit = Math.floor(baseAttrs.wit + growth.wit * levelDelta);
+  const men = Math.floor(baseAttrs.men + growth.men * levelDelta);
 
   const classTree = CLASS_SKILL_TREES[className];
   const baseStats = classTree?.baseStats;
