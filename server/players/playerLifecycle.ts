@@ -3,7 +3,8 @@ import type { PlayerState } from '../../packages/sim/entities.js';
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 import { projectPlayerStats } from '../inventory/equipHandlers.js';
 import type { GameState } from '../gameState.js';
-import { log, LOG_CATEGORIES } from '../logger.js';
+import { log, LOG_CATEGORIES, warn } from '../logger.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
@@ -27,6 +28,8 @@ type PlayerUpdatePayload = {
   castingSkill?: PlayerState['castingSkill'];
   castingProgressMs?: PlayerState['castingProgressMs'];
   targetId?: PlayerState['targetId'];
+  movement?: PlayerState['movement'];
+  velocity?: PlayerState['velocity'];
 };
 
 export function awardPlayerXP(
@@ -127,6 +130,19 @@ export function respawnPlayer(
   player.movement = undefined;
   player.dirtySnap = true;
 
+  // Global-state cleanup: the player object is the source of truth for
+  // local fields above, but the world state has parallel collections
+  // (in-flight casts indexed by castId, effects indexed by targetId)
+  // that also need to be cleared. Otherwise a cast started right before
+  // death keeps ticking through resolution and a leftover effect row
+  // could re-apply on the respawned player.
+  for (const castId of Object.keys(state.activeCasts)) {
+    if (state.activeCasts[castId]?.casterId === playerId) {
+      delete state.activeCasts[castId];
+    }
+  }
+  delete state.effectsByTarget[playerId];
+
   spatial.remove(player.id, oldPosition);
   spatial.insert(player.id, { x: player.position.x, z: player.position.z });
 
@@ -143,6 +159,8 @@ export function respawnPlayer(
     castingSkill: player.castingSkill,
     castingProgressMs: player.castingProgressMs,
     targetId: player.targetId,
+    movement: player.movement,
+    velocity: player.velocity,
   };
 }
 
@@ -161,6 +179,9 @@ export function onRespawnRequest(
     return;
   }
   if (player.socketId !== socketId) {
+    warn(LOG_CATEGORIES.PLAYER, `RespawnRequest rejected: socket ${socketId} does not own player ${msg.id}`);
+    runtimeMetrics.increment('clientMessages.invalidOwnership.RespawnRequest');
+    runtimeMetrics.increment('clientMessages.invalidOwnership.total');
     return;
   }
   const update = respawnPlayer(state, spatial, msg.id);
