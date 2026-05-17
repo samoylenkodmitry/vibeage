@@ -27,7 +27,7 @@ const BUDGETS = {
 
 type BudgetedStat = keyof typeof BUDGETS;
 
-describe('equipment stat balance budgets (Section 19 L863)', () => {
+describe('equipment stat balance budgets (Section 19 L864)', () => {
   for (const [itemId, item] of Object.entries(EQUIPMENT_STARTER_ITEMS)) {
     const stats = item.stats as ItemStatBlock | undefined;
     if (!stats) continue;
@@ -45,15 +45,8 @@ describe('equipment stat balance budgets (Section 19 L863)', () => {
     });
   }
 
-  it('every stat field on ItemStatBlock has a budget entry (no silent gaps)', () => {
-    // Pin the keys: if a designer adds a new ItemStatBlock field, this
-    // test fails until the matching budget is added above. Update both
-    // together so balance is always explicit.
-    const expectedKeys: Array<keyof ItemStatBlock> = [
-      'pAtk', 'mAtk', 'pDef', 'mDef', 'hp', 'mp', 'critRate', 'attackSpeed', 'moveSpeed',
-    ];
-    for (const key of expectedKeys) {
-      expect(BUDGETS, `BUDGETS missing entry for ItemStatBlock.${key}`).toHaveProperty(key);
-    }
-  });
+  // No meta-test here: the `satisfies Record<keyof ItemStatBlock, ...>`
+  // constraint on BUDGETS already enforces full coverage at compile time.
+  // A runtime exhaustiveness check would be both redundant and weaker
+  // (it would need to be kept in sync by hand).
 });
