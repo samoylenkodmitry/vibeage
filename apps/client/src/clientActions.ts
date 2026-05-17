@@ -363,6 +363,10 @@ function usePickupActions(
     if (!lootId) return;
     const stack = current.groundLoot[lootId];
     if (!stack) return;
+    // Pickup is a player-initiated action — it should stop any
+    // running auto-attack so the player isn't still swinging at a mob
+    // while trying to grab loot.
+    dispatch({ type: 'clearAutoAttack' });
     const dx = stack.position.x - player.position.x;
     const dz = stack.position.z - player.position.z;
     const dist = Math.hypot(dx, dz);
@@ -377,55 +381,51 @@ function usePickupActions(
     });
   }, [stateRef, dispatch, sendPickup, sendApproach]);
 
-  const tryFirePendingPickup = useCallback(() => {
+  const tryFirePendingPickup = useTryFirePendingPickup(stateRef, dispatch, sendPickup, sendApproach);
+
+  return { pickupNearest, tryFirePendingPickup };
+}
+
+function useTryFirePendingPickup(
+  stateRef: RefObject<GameClientState>,
+  dispatch: Dispatch<GameClientAction>,
+  sendPickup: (lootId: string) => void,
+  sendApproach: (target: VecXZ) => void,
+) {
+  return useCallback(() => {
     const current = stateRef.current;
     const pending = current?.pendingPickup;
     if (!current || !pending) return;
     const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
-    if (!player?.isAlive) {
-      dispatch({ type: 'clearPendingPickup' });
-      return;
-    }
-    if (Date.now() >= pending.expiresAtTs) {
+    if (!player?.isAlive || Date.now() >= pending.expiresAtTs) {
       dispatch({ type: 'clearPendingPickup' });
       return;
     }
     const stack = current.groundLoot[pending.lootId];
     if (!stack) {
-      // Loot vanished (picked by someone else, despawned, or stream
-      // dropout). Try the next-nearest before giving up so the player
-      // doesn't have to retap pickup.
+      // Loot vanished (picked by someone else / despawned / stream
+      // dropout). Retry the next-nearest stack — re-aim movement
+      // toward it AND swap pendingPickup.lootId so the next tick
+      // can land us in grab radius.
       const fallbackId = getNearestGroundLootId(current.groundLoot, getPlayerPosition(player));
-      if (!fallbackId) {
-        dispatch({ type: 'clearPendingPickup' });
-        return;
-      }
-      const fallbackStack = current.groundLoot[fallbackId];
+      const fallbackStack = fallbackId ? current.groundLoot[fallbackId] : null;
       if (!fallbackStack) {
         dispatch({ type: 'clearPendingPickup' });
         return;
       }
-      // Re-aim: send a move intent toward the new stack AND update
-      // pending state. Without the move intent we'd just sit where
-      // the original stack was waiting for the next tick to fire
-      // (and never get into grab radius of the new one).
       sendApproach({ x: fallbackStack.position.x, z: fallbackStack.position.z });
       dispatch({
         type: 'setPendingPickup',
-        pendingPickup: { lootId: fallbackId, expiresAtTs: pending.expiresAtTs },
+        pendingPickup: { lootId: fallbackStack.id, expiresAtTs: pending.expiresAtTs },
       });
       return;
     }
     const dx = stack.position.x - player.position.x;
     const dz = stack.position.z - player.position.z;
-    if (Math.hypot(dx, dz) > PICKUP_GRAB_RADIUS) {
-      return; // Still walking.
-    }
+    if (Math.hypot(dx, dz) > PICKUP_GRAB_RADIUS) return; // Still walking.
     dispatch({ type: 'clearPendingPickup' });
     sendPickup(pending.lootId);
   }, [stateRef, dispatch, sendPickup, sendApproach]);
-
-  return { pickupNearest, tryFirePendingPickup };
 }
 
 function useCommandActions(

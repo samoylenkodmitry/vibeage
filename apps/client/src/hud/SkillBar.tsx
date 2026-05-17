@@ -79,7 +79,7 @@ export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillB
         aria-expanded={secondaryOpen || hasSecondaryContent}
         onClick={() => setSecondaryOpen((prev) => !prev)}
       >
-        {(secondaryOpen || hasSecondaryContent) ? '▾ Ctrl+F1..F12' : '▴ Ctrl+F1..F12'}
+        {(secondaryOpen || hasSecondaryContent) ? '▾ Q..P row' : '▴ Q..P row'}
       </button>
       {tooltip.info && (
         <SkillTooltip

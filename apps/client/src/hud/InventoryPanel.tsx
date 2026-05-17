@@ -2,7 +2,7 @@ import { ITEMS, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
-import { useLongPress } from './useLongPress';
+import { useTooltipTrigger } from './useTooltipTrigger';
 
 type InventoryPanelProps = {
   inventory: InventorySlot[];
@@ -14,7 +14,7 @@ type InventoryPanelProps = {
 export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
-  const longPress = useLongPress<string>();
+  const tooltip = useTooltipTrigger<string>();
   return (
     <section ref={panelRef} className="inventory-panel" aria-label="Inventory">
       <div className="panel-title">
@@ -30,10 +30,11 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: 
         const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
         const action = canUse ? 'Use' : canEquip ? 'Equip' : '';
         const title = slot
-          ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · long-press for details`
+          ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · hover or long-press for details`
           : 'Empty slot';
 
         const onClick = canUse ? () => onUseItem(index) : canEquip ? () => onEquipItem(index) : undefined;
+        const triggerProps = slot ? tooltip.triggerProps(slot.itemId) : undefined;
 
         return (
           <button
@@ -44,32 +45,17 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: 
             title={title}
             aria-label={slot && action ? `${action} ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
             onClick={(event) => {
-              if (longPress.consumePendingClick()) {
+              // Touch long-press fires a synthesized click on
+              // finger-lift; swallow it so the bag doesn't
+              // immediately use/equip after the tooltip opens.
+              if (tooltip.consumePendingClick()) {
                 event.stopPropagation();
                 return;
               }
               onClick?.();
               event.stopPropagation();
             }}
-            onContextMenu={(event) => {
-              event.preventDefault();
-              if (slot) {
-                longPress.start(slot.itemId, event.clientX, event.clientY, { instant: true });
-              }
-            }}
-            onPointerDown={(event) => {
-              if (slot && event.pointerType === 'touch') {
-                longPress.start(slot.itemId, event.clientX, event.clientY);
-              }
-            }}
-            onPointerMove={(event) => {
-              if (event.pointerType === 'touch') {
-                longPress.move(event.clientX, event.clientY);
-              }
-            }}
-            onPointerUp={() => longPress.cancel()}
-            onPointerLeave={() => longPress.cancel()}
-            onPointerCancel={() => longPress.cancel()}
+            {...(triggerProps ?? {})}
           >
             <span>{slot ? getItemInitial(itemName) : ''}</span>
             {slot && slot.quantity > 1 && <strong>{slot.quantity}</strong>}
@@ -77,11 +63,11 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: 
         );
       })}
       </div>
-      {longPress.info && (
+      {tooltip.info && (
         <ItemTooltip
-          itemId={longPress.info.payload}
-          clientX={longPress.info.clientX}
-          clientY={longPress.info.clientY}
+          itemId={tooltip.info.payload}
+          clientX={tooltip.info.clientX}
+          clientY={tooltip.info.clientY}
         />
       )}
     </section>

@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
 
 type ItemTooltipProps = {
@@ -32,7 +33,7 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
     setPos({ left, top });
   }, [clientX, clientY, itemId]);
 
-  if (!item) {
+  if (!item || typeof document === 'undefined' || !document.body) {
     return null;
   }
   const stats = item.stats ?? {};
@@ -48,7 +49,7 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
     ['Crit', stats.critRate ?? 0],
   ];
   const visibleStats = statRows.filter(([, value]) => value !== 0);
-  return (
+  return createPortal(
     <div
       ref={ref}
       className="item-tooltip"
@@ -79,7 +80,8 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
           {weight > 0 ? <span>{(weight / 1000).toFixed(1)} kg</span> : null}
         </footer>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

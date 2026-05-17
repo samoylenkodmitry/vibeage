@@ -11,7 +11,7 @@ import { equipItem, unequipSlot } from '../../packages/sim/equipTransactions.js'
 import { deriveEquipmentStats } from '../../packages/sim/equipmentStats.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
-import type { DirectMessageSink } from '../transport/outboundEvents.js';
+import { emitPlayerUpdated, type DirectMessageSink, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { ensureCharacterInventory, syncLegacyInventory } from './aggregateBridge.js';
 
 const VALID_SLOTS: ReadonlySet<EquipSlot> = new Set<EquipSlot>([
@@ -28,7 +28,12 @@ function asEquipSlot(value: string | undefined): EquipSlot | undefined {
   return VALID_SLOTS.has(value as EquipSlot) ? (value as EquipSlot) : undefined;
 }
 
-export function handleEquipItem(player: PlayerState, msg: EquipItem, direct: DirectMessageSink): void {
+export function handleEquipItem(
+  player: PlayerState,
+  msg: EquipItem,
+  direct: DirectMessageSink,
+  outbound?: OutboundEventSink,
+): void {
   const inv = ensureCharacterInventory(player);
   const bagItems = listInventoryItems(inv);
   const item = bagItems[msg.slotIndex];
@@ -50,10 +55,15 @@ export function handleEquipItem(player: PlayerState, msg: EquipItem, direct: Dir
     return;
   }
   syncLegacyInventory(player);
-  sendEquipment(direct, player);
+  sendEquipment(direct, player, outbound);
 }
 
-export function handleUnequipItem(player: PlayerState, msg: UnequipItem, direct: DirectMessageSink): void {
+export function handleUnequipItem(
+  player: PlayerState,
+  msg: UnequipItem,
+  direct: DirectMessageSink,
+  outbound?: OutboundEventSink,
+): void {
   const slot = asEquipSlot(msg.slot);
   if (!slot) {
     sendFail(direct, 'invalidSlot');
@@ -66,10 +76,14 @@ export function handleUnequipItem(player: PlayerState, msg: UnequipItem, direct:
     return;
   }
   syncLegacyInventory(player);
-  sendEquipment(direct, player);
+  sendEquipment(direct, player, outbound);
 }
 
-export function sendEquipment(direct: DirectMessageSink, player: PlayerState): void {
+export function sendEquipment(
+  direct: DirectMessageSink,
+  player: PlayerState,
+  outbound?: OutboundEventSink,
+): void {
   refreshPlayerStatsFromEquipment(player);
   const inv = ensureCharacterInventory(player);
   const entries: EquipmentEntry[] = [];
@@ -81,6 +95,21 @@ export function sendEquipment(direct: DirectMessageSink, player: PlayerState): v
   }
   const message: EquipmentUpdateMsg = { type: 'EquipmentUpdate', equipment: entries };
   direct.send(message);
+  // Broadcast the recomputed derived stats so the HUD's Stats panel
+  // reflects the equip / unequip immediately. Without this, the
+  // numbers stayed at their pre-equip values until the next
+  // tick-pipeline snapshot, which surfaced as 'I equipped a shield
+  // promising +5 pDef but pDef didn't change in stats'.
+  if (outbound) {
+    emitPlayerUpdated(outbound, {
+      id: player.id,
+      stats: player.stats,
+      maxHealth: player.maxHealth,
+      maxMana: player.maxMana,
+      health: player.health,
+      mana: player.mana,
+    });
+  }
 }
 
 /**

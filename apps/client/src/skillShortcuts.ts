@@ -1,20 +1,25 @@
 import { UNIVERSAL_SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { PlayerEntity } from './gameTypes';
 
-export const SKILL_BAR_ROW_COUNT = 12;
-export const SKILL_BAR_SECONDARY_ROW_COUNT = 12;
+export const SKILL_BAR_ROW_COUNT = 10;
+export const SKILL_BAR_SECONDARY_ROW_COUNT = 10;
 export const SKILL_BAR_SLOT_COUNT = SKILL_BAR_ROW_COUNT + SKILL_BAR_SECONDARY_ROW_COUNT;
 
-// Primary row: F1..F12. Browser shortcuts (F1 help, F5 reload, F11
-// fullscreen, F12 devtools) get preventDefault in the keydown handler
-// but some browsers may still intercept F11/F12 — a trade-off the
-// player asked for explicitly when picking this layout.
+// Primary row: the keyboard's number row (1..0). Browser-safe — no
+// reserved shortcuts collide. Replaces the F1..F12 layout that
+// previously conflicted with browser help/reload/fullscreen/devtools.
 export const SKILL_BAR_HOTKEYS: readonly string[] = [
-  'F1', 'F2', 'F3', 'F4', 'F5', 'F6',
-  'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
 ];
-// Secondary row: Ctrl+F1..F12, slots 12..23.
-export const SKILL_BAR_SECONDARY_HOTKEYS: readonly string[] = SKILL_BAR_HOTKEYS.map((k) => `Ctrl+${k}`);
+// Secondary row: top QWERTY row (Q..P). Natural pinky-to-pinky reach
+// for keyboard players; no modifier needed.
+export const SKILL_BAR_SECONDARY_HOTKEYS: readonly string[] = [
+  'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
+];
+
+const SECONDARY_KEY_CODES: readonly string[] = [
+  'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP',
+];
 
 export const BASIC_ATTACK_HOTKEY = 'A';
 export const BASIC_ATTACK_SKILL_ID: SkillId = 'basicAttack';
@@ -37,17 +42,23 @@ function isUniversalSkill(skillId: string): boolean {
 }
 
 /**
- * Map an event.code (and ctrl modifier) to a 0-based slot index.
- * F1..F12 → slots 0..11; Ctrl+F1..F12 → slots 12..23. Legacy
- * KeyQ / Digit1 binding stays for muscle memory (mapped to slot 0).
- * Returns null for any other key.
+ * Map an event.code to a 0-based slot index.
+ *   Digit1..Digit9, Digit0 → 0..9 (primary number row)
+ *   KeyQ..KeyP            → 10..19 (top QWERTY row)
+ * Returns null for any other key. No modifier required — the two
+ * rows are physically distinct keys on the keyboard.
  */
-export function getSkillSlotIndexForKeyboardCode(code: string, ctrlKey = false): number | null {
-  if (!ctrlKey && (code === 'KeyQ' || code === 'Digit1')) return 0;
-  const fMatch = /^F([1-9]|1[0-2])$/.exec(code);
-  if (!fMatch) return null;
-  const base = Number(fMatch[1]) - 1;
-  return ctrlKey ? SKILL_BAR_ROW_COUNT + base : base;
+export function getSkillSlotIndexForKeyboardCode(code: string): number | null {
+  const digitMatch = /^Digit([0-9])$/.exec(code);
+  if (digitMatch) {
+    const digit = Number(digitMatch[1]);
+    return digit === 0 ? 9 : digit - 1;
+  }
+  const secondaryIndex = SECONDARY_KEY_CODES.indexOf(code);
+  if (secondaryIndex !== -1) {
+    return SKILL_BAR_ROW_COUNT + secondaryIndex;
+  }
+  return null;
 }
 
 export function isBasicAttackKeyboardCode(code: string): boolean {
@@ -55,7 +66,6 @@ export function isBasicAttackKeyboardCode(code: string): boolean {
 }
 
 export function getSkillSlotAriaHotkeys(slotIndex: number): string {
-  if (slotIndex === 0) return 'F1 Q 1';
   if (slotIndex < SKILL_BAR_ROW_COUNT) return SKILL_BAR_HOTKEYS[slotIndex] ?? '';
   return SKILL_BAR_SECONDARY_HOTKEYS[slotIndex - SKILL_BAR_ROW_COUNT] ?? '';
 }
