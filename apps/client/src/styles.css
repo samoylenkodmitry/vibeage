@@ -1724,6 +1724,12 @@ input {
 }
 
 @media (max-width: 680px) {
+  .skill-tooltip {
+    max-width: calc(100vw - 32px);
+  }
+}
+
+@media (max-width: 680px) {
   .hud-target {
     top: auto;
     bottom: calc(280px + env(safe-area-inset-bottom, 0px));
