@@ -25,7 +25,8 @@ const VIEW_PADDING = 0.08;
 const WORLD_BOUNDS = computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS);
 const TICK_SPACING = chooseTickSpacing(WORLD_BOUNDS);
 const MIN_ZOOM = 1;
-const MAX_ZOOM = 60;
+const MAX_ZOOM = 200;
+const INITIAL_ZOOM = 12;
 const DRAG_PIXEL_THRESHOLD = 5;
 
 type ViewState = {
@@ -43,10 +44,12 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
   const arrowDir = { x: Math.sin(yaw), z: Math.cos(yaw) };
   const panelRef = useDraggablePanel<HTMLElement>('map');
   const svgRef = useRef<SVGSVGElement | null>(null);
+  // Open zoomed in on the player's current position. Whole-world view
+  // (zoom=1) was too far out to be useful for navigation.
   const [view, setView] = useState<ViewState>(() => ({
-    zoom: 1,
-    centerX: WORLD_BOUNDS.minX + WORLD_BOUNDS.width / 2,
-    centerZ: WORLD_BOUNDS.minZ + WORLD_BOUNDS.height / 2,
+    zoom: INITIAL_ZOOM,
+    centerX: px,
+    centerZ: pz,
   }));
 
   const viewWidth = WORLD_BOUNDS.width / view.zoom;
@@ -383,7 +386,11 @@ function PlayerMarker({
   dirZ: number;
   viewWidth: number;
 }) {
-  const size = Math.max(viewWidth * 0.012, 4_000);
+  // Constant on-screen size regardless of zoom: triangle is always
+  // ~3.2% of the visible viewport width (~25 px in a 800px-wide
+  // SVG). Player asked specifically: "the triangle should not be
+  // scalable, it should be always same size about 20-30dp".
+  const size = viewWidth * 0.032;
   const tipX = x + dirX * size;
   const tipZ = z + dirZ * size;
   const baseLx = x - dirZ * size * 0.55 - dirX * size * 0.32;
@@ -398,7 +405,7 @@ function PlayerMarker({
         points={`${tipX},${tipZ} ${baseLx},${baseLz} ${baseRx},${baseRz}`}
         fill="#75f5c8"
         stroke="#04100d"
-        strokeWidth={Math.max(viewWidth * 0.0006, 600)}
+        strokeWidth={viewWidth * 0.0025}
       />
     </g>
   );
