@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { GameClientState, PlayerEntity } from './gameTypes';
+import { ActionsPanel } from './hud/ActionsPanel';
 import { ChatPanel } from './hud/ChatPanel';
 import { CharacterPanel } from './hud/CharacterPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
@@ -45,6 +46,7 @@ type GameHudProps = {
   onRespawn: () => void;
   onSelectTarget?: (targetId: string | null) => void;
   onCycleTarget?: () => void;
+  onPickupNearest?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
@@ -124,6 +126,7 @@ export function GameHud({
   onRespawn,
   onSelectTarget,
   onCycleTarget,
+  onPickupNearest,
   onSendChat,
 }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
@@ -140,24 +143,21 @@ export function GameHud({
   const now = useNow(100);
   const panels = usePanelState();
 
-  useSkillHotkeys(player, onCastSkill, onCycleTarget);
+  useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest);
 
   return (
     <>
-      <section className="hud hud-top" aria-label="Connection">
-        <strong>VibeAge</strong>
-        <span className={`status-dot status-${state.connectionState}`} />
-        <span>{state.message}</span>
-        <button type="button" className="ghost-button" onClick={onDisconnect}>
-          Disconnect
-        </button>
-      </section>
-      <section className="hud hud-stats" aria-label="World status">
-        <Metric label="Players" value={String(playerCount)} />
-        <Metric label="Enemies" value={String(enemyCount)} />
-        <Metric label="Regions" value={regionStatus} />
-        <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
-      </section>
+      <HudConnectionStrip
+        connectionState={state.connectionState}
+        message={state.message}
+        onDisconnect={onDisconnect}
+      />
+      <HudWorldStatsStrip
+        playerCount={playerCount}
+        enemyCount={enemyCount}
+        regionStatus={regionStatus}
+        lootCount={Object.keys(state.groundLoot).length}
+      />
       <VitalsStrip
         player={player}
         selected={selfSelected}
@@ -175,15 +175,20 @@ export function GameHud({
         panels={panels}
         state={state}
         player={player}
+        now={now}
+        hasSelectedTarget={targetIsAlive}
+        hasLootNearby={Object.keys(state.groundLoot).length > 0}
         cameraAngleRef={cameraAngleRef}
         navigationMarker={navigationMarker}
         onSetNavigationMarker={onSetNavigationMarker}
+        onCastSkill={onCastSkill}
         onLearnSkill={onLearnSkill}
         onUseItem={onUseItem}
         onEquipItem={onEquipItem}
         onUnequipItem={onUnequipItem}
         onSelectClass={onSelectClass}
         onSelectRace={onSelectRace}
+        onPickupNearest={onPickupNearest}
         onSendChat={onSendChat}
       />
       <CastingPanel player={player} />
@@ -206,19 +211,66 @@ export function GameHud({
   );
 }
 
+function HudConnectionStrip({
+  connectionState,
+  message,
+  onDisconnect,
+}: {
+  connectionState: GameClientState['connectionState'];
+  message: string;
+  onDisconnect: () => void;
+}) {
+  return (
+    <section className="hud hud-top" aria-label="Connection">
+      <strong>VibeAge</strong>
+      <span className={`status-dot status-${connectionState}`} />
+      <span>{message}</span>
+      <button type="button" className="ghost-button" onClick={onDisconnect}>
+        Disconnect
+      </button>
+    </section>
+  );
+}
+
+function HudWorldStatsStrip({
+  playerCount,
+  enemyCount,
+  regionStatus,
+  lootCount,
+}: {
+  playerCount: number;
+  enemyCount: number;
+  regionStatus: string;
+  lootCount: number;
+}) {
+  return (
+    <section className="hud hud-stats" aria-label="World status">
+      <Metric label="Players" value={String(playerCount)} />
+      <Metric label="Enemies" value={String(enemyCount)} />
+      <Metric label="Regions" value={regionStatus} />
+      <Metric label="Loot" value={String(lootCount)} />
+    </section>
+  );
+}
+
 type HudPanelsProps = {
   panels: PanelState;
   state: GameClientState;
   player: PlayerEntity | null;
+  now: number;
+  hasSelectedTarget: boolean;
+  hasLootNearby: boolean;
   cameraAngleRef?: MutableRefObject<number>;
   navigationMarker?: { x: number; z: number } | null;
   onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
+  onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
   onSelectClass: (className: string) => void;
   onSelectRace: (race: string) => void;
+  onPickupNearest?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
@@ -226,15 +278,20 @@ function HudPanels({
   panels,
   state,
   player,
+  now,
+  hasSelectedTarget,
+  hasLootNearby,
   cameraAngleRef,
   navigationMarker,
   onSetNavigationMarker,
+  onCastSkill,
   onLearnSkill,
   onUseItem,
   onEquipItem,
   onUnequipItem,
   onSelectClass,
   onSelectRace,
+  onPickupNearest,
   onSendChat,
 }: HudPanelsProps) {
   return (
@@ -268,6 +325,16 @@ function HudPanels({
       {panels.treeOpen && (
         <SkillTreePanel player={player} onLearnSkill={onLearnSkill} rejections={state.learnSkillRejections} />
       )}
+      {panels.actionsOpen && (
+        <ActionsPanel
+          player={player}
+          now={now}
+          hasSelectedTarget={hasSelectedTarget}
+          hasLootNearby={hasLootNearby}
+          onCastSkill={onCastSkill}
+          onPickupNearest={onPickupNearest ?? (() => undefined)}
+        />
+      )}
       {panels.chatOpen && onSendChat && (
         <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
       )}
@@ -280,7 +347,8 @@ function PanelToggleStrip({ panels }: { panels: PanelState }) {
     <aside className="panel-toggles" aria-label="Panel toggles">
       <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
       <PanelToggleButton open={panels.characterOpen} label="Char" onClick={panels.toggleCharacter} />
-      <PanelToggleButton open={panels.treeOpen} label="Tree" onClick={panels.toggleTree} />
+      <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} />
+      <PanelToggleButton open={panels.actionsOpen} label="Actions" onClick={panels.toggleActions} />
       <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
       <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
       <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
@@ -300,6 +368,9 @@ function usePanelState() {
   const [gearOpen, setGearOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
+  // Actions defaults open: it's the home of the new Attack + Pickup
+  // buttons so players see them immediately on join.
+  const [actionsOpen, setActionsOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   return {
     statsOpen,
@@ -309,6 +380,7 @@ function usePanelState() {
     gearOpen,
     mapOpen,
     treeOpen,
+    actionsOpen,
     chatOpen,
     toggleStats: () => setStatsOpen((prev) => !prev),
     toggleCharacter: () => setCharacterOpen((prev) => !prev),
@@ -317,6 +389,7 @@ function usePanelState() {
     toggleGear: () => setGearOpen((prev) => !prev),
     toggleMap: () => setMapOpen((prev) => !prev),
     toggleTree: () => setTreeOpen((prev) => !prev),
+    toggleActions: () => setActionsOpen((prev) => !prev),
     toggleChat: () => setChatOpen((prev) => !prev),
   };
 }
@@ -524,11 +597,14 @@ function useSkillHotkeys(
   player: PlayerEntity | null,
   onCastSkill: (skillId: SkillId) => void,
   onCycleTarget?: () => void,
+  onPickupNearest?: () => void,
 ) {
   const playerRef = useRef(player);
   playerRef.current = player;
   const cycleRef = useRef(onCycleTarget);
   cycleRef.current = onCycleTarget;
+  const pickupRef = useRef(onPickupNearest);
+  pickupRef.current = onPickupNearest;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -544,6 +620,14 @@ function useSkillHotkeys(
         if (cycleRef.current) {
           event.preventDefault();
           cycleRef.current();
+        }
+        return;
+      }
+
+      if (event.code === 'KeyF') {
+        if (pickupRef.current) {
+          event.preventDefault();
+          pickupRef.current();
         }
         return;
       }

@@ -4,10 +4,17 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
 import type { GameClientAction } from './gameReducer';
-import { getNearestAliveEnemyId, getNextTabTargetId, getPlayerPosition } from './clientSelectors';
+import {
+  getNearestAliveEnemyId,
+  getNearestGroundLootId,
+  getNextTabTargetId,
+  getPlayerPosition,
+} from './clientSelectors';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 
 const PENDING_CAST_TTL_MS = 10_000;
+const PENDING_PICKUP_TTL_MS = 12_000;
+const PICKUP_GRAB_RADIUS = 2;
 // How close we ask to approach. Stop slightly inside the skill's range
 // so jitter / server-side stricter distance check doesn't bounce us
 // back into "out of range" the moment we arrive.
@@ -20,6 +27,7 @@ export type ClientActions = {
   castSkill: (skillId: SkillId) => void;
   learnSkill: (skillId: SkillId) => void;
   pickUpLoot: (lootId: string) => void;
+  pickupNearest: () => void;
   useItem: (slotIndex: number) => void;
   equipItem: (slotIndex: number, requestedSlot?: string) => void;
   unequipItem: (slot: string) => void;
@@ -29,6 +37,7 @@ export type ClientActions = {
   devTeleport: (target: VecXZ) => void;
   sendChat: (text: string, scope: 'near' | 'all') => void;
   tryFirePendingCast: () => void;
+  tryFirePendingPickup: () => void;
 };
 
 export function useClientActions(
@@ -50,10 +59,11 @@ export function useClientActions(
       clientTs: Date.now(),
     });
     dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
-    // A manual move click overrides any in-flight approach-and-cast —
+    // A manual move click overrides any in-flight approach intent —
     // the player has redirected, don't surprise them by firing the
-    // queued skill after they walk to a different spot.
+    // queued cast or pickup after they walk to a different spot.
     dispatch({ type: 'clearPendingCast' });
+    dispatch({ type: 'clearPendingPickup' });
   }, [roomRef, stateRef, dispatch]);
 
   const selectTarget = useCallback((targetId: string | null) => {
@@ -84,6 +94,8 @@ export function useClientActions(
       room.send(SESSION_EVENTS.message, { type: 'LootPickup', lootId, playerId });
     }
   }, [roomRef, stateRef]);
+
+  const { pickupNearest, tryFirePendingPickup } = usePickupActions(roomRef, stateRef, dispatch);
 
   const learnSkill = useCallback((skillId: SkillId) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'LearnSkill', skillId });
@@ -120,8 +132,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup],
   );
 }
 
@@ -219,6 +231,106 @@ function useCastActions(
   }, [stateRef, dispatch, fireCastReq]);
 
   return { castSkill, tryFirePendingCast };
+}
+
+function usePickupActions(
+  roomRef: RefObject<Room | null>,
+  stateRef: RefObject<GameClientState>,
+  dispatch: Dispatch<GameClientAction>,
+) {
+  const sendPickup = useCallback((lootId: string) => {
+    const room = roomRef.current;
+    const playerId = stateRef.current?.myPlayerId;
+    if (room && playerId) {
+      room.send(SESSION_EVENTS.message, { type: 'LootPickup', lootId, playerId });
+    }
+  }, [roomRef, stateRef]);
+
+  const sendApproach = useCallback((target: VecXZ) => {
+    const room = roomRef.current;
+    const playerId = stateRef.current?.myPlayerId;
+    if (!room || !playerId) return;
+    room.send(SESSION_EVENTS.message, {
+      type: 'MoveIntent',
+      id: playerId,
+      targetPos: target,
+      clientTs: Date.now(),
+    });
+    dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
+  }, [roomRef, stateRef, dispatch]);
+
+  const pickupNearest = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) return;
+    const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
+    if (!player?.isAlive) return;
+    const lootId = getNearestGroundLootId(current.groundLoot, getPlayerPosition(player));
+    if (!lootId) return;
+    const stack = current.groundLoot[lootId];
+    if (!stack) return;
+    const dx = stack.position.x - player.position.x;
+    const dz = stack.position.z - player.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist <= PICKUP_GRAB_RADIUS) {
+      sendPickup(lootId);
+      return;
+    }
+    sendApproach({ x: stack.position.x, z: stack.position.z });
+    dispatch({
+      type: 'setPendingPickup',
+      pendingPickup: { lootId, expiresAtTs: Date.now() + PENDING_PICKUP_TTL_MS },
+    });
+  }, [stateRef, dispatch, sendPickup, sendApproach]);
+
+  const tryFirePendingPickup = useCallback(() => {
+    const current = stateRef.current;
+    const pending = current?.pendingPickup;
+    if (!current || !pending) return;
+    const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
+    if (!player?.isAlive) {
+      dispatch({ type: 'clearPendingPickup' });
+      return;
+    }
+    if (Date.now() >= pending.expiresAtTs) {
+      dispatch({ type: 'clearPendingPickup' });
+      return;
+    }
+    const stack = current.groundLoot[pending.lootId];
+    if (!stack) {
+      // Loot vanished (picked by someone else, despawned, or stream
+      // dropout). Try the next-nearest before giving up so the player
+      // doesn't have to retap pickup.
+      const fallbackId = getNearestGroundLootId(current.groundLoot, getPlayerPosition(player));
+      if (!fallbackId) {
+        dispatch({ type: 'clearPendingPickup' });
+        return;
+      }
+      const fallbackStack = current.groundLoot[fallbackId];
+      if (!fallbackStack) {
+        dispatch({ type: 'clearPendingPickup' });
+        return;
+      }
+      // Re-aim: send a move intent toward the new stack AND update
+      // pending state. Without the move intent we'd just sit where
+      // the original stack was waiting for the next tick to fire
+      // (and never get into grab radius of the new one).
+      sendApproach({ x: fallbackStack.position.x, z: fallbackStack.position.z });
+      dispatch({
+        type: 'setPendingPickup',
+        pendingPickup: { lootId: fallbackId, expiresAtTs: pending.expiresAtTs },
+      });
+      return;
+    }
+    const dx = stack.position.x - player.position.x;
+    const dz = stack.position.z - player.position.z;
+    if (Math.hypot(dx, dz) > PICKUP_GRAB_RADIUS) {
+      return; // Still walking.
+    }
+    dispatch({ type: 'clearPendingPickup' });
+    sendPickup(pending.lootId);
+  }, [stateRef, dispatch, sendPickup, sendApproach]);
+
+  return { pickupNearest, tryFirePendingPickup };
 }
 
 function useCommandActions(

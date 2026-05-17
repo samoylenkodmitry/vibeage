@@ -71,6 +71,7 @@ export default function App() {
         onRespawn={client.respawn}
         onSelectTarget={client.selectTarget}
         onCycleTarget={client.cycleTarget}
+        onPickupNearest={client.pickupNearest}
         onSendChat={client.sendChat}
       />
       {state.connectionState !== 'online' && (

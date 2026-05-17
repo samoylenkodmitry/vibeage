@@ -41,12 +41,14 @@ export function useGameClient(): ClientApi {
     };
   }, [roomRef]);
 
-  // Approach-and-cast tick: while a pending cast is queued, poll every
-  // ~120ms to check if the player has walked into range. Faster than
-  // the 1s prune so the cast fires snappily when the player arrives.
+  // Approach-and-cast / approach-and-pickup tick: while a pending
+  // intent is queued, poll every ~120ms to check if the player has
+  // walked into range/reach. Faster than the 1s prune so actions
+  // fire snappily on arrival.
   useEffect(() => {
     const timer = window.setInterval(() => {
       actions.tryFirePendingCast();
+      actions.tryFirePendingPickup();
     }, 120);
     return () => window.clearInterval(timer);
   }, [actions]);

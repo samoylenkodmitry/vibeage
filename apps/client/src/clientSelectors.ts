@@ -1,5 +1,5 @@
 import { distanceSqXZ } from '../../../packages/sim/geometry';
-import type { EnemyEntity, PlayerEntity, Vec3 } from './gameTypes';
+import type { EnemyEntity, GroundLootStack, PlayerEntity, Vec3 } from './gameTypes';
 
 export function getPlayerPosition(player: PlayerEntity | null): Vec3 {
   return player?.position ?? { x: 0, y: 0.5, z: 0 };
@@ -59,4 +59,20 @@ export function getNextTabTargetId(
   // farthest mob comes back to the nearest one.
   const nextIndex = (currentIndex + 1) % ranked.length;
   return ranked[nextIndex].id;
+}
+
+export function getNearestGroundLootId(
+  loot: Record<string, GroundLootStack>,
+  origin: Vec3,
+): string | null {
+  let bestId: string | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const stack of Object.values(loot)) {
+    const distance = distanceSqXZ(origin, stack.position);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestId = stack.id;
+    }
+  }
+  return bestId;
 }
