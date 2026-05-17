@@ -24,10 +24,13 @@ for (const viewport of HUD_VIEWPORTS) {
     await enterWorld(page, `Hud${viewport.name}${Date.now()}`);
     await issueMoveIntent(page, viewport.infoPanelsVisible);
 
+    // Target plate is only rendered when something is selected. On
+    // a fresh world join nothing is selected, so it's not in the
+    // always-visible core panel list — there's a dedicated assertion
+    // for it below after we click the hero plate.
     const corePanels = [
       panel("Connection", page.locator(".hud-top")),
       panel("Player status", page.locator(".player-panel")),
-      panel("Target", page.locator(".hud-target")),
       panel("Skills", page.locator(".skill-bar")),
       panel("Panel toggles", page.locator(".panel-toggles")),
     ];
@@ -46,10 +49,18 @@ for (const viewport of HUD_VIEWPORTS) {
 
     await expect(page.locator(".inventory-panel")).toBeHidden();
     await expect(page.locator(".starter-progress")).toBeHidden();
+    // No target selected on join → target plate is hidden.
+    await expect(page.locator(".hud-target")).toBeHidden();
 
     for (const corePanel of corePanels) {
       await expect(corePanel.locator, corePanel.name).toBeVisible();
     }
+
+    // Selecting self (clicking the hero plate) renders the target
+    // plate. Verify it shows up + still fits inside the viewport.
+    await page.locator(".vitals-strip").click();
+    await expect(page.locator(".hud-target")).toBeVisible();
+    await expectInsideViewport(page, [panel("Target", page.locator(".hud-target"))]);
 
     await expectInsideViewport(page, corePanels);
     await expectSkillButtonsFit(page);
