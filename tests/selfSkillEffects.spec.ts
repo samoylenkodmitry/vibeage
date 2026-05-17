@@ -95,6 +95,9 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     expect(caster.statusEffects.length, 'shieldWall should add at least one status effect').toBeGreaterThan(0);
   });
 
+});
+
+describe('bless effect is consumed by damage calculation (regression for the new wiring)', () => {
   it('bless effect actually multiplies outgoing damage (not just inserted)', () => {
     // Create two identical casts at the same skill against the same
     // target health pool — one caster has bless, the other doesn't.
