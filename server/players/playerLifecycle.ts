@@ -3,7 +3,8 @@ import type { PlayerState } from '../../packages/sim/entities.js';
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 import { projectPlayerStats } from '../inventory/equipHandlers.js';
 import type { GameState } from '../gameState.js';
-import { log, LOG_CATEGORIES } from '../logger.js';
+import { log, LOG_CATEGORIES, warn } from '../logger.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
@@ -23,6 +24,12 @@ type PlayerUpdatePayload = {
   position?: PlayerState['position'];
   isAlive?: boolean;
   deathTimeTs?: number;
+  statusEffects?: PlayerState['statusEffects'];
+  castingSkill?: PlayerState['castingSkill'];
+  castingProgressMs?: PlayerState['castingProgressMs'];
+  targetId?: PlayerState['targetId'];
+  movement?: PlayerState['movement'];
+  velocity?: PlayerState['velocity'];
 };
 
 export function awardPlayerXP(
@@ -108,6 +115,33 @@ export function respawnPlayer(
   player.position = { ...RESPAWN_POSITION };
   player.deathTimeTs = undefined;
   player.velocity = { x: 0, z: 0 };
+  // Clear pre-death state that would otherwise carry through:
+  //  - statusEffects: a Burn that killed you would tick again at half
+  //    HP on the very next DoT cycle and re-kill instantly.
+  //  - casting state: if death interrupted a cast, the client would
+  //    show a stuck cast bar.
+  //  - movement target / dirty flag: the player would start walking
+  //    toward their pre-death target the moment they respawn.
+  //  - targetId: stale enemy reference from before death.
+  player.statusEffects = [];
+  player.castingSkill = null;
+  player.castingProgressMs = 0;
+  player.targetId = null;
+  player.movement = undefined;
+  player.dirtySnap = true;
+
+  // Global-state cleanup: the player object is the source of truth for
+  // local fields above, but the world state has parallel collections
+  // (in-flight casts indexed by castId, effects indexed by targetId)
+  // that also need to be cleared. Otherwise a cast started right before
+  // death keeps ticking through resolution and a leftover effect row
+  // could re-apply on the respawned player.
+  for (const castId of Object.keys(state.activeCasts)) {
+    if (state.activeCasts[castId]?.casterId === playerId) {
+      delete state.activeCasts[castId];
+    }
+  }
+  delete state.effectsByTarget[playerId];
 
   spatial.remove(player.id, oldPosition);
   spatial.insert(player.id, { x: player.position.x, z: player.position.z });
@@ -121,6 +155,12 @@ export function respawnPlayer(
     position: player.position,
     isAlive: true,
     deathTimeTs: undefined,
+    statusEffects: player.statusEffects,
+    castingSkill: player.castingSkill,
+    castingProgressMs: player.castingProgressMs,
+    targetId: player.targetId,
+    movement: player.movement,
+    velocity: player.velocity,
   };
 }
 
@@ -129,7 +169,21 @@ export function onRespawnRequest(
   msg: RespawnRequest,
   outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
+  socketId: string,
 ): void {
+  // Ownership check: a socket can only respawn the player it owns.
+  // Without this any connected client could send {id: someoneElseId}
+  // and force-respawn another player.
+  const player = state.players[msg.id];
+  if (!player) {
+    return;
+  }
+  if (player.socketId !== socketId) {
+    warn(LOG_CATEGORIES.PLAYER, `RespawnRequest rejected: socket ${socketId} does not own player ${msg.id}`);
+    runtimeMetrics.increment('clientMessages.invalidOwnership.RespawnRequest');
+    runtimeMetrics.increment('clientMessages.invalidOwnership.total');
+    return;
+  }
   const update = respawnPlayer(state, spatial, msg.id);
   if (update) {
     emitPlayerUpdated(outbound, update);

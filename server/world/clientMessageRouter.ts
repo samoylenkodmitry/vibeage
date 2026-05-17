@@ -52,7 +52,7 @@ export function handleClientMessage(
     case 'SetSkillShortcut':
       return onSetSkillShortcut(socket, direct, outbound, state, msg);
     case 'RespawnRequest':
-      return onRespawnRequest(state, msg, outbound, spatial);
+      return onRespawnRequest(state, msg, outbound, spatial, socket.id);
     case 'UseItem':
       return onUseItem(socket, direct, state, msg, outbound);
     case 'LootPickup':

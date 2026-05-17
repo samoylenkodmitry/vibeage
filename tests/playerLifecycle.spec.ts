@@ -113,7 +113,7 @@ describe('player lifecycle', () => {
     const outbound = { publish: vi.fn() };
     state.players.player1 = makePlayer({ isAlive: false, health: 0, mana: 0 });
 
-    onRespawnRequest(state, { type: 'RespawnRequest', id: 'player1', clientTs: 1 }, outbound, spatial);
+    onRespawnRequest(state, { type: 'RespawnRequest', id: 'player1', clientTs: 1 }, outbound, spatial, 'socket1');
 
     expect(outbound.publish).toHaveBeenCalledWith({
       type: 'playerUpdated',
