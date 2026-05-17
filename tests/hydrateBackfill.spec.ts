@@ -56,6 +56,42 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
     expect(player.unlockedSkills).toContain('evade');
   });
 
+});
+
+describe('hydratePersistedPlayer drops wrong-class skills', () => {
+  it('drops cross-class skills carried over from a previous class (legacy record cleanup)', () => {
+    // Legacy warrior persisted with mage skills (pre-slice-131 class
+    // change could leak ['fireball','slash']). Hydrate must drop the
+    // ones that don't belong to the saved class's tree.
+    const player = hydratePersistedPlayer(
+      {
+        id: 'legacy-warrior-with-mage-skills',
+        class_name: 'warrior',
+        race: 'human',
+        skills: ['fireball', 'waterSplash'],
+        skill_shortcuts: ['fireball', 'waterSplash', null, null, null, null, null, null, null],
+        available_skill_points: 0,
+        level: 5,
+        experience: 0,
+        health: 100,
+        is_alive: true,
+        position_x: 0,
+        position_y: 0.5,
+        position_z: 0,
+        inventory: [],
+        starter_progress: undefined,
+      },
+      'socketWX',
+      'CrossClassWarrior',
+    );
+
+    // waterSplash is NOT in warrior's tree. fireball IS (level 6).
+    // After backfill: only warrior-tree skills survive. starter is added.
+    expect(player.unlockedSkills).toContain('slash');
+    expect(player.unlockedSkills).not.toContain('waterSplash');
+    expect(player.skillShortcuts).not.toContain('waterSplash');
+  });
+
   it('does not duplicate the starter if already unlocked', () => {
     const player = hydratePersistedPlayer(
       {

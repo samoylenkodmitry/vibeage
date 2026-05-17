@@ -1,7 +1,7 @@
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import type { CharacterClass } from '../../packages/content/classes.js';
+import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
 import { CHARACTER_RACES, DEFAULT_RACE, type CharacterRace } from '../../packages/content/races.js';
 import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
@@ -153,9 +153,24 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
 function ensureClassStarterUnlocked(player: PlayerState): void {
   const [starter] = starterSkillsFor(player.className);
   if (!starter) return;
+  // Drop carried-over skills that don't belong to the current class
+  // tree. A legacy warrior persisted with skills=['fireball'] would
+  // otherwise become ['fireball','slash'] after the starter push,
+  // letting them cast a mage skill they should never have had — and
+  // applyClassChange's refundable count (unlockedSkills.length - 1)
+  // would refund a skill point for that invalid mage skill on the
+  // next class change.
+  const tree = CLASS_SKILL_TREES[player.className];
+  const treeSkills = new Set<string>(tree ? Object.keys(tree.skillProgression) : [starter]);
+  player.unlockedSkills = player.unlockedSkills.filter((skill) => treeSkills.has(skill));
   if (!player.unlockedSkills.includes(starter)) {
     player.unlockedSkills.push(starter);
   }
+  // Same prune on shortcuts: drop slots referencing skills no longer
+  // unlocked, then bind the starter into the first empty slot.
+  player.skillShortcuts = player.skillShortcuts.map((skill) =>
+    skill && player.unlockedSkills.includes(skill) ? skill : null,
+  );
   if (!player.skillShortcuts.includes(starter)) {
     const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
     if (emptySlotIndex !== -1) {

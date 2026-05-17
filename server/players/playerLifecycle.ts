@@ -1,7 +1,6 @@
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import { derivePlayerStats } from '../../packages/sim/playerStats.js';
-import { projectPlayerStats } from '../inventory/equipHandlers.js';
+import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
@@ -48,12 +47,14 @@ export function awardPlayerXP(
     player.level += 1;
     player.experience -= oldMaxExp;
     player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5);
-    const newStats = derivePlayerStats(player.level, player.className, {}, player.race);
-    player.maxHealth = newStats.maxHealth;
-    player.maxMana = newStats.maxMana;
+    // Use refreshPlayerStatsFromEquipment so equipped item bonuses
+    // survive the level-up. The bare derivePlayerStats(..., {}, ...)
+    // path zeros out every equipment stat block, which silently
+    // dropped pAtk from a worn_sword and similar bonuses after a
+    // level gain — caught in code review.
+    refreshPlayerStatsFromEquipment(player);
     player.health = player.maxHealth;
     player.mana = player.maxMana;
-    player.stats = projectPlayerStats(newStats);
     player.availableSkillPoints += 1;
 
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);

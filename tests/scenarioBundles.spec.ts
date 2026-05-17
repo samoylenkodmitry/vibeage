@@ -58,6 +58,39 @@ describe('scenario: level-up updates stats', () => {
     expect(player.health).toBe(player.maxHealth);
     expect(player.mana).toBe(player.maxMana);
   });
+
+  it('preserves equipped item bonuses across level-up (regression: code review P1)', () => {
+    const player = joinNewPlayer('socketLU2', 'EquipLevelUpTester');
+    // Equip a worn_sword so the player has a non-zero pAtk from gear.
+    const inv = ensureCharacterInventory(player);
+    const instanceId = 'inst-lu-sword';
+    inv.items[instanceId] = {
+      instanceId,
+      ownerId: player.id,
+      templateId: 'worn_sword',
+      location: { kind: 'inventory', slotIndex: 0 },
+      count: 1,
+      enchantLevel: 0,
+      bound: false,
+      createdAtTs: NOW,
+    };
+    player.inventory = [{ itemId: 'worn_sword', quantity: 1 }];
+    const { direct } = captureDirect();
+    handleEquipItem(player, { type: 'EquipItem', slotIndex: 0, requestedSlot: 'MAIN_HAND' }, direct);
+    const pAtkWithSwordBeforeLevel = player.stats?.pAtk ?? 0;
+
+    // Force level-up.
+    player.level = 1;
+    player.experience = 0;
+    player.experienceToNextLevel = 100;
+    awardPlayerXP(player, 200, 'level-up-equip-test');
+
+    expect(player.level).toBe(2);
+    // pAtk must include the equipped sword's bonus AFTER level-up.
+    // Pre-fix the level-up recomputed stats with an empty equipment
+    // block and the sword's contribution silently vanished.
+    expect(player.stats?.pAtk ?? 0).toBeGreaterThanOrEqual(pAtkWithSwordBeforeLevel);
+  });
 });
 
 describe('scenario: equip a weapon increases pAtk and cast damage', () => {

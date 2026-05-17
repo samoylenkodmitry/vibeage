@@ -14,6 +14,8 @@ const serverTests = [
   "tests/enemyLifecycle.spec.ts",
   "tests/enemySpawning.spec.ts",
   "tests/groundLoot.spec.ts",
+  "tests/handtestFixes.spec.ts",
+  "tests/hydrateBackfill.spec.ts",
   "tests/inventorySlots.spec.ts",
   "tests/itemUse.spec.ts",
   "tests/lootRuntime.spec.ts",
@@ -21,8 +23,11 @@ const serverTests = [
   "tests/playerLifecycle.spec.ts",
   "tests/playerProgression.spec.ts",
   "tests/playerSession.spec.ts",
+  "tests/respawnHygiene.spec.ts",
   "tests/runtimeMetrics.spec.ts",
+  "tests/scenarioBundles.spec.ts",
   "tests/scenarioFixtures.spec.ts",
+  "tests/scenarioNewCharacter.spec.ts",
   "tests/serverRuntimeFlow.spec.ts",
   "tests/starterPath.spec.ts",
   "tests/transportBoundary.spec.ts",
@@ -43,10 +48,15 @@ const clientTests = [
 
 const protocolTests = [
   "tests/protocol.schemas.spec.ts",
+  "tests/protocolBoundary.spec.ts",
+  "tests/protocolSkillIdCoverage.spec.ts",
+  "tests/protocolTypeDrift.spec.ts",
   "tests/clientMessageRouter.spec.ts",
   "tests/clientSnapshot.spec.ts",
   "tests/clientStatePrivacy.spec.ts",
   "tests/outboundEvents.spec.ts",
+  "tests/playerPrivacyAllowList.spec.ts",
+  "tests/ownerOnlyServerMessages.spec.ts",
   "tests/transportBoundary.spec.ts",
 ];
 
@@ -55,6 +65,12 @@ const contentTests = [
   "tests/verticalSlice.spec.ts",
   "tests/starterPath.spec.ts",
   "tests/enemySpawning.spec.ts",
+  "tests/classPassiveBaseStatsParity.spec.ts",
+  "tests/classSkillPrereqIntegrity.spec.ts",
+  "tests/enemyBalanceBudget.spec.ts",
+  "tests/itemBalanceBudget.spec.ts",
+  "tests/races.spec.ts",
+  "tests/raceBaseAttrs.spec.ts",
 ];
 
 const suites = {
