@@ -925,8 +925,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 22. Chat, Social, Moderation, Party, and Guilds
 
-- [ ] Add server-side chat rate limit.
-- [ ] Add message normalization and trimming on the server.
+- [x] Add server-side chat rate limit.
+- [x] Add message normalization and trimming on the server.
 - [ ] Add blocked word or moderation hook if public chat is enabled.
 - [ ] Add chat mute system.
 - [ ] Add chat report system if public chat grows.
@@ -935,12 +935,12 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add guild chat only after guild system exists.
 - [ ] Add private whisper only after identity and moderation exist.
 - [ ] Add chat persistence policy: none, short-lived, or moderated logs.
-- [ ] Add tests for near-chat radius.
-- [ ] Add tests for all-chat broadcast.
+- [x] Add tests for near-chat radius.
+- [x] Add tests for all-chat broadcast.
 - [ ] Add tests for hidden region players not receiving inappropriate local messages if region scoping should apply.
-- [ ] Add tests for empty/whitespace messages.
-- [ ] Add tests for maximum length messages.
-- [ ] Add tests for rate-limited messages.
+- [x] Add tests for empty/whitespace messages.
+- [x] Add tests for maximum length messages.
+- [x] Add tests for rate-limited messages.
 - [ ] Add party model if grouping is planned.
 - [ ] Add party invitation protocol.
 - [ ] Add party join/leave/kick/leader rules.
