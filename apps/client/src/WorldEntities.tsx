@@ -27,13 +27,19 @@ export { LootMarker };
 export function PlayerMarker({
   player,
   isSelf,
+  isSelected,
   presentationRef,
   equipment,
+  onSelect,
+  onAttack,
 }: {
   player: PlayerEntity;
   isSelf: boolean;
+  isSelected?: boolean;
   presentationRef?: MutableRefObject<THREE.Vector3 | null>;
   equipment?: Record<string, string>;
+  onSelect?: (targetId: string) => void;
+  onAttack?: (targetId: string) => void;
 }) {
   const color = player.isAlive ? (isSelf ? '#75f5c8' : '#8bb5ff') : '#64748b';
   const height = isSelf ? 1.8 : 1.55;
@@ -47,6 +53,18 @@ export function PlayerMarker({
   const isMoving = player.isAlive && speedSq > 0.5;
   const facingY = isMoving ? Math.atan2(vx, vz) : (player.rotation?.y ?? 0);
 
+  // Only other players are clickable in-world (the local player's own
+  // hero plate already handles self-targeting via the HUD click).
+  function handlePointerDown(event: ThreeEvent<PointerEvent>) {
+    if (event.button !== 0 || !player.isAlive || isSelf || (!onSelect && !onAttack)) return;
+    event.stopPropagation();
+    if (isSelected && onAttack) {
+      onAttack(player.id);
+    } else if (onSelect) {
+      onSelect(player.id);
+    }
+  }
+
   return (
     <SmoothedEntityGroup
       position={{ x: player.position.x, y: groundY, z: player.position.z }}
@@ -56,6 +74,7 @@ export function PlayerMarker({
       presentationRef={presentationRef}
       groundedOffset={0}
     >
+      {isSelected && !isSelf && <SelectedEnemyRing />}
       <PlayerFigure
         height={height}
         torsoHeight={torsoHeight}
@@ -65,6 +84,7 @@ export function PlayerMarker({
         isAlive={player.isAlive}
         isMoving={isMoving}
         equipment={equipment}
+        onPointerDown={!isSelf ? handlePointerDown : undefined}
       />
       {player.isAlive && player.name && (
         <NameLabel
@@ -144,6 +164,7 @@ function PlayerFigure({
   isAlive,
   isMoving,
   equipment,
+  onPointerDown,
 }: {
   height: number;
   torsoHeight: number;
@@ -153,6 +174,7 @@ function PlayerFigure({
   isAlive: boolean;
   isMoving: boolean;
   equipment?: Record<string, string>;
+  onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const leftLegRef = useRef<THREE.Mesh>(null);
@@ -182,7 +204,7 @@ function PlayerFigure({
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} onPointerDown={onPointerDown}>
       <mesh ref={leftLegRef} position={[-0.32, legPivotY, 0]} castShadow>
         <capsuleGeometry args={[0.16, 0.42, 6, 10]} />
         <meshStandardMaterial color={cloakColor} roughness={0.78} />

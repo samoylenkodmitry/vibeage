@@ -5,6 +5,7 @@ import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import {
   emitEnemyUpdated,
+  emitPlayerUpdated,
   emitServerMessage,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
@@ -135,9 +136,16 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
   const pos = cast.pos || cast.origin;
 
   if (cast.targetId) {
-    const target = world.getEnemyById(cast.targetId);
-    if (target?.isAlive) {
-      targets.push(target);
+    const enemy = world.getEnemyById(cast.targetId);
+    if (enemy?.isAlive) {
+      targets.push(enemy);
+    } else {
+      // PvP: targetId can be another player. Damage / death flow
+      // through the same Enemy|PlayerState path below.
+      const otherPlayer = world.getPlayerById(cast.targetId);
+      if (otherPlayer?.isAlive && otherPlayer.id !== cast.casterId) {
+        targets.push(otherPlayer);
+      }
     }
   }
 
@@ -185,6 +193,17 @@ function applyCastToTarget(
 
   if (isEnemy(target)) {
     emitEnemyUpdated(outbound, target);
+  } else {
+    // PvP: broadcast the player's health change immediately so other
+    // clients see the damage right away instead of waiting for the
+    // next tick-pipeline snapshot.
+    emitPlayerUpdated(outbound, {
+      id: target.id,
+      health: target.health,
+      isAlive: target.isAlive,
+      deathTimeTs: target.deathTimeTs,
+      statusEffects: target.statusEffects,
+    });
   }
 }
 

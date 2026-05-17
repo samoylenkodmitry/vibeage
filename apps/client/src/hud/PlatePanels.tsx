@@ -2,6 +2,24 @@ import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { Meter, StatusPills, formatMeter, getDistance, getMeterProgress, getTargetState, getTargetTone } from './hudPrimitives';
 import { useDraggablePanel } from './useDraggablePanel';
 
+export type SelectedTargetView = {
+  selfSelected: boolean;
+  selectedEnemy: GameClientState['enemies'][string] | null;
+  selectedOtherPlayer: PlayerEntity | null;
+  targetIsAlive: boolean;
+};
+
+export function resolveSelectedTarget(state: GameClientState, player: PlayerEntity | null): SelectedTargetView {
+  const selfSelected = Boolean(player && state.selectedTargetId === player.id);
+  const id = state.selectedTargetId;
+  const selectedEnemy = id && !selfSelected ? state.enemies[id] ?? null : null;
+  const selectedOtherPlayer = id && !selfSelected && !selectedEnemy ? state.players[id] ?? null : null;
+  const targetIsAlive = selfSelected
+    ? Boolean(player?.isAlive)
+    : Boolean(selectedEnemy?.isAlive || selectedOtherPlayer?.isAlive);
+  return { selfSelected, selectedEnemy, selectedOtherPlayer, targetIsAlive };
+}
+
 export function VitalsStrip({
   player,
   selected,
@@ -47,11 +65,13 @@ export function VitalsStrip({
 export function TargetPanel({
   player,
   enemy,
+  otherPlayer,
   selfTargeted,
   onClose,
 }: {
   player: PlayerEntity | null;
   enemy: GameClientState['enemies'][string] | null;
+  otherPlayer?: PlayerEntity | null;
   selfTargeted?: boolean;
   onClose?: () => void;
 }) {
@@ -62,7 +82,38 @@ export function TargetPanel({
   if (enemy) {
     return renderEnemyTargetPanel(panelRef, player, enemy, onClose);
   }
+  if (otherPlayer) {
+    return renderOtherPlayerTargetPanel(panelRef, player, otherPlayer, onClose);
+  }
   return null;
+}
+
+function renderOtherPlayerTargetPanel(
+  panelRef: React.RefObject<HTMLElement | null>,
+  selfPlayer: PlayerEntity | null,
+  target: PlayerEntity,
+  onClose?: () => void,
+) {
+  const healthRatio = target.health / Math.max(1, target.maxHealth);
+  const tone = getTargetTone(target.isAlive, healthRatio);
+  const distance = selfPlayer ? getDistance(selfPlayer.position, target.position) : null;
+  return (
+    <section ref={panelRef} className={`hud hud-target target-${tone}`} aria-label="Target">
+      <div className="panel-title">
+        <strong>{target.name}</strong>
+        <span>Lv {target.level}</span>
+        {onClose && (
+          <button type="button" className="panel-close" aria-label="Clear target" onClick={onClose}>×</button>
+        )}
+      </div>
+      <Meter label="HP" value={target.health} max={target.maxHealth} className="meter-enemy" />
+      <div className="target-meta">
+        <span>{getTargetState(target.isAlive, healthRatio)} · player</span>
+        <span>{distance === null ? '-' : `${distance.toFixed(1)}m`}</span>
+      </div>
+      <StatusPills effects={target.statusEffects ?? []} />
+    </section>
+  );
 }
 
 function renderSelfTargetPanel(

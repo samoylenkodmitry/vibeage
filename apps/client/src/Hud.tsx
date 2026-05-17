@@ -14,7 +14,7 @@ import { SkillTreePanel } from './hud/SkillTreePanel';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
 import { capitalize, DEFAULT_CLASS_NAME } from './hud/textUtils';
 import { useDraggablePanel } from './hud/useDraggablePanel';
-import { TargetPanel, VitalsStrip } from './hud/PlatePanels';
+import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { StatusPills, getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
   BASIC_ATTACK_SKILL_ID,
@@ -130,11 +130,7 @@ export function GameHud({
   onSendChat,
 }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
-  const selfSelected = Boolean(player && state.selectedTargetId === player.id);
-  const selectedEnemy = state.selectedTargetId && !selfSelected
-    ? state.enemies[state.selectedTargetId] ?? null
-    : null;
-  const targetIsAlive = selfSelected ? Boolean(player?.isAlive) : Boolean(selectedEnemy?.isAlive);
+  const { selfSelected, selectedEnemy, selectedOtherPlayer, targetIsAlive } = resolveSelectedTarget(state, player);
   const playerCount = Object.keys(state.players).length;
   const enemyCount = Object.values(state.enemies).filter((enemy) => enemy.isAlive).length;
   const regionStatus = state.worldPublicState
@@ -166,6 +162,7 @@ export function GameHud({
       <TargetPanel
         player={player}
         enemy={selectedEnemy}
+        otherPlayer={selectedOtherPlayer}
         selfTargeted={selfSelected}
         onClose={onSelectTarget ? () => onSelectTarget(null) : undefined}
       />
