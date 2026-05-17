@@ -1,4 +1,5 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/content/classes';
+import { CLASS_PASSIVES } from '../../../../packages/content/classPassives';
 import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import type { PlayerEntity } from '../gameTypes';
 import { capitalize } from './textUtils';
@@ -55,6 +56,18 @@ export function CharacterPanel({ player, onSelectClass, onSelectRace }: Characte
           ))}
         </div>
       </div>
+      {CLASS_PASSIVES[activeClass as CharacterClass] && (
+        <div className="character-section">
+          <div className="character-section-label">Class Passive</div>
+          <div
+            className="character-passive"
+            title={CLASS_PASSIVES[activeClass as CharacterClass].description}
+          >
+            <strong>{CLASS_PASSIVES[activeClass as CharacterClass].name}</strong>
+            <small>{CLASS_PASSIVES[activeClass as CharacterClass].description}</small>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
