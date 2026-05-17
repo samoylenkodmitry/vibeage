@@ -63,7 +63,11 @@ for (const viewport of HUD_VIEWPORTS) {
     await expectInsideViewport(page, [panel("Target", page.locator(".hud-target"))]);
 
     await expectInsideViewport(page, corePanels);
-    await expectSkillButtonsFit(page);
+    // Skill-button overflow isn't separately asserted any more: the
+    // 24-slot F-key bar uses text-overflow:ellipsis for long names
+    // (visually fine, but trips a strict button.scrollWidth check).
+    // expectInsideViewport above already catches actual layout breaks
+    // and the SkillTooltip on hover/long-press reveals full names.
     await expectWorldVisible(page, corePanels, viewport.minWorldVisibilityRatio);
 
     await page.getByRole("button", { name: /show bag/i }).click();
@@ -136,19 +140,6 @@ async function expectInsideViewport(page: Page, panels: HudPanel[]): Promise<voi
   }
 }
 
-async function expectSkillButtonsFit(page: Page): Promise<void> {
-  // With the F1..F12 + Ctrl+F1..F12 24-slot bar, narrow columns mean
-  // skill names ellipsize aggressively — text-overflow handles it
-  // visually but button.scrollWidth still reports the intrinsic text
-  // width. Assert no MORE THAN slotCount buttons overflow (i.e. the
-  // overflow isn't structural, e.g. a layout bug causing the bar to
-  // burst its container).
-  const overflowCount = await page.locator(".skill-button").evaluateAll((buttons) => {
-    return buttons.filter((button) => button.scrollWidth > button.clientWidth + 1).length;
-  });
-  const totalButtons = await page.locator(".skill-button").count();
-  expect(overflowCount, `overflow buttons (${overflowCount}/${totalButtons})`).toBeLessThanOrEqual(totalButtons);
-}
 
 async function expectWorldVisible(
   page: Page,
