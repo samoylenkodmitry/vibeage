@@ -157,7 +157,7 @@ function shouldRunMaintenance(tick: number, interval: number, offset: number): b
   return tick % interval === offset % interval;
 }
 
-function recordWorldGauges(state: GameState): void {
+export function recordWorldGauges(state: GameState): void {
   let enemyCount = 0;
   let aliveEnemyCount = 0;
   for (const enemyId in state.enemies) {

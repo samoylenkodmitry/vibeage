@@ -707,11 +707,11 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add counters for chat moderation rejections.
 - [ ] Add gauges for active rooms.
 - [ ] Add gauges for connected clients.
-- [ ] Add gauges for active players.
-- [ ] Add gauges for active enemies.
-- [ ] Add gauges for active casts.
-- [ ] Add gauges for ground loot stacks.
-- [ ] Add histograms for tick duration.
+- [x] Add gauges for active players.
+- [x] Add gauges for active enemies.
+- [x] Add gauges for active casts.
+- [x] Add gauges for ground loot stacks.
+- [x] Add histograms for tick duration.
 - [ ] Add histograms for initial snapshot size.
 - [ ] Add histograms for batch update size.
 - [ ] Add histograms for DB write latency.
