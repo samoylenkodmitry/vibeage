@@ -79,14 +79,14 @@ const KEYFRAMES: Keyframe[] = [
     // sky stand-in) intensities and lift the sky/ground colours toward
     // a moonlit blue rather than near-black, so the world stays
     // legible while still feeling like night.
-    sunColor: '#b8c6e8',
-    sunIntensity: 0.68,
-    hemisphereSky: '#2c4078',
-    hemisphereGround: '#162540',
-    hemisphereIntensity: 0.78,
-    fogColor: '#172648',
-    backgroundColor: '#10204a',
-    cloudColor: '#3a527c',
+    sunColor: '#cad6f0',
+    sunIntensity: 0.85,
+    hemisphereSky: '#3a5394',
+    hemisphereGround: '#1f3258',
+    hemisphereIntensity: 0.95,
+    fogColor: '#1d3160',
+    backgroundColor: '#1a2f60',
+    cloudColor: '#506b9a',
     cloudOpacity: 0.5,
   },
 ];
