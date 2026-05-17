@@ -68,6 +68,7 @@ const contentTests = [
   "tests/enemySpawning.spec.ts",
   "tests/classPassiveBaseStatsParity.spec.ts",
   "tests/classSkillPrereqIntegrity.spec.ts",
+  "tests/effectSpecsCoverage.spec.ts",
   "tests/enemyBalanceBudget.spec.ts",
   "tests/itemBalanceBudget.spec.ts",
   "tests/races.spec.ts",

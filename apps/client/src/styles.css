@@ -157,46 +157,79 @@ input {
   border-color: rgba(251, 113, 133, 0.42);
 }
 
-.movement-panel {
+/* Replaces the old movement-panel + navigation-panel pair. Collapsed
+   default is a single pill showing the zone name + (when moving) the
+   distance to the move target. Click the pill to expand for position,
+   stream count, ETA. */
+.location-panel {
   top: 84px;
   right: 18px;
-  min-height: 42px;
-  min-width: 150px;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 36px;
   border-radius: 6px;
-  padding: 0 12px;
+  padding: 6px 10px;
 }
 
-.movement-panel span {
-  color: #9dded3;
-  font-size: 12px;
-  font-weight: 700;
+.location-panel-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 
-.movement-panel strong {
+.location-panel-summary strong {
   color: #fef3c7;
   font-size: 13px;
   white-space: nowrap;
 }
 
-.navigation-panel {
-  top: 204px;
-  left: 18px;
+.location-panel-distance {
+  color: #9dded3;
+  font-size: 11px;
+}
+
+.location-panel-chevron {
+  margin-left: auto;
+  color: rgba(141, 233, 215, 0.7);
+  font-size: 11px;
+}
+
+.location-panel-detail {
   display: grid;
-  width: min(300px, calc(100vw - 36px));
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-radius: 6px;
-  padding: 10px 12px;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  border-top: 1px dashed rgba(141, 233, 215, 0.22);
+  padding-top: 6px;
+  color: #cbd5e1;
+  font-size: 11px;
 }
 
-.navigation-panel .metric {
-  min-width: 0;
+.location-panel-detail > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
 }
 
-.navigation-panel .metric strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.location-panel-detail dt {
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.location-panel-detail dd {
+  margin: 0;
+  color: #f8fafc;
+  font-weight: 600;
 }
 
 .starter-progress {
@@ -1425,6 +1458,12 @@ input {
     border-radius: 8px;
     background: rgba(5, 14, 18, 0.66);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.36);
+  }
+
+  /* Hide LocationPanel on mobile to save vertical real estate; zone
+     name is still visible on the world map. */
+  .location-panel {
+    display: none;
   }
 
   .skill-bar-row {
