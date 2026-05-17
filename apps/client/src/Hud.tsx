@@ -6,6 +6,7 @@ import { ChatPanel } from './hud/ChatPanel';
 import { CharacterPanel } from './hud/CharacterPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { PaperdollPanel } from './hud/PaperdollPanel';
+import { WikiPanel } from './hud/WikiPanel';
 import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../packages/content/classes';
 import { MapPanel } from './hud/MapPanel';
@@ -334,6 +335,7 @@ function HudPanels({
       {panels.chatOpen && onSendChat && (
         <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
       )}
+      {panels.wikiOpen && <WikiPanel />}
     </>
   );
 }
@@ -350,6 +352,7 @@ function PanelToggleStrip({ panels }: { panels: PanelState }) {
       <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
       <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
       <PanelToggleButton open={panels.chatOpen} label="Chat" onClick={panels.toggleChat} />
+      <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
     </aside>
   );
 }
@@ -368,6 +371,7 @@ function usePanelState() {
   // buttons so players see them immediately on join.
   const [actionsOpen, setActionsOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
+  const [wikiOpen, setWikiOpen] = useState(false);
   return {
     statsOpen,
     characterOpen,
@@ -378,6 +382,7 @@ function usePanelState() {
     treeOpen,
     actionsOpen,
     chatOpen,
+    wikiOpen,
     toggleStats: () => setStatsOpen((prev) => !prev),
     toggleCharacter: () => setCharacterOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
@@ -387,6 +392,7 @@ function usePanelState() {
     toggleTree: () => setTreeOpen((prev) => !prev),
     toggleActions: () => setActionsOpen((prev) => !prev),
     toggleChat: () => setChatOpen((prev) => !prev),
+    toggleWiki: () => setWikiOpen((prev) => !prev),
   };
 }
 
