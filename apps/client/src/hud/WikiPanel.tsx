@@ -98,7 +98,12 @@ function SkillRow({ skill }: { skill: SkillDef }) {
       </dl>
       {skill.effects.length > 0 && (
         <small className="wiki-row-footer">
-          Applies: {skill.effects.map((e) => `${EFFECT_SPECS[e.type]?.label ?? e.type}(${e.value})`).join(', ')}
+          Applies: {skill.effects.map((e) => {
+            const spec = EFFECT_SPECS[e.type];
+            const unit = spec?.valueUnit ? ` ${spec.valueUnit}` : '';
+            const duration = e.durationMs ? ` for ${(e.durationMs / 1000).toFixed(1)}s` : '';
+            return `${spec?.label ?? e.type}(${e.value}${unit}${duration})`;
+          }).join(', ')}
         </small>
       )}
     </li>
@@ -132,10 +137,15 @@ function ItemRow({ item }: { item: Item }) {
         {stats.mDef !== undefined && <Pair k="M.Def" v={`+${stats.mDef}`} />}
         {stats.hp !== undefined && <Pair k="HP" v={`+${stats.hp}`} />}
         {stats.mp !== undefined && <Pair k="MP" v={`+${stats.mp}`} />}
+        {item.attackPower !== undefined && <Pair k="Atk Pwr" v={`+${item.attackPower}`} />}
+        {item.defenseValue !== undefined && item.defenseValue > 0 && <Pair k="Def Val" v={`+${item.defenseValue}`} />}
         {item.equip && <Pair k="Slot" v={(item.equip.allowedSlots ?? []).join(', ')} />}
+        {item.equip?.handUsage && <Pair k="Hands" v={item.equip.handUsage} />}
         {item.weight && <Pair k="Weight" v={`${(item.weight / 1000).toFixed(1)} kg`} />}
         {item.healAmount && <Pair k="Heals" v={`${item.healAmount} HP`} />}
         {item.manaAmount && <Pair k="Restores" v={`${item.manaAmount} MP`} />}
+        {item.setId && <Pair k="Set" v={item.setId} />}
+        {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
     </li>
   );
@@ -156,11 +166,13 @@ function ClassesTab({ query }: { query: string }) {
 function ClassRow({ cls }: { cls: CharacterClass }) {
   const tree = CLASS_SKILL_TREES[cls];
   const passive = CLASS_PASSIVES[cls];
+  const skillIds = Object.keys(tree?.skillProgression ?? {}) as Array<keyof typeof SKILLS>;
+  const skillNames = skillIds.map((id) => SKILLS[id]?.name ?? id).join(', ');
   return (
     <li className="wiki-row">
       <header>
         <strong>{capitalize(cls)}</strong>
-        <span className="wiki-row-tag">{Object.keys(tree?.skillProgression ?? {}).length} skills</span>
+        <span className="wiki-row-tag">{skillIds.length} skills</span>
       </header>
       <p>{tree?.description ?? ''}</p>
       {passive && (
@@ -169,7 +181,7 @@ function ClassRow({ cls }: { cls: CharacterClass }) {
         </small>
       )}
       <small className="wiki-row-footer">
-        Tree: {Object.keys(tree?.skillProgression ?? {}).join(', ')}
+        Tree: {skillNames}
       </small>
     </li>
   );
