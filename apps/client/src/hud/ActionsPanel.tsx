@@ -2,7 +2,9 @@ import type { SkillId } from '../../../../packages/content/skills';
 import { SKILLS } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import { BASIC_ATTACK_HOTKEY, BASIC_ATTACK_SKILL_ID } from '../skillShortcuts';
+import { SkillTooltip } from './SkillTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
+import { useTooltipTrigger } from './useTooltipTrigger';
 
 type ActionsPanelProps = {
   player: PlayerEntity | null;
@@ -27,6 +29,7 @@ export function ActionsPanel({
   const attackCdRemaining = Math.max(0, attackCdEnd - now);
   const attackReady = attackCdRemaining === 0;
   const attackDisabled = !player?.isAlive || !attackReady || !hasSelectedTarget;
+  const tooltip = useTooltipTrigger<SkillId>();
 
   return (
     <section ref={panelRef} className="actions-panel" aria-label="Actions">
@@ -49,6 +52,7 @@ export function ActionsPanel({
                   : `${(attackCdRemaining / 1000).toFixed(1)}s`
           }
           onClick={() => onCastSkill(BASIC_ATTACK_SKILL_ID)}
+          extraHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
         />
         <ActionButton
           label="Pickup"
@@ -58,6 +62,13 @@ export function ActionsPanel({
           onClick={onPickupNearest}
         />
       </div>
+      {tooltip.info && (
+        <SkillTooltip
+          skillId={tooltip.info.payload}
+          clientX={tooltip.info.clientX}
+          clientY={tooltip.info.clientY}
+        />
+      )}
     </section>
   );
 }
@@ -68,12 +79,14 @@ function ActionButton({
   disabled,
   subtitle,
   onClick,
+  extraHandlers,
 }: {
   label: string;
   hotkey: string;
   disabled: boolean;
   subtitle: string;
   onClick: () => void;
+  extraHandlers?: React.HTMLAttributes<HTMLButtonElement>;
 }) {
   return (
     <button
@@ -83,6 +96,7 @@ function ActionButton({
       aria-label={`${label} (${hotkey})`}
       aria-keyshortcuts={hotkey}
       onClick={onClick}
+      {...(extraHandlers ?? {})}
     >
       <span className="action-button__hotkey">{hotkey}</span>
       <strong className="action-button__label">{label}</strong>

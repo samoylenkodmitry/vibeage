@@ -7,6 +7,8 @@ import {
   SKILL_BAR_HOTKEYS,
   SKILL_BAR_SLOT_COUNT,
 } from '../skillShortcuts';
+import { SkillTooltip } from './SkillTooltip';
+import { useTooltipTrigger } from './useTooltipTrigger';
 
 type SkillBarProps = {
   player: PlayerEntity | null;
@@ -19,6 +21,7 @@ export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillB
   const slots = useMemo(() => {
     return Array.from({ length: SKILL_BAR_SLOT_COUNT }, (_, index) => getHotkeySkill(player, index));
   }, [player]);
+  const tooltip = useTooltipTrigger<SkillId>();
 
   return (
     <section className="skill-bar" aria-label="Skills">
@@ -32,8 +35,16 @@ export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillB
           now={now}
           hasSelectedTarget={hasSelectedTarget}
           onCastSkill={onCastSkill}
+          tooltipHandlers={skillId ? tooltip.triggerProps(skillId) : undefined}
         />
       ))}
+      {tooltip.info && (
+        <SkillTooltip
+          skillId={tooltip.info.payload}
+          clientX={tooltip.info.clientX}
+          clientY={tooltip.info.clientY}
+        />
+      )}
     </section>
   );
 }
@@ -46,6 +57,7 @@ function SkillButton({
   now,
   hasSelectedTarget,
   onCastSkill,
+  tooltipHandlers,
 }: {
   skillId: SkillId | null;
   hotkey: string;
@@ -54,6 +66,7 @@ function SkillButton({
   now: number;
   hasSelectedTarget: boolean;
   onCastSkill: (skillId: SkillId) => void;
+  tooltipHandlers?: React.HTMLAttributes<HTMLButtonElement>;
 }) {
   const skill = skillId ? SKILLS[skillId] : null;
   const cooldownEnd = skillId ? player?.skillCooldownEndTs?.[skillId] ?? 0 : 0;
@@ -73,6 +86,7 @@ function SkillButton({
       aria-keyshortcuts={ariaHotkeys}
       style={{ '--cooldown-progress': cooldownProgress } as CSSProperties}
       onClick={() => skill && onCastSkill(skill.id)}
+      {...(tooltipHandlers ?? {})}
     >
       <span className="skill-button__hotkey">{hotkey}</span>
       <strong className="skill-button__name">{skill?.name ?? 'Empty'}</strong>
