@@ -39,31 +39,35 @@ export function applyClassChange(
     mana: player.mana,
     unlockedSkills: player.unlockedSkills,
     skillShortcuts: player.skillShortcuts,
+    // The derived combat stats (pAtk, mAtk, pDef, mDef, crit, etc.)
+    // change with class multipliers — broadcast them so the panel reflects
+    // the switch immediately, not just HP/MP.
+    stats: player.stats,
   });
   return true;
 }
 
 /**
- * When a player switches class, make sure they have at least one skill from
- * the new class's tree — otherwise their skill bar can be empty (or stuck on
- * a skill from the previous class that isn't actually usable any more).
+ * When a player switches class, guarantee they unlock the new class's
+ * starter skill. The previous heuristic checked "do you already have any
+ * skill from this class's tree" — but several trees deliberately share
+ * skills (warrior has fireball at L6, paladin has bless, etc.), so a
+ * mage switching to warrior would short-circuit with `fireball` already
+ * present and never get `slash` added, breaking learn-prereq chains
+ * (bash requires slash, etc.). Check specifically for the starter.
  */
 function ensureClassHasStarterSkill(player: PlayerState): void {
-  const tree = CLASS_SKILL_TREES[player.className];
-  if (!tree) return;
-  const treeSkills = Object.keys(tree.skillProgression);
-  if (player.unlockedSkills.some((skill) => treeSkills.includes(skill))) {
-    return;
-  }
   const [starter] = starterSkillsFor(player.className);
   if (!starter) return;
   if (!player.unlockedSkills.includes(starter)) {
     player.unlockedSkills.push(starter);
   }
-  // Drop the starter into the first empty shortcut slot so the player can
-  // actually cast it.
+  // Always check shortcut assignment — a player switching BACK to a
+  // class they previously played may already have the starter unlocked
+  // but never re-bound it to the current bar after intervening switches.
+  if (player.skillShortcuts.includes(starter)) return;
   const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
-  if (emptySlotIndex !== -1 && !player.skillShortcuts.includes(starter)) {
+  if (emptySlotIndex !== -1) {
     player.skillShortcuts[emptySlotIndex] = starter;
   }
 }
@@ -92,6 +96,9 @@ export function applyRaceChange(
     maxMana: player.maxMana,
     health: player.health,
     mana: player.mana,
+    // Race multipliers feed into derived stats (Lineage-style weights).
+    // Broadcast so the panel updates pAtk/mAtk/etc. immediately.
+    stats: player.stats,
   });
   return true;
 }

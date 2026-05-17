@@ -23,6 +23,7 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'class_name',
   'race',
   'inventory',
+  'character_inventory',
   'skills',
   'skill_shortcuts',
   'available_skill_points',
@@ -39,6 +40,7 @@ export const STABLE_PLAYER_STATE_FIELDS = [
   'className',
   'race',
   'inventory',
+  'characterInventory',
   'unlockedSkills',
   'skillShortcuts',
   'availableSkillPoints',
@@ -112,6 +114,11 @@ export function buildStablePlayerPersistenceData(
     class_name: player.className,
     race: player.race ?? DEFAULT_RACE,
     inventory: player.inventory || [],
+    // CharacterInventory aggregate carries item instances + equipped
+    // slot assignments + occupancy. Without this column equipped gear
+    // round-trips through the legacy bag-only `inventory` jsonb and
+    // disappears on the next session.
+    character_inventory: player.characterInventory ?? null,
     skills: unlockedSkills,
     skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),
     available_skill_points: player.availableSkillPoints,
