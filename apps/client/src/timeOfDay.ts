@@ -74,15 +74,20 @@ const KEYFRAMES: Keyframe[] = [
   },
   {
     phase: 0.86,
-    sunColor: '#9aa9d4',
-    sunIntensity: 0.42,
-    hemisphereSky: '#1a2848',
-    hemisphereGround: '#0c1726',
-    hemisphereIntensity: 0.48,
-    fogColor: '#0d1530',
-    backgroundColor: '#08122a',
-    cloudColor: '#243558',
-    cloudOpacity: 0.55,
+    // Night was unplayably dim — players reported they couldn't see
+    // their character or nearby mobs. Bump hemisphere + sun (moonlit-
+    // sky stand-in) intensities and lift the sky/ground colours toward
+    // a moonlit blue rather than near-black, so the world stays
+    // legible while still feeling like night.
+    sunColor: '#b8c6e8',
+    sunIntensity: 0.68,
+    hemisphereSky: '#2c4078',
+    hemisphereGround: '#162540',
+    hemisphereIntensity: 0.78,
+    fogColor: '#172648',
+    backgroundColor: '#10204a',
+    cloudColor: '#3a527c',
+    cloudOpacity: 0.5,
   },
 ];
 
