@@ -74,11 +74,21 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
   // advanceReturningEnemy by refusing to re-aggro while still beyond
   // MAX_CHASE_DISTANCE_FROM_SPAWN, not by structurally forbidding the
   // cascade.
+  //
+  // Exception: idle→patrolling specifically does NOT cascade. The
+  // patrol target generated in advanceIdleEnemy needs a full tick to
+  // settle before advancePatrollingEnemy evaluates "have we arrived?"
+  // — otherwise a random target inside PATROL_ARRIVAL_DISTANCE gets
+  // cleared on the same tick and the enemy stands still generating-
+  // and-clearing patrol targets every frame instead of wandering.
+  // Aggro-driven cascades (idle→chasing, patrolling→chasing→attacking)
+  // are unaffected.
   if (enemy.aiState === 'idle') {
     advanceIdleEnemy(enemy, context, progress);
   }
 
-  if (enemy.aiState === 'patrolling') {
+  const justStartedPatrolling = previousState === 'idle' && enemy.aiState === 'patrolling';
+  if (enemy.aiState === 'patrolling' && !justStartedPatrolling) {
     advancePatrollingEnemy(enemy, context, progress);
   }
 
