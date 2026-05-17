@@ -497,7 +497,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Make physical attack damage use `pAtk`, target `pDef`, level, skill power, variance, crit, and mitigation.
 - [ ] Make magical attack damage use `mAtk`, target `mDef`, level, skill power, variance, crit, and mitigation.
 - [ ] Make healing use healer stats and target modifiers.
-- [ ] Make shield effects absorb damage from all damage sources.
+- [x] Make shield effects absorb damage from all damage sources.
 - [ ] Make evasion affect enemy attacks and relevant player attacks.
 - [ ] Make accuracy affect hit chance.
 - [ ] Make crit chance and crit multiplier affect eligible skills only.
@@ -525,7 +525,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add combat logs that distinguish raw damage, absorbed damage, resisted damage, crits, misses, heals, and kills.
 - [ ] Add tests for each skill effect type currently present in content.
 - [ ] Add tests for simultaneous effects on one target.
-- [ ] Add tests for shield absorption order.
+- [x] Add tests for shield absorption order.
 - [x] Add tests for effect expiration during combat.
 - [x] Add tests for death while affected by DoT.
 - [x] Add tests for self-cast skills.
