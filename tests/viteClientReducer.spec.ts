@@ -430,3 +430,39 @@ describe('Vite game client starter progress', () => {
     expect(nextState.players['player-1'].skillShortcuts[1]).toBe('waterSplash');
   });
 });
+
+describe('Vite game client reducer self-target', () => {
+  it('selects the player as their own target when targetId === myPlayerId', () => {
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': basePlayer },
+    };
+
+    const nextState = gameClientReducer(state, { type: 'selectTarget', targetId: 'player-1' });
+    expect(nextState.selectedTargetId).toBe('player-1');
+  });
+
+  it('rejects a non-self id that is not a live enemy', () => {
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': basePlayer },
+    };
+
+    const nextState = gameClientReducer(state, { type: 'selectTarget', targetId: 'ghost-id' });
+    expect(nextState.selectedTargetId).toBeNull();
+  });
+
+  it('clears the selection when targetId is null', () => {
+    const state = {
+      ...initialGameClientState,
+      myPlayerId: 'player-1',
+      players: { 'player-1': basePlayer },
+      selectedTargetId: 'player-1',
+    };
+
+    const nextState = gameClientReducer(state, { type: 'selectTarget', targetId: null });
+    expect(nextState.selectedTargetId).toBeNull();
+  });
+});

@@ -625,6 +625,37 @@ input {
   height: 7px;
 }
 
+.vitals-strip--clickable {
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.vitals-strip--clickable:hover,
+.vitals-strip--clickable:focus-visible {
+  border-color: rgba(141, 233, 215, 0.55);
+  outline: none;
+}
+
+.vitals-strip--selected {
+  border-color: rgba(255, 215, 120, 0.7);
+  box-shadow: 0 0 0 1px rgba(255, 215, 120, 0.3);
+}
+
+.panel-close {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: rgba(196, 241, 226, 0.75);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.panel-close:hover {
+  color: #f9fafb;
+}
+
 .map-panel {
   position: absolute;
   top: 80px;

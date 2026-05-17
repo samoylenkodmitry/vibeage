@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
-import type { StatusEffect } from '../../../packages/protocol/messages';
 import type { GameClientState, PlayerEntity } from './gameTypes';
 import { ChatPanel } from './hud/ChatPanel';
 import { CharacterPanel } from './hud/CharacterPanel';
@@ -14,6 +13,8 @@ import { SkillTreePanel } from './hud/SkillTreePanel';
 import { StarterProgressPanel } from './hud/StarterProgressPanel';
 import { capitalize, DEFAULT_CLASS_NAME } from './hud/textUtils';
 import { useDraggablePanel } from './hud/useDraggablePanel';
+import { TargetPanel, VitalsStrip } from './hud/PlatePanels';
+import { StatusPills, getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
   getHotkeySkill,
   getSkillSlotIndexForKeyboardCode,
@@ -40,6 +41,7 @@ type GameHudProps = {
   onSelectClass: (className: string) => void;
   onSelectRace: (race: string) => void;
   onRespawn: () => void;
+  onSelectTarget?: (targetId: string | null) => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
@@ -117,10 +119,15 @@ export function GameHud({
   onSelectClass,
   onSelectRace,
   onRespawn,
+  onSelectTarget,
   onSendChat,
 }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
-  const selectedTarget = state.selectedTargetId ? state.enemies[state.selectedTargetId] ?? null : null;
+  const selfSelected = Boolean(player && state.selectedTargetId === player.id);
+  const selectedEnemy = state.selectedTargetId && !selfSelected
+    ? state.enemies[state.selectedTargetId] ?? null
+    : null;
+  const targetIsAlive = selfSelected ? Boolean(player?.isAlive) : Boolean(selectedEnemy?.isAlive);
   const playerCount = Object.keys(state.players).length;
   const enemyCount = Object.values(state.enemies).filter((enemy) => enemy.isAlive).length;
   const regionStatus = state.worldPublicState
@@ -147,8 +154,17 @@ export function GameHud({
         <Metric label="Regions" value={regionStatus} />
         <Metric label="Loot" value={String(Object.keys(state.groundLoot).length)} />
       </section>
-      <VitalsStrip player={player} />
-      <TargetPanel player={player} target={selectedTarget} />
+      <VitalsStrip
+        player={player}
+        selected={selfSelected}
+        onSelectSelf={player ? () => onSelectTarget?.(player.id) : undefined}
+      />
+      <TargetPanel
+        player={player}
+        enemy={selectedEnemy}
+        selfTargeted={selfSelected}
+        onClose={onSelectTarget ? () => onSelectTarget(null) : undefined}
+      />
       <MovementPanel player={player} target={state.targetWorldPos} />
       <NavigationPanel state={state} player={player} />
       <HudPanels
@@ -170,7 +186,7 @@ export function GameHud({
       <SkillBar
         player={player}
         now={now}
-        hasSelectedTarget={Boolean(selectedTarget?.isAlive)}
+        hasSelectedTarget={targetIsAlive}
         onCastSkill={onCastSkill}
       />
       <PanelToggleStrip panels={panels} />
@@ -322,27 +338,6 @@ function PanelToggleButton({
   );
 }
 
-function VitalsStrip({ player }: { player: PlayerEntity | null }) {
-  const xpProgress = getMeterProgress(player?.experience, player?.experienceToNextLevel);
-  return (
-    <section className="vitals-strip" aria-label="Vitals">
-      <div className="vitals-header">
-        <strong>{player?.name ?? 'Hero'}</strong>
-        <span>Lv {player?.level ?? 1}</span>
-      </div>
-      <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" />
-      <Meter label="MP" value={player?.mana} max={player?.maxMana} className="meter-mp" />
-      <div className="meter-row">
-        <span>XP</span>
-        <div className="meter-track">
-          <div className="meter-fill meter-xp" style={{ width: `${xpProgress}%` }} />
-        </div>
-        <strong>{formatMeter(player?.experience, player?.experienceToNextLevel)}</strong>
-      </div>
-    </section>
-  );
-}
-
 function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   const stats = derivePlayerStats(player);
   const derived = player?.stats ?? {};
@@ -429,34 +424,6 @@ const STAT_WEIGHTS: Record<string, StatWeights> = {
 };
 
 
-function TargetPanel({
-  player,
-  target,
-}: {
-  player: PlayerEntity | null;
-  target: GameClientState['enemies'][string] | null;
-}) {
-  const distance = player && target ? getDistance(player.position, target.position) : null;
-  const healthRatio = target ? target.health / Math.max(1, target.maxHealth) : 0;
-  const targetState = target ? getTargetState(target.isAlive, healthRatio) : 'No selection';
-  const targetTone = target ? getTargetTone(target.isAlive, healthRatio) : 'none';
-
-  return (
-    <section className={`hud hud-target target-${targetTone}`} aria-label="Target">
-      <div className="panel-title">
-        <strong>{target ? target.name : 'No target'}</strong>
-        <span>{target ? `Level ${target.level}` : '-'}</span>
-      </div>
-      <Meter label="HP" value={target?.health} max={target?.maxHealth} className="meter-enemy" />
-      <div className="target-meta">
-        <span>{targetState}</span>
-        <span>{distance === null ? '-' : `${distance.toFixed(1)}m`}</span>
-      </div>
-      <StatusPills effects={target?.statusEffects ?? []} />
-    </section>
-  );
-}
-
 function MovementPanel({
   player,
   target,
@@ -540,45 +507,6 @@ function DeathOverlay({ onRespawn }: { onRespawn: () => void }) {
   );
 }
 
-function Meter({
-  label,
-  value,
-  max,
-  className,
-}: {
-  label: string;
-  value: number | undefined;
-  max: number | undefined;
-  className: string;
-}) {
-  return (
-    <div className="meter-row">
-      <span>{label}</span>
-      <div className="meter-track">
-        <div className={`meter-fill ${className}`} style={{ width: `${getMeterProgress(value, max)}%` }} />
-      </div>
-      <strong>{formatMeter(value, max)}</strong>
-    </div>
-  );
-}
-
-function StatusPills({ effects }: { effects: StatusEffect[] }) {
-  if (effects.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="status-pills" aria-label="Status effects">
-      {effects.slice(0, 5).map((effect) => (
-        <span key={effect.id} title={effect.sourceSkill}>
-          {effect.type}
-          {effect.stacks ? ` ${effect.stacks}` : ''}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <span className="metric">
@@ -612,46 +540,6 @@ function useSkillHotkeys(
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onCastSkill]);
-}
-
-function formatMeter(value = 0, max = 0): string {
-  return `${Math.round(value)}/${Math.round(max)}`;
-}
-
-function getMeterProgress(value = 0, max = 0): number {
-  if (max <= 0) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(100, (value / max) * 100));
-}
-
-function getTargetState(isAlive: boolean, healthRatio: number): string {
-  if (!isAlive) {
-    return 'Defeated';
-  }
-
-  if (healthRatio <= 0.35) {
-    return 'Weak';
-  }
-
-  return 'Engaged';
-}
-
-function getTargetTone(isAlive: boolean, healthRatio: number): 'defeated' | 'weak' | 'engaged' {
-  if (!isAlive) {
-    return 'defeated';
-  }
-
-  if (healthRatio <= 0.35) {
-    return 'weak';
-  }
-
-  return 'engaged';
-}
-
-function getDistance(a: PlayerEntity['position'], b: PlayerEntity['position']): number {
-  return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
 function formatTravelEta(distance: number | null, speed: number): string {

@@ -163,7 +163,16 @@ function updateEnemy(
 }
 
 function selectTarget(state: GameClientState, targetId: string | null): GameClientState {
-  const selectedTargetId = targetId && state.enemies[targetId]?.isAlive ? targetId : null;
+  if (!targetId) {
+    return { ...state, selectedTargetId: null };
+  }
+  // Self-target: clicking the hero plate selects the player as their own
+  // target. Used by buffs / heals — the cast pipeline detects this case
+  // and routes to the existing beneficial-only self-cast path.
+  if (targetId === state.myPlayerId) {
+    return { ...state, selectedTargetId: targetId };
+  }
+  const selectedTargetId = state.enemies[targetId]?.isAlive ? targetId : null;
   return { ...state, selectedTargetId };
 }
 
