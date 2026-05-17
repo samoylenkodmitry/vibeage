@@ -62,7 +62,21 @@ export function TargetPanel({
   if (enemy) {
     return renderEnemyTargetPanel(panelRef, player, enemy, onClose);
   }
-  return null;
+  return renderEmptyTargetPanel(panelRef);
+}
+
+function renderEmptyTargetPanel(panelRef: React.RefObject<HTMLElement | null>) {
+  return (
+    <section ref={panelRef} className="hud hud-target target-none" aria-label="Target">
+      <div className="panel-title">
+        <strong>No target</strong>
+        <span>-</span>
+      </div>
+      <div className="target-meta">
+        <span>Tab / click an enemy or your own plate</span>
+      </div>
+    </section>
+  );
 }
 
 function renderSelfTargetPanel(

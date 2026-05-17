@@ -282,9 +282,11 @@ input {
   left: 50%;
   bottom: 18px;
   display: grid;
-  width: min(480px, calc(100vw - 36px));
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  width: min(540px, calc(100vw - 36px));
+  /* 5 columns: leftmost is the always-present universal Attack
+     button; the other 4 are class skill slots. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
   transform: translateX(-50%);
 }
 
@@ -1234,8 +1236,8 @@ input {
     left: 8px;
     bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     width: calc(100vw - 16px);
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
     transform: none;
     border: 1px solid rgba(250, 204, 21, 0.4);
     padding: 4px;
@@ -1246,16 +1248,19 @@ input {
 
   .skill-button {
     min-height: 64px;
-    grid-template-columns: 30px 1fr;
-    gap: 2px 6px;
-    padding: 4px 8px;
+    /* 5 columns at 390px viewport leaves ~70px per button; shrink the
+       hotkey square + paddings so the name + footer cells actually fit
+       without scrollWidth > clientWidth. */
+    grid-template-columns: 24px 1fr;
+    gap: 2px 4px;
+    padding: 4px 6px;
     font-size: 12px;
   }
 
   .skill-button__hotkey {
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
   }
 
   .skill-button__name {
