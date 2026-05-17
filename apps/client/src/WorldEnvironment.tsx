@@ -143,7 +143,10 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
     refs.moonGroup.current.visible = palette.moonDir.y > -0.05;
   }
   if (refs.moonLight.current) {
-    refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 0.8;
+    // Brighter moonlight so nights are playable (was 0.8). Still
+    // gated by moon altitude — light fades to 0 when the moon dips
+    // below the horizon so the world doesn't glow flat under it.
+    refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 1.8;
   }
   sunMaterial.color.set(palette.sunColor);
   cloudMaterial.color.set(palette.cloudColor);
