@@ -1,26 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { getEffectLabel } from '../../../../packages/content/effects';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
-
-const EFFECT_LABEL: Record<string, string> = {
-  damage: 'Damage',
-  heal: 'Heal',
-  stun: 'Stun',
-  slow: 'Slow',
-  dot: 'Bleed (DoT)',
-  burn: 'Burn',
-  poison: 'Poison',
-  waterWeakness: 'Water weakness',
-  freeze: 'Freeze',
-  shield: 'Shield',
-  bless: 'Bless',
-  dispel: 'Dispel',
-  taunt: 'Taunt',
-  knockback: 'Knockback',
-  evasion: 'Evasion',
-  invisible: 'Invisible',
-  transform: 'Transform',
-};
 
 type SkillTooltipProps = {
   skillId: SkillId;
@@ -93,7 +74,7 @@ export function SkillTooltip({ skillId, clientX, clientY }: SkillTooltipProps) {
         <footer>
           {skill.effects.map((effect, index) => (
             <span key={index}>
-              {EFFECT_LABEL[effect.type] ?? effect.type}
+              {getEffectLabel(effect.type)}
               {effect.value ? ` · ${effect.value}` : ''}
               {effect.durationMs ? ` · ${(effect.durationMs / 1000).toFixed(1)}s` : ''}
             </span>
