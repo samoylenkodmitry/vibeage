@@ -466,3 +466,16 @@ describe('Vite game client reducer self-target', () => {
     expect(nextState.selectedTargetId).toBeNull();
   });
 });
+
+describe('Vite game client reducer pending cast', () => {
+  it('stores and clears a pending approach-and-cast entry', () => {
+    const set = gameClientReducer(initialGameClientState, {
+      type: 'setPendingCast',
+      pendingCast: { skillId: 'slash', targetId: 'enemy-7', expiresAtTs: 1234 },
+    });
+    expect(set.pendingCast).toEqual({ skillId: 'slash', targetId: 'enemy-7', expiresAtTs: 1234 });
+
+    const cleared = gameClientReducer(set, { type: 'clearPendingCast' });
+    expect(cleared.pendingCast).toBeNull();
+  });
+});

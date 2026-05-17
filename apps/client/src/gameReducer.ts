@@ -51,6 +51,7 @@ export const initialGameClientState: GameClientState = {
   starterProgress: createInitialStarterProgress(),
   worldPublicState: null,
   streamedRegionIds: [],
+  pendingCast: null,
 };
 
 export type GameClientAction =
@@ -68,7 +69,9 @@ export type GameClientAction =
   | { type: 'selectTarget'; targetId: string | null }
   | { type: 'setMoveTarget'; target: Vec3 | null }
   | { type: 'serverMessage'; message: ServerMessage; now: number }
-  | { type: 'pruneCasts'; now: number };
+  | { type: 'pruneCasts'; now: number }
+  | { type: 'setPendingCast'; pendingCast: GameClientState['pendingCast'] }
+  | { type: 'clearPendingCast' };
 
 export function gameClientReducer(
   state: GameClientState,
@@ -105,6 +108,10 @@ export function gameClientReducer(
       return applyServerMessage(state, action.message, action.now);
     case 'pruneCasts':
       return pruneClientVisualState(state, action.now);
+    case 'setPendingCast':
+      return { ...state, pendingCast: action.pendingCast };
+    case 'clearPendingCast':
+      return state.pendingCast ? { ...state, pendingCast: null } : state;
   }
 }
 

@@ -201,4 +201,17 @@ export type GameClientState = {
   starterProgress: StarterProgress;
   worldPublicState: WorldPublicState | null;
   streamedRegionIds: string[];
+  /**
+   * Pending approach-and-cast. When the player presses a targeted skill
+   * with the target out of range, we queue the cast here, send a
+   * MoveIntent toward the target, and fire the actual CastReq once the
+   * polling loop sees us in range (or expire it after expiresAtTs).
+   */
+  pendingCast: PendingCast | null;
+};
+
+export type PendingCast = {
+  skillId: string;
+  targetId: string;
+  expiresAtTs: number;
 };
