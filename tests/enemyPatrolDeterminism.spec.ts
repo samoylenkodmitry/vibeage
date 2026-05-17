@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
@@ -62,12 +62,27 @@ describe('patrol target generation accepts a seeded rng', () => {
   });
 
   it('defaults to Math.random when rng is omitted (production behaviour preserved)', () => {
-    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, NOW);
-    advanceEnemyState(enemy, {
-      players: {}, spatialGrid: new SpatialHashGrid(1),
-      deltaTime: 1 / 30, now: NOW,
-    });
-    expect(enemy.patrolTarget).toBeDefined();
+    // Stub Math.random so the generated patrol target lands well
+    // outside PATROL_ARRIVAL_DISTANCE (0.7). Without this stub the
+    // test is flaky: when Math.random() < ~0.09 the chosen radius is
+    // under 0.7, the same-tick cascade enters advancePatrollingEnemy,
+    // sees the enemy has already "arrived", and clears patrolTarget
+    // — making toBeDefined() fail for purely random reasons.
+    const spy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, NOW);
+      advanceEnemyState(enemy, {
+        players: {}, spatialGrid: new SpatialHashGrid(1),
+        deltaTime: 1 / 30, now: NOW,
+      });
+      expect(enemy.patrolTarget).toBeDefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('seeded patrol-wait is reproducible across enemies', () => {
