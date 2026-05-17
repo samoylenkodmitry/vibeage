@@ -2,6 +2,7 @@ import { sql, type Insertable, type RawBuilder, type Selectable, type UpdateObje
 import { database, type GameDatabase, type PlayersTable, type ServerEventsTable } from '../db.js';
 import type { SkillId } from '../../packages/content/skills.js';
 import type { InventorySlot, StarterProgressState } from '../../packages/protocol/messages.js';
+import type { CharacterInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 
 export type StablePlayerPersistenceData = {
@@ -15,6 +16,7 @@ export type StablePlayerPersistenceData = {
   class_name: PlayerState['className'];
   race: NonNullable<PlayerState['race']>;
   inventory: InventorySlot[];
+  character_inventory: CharacterInventory | null;
   skills: SkillId[];
   skill_shortcuts: Array<SkillId | null>;
   available_skill_points: number;
@@ -86,6 +88,7 @@ function toPlayerPersistencePatch(data: StablePlayerPersistenceData): PlayerPers
   return {
     ...data,
     inventory: toJsonb<InventorySlot[]>(data.inventory),
+    character_inventory: toJsonb<CharacterInventory | null>(data.character_inventory),
     skills: toJsonb<SkillId[]>(data.skills),
     skill_shortcuts: toJsonb<Array<SkillId | null>>(data.skill_shortcuts),
     starter_progress: toJsonb<StarterProgressState>(data.starter_progress),

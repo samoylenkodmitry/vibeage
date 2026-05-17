@@ -108,3 +108,26 @@ export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeo
   player.characterInventory = snapshot.aggregate;
   player.inventory = snapshot.legacy;
 }
+
+/**
+ * Attach a persisted CharacterInventory aggregate back to a freshly
+ * hydrated player. Tolerates the row column being null (pre-migration
+ * rows, or any player that hasn't equipped anything yet) — the caller
+ * falls back to building from the legacy bag in that case.
+ */
+export function hydratePersistedCharacterInventory(
+  player: PlayerState,
+  raw: unknown,
+): void {
+  if (!raw || typeof raw !== 'object') {
+    return;
+  }
+  const aggregate = raw as CharacterInventory;
+  if (!aggregate.items || !aggregate.equipment || !aggregate.occupancy) {
+    return;
+  }
+  player.characterInventory = aggregate;
+  // Project the bag view back onto the legacy `inventory` field so the
+  // existing wire/persistence consumers see the right item list.
+  syncLegacyInventory(player);
+}

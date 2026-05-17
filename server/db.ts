@@ -3,6 +3,7 @@ import { Kysely, PostgresDialect, type ColumnType, type Generated } from 'kysely
 import { Pool } from 'pg';
 import type { SkillId } from '../packages/content/skills.js';
 import type { InventorySlot, StarterProgressState } from '../packages/protocol/messages.js';
+import type { CharacterInventory } from '../packages/sim/characterInventory.js';
 
 type DefaultColumn<T> = ColumnType<T, T | undefined, T>;
 type NullableDefaultColumn<T> = ColumnType<T | null, T | null | undefined, T | null>;
@@ -23,6 +24,11 @@ export interface PlayersTable {
   position_y: DefaultColumn<number>;
   position_z: DefaultColumn<number>;
   inventory: JsonColumn<InventorySlot[]>;
+  character_inventory: ColumnType<
+    CharacterInventory | null,
+    CharacterInventory | string | null | undefined,
+    CharacterInventory | string | null
+  >;
   skills: JsonColumn<SkillId[]>;
   skill_shortcuts: JsonColumn<(SkillId | null)[]>;
   available_skill_points: DefaultColumn<number>;

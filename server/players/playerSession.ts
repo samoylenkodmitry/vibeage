@@ -15,8 +15,9 @@ import {
   normalizeUnlockedSkills,
 } from './playerProgression.js';
 import { derivePlayerStats } from '../../packages/sim/playerStats.js';
-import { projectPlayerStats } from '../inventory/equipHandlers.js';
+import { projectPlayerStats, refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
 import { applyStarterLoadout } from '../inventory/starterLoadout.js';
+import { hydratePersistedCharacterInventory } from '../inventory/aggregateBridge.js';
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
 
@@ -37,6 +38,7 @@ type PlayerRow = {
   available_skill_points?: unknown;
   starter_progress?: unknown;
   inventory?: InventorySlot[];
+  character_inventory?: unknown;
   race?: unknown;
 };
 
@@ -117,10 +119,24 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     maxInventorySlots: 20,
     stats: projectPlayerStats(derived),
   };
+  // Restore the persisted CharacterInventory aggregate (item instances +
+  // equipment slots + occupancy). Without this, equipped gear silently
+  // disappears on the next session because the legacy `inventory` jsonb
+  // only carries the flat bag-slot view.
+  hydratePersistedCharacterInventory(player, row.character_inventory);
   // Fresh persisted accounts (level 1, empty inventory) get the starter
   // loadout so they see the new equipment system immediately.
-  if (player.level === 1 && player.inventory.length === 0) {
+  if (
+    player.level === 1
+    && player.inventory.length === 0
+    && !player.characterInventory
+  ) {
     applyStarterLoadout(player);
+  }
+  // Recompute derived stats now that equipment has been restored — the
+  // earlier derivePlayerStats(level, class, {}, race) was equipment-empty.
+  if (player.characterInventory) {
+    refreshPlayerStatsFromEquipment(player);
   }
   return player;
 }
