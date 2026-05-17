@@ -159,7 +159,13 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
   if (!enemy.patrolTarget) {
     const rng = context.rng ?? Math.random;
     const angle = rng() * Math.PI * 2;
-    const radius = rng() * PATROL_RADIUS;
+    // Bound the radius outside PATROL_ARRIVAL_DISTANCE: the same-tick
+    // cascade runs advancePatrollingEnemy right after we set this
+    // target, and if the chosen point landed within arrival distance
+    // it would be cleared instantly — the enemy would stand still
+    // generating-and-clearing patrol targets every tick.
+    const minRadius = PATROL_ARRIVAL_DISTANCE + 0.5;
+    const radius = minRadius + rng() * Math.max(0, PATROL_RADIUS - minRadius);
     enemy.patrolTarget = {
       x: enemy.spawnPosition.x + Math.cos(angle) * radius,
       z: enemy.spawnPosition.z + Math.sin(angle) * radius,
