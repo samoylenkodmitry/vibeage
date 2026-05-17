@@ -73,7 +73,7 @@ describe('player session hydration', () => {
       experience: 120,
       experienceToNextLevel: 225,
       unlockedSkills: ['fireball', 'basicAttack'],
-      skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+      skillShortcuts: ['fireball', ...Array(23).fill(null)],
       availableSkillPoints: 2,
       starterProgress: {
         defeatedEnemies: 2,
@@ -212,7 +212,7 @@ describe('player session relog persistence', () => {
     beforeRelog.level = 3;
     beforeRelog.experience = 80;
     beforeRelog.unlockedSkills = ['fireball', 'waterSplash'];
-    beforeRelog.skillShortcuts = ['fireball', 'waterSplash', null, null, null, null, null, null, null];
+    beforeRelog.skillShortcuts = ['fireball', 'waterSplash', ...Array(22).fill(null)];
     beforeRelog.availableSkillPoints = 1;
     beforeRelog.inventory = [
       { itemId: 'health_potion', quantity: 2 },

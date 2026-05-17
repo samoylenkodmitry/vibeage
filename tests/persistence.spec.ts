@@ -109,7 +109,7 @@ describe('stable persistence contract', () => {
       // Universal Basic Attack is unconditionally appended on hydrate /
       // creation, so it round-trips through persistence too.
       skills: ['fireball', 'waterSplash', 'basicAttack'],
-      skill_shortcuts: ['waterSplash', null, 'fireball', null, null, null, null, null, null],
+      skill_shortcuts: ['waterSplash', null, 'fireball', ...Array(21).fill(null)],
       available_skill_points: 2,
       starter_progress: {
         defeatedEnemies: 0,

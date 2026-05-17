@@ -638,11 +638,20 @@ function useSkillHotkeys(
         return;
       }
 
-      const slotIndex = getSkillSlotIndexForKeyboardCode(event.code);
-      const skillId = slotIndex === null ? null : getHotkeySkill(playerRef.current, slotIndex);
-      if (skillId) {
-        event.preventDefault();
-        onCastSkill(skillId);
+      // F1..F12 + Ctrl+F1..F12 → slots 0..23. Always preventDefault
+      // on F-keys (even when the slot is empty) so the browser
+      // doesn't fire help / reload / fullscreen / devtools while the
+      // player is in combat. F11/F12 may still be intercepted by some
+      // browsers — known limitation.
+      const slotIndex = getSkillSlotIndexForKeyboardCode(event.code, event.ctrlKey);
+      if (slotIndex !== null) {
+        const skillId = getHotkeySkill(playerRef.current, slotIndex);
+        if (/^F([1-9]|1[0-2])$/.test(event.code)) {
+          event.preventDefault();
+        }
+        if (skillId) {
+          onCastSkill(skillId);
+        }
       }
     }
 
