@@ -35,6 +35,8 @@ export type ClientActions = {
   unequipItem: (slot: string) => void;
   selectClass: (className: string) => void;
   selectRace: (race: string) => void;
+  selectSpecialization: (specializationId: string) => void;
+  upgradeSkill: (skillId: SkillId) => void;
   respawn: () => void;
   devTeleport: (target: VecXZ) => void;
   sendChat: (text: string, scope: 'near' | 'all') => void;
@@ -126,6 +128,14 @@ export function useClientActions(
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectRace', race });
   }, [roomRef]);
 
+  const selectSpecialization = useCallback((specializationId: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectSpecialization', specializationId });
+  }, [roomRef]);
+
+  const upgradeSkill = useCallback((skillId: SkillId) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UpgradeSkill', skillId });
+  }, [roomRef]);
+
   const respawn = useCallback(() => {
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
@@ -137,8 +147,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 

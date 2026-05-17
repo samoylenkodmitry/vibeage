@@ -42,7 +42,25 @@ type PlayerRow = {
   inventory?: InventorySlot[];
   character_inventory?: unknown;
   race?: unknown;
+  specialization_id?: unknown;
+  skill_levels?: unknown;
 };
+
+function normalizeSpecializationId(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function normalizeSkillLevels(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object') return {};
+  const out: Record<string, number> = {};
+  for (const [skillId, level] of Object.entries(value as Record<string, unknown>)) {
+    const n = typeof level === 'number' ? level : Number(level);
+    if (Number.isFinite(n) && n >= 1) {
+      out[skillId] = Math.floor(n);
+    }
+  }
+  return out;
+}
 
 function normalizeClassName(value: unknown): CharacterClass {
   if (value === 'warrior' || value === 'healer' || value === 'ranger'
@@ -120,6 +138,8 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     inventory: row.inventory || [],
     maxInventorySlots: 20,
     stats: projectPlayerStats(derived),
+    specializationId: normalizeSpecializationId(row.specialization_id),
+    skillLevels: normalizeSkillLevels(row.skill_levels),
   };
   // Restore the persisted CharacterInventory aggregate (item instances +
   // equipment slots + occupancy). Without this, equipped gear silently

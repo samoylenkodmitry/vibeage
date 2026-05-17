@@ -85,6 +85,19 @@ export interface PlayerState {
   unlockedSkills: SkillId[];
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
+  /**
+   * Specialization id (e.g. 'arcanist') the player chose at
+   * SPECIALIZATION_UNLOCK_LEVEL. Null until picked. Drives the
+   * spec-level passive layer; proficiency passive engages once
+   * level >= PROFICIENCY_LEVEL.
+   */
+  specializationId?: string | null;
+  /**
+   * Per-skill upgrade level (default 1). Keys are SkillId; values
+   * are 1..(skill.upgrades.length + 1). The cast pipeline reads
+   * this and applies the cumulative SkillUpgrade modifiers.
+   */
+  skillLevels?: Record<string, number>;
   starterProgress?: StarterProgressState;
   skillCooldownEndTs: Record<string, number>;
   statusEffects: StatusEffect[];

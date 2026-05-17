@@ -44,6 +44,8 @@ type GameHudProps = {
   onUnequipItem: (slot: string) => void;
   onSelectClass: (className: string) => void;
   onSelectRace: (race: string) => void;
+  onSelectSpecialization: (specializationId: string) => void;
+  onUpgradeSkill: (skillId: SkillId) => void;
   onRespawn: () => void;
   onSelectTarget?: (targetId: string | null) => void;
   onCycleTarget?: () => void;
@@ -124,6 +126,8 @@ export function GameHud({
   onUnequipItem,
   onSelectClass,
   onSelectRace,
+  onSelectSpecialization,
+  onUpgradeSkill,
   onRespawn,
   onSelectTarget,
   onCycleTarget,
@@ -185,6 +189,8 @@ export function GameHud({
         onUnequipItem={onUnequipItem}
         onSelectClass={onSelectClass}
         onSelectRace={onSelectRace}
+        onSelectSpecialization={onSelectSpecialization}
+        onUpgradeSkill={onUpgradeSkill}
         onPickupNearest={onPickupNearest}
         onSendChat={onSendChat}
       />
@@ -267,6 +273,8 @@ type HudPanelsProps = {
   onUnequipItem: (slot: string) => void;
   onSelectClass: (className: string) => void;
   onSelectRace: (race: string) => void;
+  onSelectSpecialization: (specializationId: string) => void;
+  onUpgradeSkill: (skillId: SkillId) => void;
   onPickupNearest?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
@@ -288,6 +296,8 @@ function HudPanels({
   onUnequipItem,
   onSelectClass,
   onSelectRace,
+  onSelectSpecialization,
+  onUpgradeSkill,
   onPickupNearest,
   onSendChat,
 }: HudPanelsProps) {
@@ -309,7 +319,12 @@ function HudPanels({
         <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
       )}
       {panels.characterOpen && (
-        <CharacterPanel player={player} onSelectClass={onSelectClass} onSelectRace={onSelectRace} />
+        <CharacterPanel
+          player={player}
+          onSelectClass={onSelectClass}
+          onSelectRace={onSelectRace}
+          onSelectSpecialization={onSelectSpecialization}
+        />
       )}
       {panels.mapOpen && (
         <MapPanel
@@ -320,7 +335,12 @@ function HudPanels({
         />
       )}
       {panels.treeOpen && (
-        <SkillTreePanel player={player} onLearnSkill={onLearnSkill} rejections={state.learnSkillRejections} />
+        <SkillTreePanel
+          player={player}
+          onLearnSkill={onLearnSkill}
+          onUpgradeSkill={onUpgradeSkill}
+          rejections={state.learnSkillRejections}
+        />
       )}
       {panels.actionsOpen && (
         <ActionsPanel

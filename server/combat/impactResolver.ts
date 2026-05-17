@@ -3,6 +3,7 @@ import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
 import {
   emitEnemyUpdated,
   emitPlayerUpdated,
@@ -95,8 +96,11 @@ function calculateDamage(
 
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
 
+  // Skill-upgrade tier multiplies the base damage so a leveled-up
+  // Slash actually hits harder. Engine-side: single read site.
+  const upgradeMods = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id));
   const result = getDamage({
-    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult },
+    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult * upgradeMods.dmgMultiplier },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });

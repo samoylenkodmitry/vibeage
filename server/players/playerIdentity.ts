@@ -1,8 +1,10 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
 import { CHARACTER_RACES, type CharacterRace } from '../../packages/content/races.js';
+import { SKILLS, type SkillId } from '../../packages/content/skills.js';
+import { getSpecializationById } from '../../packages/content/specializations.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
-import { log, LOG_CATEGORIES } from '../logger.js';
+import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { starterSkillsFor } from './playerProgression.js';
 
@@ -118,6 +120,76 @@ export function applyRaceChange(
     // Race multipliers feed into derived stats (Lineage-style weights).
     // Broadcast so the panel updates pAtk/mAtk/etc. immediately.
     stats: player.stats,
+  });
+  return true;
+}
+
+/**
+ * Player picks a specialization at SPECIALIZATION_UNLOCK_LEVEL (20).
+ * Validates: the spec exists, matches the player's base class, the
+ * player has hit the unlock level, and isn't already specialized.
+ * Spec choice is currently one-way (no respec) by design — the
+ * proficiency tier (lv40) unlocks more skills under the same branch.
+ */
+export function applySpecializationChange(
+  player: PlayerState,
+  rawSpecId: string,
+  outbound: OutboundEventSink,
+): boolean {
+  const spec = getSpecializationById(rawSpecId);
+  if (!spec) return false;
+  if (spec.baseClass !== player.className) {
+    warn(LOG_CATEGORIES.PLAYER, `Spec ${rawSpecId} doesn't match player class ${player.className}`);
+    return false;
+  }
+  if (player.level < spec.unlockLevel) {
+    warn(LOG_CATEGORIES.PLAYER, `Player ${player.id} below spec unlock level (${player.level} < ${spec.unlockLevel})`);
+    return false;
+  }
+  if (player.specializationId === spec.id) return false;
+  player.specializationId = spec.id;
+  // Spec passive multipliers will feed into refreshPlayerStatsFromEquipment
+  // once derivePlayerStats reads them; for now we just record the choice
+  // and broadcast. (Stat-merge integration is its own small follow-up.)
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} spec -> ${spec.id}`);
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    specializationId: spec.id,
+  });
+  return true;
+}
+
+/**
+ * Bump a skill's upgrade tier by one. Requires:
+ *   - skill is currently unlocked
+ *   - skill has an upgrades[] table
+ *   - player hasn't already maxed the table
+ *   - player has at least one available skill point
+ *
+ * Spends one availableSkillPoint per tier. Engine reads skillLevels
+ * on cast resolution via getSkillUpgradeModifiers.
+ */
+export function applySkillUpgrade(
+  player: PlayerState,
+  skillId: SkillId,
+  outbound: OutboundEventSink,
+): boolean {
+  if (!player.unlockedSkills.includes(skillId)) return false;
+  const skill = SKILLS[skillId];
+  const upgrades = skill?.upgrades;
+  if (!upgrades?.length) return false;
+  const current = Math.max(1, Math.floor(player.skillLevels?.[skillId] ?? 1));
+  const maxLevel = 1 + upgrades.length;
+  if (current >= maxLevel) return false;
+  if (player.availableSkillPoints < 1) return false;
+  player.availableSkillPoints -= 1;
+  const next = current + 1;
+  player.skillLevels = { ...(player.skillLevels ?? {}), [skillId]: next };
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} upgraded ${skillId} -> lv${next}`);
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    availableSkillPoints: player.availableSkillPoints,
+    skillLevels: player.skillLevels,
   });
   return true;
 }

@@ -5,15 +5,20 @@ import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effe
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
+import {
+  SPECIALIZATIONS,
+  type Specialization,
+} from '../../../../packages/content/specializations';
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 
-type WikiTab = 'skills' | 'items' | 'classes' | 'races' | 'effects';
+type WikiTab = 'skills' | 'items' | 'classes' | 'specs' | 'races' | 'effects';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
   { id: 'items', label: 'Items' },
   { id: 'classes', label: 'Classes' },
+  { id: 'specs', label: 'Specs' },
   { id: 'races', label: 'Races' },
   { id: 'effects', label: 'Effects' },
 ];
@@ -54,6 +59,7 @@ export function WikiPanel() {
         {tab === 'skills' && <SkillsTab query={query} />}
         {tab === 'items' && <ItemsTab query={query} />}
         {tab === 'classes' && <ClassesTab query={query} />}
+        {tab === 'specs' && <SpecsTab query={query} />}
         {tab === 'races' && <RacesTab query={query} />}
         {tab === 'effects' && <EffectsTab query={query} />}
       </div>
@@ -106,6 +112,11 @@ function SkillRow({ skill }: { skill: SkillDef }) {
           }).join(', ')}
         </small>
       )}
+      {skill.upgrades?.length ? (
+        <small className="wiki-row-footer">
+          Upgrades: {skill.upgrades.map((u) => `Lv${u.level}: ${u.description}`).join(' · ')}
+        </small>
+      ) : null}
     </li>
   );
 }
@@ -182,6 +193,42 @@ function ClassRow({ cls }: { cls: CharacterClass }) {
       )}
       <small className="wiki-row-footer">
         Tree: {skillNames}
+      </small>
+    </li>
+  );
+}
+
+function SpecsTab({ query }: { query: string }) {
+  const rows = useMemo(() => Object.values(SPECIALIZATIONS).filter((s) =>
+    filterMatch(
+      `${s.name} ${s.baseClass} ${s.description} ${s.specializationPassive.name} ${s.proficiencyPassive.name}`,
+      query,
+    ),
+  ), [query]);
+  return (
+    <ul className="wiki-list">
+      {rows.map((spec) => <SpecRow key={spec.id} spec={spec} />)}
+    </ul>
+  );
+}
+
+function SpecRow({ spec }: { spec: Specialization }) {
+  return (
+    <li className="wiki-row">
+      <header>
+        <strong>{spec.name}</strong>
+        <span className="wiki-row-tag">{capitalize(spec.baseClass)}</span>
+      </header>
+      <p>{spec.description}</p>
+      <dl>
+        <Pair k="Unlock Lv" v={String(spec.unlockLevel)} />
+        <Pair k="Proficient Lv" v={String(spec.proficiencyLevel)} />
+      </dl>
+      <small className="wiki-row-footer">
+        Spec passive: <strong>{spec.specializationPassive.name}</strong> — {spec.specializationPassive.description}
+      </small>
+      <small className="wiki-row-footer">
+        Proficient: <strong>{spec.proficiencyPassive.name}</strong> — {spec.proficiencyPassive.description}
       </small>
     </li>
   );
