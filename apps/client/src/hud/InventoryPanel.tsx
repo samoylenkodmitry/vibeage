@@ -45,6 +45,13 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: 
             title={title}
             aria-label={slot && action ? `${action} ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
             onClick={(event) => {
+              // Touch long-press fires a synthesized click on
+              // finger-lift; swallow it so the bag doesn't
+              // immediately use/equip after the tooltip opens.
+              if (tooltip.consumePendingClick()) {
+                event.stopPropagation();
+                return;
+              }
               onClick?.();
               event.stopPropagation();
             }}

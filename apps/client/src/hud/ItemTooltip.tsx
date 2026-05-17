@@ -33,7 +33,7 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
     setPos({ left, top });
   }, [clientX, clientY, itemId]);
 
-  if (!item || typeof document === 'undefined') {
+  if (!item || typeof document === 'undefined' || !document.body) {
     return null;
   }
   const stats = item.stats ?? {};

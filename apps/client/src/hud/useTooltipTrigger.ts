@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const HOVER_DELAY_MS = 350;
 const LONG_PRESS_MS = 380;
 const CANCEL_MOVE_PX = 8;
+const SUPPRESS_CLICK_MS = 450;
 
 export type TooltipInfo<T> = {
   payload: T;
@@ -25,6 +26,7 @@ export function useTooltipTrigger<T>() {
   const hoverTimer = useRef<number | null>(null);
   const pressTimer = useRef<number | null>(null);
   const pressOrigin = useRef<{ x: number; y: number; payload: T } | null>(null);
+  const suppressClickUntil = useRef(0);
 
   const clearTimers = useCallback(() => {
     if (hoverTimer.current !== null) {
@@ -60,9 +62,26 @@ export function useTooltipTrigger<T>() {
       pressOrigin.current = null;
       if (origin) {
         setInfo({ payload: origin.payload, clientX: origin.x, clientY: origin.y });
+        // Long-press has fired — swallow the next click that the
+        // browser synthesises when the user lifts their finger so the
+        // bag slot doesn't immediately use/equip the item.
+        suppressClickUntil.current = Date.now() + SUPPRESS_CLICK_MS;
       }
     }, LONG_PRESS_MS);
   }, [clearTimers]);
+
+  /**
+   * Caller invokes this from a button's onClick to ask 'is this click
+   * just the lift-off of a long-press tap?'. Returns true if so and
+   * the caller should bail out of its normal action.
+   */
+  const consumePendingClick = useCallback((): boolean => {
+    if (Date.now() < suppressClickUntil.current) {
+      suppressClickUntil.current = 0;
+      return true;
+    }
+    return false;
+  }, []);
 
   const onPointerMove = useCallback((clientX: number, clientY: number) => {
     const origin = pressOrigin.current;
@@ -77,11 +96,29 @@ export function useTooltipTrigger<T>() {
     setInfo({ payload, clientX, clientY });
   }, [clearTimers]);
 
+  useDismissOnOutside(info, setInfo);
+
+  const triggerProps = useCallback((payload: T) => buildTriggerProps({
+    payload,
+    scheduleHover,
+    beginLongPress,
+    onPointerMove,
+    openInstant,
+    clearTimers,
+    setInfo,
+  }), [scheduleHover, beginLongPress, onPointerMove, openInstant, clearTimers]);
+
+  return { info, dismiss, triggerProps, consumePendingClick };
+}
+
+function useDismissOnOutside<T>(
+  info: TooltipInfo<T> | null,
+  setInfo: React.Dispatch<React.SetStateAction<TooltipInfo<T> | null>>,
+): void {
   useEffect(() => {
     if (!info) return undefined;
     const onDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
-      // Tapping inside the tooltip or its trigger button keeps it open.
       if (target?.closest('.skill-tooltip, .item-tooltip')) return;
       setInfo(null);
     };
@@ -94,19 +131,7 @@ export function useTooltipTrigger<T>() {
       window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('keydown', onKey);
     };
-  }, [info]);
-
-  const triggerProps = useCallback((payload: T) => buildTriggerProps({
-    payload,
-    scheduleHover,
-    beginLongPress,
-    onPointerMove,
-    openInstant,
-    clearTimers,
-    setInfo,
-  }), [scheduleHover, beginLongPress, onPointerMove, openInstant, clearTimers]);
-
-  return { info, dismiss, triggerProps };
+  }, [info, setInfo]);
 }
 
 type BuildTriggerPropsArgs<T> = {
