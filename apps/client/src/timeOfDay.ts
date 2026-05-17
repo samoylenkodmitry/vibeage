@@ -83,7 +83,10 @@ const KEYFRAMES: Keyframe[] = [
     sunIntensity: 0.85,
     hemisphereSky: '#3a5394',
     hemisphereGround: '#1f3258',
-    hemisphereIntensity: 0.95,
+    // Just under midday's 0.85 so day vs night ambient invariant
+    // still holds. The (now 3.2×) moon point light + brighter sky
+    // colour pick up the slack on actual scene visibility.
+    hemisphereIntensity: 0.82,
     fogColor: '#1d3160',
     backgroundColor: '#1a2f60',
     cloudColor: '#506b9a',

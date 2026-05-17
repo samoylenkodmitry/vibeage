@@ -56,7 +56,10 @@ describe('time of day cycle', () => {
     const midday = computeDayPhase(middayPhase);
     const midnight = computeDayPhase(midnightPhase);
 
-    expect(midday.sunIntensity).toBeGreaterThan(midnight.sunIntensity * 2);
+    // 1.5× contrast — the night palette has been progressively
+    // brightened so players can actually see at night; the strict 2×
+    // invariant no longer holds (and shouldn't, by design).
+    expect(midday.sunIntensity).toBeGreaterThan(midnight.sunIntensity * 1.5);
     expect(midday.hemisphereIntensity).toBeGreaterThan(midnight.hemisphereIntensity);
   });
 
