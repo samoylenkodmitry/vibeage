@@ -166,6 +166,14 @@ function isSkillKnown(player: PlayerEntity, skillId: SkillId): boolean {
 }
 
 function getCastTargetId(state: GameClientState, player: PlayerEntity): string | null {
+  // Self-target: client uses selectedTargetId === player.id as a UI
+  // signal ("cast on me"). Don't forward to the server — its
+  // beneficial-only auto-self-cast path (impactResolver) needs targetId
+  // absent to fire. Offensive skills with no other target then fail
+  // cleanly, which is fine (you can't damage yourself).
+  if (state.selectedTargetId === player.id) {
+    return null;
+  }
   if (state.selectedTargetId && state.enemies[state.selectedTargetId]?.isAlive) {
     return state.selectedTargetId;
   }
