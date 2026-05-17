@@ -305,18 +305,22 @@ function approachPointToward(player: PlayerEntity, target: EnemyEntity, skillId:
 }
 
 function getCastTargetId(state: GameClientState, player: PlayerEntity, skillId: SkillId): string | null {
-  // Self-targeted (player clicked their own plate). For self-castable
-  // beneficials we send no targetId so the server's beneficial-only
-  // auto-self-cast path fires. For everything else we fall through to
-  // the normal nearest-enemy fallback — otherwise selecting yourself
-  // would silently block offensive skills that have no other target.
+  // Respect the current selection. If the player explicitly picked a
+  // target (self plate or an enemy), don't silently swap it for the
+  // nearest enemy when the skill mismatches — that'd be the client
+  // making a balance decision for them mid-fight.
   if (state.selectedTargetId === player.id) {
     if (isSelfCastable(skillId)) return null;
-    return getNearestAliveEnemyId(state.enemies, getPlayerPosition(player));
+    // Damage skill cast at self → the existing selection is wrong
+    // for this skill. Don't auto-pick an enemy; let the cast fail so
+    // the player notices and retargets.
+    return null;
   }
   if (state.selectedTargetId && state.enemies[state.selectedTargetId]?.isAlive) {
     return state.selectedTargetId;
   }
 
+  // No selection at all → falling back to nearest enemy is fine
+  // (existing behavior; the player hasn't expressed a preference).
   return getNearestAliveEnemyId(state.enemies, getPlayerPosition(player));
 }
