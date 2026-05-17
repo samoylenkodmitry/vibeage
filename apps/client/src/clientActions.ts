@@ -38,6 +38,7 @@ export type ClientActions = {
   sendChat: (text: string, scope: 'near' | 'all') => void;
   tryFirePendingCast: () => void;
   tryFirePendingPickup: () => void;
+  tryAdvanceAutoAttack: () => void;
 };
 
 export function useClientActions(
@@ -59,11 +60,13 @@ export function useClientActions(
       clientTs: Date.now(),
     });
     dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
-    // A manual move click overrides any in-flight approach intent —
-    // the player has redirected, don't surprise them by firing the
-    // queued cast or pickup after they walk to a different spot.
+    // A manual move click overrides any in-flight approach intent or
+    // auto-attack — the player has redirected, don't surprise them by
+    // firing the queued cast / pickup / next swing after they walk
+    // to a different spot.
     dispatch({ type: 'clearPendingCast' });
     dispatch({ type: 'clearPendingPickup' });
+    dispatch({ type: 'clearAutoAttack' });
   }, [roomRef, stateRef, dispatch]);
 
   const selectTarget = useCallback((targetId: string | null) => {
@@ -85,7 +88,7 @@ export function useClientActions(
     }
   }, [stateRef, dispatch]);
 
-  const { castSkill, tryFirePendingCast } = useCastActions(roomRef, stateRef, dispatch);
+  const { castSkill, tryFirePendingCast, tryAdvanceAutoAttack } = useCastActions(roomRef, stateRef, dispatch);
 
   const pickUpLoot = useCallback((lootId: string) => {
     const room = roomRef.current;
@@ -132,8 +135,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 
@@ -170,42 +173,61 @@ function useCastActions(
     }
   }, [roomRef, dispatch]);
 
+  const armAutoAttack = useCallback((skillId: SkillId, targetId: string) => {
+    dispatch({ type: 'setAutoAttack', autoAttack: { skillId, targetId } });
+  }, [dispatch]);
+
+  const queueApproachCast = useCallback((player: PlayerEntity, skillId: SkillId, targetEnemy: EnemyEntity) => {
+    sendApproachIntent(approachPointToward(player, targetEnemy, skillId));
+    dispatch({
+      type: 'setPendingCast',
+      pendingCast: { skillId, targetId: targetEnemy.id, expiresAtTs: Date.now() + PENDING_CAST_TTL_MS },
+    });
+    if (SKILLS[skillId]?.autoRepeat && targetEnemy.isAlive) {
+      armAutoAttack(skillId, targetEnemy.id);
+    }
+  }, [dispatch, sendApproachIntent, armAutoAttack]);
+
   const castSkill = useCallback((skillId: SkillId) => {
-    const room = roomRef.current;
     const current = stateRef.current;
     const player = current ? getMyPlayer(current) : null;
-    if (!room || !current || !player || !player.isAlive || !isSkillKnown(player, skillId)) {
-      return;
-    }
+    if (!roomRef.current || !current || !player?.isAlive || !isSkillKnown(player, skillId)) return;
 
     const targetId = getCastTargetId(current, player, skillId);
-    if (!targetId && SKILLS[skillId].requiresTarget) {
-      return;
+    if (!targetId && SKILLS[skillId].requiresTarget) return;
+
+    // User casting a non-auto-repeat skill cancels any running
+    // auto-attack so we don't surprise them by going back to Basic
+    // Attack on the next tick.
+    if (!SKILLS[skillId]?.autoRepeat && current.autoAttack) {
+      dispatch({ type: 'clearAutoAttack' });
     }
 
-    // Approach-and-cast: if a targeted enemy is selected and out of
-    // range, queue the cast and walk toward the target instead of
-    // bouncing off the server's outofrange rejection. The interval in
-    // useGameClient fires the queued CastReq once we arrive.
     const targetEnemy = targetId ? current.enemies[targetId] : null;
     if (targetEnemy && isOutOfCastRange(player, targetEnemy, skillId)) {
-      sendApproachIntent(approachPointToward(player, targetEnemy, skillId));
-      dispatch({
-        type: 'setPendingCast',
-        pendingCast: {
-          skillId,
-          targetId: targetEnemy.id,
-          expiresAtTs: Date.now() + PENDING_CAST_TTL_MS,
-        },
-      });
+      queueApproachCast(player, skillId, targetEnemy);
       return;
     }
 
     dispatch({ type: 'clearPendingCast' });
     fireCastReq(player, skillId, targetId);
-  }, [roomRef, stateRef, dispatch, sendApproachIntent, fireCastReq]);
+    if (SKILLS[skillId]?.autoRepeat && targetId && current.enemies[targetId]?.isAlive) {
+      armAutoAttack(skillId, targetId);
+    }
+  }, [roomRef, stateRef, dispatch, queueApproachCast, fireCastReq, armAutoAttack]);
 
-  const tryFirePendingCast = useCallback(() => {
+  const tryFirePendingCast = useTryFirePendingCast(stateRef, dispatch, fireCastReq);
+  const tryAdvanceAutoAttack = useTryAdvanceAutoAttack(stateRef, dispatch, castSkill);
+
+  return { castSkill, tryFirePendingCast, tryAdvanceAutoAttack };
+}
+
+function useTryFirePendingCast(
+  stateRef: RefObject<GameClientState>,
+  dispatch: Dispatch<GameClientAction>,
+  fireCastReq: (player: PlayerEntity, skillId: SkillId, targetId: string | null) => void,
+) {
+  return useCallback(() => {
     const current = stateRef.current;
     const pending = current?.pendingCast;
     if (!current || !pending) return;
@@ -229,8 +251,39 @@ function useCastActions(
     dispatch({ type: 'clearPendingCast' });
     fireCastReq(player, pending.skillId as SkillId, pending.targetId);
   }, [stateRef, dispatch, fireCastReq]);
+}
 
-  return { castSkill, tryFirePendingCast };
+function useTryAdvanceAutoAttack(
+  stateRef: RefObject<GameClientState>,
+  dispatch: Dispatch<GameClientAction>,
+  castSkill: (skillId: SkillId) => void,
+) {
+  return useCallback(() => {
+    const current = stateRef.current;
+    const auto = current?.autoAttack;
+    if (!current || !auto) return;
+    const player = getMyPlayer(current);
+    if (!player?.isAlive) {
+      dispatch({ type: 'clearAutoAttack' });
+      return;
+    }
+    const target = current.enemies[auto.targetId];
+    if (!target || !target.isAlive) {
+      dispatch({ type: 'clearAutoAttack' });
+      return;
+    }
+    // Player deselected → stop auto-swinging. Self-selection counts
+    // as "not this enemy anymore".
+    if (current.selectedTargetId && current.selectedTargetId !== auto.targetId) {
+      dispatch({ type: 'clearAutoAttack' });
+      return;
+    }
+    const cdEnd = player.skillCooldownEndTs?.[auto.skillId] ?? 0;
+    if (Date.now() < cdEnd) return;
+    // Re-fire by re-entering castSkill — that path handles approach,
+    // range check, and auto-re-arms autoAttack against the same target.
+    castSkill(auto.skillId as SkillId);
+  }, [stateRef, dispatch, castSkill]);
 }
 
 function usePickupActions(
