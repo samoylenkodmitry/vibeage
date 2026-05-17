@@ -505,17 +505,17 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Make run speed feed movement consistently through shared stats.
 - [ ] Add an effect tick system for players and enemies.
 - [x] Add expiration pruning for player status effects.
-- [ ] Add expiration pruning for enemy status effects.
+- [x] Add expiration pruning for enemy status effects.
 - [x] Add periodic damage for burn.
 - [x] Add periodic damage for poison.
 - [x] Add periodic damage for generic DoT.
 - [ ] Add periodic healing if future HoTs are added.
-- [ ] Add slow effect behavior that reliably changes movement speed while active.
+- [x] Add slow effect behavior that reliably changes movement speed while active.
 - [x] Add stun behavior that blocks movement, casting, and attacking while active.
-- [ ] Add freeze/root behavior if distinct from stun.
-- [ ] Add taunt behavior that changes enemy target priority for the duration.
+- [x] Add freeze/root behavior if distinct from stun.
+- [x] Add taunt behavior that changes enemy target priority for the duration.
 - [ ] Add knockback behavior with server-owned position changes and collision/bounds validation.
-- [ ] Add invisibility behavior that breaks or suppresses aggro according to product rules.
+- [x] Add invisibility behavior that breaks or suppresses aggro according to product rules.
 - [ ] Add dispel behavior with configurable categories: negative, positive, magic, poison, bleed, stun, shield.
 - [ ] Add buff stacking policy: replace, stack, refresh, or reject.
 - [ ] Add debuff stacking policy: replace, stack, refresh, or reject.
