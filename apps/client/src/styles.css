@@ -768,6 +768,145 @@ input {
   font-size: 11px;
 }
 
+.wiki-panel {
+  position: absolute;
+  top: 80px;
+  right: 96px;
+  z-index: 7;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  width: min(520px, calc(100vw - 36px));
+  max-height: min(620px, calc(100vh - 120px));
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 8px;
+  background: rgba(5, 14, 18, 0.94);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  font-size: 12px;
+}
+
+.wiki-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.wiki-tab {
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid rgba(141, 233, 215, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #9dded3;
+  font-size: 11px;
+}
+
+.wiki-tab--active {
+  border-color: rgba(250, 204, 21, 0.6);
+  color: #fef3c7;
+  background: rgba(250, 204, 21, 0.14);
+}
+
+.wiki-search {
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid rgba(141, 233, 215, 0.24);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #e7f7f1;
+  font-size: 12px;
+}
+
+.wiki-body {
+  overflow-y: auto;
+}
+
+.wiki-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wiki-row {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(141, 233, 215, 0.18);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.wiki-row header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wiki-row header strong {
+  color: #fef3c7;
+  font-size: 13px;
+}
+
+.wiki-row-tag {
+  padding: 1px 6px;
+  border: 1px solid rgba(141, 233, 215, 0.3);
+  border-radius: 999px;
+  color: #9dded3;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.wiki-row p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.wiki-row dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 2px 8px;
+  margin: 0;
+}
+
+.wiki-pair {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.wiki-pair dt {
+  color: #94a3b8;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wiki-pair dd {
+  margin: 0;
+  color: #f8fafc;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.wiki-row-footer {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.wiki-row-footer strong {
+  color: #cbd5e1;
+}
+
+.wiki-row-footer code {
+  color: #a5b4fc;
+}
+
 .panel-close {
   margin-left: auto;
   border: 0;

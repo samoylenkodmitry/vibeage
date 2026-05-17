@@ -141,7 +141,13 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
   },
 };
 
-export function getEffectSpec(type: SkillEffectType): EffectSpec {
+/**
+ * Returns the spec for a known effect type, or `undefined` for stray
+ * values coming over the wire. The Record<...> binds the mapping at
+ * compile time but runtime data could carry an unknown `type` string
+ * (older save / future content), so consumers must handle undefined.
+ */
+export function getEffectSpec(type: SkillEffectType): EffectSpec | undefined {
   return EFFECT_SPECS[type];
 }
 
@@ -151,4 +157,8 @@ export function getEffectLabel(type: SkillEffectType): string {
 
 export function getEffectDescription(type: SkillEffectType): string {
   return EFFECT_SPECS[type]?.description ?? '';
+}
+
+export function getEffectValueUnit(type: SkillEffectType): string {
+  return EFFECT_SPECS[type]?.valueUnit ?? '';
 }
