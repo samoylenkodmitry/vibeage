@@ -43,7 +43,10 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const context = { caster, skill, outbound, world };
 
   const targets = resolveCastTargets(cast, world, skill, caster);
-  const damages = targets.map((target) => calculateDamage(skill, caster, cast.castId, target.id));
+  // Compute caster buffs once for the whole cast rather than per-target
+  // (matters for multi-target skills like volley / waterSplash).
+  const blessMult = blessDamageMultiplier(caster);
+  const damages = targets.map((target) => calculateDamage(skill, caster, blessMult, cast.castId, target.id));
 
   targets.forEach((target, index) => {
     applyCastToTarget(target, damages[index], context);
@@ -78,18 +81,52 @@ function resolveCastTargets(
   return getTargetsInArea(cast, world);
 }
 
-function calculateDamage(skill: SkillDef, caster?: PlayerState | null, castId?: string, targetId?: string): number {
+function calculateDamage(
+  skill: SkillDef,
+  caster: PlayerState | null | undefined,
+  blessMult: number,
+  castId?: string,
+  targetId?: string,
+): number {
   if (!skill?.dmg) {
     return 0;
   }
 
+  const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
+
   const result = getDamage({
-    caster: caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 },
+    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
 
   return result.dmg;
+}
+
+/**
+ * Sum bless-style damage tilts active on the caster into a single
+ * multiplier. effect.value is a percentage (Bless: 25 → +25%); the
+ * helper converts to (1 + value/100).
+ *
+ * KNOWN ISSUE: upsertStatusEffect replaces existing effects of the
+ * same type (instead of stacking), so the additive loop here is
+ * unreachable today — at most one 'bless' is ever active. Keeping the
+ * sum so a later stacking-policy fix (Section 8 L520) lights up
+ * bless stacking without re-touching this code. Balance is currently
+ * tuned around the non-stacking behaviour; fixing both at once needs
+ * a dedicated balance pass.
+ */
+function blessDamageMultiplier(caster: PlayerState | null | undefined): number {
+  if (!caster?.statusEffects?.length) return 1;
+  const now = Date.now();
+  let pct = 0;
+  for (const effect of caster.statusEffects) {
+    if (effect.type !== 'bless') continue;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt <= now) continue;
+    pct += effect.value ?? 0;
+  }
+  return 1 + pct / 100;
 }
 
 function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerState> {
