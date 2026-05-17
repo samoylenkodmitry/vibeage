@@ -185,8 +185,12 @@ function useCastActions(
       type: 'setPendingCast',
       pendingCast: { skillId, targetId: targetEnemy.id, expiresAtTs: Date.now() + PENDING_CAST_TTL_MS },
     });
-    if (SKILLS[skillId]?.autoRepeat && targetEnemy.isAlive) {
-      armAutoAttack(skillId, targetEnemy.id);
+    // Arm auto-attack at the same target for any physical skill (or
+    // explicit autoRepeat — basicAttack itself) so the player keeps
+    // swinging once they arrive in range.
+    const skillDef = SKILLS[skillId];
+    if (targetEnemy.isAlive && skillDef && (skillDef.autoRepeat || skillDef.kind === 'physical')) {
+      armAutoAttack(BASIC_ATTACK_SKILL_ID, targetEnemy.id);
     }
   }, [dispatch, sendApproachIntent, armAutoAttack]);
 
@@ -198,10 +202,12 @@ function useCastActions(
     const targetId = getCastTargetId(current, player, skillId);
     if (!targetId && SKILLS[skillId].requiresTarget) return;
 
-    // User casting a non-auto-repeat skill cancels any running
-    // auto-attack so we don't surprise them by going back to Basic
-    // Attack on the next tick.
-    if (!SKILLS[skillId]?.autoRepeat && current.autoAttack) {
+    const skillDef = SKILLS[skillId];
+    // Casting a magical / utility skill manually cancels any running
+    // auto-attack — the player just told us to do something else.
+    // Physical casts (slash, basicAttack, arrowShot) keep auto-attack
+    // alive because they're flavoured the same as the weapon swing.
+    if (skillDef && skillDef.kind !== 'physical' && current.autoAttack) {
       dispatch({ type: 'clearAutoAttack' });
     }
 
@@ -213,9 +219,7 @@ function useCastActions(
 
     dispatch({ type: 'clearPendingCast' });
     fireCastReq(player, skillId, targetId);
-    if (SKILLS[skillId]?.autoRepeat && targetId && current.enemies[targetId]?.isAlive) {
-      armAutoAttack(skillId, targetId);
-    }
+    armAutoAttackAfterCast(skillId, targetId, current, armAutoAttack);
   }, [roomRef, stateRef, dispatch, queueApproachCast, fireCastReq, armAutoAttack]);
 
   const tryFirePendingCast = useTryFirePendingCast(stateRef, dispatch, fireCastReq);
@@ -229,6 +233,35 @@ function useCastActions(
   }, [dispatch, castSkill]);
 
   return { castSkill, attackTarget, tryFirePendingCast, tryAdvanceAutoAttack };
+}
+
+/**
+ * Decide whether to arm auto-attack after a successful manual cast.
+ *
+ * - autoRepeat skills (basicAttack today) latch onto themselves so
+ *   pressing A once keeps swinging.
+ * - Physical skills (slash, arrowShot, etc.) arm Basic Attack on the
+ *   same target — the player presses Slash once and continues
+ *   swinging with the weapon between cooldowns of their bigger skill.
+ * - Magical and utility casts don't arm anything.
+ */
+function armAutoAttackAfterCast(
+  skillId: SkillId,
+  targetId: string | null,
+  state: GameClientState,
+  arm: (skillId: SkillId, targetId: string) => void,
+): void {
+  if (!targetId) return;
+  if (!state.enemies[targetId]?.isAlive) return;
+  const skill = SKILLS[skillId];
+  if (!skill) return;
+  if (skill.autoRepeat) {
+    arm(skillId, targetId);
+    return;
+  }
+  if (skill.kind === 'physical') {
+    arm(BASIC_ATTACK_SKILL_ID, targetId);
+  }
 }
 
 function useTryFirePendingCast(
