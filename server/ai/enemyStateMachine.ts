@@ -1,5 +1,6 @@
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
+import { isEntityStunned } from '../combat/statusQueries.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   applyEnemyAttack,
@@ -377,12 +378,11 @@ function applyAttackIfReady(
   }
 }
 
+// Enemy stun gate. Delegates to the shared isEntityStunned predicate
+// which also recognises freeze / root as stun-equivalent
+// (Section 8 L515 — no skill design currently distinguishes them).
 function isEnemyStunned(enemy: Enemy, now: number): boolean {
-  return enemy.statusEffects.some((effect) => {
-    if (effect.type !== 'stun') return false;
-    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
-    return expiresAt > now;
-  });
+  return isEntityStunned(enemy, now);
 }
 
 function findNearbyAggroTarget(enemy: Enemy, context: EnemyAIContext): string | null {

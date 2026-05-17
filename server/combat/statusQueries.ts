@@ -8,9 +8,18 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
  * durationMs values (`?? 0` fallback).
  */
 
+/**
+ * Effect types that block movement, casting, and attacking. Stun is the
+ * canonical case; freeze and root behave identically today (no skill
+ * currently distinguishes them in design). If a future skill needs
+ * "you can cast but not move" semantics, split root into its own
+ * predicate then.
+ */
+const ACTION_BLOCKING_EFFECT_TYPES: ReadonlySet<string> = new Set(['stun', 'freeze', 'root']);
+
 export function isEntityStunned(entity: PlayerState | Enemy, now: number = Date.now()): boolean {
   return (entity.statusEffects ?? []).some((effect) => {
-    if (effect.type !== 'stun') return false;
+    if (!ACTION_BLOCKING_EFFECT_TYPES.has(effect.type)) return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
     return expiresAt > now;
   });
