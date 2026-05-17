@@ -4,7 +4,23 @@ import type { SkillId } from '../content/skills.js';
 
 export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 
-export const skillIdValues = ['fireball', 'iceBolt', 'waterSplash', 'petrify'] as const satisfies readonly SkillId[];
+// EVERY skill in the SKILLS catalog has to appear here, otherwise its
+// CastReq is rejected at the wire boundary with "Invalid option" — real
+// bug seen on prod: pressing slash as a warrior failed silently because
+// only the four mage skills were listed.
+//
+// Kept as a literal array (not derived from SKILLS) so the protocol
+// stays a build-time constant and the cross-package import graph stays
+// flat. tests/protocolSkillIdCoverage.spec.ts asserts every SKILLS
+// entry has a matching schema entry so a designer adding a new skill
+// can't silently break casting.
+export const skillIdValues = [
+  'fireball', 'iceBolt', 'waterSplash', 'petrify',
+  'slash', 'powerStrike', 'shieldWall', 'taunt', 'bash',
+  'holyLight', 'bless', 'dispel', 'smite', 'divineShield',
+  'arrowShot', 'volley', 'rapidFire',
+  'evade', 'backstab', 'poisonBlade', 'vanish',
+] as const satisfies readonly SkillId[];
 export const skillIdSchema = z.enum(skillIdValues);
 
 export const vecXZSchema = z.object({
