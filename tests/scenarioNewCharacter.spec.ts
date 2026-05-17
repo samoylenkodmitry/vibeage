@@ -29,6 +29,23 @@ function joinNewPlayer(socketId: string, name: string) {
  * so regressions like "new knight has fireball" or "slash doesn't cast"
  * can't slip past unit-level tests anymore.
  */
+describe('scenario: wire-boundary accepts non-mage CastReq', () => {
+  it('safeParseClientMessage accepts CastReq for every class starter skill', async () => {
+    const { safeParseClientMessage } = await import('../packages/protocol/messages');
+    const STARTER_SKILLS = ['slash', 'holyLight', 'arrowShot', 'evade', 'fireball'];
+    for (const skillId of STARTER_SKILLS) {
+      const result = safeParseClientMessage({
+        type: 'CastReq',
+        id: 'player1',
+        skillId,
+        targetId: 'enemy1',
+        clientTs: NOW,
+      });
+      expect(result.success, `CastReq(${skillId}) must parse — found prod bug where this was rejected at the wire`).toBe(true);
+    }
+  });
+});
+
 describe('scenario: new orc knight can cast slash on a goblin', () => {
   it('new player picks orc knight: only slash is unlocked (no fireball carryover)', () => {
     const state = createGameState();
