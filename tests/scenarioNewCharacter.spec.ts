@@ -61,7 +61,7 @@ describe('scenario: new orc knight can cast slash on a goblin', () => {
 
     expect(player.race).toBe('orc');
     expect(player.className).toBe('knight');
-    expect(player.unlockedSkills).toEqual(['slash']);
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack']);
     expect(player.unlockedSkills).not.toContain('fireball');
     expect(player.skillShortcuts).toContain('slash');
   });
@@ -133,9 +133,51 @@ describe('scenario: race switch swaps base attrs without losing class', () => {
     handleClientMessage(socket, state, { type: 'SelectRace', race: 'dark_elf' }, sink, spatial);
 
     expect(player.className).toBe('knight');
-    expect(player.unlockedSkills).toEqual(['slash']);
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack']);
     // Race change → STR should differ. Orc has a higher STR multiplier
     // than dark_elf, so orcStr should exceed darkElfStr.
     expect(player.stats?.str ?? 0).toBeLessThan(orcStr);
+  });
+});
+
+describe('scenario: basic attack universal skill', () => {
+  it('every fresh character can cast basicAttack on a goblin (no mana, no class restriction)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    try {
+      const state = createGameState();
+      const spatial = new SpatialHashGrid(50);
+      const player = joinNewPlayer('socketBA', 'BasicAttackTester');
+      player.position = { x: 0, y: 0.5, z: 0 };
+      state.players[player.id] = player;
+      spatial.insert(player.id, { x: 0, z: 0 });
+      const { sink } = captureOutbound();
+      const socket = { id: 'socketBA', emit: vi.fn() };
+
+      // Mage class — no melee skills, but basicAttack should still work.
+      handleClientMessage(socket, state, { type: 'SelectClass', className: 'mage' }, sink, spatial);
+      expect(player.unlockedSkills).toContain('basicAttack');
+
+      const goblin = createEnemy('goblin', 1, { x: 2, y: 0.5, z: 0 }, NOW);
+      state.enemies[goblin.id] = goblin;
+      spatial.insert(goblin.id, { x: 2, z: 0 });
+      const before = goblin.health;
+
+      handleClientMessage(
+        socket,
+        state,
+        { type: 'CastReq', id: player.id, skillId: 'basicAttack', targetId: goblin.id, clientTs: NOW },
+        sink,
+        spatial,
+      );
+
+      const world = createWorldCombatBridge(state, sink, spatial);
+      vi.advanceTimersByTime(100);
+      tickCasts(state.activeCasts, 100, sink, world);
+
+      expect(goblin.health).toBeLessThan(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

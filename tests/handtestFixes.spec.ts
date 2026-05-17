@@ -91,10 +91,10 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
     const { sink } = captureOutbound();
 
     applyClassChange(player, 'warrior', sink); // drops fireball, adds slash
-    expect(player.unlockedSkills).toEqual(['slash']);
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack']);
 
     applyClassChange(player, 'mage', sink); // drops slash, adds fireball
-    expect(player.unlockedSkills).toEqual(['fireball']);
+    expect(player.unlockedSkills).toEqual(['fireball', 'basicAttack']);
     expect(player.skillShortcuts).toContain('fireball');
   });
 
@@ -104,14 +104,15 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
     player.availableSkillPoints = 3;
     const { sink } = captureOutbound();
 
-    // Pretend the player invested in 3 mage skills.
-    player.unlockedSkills = ['fireball', 'waterSplash', 'iceBolt', 'smite'];
+    // Pretend the player invested in 3 mage skills (fireball is the
+    // free class starter; basicAttack is the free universal skill).
+    player.unlockedSkills = ['fireball', 'basicAttack', 'waterSplash', 'iceBolt', 'smite'];
     player.availableSkillPoints = 0; // all spent
 
     applyClassChange(player, 'warrior', sink);
 
-    // Starter is free; the 3 spent points are refunded.
-    expect(player.unlockedSkills).toEqual(['slash']);
+    // Starter + basicAttack are free; the 3 spent points are refunded.
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack']);
     expect(player.availableSkillPoints).toBe(3);
   });
 

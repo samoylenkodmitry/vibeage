@@ -72,7 +72,7 @@ describe('player session hydration', () => {
       level: 3,
       experience: 120,
       experienceToNextLevel: 225,
-      unlockedSkills: ['fireball'],
+      unlockedSkills: ['fireball', 'basicAttack'],
       skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
       availableSkillPoints: 2,
       starterProgress: {
@@ -80,7 +80,9 @@ describe('player session hydration', () => {
         defeatedEnemyIds: ['enemy-1', 'enemy-2'],
         lootPickups: 1,
         levelReached: 3,
-        learnedSkills: 1,
+        // Includes the universal Basic Attack alongside the class
+        // starter (fireball), so learnedSkills counts both.
+        learnedSkills: 2,
         isComplete: false,
         rewardGranted: false,
       },
@@ -242,7 +244,9 @@ describe('player session relog persistence', () => {
       health: beforeRelog.health,
       level: beforeRelog.level,
       experience: beforeRelog.experience,
-      unlockedSkills: beforeRelog.unlockedSkills,
+      // The universal Basic Attack is appended on hydrate (back-compat
+      // for saves written before the universal-skills concept existed).
+      unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack'],
       skillShortcuts: beforeRelog.skillShortcuts,
       availableSkillPoints: beforeRelog.availableSkillPoints,
       starterProgress: stable.starter_progress,

@@ -16,8 +16,10 @@ import { useDraggablePanel } from './hud/useDraggablePanel';
 import { TargetPanel, VitalsStrip } from './hud/PlatePanels';
 import { StatusPills, getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
+  BASIC_ATTACK_SKILL_ID,
   getHotkeySkill,
   getSkillSlotIndexForKeyboardCode,
+  isBasicAttackKeyboardCode,
   isEditableTarget,
 } from './skillShortcuts';
 
@@ -526,6 +528,12 @@ function useSkillHotkeys(
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      if (isBasicAttackKeyboardCode(event.code)) {
+        event.preventDefault();
+        onCastSkill(BASIC_ATTACK_SKILL_ID);
         return;
       }
 

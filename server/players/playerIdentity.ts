@@ -71,17 +71,22 @@ export function applyClassChange(
  * the new starter into the first empty slot.
  */
 function resetSkillsForClassChange(player: PlayerState): void {
-  const [starter] = starterSkillsFor(player.className);
-  const refundable = Math.max(0, player.unlockedSkills.length - 1);
+  const starters = starterSkillsFor(player.className);
+  // Refund spent points: everything beyond the freebie starters.
+  // starterSkillsFor returns [...UNIVERSAL_SKILLS, classStarter], all
+  // of which are granted for free, so they don't count toward refund.
+  const refundable = Math.max(0, player.unlockedSkills.length - starters.length);
   player.availableSkillPoints += refundable;
-  player.unlockedSkills = starter ? [starter] : [];
+  player.unlockedSkills = [...starters];
   player.skillShortcuts = player.skillShortcuts.map((skill) =>
     skill && player.unlockedSkills.includes(skill) ? skill : null,
   );
-  if (starter && !player.skillShortcuts.includes(starter)) {
-    const emptyIndex = player.skillShortcuts.findIndex((slot) => slot === null);
-    if (emptyIndex !== -1) {
-      player.skillShortcuts[emptyIndex] = starter;
+  for (const skill of starters) {
+    if (!player.skillShortcuts.includes(skill)) {
+      const emptyIndex = player.skillShortcuts.findIndex((slot) => slot === null);
+      if (emptyIndex !== -1) {
+        player.skillShortcuts[emptyIndex] = skill;
+      }
     }
   }
 }
