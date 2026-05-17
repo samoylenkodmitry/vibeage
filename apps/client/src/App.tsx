@@ -49,6 +49,7 @@ export default function App() {
         state={state}
         onMove={client.sendMoveIntent}
         onSelectTarget={client.selectTarget}
+        onAttackTarget={client.attackTarget}
         onPickUpLoot={client.pickUpLoot}
         cameraAngleRef={cameraAngleRef}
         cameraControlsRef={cameraControlsRef}

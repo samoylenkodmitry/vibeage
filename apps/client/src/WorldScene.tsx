@@ -23,6 +23,7 @@ type WorldSceneProps = {
   state: GameClientState;
   onMove: (target: VecXZ) => void;
   onSelectTarget: (targetId: string | null) => void;
+  onAttackTarget?: (targetId: string) => void;
   onPickUpLoot: (lootId: string) => void;
   cameraAngleRef?: MutableRefObject<number>;
   cameraControlsRef?: MutableRefObject<CameraControls | null>;
@@ -30,7 +31,7 @@ type WorldSceneProps = {
   navigationMarker?: VecXZ | null;
 };
 
-export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
+export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
@@ -68,6 +69,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onPickUpLoot, camera
           enemy={enemy}
           isSelected={enemy.id === state.selectedTargetId}
           onSelect={onSelectTarget}
+          onAttack={onAttackTarget}
         />
       ))}
       {Object.values(state.groundLoot).map((loot) => (
