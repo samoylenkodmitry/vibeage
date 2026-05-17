@@ -43,7 +43,10 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const context = { caster, skill, outbound, world };
 
   const targets = resolveCastTargets(cast, world, skill, caster);
-  const damages = targets.map((target) => calculateDamage(skill, caster, cast.castId, target.id));
+  // Compute caster buffs once for the whole cast rather than per-target
+  // (matters for multi-target skills like volley / waterSplash).
+  const blessMult = blessDamageMultiplier(caster);
+  const damages = targets.map((target) => calculateDamage(skill, caster, blessMult, cast.castId, target.id));
 
   targets.forEach((target, index) => {
     applyCastToTarget(target, damages[index], context);
@@ -78,15 +81,17 @@ function resolveCastTargets(
   return getTargetsInArea(cast, world);
 }
 
-function calculateDamage(skill: SkillDef, caster?: PlayerState | null, castId?: string, targetId?: string): number {
+function calculateDamage(
+  skill: SkillDef,
+  caster: PlayerState | null | undefined,
+  blessMult: number,
+  castId?: string,
+  targetId?: string,
+): number {
   if (!skill?.dmg) {
     return 0;
   }
 
-  // Active 'bless' buffs (Bless, Rapid Fire) multiply outgoing damage.
-  // Without this consumer the effect was inserted on the caster but
-  // had no observable game impact.
-  const blessMult = blessDamageMultiplier(caster);
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
 
   const result = getDamage({
@@ -101,9 +106,15 @@ function calculateDamage(skill: SkillDef, caster?: PlayerState | null, castId?: 
 /**
  * Sum bless-style damage tilts active on the caster into a single
  * multiplier. effect.value is a percentage (Bless: 25 → +25%); the
- * helper converts to (1 + value/100). Multiple bless effects compound
- * additively on percentage before being applied multiplicatively to
- * dmgMult — matches the player intuition for "two bless buffs stack."
+ * helper converts to (1 + value/100).
+ *
+ * KNOWN ISSUE: upsertStatusEffect replaces existing effects of the
+ * same type (instead of stacking), so the additive loop here is
+ * unreachable today — at most one 'bless' is ever active. Keeping the
+ * sum so a later stacking-policy fix (Section 8 L520) lights up
+ * bless stacking without re-touching this code. Balance is currently
+ * tuned around the non-stacking behaviour; fixing both at once needs
+ * a dedicated balance pass.
  */
 function blessDamageMultiplier(caster: PlayerState | null | undefined): number {
   if (!caster?.statusEffects?.length) return 1;
