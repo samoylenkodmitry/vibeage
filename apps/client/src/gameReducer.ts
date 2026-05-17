@@ -193,8 +193,14 @@ function selectTarget(state: GameClientState, targetId: string | null): GameClie
   if (targetId === state.myPlayerId) {
     return { ...state, selectedTargetId: targetId };
   }
-  const selectedTargetId = state.enemies[targetId]?.isAlive ? targetId : null;
-  return { ...state, selectedTargetId };
+  if (state.enemies[targetId]?.isAlive) {
+    return { ...state, selectedTargetId: targetId };
+  }
+  // PvP: another player is a valid target.
+  if (state.players[targetId]?.isAlive) {
+    return { ...state, selectedTargetId: targetId };
+  }
+  return { ...state, selectedTargetId: null };
 }
 
 function applyServerMessage(

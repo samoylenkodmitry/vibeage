@@ -181,3 +181,44 @@ describe('scenario: basic attack universal skill', () => {
     }
   });
 });
+
+describe('scenario: PvP — players can attack other players', () => {
+  it('player A casts basicAttack at player B → B takes damage', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    try {
+      const state = createGameState();
+      const spatial = new SpatialHashGrid(50);
+
+      const attacker = joinNewPlayer('socketA', 'Attacker');
+      attacker.position = { x: 0, y: 0.5, z: 0 };
+      state.players[attacker.id] = attacker;
+      spatial.insert(attacker.id, { x: 0, z: 0 });
+
+      const victim = joinNewPlayer('socketB', 'Victim');
+      victim.position = { x: 2, y: 0.5, z: 0 };
+      state.players[victim.id] = victim;
+      spatial.insert(victim.id, { x: 2, z: 0 });
+      const victimHealthBefore = victim.health;
+
+      const { sink } = captureOutbound();
+      const socket = { id: 'socketA', emit: vi.fn() };
+
+      handleClientMessage(
+        socket,
+        state,
+        { type: 'CastReq', id: attacker.id, skillId: 'basicAttack', targetId: victim.id, clientTs: NOW },
+        sink,
+        spatial,
+      );
+
+      const world = createWorldCombatBridge(state, sink, spatial);
+      vi.advanceTimersByTime(100);
+      tickCasts(state.activeCasts, 100, sink, world);
+
+      expect(victim.health).toBeLessThan(victimHealthBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

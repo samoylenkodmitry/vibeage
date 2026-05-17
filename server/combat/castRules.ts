@@ -20,7 +20,7 @@ export type CastRuleResult =
 export function validateCastRequest(
   caster: PlayerState,
   requestedSkillId: string,
-  target: Enemy | null,
+  target: Enemy | PlayerState | null,
   targetPos: VecXZ | undefined,
   timestamp: number = Date.now(),
 ): CastRuleResult {
@@ -42,7 +42,7 @@ export function validateCastRequest(
 export function canCast(
   caster: PlayerState,
   skill: { id: SkillId; range: number },
-  target?: Enemy | null,
+  target?: Enemy | PlayerState | null,
   targetPos?: VecXZ,
   timestamp: number = Date.now(),
 ): { canCast: boolean; reason?: CastRuleFailReason } {
@@ -68,7 +68,7 @@ function getCastBlocker(
   caster: PlayerState,
   skillId: SkillId,
   skill: SkillDef,
-  target: Enemy | null,
+  target: Enemy | PlayerState | null,
   targetPos: VecXZ | undefined,
   timestamp: number,
 ): CastRuleFailReason | null {
@@ -94,7 +94,7 @@ function getCastBlocker(
 function isOutOfRange(
   caster: PlayerState,
   range: number,
-  target: Enemy | null,
+  target: Enemy | PlayerState | null,
   targetPos: VecXZ | undefined,
 ): boolean {
   if (!range) {

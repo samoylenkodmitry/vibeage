@@ -52,9 +52,18 @@ export function handleCastReq(
     return;
   }
 
-  // Get target if any
-  const target = msg.targetId ? world.getEnemyById(msg.targetId) : null;
-  
+  // Resolve target: enemies first, then other players (PvP). Casting
+  // at yourself is rejected here — beneficial self-cast skills take
+  // the no-target branch instead (impactResolver auto-targets caster).
+  let target: ReturnType<typeof world.getEnemyById> | ReturnType<typeof world.getPlayerById> = null;
+  if (msg.targetId) {
+    target = world.getEnemyById(msg.targetId);
+    if (!target) {
+      const otherPlayer = world.getPlayerById(msg.targetId);
+      target = otherPlayer && otherPlayer.id !== player.id ? otherPlayer : null;
+    }
+  }
+
   const castCheck = validateCastRequest(player, msg.skillId, target, msg.targetPos, now);
   if (castCheck.ok === false) {
     debug(LOG_CATEGORIES.COMBAT, `Cast failed for player ${playerId}`, {
