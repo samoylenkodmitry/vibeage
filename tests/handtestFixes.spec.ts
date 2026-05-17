@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { applyClassChange, applyRaceChange } from '../server/players/playerIdentity';
 import { canPlayerLearnSkill, learnNewSkill } from '../server/players/playerSkills';
 import { createTransientPlayer } from '../server/playerFactory';
@@ -7,7 +7,6 @@ import {
 } from '../server/persistence';
 import { hydratePersistedPlayer } from '../server/players/playerSession';
 import { hydratePersistedCharacterInventory } from '../server/inventory/aggregateBridge';
-import { handleEquipItem } from '../server/inventory/equipHandlers';
 import type { OutboundEvent, OutboundEventSink } from '../server/transport/outboundEvents';
 
 function captureOutbound(): { events: OutboundEvent[]; sink: OutboundEventSink } {
@@ -85,6 +84,22 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
     applyClassChange(player, 'healer', sink);
 
     expect(player.unlockedSkills).toContain('holyLight');
+  });
+
+  it('switching BACK to mage re-binds fireball to the bar even if already unlocked', () => {
+    const player = createTransientPlayer('s1', 'tester');
+    const { sink } = captureOutbound();
+    // mage → warrior moves slash into the bar (next empty slot)
+    applyClassChange(player, 'warrior', sink);
+    // Clear any mage skill shortcuts to simulate the user re-binding their
+    // bar to warrior abilities only.
+    player.skillShortcuts = player.skillShortcuts.map(s => (s === 'fireball' ? null : s));
+    // warrior → mage: fireball is already unlocked. The shortcut bar must
+    // still get a mage skill bound so the player isn't stuck.
+    applyClassChange(player, 'mage', sink);
+
+    expect(player.unlockedSkills).toContain('fireball');
+    expect(player.skillShortcuts).toContain('fireball');
   });
 
   it('the new starter ends up in the skill bar (first empty shortcut slot)', () => {

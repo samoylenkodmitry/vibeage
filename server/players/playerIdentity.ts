@@ -59,12 +59,15 @@ export function applyClassChange(
 function ensureClassHasStarterSkill(player: PlayerState): void {
   const [starter] = starterSkillsFor(player.className);
   if (!starter) return;
-  if (player.unlockedSkills.includes(starter)) return;
-  player.unlockedSkills.push(starter);
-  // Drop the starter into the first empty shortcut slot so the player can
-  // actually cast it.
+  if (!player.unlockedSkills.includes(starter)) {
+    player.unlockedSkills.push(starter);
+  }
+  // Always check shortcut assignment — a player switching BACK to a
+  // class they previously played may already have the starter unlocked
+  // but never re-bound it to the current bar after intervening switches.
+  if (player.skillShortcuts.includes(starter)) return;
   const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
-  if (emptySlotIndex !== -1 && !player.skillShortcuts.includes(starter)) {
+  if (emptySlotIndex !== -1) {
     player.skillShortcuts[emptySlotIndex] = starter;
   }
 }

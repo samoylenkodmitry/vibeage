@@ -133,11 +133,12 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   ) {
     applyStarterLoadout(player);
   }
-  // Recompute derived stats now that equipment has been restored — the
-  // earlier derivePlayerStats(level, class, {}, race) was equipment-empty.
-  if (player.characterInventory) {
-    refreshPlayerStatsFromEquipment(player);
-  }
+  // Recompute derived stats now that equipment has been restored. Called
+  // unconditionally so legacy players (no character_inventory column yet
+  // populated but with items in the legacy bag) still get the correct
+  // equipment bonuses on login — refreshPlayerStatsFromEquipment lazily
+  // builds the aggregate from the legacy slots when missing.
+  refreshPlayerStatsFromEquipment(player);
   return player;
 }
 
