@@ -861,7 +861,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add validation that every zone spawn table references valid enemy species.
 - [ ] Add validation that every level gate is reachable.
 - [x] Add validation that class skill prerequisites do not form impossible cycles.
-- [ ] Add validation that item stats remain within balance budgets.
+- [x] Add validation that item stats remain within balance budgets.
 - [x] Add validation that enemy stats remain within balance budgets.
 - [ ] Add validation that spawn budgets remain within runtime limits.
 - [ ] Add authoring docs for adding a new skill.
