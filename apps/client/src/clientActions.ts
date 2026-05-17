@@ -56,7 +56,7 @@ export function useClientActions(
       return;
     }
 
-    const targetId = getCastTargetId(current, player);
+    const targetId = getCastTargetId(current, player, skillId);
     if (!targetId && SKILLS[skillId].requiresTarget) {
       return;
     }
@@ -165,14 +165,29 @@ function isSkillKnown(player: PlayerEntity, skillId: SkillId): boolean {
   return player.unlockedSkills?.includes(skillId) ?? false;
 }
 
-function getCastTargetId(state: GameClientState, player: PlayerEntity): string | null {
-  // Self-target: client uses selectedTargetId === player.id as a UI
-  // signal ("cast on me"). Don't forward to the server — its
-  // beneficial-only auto-self-cast path (impactResolver) needs targetId
-  // absent to fire. Offensive skills with no other target then fail
-  // cleanly, which is fine (you can't damage yourself).
+/**
+ * A skill is "self-castable" when the server's beneficial-only branch
+ * in resolveCastTargets would auto-target the caster: no enemy target
+ * is required AND the effects are all beneficial. Today this maps to
+ * effects-only skills with no .dmg field — Holy Light, Bless, Divine
+ * Shield, Rapid Fire, Shield Wall, Dispel, Evade.
+ */
+function isSelfCastable(skillId: SkillId): boolean {
+  const skill = SKILLS[skillId];
+  if (!skill || skill.requiresTarget) return false;
+  if (skill.dmg && skill.dmg > 0) return false;
+  return Boolean(skill.effects?.length);
+}
+
+function getCastTargetId(state: GameClientState, player: PlayerEntity, skillId: SkillId): string | null {
+  // Self-targeted (player clicked their own plate). For self-castable
+  // beneficials we send no targetId so the server's beneficial-only
+  // auto-self-cast path fires. For everything else we fall through to
+  // the normal nearest-enemy fallback — otherwise selecting yourself
+  // would silently block offensive skills that have no other target.
   if (state.selectedTargetId === player.id) {
-    return null;
+    if (isSelfCastable(skillId)) return null;
+    return getNearestAliveEnemyId(state.enemies, getPlayerPosition(player));
   }
   if (state.selectedTargetId && state.enemies[state.selectedTargetId]?.isAlive) {
     return state.selectedTargetId;
