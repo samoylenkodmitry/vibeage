@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CLASS_SKILL_TREES,
   canLearnSkill,
   type CharacterClass,
 } from '../../../../packages/content/classes';
-import { SKILLS, type SkillId } from '../../../../packages/content/skills';
+import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -36,6 +36,7 @@ export function SkillTreePanel({ player, onLearnSkill, rejections }: SkillTreePa
   const rows = useMemo(() => buildSkillRows(player), [player]);
   const className = player?.className ?? DEFAULT_CLASS_NAME;
   const skillPoints = player?.availableSkillPoints ?? 0;
+  const [expandedId, setExpandedId] = useState<SkillId | null>(null);
 
   return (
     <section ref={panelRef} className="skill-tree-panel" aria-label="Skill tree">
@@ -44,33 +45,92 @@ export function SkillTreePanel({ player, onLearnSkill, rejections }: SkillTreePa
         <span>{skillPoints} SP</span>
       </div>
       <ul className="skill-tree-list">
-        {rows.map((row) => {
-          const rejectReason = rejections?.[row.skillId];
-          const rejectLabel = rejectReason ? (REJECTION_LABEL[rejectReason] ?? rejectReason) : '';
-          return (
-            <li key={row.skillId} className={`skill-tree-row skill-tree-row--${row.status}`}>
-              <div className="skill-tree-row-head">
-                <strong>{row.name}</strong>
-                <small>{row.detail}</small>
-              </div>
-              {rejectLabel && <small className="skill-tree-reject">{rejectLabel}</small>}
-              {row.status === 'available' && (
-                <button
-                  type="button"
-                  className="learn-skill-button"
-                  disabled={skillPoints <= 0}
-                  onClick={() => onLearnSkill(row.skillId)}
-                >
-                  {skillPoints > 0 ? 'Learn' : 'Need SP'}
-                </button>
-              )}
-              {row.status === 'unlocked' && <span className="skill-tree-tag">Owned</span>}
-              {row.status === 'locked' && <span className="skill-tree-tag skill-tree-tag--locked">Locked</span>}
-            </li>
-          );
-        })}
+        {rows.map((row) => (
+          <SkillRow
+            key={row.skillId}
+            row={row}
+            expanded={expandedId === row.skillId}
+            rejectLabel={rejections?.[row.skillId] ? (REJECTION_LABEL[rejections[row.skillId]] ?? rejections[row.skillId]) : ''}
+            skillPoints={skillPoints}
+            onToggleExpand={() => setExpandedId((prev) => (prev === row.skillId ? null : row.skillId))}
+            onLearnSkill={onLearnSkill}
+          />
+        ))}
       </ul>
     </section>
+  );
+}
+
+function SkillRow({
+  row,
+  expanded,
+  rejectLabel,
+  skillPoints,
+  onToggleExpand,
+  onLearnSkill,
+}: {
+  row: Row;
+  expanded: boolean;
+  rejectLabel: string;
+  skillPoints: number;
+  onToggleExpand: () => void;
+  onLearnSkill: (skillId: SkillId) => void;
+}) {
+  const skill = SKILLS[row.skillId];
+  return (
+    <li className={`skill-tree-row skill-tree-row--${row.status}${expanded ? ' skill-tree-row--expanded' : ''}`}>
+      <button
+        type="button"
+        className="skill-tree-row-head"
+        aria-expanded={expanded}
+        onClick={onToggleExpand}
+      >
+        <strong>{row.name}</strong>
+        <small>{row.detail}</small>
+        <span className="skill-tree-chevron" aria-hidden>{expanded ? '▾' : '▸'}</span>
+      </button>
+      <div className="skill-tree-row-status">
+        {rejectLabel && <small className="skill-tree-reject">{rejectLabel}</small>}
+        {row.status === 'available' && (
+          <button
+            type="button"
+            className="learn-skill-button"
+            disabled={skillPoints <= 0}
+            onClick={() => onLearnSkill(row.skillId)}
+          >
+            {skillPoints > 0 ? 'Learn' : 'Need SP'}
+          </button>
+        )}
+        {row.status === 'unlocked' && <span className="skill-tree-tag">Owned</span>}
+        {row.status === 'locked' && <span className="skill-tree-tag skill-tree-tag--locked">Locked</span>}
+      </div>
+      {expanded && skill && <SkillDetail skill={skill} />}
+    </li>
+  );
+}
+
+function SkillDetail({ skill }: { skill: SkillDef }) {
+  return (
+    <div className="skill-tree-detail">
+      <p className="skill-tree-detail-desc">{skill.description}</p>
+      <dl className="skill-tree-detail-stats">
+        {skill.dmg !== undefined && <Stat label="Damage" value={String(skill.dmg)} />}
+        {skill.range !== undefined && <Stat label="Range" value={String(skill.range)} />}
+        {skill.area !== undefined && <Stat label="Area" value={String(skill.area)} />}
+        <Stat label="Mana" value={skill.manaCost > 0 ? String(skill.manaCost) : 'free'} />
+        <Stat label="Cast" value={skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant'} />
+        <Stat label="Cooldown" value={skill.cooldownMs > 0 ? `${(skill.cooldownMs / 1000).toFixed(1)}s` : '-'} />
+      </dl>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="skill-tree-detail-stat">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
   );
 }
 
@@ -92,4 +152,3 @@ function buildSkillRows(player: PlayerEntity | null): Row[] {
     return { skillId: id, name: skill?.name ?? id, status: 'locked', detail: `Lv ${req.level}${reqSkills}` };
   });
 }
-

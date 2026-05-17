@@ -938,7 +938,12 @@ input {
   right: 96px;
   z-index: 7;
   display: grid;
-  width: min(320px, calc(100vw - 36px));
+  grid-template-rows: auto 1fr;
+  width: min(380px, calc(100vw - 36px));
+  /* Cap the panel height so it never overflows the viewport even with
+     a fully-populated class tree (mage has 4 skills, paladin has more).
+     The inner list scrolls inside this box. */
+  max-height: min(580px, calc(100vh - 120px));
   gap: 6px;
   padding: 10px 12px;
   border: 1px solid rgba(141, 233, 215, 0.32);
@@ -952,7 +957,8 @@ input {
   display: grid;
   gap: 6px;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
   list-style: none;
 }
 
@@ -967,13 +973,96 @@ input {
   background: rgba(15, 23, 42, 0.6);
 }
 
+.skill-tree-row--expanded {
+  grid-template-columns: 1fr;
+  grid-row-gap: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(141, 233, 215, 0.48);
+}
+
+.skill-tree-row-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-tree-row--expanded .skill-tree-row-status {
+  justify-self: end;
+}
+
+.skill-tree-chevron {
+  margin-left: 4px;
+  color: rgba(141, 233, 215, 0.7);
+  font-size: 11px;
+}
+
+.skill-tree-detail {
+  display: grid;
+  gap: 6px;
+  padding: 6px 0 2px;
+  border-top: 1px dashed rgba(141, 233, 215, 0.22);
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.skill-tree-detail-desc {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.skill-tree-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.skill-tree-detail-stat {
+  display: grid;
+  gap: 1px;
+}
+
+.skill-tree-detail-stat dt {
+  color: #94a3b8;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skill-tree-detail-stat dd {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .skill-tree-row--unlocked { border-color: rgba(141, 233, 215, 0.45); }
 .skill-tree-row--available { border-color: rgba(250, 204, 21, 0.45); }
 .skill-tree-row--locked { opacity: 0.65; }
 
 .skill-tree-row-head {
   display: grid;
-  gap: 2px;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.skill-tree-row-head:hover strong,
+.skill-tree-row-head:focus-visible strong {
+  color: #facc15;
+}
+
+.skill-tree-row-head small {
+  grid-column: 1 / -1;
 }
 
 .skill-tree-row-head strong {
