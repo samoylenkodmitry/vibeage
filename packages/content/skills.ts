@@ -377,22 +377,32 @@ export const SKILLS: Record<SkillId,SkillDef> = {
   arrowShot: {
     id: 'arrowShot',
     name: 'Arrow Shot',
-    description: 'A swift arrow that pierces lightly armored foes',
+    description: 'A swift arrow with a wide impact that pierces lightly armored foes',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'projectile',
     kind: 'physical',
-    manaCost: 5,
+    manaCost: 0,
     castMs: 400,
     cooldownMs: 800,
-    dmg: 70,
+    dmg: 60,
     range: 22,
     speed: 36,
+    // Wider splash so the bow plays more like a wide-radius ranged
+    // auto-attack. autoRepeat keeps the ranger "auto-shooting" like
+    // Basic Attack does for melee.
+    //
+    // NOTE: pierce / maxPierceHits aren't read by the server's
+    // projectile runtime yet (a pre-existing gap also affecting
+    // volley). Splash via skill.area above already gives the wide
+    // feel; pierce lands in a follow-up.
+    area: 2.5,
+    autoRepeat: true,
     levelRequired: 1,
     requiresTarget: true,
     effects: [
-      { type: 'damage', value: 70 },
+      { type: 'damage', value: 60 },
     ],
-    projectile: { speed: 36, hitRadius: 0.6, pierce: false },
+    projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
   },
   volley: {
     id: 'volley',
