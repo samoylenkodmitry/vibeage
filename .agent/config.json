@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "default_node": "root",
+  "project_goal_path": ".agent/project-goal.md",
+  "llm_backend": "manual",
+  "llm_backends": {
+    "manual": {
+      "type": "manual",
+      "description": "Do not invoke an external LLM. Write packets for the human or current coding assistant to consume."
+    },
+    "codex_exec": {
+      "type": "command",
+      "command": ["codex", "exec", "--file", "{prompt_file}"],
+      "timeout_seconds": 900,
+      "description": "Example backend. May be edited by root mutation or developer configuration."
+    },
+    "claude_cli": {
+      "type": "command",
+      "command": ["claude", "-p", "{prompt}"],
+      "timeout_seconds": 900,
+      "description": "Example backend. May be edited by root mutation or developer configuration. Prefer {prompt_file} if the CLI supports it."
+    }
+  },
+  "context_budget_chars": 60000,
+  "context_limits": {
+    "repo_tree_entries": 300,
+    "git_status_files": 200,
+    "grep_matches_total": 120,
+    "grep_snippet_lines_per_file": 20,
+    "agents_md_full_dump_max_chars": 12000
+  },
+  "max_search_results": 120,
+  "automatic_agent_acknowledgement": {
+    "enabled": true,
+    "start_command": ".agent/bin/agent ack-start \"<developer task>\"",
+    "finish_command": ".agent/bin/agent ack-finish --run <run-id> --status done --summary \"<what changed>\" --checks \"<what was verified>\"",
+    "description": "Coding agents should run these non-blocking commands automatically around nontrivial feature work."
+  },
+  "auto_run_project_tests": false,
+  "pause_on_manual_llm": true,
+  "excluded_dirs": [
+    ".git",
+    ".agent/runs",
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    ".next",
+    ".turbo",
+    ".venv",
+    "venv",
+    "target"
+  ]
+}
