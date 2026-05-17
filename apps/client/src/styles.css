@@ -504,6 +504,12 @@ input {
   color: #d9fff4;
   background: rgba(141, 233, 215, 0.1);
   font-size: 11px;
+  cursor: help;
+}
+
+.status-pills span:hover {
+  border-color: rgba(141, 233, 215, 0.55);
+  background: rgba(141, 233, 215, 0.18);
 }
 
 .target-meta {

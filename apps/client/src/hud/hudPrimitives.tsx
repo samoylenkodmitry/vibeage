@@ -1,5 +1,7 @@
 import type { StatusEffect } from '../../../../packages/protocol/messages';
 import type { PlayerEntity } from '../gameTypes';
+import { EffectTooltip } from './EffectTooltip';
+import { useTooltipTrigger } from './useTooltipTrigger';
 
 export function Meter({
   label,
@@ -24,6 +26,7 @@ export function Meter({
 }
 
 export function StatusPills({ effects }: { effects: StatusEffect[] }) {
+  const tooltip = useTooltipTrigger<StatusEffect>();
   if (effects.length === 0) {
     return null;
   }
@@ -31,11 +34,22 @@ export function StatusPills({ effects }: { effects: StatusEffect[] }) {
   return (
     <div className="status-pills" aria-label="Status effects">
       {effects.slice(0, 5).map((effect) => (
-        <span key={effect.id} title={effect.sourceSkill}>
+        <span
+          key={effect.id}
+          className="status-pill"
+          {...tooltip.triggerProps(effect)}
+        >
           {effect.type}
           {effect.stacks ? ` ${effect.stacks}` : ''}
         </span>
       ))}
+      {tooltip.info && (
+        <EffectTooltip
+          effect={tooltip.info.payload}
+          clientX={tooltip.info.clientX}
+          clientY={tooltip.info.clientY}
+        />
+      )}
     </div>
   );
 }
