@@ -75,7 +75,7 @@ function fireballCast(casterId: string, targetId: string): Cast {
 describe('shield absorption (Section 8 L500, L528)', () => {
   it('reduces incoming damage by the shield value before applying to health', () => {
     const caster = makeCaster();
-    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW);
+    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW /* spawnTimeTs */);
     target.health = 200;
     target.statusEffects = [shield('s1', 500)]; // huge buffer
     const healthBefore = target.health;
@@ -91,7 +91,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
 
   it('depletes a smaller shield then spills overflow damage onto health', () => {
     const caster = makeCaster();
-    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW);
+    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW /* spawnTimeTs */);
     target.health = 1000; // big HP buffer so we measure delta only
     target.statusEffects = [shield('s1', 5)]; // tiny shield
     const outbound: OutboundEventSink = { publish: vi.fn() };
@@ -106,7 +106,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
 
   it('absorbs across multiple shield stacks in array order', () => {
     const caster = makeCaster();
-    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW);
+    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW /* spawnTimeTs */);
     target.health = 1000;
     // Two small shields totalling 8 — fireball baseline damage will
     // chew through s1 first then dent s2.
@@ -128,7 +128,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
 
   it('removes a shield once its value reaches 0 (no zero-value zombies in list)', () => {
     const caster = makeCaster();
-    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW);
+    const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, NOW /* spawnTimeTs */);
     target.health = 1000;
     target.statusEffects = [shield('s-exact', 1)]; // depletes immediately
     const outbound: OutboundEventSink = { publish: vi.fn() };
