@@ -105,6 +105,13 @@ describe('bless effect is consumed by damage calculation (regression for the new
     const makeCaster = (): PlayerState => {
       const p = createTransientPlayer('s', 'p');
       p.level = 5;
+      // Pin critChance to 0 so the comparison isn't randomly tilted
+      // by one caster critting and the other not — the test only
+      // wants to prove bless contributes a multiplier, not assert
+      // overall damage stability. Previously failed on CI when the
+      // two casters' RNG seeds happened to land on opposite crit
+      // sides of the threshold.
+      if (p.stats) p.stats.critChance = 0;
       return p;
     };
     const unblessed = makeCaster();
