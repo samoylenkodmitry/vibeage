@@ -68,9 +68,9 @@ export function handleClientMessage(
     case 'ChatRequest':
       return onChatRequest(socket, state, msg, outbound, spatial);
     case 'EquipItem':
-      return onEquipItem(socket, direct, state, msg);
+      return onEquipItem(socket, direct, state, msg, outbound);
     case 'UnequipItem':
-      return onUnequipItem(socket, direct, state, msg);
+      return onUnequipItem(socket, direct, state, msg, outbound);
   }
 }
 
@@ -105,12 +105,13 @@ function onEquipItem(
   direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'EquipItem' }>,
+  outbound: OutboundEventSink,
 ): void {
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return;
   const player = state.players[playerId];
   if (!player) return;
-  handleEquipItem(player, msg, direct);
+  handleEquipItem(player, msg, direct, outbound);
   emitInventoryUpdate(direct, player);
 }
 
@@ -119,12 +120,13 @@ function onUnequipItem(
   direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'UnequipItem' }>,
+  outbound: OutboundEventSink,
 ): void {
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return;
   const player = state.players[playerId];
   if (!player) return;
-  handleUnequipItem(player, msg, direct);
+  handleUnequipItem(player, msg, direct, outbound);
   emitInventoryUpdate(direct, player);
 }
 
