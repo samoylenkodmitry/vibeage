@@ -97,48 +97,56 @@ describe('chat: input sanitisation (Section 22 L941/L942)', () => {
     expect(events).toEqual([]);
   });
 
-  it('truncates oversize messages to 240 chars before broadcasting', () => {
+  it('accepts an exact-max (240-char) message without further truncation', () => {
     forgetSocketRateLimits('socketA');
     forgetMovementFreshness('socketA');
     const state = createGameState();
     const spatial = new SpatialHashGrid(50);
     placePlayer(state, spatial, 'playerA', 'socketA', 0);
 
-    // Protocol cap is 240, so the wire schema rejects anything longer
-    // at parse time. We exercise the *exact-max* boundary to verify
-    // the handler accepts it without truncating below.
+    // Protocol cap is 240; the wire schema rejects anything longer at
+    // parse time. Exercise the exact-max boundary to verify the
+    // handler doesn't trim below.
     const exactMax = 'x'.repeat(240);
     const { events, sink } = captureOutbound();
     dispatch(state, spatial, 'socketA', {
       type: 'ChatRequest', text: exactMax, scope: 'all', clientTs: NOW,
     }, sink);
 
-    const broadcasts = events.filter(e => e.type === 'serverMessage');
-    expect(broadcasts).toHaveLength(1);
-    if (broadcasts[0].type === 'serverMessage' && broadcasts[0].message.type === 'ChatBroadcast') {
-      expect(broadcasts[0].message.text.length).toBe(240);
-    }
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'serverMessage',
+      message: { type: 'ChatBroadcast', text: exactMax },
+    });
   });
 });
 
 describe('chat: rate limit (Section 22 L943)', () => {
-  it('drops chat once the per-socket bucket is empty', () => {
-    forgetSocketRateLimits('socketA');
-    forgetMovementFreshness('socketA');
-    const state = createGameState();
-    const spatial = new SpatialHashGrid(50);
-    placePlayer(state, spatial, 'playerA', 'socketA', 0);
+  it('drops chat past the per-socket bucket capacity (6)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    try {
+      forgetSocketRateLimits('socketA');
+      forgetMovementFreshness('socketA');
+      const state = createGameState();
+      const spatial = new SpatialHashGrid(50);
+      placePlayer(state, spatial, 'playerA', 'socketA', 0);
 
-    const { events, sink } = captureOutbound();
-    // Chat bucket capacity is 6 (RATE_LIMITS.chat). Burst 7 quickly;
-    // the 7th should be dropped.
-    for (let i = 0; i < 7; i++) {
-      dispatch(state, spatial, 'socketA', {
-        type: 'ChatRequest', text: `m${i}`, scope: 'all', clientTs: NOW + i,
-      }, sink);
+      const { events, sink } = captureOutbound();
+      // Chat bucket capacity is 6 (RATE_LIMITS.chat). Burst 7 chats at
+      // a fixed system time so no refill happens between requests; the
+      // 7th must be dropped. Fake timers keep this deterministic
+      // regardless of wall-clock jitter.
+      for (let i = 0; i < 7; i++) {
+        dispatch(state, spatial, 'socketA', {
+          type: 'ChatRequest', text: `m${i}`, scope: 'all', clientTs: NOW + i,
+        }, sink);
+      }
+
+      const broadcasts = events.filter(e => e.type === 'serverMessage');
+      expect(broadcasts).toHaveLength(6);
+    } finally {
+      vi.useRealTimers();
     }
-
-    const broadcasts = events.filter(e => e.type === 'serverMessage');
-    expect(broadcasts.length).toBeLessThan(7);
   });
 });
