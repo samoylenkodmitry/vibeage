@@ -24,4 +24,26 @@ describe('runtime metrics', () => {
       },
     });
   });
+
+  test('reports p50/p95/p99 over the tick sample window', () => {
+    // Record 100 evenly-spaced samples 1..100ms. p50 falls near 50,
+    // p95 near 95, p99 near 99. Nearest-rank picks exact integer values.
+    for (let ms = 1; ms <= 100; ms++) {
+      runtimeMetrics.recordTickMs(ms);
+    }
+    const tick = runtimeMetrics.snapshot().tickMs;
+    expect(tick.samples).toBe(100);
+    expect(tick.p50).toBe(50);
+    expect(tick.p95).toBe(95);
+    expect(tick.p99).toBe(99);
+    expect(tick.max).toBe(100);
+  });
+
+  test('percentile fields are 0 when no ticks have been recorded', () => {
+    const tick = runtimeMetrics.snapshot().tickMs;
+    expect(tick.p50).toBe(0);
+    expect(tick.p95).toBe(0);
+    expect(tick.p99).toBe(0);
+    expect(tick.samples).toBe(0);
+  });
 });
