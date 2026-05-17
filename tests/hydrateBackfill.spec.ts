@@ -56,6 +56,9 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
     expect(player.unlockedSkills).toContain('evade');
   });
 
+});
+
+describe('hydratePersistedPlayer drops wrong-class skills', () => {
   it('drops cross-class skills carried over from a previous class (legacy record cleanup)', () => {
     // Legacy warrior persisted with mage skills (pre-slice-131 class
     // change could leak ['fireball','slash']). Hydrate must drop the
