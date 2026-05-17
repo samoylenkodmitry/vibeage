@@ -214,6 +214,13 @@ export type GameClientState = {
    * send a LootPickup once we're close enough (or expire after TTL).
    */
   pendingPickup: PendingPickup | null;
+  /**
+   * Auto-attack: pressing Basic Attack (or any autoRepeat skill) sets
+   * this and the polling tick keeps re-casting it at the same target
+   * every cooldown. Cleared on target death, manual move, deselect,
+   * different skill cast, or player death.
+   */
+  autoAttack: AutoAttack | null;
 };
 
 export type PendingCast = {
@@ -225,4 +232,9 @@ export type PendingCast = {
 export type PendingPickup = {
   lootId: string;
   expiresAtTs: number;
+};
+
+export type AutoAttack = {
+  skillId: string;
+  targetId: string;
 };

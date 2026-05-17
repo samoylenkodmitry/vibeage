@@ -66,6 +66,12 @@ export interface SkillDef {
     hitRadius?: number;  // Explicit hit detection radius
     maxPierceHits?: number; // Maximum number of targets that can be hit with pierce
   };
+  /**
+   * When true, the client keeps re-casting this skill at the same
+   * target on each cooldown tick until the player gives a new order.
+   * Today only Basic Attack opts in so it behaves like an auto-swing.
+   */
+  autoRepeat?: boolean;
 }
 
 // Define the SKILLS directly
@@ -87,6 +93,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     range: 4,
     levelRequired: 1,
     requiresTarget: true,
+    autoRepeat: true,
     effects: [
       { type: 'damage', value: 8 },
     ],

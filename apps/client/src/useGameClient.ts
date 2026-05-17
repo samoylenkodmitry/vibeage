@@ -41,14 +41,15 @@ export function useGameClient(): ClientApi {
     };
   }, [roomRef]);
 
-  // Approach-and-cast / approach-and-pickup tick: while a pending
-  // intent is queued, poll every ~120ms to check if the player has
-  // walked into range/reach. Faster than the 1s prune so actions
-  // fire snappily on arrival.
+  // Approach-and-cast / approach-and-pickup / auto-attack tick. Polls
+  // every ~120ms so pending intents fire snappily when the player walks
+  // into range and auto-attack re-fires the moment Basic Attack comes
+  // off cooldown.
   useEffect(() => {
     const timer = window.setInterval(() => {
       actions.tryFirePendingCast();
       actions.tryFirePendingPickup();
+      actions.tryAdvanceAutoAttack();
     }, 120);
     return () => window.clearInterval(timer);
   }, [actions]);

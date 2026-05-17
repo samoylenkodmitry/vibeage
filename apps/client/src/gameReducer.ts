@@ -53,6 +53,7 @@ export const initialGameClientState: GameClientState = {
   streamedRegionIds: [],
   pendingCast: null,
   pendingPickup: null,
+  autoAttack: null,
 };
 
 export type GameClientAction =
@@ -74,7 +75,9 @@ export type GameClientAction =
   | { type: 'setPendingCast'; pendingCast: GameClientState['pendingCast'] }
   | { type: 'clearPendingCast' }
   | { type: 'setPendingPickup'; pendingPickup: GameClientState['pendingPickup'] }
-  | { type: 'clearPendingPickup' };
+  | { type: 'clearPendingPickup' }
+  | { type: 'setAutoAttack'; autoAttack: GameClientState['autoAttack'] }
+  | { type: 'clearAutoAttack' };
 
 export function gameClientReducer(
   state: GameClientState,
@@ -119,6 +122,10 @@ export function gameClientReducer(
       return { ...state, pendingPickup: action.pendingPickup };
     case 'clearPendingPickup':
       return state.pendingPickup ? { ...state, pendingPickup: null } : state;
+    case 'setAutoAttack':
+      return { ...state, autoAttack: action.autoAttack };
+    case 'clearAutoAttack':
+      return state.autoAttack ? { ...state, autoAttack: null } : state;
   }
 }
 

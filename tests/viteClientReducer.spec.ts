@@ -479,3 +479,16 @@ describe('Vite game client reducer pending cast', () => {
     expect(cleared.pendingCast).toBeNull();
   });
 });
+
+describe('Vite game client reducer auto-attack', () => {
+  it('stores and clears an auto-attack latch', () => {
+    const set = gameClientReducer(initialGameClientState, {
+      type: 'setAutoAttack',
+      autoAttack: { skillId: 'basicAttack', targetId: 'goblin-3' },
+    });
+    expect(set.autoAttack).toEqual({ skillId: 'basicAttack', targetId: 'goblin-3' });
+
+    const cleared = gameClientReducer(set, { type: 'clearAutoAttack' });
+    expect(cleared.autoAttack).toBeNull();
+  });
+});
