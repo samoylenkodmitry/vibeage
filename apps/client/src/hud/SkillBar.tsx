@@ -2,8 +2,6 @@ import { useMemo, type CSSProperties } from 'react';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import {
-  BASIC_ATTACK_HOTKEY,
-  BASIC_ATTACK_SKILL_ID,
   getHotkeySkill,
   getSkillSlotAriaHotkeys,
   SKILL_BAR_HOTKEYS,
@@ -24,16 +22,6 @@ export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillB
 
   return (
     <section className="skill-bar" aria-label="Skills">
-      <SkillButton
-        key="attack"
-        skillId={BASIC_ATTACK_SKILL_ID}
-        hotkey={BASIC_ATTACK_HOTKEY}
-        ariaHotkeys={BASIC_ATTACK_HOTKEY}
-        player={player}
-        now={now}
-        hasSelectedTarget={hasSelectedTarget}
-        onCastSkill={onCastSkill}
-      />
       {slots.map((skillId, index) => (
         <SkillButton
           key={`${index}:${skillId ?? 'empty'}`}

@@ -52,6 +52,7 @@ export const initialGameClientState: GameClientState = {
   worldPublicState: null,
   streamedRegionIds: [],
   pendingCast: null,
+  pendingPickup: null,
 };
 
 export type GameClientAction =
@@ -71,7 +72,9 @@ export type GameClientAction =
   | { type: 'serverMessage'; message: ServerMessage; now: number }
   | { type: 'pruneCasts'; now: number }
   | { type: 'setPendingCast'; pendingCast: GameClientState['pendingCast'] }
-  | { type: 'clearPendingCast' };
+  | { type: 'clearPendingCast' }
+  | { type: 'setPendingPickup'; pendingPickup: GameClientState['pendingPickup'] }
+  | { type: 'clearPendingPickup' };
 
 export function gameClientReducer(
   state: GameClientState,
@@ -112,6 +115,10 @@ export function gameClientReducer(
       return { ...state, pendingCast: action.pendingCast };
     case 'clearPendingCast':
       return state.pendingCast ? { ...state, pendingCast: null } : state;
+    case 'setPendingPickup':
+      return { ...state, pendingPickup: action.pendingPickup };
+    case 'clearPendingPickup':
+      return state.pendingPickup ? { ...state, pendingPickup: null } : state;
   }
 }
 

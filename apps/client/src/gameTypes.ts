@@ -208,10 +208,21 @@ export type GameClientState = {
    * polling loop sees us in range (or expire it after expiresAtTs).
    */
   pendingCast: PendingCast | null;
+  /**
+   * Pending approach-and-pickup. Mirrors pendingCast: player presses
+   * the Pickup action, we walk toward the nearest GroundLoot stack and
+   * send a LootPickup once we're close enough (or expire after TTL).
+   */
+  pendingPickup: PendingPickup | null;
 };
 
 export type PendingCast = {
   skillId: string;
   targetId: string;
+  expiresAtTs: number;
+};
+
+export type PendingPickup = {
+  lootId: string;
   expiresAtTs: number;
 };
