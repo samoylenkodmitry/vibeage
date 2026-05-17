@@ -41,6 +41,16 @@ export function useGameClient(): ClientApi {
     };
   }, [roomRef]);
 
+  // Approach-and-cast tick: while a pending cast is queued, poll every
+  // ~120ms to check if the player has walked into range. Faster than
+  // the 1s prune so the cast fires snappily when the player arrives.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      actions.tryFirePendingCast();
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, [actions]);
+
   useEffect(() => {
     installE2EHooks(state, actions);
   }, [state, actions]);
