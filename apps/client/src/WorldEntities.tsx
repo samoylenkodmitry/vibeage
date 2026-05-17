@@ -16,6 +16,7 @@ import {
   SelectedEnemyBeacon,
   SelectedEnemyRing,
 } from './SceneVfx';
+import { NameLabel } from './NameLabel';
 import { ITEMS } from '../../../packages/content/items';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
@@ -65,6 +66,14 @@ export function PlayerMarker({
         isMoving={isMoving}
         equipment={equipment}
       />
+      {player.isAlive && player.name && (
+        <NameLabel
+          text={player.name}
+          color={isSelf ? '#facc15' : '#bcd0ff'}
+          yOffset={height + 0.45}
+          height={isSelf ? 0.55 : 0.45}
+        />
+      )}
     </SmoothedEntityGroup>
   );
 }
@@ -330,10 +339,12 @@ export function EnemyMarker({
   enemy,
   isSelected,
   onSelect,
+  onAttack,
 }: {
   enemy: EnemyEntity;
   isSelected: boolean;
   onSelect: (targetId: string | null) => void;
+  onAttack?: (targetId: string) => void;
 }) {
   const baseVisual = getEnemyVisual(enemy.type);
   const visual = enemy.isMiniBoss
@@ -349,7 +360,15 @@ export function EnemyMarker({
     }
 
     event.stopPropagation();
-    onSelect(enemy.id);
+    // Click on a not-yet-selected mob → just select it. Click on the
+    // already-selected mob → attack it (which kicks off auto-attack
+    // mode via castSkill('basicAttack') and handles approach if out
+    // of range).
+    if (isSelected && onAttack) {
+      onAttack(enemy.id);
+    } else {
+      onSelect(enemy.id);
+    }
   }
 
   const speedSq = (enemy.velocity?.x ?? 0) ** 2 + (enemy.velocity?.z ?? 0) ** 2;
@@ -382,6 +401,14 @@ export function EnemyMarker({
       {enemy.isAlive && enemy.isMiniBoss && <MiniBossCrown color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
+      {enemy.isAlive && enemy.name && (
+        <NameLabel
+          text={enemy.name + (enemy.level ? ` Lv${enemy.level}` : '')}
+          color={enemy.isMiniBoss ? '#fde68a' : '#fca5a5'}
+          yOffset={visual.height + 0.65}
+          height={enemy.isMiniBoss ? 0.55 : 0.42}
+        />
+      )}
     </SmoothedEntityGroup>
   );
 }

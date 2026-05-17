@@ -10,6 +10,7 @@ import {
   getNextTabTargetId,
   getPlayerPosition,
 } from './clientSelectors';
+import { BASIC_ATTACK_SKILL_ID } from './skillShortcuts';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 
 const PENDING_CAST_TTL_MS = 10_000;
@@ -25,6 +26,7 @@ export type ClientActions = {
   selectTarget: (targetId: string | null) => void;
   cycleTarget: () => void;
   castSkill: (skillId: SkillId) => void;
+  attackTarget: (targetId: string) => void;
   learnSkill: (skillId: SkillId) => void;
   pickUpLoot: (lootId: string) => void;
   pickupNearest: () => void;
@@ -88,7 +90,7 @@ export function useClientActions(
     }
   }, [stateRef, dispatch]);
 
-  const { castSkill, tryFirePendingCast, tryAdvanceAutoAttack } = useCastActions(roomRef, stateRef, dispatch);
+  const { castSkill, attackTarget, tryFirePendingCast, tryAdvanceAutoAttack } = useCastActions(roomRef, stateRef, dispatch);
 
   const pickUpLoot = useCallback((lootId: string) => {
     const room = roomRef.current;
@@ -135,8 +137,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 
@@ -219,7 +221,14 @@ function useCastActions(
   const tryFirePendingCast = useTryFirePendingCast(stateRef, dispatch, fireCastReq);
   const tryAdvanceAutoAttack = useTryAdvanceAutoAttack(stateRef, dispatch, castSkill);
 
-  return { castSkill, tryFirePendingCast, tryAdvanceAutoAttack };
+  const attackTarget = useCallback((targetId: string) => {
+    // Select the target then cast basicAttack via the normal path,
+    // which handles approach-and-cast and arms auto-attack mode.
+    dispatch({ type: 'selectTarget', targetId });
+    castSkill(BASIC_ATTACK_SKILL_ID);
+  }, [dispatch, castSkill]);
+
+  return { castSkill, attackTarget, tryFirePendingCast, tryAdvanceAutoAttack };
 }
 
 function useTryFirePendingCast(
