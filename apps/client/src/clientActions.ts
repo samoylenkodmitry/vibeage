@@ -305,6 +305,16 @@ function usePickupActions(
         dispatch({ type: 'clearPendingPickup' });
         return;
       }
+      const fallbackStack = current.groundLoot[fallbackId];
+      if (!fallbackStack) {
+        dispatch({ type: 'clearPendingPickup' });
+        return;
+      }
+      // Re-aim: send a move intent toward the new stack AND update
+      // pending state. Without the move intent we'd just sit where
+      // the original stack was waiting for the next tick to fire
+      // (and never get into grab radius of the new one).
+      sendApproach({ x: fallbackStack.position.x, z: fallbackStack.position.z });
       dispatch({
         type: 'setPendingPickup',
         pendingPickup: { lootId: fallbackId, expiresAtTs: pending.expiresAtTs },
@@ -318,7 +328,7 @@ function usePickupActions(
     }
     dispatch({ type: 'clearPendingPickup' });
     sendPickup(pending.lootId);
-  }, [stateRef, dispatch, sendPickup]);
+  }, [stateRef, dispatch, sendPickup, sendApproach]);
 
   return { pickupNearest, tryFirePendingPickup };
 }
