@@ -88,12 +88,11 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
       </group>
       <group ref={refs.moonGroup}>
         <mesh material={moonMaterial}>
-          {/* Moon is the dominant skybox feature at night — make it
-             big enough to read at a glance and let it carry the mood
-             instead of pretending we have ambient streetlights. */}
-          <sphereGeometry args={[48, 24, 16]} />
+          {/* Bigger again per playtester feedback — the moon should
+             feel like a major sky landmark, not a hint. */}
+          <sphereGeometry args={[72, 28, 18]} />
         </mesh>
-        <pointLight ref={refs.moonLight} color="#bcd0ff" intensity={0.0} distance={1_800} />
+        <pointLight ref={refs.moonLight} color="#bcd0ff" intensity={0.0} distance={2_200} />
       </group>
       <group ref={refs.cloudGroup}>
         {CLOUDS.map((cloud) => (
@@ -146,11 +145,10 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
     refs.moonGroup.current.visible = palette.moonDir.y > -0.05;
   }
   if (refs.moonLight.current) {
-    // Aggressively bright moonlight — playtesters still found nights
-    // too dark even after 1.8. Pushing to 3.2 (still gated by moon
-    // altitude so it fades naturally when the moon dips below the
-    // horizon).
-    refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 3.2;
+    // Moonlight v4 — still too dark after 3.2. Pushing to 4.5
+    // (gated by moon altitude so it fades naturally when the moon
+    // dips below the horizon).
+    refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 4.5;
   }
   sunMaterial.color.set(palette.sunColor);
   cloudMaterial.color.set(palette.cloudColor);

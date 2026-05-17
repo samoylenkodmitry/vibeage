@@ -1152,3 +1152,16 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] The feature has observability if it affects runtime cost or production behavior.
 - [ ] The feature updates docs in the same PR.
 - [ ] The feature passes the full local and CI quality gate before merge.
+
+## 31. Open Visual Experiments
+
+- [ ] Try the analytical atmosphere / Rayleigh + Mie sky shader from
+  https://blog.maximeheckel.com/posts/on-rendering-the-sky-sunsets-and-planets/
+  in place of the current keyframe-interpolated palette in
+  `apps/client/src/WorldEnvironment.tsx` + `timeOfDay.ts`. Would
+  replace the hardcoded sunrise/midday/dusk/midnight colour stops
+  with a physically-derived gradient driven by sun direction +
+  scattering coefficients. Big visual win for sunsets and night
+  transitions; needs a dedicated shader pass and probably a separate
+  skybox geometry. Park behind the current QoL pass; revisit when
+  baseline is comfortable.

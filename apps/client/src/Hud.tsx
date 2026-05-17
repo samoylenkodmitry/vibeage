@@ -166,8 +166,7 @@ export function GameHud({
         selfTargeted={selfSelected}
         onClose={onSelectTarget ? () => onSelectTarget(null) : undefined}
       />
-      <MovementPanel player={player} target={state.targetWorldPos} />
-      <NavigationPanel state={state} player={player} />
+      <LocationPanel state={state} player={player} />
       <HudPanels
         panels={panels}
         state={state}
@@ -498,52 +497,48 @@ const STAT_WEIGHTS: Record<string, StatWeights> = {
 };
 
 
-function MovementPanel({
-  player,
-  target,
-}: {
-  player: PlayerEntity | null;
-  target: GameClientState['targetWorldPos'];
-}) {
-  if (!player?.isAlive || !target) {
-    return null;
-  }
-
-  const distance = getDistance(player.position, target);
-  const label = distance < 0.35 ? 'Arriving' : 'Moving';
-
-  return (
-    <section className="hud movement-panel" aria-label="Movement">
-      <span>{label}</span>
-      <strong>{distance.toFixed(1)}m</strong>
-    </section>
-  );
-}
-
-function NavigationPanel({
+function LocationPanel({
   state,
   player,
 }: {
   state: GameClientState;
   player: PlayerEntity | null;
 }) {
-  if (!player) {
-    return null;
-  }
+  const [expanded, setExpanded] = useState(false);
+  if (!player) return null;
 
   const regionId = state.worldPublicState?.players[player.id]?.regionId
     ?? state.streamedRegionIds[0]
     ?? '';
   const region = regionId ? state.worldPublicState?.regions[regionId] : null;
-  const targetDistance = state.targetWorldPos ? getDistance(player.position, state.targetWorldPos) : null;
+  const zoneName = region?.name ?? 'Wilderness';
+  const target = state.targetWorldPos;
+  const targetDistance = target ? getDistance(player.position, target) : null;
   const speed = player.movement?.speed ?? 0;
+  const moving = Boolean(target && player.isAlive);
 
   return (
-    <section className="hud navigation-panel" aria-label="Navigation">
-      <Metric label="Position" value={`${Math.round(player.position.x)}, ${Math.round(player.position.z)}`} />
-      <Metric label="Zone" value={region?.name ?? 'Wilderness'} />
-      <Metric label="Stream" value={`${state.streamedRegionIds.length}/${state.worldPublicState?.activeRegionCount ?? 0}`} />
-      <Metric label="ETA" value={formatTravelEta(targetDistance, speed)} />
+    <section className={`hud location-panel${expanded ? ' location-panel--expanded' : ''}`} aria-label="Location">
+      <button
+        type="button"
+        className="location-panel-summary"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+      >
+        <strong>{zoneName}</strong>
+        {moving && targetDistance !== null && (
+          <span className="location-panel-distance">{targetDistance.toFixed(1)}m</span>
+        )}
+        <span className="location-panel-chevron" aria-hidden>{expanded ? '▾' : '▸'}</span>
+      </button>
+      {expanded && (
+        <dl className="location-panel-detail">
+          <div><dt>Pos</dt><dd>{Math.round(player.position.x)}, {Math.round(player.position.z)}</dd></div>
+          <div><dt>Zone</dt><dd>{zoneName}</dd></div>
+          <div><dt>Stream</dt><dd>{state.streamedRegionIds.length}/{state.worldPublicState?.activeRegionCount ?? 0}</dd></div>
+          <div><dt>ETA</dt><dd>{formatTravelEta(targetDistance, speed)}</dd></div>
+        </dl>
+      )}
     </section>
   );
 }

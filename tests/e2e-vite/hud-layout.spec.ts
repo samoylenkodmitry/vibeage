@@ -38,13 +38,13 @@ for (const viewport of HUD_VIEWPORTS) {
     if (viewport.infoPanelsVisible) {
       corePanels.push(
         panel("World status", page.locator(".hud-stats")),
-        panel("Movement", page.locator(".movement-panel")),
-        panel("Navigation", page.locator(".navigation-panel")),
+        panel("Location", page.locator(".location-panel")),
       );
     } else {
+      // Mobile hides hud-stats + location-panel to save vertical
+      // real estate. Zone name is still on the world map.
       await expect(page.locator(".hud-stats")).toBeHidden();
-      await expect(page.locator(".navigation-panel")).toBeHidden();
-      await expect(page.locator(".movement-panel")).toBeHidden();
+      await expect(page.locator(".location-panel")).toBeHidden();
     }
 
     await expect(page.locator(".inventory-panel")).toBeHidden();
@@ -95,7 +95,9 @@ async function issueMoveIntent(page: Page, expectMovementPanelVisible: boolean):
 
   expect(target).toBeTruthy();
   if (expectMovementPanelVisible) {
-    await expect(page.locator(".movement-panel")).toBeVisible();
+    // LocationPanel replaces the old MovementPanel on desktop. On
+    // mobile it's hidden so this check is skipped.
+    await expect(page.locator(".location-panel")).toBeVisible();
   }
 }
 

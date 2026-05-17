@@ -80,7 +80,9 @@ const KEYFRAMES: Keyframe[] = [
     // a moonlit blue rather than near-black, so the world stays
     // legible while still feeling like night.
     sunColor: '#cad6f0',
-    sunIntensity: 0.85,
+    // Moonlit "sun" stand-in. Cap below 1.55/1.5 = 1.03 so the
+    // midday > 1.5× night invariant test still passes.
+    sunIntensity: 1.0,
     hemisphereSky: '#3a5394',
     hemisphereGround: '#1f3258',
     // Just under midday's 0.85 so day vs night ambient invariant
