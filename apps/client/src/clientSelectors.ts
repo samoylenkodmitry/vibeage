@@ -26,3 +26,37 @@ export function getNearestAliveEnemyId(
 
   return bestId;
 }
+
+/**
+ * Pick the next alive enemy by ascending distance, skipping the
+ * currently-selected one. When `currentTargetId` is null this returns
+ * the nearest enemy (same as getNearestAliveEnemyId). When nothing
+ * better exists, returns the nearest enemy (so repeated Tab on a lone
+ * mob re-selects it instead of clearing the target).
+ */
+export function getNextTabTargetId(
+  enemies: Record<string, EnemyEntity>,
+  origin: Vec3,
+  currentTargetId: string | null,
+): string | null {
+  const ranked: Array<{ id: string; distance: number }> = [];
+  for (const enemy of Object.values(enemies)) {
+    if (!enemy.isAlive) continue;
+    ranked.push({ id: enemy.id, distance: distanceSqXZ(origin, enemy.position) });
+  }
+  if (ranked.length === 0) return null;
+  ranked.sort((a, b) => a.distance - b.distance);
+
+  if (!currentTargetId) {
+    return ranked[0].id;
+  }
+
+  const currentIndex = ranked.findIndex((entry) => entry.id === currentTargetId);
+  if (currentIndex === -1) {
+    return ranked[0].id;
+  }
+  // Cycle to the next entry; wrap around at the end so Tab on the
+  // farthest mob comes back to the nearest one.
+  const nextIndex = (currentIndex + 1) % ranked.length;
+  return ranked[nextIndex].id;
+}

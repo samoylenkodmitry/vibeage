@@ -44,6 +44,7 @@ type GameHudProps = {
   onSelectRace: (race: string) => void;
   onRespawn: () => void;
   onSelectTarget?: (targetId: string | null) => void;
+  onCycleTarget?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
@@ -122,6 +123,7 @@ export function GameHud({
   onSelectRace,
   onRespawn,
   onSelectTarget,
+  onCycleTarget,
   onSendChat,
 }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
@@ -138,7 +140,7 @@ export function GameHud({
   const now = useNow(100);
   const panels = usePanelState();
 
-  useSkillHotkeys(player, onCastSkill);
+  useSkillHotkeys(player, onCastSkill, onCycleTarget);
 
   return (
     <>
@@ -521,13 +523,28 @@ function Metric({ label, value }: { label: string; value: string }) {
 function useSkillHotkeys(
   player: PlayerEntity | null,
   onCastSkill: (skillId: SkillId) => void,
+  onCycleTarget?: () => void,
 ) {
   const playerRef = useRef(player);
   playerRef.current = player;
+  const cycleRef = useRef(onCycleTarget);
+  cycleRef.current = onCycleTarget;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      // Tab cycles to the next enemy by distance. preventDefault stops
+      // the browser from shifting focus to the next focusable element
+      // (which would yank focus off the canvas and break subsequent
+      // hotkeys).
+      if (event.code === 'Tab') {
+        if (cycleRef.current) {
+          event.preventDefault();
+          cycleRef.current();
+        }
         return;
       }
 
