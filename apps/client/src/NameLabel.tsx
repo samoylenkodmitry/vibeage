@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 
 type NameLabelProps = {
@@ -26,7 +25,6 @@ export function NameLabel({
   yOffset = 1.6,
   height = 0.5,
 }: NameLabelProps) {
-  const spriteRef = useRef<THREE.Sprite>(null);
   const texture = useMemo(() => buildLabelTexture(text, color), [text, color]);
   const aspect = texture.image.width / texture.image.height;
 
@@ -36,16 +34,8 @@ export function NameLabel({
     };
   }, [texture]);
 
-  // Keep the sprite a touch above-camera-relative-y so it doesn't sink
-  // into the model when the camera tilts down.
-  useFrame(() => {
-    if (spriteRef.current) {
-      spriteRef.current.position.y = yOffset;
-    }
-  });
-
   return (
-    <sprite ref={spriteRef} position={[0, yOffset, 0]} scale={[height * aspect, height, 1]}>
+    <sprite position={[0, yOffset, 0]} scale={[height * aspect, height, 1]}>
       <spriteMaterial
         map={texture}
         transparent
