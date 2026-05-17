@@ -23,6 +23,10 @@ type PlayerUpdatePayload = {
   position?: PlayerState['position'];
   isAlive?: boolean;
   deathTimeTs?: number;
+  statusEffects?: PlayerState['statusEffects'];
+  castingSkill?: PlayerState['castingSkill'];
+  castingProgressMs?: PlayerState['castingProgressMs'];
+  targetId?: PlayerState['targetId'];
 };
 
 export function awardPlayerXP(
@@ -108,6 +112,20 @@ export function respawnPlayer(
   player.position = { ...RESPAWN_POSITION };
   player.deathTimeTs = undefined;
   player.velocity = { x: 0, z: 0 };
+  // Clear pre-death state that would otherwise carry through:
+  //  - statusEffects: a Burn that killed you would tick again at half
+  //    HP on the very next DoT cycle and re-kill instantly.
+  //  - casting state: if death interrupted a cast, the client would
+  //    show a stuck cast bar.
+  //  - movement target / dirty flag: the player would start walking
+  //    toward their pre-death target the moment they respawn.
+  //  - targetId: stale enemy reference from before death.
+  player.statusEffects = [];
+  player.castingSkill = null;
+  player.castingProgressMs = 0;
+  player.targetId = null;
+  player.movement = undefined;
+  player.dirtySnap = true;
 
   spatial.remove(player.id, oldPosition);
   spatial.insert(player.id, { x: player.position.x, z: player.position.z });
@@ -121,6 +139,10 @@ export function respawnPlayer(
     position: player.position,
     isAlive: true,
     deathTimeTs: undefined,
+    statusEffects: player.statusEffects,
+    castingSkill: player.castingSkill,
+    castingProgressMs: player.castingProgressMs,
+    targetId: player.targetId,
   };
 }
 
@@ -129,7 +151,18 @@ export function onRespawnRequest(
   msg: RespawnRequest,
   outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
+  socketId: string,
 ): void {
+  // Ownership check: a socket can only respawn the player it owns.
+  // Without this any connected client could send {id: someoneElseId}
+  // and force-respawn another player.
+  const player = state.players[msg.id];
+  if (!player) {
+    return;
+  }
+  if (player.socketId !== socketId) {
+    return;
+  }
   const update = respawnPlayer(state, spatial, msg.id);
   if (update) {
     emitPlayerUpdated(outbound, update);
