@@ -77,7 +77,14 @@ export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) 
 
   const label = EFFECT_LABEL[effect.type] ?? effect.type;
   const description = EFFECT_DESCRIPTION[effect.type] ?? '';
-  const remainingMs = Math.max(0, (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) - Date.now());
+  // Only compute a remaining count when we actually have both a start
+  // timestamp and a duration; otherwise the previous code printed
+  // 'Remaining: 0.0s' for any non-timed effect because startTimeTs
+  // defaulted to 0 and that's "expired" by today's clock.
+  const hasTimedRemaining = effect.startTimeTs !== undefined && effect.durationMs !== undefined;
+  const remainingMs = hasTimedRemaining
+    ? Math.max(0, (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) - Date.now())
+    : null;
 
   return createPortal(
     <div
@@ -96,7 +103,7 @@ export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) 
         {effect.durationMs !== undefined && (
           <li><span>Duration</span><strong>{(effect.durationMs / 1000).toFixed(1)}s</strong></li>
         )}
-        {effect.durationMs !== undefined && (
+        {remainingMs !== null && (
           <li><span>Remaining</span><strong>{(remainingMs / 1000).toFixed(1)}s</strong></li>
         )}
         {effect.sourceSkill && <li><span>Source</span><strong>{effect.sourceSkill}</strong></li>}
