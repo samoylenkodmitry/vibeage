@@ -20,6 +20,7 @@ import { applyStarterLoadout } from '../inventory/starterLoadout.js';
 import { hydratePersistedCharacterInventory } from '../inventory/aggregateBridge.js';
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
+import { starterSkillsFor } from './playerProgression.js';
 
 type PlayerRow = {
   id: string;
@@ -139,7 +140,28 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   // equipment bonuses on login — refreshPlayerStatsFromEquipment lazily
   // builds the aggregate from the legacy slots when missing.
   refreshPlayerStatsFromEquipment(player);
+  // Retroactive starter-skill backfill: a player who switched class
+  // BEFORE slice #20's ensureClassHasStarterSkill fix shipped will have
+  // className='warrior' but unlockedSkills=['fireball'] — they can't
+  // learn any warrior skill (prereqs reference slash, which they don't
+  // own). Re-run the same predicate on hydrate so persisted players
+  // get unstuck on next login.
+  ensureClassStarterUnlocked(player);
   return player;
+}
+
+function ensureClassStarterUnlocked(player: PlayerState): void {
+  const [starter] = starterSkillsFor(player.className);
+  if (!starter) return;
+  if (!player.unlockedSkills.includes(starter)) {
+    player.unlockedSkills.push(starter);
+  }
+  if (!player.skillShortcuts.includes(starter)) {
+    const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
+    if (emptySlotIndex !== -1) {
+      player.skillShortcuts[emptySlotIndex] = starter;
+    }
+  }
 }
 
 export async function addPlayerSession(
