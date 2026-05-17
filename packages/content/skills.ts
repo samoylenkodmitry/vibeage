@@ -1,10 +1,19 @@
 // Direct definitions without imports
 export type SkillId =
+  | 'basicAttack'
   | 'fireball'|'iceBolt'|'waterSplash'|'petrify'
   | 'slash'|'powerStrike'|'shieldWall'|'taunt'|'bash'
   | 'holyLight'|'bless'|'dispel'|'smite'|'divineShield'
   | 'arrowShot'|'volley'|'rapidFire'
   | 'evade'|'backstab'|'poisonBlade'|'vanish';
+
+/**
+ * Skills every player has from birth, regardless of class. Used to make
+ * sure normalizeUnlockedSkills + ensureClassStarterUnlocked don't strip
+ * the universal Basic Attack on class change or hydrate. Keep this in
+ * sync with the SKILLS catalog.
+ */
+export const UNIVERSAL_SKILLS: readonly SkillId[] = ['basicAttack'];
 export type SkillCategory = 'projectile'|'instant'|'beam'|'aura';
 
 export type SkillEffectType =
@@ -61,6 +70,27 @@ export interface SkillDef {
 
 // Define the SKILLS directly
 export const SKILLS: Record<SkillId,SkillDef> = {
+  basicAttack: {
+    id: 'basicAttack',
+    name: 'Attack',
+    description: 'Strike the target with your equipped weapon (or fists).',
+    icon: '/game/skills/skill_melee.svg',
+    cat: 'instant',
+    manaCost: 0,
+    castMs: 0,
+    cooldownMs: 1200,
+    // Damage scales through caster.dmgMult, which already factors in
+    // primary stat + equipped weapon pAtk via derivePlayerStats. A
+    // small flat base keeps unarmed viable while letting weapons
+    // multiply through dmgMult.
+    dmg: 8,
+    range: 4,
+    levelRequired: 1,
+    requiresTarget: true,
+    effects: [
+      { type: 'damage', value: 8 },
+    ],
+  },
   fireball: {
     id: 'fireball',
     name: 'Fireball',

@@ -1,5 +1,5 @@
 import type { CharacterClass } from '../../packages/content/classes.js';
-import { SKILLS, type SkillId } from '../../packages/content/skills.js';
+import { SKILLS, UNIVERSAL_SKILLS, type SkillId } from '../../packages/content/skills.js';
 
 export const SKILL_SHORTCUT_SLOTS = 9;
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
@@ -23,7 +23,13 @@ export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = [STARTER_SKILL_BY_CLASS.mage];
 
 export function starterSkillsFor(className: CharacterClass | string | undefined): SkillId[] {
   const key = className as CharacterClass;
-  return [STARTER_SKILL_BY_CLASS[key] ?? STARTER_SKILL_BY_CLASS.mage];
+  const starter = STARTER_SKILL_BY_CLASS[key] ?? STARTER_SKILL_BY_CLASS.mage;
+  // Class starter goes first so it binds to the Q hotkey via the default
+  // normalizeSkillShortcuts assignment. Universal skills (Basic Attack)
+  // follow — they live on a dedicated UI button, not the 4-slot bar, so
+  // their position in this list mostly just keeps the skillShortcuts
+  // fallback from binding them to a number key.
+  return [starter, ...UNIVERSAL_SKILLS];
 }
 
 export function numberOrFallback(value: unknown, fallback: number): number {
@@ -80,6 +86,15 @@ export function normalizeUnlockedSkills(
     }
   }
 
+  // Universal skills (Basic Attack) are unconditionally restored on
+  // every hydrate — older saves predate the universal-skills concept
+  // and would otherwise come back without their Attack button.
+  for (const universal of UNIVERSAL_SKILLS) {
+    if (!normalized.includes(universal)) {
+      normalized.push(universal);
+    }
+  }
+
   return normalized;
 }
 
@@ -102,8 +117,12 @@ export function normalizeSkillShortcuts(
     return shortcuts;
   }
 
-  for (let index = 0; index < Math.min(unlockedSkills.length, SKILL_SHORTCUT_SLOTS); index += 1) {
-    shortcuts[index] = unlockedSkills[index];
+  // Universal skills (Basic Attack) live on a dedicated Attack button —
+  // exclude them from the auto-binding so they don't squat one of the
+  // four bar slots and steal the player's Q key.
+  const barCandidates = unlockedSkills.filter((skill) => !(UNIVERSAL_SKILLS as readonly SkillId[]).includes(skill));
+  for (let index = 0; index < Math.min(barCandidates.length, SKILL_SHORTCUT_SLOTS); index += 1) {
+    shortcuts[index] = barCandidates[index];
   }
 
   return shortcuts;

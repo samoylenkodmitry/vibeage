@@ -15,6 +15,7 @@ export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 // entry has a matching schema entry so a designer adding a new skill
 // can't silently break casting.
 export const skillIdValues = [
+  'basicAttack',
   'fireball', 'iceBolt', 'waterSplash', 'petrify',
   'slash', 'powerStrike', 'shieldWall', 'taunt', 'bash',
   'holyLight', 'bless', 'dispel', 'smite', 'divineShield',

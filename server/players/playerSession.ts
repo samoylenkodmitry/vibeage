@@ -2,6 +2,7 @@ import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
+import { UNIVERSAL_SKILLS } from '../../packages/content/skills.js';
 import { CHARACTER_RACES, DEFAULT_RACE, type CharacterRace } from '../../packages/content/races.js';
 import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
@@ -162,7 +163,17 @@ function ensureClassStarterUnlocked(player: PlayerState): void {
   // next class change.
   const tree = CLASS_SKILL_TREES[player.className];
   const treeSkills = new Set<string>(tree ? Object.keys(tree.skillProgression) : [starter]);
+  // Universal skills (Basic Attack) are not in any class tree — keep
+  // them so the filter doesn't strip them on class switch / hydrate.
+  for (const skill of UNIVERSAL_SKILLS) {
+    treeSkills.add(skill);
+  }
   player.unlockedSkills = player.unlockedSkills.filter((skill) => treeSkills.has(skill));
+  for (const skill of UNIVERSAL_SKILLS) {
+    if (!player.unlockedSkills.includes(skill)) {
+      player.unlockedSkills.push(skill);
+    }
+  }
   if (!player.unlockedSkills.includes(starter)) {
     player.unlockedSkills.push(starter);
   }

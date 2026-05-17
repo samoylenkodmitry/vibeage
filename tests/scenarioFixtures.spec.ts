@@ -52,7 +52,8 @@ describe('scenario fixtures', () => {
       socketId: 'new-socket',
       position: beforeRelog.position,
       inventory: beforeRelog.inventory,
-      unlockedSkills: beforeRelog.unlockedSkills,
+      // basicAttack is appended on hydrate (universal-skills backfill).
+      unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack'],
     });
   });
 
