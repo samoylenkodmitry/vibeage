@@ -1,4 +1,5 @@
-import { CLASS_SKILL_TREES, type CharacterClass } from '../content/classes.js';
+import { type CharacterClass } from '../content/classes.js';
+import { modifiersForClass } from '../content/classPassives.js';
 import type { ItemStatBlock } from '../content/equipmentTypes.js';
 import { DEFAULT_RACE, RACE_PROFILES, type CharacterRace } from '../content/races.js';
 
@@ -85,11 +86,14 @@ export function derivePlayerStats(
   const wit = Math.floor(baseAttrs.wit + growth.wit * levelDelta);
   const men = Math.floor(baseAttrs.men + growth.men * levelDelta);
 
-  const classTree = CLASS_SKILL_TREES[className];
-  const baseStats = classTree?.baseStats;
-  const healthMultiplier = baseStats?.healthMultiplier ?? 1;
-  const manaMultiplier = baseStats?.manaMultiplier ?? 1;
-  const damageMultiplier = baseStats?.damageMultiplier ?? 1;
+  // Class-granted passive modifiers (replaces the old
+  // CLASS_SKILL_TREES[c].baseStats lookup). The numbers are the same;
+  // the change is architectural — these now compose with future
+  // equipment-granted passives through one shared shape.
+  const classPassive = modifiersForClass(className);
+  const healthMultiplier = classPassive.healthMultiplier ?? 1;
+  const manaMultiplier = classPassive.manaMultiplier ?? 1;
+  const damageMultiplier = classPassive.damageMultiplier ?? 1;
   const primary = isMagicClass(className) ? int : str;
   const equipmentDmg = isMagicClass(className)
     ? (equipment.mAtk ?? 0) * EQUIPMENT_MATK_TO_DMG
@@ -105,7 +109,7 @@ export function derivePlayerStats(
     + (men - 8) * MANA_PER_MEN
     + (equipment.mp ?? 0);
 
-  const speedMultiplier = baseStats?.speedMultiplier ?? 1;
+  const speedMultiplier = classPassive.speedMultiplier ?? 1;
   const equipPAtk = equipment.pAtk ?? 0;
   const equipMAtk = equipment.mAtk ?? 0;
   const equipPDef = equipment.pDef ?? 0;
