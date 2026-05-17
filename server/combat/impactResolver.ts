@@ -83,13 +83,39 @@ function calculateDamage(skill: SkillDef, caster?: PlayerState | null, castId?: 
     return 0;
   }
 
+  // Active 'bless' buffs (Bless, Rapid Fire) multiply outgoing damage.
+  // Without this consumer the effect was inserted on the caster but
+  // had no observable game impact.
+  const blessMult = blessDamageMultiplier(caster);
+  const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
+
   const result = getDamage({
-    caster: caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 },
+    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
 
   return result.dmg;
+}
+
+/**
+ * Sum bless-style damage tilts active on the caster into a single
+ * multiplier. effect.value is a percentage (Bless: 25 → +25%); the
+ * helper converts to (1 + value/100). Multiple bless effects compound
+ * additively on percentage before being applied multiplicatively to
+ * dmgMult — matches the player intuition for "two bless buffs stack."
+ */
+function blessDamageMultiplier(caster: PlayerState | null | undefined): number {
+  if (!caster?.statusEffects?.length) return 1;
+  const now = Date.now();
+  let pct = 0;
+  for (const effect of caster.statusEffects) {
+    if (effect.type !== 'bless') continue;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt <= now) continue;
+    pct += effect.value ?? 0;
+  }
+  return 1 + pct / 100;
 }
 
 function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerState> {
