@@ -42,6 +42,7 @@ const serverTests = [
 
 const clientTests = [
   "tests/clientCameraRig.spec.ts",
+  "tests/clientTargetCycle.spec.ts",
   "tests/viteClientReducer.spec.ts",
   "tests/worldVisuals.spec.ts",
 ];

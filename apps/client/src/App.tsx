@@ -70,6 +70,7 @@ export default function App() {
         onSelectRace={client.selectRace}
         onRespawn={client.respawn}
         onSelectTarget={client.selectTarget}
+        onCycleTarget={client.cycleTarget}
         onSendChat={client.sendChat}
       />
       {state.connectionState !== 'online' && (

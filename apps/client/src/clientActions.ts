@@ -4,7 +4,7 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
 import type { GameClientAction } from './gameReducer';
-import { getNearestAliveEnemyId, getPlayerPosition } from './clientSelectors';
+import { getNearestAliveEnemyId, getNextTabTargetId, getPlayerPosition } from './clientSelectors';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 
 const PENDING_CAST_TTL_MS = 10_000;
@@ -16,6 +16,7 @@ const APPROACH_RANGE_PADDING = 0.5;
 export type ClientActions = {
   sendMoveIntent: (target: VecXZ) => void;
   selectTarget: (targetId: string | null) => void;
+  cycleTarget: () => void;
   castSkill: (skillId: SkillId) => void;
   learnSkill: (skillId: SkillId) => void;
   pickUpLoot: (lootId: string) => void;
@@ -58,6 +59,21 @@ export function useClientActions(
   const selectTarget = useCallback((targetId: string | null) => {
     dispatch({ type: 'selectTarget', targetId });
   }, [dispatch]);
+
+  const cycleTarget = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) return;
+    const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
+    if (!player) return;
+    // Tab from self-selection acts like "I have no enemy yet" and
+    // picks the nearest one — selfId is a UI marker, not a target in
+    // the enemy roster.
+    const currentEnemyId = current.selectedTargetId === player.id ? null : current.selectedTargetId;
+    const next = getNextTabTargetId(current.enemies, getPlayerPosition(player), currentEnemyId);
+    if (next) {
+      dispatch({ type: 'selectTarget', targetId: next });
+    }
+  }, [stateRef, dispatch]);
 
   const { castSkill, tryFirePendingCast } = useCastActions(roomRef, stateRef, dispatch);
 
@@ -104,8 +120,8 @@ export function useClientActions(
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast }),
-    [sendMoveIntent, selectTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, learnSkill, pickUpLoot, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast],
   );
 }
 
