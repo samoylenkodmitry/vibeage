@@ -51,7 +51,7 @@ describe('Fix #1: stats broadcast on class/race change', () => {
 });
 
 describe('Fix #2: switching class actually unlocks the new starter skill', () => {
-  it('switching mage → warrior unlocks slash so the player can learn bash', () => {
+  it('switching mage → warrior drops fireball, unlocks slash, lets player learn bash', () => {
     const player = createTransientPlayer('s1', 'tester');
     player.level = 3;
     player.availableSkillPoints = 2;
@@ -59,10 +59,10 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
     applyClassChange(player, 'warrior', sink);
 
-    // Slash (warrior starter) should now be unlocked, breaking the
-    // pre-fix bug where ensureClassHasStarterSkill short-circuited on
-    // the cross-class fireball entry in warrior's tree.
+    // Slash is unlocked; fireball is dropped (no skill-accumulation
+    // across class changes — that was the "new knight has fireball" bug).
     expect(player.unlockedSkills).toContain('slash');
+    expect(player.unlockedSkills).not.toContain('fireball');
     expect(canPlayerLearnSkill(player, 'bash')).toBe(true);
     expect(learnNewSkill(player, 'bash')).toBe(true);
     expect(player.unlockedSkills).toContain('bash');
@@ -86,20 +86,33 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
     expect(player.unlockedSkills).toContain('holyLight');
   });
 
-  it('switching BACK to mage re-binds fireball to the bar even if already unlocked', () => {
+  it('switching BACK to mage re-unlocks fireball (full reset on every switch)', () => {
     const player = createTransientPlayer('s1', 'tester');
     const { sink } = captureOutbound();
-    // mage → warrior moves slash into the bar (next empty slot)
-    applyClassChange(player, 'warrior', sink);
-    // Clear any mage skill shortcuts to simulate the user re-binding their
-    // bar to warrior abilities only.
-    player.skillShortcuts = player.skillShortcuts.map(s => (s === 'fireball' ? null : s));
-    // warrior → mage: fireball is already unlocked. The shortcut bar must
-    // still get a mage skill bound so the player isn't stuck.
-    applyClassChange(player, 'mage', sink);
 
-    expect(player.unlockedSkills).toContain('fireball');
+    applyClassChange(player, 'warrior', sink); // drops fireball, adds slash
+    expect(player.unlockedSkills).toEqual(['slash']);
+
+    applyClassChange(player, 'mage', sink); // drops slash, adds fireball
+    expect(player.unlockedSkills).toEqual(['fireball']);
     expect(player.skillShortcuts).toContain('fireball');
+  });
+
+  it('refunds previously-spent skill points so the player can re-spec for the new class', () => {
+    const player = createTransientPlayer('s1', 'tester');
+    player.level = 5;
+    player.availableSkillPoints = 3;
+    const { sink } = captureOutbound();
+
+    // Pretend the player invested in 3 mage skills.
+    player.unlockedSkills = ['fireball', 'waterSplash', 'iceBolt', 'smite'];
+    player.availableSkillPoints = 0; // all spent
+
+    applyClassChange(player, 'warrior', sink);
+
+    // Starter is free; the 3 spent points are refunded.
+    expect(player.unlockedSkills).toEqual(['slash']);
+    expect(player.availableSkillPoints).toBe(3);
   });
 
   it('the new starter ends up in the skill bar (first empty shortcut slot)', () => {

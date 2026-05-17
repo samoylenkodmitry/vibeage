@@ -28,7 +28,7 @@ export function applyClassChange(
   // refreshPlayerStatsFromEquipment also clamps health/mana to the new max
   // when the new class lowers them — see equipHandlers.ts.
   refreshPlayerStatsFromEquipment(player);
-  ensureClassHasStarterSkill(player);
+  resetSkillsForClassChange(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} class -> ${className}`);
   emitPlayerUpdated(outbound, {
     id: player.id,
@@ -39,6 +39,7 @@ export function applyClassChange(
     mana: player.mana,
     unlockedSkills: player.unlockedSkills,
     skillShortcuts: player.skillShortcuts,
+    availableSkillPoints: player.availableSkillPoints,
     // The derived combat stats (pAtk, mAtk, pDef, mDef, crit, etc.)
     // change with class multipliers — broadcast them so the panel reflects
     // the switch immediately, not just HP/MP.
@@ -56,19 +57,32 @@ export function applyClassChange(
  * present and never get `slash` added, breaking learn-prereq chains
  * (bash requires slash, etc.). Check specifically for the starter.
  */
-function ensureClassHasStarterSkill(player: PlayerState): void {
+/**
+ * On a class change: wipe the old class's skills entirely and replace
+ * with the new class's starter. Otherwise unlockedSkills accumulates
+ * across switches — a new player who joins (defaulted to mage with
+ * fireball) and then picks knight ends up with both fireball AND
+ * slash, which is wrong UX.
+ *
+ * Refund every previously-spent skill point so the player can re-learn
+ * skills appropriate to the new class. The starter itself is free.
+ *
+ * Drop all skill shortcuts that referenced retired skills and re-bind
+ * the new starter into the first empty slot.
+ */
+function resetSkillsForClassChange(player: PlayerState): void {
   const [starter] = starterSkillsFor(player.className);
-  if (!starter) return;
-  if (!player.unlockedSkills.includes(starter)) {
-    player.unlockedSkills.push(starter);
-  }
-  // Always check shortcut assignment — a player switching BACK to a
-  // class they previously played may already have the starter unlocked
-  // but never re-bound it to the current bar after intervening switches.
-  if (player.skillShortcuts.includes(starter)) return;
-  const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
-  if (emptySlotIndex !== -1) {
-    player.skillShortcuts[emptySlotIndex] = starter;
+  const refundable = Math.max(0, player.unlockedSkills.length - 1);
+  player.availableSkillPoints += refundable;
+  player.unlockedSkills = starter ? [starter] : [];
+  player.skillShortcuts = player.skillShortcuts.map((skill) =>
+    skill && player.unlockedSkills.includes(skill) ? skill : null,
+  );
+  if (starter && !player.skillShortcuts.includes(starter)) {
+    const emptyIndex = player.skillShortcuts.findIndex((slot) => slot === null);
+    if (emptyIndex !== -1) {
+      player.skillShortcuts[emptyIndex] = starter;
+    }
   }
 }
 
