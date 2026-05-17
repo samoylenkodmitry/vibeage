@@ -387,10 +387,14 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     dmg: 60,
     range: 22,
     speed: 36,
-    // Wider splash + pierce so the bow plays more like a wide-radius
-    // ranged auto-attack (the ranger's basic shot) rather than a
-    // single-target spell. autoRepeat keeps the ranger "auto-shooting"
-    // once the first arrow lands, like Basic Attack for melee.
+    // Wider splash so the bow plays more like a wide-radius ranged
+    // auto-attack. autoRepeat keeps the ranger "auto-shooting" like
+    // Basic Attack does for melee.
+    //
+    // NOTE: pierce / maxPierceHits aren't read by the server's
+    // projectile runtime yet (a pre-existing gap also affecting
+    // volley). Splash via skill.area above already gives the wide
+    // feel; pierce lands in a follow-up.
     area: 2.5,
     autoRepeat: true,
     levelRequired: 1,
@@ -398,7 +402,7 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     effects: [
       { type: 'damage', value: 60 },
     ],
-    projectile: { speed: 36, hitRadius: 0.9, pierce: true, maxPierceHits: 2, splashRadius: 2.5 },
+    projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
   },
   volley: {
     id: 'volley',
