@@ -167,8 +167,10 @@ describe('enemy anti-kite chase timeout: in-out cycle', () => {
     });
     expect(enemy.aiState).toBe('chasing');
 
-    // Tick 3: 7 seconds later (still under fresh 8s timer from re-entering
-    // chasing) — should still be chasing, not given up.
+    // chaseStartedAt was stamped on the attacking→chasing flip in tick 2.
+    expect(enemy.chaseStartedAt).toBe(NOW + 1_100);
+
+    // Tick 3: 7 seconds after stamp — still under the fresh 8s timer.
     advanceEnemyState(enemy, {
       players: { p1: player },
       spatialGrid: spatial,
@@ -176,5 +178,21 @@ describe('enemy anti-kite chase timeout: in-out cycle', () => {
       now: NOW + 1_100 + 7_000,
     });
     expect(enemy.aiState).toBe('chasing');
+    expect(enemy.chaseStartedAt).toBe(NOW + 1_100);
+
+    // Tick 4: 9 seconds after stamp — fresh timer trips. Without ??=
+    // persistence + the attacking→chasing chaseStartedAt stamp + the
+    // ANTI_KITE_REAGGRO_COOLDOWN_MS gate, this would either compare
+    // now to itself (no trip) or instantly re-aggro inside the same
+    // tick (trip is invisible to gameplay).
+    advanceEnemyState(enemy, {
+      players: { p1: player },
+      spatialGrid: spatial,
+      deltaTime: 1 / 30,
+      now: NOW + 1_100 + 9_000,
+    });
+    expect(enemy.aiState).toBe('returning');
+    expect(enemy.targetId).toBeNull();
+    expect(enemy.aggroSuppressedUntilTs).toBeGreaterThan(NOW + 1_100 + 9_000);
   });
 });

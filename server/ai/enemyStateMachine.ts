@@ -123,8 +123,16 @@ export const MAX_CHASE_DISTANCE_FROM_SPAWN = 60;
  */
 export const MAX_CHASE_TIME_WITHOUT_HIT_MS = 8_000;
 
+/**
+ * After anti-kite trips, the enemy refuses to re-aggro the same (or
+ * any) target for this long. Just long enough to break the same-tick
+ * cascade chasing→returning→re-aggro→chasing loop; the player can
+ * re-engage after the cooldown by actually approaching the enemy.
+ */
+export const ANTI_KITE_REAGGRO_COOLDOWN_MS = 2_000;
+
 function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
-  const targetId = findNearbyAggroTarget(enemy, context);
+  const targetId = isAggroSuppressed(enemy, context.now) ? null : findNearbyAggroTarget(enemy, context);
   if (targetId) {
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
@@ -161,7 +169,7 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
 }
 
 function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
-  const targetId = findNearbyAggroTarget(enemy, context);
+  const targetId = isAggroSuppressed(enemy, context.now) ? null : findNearbyAggroTarget(enemy, context);
   if (targetId) {
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
@@ -231,11 +239,22 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
   // reaching attack range, give up. Prevents the "kite forever just
   // outside attackRange" exploit where a faster player keeps an enemy
   // chasing indefinitely without taking a hit.
-  const chaseStartedAt = enemy.chaseStartedAt ?? context.now;
+  //
+  // `??=` persists the first-seen timestamp so re-entries (attacking →
+  // chasing on target moved out of range, returning → chasing on
+  // re-aggro inside leash) actually start an 8-second window — a bare
+  // `??` fallback without assignment would compare context.now to
+  // itself every tick and the timeout would never fire.
+  const chaseStartedAt = (enemy.chaseStartedAt ??= context.now);
   if (context.now - chaseStartedAt > MAX_CHASE_TIME_WITHOUT_HIT_MS) {
     enemy.targetId = null;
     enemy.chaseStartedAt = undefined;
     enemy.aiState = 'returning';
+    // Block same-tick + brief-window re-aggro so the cascade doesn't
+    // immediately re-target the player we just gave up on (which would
+    // make the kite trip invisible to gameplay). Player can re-engage
+    // after a short cooldown by actually approaching the enemy.
+    enemy.aggroSuppressedUntilTs = context.now + ANTI_KITE_REAGGRO_COOLDOWN_MS;
     stopEnemy(enemy);
     progress.events.push({
       type: 'log',
@@ -276,6 +295,7 @@ function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
 
   if (distanceXZ(enemy.position, targetPlayer.position) > enemy.attackRange) {
     enemy.aiState = 'chasing';
+    enemy.chaseStartedAt = context.now;
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -301,12 +321,21 @@ function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
     return;
   }
 
+  if (isAggroSuppressed(enemy, context.now)) {
+    return;
+  }
+
   const targetId = findNearbyAggroTarget(enemy, context);
   if (targetId) {
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
+    enemy.chaseStartedAt = context.now;
     progress.shouldBroadcastEnemyUpdate = true;
   }
+}
+
+function isAggroSuppressed(enemy: Enemy, now: number): boolean {
+  return enemy.aggroSuppressedUntilTs !== undefined && now < enemy.aggroSuppressedUntilTs;
 }
 
 function applyAttackIfReady(
