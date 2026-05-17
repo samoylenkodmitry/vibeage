@@ -113,11 +113,22 @@ const PATROL_ARRIVAL_DISTANCE = 0.7;
  */
 export const MAX_CHASE_DISTANCE_FROM_SPAWN = 60;
 
+/**
+ * If an enemy stays in the chasing state this long without ever
+ * reaching attack range, it gives up and returns. Prevents the
+ * "kite forever just outside attackRange" exploit where a faster
+ * player keeps an enemy in chase indefinitely without ever taking a
+ * hit. 8 seconds is generous for a real footrace inside the leash
+ * radius but short enough that a deliberate kite quickly resets.
+ */
+export const MAX_CHASE_TIME_WITHOUT_HIT_MS = 8_000;
+
 function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
   const targetId = findNearbyAggroTarget(enemy, context);
   if (targetId) {
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
+    enemy.chaseStartedAt = context.now;
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} aggroed player ${targetId}` });
     if (enemy.packId) {
       progress.events.push({ type: 'packAggro', packId: enemy.packId, targetId, sourceEnemyId: enemy.id });
@@ -154,6 +165,7 @@ function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress:
   if (targetId) {
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
+    enemy.chaseStartedAt = context.now;
     enemy.patrolTarget = undefined;
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} aggroed player ${targetId} during patrol` });
     if (enemy.packId) {
@@ -204,6 +216,7 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
   // its current target and heads home.
   if (distanceXZ(enemy.position, enemy.spawnPosition) > MAX_CHASE_DISTANCE_FROM_SPAWN) {
     enemy.targetId = null;
+    enemy.chaseStartedAt = undefined;
     enemy.aiState = 'returning';
     stopEnemy(enemy);
     progress.events.push({
@@ -214,8 +227,27 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     return;
   }
 
+  // Anti-kite: if we've been chasing this target too long without ever
+  // reaching attack range, give up. Prevents the "kite forever just
+  // outside attackRange" exploit where a faster player keeps an enemy
+  // chasing indefinitely without taking a hit.
+  const chaseStartedAt = enemy.chaseStartedAt ?? context.now;
+  if (context.now - chaseStartedAt > MAX_CHASE_TIME_WITHOUT_HIT_MS) {
+    enemy.targetId = null;
+    enemy.chaseStartedAt = undefined;
+    enemy.aiState = 'returning';
+    stopEnemy(enemy);
+    progress.events.push({
+      type: 'log',
+      message: `[AI] Enemy ${enemy.id} gave up chase (kited for ${Math.round((context.now - chaseStartedAt) / 1000)}s), returning.`,
+    });
+    progress.shouldBroadcastEnemyUpdate = true;
+    return;
+  }
+
   if (distanceXZ(enemy.position, targetPlayer.position) <= enemy.attackRange) {
     enemy.aiState = 'attacking';
+    enemy.chaseStartedAt = undefined;
     stopEnemy(enemy);
     progress.shouldBroadcastEnemyUpdate = true;
     return;

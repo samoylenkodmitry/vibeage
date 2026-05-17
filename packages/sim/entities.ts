@@ -53,6 +53,12 @@ export interface Enemy {
   dirtySnap?: boolean;
   patrolTarget?: { x: number; z: number };
   patrolWaitUntilTs?: number;
+  /**
+   * Timestamp the enemy last entered the chasing state. The state machine
+   * uses this for the anti-kite timeout: if MAX_CHASE_TIME_WITHOUT_HIT
+   * elapses without the enemy reaching attack range, it gives up.
+   */
+  chaseStartedAt?: number;
   packId?: string;
   isMiniBoss?: boolean;
 }
