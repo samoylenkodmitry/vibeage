@@ -4,11 +4,10 @@ import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/con
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
-import {
-  getMiniBossByTrophyItem,
-  getMiniBossesByMobType,
-} from '../../../../packages/content/miniBosses';
+import { getMiniBossesByMobType } from '../../../../packages/content/miniBosses';
+import { getLootSourcesForItem, resolveLootTableOwner } from '../../../../packages/content/lootSources';
 import { BossesTab } from './WikiBosses';
+import { LootDropsForTable } from './WikiLoot';
 import { QuestsTab } from './WikiQuests';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
@@ -255,7 +254,6 @@ function ItemsTab({ query, focusId, focusKey, navigate }: { query: string; focus
 
 function ItemRow({ item, isFocus, focusKey, navigate }: { item: Item; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   const stats = item.stats ?? {};
-  const droppedBy = getMiniBossByTrophyItem(item.id);
   return (
     <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
@@ -280,15 +278,41 @@ function ItemRow({ item, isFocus, focusKey, navigate }: { item: Item; isFocus: b
         {item.setId && <Pair k="Set" v={item.setId} />}
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
-      {droppedBy && (
-        <small className="wiki-row-footer">
-          Dropped by:{' '}
-          <button type="button" className="wiki-effect-chip" onClick={() => navigate('bosses', droppedBy.id)}>
-            {droppedBy.name}
-          </button>
-        </small>
-      )}
+      <ItemDropSources itemId={item.id} navigate={navigate} />
     </FocusableLi>
+  );
+}
+
+function ItemDropSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
+  const sources = getLootSourcesForItem(itemId);
+  if (sources.length === 0) return null;
+  return (
+    <small className="wiki-row-footer">
+      Dropped by:{' '}
+      {sources.map((s, i) => {
+        const owner = resolveLootTableOwner(s.tableId);
+        const label = owner?.kind === 'boss'
+          ? owner.spec.name
+          : owner?.kind === 'mob'
+            ? owner.template.displayName
+            : s.tableId;
+        const onClick = owner?.kind === 'boss'
+          ? () => navigate('bosses', owner.spec.id)
+          : owner?.kind === 'mob'
+            ? () => navigate('mobs', owner.template.type)
+            : undefined;
+        const pct = Math.round(s.chance * 100);
+        const qty = s.quantity.min === s.quantity.max ? `${s.quantity.min}` : `${s.quantity.min}-${s.quantity.max}`;
+        return (
+          <span key={`${s.tableId}-${i}`}>
+            {i > 0 && ', '}
+            <button type="button" className="wiki-effect-chip" onClick={onClick} disabled={!onClick}>
+              {label} ({pct}% · {qty})
+            </button>
+          </span>
+        );
+      })}
+    </small>
   );
 }
 
@@ -647,6 +671,7 @@ function MobsTab({
                 ))}
               </small>
             )}
+            <LootDropsForTable tableId={`${tpl.type}_loot`} navigate={navigate} />
           </FocusableLi>
         );
       })}

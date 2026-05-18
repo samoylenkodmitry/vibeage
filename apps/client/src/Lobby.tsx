@@ -163,6 +163,18 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // PR T — after a successful auth, hand off to the parent on the
+  // next paint instead of inline. The inputs unmount first (because
+  // `pendingSession` makes us render the "Entering…" placeholder),
+  // so password-manager extensions like KeePassXC-Browser can't keep
+  // their overlay icon anchored to the now-stale field position.
+  const [pendingSession, setPendingSession] = useState<LobbySession | null>(null);
+
+  useEffect(() => {
+    if (!pendingSession) return;
+    const handle = requestAnimationFrame(() => onAuth(pendingSession));
+    return () => cancelAnimationFrame(handle);
+  }, [pendingSession, onAuth]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -179,19 +191,25 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
         setError(humanReadableAuthError(body.error, res.status));
         return;
       }
-      // Blur + clear the input values before navigating into the
-      // world. Browser password managers anchor their popups to the
-      // focused input — leaving them populated + focused lets the
-      // overlay paint on top of the 3D scene after the form has
-      // already unmounted.
       (document.activeElement as HTMLElement | null)?.blur?.();
       setPassword('');
-      onAuth({ token: body.token, login: body.login ?? login });
+      setLogin('');
+      setPendingSession({ token: body.token, login: body.login ?? login });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error');
     } finally {
       setBusy(false);
     }
+  }
+
+  // Render nothing-with-form once auth succeeded — the password
+  // input is gone from the DOM by the time the parent route flips.
+  if (pendingSession) {
+    return (
+      <main className="start-screen">
+        <section className="start-panel"><h1>VibeAge</h1><p className="lobby-note">Entering…</p></section>
+      </main>
+    );
   }
 
   return (
