@@ -1,3 +1,4 @@
+import { STATS } from '../../../../packages/content/stats';
 import type { PlayerEntity } from '../gameTypes';
 import { StatusPills } from './hudPrimitives';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
@@ -18,12 +19,12 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
       <dl className="player-stats">
         <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
         <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
-        <div><dt>STR</dt><dd>{derived.str ?? stats.strength}</dd></div>
-        <div><dt>DEX</dt><dd>{derived.dex ?? stats.dexterity}</dd></div>
-        <div><dt>CON</dt><dd>{derived.con ?? stats.constitution}</dd></div>
-        <div><dt>INT</dt><dd>{derived.int ?? stats.intellect}</dd></div>
-        <div><dt>WIT</dt><dd>{derived.wit ?? stats.wit}</dd></div>
-        <div><dt>MEN</dt><dd>{derived.men ?? stats.mental}</dd></div>
+        <StatRow id="str" label="STR" value={derived.str ?? stats.strength} />
+        <StatRow id="dex" label="DEX" value={derived.dex ?? stats.dexterity} />
+        <StatRow id="con" label="CON" value={derived.con ?? stats.constitution} />
+        <StatRow id="int" label="INT" value={derived.int ?? stats.intellect} />
+        <StatRow id="wit" label="WIT" value={derived.wit ?? stats.wit} />
+        <StatRow id="men" label="MEN" value={derived.men ?? stats.mental} />
       </dl>
       {derived.pAtk !== undefined && (
         <dl className="player-stats player-stats-combat">
@@ -43,6 +44,17 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
       )}
       <StatusPills effects={player?.statusEffects ?? []} />
     </section>
+  );
+}
+
+function StatRow({ id, label, value }: { id: string; label: string; value: number | undefined }) {
+  // Tooltip reveals what each attribute influences. The Wiki Stats
+  // tab has the full rendered description; here we just surface the
+  // one-liner so curious players don't need to open a panel to know
+  // what STR does.
+  const desc = STATS[id]?.description ?? '';
+  return (
+    <div title={desc}><dt>{label}</dt><dd>{value ?? '-'}</dd></div>
   );
 }
 

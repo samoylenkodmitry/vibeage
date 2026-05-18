@@ -150,7 +150,7 @@ export function HudPanels({
       {panels.chatOpen && onSendChat && (
         <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
       )}
-      {panels.wikiOpen && <WikiPanel />}
+      {panels.wikiOpen && <WikiPanel onShowMarker={(pos) => onSetNavigationMarker?.(pos)} />}
       {panels.gmOpen && (
         <GmPanel player={player} selectedTargetId={state.selectedTargetId} onGmCommand={onGmCommand} />
       )}

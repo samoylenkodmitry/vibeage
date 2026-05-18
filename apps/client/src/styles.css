@@ -1399,6 +1399,19 @@ input {
   display: inline-block;
 }
 
+.wiki-tree-link {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.wiki-tree-link:hover { color: #fde68a; }
+
 .wiki-effect-chip {
   display: inline-block;
   background: rgba(141, 233, 215, 0.12);
