@@ -39,26 +39,56 @@ type WikiPanelProps = {
   onShowMarker?: (pos: { x: number; z: number } | null) => void;
 };
 
+type WikiHistoryEntry = { tab: WikiTab; focusId: string | null };
+
 export function WikiPanel({ onShowMarker }: WikiPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('wiki');
-  const [tab, setTab] = useState<WikiTab>('skills');
+  // Single stack instead of (tab, focus) refs: every navigation
+  // pushes here; Back pops to the previous entry. The cursor index
+  // points into history so Back / Forward both work like a browser.
+  const [history, setHistory] = useState<WikiHistoryEntry[]>([{ tab: 'skills', focusId: null }]);
+  const [cursor, setCursor] = useState(0);
+  const [focusNonce, setFocusNonce] = useState(0);
   const [query, setQuery] = useState('');
-  // Generic focus: any tab can scroll-to + outline a row when a
-  // cross-tab link navigates to it. Keyed by `${tab}:${id}` so
-  // navigating to the same row twice still re-fires the effect.
-  const [focus, setFocus] = useState<{ tab: WikiTab; id: string; nonce: number } | null>(null);
+  const current = history[cursor];
+  const tab = current.tab;
+  const focusId = current.focusId;
+  const focusKey = focusId ? `${focusId}:${focusNonce}` : '';
+
   const navigate: WikiNav = (toTab, id) => {
-    setFocus({ tab: toTab, id, nonce: Date.now() });
-    setTab(toTab);
+    setHistory((prev) => {
+      // Truncate forward history when a new branch starts (browser-
+      // style). The new entry replaces what was after the cursor.
+      const next = prev.slice(0, cursor + 1);
+      next.push({ tab: toTab, focusId: id });
+      return next;
+    });
+    setCursor((c) => c + 1);
+    setFocusNonce((n) => n + 1);
   };
-  const focusId = focus?.tab === tab ? focus.id : null;
-  const focusKey = focus?.tab === tab ? `${focus.id}:${focus.nonce}` : '';
+  const setTabFromTabBar = (t: WikiTab) => navigate(t, '');
+  const canBack = cursor > 0;
+  const canForward = cursor < history.length - 1;
+  const goBack = () => {
+    if (!canBack) return;
+    setCursor(cursor - 1);
+    setFocusNonce((n) => n + 1);
+  };
+  const goForward = () => {
+    if (!canForward) return;
+    setCursor(cursor + 1);
+    setFocusNonce((n) => n + 1);
+  };
 
   return (
     <section ref={panelRef} className="wiki-panel" aria-label="Content reference">
       <div className="panel-title">
         <strong>Content Reference</strong>
         <span>auto-generated from specs</span>
+      </div>
+      <div className="wiki-nav">
+        <button type="button" className="wiki-nav-button" disabled={!canBack} onClick={goBack} title="Back">←</button>
+        <button type="button" className="wiki-nav-button" disabled={!canForward} onClick={goForward} title="Forward">→</button>
       </div>
       <div className="wiki-tabs" role="tablist">
         {TABS.map((t) => (
@@ -68,7 +98,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
             role="tab"
             aria-selected={tab === t.id}
             className={`wiki-tab${tab === t.id ? ' wiki-tab--active' : ''}`}
-            onClick={() => setTab(t.id)}
+            onClick={() => setTabFromTabBar(t.id)}
           >
             {t.label}
           </button>

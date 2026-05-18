@@ -539,6 +539,11 @@ export function CastMarker({ cast }: { cast: VisibleCast }) {
 }
 
 const MAX_EXTRAPOLATE_SECONDS = 0.2;
+// World units: any positional update larger than this snaps the
+// entity instead of lerping. Picked so a normal walk-to-target
+// update (a few units) still smooths, but a teleport (>10 units)
+// reads as instant.
+const SNAP_THRESHOLD = 10;
 
 function SmoothedEntityGroup({
   position,
@@ -618,7 +623,17 @@ function SmoothedEntityGroup({
     }
 
     const alpha = smoothingAlpha(response, delta);
-    group.position.lerp(targetRef.current.set(targetX, position.y, targetZ), alpha);
+    targetRef.current.set(targetX, position.y, targetZ);
+    // Teleports (Escape skill, GM setPosition, etc.) push the target
+    // far enough that the smooth lerp would visibly drift across the
+    // world for many frames. Snap when the gap is larger than the
+    // SNAP_THRESHOLD so a teleport reads as instant.
+    const gap = group.position.distanceTo(targetRef.current);
+    if (gap > SNAP_THRESHOLD) {
+      group.position.copy(targetRef.current);
+    } else {
+      group.position.lerp(targetRef.current, alpha);
+    }
     if (typeof groundedOffset === 'number') {
       group.position.y = getTerrainY(group.position.x, group.position.z) + groundedOffset;
     }

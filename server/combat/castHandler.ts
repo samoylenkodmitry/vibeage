@@ -2,6 +2,7 @@ import { CastReq, CastFail } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
+import { tryInterruptForNewAction } from './castInterrupt.js';
 import { isEntityStunned } from './statusQueries.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { ActiveCastStore } from './skillSystem.js';
@@ -48,6 +49,17 @@ export function handleCastReq(
   if (isEntityStunned(player, now)) {
     runtimeMetrics.increment('cast.rejectedStunned');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is stunned`);
+    emitCastFail(transport.direct, msg, 'invalid');
+    return;
+  }
+
+  // Cast-blocking gate: a different active cast belonging to this
+  // player either gets interrupted (refund + clear) or blocks this
+  // new cast outright. See castInterrupt.ts for the rules.
+  const interrupt = tryInterruptForNewAction(player, activeCasts, transport.outbound, 'newCast');
+  if (interrupt === 'block') {
+    runtimeMetrics.increment('cast.rejectedBlocked');
+    debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is in a blocking cast`);
     emitCastFail(transport.direct, msg, 'invalid');
     return;
   }

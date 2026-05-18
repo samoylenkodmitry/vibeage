@@ -112,6 +112,22 @@ export interface SkillDef {
    * the modifier values during cast resolution.
    */
   upgrades?: SkillUpgrade[];
+  /**
+   * While the cast bar is running, block other player actions
+   * (movement, other casts). Defaults to true — set false for
+   * instant skills or skills that mechanically allow movement.
+   * Server enforcement: castMachine rejects MoveIntent / CastReq
+   * while a blocking cast is active for that caster.
+   */
+  isBlocking?: boolean;
+  /**
+   * A conflicting action during this cast cancels it. When true:
+   * mana cost is refunded, cooldown is NOT applied, the cast just
+   * disappears. When false: nothing the player does cancels it
+   * (Escape and similar locked recall channels would set false).
+   * Defaults to true.
+   */
+  isInterruptable?: boolean;
 }
 
 /**

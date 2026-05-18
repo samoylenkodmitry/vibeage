@@ -17,6 +17,7 @@ import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
 import { isGmModeEnabled } from '../players/gmMode.js';
 import { applyMoveIntent } from '../movement/moveIntent.js';
+import { tryInterruptForNewAction } from '../combat/castInterrupt.js';
 import { sharedMovementFreshness, type StaleIntentReason } from '../movement/staleIntentTracker.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
@@ -58,7 +59,7 @@ export function handleClientMessage(
   const direct = makeSocketMessageSink(socket);
   switch (msg.type) {
     case 'MoveIntent':
-      return onMoveIntent(socket, state, msg);
+      return onMoveIntent(socket, state, msg, outbound);
     case 'CastReq':
       return onCastReq(socket, direct, state, msg, outbound, spatial);
     case 'LearnSkill':
@@ -400,12 +401,25 @@ function onMoveIntent(
   socket: WorldClient,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'MoveIntent' }>,
+  outbound: OutboundEventSink,
 ): void {
   const staleReason = sharedMovementFreshness().check(socket.id, msg.clientTs);
   if (staleReason) {
     incrementStaleMovementCounter(staleReason);
     debug(LOG_CATEGORIES.MOVEMENT, `Dropped stale MoveIntent from ${socket.id}: ${staleReason}`);
     return;
+  }
+
+  // Movement during a blocking cast either interrupts it (refund +
+  // clear cooldown) or is dropped if the cast is non-interruptable.
+  // See server/combat/castInterrupt.ts.
+  const player = state.players[msg.id];
+  if (player && player.castingSkill) {
+    const verdict = tryInterruptForNewAction(player, state.activeCasts, outbound, 'movement');
+    if (verdict === 'block') {
+      debug(LOG_CATEGORIES.MOVEMENT, `MoveIntent rejected: player ${msg.id} is in a non-interruptable cast`);
+      return;
+    }
   }
 
   const result = applyMoveIntent(state, socket.id, msg);
