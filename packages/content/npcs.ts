@@ -32,6 +32,24 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Gludin Garrison Captain',
     position: { x: 122, y: 0.5, z: 82 },
   },
+  bounty_broker_mira: {
+    id: 'bounty_broker_mira',
+    name: 'Mira',
+    title: 'Bounty Broker',
+    position: { x: 130, y: 0.5, z: 70 },
+  },
+  pyromancer_kael: {
+    id: 'pyromancer_kael',
+    name: 'Pyromancer Kael',
+    title: 'Hermit of the Peaks',
+    position: { x: -380, y: 0.5, z: 280 },
+  },
+  high_priest_ondrea: {
+    id: 'high_priest_ondrea',
+    name: 'High Priest Ondrea',
+    title: 'Curator of the Cursed Ruins',
+    position: { x: 380, y: 0.5, z: -90 },
+  },
 };
 
 export function getOfferedQuestIds(npcId: string): string[] {

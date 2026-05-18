@@ -35,6 +35,7 @@ export type SpawnInitialEnemiesOptions = {
 export type CreateEnemyOptions = {
   packId?: string;
   isMiniBoss?: boolean;
+  bossId?: string;
   nameOverride?: string;
   healthMultiplier?: number;
   damageMultiplier?: number;
@@ -83,6 +84,7 @@ export function createEnemy(
     lootTableId: options.lootTableIdOverride ?? template.lootTableId ?? `${type}_loot`,
     packId: options.packId,
     isMiniBoss: options.isMiniBoss,
+    bossId: options.bossId,
     ...(options.isMiniBoss
       ? {
           baseAttackDamage: attackDamage,
@@ -152,6 +154,7 @@ function createMiniBoss(
 ): Enemy {
   return createEnemy(miniBoss.type, zoneBaseLevel + (miniBoss.levelBonus ?? 2), position, Date.now(), {
     isMiniBoss: true,
+    bossId: miniBoss.id,
     nameOverride: miniBoss.name,
     healthMultiplier: miniBoss.healthMultiplier ?? 3,
     damageMultiplier: miniBoss.damageMultiplier ?? 1.5,

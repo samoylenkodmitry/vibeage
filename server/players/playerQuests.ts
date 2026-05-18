@@ -132,18 +132,26 @@ export function onEnemyKilledForQuests(
   player: PlayerState,
   enemyType: string,
   outbound: OutboundEventSink,
+  bossId?: string,
 ): void {
   if (!player.questState) return;
   let changed = false;
   for (const [questId, entry] of Object.entries(player.questState.active)) {
     const quest = QUESTS[questId];
     const stage = quest?.stages[entry.stageIndex];
-    if (stage?.objective.kind === 'kill' && stage.objective.enemyType === enemyType) {
-      const next = Math.min(stage.objective.count, entry.progress + 1);
+    if (!stage) continue;
+    const obj = stage.objective;
+    if (obj.kind === 'kill' && obj.enemyType === enemyType) {
+      const next = Math.min(obj.count, entry.progress + 1);
       if (next !== entry.progress) {
         entry.progress = next;
         changed = true;
       }
+    } else if (obj.kind === 'kill_boss' && bossId && obj.bossId === bossId && entry.progress === 0) {
+      // Named-boss objective: one kill, set progress 0 → 1 so the
+      // claim flow advances on the next Next press.
+      entry.progress = 1;
+      changed = true;
     }
   }
   if (changed) {
@@ -206,6 +214,7 @@ function isStageComplete(quest: QuestDef, entry: PlayerActiveQuestProgress): boo
   if (!stage) return false;
   switch (stage.objective.kind) {
     case 'kill': return entry.progress >= stage.objective.count;
+    case 'kill_boss': return entry.progress >= 1;
     case 'reach': return entry.progress >= 1;
     case 'talk': return entry.progress >= 1;
     case 'manual': return true;

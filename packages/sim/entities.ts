@@ -81,6 +81,13 @@ export interface Enemy {
   packId?: string;
   isMiniBoss?: boolean;
   /**
+   * Stable id linking this mini-boss spawn to the content registry
+   * in packages/content/miniBosses.ts. Empty/absent for normal mobs.
+   * Used by the quest engine's `kill_boss` objective so a quest can
+   * target Vorthax specifically, not just any dragon.
+   */
+  bossId?: string;
+  /**
    * First moment this enemy entered an aggressive state (chasing /
    * attacking) since its current life. Reset when the enemy returns
    * to spawn or respawns. Drives mini-boss enrage timer.

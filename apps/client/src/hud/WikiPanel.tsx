@@ -9,6 +9,7 @@ import {
   getMiniBossesByMobType,
 } from '../../../../packages/content/miniBosses';
 import { BossesTab } from './WikiBosses';
+import { QuestsTab } from './WikiQuests';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
@@ -16,8 +17,6 @@ import {
   type Specialization,
 } from '../../../../packages/content/specializations';
 import { STATS, type StatDef } from '../../../../packages/content/stats';
-import { QUEST_NPCS } from '../../../../packages/content/npcs';
-import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 import { subscribeWikiNav } from './wikiNavBus';
@@ -132,7 +131,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'specs' && <SpecsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'races' && <RacesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'effects' && <EffectsTab query={query} focusId={focusId} focusKey={focusKey} />}
-        {tab === 'quests' && <QuestsTab query={query} />}
+        {tab === 'quests' && <QuestsTab query={query} navigate={navigate} />}
         {tab === 'stats' && <StatsTab query={query} focusId={focusId} focusKey={focusKey} />}
         {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
         {tab === 'bosses' && <BossesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
@@ -562,38 +561,6 @@ function EffectsTab({ query, focusId, focusKey }: { query: string; focusId: stri
 }
 
 // ---------- Quests ----------
-
-function QuestsTab({ query }: { query: string }) {
-  const rows = useMemo(() => Object.values(QUESTS).filter((q) =>
-    filterMatch(`${q.name} ${q.description} ${q.npcId}`, query),
-  ), [query]);
-  return (
-    <ul className="wiki-list">
-      {rows.map((quest) => <QuestRow key={quest.id} quest={quest} />)}
-    </ul>
-  );
-}
-
-function QuestRow({ quest }: { quest: QuestDef }) {
-  const giver = QUEST_NPCS[quest.npcId];
-  return (
-    <li className="wiki-row">
-      <header>
-        <strong>{quest.name}</strong>
-        <span className="wiki-row-tag">Lv {quest.minLevel}+</span>
-      </header>
-      <p>{quest.description}</p>
-      {giver && <small className="wiki-row-footer">Giver: {giver.name} ({giver.title})</small>}
-      <small className="wiki-row-footer">Stages: {quest.stages.length}</small>
-      <small className="wiki-row-footer">
-        Reward:
-        {quest.reward.xp ? ` ${quest.reward.xp} XP` : ''}
-        {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
-        {quest.reward.items?.length ? ` · ${quest.reward.items.map((i) => `${i.itemId}×${i.quantity ?? 1}`).join(', ')}` : ''}
-      </small>
-    </li>
-  );
-}
 
 // ---------- Stats ----------
 
