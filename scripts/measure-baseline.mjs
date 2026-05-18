@@ -5,6 +5,7 @@ import { performance } from 'node:perf_hooks';
 import { gzipSync } from 'node:zlib';
 import { chromium } from '@playwright/test';
 import { Client as ColyseusClient } from '@colyseus/sdk';
+import { CI_AUTH_SECRET, mintCiSessionToken } from './ci-session-token.mjs';
 
 const root = process.cwd();
 const serverPort = Number(process.env.BASELINE_SERVER_PORT ?? 3122);
@@ -96,9 +97,14 @@ async function measureRoomLatency(url) {
         .finally(() => resolve(result));
     }
 
+    const sessionToken = mintCiSessionToken({
+      secret: CI_AUTH_SECRET,
+      accountId: `baseline-${Date.now()}`,
+    });
     client.joinOrCreate('world', {
       playerName: `Baseline${Date.now()}`,
       clientProtocolVersion: 2,
+      sessionToken,
     }).then((joinedRoom) => {
       room = joinedRoom;
       const connectedAt = performance.now();
@@ -166,6 +172,10 @@ async function startLocalStack() {
     VIBEAGE_DISABLE_PERSISTENCE: '1',
     CORS_ORIGINS: `${clientUrl},http://localhost:${clientPort}`,
     WS_COMPRESSION: '0',
+    // PR M: world join needs an HMAC-signed session token since PR I.
+    // Pin the secret so the harness can mint matching tokens; the
+    // server falls through to a transient (no-DB) player.
+    VIBEAGE_AUTH_SECRET: CI_AUTH_SECRET,
   }));
   await waitForHttp(`${gameServerUrl}/healthz`);
 
