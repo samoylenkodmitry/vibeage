@@ -17,6 +17,13 @@ export const castReqSchema = z.object({
   targetId: z.string().optional(),
   targetPos: vecXZSchema.optional(),
   clientTs: z.number(),
+  /**
+   * PR X — when true, bypass the friendly-fire / beneficial-on-enemy
+   * gate. The client sets this only when the player explicitly
+   * holds Ctrl while casting; everything else falls under the
+   * default "don't shoot allies, don't heal enemies" rule.
+   */
+  force: z.boolean().optional(),
 }).strict();
 
 export const learnSkillSchema = z.object({
@@ -185,6 +192,7 @@ export type CastReq = {
   targetId?: string;
   targetPos?: VecXZ;
   clientTs: number;
+  force?: boolean;
 };
 
 export type LearnSkill = {

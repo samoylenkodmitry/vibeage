@@ -217,7 +217,10 @@ describe('scenario: PvP — players can attack other players', () => {
       handleClientMessage(
         socket,
         state,
-        { type: 'CastReq', id: attacker.id, skillId: 'basicAttack', targetId: victim.id, clientTs: NOW },
+        // PR X — PvP needs an explicit force-cast (Ctrl-click) to
+        // bypass the friendly-fire gate; otherwise harmful skills on
+        // friendly players are dropped.
+        { type: 'CastReq', id: attacker.id, skillId: 'basicAttack', targetId: victim.id, clientTs: NOW, force: true },
         sink,
         spatial,
       );

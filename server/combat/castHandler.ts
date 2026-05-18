@@ -1,3 +1,4 @@
+import { classifySkill, SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { CastReq, CastFail } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
@@ -85,6 +86,8 @@ export function handleCastReq(
     emitCastFail(transport.direct, msg, castCheck.reason);
     return;
   }
+
+  if (rejectFriendlyFire(player, msg, castCheck.skillId, target, world, transport)) return;
   
   // Create a cast using the server authoritative skill system
   const castResult = handleCastRequest({
@@ -135,4 +138,40 @@ function toCastFailReason(reason: string): CastFailReason | null {
   }
 
   return null;
+}
+
+/**
+ * PR X — friendly-fire / beneficial-on-enemy gate. Beneficial skills
+ * aimed at enemies and harmful skills aimed at friendly players are
+ * silently dropped unless the client opts in with `force` (Ctrl).
+ * Self-cast and no-target casts are unaffected. Returns true when
+ * the cast was rejected (caller should bail).
+ */
+function rejectFriendlyFire(
+  player: PlayerState,
+  msg: CastReq,
+  skillId: SkillId,
+  target: ReturnType<CombatWorld['getEnemyById']> | ReturnType<CombatWorld['getPlayerById']>,
+  world: CombatWorld,
+  transport: CastHandlerTransport,
+): boolean {
+  if (msg.force || !target) return false;
+  const skill = SKILLS[skillId];
+  const align = classifySkill(skill?.effects ?? []);
+  const targetIsEnemy = world.getEnemyById(msg.targetId ?? '') !== null;
+  const targetIsFriendlyPlayer = !targetIsEnemy && msg.targetId !== player.id
+    && world.getPlayerById(msg.targetId ?? '') !== null;
+  if (align === 'beneficial' && targetIsEnemy) {
+    runtimeMetrics.increment('cast.rejectedFriendlyFire.beneficialOnEnemy');
+    debug(LOG_CATEGORIES.COMBAT, `Cast rejected: beneficial ${skillId} aimed at enemy without force`);
+    emitCastFail(transport.direct, msg, 'invalid');
+    return true;
+  }
+  if (align === 'harmful' && targetIsFriendlyPlayer) {
+    runtimeMetrics.increment('cast.rejectedFriendlyFire.harmfulOnAlly');
+    debug(LOG_CATEGORIES.COMBAT, `Cast rejected: harmful ${skillId} aimed at ally without force`);
+    emitCastFail(transport.direct, msg, 'invalid');
+    return true;
+  }
+  return false;
 }
