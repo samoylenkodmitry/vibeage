@@ -42,14 +42,19 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1 }: Skil
 
   // Effective values fold in the player's upgrade tier so a leveled
   // Fireball tooltip shows the actual hit number, not the base.
+  // Use `!== undefined` not truthiness so a leveled-down 0 (rare,
+  // but possible with future modifiers) still renders. Nullish-
+  // coalesce numeric properties so a partial SkillDef (older
+  // saved content) doesn't render NaN.
   const effective = getEffectiveSkillStats(skillId, skillLevel);
   const lvSuffix = skillLevel > 1 ? ` (Lv ${skillLevel})` : '';
+  const castMs = skill.castMs ?? 0;
   const rows: Array<[string, string]> = [];
-  if (effective.dmg) rows.push([`Damage${lvSuffix}`, String(effective.dmg)]);
-  if (effective.range !== undefined) rows.push(['Range', String(effective.range)]);
+  if (effective.dmg !== undefined) rows.push([`Damage${lvSuffix}`, String(effective.dmg)]);
+  if (effective.range !== undefined) rows.push([`Range${lvSuffix}`, String(effective.range)]);
   if (skill.area !== undefined) rows.push(['Area', String(skill.area)]);
   rows.push([`Mana${lvSuffix}`, effective.manaCost > 0 ? String(effective.manaCost) : 'free']);
-  rows.push(['Cast', skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant']);
+  rows.push(['Cast', castMs > 0 ? `${(castMs / 1000).toFixed(1)}s` : 'instant']);
   if (effective.cooldownMs > 0) rows.push([`Cooldown${lvSuffix}`, `${(effective.cooldownMs / 1000).toFixed(1)}s`]);
   if (skill.autoRepeat) rows.push(['Auto-repeat', 'on']);
 
@@ -81,10 +86,11 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1 }: Skil
         <footer>
           {skill.effects.map((effect, index) => {
             const effDuration = effective.effectDurationsMs[index];
+            const effValue = effective.effectValues[index] ?? effect.value;
             return (
               <span key={index}>
                 {getEffectLabel(effect.type)}
-                {effect.value ? ` · ${effect.value}` : ''}
+                {effValue ? ` · ${effValue}` : ''}
                 {effDuration ? ` · ${(effDuration / 1000).toFixed(1)}s` : ''}
               </span>
             );
