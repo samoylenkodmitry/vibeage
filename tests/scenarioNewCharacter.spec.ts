@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { createTransientPlayer } from '../server/playerFactory';
@@ -22,6 +22,13 @@ function joinNewPlayer(socketId: string, name: string) {
   forgetMovementFreshness(socketId);
   return createTransientPlayer(socketId, name);
 }
+
+// In-world SelectRace / SelectClass are GM-gated (post-PR-D); these
+// scenarios script the actual wire messages so the env flag must be
+// on for them to apply. Real character-creation flow (PR D2) sets
+// race + class before world join and doesn't depend on this gate.
+beforeAll(() => { process.env.VIBEAGE_ENABLE_DEV_COMMANDS = '1'; });
+afterAll(() => { delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS; });
 
 /**
  * Full create-a-character-and-cast scenarios. These exercise the same

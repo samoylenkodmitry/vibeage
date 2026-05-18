@@ -61,15 +61,59 @@ export function ActionsPanel({
           subtitle={!player?.isAlive ? 'Dead' : hasLootNearby ? 'Walk to nearest' : 'No loot'}
           onClick={onPickupNearest}
         />
+        <EscapeButton player={player} now={now} onCastSkill={onCastSkill} tooltip={tooltip} />
       </div>
       {tooltip.info && (
         <SkillTooltip
           skillId={tooltip.info.payload}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          skillLevel={player?.skillLevels?.[tooltip.info.payload] ?? 1}
         />
       )}
     </section>
+  );
+}
+
+function EscapeButton({
+  player,
+  now,
+  onCastSkill,
+  tooltip,
+}: {
+  player: PlayerEntity | null;
+  now: number;
+  onCastSkill: (skillId: SkillId) => void;
+  tooltip: ReturnType<typeof useTooltipTrigger<SkillId>>;
+}) {
+  const escapeSkill = SKILLS.escape;
+  if (!escapeSkill) return null;
+  // Escape is a universal skill (granted at hydrate); it shows here
+  // unconditionally so players always know how to recall. Cooldown
+  // display mirrors the Attack button.
+  const cdEnd = player?.skillCooldownEndTs?.escape ?? 0;
+  const cdRemaining = Math.max(0, cdEnd - now);
+  const ready = cdRemaining === 0;
+  const casting = player?.castingSkill === 'escape';
+  const disabled = !player?.isAlive || !ready || casting;
+  const cdMin = Math.ceil(cdRemaining / 60_000);
+  return (
+    <ActionButton
+      label="Escape"
+      hotkey="Z"
+      disabled={disabled}
+      subtitle={
+        !player?.isAlive
+          ? 'Dead'
+          : casting
+            ? 'Channeling 30s'
+            : ready
+              ? '30s cast · 30m cd'
+              : `${cdMin}m`
+      }
+      onClick={() => onCastSkill('escape')}
+      extraHandlers={tooltip.triggerProps('escape' as SkillId)}
+    />
   );
 }
 

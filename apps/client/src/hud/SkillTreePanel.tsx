@@ -5,6 +5,7 @@ import {
   type CharacterClass,
 } from '../../../../packages/content/classes';
 import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/content/skills';
+import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
 import type { PlayerEntity } from '../gameTypes';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -138,16 +139,20 @@ function SkillRow({
 }
 
 function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: number }) {
+  // Show the *effective* numbers the engine will apply at this tier.
+  // Headline values reflect the player's actual leveled skill, not
+  // the base; the upgrade list below shows the per-tier deltas.
+  const effective = getEffectiveSkillStats(skill.id, skillLevel);
   return (
     <div className="skill-tree-detail">
       <p className="skill-tree-detail-desc">{skill.description}</p>
       <dl className="skill-tree-detail-stats">
-        {skill.dmg !== undefined && <Stat label="Damage" value={String(skill.dmg)} />}
-        {skill.range !== undefined && <Stat label="Range" value={String(skill.range)} />}
+        {effective.dmg !== undefined && <Stat label="Damage" value={String(effective.dmg)} />}
+        {effective.range !== undefined && <Stat label="Range" value={String(effective.range)} />}
         {skill.area !== undefined && <Stat label="Area" value={String(skill.area)} />}
-        <Stat label="Mana" value={skill.manaCost > 0 ? String(skill.manaCost) : 'free'} />
+        <Stat label="Mana" value={effective.manaCost > 0 ? String(effective.manaCost) : 'free'} />
         <Stat label="Cast" value={skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant'} />
-        <Stat label="Cooldown" value={skill.cooldownMs > 0 ? `${(skill.cooldownMs / 1000).toFixed(1)}s` : '-'} />
+        <Stat label="Cooldown" value={effective.cooldownMs > 0 ? `${(effective.cooldownMs / 1000).toFixed(1)}s` : '-'} />
       </dl>
       {skill.upgrades?.length ? (
         <ul className="skill-tree-upgrade-list">

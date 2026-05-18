@@ -42,3 +42,34 @@ export function getSkillUpgradeModifiers(
 export function getSkillLevel(skillLevels: Record<string, number> | undefined, skillId: SkillId): number {
   return Math.max(1, Math.floor(skillLevels?.[skillId] ?? 1));
 }
+
+/**
+ * Render-time helper for tooltips / panels: apply the cumulative
+ * upgrade modifiers to a skill's headline numbers (dmg, manaCost,
+ * cooldownMs, range, effect durations). The engine already does the
+ * same math at cast time via getSkillUpgradeModifiers — this helper
+ * just exposes the same numbers for the UI so a leveled-up skill's
+ * tooltip matches what the server actually applies.
+ */
+export interface EffectiveSkillStats {
+  dmg?: number;
+  manaCost: number;
+  cooldownMs: number;
+  range?: number;
+  effectDurationsMs: number[];
+}
+
+export function getEffectiveSkillStats(skillId: SkillId, skillLevel: number): EffectiveSkillStats {
+  const skill = SKILLS[skillId] as SkillDef | undefined;
+  const mods = getSkillUpgradeModifiers(skillId, skillLevel);
+  if (!skill) {
+    return { manaCost: 0, cooldownMs: 0, effectDurationsMs: [] };
+  }
+  return {
+    dmg: skill.dmg !== undefined ? Math.round(skill.dmg * mods.dmgMultiplier) : undefined,
+    manaCost: Math.round((skill.manaCost ?? 0) * mods.manaCostMultiplier),
+    cooldownMs: Math.round((skill.cooldownMs ?? 0) * mods.cooldownMultiplier),
+    range: skill.range !== undefined ? skill.range + mods.rangeBonus : undefined,
+    effectDurationsMs: (skill.effects ?? []).map((e) => Math.round((e.durationMs ?? 0) * mods.durationMultiplier)),
+  };
+}

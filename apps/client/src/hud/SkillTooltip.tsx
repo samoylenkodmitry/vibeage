@@ -2,14 +2,17 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getEffectLabel } from '../../../../packages/content/effects';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
+import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
 
 type SkillTooltipProps = {
   skillId: SkillId;
   clientX: number;
   clientY: number;
+  /** Player's current upgrade tier for this skill (defaults to 1). */
+  skillLevel?: number;
 };
 
-export function SkillTooltip({ skillId, clientX, clientY }: SkillTooltipProps) {
+export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1 }: SkillTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -37,13 +40,17 @@ export function SkillTooltip({ skillId, clientX, clientY }: SkillTooltipProps) {
     return null;
   }
 
+  // Effective values fold in the player's upgrade tier so a leveled
+  // Fireball tooltip shows the actual hit number, not the base.
+  const effective = getEffectiveSkillStats(skillId, skillLevel);
+  const lvSuffix = skillLevel > 1 ? ` (Lv ${skillLevel})` : '';
   const rows: Array<[string, string]> = [];
-  if (skill.dmg) rows.push(['Damage', String(skill.dmg)]);
-  if (skill.range !== undefined) rows.push(['Range', String(skill.range)]);
+  if (effective.dmg) rows.push([`Damage${lvSuffix}`, String(effective.dmg)]);
+  if (effective.range !== undefined) rows.push(['Range', String(effective.range)]);
   if (skill.area !== undefined) rows.push(['Area', String(skill.area)]);
-  rows.push(['Mana', skill.manaCost > 0 ? String(skill.manaCost) : 'free']);
+  rows.push([`Mana${lvSuffix}`, effective.manaCost > 0 ? String(effective.manaCost) : 'free']);
   rows.push(['Cast', skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant']);
-  if (skill.cooldownMs > 0) rows.push(['Cooldown', `${(skill.cooldownMs / 1000).toFixed(1)}s`]);
+  if (effective.cooldownMs > 0) rows.push([`Cooldown${lvSuffix}`, `${(effective.cooldownMs / 1000).toFixed(1)}s`]);
   if (skill.autoRepeat) rows.push(['Auto-repeat', 'on']);
 
   // Render via a portal anchored to document.body so the tooltip's
@@ -72,13 +79,16 @@ export function SkillTooltip({ skillId, clientX, clientY }: SkillTooltipProps) {
       </ul>
       {skill.effects?.length ? (
         <footer>
-          {skill.effects.map((effect, index) => (
-            <span key={index}>
-              {getEffectLabel(effect.type)}
-              {effect.value ? ` · ${effect.value}` : ''}
-              {effect.durationMs ? ` · ${(effect.durationMs / 1000).toFixed(1)}s` : ''}
-            </span>
-          ))}
+          {skill.effects.map((effect, index) => {
+            const effDuration = effective.effectDurationsMs[index];
+            return (
+              <span key={index}>
+                {getEffectLabel(effect.type)}
+                {effect.value ? ` · ${effect.value}` : ''}
+                {effDuration ? ` · ${(effDuration / 1000).toFixed(1)}s` : ''}
+              </span>
+            );
+          })}
         </footer>
       ) : null}
     </div>,
