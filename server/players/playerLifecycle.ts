@@ -74,19 +74,42 @@ export function awardPlayerXP(
   };
 }
 
-export function handleManaRegeneration(state: GameState, outbound: OutboundEventSink): void {
+/**
+ * Apply HP + MP regeneration once per maintenance tick. Rates come
+ * from the player's derived stats (player.stats.hpRegen / mpRegen),
+ * applied in real seconds since the last regen so the in-game
+ * "2.4 hp/s" the panel shows matches what actually happens — no
+ * dependency on tick frequency. Dead players don't regen; out-of-
+ * combat is implicit (we always regen when alive + below cap).
+ */
+export function handleResourceRegeneration(
+  state: GameState,
+  outbound: OutboundEventSink,
+  now: number = Date.now(),
+): void {
   for (const player of Object.values(state.players)) {
-    if (!player.isAlive || player.mana >= player.maxMana) {
-      continue;
-    }
-
+    if (!player.isAlive) continue;
+    const last = player.lastRegenTimeMs ?? now;
+    const dtSeconds = Math.max(0, (now - last) / 1000);
+    player.lastRegenTimeMs = now;
+    if (dtSeconds <= 0) continue;
+    const hpRegen = player.stats?.hpRegen ?? MANA_REGEN_PER_TICK;
+    const mpRegen = player.stats?.mpRegen ?? MANA_REGEN_PER_TICK;
+    const oldHp = player.health;
     const oldMana = player.mana;
-    player.mana = Math.min(player.maxMana, player.mana + MANA_REGEN_PER_TICK);
-
-    if (Math.abs(player.mana - oldMana) > 0.01) {
+    if (player.health < player.maxHealth) {
+      player.health = Math.min(player.maxHealth, player.health + hpRegen * dtSeconds);
+    }
+    if (player.mana < player.maxMana) {
+      player.mana = Math.min(player.maxMana, player.mana + mpRegen * dtSeconds);
+    }
+    const hpChanged = Math.abs(player.health - oldHp) > 0.5;
+    const manaChanged = Math.abs(player.mana - oldMana) > 0.5;
+    if (hpChanged || manaChanged) {
       emitPlayerUpdated(outbound, {
         id: player.id,
-        mana: player.mana,
+        ...(hpChanged ? { health: player.health } : {}),
+        ...(manaChanged ? { mana: player.mana } : {}),
       });
     }
   }

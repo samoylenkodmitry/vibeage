@@ -121,6 +121,13 @@ export interface PlayerState {
    */
   questState?: PlayerQuestState;
   skillCooldownEndTs: Record<string, number>;
+  /**
+   * Server clock at the last regen tick. Used by
+   * handleResourceRegeneration to compute real elapsed seconds and
+   * apply HP / MP regen per second (matching the displayed stat
+   * rate), instead of a fixed per-tick amount.
+   */
+  lastRegenTimeMs?: number;
   statusEffects: StatusEffect[];
   level: number;
   experience: number;

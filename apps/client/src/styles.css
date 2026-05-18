@@ -1449,6 +1449,9 @@ input {
 .wiki-nav-button:hover:not(:disabled) { border-color: rgba(141, 233, 215, 0.7); }
 
 .player-spec-line { color: #9dded3; font-size: 11px; opacity: 0.85; }
+.player-stat-link { cursor: pointer; border-radius: 3px; }
+.player-stat-link:hover { background: rgba(141, 233, 215, 0.12); }
+.player-stat-link:focus-visible { outline: 1px solid rgba(141, 233, 215, 0.6); }
 
 .quest-panel {
   position: fixed;
