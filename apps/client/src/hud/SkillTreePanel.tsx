@@ -5,6 +5,11 @@ import {
   type CharacterClass,
 } from '../../../../packages/content/classes';
 import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/content/skills';
+import {
+  getSpecializationsForClass,
+  PROFICIENCY_LEVEL,
+  SPECIALIZATION_UNLOCK_LEVEL,
+} from '../../../../packages/content/specializations';
 import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
 import type { PlayerEntity } from '../gameTypes';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
@@ -189,7 +194,7 @@ function buildSkillRows(player: PlayerEntity | null): Row[] {
   const tree = CLASS_SKILL_TREES[className] ?? CLASS_SKILL_TREES.mage;
   const level = player?.level ?? 1;
   const unlocked = player?.unlockedSkills ?? [];
-  return Object.entries(tree.skillProgression).map(([skillId, req]) => {
+  const classRows: Row[] = Object.entries(tree.skillProgression).map(([skillId, req]) => {
     const id = skillId as SkillId;
     const skill = SKILLS[id];
     if (unlocked.includes(id)) {
@@ -201,4 +206,30 @@ function buildSkillRows(player: PlayerEntity | null): Row[] {
     const reqSkills = req.requiredSkills?.length ? ` · needs ${req.requiredSkills.join(', ')}` : '';
     return { skillId: id, name: skill?.name ?? id, status: 'locked', detail: `Lv ${req.level}${reqSkills}` };
   });
+
+  // Spec / proficiency skills: render all specs for the player's
+  // class so the panel surfaces what's gated behind the future spec
+  // pick. Rows that belong to a spec the player hasn't chosen show
+  // as locked with a "spec: X" hint; rows for the active spec follow
+  // the same level / SP gate as class skills.
+  const specRows: Row[] = [];
+  for (const spec of getSpecializationsForClass(className)) {
+    const onThisSpec = player?.specializationId === spec.id;
+    const buildRow = (skillId: SkillId, requiredLevel: number, tierLabel: string): Row => {
+      const skill = SKILLS[skillId];
+      if (unlocked.includes(skillId)) {
+        return { skillId, name: skill?.name ?? skillId, status: 'unlocked', detail: `${spec.name} ${tierLabel}` };
+      }
+      if (!onThisSpec) {
+        return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: `Spec-locked · ${spec.name}` };
+      }
+      if (level < requiredLevel) {
+        return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: `Lv ${requiredLevel} · ${spec.name} ${tierLabel}` };
+      }
+      return { skillId, name: skill?.name ?? skillId, status: 'available', detail: `Required Lv ${requiredLevel}` };
+    };
+    for (const sid of spec.specSkills ?? []) specRows.push(buildRow(sid, SPECIALIZATION_UNLOCK_LEVEL, 'spec'));
+    for (const sid of spec.proficiencySkills ?? []) specRows.push(buildRow(sid, PROFICIENCY_LEVEL, 'proficient'));
+  }
+  return [...classRows, ...specRows];
 }

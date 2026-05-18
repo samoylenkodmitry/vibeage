@@ -1,5 +1,10 @@
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { canLearnSkill, CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
+import {
+  getSpecForSkill,
+  PROFICIENCY_LEVEL,
+  SPECIALIZATION_UNLOCK_LEVEL,
+} from '../../packages/content/specializations.js';
 import type { LearnSkill, LearnSkillFailedMsg, SetSkillShortcut } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
@@ -21,6 +26,7 @@ type SkillPlayer = {
   unlockedSkills: SkillId[];
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
+  specializationId?: string | null;
 };
 
 export function onLearnSkill(
@@ -72,6 +78,19 @@ function classifyLearnRejection(
 ): LearnSkillFailedMsg['reason'] | null {
   if (!SKILLS[skillId]) {
     return 'unknownSkill';
+  }
+  // Spec / proficiency skills aren't in CLASS_SKILL_TREES — they're
+  // routed via SPECIALIZATIONS instead. Classify rejection against
+  // the spec gate (matching specializationId + minimum level).
+  const specEntry = getSpecForSkill(skillId);
+  if (specEntry) {
+    if (player.specializationId !== specEntry.spec.id) {
+      return 'wrongClass';
+    }
+    const required = specEntry.tier === 'proficiency' ? PROFICIENCY_LEVEL : SPECIALIZATION_UNLOCK_LEVEL;
+    if (player.level < required) return 'levelTooLow';
+    if (player.availableSkillPoints <= 0) return 'noSkillPoints';
+    return null;
   }
   const classTree = CLASS_SKILL_TREES[player.className as CharacterClass];
   if (!classTree) {
@@ -133,6 +152,20 @@ export function onSetSkillShortcut(
 export function canPlayerLearnSkill(player: SkillPlayer, skillId: SkillId): boolean {
   if (player.availableSkillPoints <= 0 || player.unlockedSkills.includes(skillId)) {
     return false;
+  }
+
+  // Spec / proficiency skill gate: the skill belongs to a spec
+  // (data-driven via SPECIALIZATIONS[id].specSkills /
+  // proficiencySkills). Engine accepts it only when the player has
+  // matching specialization AND the right level (spec at Lv 20,
+  // proficiency at Lv 40). Same shape as the base class-tree gate
+  // below — no per-spec code path.
+  const specEntry = getSpecForSkill(skillId);
+  if (specEntry) {
+    if (player.specializationId !== specEntry.spec.id) return false;
+    const required = specEntry.tier === 'proficiency' ? PROFICIENCY_LEVEL : SPECIALIZATION_UNLOCK_LEVEL;
+    if (player.level < required) return false;
+    return true;
   }
 
   return canLearnSkill(

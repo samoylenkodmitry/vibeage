@@ -306,6 +306,8 @@ function SpecsTab({ query }: { query: string }) {
 }
 
 function SpecRow({ spec }: { spec: Specialization }) {
+  const specSkills = (spec.specSkills ?? []).map((id) => SKILLS[id]?.name ?? id).join(', ');
+  const profSkills = (spec.proficiencySkills ?? []).map((id) => SKILLS[id]?.name ?? id).join(', ');
   return (
     <li className="wiki-row">
       <header>
@@ -323,6 +325,8 @@ function SpecRow({ spec }: { spec: Specialization }) {
       <small className="wiki-row-footer">
         Proficient: <strong>{spec.proficiencyPassive.name}</strong> — {spec.proficiencyPassive.description}
       </small>
+      {specSkills && <small className="wiki-row-footer">Spec skills: {specSkills}</small>}
+      {profSkills && <small className="wiki-row-footer">Proficiency skills: {profSkills}</small>}
     </li>
   );
 }
