@@ -4,6 +4,7 @@ import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useTooltipTrigger } from './useTooltipTrigger';
+import { openWikiAt } from './wikiNavBus';
 
 type InventoryPanelProps = {
   inventory: InventorySlot[];
@@ -64,6 +65,14 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
               }
               onClick?.();
               event.stopPropagation();
+            }}
+            onContextMenu={(event) => {
+              // PR V: right-click on a bag slot opens the Wiki at
+              // this item. Hidden behind context-menu so it doesn't
+              // hijack the normal use/equip click.
+              if (!slot) return;
+              event.preventDefault();
+              openWikiAt('items', slot.itemId);
             }}
             {...(triggerProps ?? {})}
           >

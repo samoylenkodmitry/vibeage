@@ -45,4 +45,21 @@ describe('mini-boss content registry', () => {
       expect(mb.name).toBe(spec.name);
     }
   });
+
+  it('every mini-boss has a specific in-zone position (so the map pin points at the encounter)', async () => {
+    const { getMobZones } = await import('../packages/content/mobLocations');
+    for (const zone of GAME_ZONES) {
+      const mb = zone.miniBoss;
+      if (!mb) continue;
+      expect(mb.position, `zone ${zone.id} miniBoss "${mb.name}" needs a position`).toBeDefined();
+      const dx = mb.position!.x - zone.position.x;
+      const dz = mb.position!.z - zone.position.z;
+      const dist = Math.hypot(dx, dz);
+      expect(dist, `${mb.name} position must sit inside its zone (radius ${zone.radius})`).toBeLessThanOrEqual(zone.radius);
+      // Wiki receives the explicit boss position when calling getMobZones for that mob type.
+      const refs = getMobZones(mb.type).filter((r) => r.zone.id === zone.id);
+      expect(refs.length).toBeGreaterThan(0);
+      expect(refs[0].position).toEqual(mb.position);
+    }
+  });
 });

@@ -114,7 +114,12 @@ export function spawnInitialEnemies(
 
     const miniBoss = zoneManager.getMiniBoss(zoneId);
     if (miniBoss && spawned < maxEnemies && spawnedInZone < maxEnemiesPerZone) {
-      const position = zoneManager.getRandomPositionInZone(zoneId);
+      // PR V — honour an explicit `position` on the miniBoss spec
+      // (so Vorthax always spawns on the caldera, not a random rock
+      // in the peaks). Falls back to a random in-zone point.
+      const position = miniBoss.position
+        ? { ...miniBoss.position }
+        : zoneManager.getRandomPositionInZone(zoneId);
       if (position) {
         const zoneBaseLevel = zoneManager.getMobLevel(zoneId);
         const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position);

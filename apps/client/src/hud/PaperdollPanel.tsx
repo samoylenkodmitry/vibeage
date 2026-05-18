@@ -3,6 +3,7 @@ import { ITEMS } from '../../../../packages/content/items';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useTooltipTrigger } from './useTooltipTrigger';
+import { openWikiAt } from './wikiNavBus';
 
 type PaperdollPanelProps = {
   equipment: Record<string, string>;
@@ -51,7 +52,12 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
                 type="button"
                 className="paperdoll-slot-item"
                 disabled={!itemId}
-                title={canUnequip ? `${itemName} — hover or long-press for details` : 'Empty'}
+                title={canUnequip ? `${itemName} — right-click for Wiki, hover or long-press for details` : 'Empty'}
+                onContextMenu={(event) => {
+                  if (!itemId) return;
+                  event.preventDefault();
+                  openWikiAt('items', itemId);
+                }}
                 {...(triggerProps ?? {})}
               >
                 {itemName}

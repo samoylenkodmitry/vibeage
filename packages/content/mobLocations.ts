@@ -19,7 +19,14 @@ export function getMobZones(mobType: string): MobZoneRef[] {
     const inMobs = zone.mobs.some((m) => m.type === mobType);
     const isMiniBoss = zone.miniBoss?.type === mobType;
     if (inMobs || isMiniBoss) {
-      out.push({ zone, position: { ...zone.position } });
+      // PR V — prefer the mini-boss's explicit position when it has
+      // one (Vorthax's caldera, etc.) so the map pin sends the
+      // player to the actual encounter rather than the zone center
+      // — which is useless on huge zones like Chronoglass.
+      const position = isMiniBoss && zone.miniBoss?.position
+        ? { ...zone.miniBoss.position }
+        : { ...zone.position };
+      out.push({ zone, position });
     }
   }
   return out;
