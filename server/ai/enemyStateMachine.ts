@@ -58,6 +58,10 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
   const previousState = enemy.aiState;
   const progress: EnemyAIProgress = { events: [], shouldBroadcastEnemyUpdate: false };
 
+  if (enemy.isMiniBoss) {
+    tickBossProgression(enemy, context.now, progress);
+  }
+
   // Stun: skip all state actions while a stun effect is active. The
   // enemy keeps its current aiState (so chase resumes immediately
   // after the stun expires) but does not move, attack, or re-aggro.
@@ -320,6 +324,9 @@ function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
   if (distanceFromSpawn <= 1.0) {
     enemy.aiState = 'idle';
     snapEnemyToSpawn(enemy, context.spatialGrid);
+    if (enemy.isMiniBoss) {
+      resetBossProgression(enemy);
+    }
     progress.shouldBroadcastEnemyUpdate = true;
   } else {
     moveEnemyToward(enemy, enemy.spawnPosition, context.spatialGrid, context.deltaTime, context.now);
@@ -401,6 +408,53 @@ function findNearbyAggroTarget(enemy: Enemy, context: EnemyAIContext): string | 
     enemy.aggroRadius,
   );
   return findAggroTargetId(enemy, context.players, nearbyPlayerIds, context.now);
+}
+
+/**
+ * PR N — mini-boss progression. Once the boss is in combat:
+ *  - After `enrageAfterMs`, damage gets a one-time multiplier.
+ *  - Once HP crosses below `phaseTwoHpFraction`, speed + damage get a
+ *    second one-time multiplier.
+ * Both flags persist until the boss returns to spawn (then reset by
+ * resetBossProgression) or respawns (createEnemy starts from base).
+ */
+function tickBossProgression(enemy: Enemy, now: number, progress: EnemyAIProgress): void {
+  const cfg = enemy.bossConfig;
+  if (!cfg) return;
+  const inCombat = enemy.aiState === 'chasing' || enemy.aiState === 'attacking';
+  if (inCombat && enemy.combatStartedTs === undefined) {
+    enemy.combatStartedTs = now;
+  }
+  if (!enemy.enraged && enemy.combatStartedTs !== undefined && now - enemy.combatStartedTs >= cfg.enrageAfterMs) {
+    enemy.enraged = true;
+    enemy.attackDamage = (enemy.baseAttackDamage ?? enemy.attackDamage) * effectiveDamageMul(enemy);
+    progress.events.push({ type: 'log', message: `[BOSS] ${enemy.name} enrages — damage now ${enemy.attackDamage.toFixed(1)}` });
+    progress.shouldBroadcastEnemyUpdate = true;
+  }
+  if (!enemy.phaseShifted && enemy.health < enemy.maxHealth * cfg.phaseTwoHpFraction) {
+    enemy.phaseShifted = true;
+    enemy.attackDamage = (enemy.baseAttackDamage ?? enemy.attackDamage) * effectiveDamageMul(enemy);
+    enemy.movementSpeed = (enemy.baseMovementSpeed ?? enemy.movementSpeed) * cfg.phaseTwoSpeedMul;
+    progress.events.push({ type: 'log', message: `[BOSS] ${enemy.name} phase 2 — speed ${enemy.movementSpeed.toFixed(1)}, damage ${enemy.attackDamage.toFixed(1)}` });
+    progress.shouldBroadcastEnemyUpdate = true;
+  }
+}
+
+function effectiveDamageMul(enemy: Enemy): number {
+  const cfg = enemy.bossConfig;
+  if (!cfg) return 1;
+  let mul = 1;
+  if (enemy.enraged) mul *= cfg.enragedDamageMul;
+  if (enemy.phaseShifted) mul *= cfg.phaseTwoDamageMul;
+  return mul;
+}
+
+function resetBossProgression(enemy: Enemy): void {
+  enemy.combatStartedTs = undefined;
+  enemy.enraged = false;
+  enemy.phaseShifted = false;
+  if (enemy.baseAttackDamage !== undefined) enemy.attackDamage = enemy.baseAttackDamage;
+  if (enemy.baseMovementSpeed !== undefined) enemy.movementSpeed = enemy.baseMovementSpeed;
 }
 
 function markDirtyIfMotionChanged(

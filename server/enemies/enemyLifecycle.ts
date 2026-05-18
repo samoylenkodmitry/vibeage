@@ -12,6 +12,20 @@ const PACK_CLUSTER_RADIUS = 4;
 
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
 
+/**
+ * PR N — mini-boss progression. Applied to every miniBoss spawn. Kept
+ * uniform across bosses for now so the encounter pattern is teachable
+ * ("hit hard, watch for enrage at ~20s, dodge harder at half HP");
+ * later PRs can layer per-boss telegraphs + signature skills on top.
+ */
+export const DEFAULT_BOSS_CONFIG = {
+  enrageAfterMs: 20_000,
+  enragedDamageMul: 1.5,
+  phaseTwoHpFraction: 0.5,
+  phaseTwoSpeedMul: 1.25,
+  phaseTwoDamageMul: 1.25,
+} as const;
+
 export type SpawnInitialEnemiesOptions = {
   activeZoneIds?: readonly string[];
   maxEnemies?: number;
@@ -41,6 +55,8 @@ export function createEnemy(
   const expMult = options.experienceMultiplier ?? (options.isMiniBoss ? 4 : 1);
   const baseHealth = (100 + level * 20) * template.stats.health * healthMult;
   const baseExp = (50 + level * 10) * template.stats.experience * expMult;
+  const attackDamage = (10 + level * 2) * template.stats.damage * damageMult;
+  const movementSpeed = 6 * template.stats.movementSpeed;
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
@@ -52,7 +68,7 @@ export function createEnemy(
     health: baseHealth,
     maxHealth: baseHealth,
     isAlive: true,
-    attackDamage: (10 + level * 2) * template.stats.damage * damageMult,
+    attackDamage,
     attackRange: 2 * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,
@@ -62,11 +78,18 @@ export function createEnemy(
     aggroRadius: 15 * template.stats.aggroRadius,
     attackCooldownMs: 2000 * template.stats.attackCooldownMs,
     lastAttackTime: 0,
-    movementSpeed: 6 * template.stats.movementSpeed,
+    movementSpeed,
     velocity: { x: 0, z: 0 },
     lootTableId: options.lootTableIdOverride ?? template.lootTableId ?? `${type}_loot`,
     packId: options.packId,
     isMiniBoss: options.isMiniBoss,
+    ...(options.isMiniBoss
+      ? {
+          baseAttackDamage: attackDamage,
+          baseMovementSpeed: movementSpeed,
+          bossConfig: { ...DEFAULT_BOSS_CONFIG },
+        }
+      : {}),
   };
 }
 

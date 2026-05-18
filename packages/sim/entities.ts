@@ -80,6 +80,44 @@ export interface Enemy {
   aggroSuppressedUntilTs?: number;
   packId?: string;
   isMiniBoss?: boolean;
+  /**
+   * First moment this enemy entered an aggressive state (chasing /
+   * attacking) since its current life. Reset when the enemy returns
+   * to spawn or respawns. Drives mini-boss enrage timer.
+   */
+  combatStartedTs?: number;
+  /**
+   * Mini-boss only: set once the enrage timer trips. Damage is
+   * multiplied by bossConfig.enragedDamageMul and stays elevated for
+   * the rest of this life.
+   */
+  enraged?: boolean;
+  /**
+   * Mini-boss only: set once HP first crosses below
+   * bossConfig.phaseTwoHpFraction. Speed + damage get a one-time
+   * boost; later HP swings don't re-trigger.
+   */
+  phaseShifted?: boolean;
+  /**
+   * Captured at spawn so enrage / phase-shift multipliers compound on
+   * the original stats, not on already-buffed values. Set only for
+   * mini-bosses; normal mobs read attackDamage / movementSpeed
+   * directly.
+   */
+  baseAttackDamage?: number;
+  baseMovementSpeed?: number;
+  /**
+   * Mini-boss progression config. Populated by createEnemy when
+   * isMiniBoss is true; absent on normal mobs. Default values live in
+   * server/enemies/enemyLifecycle.ts (DEFAULT_BOSS_CONFIG).
+   */
+  bossConfig?: {
+    enrageAfterMs: number;
+    enragedDamageMul: number;
+    phaseTwoHpFraction: number;
+    phaseTwoSpeedMul: number;
+    phaseTwoDamageMul: number;
+  };
 }
 
 export interface PlayerState {
