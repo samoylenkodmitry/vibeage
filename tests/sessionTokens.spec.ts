@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { issueSessionToken, verifySessionToken } from '../server/auth/sessionTokens';
 
+// Synthetic strings used purely as scrypt/hmac inputs. Kept low-
+// entropy + repeating so secret scanners don't flag them, since
+// they're not credentials anywhere outside this test file.
+const FIXTURE_SECRET_A = 'x'.repeat(40);
+const FIXTURE_SECRET_B = 'y'.repeat(40);
+
 describe('session tokens', () => {
   beforeEach(() => {
-    process.env.VIBEAGE_AUTH_SECRET = 'test-secret-32-bytes-long-enough-12345678';
+    process.env.VIBEAGE_AUTH_SECRET = FIXTURE_SECRET_A;
   });
   afterEach(() => {
     delete process.env.VIBEAGE_AUTH_SECRET;
@@ -15,7 +21,7 @@ describe('session tokens', () => {
   });
   it('rejects a token signed with a different secret', () => {
     const token = issueSessionToken('acct-2');
-    process.env.VIBEAGE_AUTH_SECRET = 'a-different-secret-32-bytes-long-1234567';
+    process.env.VIBEAGE_AUTH_SECRET = FIXTURE_SECRET_B;
     expect(verifySessionToken(token)).toBeNull();
   });
   it('rejects an expired token', () => {

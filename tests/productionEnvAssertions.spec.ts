@@ -9,7 +9,7 @@ const baseProdEnv = (): NodeJS.ProcessEnv => ({
   NODE_ENV: 'production',
   CORS_ORIGINS: 'https://example.com',
   RUNTIMEZ_TOKEN: 'secret-token',
-  VIBEAGE_AUTH_SECRET: 'long-enough-secret-32-bytes-or-more-12345',
+  VIBEAGE_AUTH_SECRET: 'x'.repeat(40),
 });
 
 describe('isProductionEnv', () => {
@@ -66,7 +66,7 @@ describe('findProductionEnvViolations', () => {
       NODE_ENV: 'production',
       CORS_ORIGINS: 'https://example.com',
       RUNTIMEZ_DISABLE: '1',
-      VIBEAGE_AUTH_SECRET: 'long-enough-secret-32-bytes-or-more-12345',
+      VIBEAGE_AUTH_SECRET: 'x'.repeat(40),
     };
     expect(findProductionEnvViolations(env)).toEqual([]);
   });
