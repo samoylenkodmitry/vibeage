@@ -57,13 +57,25 @@ export interface EffectiveSkillStats {
   cooldownMs: number;
   range?: number;
   effectDurationsMs: number[];
+  /**
+   * Per-effect value after the upgrade multiplier. damage / heal /
+   * shield / dot-flavour effects scale with dmgMultiplier (mirroring
+   * the engine's resolveCastImpact + applyHealEffect paths); non-
+   * numeric effects (bless, slow, taunt — value is a percentage or
+   * marker) are passed through untouched.
+   */
+  effectValues: number[];
 }
+
+const SCALED_EFFECT_TYPES: ReadonlySet<string> = new Set([
+  'damage', 'heal', 'shield', 'burn', 'poison', 'dot',
+]);
 
 export function getEffectiveSkillStats(skillId: SkillId, skillLevel: number): EffectiveSkillStats {
   const skill = SKILLS[skillId] as SkillDef | undefined;
   const mods = getSkillUpgradeModifiers(skillId, skillLevel);
   if (!skill) {
-    return { manaCost: 0, cooldownMs: 0, effectDurationsMs: [] };
+    return { manaCost: 0, cooldownMs: 0, effectDurationsMs: [], effectValues: [] };
   }
   return {
     dmg: skill.dmg !== undefined ? Math.round(skill.dmg * mods.dmgMultiplier) : undefined,
@@ -71,5 +83,8 @@ export function getEffectiveSkillStats(skillId: SkillId, skillLevel: number): Ef
     cooldownMs: Math.round((skill.cooldownMs ?? 0) * mods.cooldownMultiplier),
     range: skill.range !== undefined ? skill.range + mods.rangeBonus : undefined,
     effectDurationsMs: (skill.effects ?? []).map((e) => Math.round((e.durationMs ?? 0) * mods.durationMultiplier)),
+    effectValues: (skill.effects ?? []).map((e) =>
+      SCALED_EFFECT_TYPES.has(e.type) ? Math.round((e.value ?? 0) * mods.dmgMultiplier) : (e.value ?? 0),
+    ),
   };
 }

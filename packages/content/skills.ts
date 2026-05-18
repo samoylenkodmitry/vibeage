@@ -6,7 +6,23 @@ export type SkillId =
   | 'slash'|'powerStrike'|'shieldWall'|'taunt'|'bash'
   | 'holyLight'|'bless'|'dispel'|'smite'|'divineShield'
   | 'arrowShot'|'volley'|'rapidFire'
-  | 'evade'|'backstab'|'poisonBlade'|'vanish';
+  | 'evade'|'backstab'|'poisonBlade'|'vanish'
+  // Spec skills (unlocked at SPECIALIZATION_UNLOCK_LEVEL = Lv 20)
+  | 'arcane_blast'|'meteor'
+  | 'rage'|'execute'
+  | 'greater_heal'|'empower'
+  | 'snipe'|'silent_step'
+  | 'holy_shield'|'shadow_strike'
+  | 'phoenix_ward'|'sacred_pulse'
+  | 'lucky_strike'|'wind_dash'
+  // Proficiency skills (unlocked at PROFICIENCY_LEVEL = Lv 40)
+  | 'arcane_supremacy'|'inferno_aura'
+  | 'blood_frenzy'|'killing_strike'
+  | 'mass_heal'|'group_bless'
+  | 'aimed_volley'|'shadow_arrow'
+  | 'divine_taunt'|'soul_eater'
+  | 'rebirth'|'sacred_aura'
+  | 'treasure_sense'|'stalking_arrow';
 
 /**
  * Skills every player has from birth, regardless of class. Used to make
@@ -124,8 +140,13 @@ export interface SkillUpgradeModifiers {
   durationMultiplier?: number;
 }
 
-// Define the SKILLS directly
-export const SKILLS: Record<SkillId,SkillDef> = {
+import { SPEC_AND_PROFICIENCY_SKILLS } from './specSkillsData.js';
+
+// Define the base SKILLS catalog. Spec / proficiency skill entries
+// live in specSkillsData.ts (kept separate to stay under the
+// maintainability gate); they are spread in at module load right
+// below, so the final SKILLS record covers every SkillId.
+const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   basicAttack: {
     id: 'basicAttack',
     name: 'Attack',
@@ -583,3 +604,18 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     ],
   },
 };
+
+/**
+ * Final SKILLS catalog: base skills merged with spec / proficiency
+ * skills. The merge is content-only — adding a new skill just means
+ * a new entry in BASE_SKILLS or specSkillsData.ts.
+ *
+ * Cast through unknown to Record<SkillId, SkillDef> because the
+ * spread is structurally exhaustive but TypeScript can't prove it
+ * (Partial + Partial → Partial). The specSkillGate.spec.ts coverage
+ * test asserts every SkillId resolves to a SkillDef at runtime.
+ */
+export const SKILLS = {
+  ...BASE_SKILLS,
+  ...SPEC_AND_PROFICIENCY_SKILLS,
+} as unknown as Record<SkillId, SkillDef>;

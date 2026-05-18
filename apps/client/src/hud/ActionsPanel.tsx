@@ -90,13 +90,16 @@ function EscapeButton({
   if (!escapeSkill) return null;
   // Escape is a universal skill (granted at hydrate); it shows here
   // unconditionally so players always know how to recall. Cooldown
-  // display mirrors the Attack button.
+  // display mirrors the Attack button. Numbers come from SKILLS.escape
+  // (cast / cooldown) so retuning the skill keeps the label in sync.
   const cdEnd = player?.skillCooldownEndTs?.escape ?? 0;
   const cdRemaining = Math.max(0, cdEnd - now);
   const ready = cdRemaining === 0;
   const casting = player?.castingSkill === 'escape';
   const disabled = !player?.isAlive || !ready || casting;
   const cdMin = Math.ceil(cdRemaining / 60_000);
+  const castSeconds = ((escapeSkill.castMs ?? 0) / 1000).toFixed(0);
+  const cooldownMinutes = ((escapeSkill.cooldownMs ?? 0) / 60_000).toFixed(0);
   return (
     <ActionButton
       label="Escape"
@@ -106,9 +109,9 @@ function EscapeButton({
         !player?.isAlive
           ? 'Dead'
           : casting
-            ? 'Channeling 30s'
+            ? `Channeling ${castSeconds}s`
             : ready
-              ? '30s cast · 30m cd'
+              ? `${castSeconds}s cast · ${cooldownMinutes}m cd`
               : `${cdMin}m`
       }
       onClick={() => onCastSkill('escape')}

@@ -1,4 +1,5 @@
 import type { CharacterClass } from './classes.js';
+import type { SkillId } from './skills.js';
 
 /**
  * Each base class branches into two specializations the player can
@@ -57,6 +58,17 @@ export interface Specialization {
   specializationPassive: SpecializationPassive;
   /** Applied once player reaches proficiencyLevel. */
   proficiencyPassive: SpecializationPassive;
+  /**
+   * Skills unlocked the moment the player picks this spec (Lv 20).
+   * Pure data — engine reads SPECIALIZATIONS[id].specSkills to gate
+   * learn attempts. Skills themselves live in SKILLS.
+   */
+  specSkills?: SkillId[];
+  /**
+   * Additional skills unlocked once the player hits PROFICIENCY_LEVEL
+   * (Lv 40). Same gating model as specSkills.
+   */
+  proficiencySkills?: SkillId[];
 }
 
 export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
@@ -78,6 +90,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'An additional +15% max mana on top of the spec passive.',
       modifiers: { manaMultiplier: 1.15 },
     },
+    specSkills: ['arcane_blast'],
+    proficiencySkills: ['arcane_supremacy'],
   },
   pyromancer: {
     id: 'pyromancer',
@@ -96,6 +110,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Fire dot ticks last longer (proficiency tier).',
       modifiers: { damageMultiplier: 1.1 },
     },
+    specSkills: ['meteor'],
+    proficiencySkills: ['inferno_aura'],
   },
   // ---- WARRIOR ----
   berserker: {
@@ -115,6 +131,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Higher crit multiplier when below half health (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
+    specSkills: ['rage'],
+    proficiencySkills: ['blood_frenzy'],
   },
   slayer: {
     id: 'slayer',
@@ -133,6 +151,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: '+0.5× crit multiplier (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
+    specSkills: ['execute'],
+    proficiencySkills: ['killing_strike'],
   },
   // ---- HEALER ----
   cardinal: {
@@ -157,6 +177,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Allies near you regenerate faster (proficiency).',
       modifiers: { healthMultiplier: 1.05 },
     },
+    specSkills: ['greater_heal'],
+    proficiencySkills: ['mass_heal'],
   },
   theurge: {
     id: 'theurge',
@@ -175,6 +197,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Party-wide aura: +5% damage to nearby allies (proficiency).',
       modifiers: {},
     },
+    specSkills: ['empower'],
+    proficiencySkills: ['group_bless'],
   },
   // ---- RANGER ----
   hawkeye: {
@@ -194,6 +218,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Crit multiplier +0.5× on ranged attacks (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
+    specSkills: ['snipe'],
+    proficiencySkills: ['aimed_volley'],
   },
   phantom_ranger: {
     id: 'phantom_ranger',
@@ -212,6 +238,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: '+10% movement speed and +5% evasion (proficiency).',
       modifiers: { speedMultiplier: 1.1 },
     },
+    specSkills: ['silent_step'],
+    proficiencySkills: ['shadow_arrow'],
   },
   // ---- KNIGHT ----
   templar_knight: {
@@ -231,6 +259,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: '+15% damage reduction at low HP (proficiency).',
       modifiers: {},
     },
+    specSkills: ['holy_shield'],
+    proficiencySkills: ['divine_taunt'],
   },
   dark_avenger: {
     id: 'dark_avenger',
@@ -249,6 +279,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Hits restore a small amount of HP (proficiency).',
       modifiers: {},
     },
+    specSkills: ['shadow_strike'],
+    proficiencySkills: ['soul_eater'],
   },
   // ---- PALADIN ----
   phoenix_knight: {
@@ -268,6 +300,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Brief invulnerability on falling to 1 HP, once per fight (proficiency).',
       modifiers: {},
     },
+    specSkills: ['phoenix_ward'],
+    proficiencySkills: ['rebirth'],
   },
   evas_templar: {
     id: 'evas_templar',
@@ -286,6 +320,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Divine Shield refreshes faster (proficiency).',
       modifiers: {},
     },
+    specSkills: ['sacred_pulse'],
+    proficiencySkills: ['sacred_aura'],
   },
   // ---- ROGUE ----
   treasure_hunter: {
@@ -305,6 +341,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Improved loot drop rates (proficiency).',
       modifiers: {},
     },
+    specSkills: ['lucky_strike'],
+    proficiencySkills: ['treasure_sense'],
   },
   plains_walker: {
     id: 'plains_walker',
@@ -323,8 +361,23 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
       description: 'Vanish cooldown halved (proficiency).',
       modifiers: {},
     },
+    specSkills: ['wind_dash'],
+    proficiencySkills: ['stalking_arrow'],
   },
 };
+
+/**
+ * Lookup helpers used by the engine to gate spec / proficiency
+ * skills. Both walk SPECIALIZATIONS so adding a new spec skill is
+ * content-only — no code path touches a specific id.
+ */
+export function getSpecForSkill(skillId: string): { spec: Specialization; tier: 'spec' | 'proficiency' } | null {
+  for (const spec of Object.values(SPECIALIZATIONS) as Specialization[]) {
+    if (spec.specSkills?.includes(skillId as never)) return { spec, tier: 'spec' };
+    if (spec.proficiencySkills?.includes(skillId as never)) return { spec, tier: 'proficiency' };
+  }
+  return null;
+}
 
 export function getSpecializationsForClass(className: CharacterClass): Specialization[] {
   return (Object.values(SPECIALIZATIONS) as Specialization[]).filter((s) => s.baseClass === className);

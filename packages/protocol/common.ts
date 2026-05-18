@@ -22,6 +22,24 @@ export const skillIdValues = [
   'holyLight', 'bless', 'dispel', 'smite', 'divineShield',
   'arrowShot', 'volley', 'rapidFire',
   'evade', 'backstab', 'poisonBlade', 'vanish',
+  // Spec skills (Lv 20). Each id is referenced by exactly one
+  // SPECIALIZATIONS[*].specSkills entry; ordering here is cosmetic.
+  'arcane_blast', 'meteor',
+  'rage', 'execute',
+  'greater_heal', 'empower',
+  'snipe', 'silent_step',
+  'holy_shield', 'shadow_strike',
+  'phoenix_ward', 'sacred_pulse',
+  'lucky_strike', 'wind_dash',
+  // Proficiency skills (Lv 40). Same lookup model via
+  // SPECIALIZATIONS[*].proficiencySkills.
+  'arcane_supremacy', 'inferno_aura',
+  'blood_frenzy', 'killing_strike',
+  'mass_heal', 'group_bless',
+  'aimed_volley', 'shadow_arrow',
+  'divine_taunt', 'soul_eater',
+  'rebirth', 'sacred_aura',
+  'treasure_sense', 'stalking_arrow',
 ] as const satisfies readonly SkillId[];
 export const skillIdSchema = z.enum(skillIdValues);
 
