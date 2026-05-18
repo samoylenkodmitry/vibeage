@@ -26,7 +26,11 @@ const WORLD_BOUNDS = computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS);
 const TICK_SPACING = chooseTickSpacing(WORLD_BOUNDS);
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 200;
-const INITIAL_ZOOM = 12;
+// Default zoom bumped 12 → 40: at 12 the player's surroundings were
+// the size of a fingernail and labels for neighbouring objects all
+// collapsed onto one pixel. 40 lines the on-map scale up with what
+// the player actually sees in the 3D world.
+const INITIAL_ZOOM = 40;
 const DRAG_PIXEL_THRESHOLD = 5;
 
 type ViewState = {
@@ -100,9 +104,22 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         {GAME_ZONES.map((zone) => (
           <ZoneShape key={zone.id} zone={zone} viewWidth={viewWidth} />
         ))}
-        {WORLD_LANDMARKS.map((landmark) => (
-          <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} />
-        ))}
+        {(() => {
+          // Label-overlap dedup: walk landmarks left-to-right and
+          // suppress the label on any one that lands within
+          // labelMinDist world units of an already-rendered one at
+          // this zoom level. Dots still render so the player sees
+          // the cluster; only the text is dropped.
+          const labelMinDist = viewWidth * 0.04;
+          const visibleLabels: Array<{ x: number; z: number }> = [];
+          return WORLD_LANDMARKS.map((landmark) => {
+            const tooClose = visibleLabels.some((p) =>
+              Math.hypot(p.x - landmark.position.x, p.z - landmark.position.z) < labelMinDist,
+            );
+            if (!tooClose) visibleLabels.push(landmark.position);
+            return <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} hideLabel={tooClose} />;
+          });
+        })()}
         {navigationMarker && <NavigationDot marker={navigationMarker} viewWidth={viewWidth} />}
         <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={viewWidth} />
       </svg>
@@ -338,8 +355,20 @@ function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {
   );
 }
 
-function LandmarkDot({ landmark, viewWidth }: { landmark: WorldLandmark; viewWidth: number }) {
-  const dotSize = Math.max(viewWidth * 0.006, 600);
+function LandmarkDot({
+  landmark,
+  viewWidth,
+  hideLabel,
+}: {
+  landmark: WorldLandmark;
+  viewWidth: number;
+  hideLabel: boolean;
+}) {
+  // Dot + label sized as fractions of the visible viewport so they
+  // stay legible across zoom levels. The old `Math.max(viewWidth *
+  // 0.006, 600)` floor was in world units — at high zoom 600 world-
+  // units painted across the whole canvas.
+  const dotSize = viewWidth * 0.012;
   const isMega = landmark.mega === true;
   return (
     <g>
@@ -350,15 +379,17 @@ function LandmarkDot({ landmark, viewWidth }: { landmark: WorldLandmark; viewWid
         fill={isMega ? '#facc15' : '#fde68a'}
         opacity={isMega ? 0.95 : 0.7}
       />
-      <text
-        x={landmark.position.x + dotSize * 1.8}
-        y={landmark.position.z}
-        fontSize={dotSize * 1.6}
-        fill={isMega ? '#fef3c7' : '#fde68a'}
-        dominantBaseline="middle"
-      >
-        {landmark.name}
-      </text>
+      {!hideLabel && (
+        <text
+          x={landmark.position.x + dotSize * 1.8}
+          y={landmark.position.z}
+          fontSize={dotSize * 1.6}
+          fill={isMega ? '#fef3c7' : '#fde68a'}
+          dominantBaseline="middle"
+        >
+          {landmark.name}
+        </text>
+      )}
     </g>
   );
 }

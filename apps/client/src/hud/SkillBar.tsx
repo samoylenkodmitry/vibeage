@@ -11,6 +11,7 @@ import {
 } from '../skillShortcuts';
 import { SkillTooltip } from './SkillTooltip';
 import { useTooltipTrigger } from './useTooltipTrigger';
+import { openWikiAt } from './wikiNavBus';
 
 type SkillBarProps = {
   player: PlayerEntity | null;
@@ -132,6 +133,14 @@ function SkillButton({
       aria-keyshortcuts={ariaHotkeys}
       style={{ '--cooldown-progress': cooldownProgress } as CSSProperties}
       onClick={() => skill && onCastSkill(skill.id)}
+      onContextMenu={(e) => {
+        // Right-click opens the Wiki at this skill's row. Quick path
+        // for "what does this thing do?" without going through the
+        // tooltip + Wiki panel manually.
+        if (!skill) return;
+        e.preventDefault();
+        openWikiAt('skills', skill.id);
+      }}
       {...(tooltipHandlers ?? {})}
     >
       <span className="skill-button__hotkey">{hotkey}</span>

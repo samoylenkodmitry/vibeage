@@ -15,6 +15,7 @@ import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
+import { subscribeWikiNav } from './wikiNavBus';
 
 type WikiTab =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
@@ -66,6 +67,13 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
     setCursor((c) => c + 1);
     setFocusNonce((n) => n + 1);
   };
+
+  // External navigation: subscribe to the wikiNavBus so panels
+  // outside the Wiki (PlayerPanel, SkillBar) can request a jump to
+  // a specific tab + focus row without threading a callback chain.
+  useEffect(() => {
+    return subscribeWikiNav(({ tab: t, id }) => navigate(t, id));
+  }, [cursor]);
   const setTabFromTabBar = (t: WikiTab) => navigate(t, '');
   const canBack = cursor > 0;
   const canForward = cursor < history.length - 1;

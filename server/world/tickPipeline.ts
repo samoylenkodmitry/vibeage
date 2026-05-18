@@ -4,7 +4,7 @@ import { createWorldCombatBridge } from './clientMessageRouter.js';
 import { respawnDeadEnemies } from '../enemies/enemyLifecycle.js';
 import type { GameState } from '../gameState.js';
 import { updateEnemyAI } from '../ai/enemyAI.js';
-import { handleManaRegeneration } from '../players/playerLifecycle.js';
+import { handleResourceRegeneration } from '../players/playerLifecycle.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   emitBatchUpdate,
@@ -141,7 +141,7 @@ function runMaintenancePhase(input: WorldTickRunnerOptions & {
   now: number;
 }): void {
   if (shouldRunMaintenance(input.maintenanceTick, input.maintenanceEveryTicks, 1)) {
-    handleManaRegeneration(input.state, input.outbound);
+    handleResourceRegeneration(input.state, input.outbound, input.now);
   }
 
   if (shouldRunMaintenance(input.maintenanceTick, input.maintenanceEveryTicks, 2)) {

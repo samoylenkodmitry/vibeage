@@ -7,6 +7,7 @@ import { HudPanels } from './hud/HudPanels';
 import { NpcDialog } from './hud/NpcDialog';
 import { SkillBar } from './hud/SkillBar';
 import { capitalize } from './hud/textUtils';
+import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
@@ -150,6 +151,13 @@ export function GameHud({
   const panels = usePanelState();
 
   useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest);
+
+  // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
+  // tooltips, SkillBar buttons) calls openWikiAt, force the Wiki
+  // panel open so the navigation lands somewhere visible.
+  useEffect(() => {
+    return subscribeWikiOpen(() => panels.openWiki());
+  }, [panels]);
 
   return (
     <>
@@ -357,6 +365,7 @@ function usePanelState() {
     toggleActions: () => setActionsOpen((prev) => !prev),
     toggleChat: () => setChatOpen((prev) => !prev),
     toggleWiki: () => setWikiOpen((prev) => !prev),
+    openWiki: () => setWikiOpen(true),
     toggleGm: () => setGmOpen((prev) => !prev),
   };
 }

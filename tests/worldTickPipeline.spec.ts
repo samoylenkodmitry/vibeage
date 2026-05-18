@@ -16,6 +16,11 @@ describe('world tick pipeline maintenance scheduling', () => {
 
     player.id = 'player-1';
     player.mana = 90;
+    // Pre-seed regen clock so the maintenance tick actually applies
+    // regen instead of just seeding lastRegenTimeMs on first sight.
+    player.lastRegenTimeMs = now - 1000;
+    // Pin mpRegen so the assertion is independent of class stat tuning.
+    player.stats = { ...(player.stats ?? {}), hpRegen: 2, mpRegen: 2 };
     enemy.isAlive = false;
     enemy.health = 0;
     enemy.deathTimeTs = now - ENEMY_RESPAWN_DELAY_MS;
@@ -47,6 +52,8 @@ describe('world tick pipeline maintenance scheduling', () => {
 
     player.id = 'player-1';
     player.mana = 90;
+    player.lastRegenTimeMs = now - 1000;
+    player.stats = { ...(player.stats ?? {}), hpRegen: 2, mpRegen: 2 };
     enemy.isAlive = false;
     enemy.health = 0;
     enemy.deathTimeTs = now - ENEMY_RESPAWN_DELAY_MS;

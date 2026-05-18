@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { createGameState } from '../server/gameState';
 import {
   awardPlayerXP,
-  handleManaRegeneration,
+  handleResourceRegeneration,
   onRespawnRequest,
   respawnPlayer,
 } from '../server/players/playerLifecycle';
@@ -63,18 +63,28 @@ describe('player lifecycle', () => {
     });
   });
 
-  test('regenerates mana for alive players and emits compact updates', () => {
+  test('regenerates HP + mana for alive players over real seconds', () => {
+    // PR L: regen is now time-based + scaled from player.stats.{hp,mp}Regen
+    // instead of a fixed per-tick increment. Pass an explicit clock so
+    // the test is hermetic.
     const state = createGameState();
-    state.players.player1 = makePlayer({ mana: 95 });
+    state.players.player1 = makePlayer({
+      health: 80,
+      maxHealth: 100,
+      mana: 90,
+      maxMana: 100,
+      stats: { hpRegen: 4, mpRegen: 2 },
+    });
     const outbound = { publish: vi.fn() };
 
-    handleManaRegeneration(state, outbound);
+    // First call seeds lastRegenTimeMs; no actual regen happens.
+    handleResourceRegeneration(state, outbound, 1_000_000);
+    // 2 real seconds later → +8 hp (4 * 2), +4 mp (2 * 2).
+    handleResourceRegeneration(state, outbound, 1_002_000);
 
-    expect(state.players.player1.mana).toBe(97);
-    expect(outbound.publish).toHaveBeenCalledWith({
-      type: 'playerUpdated',
-      update: { id: 'player1', mana: 97 },
-    });
+    expect(state.players.player1.health).toBeCloseTo(88, 5);
+    expect(state.players.player1.mana).toBeCloseTo(94, 5);
+    expect(outbound.publish).toHaveBeenCalled();
   });
 
   test('respawns a dead player at spawn and refreshes spatial membership', () => {

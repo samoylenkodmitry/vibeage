@@ -8,6 +8,7 @@ import type { PlayerEntity } from '../gameTypes';
 import { StatusPills } from './hudPrimitives';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
+import { openWikiAt } from './wikiNavBus';
 
 export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   const stats = derivePanelStats(player);
@@ -63,13 +64,20 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
 }
 
 function StatRow({ id, label, value }: { id: string; label: string; value: number | undefined }) {
-  // Tooltip reveals what each attribute influences. The Wiki Stats
-  // tab has the full rendered description; here we just surface the
-  // one-liner so curious players don't need to open a panel to know
-  // what STR does.
+  // Tooltip carries the one-liner; clicking opens the Wiki Stats
+  // tab focused on that attribute for the full description.
   const desc = STATS[id]?.description ?? '';
   return (
-    <div title={desc}><dt>{label}</dt><dd>{value ?? '-'}</dd></div>
+    <div
+      title={desc}
+      className="player-stat-link"
+      role="button"
+      tabIndex={0}
+      onClick={() => openWikiAt('stats', id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openWikiAt('stats', id); }}
+    >
+      <dt>{label}</dt><dd>{value ?? '-'}</dd>
+    </div>
   );
 }
 
