@@ -258,7 +258,15 @@ export type AddPlayerSessionOptions = {
    */
   initialRace?: string;
   initialClass?: string;
+  /** Authenticated account id (PR I); scopes the player lookup. */
+  accountId?: string;
 };
+
+export class CharacterNotFoundError extends Error {
+  constructor(public readonly name: string) {
+    super(`Character ${name} not found for account`);
+  }
+}
 
 function applyInitialIdentity(
   player: PlayerState,
@@ -304,7 +312,13 @@ export async function addPlayerSession(
   }
 
   try {
-    const row = await upsertPlayerSession(socketId, name);
+    const row = await upsertPlayerSession(socketId, name, options.accountId);
+    if (!row) {
+      // Account-scoped lookup found no matching character; reject the
+      // join. The lobby should have already created the character via
+      // /api/account/characters before pointing the player here.
+      throw new CharacterNotFoundError(name);
+    }
 
     await recordServerEvent('player_login', row.id, { playerName: name, socketId });
 
@@ -319,6 +333,9 @@ export async function addPlayerSession(
       isNewCharacter ? applyInitialIdentity(hydrated, options) : hydrated,
     );
   } catch (error) {
+    if (error instanceof CharacterNotFoundError) {
+      throw error;
+    }
     console.error('Error adding player to database:', error);
     return addTransientPlayer();
   }

@@ -17,6 +17,7 @@ import {
   sanitizePlayerUpdateForPublic,
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import { verifySessionToken } from '../auth/sessionTokens.js';
 import {
   createSocketPlayerLookup,
   getEntityRegionId,
@@ -68,11 +69,23 @@ export class ColyseusAuthoritativeRoomAdapter {
     }
 
     const playerName = options.playerName?.trim() || 'Player';
+    // PR I: world join now requires a valid session token issued by
+    // /api/auth/{login,register}. Reject anything else so we don't
+    // accidentally let an unauthenticated socket spawn a player.
+    const session = options.sessionToken ? verifySessionToken(options.sessionToken) : null;
+    if (!session) {
+      client.send(SOCKET_SESSION_EVENTS.connectionRejected, {
+        reason: 'unauthorized',
+        message: 'Please log in to enter the world.',
+      });
+      runtimeMetrics.increment('room.joinRejected.unauthorized');
+      throw new Error('Rejected join: missing or invalid session token');
+    }
     const result = await this.port.joinClient(
       client.sessionId,
       playerName,
       makeColyseusClient(client),
-      { initialRace: options.initialRace, initialClass: options.initialClass },
+      { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId },
     );
     runtimeMetrics.increment('room.joins');
     return result;

@@ -136,8 +136,8 @@ export function buildStablePlayerPersistenceData(
   };
 }
 
-export async function upsertPlayerSession(socketId: string, name: string) {
-  return playerRepository.upsertSession(socketId, name, currentDate());
+export async function upsertPlayerSession(socketId: string, name: string, accountId?: string) {
+  return playerRepository.upsertSession(socketId, name, currentDate(), accountId);
 }
 
 /**

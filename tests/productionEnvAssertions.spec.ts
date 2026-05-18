@@ -9,6 +9,7 @@ const baseProdEnv = (): NodeJS.ProcessEnv => ({
   NODE_ENV: 'production',
   CORS_ORIGINS: 'https://example.com',
   RUNTIMEZ_TOKEN: 'secret-token',
+  VIBEAGE_AUTH_SECRET: 'x'.repeat(40),
 });
 
 describe('isProductionEnv', () => {
@@ -65,8 +66,20 @@ describe('findProductionEnvViolations', () => {
       NODE_ENV: 'production',
       CORS_ORIGINS: 'https://example.com',
       RUNTIMEZ_DISABLE: '1',
+      VIBEAGE_AUTH_SECRET: 'x'.repeat(40),
     };
     expect(findProductionEnvViolations(env)).toEqual([]);
+  });
+
+  it('flags missing VIBEAGE_AUTH_SECRET in production', () => {
+    const env = { ...baseProdEnv() };
+    delete env.VIBEAGE_AUTH_SECRET;
+    expect(findProductionEnvViolations(env).map(v => v.variable)).toContain('VIBEAGE_AUTH_SECRET');
+  });
+
+  it('flags a too-short VIBEAGE_AUTH_SECRET in production', () => {
+    const env = { ...baseProdEnv(), VIBEAGE_AUTH_SECRET: 'short' };
+    expect(findProductionEnvViolations(env).map(v => v.variable)).toContain('VIBEAGE_AUTH_SECRET');
   });
 });
 

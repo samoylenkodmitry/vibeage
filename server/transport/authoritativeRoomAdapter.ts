@@ -11,6 +11,8 @@ export type JoinClientOptions = {
   /** Lobby-picked race + class; server uses on first character spawn. */
   initialRace?: string;
   initialClass?: string;
+  /** Authenticated account id (PR I); required for the world join. */
+  accountId?: string;
 };
 
 export type SocketBackedWorldApi = {

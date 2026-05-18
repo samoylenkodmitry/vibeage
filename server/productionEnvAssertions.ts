@@ -43,6 +43,16 @@ export function findProductionEnvViolations(
     });
   }
 
+  // VIBEAGE_AUTH_SECRET signs every session token (server/auth/sessionTokens.ts).
+  // Without it, the server falls back to a public dev secret an attacker could
+  // forge tokens against. Require it explicitly in production.
+  if (!env.VIBEAGE_AUTH_SECRET || env.VIBEAGE_AUTH_SECRET.length < 32) {
+    violations.push({
+      variable: 'VIBEAGE_AUTH_SECRET',
+      message: 'VIBEAGE_AUTH_SECRET must be set to a 32+ byte secret in production. Auth session tokens are signed with this; without it the server uses a public dev fallback that anyone could forge against.',
+    });
+  }
+
   // /runtimez is the live metrics endpoint. In production we require either
   // RUNTIMEZ_TOKEN (caller must present x-runtimez-token) or an explicit
   // RUNTIMEZ_DISABLE=1 to acknowledge the operator deliberately turned it off.

@@ -52,6 +52,12 @@ export type WorldRoomJoinOptions = {
    */
   initialRace?: string;
   initialClass?: string;
+  /**
+   * Bearer session token issued by /api/auth/{login,register}.
+   * Required post-PR-I; the world room verifies it and looks up
+   * the chosen character by (accountId, playerName).
+   */
+  sessionToken?: string;
 };
 
 export function parseWorldRoomJoinOptions(options: unknown): WorldRoomJoinOptions {
@@ -67,6 +73,7 @@ export function parseWorldRoomJoinOptions(options: unknown): WorldRoomJoinOption
       : undefined,
     initialRace: typeof value.initialRace === 'string' ? value.initialRace : undefined,
     initialClass: typeof value.initialClass === 'string' ? value.initialClass : undefined,
+    sessionToken: typeof value.sessionToken === 'string' ? value.sessionToken : undefined,
   };
 }
 
@@ -86,7 +93,7 @@ export interface AuthoritativeRoomPort {
     socketId: string,
     playerName: string,
     client?: AuthoritativeRoomClient,
-    options?: { initialRace?: string; initialClass?: string },
+    options?: { initialRace?: string; initialClass?: string; accountId?: string },
   ): Promise<{ playerId: string }>;
   leaveClient(socketId: string): Promise<string | undefined>;
   dispatchCommand(

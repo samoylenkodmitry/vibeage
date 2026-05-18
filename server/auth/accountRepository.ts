@@ -1,0 +1,126 @@
+import type { Insertable } from 'kysely';
+import { database, type AccountsTable, type PlayersTable } from '../db.js';
+import { hashPassword, verifyPassword } from './passwords.js';
+
+export interface AccountSummary {
+  id: string;
+  login: string;
+}
+
+export interface CharacterRow {
+  name: string;
+  class_name: string;
+  race: string;
+  level: number;
+}
+
+const LOGIN_MIN = 3;
+const LOGIN_MAX = 24;
+const PASSWORD_MIN = 6;
+const PASSWORD_MAX = 128;
+const LOGIN_RE = /^[A-Za-z0-9._-]+$/;
+
+export type AuthError =
+  | 'invalidLogin'
+  | 'invalidPassword'
+  | 'loginTaken'
+  | 'wrongCredentials';
+
+export function validateCredentials(login: unknown, password: unknown): AuthError | null {
+  if (typeof login !== 'string' || login.length < LOGIN_MIN || login.length > LOGIN_MAX || !LOGIN_RE.test(login)) {
+    return 'invalidLogin';
+  }
+  if (typeof password !== 'string' || password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
+    return 'invalidPassword';
+  }
+  return null;
+}
+
+export async function registerAccount(login: string, password: string): Promise<{ ok: true; account: AccountSummary } | { ok: false; error: AuthError }> {
+  const validation = validateCredentials(login, password);
+  if (validation) return { ok: false, error: validation };
+  const existing = await database
+    .selectFrom('accounts')
+    .where('login', '=', login)
+    .select(['id'])
+    .executeTakeFirst();
+  if (existing) return { ok: false, error: 'loginTaken' };
+  const { hash, salt } = await hashPassword(password);
+  const insertValues = { login, password_hash: hash, password_salt: salt } as Insertable<AccountsTable>;
+  const row = await database
+    .insertInto('accounts')
+    .values(insertValues)
+    .returning(['id', 'login'])
+    .executeTakeFirstOrThrow();
+  return { ok: true, account: { id: row.id, login: row.login } };
+}
+
+export async function loginAccount(login: string, password: string): Promise<{ ok: true; account: AccountSummary } | { ok: false; error: AuthError }> {
+  const validation = validateCredentials(login, password);
+  if (validation) return { ok: false, error: 'wrongCredentials' };
+  const row = await database
+    .selectFrom('accounts')
+    .where('login', '=', login)
+    .select(['id', 'login', 'password_hash', 'password_salt'])
+    .executeTakeFirst();
+  if (!row) return { ok: false, error: 'wrongCredentials' };
+  const matches = await verifyPassword(password, row.password_hash, row.password_salt);
+  if (!matches) return { ok: false, error: 'wrongCredentials' };
+  await database
+    .updateTable('accounts')
+    .set({ last_login_at: new Date() })
+    .where('id', '=', row.id)
+    .execute();
+  return { ok: true, account: { id: row.id, login: row.login } };
+}
+
+export async function listCharactersForAccount(accountId: string): Promise<CharacterRow[]> {
+  const rows = await database
+    .selectFrom('players')
+    .where('account_id', '=', accountId)
+    .select(['name', 'class_name', 'race', 'level'])
+    .execute();
+  return rows.map((r) => ({
+    name: r.name,
+    class_name: r.class_name,
+    race: r.race,
+    level: r.level,
+  }));
+}
+
+export async function createCharacterForAccount(
+  accountId: string,
+  name: string,
+  race: string,
+  className: string,
+): Promise<{ ok: true } | { ok: false; error: 'invalidName' | 'nameTaken' }> {
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 24) return { ok: false, error: 'invalidName' };
+  const existing = await database
+    .selectFrom('players')
+    .where('account_id', '=', accountId)
+    .where('name', '=', trimmed)
+    .select(['id'])
+    .executeTakeFirst();
+  if (existing) return { ok: false, error: 'nameTaken' };
+  const playerValues = {
+    account_id: accountId,
+    name: trimmed,
+    race,
+    class_name: className,
+    last_login: new Date(),
+  } as Insertable<PlayersTable>;
+  await database
+    .insertInto('players')
+    .values(playerValues)
+    .execute();
+  return { ok: true };
+}
+
+export async function deleteCharacterForAccount(accountId: string, name: string): Promise<void> {
+  await database
+    .deleteFrom('players')
+    .where('account_id', '=', accountId)
+    .where('name', '=', name)
+    .execute();
+}

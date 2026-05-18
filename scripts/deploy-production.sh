@@ -151,6 +151,21 @@ main() {
   export PORT=${PORT:-3001}
   export SERVER_DATABASE_URL=${SERVER_DATABASE_URL:-${DATABASE_URL:-postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres}}
   export WS_COMPRESSION
+  # VIBEAGE_AUTH_SECRET signs session tokens (PR I). Persist a
+  # generated one to $DEPLOY_STATE_DIR/auth-secret so restarts +
+  # re-deploys keep the same value (otherwise every existing
+  # session token would be invalidated).
+  if [ -z "${VIBEAGE_AUTH_SECRET:-}" ]; then
+    local secret_file="$DEPLOY_STATE_DIR/auth-secret"
+    mkdir -p "$DEPLOY_STATE_DIR"
+    if [ ! -s "$secret_file" ]; then
+      head -c 48 /dev/urandom | base64 | tr -d '\n' > "$secret_file"
+      chmod 600 "$secret_file"
+      log "Generated VIBEAGE_AUTH_SECRET → $secret_file"
+    fi
+    VIBEAGE_AUTH_SECRET=$(cat "$secret_file")
+  fi
+  export VIBEAGE_AUTH_SECRET
 
   log "Installing dependencies"
   pnpm install --frozen-lockfile

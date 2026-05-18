@@ -22,8 +22,8 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<number | null>(null);
   const shouldReconnectRef = useRef(false);
-  const startJoinRef = useRef<(playerName: string, initial?: { race?: string; className?: string }) => void>(() => undefined);
-  const lastInitialRef = useRef<{ race?: string; className?: string } | undefined>(undefined);
+  const startJoinRef = useRef<(playerName: string, initial?: { race?: string; className?: string; sessionToken?: string }) => void>(() => undefined);
+  const lastInitialRef = useRef<{ race?: string; className?: string; sessionToken?: string } | undefined>(undefined);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current !== null) {
@@ -54,7 +54,7 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
     }, delay);
   }, [dispatch]);
 
-  startJoinRef.current = (playerName: string, initial?: { race?: string; className?: string }) => {
+  startJoinRef.current = (playerName: string, initial?: { race?: string; className?: string; sessionToken?: string }) => {
     joinWorldRoom(playerName, dispatch, {
       onLeave(leftRoom) {
         if (roomRef.current !== leftRoom) {
@@ -83,7 +83,7 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
     dispatch({ type: 'disconnected', message: 'Disconnected' });
   }, [clearReconnectTimer, dispatch]);
 
-  const connect = useCallback((playerName: string, initial?: { race?: string; className?: string }) => {
+  const connect = useCallback((playerName: string, initial?: { race?: string; className?: string; sessionToken?: string }) => {
     shouldReconnectRef.current = true;
     playerNameRef.current = playerName;
     lastInitialRef.current = initial;
@@ -115,7 +115,7 @@ async function joinWorldRoom(
   playerName: string,
   dispatch: Dispatch<GameClientAction>,
   lifecycle?: { onLeave: (room: Room) => void },
-  initial?: { race?: string; className?: string },
+  initial?: { race?: string; className?: string; sessionToken?: string },
 ): Promise<Room> {
   const client = new ColyseusClient(getColyseusUrl());
   const room = await client.joinOrCreate('world', {
@@ -123,6 +123,7 @@ async function joinWorldRoom(
     clientProtocolVersion: 2,
     initialRace: initial?.race,
     initialClass: initial?.className,
+    sessionToken: initial?.sessionToken,
   });
 
   bindRoom(room, dispatch, lifecycle);

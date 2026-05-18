@@ -38,9 +38,19 @@ export interface PlayersTable {
   specialization_id: NullableDefaultColumn<string>;
   skill_levels: JsonColumn<Record<string, number>>;
   quest_state: JsonColumn<unknown>;
+  account_id: NullableDefaultColumn<string>;
   last_login: TimestampColumn;
   last_updated: NullableDefaultColumn<number>;
   updated_at: TimestampColumn;
+}
+
+export interface AccountsTable {
+  id: Generated<string>;
+  login: string;
+  password_hash: string;
+  password_salt: string;
+  created_at: TimestampColumn;
+  last_login_at: TimestampColumn;
 }
 
 export interface ServerEventsTable {
@@ -65,6 +75,7 @@ export interface GameDatabase {
   players: PlayersTable;
   server_events: ServerEventsTable;
   game_stats: GameStatsTable;
+  accounts: AccountsTable;
 }
 
 export const pool = new Pool({
