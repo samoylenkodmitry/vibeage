@@ -38,6 +38,10 @@ export type PlayerEntity = {
   starterProgress?: StarterProgressState;
   specializationId?: string | null;
   skillLevels?: Record<string, number>;
+  questState?: {
+    active: Record<string, { stageIndex: number; progress: number; readyToClaim?: boolean }>;
+    completed: string[];
+  };
   skillCooldownEndTs: Record<string, number>;
   castingSkill: SkillId | null;
   castingProgressMs: number;

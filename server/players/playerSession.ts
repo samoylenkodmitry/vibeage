@@ -50,10 +50,33 @@ type PlayerRow = {
   race?: unknown;
   specialization_id?: unknown;
   skill_levels?: unknown;
+  quest_state?: unknown;
 };
 
 function normalizeSpecializationId(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function normalizeQuestState(value: unknown): { active: Record<string, { stageIndex: number; progress: number; readyToClaim?: boolean }>; completed: string[] } {
+  const empty = { active: {} as Record<string, { stageIndex: number; progress: number; readyToClaim?: boolean }>, completed: [] as string[] };
+  if (!value || typeof value !== 'object') return empty;
+  const obj = value as { active?: unknown; completed?: unknown };
+  if (obj.active && typeof obj.active === 'object') {
+    for (const [qid, entry] of Object.entries(obj.active as Record<string, unknown>)) {
+      if (entry && typeof entry === 'object') {
+        const e = entry as { stageIndex?: unknown; progress?: unknown; readyToClaim?: unknown };
+        empty.active[qid] = {
+          stageIndex: Math.max(0, Math.floor(Number(e.stageIndex) || 0)),
+          progress: Math.max(0, Math.floor(Number(e.progress) || 0)),
+          readyToClaim: Boolean(e.readyToClaim),
+        };
+      }
+    }
+  }
+  if (Array.isArray(obj.completed)) {
+    empty.completed = obj.completed.filter((id): id is string => typeof id === 'string');
+  }
+  return empty;
 }
 
 function normalizeSkillLevels(value: unknown): Record<string, number> {
@@ -155,6 +178,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     stats: projectPlayerStats(derived),
     specializationId: normalizeSpecializationId(row.specialization_id),
     skillLevels: normalizeSkillLevels(row.skill_levels),
+    questState: normalizeQuestState(row.quest_state),
   };
   // Restore the persisted CharacterInventory aggregate (item instances +
   // equipment slots + occupancy). Without this, equipped gear silently

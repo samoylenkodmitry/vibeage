@@ -3,7 +3,7 @@ import { database, type GameDatabase, type PlayersTable, type ServerEventsTable 
 import type { SkillId } from '../../packages/content/skills.js';
 import type { InventorySlot, StarterProgressState } from '../../packages/protocol/messages.js';
 import type { CharacterInventory } from '../../packages/sim/characterInventory.js';
-import type { PlayerState } from '../../packages/sim/entities.js';
+import type { PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 
 export type StablePlayerPersistenceData = {
   position_x: number;
@@ -23,6 +23,7 @@ export type StablePlayerPersistenceData = {
   starter_progress: StarterProgressState;
   specialization_id: string | null;
   skill_levels: Record<string, number>;
+  quest_state: PlayerQuestState;
   last_updated: number;
 };
 
@@ -95,6 +96,7 @@ function toPlayerPersistencePatch(data: StablePlayerPersistenceData): PlayerPers
     skill_shortcuts: toJsonb<Array<SkillId | null>>(data.skill_shortcuts),
     starter_progress: toJsonb<StarterProgressState>(data.starter_progress),
     skill_levels: toJsonb<Record<string, number>>(data.skill_levels),
+    quest_state: toJsonb<PlayerQuestState>(data.quest_state),
   };
 }
 

@@ -20,6 +20,18 @@ export type {
   VecXZ,
 };
 
+export interface PlayerActiveQuestProgress {
+  stageIndex: number;
+  progress: number;
+  /** Set when the player is ready to claim (last stage objective met). */
+  readyToClaim?: boolean;
+}
+
+export interface PlayerQuestState {
+  active: Record<string, PlayerActiveQuestProgress>;
+  completed: string[];
+}
+
 export interface Enemy {
   id: string;
   type: string;
@@ -99,6 +111,15 @@ export interface PlayerState {
    */
   skillLevels?: Record<string, number>;
   starterProgress?: StarterProgressState;
+  /**
+   * Per-player quest tracker. `active` maps QuestId → {stageIndex,
+   * progress} where progress meaning depends on the current stage's
+   * objective kind (kill: counter, reach: 0 or 1, talk: 0 or 1,
+   * manual: always 0). `completed` is the set of finished QuestIds.
+   * Engine reads QUESTS to interpret these — there is no per-quest
+   * code path.
+   */
+  questState?: PlayerQuestState;
   skillCooldownEndTs: Record<string, number>;
   statusEffects: StatusEffect[];
   level: number;

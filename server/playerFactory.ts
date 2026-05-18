@@ -50,6 +50,7 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     }),
     specializationId: null,
     skillLevels: {},
+    questState: { active: {}, completed: [] },
     posHistory: [],
     lastUpdateTime: Date.now(),
     inventory: [],

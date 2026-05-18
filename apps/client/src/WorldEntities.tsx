@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
+import { QUEST_NPCS } from '../../../packages/content/npcs';
 import type {
   EnemyEntity,
   PlayerEntity,
@@ -495,6 +496,34 @@ function EnemyBody({
         : <boxGeometry args={[1.05, height, 1.05]} />}
       <meshStandardMaterial color={color} roughness={0.82} />
     </mesh>
+  );
+}
+
+/**
+ * Static markers for quest-giving NPCs. Read straight from QUEST_NPCS
+ * content (no live entity in GameState — NPCs are content, not state).
+ * Visuals: a tall yellow cylinder with a glowing "!" sphere above to
+ * read as "questionable / interactable" without an icon system.
+ */
+export function NpcMarkers() {
+  return (
+    <>
+      {Object.values(QUEST_NPCS).map((npc) => {
+        const groundY = getTerrainY(npc.position.x, npc.position.z);
+        return (
+          <group key={npc.id} position={[npc.position.x, groundY, npc.position.z]}>
+            <mesh position={[0, 0.9, 0]} castShadow>
+              <cylinderGeometry args={[0.35, 0.45, 1.8, 12]} />
+              <meshStandardMaterial color="#facc15" roughness={0.55} metalness={0.15} />
+            </mesh>
+            <mesh position={[0, 2.4, 0]}>
+              <sphereGeometry args={[0.2, 16, 16]} />
+              <meshStandardMaterial color="#fde68a" emissive="#facc15" emissiveIntensity={0.9} />
+            </mesh>
+          </group>
+        );
+      })}
+    </>
   );
 }
 

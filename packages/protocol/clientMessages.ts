@@ -97,6 +97,31 @@ export const upgradeSkillSchema = z.object({
   skillId: skillIdSchema,
 }).strict();
 
+export const talkNpcSchema = z.object({
+  type: z.literal('TalkNpc'),
+  npcId: z.string(),
+}).strict();
+
+export const acceptQuestSchema = z.object({
+  type: z.literal('AcceptQuest'),
+  questId: z.string(),
+}).strict();
+
+export const cancelQuestSchema = z.object({
+  type: z.literal('CancelQuest'),
+  questId: z.string(),
+}).strict();
+
+export const advanceQuestSchema = z.object({
+  type: z.literal('AdvanceQuest'),
+  questId: z.string(),
+}).strict();
+
+export const claimQuestRewardSchema = z.object({
+  type: z.literal('ClaimQuestReward'),
+  questId: z.string(),
+}).strict();
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
@@ -114,6 +139,11 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   selectRaceSchema,
   selectSpecializationSchema,
   upgradeSkillSchema,
+  talkNpcSchema,
+  acceptQuestSchema,
+  cancelQuestSchema,
+  advanceQuestSchema,
+  claimQuestRewardSchema,
 ]);
 
 export type MoveIntent = {
@@ -213,6 +243,12 @@ export type UpgradeSkill = {
   skillId: SkillId;
 };
 
+export type TalkNpc = { type: 'TalkNpc'; npcId: string };
+export type AcceptQuest = { type: 'AcceptQuest'; questId: string };
+export type CancelQuest = { type: 'CancelQuest'; questId: string };
+export type AdvanceQuest = { type: 'AdvanceQuest'; questId: string };
+export type ClaimQuestReward = { type: 'ClaimQuestReward'; questId: string };
+
 export type ClientMessage =
   | MoveIntent
   | CastReq
@@ -229,4 +265,9 @@ export type ClientMessage =
   | UnequipItem
   | SelectRace
   | SelectSpecialization
-  | UpgradeSkill;
+  | UpgradeSkill
+  | TalkNpc
+  | AcceptQuest
+  | CancelQuest
+  | AdvanceQuest
+  | ClaimQuestReward;

@@ -9,10 +9,12 @@ import {
   SPECIALIZATIONS,
   type Specialization,
 } from '../../../../packages/content/specializations';
+import { QUEST_NPCS } from '../../../../packages/content/npcs';
+import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 
-type WikiTab = 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races' | 'effects';
+type WikiTab = 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races' | 'effects' | 'quests';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -22,6 +24,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'specs', label: 'Specs' },
   { id: 'races', label: 'Races' },
   { id: 'effects', label: 'Effects' },
+  { id: 'quests', label: 'Quests' },
 ];
 
 export function WikiPanel() {
@@ -72,6 +75,7 @@ export function WikiPanel() {
         {tab === 'specs' && <SpecsTab query={query} />}
         {tab === 'races' && <RacesTab query={query} />}
         {tab === 'effects' && <EffectsTab query={query} focusType={focusEffect} />}
+        {tab === 'quests' && <QuestsTab query={query} />}
       </div>
     </section>
   );
@@ -392,6 +396,38 @@ function EffectsTab({ query, focusType }: { query: string; focusType: string | n
         </li>
       ))}
     </ul>
+  );
+}
+
+function QuestsTab({ query }: { query: string }) {
+  const rows = useMemo(() => Object.values(QUESTS).filter((q) =>
+    filterMatch(`${q.name} ${q.description} ${q.npcId}`, query),
+  ), [query]);
+  return (
+    <ul className="wiki-list">
+      {rows.map((quest) => <QuestRow key={quest.id} quest={quest} />)}
+    </ul>
+  );
+}
+
+function QuestRow({ quest }: { quest: QuestDef }) {
+  const giver = QUEST_NPCS[quest.npcId];
+  return (
+    <li className="wiki-row">
+      <header>
+        <strong>{quest.name}</strong>
+        <span className="wiki-row-tag">Lv {quest.minLevel}+</span>
+      </header>
+      <p>{quest.description}</p>
+      {giver && <small className="wiki-row-footer">Giver: {giver.name} ({giver.title})</small>}
+      <small className="wiki-row-footer">Stages: {quest.stages.length}</small>
+      <small className="wiki-row-footer">
+        Reward:
+        {quest.reward.xp ? ` ${quest.reward.xp} XP` : ''}
+        {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
+        {quest.reward.items?.length ? ` · ${quest.reward.items.map((i) => `${i.itemId}×${i.quantity ?? 1}`).join(', ')}` : ''}
+      </small>
+    </li>
   );
 }
 

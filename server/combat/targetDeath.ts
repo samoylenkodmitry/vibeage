@@ -3,6 +3,7 @@ import type { GameState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import { spawnLootForEnemyDeath } from '../loot/groundLoot.js';
 import { awardPlayerXP } from '../players/playerLifecycle.js';
+import { onEnemyKilledForQuests } from '../players/playerQuests.js';
 import { emitStarterProgressUpdate, recordStarterEnemyDefeat } from '../progression/starterPath.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
@@ -44,6 +45,10 @@ export function handleTargetDeath(
       },
     );
     emitStarterProgressUpdate(context.outbound, caster, starterProgress.rewardGranted);
+    // Quest engine: any active quest with a kill objective matching
+    // this enemy's `type` ticks up. Single read site — adding more
+    // kill quests in QUESTS is content-only.
+    onEnemyKilledForQuests(caster, target.type, context.outbound);
 
     if (target.lootTableId) {
       const spawnLoot = context.spawnLoot ?? spawnLootForEnemyDeath;
