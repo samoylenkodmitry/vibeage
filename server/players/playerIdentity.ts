@@ -1,5 +1,10 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
-import { CHARACTER_RACES, type CharacterRace } from '../../packages/content/races.js';
+import {
+  CHARACTER_RACES,
+  isClassAllowedForRace,
+  RACE_PROFILES,
+  type CharacterRace,
+} from '../../packages/content/races.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { getSpecializationById } from '../../packages/content/specializations.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
@@ -24,6 +29,14 @@ export function applyClassChange(
   }
   const className = rawClassName as CharacterClass;
   if (player.className === className) {
+    return false;
+  }
+  // Race gate: each race only allows a curated class list. Rejecting
+  // here matches the client filtering — a forged SelectClass for an
+  // off-race class is dropped silently rather than silently switching.
+  const race = (player.race ?? 'human') as CharacterRace;
+  if (!isClassAllowedForRace(race, className)) {
+    warn(LOG_CATEGORIES.PLAYER, `Class ${className} not allowed for race ${race} (player ${player.id})`);
     return false;
   }
   player.className = className;
@@ -106,17 +119,34 @@ export function applyRaceChange(
     return false;
   }
   player.race = race;
+  // Race gate: if the new race doesn't allow the player's current
+  // class, snap them to the first allowed class. resetSkillsForClass
+  // handles refund + starter unlock + shortcut rebind, mirroring
+  // applyClassChange's behaviour.
+  let classSnapped: CharacterClass | null = null;
+  if (!isClassAllowedForRace(race, player.className)) {
+    const fallback = RACE_PROFILES[race]?.allowedClasses[0];
+    if (fallback) {
+      classSnapped = fallback;
+      player.className = fallback;
+      resetSkillsForClassChange(player);
+    }
+  }
   // refreshPlayerStatsFromEquipment clamps health/mana to the new max — see
   // equipHandlers.ts.
   refreshPlayerStatsFromEquipment(player);
-  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} race -> ${race}`);
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} race -> ${race}${classSnapped ? ` (class snapped to ${classSnapped})` : ''}`);
   emitPlayerUpdated(outbound, {
     id: player.id,
     race,
+    className: player.className,
     maxHealth: player.maxHealth,
     maxMana: player.maxMana,
     health: player.health,
     mana: player.mana,
+    unlockedSkills: player.unlockedSkills,
+    skillShortcuts: player.skillShortcuts,
+    availableSkillPoints: player.availableSkillPoints,
     // Race multipliers feed into derived stats (Lineage-style weights).
     // Broadcast so the panel updates pAtk/mAtk/etc. immediately.
     stats: player.stats,

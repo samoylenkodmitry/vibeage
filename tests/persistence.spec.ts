@@ -106,9 +106,9 @@ describe('stable persistence contract', () => {
       experience: 120,
       class_name: 'mage',
       inventory: [{ itemId: 'health_potion', quantity: 2 }],
-      // Universal Basic Attack is unconditionally appended on hydrate /
-      // creation, so it round-trips through persistence too.
-      skills: ['fireball', 'waterSplash', 'basicAttack'],
+      // Universal Basic Attack + Escape are unconditionally appended
+      // on hydrate / creation, so they round-trip through persistence.
+      skills: ['fireball', 'waterSplash', 'basicAttack', 'escape'],
       skill_shortcuts: ['waterSplash', null, 'fireball', ...Array(21).fill(null)],
       available_skill_points: 2,
       starter_progress: {
@@ -116,7 +116,7 @@ describe('stable persistence contract', () => {
         defeatedEnemyIds: [],
         lootPickups: 0,
         levelReached: 3,
-        learnedSkills: 3,
+        learnedSkills: 4,
         isComplete: false,
         rewardGranted: false,
       },

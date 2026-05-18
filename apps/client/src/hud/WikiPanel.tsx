@@ -12,11 +12,12 @@ import {
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 
-type WikiTab = 'skills' | 'items' | 'classes' | 'specs' | 'races' | 'effects';
+type WikiTab = 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races' | 'effects';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
   { id: 'items', label: 'Items' },
+  { id: 'tree', label: 'Tree' },
   { id: 'classes', label: 'Classes' },
   { id: 'specs', label: 'Specs' },
   { id: 'races', label: 'Races' },
@@ -58,6 +59,7 @@ export function WikiPanel() {
       <div className="wiki-body">
         {tab === 'skills' && <SkillsTab query={query} />}
         {tab === 'items' && <ItemsTab query={query} />}
+        {tab === 'tree' && <TreeTab query={query} />}
         {tab === 'classes' && <ClassesTab query={query} />}
         {tab === 'specs' && <SpecsTab query={query} />}
         {tab === 'races' && <RacesTab query={query} />}
@@ -162,6 +164,65 @@ function ItemRow({ item }: { item: Item }) {
   );
 }
 
+function TreeTab({ query }: { query: string }) {
+  const races = Object.keys(RACE_PROFILES) as CharacterRace[];
+  return (
+    <ul className="wiki-tree">
+      {races.map((race) => <RaceTreeRow key={race} race={race} query={query} />)}
+    </ul>
+  );
+}
+
+function RaceTreeRow({ race, query }: { race: CharacterRace; query: string }) {
+  const profile = RACE_PROFILES[race];
+  const visible = profile.allowedClasses.filter((cls) =>
+    filterMatch(`${race} ${profile.name} ${cls} ${CLASS_SKILL_TREES[cls]?.description ?? ''}`, query),
+  );
+  if (visible.length === 0) return null;
+  return (
+    <li className="wiki-tree-node wiki-tree-node--root">
+      <span className="wiki-tree-label"><strong>{profile.name}</strong></span>
+      <ul className="wiki-tree-children">
+        {visible.map((cls) => <ClassTreeRow key={cls} cls={cls} />)}
+      </ul>
+    </li>
+  );
+}
+
+function ClassTreeRow({ cls }: { cls: CharacterClass }) {
+  const passive = CLASS_PASSIVES[cls];
+  const specs = Object.values(SPECIALIZATIONS).filter((s) => s.baseClass === cls);
+  return (
+    <li className="wiki-tree-node">
+      <span className="wiki-tree-label">{capitalize(cls)}</span>
+      <ul className="wiki-tree-children">
+        {passive && (
+          <li className="wiki-tree-node wiki-tree-node--leaf">
+            <span className="wiki-tree-label" title={passive.description}>Passive: {passive.name}</span>
+          </li>
+        )}
+        {specs.map((spec) => (
+          <li key={spec.id} className="wiki-tree-node">
+            <span className="wiki-tree-label" title={spec.description}>Spec: {spec.name}</span>
+            <ul className="wiki-tree-children">
+              <li className="wiki-tree-node wiki-tree-node--leaf">
+                <span className="wiki-tree-label" title={spec.specializationPassive.description}>
+                  → {spec.specializationPassive.name} (Lv {spec.unlockLevel})
+                </span>
+              </li>
+              <li className="wiki-tree-node wiki-tree-node--leaf">
+                <span className="wiki-tree-label" title={spec.proficiencyPassive.description}>
+                  → {spec.proficiencyPassive.name} (Lv {spec.proficiencyLevel})
+                </span>
+              </li>
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </li>
+  );
+}
+
 function ClassesTab({ query }: { query: string }) {
   const rows = useMemo(() => (Object.keys(CLASS_SKILL_TREES) as CharacterClass[]).filter((c) => {
     const tree = CLASS_SKILL_TREES[c];
@@ -179,6 +240,9 @@ function ClassRow({ cls }: { cls: CharacterClass }) {
   const passive = CLASS_PASSIVES[cls];
   const skillIds = Object.keys(tree?.skillProgression ?? {}) as Array<keyof typeof SKILLS>;
   const skillNames = skillIds.map((id) => SKILLS[id]?.name ?? id).join(', ');
+  const races = (Object.keys(RACE_PROFILES) as CharacterRace[]).filter((r) =>
+    RACE_PROFILES[r].allowedClasses.includes(cls),
+  );
   return (
     <li className="wiki-row">
       <header>
@@ -193,6 +257,9 @@ function ClassRow({ cls }: { cls: CharacterClass }) {
       )}
       <small className="wiki-row-footer">
         Tree: {skillNames}
+      </small>
+      <small className="wiki-row-footer">
+        Races: {races.length ? races.map((r) => RACE_PROFILES[r].name).join(', ') : '—'}
       </small>
     </li>
   );
