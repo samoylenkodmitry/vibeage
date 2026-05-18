@@ -87,6 +87,16 @@ export const unequipItemSchema = z.object({
   slot: z.string(),
 }).strict();
 
+export const selectSpecializationSchema = z.object({
+  type: z.literal('SelectSpecialization'),
+  specializationId: z.string(),
+}).strict();
+
+export const upgradeSkillSchema = z.object({
+  type: z.literal('UpgradeSkill'),
+  skillId: skillIdSchema,
+}).strict();
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
@@ -102,6 +112,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   equipItemSchema,
   unequipItemSchema,
   selectRaceSchema,
+  selectSpecializationSchema,
+  upgradeSkillSchema,
 ]);
 
 export type MoveIntent = {
@@ -191,6 +203,16 @@ export type UnequipItem = {
   slot: string;
 };
 
+export type SelectSpecialization = {
+  type: 'SelectSpecialization';
+  specializationId: string;
+};
+
+export type UpgradeSkill = {
+  type: 'UpgradeSkill';
+  skillId: SkillId;
+};
+
 export type ClientMessage =
   | MoveIntent
   | CastReq
@@ -205,4 +227,6 @@ export type ClientMessage =
   | ChatRequest
   | EquipItem
   | UnequipItem
-  | SelectRace;
+  | SelectRace
+  | SelectSpecialization
+  | UpgradeSkill;

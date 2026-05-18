@@ -49,6 +49,8 @@ const PUBLIC_PLAYER_KEYS = new Set<string>([
   'dirtySnap',
   'posHistory',
   'stats',
+  'specializationId',
+  'skillLevels',
 ]);
 
 function makePlayer(id: string, socketId: string): PlayerState {

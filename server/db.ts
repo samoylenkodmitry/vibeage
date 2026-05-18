@@ -35,6 +35,8 @@ export interface PlayersTable {
   starter_progress: JsonColumn<StarterProgressState>;
   class_name: DefaultColumn<string>;
   race: DefaultColumn<string>;
+  specialization_id: NullableDefaultColumn<string>;
+  skill_levels: JsonColumn<Record<string, number>>;
   last_login: TimestampColumn;
   last_updated: NullableDefaultColumn<number>;
   updated_at: TimestampColumn;

@@ -36,6 +36,8 @@ export type PlayerEntity = {
   skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
   starterProgress?: StarterProgressState;
+  specializationId?: string | null;
+  skillLevels?: Record<string, number>;
   skillCooldownEndTs: Record<string, number>;
   castingSkill: SkillId | null;
   castingProgressMs: number;

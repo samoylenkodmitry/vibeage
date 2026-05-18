@@ -46,6 +46,8 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   ChatRequest: true,
   EquipItem: true,
   UnequipItem: true,
+  SelectSpecialization: true,
+  UpgradeSkill: true,
 };
 const CLIENT_MESSAGE_TYPE_LITERALS = Object.keys(CLIENT_MESSAGE_TYPES) as ClientMessage['type'][];
 

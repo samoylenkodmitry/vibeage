@@ -69,6 +69,8 @@ export default function App() {
         onUnequipItem={client.unequipItem}
         onSelectClass={client.selectClass}
         onSelectRace={client.selectRace}
+        onSelectSpecialization={client.selectSpecialization}
+        onUpgradeSkill={client.upgradeSkill}
         onRespawn={client.respawn}
         onSelectTarget={client.selectTarget}
         onCycleTarget={client.cycleTarget}

@@ -28,6 +28,8 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'skill_shortcuts',
   'available_skill_points',
   'starter_progress',
+  'specialization_id',
+  'skill_levels',
   'last_updated',
 ] as const;
 
@@ -45,6 +47,8 @@ export const STABLE_PLAYER_STATE_FIELDS = [
   'skillShortcuts',
   'availableSkillPoints',
   'starterProgress',
+  'specializationId',
+  'skillLevels',
 ] as const satisfies ReadonlyArray<keyof PlayerState>;
 
 export const PLAYER_IDENTITY_STATE_FIELDS = [
@@ -123,6 +127,8 @@ export function buildStablePlayerPersistenceData(
     skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),
     available_skill_points: player.availableSkillPoints,
     starter_progress: starterProgress,
+    specialization_id: player.specializationId ?? null,
+    skill_levels: player.skillLevels ?? {},
     last_updated: timestamp,
   };
 }

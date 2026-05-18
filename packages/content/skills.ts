@@ -85,6 +85,41 @@ export interface SkillDef {
    * Today only Basic Attack opts in so it behaves like an auto-swing.
    */
   autoRepeat?: boolean;
+  /**
+   * Optional list of per-level upgrades. Players spend a skill point
+   * to advance a skill they already own to the next tier. Each entry
+   * states what the upgrade does + the numeric modifiers the engine
+   * applies. Engine-driven (no per-skill conditionals): the runtime
+   * looks up the player's level for the skill and multiplies / adds
+   * the modifier values during cast resolution.
+   */
+  upgrades?: SkillUpgrade[];
+}
+
+/**
+ * Per-level upgrade entry for a skill. Level 1 is the base skill;
+ * upgrade level 2 applies the first entry's modifiers, etc.
+ */
+export interface SkillUpgrade {
+  /** Upgrade tier the player reaches (2, 3, 4...). Cumulative. */
+  level: number;
+  /** Player-facing one-liner; the wiki + skill tree show this. */
+  description: string;
+  /** Numeric tweaks applied on top of the base skill at this tier. */
+  modifiers: SkillUpgradeModifiers;
+}
+
+export interface SkillUpgradeModifiers {
+  /** Multiply skill.dmg (and every 'damage' effect). e.g. 1.2 = +20% dmg. */
+  dmgMultiplier?: number;
+  /** Multiply cooldownMs. e.g. 0.8 = 20% faster cooldown. */
+  cooldownMultiplier?: number;
+  /** Add to skill.range. */
+  rangeBonus?: number;
+  /** Multiply manaCost. e.g. 0.8 = 20% less mana. */
+  manaCostMultiplier?: number;
+  /** Multiply every effect's durationMs (DoT length, slow length, etc.). */
+  durationMultiplier?: number;
 }
 
 // Define the SKILLS directly
@@ -134,7 +169,12 @@ export const SKILLS: Record<SkillId,SkillDef> = {
       speed: 22,
       pierce: false,
       hitRadius: 1.0
-    }
+    },
+    upgrades: [
+      { level: 2, description: '+15% damage', modifiers: { dmgMultiplier: 1.15 } },
+      { level: 3, description: '+15% damage and 20% faster cooldown', modifiers: { dmgMultiplier: 1.15, cooldownMultiplier: 0.8 } },
+      { level: 4, description: 'Burn lasts 50% longer', modifiers: { durationMultiplier: 1.5 } },
+    ],
   },
   iceBolt: {
     id: 'iceBolt',
@@ -224,6 +264,11 @@ export const SKILLS: Record<SkillId,SkillDef> = {
       { type: 'damage', value: 60 },
       { type: 'dot', value: 5, durationMs: 4000 },
     ],
+    upgrades: [
+      { level: 2, description: '+20% damage', modifiers: { dmgMultiplier: 1.2 } },
+      { level: 3, description: 'Bleed lasts twice as long', modifiers: { durationMultiplier: 2.0 } },
+      { level: 4, description: '+25% damage and -1 mana cost', modifiers: { dmgMultiplier: 1.25, manaCostMultiplier: 0.75 } },
+    ],
   },
   powerStrike: {
     id: 'powerStrike',
@@ -308,6 +353,11 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     levelRequired: 1,
     effects: [
       { type: 'heal', value: 200 },
+    ],
+    upgrades: [
+      { level: 2, description: '+30% heal', modifiers: { dmgMultiplier: 1.3 } },
+      { level: 3, description: '30% faster cast', modifiers: { cooldownMultiplier: 0.7 } },
+      { level: 4, description: 'Costs 25% less mana', modifiers: { manaCostMultiplier: 0.75 } },
     ],
   },
   bless: {
@@ -403,6 +453,11 @@ export const SKILLS: Record<SkillId,SkillDef> = {
       { type: 'damage', value: 60 },
     ],
     projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
+    upgrades: [
+      { level: 2, description: '+20% damage', modifiers: { dmgMultiplier: 1.2 } },
+      { level: 3, description: 'Wider splash (+1m)', modifiers: { rangeBonus: 1 } },
+      { level: 4, description: '20% faster cooldown', modifiers: { cooldownMultiplier: 0.8 } },
+    ],
   },
   volley: {
     id: 'volley',

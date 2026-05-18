@@ -1285,6 +1285,32 @@ input {
   color: #94a3b8;
 }
 
+.skill-tree-upgrade-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.skill-tree-upgrade {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(141, 233, 215, 0.16);
+  border-radius: 4px;
+  opacity: 0.75;
+  font-size: 12px;
+}
+
+.skill-tree-upgrade--owned {
+  opacity: 1;
+  border-color: rgba(141, 233, 215, 0.5);
+  background: rgba(15, 23, 42, 0.7);
+}
+
 .quest-list {
   display: grid;
   gap: 8px;

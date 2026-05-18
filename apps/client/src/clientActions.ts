@@ -35,6 +35,8 @@ export type ClientActions = {
   unequipItem: (slot: string) => void;
   selectClass: (className: string) => void;
   selectRace: (race: string) => void;
+  selectSpecialization: (specializationId: string) => void;
+  upgradeSkill: (skillId: SkillId) => void;
   respawn: () => void;
   devTeleport: (target: VecXZ) => void;
   sendChat: (text: string, scope: 'near' | 'all') => void;
@@ -102,43 +104,14 @@ export function useClientActions(
 
   const { pickupNearest, tryFirePendingPickup } = usePickupActions(roomRef, stateRef, dispatch);
 
-  const learnSkill = useCallback((skillId: SkillId) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'LearnSkill', skillId });
-  }, [roomRef]);
-
-  const useItem = useCallback((slotIndex: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now() });
-  }, [roomRef]);
-
-  const equipItem = useCallback((slotIndex: number, requestedSlot?: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'EquipItem', slotIndex, requestedSlot });
-  }, [roomRef]);
-
-  const unequipItem = useCallback((slot: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UnequipItem', slot });
-  }, [roomRef]);
-
-  const selectClass = useCallback((className: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectClass', className });
-  }, [roomRef]);
-
-  const selectRace = useCallback((race: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectRace', race });
-  }, [roomRef]);
-
-  const respawn = useCallback(() => {
-    const room = roomRef.current;
-    const playerId = stateRef.current?.myPlayerId;
-    if (room && playerId) {
-      room.send(SESSION_EVENTS.message, { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
-    }
-  }, [roomRef, stateRef]);
+  const { learnSkill, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
+    useIdentityAndItemActions(roomRef, stateRef);
 
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 
@@ -426,6 +399,44 @@ function useTryFirePendingPickup(
     dispatch({ type: 'clearPendingPickup' });
     sendPickup(pending.lootId);
   }, [stateRef, dispatch, sendPickup, sendApproach]);
+}
+
+function useIdentityAndItemActions(
+  roomRef: RefObject<Room | null>,
+  stateRef: RefObject<GameClientState>,
+) {
+  const learnSkill = useCallback((skillId: SkillId) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'LearnSkill', skillId });
+  }, [roomRef]);
+  const useItem = useCallback((slotIndex: number) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now() });
+  }, [roomRef]);
+  const equipItem = useCallback((slotIndex: number, requestedSlot?: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'EquipItem', slotIndex, requestedSlot });
+  }, [roomRef]);
+  const unequipItem = useCallback((slot: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UnequipItem', slot });
+  }, [roomRef]);
+  const selectClass = useCallback((className: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectClass', className });
+  }, [roomRef]);
+  const selectRace = useCallback((race: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectRace', race });
+  }, [roomRef]);
+  const selectSpecialization = useCallback((specializationId: string) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectSpecialization', specializationId });
+  }, [roomRef]);
+  const upgradeSkill = useCallback((skillId: SkillId) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UpgradeSkill', skillId });
+  }, [roomRef]);
+  const respawn = useCallback(() => {
+    const room = roomRef.current;
+    const playerId = stateRef.current?.myPlayerId;
+    if (room && playerId) {
+      room.send(SESSION_EVENTS.message, { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
+    }
+  }, [roomRef, stateRef]);
+  return { learnSkill, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
 }
 
 function useCommandActions(

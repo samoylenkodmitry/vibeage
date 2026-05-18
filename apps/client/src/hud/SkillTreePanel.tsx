@@ -12,6 +12,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 type SkillTreePanelProps = {
   player: PlayerEntity | null;
   onLearnSkill: (skillId: SkillId) => void;
+  onUpgradeSkill: (skillId: SkillId) => void;
   rejections?: Record<string, string>;
 };
 
@@ -31,11 +32,12 @@ const REJECTION_LABEL: Record<string, string> = {
   alreadyKnown: 'Already known',
 };
 
-export function SkillTreePanel({ player, onLearnSkill, rejections }: SkillTreePanelProps) {
+export function SkillTreePanel({ player, onLearnSkill, onUpgradeSkill, rejections }: SkillTreePanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('skill-tree');
   const rows = useMemo(() => buildSkillRows(player), [player]);
   const className = player?.className ?? DEFAULT_CLASS_NAME;
   const skillPoints = player?.availableSkillPoints ?? 0;
+  const skillLevels = player?.skillLevels ?? {};
   const [expandedId, setExpandedId] = useState<SkillId | null>(null);
 
   return (
@@ -52,8 +54,10 @@ export function SkillTreePanel({ player, onLearnSkill, rejections }: SkillTreePa
             expanded={expandedId === row.skillId}
             rejectLabel={rejections?.[row.skillId] ? (REJECTION_LABEL[rejections[row.skillId]] ?? rejections[row.skillId]) : ''}
             skillPoints={skillPoints}
+            skillLevel={skillLevels[row.skillId] ?? 1}
             onToggleExpand={() => setExpandedId((prev) => (prev === row.skillId ? null : row.skillId))}
             onLearnSkill={onLearnSkill}
+            onUpgradeSkill={onUpgradeSkill}
           />
         ))}
       </ul>
@@ -66,17 +70,28 @@ function SkillRow({
   expanded,
   rejectLabel,
   skillPoints,
+  skillLevel,
   onToggleExpand,
   onLearnSkill,
+  onUpgradeSkill,
 }: {
   row: Row;
   expanded: boolean;
   rejectLabel: string;
   skillPoints: number;
+  skillLevel: number;
   onToggleExpand: () => void;
   onLearnSkill: (skillId: SkillId) => void;
+  onUpgradeSkill: (skillId: SkillId) => void;
 }) {
   const skill = SKILLS[row.skillId];
+  // maxLevel = base level 1 + N upgrade tiers (each tier description
+  // lives in SKILLS[id].upgrades[i] and bumps the level by one).
+  const maxLevel = 1 + (skill?.upgrades?.length ?? 0);
+  const canUpgrade =
+    row.status === 'unlocked'
+    && skillLevel < maxLevel
+    && skillPoints > 0;
   return (
     <li className={`skill-tree-row skill-tree-row--${row.status}${expanded ? ' skill-tree-row--expanded' : ''}`}>
       <button
@@ -85,7 +100,10 @@ function SkillRow({
         aria-expanded={expanded}
         onClick={onToggleExpand}
       >
-        <strong>{row.name}</strong>
+        <strong>
+          {row.name}
+          {row.status === 'unlocked' && skill?.upgrades?.length ? ` · Lv ${skillLevel}/${maxLevel}` : ''}
+        </strong>
         <small>{row.detail}</small>
         <span className="skill-tree-chevron" aria-hidden>{expanded ? '▾' : '▸'}</span>
       </button>
@@ -101,15 +119,25 @@ function SkillRow({
             {skillPoints > 0 ? 'Learn' : 'Need SP'}
           </button>
         )}
-        {row.status === 'unlocked' && <span className="skill-tree-tag">Owned</span>}
+        {row.status === 'unlocked' && skill?.upgrades?.length ? (
+          <button
+            type="button"
+            className="learn-skill-button"
+            disabled={!canUpgrade}
+            onClick={() => canUpgrade && onUpgradeSkill(row.skillId)}
+          >
+            {skillLevel >= maxLevel ? 'Max' : skillPoints > 0 ? 'Upgrade' : 'Need SP'}
+          </button>
+        ) : null}
+        {row.status === 'unlocked' && !skill?.upgrades?.length && <span className="skill-tree-tag">Owned</span>}
         {row.status === 'locked' && <span className="skill-tree-tag skill-tree-tag--locked">Locked</span>}
       </div>
-      {expanded && skill && <SkillDetail skill={skill} />}
+      {expanded && skill && <SkillDetail skill={skill} skillLevel={skillLevel} />}
     </li>
   );
 }
 
-function SkillDetail({ skill }: { skill: SkillDef }) {
+function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: number }) {
   return (
     <div className="skill-tree-detail">
       <p className="skill-tree-detail-desc">{skill.description}</p>
@@ -121,6 +149,23 @@ function SkillDetail({ skill }: { skill: SkillDef }) {
         <Stat label="Cast" value={skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant'} />
         <Stat label="Cooldown" value={skill.cooldownMs > 0 ? `${(skill.cooldownMs / 1000).toFixed(1)}s` : '-'} />
       </dl>
+      {skill.upgrades?.length ? (
+        <ul className="skill-tree-upgrade-list">
+          {skill.upgrades.map((tier) => {
+            const owned = skillLevel >= tier.level;
+            return (
+              <li
+                key={tier.level}
+                className={`skill-tree-upgrade${owned ? ' skill-tree-upgrade--owned' : ''}`}
+              >
+                <strong>Lv {tier.level}</strong>
+                <small>{tier.description}</small>
+                {owned && <span className="skill-tree-tag">Owned</span>}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }

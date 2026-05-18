@@ -27,6 +27,8 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'UnequipItem',
   'DevTeleport',
   'ChatRequest',
+  'SelectSpecialization',
+  'UpgradeSkill',
 ] as const satisfies ReadonlyArray<ClientMessage['type']>;
 
 export const MIN_CLIENT_PROTOCOL_VERSION = 2;

@@ -3,6 +3,7 @@ import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
 import {
   emitEnemyUpdated,
   emitPlayerUpdated,
@@ -45,9 +46,13 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
 
   const targets = resolveCastTargets(cast, world, skill, caster);
   // Compute caster buffs once for the whole cast rather than per-target
-  // (matters for multi-target skills like volley / waterSplash).
+  // (matters for multi-target skills like volley / waterSplash). The
+  // skill-upgrade multiplier is constant per cast too, so hoist its
+  // lookup alongside the bless multiplier instead of re-folding the
+  // tier table for every target.
   const blessMult = blessDamageMultiplier(caster);
-  const damages = targets.map((target) => calculateDamage(skill, caster, blessMult, cast.castId, target.id));
+  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
+  const damages = targets.map((target) => calculateDamage(skill, caster, blessMult, upgradeDmgMult, cast.castId, target.id));
 
   targets.forEach((target, index) => {
     applyCastToTarget(target, damages[index], context);
@@ -86,6 +91,7 @@ function calculateDamage(
   skill: SkillDef,
   caster: PlayerState | null | undefined,
   blessMult: number,
+  upgradeDmgMult: number,
   castId?: string,
   targetId?: string,
 ): number {
@@ -95,8 +101,11 @@ function calculateDamage(
 
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
 
+  // Skill-upgrade multiplier is folded once per cast in resolveCastImpact
+  // and passed in — keeps multi-target casts O(1) on the tier table
+  // instead of O(targets) when leveled.
   const result = getDamage({
-    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult },
+    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult * upgradeDmgMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });

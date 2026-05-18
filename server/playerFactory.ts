@@ -48,6 +48,8 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
       level: 1,
       unlockedSkills: starterSkillsFor('mage'),
     }),
+    specializationId: null,
+    skillLevels: {},
     posHistory: [],
     lastUpdateTime: Date.now(),
     inventory: [],

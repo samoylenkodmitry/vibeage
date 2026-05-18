@@ -5,7 +5,12 @@ import { createCombatWorld } from '../combat/combatWorld.js';
 import { handleTargetDeath } from '../combat/targetDeath.js';
 import type { GameState } from '../gameState.js';
 import { handleEquipItem, handleUnequipItem } from '../inventory/equipHandlers.js';
-import { applyClassChange, applyRaceChange } from '../players/playerIdentity.js';
+import {
+  applyClassChange,
+  applyRaceChange,
+  applySkillUpgrade,
+  applySpecializationChange,
+} from '../players/playerIdentity.js';
 import { onUseItem } from '../inventory/itemUse.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
@@ -71,7 +76,37 @@ export function handleClientMessage(
       return onEquipItem(socket, direct, state, msg, outbound);
     case 'UnequipItem':
       return onUnequipItem(socket, direct, state, msg, outbound);
+    case 'SelectSpecialization':
+      return onSelectSpecialization(socket, state, msg, outbound);
+    case 'UpgradeSkill':
+      return onUpgradeSkill(socket, state, msg, outbound);
   }
+}
+
+function onSelectSpecialization(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'SelectSpecialization' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applySpecializationChange(player, msg.specializationId, outbound);
+}
+
+function onUpgradeSkill(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'UpgradeSkill' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applySkillUpgrade(player, msg.skillId, outbound);
 }
 
 function onSelectClass(
