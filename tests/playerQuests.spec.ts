@@ -36,6 +36,27 @@ describe('quest catalog coverage', () => {
       expect(quest.stages.length, `quest ${quest.id}`).toBeGreaterThan(0);
     }
   });
+  it('every kill_boss objective resolves to a known mini-boss', async () => {
+    const { MINI_BOSSES } = await import('../packages/content/miniBosses');
+    for (const quest of Object.values(QUESTS)) {
+      for (const stage of quest.stages) {
+        if (stage.objective.kind === 'kill_boss') {
+          expect(
+            MINI_BOSSES[stage.objective.bossId],
+            `quest ${quest.id} stage ${stage.id} → unknown boss ${stage.objective.bossId}`,
+          ).toBeDefined();
+        }
+      }
+    }
+  });
+  it('every quest reward item resolves to a known ITEM', async () => {
+    const { ITEMS } = await import('../packages/content/items');
+    for (const quest of Object.values(QUESTS)) {
+      for (const reward of quest.reward.items ?? []) {
+        expect(ITEMS[reward.itemId], `quest ${quest.id} → unknown reward item ${reward.itemId}`).toBeDefined();
+      }
+    }
+  });
 });
 
 describe('quest flow: kill -> talk -> claim', () => {
