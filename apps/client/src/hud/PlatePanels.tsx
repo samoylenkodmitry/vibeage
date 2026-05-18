@@ -1,6 +1,7 @@
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { Meter, StatusPills, formatMeter, getDistance, getMeterProgress, getTargetState, getTargetTone } from './hudPrimitives';
 import { useDraggablePanel } from './useDraggablePanel';
+import { openWikiAt } from './wikiNavBus';
 
 export type SelectedTargetView = {
   selfSelected: boolean;
@@ -151,10 +152,23 @@ function renderEnemyTargetPanel(
 ) {
   const distance = player ? getDistance(player.position, enemy.position) : null;
   const healthRatio = enemy.health / Math.max(1, enemy.maxHealth);
+  // PR V — name doubles as a Wiki deep-link. Mini-bosses jump to the
+  // Bosses tab (where their lore + signature live), normal mobs to
+  // the Mobs tab.
+  const openInWiki = () => enemy.isMiniBoss && enemy.bossId
+    ? openWikiAt('bosses', enemy.bossId)
+    : openWikiAt('mobs', enemy.type);
   return (
     <section ref={panelRef} className={`hud hud-target target-${getTargetTone(enemy.isAlive, healthRatio)}`} aria-label="Target">
       <div className="panel-title">
-        <strong>{enemy.name}</strong>
+        <button
+          type="button"
+          className="panel-title-link"
+          onClick={openInWiki}
+          title="Open in Wiki"
+        >
+          <strong>{enemy.name}</strong>
+        </button>
         <span>Level {enemy.level}</span>
         {onClose && (
           <button type="button" className="panel-close" aria-label="Clear target" onClick={onClose}>×</button>

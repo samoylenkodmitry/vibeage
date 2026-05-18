@@ -90,6 +90,7 @@ export type EnemyEntity = {
   aiState?: string;
   packId?: string;
   isMiniBoss?: boolean;
+  bossId?: string;
 };
 
 export type ServerGameState = {
