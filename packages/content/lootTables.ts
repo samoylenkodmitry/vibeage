@@ -1,4 +1,5 @@
 import type { ItemId } from './items.js';
+import { BOSS_LOOT_TABLES } from './miniBosses.js';
 import { STARTER_LOOT_TABLES } from './starterLootTables.js';
 
 export interface LootDrop {
@@ -14,6 +15,7 @@ export interface LootTable {
 
 export const LOOT_TABLES: Record<string, LootTable> = {
   ...STARTER_LOOT_TABLES,
+  ...BOSS_LOOT_TABLES,
   'spider_loot': {
     id: 'spider_loot',
     drops: [
@@ -26,26 +28,6 @@ export const LOOT_TABLES: Record<string, LootTable> = {
         itemId: 'health_potion',
         quantity: { min: 1, max: 1 },
         chance: 0.25, // 25% chance
-      },
-    ],
-  },
-  'boss_loot': {
-    id: 'boss_loot',
-    drops: [
-      {
-        itemId: 'gold_coin',
-        quantity: { min: 10, max: 30 },
-        chance: 1.0, // Always drops
-      },
-      {
-        itemId: 'health_potion',
-        quantity: { min: 2, max: 5 },
-        chance: 0.75, // 75% chance
-      },
-      {
-        itemId: 'worn_sword',
-        quantity: { min: 1, max: 1 },
-        chance: 0.3, // 30% chance
       },
     ],
   },

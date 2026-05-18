@@ -10,7 +10,7 @@
  */
 export type WikiTabId =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
-  | 'effects' | 'quests' | 'stats' | 'mobs';
+  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses';
 
 type WikiNavEvent = { tab: WikiTabId; id: string };
 type Handler = (event: WikiNavEvent) => void;
