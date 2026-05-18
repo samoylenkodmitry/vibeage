@@ -3,18 +3,22 @@ import { CLASS_PASSIVES } from '../../../../packages/content/classPassives';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/content/classes';
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
 import { ITEMS, type Item } from '../../../../packages/content/items';
+import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
   SPECIALIZATIONS,
   type Specialization,
 } from '../../../../packages/content/specializations';
+import { STATS, type StatDef } from '../../../../packages/content/stats';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 
-type WikiTab = 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races' | 'effects' | 'quests';
+type WikiTab =
+  | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
+  | 'effects' | 'quests' | 'stats' | 'mobs';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -25,20 +29,30 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'races', label: 'Races' },
   { id: 'effects', label: 'Effects' },
   { id: 'quests', label: 'Quests' },
+  { id: 'stats', label: 'Stats' },
+  { id: 'mobs', label: 'Mobs' },
 ];
 
-export function WikiPanel() {
+type WikiNav = (tab: WikiTab, id: string) => void;
+
+type WikiPanelProps = {
+  onShowMarker?: (pos: { x: number; z: number } | null) => void;
+};
+
+export function WikiPanel({ onShowMarker }: WikiPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('wiki');
   const [tab, setTab] = useState<WikiTab>('skills');
   const [query, setQuery] = useState('');
-  // When a SkillRow effect chip is clicked we jump to the Effects tab
-  // and scroll the matching entry into view. Setting focusEffect here
-  // lets EffectsTab pick it up on mount and do the scroll once.
-  const [focusEffect, setFocusEffect] = useState<string | null>(null);
-  const openEffect = (effectType: string) => {
-    setFocusEffect(effectType);
-    setTab('effects');
+  // Generic focus: any tab can scroll-to + outline a row when a
+  // cross-tab link navigates to it. Keyed by `${tab}:${id}` so
+  // navigating to the same row twice still re-fires the effect.
+  const [focus, setFocus] = useState<{ tab: WikiTab; id: string; nonce: number } | null>(null);
+  const navigate: WikiNav = (toTab, id) => {
+    setFocus({ tab: toTab, id, nonce: Date.now() });
+    setTab(toTab);
   };
+  const focusId = focus?.tab === tab ? focus.id : null;
+  const focusKey = focus?.tab === tab ? `${focus.id}:${focus.nonce}` : '';
 
   return (
     <section ref={panelRef} className="wiki-panel" aria-label="Content reference">
@@ -68,14 +82,16 @@ export function WikiPanel() {
         aria-label="Filter content reference"
       />
       <div className="wiki-body">
-        {tab === 'skills' && <SkillsTab query={query} onOpenEffect={openEffect} />}
-        {tab === 'items' && <ItemsTab query={query} />}
-        {tab === 'tree' && <TreeTab query={query} />}
-        {tab === 'classes' && <ClassesTab query={query} />}
-        {tab === 'specs' && <SpecsTab query={query} />}
-        {tab === 'races' && <RacesTab query={query} />}
-        {tab === 'effects' && <EffectsTab query={query} focusType={focusEffect} />}
+        {tab === 'skills' && <SkillsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'items' && <ItemsTab query={query} focusId={focusId} focusKey={focusKey} />}
+        {tab === 'tree' && <TreeTab query={query} navigate={navigate} />}
+        {tab === 'classes' && <ClassesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'specs' && <SpecsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'races' && <RacesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'effects' && <EffectsTab query={query} focusId={focusId} focusKey={focusKey} />}
         {tab === 'quests' && <QuestsTab query={query} />}
+        {tab === 'stats' && <StatsTab query={query} focusId={focusId} focusKey={focusKey} />}
+        {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} />}
       </div>
     </section>
   );
@@ -86,20 +102,50 @@ function filterMatch(haystack: string, needle: string): boolean {
   return haystack.toLowerCase().includes(needle.toLowerCase());
 }
 
-function SkillsTab({ query, onOpenEffect }: { query: string; onOpenEffect: (effectType: string) => void }) {
+/** Scroll a focused row into view when nav lands on it. */
+function useFocusScroll(focusKey: string, ref: React.RefObject<HTMLLIElement | null>) {
+  useEffect(() => {
+    if (focusKey && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusKey]);
+}
+
+function FocusableLi({
+  isFocus, focusKey, children, className,
+}: {
+  isFocus: boolean;
+  focusKey: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLLIElement | null>(null);
+  useFocusScroll(isFocus ? focusKey : '', ref);
+  return (
+    <li ref={isFocus ? ref : undefined} className={`${className ?? 'wiki-row'}${isFocus ? ' wiki-row--focus' : ''}`}>
+      {children}
+    </li>
+  );
+}
+
+// ---------- Skills ----------
+
+function SkillsTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
   const rows = useMemo(() => Object.values(SKILLS).filter((s) =>
     filterMatch(`${s.name} ${s.description} ${s.kind ?? ''}`, query),
   ), [query]);
   return (
     <ul className="wiki-list">
-      {rows.map((skill) => <SkillRow key={skill.id} skill={skill} onOpenEffect={onOpenEffect} />)}
+      {rows.map((skill) => (
+        <SkillRow key={skill.id} skill={skill} isFocus={skill.id === focusId} focusKey={focusKey} navigate={navigate} />
+      ))}
     </ul>
   );
 }
 
-function SkillRow({ skill, onOpenEffect }: { skill: SkillDef; onOpenEffect: (effectType: string) => void }) {
+function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   return (
-    <li className="wiki-row">
+    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
         <strong>{skill.name}</strong>
         <span className="wiki-row-tag">{skill.kind ?? 'magical'}</span>
@@ -129,7 +175,7 @@ function SkillRow({ skill, onOpenEffect }: { skill: SkillDef; onOpenEffect: (eff
                 <button
                   type="button"
                   className="wiki-effect-chip"
-                  onClick={() => onOpenEffect(e.type)}
+                  onClick={() => navigate('effects', e.type)}
                   title={spec?.description ?? 'Click for details'}
                 >
                   {spec?.label ?? e.type}
@@ -145,25 +191,29 @@ function SkillRow({ skill, onOpenEffect }: { skill: SkillDef; onOpenEffect: (eff
           Upgrades: {skill.upgrades.map((u) => `Lv${u.level}: ${u.description}`).join(' · ')}
         </small>
       ) : null}
-    </li>
+    </FocusableLi>
   );
 }
 
-function ItemsTab({ query }: { query: string }) {
+// ---------- Items ----------
+
+function ItemsTab({ query, focusId, focusKey }: { query: string; focusId: string | null; focusKey: string }) {
   const rows = useMemo(() => Object.values(ITEMS).filter((i) =>
     filterMatch(`${i.name} ${i.description} ${i.type ?? ''} ${i.kind ?? ''}`, query),
   ), [query]);
   return (
     <ul className="wiki-list">
-      {rows.map((item) => <ItemRow key={item.id} item={item} />)}
+      {rows.map((item) => (
+        <ItemRow key={item.id} item={item} isFocus={item.id === focusId} focusKey={focusKey} />
+      ))}
     </ul>
   );
 }
 
-function ItemRow({ item }: { item: Item }) {
+function ItemRow({ item, isFocus, focusKey }: { item: Item; isFocus: boolean; focusKey: string }) {
   const stats = item.stats ?? {};
   return (
-    <li className="wiki-row">
+    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
         <strong>{item.name}</strong>
         <span className="wiki-row-tag">{item.kind ?? item.type}</span>
@@ -186,20 +236,22 @@ function ItemRow({ item }: { item: Item }) {
         {item.setId && <Pair k="Set" v={item.setId} />}
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
-    </li>
+    </FocusableLi>
   );
 }
 
-function TreeTab({ query }: { query: string }) {
+// ---------- Tree ----------
+
+function TreeTab({ query, navigate }: { query: string; navigate: WikiNav }) {
   const races = Object.keys(RACE_PROFILES) as CharacterRace[];
   return (
     <ul className="wiki-tree">
-      {races.map((race) => <RaceTreeRow key={race} race={race} query={query} />)}
+      {races.map((race) => <RaceTreeRow key={race} race={race} query={query} navigate={navigate} />)}
     </ul>
   );
 }
 
-function RaceTreeRow({ race, query }: { race: CharacterRace; query: string }) {
+function RaceTreeRow({ race, query, navigate }: { race: CharacterRace; query: string; navigate: WikiNav }) {
   const profile = RACE_PROFILES[race];
   const visible = profile.allowedClasses.filter((cls) =>
     filterMatch(`${race} ${profile.name} ${cls} ${CLASS_SKILL_TREES[cls]?.description ?? ''}`, query),
@@ -207,20 +259,24 @@ function RaceTreeRow({ race, query }: { race: CharacterRace; query: string }) {
   if (visible.length === 0) return null;
   return (
     <li className="wiki-tree-node wiki-tree-node--root">
-      <span className="wiki-tree-label"><strong>{profile.name}</strong></span>
+      <button type="button" className="wiki-tree-link" onClick={() => navigate('races', race)}>
+        <strong>{profile.name}</strong>
+      </button>
       <ul className="wiki-tree-children">
-        {visible.map((cls) => <ClassTreeRow key={cls} cls={cls} />)}
+        {visible.map((cls) => <ClassTreeRow key={cls} cls={cls} navigate={navigate} />)}
       </ul>
     </li>
   );
 }
 
-function ClassTreeRow({ cls }: { cls: CharacterClass }) {
+function ClassTreeRow({ cls, navigate }: { cls: CharacterClass; navigate: WikiNav }) {
   const passive = CLASS_PASSIVES[cls];
   const specs = Object.values(SPECIALIZATIONS).filter((s) => s.baseClass === cls);
   return (
     <li className="wiki-tree-node">
-      <span className="wiki-tree-label">{capitalize(cls)}</span>
+      <button type="button" className="wiki-tree-link" onClick={() => navigate('classes', cls)}>
+        {capitalize(cls)}
+      </button>
       <ul className="wiki-tree-children">
         {passive && (
           <li className="wiki-tree-node wiki-tree-node--leaf">
@@ -229,19 +285,9 @@ function ClassTreeRow({ cls }: { cls: CharacterClass }) {
         )}
         {specs.map((spec) => (
           <li key={spec.id} className="wiki-tree-node">
-            <span className="wiki-tree-label" title={spec.description}>Spec: {spec.name}</span>
-            <ul className="wiki-tree-children">
-              <li className="wiki-tree-node wiki-tree-node--leaf">
-                <span className="wiki-tree-label" title={spec.specializationPassive.description}>
-                  → {spec.specializationPassive.name} (Lv {spec.unlockLevel})
-                </span>
-              </li>
-              <li className="wiki-tree-node wiki-tree-node--leaf">
-                <span className="wiki-tree-label" title={spec.proficiencyPassive.description}>
-                  → {spec.proficiencyPassive.name} (Lv {spec.proficiencyLevel})
-                </span>
-              </li>
-            </ul>
+            <button type="button" className="wiki-tree-link" onClick={() => navigate('specs', spec.id)}>
+              Spec: {spec.name}
+            </button>
           </li>
         ))}
       </ul>
@@ -249,28 +295,31 @@ function ClassTreeRow({ cls }: { cls: CharacterClass }) {
   );
 }
 
-function ClassesTab({ query }: { query: string }) {
+// ---------- Classes ----------
+
+function ClassesTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
   const rows = useMemo(() => (Object.keys(CLASS_SKILL_TREES) as CharacterClass[]).filter((c) => {
     const tree = CLASS_SKILL_TREES[c];
     return filterMatch(`${c} ${tree?.description ?? ''}`, query);
   }), [query]);
   return (
     <ul className="wiki-list">
-      {rows.map((cls) => <ClassRow key={cls} cls={cls} />)}
+      {rows.map((cls) => (
+        <ClassRow key={cls} cls={cls} isFocus={cls === focusId} focusKey={focusKey} navigate={navigate} />
+      ))}
     </ul>
   );
 }
 
-function ClassRow({ cls }: { cls: CharacterClass }) {
+function ClassRow({ cls, isFocus, focusKey, navigate }: { cls: CharacterClass; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   const tree = CLASS_SKILL_TREES[cls];
   const passive = CLASS_PASSIVES[cls];
   const skillIds = Object.keys(tree?.skillProgression ?? {}) as Array<keyof typeof SKILLS>;
-  const skillNames = skillIds.map((id) => SKILLS[id]?.name ?? id).join(', ');
   const races = (Object.keys(RACE_PROFILES) as CharacterRace[]).filter((r) =>
     RACE_PROFILES[r].allowedClasses.includes(cls),
   );
   return (
-    <li className="wiki-row">
+    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
         <strong>{capitalize(cls)}</strong>
         <span className="wiki-row-tag">{skillIds.length} skills</span>
@@ -282,16 +331,36 @@ function ClassRow({ cls }: { cls: CharacterClass }) {
         </small>
       )}
       <small className="wiki-row-footer">
-        Tree: {skillNames}
+        Skills:{' '}
+        {skillIds.map((id, i) => (
+          <span key={id}>
+            {i > 0 && ', '}
+            <button type="button" className="wiki-effect-chip" onClick={() => navigate('skills', id)}>
+              {SKILLS[id]?.name ?? id}
+            </button>
+          </span>
+        ))}
       </small>
       <small className="wiki-row-footer">
-        Races: {races.length ? races.map((r) => RACE_PROFILES[r].name).join(', ') : '—'}
+        Races:{' '}
+        {races.length
+          ? races.map((r, i) => (
+              <span key={r}>
+                {i > 0 && ', '}
+                <button type="button" className="wiki-effect-chip" onClick={() => navigate('races', r)}>
+                  {RACE_PROFILES[r].name}
+                </button>
+              </span>
+            ))
+          : '—'}
       </small>
-    </li>
+    </FocusableLi>
   );
 }
 
-function SpecsTab({ query }: { query: string }) {
+// ---------- Specs ----------
+
+function SpecsTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
   const rows = useMemo(() => Object.values(SPECIALIZATIONS).filter((s) =>
     filterMatch(
       `${s.name} ${s.baseClass} ${s.description} ${s.specializationPassive.name} ${s.proficiencyPassive.name}`,
@@ -300,19 +369,23 @@ function SpecsTab({ query }: { query: string }) {
   ), [query]);
   return (
     <ul className="wiki-list">
-      {rows.map((spec) => <SpecRow key={spec.id} spec={spec} />)}
+      {rows.map((spec) => (
+        <SpecRow key={spec.id} spec={spec} isFocus={spec.id === focusId} focusKey={focusKey} navigate={navigate} />
+      ))}
     </ul>
   );
 }
 
-function SpecRow({ spec }: { spec: Specialization }) {
-  const specSkills = (spec.specSkills ?? []).map((id) => SKILLS[id]?.name ?? id).join(', ');
-  const profSkills = (spec.proficiencySkills ?? []).map((id) => SKILLS[id]?.name ?? id).join(', ');
+function SpecRow({ spec, isFocus, focusKey, navigate }: { spec: Specialization; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
+  const specSkills = spec.specSkills ?? [];
+  const profSkills = spec.proficiencySkills ?? [];
   return (
-    <li className="wiki-row">
+    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
         <strong>{spec.name}</strong>
-        <span className="wiki-row-tag">{capitalize(spec.baseClass)}</span>
+        <button type="button" className="wiki-effect-chip" onClick={() => navigate('classes', spec.baseClass)}>
+          {capitalize(spec.baseClass)}
+        </button>
       </header>
       <p>{spec.description}</p>
       <dl>
@@ -325,29 +398,57 @@ function SpecRow({ spec }: { spec: Specialization }) {
       <small className="wiki-row-footer">
         Proficient: <strong>{spec.proficiencyPassive.name}</strong> — {spec.proficiencyPassive.description}
       </small>
-      {specSkills && <small className="wiki-row-footer">Spec skills: {specSkills}</small>}
-      {profSkills && <small className="wiki-row-footer">Proficiency skills: {profSkills}</small>}
-    </li>
+      {specSkills.length > 0 && (
+        <small className="wiki-row-footer">
+          Spec skills:{' '}
+          {specSkills.map((id, i) => (
+            <span key={id}>
+              {i > 0 && ', '}
+              <button type="button" className="wiki-effect-chip" onClick={() => navigate('skills', id)}>
+                {SKILLS[id]?.name ?? id}
+              </button>
+            </span>
+          ))}
+        </small>
+      )}
+      {profSkills.length > 0 && (
+        <small className="wiki-row-footer">
+          Proficiency skills:{' '}
+          {profSkills.map((id, i) => (
+            <span key={id}>
+              {i > 0 && ', '}
+              <button type="button" className="wiki-effect-chip" onClick={() => navigate('skills', id)}>
+                {SKILLS[id]?.name ?? id}
+              </button>
+            </span>
+          ))}
+        </small>
+      )}
+    </FocusableLi>
   );
 }
 
-function RacesTab({ query }: { query: string }) {
+// ---------- Races ----------
+
+function RacesTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
   const rows = useMemo(() => (Object.keys(RACE_PROFILES) as CharacterRace[]).filter((r) => {
     const p = RACE_PROFILES[r];
     return filterMatch(`${r} ${p.name} ${p.description}`, query);
   }), [query]);
   return (
     <ul className="wiki-list">
-      {rows.map((race) => <RaceRow key={race} race={race} />)}
+      {rows.map((race) => (
+        <RaceRow key={race} race={race} isFocus={race === focusId} focusKey={focusKey} navigate={navigate} />
+      ))}
     </ul>
   );
 }
 
-function RaceRow({ race }: { race: CharacterRace }) {
+function RaceRow({ race, isFocus, focusKey, navigate }: { race: CharacterRace; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   const profile = RACE_PROFILES[race];
   const attrs = profile.baseAttrs;
   return (
-    <li className="wiki-row">
+    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
         <strong>{profile.name}</strong>
         <span className="wiki-row-tag">{race}</span>
@@ -355,39 +456,43 @@ function RaceRow({ race }: { race: CharacterRace }) {
       <p>{profile.description}</p>
       {attrs && (
         <dl>
-          <Pair k="STR" v={String(attrs.str)} />
-          <Pair k="DEX" v={String(attrs.dex)} />
-          <Pair k="CON" v={String(attrs.con)} />
-          <Pair k="INT" v={String(attrs.int)} />
-          <Pair k="WIT" v={String(attrs.wit)} />
-          <Pair k="MEN" v={String(attrs.men)} />
+          {Object.entries(attrs).map(([k, v]) => (
+            <div key={k} className="wiki-pair">
+              <dt>
+                <button type="button" className="wiki-effect-chip" onClick={() => navigate('stats', k)}>
+                  {k.toUpperCase()}
+                </button>
+              </dt>
+              <dd>{String(v)}</dd>
+            </div>
+          ))}
         </dl>
       )}
-    </li>
+      <small className="wiki-row-footer">
+        Allowed classes:{' '}
+        {profile.allowedClasses.map((cls, i) => (
+          <span key={cls}>
+            {i > 0 && ', '}
+            <button type="button" className="wiki-effect-chip" onClick={() => navigate('classes', cls)}>
+              {capitalize(cls)}
+            </button>
+          </span>
+        ))}
+      </small>
+    </FocusableLi>
   );
 }
 
-function EffectsTab({ query, focusType }: { query: string; focusType: string | null }) {
+// ---------- Effects ----------
+
+function EffectsTab({ query, focusId, focusKey }: { query: string; focusId: string | null; focusKey: string }) {
   const rows = useMemo(() => (Object.values(EFFECT_SPECS) as EffectSpec[]).filter((e) =>
     filterMatch(`${e.label} ${e.description} ${e.category}`, query),
   ), [query]);
-  const focusRef = useRef<HTMLLIElement | null>(null);
-  useEffect(() => {
-    // Scroll the focused row into view once after the tab opens. Doesn't
-    // re-fire on query changes — only when focusType is set by the
-    // SkillRow chip click.
-    if (focusType && focusRef.current) {
-      focusRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [focusType]);
   return (
     <ul className="wiki-list">
       {rows.map((effect) => (
-        <li
-          key={effect.type}
-          ref={effect.type === focusType ? focusRef : undefined}
-          className={`wiki-row${effect.type === focusType ? ' wiki-row--focus' : ''}`}
-        >
+        <FocusableLi key={effect.type} isFocus={effect.type === focusId} focusKey={focusKey}>
           <header>
             <strong>{effect.label}</strong>
             <span className="wiki-row-tag">{effect.category}</span>
@@ -397,11 +502,13 @@ function EffectsTab({ query, focusType }: { query: string; focusType: string | n
             Type id: <code>{effect.type}</code>
             {effect.valueUnit ? ` · value unit: ${effect.valueUnit}` : ''}
           </small>
-        </li>
+        </FocusableLi>
       ))}
     </ul>
   );
 }
+
+// ---------- Quests ----------
 
 function QuestsTab({ query }: { query: string }) {
   const rows = useMemo(() => Object.values(QUESTS).filter((q) =>
@@ -434,6 +541,78 @@ function QuestRow({ quest }: { quest: QuestDef }) {
     </li>
   );
 }
+
+// ---------- Stats ----------
+
+function StatsTab({ query, focusId, focusKey }: { query: string; focusId: string | null; focusKey: string }) {
+  const rows = useMemo(() => Object.values(STATS).filter((s) =>
+    filterMatch(`${s.short} ${s.name} ${s.description}`, query),
+  ), [query]);
+  return (
+    <ul className="wiki-list">
+      {rows.map((stat) => <StatRow key={stat.id} stat={stat} isFocus={stat.id === focusId} focusKey={focusKey} />)}
+    </ul>
+  );
+}
+
+function StatRow({ stat, isFocus, focusKey }: { stat: StatDef; isFocus: boolean; focusKey: string }) {
+  return (
+    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
+      <header>
+        <strong>{stat.short} — {stat.name}</strong>
+        {stat.tags && stat.tags.length > 0 && <span className="wiki-row-tag">{stat.tags.join(', ')}</span>}
+      </header>
+      <p>{stat.description}</p>
+    </FocusableLi>
+  );
+}
+
+// ---------- Mobs ----------
+
+function MobsTab({ query, focusId, focusKey, onShowMarker }: { query: string; focusId: string | null; focusKey: string; onShowMarker?: (pos: { x: number; z: number } | null) => void }) {
+  const rows = useMemo(() => listMobTemplates().filter((t) =>
+    filterMatch(`${t.type} ${t.displayName} ${t.family}`, query),
+  ), [query]);
+  return (
+    <ul className="wiki-list">
+      {rows.map((tpl) => {
+        const zones = getMobZones(tpl.type);
+        return (
+          <FocusableLi key={tpl.type} isFocus={tpl.type === focusId} focusKey={focusKey}>
+            <header>
+              <strong>{tpl.displayName}</strong>
+              <span className="wiki-row-tag">{tpl.family}</span>
+            </header>
+            <small className="wiki-row-footer">
+              Type id: <code>{tpl.type}</code>
+            </small>
+            {zones.length === 0 && <small className="wiki-row-footer">No known spawn zone.</small>}
+            {zones.length > 0 && (
+              <small className="wiki-row-footer">
+                Spawns in:{' '}
+                {zones.map((z, i) => (
+                  <span key={z.zone.id}>
+                    {i > 0 && ', '}
+                    <button
+                      type="button"
+                      className="wiki-effect-chip"
+                      onClick={() => onShowMarker?.({ x: z.position.x, z: z.position.z })}
+                      title={`${z.zone.name} (${Math.round(z.position.x)}, ${Math.round(z.position.z)})`}
+                    >
+                      {z.zone.name}
+                    </button>
+                  </span>
+                ))}
+              </small>
+            )}
+          </FocusableLi>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ---------- Shared ----------
 
 function Pair({ k, v }: { k: string; v: string }) {
   return (
