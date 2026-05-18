@@ -146,7 +146,11 @@ export function applySpecializationChange(
     warn(LOG_CATEGORIES.PLAYER, `Player ${player.id} below spec unlock level (${player.level} < ${spec.unlockLevel})`);
     return false;
   }
-  if (player.specializationId === spec.id) return false;
+  // One-way: once a player picks any spec, they're locked in. The
+  // proficiency tier (lv40) layers on top — there's no respec by
+  // design. Comparing against spec.id (instead of any non-null value)
+  // would let the player swap to the sibling spec by re-clicking.
+  if (player.specializationId) return false;
   player.specializationId = spec.id;
   // Spec passive multipliers will feed into refreshPlayerStatsFromEquipment
   // once derivePlayerStats reads them; for now we just record the choice
