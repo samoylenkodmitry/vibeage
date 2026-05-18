@@ -17,6 +17,10 @@ function captureOutbound(): { events: OutboundEvent[]; sink: OutboundEventSink }
 describe('Fix #1: stats broadcast on class/race change', () => {
   it('applyClassChange emits a playerUpdated with the new derived stats', () => {
     const player = createTransientPlayer('s1', 'tester');
+    // Default race (human) doesn't allow warrior post race-class-gate.
+    // Force the race that does, so the class change isn't rejected by
+    // the gate — this test is about the broadcast, not the gate.
+    player.race = 'orc';
     const { events, sink } = captureOutbound();
     const statsBefore = { ...player.stats };
 
@@ -53,6 +57,7 @@ describe('Fix #1: stats broadcast on class/race change', () => {
 describe('Fix #2: switching class actually unlocks the new starter skill', () => {
   it('switching mage → warrior drops fireball, unlocks slash, lets player learn bash', () => {
     const player = createTransientPlayer('s1', 'tester');
+    player.race = 'orc'; // race that allows warrior
     player.level = 3;
     player.availableSkillPoints = 2;
     const { sink } = captureOutbound();
@@ -70,6 +75,7 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
   it('switching mage → rogue unlocks evade (rogue starter)', () => {
     const player = createTransientPlayer('s1', 'tester');
+    player.race = 'dark_elf'; // dark_elf allows rogue
     const { sink } = captureOutbound();
 
     applyClassChange(player, 'rogue', sink);
@@ -79,6 +85,7 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
   it('switching mage → healer unlocks holyLight (healer starter)', () => {
     const player = createTransientPlayer('s1', 'tester');
+    player.race = 'elf'; // elf allows healer
     const { sink } = captureOutbound();
 
     applyClassChange(player, 'healer', sink);
@@ -88,18 +95,23 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
   it('switching BACK to mage re-unlocks fireball (full reset on every switch)', () => {
     const player = createTransientPlayer('s1', 'tester');
+    // Race with both warrior + mage isn't possible post-gate; bounce
+    // race so the gate accepts each class switch in turn.
+    player.race = 'orc'; // allows warrior
     const { sink } = captureOutbound();
 
     applyClassChange(player, 'warrior', sink); // drops fireball, adds slash
-    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack']);
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape']);
 
+    player.race = 'human'; // allows mage
     applyClassChange(player, 'mage', sink); // drops slash, adds fireball
-    expect(player.unlockedSkills).toEqual(['fireball', 'basicAttack']);
+    expect(player.unlockedSkills).toEqual(['fireball', 'basicAttack', 'escape']);
     expect(player.skillShortcuts).toContain('fireball');
   });
 
   it('refunds previously-spent skill points so the player can re-spec for the new class', () => {
     const player = createTransientPlayer('s1', 'tester');
+    player.race = 'orc'; // race allowing warrior
     player.level = 5;
     player.availableSkillPoints = 3;
     const { sink } = captureOutbound();
@@ -111,13 +123,16 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
     applyClassChange(player, 'warrior', sink);
 
-    // Starter + basicAttack are free; the 3 spent points are refunded.
-    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack']);
-    expect(player.availableSkillPoints).toBe(3);
+    // Starter + basicAttack + escape are free; 5 skills minus 3 free
+    // = 2 spent points get refunded (was 3 before Escape became a
+    // universal freebie).
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape']);
+    expect(player.availableSkillPoints).toBe(2);
   });
 
   it('the new starter ends up in the skill bar (first empty shortcut slot)', () => {
     const player = createTransientPlayer('s1', 'tester');
+    player.race = 'orc';
     const { sink } = captureOutbound();
 
     applyClassChange(player, 'warrior', sink);

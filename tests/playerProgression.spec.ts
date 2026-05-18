@@ -37,8 +37,8 @@ describe('player progression hydration', () => {
     const skillShortcuts = normalizeSkillShortcuts(['fireball', null], unlockedSkills);
 
     // Class starter (fireball — defaults to mage) plus the universal
-    // Basic Attack are unconditionally restored on hydrate.
-    expect(unlockedSkills).toEqual(['fireball', 'basicAttack']);
+    // Basic Attack + Escape are unconditionally restored on hydrate.
+    expect(unlockedSkills).toEqual(['fireball', 'basicAttack', 'escape']);
     expect(skillShortcuts.length).toBe(24);
     expect(skillShortcuts[0]).toBe('fireball');
     expect(skillShortcuts.slice(1)).toEqual(Array(23).fill(null));

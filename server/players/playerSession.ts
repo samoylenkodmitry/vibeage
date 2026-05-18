@@ -3,7 +3,13 @@ import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
 import { UNIVERSAL_SKILLS } from '../../packages/content/skills.js';
-import { CHARACTER_RACES, DEFAULT_RACE, type CharacterRace } from '../../packages/content/races.js';
+import {
+  CHARACTER_RACES,
+  DEFAULT_RACE,
+  isClassAllowedForRace,
+  RACE_PROFILES,
+  type CharacterRace,
+} from '../../packages/content/races.js';
 import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';
@@ -77,6 +83,11 @@ function normalizeRace(value: unknown): CharacterRace {
   return DEFAULT_RACE;
 }
 
+function snapClassToRace(className: CharacterClass, race: CharacterRace): CharacterClass {
+  if (isClassAllowedForRace(race, className)) return className;
+  return RACE_PROFILES[race]?.allowedClasses[0] ?? className;
+}
+
 export function upsertActivePlayerSession(state: GameState, spatial: SpatialHashGrid, player: PlayerState): PlayerState {
   const existing = state.players[player.id];
   if (existing) {
@@ -96,9 +107,13 @@ export function findPlayerIdBySocket(state: GameState, socketId: string): string
 
 export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: string): PlayerState {
   const level = normalizePlayerLevel(row.level);
-  const className = normalizeClassName(row.class_name);
-  const unlockedSkills = normalizeUnlockedSkills(row.skills, className);
   const race = normalizeRace(row.race);
+  // Race -> class gate is enforced at hydrate too: a legacy persisted
+  // (human + warrior) record from before the gate landed gets snapped
+  // to the first allowed class for that race, so the player can play
+  // again rather than getting wedged into a class they can never cast.
+  const className = snapClassToRace(normalizeClassName(row.class_name), race);
+  const unlockedSkills = normalizeUnlockedSkills(row.skills, className);
   const derived = derivePlayerStats(level, className, {}, race);
   const starterProgress = normalizeStarterProgressState(row.starter_progress, {
     levelReached: level,

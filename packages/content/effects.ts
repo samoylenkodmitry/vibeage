@@ -139,6 +139,12 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Converts the target into stone (or equivalent) for the duration.',
     category: 'debuff',
   },
+  teleport: {
+    type: 'teleport',
+    label: 'Teleport',
+    description: 'Recalls the caster to the nearest safe village they qualify for.',
+    category: 'utility',
+  },
 };
 
 /**

@@ -1,6 +1,7 @@
 // Direct definitions without imports
 export type SkillId =
   | 'basicAttack'
+  | 'escape'
   | 'fireball'|'iceBolt'|'waterSplash'|'petrify'
   | 'slash'|'powerStrike'|'shieldWall'|'taunt'|'bash'
   | 'holyLight'|'bless'|'dispel'|'smite'|'divineShield'
@@ -13,7 +14,7 @@ export type SkillId =
  * the universal Basic Attack on class change or hydrate. Keep this in
  * sync with the SKILLS catalog.
  */
-export const UNIVERSAL_SKILLS: readonly SkillId[] = ['basicAttack'];
+export const UNIVERSAL_SKILLS: readonly SkillId[] = ['basicAttack', 'escape'];
 export type SkillCategory = 'projectile'|'instant'|'beam'|'aura';
 
 export type SkillEffectType =
@@ -33,7 +34,8 @@ export type SkillEffectType =
   | 'knockback'
   | 'evasion'  // dodge buff
   | 'invisible'
-  | 'transform'; // for stone conversion
+  | 'transform' // for stone conversion
+  | 'teleport'; // recall to nearest village (Escape)
 
 export interface SkillEffect {
   type: SkillEffectType;
@@ -145,6 +147,25 @@ export const SKILLS: Record<SkillId,SkillDef> = {
     autoRepeat: true,
     effects: [
       { type: 'damage', value: 8 },
+    ],
+  },
+  escape: {
+    id: 'escape',
+    name: 'Escape',
+    description: 'Channel for 30 seconds, then teleport back to the nearest safe village.',
+    icon: '/game/skills/skill_melee.svg',
+    cat: 'instant',
+    kind: 'utility',
+    manaCost: 0,
+    castMs: 30_000,
+    cooldownMs: 30 * 60 * 1000,
+    levelRequired: 1,
+    effects: [
+      // Engine reads effect.type === 'teleport' on the caster in
+      // applySkillEffects and routes them to getNearestVillage. value
+      // is unused; durationMs is irrelevant (the teleport is instant
+      // on impact resolution after the 30s channel).
+      { type: 'teleport', value: 0 },
     ],
   },
   fireball: {

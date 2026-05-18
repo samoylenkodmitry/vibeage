@@ -1311,6 +1311,94 @@ input {
   background: rgba(15, 23, 42, 0.7);
 }
 
+.char-tree, .char-tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.char-tree-children {
+  margin: 4px 0 0 12px;
+  padding-left: 8px;
+  border-left: 1px dashed rgba(141, 233, 215, 0.25);
+}
+
+.char-tree-node {
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.char-tree-node--root > .char-tree-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: #c4f1e2;
+}
+
+.char-tree-node--active > .char-tree-button {
+  color: #fde68a;
+}
+
+.char-tree-node--leaf {
+  opacity: 0.95;
+}
+
+.char-tree-node--locked {
+  opacity: 0.5;
+}
+
+.char-tree-label {
+  display: inline-block;
+}
+
+.char-tree-button {
+  background: none;
+  border: 1px solid rgba(141, 233, 215, 0.18);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.char-tree-button:hover:not(:disabled) {
+  border-color: rgba(141, 233, 215, 0.55);
+}
+
+.char-tree-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wiki-tree, .wiki-tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wiki-tree-children {
+  margin: 4px 0 0 14px;
+  padding-left: 8px;
+  border-left: 1px dashed rgba(141, 233, 215, 0.25);
+}
+
+.wiki-tree-node {
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.wiki-tree-node--root > .wiki-tree-label {
+  font-size: 13px;
+  color: #c4f1e2;
+}
+
+.wiki-tree-node--leaf {
+  opacity: 0.85;
+}
+
+.wiki-tree-label {
+  display: inline-block;
+}
+
 .quest-list {
   display: grid;
   gap: 8px;

@@ -7,7 +7,7 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
       {
         id: 'legacy-warrior',
         class_name: 'warrior',
-        race: 'human',
+        race: 'orc',
         skills: ['fireball'],
         skill_shortcuts: ['fireball', null, null, null, null, null, null, null, null],
         available_skill_points: 0,
@@ -35,7 +35,7 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
       {
         id: 'legacy-rogue',
         class_name: 'rogue',
-        race: 'human',
+        race: 'dark_elf',
         skills: ['fireball'],
         skill_shortcuts: ['fireball', null, null, null, null, null, null, null, null],
         available_skill_points: 0,
@@ -67,7 +67,7 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
       {
         id: 'legacy-warrior-with-mage-skills',
         class_name: 'warrior',
-        race: 'human',
+        race: 'orc',
         skills: ['fireball', 'waterSplash'],
         skill_shortcuts: ['fireball', 'waterSplash', null, null, null, null, null, null, null],
         available_skill_points: 0,
@@ -97,7 +97,7 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
       {
         id: 'warrior-with-slash',
         class_name: 'warrior',
-        race: 'human',
+        race: 'orc',
         skills: ['slash', 'bash'],
         skill_shortcuts: ['slash', 'bash', null, null, null, null, null, null, null],
         available_skill_points: 0,

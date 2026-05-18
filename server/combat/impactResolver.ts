@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
+import { getNearestVillage } from '../../packages/content/villages.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
@@ -37,6 +38,9 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'dispel',
   'evasion',
   'invisible',
+  // Escape: counts as beneficial so the impact resolver self-targets
+  // the caster instead of demanding an enemy in range.
+  'teleport',
 ]);
 
 export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld): void {
@@ -212,6 +216,10 @@ function applyCastToTarget(
       isAlive: target.isAlive,
       deathTimeTs: target.deathTimeTs,
       statusEffects: target.statusEffects,
+      // Includes position so the Escape teleport reaches the client
+      // without waiting for the next periodic PosSnap (which would
+      // smooth-interp through the world from the cast spot).
+      position: target.position,
     });
   }
 }
@@ -230,6 +238,25 @@ function applySkillEffects(
     }
     if (effect.type === 'dispel') {
       target.statusEffects = target.statusEffects.filter((existing) => !NEGATIVE_EFFECT_TYPES.has(existing.type));
+      continue;
+    }
+    if (effect.type === 'teleport') {
+      // Engine-driven recall: any beneficial-only self-cast skill
+      // with a 'teleport' effect routes the target (= caster) to the
+      // nearest village that matches their level. No per-name check
+      // — adding another recall skill is content-only. Same dirty-
+      // snap pattern as devTeleport so the next PosSnap broadcasts.
+      if (!isEnemy(target)) {
+        const village = getNearestVillage(target.position, target.level);
+        target.position = { ...village.position };
+        target.velocity = { x: 0, z: 0 };
+        target.movement = {
+          isMoving: false,
+          lastUpdateTime: Date.now(),
+          speed: target.movement?.speed ?? 0,
+        };
+        target.dirtySnap = true;
+      }
       continue;
     }
     upsertStatusEffect(target, effect, skill.id);

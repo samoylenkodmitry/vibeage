@@ -16,6 +16,7 @@ export enum CastState { Casting = 0, Traveling = 1, Impact = 2 }
 // can't silently break casting.
 export const skillIdValues = [
   'basicAttack',
+  'escape',
   'fireball', 'iceBolt', 'waterSplash', 'petrify',
   'slash', 'powerStrike', 'shieldWall', 'taunt', 'bash',
   'holyLight', 'bless', 'dispel', 'smite', 'divineShield',

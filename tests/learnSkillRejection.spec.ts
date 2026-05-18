@@ -72,11 +72,11 @@ describe('learn skill rejections', () => {
   });
 
   test('starterSkillsFor returns the class starter for known classes', () => {
-    // Universal skills (Basic Attack) follow the class starter.
-    expect(starterSkillsFor('warrior')).toEqual(['slash', 'basicAttack']);
-    expect(starterSkillsFor('healer')).toEqual(['holyLight', 'basicAttack']);
-    expect(starterSkillsFor('rogue')).toEqual(['evade', 'basicAttack']);
+    // Universal skills (Basic Attack + Escape) follow the class starter.
+    expect(starterSkillsFor('warrior')).toEqual(['slash', 'basicAttack', 'escape']);
+    expect(starterSkillsFor('healer')).toEqual(['holyLight', 'basicAttack', 'escape']);
+    expect(starterSkillsFor('rogue')).toEqual(['evade', 'basicAttack', 'escape']);
     // Unknown class falls back to the mage starter so the bar is never empty.
-    expect(starterSkillsFor('made-up')).toEqual(['fireball', 'basicAttack']);
+    expect(starterSkillsFor('made-up')).toEqual(['fireball', 'basicAttack', 'escape']);
   });
 });
