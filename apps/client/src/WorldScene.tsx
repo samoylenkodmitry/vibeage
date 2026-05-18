@@ -17,7 +17,7 @@ import {
   PlayerMarker,
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
-import { TargetDestinationMarker } from './SceneVfx';
+import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
 import { getTerrainY } from './worldSceneConfig';
 
 type WorldSceneProps = {
@@ -51,6 +51,16 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
+      {state.bossTelegraphs.map((t) => (
+        <BossTelegraphRing
+          key={`${t.enemyId}-${t.startedAt}`}
+          x={t.x}
+          z={t.z}
+          radius={t.radius}
+          startedAt={t.startedAt}
+          impactAt={t.impactAt}
+        />
+      ))}
       {navigationMarker && <NavigationPin marker={navigationMarker} />}
       {navigationMarker && myPlayer && (
         <NavigationArrow marker={navigationMarker} player={myPlayer.position} />

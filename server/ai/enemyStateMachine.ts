@@ -1,3 +1,4 @@
+import { getMiniBossById } from '../../packages/content/miniBosses.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
@@ -20,6 +21,17 @@ export type EnemyAIEvent =
   | { type: 'log'; message: string }
   | { type: 'enemyAttack'; enemyId: string; targetId: string; damage: number; targetHealth: number }
   | { type: 'packAggro'; packId: string; targetId: string; sourceEnemyId: string }
+  | {
+      type: 'bossTelegraph';
+      enemyId: string;
+      bossName: string;
+      abilityName: string;
+      x: number;
+      z: number;
+      radius: number;
+      windUpMs: number;
+      impactAt: number;
+    }
   | {
       type: 'playerKilled';
       message: string;
@@ -60,6 +72,7 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
 
   if (enemy.isMiniBoss) {
     tickBossProgression(enemy, context.now, progress);
+    tickBossSignature(enemy, context, progress);
   }
 
   // Stun: skip all state actions while a stun effect is active. The
@@ -453,8 +466,124 @@ function resetBossProgression(enemy: Enemy): void {
   enemy.combatStartedTs = undefined;
   enemy.enraged = false;
   enemy.phaseShifted = false;
+  enemy.signatureCastingUntilTs = undefined;
+  enemy.signatureCastTargetX = undefined;
+  enemy.signatureCastTargetZ = undefined;
+  enemy.signatureCastRadius = undefined;
+  enemy.nextSignatureReadyTs = undefined;
   if (enemy.baseAttackDamage !== undefined) enemy.attackDamage = enemy.baseAttackDamage;
   if (enemy.baseMovementSpeed !== undefined) enemy.movementSpeed = enemy.baseMovementSpeed;
+}
+
+/**
+ * PR Q — mini-boss telegraphed signature. One cast per cooldown
+ * window when in attacking/chasing state. Wind-up begins on entry;
+ * impact resolves to an AOE around the cast target snapshot
+ * (target position at cast start). The visual telegraph is
+ * emitted on cast start so the client can render a growing ring;
+ * damage applies via the standard enemyAttack channel so existing
+ * combat-log / damage-number paths reuse.
+ */
+function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
+  if (!enemy.bossId) return;
+  const spec = getMiniBossById(enemy.bossId);
+  const eng = spec?.signatureAbility.engine;
+  if (!spec || !eng) return;
+
+  // Active cast → check for impact.
+  if (enemy.signatureCastingUntilTs !== undefined) {
+    if (context.now >= enemy.signatureCastingUntilTs) {
+      resolveBossSignatureImpact(enemy, eng, spec.name, context, progress);
+      enemy.signatureCastingUntilTs = undefined;
+      enemy.signatureCastTargetX = undefined;
+      enemy.signatureCastTargetZ = undefined;
+      enemy.signatureCastRadius = undefined;
+      enemy.nextSignatureReadyTs = context.now + eng.cooldownMs;
+    }
+    return;
+  }
+
+  // Idle / patrolling / returning: signature only fires in active combat.
+  if (enemy.aiState !== 'attacking' && enemy.aiState !== 'chasing') return;
+
+  // First sight of combat seeds the cooldown so the boss doesn't open
+  // with the signature the very first tick.
+  if (enemy.nextSignatureReadyTs === undefined) {
+    enemy.nextSignatureReadyTs = context.now + Math.min(eng.cooldownMs, 4_000);
+    return;
+  }
+  if (context.now < enemy.nextSignatureReadyTs) return;
+
+  // Aim at the current target's position; if no target, skip.
+  const target = enemy.targetId ? context.players[enemy.targetId] : null;
+  if (!target?.isAlive) return;
+
+  enemy.signatureCastingUntilTs = context.now + eng.windUpMs;
+  enemy.signatureCastTargetX = target.position.x;
+  enemy.signatureCastTargetZ = target.position.z;
+  enemy.signatureCastRadius = eng.radiusUnits;
+  progress.events.push({
+    type: 'bossTelegraph',
+    enemyId: enemy.id,
+    bossName: spec.name,
+    abilityName: spec.signatureAbility.name,
+    x: target.position.x,
+    z: target.position.z,
+    radius: eng.radiusUnits,
+    windUpMs: eng.windUpMs,
+    impactAt: context.now + eng.windUpMs,
+  });
+}
+
+function resolveBossSignatureImpact(
+  enemy: Enemy,
+  eng: { radiusUnits: number; damageMul: number },
+  bossName: string,
+  context: EnemyAIContext,
+  progress: EnemyAIProgress,
+): void {
+  const cx = enemy.signatureCastTargetX ?? enemy.position.x;
+  const cz = enemy.signatureCastTargetZ ?? enemy.position.z;
+  const damage = enemy.attackDamage * eng.damageMul;
+  for (const p of Object.values(context.players)) {
+    if (!p.isAlive) continue;
+    const dx = p.position.x - cx;
+    const dz = p.position.z - cz;
+    if (dx * dx + dz * dz > eng.radiusUnits * eng.radiusUnits) continue;
+    p.health -= damage;
+    let killed = false;
+    if (p.health <= 0) {
+      p.health = 0;
+      p.isAlive = false;
+      p.deathTimeTs = context.now;
+      p.targetId = null;
+      p.castingSkill = null;
+      p.castingProgressMs = 0;
+      killed = true;
+    }
+    progress.events.push({
+      type: 'enemyAttack',
+      enemyId: enemy.id,
+      targetId: p.id,
+      damage,
+      targetHealth: p.health,
+    });
+    if (killed) {
+      progress.events.push({
+        type: 'playerKilled',
+        message: `[BOSS] ${bossName}'s signature killed ${p.id}`,
+        update: {
+          id: p.id,
+          health: p.health,
+          isAlive: p.isAlive,
+          deathTimeTs: p.deathTimeTs,
+          targetId: p.targetId,
+          castingSkill: p.castingSkill,
+          castingProgressMs: p.castingProgressMs,
+        },
+      });
+    }
+  }
 }
 
 function markDirtyIfMotionChanged(

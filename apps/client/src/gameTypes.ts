@@ -227,6 +227,24 @@ export type GameClientState = {
    * different skill cast, or player death.
    */
   autoAttack: AutoAttack | null;
+  /**
+   * Active boss telegraphs. Server broadcasts a BossTelegraph when a
+   * mini-boss begins to channel its signature; the renderer draws a
+   * ring on the ground that grows toward `impactAt`. Entries are
+   * pruned automatically once they're a second past impact.
+   */
+  bossTelegraphs: BossTelegraphEntry[];
+};
+
+export type BossTelegraphEntry = {
+  enemyId: string;
+  bossName: string;
+  abilityName: string;
+  x: number;
+  z: number;
+  radius: number;
+  startedAt: number;
+  impactAt: number;
 };
 
 export type PendingCast = {
