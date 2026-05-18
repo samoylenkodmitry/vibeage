@@ -1165,3 +1165,84 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
   transitions; needs a dedicated shader pass and probably a separate
   skybox geometry. Park behind the current QoL pass; revisit when
   baseline is comfortable.
+
+## 32. Live Run — Quest Expansion Follow-ups (2026-05-18)
+
+User report from prod (PRs #169–#171 deployed). The slice below ships
+in 4 PRs; the loop continues until every box is ticked, CI green, and
+deployed.
+
+### PR D — Bug fixes from prod feedback
+
+- [ ] Race is locked once the player is in the world. Race is chosen
+  only at character creation (see PR D2 below); any in-game `SelectRace`
+  is rejected unless the caller is a GM.
+- [ ] On class change, clear `specializationId` so it doesn't carry
+  over to an incompatible class.
+- [ ] On race change (GM-only, after PR F), clear stale `specializationId`
+  too.
+- [ ] Escape is visible in the Actions panel (universal skills land
+  on the action bar, not only in the shortcut list).
+- [ ] Skill tooltips + Wiki Skills tab + SkillTreePanel show
+  *effective* damage / mana cost / cooldown given the player's current
+  `skillLevels[skillId]` (engine already applies the modifiers;
+  only the display is stale).
+
+### PR D2 — Character creation lobby
+
+- [ ] On login the player sees a Lobby with their existing characters
+  and a "Create New Character" button. Selecting a character + "Enter
+  the World" sends them in; create-new walks them through Race ->
+  Class (filtered by allowedClasses) and persists the choice before
+  enter.
+- [ ] Server: persistence per-account character list (one account ->
+  many characters). Initially: one account = one socket login; this
+  may need a follow-up auth slice — keep this PR scoped to the
+  per-character row + lobby protocol.
+- [ ] Migration + new tables / columns as needed.
+- [ ] Race / initial class are only mutable through the create flow
+  (or via GM after PR F). All in-game `SelectClass` / `SelectRace`
+  are server-rejected for non-GMs.
+
+### PR E — Spec + proficiency content (skills via specs, not code)
+
+- [ ] Extend `Specialization` with `specSkills: SkillId[]` (unlocked
+  at `SPECIALIZATION_UNLOCK_LEVEL`) and `proficiencySkills: SkillId[]`
+  (unlocked at `PROFICIENCY_LEVEL`). Pure data.
+- [ ] Seed 1–2 spec-specific skills per spec; engine reads the spec
+  for gating (no per-spec code branch).
+- [ ] `canPlayerLearnSkill` honours spec gating + level gating.
+- [ ] SkillTreePanel + WikiPanel render spec / proficiency skills with
+  a "spec-locked" badge when the player isn't on that spec.
+
+### PR F — GM panel + GM-gated mutations
+
+- [ ] New GM protocol messages: GrantXp, GrantGold, GrantSp, GrantItem,
+  GrantSkill, SetLevel, SetRace, SetClass, SetSpecialization,
+  SetProficiency.
+- [ ] Server gate: `VIBEAGE_ENABLE_DEV_COMMANDS=1` already exists; reuse
+  it as the GM gate. Log every GM action with target id + verb +
+  value (auditable).
+- [ ] In-game GM panel (new HUD section, only rendered when client
+  detects GM mode). Targets the currently-selected player or self.
+- [ ] Tests for each GM verb (allowed when env on, rejected when off).
+
+### PR G — Wiki polish (clickable everything + Stats + Mobs)
+
+- [ ] Tree tab nodes are clickable: race -> Races tab, class -> Classes
+  tab, spec -> Specs tab (with focus highlight on the row).
+- [ ] Classes tab: each "Tree: skill, skill, …" name is a clickable
+  chip that jumps to Skills tab with focus.
+- [ ] Specs tab: list spec / proficiency skills (from PR E content) as
+  clickable chips that jump to Skills tab.
+- [ ] New **Stats** tab. Pure data catalog of attributes (STR / DEX /
+  CON / INT / WIT / MEN) with one-paragraph descriptions of what
+  each one influences. PlayerPanel stat labels become clickable
+  links that jump to the Stats tab and focus the row.
+- [ ] New **Mobs** tab. Pure data catalog of enemy templates with
+  spawn coordinates pulled from existing spawn definitions. Each
+  row has a "Show on map" button that drops a marker (same
+  mechanism Quest "Show on map" uses).
+- [ ] Everything above lives in `packages/content/*` — no hardcoded
+  strings or numbers in the UI tabs.
+

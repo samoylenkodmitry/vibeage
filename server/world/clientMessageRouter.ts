@@ -15,6 +15,7 @@ import { onUseItem } from '../inventory/itemUse.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
+import { isGmModeEnabled } from '../players/gmMode.js';
 import { applyMoveIntent } from '../movement/moveIntent.js';
 import { sharedMovementFreshness, type StaleIntentReason } from '../movement/staleIntentTracker.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
@@ -163,6 +164,15 @@ function onSelectClass(
   msg: Extract<ClientMessage, { type: 'SelectClass' }>,
   outbound: OutboundEventSink,
 ): void {
+  // Identity is locked once the player is in the world. Race / class
+  // are chosen in the character-creation flow (PR D2); after that
+  // only GMs (VIBEAGE_ENABLE_DEV_COMMANDS=1) can mutate them. The
+  // CharacterPanel still surfaces the buttons for GMs and as a no-op
+  // for non-GMs (server-rejected).
+  if (!isGmModeEnabled()) {
+    warn(LOG_CATEGORIES.PLAYER, `SelectClass rejected (not GM) for ${socket.id}`);
+    return;
+  }
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return;
   const player = state.players[playerId];
@@ -176,6 +186,10 @@ function onSelectRace(
   msg: Extract<ClientMessage, { type: 'SelectRace' }>,
   outbound: OutboundEventSink,
 ): void {
+  if (!isGmModeEnabled()) {
+    warn(LOG_CATEGORIES.PLAYER, `SelectRace rejected (not GM) for ${socket.id}`);
+    return;
+  }
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return;
   const player = state.players[playerId];

@@ -40,6 +40,12 @@ export function applyClassChange(
     return false;
   }
   player.className = className;
+  // Spec belongs to a specific base class (specs are 1:N from class
+  // — e.g. arcanist is mage-only). When the class changes, drop the
+  // old specializationId so the UI shows "pick spec at Lv 20" again
+  // for the new class and the engine doesn't apply mismatched
+  // passives.
+  player.specializationId = null;
   // refreshPlayerStatsFromEquipment also clamps health/mana to the new max
   // when the new class lowers them — see equipHandlers.ts.
   refreshPlayerStatsFromEquipment(player);
@@ -55,6 +61,9 @@ export function applyClassChange(
     unlockedSkills: player.unlockedSkills,
     skillShortcuts: player.skillShortcuts,
     availableSkillPoints: player.availableSkillPoints,
+    // Stale-spec cleared above; broadcast the null so the client
+    // drops the old spec passive label from CharacterPanel.
+    specializationId: player.specializationId,
     // The derived combat stats (pAtk, mAtk, pDef, mDef, crit, etc.)
     // change with class multipliers — broadcast them so the panel reflects
     // the switch immediately, not just HP/MP.
@@ -118,6 +127,12 @@ export function applyRaceChange(
   if (player.race === race) {
     return false;
   }
+  // Race is locked once the player is in the world; only GMs can
+  // mutate it. Character-creation flow (PR D2) will set the initial
+  // race before the player enters; GMs use the dev-commands gate
+  // (VIBEAGE_ENABLE_DEV_COMMANDS=1) the same way devTeleport does.
+  // Caller is responsible for checking the gate before invoking
+  // this helper (router checks the env flag).
   player.race = race;
   // Race gate: if the new race doesn't allow the player's current
   // class, snap them to the first allowed class. resetSkillsForClass
@@ -129,6 +144,10 @@ export function applyRaceChange(
     if (fallback) {
       classSnapped = fallback;
       player.className = fallback;
+      // Class snapped → drop the old spec id too (specs are
+      // class-specific). Mirrors the equivalent line in
+      // applyClassChange.
+      player.specializationId = null;
       resetSkillsForClassChange(player);
     }
   }
@@ -147,6 +166,9 @@ export function applyRaceChange(
     unlockedSkills: player.unlockedSkills,
     skillShortcuts: player.skillShortcuts,
     availableSkillPoints: player.availableSkillPoints,
+    // Include spec id so the client drops the stale spec passive
+    // label when the class got snapped to a different one.
+    specializationId: player.specializationId,
     // Race multipliers feed into derived stats (Lineage-style weights).
     // Broadcast so the panel updates pAtk/mAtk/etc. immediately.
     stats: player.stats,

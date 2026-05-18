@@ -86,6 +86,7 @@ export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillB
           skillId={tooltip.info.payload}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          skillLevel={player?.skillLevels?.[tooltip.info.payload] ?? 1}
         />
       )}
     </section>
