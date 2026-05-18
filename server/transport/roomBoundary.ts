@@ -22,6 +22,7 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'RespawnRequest',
   'LootPickup',
   'UseItem',
+  'CraftItem',
   'RequestInventory',
   'EquipItem',
   'UnequipItem',

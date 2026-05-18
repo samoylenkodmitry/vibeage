@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLASS_PASSIVES } from '../../../../packages/content/classPassives';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/content/classes';
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
-import { ITEMS, type Item } from '../../../../packages/content/items';
 import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
 import { getMiniBossesByMobType } from '../../../../packages/content/miniBosses';
-import { getLootSourcesForItem, resolveLootTableOwner } from '../../../../packages/content/lootSources';
 import { BossesTab } from './WikiBosses';
+import { ItemsTab } from './WikiItems';
 import { LootDropsForTable } from './WikiLoot';
 import { QuestsTab } from './WikiQuests';
+import { RecipesTab } from './WikiRecipes';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
@@ -21,7 +21,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 import { subscribeWikiNav } from './wikiNavBus';
 type WikiTab =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
-  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses';
+  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -35,6 +35,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'stats', label: 'Stats' },
   { id: 'mobs', label: 'Mobs' },
   { id: 'bosses', label: 'Bosses' },
+  { id: 'recipes', label: 'Recipes' },
 ];
 
 type WikiNav = (tab: WikiTab, id: string) => void;
@@ -134,6 +135,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'stats' && <StatsTab query={query} focusId={focusId} focusKey={focusKey} />}
         {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
         {tab === 'bosses' && <BossesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'recipes' && <RecipesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
       </div>
     </section>
   );
@@ -234,85 +236,6 @@ function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isF
         </small>
       ) : null}
     </FocusableLi>
-  );
-}
-
-// ---------- Items ----------
-
-function ItemsTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
-  const rows = useMemo(() => Object.values(ITEMS).filter((i) =>
-    filterMatch(`${i.name} ${i.description} ${i.type ?? ''} ${i.kind ?? ''}`, query),
-  ), [query]);
-  return (
-    <ul className="wiki-list">
-      {rows.map((item) => (
-        <ItemRow key={item.id} item={item} isFocus={item.id === focusId} focusKey={focusKey} navigate={navigate} />
-      ))}
-    </ul>
-  );
-}
-
-function ItemRow({ item, isFocus, focusKey, navigate }: { item: Item; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
-  const stats = item.stats ?? {};
-  return (
-    <FocusableLi isFocus={isFocus} focusKey={focusKey}>
-      <header>
-        <strong>{item.name}</strong>
-        <span className="wiki-row-tag">{item.kind ?? item.type}</span>
-      </header>
-      <p>{item.description}</p>
-      <dl>
-        {stats.pAtk !== undefined && <Pair k="P.Atk" v={`+${stats.pAtk}`} />}
-        {stats.mAtk !== undefined && <Pair k="M.Atk" v={`+${stats.mAtk}`} />}
-        {stats.pDef !== undefined && <Pair k="P.Def" v={`+${stats.pDef}`} />}
-        {stats.mDef !== undefined && <Pair k="M.Def" v={`+${stats.mDef}`} />}
-        {stats.hp !== undefined && <Pair k="HP" v={`+${stats.hp}`} />}
-        {stats.mp !== undefined && <Pair k="MP" v={`+${stats.mp}`} />}
-        {item.attackPower !== undefined && <Pair k="Atk Pwr" v={`+${item.attackPower}`} />}
-        {item.defenseValue !== undefined && item.defenseValue > 0 && <Pair k="Def Val" v={`+${item.defenseValue}`} />}
-        {item.equip && <Pair k="Slot" v={(item.equip.allowedSlots ?? []).join(', ')} />}
-        {item.equip?.handUsage && <Pair k="Hands" v={item.equip.handUsage} />}
-        {item.weight && <Pair k="Weight" v={`${(item.weight / 1000).toFixed(1)} kg`} />}
-        {item.healAmount && <Pair k="Heals" v={`${item.healAmount} HP`} />}
-        {item.manaAmount && <Pair k="Restores" v={`${item.manaAmount} MP`} />}
-        {item.setId && <Pair k="Set" v={item.setId} />}
-        {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
-      </dl>
-      <ItemDropSources itemId={item.id} navigate={navigate} />
-    </FocusableLi>
-  );
-}
-
-function ItemDropSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
-  const sources = getLootSourcesForItem(itemId);
-  if (sources.length === 0) return null;
-  return (
-    <small className="wiki-row-footer">
-      Dropped by:{' '}
-      {sources.map((s, i) => {
-        const owner = resolveLootTableOwner(s.tableId);
-        const label = owner?.kind === 'boss'
-          ? owner.spec.name
-          : owner?.kind === 'mob'
-            ? owner.template.displayName
-            : s.tableId;
-        const onClick = owner?.kind === 'boss'
-          ? () => navigate('bosses', owner.spec.id)
-          : owner?.kind === 'mob'
-            ? () => navigate('mobs', owner.template.type)
-            : undefined;
-        const pct = Math.round(s.chance * 100);
-        const qty = s.quantity.min === s.quantity.max ? `${s.quantity.min}` : `${s.quantity.min}-${s.quantity.max}`;
-        return (
-          <span key={`${s.tableId}-${i}`}>
-            {i > 0 && ', '}
-            <button type="button" className="wiki-effect-chip" onClick={onClick} disabled={!onClick}>
-              {label} ({pct}% · {qty})
-            </button>
-          </span>
-        );
-      })}
-    </small>
   );
 }
 

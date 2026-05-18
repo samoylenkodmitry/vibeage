@@ -41,6 +41,7 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   RespawnRequest: true,
   LootPickup: true,
   UseItem: true,
+  CraftItem: true,
   RequestInventory: true,
   DevTeleport: true,
   ChatRequest: true,

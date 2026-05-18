@@ -12,6 +12,7 @@ import {
   applySpecializationChange,
 } from '../players/playerIdentity.js';
 import { onUseItem } from '../inventory/itemUse.js';
+import { onCraftItem } from '../inventory/craftRecipe.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
@@ -70,6 +71,8 @@ export function handleClientMessage(
       return onRespawnRequest(state, msg, outbound, spatial, socket.id);
     case 'UseItem':
       return onUseItem(socket, direct, state, msg, outbound);
+    case 'CraftItem':
+      return onCraftItem(socket, direct, state, msg, outbound);
     case 'LootPickup':
       return onLootPickup(socket, direct, state, msg, outbound);
     case 'RequestInventory':

@@ -31,6 +31,7 @@ export type ClientActions = {
   pickUpLoot: (lootId: string) => void;
   pickupNearest: () => void;
   useItem: (slotIndex: number) => void;
+  craftItem: (recipeSlotIndex: number) => void;
   equipItem: (slotIndex: number, requestedSlot?: string) => void;
   unequipItem: (slot: string) => void;
   selectClass: (className: string) => void;
@@ -117,15 +118,15 @@ export function useClientActions(
 
   const { pickupNearest, tryFirePendingPickup } = usePickupActions(roomRef, stateRef, dispatch);
 
-  const { learnSkill, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
+  const { learnSkill, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
     useIdentityAndItemActions(roomRef, stateRef);
   const { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand } = useQuestActions(roomRef);
 
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 
@@ -454,6 +455,9 @@ function useIdentityAndItemActions(
   const useItem = useCallback((slotIndex: number) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now() });
   }, [roomRef]);
+  const craftItem = useCallback((recipeSlotIndex: number) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'CraftItem', recipeSlotIndex, clientTs: Date.now() });
+  }, [roomRef]);
   const equipItem = useCallback((slotIndex: number, requestedSlot?: string) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'EquipItem', slotIndex, requestedSlot });
   }, [roomRef]);
@@ -479,7 +483,7 @@ function useIdentityAndItemActions(
       room.send(SESSION_EVENTS.message, { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
     }
   }, [roomRef, stateRef]);
-  return { learnSkill, useItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
+  return { learnSkill, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
 }
 
 function useCommandActions(

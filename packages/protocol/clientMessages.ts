@@ -58,6 +58,12 @@ export const useItemSchema = z.object({
   clientTs: z.number(),
 }).strict();
 
+export const craftItemSchema = z.object({
+  type: z.literal('CraftItem'),
+  recipeSlotIndex: z.number().int().min(0),
+  clientTs: z.number(),
+}).strict();
+
 export const requestInventorySchema = z.object({
   type: z.literal('RequestInventory'),
 }).strict();
@@ -147,6 +153,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   respawnRequestSchema,
   lootPickupSchema,
   useItemSchema,
+  craftItemSchema,
   requestInventorySchema,
   devTeleportSchema,
   chatRequestSchema,
@@ -216,6 +223,12 @@ export type LootPickup = {
 export type UseItem = {
   type: 'UseItem';
   slotIndex: number;
+  clientTs: number;
+};
+
+export type CraftItem = {
+  type: 'CraftItem';
+  recipeSlotIndex: number;
   clientTs: number;
 };
 
@@ -289,6 +302,7 @@ export type ClientMessage =
   | RespawnRequest
   | LootPickup
   | UseItem
+  | CraftItem
   | RequestInventory
   | DevTeleport
   | ChatRequest

@@ -1,3 +1,4 @@
+import { BOSS_GEAR_RECIPE_BY_BOSS } from './bossGear.js';
 import type { Item } from './items.js';
 import type { LootTable } from './lootTables.js';
 
@@ -301,18 +302,24 @@ export const BOSS_TROPHY_ITEMS: Record<string, Item> = {
  * lootTables.ts seam.
  */
 export const BOSS_LOOT_TABLES: Record<string, LootTable> = Object.fromEntries(
-  Object.values(MINI_BOSSES).map((boss) => [
-    boss.lootTableId,
-    {
-      id: boss.lootTableId,
-      drops: [
-        { itemId: 'gold_coin', quantity: { min: 15, max: 40 }, chance: 1.0 },
-        { itemId: 'health_potion', quantity: { min: 2, max: 5 }, chance: 0.85 },
-        { itemId: boss.trophyItemId, quantity: { min: 1, max: 1 }, chance: 1.0 },
-        { itemId: 'worn_sword', quantity: { min: 1, max: 1 }, chance: 0.2 },
-      ],
-    },
-  ]),
+  Object.values(MINI_BOSSES).map((boss) => {
+    const recipeId = BOSS_GEAR_RECIPE_BY_BOSS[boss.id];
+    return [
+      boss.lootTableId,
+      {
+        id: boss.lootTableId,
+        drops: [
+          { itemId: 'gold_coin', quantity: { min: 15, max: 40 }, chance: 1.0 },
+          { itemId: 'health_potion', quantity: { min: 2, max: 5 }, chance: 0.85 },
+          { itemId: boss.trophyItemId, quantity: { min: 1, max: 1 }, chance: 1.0 },
+          // PR U — rare recipe drop. The trophy is guaranteed; the
+          // recipe is the chase reward that unlocks the boss's
+          // signature gear when paired with common materials.
+          ...(recipeId ? [{ itemId: recipeId, quantity: { min: 1, max: 1 }, chance: 0.15 }] : []),
+        ],
+      },
+    ];
+  }),
 );
 
 function trophy(id: string, name: string, description: string): Item {

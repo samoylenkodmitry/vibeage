@@ -12,9 +12,12 @@ type InventoryPanelProps = {
   playerLevel: number;
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number) => void;
+  onCraftItem: (recipeSlotIndex: number) => void;
 };
 
-export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, onEquipItem }: InventoryPanelProps) {
+export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, onEquipItem, onCraftItem }: InventoryPanelProps) {
+  const haveByItem = new Map<string, number>();
+  for (const s of inventory) if (s && s.quantity > 0) haveByItem.set(s.itemId, (haveByItem.get(s.itemId) ?? 0) + s.quantity);
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<string>();
@@ -30,6 +33,13 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
         const item = slot ? ITEMS[slot.itemId] : null;
         const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
         const isEquippable = Boolean(slot && item?.equip);
+        // PR U — recipe items show a Craft affordance when the player
+        // holds every listed input (inclusive of the recipe itself).
+        const recipe = item?.recipe;
+        const hasAllInputs = Boolean(
+          recipe && recipe.inputs.every((inp) => (haveByItem.get(inp.itemId) ?? 0) >= inp.quantity),
+        );
+        const canCraft = Boolean(slot && recipe && hasAllInputs);
         // Grade-driven equip floor: the same rule the server enforces
         // (GRADE_MIN_LEVEL + per-item minLevel). Hiding the button is
         // the UX hint; the server still rejects forged equips.
@@ -39,12 +49,22 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
         const locked = isEquippable && playerLevel < equipMinLevel;
         const canEquip = isEquippable && !locked;
         const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
-        const action = canUse ? 'Use' : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
+        const action = canUse
+          ? 'Use'
+          : canCraft
+            ? 'Craft'
+            : recipe
+              ? 'Need mats'
+              : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
         const title = slot
           ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · hover or long-press for details`
           : 'Empty slot';
 
-        const onClick = canUse ? () => onUseItem(index) : canEquip ? () => onEquipItem(index) : undefined;
+        const onClick = canUse
+          ? () => onUseItem(index)
+          : canCraft
+            ? () => onCraftItem(index)
+            : canEquip ? () => onEquipItem(index) : undefined;
         const triggerProps = slot ? tooltip.triggerProps(slot.itemId) : undefined;
 
         return (
