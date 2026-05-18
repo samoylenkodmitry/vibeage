@@ -100,3 +100,35 @@ describe('quest flow: kill -> talk -> claim', () => {
     expect(player.questState!.active['rats_in_the_cellar'].progress).toBe(0);
   });
 });
+
+describe('boss-hunt quest objective', () => {
+  it('kill_boss ticks only when bossId matches', () => {
+    const player = freshPlayerAt('bounty_broker_mira');
+    const { sink } = captureOutbound();
+    applyAcceptQuest(player, 'bounty_grakk', sink);
+    const entry = () => player.questState!.active['bounty_grakk'];
+
+    // A goblin (not the boss) doesn't progress the stage.
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    expect(entry().progress).toBe(0);
+
+    // Slaying a goblin with the wrong bossId still doesn't progress.
+    onEnemyKilledForQuests(player, 'goblin', sink, 'old_greyfang');
+    expect(entry().progress).toBe(0);
+
+    // Slay Grakk — kill_boss bossId matches.
+    onEnemyKilledForQuests(player, 'goblin', sink, 'grakk');
+    expect(entry().progress).toBe(1);
+
+    // Second kill is idempotent (kill_boss count is always 1).
+    onEnemyKilledForQuests(player, 'goblin', sink, 'grakk');
+    expect(entry().progress).toBe(1);
+
+    // Stage 1 (talk back to Mira) auto-progresses on talk, then claim.
+    expect(applyAdvanceQuest(player, 'bounty_grakk', sink)).toBe(true);
+    expect(entry().stageIndex).toBe(1);
+    onTalkedToNpcForQuests(player, 'bounty_broker_mira', sink);
+    expect(applyAdvanceQuest(player, 'bounty_grakk', sink)).toBe(true);
+    expect(entry().readyToClaim).toBe(true);
+  });
+});

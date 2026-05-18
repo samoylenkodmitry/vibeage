@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import type { PlayerEntity } from '../gameTypes';
@@ -91,15 +92,7 @@ function QuestDetail({
     ?? (stage?.objective.kind === 'reach' ? stage.objective.position : null)
     ?? giver?.position
     ?? null;
-  const objectiveLabel = stage
-    ? stage.objective.kind === 'kill'
-      ? `${entry.progress}/${stage.objective.count} ${stage.objective.enemyType}s`
-      : stage.objective.kind === 'reach'
-        ? entry.progress >= 1 ? 'At waypoint — press Next' : 'Travel to the marker'
-        : stage.objective.kind === 'talk'
-          ? entry.progress >= 1 ? 'Spoke to NPC — press Next' : `Return to ${stage.objective.npcId}`
-          : 'Manual step — press Next when ready'
-    : '';
+  const objectiveLabel = stage ? describeObjective(stage.objective, entry.progress) : '';
   const isLastStage = entry.stageIndex === quest.stages.length - 1;
   return (
     <div className="quest-detail">
@@ -135,4 +128,28 @@ function QuestDetail({
       </div>
     </div>
   );
+}
+
+function describeObjective(
+  objective: QuestDef['stages'][number]['objective'],
+  progress: number,
+): string {
+  switch (objective.kind) {
+    case 'kill':
+      return `${progress}/${objective.count} ${objective.enemyType}s`;
+    case 'kill_boss': {
+      const boss = getMiniBossById(objective.bossId);
+      return progress >= 1
+        ? `${boss?.name ?? objective.bossId} slain — press Next`
+        : `Slay ${boss?.name ?? objective.bossId}`;
+    }
+    case 'reach':
+      return progress >= 1 ? 'At waypoint — press Next' : 'Travel to the marker';
+    case 'talk':
+      return progress >= 1 ? 'Spoke to NPC — press Next' : `Return to ${objective.npcId}`;
+    case 'manual':
+      return 'Manual step — press Next when ready';
+    default:
+      return '';
+  }
 }

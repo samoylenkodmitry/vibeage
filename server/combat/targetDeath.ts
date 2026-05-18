@@ -48,7 +48,7 @@ export function handleTargetDeath(
     // Quest engine: any active quest with a kill objective matching
     // this enemy's `type` ticks up. Single read site — adding more
     // kill quests in QUESTS is content-only.
-    onEnemyKilledForQuests(caster, target.type, context.outbound);
+    onEnemyKilledForQuests(caster, target.type, context.outbound, target.bossId);
 
     if (target.lootTableId) {
       const spawnLoot = context.spawnLoot ?? spawnLootForEnemyDeath;
