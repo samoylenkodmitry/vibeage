@@ -37,6 +37,7 @@ export interface PlayersTable {
   race: DefaultColumn<string>;
   specialization_id: NullableDefaultColumn<string>;
   skill_levels: JsonColumn<Record<string, number>>;
+  quest_state: JsonColumn<unknown>;
   last_login: TimestampColumn;
   last_updated: NullableDefaultColumn<number>;
   updated_at: TimestampColumn;

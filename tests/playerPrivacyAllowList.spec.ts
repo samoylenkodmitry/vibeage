@@ -80,6 +80,7 @@ function makePlayer(id: string, socketId: string): PlayerState {
     isAlive: true,
     inventory: [{ itemId: 'health_potion', quantity: 1 }],
     maxInventorySlots: 20,
+    questState: { active: {}, completed: [] },
   };
   player.characterInventory = createEmptyInventory(id, { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 });
   player.characterInventory.equipment.MAIN_HAND = 'fake-instance-id';

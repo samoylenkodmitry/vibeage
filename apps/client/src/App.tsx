@@ -71,6 +71,11 @@ export default function App() {
         onSelectRace={client.selectRace}
         onSelectSpecialization={client.selectSpecialization}
         onUpgradeSkill={client.upgradeSkill}
+        onTalkNpc={client.talkNpc}
+        onAcceptQuest={client.acceptQuest}
+        onCancelQuest={client.cancelQuest}
+        onAdvanceQuest={client.advanceQuest}
+        onClaimQuestReward={client.claimQuestReward}
         onRespawn={client.respawn}
         onSelectTarget={client.selectTarget}
         onCycleTarget={client.cycleTarget}

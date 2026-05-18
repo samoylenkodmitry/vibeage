@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest';
+import { QUEST_NPCS } from '../packages/content/npcs';
+import { QUESTS } from '../packages/content/quests';
+import {
+  applyAcceptQuest,
+  applyAdvanceQuest,
+  applyCancelQuest,
+  applyClaimQuestReward,
+  onEnemyKilledForQuests,
+  onTalkedToNpcForQuests,
+} from '../server/players/playerQuests';
+import { createTransientPlayer } from '../server/playerFactory';
+import type { OutboundEvent, OutboundEventSink } from '../server/transport/outboundEvents';
+
+function captureOutbound(): { events: OutboundEvent[]; sink: OutboundEventSink } {
+  const events: OutboundEvent[] = [];
+  return { events, sink: { publish: (e) => { events.push(e); } } };
+}
+
+function freshPlayerAt(npcId: string) {
+  const player = createTransientPlayer('s1', 'tester');
+  player.level = 20;
+  const npc = QUEST_NPCS[npcId];
+  if (npc) player.position = { ...npc.position };
+  return player;
+}
+
+describe('quest catalog coverage', () => {
+  it('every quest references an existing NPC', () => {
+    for (const quest of Object.values(QUESTS)) {
+      expect(QUEST_NPCS[quest.npcId], `quest ${quest.id} → ${quest.npcId}`).toBeDefined();
+    }
+  });
+  it('every quest has at least one stage', () => {
+    for (const quest of Object.values(QUESTS)) {
+      expect(quest.stages.length, `quest ${quest.id}`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('quest flow: kill -> talk -> claim', () => {
+  it('completes the rats_in_the_cellar arc end-to-end', () => {
+    const player = freshPlayerAt('warden_galen');
+    const { sink } = captureOutbound();
+
+    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
+    const entry = () => player.questState!.active['rats_in_the_cellar'];
+    expect(entry().stageIndex).toBe(0);
+
+    // 3 goblin kills advance the counter; stage advance once met.
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    expect(entry().progress).toBe(3);
+    expect(applyAdvanceQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(entry().stageIndex).toBe(1);
+
+    // Talk-objective auto-progress + advance becomes claim-ready.
+    onTalkedToNpcForQuests(player, 'warden_galen', sink);
+    expect(applyAdvanceQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(entry().readyToClaim).toBe(true);
+
+    // Claim grants xp and moves quest to completed.
+    const xpBefore = player.experience;
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(player.questState!.active['rats_in_the_cellar']).toBeUndefined();
+    expect(player.questState!.completed).toContain('rats_in_the_cellar');
+    expect(player.experience).toBeGreaterThan(xpBefore);
+  });
+
+  it('rejects accept when the player is not near the giver', () => {
+    const player = createTransientPlayer('s2', 'tester2');
+    player.level = 20;
+    player.position = { x: 9999, y: 0, z: 9999 };
+    const { sink } = captureOutbound();
+    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink)).toBe(false);
+  });
+
+  it('cancel removes the quest from active', () => {
+    const player = freshPlayerAt('warden_galen');
+    const { sink } = captureOutbound();
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    expect(applyCancelQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(player.questState!.active['rats_in_the_cellar']).toBeUndefined();
+  });
+
+  it('advance is a no-op when the objective is not yet met', () => {
+    const player = freshPlayerAt('warden_galen');
+    const { sink } = captureOutbound();
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    // No goblin kills yet — advance must refuse.
+    expect(applyAdvanceQuest(player, 'rats_in_the_cellar', sink)).toBe(false);
+  });
+
+  it('kill hook ignores non-matching enemy types', () => {
+    const player = freshPlayerAt('warden_galen');
+    const { sink } = captureOutbound();
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    onEnemyKilledForQuests(player, 'dragon', sink);
+    expect(player.questState!.active['rats_in_the_cellar'].progress).toBe(0);
+  });
+});

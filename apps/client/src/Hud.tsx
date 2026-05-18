@@ -1,22 +1,14 @@
 import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
-import type { GameClientState, PlayerEntity } from './gameTypes';
-import { ActionsPanel } from './hud/ActionsPanel';
-import { ChatPanel } from './hud/ChatPanel';
-import { CharacterPanel } from './hud/CharacterPanel';
-import { InventoryPanel } from './hud/InventoryPanel';
-import { PaperdollPanel } from './hud/PaperdollPanel';
-import { WikiPanel } from './hud/WikiPanel';
 import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../packages/content/classes';
-import { MapPanel } from './hud/MapPanel';
+import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
+import { HudPanels } from './hud/HudPanels';
+import { NpcDialog } from './hud/NpcDialog';
 import { SkillBar } from './hud/SkillBar';
-import { SkillTreePanel } from './hud/SkillTreePanel';
-import { StarterProgressPanel } from './hud/StarterProgressPanel';
-import { capitalize, DEFAULT_CLASS_NAME } from './hud/textUtils';
-import { useDraggablePanel } from './hud/useDraggablePanel';
+import { capitalize } from './hud/textUtils';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
-import { StatusPills, getDistance, getMeterProgress } from './hud/hudPrimitives';
+import { getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
   BASIC_ATTACK_SKILL_ID,
   getHotkeySkill,
@@ -46,6 +38,11 @@ type GameHudProps = {
   onSelectRace: (race: string) => void;
   onSelectSpecialization: (specializationId: string) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
+  onTalkNpc: (npcId: string) => void;
+  onAcceptQuest: (questId: string) => void;
+  onCancelQuest: (questId: string) => void;
+  onAdvanceQuest: (questId: string) => void;
+  onClaimQuestReward: (questId: string) => void;
   onRespawn: () => void;
   onSelectTarget?: (targetId: string | null) => void;
   onCycleTarget?: () => void;
@@ -128,6 +125,11 @@ export function GameHud({
   onSelectRace,
   onSelectSpecialization,
   onUpgradeSkill,
+  onTalkNpc,
+  onAcceptQuest,
+  onCancelQuest,
+  onAdvanceQuest,
+  onClaimQuestReward,
   onRespawn,
   onSelectTarget,
   onCycleTarget,
@@ -146,6 +148,89 @@ export function GameHud({
 
   useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest);
 
+  return (
+    <>
+      <HudTopStrips
+        state={state}
+        player={player}
+        selfSelected={selfSelected}
+        selectedEnemy={selectedEnemy}
+        selectedOtherPlayer={selectedOtherPlayer}
+        playerCount={playerCount}
+        enemyCount={enemyCount}
+        regionStatus={regionStatus}
+        onDisconnect={onDisconnect}
+        onSelectTarget={onSelectTarget}
+      />
+      <HudPanels
+        panels={panels}
+        state={state}
+        player={player}
+        now={now}
+        hasSelectedTarget={targetIsAlive}
+        hasLootNearby={Object.keys(state.groundLoot).length > 0}
+        cameraAngleRef={cameraAngleRef}
+        navigationMarker={navigationMarker}
+        onSetNavigationMarker={onSetNavigationMarker}
+        onCastSkill={onCastSkill}
+        onLearnSkill={onLearnSkill}
+        onUseItem={onUseItem}
+        onEquipItem={onEquipItem}
+        onUnequipItem={onUnequipItem}
+        onSelectClass={onSelectClass}
+        onSelectRace={onSelectRace}
+        onSelectSpecialization={onSelectSpecialization}
+        onUpgradeSkill={onUpgradeSkill}
+        onCancelQuest={onCancelQuest}
+        onAdvanceQuest={onAdvanceQuest}
+        onClaimQuestReward={onClaimQuestReward}
+        onPickupNearest={onPickupNearest}
+        onSendChat={onSendChat}
+      />
+      <NpcDialog player={player} onTalkNpc={onTalkNpc} onAcceptQuest={onAcceptQuest} />
+      <CastingPanel player={player} />
+      <SkillBar
+        player={player}
+        now={now}
+        hasSelectedTarget={targetIsAlive}
+        onCastSkill={onCastSkill}
+      />
+      <PanelToggleStrip panels={panels} />
+      {state.combatLog.length > 0 && (
+        <section className="combat-log" aria-label="Combat log">
+          {state.combatLog.map((line) => (
+            <span key={line.id}>{line.text}</span>
+          ))}
+        </section>
+      )}
+      {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
+    </>
+  );
+}
+
+function HudTopStrips({
+  state,
+  player,
+  selfSelected,
+  selectedEnemy,
+  selectedOtherPlayer,
+  playerCount,
+  enemyCount,
+  regionStatus,
+  onDisconnect,
+  onSelectTarget,
+}: {
+  state: GameClientState;
+  player: PlayerEntity | null;
+  selfSelected: boolean;
+  selectedEnemy: EnemyEntity | null;
+  selectedOtherPlayer: PlayerEntity | null;
+  playerCount: number;
+  enemyCount: number;
+  regionStatus: string;
+  onDisconnect: () => void;
+  onSelectTarget?: (targetId: string | null) => void;
+}) {
   return (
     <>
       <HudConnectionStrip
@@ -172,44 +257,6 @@ export function GameHud({
         onClose={onSelectTarget ? () => onSelectTarget(null) : undefined}
       />
       <LocationPanel state={state} player={player} />
-      <HudPanels
-        panels={panels}
-        state={state}
-        player={player}
-        now={now}
-        hasSelectedTarget={targetIsAlive}
-        hasLootNearby={Object.keys(state.groundLoot).length > 0}
-        cameraAngleRef={cameraAngleRef}
-        navigationMarker={navigationMarker}
-        onSetNavigationMarker={onSetNavigationMarker}
-        onCastSkill={onCastSkill}
-        onLearnSkill={onLearnSkill}
-        onUseItem={onUseItem}
-        onEquipItem={onEquipItem}
-        onUnequipItem={onUnequipItem}
-        onSelectClass={onSelectClass}
-        onSelectRace={onSelectRace}
-        onSelectSpecialization={onSelectSpecialization}
-        onUpgradeSkill={onUpgradeSkill}
-        onPickupNearest={onPickupNearest}
-        onSendChat={onSendChat}
-      />
-      <CastingPanel player={player} />
-      <SkillBar
-        player={player}
-        now={now}
-        hasSelectedTarget={targetIsAlive}
-        onCastSkill={onCastSkill}
-      />
-      <PanelToggleStrip panels={panels} />
-      {state.combatLog.length > 0 && (
-        <section className="combat-log" aria-label="Combat log">
-          {state.combatLog.map((line) => (
-            <span key={line.id}>{line.text}</span>
-          ))}
-        </section>
-      )}
-      {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
     </>
   );
 }
@@ -256,108 +303,6 @@ function HudWorldStatsStrip({
   );
 }
 
-type HudPanelsProps = {
-  panels: PanelState;
-  state: GameClientState;
-  player: PlayerEntity | null;
-  now: number;
-  hasSelectedTarget: boolean;
-  hasLootNearby: boolean;
-  cameraAngleRef?: MutableRefObject<number>;
-  navigationMarker?: { x: number; z: number } | null;
-  onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
-  onCastSkill: (skillId: SkillId) => void;
-  onLearnSkill: (skillId: SkillId) => void;
-  onUseItem: (slotIndex: number) => void;
-  onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
-  onUnequipItem: (slot: string) => void;
-  onSelectClass: (className: string) => void;
-  onSelectRace: (race: string) => void;
-  onSelectSpecialization: (specializationId: string) => void;
-  onUpgradeSkill: (skillId: SkillId) => void;
-  onPickupNearest?: () => void;
-  onSendChat?: (text: string, scope: 'near' | 'all') => void;
-};
-
-function HudPanels({
-  panels,
-  state,
-  player,
-  now,
-  hasSelectedTarget,
-  hasLootNearby,
-  cameraAngleRef,
-  navigationMarker,
-  onSetNavigationMarker,
-  onCastSkill,
-  onLearnSkill,
-  onUseItem,
-  onEquipItem,
-  onUnequipItem,
-  onSelectClass,
-  onSelectRace,
-  onSelectSpecialization,
-  onUpgradeSkill,
-  onPickupNearest,
-  onSendChat,
-}: HudPanelsProps) {
-  return (
-    <>
-      {panels.statsOpen && <PlayerPanel player={player} />}
-      {panels.questOpen && (
-        <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
-      )}
-      {panels.bagOpen && (
-        <InventoryPanel
-          inventory={state.inventory}
-          maxSlots={state.maxInventorySlots}
-          playerLevel={player?.level ?? 1}
-          onUseItem={onUseItem}
-          onEquipItem={onEquipItem}
-        />
-      )}
-      {panels.gearOpen && (
-        <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
-      )}
-      {panels.characterOpen && (
-        <CharacterPanel
-          player={player} onSelectClass={onSelectClass}
-          onSelectRace={onSelectRace} onSelectSpecialization={onSelectSpecialization}
-        />
-      )}
-      {panels.mapOpen && (
-        <MapPanel
-          player={player}
-          cameraAngleRef={cameraAngleRef}
-          navigationMarker={navigationMarker ?? null}
-          onSetNavigationMarker={onSetNavigationMarker}
-        />
-      )}
-      {panels.treeOpen && (
-        <SkillTreePanel
-          player={player}
-          onLearnSkill={onLearnSkill}
-          onUpgradeSkill={onUpgradeSkill}
-          rejections={state.learnSkillRejections}
-        />
-      )}
-      {panels.actionsOpen && (
-        <ActionsPanel
-          player={player}
-          now={now}
-          hasSelectedTarget={hasSelectedTarget}
-          hasLootNearby={hasLootNearby}
-          onCastSkill={onCastSkill}
-          onPickupNearest={onPickupNearest ?? (() => undefined)}
-        />
-      )}
-      {panels.chatOpen && onSendChat && (
-        <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
-      )}
-      {panels.wikiOpen && <WikiPanel />}
-    </>
-  );
-}
 
 function PanelToggleStrip({ panels }: { panels: PanelState }) {
   return (
@@ -435,92 +380,6 @@ function PanelToggleButton({
     </button>
   );
 }
-
-function PlayerPanel({ player }: { player: PlayerEntity | null }) {
-  const stats = derivePlayerStats(player);
-  const derived = player?.stats ?? {};
-  const panelRef = useDraggablePanel<HTMLElement>('stats');
-  const raceLabel = player?.race ? capitalize(player.race) : '';
-
-  return (
-    <section ref={panelRef} className="hud player-panel" aria-label="Player status">
-      <div className="panel-title">
-        <strong>Stats</strong>
-        <span>{raceLabel ? `${raceLabel} ${stats.className}` : stats.className}</span>
-      </div>
-      <dl className="player-stats">
-        <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
-        <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
-        <div><dt>STR</dt><dd>{derived.str ?? stats.strength}</dd></div>
-        <div><dt>DEX</dt><dd>{derived.dex ?? stats.dexterity}</dd></div>
-        <div><dt>CON</dt><dd>{derived.con ?? stats.constitution}</dd></div>
-        <div><dt>INT</dt><dd>{derived.int ?? stats.intellect}</dd></div>
-        <div><dt>WIT</dt><dd>{derived.wit ?? stats.wit}</dd></div>
-        <div><dt>MEN</dt><dd>{derived.men ?? stats.mental}</dd></div>
-      </dl>
-      {derived.pAtk !== undefined && (
-        <dl className="player-stats player-stats-combat">
-          <div><dt>P.Atk</dt><dd>{derived.pAtk}</dd></div>
-          <div><dt>M.Atk</dt><dd>{derived.mAtk}</dd></div>
-          <div><dt>P.Def</dt><dd>{derived.pDef}</dd></div>
-          <div><dt>M.Def</dt><dd>{derived.mDef}</dd></div>
-          <div><dt>HP/s</dt><dd>{derived.hpRegen}</dd></div>
-          <div><dt>MP/s</dt><dd>{derived.mpRegen}</dd></div>
-          <div><dt>Acc</dt><dd>{derived.accuracy}</dd></div>
-          <div><dt>Evd</dt><dd>{derived.evasion}</dd></div>
-          <div><dt>Atk Spd</dt><dd>{derived.attackSpeed}</dd></div>
-          <div><dt>Cast Spd</dt><dd>{derived.castSpeed?.toFixed(2)}</dd></div>
-          <div><dt>Speed</dt><dd>{derived.runSpeed}</dd></div>
-          <div><dt>Crit %</dt><dd>{derived.critChance ? Math.round(derived.critChance * 100) : 0}</dd></div>
-        </dl>
-      )}
-      <StatusPills effects={player?.statusEffects ?? []} />
-    </section>
-  );
-}
-
-type DerivedStats = {
-  className: string;
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intellect: number;
-  wit: number;
-  mental: number;
-  skillPoints: number;
-  unlockedSkills: number;
-};
-
-function derivePlayerStats(player: PlayerEntity | null): DerivedStats {
-  const className = player?.className ?? DEFAULT_CLASS_NAME;
-  const level = player?.level ?? 1;
-  const weights = STAT_WEIGHTS[className] ?? STAT_WEIGHTS.default;
-  return {
-    className: capitalize(className),
-    strength: 8 + Math.floor(level * weights.str),
-    dexterity: 8 + Math.floor(level * weights.dex),
-    constitution: 8 + Math.floor(level * weights.con),
-    intellect: 8 + Math.floor(level * weights.int),
-    wit: 8 + Math.floor(level * weights.wit),
-    mental: 8 + Math.floor(level * weights.men),
-    skillPoints: player?.availableSkillPoints ?? 0,
-    unlockedSkills: player?.unlockedSkills?.length ?? 0,
-  };
-}
-
-type StatWeights = { str: number; dex: number; con: number; int: number; wit: number; men: number };
-
-const STAT_WEIGHTS: Record<string, StatWeights> = {
-  warrior: { str: 2.4, dex: 1.2, con: 2.0, int: 0.8, wit: 0.8, men: 0.8 },
-  ranger: { str: 1.4, dex: 2.4, con: 1.4, int: 1.0, wit: 1.6, men: 1.0 },
-  mage: { str: 0.8, dex: 1.0, con: 1.0, int: 2.6, wit: 2.2, men: 1.4 },
-  healer: { str: 1.4, dex: 1.0, con: 1.6, int: 2.0, wit: 1.4, men: 2.4 },
-  knight: { str: 2.2, dex: 1.0, con: 2.4, int: 1.0, wit: 0.8, men: 1.0 },
-  paladin: { str: 1.8, dex: 1.0, con: 2.0, int: 1.6, wit: 1.0, men: 2.0 },
-  rogue: { str: 1.4, dex: 2.6, con: 1.2, int: 0.8, wit: 1.6, men: 1.0 },
-  default: { str: 1.5, dex: 1.5, con: 1.5, int: 1.5, wit: 1.5, men: 1.5 },
-};
-
 
 function LocationPanel({
   state,

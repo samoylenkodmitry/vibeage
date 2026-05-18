@@ -48,6 +48,11 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   UnequipItem: true,
   SelectSpecialization: true,
   UpgradeSkill: true,
+  TalkNpc: true,
+  AcceptQuest: true,
+  CancelQuest: true,
+  AdvanceQuest: true,
+  ClaimQuestReward: true,
 };
 const CLIENT_MESSAGE_TYPE_LITERALS = Object.keys(CLIENT_MESSAGE_TYPES) as ClientMessage['type'][];
 

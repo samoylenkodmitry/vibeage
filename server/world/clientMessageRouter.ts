@@ -20,6 +20,13 @@ import { sharedMovementFreshness, type StaleIntentReason } from '../movement/sta
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
 import { onLearnSkill, onSetSkillShortcut } from '../players/playerSkills.js';
+import {
+  applyAcceptQuest,
+  applyAdvanceQuest,
+  applyCancelQuest,
+  applyClaimQuestReward,
+  onTalkedToNpcForQuests,
+} from '../players/playerQuests.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   makeSocketMessageSink,
@@ -80,7 +87,48 @@ export function handleClientMessage(
       return onSelectSpecialization(socket, state, msg, outbound);
     case 'UpgradeSkill':
       return onUpgradeSkill(socket, state, msg, outbound);
+    case 'TalkNpc':
+      return onTalkNpc(socket, state, msg, outbound);
+    case 'AcceptQuest':
+      return onQuestVerb(socket, state, msg, outbound, applyAcceptQuest);
+    case 'CancelQuest':
+      return onQuestVerb(socket, state, msg, outbound, applyCancelQuest);
+    case 'AdvanceQuest':
+      return onQuestVerb(socket, state, msg, outbound, applyAdvanceQuest);
+    case 'ClaimQuestReward':
+      return onQuestVerb(socket, state, msg, outbound, applyClaimQuestReward);
   }
+}
+
+function onTalkNpc(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'TalkNpc' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  // TalkNpc has two roles: gates talk-objective progress and gives
+  // the dialog UI a server-validated "yes you can interact" signal.
+  // The dialog itself is rendered client-side from QUEST_NPCS +
+  // QUESTS content; the server just acks via questState updates.
+  onTalkedToNpcForQuests(player, msg.npcId, outbound);
+}
+
+function onQuestVerb(
+  socket: WorldClient,
+  state: GameState,
+  msg: { type: string; questId: string },
+  outbound: OutboundEventSink,
+  apply: (player: PlayerState, questId: string, outbound: OutboundEventSink) => boolean,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  apply(player, msg.questId, outbound);
 }
 
 function onSelectSpecialization(

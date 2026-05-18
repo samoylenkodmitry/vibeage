@@ -12,6 +12,7 @@ import { CameraRig, type CameraControls } from './CameraRig';
 import {
   CastMarker,
   EnemyMarker,
+  NpcMarkers,
   LootMarker,
   PlayerMarker,
 } from './WorldEntities';
@@ -75,6 +76,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           onAttack={onAttackTarget}
         />
       ))}
+      <NpcMarkers />
+
       {Object.values(state.groundLoot).map((loot) => (
         <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} />
       ))}

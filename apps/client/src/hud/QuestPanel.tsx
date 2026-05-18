@@ -1,0 +1,138 @@
+import { useMemo, useState } from 'react';
+import { QUEST_NPCS } from '../../../../packages/content/npcs';
+import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
+import type { PlayerEntity } from '../gameTypes';
+import { useDraggablePanel } from './useDraggablePanel';
+
+type QuestPanelProps = {
+  player: PlayerEntity | null;
+  onCancelQuest: (questId: string) => void;
+  onAdvanceQuest: (questId: string) => void;
+  onClaimQuestReward: (questId: string) => void;
+  onShowMarker: (pos: { x: number; z: number } | null) => void;
+};
+
+export function QuestPanel({
+  player,
+  onCancelQuest,
+  onAdvanceQuest,
+  onClaimQuestReward,
+  onShowMarker,
+}: QuestPanelProps) {
+  const panelRef = useDraggablePanel<HTMLElement>('quest');
+  const activeIds = useMemo(() => Object.keys(player?.questState?.active ?? {}), [player?.questState]);
+  const completed = player?.questState?.completed ?? [];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedQuest = selectedId ? QUESTS[selectedId] : null;
+  const selectedEntry = selectedId ? player?.questState?.active?.[selectedId] : null;
+
+  return (
+    <section ref={panelRef} className="quest-panel" aria-label="Quests">
+      <div className="panel-title">
+        <strong>Quests</strong>
+        <span>{activeIds.length} active · {completed.length} done</span>
+      </div>
+      <div className="quest-panel-body">
+        <ul className="quest-list">
+          {activeIds.length === 0 && (
+            <li className="quest-list-empty">No active quests. Find an NPC with a quest mark.</li>
+          )}
+          {activeIds.map((id) => {
+            const quest = QUESTS[id];
+            const entry = player?.questState?.active?.[id];
+            if (!quest || !entry) return null;
+            const ready = entry.readyToClaim ?? false;
+            return (
+              <li
+                key={id}
+                className={`quest-list-item${selectedId === id ? ' quest-list-item--selected' : ''}${ready ? ' quest-list-item--ready' : ''}`}
+              >
+                <button type="button" className="quest-list-button" onClick={() => setSelectedId(id)}>
+                  <strong>{quest.name}</strong>
+                  <small>{quest.stages[entry.stageIndex]?.description ?? 'Complete!'}</small>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {selectedQuest && selectedEntry && (
+          <QuestDetail
+            quest={selectedQuest}
+            entry={selectedEntry}
+            onCancel={() => { onCancelQuest(selectedQuest.id); setSelectedId(null); }}
+            onAdvance={() => onAdvanceQuest(selectedQuest.id)}
+            onClaim={() => onClaimQuestReward(selectedQuest.id)}
+            onShowMarker={onShowMarker}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function QuestDetail({
+  quest,
+  entry,
+  onCancel,
+  onAdvance,
+  onClaim,
+  onShowMarker,
+}: {
+  quest: QuestDef;
+  entry: { stageIndex: number; progress: number; readyToClaim?: boolean };
+  onCancel: () => void;
+  onAdvance: () => void;
+  onClaim: () => void;
+  onShowMarker: (pos: { x: number; z: number } | null) => void;
+}) {
+  const stage = quest.stages[entry.stageIndex];
+  const giver = QUEST_NPCS[quest.npcId];
+  const markerPos = stage?.marker
+    ?? (stage?.objective.kind === 'reach' ? stage.objective.position : null)
+    ?? giver?.position
+    ?? null;
+  const objectiveLabel = stage
+    ? stage.objective.kind === 'kill'
+      ? `${entry.progress}/${stage.objective.count} ${stage.objective.enemyType}s`
+      : stage.objective.kind === 'reach'
+        ? entry.progress >= 1 ? 'At waypoint — press Next' : 'Travel to the marker'
+        : stage.objective.kind === 'talk'
+          ? entry.progress >= 1 ? 'Spoke to NPC — press Next' : `Return to ${stage.objective.npcId}`
+          : 'Manual step — press Next when ready'
+    : '';
+  const isLastStage = entry.stageIndex === quest.stages.length - 1;
+  return (
+    <div className="quest-detail">
+      <header><strong>{quest.name}</strong></header>
+      <p>{quest.description}</p>
+      {giver && <small>From: {giver.name}</small>}
+      <div className="quest-detail-stage">
+        <strong>Stage {entry.stageIndex + 1}/{quest.stages.length}: {stage?.description}</strong>
+        <small>{objectiveLabel}</small>
+      </div>
+      <div className="quest-detail-rewards">
+        <small>
+          Reward:
+          {quest.reward.xp ? ` ${quest.reward.xp} XP` : ''}
+          {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
+          {quest.reward.items?.length ? ` · ${quest.reward.items.length} item(s)` : ''}
+        </small>
+      </div>
+      <div className="quest-detail-actions">
+        <button type="button" onClick={onCancel}>Cancel</button>
+        {markerPos && (
+          <button type="button" onClick={() => onShowMarker({ x: markerPos.x, z: markerPos.z })}>
+            Show on map
+          </button>
+        )}
+        {entry.readyToClaim ? (
+          <button type="button" className="quest-claim" onClick={onClaim}>Claim reward</button>
+        ) : (
+          <button type="button" onClick={onAdvance}>
+            {isLastStage ? 'Done' : 'Next'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

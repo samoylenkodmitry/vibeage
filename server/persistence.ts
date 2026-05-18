@@ -30,6 +30,7 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'starter_progress',
   'specialization_id',
   'skill_levels',
+  'quest_state',
   'last_updated',
 ] as const;
 
@@ -49,6 +50,7 @@ export const STABLE_PLAYER_STATE_FIELDS = [
   'starterProgress',
   'specializationId',
   'skillLevels',
+  'questState',
 ] as const satisfies ReadonlyArray<keyof PlayerState>;
 
 export const PLAYER_IDENTITY_STATE_FIELDS = [
@@ -129,6 +131,7 @@ export function buildStablePlayerPersistenceData(
     starter_progress: starterProgress,
     specialization_id: player.specializationId ?? null,
     skill_levels: player.skillLevels ?? {},
+    quest_state: player.questState ?? { active: {}, completed: [] },
     last_updated: timestamp,
   };
 }

@@ -18,6 +18,10 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
   // players must only see a public equipment-visual DTO (planned), never
   // every item instance the owner has.
   'characterInventory',
+  // Owner-only: quest progress isn't shown to nearby players. Other
+  // people seeing your quest log would surface griefable info ("they
+  // need to kill 3 more goblins; let me intervene").
+  'questState',
 ] as const;
 export const CLIENT_GAME_STATE_FIELDS = [
   'players',
