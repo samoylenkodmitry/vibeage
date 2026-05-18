@@ -1507,6 +1507,28 @@ input {
 .gm-row-input--small { width: 50px; }
 .gm-row button { padding: 3px 6px; cursor: pointer; }
 
+.lobby-heading { margin: 12px 0 8px; font-size: 14px; }
+.lobby-empty { opacity: 0.7; margin: 4px 0 12px; }
+.lobby-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.lobby-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(141, 233, 215, 0.25);
+  border-radius: 6px;
+  align-items: center;
+}
+.lobby-card-main { display: grid; gap: 2px; }
+.lobby-card-actions { display: flex; gap: 4px; }
+.lobby-card-actions button { padding: 4px 8px; cursor: pointer; }
+.lobby-card-delete { opacity: 0.7; }
+.lobby-card-delete:hover { opacity: 1; }
+.lobby-create { margin-top: 12px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
+.lobby-note { display: block; margin-top: 8px; opacity: 0.6; font-size: 11px; }
+.lobby-error { color: #fca5a5; }
+.lobby-form-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: space-between; }
+
 .quest-list {
   display: grid;
   gap: 8px;

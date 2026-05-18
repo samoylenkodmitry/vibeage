@@ -7,10 +7,16 @@ import type {
   AuthoritativeRoomSocket,
 } from './roomBoundary.js';
 
+export type JoinClientOptions = {
+  /** Lobby-picked race + class; server uses on first character spawn. */
+  initialRace?: string;
+  initialClass?: string;
+};
+
 export type SocketBackedWorldApi = {
   handleMessage(socket: AuthoritativeRoomSocket, msg: ClientMessage): void;
   getGameState(): GameState;
-  addPlayer(socketId: string, name: string): Promise<GameState['players'][string]>;
+  addPlayer(socketId: string, name: string, options?: JoinClientOptions): Promise<GameState['players'][string]>;
   removePlayerBySocketId(socketId: string): Promise<string | undefined>;
 };
 
@@ -23,9 +29,10 @@ export class SocketBackedAuthoritativeRoom implements AuthoritativeRoomPort {
     socketId: string,
     playerName: string,
     client?: AuthoritativeRoomClient,
+    options?: JoinClientOptions,
   ): Promise<{ playerId: string }> {
     this.setClient(socketId, client);
-    const player = await this.world.addPlayer(socketId, playerName);
+    const player = await this.world.addPlayer(socketId, playerName, options);
     return { playerId: player.id };
   }
 

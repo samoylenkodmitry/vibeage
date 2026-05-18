@@ -119,8 +119,8 @@ function createWorldApi(
       return tryGiveLoot(state, outbound, playerId, lootId);
     },
     
-    async addPlayer(socketId: string, name: string) {
-      return addPlayerSession(state, spatial, socketId, name);
+    async addPlayer(socketId: string, name: string, options?: { initialRace?: string; initialClass?: string }) {
+      return addPlayerSession(state, spatial, socketId, name, options);
     },
     
     async removePlayerBySocketId(socketId: string) {

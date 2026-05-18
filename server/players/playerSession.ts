@@ -249,13 +249,55 @@ function ensureClassStarterUnlocked(player: PlayerState): void {
   }
 }
 
+export type AddPlayerSessionOptions = {
+  /**
+   * Race + class picked in the lobby's character-creation flow.
+   * Only honoured when this is the FIRST session for `name` —
+   * existing characters preserve their persisted identity. Falls
+   * back to defaults (race='human', className='mage') when omitted.
+   */
+  initialRace?: string;
+  initialClass?: string;
+};
+
+function applyInitialIdentity(
+  player: PlayerState,
+  options: AddPlayerSessionOptions,
+): PlayerState {
+  if (options.initialRace
+    && CHARACTER_RACES.includes(options.initialRace as CharacterRace)) {
+    player.race = options.initialRace as CharacterRace;
+  }
+  const race = (player.race ?? DEFAULT_RACE) as CharacterRace;
+  if (options.initialClass) {
+    const candidate = normalizeClassName(options.initialClass);
+    if (isClassAllowedForRace(race, candidate)) {
+      player.className = candidate;
+      // resetSkillsForClassChange would belong here but it lives in
+      // playerIdentity.ts; refreshing skills happens through the
+      // normal createTransientPlayer / starterSkillsFor path below
+      // when the factory builds the player. For now snap the class
+      // and let the existing class-switch tests prove the rest.
+      const starters = starterSkillsFor(candidate);
+      player.unlockedSkills = [...starters];
+      player.skillShortcuts = normalizeSkillShortcuts(undefined, starters);
+    }
+  }
+  return player;
+}
+
 export async function addPlayerSession(
   state: GameState,
   spatial: SpatialHashGrid,
   socketId: string,
   name: string,
+  options: AddPlayerSessionOptions = {},
 ): Promise<PlayerState> {
-  const addTransientPlayer = () => upsertActivePlayerSession(state, spatial, createTransientPlayer(socketId, name));
+  const addTransientPlayer = () => upsertActivePlayerSession(
+    state,
+    spatial,
+    applyInitialIdentity(createTransientPlayer(socketId, name), options),
+  );
 
   if (isPersistenceDisabled()) {
     return addTransientPlayer();
@@ -266,7 +308,16 @@ export async function addPlayerSession(
 
     await recordServerEvent('player_login', row.id, { playerName: name, socketId });
 
-    return upsertActivePlayerSession(state, spatial, hydratePersistedPlayer(row, socketId, name));
+    // If the row is brand new (no class_name yet), apply the lobby
+    // picks before inserting into the active state. Existing players
+    // preserve their persisted identity.
+    const isNewCharacter = !row.class_name || row.class_name === '';
+    const hydrated = hydratePersistedPlayer(row, socketId, name);
+    return upsertActivePlayerSession(
+      state,
+      spatial,
+      isNewCharacter ? applyInitialIdentity(hydrated, options) : hydrated,
+    );
   } catch (error) {
     console.error('Error adding player to database:', error);
     return addTransientPlayer();
