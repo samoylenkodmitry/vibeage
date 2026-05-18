@@ -311,6 +311,7 @@ function HudPanels({
         <InventoryPanel
           inventory={state.inventory}
           maxSlots={state.maxInventorySlots}
+          playerLevel={player?.level ?? 1}
           onUseItem={onUseItem}
           onEquipItem={onEquipItem}
         />

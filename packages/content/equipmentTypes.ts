@@ -75,6 +75,31 @@ export type ItemKind =
 
 export type ItemGrade = 'none' | 'd' | 'c' | 'b' | 'a' | 's';
 
+/**
+ * Minimum player level required to equip an item of a given grade.
+ * Acts as a floor: an item's own `equip.requirements.minLevel`
+ * (per-item tuning) is OR'd with this — the higher value wins. So a
+ * D-grade sword tuned for level 5 is still equippable at 5, but the
+ * cheap "any D sword" baseline is 8. The grade itself never lets a
+ * lv1 player wear an S-grade chestpiece.
+ *
+ * Numbers picked to mirror the L2-style D/C/B/A/S progression in a
+ * 1–80 level band.
+ */
+export const GRADE_MIN_LEVEL: Record<ItemGrade, number> = {
+  none: 1,
+  d: 8,
+  c: 20,
+  b: 36,
+  a: 52,
+  s: 68,
+};
+
+/** Effective level floor for an item, combining grade + per-item override. */
+export function getEffectiveMinLevel(grade: ItemGrade, perItemMinLevel?: number): number {
+  return Math.max(GRADE_MIN_LEVEL[grade] ?? 1, perItemMinLevel ?? 0);
+}
+
 export type ItemFlag = 'bound' | 'questItem' | 'uniqueEquipped' | 'destroyOnLogout';
 
 export type EquipRequirements = {

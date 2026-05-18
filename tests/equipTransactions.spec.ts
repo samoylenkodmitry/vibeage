@@ -7,7 +7,9 @@ import { equipItem, unequipSlot } from '../packages/sim/equipTransactions';
 import { addItems } from '../packages/sim/inventoryTransactions';
 
 const limits = { baseSlots: 12, bonusSlots: 0, maxWeight: 100_000 };
-const context = { level: 10, className: 'warrior' as const };
+// High enough to satisfy GRADE_MIN_LEVEL.s (68); test items in this
+// suite include c/a/s gear and the grade gate is enforced by equipItem.
+const context = { level: 80, className: 'warrior' as const };
 
 let counter = 0;
 const services = () => ({

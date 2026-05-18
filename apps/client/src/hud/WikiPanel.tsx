@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLASS_PASSIVES } from '../../../../packages/content/classPassives';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/content/classes';
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
@@ -28,6 +28,14 @@ export function WikiPanel() {
   const panelRef = useDraggablePanel<HTMLElement>('wiki');
   const [tab, setTab] = useState<WikiTab>('skills');
   const [query, setQuery] = useState('');
+  // When a SkillRow effect chip is clicked we jump to the Effects tab
+  // and scroll the matching entry into view. Setting focusEffect here
+  // lets EffectsTab pick it up on mount and do the scroll once.
+  const [focusEffect, setFocusEffect] = useState<string | null>(null);
+  const openEffect = (effectType: string) => {
+    setFocusEffect(effectType);
+    setTab('effects');
+  };
 
   return (
     <section ref={panelRef} className="wiki-panel" aria-label="Content reference">
@@ -57,13 +65,13 @@ export function WikiPanel() {
         aria-label="Filter content reference"
       />
       <div className="wiki-body">
-        {tab === 'skills' && <SkillsTab query={query} />}
+        {tab === 'skills' && <SkillsTab query={query} onOpenEffect={openEffect} />}
         {tab === 'items' && <ItemsTab query={query} />}
         {tab === 'tree' && <TreeTab query={query} />}
         {tab === 'classes' && <ClassesTab query={query} />}
         {tab === 'specs' && <SpecsTab query={query} />}
         {tab === 'races' && <RacesTab query={query} />}
-        {tab === 'effects' && <EffectsTab query={query} />}
+        {tab === 'effects' && <EffectsTab query={query} focusType={focusEffect} />}
       </div>
     </section>
   );
@@ -74,18 +82,18 @@ function filterMatch(haystack: string, needle: string): boolean {
   return haystack.toLowerCase().includes(needle.toLowerCase());
 }
 
-function SkillsTab({ query }: { query: string }) {
+function SkillsTab({ query, onOpenEffect }: { query: string; onOpenEffect: (effectType: string) => void }) {
   const rows = useMemo(() => Object.values(SKILLS).filter((s) =>
     filterMatch(`${s.name} ${s.description} ${s.kind ?? ''}`, query),
   ), [query]);
   return (
     <ul className="wiki-list">
-      {rows.map((skill) => <SkillRow key={skill.id} skill={skill} />)}
+      {rows.map((skill) => <SkillRow key={skill.id} skill={skill} onOpenEffect={onOpenEffect} />)}
     </ul>
   );
 }
 
-function SkillRow({ skill }: { skill: SkillDef }) {
+function SkillRow({ skill, onOpenEffect }: { skill: SkillDef; onOpenEffect: (effectType: string) => void }) {
   return (
     <li className="wiki-row">
       <header>
@@ -106,12 +114,26 @@ function SkillRow({ skill }: { skill: SkillDef }) {
       </dl>
       {skill.effects.length > 0 && (
         <small className="wiki-row-footer">
-          Applies: {skill.effects.map((e) => {
+          Applies:{' '}
+          {skill.effects.map((e, i) => {
             const spec = EFFECT_SPECS[e.type];
             const unit = spec?.valueUnit ? ` ${spec.valueUnit}` : '';
             const duration = e.durationMs ? ` for ${(e.durationMs / 1000).toFixed(1)}s` : '';
-            return `${spec?.label ?? e.type}(${e.value}${unit}${duration})`;
-          }).join(', ')}
+            return (
+              <span key={e.type + i}>
+                {i > 0 && ', '}
+                <button
+                  type="button"
+                  className="wiki-effect-chip"
+                  onClick={() => onOpenEffect(e.type)}
+                  title={spec?.description ?? 'Click for details'}
+                >
+                  {spec?.label ?? e.type}
+                </button>
+                {`(${e.value}${unit}${duration})`}
+              </span>
+            );
+          })}
         </small>
       )}
       {skill.upgrades?.length ? (
@@ -337,14 +359,27 @@ function RaceRow({ race }: { race: CharacterRace }) {
   );
 }
 
-function EffectsTab({ query }: { query: string }) {
+function EffectsTab({ query, focusType }: { query: string; focusType: string | null }) {
   const rows = useMemo(() => (Object.values(EFFECT_SPECS) as EffectSpec[]).filter((e) =>
     filterMatch(`${e.label} ${e.description} ${e.category}`, query),
   ), [query]);
+  const focusRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    // Scroll the focused row into view once after the tab opens. Doesn't
+    // re-fire on query changes — only when focusType is set by the
+    // SkillRow chip click.
+    if (focusType && focusRef.current) {
+      focusRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusType]);
   return (
     <ul className="wiki-list">
       {rows.map((effect) => (
-        <li key={effect.type} className="wiki-row">
+        <li
+          key={effect.type}
+          ref={effect.type === focusType ? focusRef : undefined}
+          className={`wiki-row${effect.type === focusType ? ' wiki-row--focus' : ''}`}
+        >
           <header>
             <strong>{effect.label}</strong>
             <span className="wiki-row-tag">{effect.category}</span>
