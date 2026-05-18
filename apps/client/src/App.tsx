@@ -76,6 +76,7 @@ export default function App() {
         onCancelQuest={client.cancelQuest}
         onAdvanceQuest={client.advanceQuest}
         onClaimQuestReward={client.claimQuestReward}
+        onGmCommand={client.gmCommand}
         onRespawn={client.respawn}
         onSelectTarget={client.selectTarget}
         onCycleTarget={client.cycleTarget}

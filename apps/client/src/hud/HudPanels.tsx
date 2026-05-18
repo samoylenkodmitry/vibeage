@@ -12,6 +12,7 @@ import { SkillTreePanel } from './SkillTreePanel';
 import { StarterProgressPanel } from './StarterProgressPanel';
 import { QuestPanel } from './QuestPanel';
 import { PlayerPanel } from './PlayerPanel';
+import { GmPanel } from './GmPanel';
 
 export type HudPanelToggleState = {
   statsOpen: boolean;
@@ -24,6 +25,7 @@ export type HudPanelToggleState = {
   actionsOpen: boolean;
   chatOpen: boolean;
   wikiOpen: boolean;
+  gmOpen: boolean;
 };
 
 export type HudPanelsProps = {
@@ -48,6 +50,14 @@ export type HudPanelsProps = {
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
+  onGmCommand: (cmd: {
+    verb:
+      | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
+      | 'setLevel' | 'setRace' | 'setClass' | 'setSpecialization';
+    value: number | string;
+    targetId?: string;
+    quantity?: number;
+  }) => void;
   onPickupNearest?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
@@ -74,6 +84,7 @@ export function HudPanels({
   onCancelQuest,
   onAdvanceQuest,
   onClaimQuestReward,
+  onGmCommand,
   onPickupNearest,
   onSendChat,
 }: HudPanelsProps) {
@@ -140,6 +151,9 @@ export function HudPanels({
         <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
       )}
       {panels.wikiOpen && <WikiPanel />}
+      {panels.gmOpen && (
+        <GmPanel player={player} selectedTargetId={state.selectedTargetId} onGmCommand={onGmCommand} />
+      )}
     </>
   );
 }

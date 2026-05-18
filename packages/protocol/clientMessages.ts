@@ -122,6 +122,22 @@ export const claimQuestRewardSchema = z.object({
   questId: z.string(),
 }).strict();
 
+// ---- GM commands. Server gates by VIBEAGE_ENABLE_DEV_COMMANDS. -----
+// targetId omitted = the caller (most common: a GM modifying their
+// own test character). Each verb is a flat shape so the audit log
+// can capture verb + value cleanly.
+export const gmCommandSchema = z.object({
+  type: z.literal('GmCommand'),
+  targetId: z.string().optional(),
+  verb: z.enum([
+    'grantXp', 'grantGold', 'grantSp', 'grantItem', 'grantSkill',
+    'setLevel', 'setRace', 'setClass', 'setSpecialization',
+  ]),
+  value: z.union([z.number(), z.string()]),
+  // Optional quantity for grantItem; defaults to 1.
+  quantity: z.number().optional(),
+}).strict();
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
@@ -144,6 +160,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   cancelQuestSchema,
   advanceQuestSchema,
   claimQuestRewardSchema,
+  gmCommandSchema,
 ]);
 
 export type MoveIntent = {
@@ -249,6 +266,20 @@ export type CancelQuest = { type: 'CancelQuest'; questId: string };
 export type AdvanceQuest = { type: 'AdvanceQuest'; questId: string };
 export type ClaimQuestReward = { type: 'ClaimQuestReward'; questId: string };
 
+export type GmCommandVerb =
+  | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
+  | 'setLevel' | 'setRace' | 'setClass' | 'setSpecialization';
+
+export type GmCommand = {
+  type: 'GmCommand';
+  /** Target player id; defaults to the caller when omitted. */
+  targetId?: string;
+  verb: GmCommandVerb;
+  value: number | string;
+  /** Quantity for grantItem (defaults to 1). */
+  quantity?: number;
+};
+
 export type ClientMessage =
   | MoveIntent
   | CastReq
@@ -270,4 +301,5 @@ export type ClientMessage =
   | AcceptQuest
   | CancelQuest
   | AdvanceQuest
-  | ClaimQuestReward;
+  | ClaimQuestReward
+  | GmCommand;

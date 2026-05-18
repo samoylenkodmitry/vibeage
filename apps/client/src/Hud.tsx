@@ -43,6 +43,14 @@ type GameHudProps = {
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
+  onGmCommand: (cmd: {
+    verb:
+      | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
+      | 'setLevel' | 'setRace' | 'setClass' | 'setSpecialization';
+    value: number | string;
+    targetId?: string;
+    quantity?: number;
+  }) => void;
   onRespawn: () => void;
   onSelectTarget?: (targetId: string | null) => void;
   onCycleTarget?: () => void;
@@ -130,6 +138,7 @@ export function GameHud({
   onCancelQuest,
   onAdvanceQuest,
   onClaimQuestReward,
+  onGmCommand,
   onRespawn,
   onSelectTarget,
   onCycleTarget,
@@ -184,6 +193,7 @@ export function GameHud({
         onCancelQuest={onCancelQuest}
         onAdvanceQuest={onAdvanceQuest}
         onClaimQuestReward={onClaimQuestReward}
+        onGmCommand={onGmCommand}
         onPickupNearest={onPickupNearest}
         onSendChat={onSendChat}
       />
@@ -317,6 +327,7 @@ function PanelToggleStrip({ panels }: { panels: PanelState }) {
       <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
       <PanelToggleButton open={panels.chatOpen} label="Chat" onClick={panels.toggleChat} />
       <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
+      <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />
     </aside>
   );
 }
@@ -336,6 +347,7 @@ function usePanelState() {
   const [actionsOpen, setActionsOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [wikiOpen, setWikiOpen] = useState(false);
+  const [gmOpen, setGmOpen] = useState(false);
   return {
     statsOpen,
     characterOpen,
@@ -347,6 +359,7 @@ function usePanelState() {
     actionsOpen,
     chatOpen,
     wikiOpen,
+    gmOpen,
     toggleStats: () => setStatsOpen((prev) => !prev),
     toggleCharacter: () => setCharacterOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
@@ -357,6 +370,7 @@ function usePanelState() {
     toggleActions: () => setActionsOpen((prev) => !prev),
     toggleChat: () => setChatOpen((prev) => !prev),
     toggleWiki: () => setWikiOpen((prev) => !prev),
+    toggleGm: () => setGmOpen((prev) => !prev),
   };
 }
 
