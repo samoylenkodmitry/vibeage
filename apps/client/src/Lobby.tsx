@@ -159,7 +159,6 @@ export function Lobby({
 }
 
 function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -170,14 +169,17 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch(`/api/auth/${mode}`, {
+      // Single-button auth: server registers if the login is new,
+      // logs in otherwise. Removes the manual "did I already
+      // register?" choice.
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ login, password }),
       });
       const body = (await res.json().catch(() => ({}))) as { token?: string; login?: string; error?: string };
       if (!res.ok || !body.token) {
-        setError(body.error ?? `Auth failed (${res.status})`);
+        setError(humanReadableAuthError(body.error, res.status));
         return;
       }
       onAuth({ token: body.token, login: body.login ?? login });
@@ -192,21 +194,29 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
     <main className="start-screen">
       <form className="start-panel" onSubmit={submit}>
         <h1>VibeAge</h1>
-        <div className="lobby-mode-tabs">
-          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Login</button>
-          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>Register</button>
-        </div>
+        <p className="lobby-note">
+          New login? You'll be registered. Returning? You'll be logged in.
+        </p>
         <label htmlFor="login-input">Login</label>
         <input id="login-input" value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
         <label htmlFor="password-input">Password</label>
-        <input id="password-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+        <input id="password-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
         {error && <small className="lobby-error">{error}</small>}
         <button type="submit" disabled={busy || !login || !password}>
-          {busy ? '…' : mode === 'login' ? 'Login' : 'Register & Login'}
+          {busy ? '…' : 'Continue'}
         </button>
       </form>
     </main>
   );
+}
+
+function humanReadableAuthError(code: string | undefined, status: number): string {
+  switch (code) {
+    case 'wrongCredentials': return 'Wrong password for this login.';
+    case 'invalidLogin': return 'Login may only contain letters, digits, ".", "_", "-" (max 24 chars).';
+    case 'invalidPassword': return 'Password is too long (max 128 chars).';
+    default: return `Auth failed (${status})`;
+  }
 }
 
 function CreateCharacterForm({
