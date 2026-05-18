@@ -169,9 +169,6 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
     setError(null);
     setBusy(true);
     try {
-      // Single-button auth: server registers if the login is new,
-      // logs in otherwise. Removes the manual "did I already
-      // register?" choice.
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -182,6 +179,13 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
         setError(humanReadableAuthError(body.error, res.status));
         return;
       }
+      // Blur + clear the input values before navigating into the
+      // world. Browser password managers anchor their popups to the
+      // focused input — leaving them populated + focused lets the
+      // overlay paint on top of the 3D scene after the form has
+      // already unmounted.
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setPassword('');
       onAuth({ token: body.token, login: body.login ?? login });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error');
@@ -198,9 +202,22 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
           New login? You'll be registered. Returning? You'll be logged in.
         </p>
         <label htmlFor="login-input">Login</label>
-        <input id="login-input" value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
+        <input
+          id="login-input"
+          value={login}
+          onChange={(e) => setLogin(e.target.value)}
+          autoComplete="username"
+          name="vibeage-login"
+        />
         <label htmlFor="password-input">Password</label>
-        <input id="password-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+        <input
+          id="password-input"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          name="vibeage-password"
+        />
         {error && <small className="lobby-error">{error}</small>}
         <button type="submit" disabled={busy || !login || !password}>
           {busy ? '…' : 'Continue'}

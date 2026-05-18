@@ -1298,3 +1298,37 @@ Prod feedback after §32 deployed.
   and password (the user explicitly wants "a"/"a" to work). Keep
   the per-char allow-list + length caps for sanity.
 
+
+## 35. Live Run — Wave 5 follow-ups (2026-05-18)
+
+### PR K — Bug fixes from prod
+
+- [ ] Character name 'a' rejected as invalidName. Match the relaxed
+  auth min (1 char) — both name + auth credentials accept 1 char.
+- [ ] NPC dialog Greet / Accept buttons unresponsive. Investigate
+  handler wiring + z-index; quest accept should send AcceptQuest
+  to the server and refresh the local roster.
+- [ ] Quest panel shows the legacy StarterProgressPanel mixed in,
+  reporting "0 active / 0 done" even when quests exist. Drop the
+  StarterProgressPanel duplicate; the QuestPanel owns the list.
+- [ ] Password manager popup keeps rendering over the 3D world.
+  Disable autocomplete on the lobby inputs OR make sure the form
+  unmounts cleanly when the world is entered. Add autocomplete
+  attributes that don't keep saved-credentials anchored to the
+  page after navigation.
+- [ ] Char panel removed; active race/class moves into the Stats
+  panel header. Race / class change happens only via GM or
+  character creation; the standalone Char toggle was busy work.
+
+### PR L — Engine + UI polish
+
+- [ ] HP / MP regen wired into the tick pipeline. Stats panel says
+  "2.4 hp/s" but HP doesn't move; engine must actually apply the
+  regen each tick (and clamp at max).
+- [ ] Map: recalibrate the zoom (currently too zoomed-out compared
+  to in-world distances) + de-clutter label overlap (cluster
+  labels that fall within N pixels of each other).
+- [ ] Skills panel + Stats panel get clickable links into the
+  Wiki (skill name → Wiki Skills tab focused on that skill;
+  stat label → Stats tab focused on that attribute).
+

@@ -1448,6 +1448,8 @@ input {
 .wiki-nav-button:disabled { opacity: 0.35; cursor: not-allowed; }
 .wiki-nav-button:hover:not(:disabled) { border-color: rgba(141, 233, 215, 0.7); }
 
+.player-spec-line { color: #9dded3; font-size: 11px; opacity: 0.85; }
+
 .quest-panel {
   position: fixed;
   left: 12px;
@@ -1488,7 +1490,10 @@ input {
   display: grid;
   gap: 6px;
   font-size: 12px;
-  z-index: 10;
+  /* High z-index so clicks aren't swallowed by anything on top
+     (skill bar, panel-toggles strip, etc). */
+  z-index: 100;
+  pointer-events: auto;
 }
 .npc-dialog header { display: grid; gap: 2px; }
 .npc-dialog header strong { font-size: 13px; }

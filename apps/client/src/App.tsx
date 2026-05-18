@@ -56,9 +56,6 @@ export default function App() {
         onUseItem={client.useItem}
         onEquipItem={client.equipItem}
         onUnequipItem={client.unequipItem}
-        onSelectClass={client.selectClass}
-        onSelectRace={client.selectRace}
-        onSelectSpecialization={client.selectSpecialization}
         onUpgradeSkill={client.upgradeSkill}
         onTalkNpc={client.talkNpc}
         onAcceptQuest={client.acceptQuest}

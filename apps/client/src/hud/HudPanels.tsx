@@ -3,20 +3,17 @@ import type { SkillId } from '../../../../packages/content/skills';
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { ActionsPanel } from './ActionsPanel';
 import { ChatPanel } from './ChatPanel';
-import { CharacterPanel } from './CharacterPanel';
 import { InventoryPanel } from './InventoryPanel';
 import { PaperdollPanel } from './PaperdollPanel';
 import { WikiPanel } from './WikiPanel';
 import { MapPanel } from './MapPanel';
 import { SkillTreePanel } from './SkillTreePanel';
-import { StarterProgressPanel } from './StarterProgressPanel';
 import { QuestPanel } from './QuestPanel';
 import { PlayerPanel } from './PlayerPanel';
 import { GmPanel } from './GmPanel';
 
 export type HudPanelToggleState = {
   statsOpen: boolean;
-  characterOpen: boolean;
   questOpen: boolean;
   bagOpen: boolean;
   gearOpen: boolean;
@@ -43,9 +40,6 @@ export type HudPanelsProps = {
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
-  onSelectClass: (className: string) => void;
-  onSelectRace: (race: string) => void;
-  onSelectSpecialization: (specializationId: string) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
@@ -77,9 +71,6 @@ export function HudPanels({
   onUseItem,
   onEquipItem,
   onUnequipItem,
-  onSelectClass,
-  onSelectRace,
-  onSelectSpecialization,
   onUpgradeSkill,
   onCancelQuest,
   onAdvanceQuest,
@@ -92,16 +83,13 @@ export function HudPanels({
     <>
       {panels.statsOpen && <PlayerPanel player={player} />}
       {panels.questOpen && (
-        <>
-          <QuestPanel
-            player={player}
-            onCancelQuest={onCancelQuest}
-            onAdvanceQuest={onAdvanceQuest}
-            onClaimQuestReward={onClaimQuestReward}
-            onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
-          />
-          <StarterProgressPanel player={player} progress={state.starterProgress} onLearnSkill={onLearnSkill} />
-        </>
+        <QuestPanel
+          player={player}
+          onCancelQuest={onCancelQuest}
+          onAdvanceQuest={onAdvanceQuest}
+          onClaimQuestReward={onClaimQuestReward}
+          onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
+        />
       )}
       {panels.bagOpen && (
         <InventoryPanel
@@ -114,12 +102,6 @@ export function HudPanels({
       )}
       {panels.gearOpen && (
         <PaperdollPanel equipment={state.equipment} onUnequip={onUnequipItem} />
-      )}
-      {panels.characterOpen && (
-        <CharacterPanel
-          player={player} onSelectClass={onSelectClass}
-          onSelectRace={onSelectRace} onSelectSpecialization={onSelectSpecialization}
-        />
       )}
       {panels.mapOpen && (
         <MapPanel

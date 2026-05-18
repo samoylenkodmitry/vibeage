@@ -135,7 +135,11 @@ export async function createCharacterForAccount(
   className: string,
 ): Promise<{ ok: true } | { ok: false; error: 'invalidName' | 'nameTaken' }> {
   const trimmed = name.trim();
-  if (trimmed.length < 2 || trimmed.length > 24) return { ok: false, error: 'invalidName' };
+  // Min length 1 — matches the relaxed auth bounds (PR J). Cap at
+  // 24 chars for sanity. Allow-list keeps the per-character mix
+  // safe (no whitespace-only names, no Unicode confusables).
+  if (trimmed.length < 1 || trimmed.length > 24) return { ok: false, error: 'invalidName' };
+  if (!/^[A-Za-z0-9._-]+$/.test(trimmed)) return { ok: false, error: 'invalidName' };
   const existing = await database
     .selectFrom('players')
     .where('account_id', '=', accountId)
