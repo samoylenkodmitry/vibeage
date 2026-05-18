@@ -7,10 +7,12 @@ import {
   type ReactElement,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
+import { listMiniBosses, type MiniBossSpec } from '../../../../packages/content/miniBosses';
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
 import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/content/worldFeatures';
-import type { PlayerEntity } from '../gameTypes';
+import type { EnemyEntity, PlayerEntity } from '../gameTypes';
 import { useDraggablePanel } from './useDraggablePanel';
+import { openWikiAt } from './wikiNavBus';
 
 type Marker = { x: number; z: number };
 
@@ -19,6 +21,7 @@ type MapPanelProps = {
   cameraAngleRef?: MutableRefObject<number>;
   navigationMarker?: Marker | null;
   onSetNavigationMarker?: (marker: Marker | null) => void;
+  enemies?: Record<string, EnemyEntity>;
 };
 
 const VIEW_PADDING = 0.08;
@@ -39,7 +42,7 @@ type ViewState = {
   centerZ: number;
 };
 
-export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNavigationMarker }: MapPanelProps) {
+export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNavigationMarker, enemies }: MapPanelProps) {
   const px = player?.position.x ?? 0;
   const pz = player?.position.z ?? 0;
   const cameraYaw = useCameraYaw(cameraAngleRef);
@@ -120,6 +123,7 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
             return <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} hideLabel={tooClose} />;
           });
         })()}
+        <BossMarkers enemies={enemies} viewWidth={viewWidth} />
         {navigationMarker && <NavigationDot marker={navigationMarker} viewWidth={viewWidth} />}
         <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={viewWidth} />
       </svg>
@@ -129,6 +133,8 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         <li><span className="map-legend-dot map-legend-dot--mega" />Mega</li>
         <li><span className="map-legend-dot map-legend-dot--landmark" />Landmark</li>
         <li><span className="map-legend-dot map-legend-dot--pin" />Pin</li>
+        <li><span className="map-legend-dot map-legend-dot--boss-alive" />Boss (alive)</li>
+        <li><span className="map-legend-dot map-legend-dot--boss-dead" />Boss (slain)</li>
       </ol>
     </section>
   );
@@ -390,6 +396,55 @@ function LandmarkDot({
           {landmark.name}
         </text>
       )}
+    </g>
+  );
+}
+
+/**
+ * PR W — mini-boss pins. The boss is alive iff a live enemy with
+ * isMiniBoss === true and matching bossId exists in the current
+ * snapshot. Click the pin → Wiki Bosses tab. Position comes from
+ * the boss content registry (PR V), not the live enemy snapshot,
+ * so a slain boss still shows where it used to stand.
+ */
+function BossMarkers({ enemies, viewWidth }: { enemies?: Record<string, EnemyEntity>; viewWidth: number }) {
+  const aliveBossIds = new Set<string>();
+  for (const e of Object.values(enemies ?? {})) {
+    if (e.isMiniBoss && e.bossId && e.isAlive) aliveBossIds.add(e.bossId);
+  }
+  return (
+    <>
+      {listMiniBosses().map((boss) => {
+        const zone = GAME_ZONES.find((z) => z.miniBoss?.id === boss.id);
+        if (!zone?.miniBoss?.position) return null;
+        const pos = zone.miniBoss.position;
+        const alive = aliveBossIds.has(boss.id);
+        return <BossDot key={boss.id} boss={boss} x={pos.x} z={pos.z} alive={alive} viewWidth={viewWidth} />;
+      })}
+    </>
+  );
+}
+
+function BossDot({
+  boss, x, z, alive, viewWidth,
+}: { boss: MiniBossSpec; x: number; z: number; alive: boolean; viewWidth: number }) {
+  const size = Math.max(viewWidth * 0.012, 900);
+  const fill = alive ? '#fbbf24' : '#475569';
+  const halo = alive ? 'rgba(251,191,36,0.28)' : 'rgba(71,85,105,0.22)';
+  return (
+    <g style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openWikiAt('bosses', boss.id); }}>
+      <circle cx={x} cy={z} r={size * 1.8} fill={halo} />
+      <circle cx={x} cy={z} r={size * 0.85} fill={fill} stroke="#04100d" strokeWidth={Math.max(viewWidth * 0.0006, 400)} />
+      <text
+        x={x}
+        y={z + size * 2.4}
+        textAnchor="middle"
+        fill={alive ? '#fde68a' : '#94a3b8'}
+        fontSize={Math.max(viewWidth * 0.02, 1400)}
+        style={{ pointerEvents: 'none' }}
+      >
+        {boss.name}
+      </text>
     </g>
   );
 }

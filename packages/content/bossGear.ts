@@ -1,3 +1,4 @@
+import type { EquipmentSet } from './equipmentSets.js';
 import type { Item, RecipeSpec } from './items.js';
 
 /**
@@ -52,7 +53,7 @@ const GEAR: BossGearDef[] = [
       id: 'chieftains_cleaver',
       name: "Chieftain's Cleaver",
       description: "Grakk's notched bone-and-iron cleaver. Crude, balanced, lethal.",
-      icon: 'chieftains_cleaver.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 2400,
+      icon: 'chieftains_cleaver.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 2400, setId: 'wildlands_hunter',
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'sword', handUsage: 'oneHand', requirements: { minLevel: 5 } },
       stats: { pAtk: 26, critRate: 4 },
     },
@@ -68,7 +69,7 @@ const GEAR: BossGearDef[] = [
       id: 'greyfang_leathers',
       name: 'Greyfang Leathers',
       description: "Tough leather plate cut from the alpha's hide. Smells faintly of pine.",
-      icon: 'greyfang_leathers.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'd', weight: 4200,
+      icon: 'greyfang_leathers.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'd', weight: 4200, setId: 'wildlands_hunter',
       equip: { bodyPart: 'chest', allowedSlots: ['CHEST'], armorType: 'medium', requirements: { minLevel: 5 } },
       stats: { pDef: 34, moveSpeed: 0.1 },
     },
@@ -83,7 +84,7 @@ const GEAR: BossGearDef[] = [
       id: 'slab_warhammer',
       name: 'Slab Warhammer',
       description: "A chunk of Hammerback's slab fitted to a haft. Both halves still bear his weight.",
-      icon: 'slab_warhammer.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 6800,
+      icon: 'slab_warhammer.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 6800, setId: 'wildlands_hunter',
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'mace', handUsage: 'twoHand', requirements: { minLevel: 7 } },
       stats: { pAtk: 52, attackSpeed: -8 },
     },
@@ -99,7 +100,7 @@ const GEAR: BossGearDef[] = [
       id: 'fogbound_cloak',
       name: 'Fogbound Cloak',
       description: "The Mistwalker's tattered shroud. Footfalls hush around the wearer.",
-      icon: 'fogbound_cloak.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'd', weight: 1200,
+      icon: 'fogbound_cloak.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'd', weight: 1200, setId: 'veiled_mantle',
       equip: { bodyPart: 'cloak', allowedSlots: ['CLOAK'], armorType: 'light', requirements: { minLevel: 9 } },
       stats: { mDef: 22, moveSpeed: 0.2 },
     },
@@ -114,7 +115,7 @@ const GEAR: BossGearDef[] = [
       id: 'marrow_focus',
       name: 'Marrow Focus',
       description: "An orb wound with the bones of Vereth's bound dead. Faintly cold to grip.",
-      icon: 'marrow_focus.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 1800,
+      icon: 'marrow_focus.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 1800, setId: 'veiled_mantle',
       equip: { bodyPart: 'offHand', allowedSlots: ['OFF_HAND'], weaponType: 'orb', handUsage: 'oneHand', requirements: { minLevel: 9 } },
       stats: { mAtk: 38, mp: 22 },
     },
@@ -130,7 +131,7 @@ const GEAR: BossGearDef[] = [
       id: 'embers_edge',
       name: "Ember's Edge",
       description: "A sword forged around one of Vorthax's scales. The edge holds heat indefinitely.",
-      icon: 'embers_edge.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2200,
+      icon: 'embers_edge.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2200, setId: 'elementborn',
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'sword', handUsage: 'oneHand', requirements: { minLevel: 12 } },
       stats: { pAtk: 78, critRate: 6 },
     },
@@ -146,7 +147,7 @@ const GEAR: BossGearDef[] = [
       id: 'hollow_dagger',
       name: 'Hollow Dagger',
       description: "Forged from Nyaraal's shard. Casts no shadow even in direct light.",
-      icon: 'hollow_dagger.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 1100,
+      icon: 'hollow_dagger.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 1100, setId: 'veiled_mantle',
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'dagger', handUsage: 'oneHand', requirements: { minLevel: 12 } },
       stats: { pAtk: 54, critRate: 12, attackSpeed: 18 },
     },
@@ -162,7 +163,7 @@ const GEAR: BossGearDef[] = [
       id: 'refraction_staff',
       name: 'Refraction Staff',
       description: "Channels spell energy through the Warden's facet. Damage spreads to nearby foes.",
-      icon: 'refraction_staff.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2600,
+      icon: 'refraction_staff.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2600, setId: 'elementborn',
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'staff', handUsage: 'twoHand', requirements: { minLevel: 12 } },
       stats: { mAtk: 92, mp: 30 },
     },
@@ -178,7 +179,7 @@ const GEAR: BossGearDef[] = [
       id: 'forge_avatar_plate',
       name: 'Forge-Avatar Plate',
       description: "Plate armor hammered around Magmaheart's core. Lets you walk through molten ground.",
-      icon: 'forge_avatar_plate.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'c', weight: 7800,
+      icon: 'forge_avatar_plate.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'c', weight: 7800, setId: 'elementborn',
       equip: { bodyPart: 'chest', allowedSlots: ['CHEST'], armorType: 'heavy', requirements: { minLevel: 14 } },
       stats: { pDef: 88, hp: 60 },
     },
@@ -194,7 +195,7 @@ const GEAR: BossGearDef[] = [
       id: 'tundra_helm',
       name: 'Tundra Helm',
       description: "Skadrun's crown reshaped for a mortal head. Storms answer it less reluctantly than they did him.",
-      icon: 'tundra_helm.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'c', weight: 3400,
+      icon: 'tundra_helm.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'c', weight: 3400, setId: 'elementborn',
       equip: { bodyPart: 'head', allowedSlots: ['HEAD'], armorType: 'heavy', requirements: { minLevel: 14 } },
       stats: { pDef: 42, mDef: 38, hp: 28 },
     },
@@ -210,7 +211,7 @@ const GEAR: BossGearDef[] = [
       id: 'vinebound_bow',
       name: 'Vinebound Bow',
       description: "Living silverwood under tension. The string is sap-stained but never frays.",
-      icon: 'vinebound_bow.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 1900,
+      icon: 'vinebound_bow.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 1900, setId: 'worldspine_regalia',
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND', 'OFF_HAND'], weaponType: 'bow', handUsage: 'bow', requirements: { minLevel: 14 } },
       stats: { pAtk: 84, attackSpeed: 12 },
     },
@@ -226,7 +227,7 @@ const GEAR: BossGearDef[] = [
       id: 'tidal_crown',
       name: 'Tidal Crown',
       description: "Cthulun's barnacle crown re-forged. Salt water seeps from its rim in any climate.",
-      icon: 'tidal_crown.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'b', weight: 2100,
+      icon: 'tidal_crown.svg', stackable: false, type: 'armor', kind: 'armor', grade: 'b', weight: 2100, setId: 'worldspine_regalia',
       equip: { bodyPart: 'head', allowedSlots: ['HEAD'], armorType: 'medium', requirements: { minLevel: 18 } },
       stats: { pDef: 52, mDef: 52, mp: 45 },
     },
@@ -242,7 +243,7 @@ const GEAR: BossGearDef[] = [
       id: 'dawnfeather_ring',
       name: 'Dawnfeather Ring',
       description: "A single feather from Auriel set in bright silver. Always feels like sunrise.",
-      icon: 'dawnfeather_ring.svg', stackable: false, type: 'armor', kind: 'jewelry', grade: 'b', weight: 200,
+      icon: 'dawnfeather_ring.svg', stackable: false, type: 'armor', kind: 'jewelry', grade: 'b', weight: 200, setId: 'worldspine_regalia',
       equip: { bodyPart: 'ring', allowedSlots: ['RING_LEFT', 'RING_RIGHT'], requirements: { minLevel: 20 } },
       stats: { mAtk: 30, hp: 40, mp: 40 },
     },
@@ -258,7 +259,7 @@ const GEAR: BossGearDef[] = [
       id: 'hourglass_pendant',
       name: 'Hourglass Pendant',
       description: "Sand from Aethariel's hourglasses suspended in glass. Time around the wearer hesitates.",
-      icon: 'hourglass_pendant.svg', stackable: false, type: 'armor', kind: 'jewelry', grade: 'b', weight: 300,
+      icon: 'hourglass_pendant.svg', stackable: false, type: 'armor', kind: 'jewelry', grade: 'b', weight: 300, setId: 'worldspine_regalia',
       equip: { bodyPart: 'neck', allowedSlots: ['NECK'], requirements: { minLevel: 24 } },
       stats: { mAtk: 40, attackSpeed: 14, moveSpeed: 0.3 },
     },
@@ -281,3 +282,51 @@ export const BOSS_GEAR_ITEMS: Record<string, Item> = Object.fromEntries(
 export const BOSS_GEAR_RECIPE_BY_BOSS: Record<string, string> = Object.fromEntries(
   GEAR.map((g) => [g.bossId, g.recipe.id]),
 );
+
+/**
+ * PR W — boss-gear sets. Grouped by tier so chasing one boss tier's
+ * gear gives meaningful payoff at 2+ pieces. Bonuses stack: a 4-
+ * piece Elementborn wearer gets the 2- and 3-piece tiers on top of
+ * the 4-piece tier. Spread into EQUIPMENT_SETS so equipmentStats.ts
+ * picks them up alongside the legacy sets.
+ */
+export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
+  wildlands_hunter: {
+    setId: 'wildlands_hunter',
+    name: 'Wildlands Hunter',
+    requiredPieces: ['chieftains_cleaver', 'greyfang_leathers', 'slab_warhammer'],
+    bonuses: [
+      { requiredCount: 2, statModifiers: { pAtk: 6, hp: 12 } },
+      { requiredCount: 3, statModifiers: { pAtk: 14, hp: 30, moveSpeed: 0.1 } },
+    ],
+  },
+  veiled_mantle: {
+    setId: 'veiled_mantle',
+    name: 'Veiled Mantle',
+    requiredPieces: ['fogbound_cloak', 'marrow_focus', 'hollow_dagger'],
+    bonuses: [
+      { requiredCount: 2, statModifiers: { mAtk: 10, mp: 20 } },
+      { requiredCount: 3, statModifiers: { mAtk: 22, mp: 50, critRate: 5 } },
+    ],
+  },
+  elementborn: {
+    setId: 'elementborn',
+    name: 'Elementborn',
+    requiredPieces: ['embers_edge', 'refraction_staff', 'forge_avatar_plate', 'tundra_helm'],
+    bonuses: [
+      { requiredCount: 2, statModifiers: { pDef: 15, hp: 20 } },
+      { requiredCount: 3, statModifiers: { pDef: 30, hp: 50, mDef: 18 } },
+      { requiredCount: 4, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },
+    ],
+  },
+  worldspine_regalia: {
+    setId: 'worldspine_regalia',
+    name: 'Worldspine Regalia',
+    requiredPieces: ['vinebound_bow', 'tidal_crown', 'dawnfeather_ring', 'hourglass_pendant'],
+    bonuses: [
+      { requiredCount: 2, statModifiers: { mAtk: 20, mp: 20 } },
+      { requiredCount: 3, statModifiers: { mAtk: 40, mp: 60, attackSpeed: 8 } },
+      { requiredCount: 4, statModifiers: { mAtk: 70, mp: 120, attackSpeed: 18, moveSpeed: 0.3 } },
+    ],
+  },
+};

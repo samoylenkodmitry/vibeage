@@ -114,6 +114,7 @@ export function HudPanels({
           cameraAngleRef={cameraAngleRef}
           navigationMarker={navigationMarker ?? null}
           onSetNavigationMarker={onSetNavigationMarker}
+          enemies={state.enemies}
         />
       )}
       {panels.treeOpen && (

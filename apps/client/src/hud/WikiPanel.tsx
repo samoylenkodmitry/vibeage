@@ -9,6 +9,7 @@ import { ItemsTab } from './WikiItems';
 import { LootDropsForTable } from './WikiLoot';
 import { QuestsTab } from './WikiQuests';
 import { RecipesTab } from './WikiRecipes';
+import { SetsTab } from './WikiSets';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
@@ -21,7 +22,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 import { subscribeWikiNav } from './wikiNavBus';
 type WikiTab =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
-  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes';
+  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes' | 'sets';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -36,6 +37,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'mobs', label: 'Mobs' },
   { id: 'bosses', label: 'Bosses' },
   { id: 'recipes', label: 'Recipes' },
+  { id: 'sets', label: 'Sets' },
 ];
 
 type WikiNav = (tab: WikiTab, id: string) => void;
@@ -136,6 +138,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
         {tab === 'bosses' && <BossesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'recipes' && <RecipesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'sets' && <SetsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
       </div>
     </section>
   );
@@ -562,6 +565,7 @@ function MobsTab({
             <small className="wiki-row-footer">
               Type id: <code>{tpl.type}</code>
             </small>
+            <MobStatsSummary tpl={tpl} zones={zones} />
             {zones.length === 0 && <small className="wiki-row-footer">No known spawn zone.</small>}
             {zones.length > 0 && (
               <small className="wiki-row-footer">
@@ -599,6 +603,33 @@ function MobsTab({
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * PR W — derived HP / damage at the lowest level the mob spawns at,
+ * computed from the same formula createEnemy uses (server-side):
+ *   hp = (100 + level*20) * template.stats.health
+ *   dmg = (10 + level*2)  * template.stats.damage
+ * Same template + same constants, so the displayed numbers match
+ * what actually spawns in the world.
+ */
+function MobStatsSummary({
+  tpl, zones,
+}: {
+  tpl: ReturnType<typeof listMobTemplates>[number];
+  zones: ReturnType<typeof getMobZones>;
+}) {
+  const lvl = zones.length > 0 ? Math.min(...zones.map((z) => z.zone.minLevel)) : 1;
+  const hp = Math.round((100 + lvl * 20) * tpl.stats.health);
+  const dmg = Math.round((10 + lvl * 2) * tpl.stats.damage);
+  return (
+    <small className="wiki-row-footer">
+      Lv {lvl}: <strong>{hp}</strong> HP · <strong>{dmg}</strong> dmg ·
+      {' '}aggro {Math.round(15 * tpl.stats.aggroRadius)}m
+      {tpl.stats.movementSpeed !== 1 && <> · speed ×{tpl.stats.movementSpeed.toFixed(2)}</>}
+      {tpl.stats.attackRange !== 1 && <> · reach ×{tpl.stats.attackRange.toFixed(2)}</>}
+    </small>
   );
 }
 

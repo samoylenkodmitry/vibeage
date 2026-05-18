@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { EQUIPMENT_SETS } from '../../../../packages/content/equipmentSets';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { getLootSourcesForItem, resolveLootTableOwner } from '../../../../packages/content/lootSources';
 import type { WikiNav } from './WikiBosses';
@@ -56,11 +57,19 @@ function ItemLi({
         {item.weight && <Pair k="Weight" v={`${(item.weight / 1000).toFixed(1)} kg`} />}
         {item.healAmount && <Pair k="Heals" v={`${item.healAmount} HP`} />}
         {item.manaAmount && <Pair k="Restores" v={`${item.manaAmount} MP`} />}
-        {item.setId && <Pair k="Set" v={item.setId} />}
+        {item.setId && <Pair k="Set" v={EQUIPMENT_SETS[item.setId]?.name ?? item.setId} />}
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
       <ItemDropSources itemId={item.id} navigate={navigate} />
       <ItemRecipeLinks itemId={item.id} navigate={navigate} />
+      {item.setId && EQUIPMENT_SETS[item.setId] && (
+        <small className="wiki-row-footer">
+          Part of:{' '}
+          <button type="button" className="wiki-effect-chip" onClick={() => navigate('sets', item.setId!)}>
+            {EQUIPMENT_SETS[item.setId].name}
+          </button>
+        </small>
+      )}
     </li>
   );
 }
