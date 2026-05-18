@@ -2,11 +2,13 @@ import type { CharacterClass } from '../content/classes.js';
 import {
   EARRING_SLOTS,
   RING_SLOTS,
+  getEffectiveMinLevel,
   occupiedSlotsForSpec,
   type EquipSlot,
   type EquipSpec,
+  type ItemGrade,
 } from '../content/equipmentTypes.js';
-import { ITEMS, type Item } from '../content/items.js';
+import { ITEMS, getItemGrade, type Item } from '../content/items.js';
 import {
   entryForSlot,
   maxInventorySlotCount,
@@ -73,15 +75,17 @@ function findEmptyOr(slots: readonly EquipSlot[], inventory: CharacterInventory)
   return null;
 }
 
-function checkRequirements(spec: EquipSpec, ctx: EquipContext): EquipError | null {
+function checkRequirements(spec: EquipSpec, ctx: EquipContext, itemGrade: ItemGrade): EquipError | null {
   const reqs = spec.requirements;
-  if (!reqs) {
-    return null;
-  }
-  if (reqs.minLevel !== undefined && ctx.level < reqs.minLevel) {
+  // Grade-driven floor: an S-grade item is gated at lv 68 regardless
+  // of whether the per-item minLevel was set. See GRADE_MIN_LEVEL in
+  // equipmentTypes.ts; getEffectiveMinLevel folds the per-item value
+  // in as a max(), so a D-grade sword tuned for lv 12 stays at 12.
+  const floor = getEffectiveMinLevel(itemGrade, reqs?.minLevel);
+  if (ctx.level < floor) {
     return 'levelTooLow';
   }
-  if (reqs.classes && reqs.classes.length > 0 && !reqs.classes.includes(ctx.className)) {
+  if (reqs?.classes && reqs.classes.length > 0 && !reqs.classes.includes(ctx.className)) {
     return 'wrongClass';
   }
   return null;
@@ -128,7 +132,7 @@ export function equipItem(
   if (!template?.equip) {
     return { ok: false, error: 'notEquippable' };
   }
-  const reqError = checkRequirements(template.equip, context);
+  const reqError = checkRequirements(template.equip, context, getItemGrade(template));
   if (reqError) {
     return { ok: false, error: reqError };
   }

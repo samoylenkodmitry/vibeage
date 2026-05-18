@@ -1,4 +1,5 @@
-import { ITEMS, isUsableConsumable } from '../../../../packages/content/items';
+import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
+import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -7,11 +8,12 @@ import { useTooltipTrigger } from './useTooltipTrigger';
 type InventoryPanelProps = {
   inventory: InventorySlot[];
   maxSlots: number;
+  playerLevel: number;
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number) => void;
 };
 
-export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: InventoryPanelProps) {
+export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, onEquipItem }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<string>();
@@ -26,9 +28,17 @@ export function InventoryPanel({ inventory, maxSlots, onUseItem, onEquipItem }: 
         const slot = inventory[index] ?? null;
         const item = slot ? ITEMS[slot.itemId] : null;
         const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
-        const canEquip = Boolean(slot && item?.equip);
+        const isEquippable = Boolean(slot && item?.equip);
+        // Grade-driven equip floor: the same rule the server enforces
+        // (GRADE_MIN_LEVEL + per-item minLevel). Hiding the button is
+        // the UX hint; the server still rejects forged equips.
+        const equipMinLevel = item?.equip
+          ? getEffectiveMinLevel(getItemGrade(item), item.equip.requirements?.minLevel)
+          : 0;
+        const locked = isEquippable && playerLevel < equipMinLevel;
+        const canEquip = isEquippable && !locked;
         const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
-        const action = canUse ? 'Use' : canEquip ? 'Equip' : '';
+        const action = canUse ? 'Use' : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
         const title = slot
           ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · hover or long-press for details`
           : 'Empty slot';

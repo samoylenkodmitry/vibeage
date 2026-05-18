@@ -1399,6 +1399,28 @@ input {
   display: inline-block;
 }
 
+.wiki-effect-chip {
+  display: inline-block;
+  background: rgba(141, 233, 215, 0.12);
+  border: 1px solid rgba(141, 233, 215, 0.4);
+  border-radius: 4px;
+  padding: 0 5px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.wiki-effect-chip:hover {
+  border-color: rgba(141, 233, 215, 0.9);
+  background: rgba(141, 233, 215, 0.22);
+}
+
+.wiki-row--focus {
+  outline: 2px solid rgba(250, 204, 21, 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .quest-list {
   display: grid;
   gap: 8px;

@@ -9,6 +9,16 @@ import { createTransientPlayer } from '../server/playerFactory';
 
 function freshPlayer() {
   const player = createTransientPlayer('socket-1', 'TesterPlayer');
+  // Tests in this file equip A/S-grade content (celestial_staff etc.);
+  // bump the level above GRADE_MIN_LEVEL.s (68) so the grade gate
+  // doesn't reject. Suite is about the equip flow + stats, not the
+  // gate itself — gearGradeGate.spec.ts covers the gate.
+  player.level = 80;
+  // Re-derive stats now that the level changed so dmgBefore captures
+  // the level-80 baseline (not the level-1 default from
+  // createTransientPlayer). Otherwise equip/unequip refresh leaves
+  // the stats at a higher number than the captured baseline.
+  refreshPlayerStatsFromEquipment(player);
   // Start with an empty bag so tests control exactly what's in slot 0.
   player.inventory = [];
   if (player.characterInventory) {
