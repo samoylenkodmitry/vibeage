@@ -1286,3 +1286,15 @@ Prod feedback after §32 deployed.
 - [ ] Single open session per account (newer login boots the old
   socket) — punt to follow-up if scope balloons.
 
+
+## 34. Live Run — Wave 4 follow-ups (2026-05-18)
+
+### PR J — Single-button auth + relaxed validation
+
+- [ ] Replace lobby's Login/Register tabs with a single "Continue"
+  button. Server endpoint `POST /api/auth` registers if the login
+  is new, logs in otherwise. Returns the same token shape.
+- [ ] Relax credential validation: minimum 1 char each for login
+  and password (the user explicitly wants "a"/"a" to work). Keep
+  the per-char allow-list + length caps for sanity.
+

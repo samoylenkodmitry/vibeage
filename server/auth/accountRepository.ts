@@ -14,9 +14,12 @@ export interface CharacterRow {
   level: number;
 }
 
-const LOGIN_MIN = 3;
+// Relaxed bounds per user request — minimum 1 char each. Length caps
+// + the char allow-list stay as sanity guards (no Unicode confusables
+// in logins, no megabyte passwords).
+const LOGIN_MIN = 1;
 const LOGIN_MAX = 24;
-const PASSWORD_MIN = 6;
+const PASSWORD_MIN = 1;
 const PASSWORD_MAX = 128;
 const LOGIN_RE = /^[A-Za-z0-9._-]+$/;
 
@@ -72,6 +75,43 @@ export async function loginAccount(login: string, password: string): Promise<{ o
     .where('id', '=', row.id)
     .execute();
   return { ok: true, account: { id: row.id, login: row.login } };
+}
+
+/**
+ * Single-button auth entry point: registers when the login is new,
+ * logs in otherwise. Removes the user-facing "did I already register?"
+ * choice — the server figures it out. Used by POST /api/auth.
+ */
+export async function authenticateOrRegister(
+  login: string,
+  password: string,
+): Promise<{ ok: true; account: AccountSummary; created: boolean } | { ok: false; error: AuthError }> {
+  const validation = validateCredentials(login, password);
+  if (validation) return { ok: false, error: validation };
+  const existing = await database
+    .selectFrom('accounts')
+    .where('login', '=', login)
+    .select(['id', 'login', 'password_hash', 'password_salt'])
+    .executeTakeFirst();
+  if (existing) {
+    const matches = await verifyPassword(password, existing.password_hash, existing.password_salt);
+    if (!matches) return { ok: false, error: 'wrongCredentials' };
+    await database
+      .updateTable('accounts')
+      .set({ last_login_at: new Date() })
+      .where('id', '=', existing.id)
+      .execute();
+    return { ok: true, account: { id: existing.id, login: existing.login }, created: false };
+  }
+  // Fresh login → register on the fly.
+  const { hash, salt } = await hashPassword(password);
+  const insertValues = { login, password_hash: hash, password_salt: salt } as Insertable<AccountsTable>;
+  const row = await database
+    .insertInto('accounts')
+    .values(insertValues)
+    .returning(['id', 'login'])
+    .executeTakeFirstOrThrow();
+  return { ok: true, account: { id: row.id, login: row.login }, created: true };
 }
 
 export async function listCharactersForAccount(accountId: string): Promise<CharacterRow[]> {

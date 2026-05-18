@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import {
+  authenticateOrRegister,
   createCharacterForAccount,
   deleteCharacterForAccount,
   listCharactersForAccount,
@@ -18,13 +19,35 @@ import { CHARACTER_RACES, isClassAllowedForRace, type CharacterRace } from '../.
  * pairs.
  *
  * Endpoints (all JSON):
+ *   POST /api/auth           { login, password }    -> { token, login, created }
+ *                              (login-or-register: creates if new, logs in
+ *                               otherwise. Single-button UX entry point.)
  *   POST /api/auth/register  { login, password }    -> { token, login }
+ *                              (explicit register; kept for compat)
  *   POST /api/auth/login     { login, password }    -> { token, login }
+ *                              (explicit login; kept for compat)
  *   GET  /api/account/characters     (Bearer)       -> { characters: [...] }
  *   POST /api/account/characters     (Bearer)       -> 201 | error
  *   DELETE /api/account/characters/:name (Bearer)   -> 204
  */
 export function registerAuthRoutes(app: Express): void {
+  app.post('/api/auth', async (req, res) => {
+    const { login, password } = (req.body ?? {}) as { login?: string; password?: string };
+    const result = await authenticateOrRegister(login ?? '', password ?? '');
+    if (result.ok === false) {
+      // 401 for wrongCredentials (existing account, bad password);
+      // 400 for invalidLogin / invalidPassword shape problems.
+      const status = result.error === 'wrongCredentials' ? 401 : 400;
+      res.status(status).send({ error: result.error });
+      return;
+    }
+    res.status(result.created ? 201 : 200).send({
+      token: issueSessionToken(result.account.id),
+      login: result.account.login,
+      created: result.created,
+    });
+  });
+
   app.post('/api/auth/register', async (req, res) => {
     const { login, password } = (req.body ?? {}) as { login?: string; password?: string };
     const result = await registerAccount(login ?? '', password ?? '');
