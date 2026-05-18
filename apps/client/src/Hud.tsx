@@ -34,9 +34,6 @@ type GameHudProps = {
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
-  onSelectClass: (className: string) => void;
-  onSelectRace: (race: string) => void;
-  onSelectSpecialization: (specializationId: string) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
   onTalkNpc: (npcId: string) => void;
   onAcceptQuest: (questId: string) => void;
@@ -129,9 +126,6 @@ export function GameHud({
   onUseItem,
   onEquipItem,
   onUnequipItem,
-  onSelectClass,
-  onSelectRace,
-  onSelectSpecialization,
   onUpgradeSkill,
   onTalkNpc,
   onAcceptQuest,
@@ -186,9 +180,6 @@ export function GameHud({
         onUseItem={onUseItem}
         onEquipItem={onEquipItem}
         onUnequipItem={onUnequipItem}
-        onSelectClass={onSelectClass}
-        onSelectRace={onSelectRace}
-        onSelectSpecialization={onSelectSpecialization}
         onUpgradeSkill={onUpgradeSkill}
         onCancelQuest={onCancelQuest}
         onAdvanceQuest={onAdvanceQuest}
@@ -318,7 +309,6 @@ function PanelToggleStrip({ panels }: { panels: PanelState }) {
   return (
     <aside className="panel-toggles" aria-label="Panel toggles">
       <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
-      <PanelToggleButton open={panels.characterOpen} label="Char" onClick={panels.toggleCharacter} />
       <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} />
       <PanelToggleButton open={panels.actionsOpen} label="Actions" onClick={panels.toggleActions} />
       <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
@@ -336,7 +326,6 @@ type PanelState = ReturnType<typeof usePanelState>;
 
 function usePanelState() {
   const [statsOpen, setStatsOpen] = useState(true);
-  const [characterOpen, setCharacterOpen] = useState(false);
   const [questOpen, setQuestOpen] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
   const [gearOpen, setGearOpen] = useState(false);
@@ -350,7 +339,6 @@ function usePanelState() {
   const [gmOpen, setGmOpen] = useState(false);
   return {
     statsOpen,
-    characterOpen,
     questOpen,
     bagOpen,
     gearOpen,
@@ -361,7 +349,6 @@ function usePanelState() {
     wikiOpen,
     gmOpen,
     toggleStats: () => setStatsOpen((prev) => !prev),
-    toggleCharacter: () => setCharacterOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
     toggleBag: () => setBagOpen((prev) => !prev),
     toggleGear: () => setGearOpen((prev) => !prev),

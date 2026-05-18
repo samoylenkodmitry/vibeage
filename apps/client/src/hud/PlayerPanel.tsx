@@ -1,3 +1,8 @@
+import {
+  getSpecializationById,
+  PROFICIENCY_LEVEL,
+  SPECIALIZATION_UNLOCK_LEVEL,
+} from '../../../../packages/content/specializations';
 import { STATS } from '../../../../packages/content/stats';
 import type { PlayerEntity } from '../gameTypes';
 import { StatusPills } from './hudPrimitives';
@@ -9,6 +14,13 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   const derived = player?.stats ?? {};
   const panelRef = useDraggablePanel<HTMLElement>('stats');
   const raceLabel = player?.race ? capitalize(player.race) : '';
+  const level = player?.level ?? 1;
+  const spec = player?.specializationId ? getSpecializationById(player.specializationId) ?? null : null;
+  const specLine = spec
+    ? `${spec.name}${level >= PROFICIENCY_LEVEL ? ' (Proficient)' : ''}`
+    : level >= SPECIALIZATION_UNLOCK_LEVEL
+      ? `pick at Lv ${SPECIALIZATION_UNLOCK_LEVEL}`
+      : `unlocks at Lv ${SPECIALIZATION_UNLOCK_LEVEL}`;
 
   return (
     <section ref={panelRef} className="hud player-panel" aria-label="Player status">
@@ -16,6 +28,9 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
         <strong>Stats</strong>
         <span>{raceLabel ? `${raceLabel} ${stats.className}` : stats.className}</span>
       </div>
+      <small className="player-spec-line" title="Specialization">
+        Spec: {specLine}
+      </small>
       <dl className="player-stats">
         <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
         <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
