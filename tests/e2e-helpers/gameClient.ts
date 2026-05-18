@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { CI_AUTH_SECRET, mintCiSessionToken } from '../../scripts/ci-session-token.mjs';
 
 type Offset = {
   x: number;
@@ -7,10 +8,40 @@ type Offset = {
 
 const DEFAULT_SMOKE_MOVE_OFFSET = { x: 12, z: -8 } satisfies Offset;
 
+// PR M: Lobby (PR I) gates the world behind login + character roster
+// fetched from /api/account/characters. CI runs with persistence off,
+// so the DB-backed auth endpoints would 500. We mint a valid session
+// token locally, seed it into localStorage, and route-stub the roster
+// endpoint to return the requested character. The world join then
+// flows through transient-player creation (persistence disabled),
+// which already accepts any account id the token signs over.
 export async function enterWorld(page: Page, playerName: string): Promise<void> {
+  const token = mintCiSessionToken({
+    secret: CI_AUTH_SECRET,
+    accountId: `e2e-${playerName}`,
+  });
+  await page.addInitScript(([t, login]) => {
+    window.localStorage.setItem(
+      'vibeage:session',
+      JSON.stringify({ token: t, login }),
+    );
+  }, [token, playerName]);
+  await page.route('**/api/account/characters', async (route) => {
+    const method = route.request().method();
+    if (method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          characters: [{ name: playerName, race: 'human', class_name: 'mage' }],
+        }),
+      });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
   await page.goto('/');
-  await page.getByLabel('Character Name').fill(playerName);
-  await page.getByRole('button', { name: 'Enter the World' }).click();
+  await page.getByRole('button', { name: 'Enter World' }).click();
   await waitForConnectedGame(page);
 }
 

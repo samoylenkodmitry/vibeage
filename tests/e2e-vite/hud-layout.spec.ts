@@ -48,7 +48,7 @@ for (const viewport of HUD_VIEWPORTS) {
     }
 
     await expect(page.locator(".inventory-panel")).toBeHidden();
-    await expect(page.locator(".starter-progress")).toBeHidden();
+    await expect(page.locator(".quest-panel")).toBeHidden();
     // No target selected on join → target plate is hidden.
     await expect(page.locator(".hud-target")).toBeHidden();
 
@@ -73,7 +73,7 @@ for (const viewport of HUD_VIEWPORTS) {
     await page.getByRole("button", { name: /show bag/i }).click();
     await expect(page.locator(".inventory-panel")).toBeVisible();
     await page.getByRole("button", { name: /show quest/i }).click();
-    await expect(page.locator(".starter-progress")).toBeVisible();
+    await expect(page.locator(".quest-panel")).toBeVisible();
     await page.getByRole("button", { name: /hide stats/i }).click();
     await expect(page.locator(".player-panel")).toBeHidden();
   });
