@@ -34,6 +34,7 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'CancelQuest',
   'AdvanceQuest',
   'ClaimQuestReward',
+  'GmCommand',
 ] as const satisfies ReadonlyArray<ClientMessage['type']>;
 
 export const MIN_CLIENT_PROTOCOL_VERSION = 2;

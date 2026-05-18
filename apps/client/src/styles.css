@@ -1472,6 +1472,28 @@ input {
 .npc-dialog-row button { padding: 3px 6px; margin-top: 2px; cursor: pointer; }
 .npc-dialog-empty { opacity: 0.7; }
 
+.gm-panel {
+  position: fixed;
+  right: 12px;
+  top: 120px;
+  width: 320px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  border-radius: 6px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  z-index: 9;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.gm-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; align-items: center; }
+.gm-row-label { font-weight: 700; }
+.gm-row-input { background: rgba(15,23,42,0.7); border: 1px solid rgba(141,233,215,0.25); color: inherit; padding: 2px 4px; }
+.gm-row-input--small { width: 50px; }
+.gm-row button { padding: 3px 6px; cursor: pointer; }
+
 .quest-list {
   display: grid;
   gap: 8px;

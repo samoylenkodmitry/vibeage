@@ -28,6 +28,7 @@ import {
   applyClaimQuestReward,
   onTalkedToNpcForQuests,
 } from '../players/playerQuests.js';
+import { applyGmCommand } from '../players/gmCommand.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   makeSocketMessageSink,
@@ -98,7 +99,22 @@ export function handleClientMessage(
       return onQuestVerb(socket, state, msg, outbound, applyAdvanceQuest);
     case 'ClaimQuestReward':
       return onQuestVerb(socket, state, msg, outbound, applyClaimQuestReward);
+    case 'GmCommand':
+      return onGmCommand(socket, state, msg, outbound);
   }
+}
+
+function onGmCommand(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'GmCommand' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const caller = state.players[playerId];
+  if (!caller) return;
+  applyGmCommand(caller, msg, (id) => state.players[id], outbound);
 }
 
 function onTalkNpc(
