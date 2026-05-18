@@ -127,7 +127,7 @@ describe('Colyseus room adapter join and command handling', () => {
       clientProtocolVersion: 2,
     })).resolves.toEqual({ playerId: 'player1' });
 
-    expect(port.joinClient).toHaveBeenCalledWith('socket1', 'Tester', expect.anything());
+    expect(port.joinClient).toHaveBeenCalledWith('socket1', 'Tester', expect.anything(), expect.objectContaining({}));
     expect(client.send).not.toHaveBeenCalled();
     expect(runtimeMetrics.snapshot().counters['room.joins']).toBe(1);
   });

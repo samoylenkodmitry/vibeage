@@ -68,7 +68,12 @@ export class ColyseusAuthoritativeRoomAdapter {
     }
 
     const playerName = options.playerName?.trim() || 'Player';
-    const result = await this.port.joinClient(client.sessionId, playerName, makeColyseusClient(client));
+    const result = await this.port.joinClient(
+      client.sessionId,
+      playerName,
+      makeColyseusClient(client),
+      { initialRace: options.initialRace, initialClass: options.initialClass },
+    );
     runtimeMetrics.increment('room.joins');
     return result;
   }

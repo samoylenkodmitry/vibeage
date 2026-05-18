@@ -15,7 +15,7 @@ describe('socket-backed authoritative room adapter', () => {
     });
     await expect(room.leaveClient('socket1')).resolves.toBe('player1');
 
-    expect(world.addPlayer).toHaveBeenCalledWith('socket1', 'Tester');
+    expect(world.addPlayer).toHaveBeenCalledWith('socket1', 'Tester', undefined);
     expect(world.removePlayerBySocketId).toHaveBeenCalledWith('socket1');
   });
 

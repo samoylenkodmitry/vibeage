@@ -43,6 +43,15 @@ export const SOCKET_SESSION_EVENTS = SESSION_EVENTS;
 export type WorldRoomJoinOptions = {
   playerName?: string;
   clientProtocolVersion?: number;
+  /**
+   * Initial race / class chosen at the character-creation step in
+   * the lobby. Server uses these only when creating a *new* player
+   * row; an existing player keeps the persisted identity. Avoids
+   * post-join SelectRace / SelectClass round-trips for first-time
+   * characters.
+   */
+  initialRace?: string;
+  initialClass?: string;
 };
 
 export function parseWorldRoomJoinOptions(options: unknown): WorldRoomJoinOptions {
@@ -56,6 +65,8 @@ export function parseWorldRoomJoinOptions(options: unknown): WorldRoomJoinOption
     clientProtocolVersion: typeof value.clientProtocolVersion === 'number'
       ? value.clientProtocolVersion
       : undefined,
+    initialRace: typeof value.initialRace === 'string' ? value.initialRace : undefined,
+    initialClass: typeof value.initialClass === 'string' ? value.initialClass : undefined,
   };
 }
 
@@ -75,6 +86,7 @@ export interface AuthoritativeRoomPort {
     socketId: string,
     playerName: string,
     client?: AuthoritativeRoomClient,
+    options?: { initialRace?: string; initialClass?: string },
   ): Promise<{ playerId: string }>;
   leaveClient(socketId: string): Promise<string | undefined>;
   dispatchCommand(

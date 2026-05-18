@@ -22,7 +22,8 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<number | null>(null);
   const shouldReconnectRef = useRef(false);
-  const startJoinRef = useRef<(playerName: string) => void>(() => undefined);
+  const startJoinRef = useRef<(playerName: string, initial?: { race?: string; className?: string }) => void>(() => undefined);
+  const lastInitialRef = useRef<{ race?: string; className?: string } | undefined>(undefined);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current !== null) {
@@ -49,11 +50,11 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
     );
     reconnectTimerRef.current = window.setTimeout(() => {
       reconnectTimerRef.current = null;
-      startJoinRef.current(playerNameRef.current);
+      startJoinRef.current(playerNameRef.current, lastInitialRef.current);
     }, delay);
   }, [dispatch]);
 
-  startJoinRef.current = (playerName: string) => {
+  startJoinRef.current = (playerName: string, initial?: { race?: string; className?: string }) => {
     joinWorldRoom(playerName, dispatch, {
       onLeave(leftRoom) {
         if (roomRef.current !== leftRoom) {
@@ -63,7 +64,7 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
         roomRef.current = null;
         scheduleReconnect('Disconnected from the game server.');
       },
-    }).then((room) => {
+    }, initial).then((room) => {
       clearReconnectTimer();
       reconnectAttemptsRef.current = 0;
       roomRef.current = room;
@@ -82,9 +83,10 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
     dispatch({ type: 'disconnected', message: 'Disconnected' });
   }, [clearReconnectTimer, dispatch]);
 
-  const connect = useCallback((playerName: string) => {
+  const connect = useCallback((playerName: string, initial?: { race?: string; className?: string }) => {
     shouldReconnectRef.current = true;
     playerNameRef.current = playerName;
+    lastInitialRef.current = initial;
     reconnectAttemptsRef.current = 0;
     clearReconnectTimer();
 
@@ -93,7 +95,7 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
     previousRoom?.leave(true).catch(() => undefined);
 
     dispatch({ type: 'startConnecting' });
-    startJoinRef.current(playerName);
+    startJoinRef.current(playerName, initial);
   }, [clearReconnectTimer, dispatch]);
 
   useEffect(() => {
@@ -113,11 +115,14 @@ async function joinWorldRoom(
   playerName: string,
   dispatch: Dispatch<GameClientAction>,
   lifecycle?: { onLeave: (room: Room) => void },
+  initial?: { race?: string; className?: string },
 ): Promise<Room> {
   const client = new ColyseusClient(getColyseusUrl());
   const room = await client.joinOrCreate('world', {
     playerName,
     clientProtocolVersion: 2,
+    initialRace: initial?.race,
+    initialClass: initial?.className,
   });
 
   bindRoom(room, dispatch, lifecycle);
