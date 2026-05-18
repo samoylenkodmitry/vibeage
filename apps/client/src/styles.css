@@ -1009,6 +1009,8 @@ input {
 .map-legend-dot--mega { background: #facc15; }
 .map-legend-dot--landmark { background: #fde68a; opacity: 0.7; }
 .map-legend-dot--pin { background: #facc15; outline: 2px solid #04100d; }
+.map-legend-dot--boss-alive { background: #fbbf24; outline: 2px solid #04100d; }
+.map-legend-dot--boss-dead { background: #475569; outline: 2px solid #04100d; }
 
 .map-toolbar {
   display: flex;

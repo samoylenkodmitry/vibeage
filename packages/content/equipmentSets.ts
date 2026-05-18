@@ -1,3 +1,4 @@
+import { BOSS_GEAR_SETS } from './bossGear.js';
 import type { ItemId } from './items.js';
 import type { ItemStatBlock } from './equipmentTypes.js';
 
@@ -32,6 +33,7 @@ export const EQUIPMENT_SETS: Record<EquipmentSetId, EquipmentSet> = {
       { requiredCount: 5, statModifiers: { pDef: 10, hp: 60, moveSpeed: 1 } },
     ],
   },
+  ...BOSS_GEAR_SETS,
 };
 
 /**

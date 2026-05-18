@@ -7,7 +7,7 @@ import {
 import { LootDropsForTable } from './WikiLoot';
 
 export type WikiNav = (tab: WikiBossesNavTab, id: string) => void;
-type WikiBossesNavTab = 'bosses' | 'items' | 'mobs' | 'recipes';
+type WikiBossesNavTab = 'bosses' | 'items' | 'mobs' | 'recipes' | 'sets';
 
 /**
  * Wiki "Bosses" tab. Lifted out of WikiPanel.tsx to keep that file
