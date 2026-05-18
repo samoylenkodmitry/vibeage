@@ -50,11 +50,32 @@ describe('applyGmCommand', () => {
     expect(caller.specializationId).toBeNull();
   });
 
-  it('grantSkill adds the id to unlockedSkills', () => {
+  it('grantSkill adds the id to unlockedSkills and binds the first empty shortcut', () => {
     const caller = createTransientPlayer('s6', 'gm');
+    // Use slash — default mage character doesn't have it (so the
+    // grant actually mutates state and binds the next free slot).
+    const firstEmptyBefore = caller.skillShortcuts.findIndex((s) => s === null);
     const { sink } = captureOutbound();
-    applyGmCommand(caller, { type: 'GmCommand', verb: 'grantSkill', value: 'fireball' }, () => undefined, sink);
-    expect(caller.unlockedSkills).toContain('fireball');
+    applyGmCommand(caller, { type: 'GmCommand', verb: 'grantSkill', value: 'slash' }, () => undefined, sink);
+    expect(caller.unlockedSkills).toContain('slash');
+    if (firstEmptyBefore !== -1) {
+      expect(caller.skillShortcuts[firstEmptyBefore]).toBe('slash');
+    }
+  });
+
+  it('setLevel re-derives HP/MP caps + emits the new stats', () => {
+    const caller = createTransientPlayer('s8', 'gm');
+    const hpBefore = caller.maxHealth;
+    const { events, sink } = captureOutbound();
+    applyGmCommand(caller, { type: 'GmCommand', verb: 'setLevel', value: 40 }, () => undefined, sink);
+    expect(caller.level).toBe(40);
+    expect(caller.maxHealth).toBeGreaterThan(hpBefore);
+    const last = events.find((e) => e.type === 'playerUpdated');
+    expect(last).toBeDefined();
+    if (last?.type === 'playerUpdated') {
+      expect(last.update.maxHealth).toBe(caller.maxHealth);
+      expect(last.update.stats).toBeDefined();
+    }
   });
 
   it('rejects grantSkill for an unknown skill id', () => {

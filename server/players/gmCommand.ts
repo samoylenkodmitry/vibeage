@@ -5,6 +5,7 @@ import { CLASS_SKILL_TREES } from '../../packages/content/classes.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { SPECIALIZATIONS } from '../../packages/content/specializations.js';
 import { addItemsToPlayer } from '../inventory/aggregateBridge.js';
+import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyClassChange, applyRaceChange, applySpecializationChange } from './playerIdentity.js';
 import { isGmModeEnabled } from './gmMode.js';
@@ -83,14 +84,38 @@ function dispatch(target: PlayerState, msg: GmCommand, outbound: OutboundEventSi
       if (!SKILLS[skillId]) return false;
       if (!target.unlockedSkills.includes(skillId)) {
         target.unlockedSkills.push(skillId);
+        // Mirror the normal learn flow: drop the new skill into the
+        // first empty shortcut slot so the player can actually press
+        // it without rebinding manually.
+        const emptyIndex = target.skillShortcuts.findIndex((s) => s === null);
+        if (emptyIndex !== -1) {
+          target.skillShortcuts[emptyIndex] = skillId;
+        }
       }
-      emitPlayerUpdated(outbound, { id: target.id, unlockedSkills: target.unlockedSkills });
+      emitPlayerUpdated(outbound, {
+        id: target.id,
+        unlockedSkills: target.unlockedSkills,
+        skillShortcuts: target.skillShortcuts,
+      });
       return true;
     }
     case 'setLevel': {
       if (typeof msg.value !== 'number' || msg.value < 1) return false;
       target.level = Math.floor(msg.value);
-      emitPlayerUpdated(outbound, { id: target.id, level: target.level });
+      // Derived stats (HP/MP caps, P.Atk, M.Atk, etc.) scale with
+      // level; re-deriving here so the GM-set level isn't just a
+      // cosmetic number. Broadcast the resulting stats + caps so
+      // the client doesn't wait for the next tick to display them.
+      refreshPlayerStatsFromEquipment(target);
+      emitPlayerUpdated(outbound, {
+        id: target.id,
+        level: target.level,
+        stats: target.stats,
+        maxHealth: target.maxHealth,
+        maxMana: target.maxMana,
+        health: target.health,
+        mana: target.mana,
+      });
       return true;
     }
     case 'setRace': {
