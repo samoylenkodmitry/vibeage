@@ -50,6 +50,24 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Curator of the Cursed Ruins',
     position: { x: 380, y: 0.5, z: -90 },
   },
+  smith_alric: {
+    id: 'smith_alric',
+    name: 'Smith Alric',
+    title: 'Forge-Caller of Sunspire',
+    position: { x: 134, y: 0.5, z: 64 },
+  },
+  harbormaster_yiver: {
+    id: 'harbormaster_yiver',
+    name: 'Harbormaster Yiver',
+    title: 'Watcher of the Wetland',
+    position: { x: 116, y: 0.5, z: 76 },
+  },
+  scholar_thessa: {
+    id: 'scholar_thessa',
+    name: 'Scholar Thessa',
+    title: 'Mapmaker of Gludin',
+    position: { x: 128, y: 0.5, z: 84 },
+  },
 };
 
 export function getOfferedQuestIds(npcId: string): string[] {
