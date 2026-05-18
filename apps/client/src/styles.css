@@ -1913,8 +1913,12 @@ input {
   }
 
   .casting-panel {
+    /* Sit above the 2-row mobile skill bar. The bar's footprint is
+       ~2 × 52px buttons + gaps + padding + radius (~124px), anchored
+       at calc(60px + safe-area). Add a small gap so the cast bar
+       reads as a stack above, not a collision. */
     right: 8px;
-    bottom: 158px;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 140px);
     left: 8px;
     width: calc(100vw - 16px);
     transform: none;

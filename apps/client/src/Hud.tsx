@@ -53,6 +53,7 @@ type GameHudProps = {
   onSelectTarget?: (targetId: string | null) => void;
   onCycleTarget?: () => void;
   onPickupNearest?: () => void;
+  onMove?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
@@ -138,6 +139,7 @@ export function GameHud({
   onSelectTarget,
   onCycleTarget,
   onPickupNearest,
+  onMove,
   onSendChat,
 }: GameHudProps) {
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
@@ -150,7 +152,7 @@ export function GameHud({
   const now = useNow(100);
   const panels = usePanelState();
 
-  useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest);
+  useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest, onMove);
 
   // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
   // tooltips, SkillBar buttons) calls openWikiAt, force the Wiki
@@ -192,9 +194,7 @@ export function GameHud({
         onCancelQuest={onCancelQuest}
         onAdvanceQuest={onAdvanceQuest}
         onClaimQuestReward={onClaimQuestReward}
-        onGmCommand={onGmCommand}
-        onPickupNearest={onPickupNearest}
-        onSendChat={onSendChat}
+        onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
       />
       <NpcDialog player={player} onTalkNpc={onTalkNpc} onAcceptQuest={onAcceptQuest} />
       <CastingPanel player={player} />
@@ -484,6 +484,7 @@ function useSkillHotkeys(
   onCastSkill: (skillId: SkillId) => void,
   onCycleTarget?: () => void,
   onPickupNearest?: () => void,
+  onMove?: () => void,
 ) {
   const playerRef = useRef(player);
   playerRef.current = player;
@@ -491,6 +492,8 @@ function useSkillHotkeys(
   cycleRef.current = onCycleTarget;
   const pickupRef = useRef(onPickupNearest);
   pickupRef.current = onPickupNearest;
+  const moveRef = useRef(onMove);
+  moveRef.current = onMove;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -514,6 +517,14 @@ function useSkillHotkeys(
         if (pickupRef.current) {
           event.preventDefault();
           pickupRef.current();
+        }
+        return;
+      }
+
+      if (event.code === 'KeyM') {
+        if (moveRef.current) {
+          event.preventDefault();
+          moveRef.current();
         }
         return;
       }

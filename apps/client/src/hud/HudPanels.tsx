@@ -53,6 +53,7 @@ export type HudPanelsProps = {
     quantity?: number;
   }) => void;
   onPickupNearest?: () => void;
+  onMove?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
@@ -77,6 +78,7 @@ export function HudPanels({
   onClaimQuestReward,
   onGmCommand,
   onPickupNearest,
+  onMove,
   onSendChat,
 }: HudPanelsProps) {
   return (
@@ -125,8 +127,10 @@ export function HudPanels({
           now={now}
           hasSelectedTarget={hasSelectedTarget}
           hasLootNearby={hasLootNearby}
+          hasNavigationMarker={Boolean(navigationMarker)}
           onCastSkill={onCastSkill}
           onPickupNearest={onPickupNearest ?? (() => undefined)}
+          onMove={onMove ?? (() => undefined)}
         />
       )}
       {panels.chatOpen && onSendChat && (

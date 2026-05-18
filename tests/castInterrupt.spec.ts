@@ -40,10 +40,41 @@ describe('tryInterruptForNewAction', () => {
     const cast = makeCast(player.id, 'escape');
     const activeCasts: ActiveCastStore = { [cast.castId]: cast as never };
     const { sink, events } = captureOutbound();
-    expect(tryInterruptForNewAction(player, activeCasts, sink, 'movement')).toBe('interrupted');
+    // Force the resist to miss (stat exists on transient player, so we
+    // pass an rng that always rolls 1.0 — never under any chance).
+    expect(tryInterruptForNewAction(player, activeCasts, sink, 'movement', () => 1)).toBe('interrupted');
     expect(player.castingSkill).toBeNull();
     expect(activeCasts[cast.castId]).toBeUndefined();
     expect(player.skillCooldownEndTs.escape).toBeUndefined();
     expect(events.find((e) => e.type === 'playerUpdated')).toBeDefined();
+  });
+
+  it('blocks the new action when the stat-based resist roll succeeds', () => {
+    // physical skill (slash) → STR-based resist. With STR=80, p =
+    // min(0.85, 80*0.012) = 0.85; an rng of 0 (always rolls under)
+    // makes the resist fire deterministically.
+    const player = createTransientPlayer('s3', 't3');
+    player.castingSkill = 'slash';
+    player.stats = { ...(player.stats ?? {}), str: 80 };
+    const cast = makeCast(player.id, 'slash');
+    const activeCasts: ActiveCastStore = { [cast.castId]: cast as never };
+    const { sink } = captureOutbound();
+    expect(tryInterruptForNewAction(player, activeCasts, sink, 'movement', () => 0)).toBe('block');
+    // Cast is preserved when the resist holds.
+    expect(activeCasts[cast.castId]).toBeDefined();
+    expect(player.castingSkill).toBe('slash');
+  });
+
+  it('falls through to interrupt when the resist roll fails', () => {
+    const player = createTransientPlayer('s4', 't4');
+    player.castingSkill = 'slash';
+    player.stats = { ...(player.stats ?? {}), str: 80 };
+    player.mana = 0;
+    const cast = makeCast(player.id, 'slash');
+    const activeCasts: ActiveCastStore = { [cast.castId]: cast as never };
+    const { sink } = captureOutbound();
+    // rng=0.9999 → above resist (0.85) → interrupt proceeds.
+    expect(tryInterruptForNewAction(player, activeCasts, sink, 'movement', () => 0.9999)).toBe('interrupted');
+    expect(activeCasts[cast.castId]).toBeUndefined();
   });
 });

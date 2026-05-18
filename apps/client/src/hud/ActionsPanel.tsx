@@ -11,8 +11,10 @@ type ActionsPanelProps = {
   now: number;
   hasSelectedTarget: boolean;
   hasLootNearby: boolean;
+  hasNavigationMarker: boolean;
   onCastSkill: (skillId: SkillId) => void;
   onPickupNearest: () => void;
+  onMove: () => void;
 };
 
 export function ActionsPanel({
@@ -20,8 +22,10 @@ export function ActionsPanel({
   now,
   hasSelectedTarget,
   hasLootNearby,
+  hasNavigationMarker,
   onCastSkill,
   onPickupNearest,
+  onMove,
 }: ActionsPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('actions');
   const attackSkill = SKILLS[BASIC_ATTACK_SKILL_ID];
@@ -53,6 +57,21 @@ export function ActionsPanel({
           }
           onClick={() => onCastSkill(BASIC_ATTACK_SKILL_ID)}
           extraHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
+        />
+        <ActionButton
+          label="Move"
+          hotkey="M"
+          disabled={!player?.isAlive || (!hasSelectedTarget && !hasNavigationMarker)}
+          subtitle={
+            !player?.isAlive
+              ? 'Dead'
+              : hasSelectedTarget
+                ? 'Walk to target'
+                : hasNavigationMarker
+                  ? 'Walk to map pin'
+                  : 'Pick target or pin'
+          }
+          onClick={onMove}
         />
         <ActionButton
           label="Pickup"
