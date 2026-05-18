@@ -320,10 +320,8 @@ function HudPanels({
       )}
       {panels.characterOpen && (
         <CharacterPanel
-          player={player}
-          onSelectClass={onSelectClass}
-          onSelectRace={onSelectRace}
-          onSelectSpecialization={onSelectSpecialization}
+          player={player} onSelectClass={onSelectClass}
+          onSelectRace={onSelectRace} onSelectSpecialization={onSelectSpecialization}
         />
       )}
       {panels.mapOpen && (
