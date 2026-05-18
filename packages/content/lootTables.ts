@@ -678,3 +678,4 @@ export const LOOT_TABLES: Record<string, LootTable> = {
     ],
   },
 };
+

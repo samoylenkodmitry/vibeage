@@ -4,6 +4,7 @@ import {
   listMiniBosses,
   type MiniBossSpec,
 } from '../../../../packages/content/miniBosses';
+import { LootDropsForTable } from './WikiLoot';
 
 export type WikiNav = (tab: WikiBossesNavTab, id: string) => void;
 type WikiBossesNavTab = 'bosses' | 'items' | 'mobs';
@@ -67,6 +68,7 @@ function BossLi({
           </>
         )}
       </small>
+      <LootDropsForTable tableId={boss.lootTableId} navigate={navigate} />
     </li>
   );
 }
