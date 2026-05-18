@@ -121,13 +121,18 @@ describe('Colyseus room adapter join and command handling', () => {
     const port = makePort(state);
     const client = makeClient('socket1');
     const adapter = new ColyseusAuthoritativeRoomAdapter(port);
+    // PR I: world join now requires a valid session token. Issue one
+    // server-side and pass it as the auth handshake.
+    const { issueSessionToken } = await import('../server/auth/sessionTokens');
+    const token = issueSessionToken('test-account-id');
 
     await expect(adapter.handleJoin(client, {
       playerName: 'Tester',
       clientProtocolVersion: 2,
+      sessionToken: token,
     })).resolves.toEqual({ playerId: 'player1' });
 
-    expect(port.joinClient).toHaveBeenCalledWith('socket1', 'Tester', expect.anything(), expect.objectContaining({}));
+    expect(port.joinClient).toHaveBeenCalledWith('socket1', 'Tester', expect.anything(), expect.objectContaining({ accountId: 'test-account-id' }));
     expect(client.send).not.toHaveBeenCalled();
     expect(runtimeMetrics.snapshot().counters['room.joins']).toBe(1);
   });

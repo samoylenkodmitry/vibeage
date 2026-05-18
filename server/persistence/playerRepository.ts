@@ -33,23 +33,45 @@ type PlayerSessionInsert = Pick<Insertable<PlayersTable>, 'name' | 'socket_id' |
 
 type ServerEventInsert = Pick<Insertable<ServerEventsTable>, 'event_type' | 'player_id' | 'event_data' | 'timestamp'>;
 
-type PersistenceDatabase = Pick<typeof database, 'insertInto' | 'updateTable'>;
+type PersistenceDatabase = Pick<typeof database, 'insertInto' | 'updateTable' | 'selectFrom'>;
 
 export interface PlayerRepository {
-  upsertSession(socketId: string, name: string, loginTime: Date): Promise<Selectable<PlayersTable>>;
+  upsertSession(socketId: string, name: string, loginTime: Date, accountId?: string): Promise<Selectable<PlayersTable> | null>;
   updatePlayer(playerId: string, data: StablePlayerPersistenceData): Promise<void>;
   insertServerEvent(eventType: string, playerId: string | null, eventData: unknown, timestamp: number): Promise<void>;
 }
 
 export function createKyselyPlayerRepository(db: PersistenceDatabase): PlayerRepository {
   return {
-    async upsertSession(socketId, name, loginTime) {
+    async upsertSession(socketId, name, loginTime, accountId) {
+      if (accountId) {
+        // Account-scoped lookup: the row was created via the
+        // /api/account/characters POST in the lobby. World join only
+        // re-uses it; we don't create a row here. Returning null
+        // signals "unknown character for this account" — caller
+        // rejects the join.
+        const existing = await db
+          .selectFrom('players')
+          .where('account_id', '=', accountId)
+          .where('name', '=', name)
+          .selectAll()
+          .executeTakeFirst();
+        if (!existing) return null;
+        await db
+          .updateTable('players')
+          .set({ socket_id: socketId, last_login: loginTime })
+          .where('id', '=', existing.id)
+          .execute();
+        return { ...existing, socket_id: socketId, last_login: loginTime } as Selectable<PlayersTable>;
+      }
+      // Legacy path (no account): kept temporarily so non-auth
+      // clients still work. PR I deploy drops this once the auth
+      // wave is rolled out.
       const values: PlayerSessionInsert = {
         name,
         socket_id: socketId,
         last_login: loginTime,
       };
-
       return db
         .insertInto('players')
         .values(values as Insertable<PlayersTable>)

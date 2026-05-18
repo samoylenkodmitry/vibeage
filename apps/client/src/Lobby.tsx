@@ -1,77 +1,108 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../packages/content/classes';
 import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
 
 /**
- * Pre-game lobby. Loads the player's saved characters from
- * localStorage, lets them pick one + Enter the World, or kick off
- * the Create-New-Character flow (race -> class -> save).
+ * Pre-game lobby. Login + password flow against the server-side
+ * accounts table. After auth: load the account's character roster
+ * from /api/account/characters, pick one + Enter, or open the
+ * Create form (race → class → POST → back to lobby).
  *
- * Persistence is browser-local for now (no auth). The race + class
- * pick flows to the server in the join handshake so a brand-new
- * character is spawned with the chosen identity instead of relying
- * on a post-join SelectRace/SelectClass dance.
+ * The session token + login are persisted to localStorage so a
+ * reload doesn't kick the player back to the login screen. Tokens
+ * are server-signed HMAC and expire — a 401 from the roster fetch
+ * drops the cache and shows the login form again.
  */
 export type SavedCharacter = {
   name: string;
   race: CharacterRace;
   className: CharacterClass;
-  createdAtMs: number;
 };
 
-const STORAGE_KEY = 'vibeage:characters';
+export type LobbySession = { token: string; login: string };
 
-function loadCharacters(): SavedCharacter[] {
-  if (typeof window === 'undefined') return [];
+const SESSION_KEY = 'vibeage:session';
+
+function loadSession(): LobbySession | null {
+  if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    const raw = window.localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((c): c is SavedCharacter =>
-      typeof c?.name === 'string'
-      && CHARACTER_RACES.includes(c.race)
-      && typeof c?.className === 'string'
-      && CLASS_SKILL_TREES[c.className as CharacterClass] !== undefined,
-    );
+    if (typeof parsed?.token === 'string' && typeof parsed?.login === 'string') return parsed;
+    return null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-function saveCharacters(chars: SavedCharacter[]) {
+function saveSession(s: LobbySession | null): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(chars));
-  } catch {
-    // Ignore quota errors etc. — persistence is best-effort.
-  }
+    if (s) window.localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else window.localStorage.removeItem(SESSION_KEY);
+  } catch { /* best-effort */ }
+}
+
+async function fetchRoster(token: string): Promise<SavedCharacter[] | 'unauthorized'> {
+  const res = await fetch('/api/account/characters', {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401) return 'unauthorized';
+  if (!res.ok) throw new Error(`Roster fetch failed: ${res.status}`);
+  const body = (await res.json()) as { characters: Array<{ name: string; race: string; class_name: string }> };
+  return body.characters.map((c) => ({
+    name: c.name,
+    race: c.race as CharacterRace,
+    className: c.class_name as CharacterClass,
+  }));
 }
 
 export function Lobby({
   onEnter,
 }: {
-  onEnter: (character: SavedCharacter) => void;
+  onEnter: (character: SavedCharacter, session: LobbySession) => void;
 }) {
-  const [characters, setCharacters] = useState<SavedCharacter[]>(() => loadCharacters());
+  const [session, setSession] = useState<LobbySession | null>(() => loadSession());
+  const [characters, setCharacters] = useState<SavedCharacter[] | null>(null);
   const [creating, setCreating] = useState(false);
+  const [loadingRoster, setLoadingRoster] = useState(false);
+  const [rosterError, setRosterError] = useState<string | null>(null);
 
-  useEffect(() => {
-    saveCharacters(characters);
-  }, [characters]);
+  const refreshRoster = useCallback(async (s: LobbySession) => {
+    setLoadingRoster(true);
+    setRosterError(null);
+    try {
+      const result = await fetchRoster(s.token);
+      if (result === 'unauthorized') {
+        saveSession(null);
+        setSession(null);
+        setCharacters(null);
+        return;
+      }
+      setCharacters(result);
+    } catch (err) {
+      setRosterError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setLoadingRoster(false);
+    }
+  }, []);
+
+  useEffect(() => { if (session) refreshRoster(session); }, [session, refreshRoster]);
+
+  if (!session) {
+    return (
+      <AuthForm onAuth={(s) => { saveSession(s); setSession(s); }} />
+    );
+  }
 
   if (creating) {
     return (
       <CreateCharacterForm
-        existingNames={new Set(characters.map((c) => c.name.toLowerCase()))}
+        session={session}
+        existingNames={new Set((characters ?? []).map((c) => c.name.toLowerCase()))}
         onCancel={() => setCreating(false)}
-        onCreate={(c) => {
-          // Save the new character and drop back to the lobby. The
-          // user explicitly picks Enter on the card when ready —
-          // avoids the auto-enter surprise after the create flow.
-          setCharacters([...characters, c]);
-          setCreating(false);
-        }}
+        onCreated={() => { setCreating(false); refreshRoster(session); }}
       />
     );
   }
@@ -80,24 +111,40 @@ export function Lobby({
     <main className="start-screen">
       <section className="start-panel">
         <h1>VibeAge</h1>
+        <div className="lobby-header">
+          <small>Logged in as <strong>{session.login}</strong></small>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => { saveSession(null); setSession(null); setCharacters(null); }}
+          >Log out</button>
+        </div>
         <h2 className="lobby-heading">Your Characters</h2>
-        {characters.length === 0 && (
+        {loadingRoster && <p className="lobby-empty">Loading…</p>}
+        {rosterError && <p className="lobby-error">{rosterError}</p>}
+        {!loadingRoster && characters?.length === 0 && (
           <p className="lobby-empty">No characters yet. Create one to begin.</p>
         )}
         <ul className="lobby-list">
-          {characters.map((c) => (
+          {(characters ?? []).map((c) => (
             <li key={c.name} className="lobby-card">
               <div className="lobby-card-main">
                 <strong>{c.name}</strong>
                 <small>{RACE_PROFILES[c.race]?.name ?? c.race} · {c.className}</small>
               </div>
               <div className="lobby-card-actions">
-                <button type="button" onClick={() => onEnter(c)}>Enter World</button>
+                <button type="button" onClick={() => onEnter(c, session)}>Enter World</button>
                 <button
                   type="button"
                   className="lobby-card-delete"
-                  onClick={() => setCharacters(characters.filter((other) => other.name !== c.name))}
-                  title="Delete character (local only)"
+                  onClick={async () => {
+                    await fetch(`/api/account/characters/${encodeURIComponent(c.name)}`, {
+                      method: 'DELETE',
+                      headers: { authorization: `Bearer ${session.token}` },
+                    });
+                    refreshRoster(session);
+                  }}
+                  title="Delete character"
                 >Delete</button>
               </div>
             </li>
@@ -106,44 +153,111 @@ export function Lobby({
         <button type="button" className="lobby-create" onClick={() => setCreating(true)}>
           + Create New Character
         </button>
-        <small className="lobby-note">
-          Characters are stored in this browser. Server-side multi-character accounts ship with auth (roadmap).
-        </small>
       </section>
     </main>
   );
 }
 
+function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/auth/${mode}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ login, password }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { token?: string; login?: string; error?: string };
+      if (!res.ok || !body.token) {
+        setError(body.error ?? `Auth failed (${res.status})`);
+        return;
+      }
+      onAuth({ token: body.token, login: body.login ?? login });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="start-screen">
+      <form className="start-panel" onSubmit={submit}>
+        <h1>VibeAge</h1>
+        <div className="lobby-mode-tabs">
+          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Login</button>
+          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>Register</button>
+        </div>
+        <label htmlFor="login-input">Login</label>
+        <input id="login-input" value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
+        <label htmlFor="password-input">Password</label>
+        <input id="password-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+        {error && <small className="lobby-error">{error}</small>}
+        <button type="submit" disabled={busy || !login || !password}>
+          {busy ? '…' : mode === 'login' ? 'Login' : 'Register & Login'}
+        </button>
+      </form>
+    </main>
+  );
+}
+
 function CreateCharacterForm({
+  session,
   existingNames,
   onCancel,
-  onCreate,
+  onCreated,
 }: {
+  session: LobbySession;
   existingNames: Set<string>;
   onCancel: () => void;
-  onCreate: (c: SavedCharacter) => void;
+  onCreated: () => void;
 }) {
   const [name, setName] = useState('');
   const [race, setRace] = useState<CharacterRace>('human');
   const allowed = RACE_PROFILES[race]?.allowedClasses ?? [];
   const [className, setClassName] = useState<CharacterClass>(allowed[0] ?? 'mage');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // When race changes, snap class to one allowed for it.
     const next = RACE_PROFILES[race]?.allowedClasses ?? [];
-    if (next.length > 0 && !next.includes(className)) {
-      setClassName(next[0]);
-    }
+    if (next.length > 0 && !next.includes(className)) setClassName(next[0]);
   }, [race, className]);
 
   const trimmed = name.trim();
   const conflict = trimmed.length > 0 && existingNames.has(trimmed.toLowerCase());
   const valid = trimmed.length > 0 && !conflict && allowed.includes(className);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!valid) return;
-    onCreate({ name: trimmed, race, className, createdAtMs: Date.now() });
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/account/characters', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ name: trimmed, race, className }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(body.error ?? `Create failed (${res.status})`);
+        return;
+      }
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -151,13 +265,7 @@ function CreateCharacterForm({
       <form className="start-panel start-panel-character" onSubmit={submit}>
         <h1>Create Character</h1>
         <label htmlFor="player-name">Character Name</label>
-        <input
-          id="player-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Enter your character name"
-          autoComplete="off"
-        />
+        <input id="player-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your character name" autoComplete="off" />
         {conflict && <small className="lobby-error">Name already taken locally.</small>}
         <fieldset className="character-fieldset">
           <legend>Race</legend>
@@ -176,22 +284,17 @@ function CreateCharacterForm({
           <div className="character-grid">
             {allowed.map((option) => (
               <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
-                <input
-                  type="radio"
-                  name="className"
-                  value={option}
-                  checked={className === option}
-                  onChange={() => setClassName(option)}
-                />
+                <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
                 <span>{option}</span>
               </label>
             ))}
           </div>
           <small className="character-blurb">{CLASS_SKILL_TREES[className]?.description ?? ''}</small>
         </fieldset>
+        {error && <small className="lobby-error">{error}</small>}
         <div className="lobby-form-actions">
           <button type="button" onClick={onCancel}>Back to Lobby</button>
-          <button type="submit" disabled={!valid}>Create &amp; Enter</button>
+          <button type="submit" disabled={!valid || busy}>{busy ? '…' : 'Create'}</button>
         </div>
       </form>
     </main>

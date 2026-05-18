@@ -18,6 +18,7 @@ import {
 import { VibeAgeRoom } from './transport/vibeAgeRoom.js';
 import { runtimeMetrics } from './observability/runtimeMetrics.js';
 import { assertProductionEnv, isProductionEnv } from './productionEnvAssertions.js';
+import { registerAuthRoutes } from './auth/authRoutes.js';
 
 // Create Express app
 const app = express();
@@ -30,6 +31,12 @@ app.use(morgan('combined'));
 app.get('/healthz', (req, res) => {
   res.status(200).send({ status: 'ok', uptime: process.uptime() });
 });
+
+// Auth + account-roster routes (POST register, POST login,
+// GET/POST/DELETE /api/account/characters). Tokens are HMAC-signed
+// and verified per request — no DB session table.
+app.use(express.json({ limit: '4kb' }));
+registerAuthRoutes(app);
 
 // /runtimez exposes process internals (heap, event-loop lag, room counts). In
 // production we require a shared token so it's not casually scrapable by anyone

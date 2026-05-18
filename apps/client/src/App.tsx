@@ -17,12 +17,16 @@ export default function App() {
   if (state.connectionState === 'idle') {
     return (
       <Lobby
-        onEnter={(character) => {
-          // Race + class flow through the join handshake (see
-          // packages/protocol roomBoundary.WorldRoomJoinOptions); the
-          // server applies them only on first character spawn, so
-          // existing characters keep their persisted identity.
-          client.connect(character.name, { race: character.race, className: character.className });
+        onEnter={(character, session) => {
+          // World join verifies the session token + looks up the
+          // character by (accountId, name). race/className aren't
+          // applied on the join path anymore (character row was
+          // created by the lobby's POST), but kept for back-compat.
+          client.connect(character.name, {
+            race: character.race,
+            className: character.className,
+            sessionToken: session.token,
+          });
         }}
       />
     );

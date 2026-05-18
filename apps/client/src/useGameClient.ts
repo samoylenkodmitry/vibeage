@@ -13,7 +13,7 @@ import { useRoomConnection } from './roomConnection';
 
 type ClientApi = ClientActions & {
   state: GameClientState;
-  connect: (playerName: string, initial?: { race?: string; className?: string }) => void;
+  connect: (playerName: string, initial?: { race?: string; className?: string; sessionToken?: string }) => void;
   disconnect: () => void;
   castSkill: (skillId: SkillId) => void;
   sendMoveIntent: (target: VecXZ) => void;
