@@ -38,6 +38,7 @@ export type HudPanelsProps = {
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
+  onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
@@ -70,6 +71,7 @@ export function HudPanels({
   onCastSkill,
   onLearnSkill,
   onUseItem,
+  onCraftItem,
   onEquipItem,
   onUnequipItem,
   onUpgradeSkill,
@@ -100,6 +102,7 @@ export function HudPanels({
           playerLevel={player?.level ?? 1}
           onUseItem={onUseItem}
           onEquipItem={onEquipItem}
+          onCraftItem={onCraftItem}
         />
       )}
       {panels.gearOpen && (

@@ -33,6 +33,7 @@ type GameHudProps = {
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
+  onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
@@ -126,6 +127,7 @@ export function GameHud({
   onCastSkill,
   onLearnSkill,
   onUseItem,
+  onCraftItem,
   onEquipItem,
   onUnequipItem,
   onUpgradeSkill,
@@ -187,7 +189,7 @@ export function GameHud({
         onSetNavigationMarker={onSetNavigationMarker}
         onCastSkill={onCastSkill}
         onLearnSkill={onLearnSkill}
-        onUseItem={onUseItem}
+        onUseItem={onUseItem} onCraftItem={onCraftItem}
         onEquipItem={onEquipItem}
         onUnequipItem={onUnequipItem}
         onUpgradeSkill={onUpgradeSkill}

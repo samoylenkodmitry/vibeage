@@ -1,4 +1,5 @@
 import { EQUIPMENT_STARTER_ITEMS } from './equipmentItems.js';
+import { BOSS_GEAR_ITEMS } from './bossGear.js';
 import { BOSS_TROPHY_ITEMS } from './miniBosses.js';
 import type {
   EquipSpec,
@@ -17,7 +18,7 @@ export interface Item {
   icon: string;
   stackable: boolean;
   maxStack?: number;
-  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'currency';
+  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'currency' | 'recipe';
   // Additional properties for specific item types
   attackPower?: number;
   defenseValue?: number;
@@ -32,6 +33,24 @@ export interface Item {
   stats?: ItemStatBlock;
   setId?: string;
   flags?: readonly ItemFlag[];
+  /**
+   * PR U — recipe payload. Set on items with `type: 'recipe'`. The
+   * recipe item itself drops from bosses; players use it from the
+   * bag to consume the listed inputs (plus the recipe) and produce
+   * the output equipment. Wiki Recipes tab reads this directly so
+   * the catalog and the engine share one record.
+   */
+  recipe?: RecipeSpec;
+}
+
+export interface RecipeIngredient {
+  itemId: ItemId;
+  quantity: number;
+}
+
+export interface RecipeSpec {
+  inputs: ReadonlyArray<RecipeIngredient>;
+  output: RecipeIngredient;
 }
 
 /** Resolve the item kind, falling back to the legacy `type` field. */
@@ -619,4 +638,5 @@ export const ITEMS: Record<ItemId, Item> = {
   },
   ...EQUIPMENT_STARTER_ITEMS,
   ...BOSS_TROPHY_ITEMS,
+  ...BOSS_GEAR_ITEMS,
 };

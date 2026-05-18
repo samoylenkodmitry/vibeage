@@ -68,6 +68,7 @@ export default function App() {
         onCastSkill={client.castSkill}
         onLearnSkill={client.learnSkill}
         onUseItem={client.useItem}
+        onCraftItem={client.craftItem}
         onEquipItem={client.equipItem}
         onUnequipItem={client.unequipItem}
         onUpgradeSkill={client.upgradeSkill}

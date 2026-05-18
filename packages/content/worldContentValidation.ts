@@ -74,7 +74,7 @@ const ItemSchema = z.object({
   name: z.string().min(1),
   stackable: z.boolean(),
   maxStack: positiveNumber.optional(),
-  type: z.enum(['weapon', 'armor', 'consumable', 'material', 'currency']),
+  type: z.enum(['weapon', 'armor', 'consumable', 'material', 'currency', 'recipe']),
 }).superRefine((item, ctx) => {
   if (item.stackable && !item.maxStack) {
     ctx.addIssue({
