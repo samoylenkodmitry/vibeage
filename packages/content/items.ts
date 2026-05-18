@@ -1,4 +1,5 @@
 import { EQUIPMENT_STARTER_ITEMS } from './equipmentItems.js';
+import { BOSS_TROPHY_ITEMS } from './miniBosses.js';
 import type {
   EquipSpec,
   ItemFlag,
@@ -617,4 +618,5 @@ export const ITEMS: Record<ItemId, Item> = {
     type: 'consumable',
   },
   ...EQUIPMENT_STARTER_ITEMS,
+  ...BOSS_TROPHY_ITEMS,
 };

@@ -18,6 +18,13 @@ export interface ZoneMob {
 }
 
 export interface ZoneMiniBoss {
+    /**
+     * Stable id linking this spawn to the content registry in
+     * packages/content/miniBosses.ts (MINI_BOSSES[id]). The Wiki
+     * "Bosses" tab + spawn pipeline both read from that registry so
+     * lore / signature ability / drops stay in one place.
+     */
+    id?: string;
     type: string;
     name: string;
     levelBonus?: number;
@@ -164,7 +171,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'slime', weight: 10, minCount: 1, maxCount: 2 },
             { type: 'meadow_sprite', weight: 5, minCount: 1, maxCount: 1, activePhases: ['dawn', 'day'] }
         ],
-        miniBoss: { type: 'goblin', name: 'Grakk the Goblin Chief', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.5, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'grakk', type: 'goblin', name: 'Grakk the Goblin Chief', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.5, lootTableId: 'boss_loot_grakk' }
     },
     {
         id: 'dark_forest',
@@ -178,7 +185,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'wolf', weight: 40, minCount: 4, maxCount: 8, packSize: 4 },
             { type: 'skeleton', weight: 60, minCount: 3, maxCount: 6 }
         ],
-        miniBoss: { type: 'wolf', name: 'Old Greyfang', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.6, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'old_greyfang', type: 'wolf', name: 'Old Greyfang', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.6, lootTableId: 'boss_loot_old_greyfang' }
     },
     {
         id: 'rocky_highlands',
@@ -192,7 +199,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'troll', weight: 40, minCount: 3, maxCount: 6 },
             { type: 'orc', weight: 60, minCount: 5, maxCount: 8, packSize: 3 }
         ],
-        miniBoss: { type: 'troll', name: 'Hammerback the Hill Troll', levelBonus: 2, healthMultiplier: 3.2, damageMultiplier: 1.6, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'hammerback', type: 'troll', name: 'Hammerback the Hill Troll', levelBonus: 2, healthMultiplier: 3.2, damageMultiplier: 1.6, lootTableId: 'boss_loot_hammerback' }
     },
     {
         id: 'misty_lake',
@@ -206,7 +213,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'goblin', weight: 50, minCount: 4, maxCount: 7 },
             { type: 'skeleton', weight: 50, minCount: 3, maxCount: 6 }
         ],
-        miniBoss: { type: 'skeleton', name: 'The Mistwalker', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.5, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'mistwalker', type: 'skeleton', name: 'The Mistwalker', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.5, lootTableId: 'boss_loot_mistwalker' }
     },
     {
         id: 'cursed_ruins',
@@ -221,7 +228,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'wraith', weight: 30, minCount: 3, maxCount: 5, activePhases: ['dusk', 'night'] },
             { type: 'necromancer', weight: 20, minCount: 1, maxCount: 3 }
         ],
-        miniBoss: { type: 'necromancer', name: 'Vereth the Bone Lord', levelBonus: 2, healthMultiplier: 3.5, damageMultiplier: 1.7, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'vereth_bone_lord', type: 'necromancer', name: 'Vereth the Bone Lord', levelBonus: 2, healthMultiplier: 3.5, damageMultiplier: 1.7, lootTableId: 'boss_loot_vereth_bone_lord' }
     },
     {
         id: 'dragon_peaks',
@@ -236,7 +243,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'drake', weight: 40, minCount: 4, maxCount: 6 },
             { type: 'dragon', weight: 20, minCount: 1, maxCount: 2 }
         ],
-        miniBoss: { type: 'dragon', name: 'Vorthax the Ember Wyrm', levelBonus: 3, healthMultiplier: 4, damageMultiplier: 1.8, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'vorthax_ember_wyrm', type: 'dragon', name: 'Vorthax the Ember Wyrm', levelBonus: 3, healthMultiplier: 4, damageMultiplier: 1.8, lootTableId: 'boss_loot_vorthax_ember_wyrm' }
     },
     {
         id: 'shadow_valley',
@@ -251,7 +258,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'darkstalker', weight: 30, minCount: 3, maxCount: 5, activePhases: ['dusk', 'night'] },
             { type: 'voidwalker', weight: 20, minCount: 2, maxCount: 4 }
         ],
-        miniBoss: { type: 'voidwalker', name: 'Nyaraal of the Hollow Path', levelBonus: 3, healthMultiplier: 4, damageMultiplier: 1.8, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'nyaraal', type: 'voidwalker', name: 'Nyaraal of the Hollow Path', levelBonus: 3, healthMultiplier: 4, damageMultiplier: 1.8, lootTableId: 'boss_loot_nyaraal' }
     },
     {
         id: 'crystal_caverns',
@@ -266,7 +273,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'crystal_elemental', weight: 40, minCount: 3, maxCount: 6 },
             { type: 'crystal_guardian', weight: 20, minCount: 1, maxCount: 3 }
         ],
-        miniBoss: { type: 'crystal_guardian', name: 'The Prism Warden', levelBonus: 3, healthMultiplier: 4.2, damageMultiplier: 1.9, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'prism_warden', type: 'crystal_guardian', name: 'The Prism Warden', levelBonus: 3, healthMultiplier: 4.2, damageMultiplier: 1.9, lootTableId: 'boss_loot_prism_warden' }
     },
     // New expansive zones
     {
@@ -282,7 +289,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'lava_golem', weight: 30, minCount: 3, maxCount: 6 },
             { type: 'flame_wraith', weight: 20, minCount: 2, maxCount: 4 }
         ],
-        miniBoss: { type: 'lava_golem', name: 'Magmaheart, Forge Avatar', levelBonus: 3, healthMultiplier: 4.4, damageMultiplier: 2.0, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'magmaheart', type: 'lava_golem', name: 'Magmaheart, Forge Avatar', levelBonus: 3, healthMultiplier: 4.4, damageMultiplier: 2.0, lootTableId: 'boss_loot_magmaheart' }
     },
     {
         id: 'frozen_tundra',
@@ -297,7 +304,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'frost_wolf', weight: 40, minCount: 5, maxCount: 8, packSize: 4 },
             { type: 'ice_elemental', weight: 30, minCount: 4, maxCount: 7 }
         ],
-        miniBoss: { type: 'ice_giant', name: 'Skadrun, Tundra King', levelBonus: 3, healthMultiplier: 4.5, damageMultiplier: 2.0, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'skadrun', type: 'ice_giant', name: 'Skadrun, Tundra King', levelBonus: 3, healthMultiplier: 4.5, damageMultiplier: 2.0, lootTableId: 'boss_loot_skadrun' }
     },
     {
         id: 'ethereal_gardens',
@@ -312,7 +319,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'ethereal_sprite', weight: 35, minCount: 6, maxCount: 10, packSize: 4 },
             { type: 'ancient_treant', weight: 25, minCount: 2, maxCount: 4 }
         ],
-        miniBoss: { type: 'ancient_treant', name: 'Elder Vinebrook', levelBonus: 3, healthMultiplier: 4.5, damageMultiplier: 2.0, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'elder_vinebrook', type: 'ancient_treant', name: 'Elder Vinebrook', levelBonus: 3, healthMultiplier: 4.5, damageMultiplier: 2.0, lootTableId: 'boss_loot_elder_vinebrook' }
     },
     {
         id: 'abyssal_depths',
@@ -327,7 +334,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'tentacle_horror', weight: 40, minCount: 3, maxCount: 6 },
             { type: 'void_spawner', weight: 40, minCount: 4, maxCount: 8, packSize: 3 }
         ],
-        miniBoss: { type: 'deep_leviathan', name: 'Cthulun, the Drowned King', levelBonus: 4, healthMultiplier: 5, damageMultiplier: 2.2, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'cthulun', type: 'deep_leviathan', name: 'Cthulun, the Drowned King', levelBonus: 4, healthMultiplier: 5, damageMultiplier: 2.2, lootTableId: 'boss_loot_cthulun' }
     },
     {
         id: 'celestial_peaks',
@@ -342,7 +349,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'star_weaver', weight: 40, minCount: 3, maxCount: 6 },
             { type: 'radiant_seraph', weight: 30, minCount: 2, maxCount: 5 }
         ],
-        miniBoss: { type: 'radiant_seraph', name: 'Auriel of the First Dawn', levelBonus: 4, healthMultiplier: 5, damageMultiplier: 2.2, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'auriel', type: 'radiant_seraph', name: 'Auriel of the First Dawn', levelBonus: 4, healthMultiplier: 5, damageMultiplier: 2.2, lootTableId: 'boss_loot_auriel' }
     },
     {
         id: 'temporal_rifts',
@@ -357,7 +364,7 @@ export const GAME_ZONES: Zone[] = [
             { type: 'chrono_stalker', weight: 35, minCount: 4, maxCount: 7, packSize: 3 },
             { type: 'temporal_overlord', weight: 30, minCount: 1, maxCount: 3 }
         ],
-        miniBoss: { type: 'temporal_overlord', name: 'Aethariel, Warden of Hours', levelBonus: 5, healthMultiplier: 5.5, damageMultiplier: 2.4, lootTableId: 'boss_loot' }
+        miniBoss: { id: 'aethariel', type: 'temporal_overlord', name: 'Aethariel, Warden of Hours', levelBonus: 5, healthMultiplier: 5.5, damageMultiplier: 2.4, lootTableId: 'boss_loot_aethariel' }
     },
     {
         id: 'emerald_expanse',

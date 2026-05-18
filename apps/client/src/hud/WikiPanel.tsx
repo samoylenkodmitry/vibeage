@@ -4,6 +4,11 @@ import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/con
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
+import {
+  getMiniBossByTrophyItem,
+  getMiniBossesByMobType,
+} from '../../../../packages/content/miniBosses';
+import { BossesTab } from './WikiBosses';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
@@ -16,10 +21,9 @@ import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { capitalize } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 import { subscribeWikiNav } from './wikiNavBus';
-
 type WikiTab =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
-  | 'effects' | 'quests' | 'stats' | 'mobs';
+  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -32,6 +36,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'quests', label: 'Quests' },
   { id: 'stats', label: 'Stats' },
   { id: 'mobs', label: 'Mobs' },
+  { id: 'bosses', label: 'Bosses' },
 ];
 
 type WikiNav = (tab: WikiTab, id: string) => void;
@@ -121,7 +126,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
       />
       <div className="wiki-body">
         {tab === 'skills' && <SkillsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
-        {tab === 'items' && <ItemsTab query={query} focusId={focusId} focusKey={focusKey} />}
+        {tab === 'items' && <ItemsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'tree' && <TreeTab query={query} navigate={navigate} />}
         {tab === 'classes' && <ClassesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'specs' && <SpecsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
@@ -129,7 +134,8 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'effects' && <EffectsTab query={query} focusId={focusId} focusKey={focusKey} />}
         {tab === 'quests' && <QuestsTab query={query} />}
         {tab === 'stats' && <StatsTab query={query} focusId={focusId} focusKey={focusKey} />}
-        {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} />}
+        {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
+        {tab === 'bosses' && <BossesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
       </div>
     </section>
   );
@@ -235,21 +241,22 @@ function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isF
 
 // ---------- Items ----------
 
-function ItemsTab({ query, focusId, focusKey }: { query: string; focusId: string | null; focusKey: string }) {
+function ItemsTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
   const rows = useMemo(() => Object.values(ITEMS).filter((i) =>
     filterMatch(`${i.name} ${i.description} ${i.type ?? ''} ${i.kind ?? ''}`, query),
   ), [query]);
   return (
     <ul className="wiki-list">
       {rows.map((item) => (
-        <ItemRow key={item.id} item={item} isFocus={item.id === focusId} focusKey={focusKey} />
+        <ItemRow key={item.id} item={item} isFocus={item.id === focusId} focusKey={focusKey} navigate={navigate} />
       ))}
     </ul>
   );
 }
 
-function ItemRow({ item, isFocus, focusKey }: { item: Item; isFocus: boolean; focusKey: string }) {
+function ItemRow({ item, isFocus, focusKey, navigate }: { item: Item; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   const stats = item.stats ?? {};
+  const droppedBy = getMiniBossByTrophyItem(item.id);
   return (
     <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
@@ -274,6 +281,14 @@ function ItemRow({ item, isFocus, focusKey }: { item: Item; isFocus: boolean; fo
         {item.setId && <Pair k="Set" v={item.setId} />}
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
+      {droppedBy && (
+        <small className="wiki-row-footer">
+          Dropped by:{' '}
+          <button type="button" className="wiki-effect-chip" onClick={() => navigate('bosses', droppedBy.id)}>
+            {droppedBy.name}
+          </button>
+        </small>
+      )}
     </FocusableLi>
   );
 }
@@ -607,7 +622,15 @@ function StatRow({ stat, isFocus, focusKey }: { stat: StatDef; isFocus: boolean;
 
 // ---------- Mobs ----------
 
-function MobsTab({ query, focusId, focusKey, onShowMarker }: { query: string; focusId: string | null; focusKey: string; onShowMarker?: (pos: { x: number; z: number } | null) => void }) {
+function MobsTab({
+  query, focusId, focusKey, onShowMarker, navigate,
+}: {
+  query: string;
+  focusId: string | null;
+  focusKey: string;
+  onShowMarker?: (pos: { x: number; z: number } | null) => void;
+  navigate: WikiNav;
+}) {
   const rows = useMemo(() => listMobTemplates().filter((t) =>
     filterMatch(`${t.type} ${t.displayName} ${t.family}`, query),
   ), [query]);
@@ -615,6 +638,7 @@ function MobsTab({ query, focusId, focusKey, onShowMarker }: { query: string; fo
     <ul className="wiki-list">
       {rows.map((tpl) => {
         const zones = getMobZones(tpl.type);
+        const bosses = getMiniBossesByMobType(tpl.type);
         return (
           <FocusableLi key={tpl.type} isFocus={tpl.type === focusId} focusKey={focusKey}>
             <header>
@@ -638,6 +662,19 @@ function MobsTab({ query, focusId, focusKey, onShowMarker }: { query: string; fo
                       title={`${z.zone.name} (${Math.round(z.position.x)}, ${Math.round(z.position.z)})`}
                     >
                       {z.zone.name}
+                    </button>
+                  </span>
+                ))}
+              </small>
+            )}
+            {bosses.length > 0 && (
+              <small className="wiki-row-footer">
+                Boss variant:{' '}
+                {bosses.map((b, i) => (
+                  <span key={b.id}>
+                    {i > 0 && ', '}
+                    <button type="button" className="wiki-effect-chip" onClick={() => navigate('bosses', b.id)}>
+                      {b.name}
                     </button>
                   </span>
                 ))}
