@@ -66,10 +66,11 @@ export function Lobby({
         existingNames={new Set(characters.map((c) => c.name.toLowerCase()))}
         onCancel={() => setCreating(false)}
         onCreate={(c) => {
-          const next = [...characters, c];
-          setCharacters(next);
+          // Save the new character and drop back to the lobby. The
+          // user explicitly picks Enter on the card when ready —
+          // avoids the auto-enter surprise after the create flow.
+          setCharacters([...characters, c]);
           setCreating(false);
-          onEnter(c);
         }}
       />
     );

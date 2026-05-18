@@ -1434,6 +1434,20 @@ input {
   border-radius: 4px;
 }
 
+.wiki-nav { display: flex; gap: 4px; margin-bottom: 4px; }
+.wiki-nav-button {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 14px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(141, 233, 215, 0.25);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+}
+.wiki-nav-button:disabled { opacity: 0.35; cursor: not-allowed; }
+.wiki-nav-button:hover:not(:disabled) { border-color: rgba(141, 233, 215, 0.7); }
+
 .quest-panel {
   position: fixed;
   left: 12px;

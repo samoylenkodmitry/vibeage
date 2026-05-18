@@ -1246,3 +1246,43 @@ deployed.
 - [ ] Everything above lives in `packages/content/*` — no hardcoded
   strings or numbers in the UI tabs.
 
+
+## 33. Live Run — Wave 3 follow-ups (2026-05-18)
+
+Prod feedback after §32 deployed.
+
+### PR H — Casting semantics + Escape bug + Wiki nav + Lobby flow
+
+- [ ] Investigate why a finished Escape cast didn't teleport
+  (likely: cast completion path expects requiresTarget true OR
+  isBeneficialOnly check vs. caster fails). Add a regression test.
+- [ ] `SkillDef.isBlocking` (default true): while casting, the
+  player cannot move or fire another cast / action.
+- [ ] `SkillDef.isInterruptable` (default true): a contradictory
+  player action (move, cast a different skill, basicAttack) cancels
+  the cast WITHOUT applying mana cost or cooldown.
+- [ ] Server: castMachine rejects new commands while blocking;
+  interrupt path refunds mana + clears the cooldown timer.
+- [ ] Wiki: **Back / Forward** stack on the focus-navigation history
+  (clicking a chip pushes; Back returns to the previous tab+focus).
+- [ ] Lobby: after Create New Character, return to the lobby with
+  the new character selected — don't auto-enter the world.
+
+### PR I — Login + password auth
+
+- [ ] Drop the existing `players` table content (per user) and
+  introduce an `accounts` table: (id, login, password_hash,
+  created_at, last_login_at). bcrypt for hashing.
+- [ ] `players` gets an `account_id` FK; lobby + character roster
+  live server-side per account.
+- [ ] New protocol messages: `AuthLogin`, `AuthRegister`, and a
+  pre-game `RequestCharacterRoster` / response. World join still
+  takes a chosen character name + the new auth session token.
+- [ ] Lobby gains a login screen (login + password fields). On
+  successful auth, the lobby loads the account's character roster
+  from the server (replaces the localStorage roster from PR D2).
+- [ ] Migration 009 (or 010): drop players content + add accounts
+  + foreign key. Acceptable to wipe prod data per user direction.
+- [ ] Single open session per account (newer login boots the old
+  socket) — punt to follow-up if scope balloons.
+
