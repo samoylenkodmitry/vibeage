@@ -88,6 +88,18 @@ export interface Enemy {
    */
   bossId?: string;
   /**
+   * Mini-boss signature-AOE cast machine. `nextSignatureReadyTs` is
+   * the earliest tick this boss may begin the next telegraph;
+   * `signatureCastingUntilTs` is set when a cast is in flight (impact
+   * fires when context.now passes it). Both clear on respawn /
+   * return-to-spawn so the encounter starts clean.
+   */
+  signatureCastingUntilTs?: number;
+  signatureCastTargetX?: number;
+  signatureCastTargetZ?: number;
+  signatureCastRadius?: number;
+  nextSignatureReadyTs?: number;
+  /**
    * First moment this enemy entered an aggressive state (chasing /
    * attacking) since its current life. Reset when the enemy returns
    * to spawn or respawns. Drives mini-boss enrage timer.

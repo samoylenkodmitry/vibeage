@@ -79,6 +79,21 @@ function emitEnemyAIEvent(
     return;
   }
 
+  if (event.type === 'bossTelegraph') {
+    emitServerMessage(outbound, {
+      type: 'BossTelegraph',
+      enemyId: event.enemyId,
+      bossName: event.bossName,
+      abilityName: event.abilityName,
+      x: event.x,
+      z: event.z,
+      radius: event.radius,
+      windUpMs: event.windUpMs,
+      impactAt: event.impactAt,
+    });
+    return;
+  }
+
   debug(LOG_CATEGORIES.ENEMY, event.message);
   emitPlayerUpdated(outbound, event.update);
 }

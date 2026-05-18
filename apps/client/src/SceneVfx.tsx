@@ -46,6 +46,51 @@ const PROJECTILE_TRAIL_POINTS = [
   { offset: 1.34, radius: 0.07, opacity: 0.2, drift: -0.02 },
 ];
 
+/**
+ * PR Q — Boss signature telegraph. A ring on the ground that grows
+ * from a thin inner stroke to the impact radius over windUpMs, then
+ * flashes red briefly when the impact lands. Pure visual; damage
+ * application is server-authoritative via EnemyAttack messages.
+ */
+export function BossTelegraphRing({
+  x, z, radius, startedAt, impactAt,
+}: { x: number; z: number; radius: number; startedAt: number; impactAt: number }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const totalMs = Math.max(1, impactAt - startedAt);
+
+  useFrame(() => {
+    const ring = ringRef.current;
+    const flash = meshRef.current;
+    if (!ring || !flash) return;
+    const now = Date.now();
+    if (now < impactAt) {
+      const progress = Math.min(1, (now - startedAt) / totalMs);
+      ring.scale.setScalar(0.2 + progress * 0.8);
+      (ring.material as THREE.MeshBasicMaterial).opacity = 0.4 + progress * 0.5;
+      (flash.material as THREE.MeshBasicMaterial).opacity = 0;
+    } else {
+      const sincePost = now - impactAt;
+      ring.scale.setScalar(1);
+      (ring.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 - sincePost / 600);
+      (flash.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.6 - sincePost / 600);
+    }
+  });
+
+  return (
+    <group position={[x, getTerrainY(x, z) + 0.04, z]}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[Math.max(0.1, radius - 0.3), radius, 64]} />
+        <meshBasicMaterial color="#ef4444" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[radius, 64]} />
+        <meshBasicMaterial color="#fb923c" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
 export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
   const outerRef = useRef<THREE.Mesh>(null);
   const innerRef = useRef<THREE.Mesh>(null);

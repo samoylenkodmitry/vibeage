@@ -119,11 +119,15 @@ export function applyItemUsedVisualState(
   });
 }
 
+const TELEGRAPH_FADE_MS = 600;
+
 export function pruneClientVisualState(state: GameClientState, now: number): GameClientState {
+  const telegraphs = state.bossTelegraphs.filter((t) => now - t.impactAt < TELEGRAPH_FADE_MS);
   return {
     ...state,
     casts: pruneCasts(state.casts, now),
     visualEvents: pruneVisualEvents(state.visualEvents, now),
+    bossTelegraphs: telegraphs.length === state.bossTelegraphs.length ? state.bossTelegraphs : telegraphs,
   };
 }
 

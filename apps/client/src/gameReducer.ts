@@ -54,6 +54,7 @@ export const initialGameClientState: GameClientState = {
   pendingCast: null,
   pendingPickup: null,
   autoAttack: null,
+  bossTelegraphs: [],
 };
 
 export type GameClientAction =
@@ -239,23 +240,20 @@ function applyServerMessage(
     return applyEnemyAttackVisualState(state, message, now);
   }
 
+  if (message.type === 'BossTelegraph') {
+    return applyBossTelegraph(state, message, now);
+  }
+
   if (message.type === 'InventoryUpdate') {
     return applyInventoryUpdate(state, message.inventory, message.maxInventorySlots, message.playerId);
   }
 
   if (message.type === 'EquipmentUpdate') {
-    const equipment: Record<string, string> = {};
-    for (const entry of message.equipment) {
-      equipment[entry.slot] = entry.itemId;
-    }
-    return { ...state, equipment };
+    return applyEquipmentUpdate(state, message);
   }
 
   if (message.type === 'LearnSkillFailed') {
-    return {
-      ...state,
-      learnSkillRejections: { ...state.learnSkillRejections, [message.skillId]: message.reason },
-    };
+    return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.skillId]: message.reason } };
   }
 
   if (message.type === 'LootSpawn') {
@@ -322,6 +320,39 @@ function appendChatLine(
   const otherScope = state.chatLines.filter((line) => line.scope !== message.scope);
   const trimmedSameScope = [...sameScope, newLine].slice(-CHAT_RING_BUFFER);
   return { ...state, chatLines: [...otherScope, ...trimmedSameScope] };
+}
+
+function applyEquipmentUpdate(
+  state: GameClientState,
+  message: ServerMessage & { type: 'EquipmentUpdate' },
+): GameClientState {
+  const equipment: Record<string, string> = {};
+  for (const entry of message.equipment) {
+    equipment[entry.slot] = entry.itemId;
+  }
+  return { ...state, equipment };
+}
+
+function applyBossTelegraph(
+  state: GameClientState,
+  message: ServerMessage & { type: 'BossTelegraph' },
+  now: number,
+): GameClientState {
+  const entry = {
+    enemyId: message.enemyId,
+    bossName: message.bossName,
+    abilityName: message.abilityName,
+    x: message.x,
+    z: message.z,
+    radius: message.radius,
+    startedAt: now,
+    impactAt: message.impactAt,
+  };
+  // Replace any prior telegraph from the same enemy — a boss only
+  // ever has one channel in flight at a time.
+  const next = state.bossTelegraphs.filter((t) => t.enemyId !== message.enemyId);
+  next.push(entry);
+  return { ...state, bossTelegraphs: next };
 }
 
 function applySkillLearned(

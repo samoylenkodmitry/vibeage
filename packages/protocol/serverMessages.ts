@@ -112,6 +112,26 @@ export const enemyAttackSchema = z.object({
   damage: z.number(),
 }).passthrough();
 
+/**
+ * PR Q — boss telegraph. Server emits one when a mini-boss begins to
+ * channel its signature ability, carrying everything the client
+ * needs to render the growing ring under (x, z). Impact lands at
+ * impactAt (Date.now ms); after that the client should fade the
+ * ring out. Damage application is broadcast via EnemyAttack +
+ * playerUpdated like any other hit.
+ */
+export const bossTelegraphSchema = z.object({
+  type: z.literal('BossTelegraph'),
+  enemyId: z.string(),
+  bossName: z.string(),
+  abilityName: z.string(),
+  x: z.number(),
+  z: z.number(),
+  radius: z.number(),
+  windUpMs: z.number(),
+  impactAt: z.number(),
+}).passthrough();
+
 export const inventoryUpdateMsgSchema = z.object({
   type: z.literal('InventoryUpdate'),
   playerId: z.string().optional(),
@@ -206,6 +226,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   castSnapshotMsgSchema,
   combatLogMsgSchema,
   enemyAttackSchema,
+  bossTelegraphSchema,
   inventoryUpdateMsgSchema,
   lootAcquiredMsgSchema,
   starterProgressUpdateSchema,
@@ -315,6 +336,18 @@ export type EnemyAttack = {
   damage: number;
 };
 
+export type BossTelegraph = {
+  type: 'BossTelegraph';
+  enemyId: string;
+  bossName: string;
+  abilityName: string;
+  x: number;
+  z: number;
+  radius: number;
+  windUpMs: number;
+  impactAt: number;
+};
+
 export type InventoryUpdateMsg = {
   type: 'InventoryUpdate';
   playerId?: string;
@@ -399,6 +432,7 @@ export type ServerMessage =
   | EffectSnapshotMsg
   | CombatLogMsg
   | EnemyAttack
+  | BossTelegraph
   | InventoryUpdateMsg
   | LootAcquiredMsg
   | StarterProgressUpdate
