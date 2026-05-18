@@ -53,6 +53,29 @@ export type SkillEffectType =
   | 'transform' // for stone conversion
   | 'teleport'; // recall to nearest village (Escape)
 
+/**
+ * PR X — friendly-fire gate classification. Used to decide whether
+ * a skill targeting an enemy / friendly player is sensible by
+ * default. Derived from the skill's own effects (no per-skill
+ * hardcoding): if any effect is in HARMFUL_EFFECTS the skill is
+ * harmful; else if any is in BENEFICIAL_EFFECTS it's beneficial;
+ * else neutral (no gate). Force-cast with Ctrl bypasses the gate.
+ */
+const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
+  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
+]);
+const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
+  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible',
+]);
+
+export type SkillAlignment = 'harmful' | 'beneficial' | 'neutral';
+
+export function classifySkill(effects: readonly { type: SkillEffectType }[]): SkillAlignment {
+  for (const e of effects) if (HARMFUL_EFFECTS.has(e.type)) return 'harmful';
+  for (const e of effects) if (BENEFICIAL_EFFECTS.has(e.type)) return 'beneficial';
+  return 'neutral';
+}
+
 export interface SkillEffect {
   type: SkillEffectType;
   value: number; // damage amount, stun duration, slow percentage, etc.

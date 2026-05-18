@@ -12,6 +12,7 @@ import {
 } from './clientSelectors';
 import { BASIC_ATTACK_SKILL_ID } from './skillShortcuts';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
+import { isForceCastHeld } from './modifierKeys';
 
 const PENDING_CAST_TTL_MS = 10_000;
 const PENDING_PICKUP_TTL_MS = 12_000;
@@ -151,12 +152,16 @@ function useCastActions(
   const fireCastReq = useCallback((player: PlayerEntity, skillId: SkillId, targetId: string | null) => {
     const room = roomRef.current;
     if (!room) return;
+    // PR X — Ctrl held → force-cast: tells the server to bypass the
+    // friendly-fire / beneficial-on-enemy gate for this single cast.
+    const force = isForceCastHeld();
     room.send(SESSION_EVENTS.message, {
       type: 'CastReq',
       id: player.id,
       skillId,
       targetId: targetId ?? undefined,
       clientTs: Date.now(),
+      ...(force ? { force: true } : {}),
     });
     if (targetId) {
       dispatch({ type: 'selectTarget', targetId });
