@@ -1,9 +1,36 @@
 import { CastState as CastStateEnum } from '../../packages/protocol/messages.js';
-import { SKILLS } from '../../packages/content/skills.js';
+import { SKILLS, type SkillKind } from '../../packages/content/skills.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import type { ActiveCastStore } from './skillSystem.js';
+
+/**
+ * PR S — interrupt resistance. Cast is "sticky" against incidental
+ * input based on the caster's relevant attribute:
+ *   - physical → STR (knight in plate keeps swinging through bumps)
+ *   - magical  → INT (mage's focus holds the spell)
+ *   - utility  → max(WIT, MEN) (utility skills lean on mental tenacity)
+ *
+ * Cap at 85% so casts are never literally uninterruptible (still beats
+ * the player-skill `isInterruptable: false` opt-out for that). The
+ * roll only applies when the skill is otherwise interruptable.
+ */
+const RESIST_PER_POINT = 0.012;
+const RESIST_CAP = 0.85;
+
+function relevantStatFor(kind: SkillKind | undefined, player: PlayerState): number {
+  const s = player.stats;
+  if (!s) return 0;
+  if (kind === 'physical') return s.str ?? 0;
+  if (kind === 'magical') return s.int ?? 0;
+  return Math.max(s.wit ?? 0, s.men ?? 0);
+}
+
+function resistChance(kind: SkillKind | undefined, player: PlayerState): number {
+  const stat = relevantStatFor(kind, player);
+  return Math.min(RESIST_CAP, Math.max(0, stat * RESIST_PER_POINT));
+}
 
 /**
  * Cast interruption gate. A blocking cast (skill.isBlocking !== false)
@@ -29,6 +56,7 @@ export function tryInterruptForNewAction(
   activeCasts: ActiveCastStore,
   outbound: OutboundEventSink,
   reason: 'newCast' | 'movement' | 'other',
+  rng: () => number = Math.random,
 ): InterruptResult {
   const cast = Object.values(activeCasts).find(
     (c) => c.casterId === player.id && c.state === CastStateEnum.Casting,
@@ -46,6 +74,17 @@ export function tryInterruptForNewAction(
   // entry so the player can re-cast immediately.
   const interruptable = skill?.isInterruptable !== false;
   if (!interruptable) return 'block';
+
+  // PR S — stat-based resist roll. High STR knights keep swinging
+  // through incidental input; high INT mages keep concentration.
+  // The new action is dropped (block) on a successful resist; cast
+  // continues. Movement resists are checked here so a stray touch
+  // doesn't wipe a slow cast.
+  const resist = resistChance(skill?.kind, player);
+  if (resist > 0 && rng() < resist) {
+    debug(LOG_CATEGORIES.COMBAT, `Cast ${cast.castId} resisted ${reason} interrupt (player ${player.id}, p=${resist.toFixed(2)})`);
+    return 'block';
+  }
   // Refund mana + remove cooldown.
   if (skill?.manaCost) {
     player.mana = Math.min((player.maxMana ?? player.mana), player.mana + skill.manaCost);

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
@@ -13,6 +13,20 @@ export default function App() {
   const cameraControlsRef = useRef<CameraControls | null>(null);
   const touchClaimRef = useRef<Set<number>>(new Set());
   const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
+
+  // Move action: walk to the selected target if any, else to the map
+  // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
+  // pending casts / pickups / auto-attack on its own.
+  const onMove = useCallback(() => {
+    const enemy = state.selectedTargetId ? state.enemies[state.selectedTargetId] : null;
+    if (enemy?.isAlive) {
+      client.sendMoveIntent({ x: enemy.position.x, z: enemy.position.z });
+      return;
+    }
+    if (navigationMarker) {
+      client.sendMoveIntent({ x: navigationMarker.x, z: navigationMarker.z });
+    }
+  }, [state.selectedTargetId, state.enemies, navigationMarker, client]);
 
   if (state.connectionState === 'idle') {
     return (
@@ -67,6 +81,7 @@ export default function App() {
         onSelectTarget={client.selectTarget}
         onCycleTarget={client.cycleTarget}
         onPickupNearest={client.pickupNearest}
+        onMove={onMove}
         onSendChat={client.sendChat}
       />
       {state.connectionState !== 'online' && (
