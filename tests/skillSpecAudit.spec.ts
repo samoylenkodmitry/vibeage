@@ -38,7 +38,8 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'invisible',  // enemy AI ignores invisible targets + status display
   'aggroReset', // applyAggroResetAround
   'teleport',   // applySkillEffects → recall to village
-  'knockback',  // §45.4 — applyKnockback pushes target along caster→target vector
+  'knockback',     // §45.4 — applyKnockback pushes target along caster→target vector
+  'waterWeakness', // §45.4 — elementVulnerabilityMultiplier amplifies water-element casts
 ]);
 
 /**
@@ -47,7 +48,6 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
  * gap visible. Each entry should reference the planned wiring task.
  */
 const UNIMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffectType>([
-  'waterWeakness', // waterSplash claims +30% water-damage taken — no damage-flavour amplifier engine yet
   'transform',     // petrify claims stone form — no transform state machine
 ]);
 

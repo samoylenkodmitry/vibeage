@@ -64,7 +64,7 @@ export function applyProjectileHit(
   const caster = world.getPlayerById(cast.casterId);
   const context: ImpactContext = { caster, skill, outbound, world };
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damage = calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id);
+  const damage = calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id, target);
   applyCastToTarget(target, damage, context);
   emitServerMessage(outbound, {
     type: 'CombatLog',
@@ -94,7 +94,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damages = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id));
+  const damages = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id, target));
 
   targets.forEach((target, index) => {
     applyCastToTarget(target, damages[index], context);
@@ -142,6 +142,7 @@ function calculateDamage(
   upgradeDmgMult: number,
   castId?: string,
   targetId?: string,
+  target?: Enemy | PlayerState | null,
 ): number {
   if (!skill?.dmg) {
     return 0;
@@ -158,7 +159,34 @@ function calculateDamage(
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
 
-  return result.dmg;
+  // §45.4 — element vulnerability amplifier. Today only
+  // `waterWeakness` exists; the generic shape is `<element>Weakness`
+  // (the status-effect upsert path uses the same id). Extends
+  // naturally to fireWeakness etc. once those effects ship.
+  const elementMult = elementVulnerabilityMultiplier(skill, target);
+  return result.dmg * elementMult;
+}
+
+const ELEMENT_TO_WEAKNESS_TYPE: Readonly<Record<string, string>> = {
+  water: 'waterWeakness',
+  // Future: fire → fireWeakness, ice → iceWeakness, etc. Add the
+  // effect type to SkillEffectType (and the audit's
+  // IMPLEMENTED_EFFECT_TYPES) at the same time.
+};
+
+function elementVulnerabilityMultiplier(skill: SkillDef, target?: Enemy | PlayerState | null): number {
+  if (!skill.damageElement || !target?.statusEffects?.length) return 1;
+  const weaknessType = ELEMENT_TO_WEAKNESS_TYPE[skill.damageElement];
+  if (!weaknessType) return 1;
+  const now = Date.now();
+  let bonusPct = 0;
+  for (const effect of target.statusEffects) {
+    if (effect.type !== weaknessType) continue;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt <= now) continue;
+    bonusPct += effect.value ?? 0;
+  }
+  return 1 + bonusPct / 100;
 }
 
 // PR NN — `blessDamageMultiplier` removed. Bless's damage tilt is
