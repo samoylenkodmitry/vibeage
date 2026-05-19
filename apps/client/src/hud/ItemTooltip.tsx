@@ -7,9 +7,18 @@ type ItemTooltipProps = {
   itemId: string;
   clientX: number;
   clientY: number;
+  /**
+   * PR JJ — pointer-enter/leave handlers from the parent's
+   * useTooltipTrigger.hoverHandlers. Keeps the tooltip alive while
+   * the cursor sits inside it so the wiki link is clickable.
+   */
+  hoverHandlers?: {
+    onPointerEnter: () => void;
+    onPointerLeave: () => void;
+  };
 };
 
-export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
+export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers }: ItemTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -56,6 +65,8 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
       className="item-tooltip"
       role="tooltip"
       style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
+      onPointerEnter={hoverHandlers?.onPointerEnter}
+      onPointerLeave={hoverHandlers?.onPointerLeave}
     >
       <header>
         <strong>{item.name}</strong>

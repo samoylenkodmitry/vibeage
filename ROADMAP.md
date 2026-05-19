@@ -1502,19 +1502,21 @@ surfaced during the session.
 
 ### PR JJ — Wiki UX polish: clickable coords, hoverable tooltips, gear popup
 
-- [ ] Wiki rows show `(x, z)` coords as a button that calls
-  `onShowMarker` so a click drops the navigation pin on the
-  map (already wired for mob "Spawns in" chips — extend to
-  NPC entries, vendor entries, boss lairs).
-- [ ] SkillBar tooltip: keep visible while the mouse is over
-  the tooltip itself (popper/floating-ui pattern: bridge the
-  trigger and the floating element with a tiny invisible
-  hit area + onMouseEnter on the tooltip). Without this the
-  wiki link inside the tooltip is unreachable.
-- [ ] Equipment panel: tapping the equipped item's *name*
-  opens an item popup with full stats + an "Open in Wiki"
-  button (same shape as the click-target → wiki flow from
-  PlatePanels). Currently the name is dead text.
+- [x] `(x, z)` coords are now `onShowMarker` chips on the
+  Npcs / Vendors / Bosses wiki tabs (previously only the
+  Mobs tab dropped a pin). Same handler the rest of the
+  wiki already uses; no new plumbing.
+- [x] `useTooltipTrigger.hoverHandlers` bridge: 200ms close
+  grace window after the cursor leaves the trigger, and a
+  `onPointerEnter/Leave` pair spread on SkillTooltip /
+  ItemTooltip so the floating tooltip stays alive while the
+  cursor sits on it. Wiki links inside tooltips are now
+  reachable (SkillBar, ActionsPanel, Inventory, Paperdoll).
+- [x] `useTooltipTrigger.openAt(payload, x, y)` exposed for
+  click-to-open. PaperdollPanel's gear name now opens the
+  ItemTooltip immediately on click (was hover-only); right-
+  click still jumps straight to the wiki. The popup carries
+  the "Open in Wiki" link via the hover bridge.
 
 ### PR KK — Skill self-target flag + NPC labels + Greet wire-up
 

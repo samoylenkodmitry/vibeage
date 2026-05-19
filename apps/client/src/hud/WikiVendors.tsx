@@ -10,9 +10,11 @@ import type { WikiNav } from './WikiBosses';
  * shop UI can never disagree. Each row cross-links to the vendor's
  * NPC (Npcs tab) and to each stocked item (Items tab).
  */
+type OnShowMarker = (pos: { x: number; z: number } | null) => void;
+
 export function VendorsTab({
-  query, focusId, focusKey, navigate,
-}: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
+  query, focusId, focusKey, navigate, onShowMarker,
+}: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav; onShowMarker?: OnShowMarker }) {
   const rows = useMemo(() => Object.values(VENDORS).filter((v) =>
     matches(`${v.id} ${v.name} ${v.title} ${v.description ?? ''}`, query),
   ), [query]);
@@ -25,6 +27,7 @@ export function VendorsTab({
           isFocus={vendor.id === focusId}
           focusKey={focusKey}
           navigate={navigate}
+          onShowMarker={onShowMarker}
         />
       ))}
     </ul>
@@ -32,8 +35,8 @@ export function VendorsTab({
 }
 
 function VendorLi({
-  vendor, isFocus, focusKey, navigate,
-}: { vendor: VendorDef; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
+  vendor, isFocus, focusKey, navigate, onShowMarker,
+}: { vendor: VendorDef; isFocus: boolean; focusKey: string; navigate: WikiNav; onShowMarker?: OnShowMarker }) {
   const ref = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     if (isFocus && focusKey && ref.current) {
@@ -54,7 +57,16 @@ function VendorLi({
           <button type="button" className="wiki-effect-chip" onClick={() => navigate('npcs', npc.id)}>
             {npc.name}
           </button>
-          {' '}at <code>({Math.round(npc.position.x)}, {Math.round(npc.position.z)})</code>
+          {' '}at{' '}
+          <button
+            type="button"
+            className="wiki-effect-chip"
+            onClick={() => onShowMarker?.({ x: npc.position.x, z: npc.position.z })}
+            disabled={!onShowMarker}
+            title={onShowMarker ? 'Show on map' : undefined}
+          >
+            ({Math.round(npc.position.x)}, {Math.round(npc.position.z)})
+          </button>
         </small>
       )}
       {vendor.stock.length > 0 ? (

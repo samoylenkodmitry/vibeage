@@ -140,11 +140,11 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'quests' && <QuestsTab query={query} navigate={navigate} />}
         {tab === 'stats' && <StatsTab query={query} focusId={focusId} focusKey={focusKey} />}
         {tab === 'mobs' && <MobsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
-        {tab === 'bosses' && <BossesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'bosses' && <BossesTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
         {tab === 'recipes' && <RecipesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'sets' && <SetsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
-        {tab === 'npcs' && <NpcsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
-        {tab === 'vendors' && <VendorsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'npcs' && <NpcsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
+        {tab === 'vendors' && <VendorsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
       </div>
     </section>
   );

@@ -4,6 +4,11 @@ const HOVER_DELAY_MS = 350;
 const LONG_PRESS_MS = 380;
 const CANCEL_MOVE_PX = 8;
 const SUPPRESS_CLICK_MS = 450;
+// PR JJ — grace window between the cursor leaving the trigger and the
+// tooltip closing. Long enough that a normal-speed mouse can cross the
+// (intentionally short) gap to the floating tooltip and click a link
+// inside it without the tooltip vanishing mid-motion.
+const CLOSE_DELAY_MS = 200;
 
 export type TooltipInfo<T> = {
   payload: T;
@@ -23,92 +28,98 @@ export type TooltipInfo<T> = {
  */
 export function useTooltipTrigger<T>() {
   const [info, setInfo] = useState<TooltipInfo<T> | null>(null);
-  const hoverTimer = useRef<number | null>(null);
-  const pressTimer = useRef<number | null>(null);
-  const pressOrigin = useRef<{ x: number; y: number; payload: T } | null>(null);
-  const suppressClickUntil = useRef(0);
+  const t = useTooltipTimers<T>();
+  const setOpen = useCallback((p: T, x: number, y: number) => setInfo({ payload: p, clientX: x, clientY: y }), []);
 
-  const clearTimers = useCallback(() => {
-    if (hoverTimer.current !== null) {
-      window.clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-    if (pressTimer.current !== null) {
-      window.clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-    pressOrigin.current = null;
-  }, []);
-
-  const dismiss = useCallback(() => {
-    clearTimers();
-    setInfo(null);
-  }, [clearTimers]);
-
-  const scheduleHover = useCallback((payload: T, clientX: number, clientY: number) => {
-    clearTimers();
-    hoverTimer.current = window.setTimeout(() => {
-      hoverTimer.current = null;
-      setInfo({ payload, clientX, clientY });
+  const scheduleHover = useCallback((payload: T, x: number, y: number) => {
+    t.clearTimers();
+    t.hoverTimer.current = window.setTimeout(() => {
+      t.hoverTimer.current = null;
+      setOpen(payload, x, y);
     }, HOVER_DELAY_MS);
-  }, [clearTimers]);
+  }, [t, setOpen]);
 
-  const beginLongPress = useCallback((payload: T, clientX: number, clientY: number) => {
-    clearTimers();
-    pressOrigin.current = { payload, x: clientX, y: clientY };
-    pressTimer.current = window.setTimeout(() => {
-      pressTimer.current = null;
-      const origin = pressOrigin.current;
-      pressOrigin.current = null;
+  const scheduleClose = useCallback((payload: T) => {
+    if (t.closeTimer.current !== null) window.clearTimeout(t.closeTimer.current);
+    t.closeTimer.current = window.setTimeout(() => {
+      t.closeTimer.current = null;
+      setInfo((prev) => (prev?.payload === payload ? null : prev));
+    }, CLOSE_DELAY_MS);
+  }, [t]);
+
+  const cancelClose = useCallback(() => {
+    if (t.closeTimer.current !== null) {
+      window.clearTimeout(t.closeTimer.current);
+      t.closeTimer.current = null;
+    }
+  }, [t]);
+
+  const beginLongPress = useCallback((payload: T, x: number, y: number) => {
+    t.clearTimers();
+    t.pressOrigin.current = { payload, x, y };
+    t.pressTimer.current = window.setTimeout(() => {
+      t.pressTimer.current = null;
+      const origin = t.pressOrigin.current;
+      t.pressOrigin.current = null;
       if (origin) {
-        setInfo({ payload: origin.payload, clientX: origin.x, clientY: origin.y });
-        // Long-press has fired — swallow the next click that the
-        // browser synthesises when the user lifts their finger so the
-        // bag slot doesn't immediately use/equip the item.
-        suppressClickUntil.current = Date.now() + SUPPRESS_CLICK_MS;
+        setOpen(origin.payload, origin.x, origin.y);
+        t.suppressClickUntil.current = Date.now() + SUPPRESS_CLICK_MS;
       }
     }, LONG_PRESS_MS);
-  }, [clearTimers]);
+  }, [t, setOpen]);
 
-  /**
-   * Caller invokes this from a button's onClick to ask 'is this click
-   * just the lift-off of a long-press tap?'. Returns true if so and
-   * the caller should bail out of its normal action.
-   */
   const consumePendingClick = useCallback((): boolean => {
-    if (Date.now() < suppressClickUntil.current) {
-      suppressClickUntil.current = 0;
+    if (Date.now() < t.suppressClickUntil.current) {
+      t.suppressClickUntil.current = 0;
       return true;
     }
     return false;
-  }, []);
+  }, [t]);
 
-  const onPointerMove = useCallback((clientX: number, clientY: number) => {
-    const origin = pressOrigin.current;
+  const onPointerMove = useCallback((x: number, y: number) => {
+    const origin = t.pressOrigin.current;
     if (!origin) return;
-    if (Math.abs(clientX - origin.x) > CANCEL_MOVE_PX || Math.abs(clientY - origin.y) > CANCEL_MOVE_PX) {
-      clearTimers();
-    }
-  }, [clearTimers]);
+    if (Math.abs(x - origin.x) > CANCEL_MOVE_PX || Math.abs(y - origin.y) > CANCEL_MOVE_PX) t.clearTimers();
+  }, [t]);
 
-  const openInstant = useCallback((payload: T, clientX: number, clientY: number) => {
-    clearTimers();
-    setInfo({ payload, clientX, clientY });
-  }, [clearTimers]);
+  const openInstant = useCallback((payload: T, x: number, y: number) => {
+    t.clearTimers();
+    setOpen(payload, x, y);
+  }, [t, setOpen]);
+
+  const dismiss = useCallback(() => { t.clearTimers(); setInfo(null); }, [t]);
 
   useDismissOnOutside(info, setInfo);
 
   const triggerProps = useCallback((payload: T) => buildTriggerProps({
-    payload,
-    scheduleHover,
-    beginLongPress,
-    onPointerMove,
-    openInstant,
-    clearTimers,
-    setInfo,
-  }), [scheduleHover, beginLongPress, onPointerMove, openInstant, clearTimers]);
+    payload, scheduleHover, beginLongPress, onPointerMove,
+    openInstant, clearTimers: t.clearTimers, scheduleClose, cancelClose,
+  }), [scheduleHover, beginLongPress, onPointerMove, openInstant, t, scheduleClose, cancelClose]);
 
-  return { info, dismiss, triggerProps, consumePendingClick };
+  // PR JJ — spread on the floating tooltip element to keep it alive
+  // while the cursor sits inside it; otherwise the trigger's pointer-
+  // leave fires the close timer and the wiki link inside is unreachable.
+  const hoverHandlers = {
+    onPointerEnter: cancelClose,
+    onPointerLeave: () => { if (info) scheduleClose(info.payload); },
+  };
+
+  return { info, dismiss, triggerProps, consumePendingClick, hoverHandlers, openAt: openInstant };
+}
+
+function useTooltipTimers<T>() {
+  const hoverTimer = useRef<number | null>(null);
+  const pressTimer = useRef<number | null>(null);
+  const closeTimer = useRef<number | null>(null);
+  const pressOrigin = useRef<{ x: number; y: number; payload: T } | null>(null);
+  const suppressClickUntil = useRef(0);
+  const clearTimers = useCallback(() => {
+    if (hoverTimer.current !== null) { window.clearTimeout(hoverTimer.current); hoverTimer.current = null; }
+    if (pressTimer.current !== null) { window.clearTimeout(pressTimer.current); pressTimer.current = null; }
+    if (closeTimer.current !== null) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+    pressOrigin.current = null;
+  }, []);
+  return { hoverTimer, pressTimer, closeTimer, pressOrigin, suppressClickUntil, clearTimers };
 }
 
 function useDismissOnOutside<T>(
@@ -141,7 +152,8 @@ type BuildTriggerPropsArgs<T> = {
   onPointerMove: (x: number, y: number) => void;
   openInstant: (payload: T, x: number, y: number) => void;
   clearTimers: () => void;
-  setInfo: React.Dispatch<React.SetStateAction<TooltipInfo<T> | null>>;
+  scheduleClose: (payload: T) => void;
+  cancelClose: () => void;
 };
 
 function buildTriggerProps<T>({
@@ -151,16 +163,20 @@ function buildTriggerProps<T>({
   onPointerMove,
   openInstant,
   clearTimers,
-  setInfo,
+  scheduleClose,
+  cancelClose,
 }: BuildTriggerPropsArgs<T>) {
   return {
     onPointerEnter: (event: React.PointerEvent) => {
+      cancelClose();
       if (event.pointerType === 'mouse') scheduleHover(payload, event.clientX, event.clientY);
     },
     onPointerLeave: (event: React.PointerEvent) => {
       if (event.pointerType !== 'mouse') return;
-      clearTimers();
-      setInfo((prev) => (prev?.payload === payload ? null : prev));
+      // Stop the hover-open timer, but defer the close so the cursor
+      // can cross the gap to the floating tooltip and click a link.
+      if (event.currentTarget) clearTimers();
+      scheduleClose(payload);
     },
     onPointerDown: (event: React.PointerEvent) => {
       if (event.pointerType === 'touch') beginLongPress(payload, event.clientX, event.clientY);
