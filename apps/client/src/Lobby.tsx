@@ -44,6 +44,19 @@ function saveSession(s: LobbySession | null): void {
   } catch { /* best-effort */ }
 }
 
+async function revokeSessionToken(token: string): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+  } catch { /* swallow — local clear still runs */ }
+}
+
+async function deleteCharacter(token: string, name: string): Promise<void> {
+  await fetch(`/api/account/characters/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
 async function fetchRoster(token: string): Promise<SavedCharacter[] | 'unauthorized'> {
   const res = await fetch('/api/account/characters', {
     headers: { authorization: `Bearer ${token}` },
@@ -90,9 +103,10 @@ export function Lobby({
 
   useEffect(() => { if (session) refreshRoster(session); }, [session, refreshRoster]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (session) await revokeSessionToken(session.token);
     saveSession(null); setSession(null); setCharacters(null);
-  }, []);
+  }, [session]);
 
   if (!session) {
     return (
@@ -137,13 +151,7 @@ export function Lobby({
                 <button
                   type="button"
                   className="lobby-card-delete"
-                  onClick={async () => {
-                    await fetch(`/api/account/characters/${encodeURIComponent(c.name)}`, {
-                      method: 'DELETE',
-                      headers: { authorization: `Bearer ${session.token}` },
-                    });
-                    refreshRoster(session);
-                  }}
+                  onClick={async () => { await deleteCharacter(session.token, c.name); refreshRoster(session); }}
                   title="Delete character"
                 >Delete</button>
               </div>

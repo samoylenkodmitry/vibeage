@@ -19,6 +19,8 @@ import { VibeAgeRoom } from './transport/vibeAgeRoom.js';
 import { runtimeMetrics } from './observability/runtimeMetrics.js';
 import { assertProductionEnv, isProductionEnv } from './productionEnvAssertions.js';
 import { registerAuthRoutes } from './auth/authRoutes.js';
+import { loadAccountTokenRevocations } from './auth/accountRepository.js';
+import { primeRevocationCache } from './auth/sessionTokens.js';
 
 // Create Express app
 const app = express();
@@ -133,6 +135,15 @@ export async function startServer(port: number = 3001): Promise<void> {
   }
 
   assertProductionEnv();
+
+  // Migration 010 — rehydrate the session-token revocation cache from
+  // `accounts.tokens_valid_after`. Without this, restarting the server
+  // would silently un-revoke every "logged out" account.
+  try {
+    primeRevocationCache(await loadAccountTokenRevocations());
+  } catch (err) {
+    console.warn('Failed to prime token revocation cache; logouts won\'t survive this restart:', err);
+  }
 
   await gameServer.listen(port);
   console.log(`Game server running on port ${port}`);

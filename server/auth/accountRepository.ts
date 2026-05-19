@@ -177,3 +177,26 @@ export async function deleteAccount(accountId: string): Promise<void> {
     .where('id', '=', accountId)
     .execute();
 }
+
+/**
+ * Migration 010 — server-side logout: bump `tokens_valid_after` to now
+ * so every session token issued before this moment fails verify.
+ * Caller is responsible for updating the in-memory revocation cache
+ * (`revokeTokensForAccount`) so existing sockets are kicked on their
+ * next request.
+ */
+export async function bumpAccountTokensValidAfter(accountId: string, at: Date = new Date()): Promise<void> {
+  await database
+    .updateTable('accounts')
+    .set({ tokens_valid_after: at })
+    .where('id', '=', accountId)
+    .execute();
+}
+
+export async function loadAccountTokenRevocations(): Promise<Array<{ id: string; tokens_valid_after: Date }>> {
+  const rows = await database
+    .selectFrom('accounts')
+    .select(['id', 'tokens_valid_after'])
+    .execute();
+  return rows.map((r) => ({ id: r.id, tokens_valid_after: r.tokens_valid_after as Date }));
+}
