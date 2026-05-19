@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import {
   authenticateOrRegister,
   createCharacterForAccount,
+  deleteAccount,
   deleteCharacterForAccount,
   listCharactersForAccount,
   loginAccount,
@@ -29,6 +30,9 @@ import { CHARACTER_RACES, isClassAllowedForRace, type CharacterRace } from '../.
  *   GET  /api/account/characters     (Bearer)       -> { characters: [...] }
  *   POST /api/account/characters     (Bearer)       -> 201 | error
  *   DELETE /api/account/characters/:name (Bearer)   -> 204
+ *   DELETE /api/account                  (Bearer)   -> 204
+ *                              (delete the whole account; cascades to
+ *                               characters via ON DELETE CASCADE.)
  */
 export function registerAuthRoutes(app: Express): void {
   app.post('/api/auth', async (req, res) => {
@@ -105,6 +109,12 @@ export function registerAuthRoutes(app: Express): void {
     const accountId = (req as Request & { accountId: string }).accountId;
     const name = String(req.params.name ?? '');
     await deleteCharacterForAccount(accountId, name);
+    res.status(204).send();
+  });
+
+  app.delete('/api/account', requireAuth, async (req, res) => {
+    const accountId = (req as Request & { accountId: string }).accountId;
+    await deleteAccount(accountId);
     res.status(204).send();
   });
 }

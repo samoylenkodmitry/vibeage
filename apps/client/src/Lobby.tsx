@@ -90,6 +90,10 @@ export function Lobby({
 
   useEffect(() => { if (session) refreshRoster(session); }, [session, refreshRoster]);
 
+  const logout = useCallback(() => {
+    saveSession(null); setSession(null); setCharacters(null);
+  }, []);
+
   if (!session) {
     return (
       <AuthForm onAuth={(s) => { saveSession(s); setSession(s); }} />
@@ -113,11 +117,7 @@ export function Lobby({
         <h1>VibeAge</h1>
         <div className="lobby-header">
           <small>Logged in as <strong>{session.login}</strong></small>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => { saveSession(null); setSession(null); setCharacters(null); }}
-          >Log out</button>
+          <button type="button" className="ghost-button" onClick={logout}>Log out</button>
         </div>
         <h2 className="lobby-heading">Your Characters</h2>
         {loadingRoster && <p className="lobby-empty">Loading…</p>}
@@ -153,8 +153,58 @@ export function Lobby({
         <button type="button" className="lobby-create" onClick={() => setCreating(true)}>
           + Create New Character
         </button>
+        <DeleteAccountButton session={session} onDeleted={logout} />
       </section>
     </main>
+  );
+}
+
+function DeleteAccountButton({ session, onDeleted }: { session: LobbySession; onDeleted: () => void }) {
+  // Two-step confirm: a single click arms the button into a final
+  // "Really delete?" state for 5 seconds. Avoids accidental wipes
+  // while staying keyboard-friendly (no modal trap).
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armed || busy) return;
+    const t = setTimeout(() => setArmed(false), 5_000);
+    return () => clearTimeout(t);
+  }, [armed, busy]);
+
+  const onClick = async () => {
+    if (!armed) { setArmed(true); setError(null); return; }
+    if (busy) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${session.token}` },
+      });
+      if (!res.ok) { setError(`Delete failed (${res.status})`); setArmed(false); return; }
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+      setArmed(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const label = busy ? 'Deleting…'
+    : armed ? 'Click again to confirm — deletes account + all characters'
+    : 'Delete account';
+  return (
+    <>
+      <button
+        type="button"
+        disabled={busy}
+        className={armed ? 'lobby-delete-account lobby-delete-account--armed' : 'lobby-delete-account'}
+        onClick={onClick}
+        title="Delete this account and every character on it"
+      >{label}</button>
+      {error && <small className="lobby-error" role="alert">{error}</small>}
+    </>
   );
 }
 

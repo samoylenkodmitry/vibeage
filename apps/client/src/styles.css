@@ -1575,6 +1575,9 @@ input {
 .lobby-card-delete { opacity: 0.7; }
 .lobby-card-delete:hover { opacity: 1; }
 .lobby-create { margin-top: 12px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
+.lobby-delete-account { margin-top: 18px; padding: 6px 10px; opacity: 0.45; font-size: 11px; cursor: pointer; background: transparent; border: 1px solid rgba(252, 165, 165, 0.4); color: #fca5a5; border-radius: 4px; }
+.lobby-delete-account:hover { opacity: 0.85; }
+.lobby-delete-account--armed { opacity: 1; background: rgba(127, 29, 29, 0.45); border-color: rgba(252, 165, 165, 0.9); color: #fee2e2; }
 .lobby-note { display: block; margin-top: 8px; opacity: 0.6; font-size: 11px; }
 .lobby-error { color: #fca5a5; }
 .lobby-form-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: space-between; }

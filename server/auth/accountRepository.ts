@@ -168,3 +168,12 @@ export async function deleteCharacterForAccount(accountId: string, name: string)
     .where('name', '=', name)
     .execute();
 }
+
+export async function deleteAccount(accountId: string): Promise<void> {
+  // ON DELETE CASCADE on `players.account_id` (migration 009) wipes
+  // every character + their persisted inventory / progression rows.
+  await database
+    .deleteFrom('accounts')
+    .where('id', '=', accountId)
+    .execute();
+}
