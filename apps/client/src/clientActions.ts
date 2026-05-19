@@ -165,7 +165,12 @@ function useCastActions(
       clientTs: Date.now(),
       ...(force ? { force: true } : {}),
     });
-    if (targetId) {
+    // PR LL — preserve the player's selection across self-casts.
+    // Casting Vanish (selfTarget) with a goblin selected used to
+    // dispatch selectTarget(player.id), wiping the enemy plate. Only
+    // refocus the plate when the cast actually points at another
+    // entity (auto-attack queueing, friendly-cast on a party member).
+    if (targetId && targetId !== player.id) {
       dispatch({ type: 'selectTarget', targetId });
     }
   }, [roomRef, dispatch]);
@@ -606,9 +611,15 @@ function approachPointToward(player: PlayerEntity, target: EnemyEntity, skillId:
  * with friendly-fire. Ctrl-cast keeps the explicit override path.
  */
 function resolveCastTargetId(state: GameClientState, player: PlayerEntity, skillId: SkillId): string | null {
+  const skillDef = SKILLS[skillId];
+  // PR LL — selfTarget skills always land on the caster regardless of
+  // selection. Send `targetId: undefined` so the server's
+  // resolveCastTargets routes the cast at the caster via the
+  // `skill.selfTarget` branch, and so the redirect doesn't show up
+  // as a "you targeted self" cue downstream.
+  if (skillDef?.selfTarget) return null;
   const raw = getCastTargetId(state, player, skillId);
   if (!raw || isForceCastHeld()) return raw;
-  const skillDef = SKILLS[skillId];
   if (classifySkill(skillDef?.effects ?? []) !== 'beneficial') return raw;
   if (state.enemies[raw]?.isAlive) return player.id;
   return raw;

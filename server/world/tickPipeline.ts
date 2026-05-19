@@ -85,7 +85,7 @@ function runWorldTick(input: WorldTickRunnerOptions & {
 }
 
 function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number }): void {
-  advanceAll(input.state, input.spatial, input.tickMs, input.now);
+  advanceAll(input.state, input.spatial, input.tickMs, input.now, input.outbound);
   if (input.regions) {
     refreshServerOwnedRegionActivation(input.state, input.regions, input.regionActivationPolicy);
     refreshWorldRegionRuntime(input.state, input.regions);
