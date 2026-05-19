@@ -133,6 +133,12 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Breaks enemy aggro and hides the player from their searches.',
     category: 'buff',
   },
+  aggroReset: {
+    type: 'aggroReset',
+    label: 'Aggro Reset',
+    description: "Drops every nearby attacker's threat on the caster instantly.",
+    category: 'buff',
+  },
   transform: {
     type: 'transform',
     label: 'Transform',

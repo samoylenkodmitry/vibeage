@@ -32,6 +32,7 @@ import {
 } from '../players/playerQuests.js';
 import { applyGmCommand } from '../players/gmCommand.js';
 import { applyBuyFromVendor, applySellToVendor } from '../players/playerVendor.js';
+import { QUEST_NPCS } from '../../packages/content/npcs.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   makeSocketMessageSink,
@@ -162,11 +163,35 @@ function onTalkNpc(
   if (!playerId) return;
   const player = state.players[playerId];
   if (!player) return;
-  // TalkNpc has two roles: gates talk-objective progress and gives
-  // the dialog UI a server-validated "yes you can interact" signal.
-  // The dialog itself is rendered client-side from QUEST_NPCS +
-  // QUESTS content; the server just acks via questState updates.
+  // TalkNpc has three roles: gates talk-objective progress, gives
+  // the dialog UI a server-validated "yes you can interact" signal,
+  // and (PR KK) speaks the NPC's greeting line so the Greet button
+  // produces visible feedback. Dialog itself is rendered client-side
+  // from QUEST_NPCS + QUESTS content.
   onTalkedToNpcForQuests(player, msg.npcId, outbound);
+  emitNpcGreeting(player.socketId, msg.npcId, outbound);
+}
+
+function emitNpcGreeting(
+  socketId: string,
+  npcId: string,
+  outbound: OutboundEventSink,
+): void {
+  const npc = QUEST_NPCS[npcId];
+  if (!npc) return;
+  const text = npc.greet ?? `${npc.name} nods in acknowledgement.`;
+  outbound.publish({
+    type: 'directServerMessage',
+    socketId,
+    message: {
+      type: 'ChatBroadcast',
+      fromId: npc.id,
+      fromName: npc.name,
+      text,
+      scope: 'near',
+      ts: Date.now(),
+    },
+  });
 }
 
 function onQuestVerb(

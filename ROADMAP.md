@@ -1518,30 +1518,23 @@ surfaced during the session.
 
 ### PR KK — Skill self-target flag + NPC labels + Greet wire-up
 
-- [ ] Skill spec: add `selfTarget?: boolean` (or extend the
-  existing target-kind enum) so a skill can declare it
-  always casts on the caster regardless of current target.
-  Vanish (and any future cleanse/buff) sets this. Single
-  source — engine reads it to bypass target resolution AND
-  the wiki Skills tab shows a "Self" badge.
-- [ ] Cast pipeline honours the flag: when set, target the
-  caster even if `selectedTargetId` points elsewhere; do
-  *not* drop into "no target" rejection. Verified by a
-  test (`vanish` cast with mob targeted ⇒ buff lands on
-  caster, mob's threat is cleared).
-- [ ] Bug fix: Vanish was cast with a mob targeted; no
-  status effect applied + mob kept attacking. Root-cause
-  via the new flag (vanish marked self-target ⇒ the buff
-  resolves on the caster, threat is wiped). Add an aggro-
-  clear effect to vanish so the mob loses target.
-- [ ] NPCs render a floating name label above their model
-  (same treatment as enemies/players). Reads from
-  `QUEST_NPCS[id].name` + `.title` — no per-NPC label
-  config.
-- [ ] NpcDialog "Greet" button currently sends `TalkNpc`
-  but the user reports nothing happens. Either (a) wire a
-  visible dialog response ("Galen: 'Well met, traveller.'"
-  in chat / floating dialog) or (b) remove the button if
-  it's truly redundant once quest + vendor buttons exist.
-  Confirm with usage before deleting.
+- [x] `SkillDef.selfTarget?: boolean` added. Engine reads it
+  in `resolveCastTargets` (impactResolver) to force the cast
+  on the caster even when another entity is selected. Wiki
+  Skills tab shows "Target: self (ignores selection)".
+- [x] New `aggroReset` SkillEffectType. impactResolver scans
+  a 60m radius around the target and clears `targetId` on
+  any chaser that was tracking them. Mob returns to idle.
+- [x] Vanish updated to `selfTarget: true` + carries both
+  `invisible` and `aggroReset` effects. Verified by
+  `tests/vanishSelfTarget.spec.ts`: cast with a mob
+  targeted ⇒ invisible lands on caster, chaser's threat
+  cleared, bystander untouched.
+- [x] `NameLabel` floats above every `QUEST_NPCS` marker
+  (yellow tint to match the marker cylinder). Reads
+  `QUEST_NPCS[id].name` directly — no per-NPC label code.
+- [x] NpcDialog "Greet" button now emits a direct
+  ChatBroadcast carrying `npc.greet` (one line per NPC,
+  authored in `QUEST_NPCS`). Falls back to a generic
+  acknowledgement for any NPC without a custom line.
 

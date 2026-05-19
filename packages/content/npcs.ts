@@ -21,6 +21,13 @@ export interface QuestNpcDef {
    * so a content drop only writes the line once.
    */
   description?: string;
+  /**
+   * PR KK — one-liner the NPC says when the player taps "Greet".
+   * Server emits a direct ChatBroadcast with `fromName = npc.name`
+   * so the line lands in the combat / chat log. Defaults to a
+   * generic acknowledgement when absent.
+   */
+  greet?: string;
 }
 
 export const INTERACTION_RANGE = 4;
@@ -32,6 +39,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Talking Island Warden',
     position: { x: 4, y: 0.5, z: 4 },
     description: 'Veteran of the early-evening watch. Knows every goblin path within a day\'s ride and hands out the first work to anyone new to the island.',
+    greet: "Stay sharp, traveller. The goblins have been bolder this week.",
   },
   captain_vorr: {
     id: 'captain_vorr',
@@ -39,6 +47,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Gludin Garrison Captain',
     position: { x: 122, y: 0.5, z: 82 },
     description: 'Career soldier who took the garrison commission after the Reach went quiet. Pays for goblin cullings when his patrols get thin.',
+    greet: "If you've come for the cullings, the work's posted — and the gold's good.",
   },
   bounty_broker_mira: {
     id: 'bounty_broker_mira',
@@ -46,6 +55,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Bounty Broker',
     position: { x: 130, y: 0.5, z: 70 },
     description: 'Keeps a board of named-mob bounties pinned to a market stall. Pays in coin and trophies; never asks how the work got done.',
+    greet: "Bounties on the board. Bring trophies, get paid — I don't ask how.",
   },
   pyromancer_kael: {
     id: 'pyromancer_kael',
@@ -53,6 +63,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Hermit of the Peaks',
     position: { x: -380, y: 0.5, z: 280 },
     description: 'Self-exiled mage who claims he once read Vorthax\'s dreams. Will guide anyone reckless enough to climb the caldera.',
+    greet: "You smell of cold ash. Good — the caldera doesn't suffer the warm.",
   },
   high_priest_ondrea: {
     id: 'high_priest_ondrea',
@@ -60,6 +71,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Curator of the Cursed Ruins',
     position: { x: 380, y: 0.5, z: -90 },
     description: 'Tends the consecration rites that keep the ruins from spilling outward. Has a personal grudge against necromancers wearing other people\'s bones.',
+    greet: "Walk softly inside the ruins. The dead remember footsteps.",
   },
   smith_alric: {
     id: 'smith_alric',
@@ -67,6 +79,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Forge-Caller of Sunspire',
     position: { x: 134, y: 0.5, z: 64 },
     description: 'Travelling smith from the steppe whose home forge has gone cold. Wants Magmaheart\'s core to relight it; will pay anyone who brings him one.',
+    greet: "My forge is cold. Bring me a Magmaheart Core and we'll talk steel.",
   },
   harbormaster_yiver: {
     id: 'harbormaster_yiver',
@@ -74,6 +87,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Watcher of the Wetland',
     position: { x: 116, y: 0.5, z: 76 },
     description: 'Reads the tides like other people read books. Convinced something older than the kingdom is stirring under the wetland — and offers coin to anyone who proves him right.',
+    greet: "The lights drift wrong tonight. Something deep is waking.",
   },
   scholar_thessa: {
     id: 'scholar_thessa',
@@ -81,6 +95,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Mapmaker of Gludin',
     position: { x: 128, y: 0.5, z: 84 },
     description: 'Updating the regional survey one waypoint at a time. Pays travelers for confirmed coordinates and a description of what they saw on the way.',
+    greet: "Coordinates and a description — that's all I ask. Coin in exchange.",
   },
   // PR GG — vendor NPCs. Same QUEST_NPCS record drives marker placement
   // in-world AND the wiki Npcs tab; the linked VENDORS entry adds the
@@ -91,6 +106,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Gludin General Goods',
     position: { x: 138, y: 0.5, z: 70 },
     description: 'Keeps the city stocked with the small comforts no adventurer admits to needing: potions, scrolls, and the rope they pretended to bring.',
+    greet: "Potions, mana, resistance brews — all reasonably priced.",
   },
   tinker_drev: {
     id: 'tinker_drev',
@@ -98,6 +114,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Apprentice Smith',
     position: { x: 142, y: 0.5, z: 78 },
     description: 'Sells the starter gear every fresh recruit is too proud to wear and every veteran wishes they had kept.',
+    greet: "Leather, bone, plate — gear that won't get you killed.",
   },
   trophy_buyer_oren: {
     id: 'trophy_buyer_oren',
@@ -105,6 +122,7 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     title: 'Trophy Buyer',
     position: { x: 146, y: 0.5, z: 86 },
     description: 'Quiet old man with a ledger of trophies and a strict policy: he never asks who you took them from. Pays well for proof of work.',
+    greet: "Show me what you brought. I pay fair — never ask questions.",
   },
 };
 

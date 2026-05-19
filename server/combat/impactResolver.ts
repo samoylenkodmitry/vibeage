@@ -85,6 +85,13 @@ function resolveCastTargets(
   skill: SkillDef,
   caster: PlayerState | null,
 ): Array<Enemy | PlayerState> {
+  // PR KK — selfTarget skills always land on the caster, even when
+  // the player has another entity selected. Without this, casting
+  // Vanish with a mob targeted routed the invisible / aggroReset
+  // effects to the mob and the player kept getting hit.
+  if (caster && skill.selfTarget) {
+    return [caster];
+  }
   if (caster && !cast.targetId && (!skill.area || skill.area <= 0) && isBeneficialOnly(skill)) {
     return [caster];
   }
@@ -191,7 +198,7 @@ function applyCastToTarget(
     target.aiState = 'chasing';
   }
 
-  applySkillEffects(target, skill, caster);
+  applySkillEffects(target, skill, caster, world);
 
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = Date.now();
@@ -228,6 +235,7 @@ function applySkillEffects(
   target: Enemy | PlayerState,
   skill: SkillDef,
   caster: PlayerState | null,
+  world: CombatWorld,
 ): void {
   target.statusEffects = target.statusEffects ?? [];
 
@@ -238,6 +246,15 @@ function applySkillEffects(
     }
     if (effect.type === 'dispel') {
       target.statusEffects = target.statusEffects.filter((existing) => !NEGATIVE_EFFECT_TYPES.has(existing.type));
+      continue;
+    }
+    if (effect.type === 'aggroReset') {
+      // PR KK — Vanish & friends. Scan a generous radius around the
+      // target (= caster for selfTarget casts) and drop any enemy
+      // that was chasing them. AGGRO_RESET_RADIUS easily covers a
+      // mob's aggro range (default 15m) so we don't miss chasers
+      // that haven't finished closing yet.
+      applyAggroResetAround(target, world);
       continue;
     }
     if (effect.type === 'teleport') {
@@ -286,6 +303,26 @@ export function isEntityTaunted(entity: Enemy | PlayerState, now: number = Date.
 function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect): void {
   const max = isEnemy(target) ? target.maxHealth : target.maxHealth;
   target.health = Math.min(max, target.health + effect.value);
+}
+
+const AGGRO_RESET_RADIUS = 60;
+
+/**
+ * PR KK — drop every nearby enemy's threat on `target`. Used by
+ * skills that carry an `aggroReset` effect (vanish today; future
+ * smoke-bomb / cleanse-self). Scans world entities in a generous
+ * radius around the target's current position and clears targetId
+ * on any mob that was chasing them, returning the mob to idle.
+ */
+function applyAggroResetAround(target: Enemy | PlayerState, world: CombatWorld): void {
+  const pos = { x: target.position.x, z: target.position.z };
+  const id = target.id;
+  for (const entity of world.getEntitiesInCircle(pos, AGGRO_RESET_RADIUS)) {
+    if (!isEnemy(entity)) continue;
+    if (entity.targetId !== id) continue;
+    entity.targetId = null;
+    entity.aiState = 'idle';
+  }
 }
 
 function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, skillId: string): void {

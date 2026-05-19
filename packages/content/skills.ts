@@ -50,6 +50,7 @@ export type SkillEffectType =
   | 'knockback'
   | 'evasion'  // dodge buff
   | 'invisible'
+  | 'aggroReset' // PR KK — wipe attackers' threat on the caster
   | 'transform' // for stone conversion
   | 'teleport'; // recall to nearest village (Escape)
 
@@ -65,7 +66,7 @@ const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
   'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
 ]);
 const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible',
+  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible', 'aggroReset',
 ]);
 
 export type SkillAlignment = 'harmful' | 'beneficial' | 'neutral';
@@ -111,6 +112,14 @@ export interface SkillDef {
   levelRequired: number;
   effects: SkillEffect[];
   requiresTarget?: boolean; // Whether the skill requires a target to be cast
+  /**
+   * PR KK — when true, the skill always resolves on the caster
+   * regardless of the player's current target selection. Use for
+   * self-buffs, escapes, and cleanses (vanish, blink, dispel-self).
+   * Cast pipeline reads this to bypass target resolution; the wiki
+   * Skills tab surfaces a "Self" badge so players know upfront.
+   */
+  selfTarget?: boolean;
   projectile?: {
     speed: number;      // Speed of projectile in units per second
     maxRange?: number;  // Maximum travel distance
@@ -647,8 +656,17 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     cooldownMs: 60000,
     levelRequired: 7,
     isBlocking: false,
+    // PR KK — self-buff. Previously vanish had no `selfTarget` flag,
+    // so casting it with a mob selected routed the invisible effect
+    // at the mob (and the player kept getting hit). The flag tells
+    // the engine + wiki this skill always lands on the caster.
+    selfTarget: true,
     effects: [
       { type: 'invisible', value: 1, durationMs: 6000 },
+      // PR KK — explicit aggro reset so existing chasers actually
+      // forget the player when they vanish. The invisible flag
+      // alone doesn't drop the threat list.
+      { type: 'aggroReset', value: 1 },
     ],
   },
 };

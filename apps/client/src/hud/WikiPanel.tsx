@@ -213,7 +213,9 @@ function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isF
         <Pair k="CD" v={skill.cooldownMs > 0 ? `${(skill.cooldownMs / 1000).toFixed(1)}s` : '-'} />
         <Pair k="Lv" v={String(skill.levelRequired)} />
         {skill.autoRepeat && <Pair k="Auto-repeat" v="yes" />}
-        {skill.requiresTarget && <Pair k="Target" v="required" />}
+        {skill.selfTarget
+          ? <Pair k="Target" v="self (ignores selection)" />
+          : skill.requiresTarget && <Pair k="Target" v="required" />}
       </dl>
       {skill.effects.length > 0 && (
         <small className="wiki-row-footer">
