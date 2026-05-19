@@ -14,12 +14,16 @@ const CLAIM_RE = /([+\-−])(\d+(?:\.\d+)?)%\s*([A-Za-z. /]+?)(?=[,.)]|$)/g;
 // Keyword → stat id. Order matters — longer / compound keys (e.g.
 // "MP regen") must be checked before their substrings ("mana").
 const STAT_KEYS: ReadonlyArray<{ pattern: RegExp; stat: StatId }> = [
-  { pattern: /\bmp\s*regen\b/i, stat: 'mpRegen' },
-  { pattern: /\bhp\s*regen\b/i, stat: 'hpRegen' },
+  // Compound keys first — "mana regen" must not fall into maxMana,
+  // "attack speed" must not fall into runSpeed (Gemini bot, PR VV).
+  { pattern: /\b(?:mp|mana)\s*regen(?:eration)?\b/i, stat: 'mpRegen' },
+  { pattern: /\b(?:hp|health)\s*regen(?:eration)?\b/i, stat: 'hpRegen' },
   { pattern: /\bphysical\s*attack\b|\bp\.?atk\b/i, stat: 'pAtk' },
   { pattern: /\bmagical\s*attack\b|\bm\.?atk\b/i, stat: 'mAtk' },
   { pattern: /\bphysical\s*defense\b|\bp\.?def\b/i, stat: 'pDef' },
   { pattern: /\bmagical\s*defense\b|\bm\.?def\b/i, stat: 'mDef' },
+  { pattern: /\battack\s*speed\b/i, stat: 'attackSpeed' },
+  { pattern: /\bcast(?:ing)?\s*speed\b/i, stat: 'castSpeed' },
   { pattern: /\b(?:movement\s*)?speed\b/i, stat: 'runSpeed' },
   { pattern: /\bcrit(?:ical)?\s*chance\b/i, stat: 'critChance' },
   { pattern: /\bcrit(?:ical)?\s*damage\b/i, stat: 'critMult' },
