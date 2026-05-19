@@ -49,25 +49,52 @@ The game uses a client-server architecture with the following components:
 
 ### Message Protocol
 
+The Zod schemas in `packages/protocol/` are the authoritative
+definitions for every message on the wire. Both client and
+server schemas use `.strict()` — unknown fields are rejected at
+the boundary, so adding a property requires declaring it in the
+schema first. This table is a high-level map; for the exact
+shape of any message, read the schema directly.
+
 #### Client → Server Messages
 
-| Type | When | Payload |
-|------|------|---------|
-| MoveIntent | When player clicks to move | `{id, targetPos, clientTs}` |
-| CastReq | Skill button | `{id, skillId, targetId?, targetPos?, clientTs}` |
-| RespawnRequest | After player death | `{id, clientTs}` |
+See `packages/protocol/clientMessages.ts`. Key entries:
+
+| Type | When | Notes |
+|------|------|-------|
+| `MoveIntent` | Player clicks the world | `{id, targetPos, clientTs}` |
+| `CastReq` | Player presses a skill button | `{id, skillId, targetId?, targetPos?, clientTs}` |
+| `RespawnRequest` | Player clicks "Respawn" | `{id, clientTs}` |
+| `Chat` | Player sends a chat message | `{id, message, scope?}` |
+| `EquipReq` / `UnequipReq` | Inventory drag-and-drop | `{id, slot, instanceId?}` |
+| `LearnSkill` | Player spends a skill point | `{id, skillId}` |
+| `LootPickup` | Player walks over a loot stack | `{id, lootId}` |
 
 #### Server → Client Messages
 
-| Type | When | Payload |
-|------|------|---------|
-| PosSnap | 10 Hz | `{snaps: [{id, pos, vel, snapTs}]}` |
-| CastSnapshot | Skill state changes | `{castId, casterId, skillId, state, origin, target?, pos?, dir?, startedAt, castTimeMs}` |
-| EffectSnapshot | Status effects | `{targetId, effects: []}` |
-| CombatLog | Combat results | `{castId, skillId, casterId, targets, damages}` |
-| EnemyAttack | Enemy attacks | `{enemyId, targetId, damage}` |
+See `packages/protocol/serverMessages.ts`. Each is its own
+top-level message (one per emit; `PosSnap` is per-entity, not a
+batch). Selection:
 
-> **Note**: As of May 2025, legacy message types `skillEffect`, `ProjSpawn2`, and `ProjHit2` have been removed from the protocol. Clients must use protocol v2+ to connect to current servers.
+| Type | When |
+|------|------|
+| `PosSnap` | 10 Hz per-entity position. `{type, id, pos, vel, rotY?, snapTs, seq?, predictions?}` |
+| `CastSnapshot` | Cast state transitions. `{castId, casterId, skillId, state, origin, pos, dir?, startedAt, castTimeMs, progressMs}` |
+| `EffectSnapshot` | Status-effect list updated. Single-target form: `{targetId, effects[]}` |
+| `CombatLog` | Damage / heal applied (one per impact or per pierce hit) |
+| `EnemyAttack` | Enemy lands a melee swing |
+| `BossTelegraph` | Mini-boss is about to swing its signature ability |
+| `InventoryUpdate`, `EquipmentUpdate`, `LootAcquired`, `LootSpawn`, `ItemUsed` | Loot / bag / gear changes |
+| `ChatBroadcast` | Chat message fan-out |
+| `SkillLearned`, `SkillShortcutUpdated`, `ClassSelected`, `LearnSkillFailed` | Progression UI sync |
+| `CastFail`, `EquipFailed` | Negative acknowledgements |
+| `StarterProgressUpdate` | Starter-path progress |
+| `BatchUpdate` | Coalesced patch envelope for player / enemy state |
+
+> **Protocol versioning**: clients send `clientProtocolVersion`
+> on Colyseus join; rooms reject anything below
+> `MIN_CLIENT_PROTOCOL_VERSION`. Legacy `skillEffect`, `ProjSpawn2`,
+> and `ProjHit2` are gone.
 
 ### Server Update Loop
 
