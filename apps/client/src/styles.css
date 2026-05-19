@@ -332,6 +332,12 @@ input {
   position: absolute;
   left: 50%;
   bottom: 18px;
+  /* PR VV — sit above .combat-log (which is bottom-left, full
+     `pointer-events: auto`, and renders later in the React tree).
+     Without this z-index, the centered skill bar's leftmost slots
+     overlap the chat box at ≥1024px viewports and Playwright reports
+     "Cast Fireball intercepted by .combat-log-scroll". */
+  z-index: 5;
   display: grid;
   /* 10 columns (number row 1..0). Mobile shrinks below. */
   width: min(840px, calc(100vw - 36px));
