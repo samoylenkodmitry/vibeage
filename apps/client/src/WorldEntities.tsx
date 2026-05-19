@@ -520,6 +520,10 @@ export function NpcMarkers() {
               <sphereGeometry args={[0.2, 16, 16]} />
               <meshStandardMaterial color="#fde68a" emissive="#facc15" emissiveIntensity={0.9} />
             </mesh>
+            {/* PR KK — floating name label so players can identify
+                NPCs from across the square instead of having to walk
+                up to every yellow cone to find Thala vs Drev. */}
+            <NameLabel text={npc.name} color="#facc15" yOffset={2.95} height={0.4} />
           </group>
         );
       })}
