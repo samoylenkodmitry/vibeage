@@ -1485,20 +1485,23 @@ surfaced during the session.
 
 ### PR II — Stats registry as single source of truth
 
-- [ ] Audit the existing `packages/content/stats.ts` — confirm
-  every stat the engine reads (`stats?.dmgMult`, `critChance`,
-  `pAtk`, etc.) is in `STATS`. Add any missing entries with
-  description + formula source so the wiki Stats tab can
-  render them.
-- [ ] Stats panel (the HUD one): every stat row becomes a
-  wiki chip that opens Wiki → Stats tab focused on that stat.
-  No exceptions — currently only str/dex/etc. are linkable;
-  derived stats (critChance, dmgMult, runSpeed, …) are dead
-  text. Single source: stat label + tooltip + wiki entry
-  all read from the same `STATS` record.
-- [ ] Engine reads stat formulas from the same registry where
-  it can — no duplicated "stat key → multiplier" maps
-  scattered across server files.
+- [x] `STATS` in `packages/content/stats.ts` now covers every
+  derived combat stat the HUD displays (pAtk, mAtk, pDef,
+  mDef, hpRegen, mpRegen, accuracy, evasion, attackSpeed,
+  castSpeed, runSpeed, critChance) alongside the six
+  attributes. Single source of truth.
+- [x] PlayerPanel renders every derived row via the existing
+  `StatRow` chip so each one becomes a wiki link → Stats
+  tab focused on that stat. Hover tooltip from the STATS
+  description; click → wiki.
+- [x] Wiki Stats tab picks up the new entries automatically
+  (it walks `Object.values(STATS)`); `tags` carry the
+  `attribute` / `derived` distinction so future grouping
+  can read off the same field.
+- (Deferred) Engine still reads weights from RACE_PROFILES /
+  STAT_WEIGHTS; folding those into STATS would touch
+  derivePlayerStats more invasively than this PR's scope
+  and isn't user-visible — recorded for later.
 
 ### PR JJ — Wiki UX polish: clickable coords, hoverable tooltips, gear popup
 

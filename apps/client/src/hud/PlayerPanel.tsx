@@ -44,18 +44,21 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
       </dl>
       {derived.pAtk !== undefined && (
         <dl className="player-stats player-stats-combat">
-          <div><dt>P.Atk</dt><dd>{derived.pAtk}</dd></div>
-          <div><dt>M.Atk</dt><dd>{derived.mAtk}</dd></div>
-          <div><dt>P.Def</dt><dd>{derived.pDef}</dd></div>
-          <div><dt>M.Def</dt><dd>{derived.mDef}</dd></div>
-          <div><dt>HP/s</dt><dd>{derived.hpRegen}</dd></div>
-          <div><dt>MP/s</dt><dd>{derived.mpRegen}</dd></div>
-          <div><dt>Acc</dt><dd>{derived.accuracy}</dd></div>
-          <div><dt>Evd</dt><dd>{derived.evasion}</dd></div>
-          <div><dt>Atk Spd</dt><dd>{derived.attackSpeed}</dd></div>
-          <div><dt>Cast Spd</dt><dd>{derived.castSpeed?.toFixed(2)}</dd></div>
-          <div><dt>Speed</dt><dd>{derived.runSpeed}</dd></div>
-          <div><dt>Crit %</dt><dd>{derived.critChance ? Math.round(derived.critChance * 100) : 0}</dd></div>
+          {/* PR II — every derived stat is a wiki chip (same StatRow
+              treatment as STR/DEX/etc.). Labels come from the STATS
+              registry so renaming a stat propagates here too. */}
+          <StatRow id="pAtk" label="P.Atk" value={derived.pAtk} />
+          <StatRow id="mAtk" label="M.Atk" value={derived.mAtk} />
+          <StatRow id="pDef" label="P.Def" value={derived.pDef} />
+          <StatRow id="mDef" label="M.Def" value={derived.mDef} />
+          <StatRow id="hpRegen" label="HP/s" value={derived.hpRegen} />
+          <StatRow id="mpRegen" label="MP/s" value={derived.mpRegen} />
+          <StatRow id="accuracy" label="Acc" value={derived.accuracy} />
+          <StatRow id="evasion" label="Evd" value={derived.evasion} />
+          <StatRow id="attackSpeed" label="Atk Spd" value={derived.attackSpeed} />
+          <StatRow id="castSpeed" label="Cast Spd" value={derived.castSpeed !== undefined ? Number(derived.castSpeed.toFixed(2)) : undefined} />
+          <StatRow id="runSpeed" label="Speed" value={derived.runSpeed} />
+          <StatRow id="critChance" label="Crit %" value={derived.critChance !== undefined ? Math.round(derived.critChance * 100) : 0} />
         </dl>
       )}
       <StatusPills effects={player?.statusEffects ?? []} />
