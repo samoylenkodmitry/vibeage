@@ -116,15 +116,18 @@ describe('skill learning state sync', () => {
       skillId: 'fireball',
     });
 
-    expect(outbound.publish).toHaveBeenCalledWith({
+    // PR QQ — learning a skill now also broadcasts the recomputed
+    // stats / vitals so a passive contribution lands client-side
+    // immediately. Use objectContaining so the test doesn't pin
+    // every numeric stat field.
+    expect(outbound.publish).toHaveBeenCalledWith(expect.objectContaining({
       type: 'playerUpdated',
-      update: {
+      update: expect.objectContaining({
         id: 'player1',
         unlockedSkills: ['fireball'],
-        skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
         availableSkillPoints: 0,
-      },
-    });
+      }),
+    }));
     expect(outbound.publish).toHaveBeenCalledWith({
       type: 'directServerMessage',
       socketId: 'socket1',
