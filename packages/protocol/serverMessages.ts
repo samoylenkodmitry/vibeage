@@ -30,7 +30,7 @@ export const posSnapSchema = z.object({
   snapTs: z.number(),
   seq: z.number().optional(),
   predictions: z.array(predictionKeyframeSchema).optional(),
-}).passthrough();
+}).strict();
 
 export const instantHitSchema = z.object({
   type: z.literal('InstantHit'),
@@ -39,43 +39,43 @@ export const instantHitSchema = z.object({
   targetPos: vec3DSchema,
   hitIds: z.array(z.string()),
   dmg: z.array(z.number()).optional(),
-}).passthrough();
+}).strict();
 
 export const skillLearnedSchema = z.object({
   type: z.literal('SkillLearned'),
   skillId: skillIdSchema,
   remainingPoints: z.number(),
-}).passthrough();
+}).strict();
 
 export const skillShortcutUpdatedSchema = z.object({
   type: z.literal('SkillShortcutUpdated'),
   slotIndex: z.number().int().min(0).max(8),
   skillId: skillIdSchema.nullable(),
-}).passthrough();
+}).strict();
 
 export const classSelectedSchema = z.object({
   type: z.literal('ClassSelected'),
   className: z.string(),
   // PR PP — `baseStats` removed. Class differentiation flows through
   // PASSIVE_SKILL_CONTRIBUTIONS, not a wire-shipped multiplier block.
-}).passthrough();
+}).strict();
 
 export const castFailSchema = z.object({
   type: z.literal('CastFail'),
   clientSeq: z.number(),
   reason: z.enum(['cooldown', 'nomana', 'invalid', 'outofrange']),
-}).passthrough();
+}).strict();
 
 export const castSnapshotMsgSchema = z.object({
   type: z.literal('CastSnapshot'),
   data: castSnapshotSchema,
-}).passthrough();
+}).strict();
 
 export const effectSnapshotTargetMsgSchema = z.object({
   type: z.literal('EffectSnapshot'),
   targetId: z.string(),
   effects: z.array(statusEffectSchema),
-}).passthrough();
+}).strict();
 
 export const effectSnapshotSingleMsgSchema = z.object({
   type: z.literal('EffectSnapshot'),
@@ -85,7 +85,7 @@ export const effectSnapshotSingleMsgSchema = z.object({
   stacks: z.number(),
   remainingMs: z.number(),
   seed: z.number(),
-}).passthrough();
+}).strict();
 
 export const effectSnapshotMsgSchema = z.union([
   effectSnapshotTargetMsgSchema,
@@ -99,14 +99,14 @@ export const combatLogMsgSchema = z.object({
   casterId: z.string(),
   targets: z.array(z.string()),
   damages: z.array(z.number()),
-}).passthrough();
+}).strict();
 
 export const enemyAttackSchema = z.object({
   type: z.literal('EnemyAttack'),
   enemyId: z.string(),
   targetId: z.string(),
   damage: z.number(),
-}).passthrough();
+}).strict();
 
 /**
  * PR Q — boss telegraph. Server emits one when a mini-boss begins to
@@ -126,26 +126,26 @@ export const bossTelegraphSchema = z.object({
   radius: z.number(),
   windUpMs: z.number(),
   impactAt: z.number(),
-}).passthrough();
+}).strict();
 
 export const inventoryUpdateMsgSchema = z.object({
   type: z.literal('InventoryUpdate'),
   playerId: z.string().optional(),
   inventory: z.array(inventorySlotSchema),
   maxInventorySlots: z.number(),
-}).passthrough();
+}).strict();
 
 export const lootAcquiredMsgSchema = z.object({
   type: z.literal('LootAcquired'),
   items: z.array(inventorySlotSchema),
   sourceEnemyName: z.string().optional(),
-}).passthrough();
+}).strict();
 
 export const starterProgressUpdateSchema = z.object({
   type: z.literal('StarterProgressUpdate'),
   progress: starterProgressStateSchema,
   rewardGranted: z.boolean().optional(),
-}).passthrough();
+}).strict();
 
 export const lootSpawnSchema = z.object({
   type: z.literal('LootSpawn'),
@@ -153,7 +153,7 @@ export const lootSpawnSchema = z.object({
   lootId: z.string().optional(),
   position: z.union([vec3DSchema, vecXZSchema]).optional(),
   loot: z.array(itemDropSchema),
-}).passthrough();
+}).strict();
 
 export const itemUsedSchema = z.object({
   type: z.literal('ItemUsed'),
@@ -162,7 +162,7 @@ export const itemUsedSchema = z.object({
   newQuantity: z.number(),
   healthDelta: z.number().optional(),
   manaDelta: z.number().optional(),
-}).passthrough();
+}).strict();
 
 export const chatBroadcastSchema = z.object({
   type: z.literal('ChatBroadcast'),
@@ -171,22 +171,22 @@ export const chatBroadcastSchema = z.object({
   text: z.string(),
   scope: z.union([z.literal('near'), z.literal('all')]),
   ts: z.number(),
-}).passthrough();
+}).strict();
 
 export const equipmentEntrySchema = z.object({
   slot: z.string(),
   itemId: z.string(),
-}).passthrough();
+}).strict();
 
 export const equipmentUpdateSchema = z.object({
   type: z.literal('EquipmentUpdate'),
   equipment: z.array(equipmentEntrySchema),
-}).passthrough();
+}).strict();
 
 export const equipFailedSchema = z.object({
   type: z.literal('EquipFailed'),
   reason: z.string(),
-}).passthrough();
+}).strict();
 
 export const learnSkillFailedReasonSchema = z.enum([
   'noSkillPoints',
@@ -210,7 +210,7 @@ function getServerMessageSchema(): z.ZodType<unknown> {
 export const batchUpdateSchema = z.object({
   type: z.literal('BatchUpdate'),
   updates: z.array(z.lazy(getServerMessageSchema)),
-}).passthrough();
+}).strict();
 
 export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   posSnapSchema,
