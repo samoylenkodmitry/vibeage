@@ -45,6 +45,20 @@ export interface MiniBossSpec {
   lootTableId: string;
 }
 
+/**
+ * PR N — uniform enrage / phase-shift tuning applied to every
+ * mini-boss spawn. Lived in server/enemies/enemyLifecycle.ts; moved
+ * here so the wiki can render the same numbers the engine applies
+ * (avoid duplicating constants across server + client).
+ */
+export const DEFAULT_BOSS_CONFIG = {
+  enrageAfterMs: 20_000,
+  enragedDamageMul: 1.5,
+  phaseTwoHpFraction: 0.5,
+  phaseTwoSpeedMul: 1.25,
+  phaseTwoDamageMul: 1.25,
+} as const;
+
 const DEFAULT_ENGINE: MiniBossSignatureEngine = {
   windUpMs: 2000,
   cooldownMs: 12_000,
