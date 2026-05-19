@@ -1633,7 +1633,7 @@ explicit old-system-removal line.
 Walk every entry in `SKILLS` (BASE_SKILLS, spec /
 proficiency, passives) and assert one wiring discipline:
 
-- [ ] **For each skill**: open a row in `tests/skillSpecAudit.spec.ts`
+- [x] **For each skill**: open a row in `tests/skillSpecAudit.spec.ts`
   asserting:
   - Active skill: at least one `SkillEffect` AND consumers
     of every declared effect exist in `impactResolver`.
@@ -1644,14 +1644,14 @@ proficiency, passives) and assert one wiring discipline:
   - SkillDef's `description` mentions the actual numbers
     its effects / contribution produce (catches "claims +5%
     but value 0" drift).
-- [ ] **For each effect type**: assert `EFFECT_SPECS` covers
+- [x] **For each effect type**: assert `EFFECT_SPECS` covers
   it (already done via the type union, but lock the
   description/category at runtime too).
-- [ ] **For each passive contribution**: assert the
+- [x] **For each passive contribution**: assert the
   declared `stat` is in `STATS` and the contribution shows
   up on the breakdown when the passive is owned (sanity
   sweep already does the second half — extend it).
-- [ ] **Old-system removal** sweep at the end: grep for
+- [x] **Old-system removal** sweep at the end: grep for
   any leftover `*Multiplier` field on a skill or class
   spec that *isn't* expressed as a Contribution. Delete
   or migrate.

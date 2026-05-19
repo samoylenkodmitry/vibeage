@@ -52,6 +52,16 @@ export const STATS: Record<string, StatDef> = {
   // PR II — derived combat stats. Engine reads these off
   // PlayerState.stats; this entry exists so the wiki Stats tab and
   // the HUD chip can share one description per key. Single source.
+  maxHealth: {
+    id: 'maxHealth', short: 'Max HP', name: 'Maximum Health',
+    description: 'Maximum hit points the player can hold. CON, equipment, class passives, and shield buffs raise it.',
+    tags: ['derived', 'defensive', 'vital'],
+  },
+  maxMana: {
+    id: 'maxMana', short: 'Max MP', name: 'Maximum Mana',
+    description: 'Maximum mana pool. MEN, equipment, and class passives raise it.',
+    tags: ['derived', 'magical', 'vital'],
+  },
   pAtk: {
     id: 'pAtk', short: 'P.Atk', name: 'Physical Attack',
     description: 'Final physical attack power after STR, equipment, and class scaling. Drives every melee + ranged swing.',
@@ -99,7 +109,7 @@ export const STATS: Record<string, StatDef> = {
   },
   castSpeed: {
     id: 'castSpeed', short: 'Cast Spd', name: 'Cast Speed',
-    description: 'Cast-time multiplier. WIT-driven; higher = shorter cast bars on every spell.',
+    description: 'Cast-rate multiplier (higher = faster). WIT-driven; +0.5%/WIT. Floor 1.0, ceiling 2.5.',
     tags: ['derived', 'offensive', 'magical'],
   },
   runSpeed: {
@@ -110,6 +120,16 @@ export const STATS: Record<string, StatDef> = {
   critChance: {
     id: 'critChance', short: 'Crit %', name: 'Critical Chance',
     description: 'Probability that an attack scores a critical hit. WIT and equipment scale it.',
+    tags: ['derived', 'offensive'],
+  },
+  dmgMult: {
+    id: 'dmgMult', short: 'Dmg Mult', name: 'Damage Multiplier',
+    description: 'Multiplier applied to every outgoing damage roll. Primary attribute, equipment, class passive, and Bless feed in.',
+    tags: ['derived', 'offensive'],
+  },
+  critMult: {
+    id: 'critMult', short: 'Crit ×', name: 'Critical Damage',
+    description: 'Damage multiplier on a critical hit. WIT scales the bonus above the 1.6× baseline.',
     tags: ['derived', 'offensive'],
   },
 };
