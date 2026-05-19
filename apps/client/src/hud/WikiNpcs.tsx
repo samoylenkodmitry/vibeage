@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { QUEST_NPCS, type QuestNpcDef } from '../../../../packages/content/npcs';
-import { QUESTS } from '../../../../packages/content/quests';
+import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import type { WikiNav } from './WikiBosses';
 
 /**
@@ -12,6 +12,15 @@ import type { WikiNav } from './WikiBosses';
 export function NpcsTab({
   query, focusId, focusKey, navigate,
 }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
+  // Pre-group quests by npcId once; QUESTS is static module state so
+  // the deps are empty. Saves per-row Object.values().filter().
+  const questsByNpc = useMemo(() => {
+    const map: Record<string, QuestDef[]> = {};
+    for (const q of Object.values(QUESTS)) {
+      (map[q.npcId] ??= []).push(q);
+    }
+    return map;
+  }, []);
   const npcs = useMemo(() => Object.values(QUEST_NPCS).filter((n) =>
     matches(`${n.id} ${n.name} ${n.title} ${n.description ?? ''}`, query),
   ), [query]);
@@ -21,6 +30,7 @@ export function NpcsTab({
         <NpcLi
           key={npc.id}
           npc={npc}
+          offers={questsByNpc[npc.id] ?? []}
           isFocus={npc.id === focusId}
           focusKey={focusKey}
           navigate={navigate}
@@ -31,15 +41,14 @@ export function NpcsTab({
 }
 
 function NpcLi({
-  npc, isFocus, focusKey, navigate,
-}: { npc: QuestNpcDef; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
+  npc, offers, isFocus, focusKey, navigate,
+}: { npc: QuestNpcDef; offers: QuestDef[]; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   const ref = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     if (isFocus && focusKey && ref.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isFocus, focusKey]);
-  const offers = Object.values(QUESTS).filter((q) => q.npcId === npc.id);
   return (
     <li ref={ref} className={`wiki-row${isFocus ? ' wiki-row--focus' : ''}`}>
       <header>
