@@ -1584,26 +1584,20 @@ each one. Direction is right; "looks unified" needs to become
 "actually unified". Each item ends with an old-system-removal
 checkpoint.
 
-### PR SS — Specialization passive modifiers feed Contributions
+### PR SS — Specialization passive modifiers feed Contributions ✅
 
-- [ ] `SPECIALIZATIONS[*].specPassive.modifiers` is data-only
-  today; `pushSpecializationContributions` emits a ×1
-  placeholder (`packages/sim/statContributions.ts:422`).
-  Surface the real numbers: extend the Contribution
-  registry to read the modifiers and emit one row per
-  affected stat, gated by level (SPECIALIZATION_UNLOCK_LEVEL
-  for the spec passive, PROFICIENCY_LEVEL for the
-  proficiency passive).
-- [ ] Wiki Specs tab is the single description source
-  (already shows the +25% number); the Contribution row's
-  label / value must match the data, not the description
-  text — the data drives both.
-- [ ] **Old-system removal**: delete the placeholder ×1
-  contribution. After this, the only spec-stat code path
-  is the registry → Contribution emit. Audit (PR RR)
-  extended to verify every non-empty
-  `specPassive.modifiers` block emits a real Contribution
-  row.
+- [x] `SPECIALIZATIONS[*].specializationPassive.modifiers` and
+  `proficiencyPassive.modifiers` now drive Contribution rows
+  directly. `pushSpecPassiveModifiers` explodes each non-default
+  modifier into a labelled row (`spec:<id>:spec:dmg`,
+  `spec:<id>:prof:mp`, …) so the breakdown popup reads
+  e.g. "arcanist · Arcane Focus II (dmg) ×1.15".
+- [x] Level gating: spec passive applies at
+  `SPECIALIZATION_UNLOCK_LEVEL`, proficiency stacks on top
+  once the player reaches `PROFICIENCY_LEVEL`.
+- [x] **Old-system removal**: the placeholder ×1 row is
+  deleted; the only spec-stat code path is the registry →
+  Contribution emit.
 
 ### PR TT — Movement consumes player.stats.runSpeed
 
