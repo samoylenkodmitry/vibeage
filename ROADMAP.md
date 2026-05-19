@@ -1330,7 +1330,7 @@ impossible across every mob / skill / quest.
 ### PR CC — UX + content ✅ (shipped 2026-05-19)
 
 - [x] Status-effect pill click → `openWikiAt('effects', effect.type)` (`hud/hudPrimitives.tsx:45`).
-- [x] Beneficial skill auto-falls back to caster when target is hostile (`server/combat/impactResolver.ts:93-94`).
+- [x] Beneficial skill auto-falls back to caster when target is hostile (`apps/client/src/clientActions.ts:618-619` in `resolveCastTargetId` — client redirects pre-send so Ctrl-cast can keep the explicit-enemy path).
 - [x] Non-boss mobs use a widened leash (`LEASH_NORMAL = 200m` in `enemyStateMachine.ts`); bosses keep the tight return-to-spawn rule.
 - [x] Zone ↔ mob audit shipped — Frost Wolf spawn anchor fix lives in PR WW (`tests/frostWolfSpawn.spec.ts`).
 
