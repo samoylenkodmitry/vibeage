@@ -1399,17 +1399,20 @@ duplicated descriptions.
 
 ### PR FF — Per-mob spawn coords (live + accurate)
 
-- [ ] Extend `ZoneMob` with optional `position` (single coord
-  or readonly array of coords). When declared, spawn uses
-  those points; wiki "Spawns in" links jump to the actual coord
-  instead of the zone centre. Same shape as the PR V boss
-  position.
-- [ ] Backfill explicit positions for at least the starter +
-  pinewood + rocky highlands mobs so the example complaint
-  ("no frost wolves at the marker") goes away.
-- [ ] When no per-mob coord is declared, fall back to the
-  existing random-in-zone behaviour so unfilled biomes keep
-  working.
+- [x] Extend `ZoneMob` with optional `position` + `spawnRadius`.
+  When declared, the spawner jitters mob groups around that
+  anchor (packs cluster from the jittered center) and
+  `getMobZones` emits the camp coord; wiki "Spawns in" pins
+  jump to the actual encounter instead of the zone centre.
+- [x] Backfill explicit camps for every authored zone
+  (starter_meadow through temporal_rifts — 14 zones, 31 mob
+  entries). Huge biome zones stay procedural.
+- [x] When no per-mob coord is declared, fall back to the
+  existing random-in-zone behaviour so the giant biome zones
+  keep working.
+- [x] `getMobZones` emits both the boss lair and the regular
+  camp when a mob type is both (goblins + Grakk), so the wiki
+  shows both pins rather than collapsing them.
 
 ### PR GG — Vendors + gold-spend loop
 

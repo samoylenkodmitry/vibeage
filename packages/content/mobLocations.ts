@@ -16,17 +16,23 @@ export interface MobZoneRef {
 export function getMobZones(mobType: string): MobZoneRef[] {
   const out: MobZoneRef[] = [];
   for (const zone of GAME_ZONES) {
-    const inMobs = zone.mobs.some((m) => m.type === mobType);
-    const isMiniBoss = zone.miniBoss?.type === mobType;
-    if (inMobs || isMiniBoss) {
-      // PR V — prefer the mini-boss's explicit position when it has
-      // one (Vorthax's caldera, etc.) so the map pin sends the
-      // player to the actual encounter rather than the zone center
-      // — which is useless on huge zones like Chronoglass.
-      const position = isMiniBoss && zone.miniBoss?.position
-        ? { ...zone.miniBoss.position }
-        : { ...zone.position };
-      out.push({ zone, position });
+    // PR FF — emit one pin per authored spawn anchor. When this mob
+    // type is both a regular spawn AND the zone's mini-boss (e.g.
+    // goblins + Grakk in starter_meadow), show *both* the boss lair
+    // and the camp; the wiki shouldn't hide one behind the other.
+    // Boss pin first so it stays the headline location.
+    if (zone.miniBoss?.type === mobType) {
+      out.push({
+        zone,
+        position: zone.miniBoss.position ? { ...zone.miniBoss.position } : { ...zone.position },
+      });
+    }
+    const zoneMob = zone.mobs.find((m) => m.type === mobType);
+    if (zoneMob) {
+      out.push({
+        zone,
+        position: zoneMob.position ? { ...zoneMob.position } : { ...zone.position },
+      });
     }
   }
   return out;

@@ -156,6 +156,8 @@ function createMiniBoss(
   });
 }
 
+const DEFAULT_MOB_SPAWN_RADIUS = 8;
+
 function spawnMobBatch(
   state: GameState,
   spatial: SpatialHashGrid,
@@ -169,7 +171,12 @@ function spawnMobBatch(
   while (spawned < spawnCount) {
     const remaining = spawnCount - spawned;
     const groupSize = Math.min(packSize, remaining);
-    const center = zoneManager.getRandomPositionInZone(zoneId);
+    // PR FF — when the ZoneMob spec carries an explicit `position`,
+    // jitter around that anchor (and for packs, cluster around the
+    // jittered point). Otherwise fall back to a random in-zone point.
+    const center = mobConfig.position
+      ? jitterAround(mobConfig.position, mobConfig.spawnRadius ?? DEFAULT_MOB_SPAWN_RADIUS)
+      : zoneManager.getRandomPositionInZone(zoneId);
     if (!center) {
       break;
     }
@@ -184,6 +191,14 @@ function spawnMobBatch(
     }
   }
   return spawned;
+}
+
+function jitterAround(anchor: { x: number; y: number; z: number }, radius: number): Enemy['position'] {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = Math.sqrt(Math.random()) * radius;
+  const x = anchor.x + Math.cos(angle) * dist;
+  const z = anchor.z + Math.sin(angle) * dist;
+  return { x, y: getTerrainHeight(x, z) + 0.5, z };
 }
 
 function clusterAround(center: Enemy['position'], offsetIndex: number): Enemy['position'] {
