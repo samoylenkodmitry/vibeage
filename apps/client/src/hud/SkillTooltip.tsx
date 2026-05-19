@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getEffectLabel } from '../../../../packages/content/effects';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
+import { openWikiAt } from './wikiNavBus';
 
 type SkillTooltipProps = {
   skillId: SkillId;
@@ -97,6 +98,12 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1 }: Skil
           })}
         </footer>
       ) : null}
+      <button
+        type="button"
+        className="tooltip-wiki-link"
+        onClick={(e) => { e.stopPropagation(); openWikiAt('skills', skill.id); }}
+        title="Open in Wiki"
+      >Open in Wiki →</button>
     </div>,
     document.body,
   );
