@@ -1448,3 +1448,99 @@ duplicated descriptions.
 - Stat balance pass — too early; more classes / races / skills
   are planned first.
 
+## 38. Live Run — Wave 8 follow-ups (2026-05-19)
+
+User report from VPS playtest. Theme: deep-link everything to
+the wiki + automated spec validation so we stop shipping
+"hanging" content (items nobody can drop/buy/craft, NPCs
+nobody can find). Plus three concrete in-game bugs that
+surfaced during the session.
+
+### PR HH — Wiki obtainability index + spec validator
+
+- [ ] New `packages/content/obtainability.ts` — for any item
+  id, return *all* sources: vendor stock entries, loot table
+  drops, crafting recipes, quest reward grants. Pure derivation
+  from existing registries; no per-item override list.
+- [ ] Wiki "Items" tab uses this index to render an "Obtain
+  from" section on every item card. Cross-links to Vendors /
+  Mobs / Recipes / Quests as appropriate. (Example: leather
+  helmet currently shows zero source links — must show all
+  applicable ones.)
+- [ ] New `scripts/validate-content-graph.mjs` (or a
+  `tests/contentGraph.spec.ts`) that fails CI when:
+  - an `ITEMS` entry is unreachable (no vendor, no loot, no
+    recipe, no quest reward) — flag as "hanging item"
+  - an `ENEMY_TEMPLATES` entry isn't referenced by any zone
+    spawn / mini-boss spec — flag as "hanging mob"
+  - a `QUEST_NPCS` entry is referenced by no quest and no
+    vendor — flag as "hanging NPC"
+  - a quest references an itemId / npcId / enemyType that
+    doesn't exist
+  - a loot table references an itemId that doesn't exist
+- [ ] Whitelist mechanism for intentional exceptions
+  (currency, future-content scaffolding) so the gate is
+  strict by default but doesn't block legitimate cases.
+
+### PR II — Stats registry as single source of truth
+
+- [ ] Audit the existing `packages/content/stats.ts` — confirm
+  every stat the engine reads (`stats?.dmgMult`, `critChance`,
+  `pAtk`, etc.) is in `STATS`. Add any missing entries with
+  description + formula source so the wiki Stats tab can
+  render them.
+- [ ] Stats panel (the HUD one): every stat row becomes a
+  wiki chip that opens Wiki → Stats tab focused on that stat.
+  No exceptions — currently only str/dex/etc. are linkable;
+  derived stats (critChance, dmgMult, runSpeed, …) are dead
+  text. Single source: stat label + tooltip + wiki entry
+  all read from the same `STATS` record.
+- [ ] Engine reads stat formulas from the same registry where
+  it can — no duplicated "stat key → multiplier" maps
+  scattered across server files.
+
+### PR JJ — Wiki UX polish: clickable coords, hoverable tooltips, gear popup
+
+- [ ] Wiki rows show `(x, z)` coords as a button that calls
+  `onShowMarker` so a click drops the navigation pin on the
+  map (already wired for mob "Spawns in" chips — extend to
+  NPC entries, vendor entries, boss lairs).
+- [ ] SkillBar tooltip: keep visible while the mouse is over
+  the tooltip itself (popper/floating-ui pattern: bridge the
+  trigger and the floating element with a tiny invisible
+  hit area + onMouseEnter on the tooltip). Without this the
+  wiki link inside the tooltip is unreachable.
+- [ ] Equipment panel: tapping the equipped item's *name*
+  opens an item popup with full stats + an "Open in Wiki"
+  button (same shape as the click-target → wiki flow from
+  PlatePanels). Currently the name is dead text.
+
+### PR KK — Skill self-target flag + NPC labels + Greet wire-up
+
+- [ ] Skill spec: add `selfTarget?: boolean` (or extend the
+  existing target-kind enum) so a skill can declare it
+  always casts on the caster regardless of current target.
+  Vanish (and any future cleanse/buff) sets this. Single
+  source — engine reads it to bypass target resolution AND
+  the wiki Skills tab shows a "Self" badge.
+- [ ] Cast pipeline honours the flag: when set, target the
+  caster even if `selectedTargetId` points elsewhere; do
+  *not* drop into "no target" rejection. Verified by a
+  test (`vanish` cast with mob targeted ⇒ buff lands on
+  caster, mob's threat is cleared).
+- [ ] Bug fix: Vanish was cast with a mob targeted; no
+  status effect applied + mob kept attacking. Root-cause
+  via the new flag (vanish marked self-target ⇒ the buff
+  resolves on the caster, threat is wiped). Add an aggro-
+  clear effect to vanish so the mob loses target.
+- [ ] NPCs render a floating name label above their model
+  (same treatment as enemies/players). Reads from
+  `QUEST_NPCS[id].name` + `.title` — no per-NPC label
+  config.
+- [ ] NpcDialog "Greet" button currently sends `TalkNpc`
+  but the user reports nothing happens. Either (a) wire a
+  visible dialog response ("Galen: 'Well met, traveller.'"
+  in chat / floating dialog) or (b) remove the button if
+  it's truly redundant once quest + vendor buttons exist.
+  Confirm with usage before deleting.
+
