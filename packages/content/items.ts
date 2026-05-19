@@ -500,7 +500,7 @@ export const ITEMS: Record<ItemId, Item> = {
   'fire_resistance_potion': {
     id: 'fire_resistance_potion',
     name: 'Fire Resistance Potion',
-    description: 'Provides temporary immunity to fire damage.',
+    description: 'Provides temporary immunity to fire damage (effect not yet implemented).',
     icon: 'fire_resistance_potion.svg',
     stackable: true,
     maxStack: 10,
