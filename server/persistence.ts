@@ -1,6 +1,5 @@
 import { DEFAULT_RACE } from '../packages/content/races.js';
 import type { PlayerState } from '../packages/sim/entities.js';
-import { flattenInventoryToSlots } from '../packages/sim/inventoryWireAdapter.js';
 import { normalizeStarterProgressState } from '../packages/protocol/messages.js';
 import { ensureCharacterInventory } from './inventory/aggregateBridge.js';
 import {
@@ -25,7 +24,6 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'gold',
   'class_name',
   'race',
-  'inventory',
   'character_inventory',
   'skills',
   'skill_shortcuts',
@@ -133,10 +131,8 @@ export function buildStablePlayerPersistenceData(
     gold: player.gold ?? 0,
     class_name: player.className,
     race: player.race ?? DEFAULT_RACE,
-    // Derived view of the aggregate — kept on disk for now so the
-    // restore-compat check still finds the column. Migration 011
-    // will drop it once we're confident no consumer reads it.
-    inventory: flattenInventoryToSlots(aggregate),
+    // §45.7 — `inventory` column dropped (migration 011);
+    // `character_inventory` is the only persisted store.
     character_inventory: aggregate,
     skills: unlockedSkills,
     skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),

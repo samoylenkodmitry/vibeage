@@ -105,7 +105,8 @@ describe('stable persistence contract', () => {
       level: 3,
       experience: 120,
       class_name: 'mage',
-      inventory: [{ itemId: 'health_potion', quantity: 2 }],
+      // §45.7 — `inventory` column dropped in migration 011; the
+      // bag-shape data lives entirely under `character_inventory`.
       // Universal Basic Attack + Escape are unconditionally appended
       // on hydrate / creation, so they round-trip through persistence.
       skills: ['fireball', 'waterSplash', 'basicAttack', 'escape'],
