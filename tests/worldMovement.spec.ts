@@ -89,13 +89,18 @@ describe('world movement helpers', () => {
     expect(predictPosition(player, 4000)).toEqual({ x: 10, z: 0 });
   });
 
-  test('caps player speed after modifiers', () => {
-    const player = makePlayer({
-      stats: { dmgMult: 20 },
-      statusEffects: [{ id: 'boost', type: 'speed_boost', value: 1, startTimeTs: 0, durationMs: 1000, sourceSkill: 'test' }],
-    });
+  test('reads units/sec straight from player.stats.runSpeed, capped at MAX_PLAYER_SPEED', () => {
+    // PR TT — movement is no longer assembled from DEFAULT_PLAYER_SPEED
+    // + dmgMult kludge + per-effect multipliers. The stat already
+    // includes slow / speed_boost contributions; we just cap at MAX.
+    const slowPlayer = makePlayer({ stats: { runSpeed: 14 } });
+    expect(getPlayerSpeed(slowPlayer)).toBe(14);
 
-    expect(getPlayerSpeed(player)).toBe(40);
+    const fastPlayer = makePlayer({ stats: { runSpeed: 80 } });
+    expect(getPlayerSpeed(fastPlayer)).toBe(40);
+
+    const noStats = makePlayer({});
+    expect(getPlayerSpeed(noStats)).toBe(20);
   });
 });
 

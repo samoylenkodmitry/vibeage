@@ -106,24 +106,12 @@ export function advanceAll(
 }
 
 export function getPlayerSpeed(player: PlayerState): number {
-  let speed = DEFAULT_PLAYER_SPEED;
-
-  if (player.stats) {
-    if ('movement' in player.stats) {
-      speed += player.stats.movement as number;
-    } else if (player.stats.dmgMult) {
-      speed += player.stats.dmgMult * 2;
-    }
-  }
-
-  for (const effect of player.statusEffects) {
-    if (effect.type === 'speed_boost') {
-      speed *= 1.3;
-    } else if (effect.type === 'slow') {
-      speed *= 0.7;
-    }
-  }
-
+  // PR TT — single source of truth: `player.stats.runSpeed` is the
+  // already-resolved units/sec (baseline + DEX + class passive muls
+  // + slow / speed_boost from STATUS_EFFECT_STAT_CONTRIBUTIONS).
+  // Movement just clamps to MAX_PLAYER_SPEED so a runaway buff can't
+  // teleport a player past the snap reconcile window.
+  const speed = player.stats?.runSpeed ?? DEFAULT_PLAYER_SPEED;
   return Math.min(speed, MAX_PLAYER_SPEED);
 }
 
