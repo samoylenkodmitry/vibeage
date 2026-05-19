@@ -90,6 +90,10 @@ export function Lobby({
 
   useEffect(() => { if (session) refreshRoster(session); }, [session, refreshRoster]);
 
+  const logout = useCallback(() => {
+    saveSession(null); setSession(null); setCharacters(null);
+  }, []);
+
   if (!session) {
     return (
       <AuthForm onAuth={(s) => { saveSession(s); setSession(s); }} />
@@ -113,11 +117,7 @@ export function Lobby({
         <h1>VibeAge</h1>
         <div className="lobby-header">
           <small>Logged in as <strong>{session.login}</strong></small>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => { saveSession(null); setSession(null); setCharacters(null); }}
-          >Log out</button>
+          <button type="button" className="ghost-button" onClick={logout}>Log out</button>
         </div>
         <h2 className="lobby-heading">Your Characters</h2>
         {loadingRoster && <p className="lobby-empty">Loading…</p>}
@@ -153,9 +153,7 @@ export function Lobby({
         <button type="button" className="lobby-create" onClick={() => setCreating(true)}>
           + Create New Character
         </button>
-        <DeleteAccountButton session={session} onDeleted={() => {
-          saveSession(null); setSession(null); setCharacters(null);
-        }} />
+        <DeleteAccountButton session={session} onDeleted={logout} />
       </section>
     </main>
   );
