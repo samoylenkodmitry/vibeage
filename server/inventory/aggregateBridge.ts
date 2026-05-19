@@ -48,8 +48,17 @@ export function syncLegacyInventory(player: PlayerState): void {
  * Push an item into both the aggregate and the legacy slot list atomically.
  * Returns the same TransactionResult shape as addItems so callers can branch
  * on success without juggling two parallel data structures.
+ *
+ * PR GG — `gold_coin` is the currency template, not bag inventory. Every
+ * loot table drops it, but it would be noise to carry stacks of coins
+ * around. Intercept here and credit the player's `gold` counter directly
+ * so a single code path keeps the bag clean.
  */
 export function addItemsToPlayer(player: PlayerState, templateId: string, count: number) {
+  if (templateId === 'gold_coin') {
+    player.gold = (player.gold ?? 0) + count;
+    return { ok: true as const, value: { added: [], changed: [] } };
+  }
   const aggregate = ensureCharacterInventory(player);
   const result = addItems(aggregate, { templateId, count }, services());
   if (result.ok) {
@@ -101,12 +110,18 @@ export function snapshotInventory(player: PlayerState) {
       limits: aggregate.limits,
     },
     legacy: player.inventory.map((slot) => ({ ...slot })),
+    // PR GG — capture the gold counter so a partial loot pickup that
+    // includes coin drops can roll back the credit. Without this,
+    // a failed pickup leaves the gold on the player *and* the pile
+    // on the ground = duplication.
+    gold: player.gold ?? 0,
   };
 }
 
 export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeof snapshotInventory>): void {
   player.characterInventory = snapshot.aggregate;
   player.inventory = snapshot.legacy;
+  player.gold = snapshot.gold;
 }
 
 /**

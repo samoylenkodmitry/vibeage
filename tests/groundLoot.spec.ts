@@ -46,10 +46,13 @@ describe('ground loot', () => {
 
     expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
+    // PR GG — gold_coin auto-converts to the gold counter on pickup
+    // instead of taking a bag slot. The bag only carries the other
+    // drop; the player's `gold` reflects the coin drop.
     expect(state.players.player1.inventory).toEqual([
       { itemId: 'health_potion', quantity: 3 },
-      { itemId: 'gold_coin', quantity: 1 },
     ]);
+    expect(state.players.player1.gold).toBe(1);
     expect(outbound.publish).toHaveBeenCalledWith({
       type: 'serverMessage',
       message: {
@@ -78,7 +81,10 @@ describe('ground loot', () => {
     });
     state.groundLoot.loot1 = {
       position: { x: 1, z: 0 },
-      items: [{ itemId: 'gold_coin', quantity: 5 }],
+      // PR GG — pickup must still fail when the *bag* item can't fit.
+      // gold_coin would bypass slot pressure, so use a real bag item
+      // here to exercise the inventory-full guard.
+      items: [{ itemId: 'wolf_pelt', quantity: 1 }],
     };
 
     expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(false);

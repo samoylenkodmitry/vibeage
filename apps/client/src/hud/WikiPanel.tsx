@@ -9,6 +9,7 @@ import { ItemsTab } from './WikiItems';
 import { LootDropsForTable } from './WikiLoot';
 import { QuestsTab } from './WikiQuests';
 import { NpcsTab } from './WikiNpcs';
+import { VendorsTab } from './WikiVendors';
 import { RecipesTab } from './WikiRecipes';
 import { SetsTab } from './WikiSets';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
@@ -23,7 +24,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 import { subscribeWikiNav } from './wikiNavBus';
 type WikiTab =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
-  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes' | 'sets' | 'npcs';
+  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes' | 'sets' | 'npcs' | 'vendors';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -40,6 +41,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'recipes', label: 'Recipes' },
   { id: 'sets', label: 'Sets' },
   { id: 'npcs', label: 'NPCs' },
+  { id: 'vendors', label: 'Vendors' },
 ];
 
 type WikiNav = (tab: WikiTab, id: string) => void;
@@ -142,6 +144,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'recipes' && <RecipesTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'sets' && <SetsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'npcs' && <NpcsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
+        {tab === 'vendors' && <VendorsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
       </div>
     </section>
   );

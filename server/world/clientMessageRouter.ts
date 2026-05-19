@@ -31,6 +31,7 @@ import {
   onTalkedToNpcForQuests,
 } from '../players/playerQuests.js';
 import { applyGmCommand } from '../players/gmCommand.js';
+import { applyBuyFromVendor, applySellToVendor } from '../players/playerVendor.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   makeSocketMessageSink,
@@ -103,9 +104,39 @@ export function handleClientMessage(
       return onQuestVerb(socket, state, msg, outbound, applyAdvanceQuest);
     case 'ClaimQuestReward':
       return onQuestVerb(socket, state, msg, outbound, applyClaimQuestReward);
+    case 'BuyFromVendor':
+      return onBuyFromVendor(socket, state, msg, outbound);
+    case 'SellToVendor':
+      return onSellToVendor(socket, state, msg, outbound);
     case 'GmCommand':
       return onGmCommand(socket, state, msg, outbound);
   }
+}
+
+function onBuyFromVendor(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'BuyFromVendor' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applyBuyFromVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
+}
+
+function onSellToVendor(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'SellToVendor' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applySellToVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
 }
 
 function onGmCommand(

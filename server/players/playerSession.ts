@@ -39,6 +39,7 @@ type PlayerRow = {
   level?: unknown;
   xp?: unknown;
   experience?: unknown;
+  gold?: unknown;
   is_alive?: boolean | null;
   class_name?: unknown;
   skills?: unknown;
@@ -160,6 +161,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     level,
     experience: numberOrFallback(row.experience ?? row.xp, 0),
     experienceToNextLevel: getExperienceToNextLevel(level),
+    gold: numberOrFallback(row.gold, 0),
     statusEffects: [],
     skillCooldownEndTs: {},
     castingSkill: null,

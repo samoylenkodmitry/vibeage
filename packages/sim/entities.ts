@@ -225,4 +225,12 @@ export interface PlayerState {
   inventory: InventorySlot[];
   maxInventorySlots: number;
   characterInventory?: CharacterInventory;
+  /**
+   * PR GG — total spendable gold. Sourced from quest rewards,
+   * `gold_coin` loot pickups (auto-converted on inventory add so
+   * coins never crowd the bag) and selling to vendors. The DB column
+   * `players.gold` has existed for several deploys, so this is a
+   * pure code-side hookup.
+   */
+  gold?: number;
 }

@@ -1,0 +1,87 @@
+import { useMemo } from 'react';
+import { ITEMS } from '../../../../packages/content/items';
+import { vendorSellPriceFor, type VendorDef } from '../../../../packages/content/vendors';
+import type { PlayerEntity } from '../gameTypes';
+
+/**
+ * PR GG — Vendor browse panel. Opens when the player clicks Browse
+ * on the NpcDialog of a vendor NPC. Reads VENDORS for stock + price
+ * and the player's inventory for the sell side. Server is authoritative
+ * — every Buy/Sell click is a message; the panel re-renders off the
+ * playerUpdated broadcast.
+ */
+type VendorPanelProps = {
+  vendor: VendorDef;
+  player: PlayerEntity;
+  onClose: () => void;
+  onBuy: (vendorId: string, itemId: string, quantity: number) => void;
+  onSell: (vendorId: string, itemId: string, quantity: number) => void;
+};
+
+export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPanelProps) {
+  const gold = player.gold ?? 0;
+  const inventoryRows = useMemo(() => {
+    const rows: { itemId: string; quantity: number; unitPrice: number }[] = [];
+    for (const slot of player.inventory ?? []) {
+      if (!slot.itemId || slot.quantity <= 0) continue;
+      const unitPrice = vendorSellPriceFor(vendor, slot.itemId);
+      if (unitPrice <= 0) continue;
+      rows.push({ itemId: slot.itemId, quantity: slot.quantity, unitPrice });
+    }
+    return rows;
+  }, [player.inventory, vendor]);
+
+  return (
+    <section className="vendor-panel" aria-label={`Browse ${vendor.name}`}>
+      <header className="vendor-panel-header">
+        <div>
+          <strong>{vendor.name}</strong>
+          <small>{vendor.title}</small>
+        </div>
+        <div className="vendor-panel-wallet">
+          <small>Your gold</small>
+          <strong>{gold.toLocaleString()}</strong>
+        </div>
+        <button type="button" className="panel-close" aria-label="Close" onClick={onClose}>×</button>
+      </header>
+      <div className="vendor-panel-body">
+        <div className="vendor-panel-col">
+          <h4>For Sale</h4>
+          {vendor.stock.length === 0 && <small>This vendor has nothing for sale.</small>}
+          {vendor.stock.map((entry) => {
+            const item = ITEMS[entry.itemId];
+            const canAfford = gold >= entry.price;
+            return (
+              <div key={entry.itemId} className="vendor-row">
+                <span>{item?.name ?? entry.itemId}</span>
+                <span>{entry.price.toLocaleString()}g</span>
+                <button
+                  type="button"
+                  disabled={!canAfford}
+                  onClick={() => onBuy(vendor.id, entry.itemId, 1)}
+                >Buy</button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="vendor-panel-col">
+          <h4>Buy Back</h4>
+          {inventoryRows.length === 0 && <small>You have nothing this vendor wants.</small>}
+          {inventoryRows.map((row) => {
+            const item = ITEMS[row.itemId];
+            return (
+              <div key={row.itemId} className="vendor-row">
+                <span>{item?.name ?? row.itemId} × {row.quantity}</span>
+                <span>{row.unitPrice.toLocaleString()}g ea.</span>
+                <button
+                  type="button"
+                  onClick={() => onSell(vendor.id, row.itemId, 1)}
+                >Sell 1</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -1416,22 +1416,29 @@ duplicated descriptions.
 
 ### PR GG — Vendors + gold-spend loop
 
-- [ ] New `VENDORS` content record. Each vendor is a kind of
+- [x] New `VENDORS` content record. Each vendor is a kind of
   NPC; the same record drives the in-game vendor dialog AND
   the wiki entry.
-- [ ] Vendor stock: a list of `{itemId, price}` rows for items
-  the vendor sells. Single source of truth — adding an item
-  to the catalog is one record.
-- [ ] Sell side: items in your bag have a `vendorPrice`
-  derived from grade + type (or explicit override on the
-  Item). Right-click in bag → "Sell to X" when near a vendor.
-- [ ] Gold use: existing gold drops become spendable. Buying
-  consumes gold; selling adds it.
-- [ ] At least three starter vendors: a Gludin general goods
-  (potions / mats), a tinker (basic D-grade gear), a buyer
-  (no stock, accepts trophies + commons at decent rates).
-- [ ] Wiki tab `Vendors` listing each vendor + their stock
-  with prices, cross-linked to Items.
+- [x] Vendor stock: a list of `{itemId, price}` rows for items
+  the vendor sells. Single source of truth.
+- [x] Sell side: vendor pays `defaultSellPrice` (derived from
+  grade — none/d/c/b/a/s = 5/15/30/150/500/2000) times the
+  vendor's `buyRate` (e.g. 1.5x for trophy buyers, 0.6x for
+  general merchants). Vendor panel shows the rate the vendor
+  pays per item.
+- [x] Gold counter on `PlayerState` (persisted to the existing
+  `players.gold` column). `gold_coin` drops auto-convert on
+  pickup so the bag stays clean. Quest gold rewards credit
+  the same counter. Buying consumes gold; selling adds it.
+  Snapshot/restore covers gold to prevent dupe on partial
+  pickup failure.
+- [x] Three starter vendors near Gludin: Thala (general goods
+  — potions), Tinker Drev (worn sword), Oren (trophy buyer,
+  no stock, 1.5x buy rate).
+- [x] Wiki tab `Vendors` listing each vendor + stock with
+  prices, cross-linked to Items and NPCs.
+- [x] HUD: gold counter on the vitals strip; visible at a
+  glance next to HP/MP/XP.
 
 ### Held over (do not start until requested)
 

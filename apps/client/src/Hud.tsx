@@ -3,6 +3,8 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
 import { NpcDialog } from './hud/NpcDialog';
+import { VendorPanel } from './hud/VendorPanel';
+import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
@@ -33,6 +35,8 @@ type GameHudProps = {
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
+  onBuyFromVendor: (vendorId: string, itemId: string, quantity: number) => void;
+  onSellToVendor: (vendorId: string, itemId: string, quantity: number) => void;
   onGmCommand: (cmd: {
     verb:
       | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -67,6 +71,8 @@ export function GameHud({
   onCancelQuest,
   onAdvanceQuest,
   onClaimQuestReward,
+  onBuyFromVendor,
+  onSellToVendor,
   onGmCommand,
   onRespawn,
   onSelectTarget,
@@ -84,6 +90,8 @@ export function GameHud({
     : '-';
   const now = useNow(100);
   const panels = usePanelState();
+  const [openVendorId, setOpenVendorId] = useState<string | null>(null);
+  const openVendor = openVendorId ? VENDORS[openVendorId] ?? null : null;
 
   useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest, onMove);
 
@@ -129,7 +137,21 @@ export function GameHud({
         onClaimQuestReward={onClaimQuestReward}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
       />
-      <NpcDialog player={player} onTalkNpc={onTalkNpc} onAcceptQuest={onAcceptQuest} />
+      <NpcDialog
+        player={player}
+        onTalkNpc={onTalkNpc}
+        onAcceptQuest={onAcceptQuest}
+        onBrowseVendor={setOpenVendorId}
+      />
+      {openVendor && player && (
+        <VendorPanel
+          vendor={openVendor}
+          player={player}
+          onClose={() => setOpenVendorId(null)}
+          onBuy={onBuyFromVendor}
+          onSell={onSellToVendor}
+        />
+      )}
       <CastingPanel player={player} />
       <SkillBar
         player={player}

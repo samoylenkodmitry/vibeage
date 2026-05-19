@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { INTERACTION_RANGE, QUEST_NPCS, type QuestNpcDef } from '../../../../packages/content/npcs';
 import { getQuestsOfferedBy, type QuestDef } from '../../../../packages/content/quests';
+import { getVendorByNpcId } from '../../../../packages/content/vendors';
 import type { PlayerEntity } from '../gameTypes';
 
 type NpcDialogProps = {
   player: PlayerEntity | null;
   onTalkNpc: (npcId: string) => void;
   onAcceptQuest: (questId: string) => void;
+  onBrowseVendor?: (vendorId: string) => void;
 };
 
 /**
@@ -19,7 +21,7 @@ type NpcDialogProps = {
  * Pure UI — list of quests comes from QUESTS data, gated by
  * minLevel + the player's questState.
  */
-export function NpcDialog({ player, onTalkNpc, onAcceptQuest }: NpcDialogProps) {
+export function NpcDialog({ player, onTalkNpc, onAcceptQuest, onBrowseVendor }: NpcDialogProps) {
   const nearbyNpc = useMemo(() => findNearbyNpc(player), [player?.position]);
   if (!player || !nearbyNpc) return null;
   const offered = getQuestsOfferedBy(nearbyNpc.id);
@@ -27,6 +29,7 @@ export function NpcDialog({ player, onTalkNpc, onAcceptQuest }: NpcDialogProps) 
   const completed = player.questState?.completed ?? [];
   const available = offered.filter((q) => !active[q.id] && !completed.includes(q.id) && player.level >= q.minLevel);
   const activeHere = offered.filter((q) => active[q.id]);
+  const vendor = getVendorByNpcId(nearbyNpc.id);
   return (
     <section className="npc-dialog" aria-label={`Dialog with ${nearbyNpc.name}`}>
       <header>
@@ -34,6 +37,9 @@ export function NpcDialog({ player, onTalkNpc, onAcceptQuest }: NpcDialogProps) 
         <small>{nearbyNpc.title}</small>
       </header>
       <button type="button" onClick={() => onTalkNpc(nearbyNpc.id)} className="npc-dialog-talk">Greet</button>
+      {vendor && onBrowseVendor && (
+        <button type="button" onClick={() => onBrowseVendor(vendor.id)} className="npc-dialog-talk">Browse Wares</button>
+      )}
       {available.length > 0 && (
         <div className="npc-dialog-section">
           <div className="npc-dialog-label">Offered</div>
@@ -57,7 +63,7 @@ export function NpcDialog({ player, onTalkNpc, onAcceptQuest }: NpcDialogProps) 
           })}
         </div>
       )}
-      {available.length === 0 && activeHere.length === 0 && (
+      {available.length === 0 && activeHere.length === 0 && !vendor && (
         <small className="npc-dialog-empty">Nothing for you right now.</small>
       )}
     </section>

@@ -13,6 +13,7 @@ export type StablePlayerPersistenceData = {
   is_alive: boolean;
   level: number;
   experience: number;
+  gold: number;
   class_name: PlayerState['className'];
   race: NonNullable<PlayerState['race']>;
   inventory: InventorySlot[];

@@ -82,6 +82,30 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     position: { x: 128, y: 0.5, z: 84 },
     description: 'Updating the regional survey one waypoint at a time. Pays travelers for confirmed coordinates and a description of what they saw on the way.',
   },
+  // PR GG — vendor NPCs. Same QUEST_NPCS record drives marker placement
+  // in-world AND the wiki Npcs tab; the linked VENDORS entry adds the
+  // "Browse" action to the dialog.
+  general_goods_thala: {
+    id: 'general_goods_thala',
+    name: 'Thala',
+    title: 'Gludin General Goods',
+    position: { x: 138, y: 0.5, z: 70 },
+    description: 'Keeps the city stocked with the small comforts no adventurer admits to needing: potions, scrolls, and the rope they pretended to bring.',
+  },
+  tinker_drev: {
+    id: 'tinker_drev',
+    name: 'Tinker Drev',
+    title: 'Apprentice Smith',
+    position: { x: 142, y: 0.5, z: 78 },
+    description: 'Sells the starter gear every fresh recruit is too proud to wear and every veteran wishes they had kept.',
+  },
+  trophy_buyer_oren: {
+    id: 'trophy_buyer_oren',
+    name: 'Oren',
+    title: 'Trophy Buyer',
+    position: { x: 146, y: 0.5, z: 86 },
+    description: 'Quiet old man with a ledger of trophies and a strict policy: he never asks who you took them from. Pays well for proof of work.',
+  },
 };
 
 export function getOfferedQuestIds(npcId: string): string[] {
