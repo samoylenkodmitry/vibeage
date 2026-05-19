@@ -23,7 +23,7 @@ import {
 } from './playerProgression.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { applyStarterLoadout } from '../inventory/starterLoadout.js';
-import { hydratePersistedCharacterInventory } from '../inventory/aggregateBridge.js';
+import { ensureCharacterInventory, hydratePersistedCharacterInventory, syncLegacyInventory } from '../inventory/aggregateBridge.js';
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
 import { starterSkillsFor } from './playerProgression.js';
@@ -177,17 +177,19 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     starterProgress,
     posHistory: [],
     lastUpdateTime: Date.now(),
+    // §45.7 — seeded with the legacy row value so the forward-
+    // migrate path below can promote it into a CharacterInventory
+    // aggregate. After this hydrate completes, `player.inventory`
+    // is always the projection of `player.characterInventory`
+    // (via `syncLegacyInventory` inside `ensureCharacterInventory`
+    // → `addItemsToPlayer` etc.), never an independent store.
     inventory: row.inventory || [],
     maxInventorySlots: 20,
     specializationId: normalizeSpecializationId(row.specialization_id),
     skillLevels: normalizeSkillLevels(row.skill_levels),
     questState: normalizeQuestState(row.quest_state),
   };
-  // Restore the persisted CharacterInventory aggregate (item instances +
-  // equipment slots + occupancy). Without this, equipped gear silently
-  // disappears on the next session because the legacy `inventory` jsonb
-  // only carries the flat bag-slot view.
-  hydratePersistedCharacterInventory(player, row.character_inventory);
+  hydratePlayerCharacterInventory(player, row.character_inventory);
   // Fresh persisted accounts (level 1, empty inventory) get the starter
   // loadout so they see the new equipment system immediately.
   if (
@@ -216,6 +218,21 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   // get unstuck on next login.
   ensureClassStarterUnlocked(player);
   return player;
+}
+
+/**
+ * §45.7 — restore `player.characterInventory` from the persisted
+ * jsonb, then forward-migrate legacy-only rows so subsequent
+ * reads + persists go through the aggregate. After this returns,
+ * `player.inventory` is always a projection of
+ * `player.characterInventory`, never an independent store.
+ */
+function hydratePlayerCharacterInventory(player: PlayerState, raw: unknown): void {
+  hydratePersistedCharacterInventory(player, raw);
+  if (!player.characterInventory) {
+    ensureCharacterInventory(player);
+    syncLegacyInventory(player);
+  }
 }
 
 function ensureClassStarterUnlocked(player: PlayerState): void {

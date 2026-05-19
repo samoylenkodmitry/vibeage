@@ -2113,12 +2113,24 @@ contiguous list so the audit doesn't fragment.
   Obtainability whitelist intentionally lists known no-source
   items (`gold_coin`, `ancient_tome`, etc.) — re-evaluating that
   on each pass is a follow-up wiki / content task.
-- [ ] **Inventory migration is half-live.** The bridge says legacy
-  `InventorySlot[]` remains until "slice 4"
-  (`packages/sim/inventoryWireAdapter.ts:6`); server + client paths
-  still read `player.inventory` through item use, crafting, vendors,
-  persistence, and panels. **Fix**: schedule the migration slice;
-  this is architecture debt, not a compatibility shim.
+- [~] **Inventory migration — single source of truth on disk.**
+  Persistence layer now only writes / reads `character_inventory`;
+  the legacy `inventory` jsonb column is left in the schema for
+  compat but persisted as `[]` and ignored on hydrate. Mutators
+  already went through `addItemsToPlayer` / `removeItemsFromPlayer`
+  (which keep `player.inventory` and `player.characterInventory`
+  in lockstep), so readers (vendor / craft / quest / item-use /
+  client panels) continue working off the projected legacy shape
+  while the aggregate is the truth. Outstanding follow-ups:
+  - [ ] Drop the `inventory` column entirely (migration 011 —
+    once we're confident no live deploys still depend on it).
+  - [ ] Stop maintaining the in-memory `player.inventory` wire
+    projection; compute it only at the snapshot boundary so
+    server logic can't accidentally diverge from
+    `characterInventory`.
+  - [ ] Migrate the protocol's `inventoryUpdateMsg` to ship the
+    full aggregate (or a typed delta) instead of the flat-bag
+    slot array.
 - [x] **Restore-compatibility check is stale.** Extended
   `scripts/check-restored-postgres-compatibility.sql` to require
   the `accounts` table + every column added by migrations 002
