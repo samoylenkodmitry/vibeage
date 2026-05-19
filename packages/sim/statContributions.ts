@@ -16,7 +16,7 @@ import { activeSetBonuses } from '../content/equipmentSets.js';
 import { type EquipSlot, EQUIP_SLOTS } from '../content/equipmentTypes.js';
 import { ITEMS, type Item } from '../content/items.js';
 import { DEFAULT_RACE, RACE_PROFILES, type CharacterRace } from '../content/races.js';
-import { getSpecializationById, PROFICIENCY_LEVEL, SPECIALIZATION_UNLOCK_LEVEL } from '../content/specializations.js';
+import { getSpecializationById, PROFICIENCY_LEVEL, SPECIALIZATION_UNLOCK_LEVEL, type SpecializationPassiveModifiers } from '../content/specializations.js';
 import type { CharacterInventory } from './characterInventory.js';
 import type { StatusEffect } from '../protocol/messages.js';
 
@@ -442,7 +442,7 @@ function pushSpecPassiveModifiers(
   out: Contribution[],
   specId: string,
   passiveName: string,
-  mods: { damageMultiplier?: number; healthMultiplier?: number; manaMultiplier?: number; speedMultiplier?: number; critChanceBonus?: number; critMultBonus?: number },
+  mods: SpecializationPassiveModifiers,
   tier: 'spec' | 'prof',
 ): void {
   const baseSource = `spec:${specId}:${tier}`;
