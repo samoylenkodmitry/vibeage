@@ -34,7 +34,15 @@ function QuestRow({ quest, navigate }: { quest: QuestDef; navigate: WikiNav }) {
         <span className="wiki-row-tag">Lv {quest.minLevel}+</span>
       </header>
       <p>{quest.description}</p>
-      {giver && <small className="wiki-row-footer">Giver: {giver.name} ({giver.title})</small>}
+      {giver && (
+        <small className="wiki-row-footer">
+          Giver:{' '}
+          <button type="button" className="wiki-effect-chip" onClick={() => navigate('npcs', giver.id)}>
+            {giver.name}
+          </button>
+          {' '}({giver.title})
+        </small>
+      )}
       <small className="wiki-row-footer">Stages: {quest.stages.length}</small>
       {targets.length > 0 && (
         <small className="wiki-row-footer">
