@@ -2086,14 +2086,18 @@ contiguous list so the audit doesn't fragment.
   emits a per-hit CombatLog. Non-piercing projectiles keep the
   legacy single-hit-then-Impact path. Tests at
   `tests/combat.projectileRuntime.spec.ts` pin both paths.
-- [ ] **Item catalog placeholders.** Several utility consumables
-  are marked as `material` because the buff / scroll system does
-  not exist (`packages/content/items.ts:487`).
-  `fire_resistance_potion` still claims immunity without saying it
-  is unimplemented (line 500). Obtainability whitelist also hides
-  several no-source placeholders (`packages/content/obtainability.ts:121`).
-  **Fix**: mark unimplemented utilities explicitly in the wiki +
-  the item description, or implement them.
+- [x] **Item catalog placeholders.** `fire_resistance_potion`
+  description now includes "(effect not yet implemented)" so it
+  matches its placeholder siblings (`elixir_of_strength`,
+  `ice_resistance_potion`, `ethereal_elixir`, `temporal_draught`,
+  `teleport_scroll`). New `tests/itemPlaceholderHonesty.spec.ts`
+  guards the invariant: any item with a consumable-sounding name
+  (potion / elixir / draught / scroll) stored as `type='material'`
+  must disclose "not yet implemented" in its description, so a
+  future author can't accidentally restore a broken promise.
+  Obtainability whitelist intentionally lists known no-source
+  items (`gold_coin`, `ancient_tome`, etc.) — re-evaluating that
+  on each pass is a follow-up wiki / content task.
 - [ ] **Inventory migration is half-live.** The bridge says legacy
   `InventorySlot[]` remains until "slice 4"
   (`packages/sim/inventoryWireAdapter.ts:6`); server + client paths
