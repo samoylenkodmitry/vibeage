@@ -35,30 +35,31 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
       <dl className="player-stats">
         <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
         <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
-        <StatRow id="str" label="STR" value={derived.str ?? stats.strength} />
-        <StatRow id="dex" label="DEX" value={derived.dex ?? stats.dexterity} />
-        <StatRow id="con" label="CON" value={derived.con ?? stats.constitution} />
-        <StatRow id="int" label="INT" value={derived.int ?? stats.intellect} />
-        <StatRow id="wit" label="WIT" value={derived.wit ?? stats.wit} />
-        <StatRow id="men" label="MEN" value={derived.men ?? stats.mental} />
+        <StatRow id="str" value={derived.str ?? stats.strength} />
+        <StatRow id="dex" value={derived.dex ?? stats.dexterity} />
+        <StatRow id="con" value={derived.con ?? stats.constitution} />
+        <StatRow id="int" value={derived.int ?? stats.intellect} />
+        <StatRow id="wit" value={derived.wit ?? stats.wit} />
+        <StatRow id="men" value={derived.men ?? stats.mental} />
       </dl>
       {derived.pAtk !== undefined && (
         <dl className="player-stats player-stats-combat">
           {/* PR II — every derived stat is a wiki chip (same StatRow
-              treatment as STR/DEX/etc.). Labels come from the STATS
-              registry so renaming a stat propagates here too. */}
-          <StatRow id="pAtk" label="P.Atk" value={derived.pAtk} />
-          <StatRow id="mAtk" label="M.Atk" value={derived.mAtk} />
-          <StatRow id="pDef" label="P.Def" value={derived.pDef} />
-          <StatRow id="mDef" label="M.Def" value={derived.mDef} />
-          <StatRow id="hpRegen" label="HP/s" value={derived.hpRegen} />
-          <StatRow id="mpRegen" label="MP/s" value={derived.mpRegen} />
-          <StatRow id="accuracy" label="Acc" value={derived.accuracy} />
-          <StatRow id="evasion" label="Evd" value={derived.evasion} />
-          <StatRow id="attackSpeed" label="Atk Spd" value={derived.attackSpeed} />
-          <StatRow id="castSpeed" label="Cast Spd" value={derived.castSpeed !== undefined ? Number(derived.castSpeed.toFixed(2)) : undefined} />
-          <StatRow id="runSpeed" label="Speed" value={derived.runSpeed} />
-          <StatRow id="critChance" label="Crit %" value={derived.critChance !== undefined ? Math.round(derived.critChance * 100) : 0} />
+              treatment as STR/DEX/etc.). Labels come from STATS[id].short
+              so renaming a stat in stats.ts propagates here without a
+              touch. */}
+          <StatRow id="pAtk" value={derived.pAtk} />
+          <StatRow id="mAtk" value={derived.mAtk} />
+          <StatRow id="pDef" value={derived.pDef} />
+          <StatRow id="mDef" value={derived.mDef} />
+          <StatRow id="hpRegen" value={derived.hpRegen} />
+          <StatRow id="mpRegen" value={derived.mpRegen} />
+          <StatRow id="accuracy" value={derived.accuracy} />
+          <StatRow id="evasion" value={derived.evasion} />
+          <StatRow id="attackSpeed" value={derived.attackSpeed} />
+          <StatRow id="castSpeed" value={derived.castSpeed !== undefined ? Number(derived.castSpeed.toFixed(2)) : undefined} />
+          <StatRow id="runSpeed" value={derived.runSpeed} />
+          <StatRow id="critChance" value={derived.critChance !== undefined ? Math.round(derived.critChance * 100) : 0} />
         </dl>
       )}
       <StatusPills effects={player?.statusEffects ?? []} />
@@ -66,10 +67,13 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
   );
 }
 
-function StatRow({ id, label, value }: { id: string; label: string; value: number | undefined }) {
-  // Tooltip carries the one-liner; clicking opens the Wiki Stats
-  // tab focused on that attribute for the full description.
-  const desc = STATS[id]?.description ?? '';
+function StatRow({ id, value, label }: { id: string; value: number | undefined; label?: string }) {
+  // PR II — label defaults to STATS[id].short so the HUD and the wiki
+  // share one display name per stat. `label` override stays for tests
+  // / non-registered ids only. Description likewise comes from STATS.
+  const entry = STATS[id];
+  const resolvedLabel = label ?? entry?.short ?? id;
+  const desc = entry?.description ?? '';
   return (
     <div
       title={desc}
@@ -79,7 +83,7 @@ function StatRow({ id, label, value }: { id: string; label: string; value: numbe
       onClick={() => openWikiAt('stats', id)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openWikiAt('stats', id); }}
     >
-      <dt>{label}</dt><dd>{value ?? '-'}</dd>
+      <dt>{resolvedLabel}</dt><dd>{value ?? '-'}</dd>
     </div>
   );
 }
