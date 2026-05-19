@@ -46,8 +46,12 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
  * gap visible. Each entry should reference the planned wiring task.
  */
 const UNIMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffectType>([
-  'waterWeakness', // iceBolt claims +30% water damage to hit target — no damage-flavour amplifier engine yet
-  'knockback',     // bash claims +6 units — no position-push handler
+  // PR VV — comment refs were wrong (named iceBolt / bash). The
+  // effect lives on waterSplash and powerStrike respectively. Audit
+  // is the source of truth for "what claims X" so this needs to be
+  // correct or future readers grep the wrong skill.
+  'waterWeakness', // waterSplash claims +30% water-damage taken — no damage-flavour amplifier engine yet
+  'knockback',     // powerStrike claims +6 units displacement — no position-push handler
   'transform',     // petrify claims stone form — no transform state machine
 ]);
 

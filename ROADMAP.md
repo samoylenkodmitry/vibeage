@@ -1641,29 +1641,26 @@ checkpoint.
   `protocolSkillIdCoverage` drift test once the duplicate
   is gone (no two-source problem to police).
 
-### PR VV — Audit hardening + HUD overlap fix
+### PR VV — Audit hardening + HUD overlap fix ✅
 
-- [ ] **Fix audit comment refs**: `waterWeakness` is on
-  `waterSplash` (not `iceBolt`); `knockback` is on
-  `powerStrike` (not `bash`). The audit currently lies in
-  its `UNIMPLEMENTED_EFFECT_TYPES` comments.
-- [ ] **Percent-claim test**: today asserts only
-  `description.length > 0`. Tighten: when a description
-  contains `+N%` / `−N%`, verify the matching contribution
-  / effect value numerically. Catches "claims +25% but
-  data says 1.0".
-- [ ] **Playwright HUD overlap**: bot reported clicks on
-  the Cast Fireball button blocked by `.combat-log-scroll`
-  intercepting them — PR MM gave the chat
-  `pointer-events: auto` and stretched it across the bar.
-  Either narrow the hit area to the actual chat region or
-  push the chat panel below the skill bar's z-stack.
-  Verify with `pnpm run check` (Playwright suite).
+- [x] **Fix audit comment refs**: corrected — `waterWeakness`
+  now annotated as living on `waterSplash` (not `iceBolt`);
+  `knockback` on `powerStrike` (not `bash`).
+- [x] **Percent-claim test**: `tests/passivePercentClaims.spec.ts`
+  parses every `+N%` / `−N%` claim in a passive's description,
+  maps the keyword to a `StatId`, and asserts the matching
+  Contribution row's value produces that magnitude
+  (`mul → 1 ± N/100`, `addPre → ±N/100`). 21/21 passive skills
+  reconcile. The Lethal-Focus-shaped bug (description claims
+  X, row is no-op) now fails the suite.
+- [x] **Playwright HUD overlap**: gave `.skill-bar` `z-index: 5`
+  so the centered skill bar sits above `.combat-log` (which
+  has `pointer-events: auto` from PR MM and was eating clicks
+  on the leftmost skill slots at ≥1024px viewports).
 - [ ] **Old-system removal**: every type in
-  `UNIMPLEMENTED_EFFECT_TYPES` either gets wired in this
-  PR or moves to a roadmap follow-up with a dated owner.
-  Audit must fail if an unimplemented type silently slips
-  back into "ok" without either action.
+  `UNIMPLEMENTED_EFFECT_TYPES` either gets wired in a follow-up
+  PR or carries a dated owner. (Carried to next wave — not
+  blocking PR VV.)
 
 ## 44. Live Run — Wave 12 playtest bugs (2026-05-19)
 
