@@ -521,12 +521,45 @@ function pushItemStats(out: Contribution[], item: Item, slot: EquipSlot, instanc
   pushItemStatBlock(out, `item:${item.id}:${instanceId}:${slot}`, `${item.name} (${slot})`, item.stats, isMagic);
 }
 
+// PR §45.1 — content authors author equipment with designer-facing
+// names (hp/mp/critRate/moveSpeed) but the engine pipeline keys off
+// `StatId` (maxHealth/maxMana/critChance/runSpeed). Without this
+// alias, the contribution rows were emitted under the wrong stat
+// id and silently dropped by computeAllStats (which only iterates
+// STAT_ORDER). Other keys pass through unchanged.
+const ITEM_STAT_KEY_TO_STAT_ID: Readonly<Record<string, StatId>> = {
+  hp: 'maxHealth',
+  mp: 'maxMana',
+  critRate: 'critChance',
+  moveSpeed: 'runSpeed',
+};
+
+function resolveItemStatId(key: string): StatId | null {
+  const aliased = ITEM_STAT_KEY_TO_STAT_ID[key];
+  if (aliased) return aliased;
+  // Pass through engine-native keys (pAtk, mAtk, pDef, mDef,
+  // attackSpeed). Unknown keys are filtered so a typo in content
+  // doesn't silently emit a no-op row.
+  return (KNOWN_STAT_IDS.has(key as StatId) ? (key as StatId) : null);
+}
+
+const KNOWN_STAT_IDS: ReadonlySet<StatId> = new Set<StatId>([
+  'str', 'dex', 'con', 'int', 'wit', 'men',
+  'pAtk', 'mAtk', 'pDef', 'mDef',
+  'maxHealth', 'maxMana', 'hpRegen', 'mpRegen',
+  'accuracy', 'evasion',
+  'attackSpeed', 'castSpeed', 'runSpeed',
+  'dmgMult', 'critChance', 'critMult',
+]);
+
 function pushItemStatBlock(out: Contribution[], source: string, label: string, stats: NonNullable<Item['stats']>, isMagic: boolean): void {
   // Equipment + set-bonus flats land in `addPost` so they aren't
   // multiplied by class dmgMult — matches the existing balance.
   for (const [k, v] of Object.entries(stats)) {
     if (typeof v !== 'number' || v === 0) continue;
-    out.push({ source, label, stat: k as StatId, op: 'addPost', value: v });
+    const statId = resolveItemStatId(k);
+    if (!statId) continue;
+    out.push({ source, label, stat: statId, op: 'addPost', value: v });
   }
   // PR NN — equipment-to-dmgMult contribution (mirrors the old
   // `equipmentDmg = (mAtk|pAtk) * 0.01` line). Melee classes scale

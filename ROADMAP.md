@@ -2042,25 +2042,19 @@ contiguous list so the audit doesn't fragment.
 
 ### Stale findings
 
-- [ ] **Equipment stat names split between content and engine.**
-  `ItemStatBlock` uses `hp` / `mp` / `critRate` / `moveSpeed`
-  (`packages/content/equipmentTypes.ts:120`) but the engine stats
-  are `maxHealth` / `maxMana` / `critChance` / `runSpeed`
-  (`packages/sim/statContributions.ts:25`).
-  `pushEquipmentContributions` casts the raw keys to `StatId`
-  (`packages/sim/statContributions.ts:524`), so the legacy bonuses
-  are emitted then ignored by `computeAllStats`. Verified
-  `void_dagger.critRate` and `forge_avatar_plate.hp` do not show in
-  final crit / HP breakdowns. **Fix**: rename the `ItemStatBlock`
-  keys to engine names (or add an explicit alias map in one place)
-  + add a content-test that every key in every item's `stats` block
-  resolves to a real `StatId`.
-- [ ] **`deriveEquipmentStats` is a stale parallel path.** Sums
-  legacy keys in `packages/sim/equipmentStats.ts:10`; `deadcode:report`
-  marks it unused outside tests. The tests can pass while runtime
-  ignores the same stats. **Fix**: delete the function + the tests
-  that pin it; ensure the only stat-from-equipment path is
-  `pushEquipmentContributions`.
+- [x] **Equipment stat names split between content and engine.**
+  Added `ITEM_STAT_KEY_TO_STAT_ID` alias in
+  `packages/sim/statContributions.ts` so `hp` → `maxHealth`,
+  `mp` → `maxMana`, `critRate` → `critChance`,
+  `moveSpeed` → `runSpeed`. Unknown keys are now dropped explicitly
+  instead of silently. New `tests/equipmentStatKeysResolvable.spec.ts`
+  pins the invariant: every key in any item's `stats` block (and
+  every set bonus's `statModifiers`) must resolve to a real
+  `StatId` either directly or via the alias map.
+- [x] **`deriveEquipmentStats` is a stale parallel path.** Deleted
+  `packages/sim/equipmentStats.ts` and `tests/equipmentStats.spec.ts`;
+  the only stat-from-equipment path is now
+  `pushEquipmentContributions` in `statContributions.ts`.
 - [ ] **Specialization descriptions overclaim.** The only supported
   modifiers in `packages/content/specializations.ts:33` are generic
   damage / health / mana / speed / crit; mapped only to generic

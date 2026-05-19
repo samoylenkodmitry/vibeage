@@ -287,8 +287,8 @@ export const BOSS_GEAR_RECIPE_BY_BOSS: Record<string, string> = Object.fromEntri
  * PR W — boss-gear sets. Grouped by tier so chasing one boss tier's
  * gear gives meaningful payoff at 2+ pieces. Bonuses stack: a 4-
  * piece Elementborn wearer gets the 2- and 3-piece tiers on top of
- * the 4-piece tier. Spread into EQUIPMENT_SETS so equipmentStats.ts
- * picks them up alongside the legacy sets.
+ * the 4-piece tier. Spread into EQUIPMENT_SETS so the Contribution
+ * registry picks them up alongside the legacy sets.
  */
 export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
   wildlands_hunter: {
