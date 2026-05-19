@@ -1575,6 +1575,87 @@ Three playtest reports landed after wave 8 deployed.
 - [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
   bounded.
 
+## 42. Stat-popup polish + skill-spec audit (planned 2026-05-19)
+
+User playtested the PR PP popup and caught five concrete bugs +
+asked for a top-to-bottom audit. Each is captured below with an
+explicit old-system-removal line.
+
+### PR QQ — Stat popup polish + passive learn flow
+
+- [x] **Race rows mislabelled.** Today the breakdown shows
+  `Dark Elf race | 13` for STR. The principle is "race
+  contributes only its component attributes — not a row
+  named 'Dark Elf race'." Re-label each per-attribute
+  contribution as `Dark Elf base STR`, `Dark Elf base DEX`,
+  etc. Single source: derive label from `${profile.name}
+  base ${attr.toUpperCase()}` inside
+  `pushRaceContributions`.
+  - **Old-system removal**: no per-race-label override
+    elsewhere — the generic-label path is the only one.
+- [x] **Cast speed convention reads backwards.** Total =
+  0.85 with a negative `−0.15` row looks like a debuff,
+  when in fact it's "15% faster cast". Flip the semantic
+  to `castSpeedMul` (higher = faster); WIT contributes
+  `+0.15`; impact resolver divides by it instead of
+  multiplying. Players see `+15% faster`.
+  - **Old-system removal**: every consumer of `castSpeed`
+    in the engine (skillSystem, impactResolver) flips to
+    the new direction in the same PR. No "legacy castSpeed"
+    interpretation survives.
+- [x] **Passive learn doesn't refresh stats.** Player
+  learned `passive_lethal_focus` and saw no critChance
+  change. `applyLearnSkill` adds the id to
+  `unlockedSkills` but never calls `recomputePlayerStats`.
+  Wire it.
+  - **Old-system removal**: no other "passive learned but
+    not applied" code path — this is the single hook.
+- [x] **Passives invisible in the skill UI.** Players
+  need to see which passives they own and which they can
+  learn. Surface them:
+  - Skill tree panel: a "Passives" section per class
+    listing auto-granted + learnable, with the same
+    learn-button affordance as active skills.
+  - Wiki Skills tab: separate "Passive" filter / tag so
+    the catalog shows them.
+  - HUD: not in the skill bar (passives don't fire), but a
+    small "Passives" chip strip below the bar with the
+    icon-only owned passives so the player feels the
+    presence.
+- [ ] **Upgradable passives** later — for v1, learnable
+  passives are level-locked tier-1 entries. The existing
+  `SkillUpgrade` mechanism we have for actives is overkill
+  for passive +5% bumps; punt that to a follow-up unless
+  the user pushes.
+
+### PR RR — Skill spec audit (single source of truth)
+
+Walk every entry in `SKILLS` (BASE_SKILLS, spec /
+proficiency, passives) and assert one wiring discipline:
+
+- [ ] **For each skill**: open a row in `tests/skillSpecAudit.spec.ts`
+  asserting:
+  - Active skill: at least one `SkillEffect` AND consumers
+    of every declared effect exist in `impactResolver`.
+  - Passive: at least one entry in
+    `PASSIVE_SKILL_CONTRIBUTIONS` matches its id.
+  - No skill has *both* effects + a passive contribution
+    (would be duplicate-source).
+  - SkillDef's `description` mentions the actual numbers
+    its effects / contribution produce (catches "claims +5%
+    but value 0" drift).
+- [ ] **For each effect type**: assert `EFFECT_SPECS` covers
+  it (already done via the type union, but lock the
+  description/category at runtime too).
+- [ ] **For each passive contribution**: assert the
+  declared `stat` is in `STATS` and the contribution shows
+  up on the breakdown when the passive is owned (sanity
+  sweep already does the second half — extend it).
+- [ ] **Old-system removal** sweep at the end: grep for
+  any leftover `*Multiplier` field on a skill or class
+  spec that *isn't* expressed as a Contribution. Delete
+  or migrate.
+
 ## 41. Class-as-skills + stats sanity sweep (planned 2026-05-19)
 
 User caught two things on the live breakdown popup:

@@ -216,11 +216,13 @@ const STAT_ORDER: readonly StatId[] = [
 ];
 
 const STAT_CAPS: Partial<Record<StatId, (n: number) => number>> = {
-  castSpeed: (n) => Math.max(0.4, n),
+  // PR QQ — cast speed convention flipped: higher = faster (so a
+  // ×1.15 row reads as "+15% faster"). Floor at 1 so a cursed item
+  // can't make casting slower than baseline.
+  castSpeed: (n) => Math.max(1, Math.min(2.5, n)),
   runSpeed: (n) => Math.max(2, n),
   hpRegen: (n) => Math.max(1, n),
   mpRegen: (n) => Math.max(1, n),
-  // Floors that keep the L2 minimums from `derivePlayerStats`.
 };
 
 function resolveStat(stat: StatId, parts: Contribution[], ctx: StatComputeContext): StatBreakdownEntry {
@@ -261,10 +263,20 @@ const FRACTIONAL_STATS: ReadonlySet<StatId> = new Set<StatId>([
 // ---------------------------------------------------------------- registries
 
 function pushRaceContributions(out: Contribution[], race: CharacterRace): void {
+  // PR QQ — label every race row with the attribute it touches so
+  // the breakdown popup reads "Dark Elf base STR | 13" rather than a
+  // single ambiguous "Dark Elf race" row that looks like a class
+  // multiplier. Race contributes only attributes — never a single
+  // unattributed row.
   const profile = RACE_PROFILES[race] ?? RACE_PROFILES[DEFAULT_RACE];
-  const label = `${profile.name} race`;
   for (const [k, v] of Object.entries(profile.baseAttrs)) {
-    out.push({ source: `race:${race}`, label, stat: k as StatId, op: 'base', value: v });
+    out.push({
+      source: `race:${race}:${k}`,
+      label: `${profile.name} base ${k.toUpperCase()}`,
+      stat: k as StatId,
+      op: 'base',
+      value: v,
+    });
   }
 }
 
@@ -365,7 +377,9 @@ function pushAttributeDerivedContributions(out: Contribution[], className: Chara
   });
   out.push({
     source: 'attr:wit:castSpeed', label: 'WIT cast speed', stat: 'castSpeed', op: 'addPre',
-    value: (r) => -(r.wit ?? 0) * 0.005,
+    // PR QQ — higher = faster cast. Was −0.005/WIT (debuff-looking
+    // negative number); now +0.005/WIT so the row reads as a buff.
+    value: (r) => (r.wit ?? 0) * 0.005,
   });
   out.push({
     source: 'attr:dex:runSpeed', label: 'DEX run speed', stat: 'runSpeed', op: 'addPre',

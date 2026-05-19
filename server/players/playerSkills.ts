@@ -10,6 +10,7 @@ import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, error as logError, LOG_CATEGORIES, warn } from '../logger.js';
 import { findPlayerIdBySocket } from './playerSession.js';
+import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { emitStarterProgressUpdate, syncPlayerStarterProgress } from '../progression/starterPath.js';
 import {
   emitPlayerUpdated,
@@ -62,12 +63,22 @@ export function onLearnSkill(
   }
 
   const starterProgress = syncPlayerStarterProgress(player);
+  // PR QQ — learning a passive skill changes player stats. The
+  // Contribution registry reads unlockedSkills, so any addition
+  // (passive or active that carries a contribution) needs a
+  // recompute or the breakdown popup / engine numbers stay stale.
+  // Cheap: just call recomputePlayerStats; the cache invalidates
+  // implicitly because unlockedSkills mutated.
+  recomputePlayerStats(player);
   sendSkillLearned(direct, msg.skillId, player.availableSkillPoints);
   emitPlayerUpdated(outbound, {
     id: player.id,
     unlockedSkills: player.unlockedSkills,
     skillShortcuts: player.skillShortcuts,
     availableSkillPoints: player.availableSkillPoints,
+    stats: player.stats,
+    maxHealth: player.maxHealth,
+    maxMana: player.maxMana,
   });
   emitStarterProgressUpdate(outbound, player, starterProgress.rewardGranted);
 }

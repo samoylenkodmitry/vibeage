@@ -61,8 +61,8 @@ describe('player stats via Contribution registry', () => {
     expect(s.accuracy).toBeGreaterThan(0);
     expect(s.evasion).toBeGreaterThan(0);
     expect(s.attackSpeed).toBeGreaterThan(0);
-    expect(s.castSpeed).toBeGreaterThan(0);
-    expect(s.castSpeed).toBeLessThanOrEqual(1);
+    // PR QQ — castSpeed convention flipped: higher = faster, baseline 1.
+    expect(s.castSpeed).toBeGreaterThanOrEqual(1);
     expect(s.runSpeed).toBeGreaterThan(0);
   });
 
