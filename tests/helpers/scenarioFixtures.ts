@@ -7,6 +7,8 @@ import { createGameState, type GameState } from '../../server/gameState';
 import { buildStablePlayerPersistenceData } from '../../server/persistence';
 import { hydratePersistedPlayer } from '../../server/players/playerSession';
 import { createTransientPlayer } from '../../server/playerFactory';
+import { addItemsToPlayer } from '../../server/inventory/aggregateBridge';
+import { createEmptyInventory } from '../../packages/sim/characterInventory';
 import { SpatialHashGrid } from '../../server/spatial/SpatialHashGrid';
 import type { ServerWorldRegion } from '../../server/world/regions';
 
@@ -26,7 +28,15 @@ export function makeScenarioPlayer(options: {
   const player = createTransientPlayer(options.socketId, options.name ?? options.id);
   player.id = options.id;
   player.position = { x: options.x ?? 0, y: 0.5, z: options.z ?? 0 };
-  player.inventory = options.inventory ? [...options.inventory] : [];
+  // §45.7 — `characterInventory` is the source of truth; reset
+  // both fields together so the fixture's `inventory` override
+  // can't silently diverge from the aggregate. Then push each
+  // requested item through the bridge so the two stay in lockstep.
+  player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
+  player.inventory = [];
+  for (const slot of options.inventory ?? []) {
+    addItemsToPlayer(player, slot.itemId, slot.quantity);
+  }
   player.unlockedSkills = [...unlockedSkills];
   player.skillShortcuts = [
     unlockedSkills[0] ?? null,
