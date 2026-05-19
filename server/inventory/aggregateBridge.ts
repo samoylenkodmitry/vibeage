@@ -56,7 +56,9 @@ export function syncLegacyInventory(player: PlayerState): void {
  */
 export function addItemsToPlayer(player: PlayerState, templateId: string, count: number) {
   if (templateId === 'gold_coin') {
-    player.gold = (player.gold ?? 0) + count;
+    if (count > 0) {
+      player.gold = (player.gold ?? 0) + count;
+    }
     return { ok: true as const, value: { added: [], changed: [] } };
   }
   const aggregate = ensureCharacterInventory(player);

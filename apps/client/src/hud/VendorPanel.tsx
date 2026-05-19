@@ -21,12 +21,18 @@ type VendorPanelProps = {
 export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPanelProps) {
   const gold = player.gold ?? 0;
   const inventoryRows = useMemo(() => {
-    const rows: { itemId: string; quantity: number; unitPrice: number }[] = [];
+    // Aggregate by itemId so an item that spans multiple stacks
+    // collapses to a single row (unique React key + cleaner UI).
+    const aggregated = new Map<string, number>();
     for (const slot of player.inventory ?? []) {
       if (!slot.itemId || slot.quantity <= 0) continue;
-      const unitPrice = vendorSellPriceFor(vendor, slot.itemId);
+      aggregated.set(slot.itemId, (aggregated.get(slot.itemId) ?? 0) + slot.quantity);
+    }
+    const rows: { itemId: string; quantity: number; unitPrice: number }[] = [];
+    for (const [itemId, quantity] of aggregated.entries()) {
+      const unitPrice = vendorSellPriceFor(vendor, itemId);
       if (unitPrice <= 0) continue;
-      rows.push({ itemId: slot.itemId, quantity: slot.quantity, unitPrice });
+      rows.push({ itemId, quantity, unitPrice });
     }
     return rows;
   }, [player.inventory, vendor]);
