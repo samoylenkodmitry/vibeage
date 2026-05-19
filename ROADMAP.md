@@ -1575,3 +1575,211 @@ Three playtest reports landed after wave 8 deployed.
 - [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
   bounded.
 
+## 40. Stats unification — Contribution registry (planned 2026-05-19)
+
+**Why this exists.** Today, a player's stats are produced by three
+unrelated code paths (`derivePlayerStats` reads RACE_PROFILES +
+STAT_WEIGHTS by level; `refreshPlayerStatsFromEquipment` adds gear
+bonuses; impact-time helpers like `blessDamageMultiplier` fold
+buffs into damage on the fly). The Wiki Stats popup we want to
+build (click P.Atk → see the full formula decomposed) is
+impossible without a single point of computation.
+
+**Design.** Every input to a stat is a *Contribution*. Race base
+stats, class progression, the level curve, every equipped item,
+every active status effect — they're all just rows in a single
+list. `computeAllStats(contributions)` walks the list in
+topological + 3-phase order (base → add → mul → optional cap)
+and returns the final stat map *and* the per-stat breakdown the
+popup renders. The HUD popup re-derives client-side from the
+same shared registry; server and client cannot drift because
+both call the same function.
+
+**No parallel system.** Every PR in this section deletes the
+old code path it replaces *in the same PR*. Carrying both
+versions in parallel is forbidden — context risk is high, and
+partial migrations rot fast. Each PR below ends with an
+explicit deletion checklist.
+
+### PR NN — Contribution model + computeAllStats (rip-and-replace)
+
+This PR is the big cutover. Land in one push.
+
+- [ ] **Type:** `Contribution = {source: string; label: string;
+  stat: StatId; op: 'base'|'addPre'|'mul'|'addPost';
+  value: number | ((resolved: ResolvedStats) => number);
+  predicate?: (ctx: StatCtx) => boolean}`.
+  - `source` is a stable id (e.g. `race:orc`, `level:8`,
+    `class:warrior`, `item:worn_sword:<instanceId>`,
+    `effect:bless:<effectId>`, `spec:arcanist`).
+  - `label` is the player-facing line in the popup.
+  - **4-phase pipeline** (preserves current balance — see
+    note below): `final = ((base + Σaddpre) × Πmul) + ΣaddPost`,
+    then optional `cap`. The two add phases are necessary
+    because the existing pAtk math has equipment added
+    *after* the class damage multiplier — collapsing into
+    a single add phase would change the balance of every
+    weapon's scaling.
+  - `value` may be a function so CON-derived health flats /
+    INT-derived mAtk scaling can read already-resolved
+    attributes (`(r) => (r.con - 8) * 6`).
+  - `predicate` returns `false` to mark the contribution
+    inactive (e.g. Rage requires HP<30%); inactive
+    contributions are still emitted on `parts` for the
+    popup but excluded from the sum.
+
+- [ ] **StatDef extension** in `packages/content/stats.ts`:
+  - `dependsOn?: readonly StatId[]` — derived stat says
+    which base attributes (or other derived stats) it
+    needs computed first.
+  - `cap?: (n: number, ctx: StatCtx) => number` — optional
+    post-mul clamp (runSpeed cap, evasion soft-cap).
+  - Stays compatible with the per-stat description /
+    label fields already added in PR II.
+
+- [ ] **Registries** under `packages/content/`:
+  - `RACE_BASE_STATS: Record<Race, Contribution[]>` — Orc
+    contributes three rows (STR base 20, DEX base 12, INT
+    base 8); other races likewise. **Race itself is not a
+    contribution row — only its component stat lines are.**
+  - `CLASS_LEVEL_CURVE: Record<Class, (level) => Contribution[]>`
+    — warrior at level 8 contributes the +STR / +CON
+    rows; mage contributes +INT / +WIT, etc.
+  - `EQUIPMENT_CONTRIBUTIONS: (instance, item) => Contribution[]`
+    — reads `item.stats` (pAtk, mAtk, …) and `item.equip`
+    and emits one contribution per non-zero stat.
+  - `STATUS_EFFECT_CONTRIBUTIONS: Record<SkillEffectType,
+    {stat, op, valueFrom: 'value'|'percent'} | null>` —
+    Bless emits a mul contribution; an effect with `null`
+    has no stat impact (it's pure tag — invisible,
+    aggroReset).
+  - `SPECIALIZATION_CONTRIBUTIONS: Record<SpecId, Contribution[]>`
+    — Arcanist passive emits `+10% mAtk` once unlocked.
+
+- [ ] **`buildContributions(player)`** assembles the list:
+  race + class+level + equipment + statusEffects + spec /
+  proficiency passives. Pure function over PlayerState.
+
+- [ ] **`computeAllStats(contributions, ctx)`**:
+  1. Topological order over `StatDef.dependsOn`.
+  2. For each stat, filter contributions targeting this
+     stat, partition by op, evaluate predicates.
+  3. Phase pipeline: `(base + Σadd) × Πmul → cap`.
+  4. Return `{totals: Record<StatId, number>; breakdown:
+     Record<StatId, {parts: Contribution[]; total: number}>}`
+     so the popup never re-computes.
+
+- [ ] **Cache** on the player: `_statsCacheKey: string`
+  derived from `(level, classId, race, raceVariant,
+  sorted equippedInstanceIds, sorted active
+  statusEffect ids)`. `getOrComputeStats(player)` returns
+  the cached blob when the key matches, recomputes when
+  it doesn't. Single cache helper used by both engine and
+  any future caller.
+
+- [ ] **Engine hookup**: `player.stats` becomes the
+  *cached* result of `getOrComputeStats(player).totals`.
+  Combat math (`impactResolver`, damage / hit / dodge,
+  HP regen) keeps reading `player.stats.xyz` exactly as
+  today — no impact-pipeline changes.
+
+- [ ] **Cache invalidation sites**:
+  - Level-up (playerLifecycle.ts).
+  - Equip / unequip (equipHandlers.ts).
+  - Effect added (`upsertStatusEffect` in
+    impactResolver.ts).
+  - Effect expired (`pruneExpiredStatusEffects` in
+    worldMovement.ts — already touches the array;
+    bump the key when the prune actually removes
+    anything).
+  - Specialization picked (playerIdentity.ts).
+  - Hydration from DB (playerSession.ts).
+
+- [ ] **Tests**:
+  - One unit test per stat verifying the formula
+    (`Orc warrior, level 8, no gear, no buffs → pAtk
+    = X`). Hardcoded expected numbers so regressions
+    surface clearly.
+  - An integration test that loads a representative
+    fixture (race + class + level + equipped sword +
+    Bless active) and asserts the breakdown rows
+    match the expected `(label, op, value)` triplets
+    in order.
+  - A cache test: same player, two calls →
+    identical reference; bump level → new compute.
+
+- [ ] **Old system removal** (NO PARALLEL CODE):
+  - DELETE `derivePlayerStats` in
+    `packages/sim/derivedStats.ts` (or wherever it
+    lives now); replace every call site with
+    `getOrComputeStats(player).totals`.
+  - DELETE `refreshPlayerStatsFromEquipment` in
+    `server/inventory/`; equip / unequip handlers
+    invalidate the cache instead.
+  - DELETE the RACE_PROFILES + STAT_WEIGHTS tables
+    in their current location; their numbers move
+    into `RACE_BASE_STATS` and `CLASS_LEVEL_CURVE`.
+  - DELETE `blessDamageMultiplier` in impactResolver
+    — Bless's contribution is now folded into
+    `player.stats.dmgMult` directly via
+    `STATUS_EFFECT_CONTRIBUTIONS`. (Impact math reads
+    the cached stat; no per-cast fold.)
+  - DELETE `projectPlayerStats` (the legacy
+    intermediate projection) if it still exists.
+  - Grep audit at end of PR: no remaining reference
+    to the deleted symbols; the migration is total.
+
+### PR OO — HUD breakdown popup (consumes PR NN)
+
+This PR is purely UI on top of the new model.
+
+- [ ] **Popup component** `StatBreakdownPopup` rendered on
+  click of any stat row in `PlayerPanel` (replaces
+  today's "open wiki on click"; right-click keeps the
+  wiki shortcut for power users).
+
+- [ ] **Renders** the contributions list grouped by op
+  phase: `Base` rows, then `Flat bonuses`, then
+  `Multipliers`, then `Cap (if any)`, then the final
+  `Total`. Each row shows `label` + signed value +
+  op symbol (`+`, `×`).
+
+- [ ] **Inactive contributions** (predicate failed) shown
+  greyed with the reason in italics (e.g. "Rage —
+  inactive (needs HP<30%)") so the player knows why
+  it's not adding up.
+
+- [ ] **Client-side derivation**: popup calls
+  `getOrComputeStats(playerSnapshot)` from the same
+  shared module the server uses. No new protocol
+  message — the breakdown is computed from the
+  player blob the client already has.
+
+- [ ] **Tests**: a vitest spec that mounts the popup
+  with a fixture player and asserts the rendered
+  rows match the breakdown computed by
+  `computeAllStats`.
+
+- [ ] **Old system removal**:
+  - DELETE the `openWikiAt('stats', id)` left-click
+    handler on `StatRow` in `PlayerPanel.tsx`; left
+    click now opens the popup. Wiki shortcut moves
+    to right-click (handled by the popup's "Open in
+    Wiki" link or directly via context menu).
+  - No other dead code expected — PR NN already
+    cleared the old computation paths.
+
+### Order of operations
+
+1. Ship PR NN (full cutover; merge only when **every**
+   delete-checklist item is verified by grep).
+2. Ship PR OO (UI consumer; the breakdown popup is a
+   pure render of what PR NN produces).
+
+If a third PR is needed for caps / diminishing returns
+(`PR PP — stat caps`), file it as a follow-up; v1 of the
+Contribution model only needs the optional `cap` hook to
+be in place, not full content tuning.
+
+
+
