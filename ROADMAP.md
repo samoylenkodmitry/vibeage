@@ -2065,13 +2065,17 @@ contiguous list so the audit doesn't fragment.
   entries have `{}` or unrelated generic modifiers. **Fix**: either
   trim descriptions to what the data can carry, or extend
   `SpecializationPassiveModifiers` to cover the claimed effects.
-- [ ] **Active-skill effects intentionally unwired:**
-  `waterWeakness`, `knockback`, `transform` (see
-  `tests/skillSpecAudit.spec.ts:48`). Runtime mostly upserts them as
-  inert status rows via `server/combat/impactResolver.ts:211`; no
-  water-damage amplifier, knockback movement, or transform machine
-  exists. **Fix**: either wire each effect's handler or strip the
-  effect from skill data + adjust descriptions.
+- [ ] **Active-skill effects partly unwired:** `waterWeakness`,
+  `transform` still inert; `knockback` is wired (see below).
+  `waterWeakness` needs a damage-flavour amplifier; `transform`
+  needs a stone-state machine on the target. Until then they
+  upsert as status rows that the engine ignores.
+- [x] **Knockback wired.** `applyKnockback` in
+  `server/combat/impactResolver.ts` now pushes the target along
+  the caster→target vector by `effect.value` world units. Cancels
+  in-flight velocity, sets `dirtySnap` so the next PosSnap
+  broadcasts the new position. Tests at `tests/knockback.spec.ts`
+  pin the displacement math + the zero-vector no-op edge.
 - [x] **Projectile pierce is wired.** `projectileRuntime` now
   applies per-hit damage to each new enemy in the sweep when
   `skill.projectile.pierce` is true, appending entity ids to
