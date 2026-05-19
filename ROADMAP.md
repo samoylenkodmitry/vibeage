@@ -1733,23 +1733,23 @@ This PR is the big cutover. Land in one push.
 
 This PR is purely UI on top of the new model.
 
-- [ ] **Popup component** `StatBreakdownPopup` rendered on
+- [x] **Popup component** `StatBreakdownPopup` rendered on
   click of any stat row in `PlayerPanel` (replaces
   today's "open wiki on click"; right-click keeps the
   wiki shortcut for power users).
 
-- [ ] **Renders** the contributions list grouped by op
+- [x] **Renders** the contributions list grouped by op
   phase: `Base` rows, then `Flat bonuses`, then
   `Multipliers`, then `Cap (if any)`, then the final
   `Total`. Each row shows `label` + signed value +
   op symbol (`+`, `×`).
 
-- [ ] **Inactive contributions** (predicate failed) shown
+- [x] **Inactive contributions** (predicate failed) shown
   greyed with the reason in italics (e.g. "Rage —
   inactive (needs HP<30%)") so the player knows why
   it's not adding up.
 
-- [ ] **Client-side derivation**: popup calls
+- [x] **Client-side derivation**: popup calls
   `getOrComputeStats(playerSnapshot)` from the same
   shared module the server uses. No new protocol
   message — the breakdown is computed from the
@@ -1760,7 +1760,7 @@ This PR is purely UI on top of the new model.
   rows match the breakdown computed by
   `computeAllStats`.
 
-- [ ] **Old system removal**:
+- [x] **Old system removal**:
   - DELETE the `openWikiAt('stats', id)` left-click
     handler on `StatRow` in `PlayerPanel.tsx`; left
     click now opens the popup. Wiki shortcut moves

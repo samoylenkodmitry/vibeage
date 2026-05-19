@@ -1,19 +1,26 @@
+import { useState } from 'react';
 import {
   getSpecializationById,
   PROFICIENCY_LEVEL,
   SPECIALIZATION_UNLOCK_LEVEL,
 } from '../../../../packages/content/specializations';
 import { STATS } from '../../../../packages/content/stats';
+import type { StatId } from '../../../../packages/sim/statContributions';
 import type { PlayerEntity } from '../gameTypes';
 import { StatusPills } from './hudPrimitives';
+import { StatBreakdownPopup } from './StatBreakdownPopup';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
 
-export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
+export function PlayerPanel({
+  player,
+  equipment,
+}: { player: PlayerEntity | null; equipment?: Record<string, string> }) {
   const stats = derivePanelStats(player);
   const derived = player?.stats ?? {};
   const panelRef = useDraggablePanel<HTMLElement>('stats');
+  const [popup, setPopup] = useState<{ statId: StatId; clientX: number; clientY: number } | null>(null);
   const raceLabel = player?.race ? capitalize(player.race) : '';
   const level = player?.level ?? 1;
   const spec = player?.specializationId ? getSpecializationById(player.specializationId) ?? null : null;
@@ -35,39 +42,90 @@ export function PlayerPanel({ player }: { player: PlayerEntity | null }) {
       <dl className="player-stats">
         <div><dt>Level</dt><dd>{player?.level ?? 1}</dd></div>
         <div><dt>SP</dt><dd>{stats.skillPoints}</dd></div>
-        <StatRow id="str" value={derived.str ?? stats.strength} />
-        <StatRow id="dex" value={derived.dex ?? stats.dexterity} />
-        <StatRow id="con" value={derived.con ?? stats.constitution} />
-        <StatRow id="int" value={derived.int ?? stats.intellect} />
-        <StatRow id="wit" value={derived.wit ?? stats.wit} />
-        <StatRow id="men" value={derived.men ?? stats.mental} />
+        {ATTR_IDS.map((id) => (
+          <StatRow
+            key={id}
+            id={id}
+            value={derived[id] ?? attrFallback(stats, id)}
+            onClick={makeOpenPopup(setPopup, id)}
+          />
+        ))}
       </dl>
       {derived.pAtk !== undefined && (
         <dl className="player-stats player-stats-combat">
-          {/* PR II — every derived stat is a wiki chip (same StatRow
-              treatment as STR/DEX/etc.). Labels come from STATS[id].short
-              so renaming a stat in stats.ts propagates here without a
-              touch. */}
-          <StatRow id="pAtk" value={derived.pAtk} />
-          <StatRow id="mAtk" value={derived.mAtk} />
-          <StatRow id="pDef" value={derived.pDef} />
-          <StatRow id="mDef" value={derived.mDef} />
-          <StatRow id="hpRegen" value={derived.hpRegen} />
-          <StatRow id="mpRegen" value={derived.mpRegen} />
-          <StatRow id="accuracy" value={derived.accuracy} />
-          <StatRow id="evasion" value={derived.evasion} />
-          <StatRow id="attackSpeed" value={derived.attackSpeed} />
-          <StatRow id="castSpeed" value={derived.castSpeed !== undefined ? Number(derived.castSpeed.toFixed(2)) : undefined} />
-          <StatRow id="runSpeed" value={derived.runSpeed} />
-          <StatRow id="critChance" value={derived.critChance !== undefined ? Math.round(derived.critChance * 100) : 0} />
+          {DERIVED_ROWS.map(({ id, format }) => (
+            <StatRow
+              key={id}
+              id={id}
+              value={format(derived[id])}
+              onClick={makeOpenPopup(setPopup, id)}
+            />
+          ))}
         </dl>
       )}
       <StatusPills effects={player?.statusEffects ?? []} />
+      {popup && player && (
+        <StatBreakdownPopup
+          statId={popup.statId}
+          player={player}
+          equipment={equipment ?? {}}
+          clientX={popup.clientX}
+          clientY={popup.clientY}
+          onClose={() => setPopup(null)}
+        />
+      )}
     </section>
   );
 }
 
-function StatRow({ id, value, label }: { id: string; value: number | undefined; label?: string }) {
+const ATTR_IDS: readonly StatId[] = ['str', 'dex', 'con', 'int', 'wit', 'men'];
+
+type DerivedRowSpec = { id: StatId; format: (v: number | undefined) => number | undefined };
+const DERIVED_ROWS: readonly DerivedRowSpec[] = [
+  { id: 'pAtk', format: (v) => v },
+  { id: 'mAtk', format: (v) => v },
+  { id: 'pDef', format: (v) => v },
+  { id: 'mDef', format: (v) => v },
+  { id: 'hpRegen', format: (v) => v },
+  { id: 'mpRegen', format: (v) => v },
+  { id: 'accuracy', format: (v) => v },
+  { id: 'evasion', format: (v) => v },
+  { id: 'attackSpeed', format: (v) => v },
+  { id: 'castSpeed', format: (v) => (v !== undefined ? Number(v.toFixed(2)) : undefined) },
+  { id: 'runSpeed', format: (v) => v },
+  { id: 'critChance', format: (v) => (v !== undefined ? Math.round(v * 100) : 0) },
+];
+
+function attrFallback(stats: DerivedStats, id: StatId): number | undefined {
+  switch (id) {
+    case 'str': return stats.strength;
+    case 'dex': return stats.dexterity;
+    case 'con': return stats.constitution;
+    case 'int': return stats.intellect;
+    case 'wit': return stats.wit;
+    case 'men': return stats.mental;
+    default: return undefined;
+  }
+}
+
+function makeOpenPopup(
+  setPopup: (p: { statId: StatId; clientX: number; clientY: number } | null) => void,
+  statId: StatId,
+) {
+  return (e: React.MouseEvent) => {
+    setPopup({ statId, clientX: e.clientX, clientY: e.clientY });
+  };
+}
+
+function StatRow({
+  id, value, label, onClick,
+}: {
+  id: string;
+  value: number | undefined;
+  label?: string;
+  /** PR OO — overrides the legacy wiki-open behaviour. */
+  onClick?: (e: React.MouseEvent) => void;
+}) {
   // PR II — label defaults to STATS[id].short so the HUD and the wiki
   // share one display name per stat. `label` override stays for tests
   // / non-registered ids only. Description likewise comes from STATS.
@@ -80,7 +138,8 @@ function StatRow({ id, value, label }: { id: string; value: number | undefined; 
       className="player-stat-link"
       role="button"
       tabIndex={0}
-      onClick={() => openWikiAt('stats', id)}
+      onClick={onClick ?? (() => openWikiAt('stats', id))}
+      onContextMenu={(e) => { e.preventDefault(); openWikiAt('stats', id); }}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openWikiAt('stats', id); }}
     >
       <dt>{resolvedLabel}</dt><dd>{value ?? '-'}</dd>

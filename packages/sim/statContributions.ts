@@ -93,7 +93,18 @@ export type StatPlayerView = {
   race?: CharacterRace;
   className: CharacterClass;
   specializationId?: string | null;
+  /**
+   * Server uses this — it carries instance ids that resolve to
+   * templates inside `pushEquipmentContributions`.
+   */
   characterInventory?: CharacterInventory | null;
+  /**
+   * Client uses this — `state.equipment` already keys equipped slot
+   * → template id, so the popup re-derives the same contributions
+   * the server produced for stat numbers without needing the full
+   * CharacterInventory aggregate (owner-only on the wire).
+   */
+  equippedTemplates?: Partial<Record<EquipSlot, string>>;
   statusEffects?: ReadonlyArray<StatusEffect>;
   /** Optional — used for predicates like Rage's HP<30%. Defaults to full HP. */
   health?: number;
@@ -117,6 +128,7 @@ export function buildContributions(player: StatPlayerView): Contribution[] {
   pushBaselineDerivedContributions(out);
   pushAttributeDerivedContributions(out, className);
   if (player.characterInventory) pushEquipmentContributions(out, player.characterInventory, className);
+  else if (player.equippedTemplates) pushEquipmentContributionsFromTemplateMap(out, player.equippedTemplates, className);
   if (player.statusEffects) pushStatusEffectContributions(out, player.statusEffects);
   return out;
 }
@@ -377,6 +389,30 @@ function pushSpecializationContributions(out: Contribution[], specId: string | n
   // adjusting numbers. When a passive layer wires stat-affecting
   // spec passives, those rows append here without touching consumers.
   out.push({ source: `spec:${spec.id}`, label, stat: 'dmgMult', op: 'mul', value: 1 });
+}
+
+function pushEquipmentContributionsFromTemplateMap(
+  out: Contribution[],
+  equipped: Partial<Record<EquipSlot, string>>,
+  className: CharacterClass,
+): void {
+  const equippedTemplateIds: string[] = [];
+  const setIds = new Set<string>();
+  const isMagic = MAGIC_CLASSES.has(className);
+  for (const slot of EQUIP_SLOTS) {
+    const templateId = equipped[slot];
+    if (!templateId) continue;
+    const tpl = ITEMS[templateId];
+    if (!tpl) continue;
+    equippedTemplateIds.push(tpl.id);
+    if (tpl.setId) setIds.add(tpl.setId);
+    pushItemStats(out, tpl, slot, templateId, isMagic);
+  }
+  for (const setId of setIds) {
+    for (const bonus of activeSetBonuses(setId, equippedTemplateIds)) {
+      pushItemStatBlock(out, `set:${setId}:${bonus.requiredCount}`, `Set bonus (${bonus.requiredCount}-pc ${setId})`, bonus.statModifiers, isMagic);
+    }
+  }
 }
 
 function pushEquipmentContributions(out: Contribution[], inventory: CharacterInventory, className: CharacterClass): void {
