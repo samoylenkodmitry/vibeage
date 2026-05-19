@@ -31,7 +31,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     id: 'rage', name: 'Rage',
     description: 'Surge of fury: hit harder for a short window.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
-    manaCost: 20, castMs: 0, cooldownMs: 30000, levelRequired: 20,
+    manaCost: 20, castMs: 0, cooldownMs: 30000, levelRequired: 20, isBlocking: false,
     effects: [{ type: 'bless', value: 25, durationMs: 10000 }],
   },
   execute: {
@@ -68,7 +68,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     id: 'silent_step', name: 'Silent Step',
     description: 'Brief invisibility for repositioning.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
-    manaCost: 30, castMs: 0, cooldownMs: 45000, levelRequired: 20,
+    manaCost: 30, castMs: 0, cooldownMs: 45000, levelRequired: 20, isBlocking: false,
     effects: [{ type: 'invisible', value: 1, durationMs: 8000 }],
   },
   holy_shield: {
@@ -112,7 +112,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     id: 'wind_dash', name: 'Wind Dash',
     description: 'A burst of speed that breaks pursuit.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
-    manaCost: 18, castMs: 0, cooldownMs: 20000, levelRequired: 20,
+    manaCost: 18, castMs: 0, cooldownMs: 20000, levelRequired: 20, isBlocking: false,
     effects: [{ type: 'evasion', value: 40, durationMs: 6000 }],
   },
   // ---- Proficiency skills (Lv 40 unlock) ----
@@ -135,7 +135,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     id: 'blood_frenzy', name: 'Blood Frenzy',
     description: 'Push your body past the limit; massive damage spike.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
-    manaCost: 30, castMs: 0, cooldownMs: 60000, levelRequired: 40,
+    manaCost: 30, castMs: 0, cooldownMs: 60000, levelRequired: 40, isBlocking: false,
     effects: [{ type: 'bless', value: 50, durationMs: 12000 }],
   },
   killing_strike: {
@@ -180,7 +180,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     id: 'divine_taunt', name: 'Divine Taunt',
     description: 'Compel every enemy nearby to attack you.',
     icon: '/game/skills/skill_holyLight.svg', cat: 'aura', kind: 'utility',
-    manaCost: 50, castMs: 0, cooldownMs: 30000, area: 6, levelRequired: 40,
+    manaCost: 50, castMs: 0, cooldownMs: 30000, area: 6, levelRequired: 40, isBlocking: false,
     effects: [{ type: 'taunt', value: 1, durationMs: 8000 }],
   },
   soul_eater: {
@@ -209,7 +209,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     id: 'treasure_sense', name: 'Treasure Sense',
     description: 'Reveals loot drops at a glance.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
-    manaCost: 20, castMs: 0, cooldownMs: 60000, levelRequired: 40,
+    manaCost: 20, castMs: 0, cooldownMs: 60000, levelRequired: 40, isBlocking: false,
     effects: [{ type: 'evasion', value: 15, durationMs: 30000 }],
   },
   stalking_arrow: {
