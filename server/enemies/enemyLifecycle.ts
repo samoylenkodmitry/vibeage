@@ -100,7 +100,7 @@ export function spawnInitialEnemies(
   // PR WW — track which zones we ran the initial spawn on so the
   // post-boot activation tick can spawn newly-active zones exactly
   // once (no doubles when a player re-enters the zone later).
-  const spawnedSet = new Set<string>(state.zones.spawnedZoneIds ?? []);
+  const spawnedSet = new Set<string>(state.zones.spawnedZoneIds);
 
   for (const zoneId of activeZoneIds) {
     let spawnedInZone = 0;

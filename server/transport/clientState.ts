@@ -134,6 +134,10 @@ function makeClientZonesSnapshot(
 
   return {
     activeZoneIds: state.zones.activeZoneIds,
+    // PR WW — spawnedZoneIds is server-only bookkeeping; the client
+    // never needs to know which zones have been initial-spawned, so
+    // an empty list is the right wire shape.
+    spawnedZoneIds: [],
     playerZoneIds: Object.fromEntries(
       Object.entries(state.zones.playerZoneIds).filter(([playerId]) => playerIds.has(playerId)),
     ),

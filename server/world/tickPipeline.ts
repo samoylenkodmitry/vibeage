@@ -109,8 +109,12 @@ function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number 
  */
 function spawnNewlyActivatedZones(input: WorldTickRunnerOptions): void {
   if (!input.zoneManager) return;
-  const spawned = new Set<string>(input.state.zones.spawnedZoneIds ?? []);
-  const newlyActive = input.state.zones.activeZoneIds.filter((id) => !spawned.has(id));
+  // PR WW perf — bot review: this runs every tick. Active-zone
+  // budget is small (8), so `.includes()` on the array beats a
+  // fresh `new Set(...)` allocation 30× / sec. Tests in
+  // tests/frostWolfSpawn.spec.ts pin the behaviour.
+  const spawnedIds = input.state.zones.spawnedZoneIds;
+  const newlyActive = input.state.zones.activeZoneIds.filter((id) => !spawnedIds.includes(id));
   if (newlyActive.length === 0) return;
   spawnInitialEnemies(input.state, input.spatial, input.zoneManager, {
     activeZoneIds: newlyActive,

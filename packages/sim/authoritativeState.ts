@@ -113,8 +113,10 @@ export interface AuthoritativeZoneRuntimeState {
    * spawned at least once. Used to deduplicate spawn runs when a
    * zone becomes active post-boot (player walks into Frozen Tundra
    * — its mobs spawn once; later activations don't double up).
+   * `createGameState` initialises this to an empty array; required
+   * so consumers don't have to nullable-handle the field.
    */
-  spawnedZoneIds?: ZoneId[];
+  spawnedZoneIds: ZoneId[];
 }
 
 export interface AuthoritativeWorldState<
