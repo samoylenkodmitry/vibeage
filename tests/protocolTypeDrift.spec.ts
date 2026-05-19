@@ -133,7 +133,7 @@ describe('protocol type ↔ schema drift', () => {
       InstantHit: { skillId: 'fireball', origin: { x: 0, y: 0, z: 0 }, targetPos: { x: 0, y: 0, z: 0 }, hitIds: [] },
       SkillLearned: { skillId: 'fireball', remainingPoints: 0 },
       SkillShortcutUpdated: { slotIndex: 0, skillId: null },
-      ClassSelected: { className: 'mage', baseStats: { healthMultiplier: 1, manaMultiplier: 1, damageMultiplier: 1, speedMultiplier: 1 } },
+      ClassSelected: { className: 'mage' },
       CastFail: { clientSeq: 0, reason: 'cooldown' },
       CastSnapshot: { data: { castId: 'c', casterId: 'p', skillId: 'fireball', state: 0, origin: { x: 0, z: 0 }, pos: { x: 0, z: 0 }, startedAt: 0, castTimeMs: 0, progressMs: 0 } },
       EffectSnapshot: { targetId: 't', effects: [] },

@@ -34,7 +34,7 @@ describe('owner-only server message guard', () => {
     { name: 'LearnSkillFailed', message: { type: 'LearnSkillFailed', skillId: 'fireball', reason: 'noSkillPoints' } },
     { name: 'SkillLearned', message: { type: 'SkillLearned', skillId: 'fireball', remainingPoints: 0 } },
     { name: 'SkillShortcutUpdated', message: { type: 'SkillShortcutUpdated', slotIndex: 0, skillId: null } },
-    { name: 'ClassSelected', message: { type: 'ClassSelected', className: 'mage', baseStats: {} } },
+    { name: 'ClassSelected', message: { type: 'ClassSelected', className: 'mage' } },
     { name: 'CastFail', message: { type: 'CastFail', clientSeq: 0, reason: 'cooldown' } },
     { name: 'ItemUsed', message: { type: 'ItemUsed', slotIndex: 0, itemId: 'health_potion', newQuantity: 0 } },
     { name: 'LootAcquired', message: { type: 'LootAcquired', items: [] } },

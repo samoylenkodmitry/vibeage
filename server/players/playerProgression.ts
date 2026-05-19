@@ -1,4 +1,5 @@
 import type { CharacterClass } from '../../packages/content/classes.js';
+import { CLASS_AUTO_PASSIVE_SKILL } from '../../packages/content/classPassives.js';
 import { SKILLS, UNIVERSAL_SKILLS, type SkillId } from '../../packages/content/skills.js';
 
 // 24 = 12 (F1-F12) primary row + 12 (Ctrl+F1..F12) secondary row,
@@ -28,12 +29,19 @@ export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = [STARTER_SKILL_BY_CLASS.mage];
 export function starterSkillsFor(className: CharacterClass | string | undefined): SkillId[] {
   const key = className as CharacterClass;
   const starter = STARTER_SKILL_BY_CLASS[key] ?? STARTER_SKILL_BY_CLASS.mage;
+  // PR PP — auto-granted class passive goes in unlockedSkills the
+  // moment the character spawns. The Contribution registry walks
+  // unlockedSkills to apply class HP/MP/dmg/speed deltas, so this
+  // is what makes a warrior tankier than a mage.
+  const autoPassive = CLASS_AUTO_PASSIVE_SKILL[key];
   // Class starter goes first so it binds to the Q hotkey via the default
   // normalizeSkillShortcuts assignment. Universal skills (Basic Attack)
   // follow — they live on a dedicated UI button, not the 4-slot bar, so
   // their position in this list mostly just keeps the skillShortcuts
   // fallback from binding them to a number key.
-  return [starter, ...UNIVERSAL_SKILLS];
+  const out: SkillId[] = [starter, ...UNIVERSAL_SKILLS];
+  if (autoPassive) out.push(autoPassive);
+  return out;
 }
 
 export function numberOrFallback(value: unknown, fallback: number): number {

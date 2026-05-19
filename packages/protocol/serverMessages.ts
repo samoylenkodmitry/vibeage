@@ -56,12 +56,8 @@ export const skillShortcutUpdatedSchema = z.object({
 export const classSelectedSchema = z.object({
   type: z.literal('ClassSelected'),
   className: z.string(),
-  baseStats: z.object({
-    healthMultiplier: z.number(),
-    manaMultiplier: z.number(),
-    damageMultiplier: z.number(),
-    speedMultiplier: z.number(),
-  }).passthrough(),
+  // PR PP — `baseStats` removed. Class differentiation flows through
+  // PASSIVE_SKILL_CONTRIBUTIONS, not a wire-shipped multiplier block.
 }).passthrough();
 
 export const castFailSchema = z.object({
@@ -280,12 +276,6 @@ export type SkillShortcutUpdated = {
 export type ClassSelected = {
   type: 'ClassSelected';
   className: string;
-  baseStats: {
-    healthMultiplier: number;
-    manaMultiplier: number;
-    damageMultiplier: number;
-    speedMultiplier: number;
-  };
 };
 
 export type CastFail = {

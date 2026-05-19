@@ -55,11 +55,17 @@ const SkillSchema = z.object({
   cooldownMs: nonNegativeNumber,
   levelRequired: positiveNumber,
   range: positiveNumber.optional(),
+  // PR PP — passive class skills carry no SkillEffect rows; their
+  // "doing something" is the Contribution they emit into the stat
+  // engine (PASSIVE_SKILL_CONTRIBUTIONS). The active-skill integrity
+  // pass in contentIntegrity.spec.ts is what asserts a non-passive
+  // skill actually has an effect, so relaxing the minimum here is
+  // safe.
   effects: z.array(z.object({
     type: z.string().min(1),
     value: finiteNumber,
     durationMs: positiveNumber.optional(),
-  })).min(1),
+  })),
   projectile: z.object({
     speed: positiveNumber,
     maxRange: positiveNumber.optional(),

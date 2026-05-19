@@ -52,8 +52,10 @@ describe('scenario fixtures', () => {
       socketId: 'new-socket',
       position: beforeRelog.position,
       inventory: beforeRelog.inventory,
-      // basicAttack + escape are appended on hydrate (universal-skills backfill).
-      unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape'],
+      // basicAttack + escape + class auto-passive are appended on
+      // hydrate (universal-skills + PR PP class passive backfill).
+      // beforeRelog is mage → passive_arcane_focus.
+      unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape', 'passive_arcane_focus'],
     });
   });
 

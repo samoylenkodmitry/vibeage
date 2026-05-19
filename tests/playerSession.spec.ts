@@ -72,7 +72,10 @@ describe('player session hydration', () => {
       level: 3,
       experience: 120,
       experienceToNextLevel: 225,
-      unlockedSkills: ['fireball', 'basicAttack', 'escape'],
+      // PR PP — auto-granted class passive (mage → passive_arcane_focus)
+      // is included on hydrate so class HP/MP/dmg deltas land via the
+      // Contribution registry.
+      unlockedSkills: ['fireball', 'basicAttack', 'escape', 'passive_arcane_focus'],
       skillShortcuts: ['fireball', ...Array(23).fill(null)],
       availableSkillPoints: 2,
       starterProgress: {
@@ -80,9 +83,10 @@ describe('player session hydration', () => {
         defeatedEnemyIds: ['enemy-1', 'enemy-2'],
         lootPickups: 1,
         levelReached: 3,
-        // Includes the universal Basic Attack + Escape alongside the
-        // class starter (fireball), so learnedSkills counts all three.
-        learnedSkills: 3,
+        // Class starter + basicAttack + escape + auto-granted class
+        // passive — starterProgress counts every unlocked skill, and
+        // the auto-passive is one of them post-PR-PP.
+        learnedSkills: 4,
         isComplete: false,
         rewardGranted: false,
       },
@@ -244,10 +248,11 @@ describe('player session relog persistence', () => {
       health: beforeRelog.health,
       level: beforeRelog.level,
       experience: beforeRelog.experience,
-      // Universal skills (Basic Attack + Escape) are appended on
-      // hydrate (back-compat for saves written before the universal-
-      // skills concept existed).
-      unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape'],
+      // PR PP — Universal skills (Basic Attack + Escape) + the
+      // auto-granted class passive are appended on hydrate (back-
+      // compat for saves written before either concept existed).
+      // beforeRelog is a mage, so passive_arcane_focus is added.
+      unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape', 'passive_arcane_focus'],
       skillShortcuts: beforeRelog.skillShortcuts,
       availableSkillPoints: beforeRelog.availableSkillPoints,
       starterProgress: stable.starter_progress,
