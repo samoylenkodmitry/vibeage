@@ -18,6 +18,7 @@ import {
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { verifySessionToken } from '../auth/sessionTokens.js';
+import { recordAuthAuditEvent } from '../auth/authAudit.js';
 import {
   createSocketPlayerLookup,
   getEntityRegionId,
@@ -79,6 +80,11 @@ export class ColyseusAuthoritativeRoomAdapter {
         message: 'Please log in to enter the world.',
       });
       runtimeMetrics.increment('room.joinRejected.unauthorized');
+      void recordAuthAuditEvent({
+        type: 'ownership.suspicious',
+        characterName: playerName,
+        reason: options.sessionToken ? 'invalidToken' : 'missingToken',
+      });
       throw new Error('Rejected join: missing or invalid session token');
     }
     const result = await this.port.joinClient(
