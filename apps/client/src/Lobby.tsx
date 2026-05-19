@@ -153,8 +153,43 @@ export function Lobby({
         <button type="button" className="lobby-create" onClick={() => setCreating(true)}>
           + Create New Character
         </button>
+        <DeleteAccountButton session={session} onDeleted={() => {
+          saveSession(null); setSession(null); setCharacters(null);
+        }} />
       </section>
     </main>
+  );
+}
+
+function DeleteAccountButton({ session, onDeleted }: { session: LobbySession; onDeleted: () => void }) {
+  // Two-step confirm: a single click arms the button into a final
+  // "Really delete?" state for 5 seconds. Avoids accidental wipes
+  // while staying keyboard-friendly (no modal trap).
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 5_000);
+    return () => clearTimeout(t);
+  }, [armed]);
+
+  const onClick = async () => {
+    if (!armed) { setArmed(true); return; }
+    await fetch('/api/account', {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${session.token}` },
+    });
+    onDeleted();
+  };
+
+  return (
+    <button
+      type="button"
+      className={armed ? 'lobby-delete-account lobby-delete-account--armed' : 'lobby-delete-account'}
+      onClick={onClick}
+      title="Delete this account and every character on it"
+    >
+      {armed ? 'Click again to confirm — deletes account + all characters' : 'Delete account'}
+    </button>
   );
 }
 
