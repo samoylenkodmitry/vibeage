@@ -2123,9 +2123,12 @@ contiguous list so the audit doesn't fragment.
   bun-suite-order flakes (verified to fail on main without this
   change too). Server now refuses to ship undocumented fields on
   the wire — adding one requires updating the schema explicitly.
-- [ ] **README protocol table.** Still outdated (wrong PosSnap
-  shape at `README.md:60`). Tracked separately from the schema
-  flip — text-only follow-up.
+- [x] **README protocol table.** Refreshed to match the live
+  schemas: `PosSnap` shape corrected (per-entity, not a batch),
+  full server-message list aligned with `serverMessages.ts`,
+  client-message list rounded out. Added a pointer that the
+  `packages/protocol/` Zod schemas are authoritative — no more
+  hand-curating a parallel doc that drifts.
 - [x] **PR #226 (audit events) initial typecheck failure + missing
   hooks.** Original audit-event commit failed `typecheck:server` at
   `server/auth/authAudit.ts:40` (Insertable shape) and mislabeled
