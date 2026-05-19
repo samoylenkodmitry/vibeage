@@ -521,12 +521,23 @@ function pushItemStats(out: Contribution[], item: Item, slot: EquipSlot, instanc
   pushItemStatBlock(out, `item:${item.id}:${instanceId}:${slot}`, `${item.name} (${slot})`, item.stats, isMagic);
 }
 
-// PR §45.1 — content authors author equipment with designer-facing
-// names (hp/mp/critRate/moveSpeed) but the engine pipeline keys off
+// PR §45.1 — content authors use designer-facing names
+// (hp/mp/critRate/moveSpeed) but the engine pipeline keys off
 // `StatId` (maxHealth/maxMana/critChance/runSpeed). Without this
 // alias, the contribution rows were emitted under the wrong stat
 // id and silently dropped by computeAllStats (which only iterates
-// STAT_ORDER). Other keys pass through unchanged.
+// STAT_ORDER). Engine-native keys pass through unchanged; unknown
+// keys are dropped explicitly so a typo can't ship as a silent
+// no-op row.
+const KNOWN_STAT_IDS: ReadonlySet<StatId> = new Set<StatId>([
+  'str', 'dex', 'con', 'int', 'wit', 'men',
+  'pAtk', 'mAtk', 'pDef', 'mDef',
+  'maxHealth', 'maxMana', 'hpRegen', 'mpRegen',
+  'accuracy', 'evasion',
+  'attackSpeed', 'castSpeed', 'runSpeed',
+  'dmgMult', 'critChance', 'critMult',
+]);
+
 const ITEM_STAT_KEY_TO_STAT_ID: Readonly<Record<string, StatId>> = {
   hp: 'maxHealth',
   mp: 'maxMana',
@@ -537,20 +548,8 @@ const ITEM_STAT_KEY_TO_STAT_ID: Readonly<Record<string, StatId>> = {
 function resolveItemStatId(key: string): StatId | null {
   const aliased = ITEM_STAT_KEY_TO_STAT_ID[key];
   if (aliased) return aliased;
-  // Pass through engine-native keys (pAtk, mAtk, pDef, mDef,
-  // attackSpeed). Unknown keys are filtered so a typo in content
-  // doesn't silently emit a no-op row.
   return (KNOWN_STAT_IDS.has(key as StatId) ? (key as StatId) : null);
 }
-
-const KNOWN_STAT_IDS: ReadonlySet<StatId> = new Set<StatId>([
-  'str', 'dex', 'con', 'int', 'wit', 'men',
-  'pAtk', 'mAtk', 'pDef', 'mDef',
-  'maxHealth', 'maxMana', 'hpRegen', 'mpRegen',
-  'accuracy', 'evasion',
-  'attackSpeed', 'castSpeed', 'runSpeed',
-  'dmgMult', 'critChance', 'critMult',
-]);
 
 function pushItemStatBlock(out: Contribution[], source: string, label: string, stats: NonNullable<Item['stats']>, isMagic: boolean): void {
   // Equipment + set-bonus flats land in `addPost` so they aren't

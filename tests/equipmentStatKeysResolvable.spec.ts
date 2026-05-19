@@ -44,31 +44,48 @@ describe('equipment stat keys resolve to a real StatId', () => {
 
 // Regression: shipping equipment with `hp` now actually feeds the
 // `maxHealth` stat rather than disappearing into the cast at
-// pushItemStatBlock.
+// pushItemStatBlock. Compares totals with vs. without a real
+// boss-gear piece that uses every legacy key.
 describe('legacy stat key aliasing makes bonuses land on the right stat', () => {
-  it('hp / mp / critRate / moveSpeed map to maxHealth / maxMana / critChance / runSpeed', async () => {
+  it('hp / mp / critRate / moveSpeed feed maxHealth / maxMana / critChance / runSpeed via the alias', async () => {
     const { buildContributions, computeAllStats } = await import('../packages/sim/statContributions');
-    const view = {
-      level: 1,
-      className: 'warrior' as const,
-      race: 'human' as const,
-      unlockedSkills: [],
-      equippedTemplates: {} as Record<string, string>,
+    const baseView = {
+      level: 1, className: 'warrior' as const, race: 'human' as const,
+      unlockedSkills: [], equippedTemplates: {} as Record<string, string>,
     };
-    // Fake template: only `hp: 100`.
-    // We assemble a Contribution directly via the public registry
-    // path by passing in a real ITEM template that has these keys.
-    // The simplest live exemplar: an item with `hp: <n>` exists in
-    // BOSS_DROP_ITEMS (e.g. one with `pDef: 88, hp: 60`); pinning
-    // its maxHealth contribution is brittle. So instead we just
-    // assert the alias map is referenced — the unit test above
-    // (`every key is resolvable`) covers the "no silent drop"
-    // invariant. Sentinel check: contributions for a player with
-    // no equipment include `baseline:maxHealth` (not an alias) so
-    // the pipeline is intact.
-    const rows = buildContributions(view);
-    const totals = computeAllStats(rows, { ...view, health: 1, maxHealth: 1 }).totals;
-    expect(totals.maxHealth).toBeGreaterThan(0);
-    expect(totals.runSpeed).toBeGreaterThan(0);
+    const baseTotals = computeAllStats(
+      buildContributions(baseView),
+      { ...baseView, health: 1, maxHealth: 1 },
+    ).totals;
+
+    // Inject a fake item template into the registry so the test
+    // doesn't depend on tuning numbers of any real boss drop.
+    const { ITEMS } = await import('../packages/content/items');
+    const FAKE_ID = '__alias_test_helm__';
+    ITEMS[FAKE_ID] = {
+      id: FAKE_ID, name: 'Test Helm', description: 'Alias test fixture',
+      icon: '', stackable: false, type: 'armor',
+      grade: 'a', weight: 1,
+      stats: { hp: 100, mp: 50, critRate: 7, moveSpeed: 2 },
+    };
+
+    const withHelm = {
+      ...baseView,
+      equippedTemplates: { HEAD: FAKE_ID } as Record<string, string>,
+    };
+    const totals = computeAllStats(
+      buildContributions(withHelm),
+      { ...withHelm, health: 1, maxHealth: 1 },
+    ).totals;
+
+    delete ITEMS[FAKE_ID];
+
+    // The deltas must show up on the engine-side stat ids, not the
+    // legacy content-side names (which the StatId union doesn't
+    // even include).
+    expect(totals.maxHealth - baseTotals.maxHealth).toBe(100);
+    expect(totals.maxMana - baseTotals.maxMana).toBe(50);
+    expect(totals.critChance - baseTotals.critChance).toBe(7);
+    expect(totals.runSpeed - baseTotals.runSpeed).toBe(2);
   });
 });
