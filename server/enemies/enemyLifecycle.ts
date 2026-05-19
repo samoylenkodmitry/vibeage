@@ -97,9 +97,14 @@ export function spawnInitialEnemies(
       ? state.zones.activeZoneIds
       : zoneManager.getZones().map((zone) => zone.id));
   let spawned = 0;
+  // PR WW — track which zones we ran the initial spawn on so the
+  // post-boot activation tick can spawn newly-active zones exactly
+  // once (no doubles when a player re-enters the zone later).
+  const spawnedSet = new Set<string>(state.zones.spawnedZoneIds ?? []);
 
   for (const zoneId of activeZoneIds) {
     let spawnedInZone = 0;
+    spawnedSet.add(zoneId);
 
     const miniBoss = zoneManager.getMiniBoss(zoneId);
     if (miniBoss && spawned < maxEnemies && spawnedInZone < maxEnemiesPerZone) {
@@ -134,10 +139,12 @@ export function spawnInitialEnemies(
     }
 
     if (spawned >= maxEnemies) {
+      state.zones.spawnedZoneIds = [...spawnedSet];
       return spawned;
     }
   }
 
+  state.zones.spawnedZoneIds = [...spawnedSet];
   return spawned;
 }
 

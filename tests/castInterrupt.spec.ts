@@ -31,13 +31,18 @@ describe('tryInterruptForNewAction', () => {
     expect(tryInterruptForNewAction(player, {} as ActiveCastStore, sink, 'newCast')).toBe('allow');
   });
 
-  it('interrupts an active blocking + interruptable cast (escape) and clears cooldown + refunds mana', () => {
+  it('interrupts an active blocking + interruptable cast (fireball) and clears cooldown + refunds mana', () => {
+    // PR WW — Escape is now isInterruptable:false ("locked recall
+    // channel"), so it no longer fits the "interruptable" path. Use
+    // a vanilla blocking + interruptable skill (fireball) for this
+    // test; the "Escape stays put on movement" path is locked in
+    // by tests/escapeTeleport.spec.ts.
     const player = createTransientPlayer('s2', 't2');
-    player.castingSkill = 'escape';
+    player.castingSkill = 'fireball';
     player.mana = 50;
     player.maxMana = 100;
-    player.skillCooldownEndTs = { escape: Date.now() + 1_800_000 };
-    const cast = makeCast(player.id, 'escape');
+    player.skillCooldownEndTs = { fireball: Date.now() + 500 };
+    const cast = makeCast(player.id, 'fireball');
     const activeCasts: ActiveCastStore = { [cast.castId]: cast as never };
     const { sink, events } = captureOutbound();
     // Force the resist to miss (stat exists on transient player, so we
@@ -45,7 +50,7 @@ describe('tryInterruptForNewAction', () => {
     expect(tryInterruptForNewAction(player, activeCasts, sink, 'movement', () => 1)).toBe('interrupted');
     expect(player.castingSkill).toBeNull();
     expect(activeCasts[cast.castId]).toBeUndefined();
-    expect(player.skillCooldownEndTs.escape).toBeUndefined();
+    expect(player.skillCooldownEndTs.fireball).toBeUndefined();
     expect(events.find((e) => e.type === 'playerUpdated')).toBeDefined();
   });
 

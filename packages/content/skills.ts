@@ -233,7 +233,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   escape: {
     id: 'escape',
     name: 'Escape',
-    description: 'Channel for 30 seconds, then teleport back to the nearest safe village.',
+    description: 'Channel for 30 seconds, then teleport back to the nearest safe village. Locked: cannot be interrupted by movement or other actions.',
     icon: '/game/skills/skill_melee.svg',
     cat: 'instant',
     kind: 'utility',
@@ -241,11 +241,13 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 30_000,
     cooldownMs: 30 * 60 * 1000,
     levelRequired: 1,
+    // PR WW — locked recall channel: movement / other casts must
+    // not interrupt the 30 s channel ("cast Escape and stayed in
+    // place" bug).
+    isInterruptable: false,
     effects: [
       // Engine reads effect.type === 'teleport' on the caster in
-      // applySkillEffects and routes them to getNearestVillage. value
-      // is unused; durationMs is irrelevant (the teleport is instant
-      // on impact resolution after the 30s channel).
+      // applySkillEffects and routes them to getNearestVillage.
       { type: 'teleport', value: 0 },
     ],
   },

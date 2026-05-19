@@ -1669,7 +1669,7 @@ checkpoint.
 
 ### PR WW — Escape skill + Frost Wolf spawn drift
 
-- [ ] **Bug: Escape didn't teleport.** Player cast Escape
+- [x] **Bug: Escape didn't teleport.** Player cast Escape
   (the universal recall skill) and stayed in place. The
   cast was supposed to route the caster to the nearest
   village via the `teleport` effect handler in
@@ -1683,7 +1683,7 @@ checkpoint.
     code path should survive — `teleport` effect is the
     only route.
 
-- [ ] **Bug: Frost Wolf absent from claimed location.**
+- [x] **Bug: Frost Wolf absent from claimed location.**
   Wiki Mobs tab claims Frost Wolf spawns at `(-460, 480)`
   in Frozen Tundra (per PR FF anchor). Player teleported
   there, found no frost wolves. Possible causes:

@@ -43,7 +43,7 @@ export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager)
     maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,
   });
 
-  startWorldLoop(state, spatial, outbound, regions);
+  startWorldLoop(state, spatial, outbound, regions, zoneManager);
   startPersistenceLoop(state);
 
   return createWorldApi(state, spatial, outbound, regions);
@@ -54,8 +54,9 @@ function startWorldLoop(
   spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
   regions: readonly ServerWorldRegion[],
+  zoneManager: ZoneManager,
 ): void {
-  const runner = createWorldTickRunner({ state, spatial, outbound, tickMs: TICK, snapHz: SNAP_HZ, regions });
+  const runner = createWorldTickRunner({ state, spatial, outbound, tickMs: TICK, snapHz: SNAP_HZ, regions, zoneManager });
 
   setInterval(() => {
     runner.tick();

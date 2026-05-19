@@ -34,6 +34,7 @@ export function createGameState(): GameState {
       activeZoneIds: [],
       playerZoneIds: {},
       enemyZoneIds: {},
+      spawnedZoneIds: [],
     },
   };
 }
