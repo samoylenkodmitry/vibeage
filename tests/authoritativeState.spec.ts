@@ -16,6 +16,9 @@ describe('authoritative game state model', () => {
       activeZoneIds: [],
       playerZoneIds: {},
       enemyZoneIds: {},
+      // PR WW — tracks zones that have had their initial mob
+      // population spawned at least once.
+      spawnedZoneIds: [],
     });
   });
 });

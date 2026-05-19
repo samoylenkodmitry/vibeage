@@ -1,8 +1,9 @@
 import { performance } from 'node:perf_hooks';
 import { tickCasts } from '../combat/skillSystem.js';
 import { createWorldCombatBridge } from './clientMessageRouter.js';
-import { respawnDeadEnemies } from '../enemies/enemyLifecycle.js';
+import { respawnDeadEnemies, spawnInitialEnemies } from '../enemies/enemyLifecycle.js';
 import type { GameState } from '../gameState.js';
+import type { ZoneManager } from '../../packages/content/zones.js';
 import { updateEnemyAI } from '../ai/enemyAI.js';
 import { handleResourceRegeneration } from '../players/playerLifecycle.js';
 import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
@@ -34,6 +35,13 @@ export type WorldTickRunnerOptions = {
   snapHz: number;
   regions?: readonly ServerWorldRegion[];
   regionActivationPolicy?: WorldRegionActivationPolicy;
+  /**
+   * PR WW — passed in so the tick can spawn newly-active zones on
+   * first activation post-boot. Without this, Frozen Tundra (not
+   * in the initial 8 active zones) had no frost wolves when a
+   * player walked in for the first time.
+   */
+  zoneManager?: ZoneManager;
 };
 
 export type WorldTickRunner = {
@@ -89,7 +97,28 @@ function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number 
   if (input.regions) {
     refreshServerOwnedRegionActivation(input.state, input.regions, input.regionActivationPolicy);
     refreshWorldRegionRuntime(input.state, input.regions);
+    spawnNewlyActivatedZones(input);
   }
+}
+
+/**
+ * PR WW — when a region activates for the first time (player walks
+ * into a zone that wasn't in the initial active set), spawn its
+ * starting mob population. Tracked in `state.zones.spawnedZoneIds`
+ * so re-activations don't double-spawn.
+ */
+function spawnNewlyActivatedZones(input: WorldTickRunnerOptions): void {
+  if (!input.zoneManager) return;
+  // PR WW perf — bot review: this runs every tick. Active-zone
+  // budget is small (8), so `.includes()` on the array beats a
+  // fresh `new Set(...)` allocation 30× / sec. Tests in
+  // tests/frostWolfSpawn.spec.ts pin the behaviour.
+  const spawnedIds = input.state.zones.spawnedZoneIds;
+  const newlyActive = input.state.zones.activeZoneIds.filter((id) => !spawnedIds.includes(id));
+  if (newlyActive.length === 0) return;
+  spawnInitialEnemies(input.state, input.spatial, input.zoneManager, {
+    activeZoneIds: newlyActive,
+  });
 }
 
 function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
