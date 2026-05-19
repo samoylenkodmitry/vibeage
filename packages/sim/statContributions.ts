@@ -114,7 +114,7 @@ export function buildContributions(player: StatPlayerView): Contribution[] {
   pushLevelContributions(out, race, level);
   pushClassPassiveContributions(out, className);
   pushSpecializationContributions(out, player.specializationId, level);
-  pushBaselineDerivedContributions(out, className);
+  pushBaselineDerivedContributions(out);
   pushAttributeDerivedContributions(out, className);
   if (player.characterInventory) pushEquipmentContributions(out, player.characterInventory, className);
   if (player.statusEffects) pushStatusEffectContributions(out, player.statusEffects);
@@ -251,7 +251,7 @@ function pushLevelContributions(out: Contribution[], race: CharacterRace, level:
   out.push({ source: `level:${level}:evasion`, label: `Level ${level} evasion`, stat: 'evasion', op: 'addPre', value: level * 0.3 });
 }
 
-function pushBaselineDerivedContributions(out: Contribution[], _className: CharacterClass): void {
+function pushBaselineDerivedContributions(out: Contribution[]): void {
   // The L2-style constants — these are the "starting value" of each
   // derived stat before attribute / equipment / buff scaling.
   out.push({ source: 'baseline:pAtk', label: 'Baseline P.Atk', stat: 'pAtk', op: 'base', value: 6 });
