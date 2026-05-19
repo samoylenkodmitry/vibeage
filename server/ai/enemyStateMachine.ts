@@ -130,16 +130,34 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
   };
 }
 
-const PATROL_RADIUS = 8;
+/**
+ * PR CC — patrol radius. Bosses stay glued to their declared spawn
+ * coord (so the encounter remains findable). Normal mobs roam more
+ * freely; the zone defines where they're strong, not a fence.
+ */
+const PATROL_RADIUS_NORMAL = 60;
+const PATROL_RADIUS_BOSS = 8;
+function patrolRadiusFor(enemy: Enemy): number {
+  return enemy.isMiniBoss ? PATROL_RADIUS_BOSS : PATROL_RADIUS_NORMAL;
+}
 const PATROL_WAIT_MIN_MS = 2_000;
 const PATROL_WAIT_MAX_MS = 6_000;
 const PATROL_ARRIVAL_DISTANCE = 0.7;
 /**
  * Max distance from spawn point an enemy will chase before giving up
  * and returning. Without this leash a player could kite any enemy
- * across the entire world (and have it never reset).
+ * across the entire world (and have it never reset). Bosses keep
+ * the tight 60m so they're always findable at their declared coord;
+ * normal mobs get a much longer leash so they actually feel alive
+ * outside their spawn circle.
  */
-export const MAX_CHASE_DISTANCE_FROM_SPAWN = 60;
+const LEASH_NORMAL = 200;
+const LEASH_BOSS = 60;
+function leashDistanceFor(enemy: Enemy): number {
+  return enemy.isMiniBoss ? LEASH_BOSS : LEASH_NORMAL;
+}
+// Kept exported for tests / callers that need a single canonical value.
+export const MAX_CHASE_DISTANCE_FROM_SPAWN = LEASH_NORMAL;
 
 /**
  * If an enemy stays in the chasing state this long without ever
@@ -173,7 +191,7 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
     return;
   }
 
-  if (enemy.aiState === 'idle' && distanceXZ(enemy.position, enemy.spawnPosition) > PATROL_RADIUS + 1) {
+  if (enemy.aiState === 'idle' && distanceXZ(enemy.position, enemy.spawnPosition) > patrolRadiusFor(enemy) + 1) {
     enemy.aiState = 'returning';
     progress.shouldBroadcastEnemyUpdate = true;
     return;
@@ -186,7 +204,7 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
   if (!enemy.patrolTarget) {
     const rng = context.rng ?? Math.random;
     const angle = rng() * Math.PI * 2;
-    const radius = rng() * PATROL_RADIUS;
+    const radius = rng() * patrolRadiusFor(enemy);
     enemy.patrolTarget = {
       x: enemy.spawnPosition.x + Math.cos(angle) * radius,
       z: enemy.spawnPosition.z + Math.sin(angle) * radius,
@@ -250,7 +268,7 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
   // Leash: stop chasing once we've strayed too far from spawn so a
   // player can't kite a mob across the world. The enemy gives up on
   // its current target and heads home.
-  if (distanceXZ(enemy.position, enemy.spawnPosition) > MAX_CHASE_DISTANCE_FROM_SPAWN) {
+  if (distanceXZ(enemy.position, enemy.spawnPosition) > leashDistanceFor(enemy)) {
     enemy.targetId = null;
     enemy.chaseStartedAt = undefined;
     enemy.aiState = 'returning';
@@ -348,7 +366,7 @@ function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
   // Don't re-aggro while still beyond the leash boundary, otherwise a
   // hovering player would flip the enemy back to chasing immediately
   // and the leash never holds.
-  if (distanceFromSpawn > MAX_CHASE_DISTANCE_FROM_SPAWN) {
+  if (distanceFromSpawn > leashDistanceFor(enemy)) {
     return;
   }
 
