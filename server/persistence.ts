@@ -122,11 +122,13 @@ export function buildStablePlayerPersistenceData(
     gold: player.gold ?? 0,
     class_name: player.className,
     race: player.race ?? DEFAULT_RACE,
-    inventory: player.inventory || [],
-    // CharacterInventory aggregate carries item instances + equipped
-    // slot assignments + occupancy. Without this column equipped gear
-    // round-trips through the legacy bag-only `inventory` jsonb and
-    // disappears on the next session.
+    // §45.7 — `inventory` column is the legacy flat-bag shape;
+    // `character_inventory` is the authoritative aggregate. We
+    // stopped persisting `inventory` here (always empty) so there's
+    // exactly one source of truth on disk. `hydratePersistedPlayer`
+    // ignores the column and rebuilds `player.inventory` from the
+    // aggregate via `hydratePersistedCharacterInventory`.
+    inventory: [],
     character_inventory: player.characterInventory ?? null,
     skills: unlockedSkills,
     skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),

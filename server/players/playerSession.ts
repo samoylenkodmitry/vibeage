@@ -177,7 +177,13 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     starterProgress,
     posHistory: [],
     lastUpdateTime: Date.now(),
-    inventory: row.inventory || [],
+    // §45.7 — `player.inventory` is now derived from
+    // `player.characterInventory` (see hydratePersistedCharacterInventory
+    // below). Seed with an empty array; the bridge overwrites it via
+    // `syncLegacyInventory` as soon as the aggregate lands. The DB
+    // `inventory` column is no longer persisted, only this in-memory
+    // wire-shape projection.
+    inventory: [],
     maxInventorySlots: 20,
     specializationId: normalizeSpecializationId(row.specialization_id),
     skillLevels: normalizeSkillLevels(row.skill_levels),
