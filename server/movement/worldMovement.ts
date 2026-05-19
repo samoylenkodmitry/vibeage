@@ -3,6 +3,11 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { WORLD_SETTINGS } from '../../packages/content/world.js';
 import type { GameState } from '../gameState.js';
 import { gridCellChanged, type SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import {
+  emitEnemyUpdated,
+  emitPlayerUpdated,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 
 const MAX_HISTORY_AGE_MS = 500;
 const DEFAULT_PLAYER_SPEED = 20;
@@ -74,12 +79,18 @@ export function advanceAll(
   spatial: SpatialHashGrid,
   deltaTimeMs: number,
   now: number = Date.now(),
+  outbound?: OutboundEventSink,
 ): void {
   for (const player of Object.values(state.players)) {
     if (player.movement?.isMoving && player.movement?.targetPos) {
       advancePlayerPosition(player, spatial, deltaTimeMs, now);
     }
-    pruneExpiredStatusEffects(player, now);
+    // PR LL — emit when the prune actually changed the list, so the
+    // client side drops the chip immediately instead of carrying a
+    // stale invisible / dot / slow icon until the next snapshot.
+    if (pruneExpiredStatusEffects(player, now) && outbound) {
+      emitPlayerUpdated(outbound, { id: player.id, statusEffects: player.statusEffects });
+    }
   }
 
   for (const enemy of Object.values(state.enemies)) {
@@ -88,7 +99,9 @@ export function advanceAll(
     }
 
     advanceEnemyPosition(enemy, spatial, deltaTimeMs, now);
-    pruneExpiredStatusEffects(enemy, now);
+    if (pruneExpiredStatusEffects(enemy, now) && outbound) {
+      emitEnemyUpdated(outbound, enemy);
+    }
   }
 }
 
@@ -281,9 +294,9 @@ function updatePositionHistory(entity: PlayerState | Enemy, timestamp: number): 
   }
 }
 
-function pruneExpiredStatusEffects(entity: PlayerState | Enemy, now: number): void {
+function pruneExpiredStatusEffects(entity: PlayerState | Enemy, now: number): boolean {
   if (entity.statusEffects.length === 0) {
-    return;
+    return false;
   }
   // Cheap pre-check: if nothing's expired, skip the filter allocation.
   // `?? 0` keeps the arithmetic safe if a malformed effect slips past
@@ -293,11 +306,12 @@ function pruneExpiredStatusEffects(entity: PlayerState | Enemy, now: number): vo
     (effect) => (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) <= now,
   );
   if (!hasExpired) {
-    return;
+    return false;
   }
   entity.statusEffects = entity.statusEffects.filter(
     (effect) => (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) > now,
   );
+  return true;
 }
 
 function predictLinearState(

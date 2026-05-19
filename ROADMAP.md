@@ -1549,40 +1549,29 @@ Three playtest reports landed after wave 8 deployed.
 
 ### PR LL — Stale buff cleanup + self-target keeps current target
 
-- [ ] **Bug: expired buffs linger on display.** Player
-  reported the `invisible` icon still showed on their plate
-  after the 6 s Vanish duration ended (not actively working
-  in-engine, but the chip stayed). Engine must prune any
-  status effect whose `startTimeTs + durationMs <= now` on
-  every tick that emits the player snapshot, and the wire
-  shape sent to the client must already be the pruned list.
-  Single eviction point — no per-effect special case. Add a
-  test that ticks 7 s past Vanish and asserts the player's
-  statusEffects no longer contains `invisible`.
-- [ ] **Bug: self-target casts steal the player's target.**
-  After casting Vanish (selfTarget = true), the player's
-  selected enemy gets dropped client-side because the cast
-  pipeline resolves the cast at the caster and the client
-  treats that as "you now target yourself". Fix at the
-  client (preserve `selectedTargetId` across cast snapshots
-  that land on self) — or at the cast issuance layer if the
-  intent is set there. Verify by selecting a goblin →
-  casting Vanish → the goblin is still selected after.
-- [ ] Apply the same rule to every existing skill marked
-  `selfTarget: true` (today only Vanish, but cleansing
-  /shield self / blink will share the path).
+- [x] Movement tick (`advanceAll`) now passes the outbound
+  sink to `pruneExpiredStatusEffects` and emits
+  `playerUpdated` / `enemyUpdated` whenever the prune
+  actually changes the array. The client drops the chip
+  the same tick instead of carrying a stale icon. Covered
+  by `tests/buffPruneEmit.spec.ts`.
+- [x] `resolveCastTargetId` short-circuits to null when
+  `skill.selfTarget` is set; server's resolveCastTargets
+  routes the cast at the caster via the existing
+  selfTarget branch. `fireCastReq` no longer dispatches
+  `selectTarget` when the resolved id matches the caster,
+  so casting Vanish with a goblin selected keeps the
+  goblin on the target plate.
 
 ### PR MM — Scrollable system chat
 
-- [ ] The combat / system chat panel is currently a static
-  list — when it scrolls off, history is unreachable. Make
-  the chat scroll region a proper scroll container with
-  styled scrollbar, auto-scroll-to-bottom on new line *only
-  when the user is already at the bottom*, and a "jump to
-  latest" affordance when the user has scrolled up.
-- [ ] Keep the scroll behaviour purely client-side; no
-  protocol change.
-- [ ] Cap the history at a sensible size (e.g. 200 lines)
-  so the DOM doesn't grow without bound during long
-  sessions.
+- [x] New `CombatLogPanel` with scrollable container,
+  styled scrollbar, "stuck to bottom" auto-scroll (24px
+  tolerance), and a `↓` jump-to-latest button when
+  scrolled up.
+- [x] Render order flipped: oldest at top, newest at
+  bottom (standard chat flow). Newest line keeps the
+  warm yellow highlight.
+- [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
+  bounded.
 

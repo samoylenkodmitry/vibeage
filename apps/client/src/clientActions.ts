@@ -165,9 +165,9 @@ function useCastActions(
       clientTs: Date.now(),
       ...(force ? { force: true } : {}),
     });
-    if (targetId) {
-      dispatch({ type: 'selectTarget', targetId });
-    }
+    // PR LL — only refocus the plate for cross-entity casts; self-casts
+    // (Vanish etc.) must not wipe the player's existing enemy selection.
+    if (targetId && targetId !== player.id) dispatch({ type: 'selectTarget', targetId });
   }, [roomRef, dispatch]);
 
   const armAutoAttack = useCallback((skillId: SkillId, targetId: string) => {
@@ -606,9 +606,15 @@ function approachPointToward(player: PlayerEntity, target: EnemyEntity, skillId:
  * with friendly-fire. Ctrl-cast keeps the explicit override path.
  */
 function resolveCastTargetId(state: GameClientState, player: PlayerEntity, skillId: SkillId): string | null {
+  const skillDef = SKILLS[skillId];
+  // PR LL — selfTarget skills always land on the caster regardless of
+  // selection. Send `targetId: undefined` so the server's
+  // resolveCastTargets routes the cast at the caster via the
+  // `skill.selfTarget` branch, and so the redirect doesn't show up
+  // as a "you targeted self" cue downstream.
+  if (skillDef?.selfTarget) return null;
   const raw = getCastTargetId(state, player, skillId);
   if (!raw || isForceCastHeld()) return raw;
-  const skillDef = SKILLS[skillId];
   if (classifySkill(skillDef?.effects ?? []) !== 'beneficial') return raw;
   if (state.enemies[raw]?.isAlive) return player.id;
   return raw;

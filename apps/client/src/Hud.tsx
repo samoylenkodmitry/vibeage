@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
+import { CombatLogPanel } from './hud/CombatLogPanel';
 import { NpcDialog } from './hud/NpcDialog';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
@@ -130,13 +131,7 @@ export function GameHud(props: GameHudProps) {
         onCastSkill={onCastSkill}
       />
       <PanelToggleStrip panels={panels} />
-      {state.combatLog.length > 0 && (
-        <section className="combat-log" aria-label="Combat log">
-          {state.combatLog.map((line) => (
-            <span key={line.id}>{line.text}</span>
-          ))}
-        </section>
-      )}
+      {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
     </>
   );

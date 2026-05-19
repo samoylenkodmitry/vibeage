@@ -12,7 +12,10 @@ import { normalizeVec3 } from './vec3';
 import { addVisualEvent, pruneVisualEvents } from './visualEventState';
 
 const CAST_VISIBLE_MS = 3_000;
-const MAX_COMBAT_LINES = 5;
+// PR MM — was 5 to fit the static strip; the scrollable chat panel
+// carries real history now. 200 lines is plenty for a long session
+// without the DOM growing unbounded.
+const MAX_COMBAT_LINES = 200;
 
 export function applyCombatLogVisualState(
   state: GameClientState,
