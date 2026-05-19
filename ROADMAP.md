@@ -2072,13 +2072,16 @@ contiguous list so the audit doesn't fragment.
   water-damage amplifier, knockback movement, or transform machine
   exists. **Fix**: either wire each effect's handler or strip the
   effect from skill data + adjust descriptions.
-- [ ] **Projectile pierce is stale content.**
-  `packages/content/skills.ts:546` explicitly notes pierce is not
-  read; volley still claims piercing at line 567. Runtime returns
-  on first swept hit (`server/combat/projectileRuntime.ts:63`).
-  **Fix**: implement pierce in `projectileRuntime` (it has a
-  `maxPierceHits` field already in `SkillDef`) or drop the volley
-  claim.
+- [x] **Projectile pierce is wired.** `projectileRuntime` now
+  applies per-hit damage to each new enemy in the sweep when
+  `skill.projectile.pierce` is true, appending entity ids to
+  `Cast.pierceHits`. The projectile keeps Traveling until
+  `pierceHits.length >= maxPierceHits` or it runs out of range.
+  `applyProjectileHit` in `impactResolver.ts` calls the same
+  damage / status-effect / death pipeline as a full impact and
+  emits a per-hit CombatLog. Non-piercing projectiles keep the
+  legacy single-hit-then-Impact path. Tests at
+  `tests/combat.projectileRuntime.spec.ts` pin both paths.
 - [ ] **Item catalog placeholders.** Several utility consumables
   are marked as `material` because the buff / scroll system does
   not exist (`packages/content/items.ts:487`).

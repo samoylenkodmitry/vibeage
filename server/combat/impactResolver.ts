@@ -44,8 +44,48 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'teleport',
 ]);
 
+/**
+ * §45.5 — apply one piercing-projectile hit. Calls the same damage
+ * / status-effect / death pipeline as a full impact, but emits a
+ * single-target CombatLog so the client can render each pierce hit
+ * as it lands instead of one aggregated message at end-of-travel.
+ *
+ * Non-piercing projectiles still go through `resolveCastImpact` at
+ * the Impact state transition; this is the per-hit path used by
+ * `updateTravelingCast` while the projectile is still moving.
+ */
+export function applyProjectileHit(
+  cast: Cast,
+  target: Enemy | PlayerState,
+  outbound: OutboundEventSink,
+  world: CombatWorld,
+): void {
+  const skill = SKILLS[cast.skillId];
+  const caster = world.getPlayerById(cast.casterId);
+  const context: ImpactContext = { caster, skill, outbound, world };
+  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
+  const damage = calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id);
+  applyCastToTarget(target, damage, context);
+  emitServerMessage(outbound, {
+    type: 'CombatLog',
+    castId: cast.castId,
+    skillId: cast.skillId,
+    casterId: cast.casterId,
+    targets: [target.id],
+    damages: [damage],
+  });
+}
+
 export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld): void {
   const skill = SKILLS[cast.skillId];
+  // §45.5 — for piercing projectiles, damage was applied per-hit
+  // in `applyProjectileHit` while the projectile was traveling.
+  // The Impact transition is purely cosmetic here; skip the area
+  // resolve so we don't double-damage anyone, and skip the AOE
+  // sweep since pierce projectiles don't carry one today.
+  if (skill.projectile?.pierce && cast.pierceHits && cast.pierceHits.length > 0) {
+    return;
+  }
   const caster = world.getPlayerById(cast.casterId);
   const context = { caster, skill, outbound, world };
 

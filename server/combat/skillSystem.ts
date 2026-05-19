@@ -35,6 +35,14 @@ export interface Cast {
   targetId?: string;
   targetPos?: VecXZ;
   speed?: number; // Projectile speed
+  /**
+   * §45.5 — entity IDs already damaged by this projectile when the
+   * skill's projectile.pierce flag is set. Each new pierce hit
+   * applies damage immediately and appends to this list; the
+   * runtime stops once `maxPierceHits` is reached. Non-piercing
+   * projectiles never populate this field.
+   */
+  pierceHits?: string[];
 }
 
 export type ActiveCastStore = Record<string, Cast>;

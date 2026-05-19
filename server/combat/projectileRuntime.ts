@@ -1,10 +1,11 @@
 import { SKILLS } from '../../packages/content/skills.js';
 import { CastState, type VecXZ } from '../../packages/protocol/messages.js';
 import { sweptCircleHit } from '../../packages/sim/collision.js';
+import type { Enemy } from '../../packages/sim/entities.js';
 import type { OutboundEventSink } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 import { emitCastSnapshot } from './castSnapshots.js';
-import { resolveCastImpact } from './impactResolver.js';
+import { applyProjectileHit, resolveCastImpact } from './impactResolver.js';
 import type { CombatWorld } from './worldContract.js';
 
 export function updateTravelingCast(
@@ -30,7 +31,21 @@ export function updateTravelingCast(
     cast.lastBroadcast = now;
   }
 
-  if (shouldImpact(cast, oldPos, world)) {
+  // §45.5 — apply per-hit damage for piercing projectiles, then
+  // decide whether to keep traveling or end the cast. Non-piercing
+  // projectiles still go through the existing single-hit-then-impact
+  // path below.
+  const newHits = collectProjectileHits(cast, oldPos, world);
+  const skill = SKILLS[cast.skillId];
+  if (newHits.length > 0 && skill.projectile?.pierce) {
+    cast.pierceHits = cast.pierceHits ?? [];
+    for (const target of newHits) {
+      applyProjectileHit(cast, target, outbound, world);
+      cast.pierceHits.push(target.id);
+    }
+  }
+
+  if (shouldImpact(cast, oldPos, world, newHits)) {
     cast.state = CastState.Impact;
     emitCastSnapshot(outbound, cast);
     resolveCastImpact(cast, outbound, world);
@@ -51,31 +66,38 @@ function updateTrackedTarget(cast: Cast, world: CombatWorld): void {
   cast.dir = direction(cast.pos, cast.targetPos);
 }
 
-function shouldImpact(cast: Cast, oldPos: VecXZ, world: CombatWorld): boolean {
+function shouldImpact(cast: Cast, oldPos: VecXZ, world: CombatWorld, newHits: ReadonlyArray<Enemy>): boolean {
   const skill = SKILLS[cast.skillId];
   const maxRange = skill.range || 50;
+  const outOfRange = distance(cast.origin, cast.pos ?? cast.origin) > maxRange;
+  if (reachedTarget(cast) || outOfRange) return true;
 
-  return reachedTarget(cast)
-    || distance(cast.origin, cast.pos ?? cast.origin) > maxRange
-    || hasProjectileHitTarget(cast, oldPos, world);
+  // Non-piercing projectile: any new hit ends the cast (legacy
+  // single-hit-then-impact behaviour).
+  if (!skill.projectile?.pierce) return newHits.length > 0;
+
+  // Piercing projectile: end once we've hit our cap. `pierceHits`
+  // is already updated with this tick's hits by the caller.
+  const maxHits = skill.projectile.maxPierceHits ?? Number.POSITIVE_INFINITY;
+  return (cast.pierceHits?.length ?? 0) >= maxHits;
 }
 
-function hasProjectileHitTarget(cast: Cast, oldPos: VecXZ, world: CombatWorld): boolean {
+function collectProjectileHits(cast: Cast, oldPos: VecXZ, world: CombatWorld): Enemy[] {
   const skill = SKILLS[cast.skillId];
   const hitRadius = skill.projectile?.hitRadius || 0.5;
-
+  const already = new Set(cast.pierceHits ?? []);
+  const hits: Enemy[] = [];
   for (const entity of world.getEntitiesInCircle(cast.pos ?? cast.origin, hitRadius * 2)) {
-    if (entity.id === cast.casterId || !entity.isAlive || !world.getEnemyById(entity.id)) {
-      continue;
-    }
-
-    const entityPos = { x: entity.position.x, z: entity.position.z };
+    if (entity.id === cast.casterId) continue;
+    if (already.has(entity.id)) continue;
+    const enemy = world.getEnemyById(entity.id);
+    if (!enemy || !enemy.isAlive) continue;
+    const entityPos = { x: enemy.position.x, z: enemy.position.z };
     if (sweptCircleHit(oldPos, cast.pos ?? oldPos, entityPos, hitRadius)) {
-      return true;
+      hits.push(enemy);
     }
   }
-
-  return false;
+  return hits;
 }
 
 export function reachedTarget(cast: Cast): boolean {
