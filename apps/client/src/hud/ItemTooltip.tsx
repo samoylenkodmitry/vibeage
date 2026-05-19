@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
+import { openWikiAt } from './wikiNavBus';
 
 type ItemTooltipProps = {
   itemId: string;
@@ -80,6 +81,12 @@ export function ItemTooltip({ itemId, clientX, clientY }: ItemTooltipProps) {
           {weight > 0 ? <span>{(weight / 1000).toFixed(1)} kg</span> : null}
         </footer>
       )}
+      <button
+        type="button"
+        className="tooltip-wiki-link"
+        onClick={(e) => { e.stopPropagation(); openWikiAt('items', item.id); }}
+        title="Open in Wiki"
+      >Open in Wiki →</button>
     </div>,
     document.body,
   );

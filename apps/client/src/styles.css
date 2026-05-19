@@ -2149,6 +2149,22 @@ input {
   font-size: 10px;
 }
 
+.tooltip-wiki-link {
+  margin-top: 4px;
+  padding: 4px 6px;
+  background: rgba(141, 233, 215, 0.08);
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 4px;
+  color: #8de9d7;
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tooltip-wiki-link:hover {
+  background: rgba(141, 233, 215, 0.18);
+}
+
 /* Skill tooltip shares the visual language of .item-tooltip — keep
    structure identical so a future shared class refactor is trivial. */
 .skill-tooltip {

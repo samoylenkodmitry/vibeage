@@ -313,6 +313,14 @@ function useTryAdvanceAutoAttack(
       dispatch({ type: 'clearAutoAttack' });
       return;
     }
+    // PR Z — don't fire auto-attack while another cast is in flight.
+    // The auto-tick used to interrupt the player's own slash /
+    // powerStrike / backstab the moment basicAttack came off
+    // cooldown, because firing basicAttack mid-cast would either
+    // cancel the active cast (resist roll fails) or get rejected
+    // server-side (resist roll succeeds). Either way the auto-tick
+    // was making physical skills feel impossible to land.
+    if (player.castingSkill) return;
     const cdEnd = player.skillCooldownEndTs?.[auto.skillId] ?? 0;
     if (Date.now() < cdEnd) return;
     // Re-fire by re-entering castSkill — that path handles approach,
