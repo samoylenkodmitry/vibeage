@@ -1,6 +1,8 @@
 import { DEFAULT_RACE } from '../packages/content/races.js';
 import type { PlayerState } from '../packages/sim/entities.js';
+import { flattenInventoryToSlots } from '../packages/sim/inventoryWireAdapter.js';
 import { normalizeStarterProgressState } from '../packages/protocol/messages.js';
+import { ensureCharacterInventory } from './inventory/aggregateBridge.js';
 import {
   normalizeUnlockedSkills,
   normalizeSkillShortcuts,
@@ -111,6 +113,15 @@ export function buildStablePlayerPersistenceData(
     learnedSkills: unlockedSkills.length,
   });
 
+  // §45.7 — `character_inventory` is the authoritative aggregate on
+  // disk. If we somehow reach here with only the legacy `inventory`
+  // populated (transient players that never went through the bridge,
+  // or fixtures), promote them to the aggregate before persisting so
+  // the next hydrate has a real source to rebuild from. After this
+  // call both `player.inventory` and `player.characterInventory` are
+  // populated and in lockstep.
+  const aggregate = ensureCharacterInventory(player);
+
   return {
     position_x: player.position.x,
     position_y: player.position.y,
@@ -122,14 +133,11 @@ export function buildStablePlayerPersistenceData(
     gold: player.gold ?? 0,
     class_name: player.className,
     race: player.race ?? DEFAULT_RACE,
-    // §45.7 — `inventory` column is the legacy flat-bag shape;
-    // `character_inventory` is the authoritative aggregate. We
-    // stopped persisting `inventory` here (always empty) so there's
-    // exactly one source of truth on disk. `hydratePersistedPlayer`
-    // ignores the column and rebuilds `player.inventory` from the
-    // aggregate via `hydratePersistedCharacterInventory`.
-    inventory: [],
-    character_inventory: player.characterInventory ?? null,
+    // Derived view of the aggregate — kept on disk for now so the
+    // restore-compat check still finds the column. Migration 011
+    // will drop it once we're confident no consumer reads it.
+    inventory: flattenInventoryToSlots(aggregate),
+    character_inventory: aggregate,
     skills: unlockedSkills,
     skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),
     available_skill_points: player.availableSkillPoints,
