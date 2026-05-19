@@ -107,7 +107,10 @@ async function handleListCharacters(req: Request, res: Response): Promise<void> 
 async function handleCreateCharacter(req: Request, res: Response): Promise<void> {
   const accountId = (req as Request & { accountId: string }).accountId;
   const { name, race, className } = (req.body ?? {}) as { name?: string; race?: string; className?: string };
-  if (!name || !race || !className) { res.status(400).send({ error: 'invalidRequest' }); return; }
+  if (!name || !race || !className) {
+    res.status(400).send({ error: 'invalidRequest' });
+    return;
+  }
   if (!CHARACTER_RACES.includes(race as CharacterRace)
     || !CLASS_SKILL_TREES[className as CharacterClass]
     || !isClassAllowedForRace(race as CharacterRace, className as CharacterClass)) {
@@ -115,7 +118,10 @@ async function handleCreateCharacter(req: Request, res: Response): Promise<void>
     return;
   }
   const result = await createCharacterForAccount(accountId, name, race, className);
-  if (result.ok === false) { res.status(400).send({ error: result.error }); return; }
+  if (result.ok === false) {
+    res.status(400).send({ error: result.error });
+    return;
+  }
   void recordAuthAuditEvent({ type: 'character.create', accountId, characterName: name, remoteAddr: clientIp(req) });
   res.status(201).send({ ok: true });
 }

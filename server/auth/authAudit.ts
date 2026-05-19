@@ -46,7 +46,7 @@ export async function recordAuthAuditEvent(event: AuthAuditEvent): Promise<void>
   // Prod logs grep on this `[audit]` prefix.
   console.log(`[audit] ${event.type}`, JSON.stringify(data));
   try {
-    const values = {
+    const values: Pick<Insertable<ServerEventsTable>, 'event_type' | 'player_id' | 'event_data' | 'timestamp' | 'description'> = {
       event_type: event.type,
       player_id: null,
       event_data: sql`${JSON.stringify(data)}::jsonb`,
@@ -55,7 +55,7 @@ export async function recordAuthAuditEvent(event: AuthAuditEvent): Promise<void>
     };
     await database
       .insertInto('server_events')
-      .values(values as unknown as Insertable<ServerEventsTable>)
+      .values(values as Insertable<ServerEventsTable>)
       .execute();
   } catch (err) {
     console.warn(`[audit] failed to persist ${event.type}:`, err);
