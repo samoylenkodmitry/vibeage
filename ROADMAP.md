@@ -1575,6 +1575,95 @@ Three playtest reports landed after wave 8 deployed.
 - [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
   bounded.
 
+## 43. Bot architecture review — finishing single-source-of-truth (2026-05-19)
+
+A code-review bot audited the recent stats / class-as-skills work
+and flagged four real architectural gaps. The PRs below close
+each one. Direction is right; "looks unified" needs to become
+"actually unified". Each item ends with an old-system-removal
+checkpoint.
+
+### PR SS — Specialization passive modifiers feed Contributions
+
+- [ ] `SPECIALIZATIONS[*].specPassive.modifiers` is data-only
+  today; `pushSpecializationContributions` emits a ×1
+  placeholder (`packages/sim/statContributions.ts:422`).
+  Surface the real numbers: extend the Contribution
+  registry to read the modifiers and emit one row per
+  affected stat, gated by level (SPECIALIZATION_UNLOCK_LEVEL
+  for the spec passive, PROFICIENCY_LEVEL for the
+  proficiency passive).
+- [ ] Wiki Specs tab is the single description source
+  (already shows the +25% number); the Contribution row's
+  label / value must match the data, not the description
+  text — the data drives both.
+- [ ] **Old-system removal**: delete the placeholder ×1
+  contribution. After this, the only spec-stat code path
+  is the registry → Contribution emit. Audit (PR RR)
+  extended to verify every non-empty
+  `specPassive.modifiers` block emits a real Contribution
+  row.
+
+### PR TT — Movement consumes player.stats.runSpeed
+
+- [ ] `server/movement/worldMovement.ts:108` uses
+  `DEFAULT_PLAYER_SPEED` + ad-hoc `slow` / `speed_boost`
+  branches; `player.stats.runSpeed` is computed but the
+  movement code never reads it. Make movement
+  authoritative on the stat: speed-of-step =
+  `player.stats.runSpeed` (units/sec) for the per-tick
+  translation.
+- [ ] Status effects that affect speed (`slow`, future
+  speed buffs) flow through the Contribution registry
+  already (PR NN); the movement code therefore needs zero
+  branches for individual effects — it just reads the
+  cached stat.
+- [ ] **Old-system removal**: delete `DEFAULT_PLAYER_SPEED`
+  and every per-effect speed branch in worldMovement.ts.
+  After this, "speed" lives in one place: `STATS.runSpeed`
+  + its Contributions. Add a test that casting Slow on a
+  player measurably reduces world-units per tick.
+
+### PR UU — Single source of SkillId across TS + protocol
+
+- [ ] Today: `SkillId` is a hand-written TS union
+  (`packages/content/skills.ts:2`) AND `skillIdValues` is
+  a hand-written Zod enum (`packages/protocol/common.ts:17`)
+  covering the same ids. `protocolSkillIdCoverage.spec.ts`
+  catches drift but the two lists are still duplicated.
+- [ ] Pick one as the source. Cleanest:
+  `skillIdValues` is the literal array; `SkillId` derives
+  via `typeof skillIdValues[number]`. The Zod enum stays
+  exactly that array.
+- [ ] **Old-system removal**: delete the manual TS union;
+  keep only the array → typeof inference path. Remove the
+  `protocolSkillIdCoverage` drift test once the duplicate
+  is gone (no two-source problem to police).
+
+### PR VV — Audit hardening + HUD overlap fix
+
+- [ ] **Fix audit comment refs**: `waterWeakness` is on
+  `waterSplash` (not `iceBolt`); `knockback` is on
+  `powerStrike` (not `bash`). The audit currently lies in
+  its `UNIMPLEMENTED_EFFECT_TYPES` comments.
+- [ ] **Percent-claim test**: today asserts only
+  `description.length > 0`. Tighten: when a description
+  contains `+N%` / `−N%`, verify the matching contribution
+  / effect value numerically. Catches "claims +25% but
+  data says 1.0".
+- [ ] **Playwright HUD overlap**: bot reported clicks on
+  the Cast Fireball button blocked by `.combat-log-scroll`
+  intercepting them — PR MM gave the chat
+  `pointer-events: auto` and stretched it across the bar.
+  Either narrow the hit area to the actual chat region or
+  push the chat panel below the skill bar's z-stack.
+  Verify with `pnpm run check` (Playwright suite).
+- [ ] **Old-system removal**: every type in
+  `UNIMPLEMENTED_EFFECT_TYPES` either gets wired in this
+  PR or moves to a roadmap follow-up with a dated owner.
+  Audit must fail if an unimplemented type silently slips
+  back into "ok" without either action.
+
 ## 42. Stat-popup polish + skill-spec audit (planned 2026-05-19)
 
 User playtested the PR PP popup and caught five concrete bugs +
