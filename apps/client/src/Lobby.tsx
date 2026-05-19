@@ -164,30 +164,47 @@ function DeleteAccountButton({ session, onDeleted }: { session: LobbySession; on
   // "Really delete?" state for 5 seconds. Avoids accidental wipes
   // while staying keyboard-friendly (no modal trap).
   const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (!armed) return;
+    if (!armed || busy) return;
     const t = setTimeout(() => setArmed(false), 5_000);
     return () => clearTimeout(t);
-  }, [armed]);
+  }, [armed, busy]);
 
   const onClick = async () => {
-    if (!armed) { setArmed(true); return; }
-    await fetch('/api/account', {
-      method: 'DELETE',
-      headers: { authorization: `Bearer ${session.token}` },
-    });
-    onDeleted();
+    if (!armed) { setArmed(true); setError(null); return; }
+    if (busy) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${session.token}` },
+      });
+      if (!res.ok) { setError(`Delete failed (${res.status})`); setArmed(false); return; }
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+      setArmed(false);
+    } finally {
+      setBusy(false);
+    }
   };
 
+  const label = busy ? 'Deleting…'
+    : armed ? 'Click again to confirm — deletes account + all characters'
+    : 'Delete account';
   return (
-    <button
-      type="button"
-      className={armed ? 'lobby-delete-account lobby-delete-account--armed' : 'lobby-delete-account'}
-      onClick={onClick}
-      title="Delete this account and every character on it"
-    >
-      {armed ? 'Click again to confirm — deletes account + all characters' : 'Delete account'}
-    </button>
+    <>
+      <button
+        type="button"
+        disabled={busy}
+        className={armed ? 'lobby-delete-account lobby-delete-account--armed' : 'lobby-delete-account'}
+        onClick={onClick}
+        title="Delete this account and every character on it"
+      >{label}</button>
+      {error && <small className="lobby-error" role="alert">{error}</small>}
+    </>
   );
 }
 
