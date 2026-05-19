@@ -59,6 +59,10 @@ export function VitalsStrip({
         </div>
         <strong>{formatMeter(player?.experience, player?.experienceToNextLevel)}</strong>
       </div>
+      <div className="vitals-gold" aria-label="Gold">
+        <span>Gold</span>
+        <strong>{(player?.gold ?? 0).toLocaleString()}</strong>
+      </div>
     </section>
   );
 }

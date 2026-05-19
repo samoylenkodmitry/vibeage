@@ -3,6 +3,8 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
 import { NpcDialog } from './hud/NpcDialog';
+import { VendorPanel } from './hud/VendorPanel';
+import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
@@ -33,6 +35,8 @@ type GameHudProps = {
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
+  onBuyFromVendor: (vendorId: string, itemId: string, quantity: number) => void;
+  onSellToVendor: (vendorId: string, itemId: string, quantity: number) => void;
   onGmCommand: (cmd: {
     verb:
       | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -49,32 +53,14 @@ type GameHudProps = {
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
 
-export function GameHud({
-  state,
-  cameraAngleRef,
-  navigationMarker,
-  onSetNavigationMarker,
-  onDisconnect,
-  onCastSkill,
-  onLearnSkill,
-  onUseItem,
-  onCraftItem,
-  onEquipItem,
-  onUnequipItem,
-  onUpgradeSkill,
-  onTalkNpc,
-  onAcceptQuest,
-  onCancelQuest,
-  onAdvanceQuest,
-  onClaimQuestReward,
-  onGmCommand,
-  onRespawn,
-  onSelectTarget,
-  onCycleTarget,
-  onPickupNearest,
-  onMove,
-  onSendChat,
-}: GameHudProps) {
+export function GameHud(props: GameHudProps) {
+  const {
+    state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onDisconnect,
+    onCastSkill, onLearnSkill, onUseItem, onCraftItem, onEquipItem, onUnequipItem,
+    onUpgradeSkill, onTalkNpc, onAcceptQuest, onCancelQuest, onAdvanceQuest,
+    onClaimQuestReward, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
+    onSelectTarget, onCycleTarget, onPickupNearest, onMove, onSendChat,
+  } = props;
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const { selfSelected, selectedEnemy, selectedOtherPlayer, targetIsAlive } = resolveSelectedTarget(state, player);
   const playerCount = Object.keys(state.players).length;
@@ -129,7 +115,13 @@ export function GameHud({
         onClaimQuestReward={onClaimQuestReward}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
       />
-      <NpcDialog player={player} onTalkNpc={onTalkNpc} onAcceptQuest={onAcceptQuest} />
+      <NpcInteraction
+        player={player}
+        onTalkNpc={onTalkNpc}
+        onAcceptQuest={onAcceptQuest}
+        onBuyFromVendor={onBuyFromVendor}
+        onSellToVendor={onSellToVendor}
+      />
       <CastingPanel player={player} />
       <SkillBar
         player={player}
@@ -146,6 +138,42 @@ export function GameHud({
         </section>
       )}
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
+    </>
+  );
+}
+
+function NpcInteraction({
+  player,
+  onTalkNpc,
+  onAcceptQuest,
+  onBuyFromVendor,
+  onSellToVendor,
+}: {
+  player: PlayerEntity | null;
+  onTalkNpc: (npcId: string) => void;
+  onAcceptQuest: (questId: string) => void;
+  onBuyFromVendor: (vendorId: string, itemId: string, quantity: number) => void;
+  onSellToVendor: (vendorId: string, itemId: string, quantity: number) => void;
+}) {
+  const [openVendorId, setOpenVendorId] = useState<string | null>(null);
+  const openVendor = openVendorId ? VENDORS[openVendorId] ?? null : null;
+  return (
+    <>
+      <NpcDialog
+        player={player}
+        onTalkNpc={onTalkNpc}
+        onAcceptQuest={onAcceptQuest}
+        onBrowseVendor={setOpenVendorId}
+      />
+      {openVendor && player && (
+        <VendorPanel
+          vendor={openVendor}
+          player={player}
+          onClose={() => setOpenVendorId(null)}
+          onBuy={onBuyFromVendor}
+          onSell={onSellToVendor}
+        />
+      )}
     </>
   );
 }

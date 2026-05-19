@@ -135,6 +135,23 @@ export const claimQuestRewardSchema = z.object({
   questId: z.string(),
 }).strict();
 
+// PR GG — vendor messages. `vendorId` references VENDORS in
+// packages/content/vendors.ts; the server validates proximity to
+// the linked NPC + gold balance + inventory capacity before granting.
+export const buyFromVendorSchema = z.object({
+  type: z.literal('BuyFromVendor'),
+  vendorId: z.string(),
+  itemId: z.string(),
+  quantity: z.number().int().positive().max(99),
+}).strict();
+
+export const sellToVendorSchema = z.object({
+  type: z.literal('SellToVendor'),
+  vendorId: z.string(),
+  itemId: z.string(),
+  quantity: z.number().int().positive().max(999),
+}).strict();
+
 // ---- GM commands. Server gates by VIBEAGE_ENABLE_DEV_COMMANDS. -----
 // targetId omitted = the caller (most common: a GM modifying their
 // own test character). Each verb is a flat shape so the audit log
@@ -174,6 +191,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   cancelQuestSchema,
   advanceQuestSchema,
   claimQuestRewardSchema,
+  buyFromVendorSchema,
+  sellToVendorSchema,
   gmCommandSchema,
 ]);
 
@@ -286,6 +305,8 @@ export type AcceptQuest = { type: 'AcceptQuest'; questId: string };
 export type CancelQuest = { type: 'CancelQuest'; questId: string };
 export type AdvanceQuest = { type: 'AdvanceQuest'; questId: string };
 export type ClaimQuestReward = { type: 'ClaimQuestReward'; questId: string };
+export type BuyFromVendor = { type: 'BuyFromVendor'; vendorId: string; itemId: string; quantity: number };
+export type SellToVendor = { type: 'SellToVendor'; vendorId: string; itemId: string; quantity: number };
 
 export type GmCommandVerb =
   | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -324,4 +345,6 @@ export type ClientMessage =
   | CancelQuest
   | AdvanceQuest
   | ClaimQuestReward
+  | BuyFromVendor
+  | SellToVendor
   | GmCommand;

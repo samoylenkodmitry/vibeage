@@ -50,6 +50,8 @@ export type PlayerEntity = {
   velocity?: VecXZ;
   inventory?: InventorySlot[];
   maxInventorySlots?: number;
+  /** PR GG — spendable gold; owner-only (server scrubs for other players). */
+  gold?: number;
   stats?: {
     dmgMult?: number;
     critChance?: number;

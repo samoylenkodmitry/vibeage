@@ -35,6 +35,8 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'CancelQuest',
   'AdvanceQuest',
   'ClaimQuestReward',
+  'BuyFromVendor',
+  'SellToVendor',
   'GmCommand',
 ] as const satisfies ReadonlyArray<ClientMessage['type']>;
 

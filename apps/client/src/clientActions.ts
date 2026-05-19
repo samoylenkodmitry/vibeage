@@ -44,6 +44,8 @@ export type ClientActions = {
   cancelQuest: (questId: string) => void;
   advanceQuest: (questId: string) => void;
   claimQuestReward: (questId: string) => void;
+  buyFromVendor: (vendorId: string, itemId: string, quantity: number) => void;
+  sellToVendor: (vendorId: string, itemId: string, quantity: number) => void;
   gmCommand: (cmd: {
     verb:
       | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -121,13 +123,13 @@ export function useClientActions(
 
   const { learnSkill, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
     useIdentityAndItemActions(roomRef, stateRef);
-  const { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand } = useQuestActions(roomRef);
+  const { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand } = useQuestActions(roomRef);
 
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 
@@ -454,6 +456,12 @@ function useQuestActions(roomRef: RefObject<Room | null>) {
   const claimQuestReward = useCallback((questId: string) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'ClaimQuestReward', questId });
   }, [roomRef]);
+  const buyFromVendor = useCallback((vendorId: string, itemId: string, quantity: number) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'BuyFromVendor', vendorId, itemId, quantity });
+  }, [roomRef]);
+  const sellToVendor = useCallback((vendorId: string, itemId: string, quantity: number) => {
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SellToVendor', vendorId, itemId, quantity });
+  }, [roomRef]);
   const gmCommand = useCallback((cmd: {
     verb:
       | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -464,7 +472,7 @@ function useQuestActions(roomRef: RefObject<Room | null>) {
   }) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'GmCommand', ...cmd });
   }, [roomRef]);
-  return { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, gmCommand };
+  return { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand };
 }
 
 function useIdentityAndItemActions(

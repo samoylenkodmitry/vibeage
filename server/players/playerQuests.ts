@@ -3,6 +3,7 @@ import { QUEST_NPCS, INTERACTION_RANGE } from '../../packages/content/npcs.js';
 import type { PlayerActiveQuestProgress, PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { addItemsToPlayer } from '../inventory/aggregateBridge.js';
 
 function ensureQuestState(player: PlayerState): PlayerQuestState {
   if (!player.questState) {
@@ -111,13 +112,24 @@ export function applyClaimQuestReward(
   if (!entry?.readyToClaim) return false;
   if (!isNearNpc(player, quest.npcId)) return false;
   if (quest.reward.xp) player.experience += quest.reward.xp;
-  // Note: gold and items grants will require existing inventory /
-  // currency helpers wired in by a follow-up; placeholder no-ops
-  // for now so the claim flow works end-to-end.
+  if (quest.reward.gold) {
+    player.gold = (player.gold ?? 0) + quest.reward.gold;
+  }
+  if (quest.reward.items && quest.reward.items.length > 0) {
+    for (const grant of quest.reward.items) {
+      addItemsToPlayer(player, grant.itemId, grant.quantity ?? 1);
+    }
+  }
   delete state.active[questId];
   if (!state.completed.includes(questId)) state.completed.push(questId);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} claimed quest ${questId}`);
-  emitPlayerUpdated(outbound, { id: player.id, experience: player.experience, questState: state });
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    experience: player.experience,
+    gold: player.gold,
+    inventory: player.inventory,
+    questState: state,
+  });
   return true;
 }
 

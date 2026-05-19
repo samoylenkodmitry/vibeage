@@ -22,6 +22,10 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
   // people seeing your quest log would surface griefable info ("they
   // need to kill 3 more goblins; let me intervene").
   'questState',
+  // PR GG — gold is the owner's wallet; nearby players don't need to
+  // see how much you're carrying (and seeing it would let griefers
+  // ping rich targets).
+  'gold',
 ] as const;
 export const CLIENT_GAME_STATE_FIELDS = [
   'players',
