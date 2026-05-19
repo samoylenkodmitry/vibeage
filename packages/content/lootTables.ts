@@ -1,4 +1,5 @@
 import type { ItemId } from './items.js';
+import { SUPPLEMENTAL_DROPS } from './lootSupplements.js';
 import { BOSS_LOOT_TABLES } from './miniBosses.js';
 import { STARTER_LOOT_TABLES } from './starterLootTables.js';
 
@@ -13,7 +14,17 @@ export interface LootTable {
   drops: LootDrop[];
 }
 
-export const LOOT_TABLES: Record<string, LootTable> = {
+function mergeSupplements(base: Record<string, LootTable>): Record<string, LootTable> {
+  const out: Record<string, LootTable> = { ...base };
+  for (const [tableId, extras] of Object.entries(SUPPLEMENTAL_DROPS)) {
+    const existing = out[tableId];
+    if (!existing) continue;
+    out[tableId] = { ...existing, drops: [...existing.drops, ...extras] };
+  }
+  return out;
+}
+
+export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
   ...STARTER_LOOT_TABLES,
   ...BOSS_LOOT_TABLES,
   'spider_loot': {
@@ -677,5 +688,4 @@ export const LOOT_TABLES: Record<string, LootTable> = {
       },
     ],
   },
-};
-
+});

@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef } from 'react';
 import { EQUIPMENT_SETS } from '../../../../packages/content/equipmentSets';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { getLootSourcesForItem, resolveLootTableOwner } from '../../../../packages/content/lootSources';
+import {
+  getQuestRewardSourcesFor,
+  getVendorSourcesFor,
+} from '../../../../packages/content/obtainability';
 import type { WikiNav } from './WikiBosses';
 import { recipesProducing, recipesUsingMaterial } from './WikiRecipes';
 
@@ -61,6 +65,8 @@ function ItemLi({
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
       <ItemDropSources itemId={item.id} navigate={navigate} />
+      <ItemVendorSources itemId={item.id} navigate={navigate} />
+      <ItemQuestRewardSources itemId={item.id} navigate={navigate} />
       <ItemRecipeLinks itemId={item.id} navigate={navigate} />
       {item.setId && EQUIPMENT_SETS[item.setId] && (
         <small className="wiki-row-footer">
@@ -135,6 +141,42 @@ function ItemDropSources({ itemId, navigate }: { itemId: string; navigate: WikiN
           </span>
         );
       })}
+    </small>
+  );
+}
+
+function ItemVendorSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
+  const sources = getVendorSourcesFor(itemId);
+  if (sources.length === 0) return null;
+  return (
+    <small className="wiki-row-footer">
+      Sold by:{' '}
+      {sources.map((s, i) => (
+        <span key={`${s.vendorId}-${i}`}>
+          {i > 0 && ', '}
+          <button type="button" className="wiki-effect-chip" onClick={() => navigate('vendors', s.vendorId)}>
+            {s.vendorName} ({s.price}g)
+          </button>
+        </span>
+      ))}
+    </small>
+  );
+}
+
+function ItemQuestRewardSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
+  const sources = getQuestRewardSourcesFor(itemId);
+  if (sources.length === 0) return null;
+  return (
+    <small className="wiki-row-footer">
+      Quest reward:{' '}
+      {sources.map((s, i) => (
+        <span key={`${s.questId}-${i}`}>
+          {i > 0 && ', '}
+          <button type="button" className="wiki-effect-chip" onClick={() => navigate('quests', s.questId)}>
+            {s.questName}
+          </button>
+        </span>
+      ))}
     </small>
   );
 }
