@@ -1543,3 +1543,46 @@ surfaced during the session.
   authored in `QUEST_NPCS`). Falls back to a generic
   acknowledgement for any NPC without a custom line.
 
+## 39. Live Run — Wave 9 follow-ups (2026-05-19)
+
+Three playtest reports landed after wave 8 deployed.
+
+### PR LL — Stale buff cleanup + self-target keeps current target
+
+- [ ] **Bug: expired buffs linger on display.** Player
+  reported the `invisible` icon still showed on their plate
+  after the 6 s Vanish duration ended (not actively working
+  in-engine, but the chip stayed). Engine must prune any
+  status effect whose `startTimeTs + durationMs <= now` on
+  every tick that emits the player snapshot, and the wire
+  shape sent to the client must already be the pruned list.
+  Single eviction point — no per-effect special case. Add a
+  test that ticks 7 s past Vanish and asserts the player's
+  statusEffects no longer contains `invisible`.
+- [ ] **Bug: self-target casts steal the player's target.**
+  After casting Vanish (selfTarget = true), the player's
+  selected enemy gets dropped client-side because the cast
+  pipeline resolves the cast at the caster and the client
+  treats that as "you now target yourself". Fix at the
+  client (preserve `selectedTargetId` across cast snapshots
+  that land on self) — or at the cast issuance layer if the
+  intent is set there. Verify by selecting a goblin →
+  casting Vanish → the goblin is still selected after.
+- [ ] Apply the same rule to every existing skill marked
+  `selfTarget: true` (today only Vanish, but cleansing
+  /shield self / blink will share the path).
+
+### PR MM — Scrollable system chat
+
+- [ ] The combat / system chat panel is currently a static
+  list — when it scrolls off, history is unreachable. Make
+  the chat scroll region a proper scroll container with
+  styled scrollbar, auto-scroll-to-bottom on new line *only
+  when the user is already at the bottom*, and a "jump to
+  latest" affordance when the user has scrolled up.
+- [ ] Keep the scroll behaviour purely client-side; no
+  protocol change.
+- [ ] Cap the history at a sensible size (e.g. 200 lines)
+  so the DOM doesn't grow without bound during long
+  sessions.
+
