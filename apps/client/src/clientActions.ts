@@ -165,14 +165,9 @@ function useCastActions(
       clientTs: Date.now(),
       ...(force ? { force: true } : {}),
     });
-    // PR LL — preserve the player's selection across self-casts.
-    // Casting Vanish (selfTarget) with a goblin selected used to
-    // dispatch selectTarget(player.id), wiping the enemy plate. Only
-    // refocus the plate when the cast actually points at another
-    // entity (auto-attack queueing, friendly-cast on a party member).
-    if (targetId && targetId !== player.id) {
-      dispatch({ type: 'selectTarget', targetId });
-    }
+    // PR LL — only refocus the plate for cross-entity casts; self-casts
+    // (Vanish etc.) must not wipe the player's existing enemy selection.
+    if (targetId && targetId !== player.id) dispatch({ type: 'selectTarget', targetId });
   }, [roomRef, dispatch]);
 
   const armAutoAttack = useCallback((skillId: SkillId, targetId: string) => {
