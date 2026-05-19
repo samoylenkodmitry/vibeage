@@ -47,9 +47,11 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
  * wired into the engine. Listed explicitly so the audit makes the
  * gap visible. Each entry should reference the planned wiring task.
  */
-const UNIMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffectType>([
-  'transform',     // petrify claims stone form — no transform state machine
-]);
+// §45.4 fully closed — `transform` was a phantom declaration
+// with no skill emitting it (petrify uses `stun`); it was
+// deleted rather than implemented. Keep the set typed for
+// future use; today every declared SkillEffectType is wired.
+const UNIMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffectType>([]);
 
 describe('skill spec audit', () => {
   it('every SkillEffectType is either implemented or explicitly unimplemented', () => {

@@ -139,12 +139,6 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: "Drops every nearby attacker's threat on the caster instantly.",
     category: 'buff',
   },
-  transform: {
-    type: 'transform',
-    label: 'Transform',
-    description: 'Converts the target into stone (or equivalent) for the duration.',
-    category: 'debuff',
-  },
   teleport: {
     type: 'teleport',
     label: 'Teleport',

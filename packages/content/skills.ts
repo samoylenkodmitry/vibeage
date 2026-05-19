@@ -55,7 +55,6 @@ export type SkillEffectType =
   | 'evasion'  // dodge buff
   | 'invisible'
   | 'aggroReset' // PR KK — wipe attackers' threat on the caster
-  | 'transform' // for stone conversion
   | 'teleport'; // recall to nearest village (Escape)
 
 /**
