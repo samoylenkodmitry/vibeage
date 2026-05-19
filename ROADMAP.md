@@ -1605,25 +1605,23 @@ checkpoint.
   `specPassive.modifiers` block emits a real Contribution
   row.
 
-### PR TT — Movement consumes player.stats.runSpeed
+### PR TT — Movement consumes player.stats.runSpeed ✅
 
-- [ ] `server/movement/worldMovement.ts:108` uses
-  `DEFAULT_PLAYER_SPEED` + ad-hoc `slow` / `speed_boost`
-  branches; `player.stats.runSpeed` is computed but the
-  movement code never reads it. Make movement
-  authoritative on the stat: speed-of-step =
-  `player.stats.runSpeed` (units/sec) for the per-tick
-  translation.
-- [ ] Status effects that affect speed (`slow`, future
-  speed buffs) flow through the Contribution registry
-  already (PR NN); the movement code therefore needs zero
-  branches for individual effects — it just reads the
-  cached stat.
-- [ ] **Old-system removal**: delete `DEFAULT_PLAYER_SPEED`
-  and every per-effect speed branch in worldMovement.ts.
-  After this, "speed" lives in one place: `STATS.runSpeed`
-  + its Contributions. Add a test that casting Slow on a
-  player measurably reduces world-units per tick.
+- [x] `server/movement/worldMovement.ts:getPlayerSpeed`
+  now reads `player.stats.runSpeed` directly (units/sec),
+  capping at `MAX_PLAYER_SPEED`. The DEX/dmgMult kludge
+  and per-effect `if (slow)…else if (speed_boost)` branches
+  are gone.
+- [x] `STATUS_EFFECT_STAT_CONTRIBUTIONS.speed_boost` is now
+  wired (mirrors `slow`), so haste-style buffs feed the same
+  runSpeed pipeline as everything else (class passive muls,
+  spec passives, DEX scaling).
+- [x] `baseline:runSpeed` raised from 7 → 20 so the stat is
+  in world-units/sec — no separate translation constant.
+- [x] **Old-system removal**: `getPlayerSpeed` is a 3-line
+  read of the resolved stat; `DEFAULT_PLAYER_SPEED` survives
+  only as the fallback for entities lacking
+  `player.stats.runSpeed` (e.g. mid-bootstrap snapshots).
 
 ### PR UU — Single source of SkillId across TS + protocol
 
