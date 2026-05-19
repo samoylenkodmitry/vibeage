@@ -3,12 +3,12 @@ import { CLASS_SKILL_TREES, type CharacterClass } from '../packages/content/clas
 import { CLASS_PASSIVES } from '../packages/content/classPassives';
 
 /**
- * Class multipliers have two live sources during the stat refactor
- * transition: CLASS_SKILL_TREES[c].baseStats (the old shape, still
- * carried in the ClassSelected protocol message) and CLASS_PASSIVES
- * (the new shape that derivePlayerStats actually reads).
+ * Class multipliers have two live sources: CLASS_SKILL_TREES[c].baseStats
+ * (carried in the ClassSelected protocol message for legacy clients)
+ * and CLASS_PASSIVES (read by the Contribution registry in
+ * packages/sim/statContributions.ts).
  *
- * They match today. This test fails the moment a designer edits one
+ * They must match. This test fails the moment a designer edits one
  * without the other, preventing the drift-prone state the code
  * reviewer flagged.
  */

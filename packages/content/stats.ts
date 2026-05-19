@@ -1,9 +1,10 @@
 /**
  * Player attribute catalog — pure data. The Wiki Stats tab renders
  * one row per entry, and the PlayerPanel stat labels link into it.
- * Engine doesn't *consume* this — derivePlayerStats reads the
- * numeric weights from RACE_PROFILES — but it's the canonical
- * player-facing explanation of what each stat does.
+ * The Contribution registry in `packages/sim/statContributions.ts`
+ * is the engine consumer. This file is the canonical player-facing
+ * description of what each stat does (label + description) used by
+ * the wiki Stats tab and the HUD stat-row tooltip.
  *
  * Adding a new stat = append an entry here.
  */

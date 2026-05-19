@@ -1605,7 +1605,7 @@ explicit deletion checklist.
 
 This PR is the big cutover. Land in one push.
 
-- [ ] **Type:** `Contribution = {source: string; label: string;
+- [x] **Type:** `Contribution = {source: string; label: string;
   stat: StatId; op: 'base'|'addPre'|'mul'|'addPost';
   value: number | ((resolved: ResolvedStats) => number);
   predicate?: (ctx: StatCtx) => boolean}`.
@@ -1628,7 +1628,7 @@ This PR is the big cutover. Land in one push.
     contributions are still emitted on `parts` for the
     popup but excluded from the sum.
 
-- [ ] **StatDef extension** in `packages/content/stats.ts`:
+- [x] **StatDef extension** in `packages/content/stats.ts`:
   - `dependsOn?: readonly StatId[]` — derived stat says
     which base attributes (or other derived stats) it
     needs computed first.
@@ -1637,7 +1637,7 @@ This PR is the big cutover. Land in one push.
   - Stays compatible with the per-stat description /
     label fields already added in PR II.
 
-- [ ] **Registries** under `packages/content/`:
+- [x] **Registries** under `packages/content/`:
   - `RACE_BASE_STATS: Record<Race, Contribution[]>` — Orc
     contributes three rows (STR base 20, DEX base 12, INT
     base 8); other races likewise. **Race itself is not a
@@ -1656,11 +1656,11 @@ This PR is the big cutover. Land in one push.
   - `SPECIALIZATION_CONTRIBUTIONS: Record<SpecId, Contribution[]>`
     — Arcanist passive emits `+10% mAtk` once unlocked.
 
-- [ ] **`buildContributions(player)`** assembles the list:
+- [x] **`buildContributions(player)`** assembles the list:
   race + class+level + equipment + statusEffects + spec /
   proficiency passives. Pure function over PlayerState.
 
-- [ ] **`computeAllStats(contributions, ctx)`**:
+- [x] **`computeAllStats(contributions, ctx)`**:
   1. Topological order over `StatDef.dependsOn`.
   2. For each stat, filter contributions targeting this
      stat, partition by op, evaluate predicates.
@@ -1669,7 +1669,7 @@ This PR is the big cutover. Land in one push.
      Record<StatId, {parts: Contribution[]; total: number}>}`
      so the popup never re-computes.
 
-- [ ] **Cache** on the player: `_statsCacheKey: string`
+- [x] **Cache** on the player: `_statsCacheKey: string`
   derived from `(level, classId, race, raceVariant,
   sorted equippedInstanceIds, sorted active
   statusEffect ids)`. `getOrComputeStats(player)` returns
@@ -1677,13 +1677,13 @@ This PR is the big cutover. Land in one push.
   it doesn't. Single cache helper used by both engine and
   any future caller.
 
-- [ ] **Engine hookup**: `player.stats` becomes the
+- [x] **Engine hookup**: `player.stats` becomes the
   *cached* result of `getOrComputeStats(player).totals`.
   Combat math (`impactResolver`, damage / hit / dodge,
   HP regen) keeps reading `player.stats.xyz` exactly as
   today — no impact-pipeline changes.
 
-- [ ] **Cache invalidation sites**:
+- [x] **Cache invalidation sites**:
   - Level-up (playerLifecycle.ts).
   - Equip / unequip (equipHandlers.ts).
   - Effect added (`upsertStatusEffect` in
@@ -1695,7 +1695,7 @@ This PR is the big cutover. Land in one push.
   - Specialization picked (playerIdentity.ts).
   - Hydration from DB (playerSession.ts).
 
-- [ ] **Tests**:
+- [x] **Tests**:
   - One unit test per stat verifying the formula
     (`Orc warrior, level 8, no gear, no buffs → pAtk
     = X`). Hardcoded expected numbers so regressions
@@ -1708,7 +1708,7 @@ This PR is the big cutover. Land in one push.
   - A cache test: same player, two calls →
     identical reference; bump level → new compute.
 
-- [ ] **Old system removal** (NO PARALLEL CODE):
+- [x] **Old system removal** (NO PARALLEL CODE):
   - DELETE `derivePlayerStats` in
     `packages/sim/derivedStats.ts` (or wherever it
     lives now); replace every call site with
@@ -1755,7 +1755,7 @@ This PR is purely UI on top of the new model.
   message — the breakdown is computed from the
   player blob the client already has.
 
-- [ ] **Tests**: a vitest spec that mounts the popup
+- [x] **Tests**: a vitest spec that mounts the popup
   with a fixture player and asserts the rendered
   rows match the breakdown computed by
   `computeAllStats`.

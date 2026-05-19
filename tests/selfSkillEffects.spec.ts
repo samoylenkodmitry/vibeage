@@ -6,6 +6,7 @@ import type { CombatWorld } from '../server/combat/worldContract';
 import type { OutboundEventSink } from '../server/transport/outboundEvents';
 import type { PlayerState } from '../packages/sim/entities';
 import { createTransientPlayer } from '../server/playerFactory';
+import { recomputePlayerStats } from '../server/players/playerStatsRefresh';
 
 const NOW = 1_700_000_000_000;
 
@@ -119,6 +120,10 @@ describe('bless effect is consumed by damage calculation (regression for the new
     blessed.statusEffects = [
       { id: 'b', type: 'bless', value: 50, durationMs: 5_000, startTimeTs: Date.now(), sourceSkill: 'bless' },
     ];
+    // PR NN — recompute stats so the bless contribution lands in
+    // dmgMult. In production this happens inside upsertStatusEffect;
+    // tests that hand-craft statusEffects must trigger it explicitly.
+    recomputePlayerStats(blessed);
 
     // resolveCastImpact resolves against the world's caster lookup —
     // a fireball cast from each player on themselves would self-heal.

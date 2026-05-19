@@ -5,7 +5,7 @@ import { CLASS_SKILL_TREES } from '../../packages/content/classes.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { SPECIALIZATIONS } from '../../packages/content/specializations.js';
 import { addItemsToPlayer } from '../inventory/aggregateBridge.js';
-import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
+import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyClassChange, applyRaceChange, applySpecializationChange } from './playerIdentity.js';
 import { isGmModeEnabled } from './gmMode.js';
@@ -106,7 +106,7 @@ function dispatch(target: PlayerState, msg: GmCommand, outbound: OutboundEventSi
       // level; re-deriving here so the GM-set level isn't just a
       // cosmetic number. Broadcast the resulting stats + caps so
       // the client doesn't wait for the next tick to display them.
-      refreshPlayerStatsFromEquipment(target);
+      recomputePlayerStats(target);
       emitPlayerUpdated(outbound, {
         id: target.id,
         level: target.level,

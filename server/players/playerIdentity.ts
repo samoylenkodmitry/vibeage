@@ -8,7 +8,7 @@ import {
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { getSpecializationById } from '../../packages/content/specializations.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
+import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { starterSkillsFor } from './playerProgression.js';
@@ -46,9 +46,9 @@ export function applyClassChange(
   // for the new class and the engine doesn't apply mismatched
   // passives.
   player.specializationId = null;
-  // refreshPlayerStatsFromEquipment also clamps health/mana to the new max
-  // when the new class lowers them — see equipHandlers.ts.
-  refreshPlayerStatsFromEquipment(player);
+  // recomputePlayerStats clamps health/mana to the new max
+  // when the new class lowers them.
+  recomputePlayerStats(player);
   resetSkillsForClassChange(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} class -> ${className}`);
   emitPlayerUpdated(outbound, {
@@ -151,9 +151,8 @@ export function applyRaceChange(
       resetSkillsForClassChange(player);
     }
   }
-  // refreshPlayerStatsFromEquipment clamps health/mana to the new max — see
-  // equipHandlers.ts.
-  refreshPlayerStatsFromEquipment(player);
+  // recomputePlayerStats clamps health/mana to the new max.
+  recomputePlayerStats(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} race -> ${race}${classSnapped ? ` (class snapped to ${classSnapped})` : ''}`);
   emitPlayerUpdated(outbound, {
     id: player.id,
@@ -204,9 +203,11 @@ export function applySpecializationChange(
   // would let the player swap to the sibling spec by re-clicking.
   if (player.specializationId) return false;
   player.specializationId = spec.id;
-  // Spec passive multipliers will feed into refreshPlayerStatsFromEquipment
-  // once derivePlayerStats reads them; for now we just record the choice
-  // and broadcast. (Stat-merge integration is its own small follow-up.)
+  // PR NN — spec passives flow through pushSpecializationContributions
+  // in packages/sim/statContributions.ts. The placeholder spec
+  // contribution is enough to surface the choice in the breakdown
+  // popup; numeric tuning is content-only.
+  recomputePlayerStats(player);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} spec -> ${spec.id}`);
   emitPlayerUpdated(outbound, {
     id: player.id,

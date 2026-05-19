@@ -165,11 +165,10 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     specializationPassive: {
       name: 'Greater Calling',
       description: '+25% effective healing output.',
-      // KNOWN ISSUE: description claims +25% but engine doesn't yet
-      // consume spec-passive modifiers (only skill-upgrade modifiers).
-      // Wiring this through derivePlayerStats is its own balance-tuned
-      // PR; keep modifier inert (1.0) so the spec choice is currently
-      // cosmetic + future-proofed by data, not silently active.
+      // KNOWN ISSUE: description claims +25% but the spec-passive
+      // numeric tuning is held in `statContributions.ts` and currently
+      // emits a placeholder (×1.0) contribution. Set this to the
+      // intended value when balance work begins.
       modifiers: { damageMultiplier: 1.0 },
     },
     proficiencyPassive: {
