@@ -541,12 +541,9 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     speed: 36,
     // Wider splash so the bow plays more like a wide-radius ranged
     // auto-attack. autoRepeat keeps the ranger "auto-shooting" like
-    // Basic Attack does for melee.
-    //
-    // NOTE: pierce / maxPierceHits aren't read by the server's
-    // projectile runtime yet (a pre-existing gap also affecting
-    // volley). Splash via skill.area above already gives the wide
-    // feel; pierce lands in a follow-up.
+    // Basic Attack does for melee. §45.5 wired pierce in the
+    // projectile runtime — volley's `pierce: true` now lands real
+    // multi-target damage.
     area: 2.5,
     autoRepeat: true,
     levelRequired: 1,
