@@ -18,6 +18,7 @@ import {
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { verifySessionToken } from '../auth/sessionTokens.js';
+import { recordAuthAuditEvent } from '../auth/authAudit.js';
 import {
   createSocketPlayerLookup,
   getEntityRegionId,
@@ -79,16 +80,40 @@ export class ColyseusAuthoritativeRoomAdapter {
         message: 'Please log in to enter the world.',
       });
       runtimeMetrics.increment('room.joinRejected.unauthorized');
+      void recordAuthAuditEvent({
+        type: 'ownership.suspicious',
+        characterName: playerName,
+        reason: options.sessionToken ? 'invalidToken' : 'missingToken',
+      });
       throw new Error('Rejected join: missing or invalid session token');
     }
-    const result = await this.port.joinClient(
-      client.sessionId,
-      playerName,
-      makeColyseusClient(client),
-      { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId },
-    );
-    runtimeMetrics.increment('room.joins');
-    return result;
+    try {
+      const result = await this.port.joinClient(
+        client.sessionId,
+        playerName,
+        makeColyseusClient(client),
+        { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId },
+      );
+      runtimeMetrics.increment('room.joins');
+      void recordAuthAuditEvent({
+        type: 'character.selected',
+        accountId: session.accountId,
+        characterName: playerName,
+      });
+      return result;
+    } catch (error) {
+      // Token verified but the (accountId, playerName) pair didn't
+      // match a real character on this account — somebody tried to
+      // ride a valid session into a character they don't own.
+      const reason = error instanceof Error ? error.constructor.name : 'unknown';
+      void recordAuthAuditEvent({
+        type: 'ownership.suspicious',
+        accountId: session.accountId,
+        characterName: playerName,
+        reason: `joinClientFailed:${reason}`,
+      });
+      throw error;
+    }
   }
 
   async handleLeave(client: ColyseusClientLike): Promise<string | undefined> {
