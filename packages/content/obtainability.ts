@@ -249,6 +249,20 @@ export function validateContentGraph(): ContentGraphIssue[] {
   }
 
   // Cross-reference checks: every id mentioned in a spec resolves.
+  collectCrossRefIssues(issues, { itemIds, mobTypes, npcIds, bossIds });
+
+  return issues;
+}
+
+type RegistryIdSets = {
+  itemIds: ReadonlySet<string>;
+  mobTypes: ReadonlySet<string>;
+  npcIds: ReadonlySet<string>;
+  bossIds: ReadonlySet<string>;
+};
+
+function collectCrossRefIssues(issues: ContentGraphIssue[], ids: RegistryIdSets): void {
+  const { itemIds, mobTypes, npcIds, bossIds } = ids;
   for (const quest of Object.values(QUESTS)) {
     if (!npcIds.has(quest.npcId)) {
       issues.push({ kind: 'unknown-npc', npcId: quest.npcId, referencedBy: `quest:${quest.id}` });
@@ -268,7 +282,6 @@ export function validateContentGraph(): ContentGraphIssue[] {
       }
     }
   }
-
   for (const [tableId, table] of Object.entries(LOOT_TABLES)) {
     for (const drop of table.drops) {
       if (!itemIds.has(drop.itemId)) {
@@ -276,7 +289,6 @@ export function validateContentGraph(): ContentGraphIssue[] {
       }
     }
   }
-
   for (const vendor of Object.values(VENDORS)) {
     if (!npcIds.has(vendor.npcId)) {
       issues.push({ kind: 'unknown-npc', npcId: vendor.npcId, referencedBy: `vendor:${vendor.id}` });
@@ -287,7 +299,6 @@ export function validateContentGraph(): ContentGraphIssue[] {
       }
     }
   }
-
   for (const item of Object.values(ITEMS)) {
     const recipe = item.recipe;
     if (!recipe) continue;
@@ -300,8 +311,6 @@ export function validateContentGraph(): ContentGraphIssue[] {
       issues.push({ kind: 'unknown-item', itemId: recipe.output.itemId, referencedBy: `recipe:${item.id}.output` });
     }
   }
-
-  return issues;
 }
 
 export function formatContentGraphIssues(issues: readonly ContentGraphIssue[]): string {
