@@ -11,7 +11,7 @@ import type {
   WorldRoomJoinOptions,
 } from './roomBoundary.js';
 import { MIN_CLIENT_PROTOCOL_VERSION, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
-import type { OutboundEvent, OutboundEventSink } from './outboundEvents.js';
+import type { OutboundEvent, OutboundEventSink, PlayerUpdate } from './outboundEvents.js';
 import { WORLD_BROADCAST_EVENTS } from './outboundEvents.js';
 import {
   sanitizePlayerUpdateForPublic,
@@ -189,13 +189,15 @@ function emitColyseusOutbound(
       findClient(room, event.socketId)?.send(WORLD_BROADCAST_EVENTS.message, event.message);
       return;
     case 'playerUpdated':
-      if (emitScopedEntityEvent(
-        room,
-        WORLD_BROADCAST_EVENTS.playerUpdated,
-        sanitizePlayerUpdateForPublic(event.update),
-        event.update.id,
-        visibility,
-      )) {
+      // PR BB — owner gets the un-sanitized update so private fields
+      // (questState, characterInventory) actually reach the right
+      // client. Everyone else gets the public-safe copy. The earlier
+      // `sanitize for everyone` path stripped questState before it
+      // could reach the owner, which is why quest progress (kill
+      // counters etc.) only refreshed on reconnect — the full
+      // gameState snapshot DID include questState, the per-tick
+      // delta didn't.
+      if (emitOwnerAwarePlayerUpdate(room, event.update, visibility)) {
         return;
       }
       room.broadcast(WORLD_BROADCAST_EVENTS.playerUpdated, sanitizePlayerUpdateForPublic(event.update));
@@ -271,6 +273,36 @@ function emitScopedEntityEvent(
     }
   }
 
+  return true;
+}
+
+/**
+ * PR BB — owner-aware player update broadcast. The owning client
+ * receives the full update (including private fields like
+ * questState); everyone else receives the public-sanitised copy.
+ * Returns true when the visibility context was available so the
+ * caller can skip the fallback room.broadcast.
+ */
+function emitOwnerAwarePlayerUpdate(
+  room: ColyseusBroadcastLike,
+  update: PlayerUpdate,
+  visibility?: ColyseusVisibilitySource,
+): boolean {
+  const context = getVisibilityContext(visibility);
+  if (!context) return false;
+  const ownerPlayer = context.state.players[update.id];
+  const ownerSocketId = ownerPlayer?.socketId;
+  const publicCopy = sanitizePlayerUpdateForPublic(update);
+  for (const clientContext of createClientVisibilityContexts(room, context)) {
+    const isOwner = ownerSocketId !== undefined && clientContext.client.sessionId === ownerSocketId;
+    if (isOwner) {
+      clientContext.client.send(WORLD_BROADCAST_EVENTS.playerUpdated, update);
+      continue;
+    }
+    if (isEntityVisibleToClient(context.state, context.regions, clientContext, update.id)) {
+      clientContext.client.send(WORLD_BROADCAST_EVENTS.playerUpdated, publicCopy);
+    }
+  }
   return true;
 }
 

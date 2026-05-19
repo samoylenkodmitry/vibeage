@@ -1332,3 +1332,39 @@ Prod feedback after §32 deployed.
   Wiki (skill name → Wiki Skills tab focused on that skill;
   stat label → Stats tab focused on that attribute).
 
+## 36. Live Run — Wave 6 follow-ups (2026-05-19)
+
+Playtest report. Treat each item as a real fix, not a one-off
+patch — figure out the engine-level rule that makes the bug
+impossible across every mob / skill / quest.
+
+### PR BB — Combat engine bugs
+
+- [ ] Stun doesn't actually stop the mob. Enemy AI ticks
+  `isEntityStunned` but movement / attack still run. Trace the
+  effect application path and confirm the stun status effect is
+  applied (and serialised) when a stun-tagged cast hits.
+- [ ] Physical skill out-of-range → player walks to enemy but
+  doesn't fire on arrival; second press works. Approach-and-
+  cast pendingCast isn't draining on the in-range tick.
+- [ ] Quest "Cull the Horde" stuck at 5/8 until reconnect. Kill
+  counter not persisting / not emitted to client; on reconnect
+  it shows 8/8 but Done returns nothing. Quest claim path may
+  not be triggering reward delivery for that quest shape.
+
+### PR CC — UX + content
+
+- [ ] Tap a buff/debuff pill on the target panel → open the Wiki
+  Effects entry for that effect id.
+- [ ] Beneficial skill + enemy target → auto-fallback to self
+  instead of CastFail. Ctrl-cast keeps the explicit "yes, on
+  enemy" path from PR X.
+- [ ] Mobs are confined to their zone circles by leash + patrol
+  radius. They should roam outside the zone (within reason) —
+  the zone defines *where they spawn* and *how strong*, not a
+  fence. Drop or widen the leash for non-boss mobs.
+- [ ] Wiki claims mobs spawn in zones where they don't actually
+  appear in-game (example: frost_wolf at Frozen Tundra map
+  marker). Audit the zone ↔ mob references and fix either the
+  spawn list or the wiki display so they agree by construction.
+

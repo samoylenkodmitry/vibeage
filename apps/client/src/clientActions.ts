@@ -280,13 +280,22 @@ function useTryFirePendingCast(
       dispatch({ type: 'clearPendingCast' });
       return;
     }
-    if (isOutOfCastRange(player, target, pending.skillId as SkillId)) {
+    // PR BB — wait until we're firmly inside range, not just at the
+    // edge. Server-side position runs a tick or two behind the
+    // client's predicted position, so firing at exactly the range
+    // boundary tripped a CastFail(outofrange) on the first attempt
+    // (the second press worked because the player had walked closer
+    // by then). Padding here so the server is virtually always
+    // already inside range when CastReq arrives.
+    if (isOutOfCastRange(player, target, pending.skillId as SkillId, PENDING_CAST_RANGE_MARGIN)) {
       return;
     }
     dispatch({ type: 'clearPendingCast' });
     fireCastReq(player, pending.skillId as SkillId, pending.targetId);
   }, [stateRef, dispatch, fireCastReq]);
 }
+
+const PENDING_CAST_RANGE_MARGIN = 1.5;
 
 function useTryAdvanceAutoAttack(
   stateRef: RefObject<GameClientState>,
@@ -556,12 +565,12 @@ function isSelfCastable(skillId: SkillId): boolean {
   return Boolean(skill.effects?.length);
 }
 
-function isOutOfCastRange(player: PlayerEntity, target: EnemyEntity, skillId: SkillId): boolean {
+function isOutOfCastRange(player: PlayerEntity, target: EnemyEntity, skillId: SkillId, margin = 0): boolean {
   const range = SKILLS[skillId]?.range ?? 0;
   if (range <= 0) return false;
   const dx = player.position.x - target.position.x;
   const dz = player.position.z - target.position.z;
-  return Math.hypot(dx, dz) > range;
+  return Math.hypot(dx, dz) > Math.max(0, range - margin);
 }
 
 function approachPointToward(player: PlayerEntity, target: EnemyEntity, skillId: SkillId): VecXZ {
