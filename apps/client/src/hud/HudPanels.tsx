@@ -3,6 +3,7 @@ import type { SkillId } from '../../../../packages/content/skills';
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { ActionsPanel } from './ActionsPanel';
 import { ChatPanel } from './ChatPanel';
+import { CraftPanel } from './CraftPanel';
 import { InventoryPanel } from './InventoryPanel';
 import { PaperdollPanel } from './PaperdollPanel';
 import { WikiPanel } from './WikiPanel';
@@ -23,6 +24,10 @@ export type HudPanelToggleState = {
   chatOpen: boolean;
   wikiOpen: boolean;
   gmOpen: boolean;
+  /** PR AA — slot index of the recipe whose CraftPanel is open; null when none. */
+  craftRecipeSlot: number | null;
+  openCraft: (slotIndex: number) => void;
+  closeCraft: () => void;
 };
 
 export type HudPanelsProps = {
@@ -102,7 +107,15 @@ export function HudPanels({
           playerLevel={player?.level ?? 1}
           onUseItem={onUseItem}
           onEquipItem={onEquipItem}
-          onCraftItem={onCraftItem}
+          onOpenRecipe={panels.openCraft}
+        />
+      )}
+      {panels.craftRecipeSlot !== null && (
+        <CraftPanel
+          recipeSlotIndex={panels.craftRecipeSlot}
+          inventory={state.inventory}
+          onCraft={onCraftItem}
+          onClose={panels.closeCraft}
         />
       )}
       {panels.gearOpen && (
