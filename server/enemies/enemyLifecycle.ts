@@ -12,19 +12,8 @@ const PACK_CLUSTER_RADIUS = 4;
 
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
 
-/**
- * PR N — mini-boss progression. Applied to every miniBoss spawn. Kept
- * uniform across bosses for now so the encounter pattern is teachable
- * ("hit hard, watch for enrage at ~20s, dodge harder at half HP");
- * later PRs can layer per-boss telegraphs + signature skills on top.
- */
-export const DEFAULT_BOSS_CONFIG = {
-  enrageAfterMs: 20_000,
-  enragedDamageMul: 1.5,
-  phaseTwoHpFraction: 0.5,
-  phaseTwoSpeedMul: 1.25,
-  phaseTwoDamageMul: 1.25,
-} as const;
+export { DEFAULT_BOSS_CONFIG } from '../../packages/content/miniBosses.js';
+import { DEFAULT_BOSS_CONFIG } from '../../packages/content/miniBosses.js';
 
 export type SpawnInitialEnemiesOptions = {
   activeZoneIds?: readonly string[];
