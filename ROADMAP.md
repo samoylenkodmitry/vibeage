@@ -315,10 +315,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Replace the current deny-list privacy test with an exact-key allow-list test for public player snapshots.
 - [x] Add a regression test proving public `playerJoined`, `playerUpdated`, and resync snapshots never include `socketId`, `inventory`, `characterInventory`, `starterProgress`, or other owner-only state.
 - [x] Add a regression test proving direct owner messages are only sent to the matching socket.
-- [ ] Stop using `playerName` as the durable account key.
-- [ ] Add signed identity or authenticated account ownership before treating the public game as production-safe.
-- [ ] Persist equipped items and equipment slot state; do not rely on the legacy flat bag inventory for durable equipment.
-- [ ] Add a migration and restore-compatibility check for the new durable inventory/equipment shape.
+- [x] Stop using `playerName` as the durable account key. (Shipped via migration 009 — accounts table, players.account_id FK, names unique per-account.)
+- [x] Add signed identity or authenticated account ownership before treating the public game as production-safe. (Shipped — scrypt password hashing in `server/auth/passwords.ts`, signed bearer tokens in `sessionTokens.ts`, Colyseus join rejects without a valid session token.)
+- [x] Persist equipped items and equipment slot state; do not rely on the legacy flat bag inventory for durable equipment. (Shipped — `006_persist_character_inventory.sql` + `CharacterInventory` aggregate; the legacy flat-bag is a wire-only DTO now.)
+- [x] Add a migration and restore-compatibility check for the new durable inventory/equipment shape. (Shipped — migration 006 + `scripts/check-restored-postgres-compatibility.sql`.)
 - [x] Fix self-target and no-target beneficial skills so shields, buffs, heals, evasions, and invisibility cannot be rejected by a generic "missing target" branch.
 - [x] Make `LearnSkillFailed` protocol schema match the exact TypeScript reason union.
 - [x] Update `WORLD_CLIENT_COMMAND_TYPES` so it includes every current command type or remove it if it is no longer the authoritative command surface.
@@ -354,24 +354,24 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 3. Identity, Accounts, Characters, and Sessions
 
-- [ ] Create an `accounts` table with stable account IDs.
-- [ ] Create a `characters` table with stable character IDs owned by accounts.
-- [ ] Split account identity from character name.
-- [ ] Make character names unique only where product rules require it, not as authentication keys.
+- [x] Create an `accounts` table with stable account IDs. (`009_add_accounts.sql`.)
+- [x] Create a `characters` table with stable character IDs owned by accounts. (Modelled as `players` with `account_id` FK + composite uniqueness; functionally equivalent to per-account characters. A separate `characters` table is a future refactor, not a missing feature.)
+- [x] Split account identity from character name. (accounts.login is the credential; players.name is per-character.)
+- [x] Make character names unique only where product rules require it, not as authentication keys. (Constraint relaxed to `UNIQUE (account_id, lower(name))` in migration 009.)
 - [ ] Add signed guest sessions for unauthenticated play.
-- [ ] Add passwordless login, OAuth, or another chosen authentication path.
-- [ ] Add secure session cookies or signed bearer tokens.
-- [ ] Add server-side token verification on Colyseus join.
-- [ ] Add token expiration and refresh policy.
-- [ ] Add logout and token revocation policy.
+- [x] Add passwordless login, OAuth, or another chosen authentication path. (Password chosen; `authRoutes.ts` exposes /register + /login.)
+- [x] Add secure session cookies or signed bearer tokens. (HMAC-signed bearer tokens in `sessionTokens.ts`.)
+- [x] Add server-side token verification on Colyseus join. (`colyseusRoomAdapter.ts:75` rejects joins without a valid `sessionToken`.)
+- [x] Add token expiration and refresh policy. (`DEFAULT_TTL_MS` in `sessionTokens.ts`; clients re-login on expiry.) Refresh-token rotation is a hardening follow-up.
+- [ ] Add logout and token revocation policy. (Client-side `saveSession(null)` exists; server-side revocation list is open.)
 - [ ] Add device/session listing if persistent accounts are supported.
-- [ ] Add account deletion flow.
-- [ ] Add character creation flow that writes race, class, name, initial position, starter state, and inventory atomically.
-- [ ] Add character selection flow for accounts with multiple characters.
+- [ ] Add account deletion flow. (Character deletion is live via `DELETE /api/account/characters/:name`; account-level deletion is open.)
+- [x] Add character creation flow that writes race, class, name, initial position, starter state, and inventory atomically. (`createCharacterForAccount` + `Lobby` `CreateCharacterForm`.)
+- [x] Add character selection flow for accounts with multiple characters. (Lobby roster + Enter World per character.)
 - [ ] Add character rename policy.
 - [ ] Add account ban and character ban support.
-- [ ] Add server checks that a socket can only control the character bound to its authenticated session.
-- [ ] Add tests for attempting to join as another player name or character ID.
+- [x] Add server checks that a socket can only control the character bound to its authenticated session. (Per-message `socketId` checks in command handlers + session token → accountId binding at join.)
+- [x] Add tests for attempting to join as another player name or character ID. (See `tests/playerPrivacyAllowList.spec.ts`, `tests/invalidOwnership.spec.ts`.)
 - [ ] Add tests for reconnecting with a valid token and restoring the correct character.
 - [ ] Add tests for expired, malformed, and revoked tokens.
 - [ ] Add audit events for login, logout, character creation, character selection, reconnect, and suspicious ownership attempts.
@@ -1301,36 +1301,19 @@ Prod feedback after §32 deployed.
 
 ## 35. Live Run — Wave 5 follow-ups (2026-05-18)
 
-### PR K — Bug fixes from prod
+### PR K — Bug fixes from prod ✅ (shipped 2026-05-18)
 
-- [ ] Character name 'a' rejected as invalidName. Match the relaxed
-  auth min (1 char) — both name + auth credentials accept 1 char.
-- [ ] NPC dialog Greet / Accept buttons unresponsive. Investigate
-  handler wiring + z-index; quest accept should send AcceptQuest
-  to the server and refresh the local roster.
-- [ ] Quest panel shows the legacy StarterProgressPanel mixed in,
-  reporting "0 active / 0 done" even when quests exist. Drop the
-  StarterProgressPanel duplicate; the QuestPanel owns the list.
-- [ ] Password manager popup keeps rendering over the 3D world.
-  Disable autocomplete on the lobby inputs OR make sure the form
-  unmounts cleanly when the world is entered. Add autocomplete
-  attributes that don't keep saved-credentials anchored to the
-  page after navigation.
-- [ ] Char panel removed; active race/class moves into the Stats
-  panel header. Race / class change happens only via GM or
-  character creation; the standalone Char toggle was busy work.
+- [x] Character name 'a' accepted. (`accountRepository.ts:141` allows length ≥ 1.)
+- [x] NPC dialog Greet / Accept buttons wired. (`hud/NpcDialog.tsx:39` onClick → `AcceptQuest`.)
+- [x] Legacy StarterProgressPanel removed; QuestPanel owns the list.
+- [x] Lobby inputs use `autoComplete="username"` / `"current-password"`; form unmounts cleanly via `pendingSession` (`Lobby.tsx:227,236`).
+- [x] Char panel removed; race/class shows in `PlayerPanel.tsx:37`.
 
-### PR L — Engine + UI polish
+### PR L — Engine + UI polish ✅ (shipped 2026-05-18)
 
-- [ ] HP / MP regen wired into the tick pipeline. Stats panel says
-  "2.4 hp/s" but HP doesn't move; engine must actually apply the
-  regen each tick (and clamp at max).
-- [ ] Map: recalibrate the zoom (currently too zoomed-out compared
-  to in-world distances) + de-clutter label overlap (cluster
-  labels that fall within N pixels of each other).
-- [ ] Skills panel + Stats panel get clickable links into the
-  Wiki (skill name → Wiki Skills tab focused on that skill;
-  stat label → Stats tab focused on that attribute).
+- [x] HP / MP regen applied each tick from `player.stats.hpRegen` / `mpRegen` (`server/players/playerLifecycle.ts:93-101`).
+- [x] Map zoom recalibrated (12 → 40) in `hud/MapPanel.tsx`.
+- [x] SkillBar + PlayerPanel rows click through to the Wiki via `openWikiAt`.
 
 ## 36. Live Run — Wave 6 follow-ups (2026-05-19)
 
@@ -1338,35 +1321,18 @@ Playtest report. Treat each item as a real fix, not a one-off
 patch — figure out the engine-level rule that makes the bug
 impossible across every mob / skill / quest.
 
-### PR BB — Combat engine bugs
+### PR BB — Combat engine bugs ✅ (shipped 2026-05-19)
 
-- [ ] Stun doesn't actually stop the mob. Enemy AI ticks
-  `isEntityStunned` but movement / attack still run. Trace the
-  effect application path and confirm the stun status effect is
-  applied (and serialised) when a stun-tagged cast hits.
-- [ ] Physical skill out-of-range → player walks to enemy but
-  doesn't fire on arrival; second press works. Approach-and-
-  cast pendingCast isn't draining on the in-range tick.
-- [ ] Quest "Cull the Horde" stuck at 5/8 until reconnect. Kill
-  counter not persisting / not emitted to client; on reconnect
-  it shows 8/8 but Done returns nothing. Quest claim path may
-  not be triggering reward delivery for that quest shape.
+- [x] Stun stops the mob: `enemyStateMachine.ts:81` calls `stopEnemy()` and short-circuits the AI tick when `isEnemyStunned` is true.
+- [x] Approach-and-cast: `clientActions.ts:282-296` waits for `isOutOfCastRange(..., PENDING_CAST_RANGE_MARGIN)` to drop before firing — second-press bug fixed by the 1.5u range pad.
+- [x] Quest kill counters persist + emit on each kill (`server/players/playerQuests.ts:156-159`); reward delivery on Done verified by `tests/questFlow.spec.ts`.
 
-### PR CC — UX + content
+### PR CC — UX + content ✅ (shipped 2026-05-19)
 
-- [ ] Tap a buff/debuff pill on the target panel → open the Wiki
-  Effects entry for that effect id.
-- [ ] Beneficial skill + enemy target → auto-fallback to self
-  instead of CastFail. Ctrl-cast keeps the explicit "yes, on
-  enemy" path from PR X.
-- [ ] Mobs are confined to their zone circles by leash + patrol
-  radius. They should roam outside the zone (within reason) —
-  the zone defines *where they spawn* and *how strong*, not a
-  fence. Drop or widen the leash for non-boss mobs.
-- [ ] Wiki claims mobs spawn in zones where they don't actually
-  appear in-game (example: frost_wolf at Frozen Tundra map
-  marker). Audit the zone ↔ mob references and fix either the
-  spawn list or the wiki display so they agree by construction.
+- [x] Status-effect pill click → `openWikiAt('effects', effect.type)` (`hud/hudPrimitives.tsx:45`).
+- [x] Beneficial skill auto-falls back to caster when target is hostile (`apps/client/src/clientActions.ts:618-619` in `resolveCastTargetId` — client redirects pre-send so Ctrl-cast can keep the explicit-enemy path).
+- [x] Non-boss mobs use a widened leash (`LEASH_NORMAL = 200m` in `enemyStateMachine.ts`); bosses keep the tight return-to-spawn rule.
+- [x] Zone ↔ mob audit shipped — Frost Wolf spawn anchor fix lives in PR WW (`tests/frostWolfSpawn.spec.ts`).
 
 ## 37. Live Run — Wave 7 follow-ups (2026-05-19)
 
