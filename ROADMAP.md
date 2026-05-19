@@ -1617,21 +1617,20 @@ checkpoint.
   only as the fallback for entities lacking
   `player.stats.runSpeed` (e.g. mid-bootstrap snapshots).
 
-### PR UU — Single source of SkillId across TS + protocol
+### PR UU — Single source of SkillId across TS + protocol ✅
 
-- [ ] Today: `SkillId` is a hand-written TS union
-  (`packages/content/skills.ts:2`) AND `skillIdValues` is
-  a hand-written Zod enum (`packages/protocol/common.ts:17`)
-  covering the same ids. `protocolSkillIdCoverage.spec.ts`
-  catches drift but the two lists are still duplicated.
-- [ ] Pick one as the source. Cleanest:
-  `skillIdValues` is the literal array; `SkillId` derives
-  via `typeof skillIdValues[number]`. The Zod enum stays
-  exactly that array.
-- [ ] **Old-system removal**: delete the manual TS union;
-  keep only the array → typeof inference path. Remove the
-  `protocolSkillIdCoverage` drift test once the duplicate
-  is gone (no two-source problem to police).
+- [x] `SKILL_IDS` in `packages/content/skills.ts` is now the
+  canonical list. `SkillId` is `(typeof SKILL_IDS)[number]`
+  and `protocol/common.ts:skillIdSchema` is
+  `z.enum(SKILL_IDS)`. `skillIdValues` is kept as a re-export
+  alias so existing callers don't churn.
+- [x] **Old-system removal**: the hand-written TS union is
+  gone; the parallel `skillIdValues` literal array in
+  `protocol/common.ts` is gone (now just a re-export).
+  `protocolSkillIdCoverage.spec.ts` is kept — it still
+  enforces `SKILLS` catalog ↔ `SKILL_IDS` parity, which is a
+  separate invariant (catalog vs id list) and remains
+  worth policing.
 
 ### PR VV — Audit hardening + HUD overlap fix
 
