@@ -2115,13 +2115,17 @@ contiguous list so the audit doesn't fragment.
   script lives alongside `scripts/test-postgres-restore.sh`
   which already wires the full restore cycle, so the next slice
   is just adding a workflow trigger.
-- [ ] **Protocol / docs stale.** Server message schemas are still
-  mostly `.passthrough()` in `packages/protocol/serverMessages.ts:24`
-  while the roadmap (§4) says to make them strict. README's
-  protocol table is also outdated and incomplete, including a wrong
-  `PosSnap` shape at `README.md:60`; roadmap already flags this at
-  `ROADMAP.md:1054`. **Fix**: tighten the server-message Zod
-  schemas one batch at a time + refresh the README protocol table.
+- [x] **Server message schemas are `.strict()`.** All 22
+  `.passthrough()` declarations in
+  `packages/protocol/serverMessages.ts` flipped to `.strict()`.
+  Full protocol + outbound-emit test surface (52 tests across 6
+  files) passes; full `bun test` shows the same 31 pre-existing
+  bun-suite-order flakes (verified to fail on main without this
+  change too). Server now refuses to ship undocumented fields on
+  the wire — adding one requires updating the schema explicitly.
+- [ ] **README protocol table.** Still outdated (wrong PosSnap
+  shape at `README.md:60`). Tracked separately from the schema
+  flip — text-only follow-up.
 - [x] **PR #226 (audit events) initial typecheck failure + missing
   hooks.** Original audit-event commit failed `typecheck:server` at
   `server/auth/authAudit.ts:40` (Insertable shape) and mislabeled
