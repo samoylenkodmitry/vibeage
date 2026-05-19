@@ -13,6 +13,7 @@ import {
 } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
+import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 
 type ImpactContext = {
   caster: PlayerState | null;
@@ -49,14 +50,11 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const context = { caster, skill, outbound, world };
 
   const targets = resolveCastTargets(cast, world, skill, caster);
-  // Compute caster buffs once for the whole cast rather than per-target
-  // (matters for multi-target skills like volley / waterSplash). The
-  // skill-upgrade multiplier is constant per cast too, so hoist its
-  // lookup alongside the bless multiplier instead of re-folding the
-  // tier table for every target.
-  const blessMult = blessDamageMultiplier(caster);
+  // PR NN — Bless's damage multiplier is folded into `caster.stats.dmgMult`
+  // by the Contribution registry (status-effect contribution). The cast
+  // pipeline just reads dmgMult directly; no per-cast bless math.
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damages = targets.map((target) => calculateDamage(skill, caster, blessMult, upgradeDmgMult, cast.castId, target.id));
+  const damages = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id));
 
   targets.forEach((target, index) => {
     applyCastToTarget(target, damages[index], context);
@@ -101,7 +99,6 @@ function resolveCastTargets(
 function calculateDamage(
   skill: SkillDef,
   caster: PlayerState | null | undefined,
-  blessMult: number,
   upgradeDmgMult: number,
   castId?: string,
   targetId?: string,
@@ -116,7 +113,7 @@ function calculateDamage(
   // and passed in — keeps multi-target casts O(1) on the tier table
   // instead of O(targets) when leveled.
   const result = getDamage({
-    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * blessMult * upgradeDmgMult },
+    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * upgradeDmgMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
@@ -124,31 +121,11 @@ function calculateDamage(
   return result.dmg;
 }
 
-/**
- * Sum bless-style damage tilts active on the caster into a single
- * multiplier. effect.value is a percentage (Bless: 25 → +25%); the
- * helper converts to (1 + value/100).
- *
- * KNOWN ISSUE: upsertStatusEffect replaces existing effects of the
- * same type (instead of stacking), so the additive loop here is
- * unreachable today — at most one 'bless' is ever active. Keeping the
- * sum so a later stacking-policy fix (Section 8 L520) lights up
- * bless stacking without re-touching this code. Balance is currently
- * tuned around the non-stacking behaviour; fixing both at once needs
- * a dedicated balance pass.
- */
-function blessDamageMultiplier(caster: PlayerState | null | undefined): number {
-  if (!caster?.statusEffects?.length) return 1;
-  const now = Date.now();
-  let pct = 0;
-  for (const effect of caster.statusEffects) {
-    if (effect.type !== 'bless') continue;
-    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
-    if (expiresAt <= now) continue;
-    pct += effect.value ?? 0;
-  }
-  return 1 + pct / 100;
-}
+// PR NN — `blessDamageMultiplier` removed. Bless's damage tilt is
+// now a regular Contribution (status-effect → dmgMult mul), folded
+// into `player.stats.dmgMult` by `recomputePlayerStats`. The cast
+// pipeline just reads `caster.stats.dmgMult` once; no per-cast
+// bless math.
 
 function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerState> {
   const skill = SKILLS[cast.skillId];
@@ -356,6 +333,21 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
   } else {
     target.statusEffects.push(stacking.stackable ? { ...statusEffect, stacks: 1 } : statusEffect);
   }
+  // PR NN — a stat-affecting buff (Bless, Slow, Shield, Evasion buff)
+  // changes player.stats via the Contribution registry. Recompute
+  // here so the next damage roll / regen tick / display reflects the
+  // new buff immediately.
+  if (!isEnemyEntity(target) && STAT_AFFECTING_EFFECTS.has(effect.type)) {
+    recomputePlayerStats(target);
+  }
+}
+
+const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set([
+  'bless', 'slow', 'shield', 'evasion',
+]);
+
+function isEnemyEntity(target: Enemy | PlayerState): target is Enemy {
+  return 'type' in target && 'spawnPosition' in target;
 }
 
 function absorbWithShield(target: Enemy | PlayerState, damage: number): number {

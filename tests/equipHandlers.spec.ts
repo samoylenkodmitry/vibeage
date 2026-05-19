@@ -1,9 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
-import {
-  handleEquipItem,
-  handleUnequipItem,
-  refreshPlayerStatsFromEquipment,
-} from '../server/inventory/equipHandlers';
+import { handleEquipItem, handleUnequipItem } from '../server/inventory/equipHandlers';
+import { recomputePlayerStats } from '../server/players/playerStatsRefresh';
 import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
 import { createTransientPlayer } from '../server/playerFactory';
 
@@ -18,7 +15,7 @@ function freshPlayer() {
   // the level-80 baseline (not the level-1 default from
   // createTransientPlayer). Otherwise equip/unequip refresh leaves
   // the stats at a higher number than the captured baseline.
-  refreshPlayerStatsFromEquipment(player);
+  recomputePlayerStats(player);
   // Start with an empty bag so tests control exactly what's in slot 0.
   player.inventory = [];
   if (player.characterInventory) {
@@ -79,7 +76,7 @@ describe('equip handler flow', () => {
   test('refreshing stats with no equipment is a no-op compared to baseline', () => {
     const player = freshPlayer();
     const before = { ...player.stats };
-    refreshPlayerStatsFromEquipment(player);
+    recomputePlayerStats(player);
     expect(player.stats?.dmgMult).toBeCloseTo(before.dmgMult ?? 0, 5);
   });
 

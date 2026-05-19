@@ -33,13 +33,6 @@ export type RaceProfile = {
    */
   growthPerLevel: RaceStatWeights;
   /**
-   * @deprecated Kept temporarily so the persistence row deserialiser
-   * doesn't reject pre-refactor records. New code reads baseAttrs +
-   * growthPerLevel instead. Remove after the persisted shape catches
-   * up on the next migration.
-   */
-  statMultipliers: RaceStatWeights;
-  /**
    * Which base classes this race may select. Lineage-style heritage
    * gating: a player picks a race first, then a class from that
    * race's list. UI hides + server rejects out-of-list picks.
@@ -59,7 +52,6 @@ export const RACE_PROFILES: Record<CharacterRace, RaceProfile> = {
     description: 'Balanced and adaptable. No clear specialty, no real weakness.',
     baseAttrs: { str: 13, dex: 13, con: 13, int: 13, wit: 13, men: 13 },
     growthPerLevel: { str: 1.5, dex: 1.5, con: 1.5, int: 1.5, wit: 1.5, men: 1.5 },
-    statMultipliers: { str: 1.0, dex: 1.0, con: 1.0, int: 1.0, wit: 1.0, men: 1.0 },
     allowedClasses: ['knight', 'paladin', 'mage'],
   },
   elf: {
@@ -68,7 +60,6 @@ export const RACE_PROFILES: Record<CharacterRace, RaceProfile> = {
     description: 'Graceful and quick-witted. Higher dexterity and wit, lower constitution.',
     baseAttrs: { str: 12, dex: 16, con: 11, int: 14, wit: 16, men: 13 },
     growthPerLevel: { str: 1.3, dex: 1.8, con: 1.2, int: 1.6, wit: 1.8, men: 1.5 },
-    statMultipliers: { str: 0.95, dex: 1.15, con: 0.92, int: 1.05, wit: 1.15, men: 1.0 },
     allowedClasses: ['ranger', 'healer'],
   },
   dark_elf: {
@@ -77,7 +68,6 @@ export const RACE_PROFILES: Record<CharacterRace, RaceProfile> = {
     description: 'Sharp minds, sharper blades. Strong INT and DEX, frail body.',
     baseAttrs: { str: 13, dex: 16, con: 11, int: 17, wit: 14, men: 12 },
     growthPerLevel: { str: 1.5, dex: 1.8, con: 1.2, int: 1.9, wit: 1.6, men: 1.4 },
-    statMultipliers: { str: 1.0, dex: 1.15, con: 0.9, int: 1.18, wit: 1.05, men: 0.95 },
     allowedClasses: ['rogue', 'mage'],
   },
   orc: {
@@ -86,7 +76,6 @@ export const RACE_PROFILES: Record<CharacterRace, RaceProfile> = {
     description: 'Hardy and powerful. Excellent STR and CON, poor at magic.',
     baseAttrs: { str: 17, dex: 12, con: 17, int: 10, wit: 11, men: 12 },
     growthPerLevel: { str: 2.0, dex: 1.3, con: 1.9, int: 1.0, wit: 1.2, men: 1.4 },
-    statMultipliers: { str: 1.2, dex: 0.95, con: 1.18, int: 0.85, wit: 0.9, men: 0.95 },
     allowedClasses: ['warrior'],
   },
   dwarf: {
@@ -95,7 +84,6 @@ export const RACE_PROFILES: Record<CharacterRace, RaceProfile> = {
     description: 'Resilient and patient. Great CON and MEN, modest DEX.',
     baseAttrs: { str: 15, dex: 11, con: 17, int: 12, wit: 12, men: 16 },
     growthPerLevel: { str: 1.7, dex: 1.2, con: 1.9, int: 1.3, wit: 1.3, men: 1.7 },
-    statMultipliers: { str: 1.1, dex: 0.9, con: 1.2, int: 0.95, wit: 0.95, men: 1.15 },
     allowedClasses: ['warrior', 'healer'],
   },
 };

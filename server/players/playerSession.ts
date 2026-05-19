@@ -21,8 +21,7 @@ import {
   normalizeSkillShortcuts,
   normalizeUnlockedSkills,
 } from './playerProgression.js';
-import { derivePlayerStats } from '../../packages/sim/playerStats.js';
-import { projectPlayerStats, refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
+import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { applyStarterLoadout } from '../inventory/starterLoadout.js';
 import { hydratePersistedCharacterInventory } from '../inventory/aggregateBridge.js';
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
@@ -138,7 +137,6 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   // again rather than getting wedged into a class they can never cast.
   const className = snapClassToRace(normalizeClassName(row.class_name), race);
   const unlockedSkills = normalizeUnlockedSkills(row.skills, className);
-  const derived = derivePlayerStats(level, className, {}, race);
   const starterProgress = normalizeStarterProgressState(row.starter_progress, {
     levelReached: level,
     learnedSkills: unlockedSkills.length,
@@ -154,10 +152,13 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
       z: numberOrFallback(row.position_z, 0),
     },
     rotation: { x: 0, y: 0, z: 0 },
-    health: numberOrFallback(row.health, derived.maxHealth),
-    maxHealth: derived.maxHealth,
-    mana: numberOrFallback(row.mana, derived.maxMana),
-    maxMana: derived.maxMana,
+    // PR NN — vitals seeded with placeholders; recomputePlayerStats
+    // below derives the real maxes from contributions, then we clamp
+    // the persisted current health/mana into the new range.
+    health: numberOrFallback(row.health, 1),
+    maxHealth: 1,
+    mana: numberOrFallback(row.mana, 1),
+    maxMana: 1,
     level,
     experience: numberOrFallback(row.experience ?? row.xp, 0),
     experienceToNextLevel: getExperienceToNextLevel(level),
@@ -177,7 +178,6 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     lastUpdateTime: Date.now(),
     inventory: row.inventory || [],
     maxInventorySlots: 20,
-    stats: projectPlayerStats(derived),
     specializationId: normalizeSpecializationId(row.specialization_id),
     skillLevels: normalizeSkillLevels(row.skill_levels),
     questState: normalizeQuestState(row.quest_state),
@@ -196,12 +196,17 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   ) {
     applyStarterLoadout(player);
   }
-  // Recompute derived stats now that equipment has been restored. Called
-  // unconditionally so legacy players (no character_inventory column yet
-  // populated but with items in the legacy bag) still get the correct
-  // equipment bonuses on login — refreshPlayerStatsFromEquipment lazily
-  // builds the aggregate from the legacy slots when missing.
-  refreshPlayerStatsFromEquipment(player);
+  // PR NN — single stat-compute entrypoint. Builds the contributions
+  // list from the now-restored race / class / level / equipment and
+  // writes player.stats / max{Health,Mana}.
+  recomputePlayerStats(player);
+  // Legacy rows persisted before vitals existed default health/mana
+  // to the *new* maxes after the recompute. Pre-recompute we couldn't
+  // do this because the maxes were unknown.
+  if (row.health === undefined || row.health === null) player.health = player.maxHealth;
+  if (row.mana === undefined || row.mana === null) player.mana = player.maxMana;
+  if (player.health > player.maxHealth) player.health = player.maxHealth;
+  if (player.mana > player.maxMana) player.mana = player.maxMana;
   // Retroactive starter-skill backfill: a player who switched class
   // BEFORE slice #20's ensureClassHasStarterSkill fix shipped will have
   // className='warrior' but unlockedSkills=['fireball'] — they can't

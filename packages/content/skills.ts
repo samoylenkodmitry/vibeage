@@ -206,9 +206,9 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 0,
     cooldownMs: 1200,
     // Damage scales through caster.dmgMult, which already factors in
-    // primary stat + equipped weapon pAtk via derivePlayerStats. A
-    // small flat base keeps unarmed viable while letting weapons
-    // multiply through dmgMult.
+    // primary stat + equipped weapon pAtk via the Contribution
+    // registry (statContributions.ts). A small flat base keeps
+    // unarmed viable while letting weapons multiply through dmgMult.
     dmg: 8,
     range: 4,
     levelRequired: 1,

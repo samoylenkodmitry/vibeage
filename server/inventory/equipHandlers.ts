@@ -8,11 +8,10 @@ import type {
 import type { EquipSlot } from '../../packages/content/equipmentTypes.js';
 import { listInventoryItems } from '../../packages/sim/characterInventory.js';
 import { equipItem, unequipSlot } from '../../packages/sim/equipTransactions.js';
-import { deriveEquipmentStats } from '../../packages/sim/equipmentStats.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import { derivePlayerStats } from '../../packages/sim/playerStats.js';
 import { emitPlayerUpdated, type DirectMessageSink, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { ensureCharacterInventory, syncLegacyInventory } from './aggregateBridge.js';
+import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 
 const VALID_SLOTS: ReadonlySet<EquipSlot> = new Set<EquipSlot>([
   'HEAD', 'CHEST', 'LEGS', 'GLOVES', 'BOOTS',
@@ -84,7 +83,7 @@ export function sendEquipment(
   player: PlayerState,
   outbound?: OutboundEventSink,
 ): void {
-  refreshPlayerStatsFromEquipment(player);
+  recomputePlayerStats(player);
   const inv = ensureCharacterInventory(player);
   const entries: EquipmentEntry[] = [];
   for (const [slot, instanceId] of Object.entries(inv.equipment)) {
@@ -112,53 +111,12 @@ export function sendEquipment(
   }
 }
 
-/**
- * Project the full DerivedPlayerStats block into the PlayerState.stats shape
- * the wire / HUD consumes.
- */
-export function projectPlayerStats(derived: ReturnType<typeof derivePlayerStats>): NonNullable<PlayerState['stats']> {
-  return {
-    dmgMult: derived.dmgMult,
-    critChance: derived.critChance,
-    critMult: derived.critMult,
-    pAtk: derived.pAtk,
-    mAtk: derived.mAtk,
-    pDef: derived.pDef,
-    mDef: derived.mDef,
-    hpRegen: derived.hpRegen,
-    mpRegen: derived.mpRegen,
-    accuracy: derived.accuracy,
-    evasion: derived.evasion,
-    attackSpeed: derived.attackSpeed,
-    castSpeed: derived.castSpeed,
-    runSpeed: derived.runSpeed,
-    str: derived.str,
-    dex: derived.dex,
-    con: derived.con,
-    int: derived.int,
-    wit: derived.wit,
-    men: derived.men,
-  };
-}
-
-/**
- * Re-derive the player's combat multipliers + HP/MP caps from level + class +
- * currently equipped items so equipping a sword actually shows up in damage.
- */
-export function refreshPlayerStatsFromEquipment(player: PlayerState): void {
-  const inv = ensureCharacterInventory(player);
-  const equipmentStats = deriveEquipmentStats(inv);
-  const derived = derivePlayerStats(player.level, player.className, equipmentStats, player.race);
-  player.stats = projectPlayerStats(derived);
-  player.maxHealth = derived.maxHealth;
-  player.maxMana = derived.maxMana;
-  if (player.health > player.maxHealth) {
-    player.health = player.maxHealth;
-  }
-  if (player.mana > player.maxMana) {
-    player.mana = player.maxMana;
-  }
-}
+// PR NN — projectPlayerStats + refreshPlayerStatsFromEquipment removed.
+// Stat computation lives exclusively in
+// `server/players/playerStatsRefresh.ts` via `recomputePlayerStats`,
+// which builds the contribution list and writes player.stats /
+// max{Health,Mana} in one pass. Equip / unequip call sites above
+// invoke it through `sendEquipment`.
 
 function sendFail(direct: DirectMessageSink, reason: string): void {
   const message: EquipFailedMsg = { type: 'EquipFailed', reason };

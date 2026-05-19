@@ -1,6 +1,6 @@
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import { refreshPlayerStatsFromEquipment } from '../inventory/equipHandlers.js';
+import { recomputePlayerStats } from './playerStatsRefresh.js';
 import type { GameState } from '../gameState.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
@@ -47,12 +47,9 @@ export function awardPlayerXP(
     player.level += 1;
     player.experience -= oldMaxExp;
     player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5);
-    // Use refreshPlayerStatsFromEquipment so equipped item bonuses
-    // survive the level-up. The bare derivePlayerStats(..., {}, ...)
-    // path zeros out every equipment stat block, which silently
-    // dropped pAtk from a worn_sword and similar bonuses after a
-    // level gain — caught in code review.
-    refreshPlayerStatsFromEquipment(player);
+    // PR NN — level-up bumps every level-scaling contribution; one
+    // recompute updates pAtk / maxHealth / regen / etc. simultaneously.
+    recomputePlayerStats(player);
     player.health = player.maxHealth;
     player.mana = player.maxMana;
     player.availableSkillPoints += 1;
