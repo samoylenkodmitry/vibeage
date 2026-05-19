@@ -1606,12 +1606,23 @@ explicit deletion checklist.
 This PR is the big cutover. Land in one push.
 
 - [ ] **Type:** `Contribution = {source: string; label: string;
-  stat: StatId; op: 'base'|'add'|'mul'; value: number;
+  stat: StatId; op: 'base'|'addPre'|'mul'|'addPost';
+  value: number | ((resolved: ResolvedStats) => number);
   predicate?: (ctx: StatCtx) => boolean}`.
   - `source` is a stable id (e.g. `race:orc`, `level:8`,
     `class:warrior`, `item:worn_sword:<instanceId>`,
     `effect:bless:<effectId>`, `spec:arcanist`).
   - `label` is the player-facing line in the popup.
+  - **4-phase pipeline** (preserves current balance — see
+    note below): `final = ((base + Σaddpre) × Πmul) + ΣaddPost`,
+    then optional `cap`. The two add phases are necessary
+    because the existing pAtk math has equipment added
+    *after* the class damage multiplier — collapsing into
+    a single add phase would change the balance of every
+    weapon's scaling.
+  - `value` may be a function so CON-derived health flats /
+    INT-derived mAtk scaling can read already-resolved
+    attributes (`(r) => (r.con - 8) * 6`).
   - `predicate` returns `false` to mark the contribution
     inactive (e.g. Rage requires HP<30%); inactive
     contributions are still emitted on `parts` for the
