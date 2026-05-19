@@ -43,7 +43,7 @@ export async function recordAuthAuditEvent(event: AuthAuditEvent): Promise<void>
     reason: event.reason ?? null,
     remoteAddr: event.remoteAddr ?? null,
   };
-  // eslint-disable-next-line no-console -- prod logs grep on this prefix
+  // Prod logs grep on this `[audit]` prefix.
   console.log(`[audit] ${event.type}`, JSON.stringify(data));
   try {
     const values = {
@@ -58,7 +58,6 @@ export async function recordAuthAuditEvent(event: AuthAuditEvent): Promise<void>
       .values(values as unknown as Insertable<ServerEventsTable>)
       .execute();
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn(`[audit] failed to persist ${event.type}:`, err);
   }
 }
