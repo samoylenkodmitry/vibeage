@@ -2055,16 +2055,19 @@ contiguous list so the audit doesn't fragment.
   `packages/sim/equipmentStats.ts` and `tests/equipmentStats.spec.ts`;
   the only stat-from-equipment path is now
   `pushEquipmentContributions` in `statContributions.ts`.
-- [ ] **Specialization descriptions overclaim.** The only supported
-  modifiers in `packages/content/specializations.ts:33` are generic
-  damage / health / mana / speed / crit; mapped only to generic
-  stats in `packages/sim/statContributions.ts:444`. Examples that
-  the descriptions promise but the data can't represent: fire-only
-  damage / duration, healing output, party aura, poison ticks,
-  taunt range, lifesteal, loot rates, cooldown halves. Many spec
-  entries have `{}` or unrelated generic modifiers. **Fix**: either
-  trim descriptions to what the data can carry, or extend
-  `SpecializationPassiveModifiers` to cover the claimed effects.
+- [x] **Spec descriptions trimmed to data.** Each spec passive
+  description now reads as `<what the modifier does>. (planned:
+  <designer intent that's not represented yet>)`. The cardinal
+  KNOWN-ISSUE comment is gone — its placeholder modifier was
+  replaced with `{}` + a clear "planned: heal-output multiplier"
+  note so the wiki stops promising a +25% that doesn't fire. New
+  `tests/specPassiveHonesty.spec.ts` enforces the invariant:
+  any passive with no working modifier must carry a `(planned:
+  …)` disclaimer, so future authors can't ship a quiet lie. The
+  bigger task — actually extending
+  `SpecializationPassiveModifiers` to cover fire flavour, heal
+  output, lifesteal, per-skill cooldown reduction, party auras,
+  loot rates — stays open as a content/engine slice.
 - [ ] **Active-skill effects partly unwired:** `waterWeakness`,
   `transform` still inert; `knockback` is wired (see below).
   `waterWeakness` needs a damage-flavour amplifier; `transform`

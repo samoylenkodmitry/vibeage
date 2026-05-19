@@ -102,12 +102,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Kindling',
-      description: '+20% damage on fire effects.',
+      description: '+10% damage. (planned: fire-flavour amplifier so burn dots tick harder than other damage.)',
       modifiers: { damageMultiplier: 1.1 },
     },
     proficiencyPassive: {
       name: 'Conflagration',
-      description: 'Fire dot ticks last longer (proficiency tier).',
+      description: '+10% damage. (planned: fire-dot duration extension.)',
       modifiers: { damageMultiplier: 1.1 },
     },
     specSkills: ['meteor'],
@@ -164,16 +164,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Greater Calling',
-      description: '+25% effective healing output.',
-      // KNOWN ISSUE: description claims +25% but the spec-passive
-      // numeric tuning is held in `statContributions.ts` and currently
-      // emits a placeholder (×1.0) contribution. Set this to the
-      // intended value when balance work begins.
-      modifiers: { damageMultiplier: 1.0 },
+      description: '(planned: +25% effective healing output once a heal-output multiplier lands in SpecializationPassiveModifiers — heal effects bypass damageMultiplier today.)',
+      modifiers: {},
     },
     proficiencyPassive: {
       name: 'Sanctity',
-      description: 'Allies near you regenerate faster (proficiency).',
+      description: '+5% max HP. (planned: nearby-ally regen aura.)',
       modifiers: { healthMultiplier: 1.05 },
     },
     specSkills: ['greater_heal'],
@@ -188,12 +184,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Inspiration',
-      description: 'Bless / buff effect duration +25%.',
+      description: '(planned: +25% Bless / buff effect duration. No status-duration multiplier system today.)',
       modifiers: {},
     },
     proficiencyPassive: {
       name: 'Patron Saint',
-      description: 'Party-wide aura: +5% damage to nearby allies (proficiency).',
+      description: '(planned: party-wide aura for +5% damage to nearby allies. No party-aura system today.)',
       modifiers: {},
     },
     specSkills: ['empower'],
@@ -229,12 +225,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Venom',
-      description: 'Poison ticks +30%.',
+      description: '(planned: +30% poison tick damage. No poison-tick amplifier today.)',
       modifiers: {},
     },
     proficiencyPassive: {
       name: 'Phantom Step',
-      description: '+10% movement speed and +5% evasion (proficiency).',
+      description: '+10% movement speed. (planned: +5% evasion once an evasion multiplier joins SpecializationPassiveModifiers.)',
       modifiers: { speedMultiplier: 1.1 },
     },
     specSkills: ['silent_step'],
@@ -250,12 +246,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Bulwark',
-      description: '+15% max HP, taunt range +50%.',
+      description: '+15% max HP. (planned: taunt-range +50% once skills can take per-spec range modifiers.)',
       modifiers: { healthMultiplier: 1.15 },
     },
     proficiencyPassive: {
       name: 'Last Stand',
-      description: '+15% damage reduction at low HP (proficiency).',
+      description: '(planned: +15% damage reduction below half HP. No conditional damage-taken multiplier today.)',
       modifiers: {},
     },
     specSkills: ['holy_shield'],
@@ -275,7 +271,7 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Sanguine Blade',
-      description: 'Hits restore a small amount of HP (proficiency).',
+      description: '(planned: small per-hit HP restore. No lifesteal hook in applyCastToTarget yet.)',
       modifiers: {},
     },
     specSkills: ['shadow_strike'],
@@ -291,12 +287,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Holy Fire',
-      description: '+15% magical damage on holy attacks.',
+      description: '+15% damage. (planned: holy-flavour amplifier so the bonus only applies to divine attacks.)',
       modifiers: { damageMultiplier: 1.15 },
     },
     proficiencyPassive: {
       name: 'Resurrection',
-      description: 'Brief invulnerability on falling to 1 HP, once per fight (proficiency).',
+      description: '(planned: brief invulnerability on falling to 1 HP, once per fight. No once-per-fight tracker yet.)',
       modifiers: {},
     },
     specSkills: ['phoenix_ward'],
@@ -311,12 +307,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Grace',
-      description: '+20% healing output, +10% max HP.',
+      description: '+10% max HP. (planned: +20% healing output — heal effects bypass damageMultiplier today.)',
       modifiers: { healthMultiplier: 1.1 },
     },
     proficiencyPassive: {
       name: 'Aegis',
-      description: 'Divine Shield refreshes faster (proficiency).',
+      description: '(planned: faster Divine Shield refresh. No per-skill cooldown reduction system today.)',
       modifiers: {},
     },
     specSkills: ['sacred_pulse'],
@@ -332,12 +328,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Light Step',
-      description: '+15% movement speed, +5% evasion.',
+      description: '+15% movement speed. (planned: +5% evasion once an evasion multiplier joins SpecializationPassiveModifiers.)',
       modifiers: { speedMultiplier: 1.15 },
     },
     proficiencyPassive: {
       name: 'Lucky Find',
-      description: 'Improved loot drop rates (proficiency).',
+      description: '(planned: improved loot drop rates. No loot-rate multiplier system today.)',
       modifiers: {},
     },
     specSkills: ['lucky_strike'],
@@ -352,12 +348,12 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Toxin',
-      description: 'Poison ticks +25%, +10% physical damage.',
+      description: '+10% damage. (planned: +25% poison tick damage once a poison-tick amplifier lands.)',
       modifiers: { damageMultiplier: 1.1 },
     },
     proficiencyPassive: {
       name: 'Shadow Step',
-      description: 'Vanish cooldown halved (proficiency).',
+      description: '(planned: Vanish cooldown halved. No per-skill cooldown reduction system today.)',
       modifiers: {},
     },
     specSkills: ['wind_dash'],
