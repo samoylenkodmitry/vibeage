@@ -34,7 +34,7 @@ describe('equipment stat keys resolve to a real StatId', () => {
     for (const set of sets) {
       for (const bonus of set.bonuses) {
         for (const key of Object.keys(bonus.statModifiers)) {
-          if (!isResolvableKey(key)) offenders.push(`${set.id}@${bonus.requiredCount}.${key}`);
+          if (!isResolvableKey(key)) offenders.push(`${set.setId}@${bonus.requiredCount}.${key}`);
         }
       }
     }
