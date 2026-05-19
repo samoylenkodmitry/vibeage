@@ -16,7 +16,7 @@ import { activeSetBonuses } from '../content/equipmentSets.js';
 import { type EquipSlot, EQUIP_SLOTS } from '../content/equipmentTypes.js';
 import { ITEMS, type Item } from '../content/items.js';
 import { DEFAULT_RACE, RACE_PROFILES, type CharacterRace } from '../content/races.js';
-import { getSpecializationById, PROFICIENCY_LEVEL, SPECIALIZATION_UNLOCK_LEVEL } from '../content/specializations.js';
+import { getSpecializationById, PROFICIENCY_LEVEL, SPECIALIZATION_UNLOCK_LEVEL, type SpecializationPassiveModifiers } from '../content/specializations.js';
 import type { CharacterInventory } from './characterInventory.js';
 import type { StatusEffect } from '../protocol/messages.js';
 
@@ -426,12 +426,48 @@ function pushSpecializationContributions(out: Contribution[], specId: string | n
   if (!specId || level < SPECIALIZATION_UNLOCK_LEVEL) return;
   const spec = getSpecializationById(specId);
   if (!spec) return;
-  const proficient = level >= PROFICIENCY_LEVEL;
-  const label = `Specialization: ${spec.name}${proficient ? ' (Proficient)' : ''}`;
-  // v1 placeholder: surface the choice in the breakdown without
-  // adjusting numbers. When a passive layer wires stat-affecting
-  // spec passives, those rows append here without touching consumers.
-  out.push({ source: `spec:${spec.id}`, label, stat: 'dmgMult', op: 'mul', value: 1 });
+  // PR SS — spec passive applies at SPECIALIZATION_UNLOCK_LEVEL;
+  // proficiency passive stacks on top once the player hits
+  // PROFICIENCY_LEVEL. Each modifier becomes a Contribution row so
+  // the breakdown popup shows the named source.
+  pushSpecPassiveModifiers(out, spec.id, spec.specializationPassive.name, spec.specializationPassive.modifiers, 'spec');
+  if (level >= PROFICIENCY_LEVEL) {
+    pushSpecPassiveModifiers(out, spec.id, spec.proficiencyPassive.name, spec.proficiencyPassive.modifiers, 'prof');
+  }
+}
+
+/**
+ * PR SS — explode a `SpecializationPassiveModifiers` block into one
+ * Contribution per affected stat. Source / label stay stable so the
+ * breakdown popup reads e.g. "Arcanist · Greater Calling (dmg)".
+ */
+function pushSpecPassiveModifiers(
+  out: Contribution[],
+  specId: string,
+  passiveName: string,
+  mods: SpecializationPassiveModifiers,
+  tier: 'spec' | 'prof',
+): void {
+  const baseSource = `spec:${specId}:${tier}`;
+  const labelPrefix = `${specId} · ${passiveName}`;
+  if (mods.damageMultiplier !== undefined && mods.damageMultiplier !== 1) {
+    out.push({ source: `${baseSource}:dmg`, label: `${labelPrefix} (dmg)`, stat: 'dmgMult', op: 'mul', value: mods.damageMultiplier });
+  }
+  if (mods.healthMultiplier !== undefined && mods.healthMultiplier !== 1) {
+    out.push({ source: `${baseSource}:hp`, label: `${labelPrefix} (HP)`, stat: 'maxHealth', op: 'mul', value: mods.healthMultiplier });
+  }
+  if (mods.manaMultiplier !== undefined && mods.manaMultiplier !== 1) {
+    out.push({ source: `${baseSource}:mp`, label: `${labelPrefix} (MP)`, stat: 'maxMana', op: 'mul', value: mods.manaMultiplier });
+  }
+  if (mods.speedMultiplier !== undefined && mods.speedMultiplier !== 1) {
+    out.push({ source: `${baseSource}:spd`, label: `${labelPrefix} (speed)`, stat: 'runSpeed', op: 'mul', value: mods.speedMultiplier });
+  }
+  if (mods.critChanceBonus !== undefined && mods.critChanceBonus !== 0) {
+    out.push({ source: `${baseSource}:crit`, label: `${labelPrefix} (crit)`, stat: 'critChance', op: 'addPre', value: mods.critChanceBonus });
+  }
+  if (mods.critMultBonus !== undefined && mods.critMultBonus !== 0) {
+    out.push({ source: `${baseSource}:critMul`, label: `${labelPrefix} (crit dmg)`, stat: 'critMult', op: 'addPre', value: mods.critMultBonus });
+  }
 }
 
 function pushEquipmentContributionsFromTemplateMap(
