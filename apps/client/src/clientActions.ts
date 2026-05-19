@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type Dispatch, type RefObject } from 'react';
 import type { Room } from '@colyseus/sdk';
-import { SKILLS, type SkillId } from '../../../packages/content/skills';
+import { classifySkill, SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
 import type { GameClientAction } from './gameReducer';
@@ -192,7 +192,7 @@ function useCastActions(
     const player = current ? getMyPlayer(current) : null;
     if (!roomRef.current || !current || !player?.isAlive || !isSkillKnown(player, skillId)) return;
 
-    const targetId = getCastTargetId(current, player, skillId);
+    const targetId = resolveCastTargetId(current, player, skillId);
     if (!targetId && SKILLS[skillId].requiresTarget) return;
 
     const skillDef = SKILLS[skillId];
@@ -589,6 +589,21 @@ function approachPointToward(player: PlayerEntity, target: EnemyEntity, skillId:
     x: player.position.x + dx * t,
     z: player.position.z + dz * t,
   };
+}
+
+/**
+ * PR CC — final target id for a cast, after the friendly-fire
+ * auto-fallback. If the player aimed a beneficial skill at an
+ * enemy, redirect to self instead of letting the server reject
+ * with friendly-fire. Ctrl-cast keeps the explicit override path.
+ */
+function resolveCastTargetId(state: GameClientState, player: PlayerEntity, skillId: SkillId): string | null {
+  const raw = getCastTargetId(state, player, skillId);
+  if (!raw || isForceCastHeld()) return raw;
+  const skillDef = SKILLS[skillId];
+  if (classifySkill(skillDef?.effects ?? []) !== 'beneficial') return raw;
+  if (state.enemies[raw]?.isAlive) return player.id;
+  return raw;
 }
 
 function getCastTargetId(state: GameClientState, player: PlayerEntity, skillId: SkillId): string | null {

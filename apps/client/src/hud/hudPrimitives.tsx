@@ -2,6 +2,7 @@ import type { StatusEffect } from '../../../../packages/protocol/messages';
 import type { PlayerEntity } from '../gameTypes';
 import { EffectTooltip } from './EffectTooltip';
 import { useTooltipTrigger } from './useTooltipTrigger';
+import { openWikiAt } from './wikiNavBus';
 
 export function Meter({
   label,
@@ -34,14 +35,20 @@ export function StatusPills({ effects }: { effects: StatusEffect[] }) {
   return (
     <div className="status-pills" aria-label="Status effects">
       {effects.slice(0, 5).map((effect) => (
-        <span
+        <button
           key={effect.id}
+          type="button"
           className="status-pill"
+          // PR CC — tap a buff / debuff pill to open the Wiki Effects
+          // entry for that effect type. Tooltip stays on hover /
+          // long-press; click is the deep-link.
+          onClick={(e) => { e.stopPropagation(); openWikiAt('effects', effect.type); }}
+          title="Open in Wiki"
           {...tooltip.triggerProps(effect)}
         >
           {effect.type}
           {effect.stacks ? ` ${effect.stacks}` : ''}
-        </span>
+        </button>
       ))}
       {tooltip.info && (
         <EffectTooltip
