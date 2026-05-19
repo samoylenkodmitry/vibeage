@@ -293,6 +293,15 @@ function applySkillEffects(
       }
       continue;
     }
+    if (effect.type === 'knockback') {
+      // §45.4 — physical push along the caster→target vector. Bash /
+      // powerStrike emit knockback with value = displacement in
+      // world units. No-op for self-targets (vector is zero) and for
+      // immovable bosses; otherwise the target snaps back and the
+      // dirty-snap flag broadcasts the new position on the next tick.
+      applyKnockback(target, caster, effect.value);
+      continue;
+    }
     upsertStatusEffect(target, effect, skill.id);
     // Taunt: force the enemy to focus the caster for the duration of
     // the effect. Damage-based aggro (above) is suppressed while
@@ -302,6 +311,33 @@ function applySkillEffects(
       target.aiState = 'chasing';
     }
   }
+}
+
+function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null, distance: number): void {
+  if (!caster || distance <= 0) return;
+  if (target.id === caster.id) return;
+  const dx = target.position.x - caster.position.x;
+  const dz = target.position.z - caster.position.z;
+  const len = Math.sqrt(dx * dx + dz * dz);
+  if (len < 1e-6) return;
+  const nx = dx / len;
+  const nz = dz / len;
+  target.position = {
+    x: target.position.x + nx * distance,
+    y: target.position.y,
+    z: target.position.z + nz * distance,
+  };
+  // Cancel any in-flight movement so the AI doesn't try to walk back
+  // through the displacement vector on the same tick.
+  target.velocity = { x: 0, z: 0 };
+  if (!isEnemy(target)) {
+    target.movement = {
+      isMoving: false,
+      lastUpdateTime: Date.now(),
+      speed: target.movement?.speed ?? 0,
+    };
+  }
+  target.dirtySnap = true;
 }
 
 /**
