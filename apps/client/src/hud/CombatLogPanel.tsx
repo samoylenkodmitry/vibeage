@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { CombatLine } from '../gameTypes';
 
 const STICK_TO_BOTTOM_PX = 24;
@@ -31,21 +31,14 @@ export function CombatLogPanel({ lines }: CombatLogPanelProps) {
     setStuckToBottom(distanceFromBottom <= STICK_TO_BOTTOM_PX);
   };
 
-  // After the lines list changes, if we were at the bottom keep the
-  // scroll pinned. Use a layout effect so the scroll happens before
-  // the browser paints the new entry into view.
+  // After the lines list changes (or on first mount, since
+  // stuckToBottom starts true), pin the scroll to the bottom. Layout
+  // effect so the scroll happens before the browser paints.
   useLayoutEffect(() => {
     if (!stuckToBottom) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [lines, stuckToBottom]);
-
-  // On first mount, snap to the bottom regardless (covers the case
-  // where the panel was opened with a backlog already present).
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, []);
 
   const ordered = [...lines].reverse();
 
