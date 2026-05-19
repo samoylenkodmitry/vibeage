@@ -363,7 +363,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add secure session cookies or signed bearer tokens. (HMAC-signed bearer tokens in `sessionTokens.ts`.)
 - [x] Add server-side token verification on Colyseus join. (`colyseusRoomAdapter.ts:75` rejects joins without a valid `sessionToken`.)
 - [x] Add token expiration and refresh policy. (`DEFAULT_TTL_MS` in `sessionTokens.ts`; clients re-login on expiry.) Refresh-token rotation is a hardening follow-up.
-- [ ] Add logout and token revocation policy. (Client-side `saveSession(null)` exists; server-side revocation list is open.)
+- [x] Add logout and token revocation policy. `POST /api/auth/logout` bumps `accounts.tokens_valid_after` (migration 010); `verifySessionToken` rejects any token whose `iat` predates that timestamp. In-process Map for sync verification, rehydrated from DB at boot (`primeRevocationCache`).
 - [ ] Add device/session listing if persistent accounts are supported.
 - [ ] Add account deletion flow. (Character deletion is live via `DELETE /api/account/characters/:name`; account-level deletion is open.)
 - [x] Add character creation flow that writes race, class, name, initial position, starter state, and inventory atomically. (`createCharacterForAccount` + `Lobby` `CreateCharacterForm`.)

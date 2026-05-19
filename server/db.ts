@@ -51,6 +51,10 @@ export interface AccountsTable {
   password_salt: string;
   created_at: TimestampColumn;
   last_login_at: TimestampColumn;
+  // Migration 010 — every session token whose `iat` (issued-at) is
+  // older than this column is rejected by verifySessionToken. POST
+  // /api/auth/logout bumps it to NOW().
+  tokens_valid_after: TimestampColumn;
 }
 
 export interface ServerEventsTable {

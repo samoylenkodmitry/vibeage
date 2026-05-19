@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import {
   authenticateOrRegister,
+  bumpAccountTokensValidAfter,
   createCharacterForAccount,
   deleteAccount,
   deleteCharacterForAccount,
@@ -8,7 +9,7 @@ import {
   loginAccount,
   registerAccount,
 } from './accountRepository.js';
-import { issueSessionToken, verifySessionToken } from './sessionTokens.js';
+import { issueSessionToken, revokeTokensForAccount, verifySessionToken } from './sessionTokens.js';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
 import { CHARACTER_RACES, isClassAllowedForRace, type CharacterRace } from '../../packages/content/races.js';
 
@@ -33,6 +34,10 @@ import { CHARACTER_RACES, isClassAllowedForRace, type CharacterRace } from '../.
  *   DELETE /api/account                  (Bearer)   -> 204
  *                              (delete the whole account; cascades to
  *                               characters via ON DELETE CASCADE.)
+ *   POST /api/auth/logout                (Bearer)   -> 204
+ *                              (invalidate every session token issued
+ *                               for this account; new logins issue
+ *                               fresh tokens.)
  */
 export function registerAuthRoutes(app: Express): void {
   app.post('/api/auth', async (req, res) => {
@@ -115,6 +120,14 @@ export function registerAuthRoutes(app: Express): void {
   app.delete('/api/account', requireAuth, async (req, res) => {
     const accountId = (req as Request & { accountId: string }).accountId;
     await deleteAccount(accountId);
+    res.status(204).send();
+  });
+
+  app.post('/api/auth/logout', requireAuth, async (req, res) => {
+    const accountId = (req as Request & { accountId: string }).accountId;
+    const at = new Date();
+    await bumpAccountTokensValidAfter(accountId, at);
+    revokeTokensForAccount(accountId, at.getTime());
     res.status(204).send();
   });
 }
