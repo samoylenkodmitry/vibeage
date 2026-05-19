@@ -1575,6 +1575,7 @@ Three playtest reports landed after wave 8 deployed.
 - [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
   bounded.
 
+<<<<<<< HEAD
 ## 43. Bot architecture review — finishing single-source-of-truth (2026-05-19)
 
 A code-review bot audited the recent stats / class-as-skills work
@@ -1663,6 +1664,44 @@ checkpoint.
   PR or moves to a roadmap follow-up with a dated owner.
   Audit must fail if an unimplemented type silently slips
   back into "ok" without either action.
+
+## 44. Live Run — Wave 12 playtest bugs (2026-05-19)
+
+### PR WW — Escape skill + Frost Wolf spawn drift
+
+- [ ] **Bug: Escape didn't teleport.** Player cast Escape
+  (the universal recall skill) and stayed in place. The
+  cast was supposed to route the caster to the nearest
+  village via the `teleport` effect handler in
+  impactResolver. Trace: was the cast accepted server-
+  side? Did it reach `resolveCastImpact`? Did
+  `getNearestVillage` pick a destination? Add a regression
+  spec that runs the whole Escape pipeline against a
+  fixture player and asserts the position changed to the
+  closest village.
+  - **Old-system removal**: no duplicate village-recall
+    code path should survive — `teleport` effect is the
+    only route.
+
+- [ ] **Bug: Frost Wolf absent from claimed location.**
+  Wiki Mobs tab claims Frost Wolf spawns at `(-460, 480)`
+  in Frozen Tundra (per PR FF anchor). Player teleported
+  there, found no frost wolves. Possible causes:
+  1. Spawn budget cap (`WORLD_SPAWN_BUDGETS`) starved the
+     zone before frost wolves were placed.
+  2. `activePhases` gate kept them un-spawned at the
+     player's time-of-day.
+  3. `jitterAround` chose a point outside the navmesh /
+     under terrain.
+  4. Respawn loop never fired because the zone is far
+     from any active player when the server initialised.
+  Walk the spawner with a small repro script (run the
+  server's `spawnInitialEnemies` on a stub state, assert
+  ≥ 1 frost wolf lands at the anchor). Fix whichever
+  cause it turns out to be.
+  - **Old-system removal**: nothing carrying old per-mob
+    spawn logic should survive — `ZoneMob.position` is the
+    sole anchor as of PR FF.
 
 ## 42. Stat-popup polish + skill-spec audit (planned 2026-05-19)
 
