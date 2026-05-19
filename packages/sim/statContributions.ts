@@ -316,7 +316,10 @@ function pushBaselineDerivedContributions(out: Contribution[]): void {
   out.push({ source: 'baseline:evasion', label: 'Baseline evasion', stat: 'evasion', op: 'base', value: 5 });
   out.push({ source: 'baseline:attackSpeed', label: 'Baseline attack speed', stat: 'attackSpeed', op: 'base', value: 300 });
   out.push({ source: 'baseline:castSpeed', label: 'Baseline cast speed', stat: 'castSpeed', op: 'base', value: 1 });
-  out.push({ source: 'baseline:runSpeed', label: 'Baseline run speed', stat: 'runSpeed', op: 'base', value: 7 });
+  // PR TT — baseline matches the legacy DEFAULT_PLAYER_SPEED so the
+  // server can read `player.stats.runSpeed` directly as units/sec
+  // without a separate translation constant.
+  out.push({ source: 'baseline:runSpeed', label: 'Baseline run speed', stat: 'runSpeed', op: 'base', value: 20 });
   out.push({ source: 'baseline:dmgMult', label: 'Baseline damage', stat: 'dmgMult', op: 'base', value: 1 });
   out.push({ source: 'baseline:critMult', label: 'Baseline crit damage', stat: 'critMult', op: 'base', value: 1.6 });
 }
@@ -557,6 +560,14 @@ const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionS
     stat: 'runSpeed', op: 'mul',
     valueFrom: (e) => 1 - (e.value ?? 0) / 100,
     labelFrom: (e) => `Slow (-${e.value ?? 0}% speed)`,
+  },
+  // PR TT — speed_boost feeds the same runSpeed pipeline as slow so
+  // movement reads a single stat instead of dispatching per-effect
+  // multipliers. `value` is treated as a percent (e.g. 30 → ×1.30).
+  speed_boost: {
+    stat: 'runSpeed', op: 'mul',
+    valueFrom: (e) => 1 + (e.value ?? 0) / 100,
+    labelFrom: (e) => `Speed boost (+${e.value ?? 0}% speed)`,
   },
   shield: {
     stat: 'maxHealth', op: 'addPost',
