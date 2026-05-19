@@ -278,6 +278,10 @@ function usePanelState() {
   const [chatOpen, setChatOpen] = useState(false);
   const [wikiOpen, setWikiOpen] = useState(false);
   const [gmOpen, setGmOpen] = useState(false);
+  // PR AA — the craft panel opens when the player taps a recipe in
+  // their bag. Holds the slot index so we can find the recipe again
+  // (item content + recipe spec come from ITEMS).
+  const [craftRecipeSlot, setCraftRecipeSlot] = useState<number | null>(null);
   return {
     statsOpen,
     questOpen,
@@ -289,6 +293,7 @@ function usePanelState() {
     chatOpen,
     wikiOpen,
     gmOpen,
+    craftRecipeSlot,
     toggleStats: () => setStatsOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
     toggleBag: () => setBagOpen((prev) => !prev),
@@ -300,6 +305,8 @@ function usePanelState() {
     toggleWiki: () => setWikiOpen((prev) => !prev),
     openWiki: () => setWikiOpen(true),
     toggleGm: () => setGmOpen((prev) => !prev),
+    openCraft: (slotIndex: number) => setCraftRecipeSlot(slotIndex),
+    closeCraft: () => setCraftRecipeSlot(null),
   };
 }
 
