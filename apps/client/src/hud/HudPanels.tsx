@@ -90,7 +90,7 @@ export function HudPanels({
 }: HudPanelsProps) {
   return (
     <>
-      {panels.statsOpen && <PlayerPanel player={player} />}
+      {panels.statsOpen && <PlayerPanel player={player} equipment={state.equipment} />}
       {panels.questOpen && (
         <QuestPanel
           player={player}
