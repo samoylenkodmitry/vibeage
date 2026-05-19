@@ -2068,17 +2068,26 @@ contiguous list so the audit doesn't fragment.
   `SpecializationPassiveModifiers` to cover fire flavour, heal
   output, lifesteal, per-skill cooldown reduction, party auras,
   loot rates — stays open as a content/engine slice.
-- [ ] **Active-skill effects partly unwired:** `waterWeakness`,
-  `transform` still inert; `knockback` is wired (see below).
-  `waterWeakness` needs a damage-flavour amplifier; `transform`
-  needs a stone-state machine on the target. Until then they
-  upsert as status rows that the engine ignores.
+- [ ] **Active-skill effects partly unwired:** `transform` still
+  inert (needs a stone-state machine on the target);
+  `waterWeakness` and `knockback` are now wired (see below).
 - [x] **Knockback wired.** `applyKnockback` in
   `server/combat/impactResolver.ts` now pushes the target along
   the caster→target vector by `effect.value` world units. Cancels
   in-flight velocity, sets `dirtySnap` so the next PosSnap
   broadcasts the new position. Tests at `tests/knockback.spec.ts`
   pin the displacement math + the zero-vector no-op edge.
+- [x] **WaterWeakness wired.** Added
+  `SkillDamageElement` to `SkillDef`; `waterSplash` is tagged
+  `damageElement: 'water'`. New
+  `elementVulnerabilityMultiplier` in `impactResolver.ts`
+  inspects the target's active status effects and applies
+  `1 + value/100` when a `waterWeakness` (or future
+  `<element>Weakness`) effect matches the cast's element. Other
+  elements pass through unchanged. Tests at
+  `tests/waterWeaknessAmplifier.spec.ts` pin the +30%
+  amplification on a water cast and the no-amplification path
+  on a non-water cast against the same weakened target.
 - [x] **Projectile pierce is wired.** `projectileRuntime` now
   applies per-hit damage to each new enemy in the sweep when
   `skill.projectile.pierce` is true, appending entity ids to

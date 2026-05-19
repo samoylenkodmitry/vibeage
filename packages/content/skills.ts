@@ -94,18 +94,19 @@ export interface SkillEffect {
  */
 export type SkillKind = 'physical' | 'magical' | 'utility';
 
+// §45.4 — optional element flavour. Drives `*Weakness` status
+// vulnerability amplifiers in calculateDamage. Unset → neutral.
+export type SkillDamageElement = 'fire' | 'water' | 'ice' | 'arcane' | 'holy' | 'shadow' | 'poison';
+
 export interface SkillDef {
   id: SkillId;
   name: string;
   description: string;
-  icon: string; // Path to icon image
+  icon: string;
   cat: SkillCategory;
-  /**
-   * Damage flavour: physical (sword/bow/punch), magical (spells),
-   * utility (buffs/heals/dispels with no inherent damage type).
-   * Default 'magical' for backwards compat when unset.
-   */
+  /** Default 'magical' for backwards compat when unset. */
   kind?: SkillKind;
+  damageElement?: SkillDamageElement;
   manaCost: number;     // Mana cost for casting
   castMs: number;       // Time to cast in milliseconds
   cooldownMs: number;   // Cooldown time in milliseconds
@@ -309,6 +310,9 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     icon: '/game/skills/skill_water.png',
     cat: 'projectile',
     kind: 'magical',
+    // §45.4 — water element so the waterWeakness debuff this same
+    // skill applies actually amplifies the follow-up cast.
+    damageElement: 'water',
     manaCost: 25,
     castMs: 1500,
     cooldownMs: 8000,
