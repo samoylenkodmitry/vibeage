@@ -1541,7 +1541,6 @@ Three playtest reports landed after wave 8 deployed.
 - [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
   bounded.
 
-<<<<<<< HEAD
 ## 43. Bot architecture review — finishing single-source-of-truth (2026-05-19)
 
 A code-review bot audited the recent stats / class-as-skills work
@@ -2032,4 +2031,97 @@ Contribution model only needs the optional `cap` hook to
 be in place, not full content tuning.
 
 
+## 45. External audit — stale code paths & content drift (2026-05-19)
+
+Verbatim findings from an external audit of HEAD after the §43
+shipped. Each item is a real bug or stale artefact; the unchecked
+boxes are the work needed to make the codebase agree with what it
+claims to do. Some items overlap earlier sections (esp. §4 strict
+protocol, §6 inventory migration); they're kept here as one
+contiguous list so the audit doesn't fragment.
+
+### Stale findings
+
+- [ ] **Equipment stat names split between content and engine.**
+  `ItemStatBlock` uses `hp` / `mp` / `critRate` / `moveSpeed`
+  (`packages/content/equipmentTypes.ts:120`) but the engine stats
+  are `maxHealth` / `maxMana` / `critChance` / `runSpeed`
+  (`packages/sim/statContributions.ts:25`).
+  `pushEquipmentContributions` casts the raw keys to `StatId`
+  (`packages/sim/statContributions.ts:524`), so the legacy bonuses
+  are emitted then ignored by `computeAllStats`. Verified
+  `void_dagger.critRate` and `forge_avatar_plate.hp` do not show in
+  final crit / HP breakdowns. **Fix**: rename the `ItemStatBlock`
+  keys to engine names (or add an explicit alias map in one place)
+  + add a content-test that every key in every item's `stats` block
+  resolves to a real `StatId`.
+- [ ] **`deriveEquipmentStats` is a stale parallel path.** Sums
+  legacy keys in `packages/sim/equipmentStats.ts:10`; `deadcode:report`
+  marks it unused outside tests. The tests can pass while runtime
+  ignores the same stats. **Fix**: delete the function + the tests
+  that pin it; ensure the only stat-from-equipment path is
+  `pushEquipmentContributions`.
+- [ ] **Specialization descriptions overclaim.** The only supported
+  modifiers in `packages/content/specializations.ts:33` are generic
+  damage / health / mana / speed / crit; mapped only to generic
+  stats in `packages/sim/statContributions.ts:444`. Examples that
+  the descriptions promise but the data can't represent: fire-only
+  damage / duration, healing output, party aura, poison ticks,
+  taunt range, lifesteal, loot rates, cooldown halves. Many spec
+  entries have `{}` or unrelated generic modifiers. **Fix**: either
+  trim descriptions to what the data can carry, or extend
+  `SpecializationPassiveModifiers` to cover the claimed effects.
+- [ ] **Active-skill effects intentionally unwired:**
+  `waterWeakness`, `knockback`, `transform` (see
+  `tests/skillSpecAudit.spec.ts:48`). Runtime mostly upserts them as
+  inert status rows via `server/combat/impactResolver.ts:211`; no
+  water-damage amplifier, knockback movement, or transform machine
+  exists. **Fix**: either wire each effect's handler or strip the
+  effect from skill data + adjust descriptions.
+- [ ] **Projectile pierce is stale content.**
+  `packages/content/skills.ts:546` explicitly notes pierce is not
+  read; volley still claims piercing at line 567. Runtime returns
+  on first swept hit (`server/combat/projectileRuntime.ts:63`).
+  **Fix**: implement pierce in `projectileRuntime` (it has a
+  `maxPierceHits` field already in `SkillDef`) or drop the volley
+  claim.
+- [ ] **Item catalog placeholders.** Several utility consumables
+  are marked as `material` because the buff / scroll system does
+  not exist (`packages/content/items.ts:487`).
+  `fire_resistance_potion` still claims immunity without saying it
+  is unimplemented (line 500). Obtainability whitelist also hides
+  several no-source placeholders (`packages/content/obtainability.ts:121`).
+  **Fix**: mark unimplemented utilities explicitly in the wiki +
+  the item description, or implement them.
+- [ ] **Inventory migration is half-live.** The bridge says legacy
+  `InventorySlot[]` remains until "slice 4"
+  (`packages/sim/inventoryWireAdapter.ts:6`); server + client paths
+  still read `player.inventory` through item use, crafting, vendors,
+  persistence, and panels. **Fix**: schedule the migration slice;
+  this is architecture debt, not a compatibility shim.
+- [ ] **Restore-compatibility check is stale.**
+  `scripts/check-restored-postgres-compatibility.sql:7` only checks
+  old core tables / columns. It misses `character_inventory`,
+  `race`, `specialization_id`, `skill_levels`, `quest_state`,
+  `account_id`, `accounts`, and `tokens_valid_after`. **Fix**:
+  extend the script + add a CI step that runs it against the
+  current migration set.
+- [ ] **Protocol / docs stale.** Server message schemas are still
+  mostly `.passthrough()` in `packages/protocol/serverMessages.ts:24`
+  while the roadmap (§4) says to make them strict. README's
+  protocol table is also outdated and incomplete, including a wrong
+  `PosSnap` shape at `README.md:60`; roadmap already flags this at
+  `ROADMAP.md:1054`. **Fix**: tighten the server-message Zod
+  schemas one batch at a time + refresh the README protocol table.
+- [x] **PR #226 (audit events) initial typecheck failure + missing
+  hooks.** Original audit-event commit failed `typecheck:server` at
+  `server/auth/authAudit.ts:40` (Insertable shape) and mislabeled
+  register failures as `auth.login.failure`. Also missing audits for
+  successful room join, character selection, and valid-token /
+  wrong-character ownership rejection. **Resolved in the merged
+  version of PR #226**: typed `Pick<Insertable<ServerEventsTable>, …>`,
+  added `auth.register.failure` event type, and the
+  `handleJoin` try/catch now emits `character.selected` on success
+  + `ownership.suspicious` (`joinClientFailed:<errorName>`) on a
+  post-token-verify failure.
 
