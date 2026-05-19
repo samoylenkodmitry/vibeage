@@ -87,14 +87,33 @@ export class ColyseusAuthoritativeRoomAdapter {
       });
       throw new Error('Rejected join: missing or invalid session token');
     }
-    const result = await this.port.joinClient(
-      client.sessionId,
-      playerName,
-      makeColyseusClient(client),
-      { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId },
-    );
-    runtimeMetrics.increment('room.joins');
-    return result;
+    try {
+      const result = await this.port.joinClient(
+        client.sessionId,
+        playerName,
+        makeColyseusClient(client),
+        { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId },
+      );
+      runtimeMetrics.increment('room.joins');
+      void recordAuthAuditEvent({
+        type: 'character.selected',
+        accountId: session.accountId,
+        characterName: playerName,
+      });
+      return result;
+    } catch (error) {
+      // Token verified but the (accountId, playerName) pair didn't
+      // match a real character on this account — somebody tried to
+      // ride a valid session into a character they don't own.
+      const reason = error instanceof Error ? error.constructor.name : 'unknown';
+      void recordAuthAuditEvent({
+        type: 'ownership.suspicious',
+        accountId: session.accountId,
+        characterName: playerName,
+        reason: `joinClientFailed:${reason}`,
+      });
+      throw error;
+    }
   }
 
   async handleLeave(client: ColyseusClientLike): Promise<string | undefined> {

@@ -374,7 +374,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add tests for attempting to join as another player name or character ID. (See `tests/playerPrivacyAllowList.spec.ts`, `tests/invalidOwnership.spec.ts`.)
 - [ ] Add tests for reconnecting with a valid token and restoring the correct character.
 - [ ] Add tests for expired, malformed, and revoked tokens.
-- [x] Add audit events for login, logout, character creation, deletion, account deletion, and suspicious ownership attempts. (`server/auth/authAudit.ts` writes `server_events` rows + grep-friendly `[audit] …` console lines from authRoutes + the Colyseus join handler. "character selection" and "reconnect" are still open — they fire from world-room boundary events that don't have audit hooks yet.)
+- [x] Add audit events for login, logout, character creation, deletion, character selection, account deletion, and suspicious ownership attempts. (`server/auth/authAudit.ts` writes `server_events` rows + grep-friendly `[audit] …` console lines. Reconnect audit is still open — Colyseus rejoin doesn't surface as a distinct event from the room boundary today.)
 
 ## 4. Protocol and Network Contract
 

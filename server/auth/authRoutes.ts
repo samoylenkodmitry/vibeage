@@ -77,7 +77,7 @@ async function handleRegister(req: Request, res: Response): Promise<void> {
   const remoteAddr = clientIp(req);
   const result = await registerAccount(login ?? '', password ?? '');
   if (result.ok === false) {
-    void recordAuthAuditEvent({ type: 'auth.login.failure', login, reason: result.error, remoteAddr });
+    void recordAuthAuditEvent({ type: 'auth.register.failure', login, reason: result.error, remoteAddr });
     res.status(400).send({ error: result.error });
     return;
   }

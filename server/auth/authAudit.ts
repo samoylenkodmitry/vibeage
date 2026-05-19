@@ -20,10 +20,12 @@ export type AuthAuditEventType =
   | 'auth.login.success'
   | 'auth.login.failure'
   | 'auth.register.success'
+  | 'auth.register.failure'
   | 'auth.logout'
   | 'account.delete'
   | 'character.create'
   | 'character.delete'
+  | 'character.selected'
   | 'ownership.suspicious';
 
 export interface AuthAuditEvent {
