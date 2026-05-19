@@ -58,7 +58,6 @@ BEGIN
       ('players', 'experience', 'int4'),
       ('players', 'health', 'int4'),
       ('players', 'id', 'uuid'),
-      ('players', 'inventory', 'jsonb'),
       ('players', 'is_alive', 'bool'),
       ('players', 'last_login', 'timestamptz'),
       ('players', 'last_updated', 'int8'),

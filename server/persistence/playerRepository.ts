@@ -1,7 +1,7 @@
 import { sql, type Insertable, type RawBuilder, type Selectable, type UpdateObject } from 'kysely';
 import { database, type GameDatabase, type PlayersTable, type ServerEventsTable } from '../db.js';
 import type { SkillId } from '../../packages/content/skills.js';
-import type { InventorySlot, StarterProgressState } from '../../packages/protocol/messages.js';
+import type { StarterProgressState } from '../../packages/protocol/messages.js';
 import type { CharacterInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 
@@ -16,7 +16,6 @@ export type StablePlayerPersistenceData = {
   gold: number;
   class_name: PlayerState['className'];
   race: NonNullable<PlayerState['race']>;
-  inventory: InventorySlot[];
   character_inventory: CharacterInventory | null;
   skills: SkillId[];
   skill_shortcuts: Array<SkillId | null>;
@@ -113,7 +112,6 @@ export const playerRepository = createKyselyPlayerRepository(database);
 function toPlayerPersistencePatch(data: StablePlayerPersistenceData): PlayerPersistencePatch {
   return {
     ...data,
-    inventory: toJsonb<InventorySlot[]>(data.inventory),
     character_inventory: toJsonb<CharacterInventory | null>(data.character_inventory),
     skills: toJsonb<SkillId[]>(data.skills),
     skill_shortcuts: toJsonb<Array<SkillId | null>>(data.skill_shortcuts),

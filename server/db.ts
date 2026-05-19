@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Kysely, PostgresDialect, type ColumnType, type Generated } from 'kysely';
 import { Pool } from 'pg';
 import type { SkillId } from '../packages/content/skills.js';
-import type { InventorySlot, StarterProgressState } from '../packages/protocol/messages.js';
+import type { StarterProgressState } from '../packages/protocol/messages.js';
 import type { CharacterInventory } from '../packages/sim/characterInventory.js';
 
 type DefaultColumn<T> = ColumnType<T, T | undefined, T>;
@@ -23,7 +23,8 @@ export interface PlayersTable {
   position_x: DefaultColumn<number>;
   position_y: DefaultColumn<number>;
   position_z: DefaultColumn<number>;
-  inventory: JsonColumn<InventorySlot[]>;
+  // §45.7 — `inventory` column dropped in migration 011.
+  // `character_inventory` is the only persisted inventory store.
   character_inventory: ColumnType<
     CharacterInventory | null,
     CharacterInventory | string | null | undefined,

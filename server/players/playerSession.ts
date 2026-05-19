@@ -10,7 +10,7 @@ import {
   RACE_PROFILES,
   type CharacterRace,
 } from '../../packages/content/races.js';
-import { normalizeStarterProgressState, type InventorySlot } from '../../packages/protocol/messages.js';
+import { normalizeStarterProgressState } from '../../packages/protocol/messages.js';
 import { isPersistenceDisabled, persistPlayer, recordServerEvent, upsertPlayerSession } from '../persistence.js';
 import { createTransientPlayer } from '../playerFactory.js';
 import {
@@ -46,7 +46,6 @@ type PlayerRow = {
   skill_shortcuts?: unknown;
   available_skill_points?: unknown;
   starter_progress?: unknown;
-  inventory?: InventorySlot[];
   character_inventory?: unknown;
   race?: unknown;
   specialization_id?: unknown;
@@ -177,13 +176,11 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     starterProgress,
     posHistory: [],
     lastUpdateTime: Date.now(),
-    // §45.7 — seeded with the legacy row value so the forward-
-    // migrate path below can promote it into a CharacterInventory
-    // aggregate. After this hydrate completes, `player.inventory`
-    // is always the projection of `player.characterInventory`
-    // (via `syncLegacyInventory` inside `ensureCharacterInventory`
-    // → `addItemsToPlayer` etc.), never an independent store.
-    inventory: row.inventory || [],
+    // §45.7 — `row.inventory` no longer exists (migration 011 dropped
+    // the column). `hydratePlayerCharacterInventory` below restores
+    // `player.characterInventory` from `row.character_inventory` and
+    // projects the wire view back onto this field.
+    inventory: [],
     maxInventorySlots: 20,
     specializationId: normalizeSpecializationId(row.specialization_id),
     skillLevels: normalizeSkillLevels(row.skill_levels),

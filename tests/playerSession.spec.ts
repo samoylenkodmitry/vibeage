@@ -8,7 +8,34 @@ import {
 } from '../server/players/playerSession';
 import { buildStablePlayerPersistenceData } from '../server/persistence';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
+import type { CharacterInventory } from '../packages/sim/characterInventory';
 import type { PlayerState } from '../packages/sim/entities';
+
+// §45.7 — `players.inventory` column was dropped in migration 011;
+// the persisted bag lives entirely in `players.character_inventory`.
+// This helper builds a minimal aggregate carrying one template at a
+// stated quantity so the legacy "row.inventory = [...]" test inputs
+// can express the same intent in the new shape.
+function aggregateWith(ownerId: string, templateId: string, quantity: number): CharacterInventory {
+  return {
+    characterId: ownerId,
+    items: {
+      [`inst-${templateId}`]: {
+        instanceId: `inst-${templateId}`,
+        ownerId,
+        templateId,
+        location: { kind: 'inventory', slotIndex: 0 },
+        count: quantity,
+        enchantLevel: 0,
+        bound: false,
+        createdAtTs: 0,
+      },
+    },
+    equipment: {},
+    occupancy: {},
+    limits: { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 },
+  };
+}
 
 const makePlayer = (id: string, socketId: string): PlayerState => ({
   id,
@@ -60,7 +87,7 @@ describe('player session hydration', () => {
         isComplete: false,
         rewardGranted: false,
       },
-      inventory: [{ itemId: 'health_potion', quantity: 1 }],
+      character_inventory: aggregateWith('db-player-id', 'health_potion', 1),
     }, 'socket1', 'PersistedMage');
 
     expect(player).toMatchObject({
@@ -105,7 +132,6 @@ describe('player session hydration', () => {
       xp: '80',
       is_alive: false,
       skills: ['fireball'],
-      inventory: [],
     }, 'socket1', 'LegacyMage');
 
     expect(player).toMatchObject({
@@ -238,7 +264,7 @@ describe('player session relog persistence', () => {
       skill_shortcuts: stable.skill_shortcuts,
       available_skill_points: stable.available_skill_points,
       starter_progress: stable.starter_progress,
-      inventory: stable.inventory,
+      character_inventory: stable.character_inventory,
     }, 'new-socket', beforeRelog.name);
 
     expect(afterRelog).toMatchObject({

@@ -2122,8 +2122,14 @@ contiguous list so the audit doesn't fragment.
   in lockstep), so readers (vendor / craft / quest / item-use /
   client panels) continue working off the projected legacy shape
   while the aggregate is the truth. Outstanding follow-ups:
-  - [ ] Drop the `inventory` column entirely (migration 011 —
-    once we're confident no live deploys still depend on it).
+  - [x] Drop the `inventory` column entirely. Migration 011
+    runs `ALTER TABLE players DROP COLUMN IF EXISTS inventory`;
+    `PlayersTable` type, `PERSISTED_PLAYER_COLUMNS`, the
+    persistence write-path, and the restore-compat check all
+    stopped referencing it. Tests that used to seed legacy
+    inventory data now build a `CharacterInventory` aggregate.
+    `players.character_inventory` is the only inventory column
+    on disk.
   - [ ] Stop maintaining the in-memory `player.inventory` wire
     projection; compute it only at the snapshot boundary so
     server logic can't accidentally diverge from
