@@ -4,7 +4,7 @@ import { STATS } from '../../../../packages/content/stats';
 import {
   buildContributions,
   computeAllStats,
-  type Contribution,
+  type ResolvedContribution,
   type StatId,
   type StatPlayerView,
 } from '../../../../packages/sim/statContributions';
@@ -93,6 +93,7 @@ function computeBreakdown(player: PlayerEntity, equipment: Record<string, string
     level: player.level,
     race: player.race as StatPlayerView['race'],
     className: player.className,
+    unlockedSkills: player.unlockedSkills,
     specializationId: player.specializationId ?? null,
     equippedTemplates: equipment as StatPlayerView['equippedTemplates'],
     statusEffects: player.statusEffects,
@@ -109,11 +110,11 @@ function computeBreakdown(player: PlayerEntity, equipment: Record<string, string
   return result.breakdown[statId];
 }
 
-function groupByPhase(parts: readonly Contribution[]) {
-  const base: Contribution[] = [];
-  const addPre: Contribution[] = [];
-  const mul: Contribution[] = [];
-  const addPost: Contribution[] = [];
+function groupByPhase(parts: readonly ResolvedContribution[]) {
+  const base: ResolvedContribution[] = [];
+  const addPre: ResolvedContribution[] = [];
+  const mul: ResolvedContribution[] = [];
+  const addPost: ResolvedContribution[] = [];
   for (const p of parts) {
     if (p.op === 'base') base.push(p);
     else if (p.op === 'addPre') addPre.push(p);
@@ -125,26 +126,21 @@ function groupByPhase(parts: readonly Contribution[]) {
 
 function BreakdownSection({
   label, rows, formatter,
-}: { label: string; rows: readonly Contribution[]; formatter: (v: number) => string }) {
+}: { label: string; rows: readonly ResolvedContribution[]; formatter: (v: number) => string }) {
   if (rows.length === 0) return null;
   return (
     <section className="stat-breakdown-section">
       <h4>{label}</h4>
       <ul>
         {rows.map((row) => (
-          <li key={row.source}>
+          <li key={row.source} className={row.inactive ? 'stat-breakdown-row--inactive' : undefined}>
             <span>{row.label}</span>
-            <strong>{formatter(resolveValue(row))}</strong>
+            <strong>{formatter(row.value)}</strong>
           </li>
         ))}
       </ul>
     </section>
   );
-}
-
-function resolveValue(c: Contribution): number {
-  if (typeof c.value === 'function') return c.value({});
-  return c.value;
 }
 
 function formatBase(v: number): string { return v.toFixed(0); }

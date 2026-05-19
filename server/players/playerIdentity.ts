@@ -97,9 +97,13 @@ export function applyClassChange(
 function resetSkillsForClassChange(player: PlayerState): void {
   const starters = starterSkillsFor(player.className);
   // Refund spent points: everything beyond the freebie starters.
-  // starterSkillsFor returns [...UNIVERSAL_SKILLS, classStarter], all
-  // of which are granted for free, so they don't count toward refund.
-  const refundable = Math.max(0, player.unlockedSkills.length - starters.length);
+  // PR PP — `starters` includes the auto-granted class passive, but
+  // the player's persisted unlockedSkills predates the refactor and
+  // may not list it. Count refund against the *paid* freebies only
+  // (the class starter + UNIVERSAL_SKILLS) so the auto-passive
+  // doesn't inflate the freebie count and starve the refund.
+  const paidFreebies = starters.filter((s) => !s.startsWith('passive_')).length;
+  const refundable = Math.max(0, player.unlockedSkills.length - paidFreebies);
   player.availableSkillPoints += refundable;
   player.unlockedSkills = [...starters];
   player.skillShortcuts = player.skillShortcuts.map((skill) =>

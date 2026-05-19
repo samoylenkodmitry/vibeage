@@ -1575,6 +1575,93 @@ Three playtest reports landed after wave 8 deployed.
 - [x] `MAX_COMBAT_LINES` bumped 5 → 200; DOM stays
   bounded.
 
+## 41. Class-as-skills + stats sanity sweep (planned 2026-05-19)
+
+User caught two things on the live breakdown popup:
+
+1. `Class: rogue ×1.25 (+25%)` shouldn't exist. Class is the
+   tree of allowed skills, not a stat multiplier. The current
+   `CLASS_PASSIVES.modifiers` (healthMultiplier / manaMultiplier
+   / damageMultiplier / speedMultiplier) violates the
+   race=attrs / class=skills / equipment=skills model. Should be
+   modelled as auto-granted passive *skills* — Warrior unlocks
+   "Battle Hardened" which emits a `+30% maxHealth` contribution.
+   Source label becomes `Skill: Battle Hardened`, not `Class: warrior`.
+2. `STR scaling: 0` in the popup even though pAtk total is
+   correct. The function-valued contribution evaluates to 0 in
+   the popup because the row renderer passes an empty `{}`
+   instead of the engine's resolved attribute map. Fix at the
+   source: `computeAllStats` emits the resolved numeric value
+   on `breakdown.parts[i].value` so the popup never re-evaluates.
+
+### PR PP — Class-as-passive-skills + breakdown display fix + sanity sweep
+
+- [x] **Class passives become real passive skills.**
+  - `CLASS_PASSIVES` keep their `id` (`passive_arcane_focus` etc.).
+  - Picking / hydrating class X auto-owns the matching passive
+    skill id in `player.unlockedSkills`. Reuses the same path
+    `starterSkillsFor(className)` uses for active starters.
+  - New `PASSIVE_SKILL_CONTRIBUTIONS: Record<SkillId, Contribution[]>`
+    keyed by passive-skill id. Warrior's "Battle Hardened" emits
+    `{stat:'maxHealth', op:'mul', value:1.3, source:'skill:passive_battle_hardened'}`.
+  - `pushPassiveSkillContributions(out, unlockedSkills)` replaces
+    `pushClassPassiveContributions`.
+
+- [x] **Learnable passive skills per class.** Each base class
+  gets one tier of additional passives a player can buy with
+  skill points (separate from the auto-granted starter passive).
+  - Warrior: `passive_toughness` (+5% maxHealth), `passive_brutality` (+8% pAtk).
+  - Mage: `passive_focus_mind` (+5% maxMana), `passive_arcane_potency` (+8% mAtk).
+  - Healer: `passive_serene_mind` (+10% mpRegen), `passive_warding` (+5% mDef).
+  - Ranger: `passive_keen_eye` (+5% accuracy), `passive_swift_step` (+5% runSpeed).
+  - Knight: `passive_armor_training` (+10% pDef), `passive_iron_grip` (+5% pAtk).
+  - Paladin: `passive_holy_aegis` (+5% maxHealth), `passive_radiant_focus` (+5% mAtk).
+  - Rogue: `passive_shadow_grace` (+5% evasion), `passive_lethal_focus` (+5% critChance).
+  - Each entry: regular `SkillDef` with `kind:'utility'`, `castMs:0`,
+    `cooldownMs:0`, `manaCost:0`, `effects:[]`, plus a flag
+    indicating it's passive (no cast trigger). Adding it to
+    `player.unlockedSkills` is enough; its Contribution lights up.
+  - Skill-tree gate: each class's passive entries are listed in
+    `CLASS_SKILL_TREES[c].skillProgression` at appropriate levels
+    so the existing learn-skill UI surfaces them.
+
+- [x] **Breakdown rows show evaluated values.**
+  - `Contribution.value` stays `number | (resolved) => number` at
+    the spec level so authors can write derived contributions.
+  - `computeAllStats` evaluates each function once during
+    resolution and emits the resulting number on the breakdown
+    entry: `breakdown[stat].parts[i] = {source, label, op, value: number}`.
+  - Popup reads `.value` directly — no re-evaluation, no empty-
+    map fallback.
+
+- [x] **Sanity sweep**: `tests/statSanitySweep.spec.ts`.
+  - Loop over `CharacterRace × CharacterClass × level ∈ {1, 10, 20, 40}`
+    plus three loadout fixtures (`empty`, `starter sword`, `late-game set`).
+  - Asserts: STR/DEX/CON/INT/WIT/MEN identical across classes when
+    race + level match; derived totals positive; caps respected
+    (castSpeed ≥ 0.4, runSpeed ≥ 2); Bless on top of base adds a
+    measurable dmgMult bump.
+  - With `VERBOSE=1`, emit a tabular printout
+    `race | class | level | str | pAtk | maxHealth | dmgMult` so a
+    designer can eyeball it.
+- [x] **Each new learnable passive verified** via an extra
+  sanity-sweep block: for every passive in
+  `PASSIVE_SKILL_CONTRIBUTIONS`, build a player with + without
+  that passive learned and assert the affected stat moves in
+  the expected direction by the expected magnitude. Fails CI if
+  a passive silently does nothing.
+
+- [x] **Old system removal** (NO PARALLEL CODE):
+  - DELETE `modifiers: {healthMultiplier?, manaMultiplier?,
+    damageMultiplier?, speedMultiplier?}` from `ClassPassive` —
+    data moves into `PASSIVE_SKILL_CONTRIBUTIONS`.
+  - DELETE `pushClassPassiveContributions` from
+    `statContributions.ts`; replaced by
+    `pushPassiveSkillContributions(player.unlockedSkills)`.
+  - DELETE `modifiersForClass` in `classPassives.ts`; nothing
+    will read it after the cutover.
+  - DELETE `CLASS_SKILL_TREES[c].baseStats` if no consumer remains.
+
 ## 40. Stats unification — Contribution registry (planned 2026-05-19)
 
 **Why this exists.** Today, a player's stats are produced by three

@@ -69,7 +69,9 @@ describe('scenario: new orc knight can cast slash on a goblin', () => {
 
     expect(player.race).toBe('human');
     expect(player.className).toBe('knight');
-    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape']);
+    // PR PP — class auto-passive is in the starter list so HP/MP/etc.
+    // class differentiation lights up via Contributions.
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape', 'passive_iron_discipline']);
     expect(player.unlockedSkills).not.toContain('fireball');
     expect(player.skillShortcuts).toContain('slash');
   });
@@ -143,7 +145,7 @@ describe('scenario: race switch swaps base attrs without losing class', () => {
     handleClientMessage(socket, state, { type: 'SelectRace', race: 'dwarf' }, sink, spatial);
 
     expect(player.className).toBe('warrior');
-    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape']);
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape', 'passive_battle_hardened']);
     // Race change → STR should differ. Orc has a higher STR multiplier
     // than dwarf, so orcStr should exceed dwarfStr.
     expect(player.stats?.str ?? 0).toBeLessThan(orcStr);

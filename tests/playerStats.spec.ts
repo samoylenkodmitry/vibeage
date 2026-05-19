@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { CharacterRace } from '../packages/content/races';
 import type { CharacterClass } from '../packages/content/classes';
+import { CLASS_AUTO_PASSIVE_SKILL } from '../packages/content/classPassives';
 import {
   buildContributions,
   computeAllStats,
@@ -8,7 +9,14 @@ import {
 } from '../packages/sim/statContributions';
 
 function stats(level: number, className: CharacterClass, race: CharacterRace = 'human') {
-  const view: StatPlayerView = { level, className, race };
+  // Auto-passive must be in unlockedSkills for class differentiation
+  // to land — that's exactly what starterSkillsFor adds at spawn.
+  const view: StatPlayerView = {
+    level,
+    className,
+    race,
+    unlockedSkills: [CLASS_AUTO_PASSIVE_SKILL[className]],
+  };
   return computeAllStats(buildContributions(view), { level, className, race, health: 1, maxHealth: 1 }).totals;
 }
 

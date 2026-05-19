@@ -27,6 +27,7 @@ import { hydratePersistedCharacterInventory } from '../inventory/aggregateBridge
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
 import { starterSkillsFor } from './playerProgression.js';
+import { CLASS_AUTO_PASSIVE_SKILL } from '../../packages/content/classPassives.js';
 
 type PlayerRow = {
   id: string;
@@ -218,7 +219,8 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
 }
 
 function ensureClassStarterUnlocked(player: PlayerState): void {
-  const [starter] = starterSkillsFor(player.className);
+  const starters = starterSkillsFor(player.className);
+  const [starter] = starters;
   if (!starter) return;
   // Drop carried-over skills that don't belong to the current class
   // tree. A legacy warrior persisted with skills=['fireball'] would
@@ -229,19 +231,17 @@ function ensureClassStarterUnlocked(player: PlayerState): void {
   // next class change.
   const tree = CLASS_SKILL_TREES[player.className];
   const treeSkills = new Set<string>(tree ? Object.keys(tree.skillProgression) : [starter]);
-  // Universal skills (Basic Attack) are not in any class tree — keep
-  // them so the filter doesn't strip them on class switch / hydrate.
-  for (const skill of UNIVERSAL_SKILLS) {
-    treeSkills.add(skill);
-  }
+  for (const skill of UNIVERSAL_SKILLS) treeSkills.add(skill);
+  // PR PP — the auto-granted class passive isn't in the tree but is
+  // legal to own. Keep it through the filter so a hydrated player
+  // doesn't lose their class HP/MP/dmg/speed deltas.
+  const autoPassive = CLASS_AUTO_PASSIVE_SKILL[player.className];
+  if (autoPassive) treeSkills.add(autoPassive);
   player.unlockedSkills = player.unlockedSkills.filter((skill) => treeSkills.has(skill));
-  for (const skill of UNIVERSAL_SKILLS) {
-    if (!player.unlockedSkills.includes(skill)) {
-      player.unlockedSkills.push(skill);
+  for (const required of starters) {
+    if (!player.unlockedSkills.includes(required)) {
+      player.unlockedSkills.push(required);
     }
-  }
-  if (!player.unlockedSkills.includes(starter)) {
-    player.unlockedSkills.push(starter);
   }
   // Same prune on shortcuts: drop slots referencing skills no longer
   // unlocked, then bind the starter into the first empty slot.

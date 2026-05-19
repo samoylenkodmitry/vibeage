@@ -22,7 +22,15 @@ export type SkillId =
   | 'aimed_volley'|'shadow_arrow'
   | 'divine_taunt'|'soul_eater'
   | 'rebirth'|'sacred_aura'
-  | 'treasure_sense'|'stalking_arrow';
+  | 'treasure_sense'|'stalking_arrow'
+  // PR PP — class passives (auto-granted + learnable). Stat impact
+  // lives in PASSIVE_SKILL_CONTRIBUTIONS; SkillDef carries name + desc.
+  | 'passive_arcane_focus'|'passive_battle_hardened'|'passive_serenity'|'passive_woodland_step'
+  | 'passive_iron_discipline'|'passive_oath_of_light'|'passive_shadow_strike'
+  | 'passive_toughness'|'passive_brutality'|'passive_focus_mind'|'passive_arcane_potency'
+  | 'passive_serene_mind'|'passive_warding'|'passive_keen_eye'|'passive_swift_step'
+  | 'passive_armor_training'|'passive_iron_grip'|'passive_holy_aegis'|'passive_radiant_focus'
+  | 'passive_shadow_grace'|'passive_lethal_focus';
 
 /**
  * Skills every player has from birth, regardless of class. Used to make
@@ -681,7 +689,8 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
  * (Partial + Partial → Partial). The specSkillGate.spec.ts coverage
  * test asserts every SkillId resolves to a SkillDef at runtime.
  */
+import { PASSIVE_SKILLS } from './classPassives.js';
+
 export const SKILLS = {
-  ...BASE_SKILLS,
-  ...SPEC_AND_PROFICIENCY_SKILLS,
+  ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS,
 } as unknown as Record<SkillId, SkillDef>;

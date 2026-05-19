@@ -100,12 +100,12 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
     player.race = 'orc'; // allows warrior
     const { sink } = captureOutbound();
 
-    applyClassChange(player, 'warrior', sink); // drops fireball, adds slash
-    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape']);
+    applyClassChange(player, 'warrior', sink); // drops fireball, adds slash + warrior auto-passive
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape', 'passive_battle_hardened']);
 
     player.race = 'human'; // allows mage
-    applyClassChange(player, 'mage', sink); // drops slash, adds fireball
-    expect(player.unlockedSkills).toEqual(['fireball', 'basicAttack', 'escape']);
+    applyClassChange(player, 'mage', sink); // drops slash, adds fireball + mage auto-passive
+    expect(player.unlockedSkills).toEqual(['fireball', 'basicAttack', 'escape', 'passive_arcane_focus']);
     expect(player.skillShortcuts).toContain('fireball');
   });
 
@@ -123,10 +123,10 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
     applyClassChange(player, 'warrior', sink);
 
-    // Starter + basicAttack + escape are free; 5 skills minus 3 free
-    // = 2 spent points get refunded (was 3 before Escape became a
-    // universal freebie).
-    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape']);
+    // Starter + basicAttack + escape + auto-passive are free; 5 skills
+    // minus 3 paid invested = 2 refunded. The auto-passive doesn't
+    // count against the refund (it's class-granted, not spent).
+    expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape', 'passive_battle_hardened']);
     expect(player.availableSkillPoints).toBe(2);
   });
 

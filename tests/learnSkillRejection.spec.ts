@@ -72,11 +72,14 @@ describe('learn skill rejections', () => {
   });
 
   test('starterSkillsFor returns the class starter for known classes', () => {
-    // Universal skills (Basic Attack + Escape) follow the class starter.
-    expect(starterSkillsFor('warrior')).toEqual(['slash', 'basicAttack', 'escape']);
-    expect(starterSkillsFor('healer')).toEqual(['holyLight', 'basicAttack', 'escape']);
-    expect(starterSkillsFor('rogue')).toEqual(['evade', 'basicAttack', 'escape']);
-    // Unknown class falls back to the mage starter so the bar is never empty.
+    // PR PP — class starter first, then universal skills (basicAttack
+    // + escape), then the auto-granted class passive (drives class
+    // HP/MP/dmg/speed deltas via the Contribution registry).
+    expect(starterSkillsFor('warrior')).toEqual(['slash', 'basicAttack', 'escape', 'passive_battle_hardened']);
+    expect(starterSkillsFor('healer')).toEqual(['holyLight', 'basicAttack', 'escape', 'passive_serenity']);
+    expect(starterSkillsFor('rogue')).toEqual(['evade', 'basicAttack', 'escape', 'passive_shadow_strike']);
+    // Unknown class falls back to the mage starter; no auto-passive
+    // exists for unknown classes, so just the three baseline skills.
     expect(starterSkillsFor('made-up')).toEqual(['fireball', 'basicAttack', 'escape']);
   });
 });

@@ -10,7 +10,8 @@
  * anywhere else in the codebase.
  */
 import type { CharacterClass } from '../content/classes.js';
-import { modifiersForClass } from '../content/classPassives.js';
+import { PASSIVE_SKILL_CONTRIBUTIONS } from '../content/classPassives.js';
+import type { SkillId } from '../content/skills.js';
 import { activeSetBonuses } from '../content/equipmentSets.js';
 import { type EquipSlot, EQUIP_SLOTS } from '../content/equipmentTypes.js';
 import { ITEMS, type Item } from '../content/items.js';
@@ -60,6 +61,22 @@ export type Contribution = {
   predicate?: (ctx: StatComputeContext) => boolean;
 };
 
+/**
+ * What the breakdown popup actually renders: every contribution
+ * paired with its *evaluated* numeric value (function-valued
+ * contributions already resolved against the final attribute map
+ * during `resolveStat`). Inactive predicate-failed contributions
+ * emit `inactive: true` so the popup can grey them out.
+ */
+export type ResolvedContribution = {
+  source: string;
+  label: string;
+  stat: StatId;
+  op: ContributionOp;
+  value: number;
+  inactive?: boolean;
+};
+
 export type StatComputeContext = {
   level: number;
   race: CharacterRace;
@@ -73,7 +90,7 @@ export type StatComputeContext = {
 
 export type StatBreakdownEntry = {
   total: number;
-  parts: readonly Contribution[];
+  parts: readonly ResolvedContribution[];
 };
 
 export type StatComputationResult = {
@@ -92,6 +109,12 @@ export type StatPlayerView = {
   level: number;
   race?: CharacterRace;
   className: CharacterClass;
+  /**
+   * PR PP — passive class skills (auto-granted + learnable) live
+   * inside this list along with active skills. The Contribution
+   * registry walks it to apply class HP/MP/damage/speed deltas.
+   */
+  unlockedSkills?: readonly SkillId[];
   specializationId?: string | null;
   /**
    * Server uses this — it carries instance ids that resolve to
@@ -123,7 +146,7 @@ export function buildContributions(player: StatPlayerView): Contribution[] {
   const out: Contribution[] = [];
   pushRaceContributions(out, race);
   pushLevelContributions(out, race, level);
-  pushClassPassiveContributions(out, className);
+  pushPassiveSkillContributions(out, player.unlockedSkills);
   pushSpecializationContributions(out, player.specializationId, level);
   pushBaselineDerivedContributions(out);
   pushAttributeDerivedContributions(out, className);
@@ -205,10 +228,15 @@ function resolveStat(stat: StatId, parts: Contribution[], ctx: StatComputeContex
   let addPre = 0;
   let mul = 1;
   let addPost = 0;
+  const resolved: ResolvedContribution[] = [];
   for (const c of parts) {
-    if (c.predicate && !c.predicate(ctx)) continue;
-    const v = typeof c.value === 'function' ? c.value(ctx.resolved) : c.value;
-    if (!Number.isFinite(v)) continue;
+    const inactive = !!c.predicate && !c.predicate(ctx);
+    const raw = typeof c.value === 'function' ? c.value(ctx.resolved) : c.value;
+    const v = Number.isFinite(raw) ? raw : 0;
+    // PR PP — emit the resolved numeric value on the breakdown row
+    // so the popup never has to re-evaluate function contributions.
+    resolved.push({ source: c.source, label: c.label, stat: c.stat, op: c.op, value: v, ...(inactive ? { inactive: true } : {}) });
+    if (inactive) continue;
     switch (c.op) {
       case 'base': base += v; break;
       case 'addPre': addPre += v; break;
@@ -223,7 +251,7 @@ function resolveStat(stat: StatId, parts: Contribution[], ctx: StatComputeContex
   // dmgMult, critMult) need fractional precision.
   if (!FRACTIONAL_STATS.has(stat)) total = Math.round(total);
   else total = Math.round(total * 100) / 100;
-  return { total, parts };
+  return { total, parts: resolved };
 }
 
 const FRACTIONAL_STATS: ReadonlySet<StatId> = new Set<StatId>([
@@ -360,22 +388,20 @@ function pushAttributeDerivedContributions(out: Contribution[], className: Chara
   });
 }
 
-function pushClassPassiveContributions(out: Contribution[], className: CharacterClass): void {
-  const mods = modifiersForClass(className);
-  const label = `Class: ${className}`;
-  if (mods.healthMultiplier !== undefined) {
-    out.push({ source: `class:${className}:hp`, label, stat: 'maxHealth', op: 'mul', value: mods.healthMultiplier });
-  }
-  if (mods.manaMultiplier !== undefined) {
-    out.push({ source: `class:${className}:mp`, label, stat: 'maxMana', op: 'mul', value: mods.manaMultiplier });
-  }
-  if (mods.damageMultiplier !== undefined) {
-    out.push({ source: `class:${className}:dmg`, label, stat: 'dmgMult', op: 'mul', value: mods.damageMultiplier });
-    out.push({ source: `class:${className}:pAtk`, label, stat: 'pAtk', op: 'mul', value: mods.damageMultiplier });
-    out.push({ source: `class:${className}:mAtk`, label, stat: 'mAtk', op: 'mul', value: mods.damageMultiplier });
-  }
-  if (mods.speedMultiplier !== undefined) {
-    out.push({ source: `class:${className}:speed`, label, stat: 'runSpeed', op: 'mul', value: mods.speedMultiplier });
+/**
+ * PR PP — class differentiation now flows entirely through passive
+ * *skills* (one auto-granted + a small tree of learnable ones). The
+ * Contribution registry just walks `unlockedSkills`, looks each up
+ * in PASSIVE_SKILL_CONTRIBUTIONS, and emits whatever rows that
+ * passive declares. Source / label stay stable per-skill so the
+ * popup reads "Skill: Battle Hardened" — not "Class: warrior".
+ */
+function pushPassiveSkillContributions(out: Contribution[], unlockedSkills: readonly SkillId[] | undefined): void {
+  if (!unlockedSkills?.length) return;
+  for (const skillId of unlockedSkills) {
+    const rows = PASSIVE_SKILL_CONTRIBUTIONS[skillId];
+    if (!rows?.length) continue;
+    for (const row of rows) out.push(row);
   }
 }
 

@@ -40,6 +40,20 @@ export const skillIdValues = [
   'divine_taunt', 'soul_eater',
   'rebirth', 'sacred_aura',
   'treasure_sense', 'stalking_arrow',
+  // PR PP — class passives (auto-granted + learnable). Same enum so a
+  // forged CastReq / LearnSkill for a passive id passes the schema
+  // gate; the server-side passive walker rejects it (passives aren't
+  // cast, learn validates against the class tree).
+  'passive_arcane_focus', 'passive_battle_hardened', 'passive_serenity',
+  'passive_woodland_step', 'passive_iron_discipline', 'passive_oath_of_light',
+  'passive_shadow_strike',
+  'passive_toughness', 'passive_brutality',
+  'passive_focus_mind', 'passive_arcane_potency',
+  'passive_serene_mind', 'passive_warding',
+  'passive_keen_eye', 'passive_swift_step',
+  'passive_armor_training', 'passive_iron_grip',
+  'passive_holy_aegis', 'passive_radiant_focus',
+  'passive_shadow_grace', 'passive_lethal_focus',
 ] as const satisfies readonly SkillId[];
 export const skillIdSchema = z.enum(skillIdValues);
 

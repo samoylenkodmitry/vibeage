@@ -25,6 +25,7 @@ export function recomputePlayerStats(player: PlayerState): StatComputationResult
     level: player.level,
     race: player.race ?? DEFAULT_RACE,
     className: player.className,
+    unlockedSkills: player.unlockedSkills,
     specializationId: player.specializationId ?? null,
     characterInventory: player.characterInventory ?? null,
     statusEffects: player.statusEffects,
