@@ -1,46 +1,30 @@
-// PR UU — single source of truth for SkillId. `SKILL_IDS` is the
-// canonical list; the TS union type and the protocol's Zod enum are
-// both derived from it. Adding a new skill = appending one entry
-// here; nothing else needs touching (the SKILLS-catalog coverage
-// test still locks "every id has a SkillDef" so a typo can't ship).
+// PR UU — `SKILL_IDS` is the canonical list; `SkillId` + the Zod
+// schema in `protocol/common.ts` both derive from it.
 export const SKILL_IDS = [
-  'basicAttack',
-  'escape',
+  'basicAttack', 'escape',
   'fireball', 'iceBolt', 'waterSplash', 'petrify',
   'slash', 'powerStrike', 'shieldWall', 'taunt', 'bash',
   'holyLight', 'bless', 'dispel', 'smite', 'divineShield',
   'arrowShot', 'volley', 'rapidFire',
   'evade', 'backstab', 'poisonBlade', 'vanish',
-  // Spec skills (unlocked at SPECIALIZATION_UNLOCK_LEVEL = Lv 20).
-  // Each id is referenced by exactly one
-  // SPECIALIZATIONS[*].specSkills entry; ordering here is cosmetic.
-  'arcane_blast', 'meteor',
-  'rage', 'execute',
-  'greater_heal', 'empower',
-  'snipe', 'silent_step',
-  'holy_shield', 'shadow_strike',
-  'phoenix_ward', 'sacred_pulse',
+  // Spec skills (SPECIALIZATION_UNLOCK_LEVEL = Lv 20).
+  'arcane_blast', 'meteor', 'rage', 'execute',
+  'greater_heal', 'empower', 'snipe', 'silent_step',
+  'holy_shield', 'shadow_strike', 'phoenix_ward', 'sacred_pulse',
   'lucky_strike', 'wind_dash',
-  // Proficiency skills (unlocked at PROFICIENCY_LEVEL = Lv 40).
-  'arcane_supremacy', 'inferno_aura',
-  'blood_frenzy', 'killing_strike',
-  'mass_heal', 'group_bless',
-  'aimed_volley', 'shadow_arrow',
-  'divine_taunt', 'soul_eater',
-  'rebirth', 'sacred_aura',
+  // Proficiency skills (PROFICIENCY_LEVEL = Lv 40).
+  'arcane_supremacy', 'inferno_aura', 'blood_frenzy', 'killing_strike',
+  'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
+  'divine_taunt', 'soul_eater', 'rebirth', 'sacred_aura',
   'treasure_sense', 'stalking_arrow',
-  // PR PP — class passives (auto-granted + learnable). Stat impact
-  // lives in PASSIVE_SKILL_CONTRIBUTIONS; SkillDef carries name + desc.
+  // PR PP — class passives (auto + learnable).
   'passive_arcane_focus', 'passive_battle_hardened', 'passive_serenity',
   'passive_woodland_step', 'passive_iron_discipline', 'passive_oath_of_light',
-  'passive_shadow_strike',
-  'passive_toughness', 'passive_brutality',
-  'passive_focus_mind', 'passive_arcane_potency',
-  'passive_serene_mind', 'passive_warding',
-  'passive_keen_eye', 'passive_swift_step',
-  'passive_armor_training', 'passive_iron_grip',
-  'passive_holy_aegis', 'passive_radiant_focus',
-  'passive_shadow_grace', 'passive_lethal_focus',
+  'passive_shadow_strike', 'passive_toughness', 'passive_brutality',
+  'passive_focus_mind', 'passive_arcane_potency', 'passive_serene_mind',
+  'passive_warding', 'passive_keen_eye', 'passive_swift_step',
+  'passive_armor_training', 'passive_iron_grip', 'passive_holy_aegis',
+  'passive_radiant_focus', 'passive_shadow_grace', 'passive_lethal_focus',
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
