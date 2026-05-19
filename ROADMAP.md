@@ -1368,3 +1368,73 @@ impossible across every mob / skill / quest.
   marker). Audit the zone ↔ mob references and fix either the
   spawn list or the wiki display so they agree by construction.
 
+## 37. Live Run — Wave 7 follow-ups (2026-05-19)
+
+Spec-driven content fills. Single source of truth: every record
+that drives runtime behaviour also generates its wiki entry; no
+duplicated descriptions.
+
+### PR DD — Boss wiki: stats + signature ability mechanics
+
+- [ ] Bosses tab shows derived HP / damage / level for each
+  mini-boss using the same formula createEnemy uses (mirror the
+  PR W MobStatsSummary already on the Mobs tab).
+- [ ] Show signature ability mechanics inline: windUpMs, radius,
+  cooldownMs, damageMul. The same `signatureAbility.engine`
+  record that drives the in-game cast also drives the wiki — no
+  manual maintenance.
+- [ ] Show enrage / phase-shift parameters (DEFAULT_BOSS_CONFIG)
+  so players can teach themselves the encounter rhythm.
+
+### PR EE — NPCs in wiki
+
+- [ ] New `Npcs` tab listing every QUEST_NPCS entry with name,
+  title, zone hint, and a chip per quest they offer (linking
+  back to the Quests tab).
+- [ ] Add an optional `description` field to QuestNpcDef so the
+  wiki can render flavor text. Same record that wires the
+  quest dialog flows to the wiki description.
+- [ ] Tapping an NPC in the 3D world (or its tag on the map) →
+  open the Npcs tab focused on that NPC.
+
+### PR FF — Per-mob spawn coords (live + accurate)
+
+- [ ] Extend `ZoneMob` with optional `position` (single coord
+  or readonly array of coords). When declared, spawn uses
+  those points; wiki "Spawns in" links jump to the actual coord
+  instead of the zone centre. Same shape as the PR V boss
+  position.
+- [ ] Backfill explicit positions for at least the starter +
+  pinewood + rocky highlands mobs so the example complaint
+  ("no frost wolves at the marker") goes away.
+- [ ] When no per-mob coord is declared, fall back to the
+  existing random-in-zone behaviour so unfilled biomes keep
+  working.
+
+### PR GG — Vendors + gold-spend loop
+
+- [ ] New `VENDORS` content record. Each vendor is a kind of
+  NPC; the same record drives the in-game vendor dialog AND
+  the wiki entry.
+- [ ] Vendor stock: a list of `{itemId, price}` rows for items
+  the vendor sells. Single source of truth — adding an item
+  to the catalog is one record.
+- [ ] Sell side: items in your bag have a `vendorPrice`
+  derived from grade + type (or explicit override on the
+  Item). Right-click in bag → "Sell to X" when near a vendor.
+- [ ] Gold use: existing gold drops become spendable. Buying
+  consumes gold; selling adds it.
+- [ ] At least three starter vendors: a Gludin general goods
+  (potions / mats), a tinker (basic D-grade gear), a buyer
+  (no stock, accepts trophies + commons at decent rates).
+- [ ] Wiki tab `Vendors` listing each vendor + their stock
+  with prices, cross-linked to Items.
+
+### Held over (do not start until requested)
+
+- Wearable visuals on avatars — frozen until real 3D model
+  pipeline is in place. Don't sink time into placeholder mesh
+  swapping.
+- Stat balance pass — too early; more classes / races / skills
+  are planned first.
+
