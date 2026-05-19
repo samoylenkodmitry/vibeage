@@ -146,10 +146,34 @@ export type ContentGraphIssue =
   | { kind: 'hanging-item'; itemId: string }
   | { kind: 'hanging-mob'; type: string }
   | { kind: 'hanging-npc'; npcId: string }
+  | { kind: 'hanging-boss'; bossId: string }
   | { kind: 'unknown-item'; itemId: string; referencedBy: string }
   | { kind: 'unknown-mob'; type: string; referencedBy: string }
   | { kind: 'unknown-npc'; npcId: string; referencedBy: string }
   | { kind: 'unknown-boss'; bossId: string; referencedBy: string };
+
+/**
+ * Pre-built reverse index: `itemId → has at least one source`. Avoids
+ * the O(items × loot-tables) hit of calling `getItemSources` per item
+ * during validation (Gemini PR-204 review). Vendors / recipes / quests
+ * are small enough to stay inline.
+ */
+function buildItemSourceIndex(): Set<string> {
+  const has = new Set<string>();
+  for (const vendor of Object.values(VENDORS)) {
+    for (const e of vendor.stock) has.add(e.itemId);
+  }
+  for (const table of Object.values(LOOT_TABLES)) {
+    for (const d of table.drops) has.add(d.itemId);
+  }
+  for (const item of Object.values(ITEMS)) {
+    if (item.recipe) has.add(item.recipe.output.itemId);
+  }
+  for (const quest of Object.values(QUESTS)) {
+    for (const g of quest.reward.items ?? []) has.add(g.itemId);
+  }
+  return has;
+}
 
 export function validateContentGraph(): ContentGraphIssue[] {
   const issues: ContentGraphIssue[] = [];
@@ -161,10 +185,30 @@ export function validateContentGraph(): ContentGraphIssue[] {
   // Reachable sets — built by walking the spec graph.
   const reachableMobs = new Set<string>();
   const reachableNpcs = new Set<string>();
+  const reachableBosses = new Set<string>();
 
+  // Zone walk: also cross-checks every mob.type / miniBoss.id ref
+  // against the actual registries, so a typo in zones.ts surfaces
+  // here instead of crashing the spawner later.
   for (const zone of GAME_ZONES) {
-    for (const m of zone.mobs) reachableMobs.add(m.type);
-    if (zone.miniBoss) reachableMobs.add(zone.miniBoss.type);
+    for (const m of zone.mobs) {
+      if (!mobTypes.has(m.type)) {
+        issues.push({ kind: 'unknown-mob', type: m.type, referencedBy: `zone:${zone.id}` });
+      }
+      reachableMobs.add(m.type);
+    }
+    if (zone.miniBoss) {
+      if (!mobTypes.has(zone.miniBoss.type)) {
+        issues.push({ kind: 'unknown-mob', type: zone.miniBoss.type, referencedBy: `zone:${zone.id}.miniBoss` });
+      }
+      reachableMobs.add(zone.miniBoss.type);
+      if (zone.miniBoss.id) {
+        if (!bossIds.has(zone.miniBoss.id)) {
+          issues.push({ kind: 'unknown-boss', bossId: zone.miniBoss.id, referencedBy: `zone:${zone.id}.miniBoss` });
+        }
+        reachableBosses.add(zone.miniBoss.id);
+      }
+    }
   }
   for (const quest of Object.values(QUESTS)) {
     reachableNpcs.add(quest.npcId);
@@ -174,9 +218,11 @@ export function validateContentGraph(): ContentGraphIssue[] {
   }
 
   // Hanging items: nothing produces them and they aren't whitelisted.
+  // Uses a pre-built id set so the per-item check is O(1).
+  const itemSourceIndex = buildItemSourceIndex();
   for (const item of Object.values(ITEMS)) {
     if (OBTAINABILITY_WHITELIST.has(item.id)) continue;
-    if (getItemSources(item.id).length === 0) {
+    if (!itemSourceIndex.has(item.id)) {
       issues.push({ kind: 'hanging-item', itemId: item.id });
     }
   }
@@ -192,6 +238,13 @@ export function validateContentGraph(): ContentGraphIssue[] {
   for (const npcId of npcIds) {
     if (!reachableNpcs.has(npcId)) {
       issues.push({ kind: 'hanging-npc', npcId });
+    }
+  }
+
+  // Hanging bosses: defined in MINI_BOSSES but no zone spec spawns them.
+  for (const bossId of bossIds) {
+    if (!reachableBosses.has(bossId)) {
+      issues.push({ kind: 'hanging-boss', bossId });
     }
   }
 
@@ -260,6 +313,8 @@ export function formatContentGraphIssues(issues: readonly ContentGraphIssue[]): 
         return `hanging mob: ${issue.type} (no zone spawns it)`;
       case 'hanging-npc':
         return `hanging NPC: ${issue.npcId} (no quest or vendor references it)`;
+      case 'hanging-boss':
+        return `hanging boss: ${issue.bossId} (no zone spawns it)`;
       case 'unknown-item':
         return `unknown item ${issue.itemId} referenced by ${issue.referencedBy}`;
       case 'unknown-mob':

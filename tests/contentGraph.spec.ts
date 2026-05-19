@@ -32,6 +32,11 @@ describe('content graph', () => {
     expect(hanging, formatContentGraphIssues(hanging)).toEqual([]);
   });
 
+  it('has no hanging bosses (every MINI_BOSSES entry is placed in a zone)', () => {
+    const hanging = byKind('hanging-boss');
+    expect(hanging, formatContentGraphIssues(hanging)).toEqual([]);
+  });
+
   it('every spec id reference resolves to an actual record', () => {
     const unknown = issues.filter((i) =>
       i.kind === 'unknown-item'
