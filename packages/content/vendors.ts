@@ -47,6 +47,14 @@ export const VENDORS: Record<string, VendorDef> = {
     stock: [
       { itemId: 'health_potion', price: 25 },
       { itemId: 'mana_potion', price: 35 },
+      { itemId: 'greater_health_potion', price: 80 },
+      // PR HH — resistance brews. Same shelf as the basic potions
+      // so the obtainability validator sees them as sold rather
+      // than hanging.
+      { itemId: 'fire_resistance_potion', price: 90 },
+      { itemId: 'ice_resistance_potion', price: 90 },
+      { itemId: 'ethereal_elixir', price: 140 },
+      { itemId: 'temporal_draught', price: 180 },
     ],
     buyRate: 0.6,
   },
@@ -58,6 +66,20 @@ export const VENDORS: Record<string, VendorDef> = {
     description: 'Sells the starter gear every fresh recruit is too proud to wear and every veteran wishes they had kept.',
     stock: [
       { itemId: 'worn_sword', price: 60 },
+      // PR HH — leather + bone + bow + plate range Drev fronted on
+      // commission. Cheap end of D-grade so a fresh character can
+      // gear up after the first pouch of coin.
+      { itemId: 'short_bow', price: 70 },
+      { itemId: 'wooden_shield', price: 40 },
+      { itemId: 'leather_helmet', price: 50 },
+      { itemId: 'leather_tunic', price: 90 },
+      { itemId: 'leather_pants', price: 70 },
+      { itemId: 'leather_gloves', price: 40 },
+      { itemId: 'leather_boots', price: 50 },
+      { itemId: 'plate_cuirass', price: 200 },
+      { itemId: 'bone_necklace', price: 60 },
+      { itemId: 'bone_earring', price: 40 },
+      { itemId: 'bone_ring', price: 35 },
     ],
     buyRate: 0.8,
   },

@@ -1458,29 +1458,30 @@ surfaced during the session.
 
 ### PR HH — Wiki obtainability index + spec validator
 
-- [ ] New `packages/content/obtainability.ts` — for any item
-  id, return *all* sources: vendor stock entries, loot table
-  drops, crafting recipes, quest reward grants. Pure derivation
+- [x] New `packages/content/obtainability.ts` — for any item
+  id, returns *all* sources: vendor stock, loot drops,
+  crafting recipes, quest reward grants. Pure derivation
   from existing registries; no per-item override list.
-- [ ] Wiki "Items" tab uses this index to render an "Obtain
-  from" section on every item card. Cross-links to Vendors /
-  Mobs / Recipes / Quests as appropriate. (Example: leather
-  helmet currently shows zero source links — must show all
-  applicable ones.)
-- [ ] New `scripts/validate-content-graph.mjs` (or a
-  `tests/contentGraph.spec.ts`) that fails CI when:
-  - an `ITEMS` entry is unreachable (no vendor, no loot, no
-    recipe, no quest reward) — flag as "hanging item"
-  - an `ENEMY_TEMPLATES` entry isn't referenced by any zone
-    spawn / mini-boss spec — flag as "hanging mob"
-  - a `QUEST_NPCS` entry is referenced by no quest and no
-    vendor — flag as "hanging NPC"
-  - a quest references an itemId / npcId / enemyType that
-    doesn't exist
-  - a loot table references an itemId that doesn't exist
-- [ ] Whitelist mechanism for intentional exceptions
-  (currency, future-content scaffolding) so the gate is
-  strict by default but doesn't block legitimate cases.
+- [x] Wiki Items tab renders Sold-by / Dropped-by / Quest-
+  reward / Crafted-from on every item card; the previously
+  blank leather/bone/short-bow entries now show their
+  vendor (Tinker Drev).
+- [x] `tests/contentGraph.spec.ts` fails CI when:
+  - an `ITEMS` entry isn't sold, dropped, crafted, or
+    quest-rewarded (hanging item)
+  - an `ENEMY_TEMPLATES` entry isn't in any zone spawn
+    (hanging mob)
+  - a `QUEST_NPCS` entry isn't referenced by quest/vendor
+    (hanging NPC)
+  - a spec references an itemId / npcId / enemyType /
+    bossId that doesn't exist
+- [x] `OBTAINABILITY_WHITELIST` for currency + 7 flavour
+  placeholders (ancient_tome, sealed_letter, etc.) so the
+  gate is strict by default without blocking legitimate
+  future-content scaffolding.
+- [x] 38 hanging items at audit time cleared by adding
+  drops to existing mob/boss tables (`SUPPLEMENTAL_DROPS`)
+  + vendor stock at Thala/Tinker Drev.
 
 ### PR II — Stats registry as single source of truth
 
