@@ -2093,13 +2093,17 @@ contiguous list so the audit doesn't fragment.
   still read `player.inventory` through item use, crafting, vendors,
   persistence, and panels. **Fix**: schedule the migration slice;
   this is architecture debt, not a compatibility shim.
-- [ ] **Restore-compatibility check is stale.**
-  `scripts/check-restored-postgres-compatibility.sql:7` only checks
-  old core tables / columns. It misses `character_inventory`,
-  `race`, `specialization_id`, `skill_levels`, `quest_state`,
-  `account_id`, `accounts`, and `tokens_valid_after`. **Fix**:
-  extend the script + add a CI step that runs it against the
-  current migration set.
+- [x] **Restore-compatibility check is stale.** Extended
+  `scripts/check-restored-postgres-compatibility.sql` to require
+  the `accounts` table + every column added by migrations 002
+  through 010: `accounts.{id,login,password_hash,password_salt,
+  created_at,last_login_at,tokens_valid_after}`,
+  `players.{account_id,character_inventory,quest_state,race,
+  skill_levels,specialization_id}`. CI hook (running the script
+  against a restored backup) is still open as a follow-up — the
+  script lives alongside `scripts/test-postgres-restore.sh`
+  which already wires the full restore cycle, so the next slice
+  is just adding a workflow trigger.
 - [ ] **Protocol / docs stale.** Server message schemas are still
   mostly `.passthrough()` in `packages/protocol/serverMessages.ts:24`
   while the roadmap (§4) says to make them strict. README's

@@ -8,6 +8,7 @@ BEGIN
   INTO missing_tables
   FROM (
     VALUES
+      ('accounts'),
       ('game_stats'),
       ('players'),
       ('server_events')
@@ -41,7 +42,18 @@ BEGIN
       ('game_stats', 'id', 'int4'),
       ('game_stats', 'name', 'text'),
       ('game_stats', 'value', 'numeric'),
+      -- migration 009 — accounts table + per-account characters
+      ('accounts', 'id', 'uuid'),
+      ('accounts', 'login', 'text'),
+      ('accounts', 'password_hash', 'text'),
+      ('accounts', 'password_salt', 'text'),
+      ('accounts', 'created_at', 'timestamptz'),
+      ('accounts', 'last_login_at', 'timestamptz'),
+      -- migration 010 — server-side logout / token revocation
+      ('accounts', 'tokens_valid_after', 'timestamptz'),
+      ('players', 'account_id', 'uuid'),
       ('players', 'available_skill_points', 'int4'),
+      ('players', 'character_inventory', 'jsonb'),
       ('players', 'class_name', 'text'),
       ('players', 'experience', 'int4'),
       ('players', 'health', 'int4'),
@@ -55,9 +67,13 @@ BEGIN
       ('players', 'position_x', 'float4'),
       ('players', 'position_y', 'float4'),
       ('players', 'position_z', 'float4'),
+      ('players', 'quest_state', 'jsonb'),
+      ('players', 'race', 'text'),
+      ('players', 'skill_levels', 'jsonb'),
       ('players', 'skill_shortcuts', 'jsonb'),
       ('players', 'skills', 'jsonb'),
       ('players', 'socket_id', 'text'),
+      ('players', 'specialization_id', 'text'),
       ('players', 'starter_progress', 'jsonb'),
       ('players', 'updated_at', 'timestamptz'),
       ('server_events', 'created_at', 'timestamptz'),
