@@ -1,12 +1,9 @@
-import { FormEvent, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
-import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
-import { CLASS_SKILL_TREES, type CharacterClass } from '../../../packages/content/classes';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
 import { NpcDialog } from './hud/NpcDialog';
 import { SkillBar } from './hud/SkillBar';
-import { capitalize } from './hud/textUtils';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
@@ -17,12 +14,6 @@ import {
   isBasicAttackKeyboardCode,
   isEditableTarget,
 } from './skillShortcuts';
-
-type StartPanelProps = {
-  onStart: (playerName: string, race: string, className: string) => void;
-};
-
-const CLASS_NAMES = Object.keys(CLASS_SKILL_TREES) as CharacterClass[];
 
 type GameHudProps = {
   state: GameClientState;
@@ -57,66 +48,6 @@ type GameHudProps = {
   onMove?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
-
-export function StartPanel({ onStart }: StartPanelProps) {
-  const [playerName, setPlayerName] = useState('');
-  const [race, setRace] = useState<CharacterRace>('human');
-  const [className, setClassName] = useState<CharacterClass>('mage');
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmedName = playerName.trim();
-    if (trimmedName) {
-      onStart(trimmedName, race, className);
-    }
-  }
-
-  const raceProfile = RACE_PROFILES[race];
-  const classTree = CLASS_SKILL_TREES[className];
-
-  return (
-    <main className="start-screen">
-      <form className="start-panel start-panel-character" onSubmit={submit}>
-        <h1>VibeAge</h1>
-        <label htmlFor="player-name">Character Name</label>
-        <input
-          id="player-name"
-          value={playerName}
-          onChange={(event) => setPlayerName(event.target.value)}
-          placeholder="Enter your character name"
-          autoComplete="off"
-        />
-        <fieldset className="character-fieldset">
-          <legend>Race</legend>
-          <div className="character-grid">
-            {CHARACTER_RACES.map((option) => (
-              <label key={option} className={`character-option${race === option ? ' character-option--active' : ''}`}>
-                <input type="radio" name="race" value={option} checked={race === option} onChange={() => setRace(option)} />
-                <span>{RACE_PROFILES[option].name}</span>
-              </label>
-            ))}
-          </div>
-          <small className="character-blurb">{raceProfile.description}</small>
-        </fieldset>
-        <fieldset className="character-fieldset">
-          <legend>Class</legend>
-          <div className="character-grid">
-            {CLASS_NAMES.map((option) => (
-              <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
-                <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
-                <span>{capitalize(option)}</span>
-              </label>
-            ))}
-          </div>
-          <small className="character-blurb">{classTree?.description ?? ''}</small>
-        </fieldset>
-        <button type="submit" disabled={!playerName.trim()}>
-          Enter the World
-        </button>
-      </form>
-    </main>
-  );
-}
 
 export function GameHud({
   state,

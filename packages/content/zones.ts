@@ -191,7 +191,8 @@ export const GAME_ZONES: Zone[] = [
         maxLevel: 5,
         mobs: [
             { type: 'wolf', weight: 40, minCount: 4, maxCount: 8, packSize: 4 },
-            { type: 'skeleton', weight: 60, minCount: 3, maxCount: 6 }
+            { type: 'skeleton', weight: 60, minCount: 3, maxCount: 6 },
+            { type: 'spider', weight: 30, minCount: 3, maxCount: 6, packSize: 2 }
         ],
         miniBoss: { id: 'old_greyfang', type: 'wolf', name: 'Old Greyfang', levelBonus: 2, healthMultiplier: 3, damageMultiplier: 1.6, lootTableId: 'boss_loot_old_greyfang', position: { x: 230, y: 0.5, z: 230 } }
     },

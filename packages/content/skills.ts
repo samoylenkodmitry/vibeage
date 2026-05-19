@@ -205,6 +205,10 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 1,
     requiresTarget: true,
     autoRepeat: true,
+    // PR Y — instants don't block movement; an auto-attack swing
+    // shouldn't freeze the player. Default isBlocking is true so we
+    // declare it explicitly here.
+    isBlocking: false,
     effects: [
       { type: 'damage', value: 8 },
     ],
@@ -381,6 +385,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 0,
     cooldownMs: 30000,
     levelRequired: 7,
+    isBlocking: false,
     effects: [
       { type: 'shield', value: 250, durationMs: 8000 },
     ],
@@ -501,6 +506,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 0,
     cooldownMs: 60000,
     levelRequired: 5,
+    isBlocking: false,
     effects: [
       { type: 'shield', value: 500, durationMs: 6000 },
     ],
@@ -571,6 +577,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 0,
     cooldownMs: 30000,
     levelRequired: 7,
+    isBlocking: false,
     effects: [
       { type: 'bless', value: 40, durationMs: 8000 },
     ],
@@ -586,6 +593,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 0,
     cooldownMs: 15000,
     levelRequired: 1,
+    isBlocking: false,
     effects: [
       { type: 'evasion', value: 50, durationMs: 4000 },
     ],
@@ -638,6 +646,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 0,
     cooldownMs: 60000,
     levelRequired: 7,
+    isBlocking: false,
     effects: [
       { type: 'invisible', value: 1, durationMs: 6000 },
     ],
