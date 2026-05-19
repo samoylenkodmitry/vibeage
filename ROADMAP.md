@@ -2068,9 +2068,12 @@ contiguous list so the audit doesn't fragment.
   `SpecializationPassiveModifiers` to cover fire flavour, heal
   output, lifesteal, per-skill cooldown reduction, party auras,
   loot rates — stays open as a content/engine slice.
-- [ ] **Active-skill effects partly unwired:** `transform` still
-  inert (needs a stone-state machine on the target);
-  `waterWeakness` and `knockback` are now wired (see below).
+- [x] **Active-skill effects audit fully closed.** `transform`
+  was a phantom declaration: no skill emitted it (petrify uses
+  `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and
+  the audit's `UNIMPLEMENTED_EFFECT_TYPES`. `waterWeakness` and
+  `knockback` shipped earlier (see below). Every declared
+  effect type now has a runtime consumer.
 - [x] **Knockback wired.** `applyKnockback` in
   `server/combat/impactResolver.ts` now pushes the target along
   the caster→target vector by `effect.value` world units. Cancels
