@@ -18,24 +18,26 @@ type WikiBossesNavTab = 'bosses' | 'items' | 'mobs' | 'recipes' | 'sets' | 'npcs
  * mini-boss with lore + signature ability + cross-links to the
  * boss's trophy (Items tab) and base mob (Mobs tab).
  */
+type OnShowMarker = (pos: { x: number; z: number } | null) => void;
+
 export function BossesTab({
-  query, focusId, focusKey, navigate,
-}: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
+  query, focusId, focusKey, navigate, onShowMarker,
+}: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav; onShowMarker?: OnShowMarker }) {
   const rows = useMemo(() => listMiniBosses().filter((b) =>
     matches(`${b.id} ${b.name} ${b.mobType} ${b.zoneHint} ${b.signatureAbility.name}`, query),
   ), [query]);
   return (
     <ul className="wiki-list">
       {rows.map((boss) => (
-        <BossLi key={boss.id} boss={boss} isFocus={boss.id === focusId} focusKey={focusKey} navigate={navigate} />
+        <BossLi key={boss.id} boss={boss} isFocus={boss.id === focusId} focusKey={focusKey} navigate={navigate} onShowMarker={onShowMarker} />
       ))}
     </ul>
   );
 }
 
 function BossLi({
-  boss, isFocus, focusKey, navigate,
-}: { boss: MiniBossSpec; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
+  boss, isFocus, focusKey, navigate, onShowMarker,
+}: { boss: MiniBossSpec; isFocus: boolean; focusKey: string; navigate: WikiNav; onShowMarker?: OnShowMarker }) {
   const ref = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     if (isFocus && focusKey && ref.current) {
@@ -90,6 +92,20 @@ function BossLi({
             {' · Trophy: '}
             <button type="button" className="wiki-effect-chip" onClick={() => navigate('items', trophy.id)}>
               {trophy.name}
+            </button>
+          </>
+        )}
+        {zone?.miniBoss?.position && (
+          <>
+            {' · Lair: '}
+            <button
+              type="button"
+              className="wiki-effect-chip"
+              onClick={() => onShowMarker?.({ x: zone.miniBoss!.position!.x, z: zone.miniBoss!.position!.z })}
+              disabled={!onShowMarker}
+              title={onShowMarker ? 'Show on map' : undefined}
+            >
+              ({Math.round(zone.miniBoss.position.x)}, {Math.round(zone.miniBoss.position.z)})
             </button>
           </>
         )}

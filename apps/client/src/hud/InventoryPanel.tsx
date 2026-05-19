@@ -106,6 +106,7 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
           itemId={tooltip.info.payload}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          hoverHandlers={tooltip.hoverHandlers}
         />
       )}
     </section>

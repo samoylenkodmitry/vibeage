@@ -9,9 +9,11 @@ import type { WikiNav } from './WikiBosses';
  * row per NPC with name, title, optional flavour description, and
  * a chip per quest they offer (cross-linked to the Quests tab).
  */
+type OnShowMarker = (pos: { x: number; z: number } | null) => void;
+
 export function NpcsTab({
-  query, focusId, focusKey, navigate,
-}: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
+  query, focusId, focusKey, navigate, onShowMarker,
+}: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav; onShowMarker?: OnShowMarker }) {
   // Pre-group quests by npcId once; QUESTS is static module state so
   // the deps are empty. Saves per-row Object.values().filter().
   const questsByNpc = useMemo(() => {
@@ -34,6 +36,7 @@ export function NpcsTab({
           isFocus={npc.id === focusId}
           focusKey={focusKey}
           navigate={navigate}
+          onShowMarker={onShowMarker}
         />
       ))}
     </ul>
@@ -41,8 +44,8 @@ export function NpcsTab({
 }
 
 function NpcLi({
-  npc, offers, isFocus, focusKey, navigate,
-}: { npc: QuestNpcDef; offers: QuestDef[]; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
+  npc, offers, isFocus, focusKey, navigate, onShowMarker,
+}: { npc: QuestNpcDef; offers: QuestDef[]; isFocus: boolean; focusKey: string; navigate: WikiNav; onShowMarker?: OnShowMarker }) {
   const ref = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     if (isFocus && focusKey && ref.current) {
@@ -57,7 +60,16 @@ function NpcLi({
       </header>
       {npc.description && <p>{npc.description}</p>}
       <small className="wiki-row-footer">
-        At <code>({Math.round(npc.position.x)}, {Math.round(npc.position.z)})</code>
+        At{' '}
+        <button
+          type="button"
+          className="wiki-effect-chip"
+          onClick={() => onShowMarker?.({ x: npc.position.x, z: npc.position.z })}
+          disabled={!onShowMarker}
+          title={onShowMarker ? 'Show on map' : undefined}
+        >
+          ({Math.round(npc.position.x)}, {Math.round(npc.position.z)})
+        </button>
       </small>
       {offers.length > 0 && (
         <small className="wiki-row-footer">

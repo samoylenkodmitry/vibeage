@@ -11,9 +11,18 @@ type SkillTooltipProps = {
   clientY: number;
   /** Player's current upgrade tier for this skill (defaults to 1). */
   skillLevel?: number;
+  /**
+   * PR JJ — pointer-enter/leave handlers from the parent's
+   * useTooltipTrigger.hoverHandlers. Keeps the tooltip open while the
+   * cursor sits inside it so the wiki link is actually clickable.
+   */
+  hoverHandlers?: {
+    onPointerEnter: () => void;
+    onPointerLeave: () => void;
+  };
 };
 
-export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1 }: SkillTooltipProps) {
+export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverHandlers }: SkillTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -72,6 +81,8 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1 }: Skil
       className="skill-tooltip"
       role="tooltip"
       style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
+      onPointerEnter={hoverHandlers?.onPointerEnter}
+      onPointerLeave={hoverHandlers?.onPointerLeave}
     >
       <header>
         <strong>{skill.name}</strong>

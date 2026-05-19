@@ -52,11 +52,19 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
                 type="button"
                 className="paperdoll-slot-item"
                 disabled={!itemId}
-                title={canUnequip ? `${itemName} — right-click for Wiki, hover or long-press for details` : 'Empty'}
+                title={canUnequip ? `${itemName} — click for details, right-click jumps to Wiki` : 'Empty'}
                 onContextMenu={(event) => {
                   if (!itemId) return;
                   event.preventDefault();
                   openWikiAt('items', itemId);
+                }}
+                onClick={(event) => {
+                  // PR JJ — clicking the equipped item name opens the
+                  // info popup immediately (was hover-only). The popup
+                  // carries the "Open in Wiki" link; the hover-bridge
+                  // keeps it alive so users can reach the link.
+                  if (!itemId) return;
+                  tooltip.openAt(itemId, event.clientX, event.clientY);
                 }}
                 {...(triggerProps ?? {})}
               >
@@ -81,6 +89,7 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
           itemId={tooltip.info.payload}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          hoverHandlers={tooltip.hoverHandlers}
         />
       )}
     </section>
