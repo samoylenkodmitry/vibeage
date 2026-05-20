@@ -203,6 +203,25 @@ export const learnSkillFailedSchema = z.object({
   reason: learnSkillFailedReasonSchema,
 }).strict();
 
+// §46/slice-5 — structured rejection envelope. Replaces the
+// patchwork of per-command failure messages with one shape the
+// client can route on `requestId` (when the command supplied a
+// `clientSeq`) instead of fishing reasons out of console logs.
+// `detail` is optional safe context — never include user input
+// or PII; it should be the same kind of string we'd write in a
+// log line ("slotIndex out of range", "cooldown 1.2s remaining").
+export const commandRejectedSchema = z.object({
+  type: z.literal('CommandRejected'),
+  /** Client's `clientSeq` for the offending command, when set. */
+  requestId: z.number().optional(),
+  /** The client message `type` the rejection is for (e.g. 'DropItem'). */
+  commandType: z.string(),
+  /** Short stable enum-ish string the client can branch on. */
+  reason: z.string(),
+  /** Optional one-line human-readable detail. Safe for direct render. */
+  detail: z.string().max(240).optional(),
+}).strict();
+
 function getServerMessageSchema(): z.ZodType<unknown> {
   return serverMessageSchema;
 }
@@ -234,6 +253,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   equipmentUpdateSchema,
   equipFailedSchema,
   learnSkillFailedSchema,
+  commandRejectedSchema,
 ]);
 
 export const serverMessageSchema = z.union([
@@ -411,6 +431,18 @@ export type LearnSkillFailedMsg = {
   reason: LearnSkillFailedReason;
 };
 
+// §46/slice-5 — structured rejection envelope. See schema for the
+// contract; consumers route on `requestId` (the client's matching
+// `clientSeq`) to surface per-request rejection UX without parsing
+// log lines.
+export type CommandRejected = {
+  type: 'CommandRejected';
+  requestId?: number;
+  commandType: string;
+  reason: string;
+  detail?: string;
+};
+
 export type ServerMessage =
   | PosSnap
   | InstantHit
@@ -433,4 +465,5 @@ export type ServerMessage =
   | ChatBroadcast
   | EquipmentUpdateMsg
   | EquipFailedMsg
-  | LearnSkillFailedMsg;
+  | LearnSkillFailedMsg
+  | CommandRejected;
