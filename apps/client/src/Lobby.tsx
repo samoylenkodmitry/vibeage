@@ -5,7 +5,7 @@ import {
   getStarterSkillForClass,
   type CharacterClass,
 } from '../../../packages/content/classes';
-import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
+import { CHARACTER_RACES, getRaceStatTendency, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
 import { SKILLS } from '../../../packages/content/skills';
 
 /**
@@ -387,6 +387,7 @@ function CreateCharacterForm({
             ))}
           </div>
           <small className="character-blurb">{RACE_PROFILES[race]?.description ?? ''}</small>
+          <RaceDetail race={race} />
         </fieldset>
         <fieldset className="character-fieldset">
           <legend>Class</legend>
@@ -433,6 +434,34 @@ function ClassDetail({ classKey }: { classKey: CharacterClass }) {
         <small className="character-meta-line">
           Difficulty: <strong>{difficulty}</strong>
         </small>
+      )}
+    </div>
+  );
+}
+
+/**
+ * §49/M2 — race tendency line under the race picker. Shows the
+ * top attributes (strong: …) and where the race is weakest
+ * (weak: …). Balanced races (human) show 'Balanced — no
+ * specialty' so we don't invent a strength.
+ */
+function RaceDetail({ race }: { race: CharacterRace }) {
+  const tendency = getRaceStatTendency(race);
+  return (
+    <div className="character-meta">
+      {tendency.balanced ? (
+        <small className="character-meta-line">Balanced — no clear specialty</small>
+      ) : (
+        <>
+          <small className="character-meta-line">
+            Strong: <strong>{tendency.strong.join(', ').toUpperCase()}</strong>
+          </small>
+          {tendency.weak.length > 0 && (
+            <small className="character-meta-line">
+              Weak: <strong>{tendency.weak.join(', ').toUpperCase()}</strong>
+            </small>
+          )}
+        </>
       )}
     </div>
   );
