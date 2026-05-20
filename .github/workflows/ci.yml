@@ -65,6 +65,9 @@ jobs:
       - name: Content validation
         run: pnpm run content:check
 
+      - name: Content graph
+        run: pnpm run content:graph
+
       - name: Test
         run: pnpm test
 

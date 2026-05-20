@@ -3,6 +3,10 @@ import { LOOT_TABLES } from './lootTables.js';
 import { MINI_BOSSES } from './miniBosses.js';
 import { QUEST_NPCS } from './npcs.js';
 import { QUESTS } from './quests.js';
+import { SKILLS } from './skills.js';
+import { SPECIALIZATIONS } from './specializations.js';
+import { CLASS_SKILL_TREES } from './classes.js';
+import { RACE_PROFILES } from './races.js';
 import { VENDORS } from './vendors.js';
 import { ENEMY_TEMPLATES } from './enemies.js';
 import { GAME_ZONES } from './zones.js';
@@ -150,7 +154,17 @@ export type ContentGraphIssue =
   | { kind: 'unknown-item'; itemId: string; referencedBy: string }
   | { kind: 'unknown-mob'; type: string; referencedBy: string }
   | { kind: 'unknown-npc'; npcId: string; referencedBy: string }
-  | { kind: 'unknown-boss'; bossId: string; referencedBy: string };
+  | { kind: 'unknown-boss'; bossId: string; referencedBy: string }
+  // §49/M1 — race/skill/spec/quest/loot/vendor/zone rule checks.
+  | { kind: 'unknown-skill'; skillId: string; referencedBy: string }
+  | { kind: 'invalid-spec-count'; className: string; got: number }
+  | { kind: 'spec-wrong-class'; specId: string; expected: string; got: string }
+  | { kind: 'duplicate-quest-stage-id'; questId: string; stageId: string }
+  | { kind: 'invalid-loot-chance'; tableId: string; itemId: string; chance: number }
+  | { kind: 'non-positive-vendor-price'; vendorId: string; itemId: string; price: number }
+  | { kind: 'invalid-zone-level-band'; zoneId: string; minLevel: number; maxLevel: number }
+  | { kind: 'race-unknown-class'; race: string; className: string }
+  | { kind: 'class-no-allowed-race'; className: string };
 
 /**
  * Pre-built reverse index: `itemId → has at least one source`. Avoids
@@ -250,8 +264,101 @@ export function validateContentGraph(): ContentGraphIssue[] {
 
   // Cross-reference checks: every id mentioned in a spec resolves.
   collectCrossRefIssues(issues, { itemIds, mobTypes, npcIds, bossIds });
+  // §49/M1 PR002 — additional graph rules: race/class/skill/spec
+  // linkage, quest stage ids, loot chances, vendor prices, zone bands.
+  collectStructuralIssues(issues);
 
   return issues;
+}
+
+function collectStructuralIssues(issues: ContentGraphIssue[]): void {
+  const skillIds = new Set(Object.keys(SKILLS));
+  const classIds = new Set(Object.keys(CLASS_SKILL_TREES));
+
+  // Race graph: every allowed class on a race exists in the class registry.
+  for (const race of Object.values(RACE_PROFILES)) {
+    for (const cls of race.allowedClasses) {
+      if (!classIds.has(cls)) {
+        issues.push({ kind: 'race-unknown-class', race: race.race, className: cls });
+      }
+    }
+  }
+  // Every class must be playable by at least one race.
+  for (const className of classIds) {
+    const playable = Object.values(RACE_PROFILES).some((r) => r.allowedClasses.includes(className as never));
+    if (!playable) issues.push({ kind: 'class-no-allowed-race', className });
+  }
+
+  // Class skill trees: every referenced skill exists in SKILLS.
+  for (const tree of Object.values(CLASS_SKILL_TREES)) {
+    for (const skillId of Object.keys(tree.skillProgression)) {
+      if (!skillIds.has(skillId)) {
+        issues.push({ kind: 'unknown-skill', skillId, referencedBy: `class:${tree.className}` });
+      }
+    }
+  }
+
+  // Spec graph: every base class has exactly 2 specs and spec's
+  // declared baseClass matches the lookup.
+  const specsByClass = new Map<string, string[]>();
+  for (const spec of Object.values(SPECIALIZATIONS)) {
+    if (!classIds.has(spec.baseClass)) {
+      issues.push({ kind: 'race-unknown-class', race: '*spec*', className: spec.baseClass });
+    }
+    const list = specsByClass.get(spec.baseClass) ?? [];
+    list.push(spec.id);
+    specsByClass.set(spec.baseClass, list);
+    // Spec / proficiency skills must exist.
+    for (const skillId of spec.specSkills ?? []) {
+      if (!skillIds.has(skillId)) issues.push({ kind: 'unknown-skill', skillId, referencedBy: `spec:${spec.id}.spec` });
+    }
+    for (const skillId of spec.proficiencySkills ?? []) {
+      if (!skillIds.has(skillId)) issues.push({ kind: 'unknown-skill', skillId, referencedBy: `spec:${spec.id}.proficiency` });
+    }
+  }
+  for (const className of classIds) {
+    const list = specsByClass.get(className) ?? [];
+    if (list.length !== 2) {
+      issues.push({ kind: 'invalid-spec-count', className, got: list.length });
+    }
+  }
+
+  // Quest graph: stage ids unique within a quest.
+  for (const quest of Object.values(QUESTS)) {
+    const seen = new Set<string>();
+    for (const stage of quest.stages) {
+      const id = stage.id ?? '';
+      if (id && seen.has(id)) {
+        issues.push({ kind: 'duplicate-quest-stage-id', questId: quest.id, stageId: id });
+      }
+      seen.add(id);
+    }
+  }
+
+  // Loot tables: every chance is in [0, 1].
+  for (const [tableId, table] of Object.entries(LOOT_TABLES)) {
+    for (const drop of table.drops) {
+      if (typeof drop.chance === 'number' && (drop.chance < 0 || drop.chance > 1)) {
+        issues.push({ kind: 'invalid-loot-chance', tableId, itemId: drop.itemId, chance: drop.chance });
+      }
+    }
+  }
+
+  // Vendors: every stock price is positive.
+  for (const vendor of Object.values(VENDORS)) {
+    for (const entry of vendor.stock) {
+      if (entry.price <= 0) {
+        issues.push({ kind: 'non-positive-vendor-price', vendorId: vendor.id, itemId: entry.itemId, price: entry.price });
+      }
+    }
+  }
+
+  // Zones: maxLevel >= minLevel.
+  for (const zone of GAME_ZONES) {
+    if (zone.maxLevel < zone.minLevel) {
+      issues.push({ kind: 'invalid-zone-level-band', zoneId: zone.id, minLevel: zone.minLevel, maxLevel: zone.maxLevel });
+    }
+  }
 }
 
 type RegistryIdSets = {
@@ -332,6 +439,24 @@ export function formatContentGraphIssues(issues: readonly ContentGraphIssue[]): 
         return `unknown NPC ${issue.npcId} referenced by ${issue.referencedBy}`;
       case 'unknown-boss':
         return `unknown boss ${issue.bossId} referenced by ${issue.referencedBy}`;
+      case 'unknown-skill':
+        return `unknown skill ${issue.skillId} referenced by ${issue.referencedBy}`;
+      case 'invalid-spec-count':
+        return `class ${issue.className} has ${issue.got} specializations (expected 2)`;
+      case 'spec-wrong-class':
+        return `spec ${issue.specId} declares baseClass ${issue.got} (expected ${issue.expected})`;
+      case 'duplicate-quest-stage-id':
+        return `quest ${issue.questId} has duplicate stage id "${issue.stageId}"`;
+      case 'invalid-loot-chance':
+        return `lootTable ${issue.tableId} drop ${issue.itemId} has chance ${issue.chance} (must be in [0,1])`;
+      case 'non-positive-vendor-price':
+        return `vendor ${issue.vendorId} sells ${issue.itemId} at price ${issue.price} (must be > 0)`;
+      case 'invalid-zone-level-band':
+        return `zone ${issue.zoneId} has maxLevel ${issue.maxLevel} < minLevel ${issue.minLevel}`;
+      case 'race-unknown-class':
+        return `race ${issue.race} allows unknown class ${issue.className}`;
+      case 'class-no-allowed-race':
+        return `class ${issue.className} is not playable by any race`;
     }
   }).join('\n');
 }
