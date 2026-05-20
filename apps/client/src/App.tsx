@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
+import { listActiveQuestMarkers } from './hud/questMarkers';
 import { useGameClient } from './useGameClient';
 import { WorldScene } from './WorldScene';
 
@@ -13,6 +14,7 @@ export default function App() {
   const cameraControlsRef = useRef<CameraControls | null>(null);
   const touchClaimRef = useRef<Set<number>>(new Set());
   const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
+  useAutoMarkerOnQuestAccept(state, setNavigationMarker);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -96,4 +98,36 @@ export default function App() {
       )}
     </main>
   );
+}
+
+/**
+ * §49/M2 — auto-drop a navigation marker on quest accept.
+ *
+ * Compares the player's current active-quest id set against a ref
+ * holding the previous set. The first id that appears in `current`
+ * but not in `previous` is treated as "just accepted" — we look up
+ * its first-stage marker via `listActiveQuestMarkers` and write it
+ * to the navigation marker. Progress updates on existing quests
+ * don't retrigger (id set is unchanged).
+ *
+ * Edge case: on reconnect the entire active list appears as
+ * "added" at once. The hook picks the first match and lets the
+ * player clear or repick from the map.
+ */
+function useAutoMarkerOnQuestAccept(
+  state: ReturnType<typeof useGameClient>['state'],
+  setMarker: (marker: VecXZ | null) => void,
+): void {
+  const prevQuestIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const myId = state.myPlayerId;
+    const player = myId ? state.players[myId] : null;
+    const activeIds = new Set(Object.keys(player?.questState?.active ?? {}));
+    const prev = prevQuestIdsRef.current;
+    const added = [...activeIds].filter((id) => !prev.has(id));
+    prevQuestIdsRef.current = activeIds;
+    if (added.length === 0) return;
+    const marker = listActiveQuestMarkers(player).find((m) => added.includes(m.questId))?.marker;
+    if (marker) setMarker(marker);
+  }, [state.myPlayerId, state.players, setMarker]);
 }
