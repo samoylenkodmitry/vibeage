@@ -2080,6 +2080,10 @@ contiguous list so the audit doesn't fragment.
     HP, not a stale stat snapshot). Templar Knight's `Last Stand`
     delivers the +15% damage reduction below half HP its
     description always promised.
+  - [x] `lifestealPercent` → caster HP restore = damage dealt ×
+    pct after mitigation, capped at maxHealth. Dark Avenger's
+    `Sanguine Blade` (proficiency, L40) restores 5% of every
+    landed hit.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and
