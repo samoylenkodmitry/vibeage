@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
-import { getMobZones } from '../../../../packages/content/mobLocations';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
-import { GAME_ZONES } from '../../../../packages/content/zones';
 import type { PlayerEntity } from '../gameTypes';
+import { resolveStageMarker } from './questMarkers';
 import { useDraggablePanel } from './useDraggablePanel';
 
 type QuestPanelProps = {
@@ -153,35 +152,3 @@ function describeObjective(
   }
 }
 
-/**
- * PR Z — pick the most useful map pin for the current quest stage.
- *  - explicit marker wins
- *  - reach → the waypoint
- *  - talk → that NPC's position
- *  - kill_boss → the boss's spawn coord (PR V)
- *  - kill → the first zone the mob spawns in (zone center)
- *  - manual / fallback → the quest giver
- */
-function resolveStageMarker(
-  stage: QuestDef['stages'][number],
-  giverPos: { x: number; y: number; z: number } | null,
-): { x: number; z: number } | null {
-  if (stage.marker) return { x: stage.marker.x, z: stage.marker.z };
-  const obj = stage.objective;
-  if (obj.kind === 'reach') return { x: obj.position.x, z: obj.position.z };
-  if (obj.kind === 'talk') {
-    const npc = QUEST_NPCS[obj.npcId];
-    if (npc) return { x: npc.position.x, z: npc.position.z };
-  }
-  if (obj.kind === 'kill_boss') {
-    const boss = getMiniBossById(obj.bossId);
-    const zone = boss ? GAME_ZONES.find((z) => z.miniBoss?.id === boss.id) : null;
-    const pos = zone?.miniBoss?.position;
-    if (pos) return { x: pos.x, z: pos.z };
-  }
-  if (obj.kind === 'kill') {
-    const zones = getMobZones(obj.enemyType);
-    if (zones.length > 0) return { x: zones[0].position.x, z: zones[0].position.z };
-  }
-  return giverPos ? { x: giverPos.x, z: giverPos.z } : null;
-}

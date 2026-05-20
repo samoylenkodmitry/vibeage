@@ -1053,6 +1053,7 @@ input {
 .map-legend-dot--pin { background: #facc15; outline: 2px solid #04100d; }
 .map-legend-dot--boss-alive { background: #fbbf24; outline: 2px solid #04100d; }
 .map-legend-dot--boss-dead { background: #475569; outline: 2px solid #04100d; }
+.map-legend-dot--quest { background: #60a5fa; outline: 2px solid #04100d; }
 
 .map-toolbar {
   display: flex;
