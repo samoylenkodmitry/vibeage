@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { INTERACTION_RANGE, QUEST_NPCS, type QuestNpcDef } from '../../../../packages/content/npcs';
-import { getQuestsOfferedBy, type QuestDef } from '../../../../packages/content/quests';
+import { getQuestsOfferedBy, type QuestDef, type QuestReward } from '../../../../packages/content/quests';
+import { ITEMS } from '../../../../packages/content/items';
 import { getVendorByNpcId } from '../../../../packages/content/vendors';
 import type { PlayerEntity } from '../gameTypes';
 
@@ -71,13 +72,30 @@ export function NpcDialog({ player, onTalkNpc, onAcceptQuest, onBrowseVendor }: 
 }
 
 function OfferedRow({ quest, onAccept }: { quest: QuestDef; onAccept: () => void }) {
+  const rewardSummary = formatRewardSummary(quest.reward);
   return (
     <div className="npc-dialog-row">
       <strong>{quest.name}</strong>
       <small>{quest.description}</small>
+      {rewardSummary && <small className="npc-dialog-reward">Reward: {rewardSummary}</small>}
       <button type="button" onClick={onAccept}>Accept</button>
     </div>
   );
+}
+
+// §49/M6 — show what the player will get before they accept.
+// Resolves item ids to display names; gold + XP shown with their
+// own glyphs so the row is scannable.
+export function formatRewardSummary(reward: QuestReward): string {
+  const parts: string[] = [];
+  if (reward.xp) parts.push(`${reward.xp} XP`);
+  if (reward.gold) parts.push(`${reward.gold}g`);
+  for (const grant of reward.items ?? []) {
+    const name = ITEMS[grant.itemId]?.name ?? grant.itemId;
+    const qty = grant.quantity && grant.quantity > 1 ? `${grant.quantity}× ` : '';
+    parts.push(`${qty}${name}`);
+  }
+  return parts.join(', ');
 }
 
 function findNearbyNpc(player: PlayerEntity | null): QuestNpcDef | null {

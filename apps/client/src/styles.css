@@ -1534,6 +1534,7 @@ input {
 .npc-dialog-row { display: grid; gap: 2px; padding: 4px; border: 1px solid rgba(141, 233, 215, 0.18); border-radius: 4px; }
 .npc-dialog-row button { padding: 3px 6px; margin-top: 2px; cursor: pointer; }
 .npc-dialog-empty { opacity: 0.7; }
+.npc-dialog-reward { color: #fde68a; font-size: 11px; }
 
 /* §49/M2 PR008 — heads-up quest tracker strip. Compact left-edge
    button under the vitals-strip so a new player doesn't have to
