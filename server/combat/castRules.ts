@@ -1,4 +1,5 @@
 import { SKILLS, type SkillDef, type SkillId } from '../../packages/content/skills.js';
+import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import type { VecXZ } from '../../packages/protocol/messages.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
@@ -84,11 +85,26 @@ function getCastBlocker(
     return 'invalid';
   }
 
-  if (isOutOfRange(caster, skill.range ?? 0, target, targetPos)) {
+  // §45.3 follow-up — spec passives like Bulwark widen specific
+  // skills' cast ranges. Multiplies on top of the skill's stored
+  // range; non-matching specs leave it alone.
+  const effectiveRange = (skill.range ?? 0) * specRangeMultiplierFor(caster, skillId);
+  if (isOutOfRange(caster, effectiveRange, target, targetPos)) {
     return 'outofrange';
   }
 
   return null;
+}
+
+function specRangeMultiplierFor(player: PlayerState, skillId: SkillId): number {
+  if (!player.specializationId) return 1;
+  const spec = getSpecializationById(player.specializationId);
+  if (!spec) return 1;
+  let mul = spec.specializationPassive.modifiers.rangeMultiplierBySkill?.[skillId] ?? 1;
+  if (player.level >= PROFICIENCY_LEVEL) {
+    mul *= spec.proficiencyPassive.modifiers.rangeMultiplierBySkill?.[skillId] ?? 1;
+  }
+  return mul;
 }
 
 function isOutOfRange(
