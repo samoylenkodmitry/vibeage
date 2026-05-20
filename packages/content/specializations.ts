@@ -37,6 +37,15 @@ export interface SpecializationPassiveModifiers {
   speedMultiplier?: number;
   critChanceBonus?: number;
   critMultBonus?: number;
+  /**
+   * §45.3 follow-up — multiplies the value of `heal` effects the
+   * caster lands. 1.25 → +25% effective healing. Read by
+   * `applyHealEffect` at impact time via the caster's
+   * `player.stats.healMult` (populated through the Contribution
+   * registry). Lets healer specs like Cardinal actually deliver
+   * the "+25% healing output" their passive description promises.
+   */
+  healOutputMultiplier?: number;
 }
 
 export interface SpecializationPassive {
@@ -164,8 +173,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Greater Calling',
-      description: '(planned: +25% effective healing output once a heal-output multiplier lands in SpecializationPassiveModifiers — heal effects bypass damageMultiplier today.)',
-      modifiers: {},
+      description: '+25% effective healing output.',
+      modifiers: { healOutputMultiplier: 1.25 },
     },
     proficiencyPassive: {
       name: 'Sanctity',
@@ -307,8 +316,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Grace',
-      description: '+10% max HP. (planned: +20% healing output — heal effects bypass damageMultiplier today.)',
-      modifiers: { healthMultiplier: 1.1 },
+      description: '+20% healing output, +10% max HP.',
+      modifiers: { healthMultiplier: 1.1, healOutputMultiplier: 1.2 },
     },
     proficiencyPassive: {
       name: 'Aegis',
