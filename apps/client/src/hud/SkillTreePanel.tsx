@@ -22,7 +22,7 @@ type SkillTreePanelProps = {
   rejections?: Record<string, string>;
 };
 
-type Row = {
+export type Row = {
   skillId: SkillId;
   name: string;
   status: 'unlocked' | 'available' | 'locked';
@@ -189,7 +189,9 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function buildSkillRows(player: PlayerEntity | null): Row[] {
+// Exported for §49/M3 PR015 unit tests; keeps the row-building
+// logic testable without bringing in a DOM renderer.
+export function buildSkillRows(player: PlayerEntity | null): Row[] {
   const className = (player?.className ?? DEFAULT_CLASS_NAME) as CharacterClass;
   const tree = CLASS_SKILL_TREES[className] ?? CLASS_SKILL_TREES.mage;
   const level = player?.level ?? 1;
@@ -203,8 +205,16 @@ function buildSkillRows(player: PlayerEntity | null): Row[] {
     if (canLearnSkill(id, className, level, unlocked)) {
       return { skillId: id, name: skill?.name ?? id, status: 'available', detail: `Required Lv ${req.level}` };
     }
-    const reqSkills = req.requiredSkills?.length ? ` · needs ${req.requiredSkills.join(', ')}` : '';
-    return { skillId: id, name: skill?.name ?? id, status: 'locked', detail: `Lv ${req.level}${reqSkills}` };
+    // §49/M3 PR015 — concrete lock reason: tell the player what
+    // they're missing in current values, not abstract requirements.
+    // "Need Lv 7 (you're 4)" reads better than just "Lv 7".
+    const parts: string[] = [];
+    if (level < req.level) parts.push(`need Lv ${req.level} (you're ${level})`);
+    const missingPrereqs = (req.requiredSkills ?? [])
+      .filter((s) => !unlocked.includes(s as SkillId))
+      .map((s) => SKILLS[s as SkillId]?.name ?? s);
+    if (missingPrereqs.length) parts.push(`need ${missingPrereqs.join(', ')}`);
+    return { skillId: id, name: skill?.name ?? id, status: 'locked', detail: parts.join(' · ') || `Lv ${req.level}` };
   });
 
   // Spec / proficiency skills: render all specs for the player's
@@ -220,11 +230,16 @@ function buildSkillRows(player: PlayerEntity | null): Row[] {
       if (unlocked.includes(skillId)) {
         return { skillId, name: skill?.name ?? skillId, status: 'unlocked', detail: `${spec.name} ${tierLabel}` };
       }
+      // §49/M3 PR015 — concrete spec lock reason with the player's
+      // current level + the spec they'd need to pick.
       if (!onThisSpec) {
-        return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: `Spec-locked · ${spec.name}` };
+        const needLevel = level < SPECIALIZATION_UNLOCK_LEVEL
+          ? `Lv ${SPECIALIZATION_UNLOCK_LEVEL} then pick ${spec.name}`
+          : `pick ${spec.name} at the spec terminal`;
+        return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: needLevel };
       }
       if (level < requiredLevel) {
-        return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: `Lv ${requiredLevel} · ${spec.name} ${tierLabel}` };
+        return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: `need Lv ${requiredLevel} (you're ${level}) · ${spec.name} ${tierLabel}` };
       }
       return { skillId, name: skill?.name ?? skillId, status: 'available', detail: `Required Lv ${requiredLevel}` };
     };
