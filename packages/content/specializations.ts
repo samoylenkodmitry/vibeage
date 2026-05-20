@@ -102,6 +102,14 @@ export interface SpecializationPassiveModifiers {
    * active spec. Used by Treasure Hunter `Lucky Find` (prof).
    */
   lootRateMultiplier?: number;
+  /**
+   * §45.3 follow-up — damage multiplier scoped to the cast's
+   * `damageElement`. Keyed by element id (`fire`, `holy`, etc.);
+   * 1.2 → +20% damage on every cast tagged that element. Read in
+   * `calculateDamage` so non-matching casts ignore the bonus.
+   * Used by Pyromancer (fire) and Phoenix Knight (holy).
+   */
+  damageElementMultiplier?: Readonly<Record<string, number>>;
 }
 
 export interface SpecializationPassive {
@@ -167,13 +175,13 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Kindling',
-      description: '+10% damage. (planned: fire-flavour amplifier so burn dots tick harder than other damage.)',
-      modifiers: { damageMultiplier: 1.1 },
+      description: '+10% damage; fire-flavour casts hit +20% on top.',
+      modifiers: { damageMultiplier: 1.1, damageElementMultiplier: { fire: 1.2 } },
     },
     proficiencyPassive: {
       name: 'Conflagration',
-      description: '+10% damage. (planned: fire-dot duration extension.)',
-      modifiers: { damageMultiplier: 1.1 },
+      description: '+10% damage; fire-flavour casts gain another +15%.',
+      modifiers: { damageMultiplier: 1.1, damageElementMultiplier: { fire: 1.15 } },
     },
     specSkills: ['meteor'],
     proficiencySkills: ['inferno_aura'],
@@ -352,8 +360,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Holy Fire',
-      description: '+15% damage. (planned: holy-flavour amplifier so the bonus only applies to divine attacks.)',
-      modifiers: { damageMultiplier: 1.15 },
+      description: '+15% damage; holy-flavour casts hit +20% on top.',
+      modifiers: { damageMultiplier: 1.15, damageElementMultiplier: { holy: 1.2 } },
     },
     proficiencyPassive: {
       name: 'Resurrection',

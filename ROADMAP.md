@@ -2102,6 +2102,13 @@ contiguous list so the audit doesn't fragment.
     Threaded the killer through `targetDeath → spawnLootForEnemyDeath
     → generateLoot`. Treasure Hunter `Lucky Find` (proficiency,
     L40) ships +50%.
+  - [x] `damageElementMultiplier` → caster's flavour-scoped damage
+    boost. Skills tagged with `damageElement` (fireball + meteor +
+    inferno_aura → fire; smite → holy) get extra damage when the
+    caster's spec carries a matching entry. Pyromancer Kindling
+    (+20% fire) and Conflagration (+15% fire) un-planned; Phoenix
+    Knight Holy Fire (+20% holy) un-planned. Spec + proficiency
+    tiers stack multiplicatively.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and

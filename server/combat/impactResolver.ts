@@ -160,12 +160,26 @@ function calculateDamage(
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
 
-  // §45.4 — element vulnerability amplifier. Today only
-  // `waterWeakness` exists; the generic shape is `<element>Weakness`
-  // (the status-effect upsert path uses the same id). Extends
-  // naturally to fireWeakness etc. once those effects ship.
+  // §45.4 — target's vulnerability to the cast's element.
   const elementMult = elementVulnerabilityMultiplier(skill, target);
-  return result.dmg * elementMult;
+  // §45.3 follow-up — caster's spec passive can boost damage on
+  // their flavoured element (Pyromancer for fire, Phoenix Knight
+  // for holy). Skips when the skill has no damageElement.
+  const casterMult = casterDamageElementMultiplier(skill, caster);
+  return result.dmg * elementMult * casterMult;
+}
+
+function casterDamageElementMultiplier(skill: SkillDef, caster: PlayerState | null | undefined): number {
+  if (!skill.damageElement || !caster?.specializationId) return 1;
+  const spec = getSpecializationById(caster.specializationId);
+  if (!spec) return 1;
+  const specMap = spec.specializationPassive.modifiers.damageElementMultiplier;
+  const profMap = caster.level >= PROFICIENCY_LEVEL
+    ? spec.proficiencyPassive.modifiers.damageElementMultiplier
+    : undefined;
+  const specMul = specMap?.[skill.damageElement] ?? 1;
+  const profMul = profMap?.[skill.damageElement] ?? 1;
+  return specMul * profMul;
 }
 
 const ELEMENT_TO_WEAKNESS_TYPE: Readonly<Record<string, string>> = {
