@@ -3,6 +3,7 @@ import { getEffectiveMinLevel, occupiedSlotsForSpec } from '../../../../packages
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { BagContextMenu, type BagContextMenuTrigger } from './InventoryContextMenu';
+import { InventorySlotButton, type InventorySlotCallbacks } from './InventorySlotButton';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useTooltipTrigger } from './useTooltipTrigger';
@@ -16,10 +17,7 @@ type InventoryPanelProps = {
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number) => void;
   /**
-   * PR AA — tapping a recipe item opens the dedicated CraftPanel
-   * instead of firing the craft immediately. The panel itself
-   * surfaces ingredients + counts + the craft button so the player
-   * sees what they're consuming before committing.
+   * PR AA — tapping a recipe item opens the dedicated CraftPanel.
    */
   onOpenRecipe: (recipeSlotIndex: number) => void;
   /** §46/slice-new — Shift+click drops the full stack at the player's feet. */
@@ -43,6 +41,12 @@ export function InventoryPanel({
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<string>();
   const [menu, setMenu] = useState<BagContextMenuTrigger | null>(null);
+  const callbacks: InventorySlotCallbacks = {
+    onUseItem, onEquipItem, onOpenRecipe, onDropItem,
+    onOpenMenu: (slotIndex, itemId, clientX, clientY) => setMenu({ slotIndex, itemId, clientX, clientY }),
+    tooltipTriggerProps: (itemId) => tooltip.triggerProps(itemId),
+    consumePendingClick: () => tooltip.consumePendingClick(),
+  };
   return (
     <section ref={panelRef} className="inventory-panel" aria-label="Inventory">
       <div className="panel-title">
@@ -50,71 +54,15 @@ export function InventoryPanel({
         <span>{usedSlots}/{maxSlots}</span>
       </div>
       <div className="inventory-grid">
-      {Array.from({ length: maxSlots }).map((_, index) => {
-        const slot = inventory[index] ?? null;
-        const item = slot ? ITEMS[slot.itemId] : null;
-        const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
-        const isEquippable = Boolean(slot && item?.equip);
-        const isRecipe = Boolean(slot && item?.recipe);
-        const equipMinLevel = item?.equip
-          ? getEffectiveMinLevel(getItemGrade(item), item.equip.requirements?.minLevel)
-          : 0;
-        const locked = isEquippable && playerLevel < equipMinLevel;
-        const canEquip = isEquippable && !locked;
-        const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
-        const action = canUse
-          ? 'Use'
-          : isRecipe
-            ? 'Recipe'
-            : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
-        const title = slot
-          ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · Shift+click to drop · right-click for menu · hover or long-press for details`
-          : 'Empty slot';
-
-        const onClick = canUse
-          ? () => onUseItem(index)
-          : isRecipe
-            ? () => onOpenRecipe(index)
-            : canEquip ? () => onEquipItem(index) : undefined;
-        const triggerProps = slot ? tooltip.triggerProps(slot.itemId) : undefined;
-
-        const openMenu = (slotItemId: string, clientX: number, clientY: number) => {
-          setMenu({ slotIndex: index, itemId: slotItemId, clientX, clientY });
-        };
-
-        return (
-          <button
+        {Array.from({ length: maxSlots }).map((_, index) => (
+          <InventorySlotButton
             key={index}
-            type="button"
-            className="inventory-slot"
-            disabled={!onClick && !slot}
-            title={title}
-            aria-label={slot && action ? `${action} ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
-            onClick={(event) => {
-              if (tooltip.consumePendingClick()) {
-                event.stopPropagation();
-                return;
-              }
-              if (slot && event.shiftKey) {
-                event.stopPropagation();
-                onDropItem(index);
-                return;
-              }
-              onClick?.();
-              event.stopPropagation();
-            }}
-            onContextMenu={(event) => {
-              if (!slot) return;
-              event.preventDefault();
-              openMenu(slot.itemId, event.clientX, event.clientY);
-            }}
-            {...(triggerProps ?? {})}
-          >
-            <span>{slot ? getItemInitial(itemName) : ''}</span>
-            {slot && slot.quantity > 1 && <strong>{slot.quantity}</strong>}
-          </button>
-        );
-      })}
+            slot={inventory[index] ?? null}
+            index={index}
+            playerLevel={playerLevel}
+            callbacks={callbacks}
+          />
+        ))}
       </div>
       {tooltip.info && (
         <ItemTooltip
@@ -141,13 +89,6 @@ export function InventoryPanel({
   );
 }
 
-function getItemInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase();
-}
-
-// Tooltip equip-delta lookup: see the docstring on the original
-// implementation — finds the item currently occupying the hovered
-// item's primary slot so the tooltip can show +N/-N stat deltas.
 export function resolveCompareStats(
   hoveredItemId: string,
   equipment: Record<string, string> | undefined,
@@ -163,8 +104,6 @@ export function resolveCompareStats(
   return ITEMS[equippedId]?.stats;
 }
 
-// Mirrors the per-slot equip rule used in the grid render so the
-// context menu and the tooltip agree on whether Equip is available.
 function canEquipAt(itemId: string, playerLevel: number): boolean {
   const item = ITEMS[itemId];
   if (!item?.equip) return false;

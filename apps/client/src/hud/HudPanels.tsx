@@ -68,31 +68,12 @@ export type HudPanelsProps = {
 };
 
 export function HudPanels({
-  panels,
-  state,
-  player,
-  now,
-  hasSelectedTarget,
-  hasLootNearby,
-  cameraAngleRef,
-  navigationMarker,
-  onSetNavigationMarker,
-  onCastSkill,
-  onLearnSkill,
-  onUseItem,
-  onDropItem,
-  onDestroyItem,
-  onCraftItem,
-  onEquipItem,
-  onUnequipItem,
-  onUpgradeSkill,
-  onCancelQuest,
-  onAdvanceQuest,
-  onClaimQuestReward,
-  onGmCommand,
-  onPickupNearest,
-  onMove,
-  onSendChat,
+  panels, state, player, now, hasSelectedTarget, hasLootNearby,
+  cameraAngleRef, navigationMarker, onSetNavigationMarker,
+  onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem,
+  onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
+  onCancelQuest, onAdvanceQuest, onClaimQuestReward, onGmCommand,
+  onPickupNearest, onMove, onSendChat,
 }: HudPanelsProps) {
   return (
     <>
