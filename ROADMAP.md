@@ -2093,6 +2093,10 @@ contiguous list so the audit doesn't fragment.
     Eva's Templar `Aegis` (proficiency, L40) halves Divine
     Shield; Plains Walker `Shadow Step` (proficiency, L40) halves
     Vanish.
+  - [x] `poisonTickMultiplier` → scales the per-tick `value` of
+    `poison` effects at upsert time so `dotTicker` reads the
+    amplified damage directly. Phantom Ranger `Venom` (spec, L20)
+    delivers +30%; Plains Walker `Toxin` (spec, L20) +25%.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and

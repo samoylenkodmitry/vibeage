@@ -265,6 +265,22 @@ function isBeneficialEffectType(type: string): boolean {
 }
 
 /**
+ * §45.3 follow-up — poison-tick damage multiplier from the
+ * caster's spec passives (spec + proficiency tiers stack
+ * multiplicatively). Returns 1 when nothing applies.
+ */
+function poisonTickMultFor(caster: PlayerState | null | undefined): number {
+  if (!caster?.specializationId) return 1;
+  const spec = getSpecializationById(caster.specializationId);
+  if (!spec) return 1;
+  let mul = spec.specializationPassive.modifiers.poisonTickMultiplier ?? 1;
+  if (caster.level >= PROFICIENCY_LEVEL) {
+    mul *= spec.proficiencyPassive.modifiers.poisonTickMultiplier ?? 1;
+  }
+  return mul;
+}
+
+/**
  * §45.3 follow-up — sum lifesteal percentages from the caster's
  * active spec passives. Proficiency-tier passives only count once
  * the player reaches `PROFICIENCY_LEVEL`. Returns 0 when no spec
@@ -501,10 +517,17 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     ? Math.round(baseDuration * beneficialBuffDurationMultFor(caster))
     : baseDuration;
 
+  // §45.3 follow-up — Phantom Ranger Venom / Plains Walker Toxin
+  // scale poison tick damage at apply time so dotTicker reads the
+  // already-amplified value. Other effect types pass through.
+  const value = effect.type === 'poison'
+    ? effect.value * poisonTickMultFor(caster)
+    : effect.value;
+
   const statusEffect = {
     id: nanoid(),
     type: effect.type,
-    value: effect.value,
+    value,
     durationMs,
     startTimeTs: Date.now(),
     sourceSkill: skillId,
