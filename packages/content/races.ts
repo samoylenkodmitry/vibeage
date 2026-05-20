@@ -96,4 +96,30 @@ export function isClassAllowedForRace(race: CharacterRace, className: CharacterC
   return RACE_PROFILES[race]?.allowedClasses.includes(className) ?? false;
 }
 
+/**
+ * §49/M2 — readable strength / weakness summary for the lobby's
+ * character-create form. Picks the top-2 attributes and the bottom
+ * attribute relative to the race's own average; flat races (human)
+ * fall back to "balanced" so we don't lie about a tendency that
+ * isn't there.
+ */
+export type RaceStatTendency = {
+  strong: ReadonlyArray<keyof RaceStatWeights>;
+  weak: ReadonlyArray<keyof RaceStatWeights>;
+  balanced: boolean;
+};
+
+export function getRaceStatTendency(race: CharacterRace): RaceStatTendency {
+  const profile = RACE_PROFILES[race];
+  if (!profile) return { strong: [], weak: [], balanced: true };
+  const entries = Object.entries(profile.baseAttrs) as Array<[keyof RaceStatWeights, number]>;
+  const values = entries.map(([, v]) => v);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  if (max - min < 2) return { strong: [], weak: [], balanced: true };
+  const strong = entries.filter(([, v]) => v >= max - 1).map(([k]) => k);
+  const weak = entries.filter(([, v]) => v <= min + 0.5).map(([k]) => k);
+  return { strong, weak, balanced: false };
+}
+
 export const DEFAULT_RACE: CharacterRace = 'human';
