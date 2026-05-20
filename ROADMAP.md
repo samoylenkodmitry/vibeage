@@ -2469,3 +2469,1480 @@ explicitly held over until post-release.
   10-item list under "What's actually open" — that's what the
   next session should pick from.
 
+
+---
+
+# 49. Imported External Roadmap (2026-05-20)
+
+Pasted verbatim from `~/Downloads/roadmap.md` on the user's request. The document below is the long-arc plan authored separately and reconciled into this file as a single appendix. Future PRs may tick its boxes; the **Immediate Next Action** section at the end lists the three starting tasks.
+
+**Reconciliation notes** (this file already had overlapping sections; rules of the road):
+
+- The "Suggested PR Sequence" in this appendix renumbers from PR 001. The repo PR history continues from #266 — treat the **001–044** labels as *relative ids within this roadmap document*, not GitHub PR numbers. When opening an actual PR, use the next GitHub number.
+- This appendix's **Definition Of Done** sections are the authoritative versions; §30 "Definition of Done for Future Gameplay Slices" predates them and stays in the file for history but is **superseded** by §49 ("Definition Of Done" sub-section) for new work.
+- This appendix's **Immediate Next Action** lists 3 tasks (M1 content-graph, M2 starter polish, M4 balance report). The §48 prioritized backlog enumerates 10 items in finer-grained detail. The two are **complementary**: §49's 3 items are the strategic starts; §48's 10 items are the per-PR queue. When in doubt, the §49 strategic priorities win the order; §48 items get folded into the M-milestone they belong to.
+
+# VibeAge Roadmap
+
+Prepared: 2026-05-20
+
+## Project Direction
+
+VibeAge should become a browser-first, server-authoritative fantasy MMO/RPG with a compact polished early game, Lineage-style race/class identity, boss-driven gear progression, readable world travel, and a scalable content pipeline.
+
+The current project already has many strong systems: shared content packages, authoritative Colyseus server, React/Three client, Postgres persistence, race/class/stat systems, skill trees, quests, NPCs, zones, mobs, mini-bosses, loot, recipes, equipment, and a huge-world direction. The next phase should not be about adding more random breadth. The next phase should be about making one complete player journey excellent, then using that journey as the template for the rest of the world.
+
+## North Star
+
+A new player should be able to play for 30 minutes and clearly understand:
+
+- who their race/class is;
+- how to move, target, fight, and use skills;
+- where to go next;
+- why the world matters;
+- how quests, bosses, loot, recipes, and gear connect;
+- what their next goal is after the first boss;
+- why they want to log in again.
+
+## Core Product Loop
+
+```text
+Create race/class
+→ enter starter village
+→ learn movement/combat/first skill
+→ accept first quest
+→ fight starter mobs
+→ return to NPC
+→ follow road/map marker
+→ accept named boss bounty
+→ fight a readable mini-boss
+→ loot trophy/recipe/materials
+→ craft or equip first meaningful gear
+→ learn or upgrade a skill
+→ choose next zone path
+```
+
+## Non-Negotiables
+
+- [ ] The server remains authoritative for movement, combat, loot, inventory, equipment, quests, spawning, region activation, persistence, economy-relevant state, and player identity.
+- [ ] The browser client remains responsible for input, prediction/smoothing, camera, rendering, HUD, VFX, audio, and cosmetic-only atmosphere.
+- [ ] No gameplay rule should live only in client code if it affects power, rewards, movement validity, combat result, or persistence.
+- [ ] Content IDs must stay stable once saved, sent over the protocol, used in quests, or referenced by recipes/loot tables.
+- [ ] Do not add new gameplay systems directly into large orchestration files such as `server/world.ts`, transport glue, root reducers, or scene/HUD composition files.
+- [ ] Put reusable gameplay rules into `packages/content`, `packages/sim`, `packages/protocol`, or focused server/client modules.
+- [ ] Every content expansion must ship with validation and at least one runtime or content-invariant test.
+- [ ] Every new protocol message must include schema, TypeScript type, server handler, client handler, rejection behavior, and tests.
+- [ ] Every player-facing command should have a clear success or rejection path, not silent failure.
+- [ ] Every major gameplay number should have one source of truth: damage, cooldown, mana, XP, loot chance, stat scaling, item weight, equip requirement, spawn budget, travel speed, and level gate.
+- [ ] Production deployment should remain boring: clean branch, passing checks, explicit deploy, health check, smoke check, rollback path.
+
+## What Not To Do Yet
+
+- [ ] Do not add more base races until the existing five have distinct fantasy, UI explanation, allowed classes, and early-game feel.
+- [ ] Do not add more base classes until the existing seven have clear identity and balanced early skills.
+- [ ] Do not add more huge zones until the starter and first midgame path are fun.
+- [ ] Do not add auction house, player trading, guild banks, or PvP economy until identity, persistence, anti-abuse, and observability are stronger.
+- [ ] Do not add procedural “infinite world” promises until handcrafted loops prove the game is fun.
+- [ ] Do not add prophecy/lore text as a wiki-only feature; prophecies should connect to quests, zones, bosses, gear, class identity, or achievements.
+
+---
+
+# Milestone 0 — Roadmap Hygiene And Planning Source Of Truth
+
+## Goal
+
+Make this roadmap usable as an execution document rather than a wishlist.
+
+## Tasks
+
+- [x] Decide whether this file replaces the current `ROADMAP.md` or becomes a focused companion file such as `docs/NEXT_ROADMAP.md`. (Resolved: integrated as §49 of `ROADMAP.md`.)
+- [ ] Move completed historical items out of the active roadmap into a changelog or release history document.
+- [ ] Keep only active and future work in the primary roadmap.
+- [ ] Group roadmap work by milestone, not by random live request order.
+- [ ] Add an owner/priority/status convention for tasks if multiple agents or contributors work on the repo.
+- [ ] Add a rule that every merged feature updates the roadmap, docs, tests, and any wiki panels it affects.
+- [ ] Add a “Do not start” list for systems that are tempting but premature.
+- [ ] Add a “Definition of Done” section for gameplay PRs.
+- [ ] Add a “Definition of Done” section for infrastructure PRs.
+- [ ] Add a “Definition of Done” section for content-only PRs.
+
+## Acceptance Criteria
+
+- [ ] The active roadmap is readable in under 10 minutes.
+- [ ] Open work is clearly separated from completed history.
+- [ ] Every major next PR can be traced to a milestone.
+- [ ] The roadmap does not encourage adding more breadth before polishing the vertical slice.
+
+---
+
+# Milestone 1 — Content Graph Validator And Designer Report
+
+## Goal
+
+Create a single command that proves authored content is internally consistent and produces a human-readable report for balancing and debugging.
+
+## Why This Matters
+
+VibeAge already depends on many linked content records: races, classes, skills, passives, specializations, quests, NPCs, enemy templates, zones, mini-bosses, loot tables, recipes, gear, sets, vendors, landmarks, and travel lanes. These references should never drift silently.
+
+## Deliverable
+
+Add a command such as:
+
+```bash
+pnpm run content:graph
+```
+
+It should print a structured report and fail CI on broken references.
+
+## Graph Coverage
+
+### Race And Class Graph
+
+- [ ] Validate every race ID is stable, non-empty, and unique.
+- [ ] Validate every race has display name, description, base attributes, per-level growth, and allowed classes.
+- [ ] Validate every allowed class exists in the class registry.
+- [ ] Validate every class has at least one allowed race.
+- [ ] Validate every class has a starter skill.
+- [ ] Validate every class has exactly one auto-granted passive.
+- [ ] Validate every class has at least two learnable passive skills.
+- [ ] Validate every class has a clear skill progression from level 1 to at least level 8.
+- [ ] Validate every class has at least one skill tagged as primary damage or primary utility.
+- [ ] Validate every class has a readable player-facing description.
+
+### Skill Graph
+
+- [ ] Validate every `SkillId` has a matching `SkillDef`.
+- [ ] Validate every active skill has at least one effect.
+- [ ] Validate passive skills intentionally have no active effects and have contribution rows.
+- [ ] Validate harmful skills require or define a target mode.
+- [ ] Validate beneficial self skills do not accidentally require enemy targets.
+- [ ] Validate every projectile skill has projectile speed and hit radius.
+- [ ] Validate every skill has mana cost, cast time, cooldown, level requirement, icon, name, and description.
+- [ ] Validate every skill with upgrades has valid upgrade levels and numeric modifiers.
+- [ ] Validate no skill has impossible cooldown, impossible mana cost, negative duration, or missing damage/heal interpretation.
+- [ ] Validate every skill referenced by class trees exists.
+- [ ] Validate every skill referenced by specialization/proficiency trees exists.
+- [ ] Validate every skill referenced by starter shortcuts exists.
+
+### Specialization Graph
+
+- [ ] Validate every specialization has a base class.
+- [ ] Validate every base class has exactly two specialization options.
+- [ ] Validate specialization unlock level is consistent.
+- [ ] Validate proficiency unlock level is consistent.
+- [ ] Validate every specialization skill exists and is gated by the correct specialization.
+- [ ] Validate every proficiency skill exists and is gated by the correct specialization/proficiency tier.
+- [ ] Validate every specialization passive has a readable name, description, and at least one meaningful modifier.
+- [ ] Validate every modifier type used by specialization data is implemented in the engine or explicitly marked as future/unimplemented.
+
+### Quest Graph
+
+- [ ] Validate every quest has stable ID, name, description, NPC giver, minimum level, stages, and reward.
+- [ ] Validate every quest NPC exists.
+- [ ] Validate every quest reward item exists.
+- [ ] Validate every kill objective references an enemy template.
+- [ ] Validate every boss-kill objective references a mini-boss.
+- [ ] Validate every reach objective has finite coordinates and radius.
+- [ ] Validate every talk objective references an NPC.
+- [ ] Validate every quest stage has a unique stage ID within that quest.
+- [ ] Validate quest level requirements align with the zone/mob/boss level band.
+- [ ] Validate every boss bounty rewards either a trophy, recipe, gear path, or meaningful currency/XP.
+- [ ] Validate every starter quest has an obvious map marker or NPC direction.
+
+### NPC And Vendor Graph
+
+- [ ] Validate every NPC has ID, name, title, position, description, and greeting.
+- [ ] Validate every NPC position is inside playable world bounds.
+- [ ] Validate every quest-giver NPC offers at least one quest.
+- [ ] Validate every vendor NPC has a matching vendor record if it exposes a browse action.
+- [ ] Validate every vendor item exists.
+- [ ] Validate vendor prices are positive and reasonable for expected player level.
+- [ ] Validate vendor categories are displayed in wiki and HUD.
+
+### Enemy, Zone, And Encounter Graph
+
+- [ ] Validate every enemy template has family, display name, visual spec, and stat multipliers.
+- [ ] Validate every enemy type used in a zone has a template.
+- [ ] Validate every enemy type has a loot table or explicit no-loot flag.
+- [ ] Validate every zone has stable ID, name, description, center, radius, level band, and mobs.
+- [ ] Validate `maxLevel >= minLevel` for every zone.
+- [ ] Validate spawn exclusion radius is smaller than zone radius.
+- [ ] Validate every zone mob has valid min/max count.
+- [ ] Validate every zone mob with pack size has a valid pack size.
+- [ ] Validate every mob active phase is valid.
+- [ ] Validate every mini-boss zone reference has matching mini-boss registry data.
+- [ ] Validate every mini-boss has a loot table and trophy item.
+- [ ] Validate every continent-scale zone uses biome encounter tables rather than huge duplicate mob lists.
+- [ ] Validate every spawn point is inside or intentionally near its zone.
+
+### Loot, Item, Recipe, Gear, And Set Graph
+
+- [ ] Validate every item has ID, name, description, icon, type, stack behavior, and max stack when stackable.
+- [ ] Validate every equippable item has kind, grade, weight, equip spec, and stat block.
+- [ ] Validate every equippable item with requirements has sane requirements.
+- [ ] Validate every two-hand/bow item clears or blocks off-hand correctly.
+- [ ] Validate every recipe item has input items and output item.
+- [ ] Validate every recipe input exists.
+- [ ] Validate every recipe output exists.
+- [ ] Validate every boss recipe consumes the corresponding boss trophy.
+- [ ] Validate every loot table has at least one drop.
+- [ ] Validate every loot table drop item exists.
+- [ ] Validate every loot chance is between 0 and 1.
+- [ ] Validate every quantity range is valid.
+- [ ] Validate every gear set references existing item IDs.
+- [ ] Validate every gear set bonus has valid stat modifiers.
+- [ ] Validate gear set tiers are sorted by required piece count.
+
+### World Feature Graph
+
+- [ ] Validate every landmark has ID, name, kind, zone ID, position, radius, and height.
+- [ ] Validate every landmark zone exists.
+- [ ] Validate every landmark position is inside playable world bounds.
+- [ ] Validate every travel lane has ID, name, kind, zone IDs, safe flag, width, and at least two points.
+- [ ] Validate every travel lane references existing zones.
+- [ ] Validate every travel lane point is inside playable world bounds.
+- [ ] Validate every major zone has at least one landmark, boss, rare material, quest, or travel reason.
+
+## Designer Report Output
+
+- [ ] Print count of races, classes, skills, passives, specs, quests, NPCs, mobs, zones, bosses, items, recipes, loot tables, gear sets, landmarks, and travel lanes.
+- [ ] Print broken references grouped by content type.
+- [ ] Print unreachable content such as item never dropped/sold/rewarded/crafted.
+- [ ] Print orphan bosses not used by any zone or quest.
+- [ ] Print orphan quests not offered by any reachable NPC.
+- [ ] Print class skill counts by level band.
+- [ ] Print zone level bands and expected rewards.
+- [ ] Print recipe chains for boss gear.
+- [ ] Print warning when a player-facing description says an effect exists but the engine does not implement it.
+
+## Acceptance Criteria
+
+- [ ] `pnpm run content:graph` fails on any broken reference.
+- [ ] `pnpm run check` includes the content graph command or an equivalent CI gate.
+- [ ] The report is readable enough for design review.
+- [ ] The report can be run locally without connecting to production.
+
+---
+
+# Milestone 2 — Level 1–8 Starter Vertical Slice
+
+## Goal
+
+Make the first 30 minutes of VibeAge feel like a real game.
+
+## Target Experience
+
+The player creates a character, spawns near Warden Galen, learns controls, kills goblins, returns to town, meets Mira, accepts a boss bounty, follows the map, fights Grakk, loots a trophy/recipe path, gets a meaningful gear upgrade, learns or upgrades a skill, and sees clear next steps.
+
+## Scope
+
+Focus only on the early path:
+
+```text
+Character creation
+→ Warden Galen
+→ Rats in the Cellar
+→ Scout the Road / mapping step
+→ Mira bounty board
+→ Grakk boss fight
+→ first crafted/equipped reward
+→ next-zone choice
+```
+
+## Character Creation
+
+- [ ] Make race/class choices understandable without opening a wiki.
+- [ ] Show allowed classes after selecting a race.
+- [ ] Show each race’s fantasy in one short line.
+- [ ] Show each class’s role in one short line.
+- [ ] Show visible stat tendencies without overwhelming the player.
+- [ ] Show starter skill for the selected class.
+- [ ] Show difficulty hint for first-time players.
+- [ ] Prevent invalid race/class combinations client-side.
+- [ ] Reject invalid race/class combinations server-side.
+- [ ] Add a test that every valid race/class combination can create a character.
+- [ ] Add a test that invalid race/class combinations are rejected.
+
+## Spawn And Tutorial Cues
+
+- [ ] Spawn the player facing Warden Galen or an obvious starter marker.
+- [ ] Add a clear first prompt: “Talk to Warden Galen.”
+- [ ] Add a movement hint for desktop.
+- [ ] Add a movement hint for mobile.
+- [ ] Add a targeting hint when the first goblin objective appears.
+- [ ] Add a skill-use hint when combat starts.
+- [ ] Add a loot pickup hint after the first kill.
+- [ ] Add a return-to-NPC hint when the objective is complete.
+- [ ] Ensure tutorial hints are dismissible.
+- [ ] Ensure tutorial hints do not block core HUD on mobile.
+
+## Quest Flow Polish
+
+- [ ] Make Warden Galen’s first quest impossible to miss.
+- [ ] Show current quest objective in a compact tracker.
+- [ ] Show quest target marker on the map.
+- [ ] Show distance to quest marker.
+- [ ] Show when the current objective is complete.
+- [ ] Make “Next” and “Claim” button states obvious.
+- [ ] Show reward preview before accepting a quest.
+- [ ] Show reward summary after claiming a quest.
+- [ ] Add clear error feedback when player is too far from an NPC.
+- [ ] Add clear error feedback when player is too low level for a quest.
+- [ ] Add regression tests for accept, progress, advance, claim, cancel, and too-far rejection.
+
+## First Combat Loop
+
+- [ ] Ensure every class can kill starter goblins with starter gear and starter skill.
+- [ ] Ensure every class has enough mana or no-mana alternatives to complete the first quest.
+- [ ] Ensure healer/paladin support skills do not make the first kill confusing.
+- [ ] Ensure ranger target range and projectile behavior feel reliable.
+- [ ] Ensure rogue melee range is readable.
+- [ ] Ensure basic attack is always available and clearly visible.
+- [ ] Add combat log lines that explain hits, misses, heals, and deaths in simple terms.
+- [ ] Add class-specific first-kill smoke tests.
+- [ ] Add a balance test for expected time-to-kill for starter goblins.
+
+## Grakk Boss Encounter
+
+- [ ] Make Grakk easy to find from the bounty quest marker.
+- [ ] Give Grakk a visible nameplate and boss marker.
+- [ ] Give Grakk a visible telegraphed signature ability.
+- [ ] Implement Grakk’s signature ability in the engine, not only lore text.
+- [ ] Add a ground telegraph VFX for the ability.
+- [ ] Add combat log text when Grakk starts the ability.
+- [ ] Add a reasonable cooldown so players see the mechanic but are not spammed.
+- [ ] Make Grakk harder than a normal goblin but soloable for level-appropriate players.
+- [ ] Ensure Grakk drops or rewards a trophy path that leads to gear/crafting.
+- [ ] Add a test that killing Grakk progresses the bounty quest only when `bossId` matches.
+- [ ] Add a test that Grakk’s signature ability respects player position and damage rules.
+
+## First Gear Reward
+
+- [ ] Make the first boss trophy feel meaningful.
+- [ ] Explain whether the trophy is a quest item, crafting input, or both.
+- [ ] Make the recipe/crafting path visible after the first boss kill.
+- [ ] Ensure the first craftable/equippable item has obvious stat improvement.
+- [ ] Ensure equipping the item visibly changes paperdoll or avatar overlay.
+- [ ] Show stat delta when equipping an item.
+- [ ] Add an equip success message.
+- [ ] Add an equip rejection message for level/slot/hand conflicts.
+- [ ] Add a test that the first boss gear recipe consumes correct inputs and outputs correct item.
+
+## Next-Step Choice
+
+- [ ] After Grakk, show 2–3 next goals, not an open-ended blank world.
+- [ ] Offer “Pinewood / Old Greyfang” as a nearby combat path.
+- [ ] Offer “Scout / mapping” as an exploration path.
+- [ ] Offer “craft better gear” as a loot/crafting path.
+- [ ] Use map pins and NPC dialog to guide the next path.
+- [ ] Avoid overwhelming the player with every zone and every system at once.
+
+## Acceptance Criteria
+
+- [ ] A fresh player can complete the first quest without external instructions.
+- [ ] A fresh player can find and fight Grakk without external instructions.
+- [ ] A fresh player gets at least one satisfying reward within 30 minutes.
+- [ ] Every starter class can complete the flow.
+- [ ] Mobile player can complete the flow in browser.
+- [ ] The flow is covered by unit/integration tests and at least one Playwright smoke test.
+
+---
+
+# Milestone 3 — Class Fantasy And Skill Identity
+
+## Goal
+
+Make every class readable, distinct, and fun from level 1 while preserving shared engine mechanics.
+
+## Current Problem To Solve
+
+Some skills are shared in ways that may weaken class fantasy. Reusing engine effects is good. Reusing the same player-facing spell names across unrelated classes is less good unless the world intentionally supports hybrid classes.
+
+## Class Identity Targets
+
+### Mage
+
+- [ ] Define mage as elemental burst/AoE/control with low durability.
+- [ ] Make `fireball` feel like the primary opener.
+- [ ] Make water/ice/arcane progression coherent.
+- [ ] Ensure mage gets a clear level 2 or 3 follow-up skill.
+- [ ] Ensure mage has a visible downside: fragile, mana-hungry, or cast-time dependent.
+
+### Warrior
+
+- [ ] Define warrior as durable melee damage with bleed/knockback/rage options.
+- [ ] Remove or reskin off-fantasy magical skills from warrior progression unless there is a lore reason.
+- [ ] Make `slash` and `powerStrike` feel distinct.
+- [ ] Ensure warrior has a satisfying defensive or sustain option.
+- [ ] Ensure melee range and attack feedback are readable.
+
+### Knight
+
+- [ ] Define knight as defense, taunt, shield control, and line-holding.
+- [ ] Make `taunt` useful against mobs and packs.
+- [ ] Make `shieldWall` visibly reduce incoming damage.
+- [ ] Give knight a clear solo path even if it kills slower.
+- [ ] Ensure shield-related skills require or benefit from shield where appropriate.
+
+### Paladin
+
+- [ ] Define paladin as holy melee, self-sustain, shielding, and cleanse.
+- [ ] Make `holyLight`, `smite`, `bless`, and `divineShield` feel connected.
+- [ ] Ensure paladin does not become simply better knight or better healer.
+- [ ] Add holy visual/audio feedback.
+- [ ] Add at least one undead-themed advantage if it fits the world.
+
+### Ranger
+
+- [ ] Define ranger as bow damage, kiting, slows, traps/poison/nature utility.
+- [ ] Make `arrowShot` and `volley` feel reliable at range.
+- [ ] Convert generic magic-like control into ranger-flavored skills where possible.
+- [ ] Ensure bow hand usage and off-hand conflicts are obvious.
+- [ ] Add better projectile hit feedback and target-leading feel.
+
+### Rogue
+
+- [ ] Define rogue as mobility, evasion, poison, stealth, burst, and positioning.
+- [ ] Make `backstab` meaningfully different from generic melee damage.
+- [ ] Make `poisonBlade` readable as a damage-over-time tool.
+- [ ] Make `vanish` reliably drop aggro and communicate that clearly.
+- [ ] Add positioning/backstab tests if directional logic is implemented.
+
+### Healer
+
+- [ ] Define healer as sustain, buffs, cleanse, holy damage, and future party utility.
+- [ ] Ensure healer has a solo-friendly early damage option.
+- [ ] Ensure self-heal does not require awkward target handling.
+- [ ] Make `bless` and `dispel` useful in real encounters.
+- [ ] Prepare healer for future party play without requiring parties in the starter slice.
+
+## Skill Data Improvements
+
+Add richer metadata to skill definitions.
+
+- [ ] Add `role` to skills: damage, heal, tank, control, mobility, utility, passive.
+- [ ] Add `school` or `flavor`: fire, water, ice, holy, shadow, physical, nature, arcane, poison.
+- [ ] Add `scalingStat`: str, dex, con, int, wit, men, pAtk, mAtk, or hybrid.
+- [ ] Add `targetMode`: self, enemy, ally, ground, direction, area-self, aura, passive.
+- [ ] Add `pveUse`: single-target, pack, boss, escape, opener, finisher, sustain.
+- [ ] Add `resourceType` if future classes need stamina/rage/focus.
+- [ ] Add `designerNotes` for balance intent.
+- [ ] Show these tags in the wiki or skill tree where useful.
+- [ ] Validate these tags in `content:graph`.
+
+## Skill Learning Improvements
+
+- [ ] Add explicit skill point cost per skill instead of assuming every skill costs 1.
+- [ ] Add skill upgrade cost per tier.
+- [ ] Add server rejection reasons for insufficient skill upgrade points.
+- [ ] Add server rejection reasons for wrong specialization.
+- [ ] Add server rejection reasons for missing item/class trainer if trainer gating is added.
+- [ ] Add UI text explaining exactly why a skill is locked.
+- [ ] Add tests for every learn rejection reason.
+
+## Acceptance Criteria
+
+- [ ] Each class has a readable level 1–8 identity.
+- [ ] Each class has at least one damage path and one unique fantasy hook.
+- [ ] Shared engine effects are allowed, but player-facing class skills feel class-specific.
+- [ ] Skill tree UI explains locked/available/learned states clearly.
+- [ ] Server and client agree on skill gates.
+
+---
+
+# Milestone 4 — Combat Traceability And Balance Tools
+
+## Goal
+
+Make combat debuggable, explainable, and tunable.
+
+## Combat Trace
+
+Every damage/heal event should be traceable in development mode.
+
+- [ ] Add a combat trace object for skill resolution.
+- [ ] Include caster ID, target ID, skill ID, timestamp, and target type.
+- [ ] Include base skill damage/heal.
+- [ ] Include caster stat contribution.
+- [ ] Include gear contribution.
+- [ ] Include passive skill contribution.
+- [ ] Include specialization contribution.
+- [ ] Include set bonus contribution.
+- [ ] Include active buff/debuff contribution.
+- [ ] Include target defense/resistance contribution.
+- [ ] Include shield/absorb contribution.
+- [ ] Include crit/evasion/hit roll contribution.
+- [ ] Include final damage/heal result.
+- [ ] Ensure traces are safe and not broadcast publicly unless intentionally surfaced.
+- [ ] Add a dev-only trace viewer or console output.
+- [ ] Add tests for trace totals matching final combat result.
+
+## Balance Report
+
+Add a command such as:
+
+```bash
+pnpm run balance:report
+```
+
+- [ ] Generate race/class stat tables at levels 1, 5, 10, 20, and 40.
+- [ ] Generate starter time-to-kill estimates for starter mobs.
+- [ ] Generate expected boss time-to-kill estimates for early bosses.
+- [ ] Generate expected damage taken for early bosses.
+- [ ] Generate mana sustain estimates for caster/healer classes.
+- [ ] Generate movement speed comparisons.
+- [ ] Generate skill cooldown/damage-per-mana/damage-per-second summaries.
+- [ ] Generate gear progression stat deltas by tier.
+- [ ] Generate warning when a class is far outside expected range.
+- [ ] Save report as text or Markdown for easy diffing.
+
+## Early Balance Targets
+
+- [ ] Level 1 characters should kill a starter goblin quickly enough to feel capable.
+- [ ] Level 1 characters should not die to one normal starter mob unless idle or badly played.
+- [ ] Level 4–6 characters should be able to solo Grakk with moderate risk.
+- [ ] Tank classes may kill slower but should survive more comfortably.
+- [ ] Glass classes may kill faster but should care about positioning.
+- [ ] Healer should complete solo content without being painfully slow.
+- [ ] Ranger should feel strongest when keeping distance.
+- [ ] Rogue should feel strongest when using burst/poison/evasion correctly.
+
+## Acceptance Criteria
+
+- [ ] Designers can inspect why a combat result happened.
+- [ ] Developers can debug wrong damage without reading five modules manually.
+- [ ] Balance changes can be reviewed with generated before/after numbers.
+- [ ] Starter combat is covered by automated sanity checks.
+
+---
+
+# Milestone 5 — Prophecies / Fate System
+
+## Goal
+
+Add prophecies as a gameplay-connected identity/progression layer, not just lore text.
+
+## Design Principle
+
+A prophecy should connect at least three of these:
+
+- race;
+- class;
+- specialization;
+- zone;
+- landmark;
+- boss;
+- quest;
+- item;
+- recipe;
+- title;
+- cosmetic;
+- passive;
+- world event.
+
+## Data Model
+
+- [ ] Create `packages/content/prophecies.ts`.
+- [ ] Define stable `ProphecyId`.
+- [ ] Define `ProphecyDef` with ID, title, description, eligibility, stages, rewards, and display metadata.
+- [ ] Allow eligibility by race, class, specialization, level, completed quest, killed boss, or owned item.
+- [ ] Allow stages similar to quests: talk, reach, kill, kill_boss, craft, equip, discover, manual.
+- [ ] Allow prophecy rewards: title, cosmetic, item, XP, gold, passive unlock, recipe unlock, or map marker reveal.
+- [ ] Add prophecy content validation.
+- [ ] Add prophecy wiki tab.
+- [ ] Add prophecy panel or character-sheet section.
+- [ ] Add server-owned prophecy progress state.
+- [ ] Persist prophecy state.
+- [ ] Add protocol messages for prophecy progress updates.
+- [ ] Add tests for prophecy eligibility and progress.
+
+## Starter Prophecy Examples
+
+- [ ] Add a human starter prophecy tied to Warden Galen, Grakk, and first gear craft.
+- [ ] Add an elf starter prophecy tied to scouting, a grove landmark, and a fey/sprite encounter.
+- [ ] Add a dark elf starter prophecy tied to shadow mobs, Nyaraal foreshadowing, and rogue/mage identity.
+- [ ] Add an orc starter prophecy tied to warrior combat, Hammerback, and physical gear.
+- [ ] Add a dwarf starter prophecy tied to crafting, Smith Alric, and gear recipes.
+
+## Prophecy Reward Ideas
+
+- [ ] Add titles such as `Goblin-Breaker`, `Ash-Woken`, `Pathfinder`, `Greyfang-Hunter`.
+- [ ] Add cosmetic-only aura/title rewards first to avoid balance risk.
+- [ ] Add minor passive rewards only after combat trace and balance report are in place.
+- [ ] Add recipe unlock rewards only if recipe availability is clearly communicated.
+- [ ] Add landmark reveal rewards to support exploration.
+
+## Acceptance Criteria
+
+- [ ] Prophecies are optional but visible.
+- [ ] Prophecies never block the core starter quest path.
+- [ ] Prophecies connect existing systems rather than creating disconnected lore.
+- [ ] Prophecy progress is server-owned and persisted.
+- [ ] Prophecies are validated by content graph checks.
+
+---
+
+# Milestone 6 — Quests 2.0 And Narrative Flow
+
+## Goal
+
+Turn quests from isolated tasks into arcs that teach systems and move players through the world.
+
+## Quest Types To Support
+
+- [ ] Tutorial quests.
+- [ ] Bounty quests.
+- [ ] Exploration quests.
+- [ ] Crafting quests.
+- [ ] Class-flavored quests.
+- [ ] Boss chain quests.
+- [ ] Prophecy-linked quests.
+- [ ] Repeatable/daily quests only after abuse and economy controls are ready.
+
+## Quest Engine Improvements
+
+- [ ] Add quest prerequisites: required level, completed quest, race, class, item, boss kill, or prophecy stage.
+- [ ] Add quest follow-up relationships.
+- [ ] Add quest chain grouping.
+- [ ] Add quest categories for UI filtering.
+- [ ] Add quest abandon/cancel rules.
+- [ ] Add quest reward preview calculation.
+- [ ] Add deterministic server-side reward granting.
+- [ ] Add clear rejection messages for invalid quest actions.
+- [ ] Add quest progress persistence tests.
+- [ ] Add reconnect tests for active quest state.
+
+## Starter Quest Chain
+
+- [ ] Polish `Rats in the Cellar` as the first combat quest.
+- [ ] Polish `Scout the Road` or equivalent as the first movement/exploration quest.
+- [ ] Polish `Bounty: Grakk` as the first boss quest.
+- [ ] Add a first crafting/equipment quest after Grakk.
+- [ ] Add a choice quest that points to Old Greyfang, Hammerback, or mapping path.
+- [ ] Add NPC dialog that explains why the player should care.
+- [ ] Add map pins for every non-obvious step.
+- [ ] Add quest completion celebration that is not intrusive.
+
+## Midgame Quest Chain Direction
+
+- [ ] Build a Wildlands chain around goblins, wolves, trolls, and first boss gear set.
+- [ ] Build a Ruins chain around Mistwalker, Vereth, undead, and holy/shadow mechanics.
+- [ ] Build a Peaks chain around Vorthax, fire resistance, and Elementborn gear.
+- [ ] Build a Silverwood chain around Elder Vinebrook, bow/nature gear, and pathfinding.
+- [ ] Build a Wetland chain around Cthulun, abyssal materials, and higher-tier rewards.
+- [ ] Build a Chronoglass chain around Aethariel, time effects, and endgame foreshadowing.
+
+## Acceptance Criteria
+
+- [ ] A player always has 1–3 sensible next objectives.
+- [ ] Quest arcs introduce systems gradually.
+- [ ] Quest rewards connect to gear, skills, world travel, or character identity.
+- [ ] Quest content validates against the content graph.
+
+---
+
+# Milestone 7 — Mobs, AI, Packs, And Boss Mechanics
+
+## Goal
+
+Make enemies memorable through behavior, not only names and stat multipliers.
+
+## Normal Mob Behavior
+
+### Goblins
+
+- [ ] Add simple call-for-help behavior within a small radius.
+- [ ] Add weak ranged or thrown-stone variant if needed.
+- [ ] Add cowardly flee behavior at low HP for some goblins.
+- [ ] Teach pack awareness through goblin camps.
+
+### Wolves
+
+- [ ] Improve pack aggro and shared target behavior.
+- [ ] Add short lunge attack with cooldown.
+- [ ] Add stronger night behavior only if communicated.
+- [ ] Use wolves to teach kiting and positioning.
+
+### Skeletons / Undead
+
+- [ ] Make undead more common at night or in ruins.
+- [ ] Add slow but steady behavior.
+- [ ] Add holy vulnerability only if resistance system exists.
+- [ ] Use undead to make paladin/healer fantasy matter.
+
+### Trolls
+
+- [ ] Add slow heavy attack with visible wind-up.
+- [ ] Add knockback or stun on slam.
+- [ ] Make trolls durable but avoid unfair speed.
+- [ ] Use trolls to teach telegraph dodging.
+
+### Wraiths / Spirits
+
+- [ ] Add phase/fade behavior or intermittent target drop.
+- [ ] Make glow/visual identity clear.
+- [ ] Avoid invisible unfair hits.
+- [ ] Use spirits to teach dispel/cleanse or magic defense later.
+
+### Elementals / Golems
+
+- [ ] Add element-themed attacks.
+- [ ] Add resistance/vulnerability only after combat trace is ready.
+- [ ] Make golems slow and hard-hitting.
+- [ ] Make elementals more mobile or ranged.
+
+### Treants / Plants
+
+- [ ] Add root/snare behavior.
+- [ ] Add slow movement and large hitbox.
+- [ ] Use treants to teach movement skills and ranged advantage.
+
+### Drakes / Dragons
+
+- [ ] Add cone breath telegraph.
+- [ ] Add burn damage-over-time.
+- [ ] Use drakes as first serious environmental threat.
+
+## Boss Engine
+
+- [ ] Implement shared boss ability scheduler.
+- [ ] Support wind-up, telegraph, resolve, cooldown, and cancellation/death cleanup.
+- [ ] Support circle telegraphs.
+- [ ] Support cone telegraphs.
+- [ ] Support line telegraphs.
+- [ ] Support self-centered AoE telegraphs.
+- [ ] Support targeted player markers.
+- [ ] Support add-spawn mechanics later.
+- [ ] Support phase changes at HP thresholds.
+- [ ] Support enrage after time threshold.
+- [ ] Send safe boss mechanic events to clients for VFX.
+- [ ] Keep damage resolution server-authoritative.
+
+## Early Boss Priority
+
+- [ ] Implement Grakk: Warband Howl or camp rally mechanic.
+- [ ] Implement Old Greyfang: Hamstring Lunge / pack elder mechanic.
+- [ ] Implement Hammerback: Stone Slam / ground pound mechanic.
+- [ ] Implement Mistwalker: Veil Step / reposition mechanic.
+- [ ] Implement Vereth: Marrow Tithe / undead drain mechanic.
+- [ ] Implement Vorthax: Cinder Breath / cone fire mechanic.
+
+## Acceptance Criteria
+
+- [ ] At least three early bosses have real mechanics, not just text.
+- [ ] Boss mechanics are visible and avoidable or counterable.
+- [ ] Boss mechanics are tested at the engine level.
+- [ ] Normal mobs have at least one behavior difference by family.
+- [ ] AI remains budgeted and does not create huge per-tick cost.
+
+---
+
+# Milestone 8 — Gear, Crafting, Loot, And Economy Spine
+
+## Goal
+
+Make boss trophies, recipes, materials, crafted gear, equipment stats, and set bonuses the main PvE chase.
+
+## Gear Progression Bands
+
+- [ ] Define gear tier bands for levels 1–8, 5–10, 9–14, 12–18, 18–25, 25–40, and 40+.
+- [ ] Assign each tier a target pAtk/mAtk/pDef/mDef/HP/MP/stat budget.
+- [ ] Add gear budget validation to content graph or balance report.
+- [ ] Avoid large stat jumps that invalidate previous content too quickly.
+- [ ] Make every tier have at least one physical, magical, defensive, and utility path.
+
+## Boss Trophy Loop
+
+- [ ] Ensure every mini-boss has a guaranteed trophy.
+- [ ] Ensure every trophy has at least one use: quest turn-in, recipe input, vendor sale, prophecy, title, or craft.
+- [ ] Ensure every boss recipe consumes the boss trophy.
+- [ ] Ensure every boss recipe is discoverable through wiki, NPC, or loot UI.
+- [ ] Add item tooltip text explaining recipe sources and uses.
+- [ ] Add item tooltip text explaining which boss dropped a trophy.
+
+## Crafting UX
+
+- [ ] Show craftable recipes in a Craft panel.
+- [ ] Show missing ingredients clearly.
+- [ ] Show source hints for missing ingredients.
+- [ ] Show output item stats before crafting.
+- [ ] Show output item equip requirements before crafting.
+- [ ] Prevent crafting if inventory weight/slot constraints would fail.
+- [ ] Make crafting server-authoritative and atomic.
+- [ ] Add crafting rejection messages.
+- [ ] Add recipe tests for all boss gear.
+
+## Loot UX
+
+- [ ] Show loot drops clearly without blocking combat.
+- [ ] Show rare drops with stronger feedback.
+- [ ] Show trophy/recipe drops distinctly.
+- [ ] Show auto-pickup or pickup button behavior consistently on mobile.
+- [ ] Add loot log entries.
+- [ ] Add loot table expected-value report.
+- [ ] Add warning for unreachable item drops.
+
+## Equipment UX
+
+- [ ] Show stat delta before equipping.
+- [ ] Show why an item cannot be equipped.
+- [ ] Show multi-slot conflicts clearly.
+- [ ] Show current set bonus progress.
+- [ ] Show active set bonuses in paperdoll or tooltip.
+- [ ] Show avatar visual changes for common gear categories.
+- [ ] Broadcast safe public equipment DTOs for other players when ready.
+- [ ] Never broadcast private inventory or full item instance data to other players.
+
+## Economy Guardrails
+
+- [ ] Keep gold rewards conservative until sinks exist.
+- [ ] Add basic gold sinks: potions, repairs, recipes, travel, crafting fees, cosmetics.
+- [ ] Track gold generated per hour in balance report.
+- [ ] Track item drop expected value by level band.
+- [ ] Avoid repeatable gold farms until anti-abuse and observability exist.
+- [ ] Add vendor buy/sell tests.
+- [ ] Add inventory full/weight full tests around reward grants.
+
+## Acceptance Criteria
+
+- [ ] First boss gear path is understandable and satisfying.
+- [ ] Every boss trophy has a purpose.
+- [ ] Crafting is server-authoritative, atomic, and tested.
+- [ ] Gear progression can be reviewed through generated reports.
+
+---
+
+# Milestone 9 — World, Locations, Travel, And Exploration
+
+## Goal
+
+Make the large world feel meaningful, navigable, and alive without exploding server tick cost.
+
+## Location Design Rule
+
+Every major place should have at least one gameplay reason to exist:
+
+- boss;
+- rare material;
+- quest arc;
+- prophecy stage;
+- class/spec trainer;
+- vendor;
+- crafting station;
+- landmark discovery reward;
+- travel shortcut;
+- safe hub;
+- dangerous high-value route;
+- unique mob behavior.
+
+## Starter Region Polish
+
+- [ ] Make the starter village visually recognizable.
+- [ ] Make Warden Galen and nearby NPCs visually obvious.
+- [ ] Add signs, paths, or environmental cues from spawn to goblin camp.
+- [ ] Add visible camp identity for goblins.
+- [ ] Add visible wolf area identity.
+- [ ] Add visible grave/barrow identity for skeletons.
+- [ ] Add at least one landmark visible from spawn.
+- [ ] Ensure map and 3D world agree on landmarks and pins.
+- [ ] Ensure mobile players can follow pins without constant map opening.
+
+## Travel Lanes
+
+- [ ] Make roads visually distinct from normal terrain.
+- [ ] Make safe roads reduce encounter risk or at least communicate safety.
+- [ ] Add roadside landmarks at long intervals.
+- [ ] Add distance/travel-time estimates that feel accurate.
+- [ ] Add map labels for major roads, rivers, and passes.
+- [ ] Consider movement speed bonus on roads only if server-authoritative.
+- [ ] Add tests for travel lane content references.
+
+## Landmark Discovery
+
+- [ ] Add discovery state for major landmarks.
+- [ ] Persist discovered landmarks per character.
+- [ ] Show discovery toast when a player reaches a landmark.
+- [ ] Grant small XP/title/cosmetic rewards for major discoveries.
+- [ ] Link landmarks to quests and prophecies.
+- [ ] Show discovered landmarks in map/wiki.
+- [ ] Add tests for discovery radius and persistence.
+
+## Huge Zone Rules
+
+- [ ] Keep continent-scale zones cheap when inactive.
+- [ ] Keep spawn budgets bounded regardless of configured zone size.
+- [ ] Use biome encounter tables for large regions.
+- [ ] Use activation policy based on server budget, population pressure, and frontier rules.
+- [ ] Avoid per-tick AI for inactive zones.
+- [ ] Avoid broadcasting entities outside client visibility.
+- [ ] Track active regions and entity counts as metrics.
+
+## Acceptance Criteria
+
+- [ ] Players understand where to go in the starter region.
+- [ ] Roads and landmarks help navigation.
+- [ ] Large zones have gameplay reasons to exist.
+- [ ] Huge-world content remains budgeted and testable.
+
+---
+
+# Milestone 10 — Mobile And Browser UX
+
+## Goal
+
+Make VibeAge genuinely playable in a mobile browser, not merely viewable.
+
+## Mobile Controls
+
+- [ ] Ensure tap-to-move is reliable on terrain.
+- [ ] Ensure camera drag works from terrain and sky.
+- [ ] Ensure pinch zoom works on world canvas.
+- [ ] Ensure map pinch zoom works.
+- [ ] Ensure combat skill buttons are thumb-sized.
+- [ ] Ensure target selection is clear on touch.
+- [ ] Ensure loot pickup is touch-friendly.
+- [ ] Ensure NPC interaction is touch-friendly.
+- [ ] Ensure quest panel is readable on small screens.
+- [ ] Ensure paperdoll/bag/craft panels fit viewport.
+- [ ] Ensure Android navigation bar does not hide core controls.
+- [ ] Ensure iOS safe area does not hide core controls.
+
+## HUD Priorities
+
+- [ ] Define a mobile HUD hierarchy: vitals, target, skill bar, quest tracker, map button, inventory, chat.
+- [ ] Keep optional panels hidden until needed.
+- [ ] Avoid too many draggable overlapping windows on mobile.
+- [ ] Add a one-tap “current objective” focus action.
+- [ ] Add a one-tap “attack target” action if targeting remains awkward.
+- [ ] Add a one-tap “loot nearby” action if pickup is awkward.
+- [ ] Add a compact combat feedback mode.
+
+## Desktop UX
+
+- [ ] Preserve keyboard shortcuts.
+- [ ] Improve skill shortcut assignment feedback.
+- [ ] Add optional keybind help panel.
+- [ ] Add panel layout reset.
+- [ ] Add better hover tooltips for stats, skills, and gear.
+
+## Accessibility And Readability
+
+- [ ] Add readable contrast for skill cooldowns.
+- [ ] Add scalable UI text options.
+- [ ] Add color-independent status indicators where possible.
+- [ ] Add motion-reduction option for heavy VFX if needed.
+- [ ] Avoid tiny map markers on mobile.
+
+## Acceptance Criteria
+
+- [ ] The starter vertical slice is completable on mobile browser.
+- [ ] Core panels are usable on small screens.
+- [ ] Mobile combat does not require keyboard-like precision.
+- [ ] Playwright or equivalent coverage protects the mobile viewport.
+
+---
+
+# Milestone 11 — Protocol, DTO Boundary, And Player Privacy
+
+## Goal
+
+Keep the network boundary strict, minimal, and safe as content systems grow.
+
+## Protocol Discipline
+
+- [ ] Keep schemas strict unless a field is explicitly versioned.
+- [ ] Keep TypeScript message types and schemas from drifting.
+- [ ] Add request/client sequence IDs to commands that need user feedback.
+- [ ] Standardize rejection envelopes for quest, craft, vendor, inventory, skill, class, race, prophecy, and admin commands.
+- [ ] Stop using timestamps as implicit acknowledgement keys.
+- [ ] Add message-size budget tests for initial snapshot, region update, inventory update, equipment update, quest update, and chat.
+- [ ] Add protocol fixtures for old-client compatibility if public clients are expected.
+- [ ] Generate protocol docs from schemas when practical.
+
+## DTO Boundary
+
+- [ ] Define explicit owner-player snapshot DTO.
+- [ ] Define explicit public-player snapshot DTO.
+- [ ] Define explicit equipment public DTO.
+- [ ] Define explicit quest owner DTO.
+- [ ] Define explicit prophecy owner DTO.
+- [ ] Define explicit inventory owner DTO.
+- [ ] Avoid object spreading from internal runtime state across network boundary.
+- [ ] Add exact-key allow-list tests for owner snapshots.
+- [ ] Add exact-key allow-list tests for public snapshots.
+- [ ] Add regression tests that private fields never leak through public updates.
+
+## Acceptance Criteria
+
+- [ ] Public broadcasts never include owner-only state.
+- [ ] Every client command has validation and rejection behavior.
+- [ ] Snapshot sizes are known and budgeted.
+- [ ] New content systems do not increase privacy risk.
+
+---
+
+# Milestone 12 — Persistence, Accounts, Characters, And Recovery
+
+## Goal
+
+Make character state durable, reconnect-safe, and migration-safe.
+
+## Character Persistence
+
+- [ ] Persist race, class, level, XP, position, health, mana, skills, shortcuts, specialization, inventory, equipment, quest state, prophecy state, discovered landmarks, and relevant cooldown state as needed.
+- [ ] Ensure inventory/equipment persistence uses item instances and locations, not only legacy flat bag DTOs.
+- [ ] Add migration compatibility checks for every schema change.
+- [ ] Add restore-from-backup compatibility test for character state.
+- [ ] Add reconnect test that restores the correct character with correct owner-only data.
+- [ ] Add test for reconnect during active quest.
+- [ ] Add test for reconnect after equipment changes.
+- [ ] Add test for reconnect after crafted item creation.
+
+## Account And Character Management
+
+- [ ] Add character rename policy.
+- [ ] Add account deletion flow if persistent accounts are public.
+- [ ] Add character deletion safeguards.
+- [ ] Add device/session listing if long-lived accounts are supported.
+- [ ] Add ban/mute support for accounts and characters.
+- [ ] Add signed guest sessions if unauthenticated play is desired.
+- [ ] Add refresh-token or session renewal policy if public login remains long-lived.
+
+## Audit Events
+
+- [ ] Audit login.
+- [ ] Audit logout.
+- [ ] Audit character creation.
+- [ ] Audit character selection.
+- [ ] Audit character deletion.
+- [ ] Audit account deletion.
+- [ ] Audit suspicious ownership attempts.
+- [ ] Audit GM/admin commands.
+- [ ] Audit item grants if admin item tools exist.
+
+## Acceptance Criteria
+
+- [ ] Character progress survives reconnect and restart.
+- [ ] Schema changes are migration-tested.
+- [ ] Ownership rules are enforced server-side.
+- [ ] Sensitive account actions are auditable.
+
+---
+
+# Milestone 13 — Server Scale, Load Tests, And Observability
+
+## Goal
+
+Know what the server can handle before increasing public ambition.
+
+## Load And Soak Tests
+
+- [ ] Add simulated Colyseus clients.
+- [ ] Simulate join/reconnect churn.
+- [ ] Simulate movement intents.
+- [ ] Simulate combat casts.
+- [ ] Simulate loot pickup.
+- [ ] Simulate inventory/equipment actions.
+- [ ] Simulate quest accept/advance/claim.
+- [ ] Simulate region transitions.
+- [ ] Simulate chat traffic.
+- [ ] Simulate mobile-like slower clients.
+- [ ] Run a 10-minute local soak test.
+- [ ] Run a 1-hour staging/prod-like soak test before major public pushes.
+
+## Metrics To Track
+
+- [ ] Connected clients.
+- [ ] Active players.
+- [ ] Active zones.
+- [ ] Active regions.
+- [ ] Active enemies.
+- [ ] Enemy AI tick time.
+- [ ] Movement tick time.
+- [ ] Combat tick time.
+- [ ] Persistence write count and latency.
+- [ ] Outbound messages per second.
+- [ ] Average and p95 snapshot size.
+- [ ] Memory usage.
+- [ ] CPU usage.
+- [ ] Error/rejection counts by command type.
+- [ ] Rate limit hits by command type.
+
+## Sharding/Room Strategy
+
+- [ ] Measure whether one world room can support current goals.
+- [ ] Define thresholds that trigger sharding exploration.
+- [ ] Keep protocol stable before splitting zones across rooms.
+- [ ] Decide how chat, party, inventory, and persistence behave across rooms.
+- [ ] Avoid premature sharding until load test data proves it is needed.
+
+## Production Observability
+
+- [ ] Add structured runtime metrics endpoint or logs.
+- [ ] Add external uptime checks.
+- [ ] Add alert thresholds for server down, high CPU, high memory, high error rate, and failed health check.
+- [ ] Add deployment smoke test that joins world and verifies basic state.
+- [ ] Add log redaction for sensitive data.
+- [ ] Add dashboard or compact status report.
+
+## Acceptance Criteria
+
+- [ ] There is a known client-count baseline.
+- [ ] There is a known message-size baseline.
+- [ ] Server tick cost is measured before and after large systems.
+- [ ] Production issues can be diagnosed without guessing.
+
+---
+
+# Milestone 14 — Wiki, Docs, And In-Game Explainability
+
+## Goal
+
+Make VibeAge self-explaining through in-game UI and generated docs.
+
+## Wiki Coverage
+
+- [ ] Wiki page for races.
+- [ ] Wiki page for classes.
+- [ ] Wiki page for class skill trees.
+- [ ] Wiki page for specializations.
+- [ ] Wiki page for skills with tags, costs, cooldowns, target modes, and effects.
+- [ ] Wiki page for quests.
+- [ ] Wiki page for NPCs.
+- [ ] Wiki page for mobs.
+- [ ] Wiki page for bosses and boss mechanics.
+- [ ] Wiki page for loot tables or drop sources.
+- [ ] Wiki page for recipes.
+- [ ] Wiki page for gear and set bonuses.
+- [ ] Wiki page for zones.
+- [ ] Wiki page for landmarks and travel lanes.
+- [ ] Wiki page for prophecies once implemented.
+
+## Generated Docs
+
+- [ ] Generate skill reference from content data.
+- [ ] Generate item reference from content data.
+- [ ] Generate quest reference from content data.
+- [ ] Generate boss reference from mini-boss data.
+- [ ] Generate recipe reference from recipe data.
+- [ ] Generate stat/balance report from simulation data.
+- [ ] Avoid hand-written docs that can drift from content.
+
+## In-Game Explanation
+
+- [ ] Add stat breakdown popups for major derived stats.
+- [ ] Add skill tooltips with why locked/available/learned.
+- [ ] Add item tooltips with source and use.
+- [ ] Add quest reward previews.
+- [ ] Add map pin explanations.
+- [ ] Add boss mechanic hints in bounty text or combat log.
+- [ ] Add class role explanation in creation and character panel.
+
+## Acceptance Criteria
+
+- [ ] A player can understand core systems without reading source code.
+- [ ] Wiki data comes from the same source as runtime data.
+- [ ] Docs are updated automatically or checked in CI where possible.
+
+---
+
+# Milestone 15 — Audio, VFX, And Game Feel
+
+## Goal
+
+Make actions feel responsive and the world feel alive without compromising browser performance.
+
+## Combat Feel
+
+- [ ] Add hit flashes for damage.
+- [ ] Add heal visuals.
+- [ ] Add shield absorb visuals.
+- [ ] Add status effect icons above entities or in target frame.
+- [ ] Add projectile trails.
+- [ ] Add impact effects by element/flavor.
+- [ ] Add boss telegraph visuals.
+- [ ] Add cooldown ready feedback.
+- [ ] Add critical hit feedback.
+- [ ] Add death/loot feedback.
+
+## Audio
+
+- [ ] Add basic UI sounds with mute option.
+- [ ] Add skill cast sounds by school/flavor.
+- [ ] Add hit/impact sounds.
+- [ ] Add quest accept/complete sounds.
+- [ ] Add boss warning sound.
+- [ ] Add ambient biome loops carefully.
+- [ ] Add volume settings.
+
+## World Feel
+
+- [ ] Improve starter village props.
+- [ ] Add campfire/torch effects near NPCs.
+- [ ] Add biome-specific ambient VFX.
+- [ ] Add water/river visual pass if rivers matter.
+- [ ] Add simple creature idle animations.
+- [ ] Add NPC idle indicators.
+- [ ] Keep performance budgets visible.
+
+## Acceptance Criteria
+
+- [ ] Core actions have readable feedback.
+- [ ] Boss mechanics are visible before they hit.
+- [ ] VFX/audio can be disabled or reduced if needed.
+- [ ] Performance remains acceptable on mobile browser.
+
+---
+
+# Milestone 16 — Social And Multiplayer Layer
+
+## Goal
+
+Add social systems only after the solo starter loop and server safety are solid.
+
+## Chat Improvements
+
+- [ ] Keep near/all chat rate-limited.
+- [ ] Add mute/ignore support.
+- [ ] Add moderation/admin visibility if public.
+- [ ] Add chat command help.
+- [ ] Add safe server rejection for oversized/invalid chat.
+
+## Party System
+
+- [ ] Add party invite/accept/decline protocol.
+- [ ] Add party membership state.
+- [ ] Add party HUD.
+- [ ] Add party chat.
+- [ ] Add party XP/loot rules.
+- [ ] Add party aura mechanics only after party state exists.
+- [ ] Add tests for invite, leave, disconnect, reconnect.
+
+## Trading And Economy Safety
+
+- [ ] Do not add direct trading until item instance persistence and audit logs are strong.
+- [ ] Design trade as atomic two-party transaction.
+- [ ] Add trade logs.
+- [ ] Add trade cancellation rules.
+- [ ] Add tests for disconnect during trade.
+- [ ] Add tests for duplicate item prevention.
+
+## Guilds / Clans
+
+- [ ] Defer guilds until party and account management are stable.
+- [ ] Define guild creation cost and ownership rules.
+- [ ] Add guild chat only after moderation tools exist.
+
+## Acceptance Criteria
+
+- [ ] Social features do not compromise item/account safety.
+- [ ] Multiplayer systems have clear disconnect/reconnect behavior.
+- [ ] Public abuse controls exist before public scale.
+
+---
+
+# Suggested PR Sequence
+
+## Foundation PRs
+
+- [ ] PR 001 — Replace/clean roadmap and move historical completed work to changelog.
+- [ ] PR 002 — Add `content:graph` command and basic graph report.
+- [ ] PR 003 — Add race/class/skill/spec graph checks.
+- [ ] PR 004 — Add quest/NPC/boss/loot/recipe graph checks.
+- [ ] PR 005 — Add balance report command with race/class level table.
+
+## Starter Slice PRs
+
+- [ ] PR 006 — Character creation explanation and race/class validity tests.
+- [ ] PR 007 — Starter tutorial hints and quest tracker polish.
+- [ ] PR 008 — Warden Galen first quest UX and map marker polish.
+- [ ] PR 009 — Starter combat balance tests for every class.
+- [ ] PR 010 — Mira bounty board and Grakk path polish.
+- [ ] PR 011 — Grakk real boss mechanic with telegraph.
+- [ ] PR 012 — First trophy/recipe/craft/equip reward polish.
+- [ ] PR 013 — Playwright starter vertical slice smoke test.
+
+## Combat/Class PRs
+
+- [ ] PR 014 — Add skill tags: role, school, scaling, target mode, PvE use.
+- [ ] PR 015 — Skill tree lock/rejection UI improvement.
+- [ ] PR 016 — Combat trace object and dev output.
+- [ ] PR 017 — Mage/warrior/knight early skill fantasy cleanup.
+- [ ] PR 018 — Paladin/ranger/rogue/healer early skill fantasy cleanup.
+- [ ] PR 019 — Skill upgrade cost and upgrade UI.
+
+## Boss/Mob PRs
+
+- [ ] PR 020 — Shared boss mechanic scheduler.
+- [ ] PR 021 — Old Greyfang boss mechanic.
+- [ ] PR 022 — Hammerback boss mechanic.
+- [ ] PR 023 — Normal mob family behavior pass.
+- [ ] PR 024 — Boss mechanics wiki and VFX pass.
+
+## Prophecy/Quest PRs
+
+- [ ] PR 025 — Prophecy content model and validation.
+- [ ] PR 026 — Server-owned prophecy progress and persistence.
+- [ ] PR 027 — Prophecy UI/wiki tab.
+- [ ] PR 028 — Starter race prophecies.
+- [ ] PR 029 — Quest prerequisite/follow-up system.
+
+## Gear/Economy PRs
+
+- [ ] PR 030 — Gear tier budget report.
+- [ ] PR 031 — Crafting UI missing-source hints.
+- [ ] PR 032 — Item tooltip source/use improvements.
+- [ ] PR 033 — Set bonus display and stat delta polish.
+- [ ] PR 034 — Gold/item economy report.
+
+## World/UX PRs
+
+- [ ] PR 035 — Starter village visual/navigation pass.
+- [ ] PR 036 — Landmark discovery state and reward.
+- [ ] PR 037 — Travel lane visual/map pass.
+- [ ] PR 038 — Mobile HUD objective/action polish.
+- [ ] PR 039 — Mobile Playwright viewport coverage.
+
+## Scale/Production PRs
+
+- [ ] PR 040 — Simulated Colyseus clients load test.
+- [ ] PR 041 — Snapshot/message-size metrics.
+- [ ] PR 042 — Tick-cost metrics and report.
+- [ ] PR 043 — Production observability and alert thresholds.
+- [ ] PR 044 — Reconnect/persistence test expansion.
+
+---
+
+# Definition Of Done
+
+## Gameplay Feature PR
+
+- [ ] Feature is server-authoritative if it affects gameplay, rewards, combat, movement, inventory, or persistence.
+- [ ] Content definitions live in `packages/content` where appropriate.
+- [ ] Simulation math lives in `packages/sim` where appropriate.
+- [ ] Protocol messages are schema-validated.
+- [ ] Client shows success and failure states.
+- [ ] Feature has unit tests.
+- [ ] Feature has integration tests if it crosses server/client/persistence boundaries.
+- [ ] Wiki/docs are updated or generated.
+- [ ] `pnpm run check` passes before merge.
+
+## Content PR
+
+- [ ] Content IDs are stable and unique.
+- [ ] Content references validate through `content:graph` or equivalent.
+- [ ] Content has player-facing names/descriptions.
+- [ ] Content has runtime behavior or is clearly marked as future/unimplemented.
+- [ ] Content appears in wiki or relevant UI.
+- [ ] Content is covered by content validation tests.
+- [ ] Balance impact is reviewed.
+
+## Protocol PR
+
+- [ ] Shared schema added or updated.
+- [ ] TypeScript type added or updated.
+- [ ] Server handler added or updated.
+- [ ] Client handler added or updated.
+- [ ] Rejection/error behavior defined.
+- [ ] Unknown field and invalid payload tests added.
+- [ ] Snapshot/message-size impact reviewed.
+
+## Persistence PR
+
+- [ ] Migration added if schema changes.
+- [ ] Repository mapping updated.
+- [ ] Restore compatibility checked.
+- [ ] Reconnect behavior tested.
+- [ ] Backward compatibility considered for existing saves.
+- [ ] Owner/public DTO privacy reviewed.
+
+## Client UI PR
+
+- [ ] Desktop usable.
+- [ ] Mobile usable.
+- [ ] Safe-area and viewport behavior checked.
+- [ ] Keyboard/mouse behavior checked where relevant.
+- [ ] Touch behavior checked where relevant.
+- [ ] No gameplay authority moved to client.
+- [ ] UI failure states are visible.
+
+---
+
+# Key Metrics To Track
+
+## Player Experience Metrics
+
+- [ ] Time from character creation to first movement.
+- [ ] Time from spawn to accepting first quest.
+- [ ] Time to first kill.
+- [ ] Time to first quest completion.
+- [ ] Time to first boss encounter.
+- [ ] Time to first gear upgrade.
+- [ ] Starter quest completion rate.
+- [ ] Deaths during starter slice.
+- [ ] Mobile starter completion rate.
+
+## Combat Metrics
+
+- [ ] Time-to-kill by class and level.
+- [ ] Damage taken by class and level.
+- [ ] Mana spent per kill.
+- [ ] Potion usage per encounter.
+- [ ] Skill usage frequency.
+- [ ] Miss/evasion/crit rate.
+- [ ] Boss mechanic hit/dodge rate.
+
+## Server Metrics
+
+- [ ] Connected clients.
+- [ ] Region visibility counts.
+- [ ] Active enemy count.
+- [ ] Active zone count.
+- [ ] Tick time by subsystem.
+- [ ] Outbound messages per second.
+- [ ] Snapshot size average and p95.
+- [ ] Rate-limit hits.
+- [ ] Persistence latency.
+- [ ] Error/rejection counts.
+
+## Economy Metrics
+
+- [ ] Gold generated per hour.
+- [ ] Gold spent per hour.
+- [ ] Item drops per hour.
+- [ ] Rare recipe drop rate.
+- [ ] Crafted items per level band.
+- [ ] Vendor purchases and sales.
+- [ ] Inventory full events.
+- [ ] Weight limit events.
+
+---
+
+# Future Features To Defer Until Core Loop Is Strong
+
+- [ ] Auction house.
+- [ ] Direct player trading.
+- [ ] PvP.
+- [ ] Guilds/clans.
+- [ ] Large-scale raids.
+- [ ] Mounts.
+- [ ] Housing.
+- [ ] Complex professions.
+- [ ] Dynamic player economy.
+- [ ] Procedural infinite world.
+- [ ] Multiple shards/rooms unless load data requires it.
+- [ ] Full party-required healer/tank content.
+- [ ] Advanced AI factions.
+
+---
+
+# Immediate Next Action
+
+Start with these three tasks:
+
+- [ ] Add `content:graph` and make content drift impossible.
+- [ ] Polish the level 1–8 Warden Galen → Mira → Grakk → first gear loop.
+- [ ] Add combat/balance reporting so class and gear changes are based on numbers, not guesses.
+
+Once those are complete, the project will have a reliable foundation for expanding prophecies, deeper class identity, richer bosses, and larger world content without becoming unmaintainable.

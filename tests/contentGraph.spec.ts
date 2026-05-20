@@ -46,4 +46,45 @@ describe('content graph', () => {
     );
     expect(unknown, formatContentGraphIssues(unknown)).toEqual([]);
   });
+
+  // §49/M1 PR002 — structural rules added by the content-graph CLI.
+  it('every skill id referenced by class/spec trees exists in SKILLS', () => {
+    const unknown = byKind('unknown-skill');
+    expect(unknown, formatContentGraphIssues(unknown)).toEqual([]);
+  });
+
+  it('every base class has exactly two specializations', () => {
+    const bad = byKind('invalid-spec-count');
+    expect(bad, formatContentGraphIssues(bad)).toEqual([]);
+  });
+
+  it('quest stage ids are unique within their quest', () => {
+    const dups = byKind('duplicate-quest-stage-id');
+    expect(dups, formatContentGraphIssues(dups)).toEqual([]);
+  });
+
+  it('every loot-table chance is in [0, 1]', () => {
+    const bad = byKind('invalid-loot-chance');
+    expect(bad, formatContentGraphIssues(bad)).toEqual([]);
+  });
+
+  it('every vendor stock price is positive', () => {
+    const bad = byKind('non-positive-vendor-price');
+    expect(bad, formatContentGraphIssues(bad)).toEqual([]);
+  });
+
+  it('every zone has maxLevel >= minLevel', () => {
+    const bad = byKind('invalid-zone-level-band');
+    expect(bad, formatContentGraphIssues(bad)).toEqual([]);
+  });
+
+  it('every race allowedClass entry exists in CLASS_SKILL_TREES', () => {
+    const bad = byKind('race-unknown-class');
+    expect(bad, formatContentGraphIssues(bad)).toEqual([]);
+  });
+
+  it('every class is playable by at least one race', () => {
+    const bad = byKind('class-no-allowed-race');
+    expect(bad, formatContentGraphIssues(bad)).toEqual([]);
+  });
 });
