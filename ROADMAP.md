@@ -2072,6 +2072,9 @@ contiguous list so the audit doesn't fragment.
   - [x] `healOutputMultiplier` → new `healMult` stat consumed by
     `applyHealEffect`. Cardinal's `Greater Calling` now actually
     delivers +25% effective healing; Eva's Templar `Grace` +20%.
+  - [x] `evasionBonus` → flat addPost on the existing `evasion`
+    stat. Treasure Hunter `Light Step` and Phantom Ranger
+    `Phantom Step` both un-planned with +5 each.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and

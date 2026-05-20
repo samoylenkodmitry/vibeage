@@ -477,6 +477,9 @@ function pushSpecPassiveModifiers(
   if (mods.healOutputMultiplier !== undefined && mods.healOutputMultiplier !== 1) {
     out.push({ source: `${baseSource}:heal`, label: `${labelPrefix} (heal)`, stat: 'healMult', op: 'mul', value: mods.healOutputMultiplier });
   }
+  if (mods.evasionBonus !== undefined && mods.evasionBonus !== 0) {
+    out.push({ source: `${baseSource}:eva`, label: `${labelPrefix} (evasion)`, stat: 'evasion', op: 'addPost', value: mods.evasionBonus });
+  }
 }
 
 function pushEquipmentContributionsFromTemplateMap(

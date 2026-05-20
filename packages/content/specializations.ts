@@ -46,6 +46,13 @@ export interface SpecializationPassiveModifiers {
    * the "+25% healing output" their passive description promises.
    */
   healOutputMultiplier?: number;
+  /**
+   * §45.3 follow-up — flat evasion bonus (rolled into the existing
+   * `evasion` stat). +5 here = +5 evasion points on the player's
+   * sheet, indistinguishable from a +5 equip bonus. Used by specs
+   * with "+5% evasion" copy (Phantom Step, Light Step).
+   */
+  evasionBonus?: number;
 }
 
 export interface SpecializationPassive {
@@ -239,8 +246,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Phantom Step',
-      description: '+10% movement speed. (planned: +5% evasion once an evasion multiplier joins SpecializationPassiveModifiers.)',
-      modifiers: { speedMultiplier: 1.1 },
+      description: '+10% movement speed, +5 evasion.',
+      modifiers: { speedMultiplier: 1.1, evasionBonus: 5 },
     },
     specSkills: ['silent_step'],
     proficiencySkills: ['shadow_arrow'],
@@ -337,8 +344,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Light Step',
-      description: '+15% movement speed. (planned: +5% evasion once an evasion multiplier joins SpecializationPassiveModifiers.)',
-      modifiers: { speedMultiplier: 1.15 },
+      description: '+15% movement speed, +5 evasion.',
+      modifiers: { speedMultiplier: 1.15, evasionBonus: 5 },
     },
     proficiencyPassive: {
       name: 'Lucky Find',
