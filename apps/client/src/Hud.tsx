@@ -3,6 +3,7 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
 import { CombatLogPanel } from './hud/CombatLogPanel';
+import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
 import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
 import { WelcomeOverlay } from './hud/WelcomeOverlay';
@@ -129,6 +130,7 @@ export function GameHud(props: GameHudProps) {
         onClaimQuestReward={onClaimQuestReward}
       />
       <WelcomeOverlay player={player} />
+      <LootPickupHint state={state} />
       <NpcInteraction
         player={player}
         onTalkNpc={onTalkNpc}
