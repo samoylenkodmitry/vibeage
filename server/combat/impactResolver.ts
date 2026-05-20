@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { getMaxStacks, getStackingPolicy } from '../../packages/content/effects.js';
+import { isCombatTraceEnabled, recordCombatTrace } from '../../packages/sim/combatTrace.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
@@ -154,16 +155,28 @@ function calculateDamage(
   if (!skill?.dmg) return 0;
   const { castId, targetId, target, world } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
+  const casterDmgMult = baseStats.dmgMult ?? 1;
   const result = getDamage({
-    caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * upgradeDmgMult },
+    caster: { ...baseStats, dmgMult: casterDmgMult * upgradeDmgMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
-  // §45.4 — target vuln · caster element bonus · party aura.
-  return result.dmg
-    * elementVulnerabilityMultiplier(skill, target)
-    * casterDamageElementMultiplier(skill, caster)
-    * partyDamageAuraMultFor(caster, world);
+  const elementVulnMult = elementVulnerabilityMultiplier(skill, target);
+  const casterElementMult = casterDamageElementMultiplier(skill, caster);
+  const partyAuraMult = partyDamageAuraMultFor(caster, world);
+  const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult;
+  // §49/M4 PR016 — combat trace. crit factored out of varianceRoll.
+  if (isCombatTraceEnabled()) {
+    const critMult = baseStats.critMult ?? 2;
+    const expanded = skill.dmg * casterDmgMult * upgradeDmgMult * (result.crit ? critMult : 1);
+    recordCombatTrace({
+      skillId: skill.id, casterId: caster?.id ?? null, targetId: targetId ?? null,
+      baseDamage: skill.dmg, varianceRoll: expanded > 0 ? result.dmg / expanded : 1,
+      casterDmgMult, upgradeDmgMult, isCrit: result.crit, critMult,
+      elementVulnMult, casterElementMult, partyAuraMult, final,
+    });
+  }
+  return final;
 }
 
 // §45.3 — product of every other-player ally's party-damage aura
