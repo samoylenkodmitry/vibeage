@@ -2766,7 +2766,7 @@ Character creation
 
 ## Spawn And Tutorial Cues
 
-- [ ] Spawn the player facing Warden Galen or an obvious starter marker.
+- [x] Spawn the player facing Warden Galen or an obvious starter marker. (`createTransientPlayer` computes a yaw from spawn → Galen's authored coord and stamps it on `rotation.y`. If Galen moves, the yaw follows. Tested.)
 - [ ] Add a clear first prompt: “Talk to Warden Galen.”
 - [ ] Add a movement hint for desktop.
 - [ ] Add a movement hint for mobile.
