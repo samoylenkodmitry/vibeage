@@ -27,6 +27,8 @@ type GameHudProps = {
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
+  /** §46/slice-new — drop an inventory stack to ground loot. */
+  onDropItem: (slotIndex: number, count?: number) => void;
   onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
@@ -57,7 +59,7 @@ type GameHudProps = {
 export function GameHud(props: GameHudProps) {
   const {
     state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onDisconnect,
-    onCastSkill, onLearnSkill, onUseItem, onCraftItem, onEquipItem, onUnequipItem,
+    onCastSkill, onLearnSkill, onUseItem, onDropItem, onCraftItem, onEquipItem, onUnequipItem,
     onUpgradeSkill, onTalkNpc, onAcceptQuest, onCancelQuest, onAdvanceQuest,
     onClaimQuestReward, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
     onSelectTarget, onCycleTarget, onPickupNearest, onMove, onSendChat,
@@ -107,7 +109,7 @@ export function GameHud(props: GameHudProps) {
         onSetNavigationMarker={onSetNavigationMarker}
         onCastSkill={onCastSkill}
         onLearnSkill={onLearnSkill}
-        onUseItem={onUseItem} onCraftItem={onCraftItem}
+        onUseItem={onUseItem} onDropItem={onDropItem} onCraftItem={onCraftItem}
         onEquipItem={onEquipItem}
         onUnequipItem={onUnequipItem}
         onUpgradeSkill={onUpgradeSkill}

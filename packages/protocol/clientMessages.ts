@@ -59,6 +59,16 @@ export const lootPickupSchema = z.object({
   playerId: z.string(),
 }).strict();
 
+// §46/slice-new — drop items from the bag to the ground at the
+// caster's current position. `count` is optional; when omitted the
+// whole stack at the slot drops. Server validates ownership (slot
+// must belong to the calling socket's player) and quantity bounds.
+export const dropItemSchema = z.object({
+  type: z.literal('DropItem'),
+  slotIndex: z.number().int().min(0),
+  count: z.number().int().min(1).optional(),
+}).strict();
+
 export const useItemSchema = z.object({
   type: z.literal('UseItem'),
   slotIndex: z.number().int().min(0),
@@ -176,6 +186,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   selectClassSchema,
   respawnRequestSchema,
   lootPickupSchema,
+  dropItemSchema,
   useItemSchema,
   craftItemSchema,
   requestInventorySchema,
@@ -245,6 +256,12 @@ export type LootPickup = {
   type: 'LootPickup';
   lootId: string;
   playerId: string;
+};
+
+export type DropItem = {
+  type: 'DropItem';
+  slotIndex: number;
+  count?: number;
 };
 
 export type UseItem = {
@@ -330,6 +347,7 @@ export type ClientMessage =
   | SelectClass
   | RespawnRequest
   | LootPickup
+  | DropItem
   | UseItem
   | CraftItem
   | RequestInventory

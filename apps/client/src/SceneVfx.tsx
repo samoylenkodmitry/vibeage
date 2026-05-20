@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
+import { ITEMS } from '../../../packages/content/items';
 import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
 import { Billboard } from './SceneEventVfx';
+import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 
 type SkillTheme = {
@@ -317,6 +319,17 @@ export function LootMarker({
   const sparkGroupRef = useRef<THREE.Group>(null);
   const color = loot.items.length > 1 ? '#facc15' : '#eab308';
   const sparks = useMemo(() => LOOT_SPARKS, []);
+  // §46/slice-new — cursor-hover label. Derived client-side from
+  // ITEMS[itemId] so the server never has to ship the display name
+  // with the LootSpawn payload. Stacked drops show "Item A +N more".
+  const [hovered, setHovered] = useState(false);
+  const labelText = useMemo(() => {
+    const first = loot.items[0];
+    if (!first) return '';
+    const name = ITEMS[first.itemId]?.name ?? first.itemId;
+    const moreStacks = loot.items.length - 1;
+    return moreStacks > 0 ? `${name} +${moreStacks} more` : name;
+  }, [loot.items]);
 
   useFrame(({ clock }, delta) => {
     if (meshRef.current) {
@@ -344,10 +357,19 @@ export function LootMarker({
         <ringGeometry args={[0.62, 0.8, 28]} />
         <meshBasicMaterial color="#facc15" transparent opacity={0.45} side={THREE.DoubleSide} />
       </mesh>
-      <mesh ref={meshRef} castShadow onPointerDown={handlePointerDown}>
+      <mesh
+        ref={meshRef}
+        castShadow
+        onPointerDown={handlePointerDown}
+        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
+        onPointerOut={() => setHovered(false)}
+      >
         <boxGeometry args={[0.62, 0.62, 0.62]} />
         <meshStandardMaterial color={color} emissive="#7c4a03" emissiveIntensity={0.75} roughness={0.48} />
       </mesh>
+      {hovered && labelText ? (
+        <NameLabel text={labelText} color="#fde68a" yOffset={1.1} height={0.42} />
+      ) : null}
       <group ref={sparkGroupRef}>
         {sparks.map((spark) => (
           <mesh

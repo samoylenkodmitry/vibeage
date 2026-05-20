@@ -43,6 +43,8 @@ export type HudPanelsProps = {
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUseItem: (slotIndex: number) => void;
+  /** §46/slice-new — drop a bag slot to ground loot. */
+  onDropItem: (slotIndex: number, count?: number) => void;
   onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
@@ -76,6 +78,7 @@ export function HudPanels({
   onCastSkill,
   onLearnSkill,
   onUseItem,
+  onDropItem,
   onCraftItem,
   onEquipItem,
   onUnequipItem,
@@ -108,6 +111,7 @@ export function HudPanels({
           onUseItem={onUseItem}
           onEquipItem={onEquipItem}
           onOpenRecipe={panels.openCraft}
+          onDropItem={onDropItem}
         />
       )}
       {panels.craftRecipeSlot !== null && (
