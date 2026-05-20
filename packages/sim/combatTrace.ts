@@ -33,6 +33,10 @@ export interface CombatTrace {
   casterElementMult: number;
   /** Party damage aura multiplier (Theurge Patron Saint, etc.). */
   partyAuraMult: number;
+  /** True when this hit rolled a critical strike. */
+  isCrit: boolean;
+  /** Caster's crit multiplier (typically 2.0); applied only when `isCrit`. */
+  critMult: number;
   /** Final damage value `calculateDamage` returns. */
   final: number;
 }
@@ -48,6 +52,7 @@ export function expectedTraceFinal(trace: Omit<CombatTrace, 'final'>): number {
     * trace.varianceRoll
     * trace.casterDmgMult
     * trace.upgradeDmgMult
+    * (trace.isCrit ? trace.critMult : 1)
     * trace.elementVulnMult
     * trace.casterElementMult
     * trace.partyAuraMult

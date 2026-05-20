@@ -161,18 +161,18 @@ function calculateDamage(
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
-  // §45.4 — target vuln · caster element bonus · party aura.
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target);
   const casterElementMult = casterDamageElementMultiplier(skill, caster);
   const partyAuraMult = partyDamageAuraMultFor(caster, world);
   const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult;
-  // §49/M4 PR016 — combat trace. Zero overhead in prod (flag false).
+  // §49/M4 PR016 — combat trace. crit factored out of varianceRoll.
   if (isCombatTraceEnabled()) {
-    const expanded = skill.dmg * casterDmgMult * upgradeDmgMult;
+    const critMult = baseStats.critMult ?? 2;
+    const expanded = skill.dmg * casterDmgMult * upgradeDmgMult * (result.crit ? critMult : 1);
     recordCombatTrace({
       skillId: skill.id, casterId: caster?.id ?? null, targetId: targetId ?? null,
       baseDamage: skill.dmg, varianceRoll: expanded > 0 ? result.dmg / expanded : 1,
-      casterDmgMult, upgradeDmgMult,
+      casterDmgMult, upgradeDmgMult, isCrit: result.crit, critMult,
       elementVulnMult, casterElementMult, partyAuraMult, final,
     });
   }
