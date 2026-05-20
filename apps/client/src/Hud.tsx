@@ -6,6 +6,7 @@ import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
 import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
+import { TargetingHint } from './hud/TargetingHint';
 import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
@@ -130,6 +131,7 @@ export function GameHud(props: GameHudProps) {
         onClaimQuestReward={onClaimQuestReward}
       />
       <WelcomeOverlay player={player} />
+      <TargetingHint state={state} />
       <LootPickupHint state={state} />
       <NpcInteraction
         player={player}
