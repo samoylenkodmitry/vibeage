@@ -6,7 +6,8 @@ import { SKILLS } from '../packages/content/skills';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { createTransientPlayer } from '../server/playerFactory';
 import { resolveCastImpact } from '../server/combat/impactResolver';
-import { STARTER_SKILL_BY_CLASS } from '../server/players/playerProgression';
+import { recomputePlayerStats } from '../server/players/playerStatsRefresh';
+import { STARTER_SKILL_BY_CLASS, starterSkillsFor } from '../server/players/playerProgression';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
 import type { OutboundEventSink } from '../server/transport/outboundEvents';
@@ -30,6 +31,10 @@ import type { PlayerState } from '../packages/sim/entities';
 // a real time-to-kill SLO is M4 balance-report work.
 
 const MAX_ROUNDS = 40;
+// Fixed timestamp keeps the goblin's id-hash + the cast seed
+// deterministic across runs; a real wall-clock can drift the
+// rounds-to-kill count by ±1 across machines.
+const TEST_TIMESTAMP = 1_716_200_000_000;
 
 /** Best level-1 damage skill the class can cast. Starter if it deals damage, else basicAttack. */
 function startingDamageSkillFor(className: CharacterClass): string {
@@ -64,24 +69,29 @@ function castAt(skillId: string, caster: PlayerState, targetId: string, round: n
     state: CastState.Impact,
     origin: { x: caster.position.x, z: caster.position.z },
     pos: { x: caster.position.x, z: caster.position.z },
-    startedAt: Date.now(),
+    startedAt: TEST_TIMESTAMP,
     castTimeMs: 0,
     targetId,
   } as Cast;
 }
 
 function roundsToKillStarterGoblin(className: CharacterClass): { rounds: number; killed: boolean; skillUsed: string } {
-  // Spawn the class with the right starter loadout via the real factory.
+  // Spawn via the real factory, then swap class/race and recompute
+  // stats — without `recomputePlayerStats` the player keeps the
+  // factory's default mage stats, which invalidates the balance
+  // check for every other class. Use `starterSkillsFor` so the
+  // class auto-passive is included (Contribution registry walks
+  // unlockedSkills to apply per-class HP/MP/dmg deltas).
   const player = createTransientPlayer(`${className}-socket`, className);
   player.className = className;
   player.race = firstRaceFor(className) as PlayerState['race'];
-  const tree = CLASS_SKILL_TREES[className].skillProgression as Record<string, { level: number }>;
-  player.unlockedSkills = Object.keys(tree)
-    .filter((s) => tree[s].level === 1)
-    .concat(['basicAttack']) as PlayerState['unlockedSkills'];
+  player.unlockedSkills = starterSkillsFor(className);
+  recomputePlayerStats(player);
+  player.health = player.maxHealth;
+  player.mana = player.maxMana;
   const skillId = startingDamageSkillFor(className);
 
-  const target = createEnemy('goblin', 1, { x: 2, y: 0, z: 0 }, Date.now());
+  const target = createEnemy('goblin', 1, { x: 2, y: 0, z: 0 }, TEST_TIMESTAMP);
   const world = makeWorld(player, target);
   const out: OutboundEventSink = { publish: vi.fn() };
 
