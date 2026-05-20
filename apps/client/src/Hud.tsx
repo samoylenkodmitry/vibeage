@@ -5,6 +5,7 @@ import { HudPanels } from './hud/HudPanels';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { NpcDialog } from './hud/NpcDialog';
 import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
+import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
@@ -123,6 +124,7 @@ export function GameHud(props: GameHudProps) {
         player={player}
         onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
       />
+      <WelcomeOverlay player={player} />
       <NpcInteraction
         player={player}
         onTalkNpc={onTalkNpc}
