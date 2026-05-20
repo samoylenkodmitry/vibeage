@@ -12,9 +12,6 @@ Has a source (loot/vendor/recipe/quest reward) but nothing consumes it: not a co
 - [ ] `ethereal_elixir` — Ethereal Elixir
 - [ ] `fire_resistance_potion` — Fire Resistance Potion
 - [ ] `ice_resistance_potion` — Ice Resistance Potion
-- [ ] `phoenix_feather` — Phoenix Feather
-- [ ] `slime_jelly` — Slime Jelly
-- [ ] `sprite_glow` — Sprite Glow
 - [ ] `temporal_draught` — Temporal Draught
 
 ## Skills nothing references
