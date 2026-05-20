@@ -108,6 +108,7 @@ export function HudPanels({
           inventory={state.inventory}
           maxSlots={state.maxInventorySlots}
           playerLevel={player?.level ?? 1}
+          equipment={state.equipment}
           onUseItem={onUseItem}
           onEquipItem={onEquipItem}
           onOpenRecipe={panels.openCraft}

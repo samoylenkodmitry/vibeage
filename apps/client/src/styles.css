@@ -1536,6 +1536,11 @@ input {
 .npc-dialog-empty { opacity: 0.7; }
 .npc-dialog-reward { color: #fde68a; font-size: 11px; }
 
+/* §49/M2 — equip stat delta on item tooltip */
+.item-tooltip-delta { margin-left: 4px; font-size: 11px; }
+.item-tooltip-delta--up { color: #86efac; }
+.item-tooltip-delta--down { color: #fca5a5; }
+
 /* §49/M2 PR008 — heads-up quest tracker strip. Compact left-edge
    button under the vitals-strip so a new player doesn't have to
    open the Quest panel to remember what they were doing. Clicking
