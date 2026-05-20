@@ -80,6 +80,13 @@ export const VENDORS: Record<string, VendorDef> = {
       { itemId: 'bone_necklace', price: 60 },
       { itemId: 'bone_earring', price: 40 },
       { itemId: 'bone_ring', price: 35 },
+      // §49/M1+ — meadow-trophy recipes (slime jelly, sprite glow,
+      // phoenix feather) so the trophies players already collect
+      // have a real player-made consumable path. Audit-driven; see
+      // packages/content/meadowTrophies.ts.
+      { itemId: 'recipe_slime_salve', price: 30 },
+      { itemId: 'recipe_sprite_phial', price: 40 },
+      { itemId: 'recipe_phoenix_draught', price: 120 },
     ],
     buyRate: 0.8,
   },
