@@ -115,15 +115,11 @@ export function useClientActions(
 
   const { castSkill, attackTarget, tryFirePendingCast, tryAdvanceAutoAttack } = useCastActions(roomRef, stateRef, dispatch);
 
-  const pickUpLoot = useCallback((lootId: string) => {
-    const room = roomRef.current;
-    const playerId = stateRef.current?.myPlayerId;
-    if (room && playerId) {
-      room.send(SESSION_EVENTS.message, { type: 'LootPickup', lootId, playerId });
-    }
-  }, [roomRef, stateRef]);
-
-  const { pickupNearest, tryFirePendingPickup } = usePickupActions(roomRef, stateRef, dispatch);
+  const { pickupNearest, walkThenPickup, tryFirePendingPickup } = usePickupActions(roomRef, stateRef, dispatch);
+  // Click-to-pickup: clicking a loot pile in the world should walk
+  // the player into pickup range and grab it on arrival. Same
+  // pending-pickup machinery as the `pickupNearest` hotkey path.
+  const pickUpLoot = walkThenPickup;
 
   const { learnSkill, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
     useIdentityAndItemActions(roomRef, stateRef);
@@ -370,23 +366,21 @@ function usePickupActions(
     dispatch({ type: 'setMoveTarget', target: { x: target.x, y: 0.02, z: target.z } });
   }, [roomRef, stateRef, dispatch]);
 
-  const pickupNearest = useCallback(() => {
+  // Walk-then-pickup against a specific loot stack. Issues a fresh
+  // LootPickup immediately if the player is already in range; else
+  // it sends an approach intent + arms a pendingPickup so the
+  // periodic `tryFirePendingPickup` tick lands the grab on arrival.
+  const walkThenPickup = useCallback((lootId: string) => {
     const current = stateRef.current;
     if (!current) return;
     const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
     if (!player?.isAlive) return;
-    const lootId = getNearestGroundLootId(current.groundLoot, getPlayerPosition(player));
-    if (!lootId) return;
     const stack = current.groundLoot[lootId];
     if (!stack) return;
-    // Pickup is a player-initiated action — it should stop any
-    // running auto-attack so the player isn't still swinging at a mob
-    // while trying to grab loot.
     dispatch({ type: 'clearAutoAttack' });
     const dx = stack.position.x - player.position.x;
     const dz = stack.position.z - player.position.z;
-    const dist = Math.hypot(dx, dz);
-    if (dist <= PICKUP_GRAB_RADIUS) {
+    if (Math.hypot(dx, dz) <= PICKUP_GRAB_RADIUS) {
       sendPickup(lootId);
       return;
     }
@@ -397,9 +391,19 @@ function usePickupActions(
     });
   }, [stateRef, dispatch, sendPickup, sendApproach]);
 
+  const pickupNearest = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) return;
+    const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
+    if (!player?.isAlive) return;
+    const lootId = getNearestGroundLootId(current.groundLoot, getPlayerPosition(player));
+    if (!lootId) return;
+    walkThenPickup(lootId);
+  }, [stateRef, walkThenPickup]);
+
   const tryFirePendingPickup = useTryFirePendingPickup(stateRef, dispatch, sendPickup, sendApproach);
 
-  return { pickupNearest, tryFirePendingPickup };
+  return { pickupNearest, walkThenPickup, tryFirePendingPickup };
 }
 
 function useTryFirePendingPickup(
