@@ -2088,6 +2088,11 @@ contiguous list so the audit doesn't fragment.
     `durationMs` of beneficial status effects (bless, evasion,
     shield, invisible, etc.) at upsert time. Theurge
     `Inspiration` (spec, L20) extends every buff cast by +25%.
+  - [x] `cooldownMultiplierBySkill` → per-skill cooldown shortener
+    applied alongside the existing skill-upgrade multiplier.
+    Eva's Templar `Aegis` (proficiency, L40) halves Divine
+    Shield; Plains Walker `Shadow Step` (proficiency, L40) halves
+    Vanish.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and
