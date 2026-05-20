@@ -2109,6 +2109,10 @@ contiguous list so the audit doesn't fragment.
     (+20% fire) and Conflagration (+15% fire) un-planned; Phoenix
     Knight Holy Fire (+20% holy) un-planned. Spec + proficiency
     tiers stack multiplicatively.
+  - [x] `rangeMultiplierBySkill` → per-skill cast-range multiplier
+    applied at `validateCastRequest`. Templar Knight `Bulwark`
+    (spec, L20) widens Taunt range by 50% (12m → 18m). Spec +
+    proficiency tiers stack per skill.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and

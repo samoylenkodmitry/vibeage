@@ -110,6 +110,13 @@ export interface SpecializationPassiveModifiers {
    * Used by Pyromancer (fire) and Phoenix Knight (holy).
    */
   damageElementMultiplier?: Readonly<Record<string, number>>;
+  /**
+   * §45.3 follow-up — per-skill range multiplier. 1.5 = the
+   * caster can land the named skill from 50% further away. Read
+   * in `getCastBlocker` when validating cast range. Used by
+   * Templar Knight `Bulwark` (Taunt range +50%).
+   */
+  rangeMultiplierBySkill?: Readonly<Record<string, number>>;
 }
 
 export interface SpecializationPassive {
@@ -319,8 +326,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Bulwark',
-      description: '+15% max HP. (planned: taunt-range +50% once skills can take per-spec range modifiers.)',
-      modifiers: { healthMultiplier: 1.15 },
+      description: '+15% max HP; Taunt range +50%.',
+      modifiers: { healthMultiplier: 1.15, rangeMultiplierBySkill: { taunt: 1.5 } },
     },
     proficiencyPassive: {
       name: 'Last Stand',
