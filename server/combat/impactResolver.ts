@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
+import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
@@ -225,13 +226,38 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
   return targets;
 }
 
+/**
+ * §45.3 follow-up — evaluate spec-passive damage mitigation
+ * predicates against the target's current HP (not the cached
+ * stats snapshot, which only refreshes on level/equip/effect
+ * changes). Returns a multiplier `≤ 1` on incoming damage.
+ */
+function targetDamageTakenMult(target: PlayerState): number {
+  const spec = target.specializationId ? getSpecializationById(target.specializationId) : null;
+  if (!spec) return 1;
+  const hpFraction = target.maxHealth > 0 ? target.health / target.maxHealth : 1;
+  if (hpFraction >= 0.5) return 1;
+  const specMul = spec.specializationPassive.modifiers.belowHalfHpDamageTakenMultiplier ?? 1;
+  const profMul = target.level >= PROFICIENCY_LEVEL
+    ? (spec.proficiencyPassive.modifiers.belowHalfHpDamageTakenMultiplier ?? 1)
+    : 1;
+  return specMul * profMul;
+}
+
 function applyCastToTarget(
   target: Enemy | PlayerState,
   damage: number,
   context: ImpactContext,
 ): void {
   const { caster, skill, outbound, world } = context;
-  const incoming = absorbWithShield(target, damage);
+  // §45.3 follow-up — spec passives like Templar Knight's
+  // Last Stand mitigate damage when the player is already below
+  // half HP. Evaluated live against current HP because the stat
+  // pipeline only recomputes on level/equip/effect changes —
+  // health-fraction predicates would otherwise stay stale across
+  // a fight.
+  const mitigated = isEnemy(target) ? damage : damage * targetDamageTakenMult(target);
+  const incoming = absorbWithShield(target, mitigated);
 
   target.health = Math.max(0, target.health - incoming);
 
