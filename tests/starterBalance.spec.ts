@@ -75,8 +75,9 @@ function roundsToKillStarterGoblin(className: CharacterClass): { rounds: number;
   const player = createTransientPlayer(`${className}-socket`, className);
   player.className = className;
   player.race = firstRaceFor(className) as PlayerState['race'];
-  player.unlockedSkills = Object.keys(CLASS_SKILL_TREES[className].skillProgression)
-    .filter((s) => CLASS_SKILL_TREES[className].skillProgression[s as never].level === 1)
+  const tree = CLASS_SKILL_TREES[className].skillProgression as Record<string, { level: number }>;
+  player.unlockedSkills = Object.keys(tree)
+    .filter((s) => tree[s].level === 1)
     .concat(['basicAttack']) as PlayerState['unlockedSkills'];
   const skillId = startingDamageSkillFor(className);
 
