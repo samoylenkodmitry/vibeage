@@ -1781,6 +1781,38 @@ input {
   background: rgba(30, 41, 59, 0.6);
 }
 
+/* §49/M2 — skill-use hint. Same shape, purple tint so it's
+   distinguishable from the loot (green) and targeting (blue)
+   onboarding banners when stacked. */
+.skill-use-hint {
+  position: fixed;
+  left: 50%;
+  top: calc(30% + 130px);
+  transform: translateX(-50%);
+  max-width: min(380px, 88vw);
+  display: grid;
+  gap: 2px;
+  padding: 8px 14px;
+  background: rgba(30, 18, 48, 0.92);
+  border: 1px solid rgba(192, 132, 252, 0.6);
+  border-radius: 6px;
+  color: #ede9fe;
+  z-index: 9;
+  pointer-events: none;
+  animation: loot-pickup-hint-fade 0.3s ease-out;
+}
+.skill-use-hint strong { font-size: 14px; color: #f3e8ff; }
+.skill-use-hint small { font-size: 12px; opacity: 0.92; }
+.skill-use-hint kbd {
+  display: inline-block;
+  padding: 0 4px;
+  font-family: monospace;
+  font-size: 11px;
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  border-radius: 3px;
+  background: rgba(46, 26, 71, 0.6);
+}
+
 /* Vendor browse panel. Opens when the player clicks "Browse Wares"
    on an NPC dialog. Mirrors the quest-panel layout but anchored at
    screen-center so the two columns (For Sale / Buy Back) fit
