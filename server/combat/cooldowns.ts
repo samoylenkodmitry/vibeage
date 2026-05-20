@@ -1,4 +1,5 @@
 import type { SkillDef, SkillId } from '../../packages/content/skills.js';
+import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
 
@@ -36,7 +37,12 @@ export function applySkillCostAndCooldown(
   // doesn't require touching the cast handler.
   const mods = getSkillUpgradeModifiers(skillId, getSkillLevel(player.skillLevels, skillId));
   const manaCost = (skill.manaCost ?? 0) * mods.manaCostMultiplier;
-  const cooldownMs = (skill.cooldownMs ?? 0) * mods.cooldownMultiplier;
+  // §45.3 follow-up — spec passives like Aegis (Divine Shield) /
+  // Shadow Step (Vanish) shorten specific skills' cooldowns.
+  // Multiplies on top of the skill-upgrade modifier so a leveled
+  // Vanish with Shadow Step gets BOTH reductions.
+  const specCooldownMult = specCooldownMultiplierFor(player, skillId);
+  const cooldownMs = (skill.cooldownMs ?? 0) * mods.cooldownMultiplier * specCooldownMult;
   player.mana = Math.max(0, player.mana - manaCost);
   player.skillCooldownEndTs = {
     ...(player.skillCooldownEndTs ?? {}),
@@ -51,4 +57,23 @@ export function buildPlayerResourceUpdate(player: PlayerState): PlayerResourceUp
     mana: player.mana,
     skillCooldownEndTs: player.skillCooldownEndTs,
   };
+}
+
+/**
+ * §45.3 follow-up — collapse spec + proficiency
+ * `cooldownMultiplierBySkill` entries for the given skill into
+ * one multiplier. Multiplies across both tiers when active, so
+ * stacking specs that touch the same skill compound correctly.
+ * Returns 1 when no spec is chosen, no entry for the skill, or
+ * the player hasn't reached the relevant tier yet.
+ */
+function specCooldownMultiplierFor(player: PlayerState, skillId: SkillId): number {
+  if (!player.specializationId) return 1;
+  const spec = getSpecializationById(player.specializationId);
+  if (!spec) return 1;
+  let mul = spec.specializationPassive.modifiers.cooldownMultiplierBySkill?.[skillId] ?? 1;
+  if (player.level >= PROFICIENCY_LEVEL) {
+    mul *= spec.proficiencyPassive.modifiers.cooldownMultiplierBySkill?.[skillId] ?? 1;
+  }
+  return mul;
 }

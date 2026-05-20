@@ -77,6 +77,15 @@ export interface SpecializationPassiveModifiers {
    * Theurge `Inspiration`.
    */
   beneficialBuffDurationMultiplier?: number;
+  /**
+   * §45.3 follow-up — per-skill cooldown multiplier. Keys are
+   * SkillIds, values are multipliers on the skill's stored
+   * `cooldownMs` (0.5 = halved). Read at cast time in
+   * `applySkillCostAndCooldown`. Used by Eva's Templar `Aegis`
+   * (Divine Shield) and Plains Walker `Shadow Step` (Vanish).
+   * Multiple specs / tiers stack multiplicatively per skill.
+   */
+  cooldownMultiplierBySkill?: Readonly<Record<string, number>>;
 }
 
 export interface SpecializationPassive {
@@ -352,8 +361,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Aegis',
-      description: '(planned: faster Divine Shield refresh. No per-skill cooldown reduction system today.)',
-      modifiers: {},
+      description: 'Divine Shield cooldown halved.',
+      modifiers: { cooldownMultiplierBySkill: { divineShield: 0.5 } },
     },
     specSkills: ['sacred_pulse'],
     proficiencySkills: ['sacred_aura'],
@@ -393,8 +402,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Shadow Step',
-      description: '(planned: Vanish cooldown halved. No per-skill cooldown reduction system today.)',
-      modifiers: {},
+      description: 'Vanish cooldown halved.',
+      modifiers: { cooldownMultiplierBySkill: { vanish: 0.5 } },
     },
     specSkills: ['wind_dash'],
     proficiencySkills: ['stalking_arrow'],
