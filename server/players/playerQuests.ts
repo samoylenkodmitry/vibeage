@@ -2,7 +2,12 @@ import { formatRewardSummary, meetsQuestPrerequisites, QUESTS, type QuestDef, ty
 import { QUEST_NPCS, INTERACTION_RANGE } from '../../packages/content/npcs.js';
 import type { PlayerActiveQuestProgress, PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
-import { emitPlayerUpdated, emitServerMessage, type OutboundEventSink } from '../transport/outboundEvents.js';
+import {
+  emitPlayerUpdated,
+  emitServerMessage,
+  emitServerMessageToClient,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
 import { addItemsToPlayer, ensureCharacterInventory } from '../inventory/aggregateBridge.js';
 import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
 
@@ -38,20 +43,44 @@ export function applyAcceptQuest(
   if (!quest) return false;
   if (!isNearNpc(player, quest.npcId)) {
     warn(LOG_CATEGORIES.PLAYER, `AcceptQuest ${questId}: player ${player.id} not near ${quest.npcId}`);
+    emitAcceptFeedback(player, outbound, `You're too far from ${QUEST_NPCS[quest.npcId]?.name ?? 'the quest giver'} to accept this.`);
     return false;
   }
-  if (player.level < quest.minLevel) return false;
+  if (player.level < quest.minLevel) {
+    emitAcceptFeedback(player, outbound, `You need level ${quest.minLevel} to accept "${quest.name}".`);
+    return false;
+  }
   const state = ensureQuestState(player);
   if (state.active[questId] || state.completed.includes(questId)) return false;
   // §49/M6 PR029 — gate on completed-quest prerequisites.
   if (!meetsQuestPrerequisites(quest, { completedQuests: state.completed })) {
     warn(LOG_CATEGORIES.PLAYER, `AcceptQuest ${questId}: player ${player.id} missing prerequisites`);
+    emitAcceptFeedback(player, outbound, `"${quest.name}" requires you to finish earlier quests first.`);
     return false;
   }
   state.active[questId] = { stageIndex: 0, progress: 0 };
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} accepted quest ${questId}`);
   emitPlayerUpdated(outbound, { id: player.id, questState: state });
   return true;
+}
+
+/**
+ * §49/M2 — direct chat feedback when AcceptQuest fails for a known
+ * reason. Goes only to the caller (so other players don't see
+ * 'player X is underleveled') and rides the existing ChatBroadcast
+ * channel which the HUD chat panel already renders.
+ */
+function emitAcceptFeedback(player: PlayerState, outbound: OutboundEventSink, text: string): void {
+  const socketId = player.socketId;
+  if (!socketId) return;
+  emitServerMessageToClient(outbound, socketId, {
+    type: 'ChatBroadcast',
+    fromId: 'system',
+    fromName: 'System',
+    text,
+    scope: 'near',
+    ts: Date.now(),
+  });
 }
 
 export function applyCancelQuest(
