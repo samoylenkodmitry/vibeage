@@ -3,6 +3,7 @@ import { createStarterProgressState } from '../packages/protocol/messages';
 import { createEmptyInventory } from '../packages/sim/characterInventory';
 import {
   PRIVATE_PLAYER_STATE_FIELDS,
+  PUBLIC_PLAYER_FIELDS,
   makeClientGameStateSnapshot,
   sanitizePlayerForPublic,
   sanitizePlayerUpdateForPublic,
@@ -18,40 +19,11 @@ import type { ColyseusBroadcastLike, ColyseusClientLike } from '../server/transp
  * consciously decide whether it belongs here. Failing this test means a
  * new field was added without auditing its visibility.
  */
-const PUBLIC_PLAYER_KEYS = new Set<string>([
-  'id',
-  'name',
-  'position',
-  'rotation',
-  'health',
-  'maxHealth',
-  'mana',
-  'maxMana',
-  'className',
-  'race',
-  'unlockedSkills',
-  'skillShortcuts',
-  'availableSkillPoints',
-  'skillCooldownEndTs',
-  'statusEffects',
-  'level',
-  'experience',
-  'experienceToNextLevel',
-  'castingSkill',
-  'castingProgressMs',
-  'isAlive',
-  'deathTimeTs',
-  'lastUpdateTime',
-  'targetId',
-  'lastSnapTime',
-  'movement',
-  'velocity',
-  'dirtySnap',
-  'posHistory',
-  'stats',
-  'specializationId',
-  'skillLevels',
-]);
+// §46/slice-4 — pulls from the runtime allow-list so this test never
+// drifts from the source of truth. PUBLIC_PLAYER_FIELDS lives in
+// `clientState.ts` and is what `sanitizePlayerForPublic` actually
+// projects to.
+const PUBLIC_PLAYER_KEYS = new Set<string>(PUBLIC_PLAYER_FIELDS);
 
 function makePlayer(id: string, socketId: string): PlayerState {
   const player: PlayerState = {
@@ -117,11 +89,18 @@ describe('owner snapshot allow-list', () => {
     ).toEqual([]);
   });
 
-  it('owner snapshot includes every PRIVATE_PLAYER_STATE_FIELDS entry (the owner sees their own state)', () => {
+  it('owner snapshot includes every PRIVATE_PLAYER_STATE_FIELDS entry the fixture sets', () => {
     const state = createGameState();
-    state.players.own = makePlayer('own', 'own-socket');
+    const fixture = makePlayer('own', 'own-socket');
+    state.players.own = fixture;
     const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
+    // §46/slice-4 — fixture only sets a subset of owner-only fields
+    // (e.g. no skillLevels / usedResurrectionThisLife in the basic
+    // makePlayer). Only assert the owner snapshot still surfaces the
+    // ones the fixture provided — the broader contract (owner ⊇
+    // PlayerState) is type-checked, not runtime-checked.
     for (const field of PRIVATE_PLAYER_STATE_FIELDS) {
+      if (fixture[field] === undefined) continue;
       expect(snapshot.players.own, `owner is missing their own ${field}`).toHaveProperty(field);
     }
   });

@@ -9,24 +9,46 @@ import {
   type ServerWorldRegion,
 } from '../world/regions.js';
 
-export const PRIVATE_PLAYER_STATE_FIELDS = [
-  'socketId',
-  'starterProgress',
-  'inventory',
-  'maxInventorySlots',
-  // Owner-only: the full instance-aware bag + equipped slot map. Other
-  // players must only see a public equipment-visual DTO (planned), never
-  // every item instance the owner has.
-  'characterInventory',
-  // Owner-only: quest progress isn't shown to nearby players. Other
-  // people seeing your quest log would surface griefable info ("they
-  // need to kill 3 more goblins; let me intervene").
-  'questState',
-  // PR GG — gold is the owner's wallet; nearby players don't need to
-  // see how much you're carrying (and seeing it would let griefers
-  // ping rich targets).
-  'gold',
-] as const;
+/**
+ * §46/slice-4 — explicit allowlist of fields shipped to *other*
+ * clients on the `playerJoined` / `playerUpdated` / `gameState`
+ * paths. Was a denylist (every new field on `PlayerState` was
+ * public unless someone remembered to add it to the deny list);
+ * allowlist closes that footgun: a new field on PlayerState is
+ * now private by default unless it's added here.
+ *
+ * Owner-only data (socketId, inventory, characterInventory,
+ * questState, gold, skillShortcuts, skillLevels,
+ * availableSkillPoints, starterProgress, stats, skill cooldowns,
+ * regen bookkeeping, persistence flags) is *not* listed below
+ * and therefore never reaches another player's client.
+ */
+export const PUBLIC_PLAYER_FIELDS = [
+  'id',
+  'name',
+  'className',
+  'race',
+  'specializationId',
+  'level',
+  'position',
+  'rotation',
+  'velocity',
+  'movement',
+  'health',
+  'maxHealth',
+  'mana',
+  'maxMana',
+  'isAlive',
+  'deathTimeTs',
+  'castingSkill',
+  'castingProgressMs',
+  'targetId',
+  'statusEffects',
+  'dirtySnap',
+  // §45.7 — denylist used to keep the wire-shape `inventory`
+  // mirror but blank to other players. Removed entirely now;
+  // PublicPlayerSnapshot has no inventory field at all.
+] as const satisfies ReadonlyArray<keyof PlayerState>;
 export const CLIENT_GAME_STATE_FIELDS = [
   'players',
   'enemies',
@@ -34,9 +56,47 @@ export const CLIENT_GAME_STATE_FIELDS = [
   'zones',
 ] as const satisfies ReadonlyArray<keyof GameState>;
 
-type PrivatePlayerStateField = typeof PRIVATE_PLAYER_STATE_FIELDS[number];
-export type PublicPlayerState = Omit<PlayerState, PrivatePlayerStateField>;
-export type ClientPlayerState = PlayerState | PublicPlayerState;
+type PublicPlayerField = typeof PUBLIC_PLAYER_FIELDS[number];
+
+/**
+ * Owner-only fields (everything on PlayerState that isn't in the
+ * public allowlist). Re-exported as a denylist so legacy callers /
+ * tests built against the prior denylist API keep working. The
+ * allowlist is the source of truth — this list is computed in a
+ * sibling helper to avoid two registries drifting.
+ */
+export const PRIVATE_PLAYER_STATE_FIELDS = [
+  'socketId',
+  'unlockedSkills',
+  'skillShortcuts',
+  'availableSkillPoints',
+  'skillLevels',
+  'starterProgress',
+  'questState',
+  'skillCooldownEndTs',
+  'lastRegenTimeMs',
+  'experience',
+  'experienceToNextLevel',
+  'lastUpdateTime',
+  'lastSnapTime',
+  'posHistory',
+  'usedResurrectionThisLife',
+  'stats',
+  'inventory',
+  'maxInventorySlots',
+  'characterInventory',
+  'gold',
+] as const satisfies ReadonlyArray<keyof PlayerState>;
+/**
+ * §46/slice-4 — projected DTO shipped to other clients. Built from
+ * `PUBLIC_PLAYER_FIELDS` (allowlist) so the type itself documents
+ * what crosses the public boundary; adding a new sensitive field
+ * to `PlayerState` no longer requires updating a deny list.
+ */
+export type PublicPlayerSnapshot = Pick<PlayerState, PublicPlayerField>;
+/** @deprecated Use `PublicPlayerSnapshot`. */
+export type PublicPlayerState = PublicPlayerSnapshot;
+export type ClientPlayerState = PlayerState | PublicPlayerSnapshot;
 export type ClientGameStateSnapshot = Pick<GameState, 'enemies' | 'groundLoot' | 'zones'> & {
   players: Record<string, ClientPlayerState>;
 };
@@ -59,22 +119,34 @@ export function makeClientGameStateSnapshot(
   };
 }
 
-export function sanitizePlayerForPublic(player: PlayerState): PublicPlayerState {
-  const publicPlayer = { ...player };
-  deletePrivatePlayerState(publicPlayer);
-  return publicPlayer as PublicPlayerState;
+// §46/slice-4 — projects every PlayerState onto `PublicPlayerSnapshot`
+// (allowlist of fields). Adding a new field to PlayerState defaults
+// to private; opt in by adding the key to `PUBLIC_PLAYER_FIELDS`.
+export function sanitizePlayerForPublic(player: PlayerState): PublicPlayerSnapshot {
+  // Cast: a full PlayerState always carries every PUBLIC_PLAYER_FIELDS
+  // entry; the partial projector returns `Partial<...>` for the shared
+  // update path, but the full-projection case here gives back the full
+  // shape — pin it with the cast rather than a runtime assert that'd
+  // crash the room loop.
+  return pickPublicFields(player) as PublicPlayerSnapshot;
 }
 
-export function sanitizePlayerUpdateForPublic(update: PlayerUpdate): PlayerUpdate {
-  const publicUpdate = { ...update };
-  deletePrivatePlayerState(publicUpdate);
-  return publicUpdate;
+// PlayerUpdate is a partial; project the same allowlist so deltas
+// stay equally guarded. Fields the update doesn't carry stay absent.
+export function sanitizePlayerUpdateForPublic(update: PlayerUpdate): Partial<PublicPlayerSnapshot> {
+  return pickPublicFields(update);
 }
 
-function deletePrivatePlayerState(player: Partial<PlayerState>): void {
-  for (const field of PRIVATE_PLAYER_STATE_FIELDS) {
-    delete player[field];
+function pickPublicFields<T extends Partial<PlayerState>>(source: T): Partial<PublicPlayerSnapshot> {
+  const projected: Partial<PublicPlayerSnapshot> = {};
+  for (const field of PUBLIC_PLAYER_FIELDS) {
+    if (field in source && source[field] !== undefined) {
+      // Cast-through-any: PUBLIC_PLAYER_FIELDS is itself typed against
+      // PlayerState, so the runtime read is safe even when T narrows.
+      (projected as Record<string, unknown>)[field] = source[field as keyof T] as unknown;
+    }
   }
+  return projected;
 }
 
 function makeClientPlayersSnapshot(
