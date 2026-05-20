@@ -5,6 +5,7 @@ import {
   getMaxStacks,
   getStackingPolicy,
 } from '../packages/content/effects';
+import type { SkillId } from '../packages/content/skills';
 import { resolveCastImpact } from '../server/combat/impactResolver';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import type { Cast } from '../server/combat/skillSystem';
@@ -44,7 +45,7 @@ function worldFor(caster: PlayerState, target: PlayerState | ReturnType<typeof c
   };
 }
 
-function castSkill(skillId: string, casterId: string, targetId: string | null, suffix = ''): Cast {
+function castSkill(skillId: SkillId, casterId: string, targetId: string | null, suffix = ''): Cast {
   return {
     castId: `c-${skillId}-${suffix || Math.random().toString(36).slice(2, 8)}`,
     casterId, skillId,
