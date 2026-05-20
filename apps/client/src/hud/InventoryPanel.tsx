@@ -1,4 +1,4 @@
-import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
+import { getEffectiveMinLevel, occupiedSlotsForSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { ItemTooltip } from './ItemTooltip';
@@ -10,6 +10,8 @@ type InventoryPanelProps = {
   inventory: InventorySlot[];
   maxSlots: number;
   playerLevel: number;
+  /** §49/M2 — currently-equipped slot → itemId, for stat-delta tooltips. */
+  equipment?: Record<string, string>;
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number) => void;
   /**
@@ -23,7 +25,7 @@ type InventoryPanelProps = {
   onDropItem: (slotIndex: number) => void;
 };
 
-export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, onEquipItem, onOpenRecipe, onDropItem }: InventoryPanelProps) {
+export function InventoryPanel({ inventory, maxSlots, playerLevel, equipment, onUseItem, onEquipItem, onOpenRecipe, onDropItem }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<string>();
@@ -116,6 +118,7 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
           hoverHandlers={tooltip.hoverHandlers}
+          compareStats={resolveCompareStats(tooltip.info.payload, equipment)}
         />
       )}
     </section>
@@ -124,4 +127,28 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
 
 function getItemInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase();
+}
+
+// §49/M2 — for a hovered bag item, find the item currently
+// equipped in the matching EquipSlot and return its stats so the
+// tooltip can render +N/-N deltas. Returns undefined when the
+// hovered item isn't equippable OR nothing's equipped in its
+// primary slot OR the equipped item template can't be resolved.
+//
+// Uses `occupiedSlotsForSpec(...)[0]` (the primary slot) — the
+// camelCase `bodyPart` field on EquipSpec doesn't match the
+// upper-snake `EquipSlot` keys that `state.equipment` uses.
+export function resolveCompareStats(
+  hoveredItemId: string,
+  equipment: Record<string, string> | undefined,
+) {
+  if (!equipment) return undefined;
+  const hovered = ITEMS[hoveredItemId];
+  const spec = hovered?.equip;
+  if (!spec) return undefined;
+  const primarySlot = occupiedSlotsForSpec(spec)[0];
+  if (!primarySlot) return undefined;
+  const equippedId = equipment[primarySlot];
+  if (!equippedId) return undefined;
+  return ITEMS[equippedId]?.stats;
 }

@@ -2824,7 +2824,7 @@ Character creation
 - [ ] Make the recipe/crafting path visible after the first boss kill.
 - [ ] Ensure the first craftable/equippable item has obvious stat improvement.
 - [ ] Ensure equipping the item visibly changes paperdoll or avatar overlay.
-- [ ] Show stat delta when equipping an item.
+- [x] Show stat delta when equipping an item. (Item tooltip in the bag now appends green/red `(+N)` / `(-N)` after each stat, comparing to whatever's currently equipped in the same EquipSlot. `resolveCompareStats` + `computeDelta` exported + tested.)
 - [ ] Add an equip success message.
 - [ ] Add an equip rejection message for level/slot/hand conflicts.
 - [ ] Add a test that the first boss gear recipe consumes correct inputs and outputs correct item.
@@ -3285,7 +3285,7 @@ Make boss trophies, recipes, materials, crafted gear, equipment stats, and set b
 
 ## Equipment UX
 
-- [ ] Show stat delta before equipping.
+- [x] Show stat delta before equipping. (See "Show stat delta when equipping an item" above — bag tooltip shows pre-equip delta.)
 - [ ] Show why an item cannot be equipped.
 - [ ] Show multi-slot conflicts clearly.
 - [ ] Show current set bonus progress.
