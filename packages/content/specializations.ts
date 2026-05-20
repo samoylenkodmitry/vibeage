@@ -135,6 +135,16 @@ export interface SpecializationPassiveModifiers {
    */
   partyDamageAuraMultiplier?: number;
   partyDamageAuraRadiusM?: number;
+  /**
+   * §45.3 follow-up — party-wide HP regen aura. Allies (other
+   * players) within `partyHpRegenAuraRadiusM` of the spec carrier
+   * gain a flat `partyHpRegenAuraBonus` HP/sec on top of their
+   * own regen, applied at `handleResourceRegeneration` time so
+   * the bonus tracks movement without a stat recompute. Used by
+   * Cardinal `Sanctity`.
+   */
+  partyHpRegenAuraBonus?: number;
+  partyHpRegenAuraRadiusM?: number;
 }
 
 export interface SpecializationPassive {
@@ -267,8 +277,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Sanctity',
-      description: '+5% max HP. (planned: nearby-ally regen aura.)',
-      modifiers: { healthMultiplier: 1.05 },
+      description: '+5% max HP; nearby allies (within 12m) regen +2 HP/sec.',
+      modifiers: { healthMultiplier: 1.05, partyHpRegenAuraBonus: 2, partyHpRegenAuraRadiusM: 12 },
     },
     specSkills: ['greater_heal'],
     proficiencySkills: ['mass_heal'],
