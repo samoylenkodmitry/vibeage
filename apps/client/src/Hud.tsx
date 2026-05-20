@@ -4,6 +4,7 @@ import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { NpcDialog } from './hud/NpcDialog';
+import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
@@ -117,6 +118,10 @@ export function GameHud(props: GameHudProps) {
         onAdvanceQuest={onAdvanceQuest}
         onClaimQuestReward={onClaimQuestReward}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
+      />
+      <QuestTrackerStrip
+        player={player}
+        onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
       />
       <NpcInteraction
         player={player}

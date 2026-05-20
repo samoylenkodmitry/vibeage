@@ -1535,6 +1535,34 @@ input {
 .npc-dialog-row button { padding: 3px 6px; margin-top: 2px; cursor: pointer; }
 .npc-dialog-empty { opacity: 0.7; }
 
+/* §49/M2 PR008 — heads-up quest tracker strip. Compact left-edge
+   button under the vitals-strip so a new player doesn't have to
+   open the Quest panel to remember what they were doing. Clicking
+   it drops a navigation marker for the current stage. */
+.quest-tracker-strip {
+  position: fixed;
+  left: 12px;
+  top: 168px;
+  max-width: 260px;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  border-radius: 6px;
+  color: inherit;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 7;
+  pointer-events: auto;
+}
+.quest-tracker-strip:hover { border-color: rgba(250, 204, 21, 0.75); }
+.quest-tracker-strip:disabled { cursor: default; opacity: 0.8; }
+.quest-tracker-label { font-size: 10px; opacity: 0.65; letter-spacing: 0.5px; }
+.quest-tracker-strip strong { font-size: 13px; }
+.quest-tracker-stage { opacity: 0.85; }
+
 /* Vendor browse panel. Opens when the player clicks "Browse Wares"
    on an NPC dialog. Mirrors the quest-panel layout but anchored at
    screen-center so the two columns (For Sale / Buy Back) fit
