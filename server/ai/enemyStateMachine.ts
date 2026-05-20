@@ -21,6 +21,7 @@ export type EnemyAIEvent =
   | { type: 'log'; message: string }
   | { type: 'enemyAttack'; enemyId: string; targetId: string; damage: number; targetHealth: number }
   | { type: 'packAggro'; packId: string; targetId: string; sourceEnemyId: string }
+  | { type: 'packDisengage'; packId: string; sourceEnemyId: string }
   | {
       type: 'bossTelegraph';
       enemyId: string;
@@ -252,6 +253,7 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     enemy.targetId = null;
     enemy.aiState = 'returning';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} lost target or target died, returning.` });
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -261,6 +263,7 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     enemy.targetId = null;
     enemy.aiState = 'returning';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} lost sight of invisible target, returning.` });
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -277,14 +280,13 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
       type: 'log',
       message: `[AI] Enemy ${enemy.id} exceeded leash distance from spawn, returning.`,
     });
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
 
   // Anti-kite: if we've been chasing this target too long without ever
-  // reaching attack range, give up. Prevents the "kite forever just
-  // outside attackRange" exploit where a faster player keeps an enemy
-  // chasing indefinitely without taking a hit.
+  // reaching attack range, give up.
   //
   // `??=` persists the first-seen timestamp so re-entries (attacking →
   // chasing on target moved out of range, returning → chasing on
@@ -296,16 +298,13 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     enemy.targetId = null;
     enemy.chaseStartedAt = undefined;
     enemy.aiState = 'returning';
-    // Block same-tick + brief-window re-aggro so the cascade doesn't
-    // immediately re-target the player we just gave up on (which would
-    // make the kite trip invisible to gameplay). Player can re-engage
-    // after a short cooldown by actually approaching the enemy.
     enemy.aggroSuppressedUntilTs = context.now + ANTI_KITE_REAGGRO_COOLDOWN_MS;
     stopEnemy(enemy);
     progress.events.push({
       type: 'log',
       message: `[AI] Enemy ${enemy.id} gave up chase (kited for ${Math.round((context.now - chaseStartedAt) / 1000)}s), returning.`,
     });
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -327,6 +326,7 @@ function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
     enemy.targetId = null;
     enemy.aiState = 'returning';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} target died while attacking, returning.` });
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -335,6 +335,7 @@ function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
     enemy.targetId = null;
     enemy.aiState = 'returning';
     progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} lost sight of invisible target mid-attack, returning.` });
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
@@ -422,13 +423,21 @@ function applyAttackIfReady(
     });
     enemy.targetId = null;
     enemy.aiState = 'returning';
+    emitPackDisengageIfNeeded(enemy, progress);
     progress.shouldBroadcastEnemyUpdate = true;
   }
 }
 
-// Enemy stun gate. Delegates to the shared isEntityStunned predicate
-// which also recognises freeze / root as stun-equivalent
-// (Section 8 L515 — no skill design currently distinguishes them).
+// §46/slice-3 — emit a packDisengage event when this enemy quits a
+// chase; enemyAI pulls packmates within `packAggroRadius` back to
+// returning too so the pack engages and breaks as a unit.
+function emitPackDisengageIfNeeded(enemy: Enemy, progress: EnemyAIProgress): void {
+  if (enemy.packId) {
+    progress.events.push({ type: 'packDisengage', packId: enemy.packId, sourceEnemyId: enemy.id });
+  }
+}
+
+// Enemy stun gate (also recognises freeze/root — Section 8 L515).
 function isEnemyStunned(enemy: Enemy, now: number): boolean {
   return isEntityStunned(enemy, now);
 }

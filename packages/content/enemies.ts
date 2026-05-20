@@ -25,6 +25,13 @@ export type EnemyStatMultipliers = {
   movementSpeed: number;
   experience: number;
   attackCooldownMs: number;
+  /**
+   * §46/slice-3 — multiplier on the per-pack aggro / disengage
+   * radius (default 1, baseline 60m). Tighten for cautious species
+   * (Frost Wolves cluster tightly), loosen for opportunistic packs.
+   * Multiplied against `DEFAULT_PACK_AGGRO_RADIUS_M` in createEnemy.
+   */
+  packAggroRadius: number;
 };
 
 export type EnemyTemplate = {
@@ -44,7 +51,16 @@ export const DEFAULT_ENEMY_STATS: EnemyStatMultipliers = {
   movementSpeed: 1,
   experience: 1,
   attackCooldownMs: 1,
+  packAggroRadius: 1,
 };
+
+/**
+ * §46/slice-3 — baseline pack aggro/disengage radius in metres.
+ * Multiplied by per-species `packAggroRadius` to land on the
+ * effective range. Was a server-local constant; pulled into content
+ * so future content edits (and tests) don't need a server import.
+ */
+export const DEFAULT_PACK_AGGRO_RADIUS_M = 60;
 
 const TEMPLATES: EnemyTemplate[] = [
   // Starter meadow
