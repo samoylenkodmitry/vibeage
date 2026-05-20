@@ -84,6 +84,7 @@ const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   EquipmentUpdate: true,
   EquipFailed: true,
   LearnSkillFailed: true,
+  CommandRejected: true,
 };
 const SERVER_MESSAGE_TYPE_LITERALS = Object.keys(SERVER_MESSAGE_TYPES) as ServerMessage['type'][];
 
@@ -152,6 +153,7 @@ describe('protocol type ↔ schema drift', () => {
       EquipmentUpdate: { equipment: [] },
       EquipFailed: { reason: 'nope' },
       LearnSkillFailed: { skillId: 'fireball', reason: 'noSkillPoints' },
+      CommandRejected: { commandType: 'EquipItem', reason: 'itemNotFound' },
     };
 
     const unaccepted: string[] = [];

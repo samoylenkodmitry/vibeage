@@ -37,12 +37,12 @@ export function handleEquipItem(
   const bagItems = listInventoryItems(inv);
   const item = bagItems[msg.slotIndex];
   if (!item) {
-    sendFail(direct, 'itemNotFound');
+    sendFail(direct, 'itemNotFound', 'EquipItem', msg.clientSeq);
     return;
   }
   const requestedSlot = msg.requestedSlot === undefined ? undefined : asEquipSlot(msg.requestedSlot);
   if (msg.requestedSlot !== undefined && requestedSlot === undefined) {
-    sendFail(direct, 'invalidSlot');
+    sendFail(direct, 'invalidSlot', 'EquipItem', msg.clientSeq);
     return;
   }
   const result = equipItem(inv, item.instanceId, requestedSlot, {
@@ -50,7 +50,7 @@ export function handleEquipItem(
     className: player.className,
   });
   if (result.ok === false) {
-    sendFail(direct, (result as { ok: false; error: string }).error);
+    sendFail(direct, (result as { ok: false; error: string }).error, 'EquipItem', msg.clientSeq);
     return;
   }
   syncLegacyInventory(player);
@@ -65,13 +65,13 @@ export function handleUnequipItem(
 ): void {
   const slot = asEquipSlot(msg.slot);
   if (!slot) {
-    sendFail(direct, 'invalidSlot');
+    sendFail(direct, 'invalidSlot', 'UnequipItem', msg.clientSeq);
     return;
   }
   const inv = ensureCharacterInventory(player);
   const result = unequipSlot(inv, slot, { level: player.level, className: player.className });
   if (result.ok === false) {
-    sendFail(direct, (result as { ok: false; error: string }).error);
+    sendFail(direct, (result as { ok: false; error: string }).error, 'UnequipItem', msg.clientSeq);
     return;
   }
   syncLegacyInventory(player);
@@ -118,7 +118,24 @@ export function sendEquipment(
 // max{Health,Mana} in one pass. Equip / unequip call sites above
 // invoke it through `sendEquipment`.
 
-function sendFail(direct: DirectMessageSink, reason: string): void {
-  const message: EquipFailedMsg = { type: 'EquipFailed', reason };
-  direct.send(message);
+// §46/slice-5 — send both the legacy `EquipFailed` (kept so older
+// clients still see a generic failure) AND the new structured
+// `CommandRejected` envelope so the new client surface can route
+// on `requestId`. Migration is per-command; once every command
+// emits CommandRejected and clients consume it, the legacy fails
+// can be retired.
+function sendFail(
+  direct: DirectMessageSink,
+  reason: string,
+  commandType: 'EquipItem' | 'UnequipItem',
+  clientSeq?: number,
+): void {
+  const legacy: EquipFailedMsg = { type: 'EquipFailed', reason };
+  direct.send(legacy);
+  direct.send({
+    type: 'CommandRejected',
+    commandType,
+    reason,
+    ...(clientSeq !== undefined ? { requestId: clientSeq } : {}),
+  });
 }

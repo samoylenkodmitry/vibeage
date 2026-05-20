@@ -99,15 +99,21 @@ export const chatRequestSchema = z.object({
   clientTs: z.number(),
 }).strict();
 
+// §46/slice-5 — `clientSeq` is the client's per-command ack key.
+// Optional today (most calls don't need an ack); when supplied,
+// the server echoes it back on `CommandRejected.requestId` so
+// the client can surface a per-request error without parsing logs.
 export const equipItemSchema = z.object({
   type: z.literal('EquipItem'),
   slotIndex: z.number().int().min(0),
   requestedSlot: z.string().optional(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const unequipItemSchema = z.object({
   type: z.literal('UnequipItem'),
   slot: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const selectSpecializationSchema = z.object({
@@ -300,11 +306,15 @@ export type EquipItem = {
   type: 'EquipItem';
   slotIndex: number;
   requestedSlot?: string;
+  /** §46/slice-5 — per-request ack key; echoed on CommandRejected.requestId. */
+  clientSeq?: number;
 };
 
 export type UnequipItem = {
   type: 'UnequipItem';
   slot: string;
+  /** §46/slice-5 — per-request ack key; echoed on CommandRejected.requestId. */
+  clientSeq?: number;
 };
 
 export type SelectSpecialization = {
