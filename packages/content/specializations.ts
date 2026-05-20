@@ -69,6 +69,14 @@ export interface SpecializationPassiveModifiers {
    * per target). Used by Dark Avenger `Sanguine Blade`.
    */
   lifestealPercent?: number;
+  /**
+   * §45.3 follow-up — multiplier on the durationMs of beneficial
+   * status effects the caster applies (bless, evasion, shield,
+   * speed_boost, invisible). 1.25 → +25% buff duration. Read in
+   * `upsertStatusEffect` via the active spec's modifiers. Used by
+   * Theurge `Inspiration`.
+   */
+  beneficialBuffDurationMultiplier?: number;
 }
 
 export interface SpecializationPassive {
@@ -216,8 +224,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Inspiration',
-      description: '(planned: +25% Bless / buff effect duration. No status-duration multiplier system today.)',
-      modifiers: {},
+      description: 'Bless / buff effects you cast last 25% longer.',
+      modifiers: { beneficialBuffDurationMultiplier: 1.25 },
     },
     proficiencyPassive: {
       name: 'Patron Saint',
