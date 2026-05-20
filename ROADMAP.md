@@ -2335,3 +2335,33 @@ session can pick a slice without re-auditing:
   freely" stance and don't reflect current cadence; revisit
   when a real release schedule lands.
 
+## 47. Player requests — bag UX (2026-05-20)
+
+User asked, verbatim: *"i want to be able to remove items from
+bag or drop them on ground and i want item name to be visible
+on the ground if i point cursor to it"*.
+
+### PR YY — Drop / discard items from inventory
+
+- [ ] New `DropItem` client command: `{ slot: number,
+  count: number }`. Server validates ownership (slot is in the
+  caster's `characterInventory`), removes the requested count,
+  and spawns a ground-loot entity at the player's current
+  position using the existing `groundLoot` pipeline.
+- [ ] Audit row per drop (ties to §6 inventory audits).
+- [ ] HUD: right-click on an inventory slot → "Drop" option in
+  the existing context menu (already used for "Use" / "Equip").
+- [ ] Tests: ownership rejection (other player's slot), count
+  capping at slot quantity, ground-loot entity appears with
+  correct itemId.
+
+### PR ZZ — Ground-loot hover label
+
+- [ ] Cursor hover over a ground-loot entity → render the item
+  name as a NameLabel above the entity (same component
+  QUEST_NPCS markers already use).
+- [ ] Label fades in on enter, out on leave; no plumbing on the
+  server — name is derived client-side from `ITEMS[item.id]`.
+- [ ] Stacked drops (multiple items in one pile) show the top
+  item name + a "+N more" suffix.
+
