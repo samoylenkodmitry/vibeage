@@ -123,6 +123,8 @@ export function GameHud(props: GameHudProps) {
       <QuestTrackerStrip
         player={player}
         onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
+        onAdvanceQuest={onAdvanceQuest}
+        onClaimQuestReward={onClaimQuestReward}
       />
       <WelcomeOverlay player={player} />
       <NpcInteraction

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDistance, pickTrackedStage } from '../apps/client/src/hud/QuestTrackerStrip';
+import { formatDistance, isObjectiveMet, pickTrackedStage } from '../apps/client/src/hud/QuestTrackerStrip';
 import { QUEST_NPCS } from '../packages/content/npcs';
 import type { PlayerEntity } from '../apps/client/src/gameTypes';
 
@@ -58,6 +58,22 @@ describe('QuestTrackerStrip.pickTrackedStage', () => {
     expect(tracked!.marker).toBeDefined();
     expect(typeof tracked!.marker!.x).toBe('number');
     expect(typeof tracked!.marker!.z).toBe('number');
+  });
+});
+
+describe('QuestTrackerStrip.isObjectiveMet', () => {
+  it('returns true for a kill objective when count is reached', () => {
+    expect(isObjectiveMet({ kind: 'kill', enemyType: 'goblin', count: 3 }, 3)).toBe(true);
+    expect(isObjectiveMet({ kind: 'kill', enemyType: 'goblin', count: 3 }, 2)).toBe(false);
+  });
+  it('returns true for kill_boss / reach / talk when progress >= 1', () => {
+    expect(isObjectiveMet({ kind: 'kill_boss', bossId: 'skadrun' }, 1)).toBe(true);
+    expect(isObjectiveMet({ kind: 'kill_boss', bossId: 'skadrun' }, 0)).toBe(false);
+    expect(isObjectiveMet({ kind: 'reach', position: { x: 0, y: 0, z: 0 }, radius: 4 }, 1)).toBe(true);
+    expect(isObjectiveMet({ kind: 'talk', npcId: 'warden_galen' }, 1)).toBe(true);
+  });
+  it('returns true for manual objectives unconditionally', () => {
+    expect(isObjectiveMet({ kind: 'manual', description: 'whenever' }, 0)).toBe(true);
   });
 });
 
