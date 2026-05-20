@@ -28,6 +28,10 @@ export function QuestTrackerStrip({ player, onShowMarker }: QuestTrackerStripPro
   if (!tracked) return null;
   const { quest, stageIndex, stage, progress, marker } = tracked;
   const objectiveText = describeObjective(stage.objective, progress);
+  // §49/M2 — distance to marker so the player can tell "am I close?"
+  // without opening the map. Rounded to whole metres; hidden when
+  // there's no marker (e.g. manual stages).
+  const distance = marker && player ? distanceTo(player.position, marker) : null;
   return (
     <button
       type="button"
@@ -39,8 +43,23 @@ export function QuestTrackerStrip({ player, onShowMarker }: QuestTrackerStripPro
       <small className="quest-tracker-label">Quest</small>
       <strong>{quest.name}</strong>
       <small className="quest-tracker-stage">Stage {stageIndex + 1}/{quest.stages.length}: {objectiveText}</small>
+      {distance !== null && <small className="quest-tracker-distance">{formatDistance(distance)} away</small>}
     </button>
   );
+}
+
+function distanceTo(from: { x: number; z: number }, to: { x: number; z: number }): number {
+  const dx = from.x - to.x;
+  const dz = from.z - to.z;
+  return Math.hypot(dx, dz);
+}
+
+// §49/M2 — keep the readout compact: integer metres for close,
+// 1-decimal km past 1000.
+export function formatDistance(metres: number): string {
+  if (metres < 1) return '<1 m';
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
 }
 
 export type TrackedStage = {
