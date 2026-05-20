@@ -2084,6 +2084,10 @@ contiguous list so the audit doesn't fragment.
     pct after mitigation, capped at maxHealth. Dark Avenger's
     `Sanguine Blade` (proficiency, L40) restores 5% of every
     landed hit.
+  - [x] `beneficialBuffDurationMultiplier` → scales the
+    `durationMs` of beneficial status effects (bless, evasion,
+    shield, invisible, etc.) at upsert time. Theurge
+    `Inspiration` (spec, L20) extends every buff cast by +25%.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and

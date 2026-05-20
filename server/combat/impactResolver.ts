@@ -245,6 +245,26 @@ function targetDamageTakenMult(target: PlayerState): number {
 }
 
 /**
+ * §45.3 follow-up — beneficial-buff duration multiplier from the
+ * caster's spec passives, multiplied across spec + proficiency
+ * tiers when both are active. Returns 1 when nothing applies.
+ */
+function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): number {
+  if (!caster?.specializationId) return 1;
+  const spec = getSpecializationById(caster.specializationId);
+  if (!spec) return 1;
+  let mul = spec.specializationPassive.modifiers.beneficialBuffDurationMultiplier ?? 1;
+  if (caster.level >= PROFICIENCY_LEVEL) {
+    mul *= spec.proficiencyPassive.modifiers.beneficialBuffDurationMultiplier ?? 1;
+  }
+  return mul;
+}
+
+function isBeneficialEffectType(type: string): boolean {
+  return BENEFICIAL_EFFECT_TYPES.has(type);
+}
+
+/**
  * §45.3 follow-up — sum lifesteal percentages from the caster's
  * active spec passives. Proficiency-tier passives only count once
  * the player reaches `PROFICIENCY_LEVEL`. Returns 0 when no spec
@@ -385,7 +405,7 @@ function applySkillEffects(
       applyKnockback(target, caster, effect.value);
       continue;
     }
-    upsertStatusEffect(target, effect, skill.id);
+    upsertStatusEffect(target, effect, skill.id, caster);
     // Taunt: force the enemy to focus the caster for the duration of
     // the effect. Damage-based aggro (above) is suppressed while
     // isEntityTaunted is true, so the caster keeps the lock.
@@ -467,11 +487,19 @@ function applyAggroResetAround(target: Enemy | PlayerState, world: CombatWorld):
   }
 }
 
-function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, skillId: string): void {
-  const durationMs = effect.durationMs ?? 0;
-  if (!durationMs) {
+function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, skillId: string, caster: PlayerState | null): void {
+  const baseDuration = effect.durationMs ?? 0;
+  if (!baseDuration) {
     return;
   }
+
+  // §45.3 follow-up — Theurge Inspiration / future buff-duration
+  // specs extend beneficial effect durations. Applied at upsert
+  // time so the stored startTimeTs + scaled durationMs already
+  // reflect the bonus; expiry logic stays untouched.
+  const durationMs = isBeneficialEffectType(effect.type)
+    ? Math.round(baseDuration * beneficialBuffDurationMultFor(caster))
+    : baseDuration;
 
   const statusEffect = {
     id: nanoid(),
