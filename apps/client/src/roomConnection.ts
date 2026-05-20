@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import { Client as ColyseusClient, type Room } from '@colyseus/sdk';
 import { safeParseServerMessage } from '../../../packages/protocol/messages';
 import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
+import { PROTOCOL_VERSION } from '../../../packages/protocol/protocolVersion';
 import type { GameClientAction } from './gameReducer';
 import type {
   EnemyEntity,
@@ -120,7 +121,7 @@ async function joinWorldRoom(
   const client = new ColyseusClient(getColyseusUrl());
   const room = await client.joinOrCreate('world', {
     playerName,
-    clientProtocolVersion: 2,
+    clientProtocolVersion: PROTOCOL_VERSION,
     initialRace: initial?.race,
     initialClass: initial?.className,
     sessionToken: initial?.sessionToken,
@@ -146,9 +147,21 @@ function bindRoom(
   dispatch: Dispatch<GameClientAction>,
   lifecycle?: { onLeave: (room: Room) => void },
 ) {
-  room.onMessage(SESSION_EVENTS.joinGame, (payload: { playerId?: string }) => {
+  room.onMessage(SESSION_EVENTS.joinGame, (payload: { playerId?: string; serverProtocolVersion?: number }) => {
     if (payload.playerId) {
       dispatch({ type: 'joined', playerId: payload.playerId });
+    }
+    // §46/slice-1 — log a one-line warning if the server speaks a
+    // newer protocol than this bundle. Doesn't block play (back-
+    // compat goes one direction: server tolerates older clients),
+    // just makes drift visible in the console.
+    if (
+      typeof payload.serverProtocolVersion === 'number'
+      && payload.serverProtocolVersion > PROTOCOL_VERSION
+    ) {
+      console.warn(
+        `[protocol] server is on v${payload.serverProtocolVersion}; this bundle is on v${PROTOCOL_VERSION}. Consider refreshing.`,
+      );
     }
   });
   room.onMessage(SESSION_EVENTS.gameState, (serverState: ServerGameState) => {
@@ -173,9 +186,22 @@ function bindRoom(
       dispatch({ type: 'worldPublicState', state: publicState });
     }
   });
-  room.onMessage(SESSION_EVENTS.connectionRejected, (payload: { message?: string }) => {
-    dispatch({ type: 'connectionRejected', message: payload.message ?? 'Connection rejected' });
-  });
+  room.onMessage(
+    SESSION_EVENTS.connectionRejected,
+    (payload: { message?: string; reason?: string; serverProtocolVersion?: number; minClientProtocolVersion?: number }) => {
+      // §46/slice-1 — outdated-protocol rejections now carry the
+      // version numbers the server expects, so the upgrade-error
+      // surface can render something more helpful than "Connection
+      // rejected".
+      const base = payload.message ?? 'Connection rejected';
+      const enriched = payload.reason === 'outdatedProtocol'
+          && typeof payload.serverProtocolVersion === 'number'
+          && typeof payload.minClientProtocolVersion === 'number'
+        ? `${base} (client v${PROTOCOL_VERSION}, server v${payload.serverProtocolVersion}, min v${payload.minClientProtocolVersion}). Please refresh the page.`
+        : base;
+      dispatch({ type: 'connectionRejected', message: enriched });
+    },
+  );
   room.onError((_code, message) => {
     dispatch({ type: 'connectionRejected', message: message ?? 'Connection rejected' });
   });

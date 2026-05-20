@@ -40,7 +40,13 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'GmCommand',
 ] as const satisfies ReadonlyArray<ClientMessage['type']>;
 
-export const MIN_CLIENT_PROTOCOL_VERSION = 2;
+import {
+  MIN_SUPPORTED_CLIENT_PROTOCOL_VERSION,
+  PROTOCOL_VERSION,
+} from '../../packages/protocol/protocolVersion.js';
+
+export const MIN_CLIENT_PROTOCOL_VERSION = MIN_SUPPORTED_CLIENT_PROTOCOL_VERSION;
+export const SERVER_PROTOCOL_VERSION = PROTOCOL_VERSION;
 export const SOCKET_SESSION_EVENTS = SESSION_EVENTS;
 
 export type WorldRoomJoinOptions = {

@@ -28,7 +28,10 @@ describe('client initial snapshot transport', () => {
     const client = makeClient('socket1');
     sendClientInitialSnapshot(client, state, makeClientDirectSink(client));
 
-    expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.joinGame, { playerId: 'player1' });
+    expect(client.send).toHaveBeenCalledWith(
+      SESSION_EVENTS.joinGame,
+      expect.objectContaining({ playerId: 'player1', serverProtocolVersion: expect.any(Number) }),
+    );
     expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.message, {
       type: 'InventoryUpdate',
       playerId: 'player1',

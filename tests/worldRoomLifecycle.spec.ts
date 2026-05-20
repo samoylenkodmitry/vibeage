@@ -35,7 +35,10 @@ describe('world room lifecycle boundary', () => {
       expect.not.objectContaining({ socketId: 'socket1' }),
       { except: client },
     );
-    expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.joinGame, { playerId: player.id });
+    expect(client.send).toHaveBeenCalledWith(
+      SESSION_EVENTS.joinGame,
+      expect.objectContaining({ playerId: player.id, serverProtocolVersion: expect.any(Number) }),
+    );
     expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.gameState, expect.objectContaining({
       players: expect.objectContaining({ player1: expect.objectContaining({ socketId: 'socket1' }) }),
     }));

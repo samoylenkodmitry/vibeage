@@ -151,6 +151,8 @@ describe('Colyseus room adapter join and command handling', () => {
     expect(client.send).toHaveBeenCalledWith('connectionRejected', {
       reason: 'outdatedProtocol',
       message: 'This server requires protocol v2 or higher.',
+      serverProtocolVersion: 2,
+      minClientProtocolVersion: 2,
     });
     expect(runtimeMetrics.snapshot().counters['room.joinRejected.outdatedProtocol']).toBe(1);
   });

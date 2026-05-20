@@ -10,7 +10,7 @@ import type {
   AuthoritativeRoomPort,
   WorldRoomJoinOptions,
 } from './roomBoundary.js';
-import { MIN_CLIENT_PROTOCOL_VERSION, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import { MIN_CLIENT_PROTOCOL_VERSION, SERVER_PROTOCOL_VERSION, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 import type { OutboundEvent, OutboundEventSink, PlayerUpdate } from './outboundEvents.js';
 import { WORLD_BROADCAST_EVENTS } from './outboundEvents.js';
 import {
@@ -64,6 +64,8 @@ export class ColyseusAuthoritativeRoomAdapter {
       client.send(SOCKET_SESSION_EVENTS.connectionRejected, {
         reason: 'outdatedProtocol',
         message: `This server requires protocol v${MIN_CLIENT_PROTOCOL_VERSION} or higher.`,
+        serverProtocolVersion: SERVER_PROTOCOL_VERSION,
+        minClientProtocolVersion: MIN_CLIENT_PROTOCOL_VERSION,
       });
       runtimeMetrics.increment('room.joinRejected.outdatedProtocol');
       throw new Error(`Rejected outdated protocol version ${clientVersion}`);
