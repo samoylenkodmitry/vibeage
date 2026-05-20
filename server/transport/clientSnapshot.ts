@@ -8,7 +8,7 @@ import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
 import type { ServerWorldRegion } from '../world/regions.js';
 import { makeClientGameStateSnapshot } from './clientState.js';
 import type { DirectMessageSink } from './outboundEvents.js';
-import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
+import { SERVER_PROTOCOL_VERSION, SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 
 export type SnapshotClient = {
   sessionId: string;
@@ -46,7 +46,13 @@ function sendJoinedPlayerState(
     return;
   }
 
-  client.send(SOCKET_SESSION_EVENTS.joinGame, { playerId: player.id });
+  // §46/slice-1 — stamp the server's protocol version on every
+  // successful join so the client can warn if it's running an
+  // older bundle than the server speaks.
+  client.send(SOCKET_SESSION_EVENTS.joinGame, {
+    playerId: player.id,
+    serverProtocolVersion: SERVER_PROTOCOL_VERSION,
+  });
   emitInventoryUpdate(direct, player);
   sendEquipment(direct, player);
   sendStarterProgressUpdate(direct, player);
