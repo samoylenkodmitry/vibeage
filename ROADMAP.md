@@ -2793,15 +2793,15 @@ Character creation
 
 ## First Combat Loop
 
-- [ ] Ensure every class can kill starter goblins with starter gear and starter skill.
+- [x] Ensure every class can kill starter goblins with starter gear and starter skill. (`tests/starterBalance.spec.ts` — all 7 classes kill a L1 goblin within 40 cast cycles, using their L1 starter skill or basicAttack.)
 - [ ] Ensure every class has enough mana or no-mana alternatives to complete the first quest.
 - [ ] Ensure healer/paladin support skills do not make the first kill confusing.
 - [ ] Ensure ranger target range and projectile behavior feel reliable.
 - [ ] Ensure rogue melee range is readable.
 - [ ] Ensure basic attack is always available and clearly visible.
 - [ ] Add combat log lines that explain hits, misses, heals, and deaths in simple terms.
-- [ ] Add class-specific first-kill smoke tests.
-- [ ] Add a balance test for expected time-to-kill for starter goblins.
+- [x] Add class-specific first-kill smoke tests. (Same file — one test per class via `it.each`-style loop over `CLASS_SKILL_TREES`.)
+- [~] Add a balance test for expected time-to-kill for starter goblins. (Soft check now: 40-round cap. Hard time-to-kill SLO lands with M4 balance report.)
 
 ## Grakk Boss Encounter
 
