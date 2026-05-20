@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRewardSummary } from '../apps/client/src/hud/NpcDialog';
-import { QUESTS } from '../packages/content/quests';
+import { formatRewardSummary, QUESTS } from '../packages/content/quests';
 import { ITEMS } from '../packages/content/items';
 
 // §49/M6 — quest reward preview. NPC dialog shows what the player

@@ -2786,7 +2786,7 @@ Character creation
 - [ ] Show when the current objective is complete.
 - [ ] Make “Next” and “Claim” button states obvious.
 - [x] Show reward preview before accepting a quest. (`NpcDialog.OfferedRow` now renders a yellow "Reward:" line with XP / gold / items resolved to display names. `formatRewardSummary` exported + tested.)
-- [ ] Show reward summary after claiming a quest.
+- [x] Show reward summary after claiming a quest. (`applyClaimQuestReward` emits a system `ChatBroadcast` "✓ Quest Name — 120 XP, 25g, 2× Health Potion" using the same `formatRewardSummary` helper as the pre-accept preview. Rendered in the existing chat/combat-log panel.)
 - [ ] Add clear error feedback when player is too far from an NPC.
 - [ ] Add clear error feedback when player is too low level for a quest.
 - [ ] Add regression tests for accept, progress, advance, claim, cancel, and too-far rejection.
