@@ -16,6 +16,30 @@ import type { SkillEffectType } from './skills.js';
  */
 export type EffectCategory = 'buff' | 'debuff' | 'damage' | 'heal' | 'utility';
 
+/**
+ * §46/slice-2 — explicit per-effect stacking policy. Was implicit
+ * before: `upsertStatusEffect` replaced any same-type effect, and
+ * an undeclared `effect.stackable` field nobody set added a dead
+ * stacks-up branch. Now every type opts into one of four policies:
+ *
+ *  - `replace`: new application overwrites the existing one wholesale
+ *    (default for instant effects: damage, heal, dispel).
+ *  - `refresh`: keep existing `value` / `stacks`; reset `startTimeTs`
+ *    and lift `durationMs` to the longer of (remaining, new). Right
+ *    for crowd-control / single-instance buffs you re-cast for
+ *    upkeep (stun, slow, bless, evasion, shield, invisible).
+ *  - `stack`: bump `stacks` up to `maxStacks`; reset start time so
+ *    the duration is measured from the most recent application.
+ *    Right for DoTs designed to stack (dot, burn, poison).
+ *  - `reject`: if an active effect of this type exists, the new
+ *    application is silently dropped — no opt-out today; reserved
+ *    for future "no re-applying X while X is active" rules.
+ *
+ * `maxStacks` defaults to 1 and is only honoured when `stacking`
+ * is `'stack'`.
+ */
+export type StackingPolicy = 'replace' | 'refresh' | 'stack' | 'reject';
+
 export interface EffectSpec {
   type: SkillEffectType;
   label: string;
@@ -23,6 +47,10 @@ export interface EffectSpec {
   category: EffectCategory;
   /** Human-readable unit hint for SkillEffect.value, e.g. 'hp', '%', 'm'. */
   valueUnit?: string;
+  /** §46/slice-2 — how `upsertStatusEffect` reconciles same-type re-applications. */
+  stacking?: StackingPolicy;
+  /** §46/slice-2 — cap for `stacking: 'stack'`. Ignored otherwise. */
+  maxStacks?: number;
 }
 
 export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
@@ -32,6 +60,7 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Inflicts a flat amount of damage on application.',
     category: 'damage',
     valueUnit: 'hp',
+    stacking: 'replace',
   },
   heal: {
     type: 'heal',
@@ -39,12 +68,14 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Restores health to the target.',
     category: 'heal',
     valueUnit: 'hp',
+    stacking: 'replace',
   },
   stun: {
     type: 'stun',
     label: 'Stun',
     description: 'Locks movement, casting, and attacks for the duration.',
     category: 'debuff',
+    stacking: 'refresh',
   },
   slow: {
     type: 'slow',
@@ -52,6 +83,7 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Reduces target movement speed by the listed percent.',
     category: 'debuff',
     valueUnit: '%',
+    stacking: 'refresh',
   },
   dot: {
     type: 'dot',
@@ -59,6 +91,8 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Ticks damage every second over the duration.',
     category: 'debuff',
     valueUnit: 'hp/s',
+    stacking: 'stack',
+    maxStacks: 3,
   },
   burn: {
     type: 'burn',
@@ -66,6 +100,8 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Fire damage tick — fire-weak enemies take extra.',
     category: 'debuff',
     valueUnit: 'hp/s',
+    stacking: 'stack',
+    maxStacks: 3,
   },
   poison: {
     type: 'poison',
@@ -73,6 +109,8 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Poison damage tick — bypasses armor.',
     category: 'debuff',
     valueUnit: 'hp/s',
+    stacking: 'stack',
+    maxStacks: 3,
   },
   waterWeakness: {
     type: 'waterWeakness',
@@ -80,12 +118,14 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Target takes the listed % more damage from water attacks.',
     category: 'debuff',
     valueUnit: '%',
+    stacking: 'refresh',
   },
   freeze: {
     type: 'freeze',
     label: 'Freeze',
     description: 'Target is locked solid; cannot act.',
     category: 'debuff',
+    stacking: 'refresh',
   },
   shield: {
     type: 'shield',
@@ -93,6 +133,7 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Absorbs incoming damage up to the listed amount, then breaks.',
     category: 'buff',
     valueUnit: 'hp',
+    stacking: 'refresh',
   },
   bless: {
     type: 'bless',
@@ -100,18 +141,21 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: "Increases the caster's outgoing damage by the listed percent.",
     category: 'buff',
     valueUnit: '%',
+    stacking: 'refresh',
   },
   dispel: {
     type: 'dispel',
     label: 'Dispel',
     description: 'Strips a negative status effect (applied once, no duration).',
     category: 'utility',
+    stacking: 'replace',
   },
   taunt: {
     type: 'taunt',
     label: 'Taunt',
     description: 'Forces the target enemy to attack the caster for the duration.',
     category: 'debuff',
+    stacking: 'refresh',
   },
   knockback: {
     type: 'knockback',
@@ -119,6 +163,7 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Pushes the target back the listed distance.',
     category: 'debuff',
     valueUnit: 'm',
+    stacking: 'replace',
   },
   evasion: {
     type: 'evasion',
@@ -126,26 +171,46 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     description: 'Increases dodge chance by the listed percent.',
     category: 'buff',
     valueUnit: '%',
+    stacking: 'refresh',
   },
   invisible: {
     type: 'invisible',
     label: 'Invisible',
     description: 'Breaks enemy aggro and hides the player from their searches.',
     category: 'buff',
+    stacking: 'refresh',
   },
   aggroReset: {
     type: 'aggroReset',
     label: 'Aggro Reset',
     description: "Drops every nearby attacker's threat on the caster instantly.",
     category: 'buff',
+    stacking: 'replace',
   },
   teleport: {
     type: 'teleport',
     label: 'Teleport',
     description: 'Recalls the caster to the nearest safe village they qualify for.',
     category: 'utility',
+    stacking: 'replace',
   },
 };
+
+/**
+ * §46/slice-2 — default policy when a spec doesn't declare one.
+ * Conservative: behave like the legacy "overwrite same-type" path
+ * so unknown / future effect types don't silently get richer
+ * semantics than the author chose.
+ */
+export const DEFAULT_STACKING_POLICY: StackingPolicy = 'replace';
+
+export function getStackingPolicy(type: SkillEffectType): StackingPolicy {
+  return EFFECT_SPECS[type]?.stacking ?? DEFAULT_STACKING_POLICY;
+}
+
+export function getMaxStacks(type: SkillEffectType): number {
+  return EFFECT_SPECS[type]?.maxStacks ?? 1;
+}
 
 /**
  * Returns the spec for a known effect type, or `undefined` for stray

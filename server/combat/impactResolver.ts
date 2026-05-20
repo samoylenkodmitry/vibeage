@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
+import { getMaxStacks, getStackingPolicy } from '../../packages/content/effects.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
@@ -263,12 +264,7 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
   return targets;
 }
 
-/**
- * §45.3 follow-up — evaluate spec-passive damage mitigation
- * predicates against the target's current HP (not the cached
- * stats snapshot, which only refreshes on level/equip/effect
- * changes). Returns a multiplier `≤ 1` on incoming damage.
- */
+// §45.3 follow-up — live-eval mitigation against current HP, not stale stats snapshot.
 function targetDamageTakenMult(target: PlayerState): number {
   const spec = target.specializationId ? getSpecializationById(target.specializationId) : null;
   if (!spec) return 1;
@@ -281,11 +277,7 @@ function targetDamageTakenMult(target: PlayerState): number {
   return specMul * profMul;
 }
 
-/**
- * §45.3 follow-up — beneficial-buff duration multiplier from the
- * caster's spec passives, multiplied across spec + proficiency
- * tiers when both are active. Returns 1 when nothing applies.
- */
+// §45.3 follow-up — spec + proficiency tier multiplier on beneficial-buff durations.
 function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): number {
   if (!caster?.specializationId) return 1;
   const spec = getSpecializationById(caster.specializationId);
@@ -301,11 +293,7 @@ function isBeneficialEffectType(type: string): boolean {
   return BENEFICIAL_EFFECT_TYPES.has(type);
 }
 
-/**
- * §45.3 follow-up — true while the player carries an active
- * `invuln` status effect (currently only emitted by Phoenix
- * Knight Resurrection). All incoming damage is zeroed.
- */
+// §45.3 — active invuln (Phoenix Knight Resurrection) zeroes incoming damage.
 function hasActiveInvuln(player: PlayerState): boolean {
   const now = Date.now();
   return (player.statusEffects ?? []).some((e) => {
@@ -344,11 +332,7 @@ function upsertInvulnEffect(target: PlayerState, durationMs: number): void {
   }
 }
 
-/**
- * §45.3 follow-up — poison-tick damage multiplier from the
- * caster's spec passives (spec + proficiency tiers stack
- * multiplicatively). Returns 1 when nothing applies.
- */
+// §45.3 — caster spec poison-tick multiplier (spec × proficiency tier).
 function poisonTickMultFor(caster: PlayerState | null | undefined): number {
   if (!caster?.specializationId) return 1;
   const spec = getSpecializationById(caster.specializationId);
@@ -360,12 +344,7 @@ function poisonTickMultFor(caster: PlayerState | null | undefined): number {
   return mul;
 }
 
-/**
- * §45.3 follow-up — sum lifesteal percentages from the caster's
- * active spec passives. Proficiency-tier passives only count once
- * the player reaches `PROFICIENCY_LEVEL`. Returns 0 when no spec
- * is chosen or no passive supplies lifesteal.
- */
+// §45.3 — sum lifesteal % from caster's spec passives (proficiency tier gated on PROFICIENCY_LEVEL).
 function casterLifestealPercent(caster: PlayerState | null | undefined): number {
   if (!caster?.specializationId) return 0;
   const spec = getSpecializationById(caster.specializationId);
@@ -631,21 +610,16 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     sourceSkill: skillId,
   };
 
-  const stacking = effect as SkillEffect & { stackable?: boolean; maxStacks?: number };
+  // §46/slice-2 — per-effect stacking policy from EFFECT_SPECS.
+  const policy = getStackingPolicy(effect.type);
   target.statusEffects = target.statusEffects ?? [];
-  const existingIndex = target.statusEffects.findIndex((existing) => existing.type === effect.type);
-  if (existingIndex >= 0) {
-    const existing = target.statusEffects[existingIndex];
-    if (stacking.stackable && existing) {
-      target.statusEffects[existingIndex] = {
-        ...statusEffect,
-        stacks: Math.min((existing.stacks ?? 1) + 1, stacking.maxStacks ?? 1),
-      };
-    } else {
-      target.statusEffects[existingIndex] = statusEffect;
-    }
+  const existingIndex = target.statusEffects.findIndex((e) => e.type === effect.type);
+  if (existingIndex < 0) {
+    target.statusEffects.push(policy === 'stack' ? { ...statusEffect, stacks: 1 } : statusEffect);
   } else {
-    target.statusEffects.push(stacking.stackable ? { ...statusEffect, stacks: 1 } : statusEffect);
+    const existing = target.statusEffects[existingIndex]!;
+    target.statusEffects[existingIndex] = reconcileExisting(existing, statusEffect, policy, effect.type);
+    if (target.statusEffects[existingIndex] === existing) return; // 'reject' policy — keep existing untouched
   }
   // PR NN — a stat-affecting buff (Bless, Slow, Shield, Evasion buff)
   // changes player.stats via the Contribution registry. Recompute
@@ -659,6 +633,25 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
 const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set([
   'bless', 'slow', 'shield', 'evasion',
 ]);
+
+// §46/slice-2 — applies the four stacking policies. Returns the
+// existing entry unchanged for `reject` so the caller can detect it.
+function reconcileExisting(
+  existing: NonNullable<PlayerState['statusEffects']>[number],
+  fresh: NonNullable<PlayerState['statusEffects']>[number],
+  policy: ReturnType<typeof getStackingPolicy>,
+  type: SkillEffect['type'],
+): NonNullable<PlayerState['statusEffects']>[number] {
+  if (policy === 'reject') return existing;
+  if (policy === 'stack') {
+    return { ...fresh, stacks: Math.min((existing.stacks ?? 1) + 1, getMaxStacks(type)) };
+  }
+  if (policy === 'refresh') {
+    const remaining = Math.max(0, (existing.startTimeTs ?? fresh.startTimeTs) + (existing.durationMs ?? 0) - fresh.startTimeTs);
+    return { ...existing, startTimeTs: fresh.startTimeTs, durationMs: Math.max(remaining, fresh.durationMs ?? 0), sourceSkill: fresh.sourceSkill };
+  }
+  return fresh; // 'replace'
+}
 
 function isEnemyEntity(target: Enemy | PlayerState): target is Enemy {
   return 'type' in target && 'spawnPosition' in target;
