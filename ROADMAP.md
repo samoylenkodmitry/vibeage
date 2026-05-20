@@ -2921,15 +2921,15 @@ Some skills are shared in ways that may weaken class fantasy. Reusing engine eff
 
 Add richer metadata to skill definitions.
 
-- [ ] Add `role` to skills: damage, heal, tank, control, mobility, utility, passive.
-- [ ] Add `school` or `flavor`: fire, water, ice, holy, shadow, physical, nature, arcane, poison.
-- [ ] Add `scalingStat`: str, dex, con, int, wit, men, pAtk, mAtk, or hybrid.
-- [ ] Add `targetMode`: self, enemy, ally, ground, direction, area-self, aura, passive.
-- [ ] Add `pveUse`: single-target, pack, boss, escape, opener, finisher, sustain.
+- [x] Add `role` to skills: damage, heal, tank, control, mobility, utility, passive. (`packages/content/skillTags.ts` `SkillRole`; derived via `getSkillTags()` + per-skill overrides.)
+- [x] Add `school` or `flavor`: fire, water, ice, holy, shadow, physical, nature, arcane, poison. (`SkillSchool` in skillTags.ts.)
+- [x] Add `scalingStat`: str, dex, con, int, wit, men, pAtk, mAtk, or hybrid. (`SkillScalingStat` in skillTags.ts.)
+- [x] Add `targetMode`: self, enemy, ally, ground, direction, area-self, aura, passive. (`SkillTargetMode` in skillTags.ts.)
+- [x] Add `pveUse`: single-target, pack, boss, escape, opener, finisher, sustain. (`SkillPveUse` in skillTags.ts; array per skill so a skill can be both opener + finisher.)
 - [ ] Add `resourceType` if future classes need stamina/rage/focus.
-- [ ] Add `designerNotes` for balance intent.
+- [x] Add `designerNotes` for balance intent. (Optional field on `SkillDef`.)
 - [ ] Show these tags in the wiki or skill tree where useful.
-- [ ] Validate these tags in `content:graph`.
+- [ ] Validate these tags in `content:graph`. (Deferred: tags are derived not authored, so they always resolve. Validation becomes meaningful once authors override them; then a `tag-mismatch` rule can fail CI.)
 
 ## Skill Learning Improvements
 

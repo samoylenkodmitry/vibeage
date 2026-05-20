@@ -97,6 +97,24 @@ export type SkillKind = 'physical' | 'magical' | 'utility';
 // vulnerability amplifiers in calculateDamage. Unset → neutral.
 export type SkillDamageElement = 'fire' | 'water' | 'ice' | 'arcane' | 'holy' | 'shadow' | 'poison';
 
+// §49/M3 PR014 — skill tags. Type aliases live in `./skillTags.ts`
+// to keep this file under the maintainability cap; imported then
+// re-exported so existing consumers can keep importing from here.
+import type {
+  SkillRole,
+  SkillSchool,
+  SkillScalingStat,
+  SkillTargetMode,
+  SkillPveUse,
+} from './skillTags.js';
+export type {
+  SkillRole,
+  SkillSchool,
+  SkillScalingStat,
+  SkillTargetMode,
+  SkillPveUse,
+};
+
 export interface SkillDef {
   id: SkillId;
   name: string;
@@ -106,6 +124,13 @@ export interface SkillDef {
   /** Default 'magical' for backwards compat when unset. */
   kind?: SkillKind;
   damageElement?: SkillDamageElement;
+  // §49/M3 PR014 — descriptive tags; resolved via getSkillTags().
+  role?: SkillRole;
+  school?: SkillSchool;
+  scalingStat?: SkillScalingStat;
+  targetMode?: SkillTargetMode;
+  pveUse?: SkillPveUse[];
+  designerNotes?: string;
   manaCost: number;     // Mana cost for casting
   castMs: number;       // Time to cast in milliseconds
   cooldownMs: number;   // Cooldown time in milliseconds
@@ -116,13 +141,7 @@ export interface SkillDef {
   levelRequired: number;
   effects: SkillEffect[];
   requiresTarget?: boolean; // Whether the skill requires a target to be cast
-  /**
-   * PR KK — when true, the skill always resolves on the caster
-   * regardless of the player's current target selection. Use for
-   * self-buffs, escapes, and cleanses (vanish, blink, dispel-self).
-   * Cast pipeline reads this to bypass target resolution; the wiki
-   * Skills tab surfaces a "Self" badge so players know upfront.
-   */
+  /** PR KK — resolves on the caster regardless of selection (vanish, blink, dispel-self). */
   selfTarget?: boolean;
   projectile?: {
     speed: number;      // Speed of projectile in units per second
@@ -139,30 +158,11 @@ export interface SkillDef {
    * Today only Basic Attack opts in so it behaves like an auto-swing.
    */
   autoRepeat?: boolean;
-  /**
-   * Optional list of per-level upgrades. Players spend a skill point
-   * to advance a skill they already own to the next tier. Each entry
-   * states what the upgrade does + the numeric modifiers the engine
-   * applies. Engine-driven (no per-skill conditionals): the runtime
-   * looks up the player's level for the skill and multiplies / adds
-   * the modifier values during cast resolution.
-   */
+  /** Per-level upgrades; modifier values applied during cast resolution. */
   upgrades?: SkillUpgrade[];
-  /**
-   * While the cast bar is running, block other player actions
-   * (movement, other casts). Defaults to true — set false for
-   * instant skills or skills that mechanically allow movement.
-   * Server enforcement: castMachine rejects MoveIntent / CastReq
-   * while a blocking cast is active for that caster.
-   */
+  /** Block movement / other casts while the bar runs. Default true. */
   isBlocking?: boolean;
-  /**
-   * A conflicting action during this cast cancels it. When true:
-   * mana cost is refunded, cooldown is NOT applied, the cast just
-   * disappears. When false: nothing the player does cancels it
-   * (Escape and similar locked recall channels would set false).
-   * Defaults to true.
-   */
+  /** False = locked channel (Escape recall); conflicting actions can't cancel. Default true. */
   isInterruptable?: boolean;
 }
 
