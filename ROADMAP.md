@@ -373,25 +373,25 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add server checks that a socket can only control the character bound to its authenticated session. (Per-message `socketId` checks in command handlers + session token → accountId binding at join.)
 - [x] Add tests for attempting to join as another player name or character ID. (See `tests/playerPrivacyAllowList.spec.ts`, `tests/invalidOwnership.spec.ts`.)
 - [ ] Add tests for reconnecting with a valid token and restoring the correct character.
-- [ ] Add tests for expired, malformed, and revoked tokens.
+- [x] Add tests for expired, malformed, and revoked tokens. (`tests/sessionTokens.spec.ts`, `tests/sessionTokenRevocation.spec.ts`, `tests/authValidation.spec.ts` — TTL expiry, malformed JWT segments, post-logout `tokens_valid_after` cutoff.)
 - [x] Add audit events for login, logout, character creation, deletion, character selection, account deletion, and suspicious ownership attempts. (`server/auth/authAudit.ts` writes `server_events` rows + grep-friendly `[audit] …` console lines. Reconnect audit is still open — Colyseus rejoin doesn't surface as a distinct event from the room boundary today.)
 
 ## 4. Protocol and Network Contract
 
 - [x] Convert every client message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
 - [x] Convert every server message schema from `.passthrough()` to `.strict()` (shipped PR #233, every `.strict()` declaration in `packages/protocol/serverMessages.ts`).
-- [ ] Add protocol version constants in one shared file consumed by client and server.
+- [x] Add protocol version constants in one shared file consumed by client and server. (PR #256 — `packages/protocol/protocolVersion.ts` exports `PROTOCOL_VERSION` + `MIN_SUPPORTED_CLIENT_PROTOCOL_VERSION`; both client and server import from there.)
 - [ ] Add a migration path for protocol versions rather than a single hardcoded minimum only.
-- [ ] Add a `serverProtocolVersion` message or join response so clients can display useful upgrade errors.
+- [x] Add a `serverProtocolVersion` message or join response so clients can display useful upgrade errors. (PR #256 — `serverProtocolVersion` stamped on the `joinGame` event in `server/transport/clientSnapshot.ts:50-55` and on the `connectionRejected` payload in `server/transport/colyseusRoomAdapter.ts:64-69`.)
 - [ ] Generate TypeScript message types from Zod schemas or generate Zod schemas from TypeScript types.
 - [x] Add a test that schema-inferred types match exported message types for every protocol message.
 - [x] Add an exhaustive discriminated-union test for client messages.
 - [x] Add an exhaustive discriminated-union test for server messages.
-- [ ] Add explicit `clientSeq` fields to commands that need acknowledgement or rejection.
+- [~] Add explicit `clientSeq` fields to commands that need acknowledgement or rejection. (PR #261 — `clientSeq?: number` added to `EquipItem` + `UnequipItem` schemas. Remaining commands — inventory, vendor, skill, chat, drop — follow the same shape but haven't been wired yet.)
 - [ ] Stop overloading `clientTs` as an acknowledgement key.
-- [ ] Add request IDs for inventory, equipment, class, race, skill, chat, and admin commands where user feedback matters.
-- [ ] Add structured rejection messages for all client commands, not only cast, learn-skill, and equip.
-- [ ] Add a standard error envelope with `requestId`, `commandType`, `reason`, and optional safe detail.
+- [ ] Add request IDs for inventory, equipment, class, race, skill, chat, and admin commands where user feedback matters. (Partial: equipment done in PR #261; rest pending.)
+- [ ] Add structured rejection messages for all client commands, not only cast, learn-skill, and equip. (Partial: PR #261 added the `CommandRejected` envelope, wired on equip/unequip only.)
+- [x] Add a standard error envelope with `requestId`, `commandType`, `reason`, and optional safe detail. (PR #261 — `commandRejectedSchema` in `packages/protocol/serverMessages.ts:200-218`; type at `:438-444`.)
 - [x] Add protocol tests for unknown fields, wrong types, invalid enums, oversized text, invalid coordinates, and stale versions.
 - [ ] Add message-size budget tests for initial snapshot, batch updates, inventory update, equipment update, and chat messages.
 - [ ] Add snapshot compression and payload-size tracking as explicit metrics.
@@ -401,8 +401,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 5. Player State Privacy and DTO Boundary
 
-- [ ] Define `OwnerPlayerSnapshot` with only fields the owning client needs.
-- [ ] Define `PublicPlayerSnapshot` with only fields other players may see.
+- [ ] Define `OwnerPlayerSnapshot` with only fields the owning client needs. (Today the owner snapshot is the full `PlayerState`; explicit owner DTO not modelled.)
+- [x] Define `PublicPlayerSnapshot` with only fields other players may see. (PR #260 — `server/transport/clientState.ts` `PUBLIC_PLAYER_FIELDS` allowlist + `PublicPlayerSnapshot` type; `sanitizePlayerForPublic` projects to it.)
 - [ ] Define `PlayerPresenceSnapshot` for world/public room state.
 - [ ] Define `OwnerInventorySnapshot` separately from player state.
 - [ ] Define `OwnerEquipmentSnapshot` separately from player state.
@@ -413,7 +413,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Replace `sanitizePlayerForPublic` with constructors that build public DTOs from scratch.
 - [ ] Replace `sanitizePlayerUpdateForPublic` with explicit patch mappers.
 - [ ] Add exact-key tests for every DTO constructor.
-- [ ] Add tests that new fields added to `PlayerState` fail privacy audits until classified.
+- [x] Add tests that new fields added to `PlayerState` fail privacy audits until classified. (PR #260 — `tests/playerPrivacyAllowList.spec.ts` derives the expected key set from the runtime `PUBLIC_PLAYER_FIELDS` allowlist; a new PlayerState field defaults to private and the test catches it.)
 - [ ] Add tests that owner-only fields never appear in public room state.
 - [x] Add tests that owner-only fields never appear in public server messages.
 - [ ] Add tests that region-scoped messages do not leak hidden entity IDs through nested arrays.
@@ -514,12 +514,12 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add stun behavior that blocks movement, casting, and attacking while active.
 - [x] Add freeze/root behavior if distinct from stun.
 - [x] Add taunt behavior that changes enemy target priority for the duration.
-- [ ] Add knockback behavior with server-owned position changes and collision/bounds validation.
+- [x] Add knockback behavior with server-owned position changes and collision/bounds validation. (PR §45 — `applyKnockback` in `server/combat/impactResolver.ts:492-540`; pushes target along caster→target vector, sets `dirtySnap`. Tests at `tests/knockback.spec.ts`. Bounds validation is the world-edge clamp inherited from `advanceEnemyPosition` / movement pipeline.)
 - [x] Add invisibility behavior that breaks or suppresses aggro according to product rules.
 - [ ] Add dispel behavior with configurable categories: negative, positive, magic, poison, bleed, stun, shield.
-- [ ] Add buff stacking policy: replace, stack, refresh, or reject.
-- [ ] Add debuff stacking policy: replace, stack, refresh, or reject.
-- [ ] Add maximum stack validation per effect type.
+- [x] Add buff stacking policy: replace, stack, refresh, or reject. (PR #257 — `packages/content/effects.ts` declares `stacking` per `EFFECT_SPECS` entry; `impactResolver.upsertStatusEffect` reads `getStackingPolicy(type)`.)
+- [x] Add debuff stacking policy: replace, stack, refresh, or reject. (PR #257 — same registry; DoTs `dot`/`burn`/`poison` use `stack`, CC like `stun`/`slow`/`taunt` use `refresh`.)
+- [x] Add maximum stack validation per effect type. (PR #257 — `getMaxStacks(type)` reads `EFFECT_SPECS[type].maxStacks` (defaults to 1); `reconcileExisting` caps `stacks` at the declared max.)
 - [ ] Add effect source tracking for ownership, threat, and combat logs.
 - [ ] Add status-effect snapshots that avoid leaking hidden entity IDs.
 - [ ] Add combat logs that distinguish raw damage, absorbed damage, resisted damage, crits, misses, heals, and kills.
@@ -602,8 +602,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add invisibility handling for enemies.
 - [x] Add return-to-spawn leash rules with max chase distance.
 - [x] Add anti-kite rules if enemies should not chase forever.
-- [ ] Add pack aggro rules with configurable radius per species or encounter.
-- [ ] Add pack disengage rules.
+- [x] Add pack aggro rules with configurable radius per species or encounter. (PR #258 — `EnemyStatMultipliers.packAggroRadius` × `DEFAULT_PACK_AGGRO_RADIUS_M`; `propagatePackAggro` reads from `source.packAggroRadius` in `server/ai/enemyAI.ts:115-130`.)
+- [x] Add pack disengage rules. (PR #258 — new `packDisengage` event in `enemyStateMachine.ts` emitted at every chasing/attacking→returning transition; `propagatePackDisengage` in `enemyAI.ts:135-165` pulls packmates back to `returning`.)
 - [ ] Add mini-boss leash rules.
 - [ ] Add mini-boss respawn rules.
 - [ ] Add named encounter state tracking.
@@ -1125,14 +1125,14 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 29. Suggested First 10 PRs
 
-- [ ] PR 1: Privacy hardening for `characterInventory`, exact-key DTO tests, and public snapshot regression tests.
-- [ ] PR 2: Protocol strictness audit, `LearnSkillFailed` schema fix, and exhaustive command type test.
+- [x] PR 1: Privacy hardening for `characterInventory`, exact-key DTO tests, and public snapshot regression tests. (Shipped PR #260 — `PUBLIC_PLAYER_FIELDS` allowlist + `tests/playerPrivacyAllowList.spec.ts` derives from runtime allowlist.)
+- [x] PR 2: Protocol strictness audit, `LearnSkillFailed` schema fix, and exhaustive command type test. (Shipped — every `.strict()` declaration in `packages/protocol/{clientMessages,serverMessages}.ts`; `tests/protocolTypeDrift.spec.ts` pins literals + `learnSkillFailedReasonSchema` enum.)
 - [ ] PR 3: Instance-aware inventory/equipment persistence design, migration, hydration, and reconnect tests.
 - [x] PR 4: Auth/session design slice with signed guest sessions and ownership validation on join (shipped — password auth live, JWT verification + ownership checks in `server/transport/index.ts` `handleJoin`; see §45 audit-events item).
-- [ ] PR 5: Self-cast and beneficial-skill targeting fix with tests for heal, shield, bless, evasion, and invisibility.
-- [ ] PR 6: Status effect engine foundation with expiration, shield absorption, slow, stun, and DoT tests.
+- [x] PR 5: Self-cast and beneficial-skill targeting fix with tests for heal, shield, bless, evasion, and invisibility. (Shipped — `tests/selfSkillEffects.spec.ts`, `skillSelfCast.spec.ts`, `vanishSelfTarget.spec.ts`, `healOutputMultiplier.spec.ts`, `shieldAbsorption.spec.ts`, `beneficialBuffDuration.spec.ts`, `evasionBonusSpecPassive.spec.ts`; `resolveCastTargets` short-circuits beneficial-only casts to the caster.)
+- [x] PR 6: Status effect engine foundation with expiration, shield absorption, slow, stun, and DoT tests. (Shipped — `pruneExpiredStatusEffects`, `dotTicker`, `absorbWithShield`, `upsertStatusEffect`; tests at `shieldAbsorption.spec.ts`, `buffPruneEmit.spec.ts`, `buffStackingPolicy.spec.ts`, `dotEffects.spec.ts`.)
 - [ ] PR 7: Unified enemy/player damage pipeline with defense, crit, evasion, shield, and combat log details.
-- [ ] PR 8: Rate limits for chat, movement, casts, and inventory/equipment commands with metrics and tests.
+- [x] PR 8: Rate limits for chat, movement, casts, and inventory/equipment commands with metrics and tests. (Shipped — `server/world/rateLimiter.ts` `RATE_LIMITS` buckets cover `movement/cast/chat/inventory/equipment/lifecycle/identity`; counters via `runtimeMetrics.increment('rateLimit.dropped.*')` in `clientMessageRouter.ts:58-62`.)
 - [ ] PR 9: CI parity with local `pnpm run check`, including package typecheck and content validation.
 - [ ] PR 10: Load-test harness for simulated clients joining, moving, fighting, chatting, looting, equipping, and reconnecting.
 
@@ -2360,8 +2360,112 @@ on the ground if i point cursor to it"*.
 - [ ] Cursor hover over a ground-loot entity → render the item
   name as a NameLabel above the entity (same component
   QUEST_NPCS markers already use).
-- [ ] Label fades in on enter, out on leave; no plumbing on the
+- [x] Label fades in on enter, out on leave; no plumbing on the
   server — name is derived client-side from `ITEMS[item.id]`.
-- [ ] Stacked drops (multiple items in one pile) show the top
-  item name + a "+N more" suffix.
+  (PR #259 — `SceneVfx.LootMarker` toggles `hovered` state from
+  `onPointerOver` / `onPointerOut`, renders `NameLabel` from
+  `ITEMS[itemId].name`.)
+- [x] Stacked drops (multiple items in one pile) show the top
+  item name + a "+N more" suffix. (PR #259 — `labelText`
+  appends "+N more" when `loot.items.length > 1`.)
+
+## 48. Status snapshot + reprioritization (2026-05-20)
+
+A full audit on `main` against ROADMAP found ~25 unchecked items
+that were already shipped (ticked above with file:line citations)
+and several aspirational sections that no longer match the
+pre-alpha cadence. This section captures the resulting picture
+so the next session can pick a slice without re-auditing.
+
+### What shipped today (2026-05-20)
+
+- **PR #255** §47 docs — drop + ground hover label feature spec.
+- **PR #256** §4 — shared protocol version + `serverProtocolVersion`
+  on join responses.
+- **PR #257** §8 — explicit per-effect stacking policy
+  (replace/refresh/stack/reject) in `EFFECT_SPECS`; DoTs actually
+  stack to 3 now.
+- **PR #258** §11 — configurable `packAggroRadius` per species +
+  new `packDisengage` event so packs engage and break as a unit.
+- **PR #259** §47 — `DropItem` command + ground-loot hover label.
+- **PR #260** §5 — `PUBLIC_PLAYER_FIELDS` allowlist DTO; strips
+  ~10 owner-only fields from the public wire and makes new fields
+  private by default.
+- **PR #261** §4 — `clientSeq` + `CommandRejected` envelope; wired
+  on `EquipItem` / `UnequipItem`.
+
+### What's actually open (prioritized)
+
+The "real backlog" after the audit. Ordered by impact × cost.
+
+1. **§4 — finish the clientSeq + CommandRejected rollout.** PR #261
+   wired equip only. Remaining: inventory (UseItem, CraftItem,
+   DropItem, BuyFromVendor, SellToVendor), skill (LearnSkill,
+   UpgradeSkill, CastReq), chat. Once every command emits the
+   envelope, retire the legacy `EquipFailed`/`LearnSkillFailed`.
+2. **§10:577 — enemy movement double-step.** Documented as KNOWN
+   ISSUE in `server/ai/enemyBehavior.ts:71-79`. Requires removing
+   one integration AND rebalancing every enemy template's
+   `movementSpeed`. Own PR.
+3. **§5 — finish the DTO trio.** PR #260 added
+   `PublicPlayerSnapshot`. Still missing: `OwnerPlayerSnapshot`
+   (today the owner sees full PlayerState; needs an explicit
+   shape) and `PlayerPresenceSnapshot` for world public state.
+4. **§11:607-609 — mini-boss leash + respawn + named encounter
+   tracking.** Today bosses reuse the regular leash; product
+   wants tighter constraints.
+5. **§14 histograms — snapshot size, batch update size, DB write
+   latency, join latency, reconnect latency.** Required before
+   any serious load test.
+6. **§13 backup/restore drill in CI.** Existing
+   `scripts/check-restored-postgres-compatibility.sql` covers
+   schema parity; wiring it into a scheduled CI job is the next
+   slice.
+7. **§9 — respec / class-change policy.** Today picking a spec is
+   permanent; product hasn't decided respec cost / cooldown yet.
+8. **§8:519 — dispel with categories.** Dispel exists but strips
+   the same fixed set; category-aware dispel (negative / positive
+   / magic / poison / bleed / stun / shield) is open.
+9. **§6 — protocol shape for `inventoryUpdateMsg`.** Today it
+   ships the flat-slot projection; carried as the last step of
+   the §45 inventory migration. Aggregate-shaped wire DTO is open.
+10. **§12 — load-test harness** (§29 PR 10). Required before
+    scaling decisions. Heading off this work until the histograms
+    above land so we can measure improvements.
+
+### Deferred — do not start without explicit user direction
+
+These sections are kept in the file as a reference but should NOT
+be picked off opportunistically. They either rely on systems that
+don't exist (3D art, multi-region sharding) or describe features
+explicitly held over until post-release.
+
+- §2 "Things That Should Be Redone First" — most foundational
+  decisions have been answered by §45-§47 PRs. Re-visit only on
+  user prompt.
+- §6 — granular inventory fields (durability, sockets, enchant
+  level, custom names) are content features, not missing parts of
+  current inventory. Add when the relevant gameplay slice asks.
+- §7 — equipment visuals; **frozen until real 3D model pipeline**
+  (already noted at §37 "Held over").
+- §15 — security/moderation (profanity filter, bans, secret scan,
+  Docker hardening) — pre-alpha doesn't need moderation yet.
+- §17 — mobile UX (safe-area, touch-target, conflict tests, a11y)
+  — post-release polish sprint.
+- §18 — UI polish (panel framework, tooltip, keybind config,
+  minimap, chat filtering) — post-release polish sprint.
+- §19 — content authoring tools / docs — post-release.
+- §22 — guilds, parties, friend lists, mail — not on the near-term
+  roadmap.
+- §24 — audio / VFX / animation — out of scope for the visual
+  prototype direction.
+- §28 — milestone gates predate the pre-alpha "drop freely"
+  stance; revisit when a real release cadence lands.
+
+### Open count after this pass
+
+- ROADMAP.md still has many `[ ]` items, but ~80% live in the
+  "deferred" sections above. The "real" open backlog is the
+  10-item list under "What's actually open" — that's what the
+  next session should pick from.
 
