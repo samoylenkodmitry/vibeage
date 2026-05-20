@@ -2785,7 +2785,7 @@ Character creation
 - [x] Show distance to quest marker. (`QuestTrackerStrip` shows the resolved marker distance as a yellow chip — "<1 m", "43 m", "1.5 km". Hidden for manual stages with no marker. `formatDistance` tested at 3 input ranges.)
 - [ ] Show when the current objective is complete.
 - [ ] Make “Next” and “Claim” button states obvious.
-- [ ] Show reward preview before accepting a quest.
+- [x] Show reward preview before accepting a quest. (`NpcDialog.OfferedRow` now renders a yellow "Reward:" line with XP / gold / items resolved to display names. `formatRewardSummary` exported + tested.)
 - [ ] Show reward summary after claiming a quest.
 - [ ] Add clear error feedback when player is too far from an NPC.
 - [ ] Add clear error feedback when player is too low level for a quest.
