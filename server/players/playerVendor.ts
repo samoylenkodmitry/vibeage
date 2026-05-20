@@ -7,7 +7,8 @@ import {
 } from '../../packages/content/vendors.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
-import { addItemsToPlayer, removeItemsFromPlayer } from '../inventory/aggregateBridge.js';
+import { addItemsToPlayer, ensureCharacterInventory, removeItemsFromPlayer } from '../inventory/aggregateBridge.js';
+import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
@@ -65,7 +66,7 @@ export function applyBuyFromVendor(
   emitPlayerUpdated(outbound, {
     id: player.id,
     gold: player.gold,
-    inventory: player.inventory,
+    inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
   });
   return true;
 }
@@ -97,7 +98,7 @@ export function applySellToVendor(
   emitPlayerUpdated(outbound, {
     id: player.id,
     gold: player.gold,
-    inventory: player.inventory,
+    inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
   });
   return true;
 }

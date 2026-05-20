@@ -1,5 +1,7 @@
 import type { ClientMessage, LootPickup } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
+import { ensureCharacterInventory } from '../inventory/aggregateBridge.js';
 import { handleCastReq } from '../combat/castHandler.js';
 import { createCombatWorld } from '../combat/combatWorld.js';
 import { handleTargetDeath } from '../combat/targetDeath.js';
@@ -399,7 +401,7 @@ export function emitInventoryUpdate(client: DirectMessageSink, player: PlayerSta
   client.send({
     type: 'InventoryUpdate',
     playerId: player.id,
-    inventory: player.inventory,
+    inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
     maxInventorySlots: player.maxInventorySlots,
   });
 }

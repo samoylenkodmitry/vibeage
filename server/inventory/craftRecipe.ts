@@ -1,6 +1,8 @@
 import { ITEMS } from '../../packages/content/items.js';
 import type { CraftItem } from '../../packages/protocol/messages.js';
+import { instanceAtSlot, listInventoryItems } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
+import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
 import type { GameState } from '../gameState.js';
 import { error, LOG_CATEGORIES, debug, warn } from '../logger.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
@@ -9,7 +11,7 @@ import {
   type DirectMessageSink,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
-import { addItemsToPlayer, removeItemsFromPlayer } from './aggregateBridge.js';
+import { addItemsToPlayer, ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 
 export type CraftResult =
   | { ok: true; recipeId: string; outputId: string }
@@ -27,17 +29,17 @@ export type CraftResult =
  */
 export function applyCraftRecipe(player: PlayerState, recipeSlotIndex: number): CraftResult {
   if (!player.isAlive) return { ok: false, reason: 'playerDead' };
-  const slot = player.inventory[recipeSlotIndex];
-  if (!slot || slot.quantity <= 0) return { ok: false, reason: 'invalidSlot' };
-  const recipeItem = ITEMS[slot.itemId];
+  const recipeInstance = instanceAtSlot(ensureCharacterInventory(player), recipeSlotIndex);
+  if (!recipeInstance || recipeInstance.count <= 0) return { ok: false, reason: 'invalidSlot' };
+  const recipeItem = ITEMS[recipeInstance.templateId];
   if (!recipeItem?.recipe) return { ok: false, reason: 'notRecipe' };
   const spec = recipeItem.recipe;
 
   // Sum quantities across all stacks for each input id.
   const haveByItem: Record<string, number> = {};
-  for (const s of player.inventory) {
-    if (!s || s.quantity <= 0) continue;
-    haveByItem[s.itemId] = (haveByItem[s.itemId] ?? 0) + s.quantity;
+  for (const instance of listInventoryItems(ensureCharacterInventory(player))) {
+    if (instance.count <= 0) continue;
+    haveByItem[instance.templateId] = (haveByItem[instance.templateId] ?? 0) + instance.count;
   }
   for (const input of spec.inputs) {
     if ((haveByItem[input.itemId] ?? 0) < input.quantity) {
@@ -81,8 +83,7 @@ export function applyCraftRecipe(player: PlayerState, recipeSlotIndex: number): 
 }
 
 function countFreeSlots(player: PlayerState): number {
-  let used = 0;
-  for (const s of player.inventory) if (s && s.quantity > 0) used += 1;
+  const used = listInventoryItems(ensureCharacterInventory(player)).filter((i) => i.count > 0).length;
   return Math.max(0, player.maxInventorySlots - used);
 }
 
@@ -111,7 +112,7 @@ export function onCraftItem(
   direct.send({
     type: 'InventoryUpdate',
     playerId: player.id,
-    inventory: player.inventory,
+    inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
     maxInventorySlots: player.maxInventorySlots,
   });
 }

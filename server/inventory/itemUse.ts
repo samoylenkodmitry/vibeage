@@ -8,6 +8,8 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { applyInventoryItemUse, type ItemUsePlayerUpdate } from './itemRuntime.js';
+import { instanceAtSlot } from '../../packages/sim/characterInventory.js';
+import { ensureCharacterInventory } from './aggregateBridge.js';
 
 type ItemUseClient = { id: string };
 
@@ -41,10 +43,10 @@ export function useItemForPlayer(state: GameState, playerId: string, slotIndex: 
     return { ok: false, reason: 'playerDead' };
   }
 
-  const slot = player.inventory[slotIndex];
+  const instance = instanceAtSlot(ensureCharacterInventory(player), slotIndex);
   const result = applyInventoryItemUse(player, slotIndex);
   if (result.ok === false) {
-    logItemUseRejection(result.reason, playerId, slotIndex, slot?.itemId);
+    logItemUseRejection(result.reason, playerId, slotIndex, instance?.templateId);
     return result;
   }
 

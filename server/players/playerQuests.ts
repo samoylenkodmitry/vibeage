@@ -3,7 +3,8 @@ import { QUEST_NPCS, INTERACTION_RANGE } from '../../packages/content/npcs.js';
 import type { PlayerActiveQuestProgress, PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
-import { addItemsToPlayer } from '../inventory/aggregateBridge.js';
+import { addItemsToPlayer, ensureCharacterInventory } from '../inventory/aggregateBridge.js';
+import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
 
 function ensureQuestState(player: PlayerState): PlayerQuestState {
   if (!player.questState) {
@@ -127,7 +128,7 @@ export function applyClaimQuestReward(
     id: player.id,
     experience: player.experience,
     gold: player.gold,
-    inventory: player.inventory,
+    inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
     questState: state,
   });
   return true;

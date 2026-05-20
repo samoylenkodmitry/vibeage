@@ -3,6 +3,8 @@ import { SESSION_EVENTS } from '../packages/protocol/sessionEvents';
 import { createGameState } from '../server/gameState';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { createTransientPlayer } from '../server/playerFactory';
+import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
+import { createEmptyInventory } from '../packages/sim/characterInventory';
 import {
   makeClientDirectSink,
   sendClientInitialSnapshot,
@@ -16,7 +18,11 @@ describe('client initial snapshot transport', () => {
     const state = createGameState();
     const player = createTransientPlayer('socket1', 'Tester');
     player.id = 'player1';
-    player.inventory = [{ itemId: 'health_potion', quantity: 2 }];
+    // §45.7 — reset both inventory fields then route through the
+    // bridge so the aggregate stays the source of truth.
+    player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
+    player.inventory = [];
+    addItemsToPlayer(player, 'health_potion', 2);
     state.players[player.id] = player;
 
     const client = makeClient('socket1');

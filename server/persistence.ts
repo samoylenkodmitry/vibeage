@@ -44,7 +44,6 @@ export const STABLE_PLAYER_STATE_FIELDS = [
   'gold',
   'className',
   'race',
-  'inventory',
   'characterInventory',
   'unlockedSkills',
   'skillShortcuts',
@@ -79,6 +78,11 @@ export const TRANSIENT_PLAYER_STATE_FIELDS = [
   'posHistory',
   'stats',
   'maxInventorySlots',
+  // §45.7 — `inventory` is the deprecated wire-projection mirror of
+  // `characterInventory`. Never persisted, lives only in memory so
+  // legacy readers (tests, the InventoryUpdate emitter) keep working
+  // until a snapshot boundary owns the projection.
+  'inventory',
 ] as const satisfies ReadonlyArray<keyof PlayerState>;
 
 export const PLAYER_STATE_PERSISTENCE_POLICY = {
@@ -111,13 +115,9 @@ export function buildStablePlayerPersistenceData(
     learnedSkills: unlockedSkills.length,
   });
 
-  // §45.7 — `character_inventory` is the authoritative aggregate on
-  // disk. If we somehow reach here with only the legacy `inventory`
-  // populated (transient players that never went through the bridge,
-  // or fixtures), promote them to the aggregate before persisting so
-  // the next hydrate has a real source to rebuild from. After this
-  // call both `player.inventory` and `player.characterInventory` are
-  // populated and in lockstep.
+  // §45.7 — `characterInventory` is the only inventory store on
+  // disk. Production paths always seed it; fall back to an empty
+  // aggregate for the rare test fixture that didn't.
   const aggregate = ensureCharacterInventory(player);
 
   return {

@@ -191,6 +191,30 @@ export function listInventoryItems(inventory: CharacterInventory): ItemInstance[
     });
 }
 
+/**
+ * §45.7 — find the bag item that lives at a specific UI slot index.
+ * Used by legacy slot-index APIs (item use, craft recipe scan) while
+ * we migrate them off the flat `InventorySlot[]` shape.
+ */
+export function instanceAtSlot(inventory: CharacterInventory, slotIndex: number): ItemInstance | undefined {
+  return listInventoryItems(inventory)[slotIndex];
+}
+
+/** True when the player's bag has no items (equipped gear doesn't count). */
+export function isBagEmpty(inventory: CharacterInventory): boolean {
+  return !Object.values(inventory.items).some((instance) => instance.location.kind === 'inventory');
+}
+
+/**
+ * §45.7 — convenience factory for PlayerState construction sites
+ * that need a default-limits empty bag (test fixtures, transient
+ * spawns). Production paths should set their own limits via
+ * `createEmptyInventory` + the player's `maxInventorySlots`.
+ */
+export function defaultEmptyInventory(characterId: CharacterId): CharacterInventory {
+  return createEmptyInventory(characterId, { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 });
+}
+
 export function maxInventorySlotCount(limits: InventoryLimits): number {
   return limits.baseSlots + limits.bonusSlots;
 }

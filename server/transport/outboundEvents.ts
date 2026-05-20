@@ -1,4 +1,4 @@
-import type { ServerMessage } from '../../packages/protocol/messages.js';
+import type { InventorySlot, ServerMessage } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 
@@ -8,7 +8,12 @@ export const WORLD_BROADCAST_EVENTS = {
   enemyUpdated: SOCKET_SESSION_EVENTS.enemyUpdated,
 } as const;
 
-export type PlayerUpdate = Partial<PlayerState> & Pick<PlayerState, 'id'>;
+// §45.7 — `inventory` is not stored on PlayerState anymore; it's a
+// wire-only projection of `player.characterInventory`. Callers that
+// want clients to see a bag update attach the projection here.
+export type PlayerUpdate = Partial<PlayerState> & Pick<PlayerState, 'id'> & {
+  inventory?: InventorySlot[];
+};
 export type EnemyUpdate = Partial<Enemy> & Pick<Enemy, 'id'>;
 
 export type OutboundEvent =
