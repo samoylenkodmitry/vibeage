@@ -45,6 +45,8 @@ export type HudPanelsProps = {
   onUseItem: (slotIndex: number) => void;
   /** §46/slice-new — drop a bag slot to ground loot. */
   onDropItem: (slotIndex: number, count?: number) => void;
+  /** Bag context menu — destroy a stack (no ground loot). */
+  onDestroyItem: (slotIndex: number, count?: number) => void;
   onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
@@ -66,30 +68,12 @@ export type HudPanelsProps = {
 };
 
 export function HudPanels({
-  panels,
-  state,
-  player,
-  now,
-  hasSelectedTarget,
-  hasLootNearby,
-  cameraAngleRef,
-  navigationMarker,
-  onSetNavigationMarker,
-  onCastSkill,
-  onLearnSkill,
-  onUseItem,
-  onDropItem,
-  onCraftItem,
-  onEquipItem,
-  onUnequipItem,
-  onUpgradeSkill,
-  onCancelQuest,
-  onAdvanceQuest,
-  onClaimQuestReward,
-  onGmCommand,
-  onPickupNearest,
-  onMove,
-  onSendChat,
+  panels, state, player, now, hasSelectedTarget, hasLootNearby,
+  cameraAngleRef, navigationMarker, onSetNavigationMarker,
+  onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem,
+  onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
+  onCancelQuest, onAdvanceQuest, onClaimQuestReward, onGmCommand,
+  onPickupNearest, onMove, onSendChat,
 }: HudPanelsProps) {
   return (
     <>
@@ -113,6 +97,7 @@ export function HudPanels({
           onEquipItem={onEquipItem}
           onOpenRecipe={panels.openCraft}
           onDropItem={onDropItem}
+          onDestroyItem={onDestroyItem}
         />
       )}
       {panels.craftRecipeSlot !== null && (
