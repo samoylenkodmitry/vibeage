@@ -164,7 +164,8 @@ export type ContentGraphIssue =
   | { kind: 'non-positive-vendor-price'; vendorId: string; itemId: string; price: number }
   | { kind: 'invalid-zone-level-band'; zoneId: string; minLevel: number; maxLevel: number }
   | { kind: 'race-unknown-class'; race: string; className: string }
-  | { kind: 'class-no-allowed-race'; className: string };
+  | { kind: 'class-no-allowed-race'; className: string }
+  | { kind: 'unknown-quest-prereq'; questId: string; prereqId: string };
 
 /**
  * Pre-built reverse index: `itemId → has at least one source`. Avoids
@@ -323,7 +324,7 @@ function collectStructuralIssues(issues: ContentGraphIssue[]): void {
     }
   }
 
-  // Quest graph: stage ids unique within a quest.
+  // Quest graph: stage ids unique within a quest + prereq quests exist.
   for (const quest of Object.values(QUESTS)) {
     const seen = new Set<string>();
     for (const stage of quest.stages) {
@@ -332,6 +333,12 @@ function collectStructuralIssues(issues: ContentGraphIssue[]): void {
         issues.push({ kind: 'duplicate-quest-stage-id', questId: quest.id, stageId: id });
       }
       seen.add(id);
+    }
+    // §49/M6 PR029 — every prereq quest id must resolve.
+    for (const prereqId of quest.prerequisites?.completedQuests ?? []) {
+      if (!QUESTS[prereqId]) {
+        issues.push({ kind: 'unknown-quest-prereq', questId: quest.id, prereqId });
+      }
     }
   }
 
@@ -457,6 +464,8 @@ export function formatContentGraphIssues(issues: readonly ContentGraphIssue[]): 
         return `race ${issue.race} allows unknown class ${issue.className}`;
       case 'class-no-allowed-race':
         return `class ${issue.className} is not playable by any race`;
+      case 'unknown-quest-prereq':
+        return `quest ${issue.questId} prereq references unknown quest ${issue.prereqId}`;
     }
   }).join('\n');
 }

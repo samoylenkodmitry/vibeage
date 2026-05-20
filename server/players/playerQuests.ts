@@ -1,4 +1,4 @@
-import { QUESTS, type QuestDef, type QuestId } from '../../packages/content/quests.js';
+import { meetsQuestPrerequisites, QUESTS, type QuestDef, type QuestId } from '../../packages/content/quests.js';
 import { QUEST_NPCS, INTERACTION_RANGE } from '../../packages/content/npcs.js';
 import type { PlayerActiveQuestProgress, PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
@@ -43,6 +43,11 @@ export function applyAcceptQuest(
   if (player.level < quest.minLevel) return false;
   const state = ensureQuestState(player);
   if (state.active[questId] || state.completed.includes(questId)) return false;
+  // §49/M6 PR029 — gate on completed-quest prerequisites.
+  if (!meetsQuestPrerequisites(quest, { completedQuests: state.completed })) {
+    warn(LOG_CATEGORIES.PLAYER, `AcceptQuest ${questId}: player ${player.id} missing prerequisites`);
+    return false;
+  }
   state.active[questId] = { stageIndex: 0, progress: 0 };
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} accepted quest ${questId}`);
   emitPlayerUpdated(outbound, { id: player.id, questState: state });

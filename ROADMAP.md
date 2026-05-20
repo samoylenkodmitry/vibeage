@@ -3102,7 +3102,7 @@ Turn quests from isolated tasks into arcs that teach systems and move players th
 
 ## Quest Engine Improvements
 
-- [ ] Add quest prerequisites: required level, completed quest, race, class, item, boss kill, or prophecy stage.
+- [~] Add quest prerequisites: required level, completed quest, race, class, item, boss kill, or prophecy stage. (Partial: `QuestPrerequisites.completedQuests` shipped — server `applyAcceptQuest` rejects when a prereq quest hasn't been completed. Race/class/item/boss-kill/prophecy gates open until a boss-kill registry + race/class predicates land in their own slices. Content-graph validator catches unknown prereq quest ids.)
 - [ ] Add quest follow-up relationships.
 - [ ] Add quest chain grouping.
 - [ ] Add quest categories for UI filtering.
@@ -3786,7 +3786,7 @@ Add social systems only after the solo starter loop and server safety are solid.
 - [ ] PR 026 — Server-owned prophecy progress and persistence.
 - [ ] PR 027 — Prophecy UI/wiki tab.
 - [ ] PR 028 — Starter race prophecies.
-- [ ] PR 029 — Quest prerequisite/follow-up system.
+- [~] PR 029 — Quest prerequisite/follow-up system. (Partial — see Quest Engine Improvements above.)
 
 ## Gear/Economy PRs
 
