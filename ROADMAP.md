@@ -2495,6 +2495,136 @@ explicitly held over until post-release.
   Future-content placeholders are flagged here (not the roadmap)
   so the roadmap stays curated narrative + the audit stays derived.
 
+## Unlinked content findings (snapshot 2026-05-20)
+
+Each entry below is a concrete `[ ]` from `docs/UNLINKED.md`
+promoted to the roadmap on user request so they don't get lost
+behind the auto-generated snapshot. The audit doc remains the
+authoritative current state; this list is the human queue.
+
+### Items awaiting an elemental-resistance system
+
+These five potions / elixirs have a vendor source (Thala) but
+no consumable use because their effect type doesn't exist yet
+in the engine. They're scaffolding for the future elemental-
+resistance + temporary-stat-buff systems.
+
+- [ ] `fire_resistance_potion` — Fire Resistance Potion. Needs an `elemental_resist` status effect that reduces incoming fire damage by % for a duration. Engine slot: extend `EFFECT_SPECS` + `elementVulnerabilityMultiplier` to also read positive resist values, not only negative-vuln debuffs.
+- [ ] `ice_resistance_potion` — same shape, ice element.
+- [ ] `elixir_of_strength` — temporary STR buff. Needs a `temp_attr_buff` status effect that adds to `player.stats` via the Contribution registry for a duration.
+- [ ] `ethereal_elixir` — flavour potion. Define the actual effect first (intangibility? +evasion?), then wire as a status effect.
+- [ ] `temporal_draught` — flavour potion. Same: define effect, then wire.
+
+### Architecture-discussion (separate section below)
+
+The audit also surfaced a request to reconsider the per-file
+content layout. Captured as §50 so the discussion has room
+without crowding this checklist.
+
+
+---
+
+# 50. Project architecture: feature-folders vs. registry files (discussion, 2026-05-20)
+
+User asked: should we restructure so each skill / boss / quest
+lives in its own folder with everything-about-it (def + custom
+code + assets + descriptions + tests)? Honest read of the current
+codebase, plus a recommendation.
+
+## Where we are today
+
+- **Pure declarative records** live in big registry files:
+  `packages/content/skills.ts` (23 active skills), `items.ts`
+  (111 items), `quests.ts` (19 quests), `miniBosses.ts` (14
+  bosses). Each entry is typically 5-40 lines — a single `id`
+  plus stats / effects / flavor.
+- **Engine code** that consumes those records lives in shared
+  per-system files: `server/combat/impactResolver.ts`,
+  `server/ai/enemyStateMachine.ts`, `server/inventory/*.ts`.
+- **VFX / icons** live where the renderer expects them:
+  `apps/client/src/SceneVfx.tsx`, `public/game/skills/*.png`.
+
+For a feature like Fireball, the pieces are spread across
+~4 files: the SkillDef in `skills.ts`, the class-tree entries in
+`classes.ts`, the spec references in `specSkillsData.ts`, the
+projectile VFX in `SceneVfx.tsx`. **The wiki / content-audit
+walks these without caring about file layout** — every consumer
+imports from the registry.
+
+## Where this works well
+
+- Side-by-side comparison. Designers tuning damage can scroll
+  one file and see every skill at once. Per-folder layout
+  forces cross-tab hopping.
+- Validators are uniform. `pnpm run content:graph` and
+  `content:audit` iterate registries — adding a folder per
+  entry doesn't change the iteration shape but does multiply
+  the number of files to parse.
+- Content adds are one-line PRs. Adding a new starter item is
+  ~10 lines in `items.ts` + maybe an entry in a loot table.
+  Folder-per-item turns this into mkdir + multiple files.
+
+## Where it strains today
+
+- **Boss mechanics**. Grakk's "Warband Howl" is documented as
+  lore but the engine just does a generic AOE — there's no
+  rally logic. A per-boss folder (`bosses/grakk/`) with
+  `def.ts` + `warbandHowl.ts` (custom mechanic) + `tests/`
+  would let bosses carry their own behavior next to the data.
+- **Complex skills with custom hooks**. Vanish (selfTarget +
+  aggroReset + invisible) and Escape (locked recall channel)
+  have engine special-cases. They could live in
+  `skills/vanish/` + `skills/escape/` with handlers next to
+  defs, while simple stat-stick skills (slash, fireball) stay
+  in the big file.
+- **Spec passive modifiers**. The §45 marathon added ~14
+  `SpecializationPassiveModifiers` fields, each with a runtime
+  helper scattered across `impactResolver.ts` /
+  `playerLifecycle.ts` / `cooldowns.ts` / etc. A
+  `specs/cardinal/sanctity.ts` would co-locate the modifier
+  declaration with its consumer.
+
+## Recommendation
+
+**Hybrid, not full conversion.** Move the *load-bearing custom
+code* to per-feature folders; keep the *thin declarative records*
+in the registry files. Concretely:
+
+- [ ] Leave `skills.ts`, `items.ts`, `quests.ts`, `enemies.ts`,
+  `zones.ts` as registry files. Adding a new starter sword
+  should stay a one-line PR.
+- [ ] Create `packages/content/bosses/<id>/` for every mini-boss
+  that grows a custom mechanic past the generic signature-
+  ability shape. `def.ts` + optional `mechanic.ts` + optional
+  `tests.ts`. The big `MINI_BOSSES` registry re-exports them.
+- [ ] Create `packages/content/specs/<id>/` ONLY for specs whose
+  proficiency passive has non-trivial runtime (Cardinal Sanctity
+  aura, Phoenix Knight Resurrection, Theurge Patron Saint).
+  Each folder ships `passive.ts` (modifier declaration) +
+  `runtime.ts` (the engine helper currently scattered in
+  combat/* / lifecycle/*).
+- [ ] Don't touch `items.ts` — 111 entries × folder is folder
+  explosion with no upside.
+- [ ] Keep the content-graph + content-audit walking the
+  re-exported registries. The validators don't care how the
+  files are laid out as long as the imported records are
+  consistent.
+
+## When this would be worth shipping
+
+Not now. The current bottleneck is *feature coverage*, not
+*code-finding*. Reorganization burns time and risks breaking the
+quiet invariants the registries rely on (item id stability across
+saves, recipe input resolution, etc.). Revisit after:
+
+- 1+ boss mechanics shipped that need custom rally / phase logic
+  (would surface the boss-folder case).
+- 5+ new spec passives shipped that hook into combat (would
+  surface the specs-folder case).
+
+Until then, the hybrid status quo (registries + shared engine +
+audit doc) is the right shape.
+
 
 ---
 
