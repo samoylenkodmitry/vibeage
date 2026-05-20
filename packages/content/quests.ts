@@ -43,6 +43,22 @@ export interface QuestReward {
   items?: ReadonlyArray<{ itemId: string; quantity?: number }>;
 }
 
+/**
+ * §49/M6 PR029 — gate the quest behind other in-world state.
+ * Any prereq set to an empty array is ignored; all listed sets
+ * must be satisfied (AND). When omitted entirely the quest has
+ * no extra gates (the existing `minLevel` still applies).
+ *
+ * Killed-boss prereqs are derived from completed quests that had
+ * a kill_boss objective (no separate kill log exists yet) — pin
+ * them via `completedQuests` until a real boss-kill registry
+ * lands (own PR).
+ */
+export interface QuestPrerequisites {
+  /** Player must have *completed* every listed quest. */
+  completedQuests?: ReadonlyArray<QuestId>;
+}
+
 export interface QuestDef {
   id: string;
   name: string;
@@ -53,6 +69,8 @@ export interface QuestDef {
   minLevel: number;
   stages: QuestStage[];
   reward: QuestReward;
+  /** §49/M6 PR029 — optional prerequisite gate, evaluated server-side. */
+  prerequisites?: QuestPrerequisites;
 }
 
 export type QuestId = string;
@@ -436,6 +454,25 @@ export const QUESTS: Record<QuestId, QuestDef> = {
 };
 
 /** All quests offered by an NPC. */
+/**
+ * §49/M6 PR029 — true when the player satisfies every declared
+ * prerequisite. Designed to be cheap: O(prereqs), no allocations
+ * for the common "no prereqs" case. NPCs that listed killed-boss
+ * trophies as quest prereqs use this both server-side (gate the
+ * accept) and (later) client-side (grey out the offer row).
+ */
+export function meetsQuestPrerequisites(
+  quest: QuestDef,
+  state: { completedQuests: ReadonlyArray<QuestId> },
+): boolean {
+  const p = quest.prerequisites;
+  if (!p?.completedQuests?.length) return true;
+  for (const id of p.completedQuests) {
+    if (!state.completedQuests.includes(id)) return false;
+  }
+  return true;
+}
+
 export function getQuestsOfferedBy(npcId: string): QuestDef[] {
   return Object.values(QUESTS).filter((q) => q.npcId === npcId);
 }
