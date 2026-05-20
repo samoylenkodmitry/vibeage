@@ -30,7 +30,8 @@ export type StatId =
   | 'hpRegen' | 'mpRegen'
   | 'accuracy' | 'evasion'
   | 'attackSpeed' | 'castSpeed' | 'runSpeed'
-  | 'dmgMult' | 'critChance' | 'critMult';
+  | 'dmgMult' | 'critChance' | 'critMult'
+  | 'healMult';
 
 /**
  * 4-phase pipeline:
@@ -208,6 +209,7 @@ export function computeStatsForPlayer(player: StatPlayerView): StatComputationRe
 const STAT_ORDER: readonly StatId[] = [
   'str', 'dex', 'con', 'int', 'wit', 'men',
   'dmgMult', 'critChance', 'critMult',
+  'healMult',
   'pAtk', 'mAtk', 'pDef', 'mDef',
   'maxHealth', 'maxMana',
   'hpRegen', 'mpRegen',
@@ -258,6 +260,7 @@ function resolveStat(stat: StatId, parts: Contribution[], ctx: StatComputeContex
 
 const FRACTIONAL_STATS: ReadonlySet<StatId> = new Set<StatId>([
   'dmgMult', 'critChance', 'critMult', 'castSpeed',
+  'healMult',
 ]);
 
 // ---------------------------------------------------------------- registries
@@ -322,6 +325,9 @@ function pushBaselineDerivedContributions(out: Contribution[]): void {
   out.push({ source: 'baseline:runSpeed', label: 'Baseline run speed', stat: 'runSpeed', op: 'base', value: 20 });
   out.push({ source: 'baseline:dmgMult', label: 'Baseline damage', stat: 'dmgMult', op: 'base', value: 1 });
   out.push({ source: 'baseline:critMult', label: 'Baseline crit damage', stat: 'critMult', op: 'base', value: 1.6 });
+  // §45.3 follow-up — heal-output multiplier. Baseline 1 (no
+  // amplification); healer specs raise it via spec passives.
+  out.push({ source: 'baseline:healMult', label: 'Baseline heal output', stat: 'healMult', op: 'base', value: 1 });
 }
 
 const MAGIC_CLASSES: ReadonlySet<CharacterClass> = new Set<CharacterClass>(['mage', 'healer', 'paladin']);
@@ -468,6 +474,9 @@ function pushSpecPassiveModifiers(
   if (mods.critMultBonus !== undefined && mods.critMultBonus !== 0) {
     out.push({ source: `${baseSource}:critMul`, label: `${labelPrefix} (crit dmg)`, stat: 'critMult', op: 'addPre', value: mods.critMultBonus });
   }
+  if (mods.healOutputMultiplier !== undefined && mods.healOutputMultiplier !== 1) {
+    out.push({ source: `${baseSource}:heal`, label: `${labelPrefix} (heal)`, stat: 'healMult', op: 'mul', value: mods.healOutputMultiplier });
+  }
 }
 
 function pushEquipmentContributionsFromTemplateMap(
@@ -536,6 +545,7 @@ const KNOWN_STAT_IDS: ReadonlySet<StatId> = new Set<StatId>([
   'accuracy', 'evasion',
   'attackSpeed', 'castSpeed', 'runSpeed',
   'dmgMult', 'critChance', 'critMult',
+  'healMult',
 ]);
 
 const ITEM_STAT_KEY_TO_STAT_ID: Readonly<Record<string, StatId>> = {

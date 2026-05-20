@@ -204,6 +204,8 @@ export interface PlayerState {
     dmgMult?: number;
     critChance?: number;
     critMult?: number;
+    /** §45.3 follow-up — heal-output multiplier from spec passives. */
+    healMult?: number;
     pAtk?: number;
     mAtk?: number;
     pDef?: number;

@@ -53,6 +53,7 @@ function applyTotalsToPlayer(player: PlayerState, result: StatComputationResult)
     accuracy: t.accuracy, evasion: t.evasion,
     attackSpeed: t.attackSpeed, castSpeed: t.castSpeed, runSpeed: t.runSpeed,
     dmgMult: t.dmgMult, critChance: t.critChance, critMult: t.critMult,
+    healMult: t.healMult,
   };
   player.maxHealth = t.maxHealth;
   player.maxMana = t.maxMana;

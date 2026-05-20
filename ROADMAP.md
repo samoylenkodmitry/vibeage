@@ -2067,7 +2067,11 @@ contiguous list so the audit doesn't fragment.
   bigger task — actually extending
   `SpecializationPassiveModifiers` to cover fire flavour, heal
   output, lifesteal, per-skill cooldown reduction, party auras,
-  loot rates — stays open as a content/engine slice.
+  loot rates — proceeds slice-by-slice as each mechanic lands.
+  Done so far:
+  - [x] `healOutputMultiplier` → new `healMult` stat consumed by
+    `applyHealEffect`. Cardinal's `Greater Calling` now actually
+    delivers +25% effective healing; Eva's Templar `Grace` +20%.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and

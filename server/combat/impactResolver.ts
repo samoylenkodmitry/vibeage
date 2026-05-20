@@ -286,7 +286,7 @@ function applySkillEffects(
 
   for (const effect of skill.effects ?? []) {
     if (effect.type === 'heal') {
-      applyHealEffect(target, effect);
+      applyHealEffect(target, effect, caster);
       continue;
     }
     if (effect.type === 'dispel') {
@@ -381,9 +381,15 @@ export function isEntityTaunted(entity: Enemy | PlayerState, now: number = Date.
   });
 }
 
-function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect): void {
+function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect, caster: PlayerState | null): void {
+  // §45.3 follow-up — caster's heal-output multiplier applies on
+  // top of the skill's listed value. Spec passives like Cardinal's
+  // Greater Calling raise it via the Contribution registry; default
+  // 1 (no amplification) for non-healer casters.
+  const healMult = caster?.stats?.healMult ?? 1;
+  const amount = effect.value * healMult;
   const max = isEnemy(target) ? target.maxHealth : target.maxHealth;
-  target.health = Math.min(max, target.health + effect.value);
+  target.health = Math.min(max, target.health + amount);
 }
 
 const AGGRO_RESET_RADIUS = 60;
