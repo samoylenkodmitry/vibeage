@@ -153,3 +153,32 @@ describe('boss-hunt quest objective', () => {
     expect(entry().readyToClaim).toBe(true);
   });
 });
+
+describe('AcceptQuest rejection feedback (§49/M2)', () => {
+  function feedbackText(events: OutboundEvent[]): string | null {
+    for (const e of events) {
+      if (e.type !== 'directServerMessage') continue;
+      if (e.message.type !== 'ChatBroadcast') continue;
+      if (e.message.fromId !== 'system') continue;
+      return e.message.text;
+    }
+    return null;
+  }
+
+  it('sends a "too far" chat when the player is not near the NPC', () => {
+    const player = freshPlayerAt('warden_galen');
+    // Move 1000 metres away so the interaction check fails.
+    player.position = { x: player.position.x + 1000, y: 0.5, z: player.position.z };
+    const { events, sink } = captureOutbound();
+    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink)).toBe(false);
+    expect(feedbackText(events)).toMatch(/too far/i);
+  });
+
+  it('sends a "need level" chat when the player is under the minLevel', () => {
+    const player = freshPlayerAt('bounty_broker_mira');
+    player.level = 1;
+    const { events, sink } = captureOutbound();
+    expect(applyAcceptQuest(player, 'bounty_grakk', sink)).toBe(false);
+    expect(feedbackText(events)).toMatch(/level/i);
+  });
+});
