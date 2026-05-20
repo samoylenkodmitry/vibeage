@@ -34,6 +34,8 @@ export type ClientActions = {
   useItem: (slotIndex: number) => void;
   /** §46/slice-new — discard an inventory stack to ground-loot at the caller's position. */
   dropItem: (slotIndex: number, count?: number) => void;
+  /** Bag context menu — destroy a stack without spawning ground loot. */
+  destroyItem: (slotIndex: number, count?: number) => void;
   craftItem: (recipeSlotIndex: number) => void;
   equipItem: (slotIndex: number, requestedSlot?: string) => void;
   unequipItem: (slot: string) => void;
@@ -123,15 +125,15 @@ export function useClientActions(
 
   const { pickupNearest, tryFirePendingPickup } = usePickupActions(roomRef, stateRef, dispatch);
 
-  const { learnSkill, useItem, dropItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
+  const { learnSkill, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
     useIdentityAndItemActions(roomRef, stateRef);
   const { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand } = useQuestActions(roomRef);
 
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
   );
 }
 
@@ -496,6 +498,13 @@ function useIdentityAndItemActions(
       ? { type: 'DropItem', slotIndex, count }
       : { type: 'DropItem', slotIndex });
   }, [roomRef]);
+  // Bag context menu — destroy. Same shape as dropItem but the
+  // server skips the loot spawn so the item is gone for good.
+  const destroyItem = useCallback((slotIndex: number, count?: number) => {
+    roomRef.current?.send(SESSION_EVENTS.message, count !== undefined
+      ? { type: 'DestroyItem', slotIndex, count }
+      : { type: 'DestroyItem', slotIndex });
+  }, [roomRef]);
   const craftItem = useCallback((recipeSlotIndex: number) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'CraftItem', recipeSlotIndex, clientTs: Date.now() });
   }, [roomRef]);
@@ -524,7 +533,7 @@ function useIdentityAndItemActions(
       room.send(SESSION_EVENTS.message, { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
     }
   }, [roomRef, stateRef]);
-  return { learnSkill, useItem, dropItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
+  return { learnSkill, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
 }
 
 function useCommandActions(

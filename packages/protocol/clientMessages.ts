@@ -69,6 +69,15 @@ export const dropItemSchema = z.object({
   count: z.number().int().min(1).optional(),
 }).strict();
 
+// PR — bag context menu. `DestroyItem` removes a stack from the
+// caller's bag without spawning ground loot (the item is gone for
+// good). Same auth + clamp rules as DropItem.
+export const destroyItemSchema = z.object({
+  type: z.literal('DestroyItem'),
+  slotIndex: z.number().int().min(0),
+  count: z.number().int().min(1).optional(),
+}).strict();
+
 export const useItemSchema = z.object({
   type: z.literal('UseItem'),
   slotIndex: z.number().int().min(0),
@@ -193,6 +202,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   respawnRequestSchema,
   lootPickupSchema,
   dropItemSchema,
+  destroyItemSchema,
   useItemSchema,
   craftItemSchema,
   requestInventorySchema,
@@ -266,6 +276,12 @@ export type LootPickup = {
 
 export type DropItem = {
   type: 'DropItem';
+  slotIndex: number;
+  count?: number;
+};
+
+export type DestroyItem = {
+  type: 'DestroyItem';
   slotIndex: number;
   count?: number;
 };
@@ -358,6 +374,7 @@ export type ClientMessage =
   | RespawnRequest
   | LootPickup
   | DropItem
+  | DestroyItem
   | UseItem
   | CraftItem
   | RequestInventory

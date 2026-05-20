@@ -16,6 +16,7 @@ import {
 import { onUseItem } from '../inventory/itemUse.js';
 import { onCraftItem } from '../inventory/craftRecipe.js';
 import { onDropItem } from '../inventory/dropItem.js';
+import { onDestroyItem } from '../inventory/destroyItem.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
@@ -82,6 +83,8 @@ export function handleClientMessage(
       return onLootPickup(socket, direct, state, msg, outbound);
     case 'DropItem':
       return onDropItem(socket, direct, state, msg, outbound);
+    case 'DestroyItem':
+      return onDestroyItem(socket, direct, state, msg);
     case 'RequestInventory':
       return onRequestInventory(socket, direct, state);
     case 'SelectClass':

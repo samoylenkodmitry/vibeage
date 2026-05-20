@@ -45,6 +45,8 @@ export type HudPanelsProps = {
   onUseItem: (slotIndex: number) => void;
   /** §46/slice-new — drop a bag slot to ground loot. */
   onDropItem: (slotIndex: number, count?: number) => void;
+  /** Bag context menu — destroy a stack (no ground loot). */
+  onDestroyItem: (slotIndex: number, count?: number) => void;
   onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
@@ -79,6 +81,7 @@ export function HudPanels({
   onLearnSkill,
   onUseItem,
   onDropItem,
+  onDestroyItem,
   onCraftItem,
   onEquipItem,
   onUnequipItem,
@@ -113,6 +116,7 @@ export function HudPanels({
           onEquipItem={onEquipItem}
           onOpenRecipe={panels.openCraft}
           onDropItem={onDropItem}
+          onDestroyItem={onDestroyItem}
         />
       )}
       {panels.craftRecipeSlot !== null && (
