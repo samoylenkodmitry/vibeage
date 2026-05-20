@@ -1571,6 +1571,46 @@ input {
 .quest-tracker-stage { opacity: 0.85; }
 .quest-tracker-distance { font-size: 11px; color: #fde68a; }
 
+/* §49/M2 — first-time welcome overlay. Centered, dismissable. */
+.welcome-overlay {
+  position: fixed;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  max-width: min(440px, 88vw);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 120;
+  pointer-events: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.welcome-overlay header strong { font-size: 16px; }
+.welcome-overlay p { margin: 0; line-height: 1.5; }
+.welcome-overlay kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+.welcome-overlay button {
+  margin-top: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  background: rgba(250, 204, 21, 0.15);
+  border-radius: 4px;
+  color: inherit;
+  align-self: end;
+}
+
 /* Vendor browse panel. Opens when the player clicks "Browse Wares"
    on an NPC dialog. Mirrors the quest-panel layout but anchored at
    screen-center so the two columns (For Sale / Buy Back) fit

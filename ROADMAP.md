@@ -2766,9 +2766,9 @@ Character creation
 
 ## Spawn And Tutorial Cues
 
-- [x] Spawn the player facing Warden Galen or an obvious starter marker. (`createTransientPlayer` computes a yaw from spawn → Galen's authored coord and stamps it on `rotation.y`. If Galen moves, the yaw follows. Tested.)
-- [ ] Add a clear first prompt: “Talk to Warden Galen.”
-- [ ] Add a movement hint for desktop.
+- [x] Spawn the player facing Warden Galen or an obvious starter marker. (`createTransientPlayer` computes a yaw from spawn → Galen's authored coord and stamps it on `rotation.y`. PR #279.)
+- [x] Add a clear first prompt: "Talk to Warden Galen." (`WelcomeOverlay` shows on a fresh L1 player with no quest activity — points at Galen + names him. Dismissable via localStorage.)
+- [x] Add a movement hint for desktop. (Same overlay: "Click the ground to walk … Press I/Tab/1-4 for inventory/target/skills".)
 - [ ] Add a movement hint for mobile.
 - [ ] Add a targeting hint when the first goblin objective appears.
 - [ ] Add a skill-use hint when combat starts.
