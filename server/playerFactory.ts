@@ -1,3 +1,4 @@
+import { QUEST_NPCS } from '../packages/content/npcs.js';
 import { DEFAULT_RACE } from '../packages/content/races.js';
 import { createEmptyInventory } from '../packages/sim/characterInventory.js';
 import { hash } from '../packages/sim/combatMath.js';
@@ -17,14 +18,30 @@ const PLAYER_INVENTORY_LIMITS = {
   maxWeight: 80_000,
 };
 
+// §49/M2 — face the starter NPC (Warden Galen) on spawn so a new
+// player sees a quest-giver immediately instead of staring at a
+// random horizon. Yaw is computed once at module load from the
+// authored NPC position; if Galen moves, the yaw follows.
+const STARTER_SPAWN_POSITION = { x: 0, y: 0.5, z: 0 };
+const STARTER_FACE_NPC_ID = 'warden_galen';
+const STARTER_SPAWN_YAW = (() => {
+  const npc = QUEST_NPCS[STARTER_FACE_NPC_ID];
+  if (!npc) return 0;
+  const dx = npc.position.x - STARTER_SPAWN_POSITION.x;
+  const dz = npc.position.z - STARTER_SPAWN_POSITION.z;
+  // Three.js convention: yaw of 0 looks along +Z; atan2(dx, dz)
+  // gives the yaw that rotates +Z towards the (dx, dz) vector.
+  return Math.atan2(dx, dz);
+})();
+
 export function createTransientPlayer(socketId: string, name: string): PlayerState {
   const playerId = `player-${hash(socketId + Date.now().toString())}`;
   const player: PlayerState = {
     id: playerId,
     socketId,
     name,
-    position: { x: 0, y: 0.5, z: 0 },
-    rotation: { x: 0, y: 0, z: 0 },
+    position: { ...STARTER_SPAWN_POSITION },
+    rotation: { x: 0, y: STARTER_SPAWN_YAW, z: 0 },
     health: 1,
     maxHealth: 1,
     mana: 1,
