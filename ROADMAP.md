@@ -2476,6 +2476,12 @@ explicitly held over until post-release.
 
 Pasted verbatim from `~/Downloads/roadmap.md` on the user's request. The document below is the long-arc plan authored separately and reconciled into this file as a single appendix. Future PRs may tick its boxes; the **Immediate Next Action** section at the end lists the three starting tasks.
 
+**Reconciliation notes** (this file already had overlapping sections; rules of the road):
+
+- The "Suggested PR Sequence" in this appendix renumbers from PR 001. The repo PR history continues from #266 — treat the **001–044** labels as *relative ids within this roadmap document*, not GitHub PR numbers. When opening an actual PR, use the next GitHub number.
+- This appendix's **Definition Of Done** sections are the authoritative versions; §30 "Definition of Done for Future Gameplay Slices" predates them and stays in the file for history but is **superseded** by §49 ("Definition Of Done" sub-section) for new work.
+- This appendix's **Immediate Next Action** lists 3 tasks (M1 content-graph, M2 starter polish, M4 balance report). The §48 prioritized backlog enumerates 10 items in finer-grained detail. The two are **complementary**: §49's 3 items are the strategic starts; §48's 10 items are the per-PR queue. When in doubt, the §49 strategic priorities win the order; §48 items get folded into the M-milestone they belong to.
+
 # VibeAge Roadmap
 
 Prepared: 2026-05-20
@@ -2549,7 +2555,7 @@ Make this roadmap usable as an execution document rather than a wishlist.
 
 ## Tasks
 
-- [ ] Decide whether this file replaces the current `ROADMAP.md` or becomes a focused companion file such as `docs/NEXT_ROADMAP.md`.
+- [x] Decide whether this file replaces the current `ROADMAP.md` or becomes a focused companion file such as `docs/NEXT_ROADMAP.md`. (Resolved: integrated as §49 of `ROADMAP.md`.)
 - [ ] Move completed historical items out of the active roadmap into a changelog or release history document.
 - [ ] Keep only active and future work in the primary roadmap.
 - [ ] Group roadmap work by milestone, not by random live request order.
