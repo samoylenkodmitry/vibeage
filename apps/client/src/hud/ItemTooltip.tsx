@@ -98,21 +98,7 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
           {item.equip.bodyPart} · {item.equip.handUsage ?? item.equip.armorType ?? item.equip.weaponType ?? 'jewelry'}
         </small>
       )}
-      {visibleStats.length > 0 && (
-        <ul>
-          {visibleStats.map(([label, value, delta]) => (
-            <li key={label}>
-              <span>{label}</span>
-              <strong>{formatStat(value)}</strong>
-              {delta !== null && delta !== 0 && (
-                <span className={`item-tooltip-delta item-tooltip-delta--${delta > 0 ? 'up' : 'down'}`}>
-                  ({delta > 0 ? '+' : ''}{delta})
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <StatRowList rows={visibleStats} />
       {(weight > 0 || item.healAmount || item.manaAmount) && (
         <footer>
           {item.healAmount ? <span>Heals {item.healAmount} HP</span> : null}
@@ -134,6 +120,25 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
 
 function formatStat(value: number): string {
   return value > 0 ? `+${value}` : String(value);
+}
+
+function StatRowList({ rows }: { rows: Array<[string, number, number | null]> }) {
+  if (rows.length === 0) return null;
+  return (
+    <ul>
+      {rows.map(([label, value, delta]) => (
+        <li key={label}>
+          <span>{label}</span>
+          <strong>{formatStat(value)}</strong>
+          {delta !== null && delta !== 0 && (
+            <span className={`item-tooltip-delta item-tooltip-delta--${delta > 0 ? 'up' : 'down'}`}>
+              ({delta > 0 ? '+' : ''}{delta})
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // §49/M2 — exported for tests. Returns null when there's nothing to
