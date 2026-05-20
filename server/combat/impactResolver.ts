@@ -244,6 +244,23 @@ function targetDamageTakenMult(target: PlayerState): number {
   return specMul * profMul;
 }
 
+/**
+ * §45.3 follow-up — sum lifesteal percentages from the caster's
+ * active spec passives. Proficiency-tier passives only count once
+ * the player reaches `PROFICIENCY_LEVEL`. Returns 0 when no spec
+ * is chosen or no passive supplies lifesteal.
+ */
+function casterLifestealPercent(caster: PlayerState | null | undefined): number {
+  if (!caster?.specializationId) return 0;
+  const spec = getSpecializationById(caster.specializationId);
+  if (!spec) return 0;
+  let pct = spec.specializationPassive.modifiers.lifestealPercent ?? 0;
+  if (caster.level >= PROFICIENCY_LEVEL) {
+    pct += spec.proficiencyPassive.modifiers.lifestealPercent ?? 0;
+  }
+  return pct;
+}
+
 function applyCastToTarget(
   target: Enemy | PlayerState,
   damage: number,
@@ -260,6 +277,18 @@ function applyCastToTarget(
   const incoming = absorbWithShield(target, mitigated);
 
   target.health = Math.max(0, target.health - incoming);
+
+  // §45.3 follow-up — Dark Avenger Sanguine Blade: hits restore
+  // a small fraction of the post-mitigation damage as caster HP.
+  // Applied per cast hit (AoE casts heal once per target). No-op
+  // when the caster has no spec, isn't the right spec, or hit
+  // for zero (no over-heal from misses).
+  if (caster && incoming > 0 && caster.isAlive) {
+    const pct = casterLifestealPercent(caster);
+    if (pct > 0) {
+      caster.health = Math.min(caster.maxHealth, caster.health + incoming * pct);
+    }
+  }
 
   // Damage-based aggro: don't retarget while a taunt is active — that
   // would let any other attacker break the taunt by hitting the mob,

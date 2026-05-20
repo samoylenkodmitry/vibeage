@@ -57,10 +57,18 @@ export interface SpecializationPassiveModifiers {
    * §45.3 follow-up — conditional damage-taken multiplier that
    * applies while the wearer's HP is below 50%. 0.85 here →
    * incoming damage × 0.85 = "+15% damage reduction at low HP".
-   * Reads through the `damageTakenMult` stat with a predicate on
-   * `ctx.hpFraction < 0.5`. Used by Templar Knight `Last Stand`.
+   * Evaluated live at damage time (not via the stat pipeline)
+   * since hpFraction changes between recomputes. Used by Templar
+   * Knight `Last Stand`.
    */
   belowHalfHpDamageTakenMultiplier?: number;
+  /**
+   * §45.3 follow-up — lifesteal as a fraction of damage dealt.
+   * 0.05 = 5% of the post-mitigation damage is restored as HP
+   * on the caster. Applied per cast hit (so AoE casts heal once
+   * per target). Used by Dark Avenger `Sanguine Blade`.
+   */
+  lifestealPercent?: number;
 }
 
 export interface SpecializationPassive {
@@ -295,8 +303,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Sanguine Blade',
-      description: '(planned: small per-hit HP restore. No lifesteal hook in applyCastToTarget yet.)',
-      modifiers: {},
+      description: 'Each hit restores 5% of the damage dealt as HP.',
+      modifiers: { lifestealPercent: 0.05 },
     },
     specSkills: ['shadow_strike'],
     proficiencySkills: ['soul_eater'],
