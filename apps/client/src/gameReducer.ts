@@ -21,6 +21,8 @@ import {
   applyCastSnapshotVisualState,
   applyCombatLogVisualState,
   applyEnemyAttackVisualState,
+  applyEquipFailedVisualState,
+  applyEquipmentChangeFeedback,
   applyInstantHitVisualState,
   applyItemUsedVisualState,
   applyLootAcquiredVisualState,
@@ -248,10 +250,8 @@ function applyServerMessage(
     return applyInventoryUpdate(state, message.inventory, message.maxInventorySlots, message.playerId);
   }
 
-  if (message.type === 'EquipmentUpdate') {
-    return applyEquipmentUpdate(state, message);
-  }
-
+  if (message.type === 'EquipmentUpdate') return applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), message, now);
+  if (message.type === 'EquipFailed') return applyEquipFailedVisualState(state, message, now);
   if (message.type === 'LearnSkillFailed') {
     return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.skillId]: message.reason } };
   }

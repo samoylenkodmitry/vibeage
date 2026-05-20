@@ -64,6 +64,67 @@ export function applyLootAcquiredVisualState(
   });
 }
 
+/**
+ * §49/M2 — surface EquipFailed in the combat log so the player
+ * actually sees why an Equip/Unequip dropped silently. Reason is
+ * a stable enum-ish string from the server; we map the common ones
+ * to player-friendly copy + fall back to the raw reason otherwise.
+ */
+export function applyEquipFailedVisualState(
+  state: GameClientState,
+  message: ServerMessage & { type: 'EquipFailed' },
+  now: number,
+): GameClientState {
+  return addCombatLine(state, {
+    id: makeCombatLineId(`equipfail-${message.reason}`, state.combatLog.length, now),
+    text: `Couldn't equip: ${equipReasonCopy(message.reason)}`,
+  });
+}
+
+/**
+ * §49/M2 — log "Equipped X" for any item that landed in a slot
+ * since the last EquipmentUpdate. Diffs the incoming equipment
+ * payload against the slot map already in client state. Skips the
+ * very first update after spawn (the entire payload would look
+ * "newly equipped" otherwise).
+ */
+export function applyEquipmentChangeFeedback(
+  state: GameClientState,
+  message: ServerMessage & { type: 'EquipmentUpdate' },
+  now: number,
+): GameClientState {
+  // Treat an initial-empty equipment map as "first run, don't log".
+  // After that, any slot that changed itemId or appeared fresh is a
+  // user-facing "Equipped X" line.
+  const prev = state.equipment ?? {};
+  const isInitial = Object.keys(prev).length === 0;
+  if (isInitial) return state;
+  let next: GameClientState = state;
+  for (const entry of message.equipment) {
+    const wasItem = prev[entry.slot];
+    if (wasItem === entry.itemId) continue;
+    const itemName = getItemName(entry.itemId);
+    next = addCombatLine(next, {
+      id: makeCombatLineId(`equip-${entry.slot}-${entry.itemId}`, next.combatLog.length, now),
+      text: `Equipped ${itemName}`,
+    });
+  }
+  return next;
+}
+
+function equipReasonCopy(reason: string): string {
+  switch (reason) {
+    case 'itemNotFound': return "that item isn't in your bag";
+    case 'levelTooLow': return 'you need a higher level for this item';
+    case 'wrongClass': return "your class can't use this item";
+    case 'wrongRace': return "your race can't use this item";
+    case 'slotConflict': return 'another item is in the way';
+    case 'handConflict': return 'your hands are full';
+    case 'notEquippable': return "that item can't be equipped";
+    default: return reason;
+  }
+}
+
 export function applyOtherPlayerLootPickupVisualState(
   state: GameClientState,
   lootId: string,
