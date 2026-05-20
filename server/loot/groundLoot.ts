@@ -1,5 +1,5 @@
 import type { ItemDrop } from '../../packages/protocol/messages.js';
-import type { Enemy } from '../../packages/sim/entities.js';
+import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import { emitStarterProgressUpdate, recordStarterLootPickup } from '../progression/starterPath.js';
@@ -21,10 +21,12 @@ export function addGroundLoot(state: GameState, enemyId: string, loot: ItemDrop[
   return spawn.lootId;
 }
 
-export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEventSink, enemy: Enemy): void {
+export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEventSink, enemy: Enemy, killer?: PlayerState | null): void {
   if (!enemy.lootTableId) return;
 
-  const loot = generateLootFromEnemy(enemy);
+  // §45.3 follow-up — killer's spec passive can boost loot rolls.
+  // Passed through to `generateLoot`; null / no spec → no boost.
+  const loot = generateLootFromEnemy(enemy, killer);
   if (!loot.length) return;
 
   const spawn = createGroundLootStack(state, enemy, loot);

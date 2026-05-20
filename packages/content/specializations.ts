@@ -95,6 +95,13 @@ export interface SpecializationPassiveModifiers {
    * `Venom` (spec) and Plains Walker `Toxin` (spec).
    */
   poisonTickMultiplier?: number;
+  /**
+   * §45.3 follow-up — multiplier on a loot-table drop's roll
+   * chance. 1.5 → every entry's `chance` is multiplied by 1.5
+   * (clamped at 1.0). Read in `generateLoot` from the killer's
+   * active spec. Used by Treasure Hunter `Lucky Find` (prof).
+   */
+  lootRateMultiplier?: number;
 }
 
 export interface SpecializationPassive {
@@ -391,8 +398,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Lucky Find',
-      description: '(planned: improved loot drop rates. No loot-rate multiplier system today.)',
-      modifiers: {},
+      description: 'Loot drop chances boosted by 50% (clamped at 100%).',
+      modifiers: { lootRateMultiplier: 1.5 },
     },
     specSkills: ['lucky_strike'],
     proficiencySkills: ['treasure_sense'],
