@@ -86,6 +86,15 @@ export interface SpecializationPassiveModifiers {
    * Multiple specs / tiers stack multiplicatively per skill.
    */
   cooldownMultiplierBySkill?: Readonly<Record<string, number>>;
+  /**
+   * §45.3 follow-up — multiplier on the per-tick `value` of
+   * `poison` status effects the caster lands. 1.3 → +30% per
+   * tick. Applied at `upsertStatusEffect` so the stored
+   * StatusEffect.value already carries the amplified damage;
+   * `dotTicker` reads the value verbatim. Used by Phantom Ranger
+   * `Venom` (spec) and Plains Walker `Toxin` (spec).
+   */
+  poisonTickMultiplier?: number;
 }
 
 export interface SpecializationPassive {
@@ -274,8 +283,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Venom',
-      description: '(planned: +30% poison tick damage. No poison-tick amplifier today.)',
-      modifiers: {},
+      description: '+30% poison tick damage.',
+      modifiers: { poisonTickMultiplier: 1.3 },
     },
     proficiencyPassive: {
       name: 'Phantom Step',
@@ -397,8 +406,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencyLevel: PROFICIENCY_LEVEL,
     specializationPassive: {
       name: 'Toxin',
-      description: '+10% damage. (planned: +25% poison tick damage once a poison-tick amplifier lands.)',
-      modifiers: { damageMultiplier: 1.1 },
+      description: '+10% damage, +25% poison tick damage.',
+      modifiers: { damageMultiplier: 1.1, poisonTickMultiplier: 1.25 },
     },
     proficiencyPassive: {
       name: 'Shadow Step',
