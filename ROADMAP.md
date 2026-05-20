@@ -2625,6 +2625,127 @@ saves, recipe input resolution, etc.). Revisit after:
 Until then, the hybrid status quo (registries + shared engine +
 audit doc) is the right shape.
 
+## §50 refinement — the `richModule` opt-in (user feedback, 2026-05-20)
+
+User pushed back on the hybrid recommendation: "avoid the
+double-ways of defining things, but maybe we can keep *both* the
+simple way *and* have folders for specific things if-we-want;
+this has to be strictly validated and supported by every
+generation script". This refines §50 into a concrete contract.
+
+### The rule: one declaration, optional rich folder
+
+Every content record (Skill, Boss, Spec, Quest, Item, ...) is
+declared in **exactly one place**: its registry file. That stays
+the single source of truth for the record's existence + id.
+
+When a record needs more than the registry can hold (custom
+mechanic, runtime helper, asset bundle), the registry entry gets
+one extra opt-in field:
+
+```ts
+// packages/content/miniBosses.ts
+grakk: {
+  id: 'grakk',
+  name: 'Grakk the Goblin Chief',
+  // ... usual fields
+  richModule: 'bosses/grakk',   // ← optional
+},
+```
+
+When `richModule` is set, a folder at
+`packages/content/<richModule>/` must exist and export a
+typed `richModule: BossRichModule` (or `SkillRichModule`,
+`SpecRichModule`, etc.) that satisfies the matching interface.
+
+### Strict validation (new audit category)
+
+A new validator section walks every registry entry that carries
+`richModule` and asserts:
+
+- [ ] The folder exists.
+- [ ] The folder's `index.ts` exports `richModule` with the
+  expected interface shape (TypeScript type-check on the import
+  is the easy assertion; a runtime invariant test pins it too).
+- [ ] No folder under `packages/content/<bosses|specs|skills>/`
+  is *orphan* (exists but no record references it).
+- [ ] Every generation script (`content:graph`,
+  `content:audit`, `balance:report`, the wiki builder) calls a
+  single helper `loadRichModule(record)` that returns the module
+  when `richModule` is set, undefined otherwise. **No new
+  generation script can be added without this call.** Enforced
+  by a script-scope check in `pnpm run check:scripts`.
+
+### Why this avoids the "double-ways" trap
+
+- Records can never be *split* across registry + folder for the
+  same field. The folder only carries things the registry
+  doesn't model (custom mechanic functions, asset references,
+  long-form lore). Numeric balance stays in the registry so
+  designers tune one place.
+- The validator catches drift: a folder whose interface changed
+  but whose registry entry didn't is a hard fail. A registry
+  entry pointing at a missing folder is a hard fail. An
+  abandoned folder with no referencing record is a soft fail in
+  the audit doc.
+- Generation scripts are uniform: every consumer either reads
+  the registry (the default) or extends via `loadRichModule(record)`.
+  No special-case "if it's Grakk, also import …".
+
+### What the interface buys
+
+- **Wiki**: rich modules can expose a `wikiExtra: () => MDX`
+  for long-form lore. Default: just render the registry fields.
+- **Engine**: rich modules can expose `customMechanic: (cast,
+  world, ctx) => void` for bosses/skills. Default: generic
+  AOE / single-target damage handler reads the registry.
+- **Tests**: rich modules can export a `tests` adjacency so
+  vitest picks them up alongside the rest of `tests/`.
+
+### Concrete next-step PRs (when triggered)
+
+This is design only. The first folder gets created when the
+first concrete need lands. Suggested sequence:
+
+- [ ] PR A: `loadRichModule` helper + the validator. Wire the
+  validator into `content:audit:check`. Initial run on main
+  finds zero rich modules, validator passes vacuously. This
+  proves the contract before any record opts in.
+- [ ] PR B: First convert — **Grakk's Warband Howl** as a
+  `bosses/grakk/` rich module. Boss def stays in
+  `miniBosses.ts`; mechanic + telegraph live in the folder.
+- [ ] PR C: Second convert — **Cardinal Sanctity** regen aura
+  as a `specs/cardinal/` rich module. Spec def stays in
+  `specializations.ts`; the `partyHpRegenAuraBonusFor` helper
+  currently in `playerLifecycle.ts` moves to the folder.
+- [ ] PR D: Third convert — **Phoenix Knight Resurrection** as
+  a `specs/phoenix_knight/` rich module. Same pattern.
+- [ ] After 3 conversions, review the pattern. If it's holding,
+  open it up to player demand (rogue Vanish, etc.). If it's
+  not, freeze further conversions and document why in this
+  section.
+
+### What this does NOT touch
+
+- `items.ts` (111 entries). Items are pure data. No `richModule`
+  field; the interface isn't added because there's no consumer.
+- `skills.ts` for the simple stat-stick skills (slash, fireball,
+  arrowShot). They stay in the registry. `richModule` is opt-in;
+  most skills will never need it.
+
+### Acceptance for the design
+
+- [ ] Hybrid is the steady state. Per-feature folders are a
+  *bounded* extension, gated by a typed flag.
+- [ ] One record → one declaration. The folder never re-declares
+  any field the registry holds.
+- [ ] Validators + generation scripts go through a single shim
+  (`loadRichModule`) so adding a new script can't sidestep the
+  rich-module contract.
+- [ ] Each conversion is its own PR with its own demo (boss
+  mechanic actually fires; spec passive runtime moves with
+  zero behavior change).
+
 
 ---
 
