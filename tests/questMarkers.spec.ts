@@ -28,14 +28,14 @@ function makePlayer(active: PlayerEntity['questState'] = { active: {}, completed
 describe('questMarkers.resolveStageMarker', () => {
   it('uses an explicit stage marker when present', () => {
     const marker = resolveStageMarker(
-      { description: '', objective: { kind: 'manual', description: '' }, marker: { x: 7, y: 0, z: 9 } },
+      { id: 's1', description: '', objective: { kind: 'manual', description: '' }, marker: { x: 7, y: 0, z: 9 } },
       null,
     );
     expect(marker).toEqual({ x: 7, z: 9 });
   });
   it('falls back to the giver position when no marker source applies', () => {
     const marker = resolveStageMarker(
-      { description: '', objective: { kind: 'manual', description: '' } },
+      { id: 's2', description: '', objective: { kind: 'manual', description: '' } },
       { x: 1, y: 0, z: 2 },
     );
     expect(marker).toEqual({ x: 1, z: 2 });
