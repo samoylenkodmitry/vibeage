@@ -3633,7 +3633,7 @@ Make VibeAge self-explaining through in-game UI and generated docs.
 
 - [ ] Add stat breakdown popups for major derived stats.
 - [ ] Add skill tooltips with why locked/available/learned.
-- [ ] Add item tooltips with source and use.
+- [x] Add item tooltips with source and use. (Item tooltip footer shows a "Source: ..." line — Sold by / Crafted from / Dropped by / Quest reward. Priority order surfaces the most actionable answer first. `formatPrimarySource` exported + tested.)
 - [ ] Add quest reward previews.
 - [ ] Add map pin explanations.
 - [ ] Add boss mechanic hints in bounty text or combat log.

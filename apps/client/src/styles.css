@@ -1540,6 +1540,7 @@ input {
 .item-tooltip-delta { margin-left: 4px; font-size: 11px; }
 .item-tooltip-delta--up { color: #86efac; }
 .item-tooltip-delta--down { color: #fca5a5; }
+.item-tooltip-source { display: block; margin-top: 4px; opacity: 0.85; }
 
 /* §49/M2 PR008 — heads-up quest tracker strip. Compact left-edge
    button under the vitals-strip so a new player doesn't have to

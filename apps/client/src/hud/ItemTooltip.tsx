@@ -1,7 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemStatBlock } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
+import { getItemSources, type ItemSource } from '../../../../packages/content/obtainability';
+import { getMiniBossById } from '../../../../packages/content/miniBosses';
+import { ENEMY_TEMPLATES } from '../../../../packages/content/enemies';
 import { openWikiAt } from './wikiNavBus';
 
 type ItemTooltipProps = {
@@ -51,6 +54,10 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
     setPos({ left, top });
   }, [clientX, clientY, itemId]);
 
+  // §49/M8 + M14 — single-line "Source:" hint so the player can
+  // tell where to look for more of this item without opening the
+  // wiki. Memoized — `getItemSources` walks loot tables.
+  const sourceLabel = useMemo(() => item ? formatPrimarySource(getItemSources(item.id)) : null, [item]);
   if (!item || typeof document === 'undefined' || !document.body) {
     return null;
   }
@@ -113,6 +120,7 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
           {weight > 0 ? <span>{(weight / 1000).toFixed(1)} kg</span> : null}
         </footer>
       )}
+      {sourceLabel && <small className="item-tooltip-source">Source: {sourceLabel}</small>}
       <button
         type="button"
         className="tooltip-wiki-link"
@@ -138,4 +146,35 @@ export function computeDelta<K extends keyof ItemStatBlock>(
 ): number | null {
   if (!equipped) return null;
   return (hovered[key] ?? 0) - (equipped[key] ?? 0);
+}
+
+// §49/M8 + M14 — pick a single primary source from the obtainability
+// index. Order: vendor (most obvious to a starter) → recipe →
+// boss/mob loot → quest reward. Boss/mob loot resolves to a
+// display name (boss > mob) so the player can recognize who drops it.
+// `null` when there's no source (e.g. a whitelisted future-content
+// placeholder).
+export function formatPrimarySource(sources: ItemSource[]): string | null {
+  const vendor = sources.find((s) => s.kind === 'vendor');
+  if (vendor) return `Sold by ${vendor.vendorName}`;
+  const recipe = sources.find((s) => s.kind === 'recipe');
+  if (recipe) {
+    const recipeItem = ITEMS[recipe.recipeItemId];
+    return `Crafted from ${recipeItem?.name ?? recipe.recipeItemId}`;
+  }
+  const loot = sources.find((s) => s.kind === 'loot');
+  if (loot) {
+    if (loot.bossId) {
+      const boss = getMiniBossById(loot.bossId);
+      if (boss) return `Dropped by ${boss.name}`;
+    }
+    if (loot.enemyType) {
+      const mob = ENEMY_TEMPLATES[loot.enemyType];
+      if (mob) return `Dropped by ${mob.displayName}`;
+    }
+    return 'Dropped by enemies';
+  }
+  const quest = sources.find((s) => s.kind === 'quest');
+  if (quest) return `Quest reward: ${quest.questName}`;
+  return null;
 }
