@@ -1647,6 +1647,28 @@ input {
 .quest-tracker-stage { opacity: 0.85; }
 .quest-tracker-distance { font-size: 11px; color: #fde68a; }
 
+/* §49/M2 — objective-met / ready-to-claim states. Lifts the
+   border so the player notices Next/Claim without having to read
+   the prompt text. Pulse is gentle (~2s) — not seizure-trigger. */
+.quest-tracker-strip--objective-met {
+  border-color: rgba(96, 165, 250, 0.85);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18);
+  animation: quest-tracker-pulse 2s ease-in-out infinite;
+}
+.quest-tracker-strip--ready {
+  border-color: rgba(250, 204, 21, 0.95);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25);
+  animation: quest-tracker-pulse 1.6s ease-in-out infinite;
+}
+@keyframes quest-tracker-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18); }
+  50% { box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.28); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-tracker-strip--objective-met,
+  .quest-tracker-strip--ready { animation: none; }
+}
+
 /* §49/M2 — first-time welcome overlay. Centered, dismissable. */
 .welcome-overlay {
   position: fixed;

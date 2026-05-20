@@ -47,8 +47,16 @@ export function QuestTrackerStrip({
   // show Claim prematurely.
   const showClaim = readyToClaim;
   const showNext = !readyToClaim && objectiveMet && !isLastStage;
+  // §49/M2 — light up the strip when the objective is met OR the
+  // server has flipped readyToClaim. Two distinct states because
+  // the player should be able to tell 'I just hit the goal' apart
+  // from 'I can claim the reward right now'. Both flavours pulse
+  // a brighter border so the strip yanks the eye toward Next/Claim.
+  const completionClass = showClaim
+    ? ' quest-tracker-strip--ready'
+    : (showNext ? ' quest-tracker-strip--objective-met' : '');
   return (
-    <section className="quest-tracker-strip" aria-label="Tracked quest">
+    <section className={`quest-tracker-strip${completionClass}`} aria-label="Tracked quest">
       <div className="quest-tracker-text">
         <small className="quest-tracker-label">Quest</small>
         <strong>{quest.name}</strong>
