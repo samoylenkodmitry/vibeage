@@ -11,6 +11,7 @@ import { listMiniBosses, type MiniBossSpec } from '../../../../packages/content/
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
 import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/content/worldFeatures';
 import type { EnemyEntity, PlayerEntity } from '../gameTypes';
+import { listActiveQuestMarkers } from './questMarkers';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
 
@@ -109,6 +110,7 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         ))}
         {renderLandmarks(viewWidth)}
         <BossMarkers enemies={enemies} viewWidth={viewWidth} />
+        <QuestMarkers player={player} viewWidth={viewWidth} onSetNavigationMarker={onSetNavigationMarker} />
         {navigationMarker && <NavigationDot marker={navigationMarker} viewWidth={viewWidth} />}
         <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={viewWidth} />
       </svg>
@@ -118,6 +120,7 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         <li><span className="map-legend-dot map-legend-dot--mega" />Mega</li>
         <li><span className="map-legend-dot map-legend-dot--landmark" />Landmark</li>
         <li><span className="map-legend-dot map-legend-dot--pin" />Pin</li>
+        <li><span className="map-legend-dot map-legend-dot--quest" />Quest</li>
         <li><span className="map-legend-dot map-legend-dot--boss-alive" />Boss (alive)</li>
         <li><span className="map-legend-dot map-legend-dot--boss-dead" />Boss (slain)</li>
       </ol>
@@ -443,6 +446,60 @@ function BossDot({
         {boss.name}
       </text>
     </g>
+  );
+}
+
+/**
+ * §49/M2 — quest pins. One pin per active quest at its current
+ * stage's resolved marker. Click → drop a navigation marker on that
+ * pin (same as the QuestTrackerStrip "Show on map" action) so the
+ * player gets a one-click "guide me there" from the map.
+ */
+function QuestMarkers({
+  player,
+  viewWidth,
+  onSetNavigationMarker,
+}: {
+  player: PlayerEntity | null;
+  viewWidth: number;
+  onSetNavigationMarker?: (marker: Marker | null) => void;
+}) {
+  const markers = listActiveQuestMarkers(player);
+  if (markers.length === 0) return null;
+  const size = viewWidth * 0.009;
+  return (
+    <>
+      {markers.map((m) => (
+        <g
+          key={m.questId}
+          style={{ cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSetNavigationMarker?.(m.marker);
+          }}
+        >
+          <circle cx={m.marker.x} cy={m.marker.z} r={size * 1.6} fill="rgba(96,165,250,0.22)" />
+          <circle
+            cx={m.marker.x}
+            cy={m.marker.z}
+            r={size * 0.7}
+            fill="#60a5fa"
+            stroke="#04100d"
+            strokeWidth={viewWidth * 0.0006}
+          />
+          <text
+            x={m.marker.x}
+            y={m.marker.z + size * 2.4}
+            textAnchor="middle"
+            fill="#bfdbfe"
+            fontSize={viewWidth * 0.014}
+            style={{ pointerEvents: 'none' }}
+          >
+            {m.questName}
+          </text>
+        </g>
+      ))}
+    </>
   );
 }
 
