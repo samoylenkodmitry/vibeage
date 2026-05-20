@@ -4,10 +4,7 @@ import type { CharacterInventory } from '../../packages/sim/characterInventory.j
 import { createEmptyInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { addItems, removeItems } from '../../packages/sim/inventoryTransactions.js';
-import {
-  buildInventoryFromSlots,
-  flattenInventoryToSlots,
-} from '../../packages/sim/inventoryWireAdapter.js';
+import { buildInventoryFromSlots, flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
 
 const DEFAULT_LIMITS = { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 };
 
@@ -17,42 +14,55 @@ const services = () => ({
 });
 
 /**
- * Returns the player's CharacterInventory aggregate, creating one from the
- * legacy InventorySlot[] field if a hydrated player doesn't have one yet.
+ * §45.7 — every PlayerState constructed by production paths
+ * (createTransientPlayer + hydratePersistedPlayer) carries
+ * `characterInventory`. Tests may build partial fixtures without it
+ * for non-inventory scenarios; this helper lazy-initialises an empty
+ * aggregate in that case so the rest of the inventory pipeline can
+ * assume a present field.
  */
 export function ensureCharacterInventory(player: PlayerState): CharacterInventory {
   if (!player.characterInventory) {
-    player.characterInventory = buildInventoryFromSlots({
-      characterId: player.id,
-      slots: player.inventory,
-      limits: { ...DEFAULT_LIMITS, baseSlots: player.maxInventorySlots },
-      instanceIdFactory: services().instanceIdFactory,
-    });
+    // §45.7 — fixtures that seed `player.inventory = [...]`
+    // without a characterInventory get forward-migrated here, the
+    // same way persistence does on hydrate. Production
+    // construction paths always populate the aggregate so this is
+    // a no-op for them.
+    const legacy = player.inventory ?? [];
+    player.characterInventory = legacy.length > 0
+      ? buildInventoryFromSlots({
+          characterId: player.id,
+          slots: legacy,
+          limits: { ...DEFAULT_LIMITS, baseSlots: player.maxInventorySlots ?? DEFAULT_LIMITS.baseSlots },
+          instanceIdFactory: services().instanceIdFactory,
+        })
+      : emptyAggregateForPlayer(player);
   }
   return player.characterInventory;
 }
 
 /**
- * After mutating the aggregate, re-project the bag into the legacy wire
- * format so existing protocol consumers (persistence, the client's inventory
- * panel) stay in sync until they migrate to the instance-aware shape.
+ * §45.7 — `player.inventory` is no longer the source of truth, but
+ * it remains as a wire-projection mirror until a proper snapshot
+ * boundary lands. Mutators call this after touching the aggregate
+ * so legacy readers (tests, the InventoryUpdate wire emitter) see
+ * the same shape they always did. New code should read from
+ * `player.characterInventory` directly.
  */
 export function syncLegacyInventory(player: PlayerState): void {
-  if (!player.characterInventory) {
-    return;
-  }
+  if (!player.characterInventory) return;
   player.inventory = flattenInventoryToSlots(player.characterInventory);
 }
 
 /**
- * Push an item into both the aggregate and the legacy slot list atomically.
- * Returns the same TransactionResult shape as addItems so callers can branch
- * on success without juggling two parallel data structures.
+ * Push an item into the player's aggregate. Returns the same
+ * TransactionResult shape as addItems so callers can branch on
+ * success.
  *
- * PR GG — `gold_coin` is the currency template, not bag inventory. Every
- * loot table drops it, but it would be noise to carry stacks of coins
- * around. Intercept here and credit the player's `gold` counter directly
- * so a single code path keeps the bag clean.
+ * PR GG — `gold_coin` is the currency template, not bag inventory.
+ * Every loot table drops it, but it would be noise to carry stacks
+ * of coins around. Intercept here and credit the player's `gold`
+ * counter directly so a single code path keeps the bag clean.
  */
 export function addItemsToPlayer(player: PlayerState, templateId: string, count: number) {
   if (templateId === 'gold_coin') {
@@ -61,20 +71,14 @@ export function addItemsToPlayer(player: PlayerState, templateId: string, count:
     }
     return { ok: true as const, value: { added: [], changed: [] } };
   }
-  const aggregate = ensureCharacterInventory(player);
-  const result = addItems(aggregate, { templateId, count }, services());
-  if (result.ok) {
-    syncLegacyInventory(player);
-  }
+  const result = addItems(ensureCharacterInventory(player), { templateId, count }, services());
+  if (result.ok) syncLegacyInventory(player);
   return result;
 }
 
 export function removeItemsFromPlayer(player: PlayerState, templateId: string, count: number) {
-  const aggregate = ensureCharacterInventory(player);
-  const result = removeItems(aggregate, templateId, count, services());
-  if (result.ok) {
-    syncLegacyInventory(player);
-  }
+  const result = removeItems(ensureCharacterInventory(player), templateId, count, services());
+  if (result.ok) syncLegacyInventory(player);
   return result;
 }
 
@@ -92,9 +96,9 @@ export function templateOf(templateId: string) {
 }
 
 /**
- * Snapshot the player's aggregate + legacy inventory so a multi-step
- * transaction (e.g., loot pickup that adds several drops) can roll back
- * atomically when any step fails.
+ * Snapshot the player's aggregate + gold so a multi-step transaction
+ * (e.g., loot pickup that adds several drops) can roll back atomically
+ * when any step fails.
  */
 export function snapshotInventory(player: PlayerState) {
   const aggregate = ensureCharacterInventory(player);
@@ -111,40 +115,31 @@ export function snapshotInventory(player: PlayerState) {
       occupancy: { ...aggregate.occupancy },
       limits: aggregate.limits,
     },
-    legacy: player.inventory.map((slot) => ({ ...slot })),
     // PR GG — capture the gold counter so a partial loot pickup that
-    // includes coin drops can roll back the credit. Without this,
-    // a failed pickup leaves the gold on the player *and* the pile
-    // on the ground = duplication.
+    // includes coin drops can roll back the credit.
     gold: player.gold ?? 0,
   };
 }
 
 export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeof snapshotInventory>): void {
   player.characterInventory = snapshot.aggregate;
-  player.inventory = snapshot.legacy;
   player.gold = snapshot.gold;
+  syncLegacyInventory(player);
 }
 
 /**
  * Attach a persisted CharacterInventory aggregate back to a freshly
- * hydrated player. Tolerates the row column being null (pre-migration
- * rows, or any player that hasn't equipped anything yet) — the caller
- * falls back to building from the legacy bag in that case.
+ * hydrated player. Tolerates the row column being null (any player
+ * that hasn't been persisted yet) — the caller seeds an empty
+ * aggregate in that case.
  */
 export function hydratePersistedCharacterInventory(
   player: PlayerState,
   raw: unknown,
 ): void {
-  if (!raw || typeof raw !== 'object') {
-    return;
-  }
+  if (!raw || typeof raw !== 'object') return;
   const aggregate = raw as CharacterInventory;
-  if (!aggregate.items || !aggregate.equipment || !aggregate.occupancy) {
-    return;
-  }
+  if (!aggregate.items || !aggregate.equipment || !aggregate.occupancy) return;
   player.characterInventory = aggregate;
-  // Project the bag view back onto the legacy `inventory` field so the
-  // existing wire/persistence consumers see the right item list.
   syncLegacyInventory(player);
 }

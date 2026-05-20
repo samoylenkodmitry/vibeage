@@ -23,7 +23,8 @@ import {
 } from './playerProgression.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { applyStarterLoadout } from '../inventory/starterLoadout.js';
-import { ensureCharacterInventory, hydratePersistedCharacterInventory, syncLegacyInventory } from '../inventory/aggregateBridge.js';
+import { hydratePersistedCharacterInventory, emptyAggregateForPlayer } from '../inventory/aggregateBridge.js';
+import { isBagEmpty } from '../../packages/sim/characterInventory.js';
 import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
 import { starterSkillsFor } from './playerProgression.js';
@@ -176,24 +177,22 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     starterProgress,
     posHistory: [],
     lastUpdateTime: Date.now(),
-    // §45.7 — `row.inventory` no longer exists (migration 011 dropped
-    // the column). `hydratePlayerCharacterInventory` below restores
-    // `player.characterInventory` from `row.character_inventory` and
-    // projects the wire view back onto this field.
-    inventory: [],
+    // §45.7 — `characterInventory` is set by
+    // `hydratePlayerCharacterInventory` below (real aggregate from
+    // `row.character_inventory`, or an empty one for fresh accounts).
+    // The cast keeps TS happy for the few lines before that runs.
+    characterInventory: undefined as unknown as PlayerState['characterInventory'],
     maxInventorySlots: 20,
     specializationId: normalizeSpecializationId(row.specialization_id),
     skillLevels: normalizeSkillLevels(row.skill_levels),
     questState: normalizeQuestState(row.quest_state),
   };
   hydratePlayerCharacterInventory(player, row.character_inventory);
-  // Fresh persisted accounts (level 1, empty inventory) get the starter
-  // loadout so they see the new equipment system immediately.
-  if (
-    player.level === 1
-    && player.inventory.length === 0
-    && !player.characterInventory
-  ) {
+  // Fresh persisted accounts (level 1, empty bag) get the starter
+  // loadout so they see the new equipment system immediately. After
+  // hydratePlayerCharacterInventory the aggregate is always present;
+  // we check the bag rather than the field's existence now.
+  if (player.level === 1 && isBagEmpty(player.characterInventory)) {
     applyStarterLoadout(player);
   }
   // PR NN — single stat-compute entrypoint. Builds the contributions
@@ -226,9 +225,13 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
  */
 function hydratePlayerCharacterInventory(player: PlayerState, raw: unknown): void {
   hydratePersistedCharacterInventory(player, raw);
+  // No persisted aggregate? Seed an empty one so the player object's
+  // `characterInventory` is always defined past this point. Starter-
+  // loadout backfill (in `hydratePersistedPlayer`) fills it for fresh
+  // level-1 accounts; returning players past level 1 just keep the
+  // empty bag (legacy `row.inventory` data is gone — migration 011).
   if (!player.characterInventory) {
-    ensureCharacterInventory(player);
-    syncLegacyInventory(player);
+    player.characterInventory = emptyAggregateForPlayer(player);
   }
 }
 

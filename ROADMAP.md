@@ -2130,10 +2130,16 @@ contiguous list so the audit doesn't fragment.
     inventory data now build a `CharacterInventory` aggregate.
     `players.character_inventory` is the only inventory column
     on disk.
-  - [ ] Stop maintaining the in-memory `player.inventory` wire
-    projection; compute it only at the snapshot boundary so
-    server logic can't accidentally diverge from
-    `characterInventory`.
+  - [~] Stop maintaining the in-memory `player.inventory` wire
+    projection. Server code now reads from `characterInventory`
+    everywhere (vendor, craft, quest, item use, snapshot emit);
+    `player.inventory` is downgraded to a deprecated wire-shape
+    mirror tagged transient on the persistence policy. Mutators
+    still call `syncLegacyInventory` after every aggregate change
+    so tests + the InventoryUpdate wire emitter keep observing
+    the slot view. Final removal needs a real snapshot boundary
+    that computes the projection on the way out — filed as a
+    follow-up.
   - [ ] Migrate the protocol's `inventoryUpdateMsg` to ship the
     full aggregate (or a typed delta) instead of the flat-bag
     slot array.

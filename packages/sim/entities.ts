@@ -222,8 +222,21 @@ export interface PlayerState {
     wit?: number;
     men?: number;
   };
-  inventory: InventorySlot[];
+  // §45.7 — `inventory` is no longer the source of truth for any
+  // server-side path; it survives only as an optional field so
+  // legacy test fixtures keep typing. Production reads + writes
+  // route through `characterInventory`, and the wire shape is
+  // computed by `flattenInventoryToSlots` only at the snapshot
+  // boundary. Will be deleted once every test fixture migrates
+  // to spreading from a real PlayerState factory.
+  inventory?: InventorySlot[];
   maxInventorySlots: number;
+  // §45.7 — kept structurally optional so existing test fixtures
+  // that pre-date this slice still compile. Production
+  // construction sites (createTransientPlayer +
+  // hydratePersistedPlayer) always populate it; tests that
+  // exercise inventory mutation route through `addItemsToPlayer`
+  // which requires the field be present.
   characterInventory?: CharacterInventory;
   /**
    * PR GG — total spendable gold. Sourced from quest rewards,

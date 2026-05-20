@@ -51,13 +51,11 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     questState: { active: {}, completed: [] },
     posHistory: [],
     lastUpdateTime: Date.now(),
-    inventory: [],
     maxInventorySlots: 20,
     characterInventory: createEmptyInventory(playerId, PLAYER_INVENTORY_LIMITS),
   };
-  // Stocking the starter loadout populates both the aggregate and the
-  // legacy slot array via the bridge, so the new Bag / Paperdoll panels
-  // have something to show on the very first spawn.
+  // Stocking the starter loadout populates the aggregate; the
+  // snapshot boundary projects to the legacy slot view on the wire.
   applyStarterLoadout(player);
   // PR NN — single source of stat computation. Reads contributions
   // from race / level / class / equipment and writes player.stats +

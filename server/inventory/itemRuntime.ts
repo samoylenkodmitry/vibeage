@@ -1,5 +1,6 @@
 import { ITEMS, isUsableConsumable, type Item } from '../../packages/content/items.js';
 import type { ItemUsed } from '../../packages/protocol/messages.js';
+import { instanceAtSlot } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 
@@ -21,15 +22,12 @@ export type ConsumableUseResult =
     };
 
 export function applyInventoryItemUse(player: PlayerState, slotIndex: number): ConsumableUseResult {
-  // Ensure the aggregate is in sync with the legacy slots before we mutate,
-  // otherwise the rebuild-from-legacy fallback would observe stale counts.
-  ensureCharacterInventory(player);
-  const slot = player.inventory[slotIndex];
-  if (!slot || slot.quantity <= 0) {
+  const instance = instanceAtSlot(ensureCharacterInventory(player), slotIndex);
+  if (!instance || instance.count <= 0) {
     return { ok: false, reason: 'invalidSlot' };
   }
 
-  const itemDef = ITEMS[slot.itemId];
+  const itemDef = ITEMS[instance.templateId];
   if (!itemDef) {
     return { ok: false, reason: 'unknownItem' };
   }
@@ -38,8 +36,8 @@ export function applyInventoryItemUse(player: PlayerState, slotIndex: number): C
     return { ok: false, reason: 'notConsumable' };
   }
 
-  const itemId = slot.itemId;
-  const previousQuantity = slot.quantity;
+  const itemId = instance.templateId;
+  const previousQuantity = instance.count;
   const healthDelta = applyHealthRestore(player, itemDef);
   const manaDelta = applyManaRestore(player, itemDef);
 
