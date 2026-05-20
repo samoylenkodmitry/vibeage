@@ -2986,8 +2986,8 @@ Add a command such as:
 pnpm run balance:report
 ```
 
-- [ ] Generate race/class stat tables at levels 1, 5, 10, 20, and 40.
-- [ ] Generate starter time-to-kill estimates for starter mobs.
+- [x] Generate race/class stat tables at levels 1, 5, 10, 20, and 40. (`pnpm run balance:report` — `scripts/balance-report.ts`; HP/MP/dmgMult/pAtk/mAtk/pDef/mDef per class per checkpoint.)
+- [x] Generate starter time-to-kill estimates for starter mobs. (Same script — sims L1 player vs L1 goblin per class via the real `resolveCastImpact` path.)
 - [ ] Generate expected boss time-to-kill estimates for early bosses.
 - [ ] Generate expected damage taken for early bosses.
 - [ ] Generate mana sustain estimates for caster/healer classes.
@@ -2995,7 +2995,7 @@ pnpm run balance:report
 - [ ] Generate skill cooldown/damage-per-mana/damage-per-second summaries.
 - [ ] Generate gear progression stat deltas by tier.
 - [ ] Generate warning when a class is far outside expected range.
-- [ ] Save report as text or Markdown for easy diffing.
+- [x] Save report as text or Markdown for easy diffing. (Output is Markdown tables; redirect to a file for diffing.)
 
 ## Early Balance Targets
 
