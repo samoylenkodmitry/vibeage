@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickTrackedStage } from '../apps/client/src/hud/QuestTrackerStrip';
+import { formatDistance, pickTrackedStage } from '../apps/client/src/hud/QuestTrackerStrip';
 import { QUEST_NPCS } from '../packages/content/npcs';
 import type { PlayerEntity } from '../apps/client/src/gameTypes';
 
@@ -58,5 +58,19 @@ describe('QuestTrackerStrip.pickTrackedStage', () => {
     expect(tracked!.marker).toBeDefined();
     expect(typeof tracked!.marker!.x).toBe('number');
     expect(typeof tracked!.marker!.z).toBe('number');
+  });
+});
+
+describe('QuestTrackerStrip.formatDistance', () => {
+  it('renders sub-metre distances as "<1 m" so the strip never says 0 m at the marker', () => {
+    expect(formatDistance(0.3)).toBe('<1 m');
+  });
+  it('rounds in-metre distances to integers', () => {
+    expect(formatDistance(42.7)).toBe('43 m');
+    expect(formatDistance(999.4)).toBe('999 m');
+  });
+  it('switches to km past 1000 with one decimal', () => {
+    expect(formatDistance(1500)).toBe('1.5 km');
+    expect(formatDistance(10_245)).toBe('10.2 km');
   });
 });

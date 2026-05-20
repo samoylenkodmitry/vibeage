@@ -1562,6 +1562,7 @@ input {
 .quest-tracker-label { font-size: 10px; opacity: 0.65; letter-spacing: 0.5px; }
 .quest-tracker-strip strong { font-size: 13px; }
 .quest-tracker-stage { opacity: 0.85; }
+.quest-tracker-distance { font-size: 11px; color: #fde68a; }
 
 /* Vendor browse panel. Opens when the player clicks "Browse Wares"
    on an NPC dialog. Mirrors the quest-panel layout but anchored at

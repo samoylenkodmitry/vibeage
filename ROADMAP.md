@@ -2782,7 +2782,7 @@ Character creation
 - [ ] Make Warden Galen’s first quest impossible to miss.
 - [x] Show current quest objective in a compact tracker. (`QuestTrackerStrip` — small left-edge HUD button showing active quest + stage + objective progress. Click drops a navigation marker. Stays out of the way; only renders when there's an active quest.)
 - [ ] Show quest target marker on the map.
-- [ ] Show distance to quest marker.
+- [x] Show distance to quest marker. (`QuestTrackerStrip` shows the resolved marker distance as a yellow chip — "<1 m", "43 m", "1.5 km". Hidden for manual stages with no marker. `formatDistance` tested at 3 input ranges.)
 - [ ] Show when the current objective is complete.
 - [ ] Make “Next” and “Claim” button states obvious.
 - [ ] Show reward preview before accepting a quest.
