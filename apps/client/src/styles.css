@@ -351,6 +351,21 @@ input {
   gap: 4px;
 }
 
+/* §49/M2 — dedicated basic-attack anchor, sits above the skill bar.
+   Wider, brighter than a normal slot so it reads as 'always there'
+   instead of an empty hotkey. */
+.skill-bar-anchor {
+  display: flex;
+  justify-content: center;
+}
+.skill-bar-anchor .skill-button {
+  min-width: 96px;
+  border-color: rgba(248, 113, 113, 0.5);
+}
+.skill-bar-anchor .skill-button:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.85);
+}
+
 .skill-bar-row--secondary .skill-button {
   min-height: 44px;
 }
