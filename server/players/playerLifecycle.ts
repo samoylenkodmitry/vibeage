@@ -1,4 +1,5 @@
 import type { RespawnRequest } from '../../packages/protocol/messages.js';
+import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import type { GameState } from '../gameState.js';
@@ -84,13 +85,16 @@ export function handleResourceRegeneration(
   outbound: OutboundEventSink,
   now: number = Date.now(),
 ): void {
-  for (const player of Object.values(state.players)) {
-    if (!player.isAlive) continue;
+  const alivePlayers = Object.values(state.players).filter((p) => p.isAlive);
+  for (const player of alivePlayers) {
     const last = player.lastRegenTimeMs ?? now;
     const dtSeconds = Math.max(0, (now - last) / 1000);
     player.lastRegenTimeMs = now;
     if (dtSeconds <= 0) continue;
-    const hpRegen = player.stats?.hpRegen ?? MANA_REGEN_PER_TICK;
+    // §45.3 follow-up — Cardinal Sanctity / future regen-aura specs
+    // add a flat HP/sec bonus while a carrier is in range.
+    const auraBonus = partyHpRegenAuraBonusFor(player, alivePlayers);
+    const hpRegen = (player.stats?.hpRegen ?? MANA_REGEN_PER_TICK) + auraBonus;
     const mpRegen = player.stats?.mpRegen ?? MANA_REGEN_PER_TICK;
     const oldHp = player.health;
     const oldMana = player.mana;
@@ -110,6 +114,31 @@ export function handleResourceRegeneration(
       });
     }
   }
+}
+
+// §45.3 — sum of flat HP/sec from every other-player ally within
+// their declared aura radius. Multiple Cardinals stack additively.
+function partyHpRegenAuraBonusFor(player: PlayerState, alivePlayers: PlayerState[]): number {
+  let bonus = 0;
+  for (const ally of alivePlayers) {
+    if (ally.id === player.id) continue;
+    if (!ally.specializationId) continue;
+    const spec = getSpecializationById(ally.specializationId);
+    if (!spec) continue;
+    const tiers = ally.level >= PROFICIENCY_LEVEL
+      ? [spec.specializationPassive.modifiers, spec.proficiencyPassive.modifiers]
+      : [spec.specializationPassive.modifiers];
+    for (const mods of tiers) {
+      const flat = mods.partyHpRegenAuraBonus;
+      const radius = mods.partyHpRegenAuraRadiusM;
+      if (!flat || !radius) continue;
+      const dx = ally.position.x - player.position.x;
+      const dz = ally.position.z - player.position.z;
+      if (dx * dx + dz * dz > radius * radius) continue;
+      bonus += flat;
+    }
+  }
+  return bonus;
 }
 
 export function respawnPlayer(
