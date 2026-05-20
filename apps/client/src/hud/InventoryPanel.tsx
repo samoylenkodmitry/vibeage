@@ -19,9 +19,11 @@ type InventoryPanelProps = {
    * sees what they're consuming before committing.
    */
   onOpenRecipe: (recipeSlotIndex: number) => void;
+  /** §46/slice-new — Shift+click drops the full stack at the player's feet. */
+  onDropItem: (slotIndex: number) => void;
 };
 
-export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, onEquipItem, onOpenRecipe }: InventoryPanelProps) {
+export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, onEquipItem, onOpenRecipe, onDropItem }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<string>();
@@ -56,7 +58,7 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
             ? 'Recipe'
             : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
         const title = slot
-          ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · hover or long-press for details`
+          ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · Shift+click to drop · hover or long-press for details`
           : 'Empty slot';
 
         const onClick = canUse
@@ -80,6 +82,13 @@ export function InventoryPanel({ inventory, maxSlots, playerLevel, onUseItem, on
               // immediately use/equip after the tooltip opens.
               if (tooltip.consumePendingClick()) {
                 event.stopPropagation();
+                return;
+              }
+              // §46/slice-new — Shift+click on an occupied slot drops
+              // the full stack instead of triggering the primary action.
+              if (slot && event.shiftKey) {
+                event.stopPropagation();
+                onDropItem(index);
                 return;
               }
               onClick?.();
