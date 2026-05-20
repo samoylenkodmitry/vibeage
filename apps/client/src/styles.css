@@ -1781,9 +1781,8 @@ input {
   background: rgba(30, 41, 59, 0.6);
 }
 
-/* §49/M2 — skill-use hint. Same shape, purple tint so it's
-   distinguishable from the loot (green) and targeting (blue)
-   onboarding banners when stacked. */
+/* §49/M2 — skill-use hint. Purple tint, distinguishable from the
+   loot (green) and targeting (blue) onboarding banners. */
 .skill-use-hint {
   position: fixed;
   left: 50%;
@@ -1812,6 +1811,28 @@ input {
   border-radius: 3px;
   background: rgba(46, 26, 71, 0.6);
 }
+
+/* §49/M2 — return-to-NPC hint. Amber tint so "walk back" reads
+   distinct from the targeting / loot / skill-use banners. */
+.return-to-npc-hint {
+  position: fixed;
+  left: 50%;
+  top: calc(30% + 80px);
+  transform: translateX(-50%);
+  max-width: min(380px, 88vw);
+  display: grid;
+  gap: 2px;
+  padding: 8px 14px;
+  background: rgba(45, 30, 8, 0.92);
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  border-radius: 6px;
+  color: #fef3c7;
+  z-index: 9;
+  pointer-events: none;
+  animation: loot-pickup-hint-fade 0.3s ease-out;
+}
+.return-to-npc-hint strong { font-size: 14px; color: #fffbeb; }
+.return-to-npc-hint small { font-size: 12px; opacity: 0.92; }
 
 /* Vendor browse panel. Opens when the player clicks "Browse Wares"
    on an NPC dialog. Mirrors the quest-panel layout but anchored at
