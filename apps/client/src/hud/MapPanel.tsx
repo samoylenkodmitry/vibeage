@@ -107,22 +107,7 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         {GAME_ZONES.map((zone) => (
           <ZoneShape key={zone.id} zone={zone} viewWidth={viewWidth} />
         ))}
-        {(() => {
-          // Label-overlap dedup: walk landmarks left-to-right and
-          // suppress the label on any one that lands within
-          // labelMinDist world units of an already-rendered one at
-          // this zoom level. Dots still render so the player sees
-          // the cluster; only the text is dropped.
-          const labelMinDist = viewWidth * 0.04;
-          const visibleLabels: Array<{ x: number; z: number }> = [];
-          return WORLD_LANDMARKS.map((landmark) => {
-            const tooClose = visibleLabels.some((p) =>
-              Math.hypot(p.x - landmark.position.x, p.z - landmark.position.z) < labelMinDist,
-            );
-            if (!tooClose) visibleLabels.push(landmark.position);
-            return <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} hideLabel={tooClose} />;
-          });
-        })()}
+        {renderLandmarks(viewWidth)}
         <BossMarkers enemies={enemies} viewWidth={viewWidth} />
         {navigationMarker && <NavigationDot marker={navigationMarker} viewWidth={viewWidth} />}
         <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={viewWidth} />
@@ -337,7 +322,13 @@ function useCameraYaw(angleRef?: MutableRefObject<number>): number {
 }
 
 function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {
-  const labelSize = Math.max(viewWidth * 0.005, zone.radius * 0.18);
+  // Zone label: scale with viewport width (~1.6% of viewport),
+  // but suppress when the zone footprint is too small to comfortably
+  // host the text — at deep zoom-outs, label clutter is worse than
+  // having to hover the dot.
+  const labelSize = viewWidth * 0.016;
+  const minViewportRatio = 0.06;
+  const zoneFitsLabel = zone.radius * 2 > viewWidth * minViewportRatio;
   return (
     <g>
       <circle
@@ -346,17 +337,19 @@ function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {
         r={zone.radius}
         fill="rgba(141,233,215,0.08)"
         stroke="rgba(141,233,215,0.55)"
-        strokeWidth={Math.max(viewWidth * 0.0008, 1)}
+        strokeWidth={viewWidth * 0.0008}
       />
-      <text
-        x={zone.position.x}
-        y={zone.position.z + labelSize * 0.4}
-        fontSize={labelSize}
-        textAnchor="middle"
-        fill="#c4f1e2"
-      >
-        {zone.name}
-      </text>
+      {zoneFitsLabel && (
+        <text
+          x={zone.position.x}
+          y={zone.position.z + labelSize * 0.4}
+          fontSize={labelSize}
+          textAnchor="middle"
+          fill="#c4f1e2"
+        >
+          {zone.name}
+        </text>
+      )}
     </g>
   );
 }
@@ -428,19 +421,23 @@ function BossMarkers({ enemies, viewWidth }: { enemies?: Record<string, EnemyEnt
 function BossDot({
   boss, x, z, alive, viewWidth,
 }: { boss: MiniBossSpec; x: number; z: number; alive: boolean; viewWidth: number }) {
-  const size = Math.max(viewWidth * 0.012, 900);
+  // Dot + label sized as fractions of the visible viewport so they
+  // scale across zoom levels. The old \`Math.max(..., 900)\` floor was
+  // in world units and overflowed the viewport at every default
+  // zoom — 900 world units at zoom 40 is ~36% of the visible map.
+  const size = viewWidth * 0.012;
   const fill = alive ? '#fbbf24' : '#475569';
   const halo = alive ? 'rgba(251,191,36,0.28)' : 'rgba(71,85,105,0.22)';
   return (
     <g style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openWikiAt('bosses', boss.id); }}>
       <circle cx={x} cy={z} r={size * 1.8} fill={halo} />
-      <circle cx={x} cy={z} r={size * 0.85} fill={fill} stroke="#04100d" strokeWidth={Math.max(viewWidth * 0.0006, 400)} />
+      <circle cx={x} cy={z} r={size * 0.85} fill={fill} stroke="#04100d" strokeWidth={viewWidth * 0.0006} />
       <text
         x={x}
         y={z + size * 2.4}
         textAnchor="middle"
         fill={alive ? '#fde68a' : '#94a3b8'}
-        fontSize={Math.max(viewWidth * 0.02, 1400)}
+        fontSize={viewWidth * 0.018}
         style={{ pointerEvents: 'none' }}
       >
         {boss.name}
@@ -450,11 +447,12 @@ function BossDot({
 }
 
 function NavigationDot({ marker, viewWidth }: { marker: Marker; viewWidth: number }) {
-  const size = Math.max(viewWidth * 0.01, 800);
+  // Same floor-removal as BossDot — keep the pin pure-fractional.
+  const size = viewWidth * 0.01;
   return (
     <g>
       <circle cx={marker.x} cy={marker.z} r={size * 1.6} fill="rgba(250,204,21,0.22)" />
-      <circle cx={marker.x} cy={marker.z} r={size * 0.7} fill="#facc15" stroke="#04100d" strokeWidth={Math.max(viewWidth * 0.0006, 400)} />
+      <circle cx={marker.x} cy={marker.z} r={size * 0.7} fill="#facc15" stroke="#04100d" strokeWidth={viewWidth * 0.0006} />
     </g>
   );
 }
@@ -495,6 +493,39 @@ function PlayerMarker({
       />
     </g>
   );
+}
+
+/**
+ * Landmark layer with width-aware label dedup. Sorts mega landmarks
+ * first so their labels survive collisions, then walks the rest:
+ * each label reserves an approximate bounding box (text width *
+ * fontSize) and any later label overlapping that box is suppressed
+ * (dot still renders so the player sees the cluster).
+ */
+function renderLandmarks(viewWidth: number): ReactElement[] {
+  const dotSize = viewWidth * 0.012;
+  const fontSize = dotSize * 1.6;
+  const charWidth = fontSize * 0.55;
+  const padding = fontSize * 0.4;
+  const sorted = [...WORLD_LANDMARKS].sort((a, b) => Number(b.mega === true) - Number(a.mega === true));
+  type LabelBox = { minX: number; maxX: number; minZ: number; maxZ: number };
+  const placed: LabelBox[] = [];
+  return sorted.map((landmark) => {
+    const lx = landmark.position.x + dotSize * 1.8;
+    const lz = landmark.position.z;
+    const width = landmark.name.length * charWidth;
+    const box: LabelBox = {
+      minX: lx - padding,
+      maxX: lx + width + padding,
+      minZ: lz - fontSize * 0.6 - padding,
+      maxZ: lz + fontSize * 0.6 + padding,
+    };
+    const overlaps = placed.some((p) =>
+      box.minX < p.maxX && box.maxX > p.minX && box.minZ < p.maxZ && box.maxZ > p.minZ,
+    );
+    if (!overlaps) placed.push(box);
+    return <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} hideLabel={overlaps} />;
+  });
 }
 
 function renderGridLines(
