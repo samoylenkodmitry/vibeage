@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ITEMS, type Item } from '../../../../packages/content/items';
+import { listRecipeItems, recipesProducing, recipesUsingMaterial } from '../../../../packages/content/recipeLookups';
 import type { WikiNav } from './WikiBosses';
 
 /**
@@ -9,26 +10,13 @@ import type { WikiNav } from './WikiBosses';
  * back to the Items tab, closing the content loop:
  *   Boss → Item (trophy) → recipes-using-this → Item (output)
  *
- * Reverse lookups live here too (`recipesUsingMaterial`,
- * `recipesProducing`) so material rows and crafted-equipment rows
- * can show their inbound recipe references without reaching into
- * a registry — the Item record is the spec.
+ * Reverse lookups (`recipesUsingMaterial`, `recipesProducing`)
+ * moved to packages/content/recipeLookups.ts in §49/M2 so the
+ * inventory tooltip can share them without a tsx-to-tsx import.
  */
-function listRecipes(): Item[] {
-  const out: Item[] = [];
-  for (const item of Object.values(ITEMS)) {
-    if (item.type === 'recipe' && item.recipe) out.push(item);
-  }
-  return out;
-}
+function listRecipes(): Item[] { return listRecipeItems(); }
 
-export function recipesUsingMaterial(itemId: string): Item[] {
-  return listRecipes().filter((r) => r.recipe!.inputs.some((i) => i.itemId === itemId));
-}
-
-export function recipesProducing(itemId: string): Item[] {
-  return listRecipes().filter((r) => r.recipe!.output.itemId === itemId);
-}
+export { recipesUsingMaterial, recipesProducing };
 
 export function RecipesTab({
   query, focusId, focusKey, navigate,
