@@ -1535,6 +1535,65 @@ input {
 .npc-dialog-row button { padding: 3px 6px; margin-top: 2px; cursor: pointer; }
 .npc-dialog-empty { opacity: 0.7; }
 
+/* Vendor browse panel. Opens when the player clicks "Browse Wares"
+   on an NPC dialog. Mirrors the quest-panel layout but anchored at
+   screen-center so the two columns (For Sale / Buy Back) fit
+   comfortably. z-index above the skill bar so the buttons are
+   clickable. */
+.vendor-panel {
+  position: fixed;
+  left: 50%;
+  top: 96px;
+  transform: translateX(-50%);
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 6px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  z-index: 110;
+  pointer-events: auto;
+  overflow: hidden;
+}
+.vendor-panel-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(250, 204, 21, 0.25);
+}
+.vendor-panel-header strong { display: block; font-size: 14px; }
+.vendor-panel-header small { display: block; opacity: 0.75; }
+.vendor-panel-wallet { text-align: right; }
+.vendor-panel-wallet strong { color: #fde68a; font-size: 14px; }
+.vendor-panel-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-height: 56vh;
+  overflow-y: auto;
+}
+.vendor-panel-col { display: grid; gap: 4px; align-content: start; }
+.vendor-panel-col h4 { margin: 0 0 4px 0; font-size: 12px; opacity: 0.85; }
+.vendor-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid rgba(141, 233, 215, 0.18);
+  border-radius: 4px;
+}
+.vendor-row button { padding: 3px 8px; cursor: pointer; }
+.vendor-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+@media (max-width: 600px) {
+  .vendor-panel-body { grid-template-columns: 1fr; }
+}
+
 .gm-panel {
   position: fixed;
   right: 12px;
