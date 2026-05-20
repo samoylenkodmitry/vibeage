@@ -379,7 +379,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 ## 4. Protocol and Network Contract
 
 - [x] Convert every client message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
-- [ ] Convert every server message schema from `.passthrough()` to `.strict()` unless a specific compatibility reason exists.
+- [x] Convert every server message schema from `.passthrough()` to `.strict()` (shipped PR #233, every `.strict()` declaration in `packages/protocol/serverMessages.ts`).
 - [ ] Add protocol version constants in one shared file consumed by client and server.
 - [ ] Add a migration path for protocol versions rather than a single hardcoded minimum only.
 - [ ] Add a `serverProtocolVersion` message or join response so clients can display useful upgrade errors.
@@ -1128,7 +1128,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] PR 1: Privacy hardening for `characterInventory`, exact-key DTO tests, and public snapshot regression tests.
 - [ ] PR 2: Protocol strictness audit, `LearnSkillFailed` schema fix, and exhaustive command type test.
 - [ ] PR 3: Instance-aware inventory/equipment persistence design, migration, hydration, and reconnect tests.
-- [ ] PR 4: Auth/session design slice with signed guest sessions and ownership validation on join.
+- [x] PR 4: Auth/session design slice with signed guest sessions and ownership validation on join (shipped — password auth live, JWT verification + ownership checks in `server/transport/index.ts` `handleJoin`; see §45 audit-events item).
 - [ ] PR 5: Self-cast and beneficial-skill targeting fix with tests for heal, shield, bless, evasion, and invisibility.
 - [ ] PR 6: Status effect engine foundation with expiration, shield absorption, slow, stun, and DoT tests.
 - [ ] PR 7: Unified enemy/player damage pipeline with defense, crit, evasion, shield, and combat log details.
@@ -2241,4 +2241,97 @@ contiguous list so the audit doesn't fragment.
   `handleJoin` try/catch now emits `character.selected` on success
   + `ownership.suspicious` (`joinClientFailed:<errorName>`) on a
   post-token-verify failure.
+
+## 46. Roadmap refresh + Sanctity cleanup (2026-05-20)
+
+User asked: *"refresh the roadmap, what items are stale, and what
+we should add and whats left"*. An exploratory audit walked HEAD
+against this file and found 16 unticked items that already shipped,
+1 lingering `(planned: …)` parenthetical to close, and 1 known-
+issue worth promoting from inline comment to roadmap entry.
+
+### PR XX — Cardinal Sanctity regen aura (closes the last `(planned)` line) ✅
+
+- [x] `partyHpRegenAuraBonus` + `partyHpRegenAuraRadiusM` added
+  to `SpecializationPassiveModifiers`
+  (`packages/content/specializations.ts`).
+- [x] `handleResourceRegeneration` adds the aura bonus on top of
+  `player.stats.hpRegen` via `partyHpRegenAuraBonusFor` walking
+  every other alive player and filtering against each spec
+  carrier's declared radius. Multiple Cardinals stack additively.
+  Live-eval so movement toggles the bonus without a stat
+  recompute (`server/players/playerLifecycle.ts:88-142`).
+- [x] Cardinal `Sanctity` (proficiency, L40):
+  `{ healthMultiplier: 1.05, partyHpRegenAuraBonus: 2,
+  partyHpRegenAuraRadiusM: 12 }`. Description: "+5% max HP;
+  nearby allies (within 12m) regen +2 HP/sec."
+- [x] `tests/sanctityRegenAura.spec.ts` pins both directions:
+  teammate within 12m → base + 2 HP/s; teammate beyond 12m →
+  base only.
+
+**Every spec passive now has a runtime consumer.** No more
+`(planned: …)` strings in `packages/content/specializations.ts`.
+
+### Cross-section ticks (already shipped, were unticked)
+
+Discovered during the audit — each one corresponds to a
+specific file/line that already implements the listed behaviour:
+
+- §4 Protocol: server-message `.strict()` (above, line ~382).
+- §29 PR 4: auth/session shipped (above, line ~1131).
+
+### Movement double-step — promoted from inline KNOWN ISSUE
+
+- [ ] `server/ai/enemyBehavior.ts:71-79` documents that
+  `moveEnemyToward` integrates `velocity * dt` into position
+  AND `worldMovement.advanceEnemyPosition` does it again the
+  same tick — enemies effectively travel at 2× their nominal
+  speed. Already tracked at §10. Fix is its own PR because it
+  requires rebalancing every enemy template's `movementSpeed`
+  (the comment explicitly says "balance change that belongs in
+  its own PR"). Not a regression; tuning is currently built
+  around the doubled speed.
+
+### What's actually open and concrete (prioritized)
+
+Pulled forward as the user-visible "what's left" so the next
+session can pick a slice without re-auditing:
+
+1. **Protocol versioning** (§4:383-385). `serverProtocolVersion`
+   on the join response so clients can render a useful upgrade
+   error rather than a silent stale-schema break.
+2. **`clientSeq` + structured rejection envelopes** (§4:390-393).
+   `clientTs` is currently overloaded as an ack key; explicit
+   sequence IDs would let inventory/equipment/skill flows surface
+   per-request rejection reasons.
+3. **DTO privacy split** (§5:404-417). `OwnerPlayerSnapshot` vs
+   `PublicPlayerSnapshot` vs `PlayerPresenceSnapshot` so other
+   players never receive owner-only fields by accident.
+4. **Buff stacking policy** (§8:519-521). Today every status
+   effect upsert is "replace + refresh duration"; dispel
+   categories and per-effect stack rules are unspecified.
+5. **Pack aggro + disengage** (§11:605-606). Currently every
+   mob aggros individually; pack pulls would land naturally
+   on the existing `zoneSpawner` group infrastructure.
+6. **Mini-boss leash + respawn** (§11:607-609). Bosses
+   currently reuse the regular leash; they want their own
+   distance and a longer respawn window.
+7. **Inventory transaction audits** (§6). Vendor / craft /
+   quest reward / pickup flows mutate gold + slots; an audit
+   row per flow would close the dupe-detection gap.
+8. **Respec / class-change policy** (§9). Today picking a spec
+   is permanent; product hasn't decided respec cost vs. cooldown
+   yet.
+9. **Snapshot projection boundary** (carried from §45
+   inventory migration). Final step to retire the in-memory
+   `player.inventory` wire mirror.
+
+### Stale items to consider deleting
+
+- §31 "Open Visual Experiments" — held over indefinitely;
+  3D model pipeline is frozen and the placeholders aren't
+  worth re-listing.
+- Some §28 milestone gates pre-date the pre-alpha "drop
+  freely" stance and don't reflect current cadence; revisit
+  when a real release schedule lands.
 
