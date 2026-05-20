@@ -3087,9 +3087,9 @@ Character creation
 - [ ] Show allowed classes after selecting a race.
 - [ ] Show each race’s fantasy in one short line.
 - [ ] Show each class’s role in one short line.
-- [ ] Show visible stat tendencies without overwhelming the player.
-- [ ] Show starter skill for the selected class.
-- [ ] Show difficulty hint for first-time players.
+- [x] Show visible stat tendencies without overwhelming the player. (Race picker shows Strong/Weak summary derived from `baseAttrs`; balanced races read "Balanced — no clear specialty". PR #299.)
+- [x] Show starter skill for the selected class. (`getStarterSkillForClass` derives the level-1 non-passive skill from `skillProgression`; lobby renders "Starter: Fireball". PR #296.)
+- [x] Show difficulty hint for first-time players. (`CLASS_DIFFICULTY` curated Easy/Medium/Hard; same line as starter skill. PR #296.)
 - [ ] Prevent invalid race/class combinations client-side.
 - [ ] Reject invalid race/class combinations server-side.
 - [ ] Add a test that every valid race/class combination can create a character.
@@ -3100,10 +3100,10 @@ Character creation
 - [x] Spawn the player facing Warden Galen or an obvious starter marker. (`createTransientPlayer` computes a yaw from spawn → Galen's authored coord and stamps it on `rotation.y`. PR #279.)
 - [x] Add a clear first prompt: "Talk to Warden Galen." (`WelcomeOverlay` shows on a fresh L1 player with no quest activity — points at Galen + names him. Dismissable via localStorage.)
 - [x] Add a movement hint for desktop. (Same overlay: "Click the ground to walk … Press I/Tab/1-4 for inventory/target/skills".)
-- [ ] Add a movement hint for mobile.
+- [x] Add a movement hint for mobile. (WelcomeOverlay swaps to "Tap the ground … Use the on-screen buttons" when `(pointer: coarse) and (hover: none)`. PR #297.)
 - [ ] Add a targeting hint when the first goblin objective appears.
 - [ ] Add a skill-use hint when combat starts.
-- [ ] Add a loot pickup hint after the first kill.
+- [x] Add a loot pickup hint after the first kill. (`LootPickupHint` banner appears when there's ground loot AND zero `lootPickups` recorded AND starter path incomplete. PR #301.)
 - [ ] Add a return-to-NPC hint when the objective is complete.
 - [ ] Ensure tutorial hints are dismissible.
 - [ ] Ensure tutorial hints do not block core HUD on mobile.
@@ -3112,14 +3112,14 @@ Character creation
 
 - [ ] Make Warden Galen’s first quest impossible to miss.
 - [x] Show current quest objective in a compact tracker. (`QuestTrackerStrip` — small left-edge HUD button showing active quest + stage + objective progress. Click drops a navigation marker. Stays out of the way; only renders when there's an active quest.)
-- [ ] Show quest target marker on the map.
+- [x] Show quest target marker on the map. (MapPanel renders a blue pin per active quest at its current stage's resolved marker; click → drops nav marker. `resolveStageMarker` + `listActiveQuestMarkers` extracted to `questMarkers.ts`. PR #294.)
 - [x] Show distance to quest marker. (`QuestTrackerStrip` shows the resolved marker distance as a yellow chip — "<1 m", "43 m", "1.5 km". Hidden for manual stages with no marker. `formatDistance` tested at 3 input ranges.)
-- [ ] Show when the current objective is complete.
-- [ ] Make “Next” and “Claim” button states obvious.
+- [x] Show when the current objective is complete. (QuestTrackerStrip border pulses blue when objective is met but not yet claimed, brighter yellow when server flips `readyToClaim`. Respects `prefers-reduced-motion`. PR #295.)
+- [x] Make "Next" and "Claim" button states obvious. (Same #295 pulse + inline Next/Claim buttons on the strip itself from PR #288.)
 - [x] Show reward preview before accepting a quest. (`NpcDialog.OfferedRow` now renders a yellow "Reward:" line with XP / gold / items resolved to display names. `formatRewardSummary` exported + tested.)
 - [x] Show reward summary after claiming a quest. (`applyClaimQuestReward` emits a system `ChatBroadcast` "✓ Quest Name — 120 XP, 25g, 2× Health Potion" using the same `formatRewardSummary` helper as the pre-accept preview. Rendered in the existing chat/combat-log panel.)
-- [ ] Add clear error feedback when player is too far from an NPC.
-- [ ] Add clear error feedback when player is too low level for a quest.
+- [x] Add clear error feedback when player is too far from an NPC. (System ChatBroadcast to caller — "You're too far from <NPC name> to accept this." PR #298.)
+- [x] Add clear error feedback when player is too low level for a quest. (Same channel — "You need level N to accept …" PR #298.)
 - [ ] Add regression tests for accept, progress, advance, claim, cancel, and too-far rejection.
 
 ## First Combat Loop
@@ -3129,14 +3129,14 @@ Character creation
 - [ ] Ensure healer/paladin support skills do not make the first kill confusing.
 - [ ] Ensure ranger target range and projectile behavior feel reliable.
 - [ ] Ensure rogue melee range is readable.
-- [ ] Ensure basic attack is always available and clearly visible.
-- [ ] Add combat log lines that explain hits, misses, heals, and deaths in simple terms.
+- [x] Ensure basic attack is always available and clearly visible. (Dedicated `.skill-bar-anchor` row above the bound skill grid renders a red-bordered basic-attack button regardless of shortcuts or panel state. PR #300.)
+- [~] Add combat log lines that explain hits, misses, heals, and deaths in simple terms. (Hits + crits done — CombatLog gained an optional `crits: boolean[]`; client formatter appends "(crit!)". PR #303. Misses/heals/deaths still pending — need additional protocol surfaces.)
 - [x] Add class-specific first-kill smoke tests. (Same file — one test per class via `it.each`-style loop over `CLASS_SKILL_TREES`.)
 - [~] Add a balance test for expected time-to-kill for starter goblins. (Soft check now: 40-round cap. Hard time-to-kill SLO lands with M4 balance report.)
 
 ## Grakk Boss Encounter
 
-- [ ] Make Grakk easy to find from the bounty quest marker.
+- [x] Make Grakk easy to find from the bounty quest marker. (Map renders a blue pin per active quest #294; `useAutoMarkerOnQuestAccept` auto-drops the navigation marker on the first-stage marker the moment the player accepts a quest. PR #304.)
 - [ ] Give Grakk a visible nameplate and boss marker.
 - [ ] Give Grakk a visible telegraphed signature ability.
 - [ ] Implement Grakk’s signature ability in the engine, not only lore text.
@@ -3151,8 +3151,8 @@ Character creation
 ## First Gear Reward
 
 - [ ] Make the first boss trophy feel meaningful.
-- [ ] Explain whether the trophy is a quest item, crafting input, or both.
-- [ ] Make the recipe/crafting path visible after the first boss kill.
+- [x] Explain whether the trophy is a quest item, crafting input, or both. (Item tooltip's existing "Source: …" line is now joined by a "Used in: …" line listing up to two outputs of recipes that consume the hovered item. `formatRecipeUses` + 6 tests. PR #302.)
+- [x] Make the recipe/crafting path visible after the first boss kill. (Same #302 tooltip — Warband Horn reads "Source: Dropped by Grakk · Used in: Chieftain's Cleaver".)
 - [ ] Ensure the first craftable/equippable item has obvious stat improvement.
 - [ ] Ensure equipping the item visibly changes paperdoll or avatar overlay.
 - [x] Show stat delta when equipping an item. (Item tooltip in the bag now appends green/red `(+N)` / `(-N)` after each stat, comparing to whatever's currently equipped in the same EquipSlot. `resolveCompareStats` + `computeDelta` exported + tested.)
