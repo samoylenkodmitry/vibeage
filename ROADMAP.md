@@ -2780,7 +2780,7 @@ Character creation
 ## Quest Flow Polish
 
 - [ ] Make Warden Galen’s first quest impossible to miss.
-- [ ] Show current quest objective in a compact tracker.
+- [x] Show current quest objective in a compact tracker. (`QuestTrackerStrip` — small left-edge HUD button showing active quest + stage + objective progress. Click drops a navigation marker. Stays out of the way; only renders when there's an active quest.)
 - [ ] Show quest target marker on the map.
 - [ ] Show distance to quest marker.
 - [ ] Show when the current objective is complete.
@@ -3756,7 +3756,7 @@ Add social systems only after the solo starter loop and server safety are solid.
 
 - [ ] PR 006 — Character creation explanation and race/class validity tests.
 - [ ] PR 007 — Starter tutorial hints and quest tracker polish.
-- [ ] PR 008 — Warden Galen first quest UX and map marker polish.
+- [~] PR 008 — Warden Galen first quest UX and map marker polish. (Partial: tracker strip shipped this PR. First-quest content polish + spawn-near-Galen direction is a follow-up.)
 - [ ] PR 009 — Starter combat balance tests for every class.
 - [ ] PR 010 — Mira bounty board and Grakk path polish.
 - [ ] PR 011 — Grakk real boss mechanic with telegraph.
