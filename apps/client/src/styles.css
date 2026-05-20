@@ -1724,6 +1724,32 @@ input {
   align-self: end;
 }
 
+/* §49/M2 — first-loot hint. Same fixed-top layout as the welcome
+   overlay but smaller; auto-dismisses via state predicate. */
+.loot-pickup-hint {
+  position: fixed;
+  left: 50%;
+  top: calc(30% + 80px);
+  transform: translateX(-50%);
+  max-width: min(360px, 88vw);
+  display: grid;
+  gap: 2px;
+  padding: 8px 14px;
+  background: rgba(20, 30, 12, 0.92);
+  border: 1px solid rgba(132, 204, 22, 0.6);
+  border-radius: 6px;
+  color: #d9f99d;
+  z-index: 9;
+  pointer-events: none;
+  animation: loot-pickup-hint-fade 0.3s ease-out;
+}
+.loot-pickup-hint strong { font-size: 14px; color: #ecfccb; }
+.loot-pickup-hint small { font-size: 12px; opacity: 0.9; }
+@keyframes loot-pickup-hint-fade {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 /* Vendor browse panel. Opens when the player clicks "Browse Wares"
    on an NPC dialog. Mirrors the quest-panel layout but anchored at
    screen-center so the two columns (For Sale / Buy Back) fit
