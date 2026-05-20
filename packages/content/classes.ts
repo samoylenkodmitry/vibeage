@@ -143,6 +143,42 @@ export function canLearnSkill(
   return skillReq.requiredSkills?.every((requiredSkill) => playerSkills.includes(requiredSkill)) ?? true;
 }
 
+/**
+ * §49/M2 — first active (non-passive) skill the class unlocks at
+ * level 1. Used by the character-create form so the player sees
+ * 'you'll start with Fireball / Slash / Holy Light / …' before
+ * committing. The active list is the skillProgression filtered to
+ * the level-1 entries that aren't passives (passive_* prefix);
+ * picks the first match. Returns null when the class has no
+ * level-1 active skill.
+ */
+export function getStarterSkillForClass(playerClass: CharacterClass): SkillId | null {
+  const tree = CLASS_SKILL_TREES[playerClass];
+  if (!tree) return null;
+  for (const [skillId, req] of Object.entries(tree.skillProgression)) {
+    if (!req || req.level !== 1) continue;
+    if (skillId.startsWith('passive_')) continue;
+    return skillId as SkillId;
+  }
+  return null;
+}
+
+/**
+ * Curated difficulty hint for the create form. Subjective, but
+ * gives a first-time player a one-word read on whether the class
+ * needs careful play or is forgiving. Keyed off the existing
+ * skill-tree shape (resource cost, melee-vs-ranged, support).
+ */
+export const CLASS_DIFFICULTY: Record<CharacterClass, 'Easy' | 'Medium' | 'Hard'> = {
+  warrior: 'Easy',
+  knight: 'Easy',
+  paladin: 'Medium',
+  ranger: 'Medium',
+  mage: 'Medium',
+  healer: 'Hard',
+  rogue: 'Hard',
+};
+
 export function getAvailableSkills(
   playerClass: CharacterClass,
   playerLevel: number,

@@ -1,6 +1,12 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { CLASS_SKILL_TREES, type CharacterClass } from '../../../packages/content/classes';
+import {
+  CLASS_DIFFICULTY,
+  CLASS_SKILL_TREES,
+  getStarterSkillForClass,
+  type CharacterClass,
+} from '../../../packages/content/classes';
 import { CHARACTER_RACES, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
+import { SKILLS } from '../../../packages/content/skills';
 
 /**
  * Pre-game lobby. Login + password flow against the server-side
@@ -393,6 +399,7 @@ function CreateCharacterForm({
             ))}
           </div>
           <small className="character-blurb">{CLASS_SKILL_TREES[className]?.description ?? ''}</small>
+          <ClassDetail classKey={className} />
         </fieldset>
         {error && <small className="lobby-error">{error}</small>}
         <div className="lobby-form-actions">
@@ -401,5 +408,32 @@ function CreateCharacterForm({
         </div>
       </form>
     </main>
+  );
+}
+
+/**
+ * §49/M2 — second-line detail under the class picker. Shows the
+ * starter skill (so a fresh player knows what they'll press at
+ * spawn) + a one-word difficulty hint. Kept separate from
+ * \`character-blurb\` so the existing CSS layout stays intact and
+ * the JSX block in CreateCharacterForm doesn't balloon.
+ */
+function ClassDetail({ classKey }: { classKey: CharacterClass }) {
+  const starter = getStarterSkillForClass(classKey);
+  const starterSkill = starter ? SKILLS[starter] : null;
+  const difficulty = CLASS_DIFFICULTY[classKey];
+  return (
+    <div className="character-meta">
+      {starterSkill && (
+        <small className="character-meta-line">
+          Starter: <strong>{starterSkill.name}</strong>
+        </small>
+      )}
+      {difficulty && (
+        <small className="character-meta-line">
+          Difficulty: <strong>{difficulty}</strong>
+        </small>
+      )}
+    </div>
   );
 }

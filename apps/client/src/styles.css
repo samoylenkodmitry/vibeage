@@ -2741,6 +2741,9 @@ button.character-option {
   font-size: 11px;
   line-height: 1.4;
 }
+.character-meta { display: flex; gap: 16px; margin-top: 6px; }
+.character-meta-line { font-size: 11px; color: #cbd5f5; }
+.character-meta-line strong { color: #fde68a; }
 
 .character-panel {
   position: absolute;
