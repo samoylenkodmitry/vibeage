@@ -2469,6 +2469,24 @@ explicitly held over until post-release.
   10-item list under "What's actually open" — that's what the
   next session should pick from.
 
+## Live bugs from playtest (2026-05-20)
+
+- [x] **Mobile quest panel: Next / Claim buttons unreachable.** Actions
+  row was inside the `max-height: 50vh; overflow-y: auto` body, so
+  on a tall quest description the buttons fell below the scroll
+  fold and the user couldn't tap them. Fixed by making
+  `.quest-detail-actions` `position: sticky; bottom: 0` with a
+  fade gradient so it visually separates from the scrolled
+  content above. Buttons get `min-height: 32px` for touch.
+- [ ] **Validation system: auto-detect unlinked content.** Build
+  a script (`pnpm run content:audit` or similar) that walks every
+  registry and lists what isn't connected — items with no use,
+  skills with no implementation, mobs without zones, quests
+  without offerers, effects with no engine handler. Emit to a
+  gitignored `docs/UNLINKED.md` snapshot so future drift is
+  visible at a glance. Wire into `pnpm run check`. (Tracked
+  separately; this PR only fixes the mobile bug.)
+
 
 ---
 

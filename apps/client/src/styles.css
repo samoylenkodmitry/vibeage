@@ -1505,8 +1505,28 @@ input {
 .quest-list-button { display: grid; gap: 2px; padding: 6px; background: none; border: none; color: inherit; text-align: left; cursor: pointer; width: 100%; }
 .quest-detail { border-top: 1px dashed rgba(141, 233, 215, 0.2); padding-top: 6px; display: grid; gap: 6px; }
 .quest-detail-stage strong { display: block; }
-.quest-detail-actions { display: flex; gap: 4px; flex-wrap: wrap; }
-.quest-detail-actions button { padding: 4px 8px; font-size: 12px; cursor: pointer; }
+/* §49/M2 — actions row sticks to the bottom of the scroll container
+   so Next/Claim are always visible. Before this, on mobile + tall
+   quest body the buttons fell below the 50vh scroll-fold and the
+   user couldn't tap them. */
+.quest-detail-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  position: sticky;
+  bottom: 0;
+  padding: 6px 0 0;
+  margin: 0;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.92) 35%, rgba(15, 23, 42, 0.96) 100%);
+}
+.quest-detail-actions button {
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  /* Touch target — Apple HIG recommends ≥44px; we lean closer for
+     compactness but ensure the buttons aren't pixel-thin. */
+  min-height: 32px;
+}
 .quest-claim { background: rgba(250, 204, 21, 0.2); border: 1px solid rgba(250, 204, 21, 0.7); }
 
 .npc-dialog {
