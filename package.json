@@ -18,6 +18,7 @@
     "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/pull-postgres-backup-local.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/health-production.sh && bash -n scripts/diagnose-production.sh",
     "content:check": "NODE_OPTIONS=--no-deprecation tsx scripts/check-content.ts",
     "content:graph": "NODE_OPTIONS=--no-deprecation tsx scripts/content-graph.ts",
+    "balance:report": "NODE_OPTIONS=--no-deprecation tsx scripts/balance-report.ts",
     "check:maintainability": "node scripts/check-maintainability.mjs",
     "check:server": "node scripts/check-scope.mjs server",
     "check:client": "node scripts/check-scope.mjs client",
