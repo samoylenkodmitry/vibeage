@@ -99,6 +99,13 @@ export const combatLogMsgSchema = z.object({
   casterId: z.string(),
   targets: z.array(z.string()),
   damages: z.array(z.number()),
+  /**
+   * §49/M2 — parallel to `damages`: whether each hit was a crit.
+   * Optional for backwards-compat: pre-§49/M2 messages from older
+   * server builds simply omit the array. Client treats absent as
+   * "no crits".
+   */
+  crits: z.array(z.boolean()).optional(),
 }).strict();
 
 export const enemyAttackSchema = z.object({
@@ -337,6 +344,7 @@ export type CombatLogMsg = {
   casterId: string;
   targets: string[];
   damages: number[];
+  crits?: boolean[];
 };
 
 export type EnemyAttack = {

@@ -67,15 +67,11 @@ export function applyProjectileHit(
   const caster = world.getPlayerById(cast.casterId);
   const context: ImpactContext = { caster, skill, outbound, world };
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damage = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world });
-  applyCastToTarget(target, damage, context);
+  const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world });
+  applyCastToTarget(target, result.damage, context);
   emitServerMessage(outbound, {
-    type: 'CombatLog',
-    castId: cast.castId,
-    skillId: cast.skillId,
-    casterId: cast.casterId,
-    targets: [target.id],
-    damages: [damage],
+    type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
+    targets: [target.id], damages: [result.damage], crits: [result.crit],
   });
 }
 
@@ -97,19 +93,16 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damages = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world }));
+  const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world }));
 
   targets.forEach((target, index) => {
-    applyCastToTarget(target, damages[index], context);
+    applyCastToTarget(target, results[index].damage, context);
   });
 
   emitServerMessage(outbound, {
-    type: 'CombatLog',
-    castId: cast.castId,
-    skillId: cast.skillId,
-    casterId: cast.casterId,
+    type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: targets.map((target) => target.id),
-    damages,
+    damages: results.map((r) => r.damage), crits: results.map((r) => r.crit),
   });
 }
 
@@ -151,8 +144,8 @@ function calculateDamage(
   caster: PlayerState | null | undefined,
   upgradeDmgMult: number,
   ctx: DamageContext = {},
-): number {
-  if (!skill?.dmg) return 0;
+): { damage: number; crit: boolean } {
+  if (!skill?.dmg) return { damage: 0, crit: false };
   const { castId, targetId, target, world } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
   const casterDmgMult = baseStats.dmgMult ?? 1;
@@ -176,7 +169,7 @@ function calculateDamage(
       elementVulnMult, casterElementMult, partyAuraMult, final,
     });
   }
-  return final;
+  return { damage: final, crit: result.crit };
 }
 
 // §45.3 — product of every other-player ally's party-damage aura

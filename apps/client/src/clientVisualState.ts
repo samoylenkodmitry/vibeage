@@ -26,7 +26,7 @@ export function applyCombatLogVisualState(
 
   return addCombatLine(withDamageFeedback, {
     id: makeCombatLineId(message.castId, state.combatLog.length, now),
-    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages),
+    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages, message.crits),
   });
 }
 
@@ -205,16 +205,22 @@ function addCombatLine(state: GameClientState, line: CombatLine): GameClientStat
   return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
 }
 
-function formatCombatLogLine(
+export function formatCombatLogLine(
   state: GameClientState,
   skillId: string,
   targetIds: string[],
   damages: number[],
+  crits?: boolean[],
 ): string {
   const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
   const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
   const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
-  return `${getSkillName(skillId)} hit${targetText} for ${Math.round(totalDamage)} damage`;
+  // §49/M2 — append "(crit!)" when any hit in this CombatLog was a
+  // crit. Aggregate behavior so an AOE doesn't print 'crit' three
+  // times — one suffix is enough to tell the player something
+  // bigger happened.
+  const critSuffix = crits?.some(Boolean) ? ' (crit!)' : '';
+  return `${getSkillName(skillId)} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}`;
 }
 
 function formatEnemyAttackLine(
