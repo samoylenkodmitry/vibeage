@@ -13,7 +13,7 @@ export type TargetDeathContext = {
   spatial: SpatialHashGrid;
   outbound: OutboundEventSink;
   now?: number;
-  spawnLoot?: (state: GameState, outbound: OutboundEventSink, enemy: Enemy) => void;
+  spawnLoot?: (state: GameState, outbound: OutboundEventSink, enemy: Enemy, killer?: PlayerState | null) => void;
 };
 
 export function handleTargetDeath(
@@ -52,7 +52,10 @@ export function handleTargetDeath(
 
     if (target.lootTableId) {
       const spawnLoot = context.spawnLoot ?? spawnLootForEnemyDeath;
-      spawnLoot(context.state, context.outbound, target);
+      // §45.3 follow-up — thread killer through so loot-rate
+      // spec passives (Treasure Hunter Lucky Find) get a chance
+      // to scale drop chances.
+      spawnLoot(context.state, context.outbound, target, caster);
     }
   }
 
