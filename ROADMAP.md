@@ -2120,6 +2120,16 @@ contiguous list so the audit doesn't fragment.
     all incoming damage during the window;
     `usedResurrectionThisLife` on PlayerState gates the save,
     reset by `respawnPlayer` so it's available again next life.
+  - [x] `partyDamageAuraMultiplier` + `partyDamageAuraRadiusM`
+    → other-player aura that boosts allied casts within radius.
+    Live evaluated at `calculateDamage` via
+    `world.getEntitiesInCircle`. Theurge `Patron Saint`
+    (proficiency, L40) grants +5% damage to allies within 15m.
+    Multiple Theurges stack multiplicatively.
+
+  **Every `(planned: …)` disclaimer is gone.** Every spec
+  passive shipped today has a working modifier in
+  `SpecializationPassiveModifiers` and a runtime that consumes it.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and
