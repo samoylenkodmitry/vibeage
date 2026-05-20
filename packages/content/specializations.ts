@@ -53,6 +53,14 @@ export interface SpecializationPassiveModifiers {
    * with "+5% evasion" copy (Phantom Step, Light Step).
    */
   evasionBonus?: number;
+  /**
+   * §45.3 follow-up — conditional damage-taken multiplier that
+   * applies while the wearer's HP is below 50%. 0.85 here →
+   * incoming damage × 0.85 = "+15% damage reduction at low HP".
+   * Reads through the `damageTakenMult` stat with a predicate on
+   * `ctx.hpFraction < 0.5`. Used by Templar Knight `Last Stand`.
+   */
+  belowHalfHpDamageTakenMultiplier?: number;
 }
 
 export interface SpecializationPassive {
@@ -267,8 +275,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Last Stand',
-      description: '(planned: +15% damage reduction below half HP. No conditional damage-taken multiplier today.)',
-      modifiers: {},
+      description: '15% damage reduction while below half HP.',
+      modifiers: { belowHalfHpDamageTakenMultiplier: 0.85 },
     },
     specSkills: ['holy_shield'],
     proficiencySkills: ['divine_taunt'],

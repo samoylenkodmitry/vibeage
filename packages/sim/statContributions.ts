@@ -480,6 +480,10 @@ function pushSpecPassiveModifiers(
   if (mods.evasionBonus !== undefined && mods.evasionBonus !== 0) {
     out.push({ source: `${baseSource}:eva`, label: `${labelPrefix} (evasion)`, stat: 'evasion', op: 'addPost', value: mods.evasionBonus });
   }
+  // `belowHalfHpDamageTakenMultiplier` is evaluated live at damage
+  // time (see `targetDamageTakenMult` in impactResolver), not
+  // through the stat pipeline — hpFraction-gated predicates would
+  // go stale between recomputes otherwise.
 }
 
 function pushEquipmentContributionsFromTemplateMap(

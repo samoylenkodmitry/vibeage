@@ -2075,6 +2075,11 @@ contiguous list so the audit doesn't fragment.
   - [x] `evasionBonus` → flat addPost on the existing `evasion`
     stat. Treasure Hunter `Light Step` and Phantom Ranger
     `Phantom Step` both un-planned with +5 each.
+  - [x] `belowHalfHpDamageTakenMultiplier` → live-evaluated at
+    damage time in `applyCastToTarget` (predicate against current
+    HP, not a stale stat snapshot). Templar Knight's `Last Stand`
+    delivers the +15% damage reduction below half HP its
+    description always promised.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and
