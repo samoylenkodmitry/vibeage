@@ -2521,6 +2521,60 @@ The audit also surfaced a request to reconsider the per-file
 content layout. Captured as §50 so the discussion has room
 without crowding this checklist.
 
+## More live bugs from playtest (2026-05-20 PM)
+
+User report after PRs #281-#286 landed. Each is a real bug or
+missing UX surface, captured as a distinct `[ ]` entry so future
+PRs can pick them off independently.
+
+- [ ] **Quest panel still hides the "Next" button.** Even after
+  #281 (sticky action row), the user reports the Next button
+  isn't visible. Possible causes: (a) the panel is opened on a
+  stage where `entry.readyToClaim` is false AND the player
+  hasn't met the objective yet, so the Next click is rejected
+  server-side and feels invisible; (b) the action row is below
+  the fold on an even-shorter viewport than the sticky fix
+  accounts for; (c) the panel's `.quest-panel-body` overflow
+  hides it differently in some browsers. Investigation steps:
+  reproduce locally with the L1 starter quest at stage 0
+  (kill 3 goblins); inspect the action row in DevTools; add an
+  explicit "Stage not complete yet" disabled-button state so
+  the player always sees the button (greyed out) instead of
+  having it silently fail.
+- [ ] **Click-to-pickup loot.** Today the player has to walk
+  manually onto a loot pile then press the pickup hotkey.
+  Want: click the pile in the world → server resolves a
+  walk-then-pickup intent (server-authoritative; client just
+  sends the click). Reuses the existing "approach-and-cast"
+  pattern from PR #139 — same shape, swap the cast for a
+  `LootPickup` once in range.
+- [ ] **Full map refinement.** Three sub-items:
+  - [ ] Scale fix — the map shows zone centres at world-coord
+    scale but the player marker, zone labels, and quest pins
+    overlap heavily near Gludin. Need a per-zoom-level
+    declutter pass.
+  - [ ] No overlapping text — adjacent NPC / boss / mob labels
+    collide; need either a label collision resolver (force-
+    directed nudge) or a click-to-reveal model where only one
+    label is shown at a time.
+  - [ ] Zoom that actually shows what the player cares about
+    (their position, current quest marker, nearest NPC, road).
+- [ ] **Bag context menu (Use / Drop / Destroy).** Right-click
+  on a bag slot currently opens the wiki (PR V). The player
+  wants a proper popup menu with Use / Drop / Destroy /
+  Open-in-Wiki options. Implementation: replace the
+  `onContextMenu` wiki-open with a custom popup; move the
+  wiki link inside the popup. Shift+click drop (PR #259)
+  stays as the power-user shortcut.
+- [ ] **GM panel needs rework.** Doesn't really work — bugs +
+  missing features. Need a triage pass: list what's broken
+  (specific commands that fail, UI states that hang), define
+  what the panel should actually do (granting items / XP /
+  gold / level / skills / specs — all server-validated via
+  `GmCommand` which is already in the protocol), then rebuild.
+  Gated by `VIBEAGE_ENABLE_DEV_COMMANDS`; production stays
+  safe regardless.
+
 
 ---
 
