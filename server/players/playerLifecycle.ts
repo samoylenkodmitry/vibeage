@@ -149,6 +149,10 @@ export function respawnPlayer(
   player.castingProgressMs = 0;
   player.targetId = null;
   player.movement = undefined;
+  // §45.3 follow-up — once-per-life Resurrection save resets on
+  // respawn so Phoenix Knights can rely on it through their next
+  // death-cycle without an explicit "fight ended" hook.
+  player.usedResurrectionThisLife = false;
   player.dirtySnap = true;
 
   // Global-state cleanup: the player object is the source of truth for

@@ -279,6 +279,49 @@ function isBeneficialEffectType(type: string): boolean {
 }
 
 /**
+ * §45.3 follow-up — true while the player carries an active
+ * `invuln` status effect (currently only emitted by Phoenix
+ * Knight Resurrection). All incoming damage is zeroed.
+ */
+function hasActiveInvuln(player: PlayerState): boolean {
+  const now = Date.now();
+  return (player.statusEffects ?? []).some((e) => {
+    if (e.type !== 'invuln') return false;
+    return (e.startTimeTs ?? 0) + (e.durationMs ?? 0) > now;
+  });
+}
+
+function resurrectionInvulnMsFor(target: PlayerState): number {
+  if (!target.specializationId) return 0;
+  const spec = getSpecializationById(target.specializationId);
+  if (!spec) return 0;
+  const specMs = spec.specializationPassive.modifiers.resurrectionInvulnMs ?? 0;
+  const profMs = target.level >= PROFICIENCY_LEVEL
+    ? (spec.proficiencyPassive.modifiers.resurrectionInvulnMs ?? 0)
+    : 0;
+  // Take the larger of the two so a spec that grants Resurrection
+  // at both tiers uses the more generous window, not the sum.
+  return Math.max(specMs, profMs);
+}
+
+function upsertInvulnEffect(target: PlayerState, durationMs: number): void {
+  target.statusEffects = target.statusEffects ?? [];
+  // Replace any existing invuln so a second save (impossible
+  // today — one-shot per life) wouldn't stack.
+  const existingIndex = target.statusEffects.findIndex((e) => e.type === 'invuln');
+  const effect = {
+    id: nanoid(), type: 'invuln', value: 1,
+    durationMs, startTimeTs: Date.now(),
+    sourceSkill: 'spec:resurrection',
+  };
+  if (existingIndex >= 0) {
+    target.statusEffects[existingIndex] = effect;
+  } else {
+    target.statusEffects.push(effect);
+  }
+}
+
+/**
  * §45.3 follow-up — poison-tick damage multiplier from the
  * caster's spec passives (spec + proficiency tiers stack
  * multiplicatively). Returns 1 when nothing applies.
@@ -317,6 +360,12 @@ function applyCastToTarget(
   context: ImpactContext,
 ): void {
   const { caster, skill, outbound, world } = context;
+  // §45.3 follow-up — `invuln` status effect (e.g. from Phoenix
+  // Knight Resurrection) zeroes incoming damage entirely for its
+  // duration. Skips the rest of the damage pipeline.
+  if (!isEnemy(target) && hasActiveInvuln(target)) {
+    return;
+  }
   // §45.3 follow-up — spec passives like Templar Knight's
   // Last Stand mitigate damage when the player is already below
   // half HP. Evaluated live against current HP because the stat
@@ -324,7 +373,19 @@ function applyCastToTarget(
   // health-fraction predicates would otherwise stay stale across
   // a fight.
   const mitigated = isEnemy(target) ? damage : damage * targetDamageTakenMult(target);
-  const incoming = absorbWithShield(target, mitigated);
+  let incoming = absorbWithShield(target, mitigated);
+
+  // §45.3 follow-up — Phoenix Knight Resurrection: a hit that
+  // would otherwise kill the player snaps them to 1 HP and grants
+  // a brief invuln window. One-shot per life; reset on respawn.
+  if (!isEnemy(target) && incoming >= target.health) {
+    const saveMs = resurrectionInvulnMsFor(target);
+    if (saveMs > 0 && !target.usedResurrectionThisLife) {
+      target.usedResurrectionThisLife = true;
+      incoming = Math.max(0, target.health - 1);
+      upsertInvulnEffect(target, saveMs);
+    }
+  }
 
   target.health = Math.max(0, target.health - incoming);
 

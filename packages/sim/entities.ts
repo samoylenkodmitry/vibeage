@@ -200,6 +200,14 @@ export interface PlayerState {
   velocity?: { x: number; z: number };
   dirtySnap?: boolean;
   posHistory?: { ts: number; x: number; z: number }[];
+  /**
+   * §45.3 follow-up — set the first time a Phoenix Knight's
+   * `Resurrection` proficiency passive saves the player from
+   * death. Reset on respawn so the save is available again next
+   * life. Lives only on PlayerState (no persistence) since it
+   * tracks within-life intent.
+   */
+  usedResurrectionThisLife?: boolean;
   stats?: {
     dmgMult?: number;
     critChance?: number;

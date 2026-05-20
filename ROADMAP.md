@@ -2113,6 +2113,13 @@ contiguous list so the audit doesn't fragment.
     applied at `validateCastRequest`. Templar Knight `Bulwark`
     (spec, L20) widens Taunt range by 50% (12m → 18m). Spec +
     proficiency tiers stack per skill.
+  - [x] `resurrectionInvulnMs` → one-shot per life save. A
+    killing hit on a Phoenix Knight (proficiency, L40) drops
+    them to 1 HP and applies an `invuln` status effect for the
+    configured ms instead of killing. `applyCastToTarget` zeroes
+    all incoming damage during the window;
+    `usedResurrectionThisLife` on PlayerState gates the save,
+    reset by `respawnPlayer` so it's available again next life.
 - [x] **Active-skill effects audit fully closed.** `transform`
   was a phantom declaration: no skill emitted it (petrify uses
   `stun`). Removed from `SkillEffectType`, `EFFECT_SPECS`, and
