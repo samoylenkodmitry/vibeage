@@ -2478,14 +2478,22 @@ explicitly held over until post-release.
   `.quest-detail-actions` `position: sticky; bottom: 0` with a
   fade gradient so it visually separates from the scrolled
   content above. Buttons get `min-height: 32px` for touch.
-- [ ] **Validation system: auto-detect unlinked content.** Build
-  a script (`pnpm run content:audit` or similar) that walks every
-  registry and lists what isn't connected — items with no use,
-  skills with no implementation, mobs without zones, quests
-  without offerers, effects with no engine handler. Emit to a
-  gitignored `docs/UNLINKED.md` snapshot so future drift is
-  visible at a glance. Wire into `pnpm run check`. (Tracked
-  separately; this PR only fixes the mobile bug.)
+- [x] **Validation system: auto-detect unlinked content.**
+  `pnpm run content:audit` walks the registries and writes
+  `docs/UNLINKED.md` with three sections:
+  - Items with no use (source exists but nothing consumes them).
+  - Skills nothing references (in `SKILLS` but no class / spec
+    tree / `UNIVERSAL_SKILLS`).
+  - Mini-bosses with no quest target (spawned but no `kill_boss`
+    objective asks the player to kill them).
+  
+  `pnpm run content:audit:check` (wired into `pnpm run check` + CI)
+  fails when the snapshot is stale, forcing the dev to regenerate
+  + commit after content changes. The snapshot is the audit trail:
+  unchecked `[ ]` boxes for every dangling thread. First run on
+  current main surfaced 8 unused items + 3 unquested bosses.
+  Future-content placeholders are flagged here (not the roadmap)
+  so the roadmap stays curated narrative + the audit stays derived.
 
 
 ---

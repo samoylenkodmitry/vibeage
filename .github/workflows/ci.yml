@@ -68,6 +68,9 @@ jobs:
       - name: Content graph
         run: pnpm run content:graph
 
+      - name: Content audit (unlinked snapshot)
+        run: pnpm run content:audit:check
+
       - name: Test
         run: pnpm test
 
