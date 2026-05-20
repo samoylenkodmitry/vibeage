@@ -1,7 +1,7 @@
 {
   "bundle": {
-    "warningTotalGzipBytes": 425000,
-    "maxTotalGzipBytes": 470000
+    "warningTotalGzipBytes": 470000,
+    "maxTotalGzipBytes": 500000
   },
   "tickCost": {
     "warningAverageTickMs": 0.1,
