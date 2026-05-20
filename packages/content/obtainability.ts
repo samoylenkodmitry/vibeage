@@ -190,6 +190,83 @@ function buildItemSourceIndex(): Set<string> {
   return has;
 }
 
+/**
+ * §49/M1+ — mirror of `buildItemSourceIndex` for the destination
+ * side. An item is "used" when it:
+ *   - is a consumable (player can use it from the bag)
+ *   - is equippable (player can equip it)
+ *   - is a recipe input (crafted into something)
+ *   - is the recipe payload itself (its own use is to be crafted with)
+ *   - is currency (`type === 'currency'`; spent at vendors)
+ *
+ * Whitelist `OBTAINABILITY_WHITELIST` items are exempt from BOTH
+ * source and use checks — they're flagged future scaffolding.
+ */
+function buildItemUseIndex(): Set<string> {
+  const used = new Set<string>();
+  for (const item of Object.values(ITEMS)) {
+    if (item.type === 'consumable') used.add(item.id);
+    if (item.type === 'currency') used.add(item.id);
+    if (item.equip) used.add(item.id);
+    if (item.recipe) {
+      used.add(item.id); // recipe item itself has a use (be consumed to craft)
+      for (const input of item.recipe.inputs) used.add(input.itemId);
+    }
+  }
+  return used;
+}
+
+/**
+ * §49/M1+ audit query — items that have a source (loot / vendor /
+ * quest / recipe) but nothing consumes them. Excludes the
+ * obtainability whitelist (currency + intentional future-content
+ * placeholders). Surface in `docs/UNLINKED.md`, not in CI fail.
+ */
+export function findUnusedItems(): string[] {
+  const used = buildItemUseIndex();
+  const out: string[] = [];
+  for (const item of Object.values(ITEMS)) {
+    if (OBTAINABILITY_WHITELIST.has(item.id)) continue;
+    if (!used.has(item.id)) out.push(item.id);
+  }
+  return out.sort();
+}
+
+/**
+ * §49/M1+ audit query — skills declared in `SKILLS` but not
+ * referenced by any class skill tree, spec/proficiency skill
+ * list, or universal skill list. Same audit-soft semantics as
+ * `findUnusedItems`.
+ */
+export async function findUnreachableSkills(): Promise<string[]> {
+  const { SKILLS, UNIVERSAL_SKILLS } = await import('./skills.js');
+  const reachable = new Set<string>(UNIVERSAL_SKILLS);
+  for (const tree of Object.values(CLASS_SKILL_TREES)) {
+    for (const id of Object.keys(tree.skillProgression)) reachable.add(id);
+  }
+  for (const spec of Object.values(SPECIALIZATIONS)) {
+    for (const id of spec.specSkills ?? []) reachable.add(id);
+    for (const id of spec.proficiencySkills ?? []) reachable.add(id);
+  }
+  return Object.keys(SKILLS).filter((id) => !reachable.has(id)).sort();
+}
+
+/**
+ * §49/M1+ audit query — mini-bosses defined but not referenced by
+ * any quest objective. (They still get spawned via zone.miniBoss
+ * — that's the source check. This is the *use* check: "is there
+ * a quest that asks the player to kill this boss?")
+ */
+export function findUnquestedBosses(): string[] {
+  const referenced = new Set<string>();
+  for (const quest of Object.values(QUESTS)) {
+    for (const stage of quest.stages) {
+      if (stage.objective.kind === 'kill_boss') referenced.add(stage.objective.bossId);
+    }
+  }
+  return Object.keys(MINI_BOSSES).filter((id) => !referenced.has(id)).sort();
+}
+
 export function validateContentGraph(): ContentGraphIssue[] {
   const issues: ContentGraphIssue[] = [];
   const itemIds = new Set(Object.keys(ITEMS));
@@ -241,6 +318,12 @@ export function validateContentGraph(): ContentGraphIssue[] {
       issues.push({ kind: 'hanging-item', itemId: item.id });
     }
   }
+  // §49/M1+ — `unused-item` is an audit signal, not a hard CI fail.
+  // The audit script (`pnpm run content:audit`) writes the list to
+  // a tracked snapshot so adding a new orphan still requires a
+  // committed change, but doesn't block PRs.
+  // (We don't surface unused-item via validateContentGraph for that
+  // reason — see findUnusedItems below.)
 
   // Hanging mobs: defined in ENEMY_TEMPLATES but no zone spawn refs them.
   for (const type of mobTypes) {
