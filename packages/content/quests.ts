@@ -1,3 +1,5 @@
+import { ITEMS } from './items.js';
+
 export type QuestVec3 = { x: number; y: number; z: number };
 
 /**
@@ -461,6 +463,24 @@ export const QUESTS: Record<QuestId, QuestDef> = {
  * trophies as quest prereqs use this both server-side (gate the
  * accept) and (later) client-side (grey out the offer row).
  */
+/**
+ * §49/M6 — single-line reward summary used by both the NPC dialog
+ * (pre-accept preview) and the server (post-claim ChatBroadcast).
+ * Pure function over `QuestReward` + `ITEMS`; ids resolve to
+ * display names. `''` when the reward bag is empty.
+ */
+export function formatRewardSummary(reward: QuestReward): string {
+  const parts: string[] = [];
+  if (reward.xp) parts.push(`${reward.xp} XP`);
+  if (reward.gold) parts.push(`${reward.gold}g`);
+  for (const grant of reward.items ?? []) {
+    const name = ITEMS[grant.itemId]?.name ?? grant.itemId;
+    const qty = grant.quantity && grant.quantity > 1 ? `${grant.quantity}× ` : '';
+    parts.push(`${qty}${name}`);
+  }
+  return parts.join(', ');
+}
+
 export function meetsQuestPrerequisites(
   quest: QuestDef,
   state: { completedQuests: ReadonlyArray<QuestId> },

@@ -1,8 +1,8 @@
-import { meetsQuestPrerequisites, QUESTS, type QuestDef, type QuestId } from '../../packages/content/quests.js';
+import { formatRewardSummary, meetsQuestPrerequisites, QUESTS, type QuestDef, type QuestId } from '../../packages/content/quests.js';
 import { QUEST_NPCS, INTERACTION_RANGE } from '../../packages/content/npcs.js';
 import type { PlayerActiveQuestProgress, PlayerQuestState, PlayerState } from '../../packages/sim/entities.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
-import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { emitPlayerUpdated, emitServerMessage, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { addItemsToPlayer, ensureCharacterInventory } from '../inventory/aggregateBridge.js';
 import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
 
@@ -136,6 +136,21 @@ export function applyClaimQuestReward(
     inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
     questState: state,
   });
+  // §49/M6 — system-chat toast so the player sees what they got
+  // without watching the gold counter + bag for changes. Reuses
+  // the existing ChatBroadcast render path; `fromId: 'system'`
+  // marks it as a server-issued line. Empty reward bags skip.
+  const summary = formatRewardSummary(quest.reward);
+  if (summary) {
+    emitServerMessage(outbound, {
+      type: 'ChatBroadcast',
+      fromId: 'system',
+      fromName: 'Quest',
+      text: `✓ ${quest.name} — ${summary}`,
+      scope: 'all',
+      ts: Date.now(),
+    });
+  }
   return true;
 }
 
