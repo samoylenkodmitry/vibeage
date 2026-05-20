@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ItemStatBlock } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
 import { getItemSources, type ItemSource } from '../../../../packages/content/obtainability';
+import { recipesUsingMaterial } from '../../../../packages/content/recipeLookups';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import { ENEMY_TEMPLATES } from '../../../../packages/content/enemies';
 import { openWikiAt } from './wikiNavBus';
@@ -58,6 +59,11 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
   // tell where to look for more of this item without opening the
   // wiki. Memoized — `getItemSources` walks loot tables.
   const sourceLabel = useMemo(() => item ? formatPrimarySource(getItemSources(item.id)) : null, [item]);
+  // §49/M2 — companion "Used in:" line. Closes the trophy → recipe
+  // loop: when the player hovers a Warband Horn they see both
+  // "Source: Dropped by Grakk" AND "Used in: Chieftain's Cleaver".
+  // Lists up to two output names so the line fits.
+  const usesLabel = useMemo(() => item ? formatRecipeUses(item.id) : null, [item]);
   if (!item || typeof document === 'undefined' || !document.body) {
     return null;
   }
@@ -107,6 +113,7 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
         </footer>
       )}
       {sourceLabel && <small className="item-tooltip-source">Source: {sourceLabel}</small>}
+      {usesLabel && <small className="item-tooltip-source">Used in: {usesLabel}</small>}
       <button
         type="button"
         className="tooltip-wiki-link"
@@ -151,6 +158,26 @@ export function computeDelta<K extends keyof ItemStatBlock>(
 ): number | null {
   if (!equipped) return null;
   return (hovered[key] ?? 0) - (equipped[key] ?? 0);
+}
+
+/**
+ * §49/M2 — render the output items that consume the hovered item
+ * as a recipe input. Returns a comma-joined list of up to 2 output
+ * names (with "and N more" suffix when truncated). Skips recipes
+ * where the hovered item IS the recipe itself (we already say
+ * "Source: …" in that case). Null when nothing uses this item.
+ */
+export function formatRecipeUses(itemId: string): string | null {
+  const item = ITEMS[itemId];
+  // The recipe item itself doesn't need a "Used in" line — its
+  // output IS the use, and we list inputs in the wiki / craft panel.
+  if (!item || item.type === 'recipe') return null;
+  const recipes = recipesUsingMaterial(itemId);
+  if (recipes.length === 0) return null;
+  const outputs = recipes.map((r) => ITEMS[r.recipe!.output.itemId]?.name ?? r.recipe!.output.itemId);
+  const head = outputs.slice(0, 2).join(', ');
+  if (outputs.length <= 2) return head;
+  return `${head}, +${outputs.length - 2} more`;
 }
 
 // §49/M8 + M14 — pick a single primary source from the obtainability
