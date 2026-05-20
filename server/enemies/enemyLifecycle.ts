@@ -1,4 +1,4 @@
-import { getEnemyTemplate } from '../../packages/content/enemies.js';
+import { DEFAULT_PACK_AGGRO_RADIUS_M, getEnemyTemplate } from '../../packages/content/enemies.js';
 import { getTerrainHeight } from '../../packages/content/terrain.js';
 import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
@@ -72,6 +72,7 @@ export function createEnemy(
     velocity: { x: 0, z: 0 },
     lootTableId: options.lootTableIdOverride ?? template.lootTableId ?? `${type}_loot`,
     packId: options.packId,
+    packAggroRadius: DEFAULT_PACK_AGGRO_RADIUS_M * template.stats.packAggroRadius,
     isMiniBoss: options.isMiniBoss,
     bossId: options.bossId,
     ...(options.isMiniBoss

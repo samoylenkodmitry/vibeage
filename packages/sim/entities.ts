@@ -79,6 +79,14 @@ export interface Enemy {
    */
   aggroSuppressedUntilTs?: number;
   packId?: string;
+  /**
+   * §46/slice-3 — per-mob pack aggro/disengage radius. When this
+   * enemy aggros (or disengages), packmates with the same `packId`
+   * within `packAggroRadius` metres are pulled into / released from
+   * the same target. Falls back to `DEFAULT_PACK_AGGRO_RADIUS_M`
+   * (60m) when unset.
+   */
+  packAggroRadius?: number;
   isMiniBoss?: boolean;
   /**
    * Stable id linking this mini-boss spawn to the content registry
