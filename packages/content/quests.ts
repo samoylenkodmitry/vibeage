@@ -453,6 +453,47 @@ export const QUESTS: Record<QuestId, QuestDef> = {
     ],
     reward: { xp: 1500, gold: 500, items: [{ itemId: 'vereth_phylactery', quantity: 1 }, { itemId: 'mana_potion', quantity: 4 }] },
   },
+  // §49/M1+ — three high-tier bounties closing the
+  // "unquested boss" entries in docs/UNLINKED.md. Reward
+  // levels mirror existing endgame bounties (kept proportional
+  // to the boss tier). All gated behind Mira so they slot into
+  // the existing Wildlands → Mira → Bounty path.
+  bounty_skadrun: {
+    id: 'bounty_skadrun',
+    name: 'Bounty: Skadrun, Tundra King',
+    description: 'An ice giant has claimed the Moonfall highland and the blizzards as his throne. Mira posts a contract on him; bring his crown shard.',
+    npcId: 'bounty_broker_mira',
+    minLevel: 28,
+    stages: [
+      { id: 'slay_skadrun', description: 'Slay Skadrun, Tundra King.', objective: { kind: 'kill_boss', bossId: 'skadrun' } },
+      { id: 'deliver_crown_shard', description: "Bring Mira the crown shard.", objective: { kind: 'talk', npcId: 'bounty_broker_mira' } },
+    ],
+    reward: { xp: 5_000, gold: 1_500, items: [{ itemId: 'skadrun_crown_shard', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 5 }] },
+  },
+  bounty_auriel: {
+    id: 'bounty_auriel',
+    name: 'Bounty: Auriel of the First Dawn',
+    description: 'A celestial guardian walks the bonus tier — Mira wants the dawnfeather for proof and pay.',
+    npcId: 'bounty_broker_mira',
+    minLevel: 35,
+    stages: [
+      { id: 'slay_auriel', description: 'Slay Auriel of the First Dawn.', objective: { kind: 'kill_boss', bossId: 'auriel' } },
+      { id: 'deliver_dawnfeather', description: "Return the dawnfeather to Mira.", objective: { kind: 'talk', npcId: 'bounty_broker_mira' } },
+    ],
+    reward: { xp: 8_000, gold: 2_500, items: [{ itemId: 'auriel_dawnfeather', quantity: 1 }, { itemId: 'mana_potion', quantity: 5 }] },
+  },
+  bounty_aethariel: {
+    id: 'bounty_aethariel',
+    name: 'Bounty: Aethariel, Warden of Hours',
+    description: 'The Chronoglass desert hums with stalled time. Mira will pay a kingdom for proof Aethariel has stopped humming.',
+    npcId: 'bounty_broker_mira',
+    minLevel: 40,
+    stages: [
+      { id: 'slay_aethariel', description: 'Slay Aethariel, Warden of Hours.', objective: { kind: 'kill_boss', bossId: 'aethariel' } },
+      { id: 'deliver_hourglass_sand', description: "Bring the hourglass sand to Mira.", objective: { kind: 'talk', npcId: 'bounty_broker_mira' } },
+    ],
+    reward: { xp: 12_000, gold: 4_000, items: [{ itemId: 'aethariel_hourglass_sand', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 8 }] },
+  },
 };
 
 /** All quests offered by an NPC. */

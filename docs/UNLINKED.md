@@ -24,6 +24,4 @@ _None._
 
 Spawned in some zone but no quest objective asks the player to kill them.
 
-- [ ] `aethariel` — Aethariel, Warden of Hours
-- [ ] `auriel` — Auriel of the First Dawn
-- [ ] `skadrun` — Skadrun, Tundra King
+_None._
