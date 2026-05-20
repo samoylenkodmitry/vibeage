@@ -2938,7 +2938,7 @@ Add richer metadata to skill definitions.
 - [ ] Add server rejection reasons for insufficient skill upgrade points.
 - [ ] Add server rejection reasons for wrong specialization.
 - [ ] Add server rejection reasons for missing item/class trainer if trainer gating is added.
-- [ ] Add UI text explaining exactly why a skill is locked.
+- [x] Add UI text explaining exactly why a skill is locked. (`SkillTreePanel` row detail now says e.g. "need Lv 7 (you're 4) · need Slash" — concrete gap + skill display name, not id. Spec-locked rows hint at the spec to pick + the L20 spec gate when below it. Tests at `tests/skillTreeRows.spec.ts`.)
 - [ ] Add tests for every learn rejection reason.
 
 ## Acceptance Criteria
@@ -3766,7 +3766,7 @@ Add social systems only after the solo starter loop and server safety are solid.
 ## Combat/Class PRs
 
 - [ ] PR 014 — Add skill tags: role, school, scaling, target mode, PvE use.
-- [ ] PR 015 — Skill tree lock/rejection UI improvement.
+- [x] PR 015 — Skill tree lock/rejection UI improvement. (Shipped — see M3 "Add UI text" tick above.)
 - [ ] PR 016 — Combat trace object and dev output.
 - [ ] PR 017 — Mage/warrior/knight early skill fantasy cleanup.
 - [ ] PR 018 — Paladin/ranger/rogue/healer early skill fantasy cleanup.
