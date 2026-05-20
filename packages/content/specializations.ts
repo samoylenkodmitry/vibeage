@@ -125,6 +125,16 @@ export interface SpecializationPassiveModifiers {
    * `respawnPlayer` resets it.
    */
   resurrectionInvulnMs?: number;
+  /**
+   * §45.3 follow-up — party-wide damage aura. Allies (other
+   * players) within `partyDamageAuraRadiusM` of the spec carrier
+   * gain `partyDamageAuraMultiplier` on every cast they land.
+   * Read live at `calculateDamage` so movement immediately
+   * activates / deactivates the buff without a stat recompute.
+   * Used by Theurge `Patron Saint`.
+   */
+  partyDamageAuraMultiplier?: number;
+  partyDamageAuraRadiusM?: number;
 }
 
 export interface SpecializationPassive {
@@ -277,8 +287,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Patron Saint',
-      description: '(planned: party-wide aura for +5% damage to nearby allies. No party-aura system today.)',
-      modifiers: {},
+      description: 'Nearby allies (within 15m) deal +5% damage.',
+      modifiers: { partyDamageAuraMultiplier: 1.05, partyDamageAuraRadiusM: 15 },
     },
     specSkills: ['empower'],
     proficiencySkills: ['group_bless'],

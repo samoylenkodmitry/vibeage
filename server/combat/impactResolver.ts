@@ -65,7 +65,7 @@ export function applyProjectileHit(
   const caster = world.getPlayerById(cast.casterId);
   const context: ImpactContext = { caster, skill, outbound, world };
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damage = calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id, target);
+  const damage = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world });
   applyCastToTarget(target, damage, context);
   emitServerMessage(outbound, {
     type: 'CombatLog',
@@ -95,7 +95,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const damages = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, cast.castId, target.id, target));
+  const damages = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world }));
 
   targets.forEach((target, index) => {
     applyCastToTarget(target, damages[index], context);
@@ -137,36 +137,59 @@ function resolveCastTargets(
   return getTargetsInArea(cast, world);
 }
 
+type DamageContext = {
+  castId?: string;
+  targetId?: string;
+  target?: Enemy | PlayerState | null;
+  world?: CombatWorld;
+};
+
 function calculateDamage(
   skill: SkillDef,
   caster: PlayerState | null | undefined,
   upgradeDmgMult: number,
-  castId?: string,
-  targetId?: string,
-  target?: Enemy | PlayerState | null,
+  ctx: DamageContext = {},
 ): number {
-  if (!skill?.dmg) {
-    return 0;
-  }
-
+  if (!skill?.dmg) return 0;
+  const { castId, targetId, target, world } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
-
-  // Skill-upgrade multiplier is folded once per cast in resolveCastImpact
-  // and passed in — keeps multi-target casts O(1) on the tier table
-  // instead of O(targets) when leveled.
   const result = getDamage({
     caster: { ...baseStats, dmgMult: (baseStats.dmgMult ?? 1) * upgradeDmgMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
   });
+  // §45.4 — target vuln · caster element bonus · party aura.
+  return result.dmg
+    * elementVulnerabilityMultiplier(skill, target)
+    * casterDamageElementMultiplier(skill, caster)
+    * partyDamageAuraMultFor(caster, world);
+}
 
-  // §45.4 — target's vulnerability to the cast's element.
-  const elementMult = elementVulnerabilityMultiplier(skill, target);
-  // §45.3 follow-up — caster's spec passive can boost damage on
-  // their flavoured element (Pyromancer for fire, Phoenix Knight
-  // for holy). Skips when the skill has no damageElement.
-  const casterMult = casterDamageElementMultiplier(skill, caster);
-  return result.dmg * elementMult * casterMult;
+// §45.3 — product of every other-player ally's party-damage aura
+// within their declared radius. Stacks across allies + tiers.
+function partyDamageAuraMultFor(caster: PlayerState | null | undefined, world: CombatWorld | undefined): number {
+  if (!caster || !world) return 1;
+  let mul = 1;
+  for (const entity of world.getEntitiesInCircle({ x: caster.position.x, z: caster.position.z }, 30)) {
+    if (entity.id === caster.id) continue;
+    const ally = world.getPlayerById(entity.id);
+    if (!ally?.specializationId) continue;
+    const spec = getSpecializationById(ally.specializationId);
+    if (!spec) continue;
+    const tiers = ally.level >= PROFICIENCY_LEVEL
+      ? [spec.specializationPassive.modifiers, spec.proficiencyPassive.modifiers]
+      : [spec.specializationPassive.modifiers];
+    for (const mods of tiers) {
+      const auraMul = mods.partyDamageAuraMultiplier;
+      const auraR = mods.partyDamageAuraRadiusM;
+      if (!auraMul || auraMul === 1 || !auraR) continue;
+      const dx = ally.position.x - caster.position.x;
+      const dz = ally.position.z - caster.position.z;
+      if (dx * dx + dz * dz > auraR * auraR) continue;
+      mul *= auraMul;
+    }
+  }
+  return mul;
 }
 
 function casterDamageElementMultiplier(skill: SkillDef, caster: PlayerState | null | undefined): number {
