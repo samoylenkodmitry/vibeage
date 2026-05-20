@@ -117,6 +117,14 @@ export interface SpecializationPassiveModifiers {
    * Templar Knight `Bulwark` (Taunt range +50%).
    */
   rangeMultiplierBySkill?: Readonly<Record<string, number>>;
+  /**
+   * §45.3 follow-up — once-per-life save. When set on a Phoenix
+   * Knight, a killing hit instead reduces the player to 1 HP and
+   * applies an `invuln` status effect for this many milliseconds.
+   * `usedResurrectionThisLife` on PlayerState tracks the one-shot;
+   * `respawnPlayer` resets it.
+   */
+  resurrectionInvulnMs?: number;
 }
 
 export interface SpecializationPassive {
@@ -372,8 +380,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     },
     proficiencyPassive: {
       name: 'Resurrection',
-      description: '(planned: brief invulnerability on falling to 1 HP, once per fight. No once-per-fight tracker yet.)',
-      modifiers: {},
+      description: 'The first killing hit each life leaves you at 1 HP with 2.5s of invulnerability.',
+      modifiers: { resurrectionInvulnMs: 2500 },
     },
     specSkills: ['phoenix_ward'],
     proficiencySkills: ['rebirth'],
