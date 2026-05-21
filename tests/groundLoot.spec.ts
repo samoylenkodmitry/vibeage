@@ -2,33 +2,43 @@ import { describe, expect, test, vi } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { tryGiveLoot } from '../server/loot/groundLoot';
 import type { PlayerState } from '../packages/sim/entities';
+import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
+import { playerInventorySlots } from './helpers/inventoryView';
 
-const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
-  id: 'player1',
-  socketId: 'socket1',
-  name: 'Looter',
-  position: { x: 0, y: 0, z: 0 },
-  rotation: { x: 0, y: 0, z: 0 },
-  health: 100,
-  maxHealth: 100,
-  mana: 100,
-  maxMana: 100,
-  className: 'mage',
-  unlockedSkills: [],
-  skillShortcuts: [],
-  availableSkillPoints: 0,
-  skillCooldownEndTs: {},
-  statusEffects: [],
-  level: 1,
-  experience: 0,
-  experienceToNextLevel: 100,
-  castingSkill: null,
-  castingProgressMs: 0,
-  isAlive: true,
-  inventory: [{ itemId: 'health_potion', quantity: 1 }],
-  maxInventorySlots: 20,
-  ...overrides,
-});
+type LooterOverrides = Partial<PlayerState> & { seedInventory?: ReadonlyArray<{ itemId: string; quantity: number }> };
+
+const makePlayer = (overrides: LooterOverrides = {}): PlayerState => {
+  const { seedInventory, ...rest } = overrides;
+  const player: PlayerState = {
+    id: 'player1',
+    socketId: 'socket1',
+    name: 'Looter',
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    health: 100,
+    maxHealth: 100,
+    mana: 100,
+    maxMana: 100,
+    className: 'mage',
+    unlockedSkills: [],
+    skillShortcuts: [],
+    availableSkillPoints: 0,
+    skillCooldownEndTs: {},
+    statusEffects: [],
+    level: 1,
+    experience: 0,
+    experienceToNextLevel: 100,
+    castingSkill: null,
+    castingProgressMs: 0,
+    isAlive: true,
+    inventory: [],
+    maxInventorySlots: 20,
+    ...rest,
+  };
+  const seed = seedInventory ?? [{ itemId: 'health_potion', quantity: 1 }];
+  for (const entry of seed) addItemsToPlayer(player, entry.itemId, entry.quantity);
+  return player;
+};
 
 describe('ground loot', () => {
   test('gives nearby loot to player inventory and emits pickup messages', () => {
@@ -49,7 +59,7 @@ describe('ground loot', () => {
     // PR GG — gold_coin auto-converts to the gold counter on pickup
     // instead of taking a bag slot. The bag only carries the other
     // drop; the player's `gold` reflects the coin drop.
-    expect(state.players.player1.inventory).toEqual([
+    expect(playerInventorySlots(state.players.player1)).toEqual([
       { itemId: 'health_potion', quantity: 3 },
     ]);
     expect(state.players.player1.gold).toBe(1);
@@ -76,7 +86,7 @@ describe('ground loot', () => {
     const outbound = { publish: vi.fn() };
 
     state.players.player1 = makePlayer({
-      inventory: [{ itemId: 'health_potion', quantity: 1 }],
+      seedInventory: [{ itemId: 'health_potion', quantity: 1 }],
       maxInventorySlots: 1,
     });
     state.groundLoot.loot1 = {
@@ -89,7 +99,7 @@ describe('ground loot', () => {
 
     expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(false);
     expect(state.groundLoot.loot1).toBeDefined();
-    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
     expect(outbound.publish).not.toHaveBeenCalled();
   });
 
@@ -98,7 +108,7 @@ describe('ground loot', () => {
     const outbound = { publish: vi.fn() };
 
     state.players.player1 = makePlayer({
-      inventory: [{ itemId: 'health_potion', quantity: 1 }],
+      seedInventory: [{ itemId: 'health_potion', quantity: 1 }],
       maxInventorySlots: 1,
     });
     state.groundLoot.loot1 = {
@@ -108,7 +118,7 @@ describe('ground loot', () => {
 
     expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
-    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 3 }]);
+    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 3 }]);
     expect(outbound.publish).toHaveBeenCalledWith({
       type: 'directServerMessage',
       socketId: 'socket1',

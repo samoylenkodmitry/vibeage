@@ -78,10 +78,12 @@ export const TRANSIENT_PLAYER_STATE_FIELDS = [
   'posHistory',
   'stats',
   'maxInventorySlots',
-  // §45.7 — `inventory` is the deprecated wire-projection mirror of
-  // `characterInventory`. Never persisted, lives only in memory so
-  // legacy readers (tests, the InventoryUpdate emitter) keep working
-  // until a snapshot boundary owns the projection.
+  // §52/PR-queue-#2 — `inventory` is no longer maintained at runtime.
+  // The wire emit (`InventoryUpdate`, `playerUpdated.inventory`)
+  // flattens `characterInventory` on demand via
+  // `flattenInventoryToSlots`; the legacy field on `PlayerState`
+  // survives only as an optional fixture-typing convenience and
+  // could be deleted once every test fixture migrates.
   'inventory',
 ] as const satisfies ReadonlyArray<keyof PlayerState>;
 

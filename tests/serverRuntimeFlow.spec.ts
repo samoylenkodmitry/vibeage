@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { CastState } from '../packages/protocol/messages';
+import { playerInventorySlots } from './helpers/inventoryView';
 import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import { createCombatWorld } from '../server/combat/combatWorld';
 import { resolveCastImpact } from '../server/combat/impactResolver';
@@ -120,7 +121,7 @@ describe('deterministic server runtime flow', () => {
       items: [{ itemId: 'health_potion', quantity: 2 }],
     }));
     expect(state.groundLoot[lootId]).toBeUndefined();
-    expect(player.inventory).toEqual([{ itemId: 'health_potion', quantity: 2 }]);
+    expect(playerInventorySlots(player)).toEqual([{ itemId: 'health_potion', quantity: 2 }]);
   });
 });
 

@@ -10,7 +10,7 @@ import { listInventoryItems } from '../../packages/sim/characterInventory.js';
 import { equipItem, unequipSlot } from '../../packages/sim/equipTransactions.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { emitPlayerUpdated, type DirectMessageSink, type OutboundEventSink } from '../transport/outboundEvents.js';
-import { ensureCharacterInventory, syncLegacyInventory } from './aggregateBridge.js';
+import { ensureCharacterInventory } from './aggregateBridge.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 
 const VALID_SLOTS: ReadonlySet<EquipSlot> = new Set<EquipSlot>([
@@ -53,7 +53,6 @@ export function handleEquipItem(
     sendFail(direct, (result as { ok: false; error: string }).error, 'EquipItem', msg.clientSeq);
     return;
   }
-  syncLegacyInventory(player);
   sendEquipment(direct, player, outbound);
 }
 
@@ -74,7 +73,6 @@ export function handleUnequipItem(
     sendFail(direct, (result as { ok: false; error: string }).error, 'UnequipItem', msg.clientSeq);
     return;
   }
-  syncLegacyInventory(player);
   sendEquipment(direct, player, outbound);
 }
 
