@@ -2442,6 +2442,40 @@ input {
     padding: 0 10px;
     font-size: 11px;
   }
+
+  /* §49/M2 — onboarding hint banners on mobile.
+     Desktop positions banners at top:30% which sits well below the
+     top-right player-panel on a tall viewport. On a short mobile
+     viewport (≤568px tall portrait, or any landscape phone) the
+     30%-from-top math drifts toward the player-panel bottom edge
+     AND toward the bottom-anchored skill-bar, risking visual
+     collision with both. Bottom-anchor the banner just above the
+     panel-toggles row (which sits at bottom: 210px on mobile) so
+     it lives in the known-clear strip between the bottom HUD and
+     the world view, independent of viewport height. */
+  .targeting-hint,
+  .skill-use-hint,
+  .return-to-npc-hint,
+  .loot-pickup-hint {
+    top: auto;
+    bottom: calc(260px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    max-width: min(360px, calc(100vw - 16px));
+  }
+
+  /* Override the entry animation so it slides up from below
+     (matches the bottom-anchored position) instead of dropping
+     down from above. */
+  @keyframes mobile-hint-fade {
+    from { opacity: 0; transform: translate(-50%, 8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .targeting-hint,
+  .skill-use-hint,
+  .return-to-npc-hint,
+  .loot-pickup-hint {
+    animation: mobile-hint-fade 0.3s ease-out;
+  }
 }
 
 .paperdoll-panel {
