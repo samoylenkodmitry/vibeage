@@ -36,22 +36,26 @@ function nearVendor(player: PlayerState, vendor: VendorDef): boolean {
   return d <= INTERACTION_RANGE;
 }
 
+export type VendorResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
 export function applyBuyFromVendor(
   player: PlayerState,
   vendorId: string,
   itemId: string,
   quantity: number,
   outbound: OutboundEventSink,
-): boolean {
+): VendorResult {
   const vendor = getVendor(vendorId);
-  if (!vendor) return false;
-  if (!nearVendor(player, vendor)) return false;
+  if (!vendor) return { ok: false, reason: 'unknownVendor' };
+  if (!nearVendor(player, vendor)) return { ok: false, reason: 'tooFarFromVendor' };
   const entry = vendor.stock.find((s) => s.itemId === itemId);
-  if (!entry) return false;
-  if (!ITEMS[itemId]) return false;
-  if (quantity < 1) return false;
+  if (!entry) return { ok: false, reason: 'itemNotStocked' };
+  if (!ITEMS[itemId]) return { ok: false, reason: 'unknownItem' };
+  if (quantity < 1) return { ok: false, reason: 'invalidQuantity' };
   const totalCost = entry.price * quantity;
-  if ((player.gold ?? 0) < totalCost) return false;
+  if ((player.gold ?? 0) < totalCost) return { ok: false, reason: 'insufficientGold' };
 
   // Reserve the cost first so a failed add (bag full) leaves gold
   // untouched. Roll back on failure.
@@ -60,7 +64,7 @@ export function applyBuyFromVendor(
   const result = addItemsToPlayer(player, itemId, quantity);
   if (!result.ok) {
     player.gold = beforeGold;
-    return false;
+    return { ok: false, reason: 'inventoryFull' };
   }
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} bought ${quantity}x ${itemId} from ${vendorId} for ${totalCost}g`);
   emitPlayerUpdated(outbound, {
@@ -68,7 +72,7 @@ export function applyBuyFromVendor(
     gold: player.gold,
     inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
   });
-  return true;
+  return { ok: true };
 }
 
 export function applySellToVendor(
@@ -77,18 +81,18 @@ export function applySellToVendor(
   itemId: string,
   quantity: number,
   outbound: OutboundEventSink,
-): boolean {
+): VendorResult {
   const vendor = getVendor(vendorId);
-  if (!vendor) return false;
-  if (!nearVendor(player, vendor)) return false;
-  if (quantity < 1) return false;
+  if (!vendor) return { ok: false, reason: 'unknownVendor' };
+  if (!nearVendor(player, vendor)) return { ok: false, reason: 'tooFarFromVendor' };
+  if (quantity < 1) return { ok: false, reason: 'invalidQuantity' };
   const unitPrice = vendorSellPriceFor(vendor, itemId);
   if (unitPrice <= 0) {
     warn(LOG_CATEGORIES.PLAYER, `Sell rejected: vendor ${vendorId} doesn't buy ${itemId}`);
-    return false;
+    return { ok: false, reason: 'vendorWontBuy' };
   }
   const removed = removeItemsFromPlayer(player, itemId, quantity);
-  if (!removed.ok) return false;
+  if (!removed.ok) return { ok: false, reason: 'itemNotInBag' };
   // `removed.value.removed` is the count actually taken — should equal
   // `quantity` because removeItems is atomic, but be defensive.
   const sold = removed.value.removed;
@@ -100,5 +104,5 @@ export function applySellToVendor(
     gold: player.gold,
     inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
   });
-  return true;
+  return { ok: true };
 }

@@ -10,6 +10,7 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
 
 type DropItemClient = { id: string };
@@ -29,30 +30,41 @@ export function onDropItem(
   msg: DropItem,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'DropItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     warn(LOG_CATEGORIES.PLAYER, `DropItem rejected: no player for socket ${socket.id}`);
+    reject('playerNotFound');
     return;
   }
   const player = state.players[playerId];
-  if (!player) return;
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
   if (!player.isAlive) {
     warn(LOG_CATEGORIES.PLAYER, `DropItem rejected: player ${playerId} is dead`);
+    reject('playerDead');
     return;
   }
 
   const instance = instanceAtSlot(ensureCharacterInventory(player), msg.slotIndex);
   if (!instance) {
     warn(LOG_CATEGORIES.PLAYER, `DropItem rejected: empty slot ${msg.slotIndex} for ${playerId}`);
+    reject('invalidSlot');
     return;
   }
 
   const droppedCount = Math.min(msg.count ?? instance.count, instance.count);
-  if (droppedCount <= 0) return;
+  if (droppedCount <= 0) {
+    reject('invalidCount');
+    return;
+  }
 
   const removed = removeItemsFromPlayer(player, instance.templateId, droppedCount);
   if (removed.ok === false) {
     warn(LOG_CATEGORIES.PLAYER, `DropItem failed during remove for ${playerId}: ${removed.error}`);
+    reject(removed.error);
     return;
   }
 

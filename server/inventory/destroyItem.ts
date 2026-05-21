@@ -4,6 +4,7 @@ import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import type { DirectMessageSink } from '../transport/outboundEvents.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 import { ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
 
@@ -21,30 +22,41 @@ export function onDestroyItem(
   state: GameState,
   msg: DestroyItem,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'DestroyItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     warn(LOG_CATEGORIES.PLAYER, `DestroyItem rejected: no player for socket ${socket.id}`);
+    reject('playerNotFound');
     return;
   }
   const player = state.players[playerId];
-  if (!player) return;
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
   if (!player.isAlive) {
     warn(LOG_CATEGORIES.PLAYER, `DestroyItem rejected: player ${playerId} is dead`);
+    reject('playerDead');
     return;
   }
 
   const instance = instanceAtSlot(ensureCharacterInventory(player), msg.slotIndex);
   if (!instance) {
     warn(LOG_CATEGORIES.PLAYER, `DestroyItem rejected: empty slot ${msg.slotIndex} for ${playerId}`);
+    reject('invalidSlot');
     return;
   }
 
   const destroyedCount = Math.min(msg.count ?? instance.count, instance.count);
-  if (destroyedCount <= 0) return;
+  if (destroyedCount <= 0) {
+    reject('invalidCount');
+    return;
+  }
 
   const removed = removeItemsFromPlayer(player, instance.templateId, destroyedCount);
   if (removed.ok === false) {
     warn(LOG_CATEGORIES.PLAYER, `DestroyItem failed during remove for ${playerId}: ${removed.error}`);
+    reject(removed.error);
     return;
   }
 
