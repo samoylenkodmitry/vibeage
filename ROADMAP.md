@@ -2428,9 +2428,12 @@ The "real backlog" after the audit. Ordered by impact × cost.
    `SkillEffect.dispelCategory` (default 'negative') picks the
    target family. Categories live: negative / positive / poison /
    stun / shield; bleed / magic reserved.
-9. **§6 — protocol shape for `inventoryUpdateMsg`.** Today it
-   ships the flat-slot projection; carried as the last step of
-   the §45 inventory migration. Aggregate-shaped wire DTO is open.
+9. **§6 — protocol shape for `inventoryUpdateMsg`.** ✅ Closed (#360).
+   `InventorySlot` now carries `slotIndex` + `instanceId` from the
+   aggregate. Fixed a latent sparse-bag rendering bug (client + server
+   were symmetrically array-positional). Future per-instance fields
+   (enchant level, bound flag) can ride the same shape without protocol
+   churn.
 10. **§12 — load-test harness** (§29 PR 10). Required before
     scaling decisions. Heading off this work until the histograms
     above land so we can measure improvements.
@@ -2778,9 +2781,10 @@ this list.
     sets for future content tags). Target sets live in
     `server/combat/statusQueries#dispelTargetSet`.
 
-11. **§6 — protocol shape for `inventoryUpdateMsg`.** Today
-    ships the flat-slot projection; aggregate-shaped wire
-    DTO is open. Probably folds into item #2 above.
+11. **§6 — protocol shape for `inventoryUpdateMsg`.** ✅ Closed
+    (#360). `InventorySlot` now carries explicit `slotIndex` +
+    `instanceId` from the aggregate. Fixed a latent sparse-bag
+    rendering bug (client + server were symmetrically array-positional).
 
 12. **§12 — load-test harness.** Deferred until the
     histograms above land so we can measure improvements.
