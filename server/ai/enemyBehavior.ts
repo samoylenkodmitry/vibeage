@@ -69,22 +69,24 @@ export function getEnemyMovementSpeed(enemy: Enemy, now: number = Date.now()): n
 }
 
 /**
- * KNOWN ISSUE (pre-existing): the position integration below is a
- * double-step. `worldMovement.advanceEnemyPosition` runs in the same
- * tick (input/movement phase) and *also* adds `velocity * dt` to the
- * position, so enemies effectively move at 2× their `movementSpeed`.
- * The current enemy speed values are tuned around this. Removing the
- * double-step is a balance change that belongs in its own PR — see
- * ROADMAP "## 10. Movement... Per-player movement speed budget".
+ * Sets the enemy's velocity vector + facing toward `targetPosition`.
+ * Position integration is deferred to `worldMovement.advanceEnemyPosition`
+ * which runs in the input/movement phase of the same tick — keeping the
+ * AI phase free to compose multiple intents without each one stamping
+ * its own position step.
+ *
+ * Previously this function ALSO added `velocity * deltaTime` to the
+ * position, double-stepping enemies past their advertised
+ * `movementSpeed`. Removed in PR #324; the createEnemy multiplier was
+ * doubled (6 → 12) so the perceived gameplay speed stays the same.
  */
 export function moveEnemyToward(
   enemy: Enemy,
   targetPosition: VecXZ,
-  spatialGrid: SpatialHashGrid,
-  deltaTime: number,
+  _spatialGrid: SpatialHashGrid,
+  _deltaTime: number,
   now: number = Date.now(),
 ): void {
-  const oldPos = { x: enemy.position.x, z: enemy.position.z };
   const direction = directionXZ(enemy.position, targetPosition);
   const speed = getEnemyMovementSpeed(enemy, now);
 
@@ -92,11 +94,7 @@ export function moveEnemyToward(
     x: direction.x * speed,
     z: direction.z * speed,
   };
-  enemy.position.x += enemy.velocity.x * deltaTime;
-  enemy.position.z += enemy.velocity.z * deltaTime;
   enemy.rotation.y = rotationYForDirection(direction);
-
-  spatialGrid.move(enemy.id, oldPos, enemy.position);
   markEnemyDirty(enemy);
 }
 

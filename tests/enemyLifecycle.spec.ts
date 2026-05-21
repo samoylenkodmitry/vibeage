@@ -24,7 +24,7 @@ describe('enemy lifecycle', () => {
       aiState: 'idle',
       aggroRadius: 15,
       attackCooldownMs: 2000,
-      movementSpeed: 6 * 1.25,
+      movementSpeed: 12 * 1.25,
       velocity: { x: 0, z: 0 },
       lootTableId: 'wolf_loot',
     });
