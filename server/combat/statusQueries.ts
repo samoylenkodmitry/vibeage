@@ -24,3 +24,27 @@ export function isEntityStunned(entity: PlayerState | Enemy, now: number = Date.
     return expiresAt > now;
   });
 }
+
+/**
+ * §52 #6 — sum active `evasion` status-effect values on the target
+ * and return a 0..1 miss chance. Caps at 0.95 so a stacked buff can
+ * never make a target literally untouchable. `effect.value` is in
+ * percent (matches the content schema — Smoke Bomb 40, Mist Step 50).
+ * Returns 0 when the target has no active evasion buff, preserving
+ * the legacy "every hit lands" path for the common case.
+ */
+export function evasionMissChanceFor(
+  target: PlayerState | Enemy | null | undefined,
+  now: number = Date.now(),
+): number {
+  if (!target?.statusEffects?.length) return 0;
+  let totalPct = 0;
+  for (const effect of target.statusEffects) {
+    if (effect.type !== 'evasion') continue;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt <= now) continue;
+    totalPct += effect.value ?? 0;
+  }
+  if (totalPct <= 0) return 0;
+  return Math.min(0.95, totalPct / 100);
+}

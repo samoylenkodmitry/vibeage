@@ -54,15 +54,32 @@ export interface DamageOpts {
   caster: { dmgMult?: number; critChance?: number; critMult?: number };
   skill:  { base: number; variance?: number }; // variance , default 0.1
   seed:   string;                              // castId + targetId
+  /**
+   * §52 #6 — chance (0..1) that this hit misses entirely. The roll
+   * runs *before* damage/crit so a missed hit reports 0 / non-crit
+   * and the caller can suppress status-effect application. Default
+   * 0 keeps the legacy "every hit lands" behavior for callers that
+   * haven't opted in yet.
+   */
+  targetMissChance?: number;
 }
 
-export function getDamage(opts: DamageOpts): { dmg: number; crit: boolean } {
-  const { caster, skill, seed } = opts;
+export function getDamage(opts: DamageOpts): { dmg: number; crit: boolean; miss: boolean } {
+  const { caster, skill, seed, targetMissChance } = opts;
+  // §52 #6 — independent miss-roll stream. XOR a fresh constant so
+  // it doesn't share bits with the variance or crit streams.
+  const missChance = Math.max(0, Math.min(1, targetMissChance ?? 0));
+  if (missChance > 0) {
+    const missRoll = rng(hash(seed) ^ 0xD0DEC0DE)();
+    if (missRoll < missChance) {
+      return { dmg: 0, crit: false, miss: true };
+    }
+  }
   const roll = rng(hash(seed))();              // 0-1 uniform
   const variance = 1 + (roll * 2 - 1) * (skill.variance ?? 0.1);
   const critRoll = rng(hash(seed) ^ 0x9e3779b9)();
   const crit = critRoll < (caster.critChance ?? 0);
   const critMult = crit ? (caster.critMult ?? 2) : 1;
   const dmg = skill.base * variance * (caster.dmgMult ?? 1) * critMult;
-  return { dmg: Math.round(dmg), crit };
+  return { dmg: Math.round(dmg), crit, miss: false };
 }

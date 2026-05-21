@@ -106,6 +106,13 @@ export const combatLogMsgSchema = z.object({
    * "no crits".
    */
   crits: z.array(z.boolean()).optional(),
+  /**
+   * §52 #6 — parallel to `damages`: whether each hit missed
+   * (target's evasion buff dodged it). Optional for the same
+   * backwards-compat reason. Client treats absent as "no misses",
+   * which matches the pre-§52 invariant that every hit landed.
+   */
+  misses: z.array(z.boolean()).optional(),
 }).strict();
 
 export const enemyAttackSchema = z.object({
@@ -345,6 +352,8 @@ export type CombatLogMsg = {
   targets: string[];
   damages: number[];
   crits?: boolean[];
+  /** §52 #6 — per-target miss flags. Absent = no misses. */
+  misses?: boolean[];
 };
 
 export type EnemyAttack = {

@@ -43,4 +43,23 @@ describe('formatCombatLogLine', () => {
     const state = makeStateWithGoblin();
     expect(formatCombatLogLine(state, 'fireball', ['gob1', 'gob1'], [10, 18], [false, true])).toContain('(crit!)');
   });
+  // §52 #6 — misses
+  it('renders "X missed Y" when the only target dodged', () => {
+    const state = makeStateWithGoblin();
+    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [0], [false], [true])).toBe(
+      'Fireball missed Goblin',
+    );
+  });
+  it('annotates AOE lines with the dodge count when only some targets missed', () => {
+    const state = makeStateWithGoblin();
+    expect(
+      formatCombatLogLine(state, 'fireball', ['gob1', 'gob1'], [12, 0], [false, false], [false, true]),
+    ).toBe('Fireball hit Goblin for 12 damage (1 dodged)');
+  });
+  it('omits miss suffix when `misses` is undefined (backwards-compat with pre-§52 server)', () => {
+    const state = makeStateWithGoblin();
+    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [10], undefined, undefined)).toBe(
+      'Fireball hit Goblin for 10 damage',
+    );
+  });
 });
