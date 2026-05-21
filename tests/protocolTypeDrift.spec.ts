@@ -82,7 +82,6 @@ const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   BatchUpdate: true,
   ChatBroadcast: true,
   EquipmentUpdate: true,
-  LearnSkillFailed: true,
   CommandRejected: true,
 };
 const SERVER_MESSAGE_TYPE_LITERALS = Object.keys(SERVER_MESSAGE_TYPES) as ServerMessage['type'][];
@@ -150,7 +149,6 @@ describe('protocol type ↔ schema drift', () => {
       BatchUpdate: { updates: [] },
       ChatBroadcast: { fromId: 'p', fromName: 'n', text: 'hi', scope: 'all', ts: 1 },
       EquipmentUpdate: { equipment: [] },
-      LearnSkillFailed: { skillId: 'fireball', reason: 'noSkillPoints' },
       CommandRejected: { commandType: 'EquipItem', reason: 'itemNotFound' },
     };
 
@@ -242,11 +240,11 @@ describe('protocol fuzz: client message hardening', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects LearnSkillFailed via serverMessageSchema with an unknown reason', () => {
+  it('rejects unknown server message type literals (regression net against accidental schema additions)', () => {
     const result = serverMessageSchema.safeParse({
-      type: 'LearnSkillFailed',
+      type: 'LearnSkillFailed', // §52 #1 — retired; should no longer parse.
       skillId: 'fireball',
-      reason: 'invented-reason',
+      reason: 'noSkillPoints',
     });
     expect(result.success).toBe(false);
   });

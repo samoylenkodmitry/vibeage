@@ -252,6 +252,11 @@ function applyServerMessage(
     if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
     if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipFailedFromCommandRejected(state, message, now);
     if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
+    // §52 #1 — LearnSkillFailed retired; the panel rejection state now
+    // reads CommandRejected{commandType:'LearnSkill', targetId:<skillId>}.
+    if (message.commandType === 'LearnSkill' && message.targetId) {
+      return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.targetId]: message.reason } };
+    }
   }
 
   if (message.type === 'EnemyAttack') {
@@ -267,9 +272,6 @@ function applyServerMessage(
   }
 
   if (message.type === 'EquipmentUpdate') return applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), message, now);
-  if (message.type === 'LearnSkillFailed') {
-    return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.skillId]: message.reason } };
-  }
 
   if (message.type === 'LootSpawn') {
     return addGroundLoot(state, {

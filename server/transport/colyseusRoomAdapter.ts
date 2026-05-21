@@ -166,13 +166,16 @@ export function makeColyseusOutbound(
 const OWNER_ONLY_SERVER_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'InventoryUpdate',
   'EquipmentUpdate',
-  'LearnSkillFailed',
   'SkillLearned',
   'SkillShortcutUpdated',
   'ClassSelected',
   'ItemUsed',
   'LootAcquired',
   'StarterProgressUpdate',
+  // §52 #1 — CommandRejected carries the targeted player's failure
+  // context (skill ids being learned, cooldown state, etc.). Always
+  // owner-only; broadcast would leak per-player state to nearby clients.
+  'CommandRejected',
 ]);
 
 function isOwnerOnlyServerMessage(message: ServerMessage): boolean {

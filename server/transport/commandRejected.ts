@@ -23,12 +23,20 @@ export function sendCommandRejected(
   commandType: string,
   reason: string,
   clientSeq?: number,
+  /**
+   * §52 #1 — optional command-specific subject id (skill id, item id,
+   * vendor id, quest id, etc.). Echoed back on the envelope so the
+   * client can hang the rejection next to the right UI element.
+   * Meaning is per-commandType — the helper doesn't validate.
+   */
+  targetId?: string,
 ): void {
   direct.send({
     type: 'CommandRejected',
     commandType,
     reason,
     ...(clientSeq !== undefined ? { requestId: clientSeq } : {}),
+    ...(targetId !== undefined ? { targetId } : {}),
   });
   runtimeMetrics.increment(`commandRejected.${commandType}.${reason}`);
   runtimeMetrics.increment(`commandRejected.${commandType}.total`);

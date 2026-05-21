@@ -30,7 +30,6 @@ describe('owner-only server message guard', () => {
   const ownerOnlyCases: Array<{ name: string; message: { type: string; [k: string]: unknown } }> = [
     { name: 'InventoryUpdate', message: { type: 'InventoryUpdate', playerId: 'p', inventory: [], maxInventorySlots: 20 } },
     { name: 'EquipmentUpdate', message: { type: 'EquipmentUpdate', equipment: [] } },
-    { name: 'LearnSkillFailed', message: { type: 'LearnSkillFailed', skillId: 'fireball', reason: 'noSkillPoints' } },
     { name: 'SkillLearned', message: { type: 'SkillLearned', skillId: 'fireball', remainingPoints: 0 } },
     { name: 'SkillShortcutUpdated', message: { type: 'SkillShortcutUpdated', slotIndex: 0, skillId: null } },
     { name: 'ClassSelected', message: { type: 'ClassSelected', className: 'mage' } },
@@ -100,7 +99,7 @@ describe('owner-only server message guard: metrics + public unaffected', () => {
     });
     outbound.publish({
       type: 'serverMessage',
-      message: { type: 'LearnSkillFailed', skillId: 'fireball', reason: 'noSkillPoints' } as never,
+      message: { type: 'CommandRejected', commandType: 'LearnSkill', reason: 'noSkillPoints', targetId: 'fireball' } as never,
     });
 
     const counters = runtimeMetrics.snapshot().counters;
@@ -141,7 +140,7 @@ describe('owner-only server message guard: metrics + public unaffected', () => {
         type: 'BatchUpdate',
         updates: [
           { type: 'ChatBroadcast', fromId: 'p', fromName: 'P', text: 'hi', scope: 'all', ts: 1 },
-          { type: 'LearnSkillFailed', skillId: 'fireball', reason: 'noSkillPoints' },
+          { type: 'CommandRejected', commandType: 'LearnSkill', reason: 'noSkillPoints', targetId: 'fireball' },
         ],
       },
     });

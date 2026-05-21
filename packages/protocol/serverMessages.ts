@@ -208,12 +208,6 @@ export const learnSkillFailedReasonSchema = z.enum([
   'alreadyKnown',
 ]);
 
-export const learnSkillFailedSchema = z.object({
-  type: z.literal('LearnSkillFailed'),
-  skillId: skillIdSchema,
-  reason: learnSkillFailedReasonSchema,
-}).strict();
-
 // §46/slice-5 — structured rejection envelope. Replaces the
 // patchwork of per-command failure messages with one shape the
 // client can route on `requestId` (when the command supplied a
@@ -231,6 +225,14 @@ export const commandRejectedSchema = z.object({
   reason: z.string(),
   /** Optional one-line human-readable detail. Safe for direct render. */
   detail: z.string().max(240).optional(),
+  /**
+   * §52 #1 — optional command-specific subject id (skill id, item id,
+   * vendor id, quest id, etc.). Lets the client hang the rejection
+   * next to the right UI element (e.g. the skill icon for a
+   * LearnSkill rejection) without having to remember per-command
+   * outbound state. Free-form because the meaning is per-commandType.
+   */
+  targetId: z.string().optional(),
 }).strict();
 
 function getServerMessageSchema(): z.ZodType<unknown> {
@@ -261,7 +263,6 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   batchUpdateSchema,
   chatBroadcastSchema,
   equipmentUpdateSchema,
-  learnSkillFailedSchema,
   commandRejectedSchema,
 ]);
 
@@ -428,12 +429,6 @@ export type EquipmentUpdateMsg = {
 
 export type LearnSkillFailedReason = z.infer<typeof learnSkillFailedReasonSchema>;
 
-export type LearnSkillFailedMsg = {
-  type: 'LearnSkillFailed';
-  skillId: SkillId;
-  reason: LearnSkillFailedReason;
-};
-
 // §46/slice-5 — structured rejection envelope. See schema for the
 // contract; consumers route on `requestId` (the client's matching
 // `clientSeq`) to surface per-request rejection UX without parsing
@@ -444,6 +439,8 @@ export type CommandRejected = {
   commandType: string;
   reason: string;
   detail?: string;
+  /** §52 #1 — optional subject id (skill / item / vendor / quest …). */
+  targetId?: string;
 };
 
 export type ServerMessage =
@@ -466,5 +463,4 @@ export type ServerMessage =
   | BatchUpdate
   | ChatBroadcast
   | EquipmentUpdateMsg
-  | LearnSkillFailedMsg
   | CommandRejected;
