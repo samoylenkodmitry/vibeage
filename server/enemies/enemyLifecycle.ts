@@ -46,7 +46,11 @@ export function createEnemy(
   const baseHealth = (100 + level * 20) * template.stats.health * healthMult;
   const baseExp = (50 + level * 10) * template.stats.experience * expMult;
   const attackDamage = (10 + level * 2) * template.stats.damage * damageMult;
-  const movementSpeed = 6 * template.stats.movementSpeed;
+  // PR #324 — base multiplier was 6 when enemies were double-stepped
+  // (AI phase added velocity*dt AND the movement phase added it again).
+  // Removing the double-step required doubling this baseline to keep
+  // the same on-screen movement speed.
+  const movementSpeed = 12 * template.stats.movementSpeed;
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,

@@ -80,7 +80,7 @@ describe('getEnemyMovementSpeed', () => {
 });
 
 describe('moveEnemyToward applies slow speed', () => {
-  it('moves slower per tick when slowed compared to unaffected baseline', () => {
+  it('sets slower velocity when slowed compared to unaffected baseline', () => {
     const baseline = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 6);
     const slowed = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 7);
     slowed.statusEffects = [effect('slow')];
@@ -88,12 +88,14 @@ describe('moveEnemyToward applies slow speed', () => {
     spatial.insert(baseline.id, baseline.position);
     spatial.insert(slowed.id, slowed.position);
 
-    const dt = 1; // one full second
-    moveEnemyToward(baseline, { x: 100, z: 0 }, spatial, dt, NOW);
-    moveEnemyToward(slowed, { x: 100, z: 0 }, spatial, dt, NOW);
+    // PR #324 — `moveEnemyToward` only sets velocity now; position
+    // integration belongs to the movement phase. Slow factor still
+    // observable on the velocity vector itself.
+    moveEnemyToward(baseline, { x: 100, z: 0 }, spatial, 1, NOW);
+    moveEnemyToward(slowed, { x: 100, z: 0 }, spatial, 1, NOW);
 
-    expect(slowed.position.x).toBeLessThan(baseline.position.x);
-    expect(slowed.position.x).toBeCloseTo(baseline.position.x * 0.7, 5);
+    expect(slowed.velocity!.x).toBeLessThan(baseline.velocity!.x);
+    expect(slowed.velocity!.x).toBeCloseTo(baseline.velocity!.x * 0.7, 5);
   });
 });
 

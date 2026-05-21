@@ -43,21 +43,22 @@ describe('enemy behavior helpers', () => {
     expect(findAggroTargetId(enemy, { dead, far, near }, ['dead', 'far', 'near'])).toBe('near');
   });
 
-  test('moves toward a target, updates spatial index, and marks the enemy dirty', () => {
+  test('sets velocity + facing toward a target and marks the enemy dirty', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 2);
     enemy.movementSpeed = 2;
     const spatial = new SpatialHashGrid(1);
     spatial.insert(enemy.id, enemy.position);
 
+    // PR #324 — `moveEnemyToward` no longer integrates position; that
+    // job belongs to `worldMovement.advanceEnemyPosition` in the
+    // input/movement phase. The AI phase only sets velocity + facing.
     moveEnemyToward(enemy, { x: 10, z: 0 }, spatial, 1);
 
-    expect(enemy.position.x).toBe(2);
+    expect(enemy.position.x).toBe(0);
     expect(enemy.position.z).toBe(0);
     expect(enemy.velocity).toEqual({ x: 2, z: 0 });
     expect(enemy.rotation.y).toBeCloseTo(Math.PI / 2);
     expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(true);
-    expect(spatial.queryCircle({ x: 0, z: 0 }, 0.1)).not.toContain(enemy.id);
-    expect(spatial.queryCircle({ x: 2, z: 0 }, 0.1)).toContain(enemy.id);
   });
 
   test('applies enemy attacks with cooldowns and death state updates', () => {
