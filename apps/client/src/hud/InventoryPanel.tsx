@@ -47,6 +47,10 @@ export function InventoryPanel({
     tooltipTriggerProps: (itemId) => tooltip.triggerProps(itemId),
     consumePendingClick: () => tooltip.consumePendingClick(),
   };
+  // §52 #11 — render by explicit `slotIndex` when the server provides
+  // it. Falls back to positional indexing for older server builds that
+  // still emit the dense array (no slotIndex on each slot).
+  const byIndex = indexInventoryBySlot(inventory);
   return (
     <section ref={panelRef} className="inventory-panel" aria-label="Inventory">
       <div className="panel-title">
@@ -57,7 +61,7 @@ export function InventoryPanel({
         {Array.from({ length: maxSlots }).map((_, index) => (
           <InventorySlotButton
             key={index}
-            slot={inventory[index] ?? null}
+            slot={byIndex[index] ?? null}
             index={index}
             playerLevel={playerLevel}
             callbacks={callbacks}
@@ -109,4 +113,20 @@ function canEquipAt(itemId: string, playerLevel: number): boolean {
   if (!item?.equip) return false;
   const minLevel = getEffectiveMinLevel(getItemGrade(item), item.equip.requirements?.minLevel);
   return playerLevel >= minLevel;
+}
+
+/**
+ * §52 #11 — return a sparse map slotIndex → InventorySlot. When the
+ * server includes explicit `slotIndex` (post §52 #11), positions are
+ * honored exactly. Pre-§52 wire shapes (dense array, no slotIndex)
+ * fall back to positional indexing for backwards compat.
+ */
+export function indexInventoryBySlot(inventory: InventorySlot[]): Record<number, InventorySlot> {
+  const out: Record<number, InventorySlot> = {};
+  inventory.forEach((slot, arrayIndex) => {
+    if (!slot) return;
+    const slotIndex = slot.slotIndex ?? arrayIndex;
+    out[slotIndex] = slot;
+  });
+  return out;
 }

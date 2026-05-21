@@ -59,6 +59,23 @@ export const statusEffectSchema = z.object({
 export const inventorySlotSchema = z.object({
   itemId: z.string(),
   quantity: z.number(),
+  /**
+   * §52 #11 — explicit bag slot index. Optional for backwards compat
+   * with old server builds that emit the legacy dense-array shape.
+   * When present, the client positions the item at this index in the
+   * grid (not at the array position). Fixes a latent bug where a
+   * sparse bag (e.g. items at slots 0 and 2 after equipping the
+   * slot-1 item) used to render items in the wrong UI cells.
+   */
+  slotIndex: z.number().int().min(0).optional(),
+  /**
+   * §52 #11 — server-side aggregate instance id. Lets the client
+   * tell apart two stacks of the same template (e.g. enchant +0 vs
+   * enchant +5). Currently informational; future UI work that needs
+   * to show per-instance state (enchant level, bound, etc.) can
+   * read it without a protocol change.
+   */
+  instanceId: z.string().optional(),
 }).passthrough();
 
 export const castSnapshotSchema = z.object({
@@ -116,6 +133,10 @@ export type StatusEffect = {
 export type InventorySlot = {
   itemId: ItemId;
   quantity: number;
+  /** §52 #11 — explicit grid slot index. See schema for the rationale. */
+  slotIndex?: number;
+  /** §52 #11 — server-side aggregate instance id (per-stack identity). */
+  instanceId?: string;
 };
 
 export type CastSnapshot = {

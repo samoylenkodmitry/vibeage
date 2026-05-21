@@ -82,7 +82,7 @@ describe('quest reward overflow (§52/PR-queue-#4)', () => {
     expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, state)).toBe(true);
 
     // The bag is unchanged — nothing fit.
-    expect(playerInventorySlots(player)).toEqual(beforeSlots);
+    expect(playerInventorySlots(player)).toMatchObject(beforeSlots);
 
     // A player-owned ground stack carries the overflow.
     const groundEntries = Object.entries(state.groundLoot);

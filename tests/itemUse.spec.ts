@@ -78,7 +78,7 @@ describe('item use', () => {
 
     expect(result.ok).toBe(true);
     expect(state.players.player1.mana).toBe(100);
-    expect(playerInventorySlots(state.players.player1)).toEqual([]);
+    expect(playerInventorySlots(state.players.player1)).toMatchObject([]);
     expect(result).toEqual({
       ok: true,
       playerUpdated: { id: 'player1', mana: 100 },
@@ -106,7 +106,7 @@ describe('item use', () => {
     const result = useItemForPlayer(state, 'player1', 0);
 
     expect(result.ok).toBe(true);
-    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(playerInventorySlots(state.players.player1)).toMatchObject([{ itemId: 'health_potion', quantity: 1 }]);
     expect(result).toEqual(expect.objectContaining({
       itemUsed: expect.objectContaining({
         slotIndex: 0,

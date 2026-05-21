@@ -192,12 +192,21 @@ export function listInventoryItems(inventory: CharacterInventory): ItemInstance[
 }
 
 /**
- * §45.7 — find the bag item that lives at a specific UI slot index.
- * Used by legacy slot-index APIs (item use, craft recipe scan) while
- * we migrate them off the flat `InventorySlot[]` shape.
+ * §52 #11 — find the bag item whose aggregate `location.slotIndex`
+ * matches `slotIndex`. Pre-§52 this did `listInventoryItems(inv)[idx]`
+ * which was array-positional, NOT by real slot — silently broken when
+ * the bag was sparse (e.g. after equipping the item at slot 1, the
+ * item at slot 2 became "array index 1" and the wrong instance came
+ * back). Now matches against `location.slotIndex` directly.
+ *
+ * Returns `undefined` when no bag item occupies that slot.
  */
 export function instanceAtSlot(inventory: CharacterInventory, slotIndex: number): ItemInstance | undefined {
-  return listInventoryItems(inventory)[slotIndex];
+  for (const instance of Object.values(inventory.items)) {
+    if (instance.location.kind !== 'inventory') continue;
+    if (instance.location.slotIndex === slotIndex) return instance;
+  }
+  return undefined;
 }
 
 /** True when the player's bag has no items (equipped gear doesn't count). */

@@ -37,7 +37,7 @@ describe('loot pickup atomicity', () => {
     expect(result).toEqual({ ok: false, reason: 'inventoryFull' });
     // Bag must be empty (no partial add survives), loot must still be on the ground.
     // §52 #2 — read via the flatten helper now that `player.inventory` is gone.
-    expect(playerInventorySlots(player)).toEqual([]);
+    expect(playerInventorySlots(player)).toMatchObject([]);
     expect(state.groundLoot[lootId]).toBeDefined();
   });
 });
