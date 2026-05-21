@@ -113,6 +113,14 @@ export const combatLogMsgSchema = z.object({
    * which matches the pre-§52 invariant that every hit landed.
    */
   misses: z.array(z.boolean()).optional(),
+  /**
+   * §52 #6 — parallel to `damages`: positive value when a heal
+   * effect on the skill restored HP on that target. Overheal is
+   * already trimmed against maxHealth. Pure-heal skills emit
+   * damages=[0] / heals=[N] so the client can render "X heals Y"
+   * instead of "X hit Y for 0".
+   */
+  heals: z.array(z.number()).optional(),
 }).strict();
 
 export const enemyAttackSchema = z.object({
@@ -354,6 +362,8 @@ export type CombatLogMsg = {
   crits?: boolean[];
   /** §52 #6 — per-target miss flags. Absent = no misses. */
   misses?: boolean[];
+  /** §52 #6 — per-target heal amounts (post-cap). Absent = no heal. */
+  heals?: number[];
 };
 
 export type EnemyAttack = {

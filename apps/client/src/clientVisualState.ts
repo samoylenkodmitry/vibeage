@@ -26,7 +26,14 @@ export function applyCombatLogVisualState(
 
   return addCombatLine(withDamageFeedback, {
     id: makeCombatLineId(message.castId, state.combatLog.length, now),
-    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages, message.crits, message.misses),
+    text: formatCombatLogLine(state, {
+      skillId: message.skillId,
+      targets: message.targets,
+      damages: message.damages,
+      crits: message.crits,
+      misses: message.misses,
+      heals: message.heals,
+    }),
   });
 }
 
@@ -335,14 +342,17 @@ export function applyPlayerDeathFeedback(
   });
 }
 
-export function formatCombatLogLine(
-  state: GameClientState,
-  skillId: string,
-  targetIds: string[],
-  damages: number[],
-  crits?: boolean[],
-  misses?: boolean[],
-): string {
+export type CombatLogLineParts = {
+  skillId: string;
+  targets: string[];
+  damages: number[];
+  crits?: boolean[];
+  misses?: boolean[];
+  heals?: number[];
+};
+
+export function formatCombatLogLine(state: GameClientState, parts: CombatLogLineParts): string {
+  const { skillId, targets: targetIds, damages, crits, misses, heals } = parts;
   const skillName = getSkillName(skillId);
   const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
   const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
@@ -354,6 +364,13 @@ export function formatCombatLogLine(
     return `${skillName} missed${targetText}`;
   }
   const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
+  const totalHeal = heals?.reduce((sum, h) => sum + h, 0) ?? 0;
+  // §52 #6 — pure heal: no damage in the message, at least one
+  // positive heal. Render "X heals Y for N" so cardinal-style
+  // restores don't look like a 0-damage hit.
+  if (totalDamage <= 0 && totalHeal > 0) {
+    return `${skillName} healed${targetText} for ${Math.round(totalHeal)}`;
+  }
   // §49/M2 — append "(crit!)" when any hit in this CombatLog was a
   // crit. Aggregate behavior so an AOE doesn't print 'crit' three
   // times — one suffix is enough to tell the player something
@@ -363,7 +380,10 @@ export function formatCombatLogLine(
   // the player some targets got away.
   const missedCount = misses?.filter(Boolean).length ?? 0;
   const missSuffix = missedCount > 0 ? ` (${missedCount} dodged)` : '';
-  return `${skillName} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}${missSuffix}`;
+  // §52 #6 — mixed-effect skill (rare; e.g. a vampiric strike that
+  // damages an enemy AND heals the caster on the same cast).
+  const healSuffix = totalHeal > 0 ? ` (+${Math.round(totalHeal)} healed)` : '';
+  return `${skillName} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}${missSuffix}${healSuffix}`;
 }
 
 function formatEnemyAttackLine(

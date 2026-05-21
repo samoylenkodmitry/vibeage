@@ -3,9 +3,9 @@ import { formatCombatLogLine } from '../apps/client/src/clientVisualState';
 import type { EnemyEntity, GameClientState } from '../apps/client/src/gameTypes';
 
 /**
- * §49/M2 — combat log readability. Verifies the crit suffix appears
- * when any hit in the message was a crit and stays absent for
- * vanilla swings + pre-§49/M2 server builds that omit `crits`.
+ * §49/M2 + §52 #6 — combat log readability. Verifies crit / miss /
+ * heal suffixes and fall-through behavior for older server builds
+ * that omit the optional parallel arrays.
  */
 
 function makeStateWithGoblin(): GameClientState {
@@ -22,44 +22,65 @@ function makeStateWithGoblin(): GameClientState {
 
 describe('formatCombatLogLine', () => {
   it('renders a plain hit with no crit suffix', () => {
-    const state = makeStateWithGoblin();
-    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [12])).toBe(
-      'Fireball hit Goblin for 12 damage',
-    );
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [12],
+    })).toBe('Fireball hit Goblin for 12 damage');
   });
   it('appends (crit!) when any hit was a crit', () => {
-    const state = makeStateWithGoblin();
-    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [24], [true])).toBe(
-      'Fireball hit Goblin for 24 damage (crit!)',
-    );
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [24], crits: [true],
+    })).toBe('Fireball hit Goblin for 24 damage (crit!)');
   });
   it('omits crit suffix when `crits` is undefined (backwards-compat)', () => {
-    const state = makeStateWithGoblin();
-    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [10], undefined)).toBe(
-      'Fireball hit Goblin for 10 damage',
-    );
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [10],
+    })).toBe('Fireball hit Goblin for 10 damage');
   });
   it('aggregates multi-hit: one crit anywhere flags the line', () => {
-    const state = makeStateWithGoblin();
-    expect(formatCombatLogLine(state, 'fireball', ['gob1', 'gob1'], [10, 18], [false, true])).toContain('(crit!)');
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1', 'gob1'], damages: [10, 18], crits: [false, true],
+    })).toContain('(crit!)');
   });
   // §52 #6 — misses
   it('renders "X missed Y" when the only target dodged', () => {
-    const state = makeStateWithGoblin();
-    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [0], [false], [true])).toBe(
-      'Fireball missed Goblin',
-    );
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [0], crits: [false], misses: [true],
+    })).toBe('Fireball missed Goblin');
   });
   it('annotates AOE lines with the dodge count when only some targets missed', () => {
-    const state = makeStateWithGoblin();
-    expect(
-      formatCombatLogLine(state, 'fireball', ['gob1', 'gob1'], [12, 0], [false, false], [false, true]),
-    ).toBe('Fireball hit Goblin for 12 damage (1 dodged)');
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1', 'gob1'], damages: [12, 0],
+      crits: [false, false], misses: [false, true],
+    })).toBe('Fireball hit Goblin for 12 damage (1 dodged)');
   });
   it('omits miss suffix when `misses` is undefined (backwards-compat with pre-§52 server)', () => {
-    const state = makeStateWithGoblin();
-    expect(formatCombatLogLine(state, 'fireball', ['gob1'], [10], undefined, undefined)).toBe(
-      'Fireball hit Goblin for 10 damage',
-    );
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [10],
+    })).toBe('Fireball hit Goblin for 10 damage');
+  });
+  // §52 #6 — heals
+  it('renders "X healed Y for N" for a pure-heal cast (no damage)', () => {
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'holyLight', targets: ['gob1'], damages: [0],
+      crits: [false], misses: [false], heals: [25],
+    })).toBe('Holy Light healed Goblin for 25');
+  });
+  it('annotates mixed damage+heal casts with the heal amount', () => {
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [12],
+      crits: [false], misses: [false], heals: [4],
+    })).toBe('Fireball hit Goblin for 12 damage (+4 healed)');
+  });
+  it('omits the heal suffix when totalHeal is 0', () => {
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [12],
+      crits: [false], misses: [false], heals: [0],
+    })).toBe('Fireball hit Goblin for 12 damage');
+  });
+  it('falls through to damage line when both damage=0 and heal=0 (backwards-compat invuln-ate-it case)', () => {
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'fireball', targets: ['gob1'], damages: [0],
+      crits: [false], misses: [false], heals: [0],
+    })).toBe('Fireball hit Goblin for 0 damage');
   });
 });
