@@ -125,6 +125,24 @@ function equipReasonCopy(reason: string): string {
   }
 }
 
+/**
+ * §49/M2 — combat-log line announcing a boss signature cast. The
+ * ground-ring VFX is already rendered (BossTelegraphRing); this
+ * is the text channel so a player whose camera's panned off the
+ * boss, or whose view is buried under particle FX, still sees
+ * the wind-up.
+ */
+export function applyBossTelegraphFeedback(
+  state: GameClientState,
+  message: ServerMessage & { type: 'BossTelegraph' },
+  now: number,
+): GameClientState {
+  return addCombatLine(state, {
+    id: makeCombatLineId(`boss-telegraph-${message.enemyId}-${message.impactAt}`, state.combatLog.length, now),
+    text: `${message.bossName} channels ${message.abilityName}!`,
+  });
+}
+
 export function applyOtherPlayerLootPickupVisualState(
   state: GameClientState,
   lootId: string,

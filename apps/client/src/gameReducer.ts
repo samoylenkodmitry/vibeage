@@ -21,6 +21,7 @@ import {
   applyCastSnapshotVisualState,
   applyCombatLogVisualState,
   applyEnemyAttackVisualState,
+  applyBossTelegraphFeedback,
   applyEnemyDeathFeedback,
   applyEquipFailedVisualState,
   applyEquipmentChangeFeedback,
@@ -358,7 +359,9 @@ function applyBossTelegraph(
   // ever has one channel in flight at a time.
   const next = state.bossTelegraphs.filter((t) => t.enemyId !== message.enemyId);
   next.push(entry);
-  return { ...state, bossTelegraphs: next };
+  // §49/M2 — also surface the ability start in the combat log so the
+  // player gets a text confirmation alongside the ground-ring VFX.
+  return applyBossTelegraphFeedback({ ...state, bossTelegraphs: next }, message, now);
 }
 
 function applySkillLearned(
