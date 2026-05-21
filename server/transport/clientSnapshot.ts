@@ -2,6 +2,7 @@ import type { ServerMessage } from '../../packages/protocol/messages.js';
 import { sendCastSnapshots } from '../combat/skillSystem.js';
 import type { GameState } from '../gameState.js';
 import { sendEquipment } from '../inventory/equipHandlers.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import { sendStarterProgressUpdate } from '../progression/starterPath.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
@@ -31,7 +32,15 @@ export function sendClientGameStateSnapshot(
   state: GameState,
   regions?: readonly ServerWorldRegion[],
 ): void {
-  client.send(SOCKET_SESSION_EVENTS.gameState, makeClientGameStateSnapshot(state, client.sessionId, regions));
+  const snapshot = makeClientGameStateSnapshot(state, client.sessionId, regions);
+  // §52 #4 — snapshot bytes histogram. The JSON.stringify cost is
+  // measurable but only runs on a low-frequency code path (initial
+  // snapshot per client, ~once per join). Worth the visibility for
+  // load-test work (#12) where snapshot bloat is the usual culprit.
+  runtimeMetrics.recordHistogram('snapshot.bytes', JSON.stringify(snapshot).length);
+  runtimeMetrics.recordHistogram('snapshot.playerCount', Object.keys(snapshot.players).length);
+  runtimeMetrics.recordHistogram('snapshot.enemyCount', Object.keys(snapshot.enemies).length);
+  client.send(SOCKET_SESSION_EVENTS.gameState, snapshot);
 }
 
 function sendJoinedPlayerState(
