@@ -3158,15 +3158,15 @@ Character creation
 
 - [x] Make Grakk easy to find from the bounty quest marker. (Map renders a blue pin per active quest #294; `useAutoMarkerOnQuestAccept` auto-drops the navigation marker on the first-stage marker the moment the player accepts a quest. PR #304.)
 - [x] Give Grakk a visible nameplate and boss marker. (Up-close: gold nameplate with level + `MiniBossCrown` (torus) + 1.6× height + brighter point light. Long-range: new `BossBeacon` — a tall glowing column rendered for every live mini-boss while not selected, visible from across the zone. `apps/client/src/SceneVfx.tsx` / wired in `apps/client/src/WorldEntities.tsx`.)
-- [ ] Give Grakk a visible telegraphed signature ability.
-- [ ] Implement Grakk’s signature ability in the engine, not only lore text.
-- [ ] Add a ground telegraph VFX for the ability.
-- [ ] Add combat log text when Grakk starts the ability.
-- [ ] Add a reasonable cooldown so players see the mechanic but are not spammed.
+- [x] Give Grakk a visible telegraphed signature ability. ("Warband Howl" defined on `MINI_BOSSES.grakk.signatureAbility` with `windUpMs: 1500, cooldownMs: 9_000, radiusUnits: 6, damageMul: 1.4`. Server `enemyStateMachine` advances `signatureCastingUntilTs` and emits a `bossTelegraph` event at cast start.)
+- [x] Implement Grakk’s signature ability in the engine, not only lore text. (Engine pipeline shared with every other mini-boss: state machine schedules the next cast via `nextSignatureReadyTs`, emits `BossTelegraph`, then on wind-up completion applies AOE damage to players in `radiusUnits` via the spatial grid. Tested in `tests/bossSignatureCast.spec.ts`.)
+- [x] Add a ground telegraph VFX for the ability. (Client renders `BossTelegraphRing` from `apps/client/src/SceneVfx.tsx` at the telegraph's `x, z` for every active entry in `state.bossTelegraphs`; pruned `TELEGRAPH_FADE_MS` after impact.)
+- [x] Add combat log text when Grakk starts the ability. (`applyBossTelegraphFeedback` prepends `"<Boss Name> channels <Ability Name>!"` to the combat log on every `BossTelegraph` message — runs alongside the ground-ring update so a player whose camera's panned away still sees the wind-up.)
+- [x] Add a reasonable cooldown so players see the mechanic but are not spammed. (`cooldownMs: 9_000` measured from impact — server schedules `nextSignatureReadyTs` after AOE resolves; means the player sees Warband Howl roughly once per ~12 s including wind-up + recovery.)
 - [ ] Make Grakk harder than a normal goblin but soloable for level-appropriate players.
 - [ ] Ensure Grakk drops or rewards a trophy path that leads to gear/crafting.
 - [x] Add a test that killing Grakk progresses the bounty quest only when `bossId` matches. (`tests/playerQuests.spec.ts` — "kill_boss ticks only when bossId matches" covers: goblin kill no-ops, wrong-bossId no-ops, correct bossId increments to 1, repeat-kill is idempotent at 1.)
-- [ ] Add a test that Grakk’s signature ability respects player position and damage rules.
+- [x] Add a test that Grakk’s signature ability respects player position and damage rules. (`tests/bossSignatureCast.spec.ts` — Grakk-specific cases assert: content has `windUpMs 1500 / cooldown 9000 / radius 6 / damageMul 1.4`; cast emits a `bossTelegraph` with the matching radius + ability name; on impact a player inside the radius takes `attackDamage × damageMul` and a player at (250, 250) — well outside the radius — takes no damage.)
 
 ## First Gear Reward
 
