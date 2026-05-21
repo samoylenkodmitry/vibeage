@@ -14,16 +14,18 @@ const HUD_VIEWPORTS = [
     name: "mobile",
     size: { width: 390, height: 844 },
     infoPanelsVisible: false,
-    // PR #300 added a permanently visible basic-attack anchor row
-    // above the 2-row F-key skill bar (`.skill-bar-anchor`). On a
-    // 390×844 mobile viewport the union of {Connection, Player
-    // status, Skills, Panel toggles} now occupies ~49.2% of the
-    // screen, so the original 55% world-visibility floor became
-    // unattainable without shrinking the 52 px mobile skill
-    // buttons below the comfortable touch-target size. 48% is the
-    // new agreed floor — still half the screen given to the
-    // world, but honest about the post-#300 skill-bar footprint.
-    minWorldVisibilityRatio: 0.48,
+    // PR #313 relaxed the floor to 0.48 as an emergency unblock
+    // after PR #300's basic-attack anchor row pushed the union of
+    // {Connection, Player status, Skills, Panel toggles} past the
+    // original 0.55 spec. PR #325 reclaimed ~3 % by trimming the
+    // mobile skill-bar (button height 52 → 44 px, anchor button
+    // 52 → 36 px, gap/padding 4 → 2 px) without sacrificing the
+    // iOS 44 × 44 comfortable touch target. The remaining gap to
+    // 0.55 is the dense .player-panel (Stats title + 6 primary
+    // attrs + 5 derived stats); shrinking that would mean a real
+    // UX trade-off (collapse derived combat stats on mobile) and
+    // belongs in its own PR. 0.53 is the new honest floor.
+    minWorldVisibilityRatio: 0.53,
   },
 ] as const;
 
