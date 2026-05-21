@@ -107,13 +107,13 @@ export function handleClientMessage(
     case 'TalkNpc':
       return onTalkNpc(socket, state, msg, outbound);
     case 'AcceptQuest':
-      return onQuestVerb(socket, state, msg, outbound, applyAcceptQuest);
+      return onQuestVerb(socket, direct, state, msg, outbound, applyAcceptQuest);
     case 'CancelQuest':
-      return onQuestVerb(socket, state, msg, outbound, applyCancelQuest);
+      return onQuestVerb(socket, direct, state, msg, outbound, applyCancelQuest);
     case 'AdvanceQuest':
-      return onQuestVerb(socket, state, msg, outbound, applyAdvanceQuest);
+      return onQuestVerb(socket, direct, state, msg, outbound, applyAdvanceQuest);
     case 'ClaimQuestReward':
-      return onClaimQuestReward(socket, state, msg, outbound);
+      return onClaimQuestReward(socket, direct, state, msg, outbound);
     case 'BuyFromVendor':
       return onBuyFromVendor(socket, direct, state, msg, outbound);
     case 'SellToVendor':
@@ -231,16 +231,23 @@ function emitNpcGreeting(
 
 function onQuestVerb(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: { type: string; questId: string },
   outbound: OutboundEventSink,
   apply: (player: PlayerState, questId: string, outbound: OutboundEventSink) => boolean,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, msg.type, reason);
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
-  if (!player) return;
-  apply(player, msg.questId, outbound);
+  if (!player) return reject('playerNotFound');
+  // §52 playtest follow-up — apply() returns false when the verb can't
+  // proceed (unknown quest, no active entry, stage objective not met,
+  // already ready-to-claim on Advance). Surface a generic 'noEffect'
+  // reason so the client can render a combat-log line instead of the
+  // user thinking the button is broken.
+  if (!apply(player, msg.questId, outbound)) reject('noEffect');
 }
 
 // §52/PR-queue-#4 — ClaimQuestReward forwards GameState to the
@@ -248,15 +255,30 @@ function onQuestVerb(
 // a player-owned ground stack instead of being silently lost.
 function onClaimQuestReward(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'ClaimQuestReward' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'ClaimQuestReward', reason);
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
-  if (!player) return;
-  applyClaimQuestReward(player, msg.questId, outbound, state);
+  if (!player) return reject('playerNotFound');
+  // §52 playtest follow-up — applyClaimQuestReward returns false when
+  // the quest isn't ready OR the player isn't near the giver NPC. The
+  // out-of-range case is the one a player will hit constantly (forget
+  // to walk back). Surface a distinct reason so the client can render
+  // "you need to be near <giver>" specifically.
+  const ok = applyClaimQuestReward(player, msg.questId, outbound, state);
+  if (!ok) reject(claimRejectReason(player, msg.questId));
+}
+
+function claimRejectReason(player: PlayerState, questId: string): string {
+  const entry = player.questState?.active?.[questId];
+  if (!entry) return 'notActive';
+  if (!entry.readyToClaim) return 'notReady';
+  return 'notNearNpc';
 }
 
 function onSelectSpecialization(

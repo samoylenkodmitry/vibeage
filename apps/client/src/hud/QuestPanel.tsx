@@ -46,6 +46,25 @@ export function QuestPanel({
         <span>{activeIds.length} active · {completed.length} done</span>
       </div>
       <div className="quest-panel-body">
+        {/* §52 playtest — selected quest detail (with actions) renders
+            ABOVE the quest list so Next / Claim / Cancel / Show-on-map
+            stay visible no matter how long the active-quest list grows.
+            Pre-this PR the detail sat below the list and tall lists
+            pushed the action row off-screen. */}
+        {selectedQuest && selectedEntry && (
+          <QuestDetail
+            quest={selectedQuest}
+            entry={selectedEntry}
+            onCancel={() => {
+              onCancelQuest(selectedQuest.id);
+              setSelectedId(null);
+              onSetTrackedQuest?.(null);
+            }}
+            onAdvance={() => onAdvanceQuest(selectedQuest.id)}
+            onClaim={() => onClaimQuestReward(selectedQuest.id)}
+            onShowMarker={onShowMarker}
+          />
+        )}
         <ul className="quest-list">
           {activeIds.length === 0 && (
             <li className="quest-list-empty">No active quests. Find an NPC with a quest mark.</li>
@@ -68,20 +87,6 @@ export function QuestPanel({
             );
           })}
         </ul>
-        {selectedQuest && selectedEntry && (
-          <QuestDetail
-            quest={selectedQuest}
-            entry={selectedEntry}
-            onCancel={() => {
-              onCancelQuest(selectedQuest.id);
-              setSelectedId(null);
-              onSetTrackedQuest?.(null);
-            }}
-            onAdvance={() => onAdvanceQuest(selectedQuest.id)}
-            onClaim={() => onClaimQuestReward(selectedQuest.id)}
-            onShowMarker={onShowMarker}
-          />
-        )}
       </div>
     </section>
   );
@@ -109,6 +114,24 @@ function QuestDetail({
   const isLastStage = entry.stageIndex === quest.stages.length - 1;
   return (
     <div className="quest-detail">
+      {/* §52 playtest — actions row first so it's the first thing the
+          player sees when they open the panel + first child of the
+          sticky-top container. */}
+      <div className="quest-detail-actions">
+        {entry.readyToClaim ? (
+          <button type="button" className="quest-claim" onClick={onClaim}>Claim reward</button>
+        ) : (
+          <button type="button" className="quest-advance" onClick={onAdvance}>
+            {isLastStage ? 'Done' : 'Next'}
+          </button>
+        )}
+        {markerPos && (
+          <button type="button" onClick={() => onShowMarker({ x: markerPos.x, z: markerPos.z })}>
+            Show on map
+          </button>
+        )}
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </div>
       <header><strong>{quest.name}</strong></header>
       <p>{quest.description}</p>
       {giver && <small>From: {giver.name}</small>}
@@ -123,21 +146,6 @@ function QuestDetail({
           {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
           {quest.reward.items?.length ? ` · ${quest.reward.items.length} item(s)` : ''}
         </small>
-      </div>
-      <div className="quest-detail-actions">
-        <button type="button" onClick={onCancel}>Cancel</button>
-        {markerPos && (
-          <button type="button" onClick={() => onShowMarker({ x: markerPos.x, z: markerPos.z })}>
-            Show on map
-          </button>
-        )}
-        {entry.readyToClaim ? (
-          <button type="button" className="quest-claim" onClick={onClaim}>Claim reward</button>
-        ) : (
-          <button type="button" onClick={onAdvance}>
-            {isLastStage ? 'Done' : 'Next'}
-          </button>
-        )}
       </div>
     </div>
   );
