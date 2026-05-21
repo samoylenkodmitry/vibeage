@@ -86,11 +86,13 @@ describe('cast handler resources', () => {
     expect(player.mana).toBe(100);
     expect(player.skillCooldownEndTs).toEqual({});
     expect(Object.keys(activeCasts)).toHaveLength(0);
-    expect(directSend).toHaveBeenCalledWith({
-      type: 'CastFail',
-      clientSeq: Date.now(),
+    // §52 #1 — CastFail retired; check the CommandRejected envelope.
+    expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'CommandRejected',
+      commandType: 'CastReq',
       reason: 'invalid',
-    });
+      requestId: Date.now(),
+    }));
   });
 
   test('spends mana and starts cooldown after authoritative cast creation succeeds', () => {
@@ -113,11 +115,12 @@ describe('cast handler resources', () => {
     sendFireball({ x: 10, z: 0 });
     expect(player.mana).toBe(100);
     expect(Object.keys(activeCasts)).toHaveLength(0);
-    expect(directSend).toHaveBeenCalledWith({
-      type: 'CastFail',
-      clientSeq: Date.now(),
+    expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'CommandRejected',
+      commandType: 'CastReq',
       reason: 'invalid',
-    });
+      requestId: Date.now(),
+    }));
     expect(outboundPublish).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'playerUpdated' }));
   });
 
@@ -150,7 +153,7 @@ describe('cast handler CommandRejected envelope (§4/§52)', () => {
     vi.useRealTimers();
   });
 
-  test('rejection emits the structured CommandRejected envelope alongside legacy CastFail', () => {
+  test('rejection emits the structured CommandRejected envelope (CastFail retired in §52 #1)', () => {
     player.unlockedSkills = [];
     const msg: CastReq = {
       type: 'CastReq', id: player.id, skillId: 'fireball',
@@ -160,31 +163,34 @@ describe('cast handler CommandRejected envelope (§4/§52)', () => {
     expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
       type: 'CommandRejected', commandType: 'CastReq', reason: 'invalid',
     }));
+    // CastFail is no longer emitted — sole channel is CommandRejected.
+    const castFails = directSend.mock.calls.map((c) => c[0]).filter((m) => m.type === 'CastFail');
+    expect(castFails).toHaveLength(0);
   });
 
-  test('CastFail.clientSeq prefers msg.clientSeq when set; falls back to clientTs otherwise', () => {
+  test('CommandRejected.requestId echoes the explicit clientSeq when set, or undefined otherwise', () => {
     player.unlockedSkills = [];
 
-    // Path A: explicit clientSeq → CastFail carries it as ack key.
+    // Path A: explicit clientSeq → requestId echoes it.
     handleCastReq(socket, player, {
       type: 'CastReq', id: player.id, skillId: 'fireball',
       clientTs: 100, clientSeq: 77, targetPos: { x: 10, z: 0 },
     }, { direct, outbound }, makeWorld(), activeCasts);
-    expect(directSend).toHaveBeenCalledWith({ type: 'CastFail', clientSeq: 77, reason: 'invalid' });
     expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'CommandRejected', requestId: 77,
+      type: 'CommandRejected', commandType: 'CastReq', requestId: 77,
     }));
 
-    // Path B: no clientSeq → falls back to clientTs for backward compat.
+    // Path B: no clientSeq → server falls back to clientTs as the
+    // requestId so legacy clients still get an ack key on rejection.
+    // Same fallback the retired `CastFail` emit used to apply.
     directSend.mockClear();
     handleCastReq(socket, player, {
       type: 'CastReq', id: player.id, skillId: 'fireball',
       clientTs: 200, targetPos: { x: 10, z: 0 },
     }, { direct, outbound }, makeWorld(), activeCasts);
-    expect(directSend).toHaveBeenCalledWith({ type: 'CastFail', clientSeq: 200, reason: 'invalid' });
     const rejections = directSend.mock.calls.map((c) => c[0]).filter((m) => m.type === 'CommandRejected');
     expect(rejections).toHaveLength(1);
-    expect(rejections[0].requestId).toBeUndefined();
+    expect(rejections[0].requestId).toBe(200);
   });
 });
 

@@ -1,5 +1,5 @@
 import { classifySkill, SKILLS, type SkillId } from '../../packages/content/skills.js';
-import { CastReq, CastFail } from '../../packages/protocol/messages.js';
+import { CastReq } from '../../packages/protocol/messages.js';
 import { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
@@ -16,7 +16,10 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 
-type CastFailReason = CastFail['reason'];
+// §52 #1 — kept as a stable union for the cast pipeline's internal
+// validation. Pre-retirement this was derived from `CastFail['reason']`;
+// inlined now that the wire-side `CastFail` type is gone.
+type CastFailReason = 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 type CastRequestClient = { id: string };
 type CastHandlerTransport = {
   direct: DirectMessageSink;
@@ -129,21 +132,14 @@ export function handleCastReq(
 }
 
 function emitCastFail(direct: DirectMessageSink, msg: CastReq, reason: CastFailReason): void {
-  // §52 — prefer the explicit `clientSeq` ack key; fall back to
-  // `clientTs` for older clients that haven't migrated yet. Once
-  // every client sets `clientSeq` we can drop the overload and
-  // make `CastFail.clientSeq` mean what its name says.
+  // §52 #1 follow-up — `CastFail` retired. The `CommandRejected`
+  // envelope is now the sole channel for cast-side failures.
+  // `requestId` prefers the explicit `clientSeq`; falls back to
+  // `clientTs` for older clients that haven't migrated yet — the
+  // same ack-key fallback `emitCastFail` carried before retirement,
+  // preserved so ack routing on legacy clients still hits.
   const ackKey = msg.clientSeq ?? msg.clientTs;
-  direct.send({
-    type: 'CastFail',
-    clientSeq: ackKey,
-    reason,
-  } satisfies CastFail);
-  // §4 — also emit the structured envelope so the client UI can
-  // route on `requestId` like every other command. Migration is
-  // per-command; once the client consumes `CommandRejected` for
-  // casts the legacy `CastFail` can retire.
-  sendCommandRejected(direct, 'CastReq', reason, msg.clientSeq);
+  sendCommandRejected(direct, 'CastReq', reason, ackKey);
 }
 
 function toCastFailReason(reason: string): CastFailReason | null {

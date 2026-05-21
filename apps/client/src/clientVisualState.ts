@@ -37,15 +37,22 @@ export function applyCombatLogVisualState(
   });
 }
 
-export function applyCastFailVisualState(
+/**
+ * §52 #1 follow-up — the legacy `CastFail` server message has been
+ * retired. Cast-side failures arrive on `CommandRejected` with
+ * `commandType: 'CastReq'` and the same `reason` strings the old
+ * payload carried (cooldown / nomana / invalid / outofrange / …).
+ * The combat-log copy is the same: "Cast failed: <reason>".
+ */
+export function applyCastFailFromCommandRejected(
   state: GameClientState,
-  message: ServerMessage & { type: 'CastFail' },
+  message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
   const text = `Cast failed: ${message.reason}`;
   return addCombatLine(
     state,
-    { id: makeCombatLineId(`fail-${message.clientSeq}`, state.combatLog.length, now), text },
+    { id: makeCombatLineId(`fail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now), text },
   );
 }
 

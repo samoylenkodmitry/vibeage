@@ -68,7 +68,6 @@ const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   SkillLearned: true,
   SkillShortcutUpdated: true,
   ClassSelected: true,
-  CastFail: true,
   CastSnapshot: true,
   EffectSnapshot: true,
   CombatLog: true,
