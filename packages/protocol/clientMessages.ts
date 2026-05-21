@@ -246,6 +246,8 @@ export type CastReq = {
   targetId?: string;
   targetPos?: VecXZ;
   clientTs: number;
+  /** §52 — explicit ack key; falls back to `clientTs` server-side. */
+  clientSeq?: number;
   force?: boolean;
 };
 

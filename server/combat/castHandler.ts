@@ -9,6 +9,7 @@ import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { applyCastResources, validateCastRequest } from './castRules.js';
 import type { CombatWorld } from './worldContract.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 import {
   emitPlayerUpdated,
   type DirectMessageSink,
@@ -121,11 +122,21 @@ export function handleCastReq(
 }
 
 function emitCastFail(direct: DirectMessageSink, msg: CastReq, reason: CastFailReason): void {
+  // §52 — prefer the explicit `clientSeq` ack key; fall back to
+  // `clientTs` for older clients that haven't migrated yet. Once
+  // every client sets `clientSeq` we can drop the overload and
+  // make `CastFail.clientSeq` mean what its name says.
+  const ackKey = msg.clientSeq ?? msg.clientTs;
   direct.send({
     type: 'CastFail',
-    clientSeq: msg.clientTs,
+    clientSeq: ackKey,
     reason,
   } satisfies CastFail);
+  // §4 — also emit the structured envelope so the client UI can
+  // route on `requestId` like every other command. Migration is
+  // per-command; once the client consumes `CommandRejected` for
+  // casts the legacy `CastFail` can retire.
+  sendCommandRejected(direct, 'CastReq', reason, msg.clientSeq);
 }
 
 function toCastFailReason(reason: string): CastFailReason | null {
