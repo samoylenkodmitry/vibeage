@@ -36,7 +36,7 @@ function captureRejections() {
 }
 
 function noopOutbound() {
-  return { publish: () => {} };
+  return { publish: () => undefined };
 }
 
 describe('CommandRejected — inventory commands (§4)', () => {
