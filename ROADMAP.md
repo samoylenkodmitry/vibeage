@@ -2575,6 +2575,26 @@ PRs can pick them off independently.
   - `setLevel` only moved the number. Now awards
     (newLevel − oldLevel) SP to match the kill-XP path.
 
+## CI follow-ups (2026-05-21)
+
+- [x] **`hud-layout.spec.ts` mobile world-visibility threshold drift.**
+  Post-merge heavy CI on `main` had been red since PR #309 — the
+  mobile 390×844 viewport test measured the union of {Connection,
+  Player status, Skills, Panel toggles} at ~49.2% screen
+  coverage, but the spec demanded ≥55% world visible. Root cause
+  is PR #300's permanently-visible basic-attack anchor row above
+  the F-key skill bar — it pushed the skill-bar union past the
+  threshold the test was written against. Bumped the mobile
+  floor to 48% with an inline comment explaining the trade-off
+  (shrinking 52 px touch targets to reclaim the gap would harm
+  mobile UX more than it'd buy). Desktop floor stays at 55%.
+
+- [ ] **Mobile skill-bar footprint regression budget.** If the
+  bar grows again (a third anchor row, taller buttons, etc.),
+  bump the threshold further AND log a roadmap entry so the
+  decay is visible. The drift is fine as long as it's
+  acknowledged; silently lowering thresholds hides UX bloat.
+
 
 ---
 
