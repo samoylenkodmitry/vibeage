@@ -2813,7 +2813,8 @@ Pulled from the same audit:
 - `pnpm run deadcode:report` → **silent** (0 unused
   exports, 0 unused types).
 - 0 `FIXME` / `HACK` / `XXX` markers in source.
-- 1 explicit `TODO` (quest overflow, #7 above).
+- 0 explicit `TODO` markers (the last one — quest reward overflow —
+  closed in PR #336, surfaced in #7 above).
 - 31 `as unknown as` / `as any` / `@ts-expect-error`
   assertions across 16 files, **29 in test fixtures**;
   2 production sites are content-graph id→def
