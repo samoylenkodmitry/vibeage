@@ -18,6 +18,18 @@ export const castReqSchema = z.object({
   targetPos: vecXZSchema.optional(),
   clientTs: z.number(),
   /**
+   * §52 / PR #329 — explicit per-command ack key (same shape every
+   * other rejectable command carries). Optional during the
+   * migration; `emitCastFail` falls back to `clientTs` for older
+   * clients that haven't migrated. This was added to the TS
+   * `CastReq` type in PR #329 but the matching Zod entry was
+   * omitted, so PR #332's client generator (which stamps
+   * `clientSeq` on every CastReq) hit the `.strict()` schema
+   * silently rejecting the unknown key and the cast never
+   * reaching the handler. Re-added here.
+   */
+  clientSeq: z.number().int().nonnegative().optional(),
+  /**
    * PR X — when true, bypass the friendly-fire / beneficial-on-enemy
    * gate. The client sets this only when the player explicitly
    * holds Ctrl while casting; everything else falls under the

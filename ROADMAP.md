@@ -2592,33 +2592,22 @@ can pick them off independently.
   menu — see `InventoryContextMenu.tsx` for the click-outside
   pattern).
 
-- [ ] **Attacks and skills did not work on prod.** Reported
-  on `vibeage.eu` after the polish-sweep deploy. Repro
-  unconfirmed — could be:
-    - PR #324's enemy double-step fix doubled
-      `createEnemy`'s `movementSpeed` multiplier (6 → 12),
-      which raises every enemy's `attackRange` reachable
-      distance per tick; the cast resolver's range check
-      (`packages/sim/skillSystem.ts: validateCastRequest`)
-      should still gate, but worth checking nothing started
-      teleporting OUT of range mid-cast.
-    - PR #332's client-side `nextClientSeq()` generator
-      stamps `clientSeq` on `CastReq`; the server's
-      `emitCastFail.clientSeq` now prefers it. If the client
-      build out of sync with the server build on the deploy
-      window, `clientSeq` might collide with the legacy
-      `clientTs` route in some path.
-    - PR #329 made `CastReq.clientSeq` optional with
-      `clientTs` fallback. A client that sends `clientSeq:
-      0` (counter sentinel) would route through the
-      requestId echo and look like a missing ack.
-  First step: load the live client, open the browser console
-  on `vibeage.eu`, and confirm whether `CastReq` messages
-  even reach the server (`websocket` panel) or whether
-  `CastFail` comes back immediately. If `CastFail` lands,
-  inspect `reason`. Both attacks AND skills failing rules
-  out a single-skill / single-handler bug — the symptom
-  sits somewhere on the shared cast pipeline.
+- [x] **Attacks and skills did not work on prod.** Root cause
+  in PR #329: the `clientSeq` field was added to the
+  `CastReq` TypeScript type but the matching entry was
+  omitted from `castReqSchema` (the Zod parser). The schema
+  is `.strict()`, so PR #332's client-side `nextClientSeq()`
+  generator (which stamps `clientSeq` on every `CastReq`)
+  hit a silent rejection — the server's protocol parser
+  dropped the message before any handler saw it, no
+  `CastFail` was sent, the cast appeared to vanish. Fixed by
+  adding the missing Zod entry. New e2e suite
+  `tests/e2e-vite/combat-flow.spec.ts` exercises the full
+  UI flow (click "Cast Fireball" → CastSnapshot + damage
+  event, click "Cast Attack" → cast snapshot, generic "CastReq
+  is never silently dropped" guard) so this class of
+  schema-vs-type drift gets caught at the boundary the unit
+  tests can't reach. PR #338.
 
 - [ ] **The current-quest tracker doesn't switch when the
   player picks a different quest from the quest panel.**
