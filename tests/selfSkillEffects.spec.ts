@@ -120,7 +120,7 @@ describe('bless effect is consumed by damage calculation (regression for the new
     blessed.statusEffects = [
       { id: 'b', type: 'bless', value: 50, durationMs: 5_000, startTimeTs: Date.now(), sourceSkill: 'bless' },
     ];
-    // PR NN — recompute stats so the bless contribution lands in
+    // §45.3 — recompute stats so the bless contribution lands in
     // dmgMult. In production this happens inside upsertStatusEffect;
     // tests that hand-craft statusEffects must trigger it explicitly.
     recomputePlayerStats(blessed);

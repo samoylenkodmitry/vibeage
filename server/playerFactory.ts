@@ -74,7 +74,7 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
   // Stocking the starter loadout populates the aggregate; the
   // snapshot boundary projects to the legacy slot view on the wire.
   applyStarterLoadout(player);
-  // PR NN — single source of stat computation. Reads contributions
+  // §45.3 — single source of stat computation. Reads contributions
   // from race / level / class / equipment and writes player.stats +
   // max{Health,Mana}; bottoms out the placeholder 1/1 vitals above.
   recomputePlayerStats(player);

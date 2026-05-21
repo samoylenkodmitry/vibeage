@@ -111,7 +111,7 @@ export function sendEquipment(
   }
 }
 
-// PR NN — projectPlayerStats + refreshPlayerStatsFromEquipment removed.
+// §45.3 — projectPlayerStats + refreshPlayerStatsFromEquipment removed.
 // Stat computation lives exclusively in
 // `server/players/playerStatsRefresh.ts` via `recomputePlayerStats`,
 // which builds the contribution list and writes player.stats /

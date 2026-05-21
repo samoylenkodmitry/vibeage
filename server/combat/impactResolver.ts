@@ -81,7 +81,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const context = { caster, skill, outbound, world };
 
   const targets = resolveCastTargets(cast, world, skill, caster);
-  // PR NN — Bless's damage multiplier is folded into `caster.stats.dmgMult`
+  // §45.3 — Bless's damage multiplier is folded into `caster.stats.dmgMult`
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
@@ -227,7 +227,7 @@ function elementVulnerabilityMultiplier(skill: SkillDef, target?: Enemy | Player
   return 1 + bonusPct / 100;
 }
 
-// PR NN — `blessDamageMultiplier` removed. Bless's damage tilt is
+// §45.3 — `blessDamageMultiplier` removed. Bless's damage tilt is
 // now a regular Contribution (status-effect → dmgMult mul), folded
 // into `player.stats.dmgMult` by `recomputePlayerStats`. The cast
 // pipeline just reads `caster.stats.dmgMult` once; no per-cast
@@ -624,7 +624,7 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     target.statusEffects[existingIndex] = reconcileExisting(existing, statusEffect, policy, effect.type);
     if (target.statusEffects[existingIndex] === existing) return; // 'reject' policy — keep existing untouched
   }
-  // PR NN — a stat-affecting buff (Bless, Slow, Shield, Evasion buff)
+  // §45.3 — a stat-affecting buff (Bless, Slow, Shield, Evasion buff)
   // changes player.stats via the Contribution registry. Recompute
   // here so the next damage roll / regen tick / display reflects the
   // new buff immediately.

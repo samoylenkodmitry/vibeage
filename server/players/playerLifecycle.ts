@@ -48,7 +48,7 @@ export function awardPlayerXP(
     player.level += 1;
     player.experience -= oldMaxExp;
     player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5);
-    // PR NN — level-up bumps every level-scaling contribution; one
+    // §45.3 — level-up bumps every level-scaling contribution; one
     // recompute updates pAtk / maxHealth / regen / etc. simultaneously.
     recomputePlayerStats(player);
     player.health = player.maxHealth;
