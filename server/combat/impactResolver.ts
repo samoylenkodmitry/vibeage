@@ -69,10 +69,11 @@ export function applyProjectileHit(
   const context: ImpactContext = { caster, skill, outbound, world };
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
   const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world });
-  applyCastToTarget(target, result.damage, context, result.miss);
+  const heal = applyCastToTarget(target, result.damage, context, result.miss);
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: [target.id], damages: [result.damage], crits: [result.crit], misses: [result.miss],
+    heals: [Math.round(heal)],
   });
 }
 
@@ -96,15 +97,12 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
   const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world }));
 
-  targets.forEach((target, index) => {
-    applyCastToTarget(target, results[index].damage, context, results[index].miss);
-  });
-
+  const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss));
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: targets.map((target) => target.id),
     damages: results.map((r) => r.damage), crits: results.map((r) => r.crit),
-    misses: results.map((r) => r.miss),
+    misses: results.map((r) => r.miss), heals: heals.map((h) => Math.round(h)),
   });
 }
 
@@ -372,14 +370,14 @@ function applyCastToTarget(
   damage: number,
   context: ImpactContext,
   miss: boolean = false,
-): void {
+): number {
   const { caster, skill, outbound, world } = context;
-  if (miss) return; // §52 #6 — dodged; CombatLog at call site carries miss=true.
+  if (miss) return 0; // §52 #6 — dodged; CombatLog at call site carries miss=true.
   // §45.3 follow-up — `invuln` status effect (e.g. from Phoenix
   // Knight Resurrection) zeroes incoming damage entirely for its
   // duration. Skips the rest of the damage pipeline.
   if (!isEnemy(target) && hasActiveInvuln(target)) {
-    return;
+    return 0;
   }
   // §45.3 follow-up — spec passives like Templar Knight's
   // Last Stand mitigate damage when the player is already below
@@ -424,8 +422,7 @@ function applyCastToTarget(
     target.aiState = 'chasing';
   }
 
-  applySkillEffects(target, skill, caster, world);
-
+  const healApplied = applySkillEffects(target, skill, caster, world);
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = Date.now();
     world.onTargetDied(caster, target);
@@ -455,6 +452,7 @@ function applyCastToTarget(
       position: target.position,
     });
   }
+  return healApplied;
 }
 
 function applySkillEffects(
@@ -462,12 +460,13 @@ function applySkillEffects(
   skill: SkillDef,
   caster: PlayerState | null,
   world: CombatWorld,
-): void {
+): number {
   target.statusEffects = target.statusEffects ?? [];
 
+  let healApplied = 0;
   for (const effect of skill.effects ?? []) {
     if (effect.type === 'heal') {
-      applyHealEffect(target, effect, caster);
+      healApplied += applyHealEffect(target, effect, caster);
       continue;
     }
     if (effect.type === 'dispel') {
@@ -520,6 +519,7 @@ function applySkillEffects(
       target.aiState = 'chasing';
     }
   }
+  return healApplied;
 }
 
 function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null, distance: number): void {
@@ -562,15 +562,14 @@ export function isEntityTaunted(entity: Enemy | PlayerState, now: number = Date.
   });
 }
 
-function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect, caster: PlayerState | null): void {
-  // §45.3 follow-up — caster's heal-output multiplier applies on
-  // top of the skill's listed value. Spec passives like Cardinal's
-  // Greater Calling raise it via the Contribution registry; default
-  // 1 (no amplification) for non-healer casters.
-  const healMult = caster?.stats?.healMult ?? 1;
-  const amount = effect.value * healMult;
-  const max = isEnemy(target) ? target.maxHealth : target.maxHealth;
-  target.health = Math.min(max, target.health + amount);
+function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect, caster: PlayerState | null): number {
+  // §45.3 — caster healMult (Cardinal etc) amplifies the skill value.
+  // §52 #6 — return the applied delta (post-maxHealth cap) so the
+  // CombatLog emit site can ship heals[] for client rendering.
+  const amount = effect.value * (caster?.stats?.healMult ?? 1);
+  const before = target.health;
+  target.health = Math.min(target.maxHealth, target.health + amount);
+  return target.health - before;
 }
 
 const AGGRO_RESET_RADIUS = 60;
