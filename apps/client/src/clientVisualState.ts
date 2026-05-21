@@ -72,6 +72,51 @@ export function applyLootAcquiredVisualState(
 }
 
 /**
+ * §52 playtest follow-up — quest-verb CommandRejected commandTypes
+ * the client surfaces in the combat log. Other CommandRejected
+ * types have their own UI hooks (vendor toasts, equip-failed line,
+ * etc.) so we don't double-report.
+ */
+export const QUEST_VERB_COMMANDS: ReadonlySet<string> = new Set([
+  'AcceptQuest', 'CancelQuest', 'AdvanceQuest', 'ClaimQuestReward',
+]);
+
+/**
+ * §52 playtest follow-up — append a combat-log line when a quest
+ * verb (Claim / Next / Cancel) was rejected. Pre-this PR these
+ * silently failed when the player wasn't near the giver / hadn't
+ * finished the stage, and the user thought the button was broken.
+ */
+export function applyQuestRejectedVisualState(
+  state: GameClientState,
+  message: ServerMessage & { type: 'CommandRejected' },
+  now: number,
+): GameClientState {
+  return addCombatLine(state, {
+    id: makeCombatLineId(`questreject-${message.commandType}-${message.reason}`, state.combatLog.length, now),
+    text: questRejectCopy(message.commandType, message.reason),
+  });
+}
+
+function questRejectCopy(commandType: string, reason: string): string {
+  if (commandType === 'ClaimQuestReward') {
+    if (reason === 'notNearNpc') return "Walk back to the quest giver to claim the reward.";
+    if (reason === 'notReady') return "That quest isn't ready to turn in yet.";
+    if (reason === 'notActive') return "That quest isn't active.";
+  }
+  if (commandType === 'AdvanceQuest' && reason === 'noEffect') {
+    return "The objective isn't complete yet.";
+  }
+  if (commandType === 'CancelQuest' && reason === 'noEffect') {
+    return "Couldn't cancel that quest.";
+  }
+  if (commandType === 'AcceptQuest' && reason === 'noEffect') {
+    return "Couldn't accept that quest right now.";
+  }
+  return `Quest action failed: ${commandType} (${reason}).`;
+}
+
+/**
  * §49/M2 — surface EquipFailed in the combat log so the player
  * actually sees why an Equip/Unequip dropped silently. Reason is
  * a stable enum-ish string from the server; we map the common ones
