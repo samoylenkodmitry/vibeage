@@ -124,18 +124,25 @@ function questRejectCopy(commandType: string, reason: string): string {
 }
 
 /**
- * §49/M2 — surface EquipFailed in the combat log so the player
- * actually sees why an Equip/Unequip dropped silently. Reason is
- * a stable enum-ish string from the server; we map the common ones
- * to player-friendly copy + fall back to the raw reason otherwise.
+ * §49/M2 + §52 #1 — surface equip/unequip failures in the combat
+ * log so the player sees why a drop-into-slot did nothing. Reason
+ * is a stable enum-ish string from the server; we map the common
+ * ones to player-friendly copy and fall back to the raw reason.
+ *
+ * Pre-§52 #1 this read the legacy `EquipFailed` message; that
+ * message has been retired and the payload now arrives via the
+ * structured `CommandRejected` envelope with
+ * `commandType ∈ {'EquipItem', 'UnequipItem'}`.
  */
-export function applyEquipFailedVisualState(
+export const EQUIP_VERB_COMMANDS: ReadonlySet<string> = new Set(['EquipItem', 'UnequipItem']);
+
+export function applyEquipFailedFromCommandRejected(
   state: GameClientState,
-  message: ServerMessage & { type: 'EquipFailed' },
+  message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
   return addCombatLine(state, {
-    id: makeCombatLineId(`equipfail-${message.reason}`, state.combatLog.length, now),
+    id: makeCombatLineId(`equipfail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now),
     text: `Couldn't equip: ${equipReasonCopy(message.reason)}`,
   });
 }

@@ -166,7 +166,6 @@ export function makeColyseusOutbound(
 const OWNER_ONLY_SERVER_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'InventoryUpdate',
   'EquipmentUpdate',
-  'EquipFailed',
   'LearnSkillFailed',
   'SkillLearned',
   'SkillShortcutUpdated',

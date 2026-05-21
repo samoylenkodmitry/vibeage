@@ -199,11 +199,6 @@ export const equipmentUpdateSchema = z.object({
   equipment: z.array(equipmentEntrySchema),
 }).strict();
 
-export const equipFailedSchema = z.object({
-  type: z.literal('EquipFailed'),
-  reason: z.string(),
-}).strict();
-
 export const learnSkillFailedReasonSchema = z.enum([
   'noSkillPoints',
   'levelTooLow',
@@ -266,7 +261,6 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   batchUpdateSchema,
   chatBroadcastSchema,
   equipmentUpdateSchema,
-  equipFailedSchema,
   learnSkillFailedSchema,
   commandRejectedSchema,
 ]);
@@ -432,11 +426,6 @@ export type EquipmentUpdateMsg = {
   equipment: EquipmentEntry[];
 };
 
-export type EquipFailedMsg = {
-  type: 'EquipFailed';
-  reason: string;
-};
-
 export type LearnSkillFailedReason = z.infer<typeof learnSkillFailedReasonSchema>;
 
 export type LearnSkillFailedMsg = {
@@ -477,6 +466,5 @@ export type ServerMessage =
   | BatchUpdate
   | ChatBroadcast
   | EquipmentUpdateMsg
-  | EquipFailedMsg
   | LearnSkillFailedMsg
   | CommandRejected;

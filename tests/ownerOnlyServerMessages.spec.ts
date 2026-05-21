@@ -30,7 +30,6 @@ describe('owner-only server message guard', () => {
   const ownerOnlyCases: Array<{ name: string; message: { type: string; [k: string]: unknown } }> = [
     { name: 'InventoryUpdate', message: { type: 'InventoryUpdate', playerId: 'p', inventory: [], maxInventorySlots: 20 } },
     { name: 'EquipmentUpdate', message: { type: 'EquipmentUpdate', equipment: [] } },
-    { name: 'EquipFailed', message: { type: 'EquipFailed', reason: 'no' } },
     { name: 'LearnSkillFailed', message: { type: 'LearnSkillFailed', skillId: 'fireball', reason: 'noSkillPoints' } },
     { name: 'SkillLearned', message: { type: 'SkillLearned', skillId: 'fireball', remainingPoints: 0 } },
     { name: 'SkillShortcutUpdated', message: { type: 'SkillShortcutUpdated', slotIndex: 0, skillId: null } },

@@ -23,9 +23,10 @@ import {
   applyEnemyAttackVisualState,
   applyBossTelegraphFeedback,
   applyEnemyDeathFeedback,
-  applyEquipFailedVisualState,
+  applyEquipFailedFromCommandRejected,
   applyEquipmentChangeFeedback,
   applyQuestRejectedVisualState,
+  EQUIP_VERB_COMMANDS,
   QUEST_VERB_COMMANDS,
   applyInstantHitVisualState,
   applyItemUsedVisualState,
@@ -249,6 +250,7 @@ function applyServerMessage(
 
   if (message.type === 'CommandRejected') {
     if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
+    if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipFailedFromCommandRejected(state, message, now);
     if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
   }
 
@@ -265,7 +267,6 @@ function applyServerMessage(
   }
 
   if (message.type === 'EquipmentUpdate') return applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), message, now);
-  if (message.type === 'EquipFailed') return applyEquipFailedVisualState(state, message, now);
   if (message.type === 'LearnSkillFailed') {
     return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.skillId]: message.reason } };
   }
