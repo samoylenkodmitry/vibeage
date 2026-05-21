@@ -17,6 +17,7 @@ import { onUseItem } from '../inventory/itemUse.js';
 import { onCraftItem } from '../inventory/craftRecipe.js';
 import { onDropItem } from '../inventory/dropItem.js';
 import { onDestroyItem } from '../inventory/destroyItem.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
@@ -114,9 +115,9 @@ export function handleClientMessage(
     case 'ClaimQuestReward':
       return onQuestVerb(socket, state, msg, outbound, applyClaimQuestReward);
     case 'BuyFromVendor':
-      return onBuyFromVendor(socket, state, msg, outbound);
+      return onBuyFromVendor(socket, direct, state, msg, outbound);
     case 'SellToVendor':
-      return onSellToVendor(socket, state, msg, outbound);
+      return onSellToVendor(socket, direct, state, msg, outbound);
     case 'GmCommand':
       return onGmCommand(socket, state, msg, outbound);
   }
@@ -124,28 +125,46 @@ export function handleClientMessage(
 
 function onBuyFromVendor(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'BuyFromVendor' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'BuyFromVendor', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
   const player = state.players[playerId];
-  if (!player) return;
-  applyBuyFromVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
+  const result = applyBuyFromVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
+  if (result.ok === false) reject(result.reason);
 }
 
 function onSellToVendor(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'SellToVendor' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'SellToVendor', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
   const player = state.players[playerId];
-  if (!player) return;
-  applySellToVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
+  const result = applySellToVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
+  if (result.ok === false) reject(result.reason);
 }
 
 function onGmCommand(

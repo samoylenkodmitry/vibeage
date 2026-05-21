@@ -12,6 +12,7 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { addItemsToPlayer, ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 
 export type CraftResult =
   | { ok: true; recipeId: string; outputId: string }
@@ -94,16 +95,22 @@ export function onCraftItem(
   msg: CraftItem,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'CraftItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     error(LOG_CATEGORIES.SYSTEM, `CraftItem: No player found for socket ${socket.id}`);
+    reject('playerNotFound');
     return;
   }
   const player = state.players[playerId];
-  if (!player) return;
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
   const result = applyCraftRecipe(player, msg.recipeSlotIndex);
   if (result.ok === false) {
     debug(LOG_CATEGORIES.PLAYER, `Player ${playerId} CraftItem rejected: ${result.reason}`);
+    reject(result.reason);
     return;
   }
   // Push the updated inventory + the synthetic ItemUsed event so the

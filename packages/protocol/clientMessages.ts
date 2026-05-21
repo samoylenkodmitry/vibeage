@@ -67,6 +67,7 @@ export const dropItemSchema = z.object({
   type: z.literal('DropItem'),
   slotIndex: z.number().int().min(0),
   count: z.number().int().min(1).optional(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 // PR — bag context menu. `DestroyItem` removes a stack from the
@@ -76,18 +77,21 @@ export const destroyItemSchema = z.object({
   type: z.literal('DestroyItem'),
   slotIndex: z.number().int().min(0),
   count: z.number().int().min(1).optional(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const useItemSchema = z.object({
   type: z.literal('UseItem'),
   slotIndex: z.number().int().min(0),
   clientTs: z.number(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const craftItemSchema = z.object({
   type: z.literal('CraftItem'),
   recipeSlotIndex: z.number().int().min(0),
   clientTs: z.number(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const requestInventorySchema = z.object({
@@ -168,6 +172,7 @@ export const buyFromVendorSchema = z.object({
   vendorId: z.string(),
   itemId: z.string(),
   quantity: z.number().int().positive().max(99),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const sellToVendorSchema = z.object({
@@ -175,6 +180,7 @@ export const sellToVendorSchema = z.object({
   vendorId: z.string(),
   itemId: z.string(),
   quantity: z.number().int().positive().max(999),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 // ---- GM commands. Server gates by VIBEAGE_ENABLE_DEV_COMMANDS. -----
@@ -278,24 +284,28 @@ export type DropItem = {
   type: 'DropItem';
   slotIndex: number;
   count?: number;
+  clientSeq?: number;
 };
 
 export type DestroyItem = {
   type: 'DestroyItem';
   slotIndex: number;
   count?: number;
+  clientSeq?: number;
 };
 
 export type UseItem = {
   type: 'UseItem';
   slotIndex: number;
   clientTs: number;
+  clientSeq?: number;
 };
 
 export type CraftItem = {
   type: 'CraftItem';
   recipeSlotIndex: number;
   clientTs: number;
+  clientSeq?: number;
 };
 
 export type RequestInventory = {
@@ -348,8 +358,8 @@ export type AcceptQuest = { type: 'AcceptQuest'; questId: string };
 export type CancelQuest = { type: 'CancelQuest'; questId: string };
 export type AdvanceQuest = { type: 'AdvanceQuest'; questId: string };
 export type ClaimQuestReward = { type: 'ClaimQuestReward'; questId: string };
-export type BuyFromVendor = { type: 'BuyFromVendor'; vendorId: string; itemId: string; quantity: number };
-export type SellToVendor = { type: 'SellToVendor'; vendorId: string; itemId: string; quantity: number };
+export type BuyFromVendor = { type: 'BuyFromVendor'; vendorId: string; itemId: string; quantity: number; clientSeq?: number };
+export type SellToVendor = { type: 'SellToVendor'; vendorId: string; itemId: string; quantity: number; clientSeq?: number };
 
 export type GmCommandVerb =
   | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'

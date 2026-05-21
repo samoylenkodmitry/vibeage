@@ -10,6 +10,7 @@ import {
 import { applyInventoryItemUse, type ItemUsePlayerUpdate } from './itemRuntime.js';
 import { instanceAtSlot } from '../../packages/sim/characterInventory.js';
 import { ensureCharacterInventory } from './aggregateBridge.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 
 type ItemUseClient = { id: string };
 
@@ -85,15 +86,18 @@ export function onUseItem(
   msg: UseItem,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'UseItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
 
   if (!playerId) {
     error(LOG_CATEGORIES.SYSTEM, `UseItem: No player found for socket ${socket.id}`);
+    reject('playerNotFound');
     return;
   }
 
   const result = useItemForPlayer(state, playerId, msg.slotIndex);
-  if (!result.ok) {
+  if (result.ok === false) {
+    reject(result.reason);
     return;
   }
 
