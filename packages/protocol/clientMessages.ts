@@ -29,6 +29,7 @@ export const castReqSchema = z.object({
 export const learnSkillSchema = z.object({
   type: z.literal('LearnSkill'),
   skillId: skillIdSchema,
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const setSkillShortcutSchema = z.object({
@@ -137,6 +138,7 @@ export const selectSpecializationSchema = z.object({
 export const upgradeSkillSchema = z.object({
   type: z.literal('UpgradeSkill'),
   skillId: skillIdSchema,
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const talkNpcSchema = z.object({
@@ -250,6 +252,7 @@ export type CastReq = {
 export type LearnSkill = {
   type: 'LearnSkill';
   skillId: SkillId;
+  clientSeq?: number;
 };
 
 export type SetSkillShortcut = {
@@ -351,6 +354,7 @@ export type SelectSpecialization = {
 export type UpgradeSkill = {
   type: 'UpgradeSkill';
   skillId: SkillId;
+  clientSeq?: number;
 };
 
 export type TalkNpc = { type: 'TalkNpc'; npcId: string };
