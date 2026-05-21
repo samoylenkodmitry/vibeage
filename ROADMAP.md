@@ -2740,11 +2740,13 @@ this list.
    job is the next slice.
 
 6. **Combat log misses + heals.** Hits + crits + deaths
-   shipped (PRs #303, #314). The two open sub-bullets
-   need server surfaces first — misses need a real
-   evasion roll in the damage path (today every hit
-   lands); heals need a new `Heal` protocol message.
-   Two coordinated PRs.
+   shipped (PRs #303, #314). Misses shipped in PR #345:
+   `getDamage` gained an optional `targetMissChance`,
+   active `evasion` status buffs roll a dodge (Smoke Bomb
+   40%, Mist Step 50%), `CombatLog` carries `misses[]`,
+   client renders "X missed Y" / "(K dodged)". Heals
+   still pending — needs a new `Heal` protocol message
+   and a heal-output hook in `applyHealEffect`.
 
 7. **Quest reward overflow.** Single explicit TODO at
    `server/players/playerQuests.ts:136` — bag full at
@@ -3548,7 +3550,7 @@ Character creation
 - [ ] Ensure ranger target range and projectile behavior feel reliable.
 - [ ] Ensure rogue melee range is readable.
 - [x] Ensure basic attack is always available and clearly visible. (Dedicated `.skill-bar-anchor` row above the bound skill grid renders a red-bordered basic-attack button regardless of shortcuts or panel state. PR #300.)
-- [~] Add combat log lines that explain hits, misses, heals, and deaths in simple terms. (Hits + crits in PR #303; deaths in PR #314 — client detects `isAlive` true→false transitions on enemies and players and prepends "X has fallen." / "X was defeated." to the combat log. Misses + heals still pending — they need additional server surfaces, since today every hit lands and there is no Heal protocol message.)
+- [~] Add combat log lines that explain hits, misses, heals, and deaths in simple terms. (Hits + crits in PR #303; deaths in PR #314 — client detects `isAlive` true→false transitions on enemies and players and prepends "X has fallen." / "X was defeated." to the combat log. **Misses shipped in PR #345** — `targetMissChance` plumbing in `getDamage`, evasion-buff dodge roll in `impactResolver`, `misses[]` in the `CombatLog` wire shape, client renders "X missed Y" / "(K dodged)". Heals still pending — they need a new `Heal` protocol message.)
 - [x] Add class-specific first-kill smoke tests. (Same file — one test per class via `it.each`-style loop over `CLASS_SKILL_TREES`.)
 - [~] Add a balance test for expected time-to-kill for starter goblins. (Soft check now: 40-round cap. Hard time-to-kill SLO lands with M4 balance report.)
 
