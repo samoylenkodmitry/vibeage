@@ -25,8 +25,10 @@ import {
   applyEnemyDeathFeedback,
   applyEquipFailedFromCommandRejected,
   applyEquipmentChangeFeedback,
+  applyInventoryRejectedVisualState,
   applyQuestRejectedVisualState,
   EQUIP_VERB_COMMANDS,
+  INVENTORY_VERB_COMMANDS,
   QUEST_VERB_COMMANDS,
   applyInstantHitVisualState,
   applyItemUsedVisualState,
@@ -252,6 +254,7 @@ function applyServerMessage(
     if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
     if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipFailedFromCommandRejected(state, message, now);
     if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
+    if (INVENTORY_VERB_COMMANDS.has(message.commandType)) return applyInventoryRejectedVisualState(state, message, now);
     // §52 #1 — LearnSkillFailed retired; the panel rejection state now
     // reads CommandRejected{commandType:'LearnSkill', targetId:<skillId>}.
     if (message.commandType === 'LearnSkill' && message.targetId) {
