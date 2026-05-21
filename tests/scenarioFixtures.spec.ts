@@ -57,7 +57,7 @@ describe('scenario fixtures', () => {
       // beforeRelog is mage → passive_arcane_focus.
       unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape', 'passive_arcane_focus'],
     });
-    expect(playerInventorySlots(afterRelog)).toEqual(playerInventorySlots(beforeRelog));
+    expect(playerInventorySlots(afterRelog)).toMatchObject(playerInventorySlots(beforeRelog));
   });
 
   test('creates scoped region streaming state', () => {

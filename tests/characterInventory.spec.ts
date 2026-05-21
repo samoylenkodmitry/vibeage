@@ -142,7 +142,7 @@ describe('character inventory multi-slot invariants', () => {
 });
 
 describe('inventory wire adapter', () => {
-  test('flattens bag items to legacy InventorySlot[] preserving order', () => {
+  test('flattens bag items to InventorySlot[] with explicit slotIndex + instanceId (§52 #11)', () => {
     const inv = createEmptyInventory('char-1', limits);
     inv.items['a'] = instance({ instanceId: 'a', templateId: 'gold_coin', count: 50, location: inventoryLocation(0) });
     inv.items['b'] = instance({ instanceId: 'b', templateId: 'health_potion', count: 3, location: inventoryLocation(1) });
@@ -150,8 +150,24 @@ describe('inventory wire adapter', () => {
 
     const slots = flattenInventoryToSlots(inv);
     expect(slots).toEqual([
-      { itemId: 'gold_coin', quantity: 50 },
-      { itemId: 'health_potion', quantity: 3 },
+      { itemId: 'gold_coin', quantity: 50, slotIndex: 0, instanceId: 'a' },
+      { itemId: 'health_potion', quantity: 3, slotIndex: 1, instanceId: 'b' },
+    ]);
+  });
+
+  // §52 #11 — the real value: a sparse bag (items at non-contiguous
+  // slots) now ships the real slot indices instead of a dense
+  // re-indexed array. Pre-§52 the wire was `[slot-2-item, slot-5-item]`
+  // and the client put them at UI cells 0 and 1 (wrong).
+  test('preserves real slot indices for a sparse bag (slots 2 + 5)', () => {
+    const inv = createEmptyInventory('char-1', limits);
+    inv.items['a'] = instance({ instanceId: 'a', templateId: 'gold_coin', count: 50, location: inventoryLocation(2) });
+    inv.items['b'] = instance({ instanceId: 'b', templateId: 'health_potion', count: 3, location: inventoryLocation(5) });
+
+    const slots = flattenInventoryToSlots(inv);
+    expect(slots).toEqual([
+      { itemId: 'gold_coin', quantity: 50, slotIndex: 2, instanceId: 'a' },
+      { itemId: 'health_potion', quantity: 3, slotIndex: 5, instanceId: 'b' },
     ]);
   });
 
@@ -170,8 +186,8 @@ describe('inventory wire adapter', () => {
     expect(validateInvariants(inv)).toEqual([]);
     expect(listInventoryItems(inv)).toHaveLength(2);
     expect(flattenInventoryToSlots(inv)).toEqual([
-      { itemId: 'gold_coin', quantity: 25 },
-      { itemId: 'health_potion', quantity: 2 },
+      { itemId: 'gold_coin', quantity: 25, slotIndex: 0, instanceId: 'id-0' },
+      { itemId: 'health_potion', quantity: 2, slotIndex: 1, instanceId: 'id-1' },
     ]);
   });
 });

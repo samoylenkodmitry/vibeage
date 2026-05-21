@@ -54,12 +54,16 @@ describe('client message router', () => {
       new SpatialHashGrid(),
     );
 
-    expect(emit).toHaveBeenCalledWith('msg', {
+    // §52 #11 — wire shape now carries `slotIndex` + `instanceId`
+    // per slot (instanceId is a nanoid so just check structure).
+    expect(emit).toHaveBeenCalledWith('msg', expect.objectContaining({
       type: 'InventoryUpdate',
       playerId: 'player1',
-      inventory: [{ itemId: 'health_potion', quantity: 7 }],
       maxInventorySlots: 20,
-    });
+      inventory: [expect.objectContaining({
+        itemId: 'health_potion', quantity: 7, slotIndex: 0,
+      })],
+    }));
   });
 
   test('uses spatial membership for combat-world entity queries', () => {

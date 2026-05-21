@@ -120,7 +120,7 @@ describe('deterministic server runtime flow', () => {
       items: [{ itemId: 'health_potion', quantity: 2 }],
     }));
     expect(state.groundLoot[lootId]).toBeUndefined();
-    expect(playerInventorySlots(player)).toEqual([{ itemId: 'health_potion', quantity: 2 }]);
+    expect(playerInventorySlots(player)).toMatchObject([{ itemId: 'health_potion', quantity: 2 }]);
   });
 });
 

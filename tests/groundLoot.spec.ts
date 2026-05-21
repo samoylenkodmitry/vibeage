@@ -58,7 +58,7 @@ describe('ground loot', () => {
     // PR GG — gold_coin auto-converts to the gold counter on pickup
     // instead of taking a bag slot. The bag only carries the other
     // drop; the player's `gold` reflects the coin drop.
-    expect(playerInventorySlots(state.players.player1)).toEqual([
+    expect(playerInventorySlots(state.players.player1)).toMatchObject([
       { itemId: 'health_potion', quantity: 3 },
     ]);
     expect(state.players.player1.gold).toBe(1);
@@ -98,7 +98,7 @@ describe('ground loot', () => {
 
     expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(false);
     expect(state.groundLoot.loot1).toBeDefined();
-    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(playerInventorySlots(state.players.player1)).toMatchObject([{ itemId: 'health_potion', quantity: 1 }]);
     expect(outbound.publish).not.toHaveBeenCalled();
   });
 
@@ -117,7 +117,7 @@ describe('ground loot', () => {
 
     expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
-    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 3 }]);
+    expect(playerInventorySlots(state.players.player1)).toMatchObject([{ itemId: 'health_potion', quantity: 3 }]);
     expect(outbound.publish).toHaveBeenCalledWith({
       type: 'directServerMessage',
       socketId: 'socket1',

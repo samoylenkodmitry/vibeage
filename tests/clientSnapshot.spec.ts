@@ -30,12 +30,15 @@ describe('client initial snapshot transport', () => {
       SESSION_EVENTS.joinGame,
       expect.objectContaining({ playerId: 'player1', serverProtocolVersion: expect.any(Number) }),
     );
-    expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.message, {
+    // §52 #11 — wire shape now carries `slotIndex` + `instanceId`.
+    expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.message, expect.objectContaining({
       type: 'InventoryUpdate',
       playerId: 'player1',
-      inventory: [{ itemId: 'health_potion', quantity: 2 }],
       maxInventorySlots: 20,
-    });
+      inventory: [expect.objectContaining({
+        itemId: 'health_potion', quantity: 2, slotIndex: 0,
+      })],
+    }));
     expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.message, {
       type: 'StarterProgressUpdate',
       progress: player.starterProgress,

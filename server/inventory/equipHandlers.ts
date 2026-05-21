@@ -5,7 +5,7 @@ import type {
   UnequipItem,
 } from '../../packages/protocol/messages.js';
 import type { EquipSlot } from '../../packages/content/equipmentTypes.js';
-import { listInventoryItems } from '../../packages/sim/characterInventory.js';
+import { instanceAtSlot } from '../../packages/sim/characterInventory.js';
 import { equipItem, unequipSlot } from '../../packages/sim/equipTransactions.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { emitPlayerUpdated, type DirectMessageSink, type OutboundEventSink } from '../transport/outboundEvents.js';
@@ -33,8 +33,11 @@ export function handleEquipItem(
   outbound?: OutboundEventSink,
 ): void {
   const inv = ensureCharacterInventory(player);
-  const bagItems = listInventoryItems(inv);
-  const item = bagItems[msg.slotIndex];
+  // §52 #11 — `msg.slotIndex` is now the real aggregate slot index
+  // (matches `InventorySlot.slotIndex` on the wire). Was an array
+  // position into `listInventoryItems(inv)` pre-§52 — silently wrong
+  // when the bag was sparse.
+  const item = instanceAtSlot(inv, msg.slotIndex);
   if (!item) {
     sendFail(direct, 'itemNotFound', 'EquipItem', msg.clientSeq);
     return;

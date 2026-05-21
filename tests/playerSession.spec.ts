@@ -119,7 +119,7 @@ describe('player session hydration', () => {
         rewardGranted: false,
       },
     });
-    expect(playerInventorySlots(player)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(playerInventorySlots(player)).toMatchObject([{ itemId: 'health_potion', quantity: 1 }]);
     expect(player.maxHealth).toBeGreaterThan(100);
     expect(player.maxMana).toBeGreaterThan(100);
     expect(player.stats?.dmgMult).toBeGreaterThan(0);
@@ -186,7 +186,7 @@ describe('active player session replacement', () => {
     expect(activePlayer).toBe(oldPlayer);
     expect(state.players.player1.socketId).toBe('new-socket');
     expect(state.players.player1.health).toBe(42);
-    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(playerInventorySlots(state.players.player1)).toMatchObject([{ itemId: 'health_potion', quantity: 1 }]);
     expect(findPlayerIdBySocket(state, 'old-socket')).toBeUndefined();
     expect(spatial.queryCircle({ x: 30, z: 30 }, 1)).toContain('player1');
     expect(spatial.queryCircle({ x: -8, z: 4 }, 1)).not.toContain('player1');
@@ -283,6 +283,6 @@ describe('player session relog persistence', () => {
       availableSkillPoints: beforeRelog.availableSkillPoints,
       starterProgress: stable.starter_progress,
     });
-    expect(playerInventorySlots(afterRelog)).toEqual(expectedInventory);
+    expect(playerInventorySlots(afterRelog)).toMatchObject(expectedInventory);
   });
 });

@@ -4,17 +4,25 @@ import { createEmptyInventory, listInventoryItems } from './characterInventory.j
 import type { CharacterId, ItemInstance } from './itemInstance.js';
 
 /**
- * Compatibility shim: project the new CharacterInventory aggregate back into
- * the legacy `InventorySlot[]` wire shape so existing protocol consumers
- * continue working until slice 4 introduces the dedicated equipment messages.
+ * Project the CharacterInventory aggregate into the wire `InventorySlot[]`.
+ * One entry per ItemInstance currently in the bag; equipped items are
+ * not included.
  *
- * One InventorySlot per ItemInstance currently in the bag. Equipped items
- * are not included in the bag view (matching today's behaviour).
+ * §52 #11 — each slot now carries the explicit `slotIndex` from the
+ * aggregate's `location.slotIndex` and the per-stack `instanceId`.
+ * Pre-§52 the wire was a dense array (items sorted by slot, but with no
+ * slot id), which broke the InventoryPanel when the bag was sparse
+ * (e.g. after equipping the item at slot 1, the wire dropped to length 2
+ * and the slot-2 item rendered at UI cell 1). Clients now position by
+ * `slotIndex`; `instanceId` lets future UI distinguish two stacks of the
+ * same template without a follow-up protocol change.
  */
 export function flattenInventoryToSlots(inventory: CharacterInventory): InventorySlot[] {
   return listInventoryItems(inventory).map((instance) => ({
     itemId: instance.templateId,
     quantity: instance.count,
+    slotIndex: instance.location.kind === 'inventory' ? instance.location.slotIndex : undefined,
+    instanceId: instance.instanceId,
   }));
 }
 
