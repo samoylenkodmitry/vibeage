@@ -2575,6 +2575,72 @@ PRs can pick them off independently.
   - `setLevel` only moved the number. Now awards
     (newLevel − oldLevel) SP to match the kill-XP path.
 
+## Live bugs from playtest (2026-05-21)
+
+User report after the §52 polish-sweep session merged + deployed
+(SHAs `f347c54` → `880ea7b`). Each entry is a real bug or
+missing UX surface, captured as a distinct `[ ]` so future PRs
+can pick them off independently.
+
+- [ ] **NPC dialog has no close button / no escape gesture.**
+  The `NpcDialog` opens when the player clicks an NPC but only
+  closes implicitly (clicking the same NPC again, or moving
+  out of range). A player who opens Mira / Galen and changes
+  their mind has no obvious way out. Add an explicit × button
+  in the dialog header AND an `Escape` key handler. Probably
+  also close on outside-click (same UX as the bag context
+  menu — see `InventoryContextMenu.tsx` for the click-outside
+  pattern).
+
+- [ ] **Attacks and skills did not work on prod.** Reported
+  on `vibeage.eu` after the polish-sweep deploy. Repro
+  unconfirmed — could be:
+    - PR #324's enemy double-step fix doubled
+      `createEnemy`'s `movementSpeed` multiplier (6 → 12),
+      which raises every enemy's `attackRange` reachable
+      distance per tick; the cast resolver's range check
+      (`packages/sim/skillSystem.ts: validateCastRequest`)
+      should still gate, but worth checking nothing started
+      teleporting OUT of range mid-cast.
+    - PR #332's client-side `nextClientSeq()` generator
+      stamps `clientSeq` on `CastReq`; the server's
+      `emitCastFail.clientSeq` now prefers it. If the client
+      build out of sync with the server build on the deploy
+      window, `clientSeq` might collide with the legacy
+      `clientTs` route in some path.
+    - PR #329 made `CastReq.clientSeq` optional with
+      `clientTs` fallback. A client that sends `clientSeq:
+      0` (counter sentinel) would route through the
+      requestId echo and look like a missing ack.
+  First step: load the live client, open the browser console
+  on `vibeage.eu`, and confirm whether `CastReq` messages
+  even reach the server (`websocket` panel) or whether
+  `CastFail` comes back immediately. If `CastFail` lands,
+  inspect `reason`. Both attacks AND skills failing rules
+  out a single-skill / single-handler bug — the symptom
+  sits somewhere on the shared cast pipeline.
+
+- [ ] **The current-quest tracker doesn't switch when the
+  player picks a different quest from the quest panel.**
+  `QuestPanel` lets the player highlight any active quest
+  (multiple can be active at once). The heads-up
+  `QuestTrackerStrip` should show whichever quest the player
+  most recently picked, but appears to stick to the first
+  one accepted. Probably a missing reducer wiring: the panel
+  selection state lives on the client but the strip reads
+  the wrong field (likely the first item in
+  `player.questState.active` rather than a "currently
+  tracked" id). Pick path:
+    1. Confirm via grep that `QuestTrackerStrip` reads from
+       a "tracked quest id" client state rather than just
+       walking `active` and picking the first key.
+    2. If there's no `trackedQuestId` field, add one to the
+       client state, wire `QuestPanel` clicks to set it,
+       and `QuestTrackerStrip` to read it (fallback to
+       first active when unset).
+    3. Persist across reload via localStorage so the
+       tracker picks up where the player left off.
+
 ## CI follow-ups (2026-05-21)
 
 - [x] **`hud-layout.spec.ts` mobile world-visibility threshold drift.**
