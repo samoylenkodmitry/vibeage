@@ -5,7 +5,7 @@ import {
   PROFICIENCY_LEVEL,
   SPECIALIZATION_UNLOCK_LEVEL,
 } from '../../packages/content/specializations.js';
-import type { LearnSkill, LearnSkillFailedMsg, SetSkillShortcut } from '../../packages/protocol/messages.js';
+import type { LearnSkill, LearnSkillFailedReason, SetSkillShortcut } from '../../packages/protocol/messages.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, error as logError, LOG_CATEGORIES, warn } from '../logger.js';
@@ -38,7 +38,7 @@ export function onLearnSkill(
   state: GameState,
   msg: LearnSkill,
 ): void {
-  const reject = (reason: LearnSkillFailedMsg['reason']) =>
+  const reject = (reason: LearnSkillFailedReason) =>
     sendLearnSkillFailed(direct, msg.skillId, reason, msg.clientSeq);
   const player = findPlayerBySocket(state, socket.id);
   if (!player) {
@@ -91,7 +91,7 @@ export function onLearnSkill(
 function classifyLearnRejection(
   player: SkillPlayer,
   skillId: SkillId,
-): LearnSkillFailedMsg['reason'] | null {
+): LearnSkillFailedReason | null {
   if (!SKILLS[skillId]) {
     return 'unknownSkill';
   }
@@ -128,18 +128,18 @@ function classifyLearnRejection(
   return null;
 }
 
-// §4/§52 — emit BOTH the legacy `LearnSkillFailed` (kept so older
-// clients still see the rejection) AND the structured `CommandRejected`
-// envelope. Migration is per-command; once the client UI consumes
-// `CommandRejected` for skill learning, the legacy can retire.
+// §52 #1 — `LearnSkillFailed` retired. The structured `CommandRejected`
+// envelope is now the sole channel; `targetId` carries the
+// failing `skillId` so the client's panel can hang the rejection
+// next to the right skill icon (this is what
+// `LearnSkillFailedMsg.skillId` used to carry).
 function sendLearnSkillFailed(
   direct: DirectMessageSink,
   skillId: SkillId,
-  reason: LearnSkillFailedMsg['reason'],
+  reason: LearnSkillFailedReason,
   clientSeq?: number,
 ): void {
-  direct.send({ type: 'LearnSkillFailed', skillId, reason });
-  sendCommandRejected(direct, 'LearnSkill', reason, clientSeq);
+  sendCommandRejected(direct, 'LearnSkill', reason, clientSeq, skillId);
 }
 
 export function onSetSkillShortcut(

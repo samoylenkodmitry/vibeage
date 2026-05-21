@@ -21,8 +21,12 @@ function setupMage() {
   return { state, player };
 }
 
-describe('learn skill rejections', () => {
-  test('emits LearnSkillFailed with levelTooLow when the requirement is unmet', () => {
+describe('learn skill rejections (§52 #1: LearnSkillFailed retired — sole channel CommandRejected)', () => {
+  function findRejection(sent: Array<{ type: string; [k: string]: unknown }>) {
+    return sent.find((m) => m.type === 'CommandRejected' && (m as { commandType?: string }).commandType === 'LearnSkill');
+  }
+
+  test('emits CommandRejected with levelTooLow when the requirement is unmet', () => {
     const { state, player } = setupMage();
     player.level = 1;
     player.availableSkillPoints = 1;
@@ -31,11 +35,14 @@ describe('learn skill rejections', () => {
       type: 'LearnSkill',
       skillId: 'iceBolt', // requires level 3 for mage and fireball + waterSplash prereqs
     });
-    const reject = sent.find((m) => m.type === 'LearnSkillFailed');
+    const reject = findRejection(sent);
     expect(reject?.reason).toBe('levelTooLow');
+    expect(reject?.targetId).toBe('iceBolt');
+    // Regression net: no legacy LearnSkillFailed should slip through.
+    expect(sent.some((m) => m.type === 'LearnSkillFailed')).toBe(false);
   });
 
-  test('emits LearnSkillFailed with missingPrereq when the player is high enough but lacks a prereq', () => {
+  test('emits CommandRejected with missingPrereq when the player is high enough but lacks a prereq', () => {
     const { state, player } = setupMage();
     player.level = 5;
     player.availableSkillPoints = 1;
@@ -45,11 +52,12 @@ describe('learn skill rejections', () => {
       type: 'LearnSkill',
       skillId: 'waterSplash', // requires fireball
     });
-    const reject = sent.find((m) => m.type === 'LearnSkillFailed');
+    const reject = findRejection(sent);
     expect(reject?.reason).toBe('missingPrereq');
+    expect(reject?.targetId).toBe('waterSplash');
   });
 
-  test('emits LearnSkillFailed with noSkillPoints when the player is out of SP', () => {
+  test('emits CommandRejected with noSkillPoints when the player is out of SP', () => {
     const { state, player } = setupMage();
     player.level = 10;
     player.availableSkillPoints = 0;
@@ -59,8 +67,9 @@ describe('learn skill rejections', () => {
       type: 'LearnSkill',
       skillId: 'waterSplash',
     });
-    const reject = sent.find((m) => m.type === 'LearnSkillFailed');
+    const reject = findRejection(sent);
     expect(reject?.reason).toBe('noSkillPoints');
+    expect(reject?.targetId).toBe('waterSplash');
   });
 
   test('STARTER_SKILL_BY_CLASS maps every class to a sensible starter', () => {

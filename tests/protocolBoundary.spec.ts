@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { clientMessageSchema, type ClientMessage } from '../packages/protocol/clientMessages';
 import {
+  commandRejectedSchema,
   learnSkillFailedReasonSchema,
-  learnSkillFailedSchema,
 } from '../packages/protocol/serverMessages';
 import { WORLD_CLIENT_COMMAND_TYPES } from '../server/transport/roomBoundary';
 
@@ -35,26 +35,33 @@ describe('protocol boundary', () => {
     expect(extras).toEqual([]);
   });
 
-  test('LearnSkillFailed schema accepts every reason its enum defines', () => {
-    // Derive the reason list straight from the schema so this stays exhaustive.
+  // §52 #1 — LearnSkillFailed retired; the reason enum still lives
+  // because it pins the server-side validation shape, but the wire
+  // shape is now CommandRejected. These two cases now exercise that
+  // every reason still parses on the envelope.
+  test('CommandRejected accepts every LearnSkill reason (with targetId carrying the skillId)', () => {
     const reasons = learnSkillFailedReasonSchema.options;
     expect(reasons.length).toBeGreaterThan(0);
     for (const reason of reasons) {
-      const parsed = learnSkillFailedSchema.safeParse({
-        type: 'LearnSkillFailed',
-        skillId: 'fireball',
+      const parsed = commandRejectedSchema.safeParse({
+        type: 'CommandRejected',
+        commandType: 'LearnSkill',
         reason,
+        targetId: 'fireball',
       });
       expect(parsed.success).toBe(true);
     }
   });
 
-  test('LearnSkillFailed schema rejects an unknown reason', () => {
-    const parsed = learnSkillFailedSchema.safeParse({
-      type: 'LearnSkillFailed',
-      skillId: 'fireball',
+  test('CommandRejected accepts any reason string (intentionally — per-command enums live server-side)', () => {
+    // The envelope is generic; per-command reason enums are validated
+    // by handlers, not the schema. This is a regression-net for that
+    // intentional shape: the schema does NOT pin per-command enums.
+    const parsed = commandRejectedSchema.safeParse({
+      type: 'CommandRejected',
+      commandType: 'LearnSkill',
       reason: 'something_weird',
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
   });
 });

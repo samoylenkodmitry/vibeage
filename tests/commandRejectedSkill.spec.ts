@@ -40,8 +40,8 @@ function noopOutbound() {
   return { publish: () => undefined };
 }
 
-describe('CommandRejected — LearnSkill (§4 / §52)', () => {
-  it('emits BOTH legacy LearnSkillFailed AND CommandRejected on a rejected learn', () => {
+describe('CommandRejected — LearnSkill (§52 #1: LearnSkillFailed retired)', () => {
+  it('emits CommandRejected with the skillId on targetId; no legacy LearnSkillFailed', () => {
     const { state, player } = setupPlayer();
     const { all, direct } = captureMessages();
     onLearnSkill(
@@ -52,15 +52,17 @@ describe('CommandRejected — LearnSkill (§4 / §52)', () => {
       // Mage default; trying to learn a warrior-tree skill should be a wrong-class reject.
       { type: 'LearnSkill', skillId: 'powerStrike', clientSeq: 11 },
     );
-    const legacy = all.find((m) => m.type === 'LearnSkillFailed');
     const rejected = all.find((m) => m.type === 'CommandRejected');
-    expect(legacy, 'legacy LearnSkillFailed kept for migration').toBeDefined();
-    expect(rejected, 'new CommandRejected envelope emitted').toBeDefined();
+    expect(rejected, 'CommandRejected envelope emitted').toBeDefined();
     if (rejected?.type === 'CommandRejected') {
       expect(rejected.commandType).toBe('LearnSkill');
       expect(rejected.reason).toBe('wrongClass');
       expect(rejected.requestId).toBe(11);
+      expect(rejected.targetId).toBe('powerStrike');
     }
+    // Regression net: no legacy *Failed slips through.
+    const legacy = all.find((m) => (m as { type?: string }).type === 'LearnSkillFailed');
+    expect(legacy).toBeUndefined();
   });
 
   it('omits requestId when the client did not supply clientSeq', () => {
