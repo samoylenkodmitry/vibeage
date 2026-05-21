@@ -4,6 +4,7 @@ import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
 import { listActiveQuestMarkers } from './hud/questMarkers';
+import { loadTrackedQuestId } from './trackedQuestStorage';
 import { useGameClient } from './useGameClient';
 import { WorldScene } from './WorldScene';
 
@@ -15,6 +16,22 @@ export default function App() {
   const touchClaimRef = useRef<Set<number>>(new Set());
   const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
   useAutoMarkerOnQuestAccept(state, setNavigationMarker);
+
+  // §52 follow-up — restore the QuestPanel selection across reloads.
+  // The reducer's `pickTrackedStage` already handles the case where
+  // the stored id has dropped out of `active` (falls back to first
+  // active), so we can rehydrate eagerly without waiting for game
+  // state to come online. Empty deps: read once at mount.
+  // §52 follow-up — `client.setTrackedQuest` is stable across the
+  // game-client hook lifetime (memoized in `useClientActions`), so
+  // depending on it lands the rehydrate once at mount without
+  // re-firing on every render. The reducer's `pickTrackedStage`
+  // tolerates ids that aren't in `active` yet (falls back to first
+  // active), so rehydrating before the game state arrives is safe.
+  useEffect(() => {
+    const stored = loadTrackedQuestId();
+    if (stored) client.setTrackedQuest(stored);
+  }, [client.setTrackedQuest]);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up

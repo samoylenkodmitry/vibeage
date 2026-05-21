@@ -14,6 +14,7 @@ import { BASIC_ATTACK_SKILL_ID } from './skillShortcuts';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { isForceCastHeld } from './modifierKeys';
 import { nextClientSeq } from './commandSeq';
+import { saveTrackedQuestId } from './trackedQuestStorage';
 
 const PENDING_CAST_TTL_MS = 10_000;
 const PENDING_PICKUP_TTL_MS = 12_000;
@@ -133,6 +134,10 @@ export function useClientActions(
 
   const setTrackedQuest = useCallback((questId: string | null) => {
     dispatch({ type: 'setTrackedQuest', questId });
+    // §52 follow-up — write-through to localStorage so the choice
+    // survives reload. Read on App mount; reducer is the in-memory
+    // source of truth otherwise.
+    saveTrackedQuestId(questId);
   }, [dispatch]);
 
   return useMemo(
