@@ -191,3 +191,44 @@ describe('applySkillUpgrade — discriminated rejection (§4 / §52)', () => {
     expect(player.availableSkillPoints).toBe(0);
   });
 });
+
+describe('CommandRejected — UpgradeSkill router (§52 polish)', () => {
+  it('echoes skillId on targetId so the SkillTreePanel chip pins to the right row', () => {
+    const { state, player } = setupPlayer();
+    player.unlockedSkills = [];
+    const sent: ServerMessage[] = [];
+    handleClientMessage(
+      { id: player.socketId!, emit: (_e: string, m: ServerMessage) => { sent.push(m); } },
+      state,
+      { type: 'UpgradeSkill', skillId: 'fireball', clientSeq: 42 },
+      { publish: () => undefined },
+      new SpatialHashGrid(),
+    );
+    const rejection = sent.find((m) => m.type === 'CommandRejected');
+    expect(rejection).toBeDefined();
+    if (rejection?.type === 'CommandRejected') {
+      expect(rejection.commandType).toBe('UpgradeSkill');
+      expect(rejection.reason).toBe('skillNotLearned');
+      expect(rejection.requestId).toBe(42);
+      expect(rejection.targetId).toBe('fireball');
+    }
+  });
+
+  it('still echoes targetId when clientSeq is omitted (defensive)', () => {
+    const { state, player } = setupPlayer();
+    player.unlockedSkills = [];
+    const sent: ServerMessage[] = [];
+    handleClientMessage(
+      { id: player.socketId!, emit: (_e: string, m: ServerMessage) => { sent.push(m); } },
+      state,
+      { type: 'UpgradeSkill', skillId: 'fireball' },
+      { publish: () => undefined },
+      new SpatialHashGrid(),
+    );
+    const rejection = sent.find((m) => m.type === 'CommandRejected');
+    if (rejection?.type === 'CommandRejected') {
+      expect(rejection.targetId).toBe('fireball');
+      expect(rejection.requestId).toBeUndefined();
+    }
+  });
+});

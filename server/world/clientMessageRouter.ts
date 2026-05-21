@@ -301,7 +301,10 @@ function onUpgradeSkill(
   msg: Extract<ClientMessage, { type: 'UpgradeSkill' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'UpgradeSkill', reason, msg.clientSeq);
+  // §52 polish — pass msg.skillId as targetId so the client's
+  // skill tree panel can hang the rejection chip next to the right
+  // row (same pattern as LearnSkill from §52 #1).
+  const reject = (reason: string) => sendCommandRejected(direct, 'UpgradeSkill', reason, msg.clientSeq, msg.skillId);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
