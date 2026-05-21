@@ -2398,11 +2398,12 @@ so the next session can pick a slice without re-auditing.
 
 The "real backlog" after the audit. Ordered by impact × cost.
 
-1. **§4 — finish the clientSeq + CommandRejected rollout.** PR #261
-   wired equip only. Remaining: inventory (UseItem, CraftItem,
-   DropItem, BuyFromVendor, SellToVendor), skill (LearnSkill,
-   UpgradeSkill, CastReq), chat. Once every command emits the
-   envelope, retire the legacy `EquipFailed`/`LearnSkillFailed`.
+1. **§4 — finish the clientSeq + CommandRejected rollout.** ✅ Closed.
+   PR #261 (equip), #323 (inventory/vendor), #338 (CastReq schema fix),
+   #353 (CastFail retirement), #354 (EquipFailed retirement), #355
+   (LearnSkillFailed retirement + `targetId` on the envelope). Every
+   command emits the envelope; all three legacy `*Failed` messages
+   are gone.
 2. **§10:577 — enemy movement double-step.** Documented as KNOWN
    ISSUE in `server/ai/enemyBehavior.ts:71-79`. Requires removing
    one integration AND rebalancing every enemy template's
@@ -2706,14 +2707,15 @@ polish sprint, §19 content tools, §22 social, §24 audio/VFX,
 §28 milestone gates) stay deferred per §48 — they're not on
 this list.
 
-1. **§4 — finish the `CommandRejected` rollout.** PR #323
-   wired 6 inventory/vendor commands. Remaining: skill
-   (`LearnSkill`, `UpgradeSkill`, `CastReq`), chat
-   (`ChatRequest`), GM (`GmCommand`). Once every command
-   emits the envelope, the legacy `EquipFailed` /
-   `LearnSkillFailed` / `CastFail` messages can retire.
-   `server/transport/commandRejected.ts: sendCommandRejected`
-   is the shared emit helper.
+1. **§4 — finish the `CommandRejected` rollout.** ✅ Closed.
+   PR #323 wired 6 inventory/vendor commands; PRs #338 + #353
+   handled CastReq; PR #354 retired EquipFailed; PR #355 retired
+   LearnSkillFailed and added `CommandRejected.targetId` so the
+   envelope can carry per-subject context (skill id / item id /
+   etc.). Every command now emits `CommandRejected`; all three
+   legacy `*Failed` messages are gone; `CommandRejected` is in
+   the owner-only broadcast guard so rejection state doesn't
+   leak to nearby players.
 
 2. **Inventory projection retirement.** `aggregateBridge.ts`
    still calls `syncLegacyInventory(player)` after every
