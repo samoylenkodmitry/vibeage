@@ -164,6 +164,11 @@ function runSnapshotPhase(input: WorldTickRunnerOptions & {
     // the broadcast loop is shipping more deltas than the snapshot
     // budget assumed; the percentile is the right alarm signal.
     runtimeMetrics.recordHistogram('snapshot.batchSize', updates.length);
+    // §52 #12 follow-up — also record the bytes weight per batch.
+    // `snapshot.bytes` only fires at join; load tests need a per-tick
+    // signal to see how the wire payload scales with concurrent
+    // players. Same JSON.stringify trick used at the join boundary.
+    runtimeMetrics.recordHistogram('snapshot.batchBytes', JSON.stringify(updates).length);
     emitBatchUpdate(input.outbound, updates);
   }
   return 0;
