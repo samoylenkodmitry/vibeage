@@ -9,6 +9,7 @@ import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
 import { ReturnToNpcHint } from './hud/ReturnToNpcHint';
 import { SkillUseHint } from './hud/SkillUseHint';
 import { TargetingHint } from './hud/TargetingHint';
+import { usePersistedToggle } from './hud/usePersistedToggle';
 import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
@@ -311,18 +312,23 @@ function PanelToggleStrip({ panels }: { panels: PanelState }) {
 type PanelState = ReturnType<typeof usePanelState>;
 
 function usePanelState() {
-  const [statsOpen, setStatsOpen] = useState(true);
-  const [questOpen, setQuestOpen] = useState(false);
-  const [bagOpen, setBagOpen] = useState(false);
-  const [gearOpen, setGearOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [treeOpen, setTreeOpen] = useState(false);
+  // §52 polish — panel open/closed state persists across reloads via
+  // `usePersistedToggle`. The default (3rd arg) only matches the
+  // pre-PR behavior for first-ever joins; returning players see the
+  // panel set they left open. Mirrors the existing
+  // `useDismissibleHint` pattern + `vibeage.trackedQuest.v1` storage.
+  const [statsOpen, , toggleStats] = usePersistedToggle('stats', true);
+  const [questOpen, setQuestOpen, toggleQuest] = usePersistedToggle('quest', false);
+  const [bagOpen, , toggleBag] = usePersistedToggle('bag', false);
+  const [gearOpen, , toggleGear] = usePersistedToggle('gear', false);
+  const [mapOpen, , toggleMap] = usePersistedToggle('map', false);
+  const [treeOpen, , toggleTree] = usePersistedToggle('tree', false);
   // Actions defaults open: it's the home of the new Attack + Pickup
   // buttons so players see them immediately on join.
-  const [actionsOpen, setActionsOpen] = useState(true);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [wikiOpen, setWikiOpen] = useState(false);
-  const [gmOpen, setGmOpen] = useState(false);
+  const [actionsOpen, , toggleActions] = usePersistedToggle('actions', true);
+  const [chatOpen, , toggleChat] = usePersistedToggle('chat', false);
+  const [wikiOpen, setWikiOpen, toggleWiki] = usePersistedToggle('wiki', false);
+  const [gmOpen, , toggleGm] = usePersistedToggle('gm', false);
   // PR AA — the craft panel opens when the player taps a recipe in
   // their bag. Holds the slot index so we can find the recipe again
   // (item content + recipe spec come from ITEMS).
@@ -339,18 +345,18 @@ function usePanelState() {
     wikiOpen,
     gmOpen,
     craftRecipeSlot,
-    toggleStats: () => setStatsOpen((prev) => !prev),
-    toggleQuest: () => setQuestOpen((prev) => !prev),
+    toggleStats,
+    toggleQuest,
     openQuest: () => setQuestOpen(true),
-    toggleBag: () => setBagOpen((prev) => !prev),
-    toggleGear: () => setGearOpen((prev) => !prev),
-    toggleMap: () => setMapOpen((prev) => !prev),
-    toggleTree: () => setTreeOpen((prev) => !prev),
-    toggleActions: () => setActionsOpen((prev) => !prev),
-    toggleChat: () => setChatOpen((prev) => !prev),
-    toggleWiki: () => setWikiOpen((prev) => !prev),
+    toggleBag,
+    toggleGear,
+    toggleMap,
+    toggleTree,
+    toggleActions,
+    toggleChat,
+    toggleWiki,
     openWiki: () => setWikiOpen(true),
-    toggleGm: () => setGmOpen((prev) => !prev),
+    toggleGm,
     openCraft: (slotIndex: number) => setCraftRecipeSlot(slotIndex),
     closeCraft: () => setCraftRecipeSlot(null),
   };
