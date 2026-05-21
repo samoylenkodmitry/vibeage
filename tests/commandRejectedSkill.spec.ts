@@ -115,6 +115,53 @@ describe('CommandRejected — ChatRequest (§4 / §52)', () => {
   });
 });
 
+describe('CommandRejected — SelectClass / SelectRace (§4 / §52)', () => {
+  function setupRouterPlayer() {
+    const state = createGameState();
+    const player = createTransientPlayer('s-gm', 'gmtester');
+    upsertActivePlayerSession(state, new SpatialHashGrid(), player);
+    return { state, player };
+  }
+
+  it('SelectClass without GM mode emits notGm rejection with clientSeq echo', () => {
+    const { state, player } = setupRouterPlayer();
+    const sent: ServerMessage[] = [];
+    handleClientMessage(
+      { id: player.socketId!, emit: (_e: string, m: ServerMessage) => { sent.push(m); } },
+      state,
+      { type: 'SelectClass', className: 'warrior', clientSeq: 21 },
+      { publish: () => undefined },
+      new SpatialHashGrid(),
+    );
+    const rejection = sent.find((m) => m.type === 'CommandRejected');
+    expect(rejection, 'expected CommandRejected for non-GM SelectClass').toBeDefined();
+    if (rejection?.type === 'CommandRejected') {
+      expect(rejection.commandType).toBe('SelectClass');
+      expect(rejection.reason).toBe('notGm');
+      expect(rejection.requestId).toBe(21);
+    }
+  });
+
+  it('SelectRace without GM mode emits notGm rejection (no requestId when clientSeq omitted)', () => {
+    const { state, player } = setupRouterPlayer();
+    const sent: ServerMessage[] = [];
+    handleClientMessage(
+      { id: player.socketId!, emit: (_e: string, m: ServerMessage) => { sent.push(m); } },
+      state,
+      { type: 'SelectRace', race: 'elf' },
+      { publish: () => undefined },
+      new SpatialHashGrid(),
+    );
+    const rejection = sent.find((m) => m.type === 'CommandRejected');
+    expect(rejection, 'expected CommandRejected for non-GM SelectRace').toBeDefined();
+    if (rejection?.type === 'CommandRejected') {
+      expect(rejection.commandType).toBe('SelectRace');
+      expect(rejection.reason).toBe('notGm');
+      expect(rejection.requestId).toBeUndefined();
+    }
+  });
+});
+
 describe('applySkillUpgrade — discriminated rejection (§4 / §52)', () => {
   it('returns { ok: false, reason: "skillNotLearned" } when the skill is not in unlockedSkills', () => {
     const { player } = setupPlayer();
