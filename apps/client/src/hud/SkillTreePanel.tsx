@@ -29,13 +29,24 @@ export type Row = {
   detail: string;
 };
 
+// §52 polish — covers both LearnSkill and UpgradeSkill reject
+// reasons (the reducer routes both into `learnSkillRejections`,
+// keyed by skillId, so one map answers for both).
 const REJECTION_LABEL: Record<string, string> = {
+  // LearnSkill enum values
   noSkillPoints: 'No skill points',
   levelTooLow: 'Level too low',
   missingPrereq: 'Missing prereq',
   unknownSkill: 'Unknown skill',
   wrongClass: 'Not for this class',
   alreadyKnown: 'Already known',
+  // UpgradeSkill enum values (from `applySkillUpgrade`)
+  skillNotLearned: 'Learn it first',
+  noUpgradesAvailable: 'No upgrades',
+  maxLevelReached: 'Max level',
+  // Defensive: server also emits `playerNotFound` for both verbs in
+  // a degenerate route; surface it rather than show the raw enum.
+  playerNotFound: "Session error — rejoin",
 };
 
 export function SkillTreePanel({ player, onLearnSkill, onUpgradeSkill, rejections }: SkillTreePanelProps) {
