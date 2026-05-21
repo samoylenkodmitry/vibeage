@@ -1,6 +1,7 @@
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { QUESTS } from '../../../../packages/content/quests';
 import type { GameClientState } from '../gameTypes';
+import { useDismissibleHint } from './useDismissibleHint';
 
 /**
  * §49/M2 — return-to-NPC hint. The moment the player's active
@@ -18,12 +19,14 @@ type ReturnToNpcHintProps = {
 };
 
 export function ReturnToNpcHint({ state }: ReturnToNpcHintProps) {
+  const { dismissed, dismiss } = useDismissibleHint('return-to-npc');
   const target = pickReturnNpc(state);
-  if (!target) return null;
+  if (dismissed || !target) return null;
   return (
     <section className="return-to-npc-hint" role="status" aria-live="polite">
       <strong>Return to {target.npcName}</strong>
       <small>Walk back to <strong>{target.npcName}</strong> to advance the quest.</small>
+      <button type="button" className="hint-dismiss" aria-label="Dismiss hint" onClick={dismiss}>×</button>
     </section>
   );
 }

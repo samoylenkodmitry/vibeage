@@ -2,6 +2,7 @@ import { getStarterSkillForClass, type CharacterClass } from '../../../../packag
 import { SKILLS } from '../../../../packages/content/skills';
 import { BASIC_ATTACK_HOTKEY, SKILL_BAR_HOTKEYS } from '../skillShortcuts';
 import type { GameClientState } from '../gameTypes';
+import { useDismissibleHint } from './useDismissibleHint';
 
 /**
  * §49/M2 — one-time skill-use hint. Renders the moment the
@@ -21,12 +22,14 @@ type SkillUseHintProps = {
 };
 
 export function SkillUseHint({ state }: SkillUseHintProps) {
+  const { dismissed, dismiss } = useDismissibleHint('skill-use');
   const hint = pickSkillUseHint(state);
-  if (!hint) return null;
+  if (dismissed || !hint) return null;
   return (
     <section className="skill-use-hint" role="status" aria-live="polite">
       <strong>Cast {hint.skillName}</strong>
       <small>Press <kbd>{hint.hotkey}</kbd> to {hint.action.toLowerCase()}.</small>
+      <button type="button" className="hint-dismiss" aria-label="Dismiss hint" onClick={dismiss}>×</button>
     </section>
   );
 }

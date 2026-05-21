@@ -1,4 +1,5 @@
 import type { GameClientState } from '../gameTypes';
+import { useDismissibleHint } from './useDismissibleHint';
 
 /**
  * §49/M2 — first-loot hint. Renders a small one-line banner the
@@ -16,11 +17,14 @@ type LootPickupHintProps = {
 };
 
 export function LootPickupHint({ state }: LootPickupHintProps) {
+  const { dismissed, dismiss } = useDismissibleHint('loot-pickup');
+  if (dismissed) return null;
   if (!shouldShowLootHint(state)) return null;
   return (
     <section className="loot-pickup-hint" role="status" aria-live="polite">
       <strong>Loot dropped!</strong>
       <small>Click the glowing pile — your character will walk over and grab it.</small>
+      <button type="button" className="hint-dismiss" aria-label="Dismiss hint" onClick={dismiss}>×</button>
     </section>
   );
 }
