@@ -2595,6 +2595,211 @@ PRs can pick them off independently.
   a tap-to-expand on mobile, or move the Stats panel into the
   toggle drawer entirely. Worth its own PR with a design call.
 
+## 51. Status snapshot + reprioritization (2026-05-21 PM)
+
+Audit run after the M2 onboarding wrap and the engine polish
+sweep. Both §49/M2 (Spawn And Tutorial Cues) and the four
+"polish what we have" tracks are closed at the line-by-line
+level; this section captures the new prioritized backlog so
+the next session can pick a slice without re-auditing.
+
+### What shipped this session (2026-05-21)
+
+**§49/M2 — Spawn And Tutorial Cues + Grakk slice — fully closed**
+
+- PR #301 first-kill loot-pickup hint
+- PR #302 tooltip "used in" line for trophies
+- PR #303 crit hits in the combat log
+- PR #304 auto-drop nav marker on AcceptQuest
+- PR #306 equip success + reject in the combat log
+- PR #307 targeting hint
+- PR #308 skill-use hint
+- PR #309 return-to-NPC hint
+- PR #310 × dismiss button on the four hint banners (+ shared `useDismissibleHint`)
+- PR #312 mobile-safe positioning for hint banners
+- PR #314 combat-log death events ("X has fallen" / "X was defeated")
+- PR #315 starter mana economy + first-trophy recipe tests
+- PR #316 far-visible `BossBeacon` for live mini-bosses
+- PR #317 Warband Howl combat-log line + Grakk-specific signature tests
+- PR #318 / #319 roadmap doc ticks for items shipped but unticked
+
+**Engine polish track (PRs #313, #320–#325)**
+
+- PR #313 / #325 mobile world-visibility threshold relaxed then
+  honestly reclaimed (0.55 spec → 0.48 unblock → 0.53 honest
+  floor after the mobile skill-bar trim).
+- PRs #320 / #321 / #322 dead-code sweep — knip went from
+  **40 unused exports + 22 unused types → 0 / 0**.
+- PR #323 §4 `CommandRejected` envelope wired to 6
+  inventory + vendor commands (UseItem, CraftItem, DropItem,
+  DestroyItem, BuyFromVendor, SellToVendor).
+- PR #324 §10:577 enemy movement double-step bug fix —
+  `moveEnemyToward` no longer integrates position; baseline
+  multiplier doubled to preserve on-screen feel.
+
+Test totals 1248 → **1275** (+27).
+
+### What's actually open (prioritized 2026-05-21)
+
+The real backlog after this audit. Ordered by impact × cost.
+The "deferred" sections that dominate the 1484-line open
+count (§2 redo list, §7 visuals, §15 moderation, §17/18 UX
+polish sprint, §19 content tools, §22 social, §24 audio/VFX,
+§28 milestone gates) stay deferred per §48 — they're not on
+this list.
+
+1. **§4 — finish the `CommandRejected` rollout.** PR #323
+   wired 6 inventory/vendor commands. Remaining: skill
+   (`LearnSkill`, `UpgradeSkill`, `CastReq`), chat
+   (`ChatRequest`), GM (`GmCommand`). Once every command
+   emits the envelope, the legacy `EquipFailed` /
+   `LearnSkillFailed` / `CastFail` messages can retire.
+   `server/transport/commandRejected.ts: sendCommandRejected`
+   is the shared emit helper.
+
+2. **Inventory projection retirement.** `aggregateBridge.ts`
+   still calls `syncLegacyInventory(player)` after every
+   mutator to keep `player.inventory` in sync with
+   `player.characterInventory`. The legacy field has no
+   remaining server-side consumers — purely a wire
+   projection now. Cleanest fix: flatten on demand at
+   the single `InventoryUpdate` emit site and drop the
+   stored field. See `server/inventory/aggregateBridge.ts:51`.
+
+3. **§5 — finish the DTO trio.** PR #260 added
+   `PublicPlayerSnapshot`. Still missing:
+   `OwnerPlayerSnapshot` (today the owner sees the full
+   `PlayerState`) and `PlayerPresenceSnapshot` for the
+   public world state. Tight scope per DTO.
+
+4. **§14 histograms** — snapshot size, batch update size,
+   DB write latency, join latency, reconnect latency.
+   Required before any serious load test. Owner: §12 work
+   blocks on this.
+
+5. **§13 backup/restore drill in CI.** Existing
+   `scripts/check-restored-postgres-compatibility.sql`
+   covers schema parity; wiring it into a scheduled CI
+   job is the next slice.
+
+6. **Combat log misses + heals.** Hits + crits + deaths
+   shipped (PRs #303, #314). The two open sub-bullets
+   need server surfaces first — misses need a real
+   evasion roll in the damage path (today every hit
+   lands); heals need a new `Heal` protocol message.
+   Two coordinated PRs.
+
+7. **Quest reward overflow.** Single explicit TODO at
+   `server/players/playerQuests.ts:136` — bag full at
+   claim time currently drops items to the ground. Spec
+   a graceful path (spawn a player-owned ground stack at
+   the claim spot OR queue the reward until a slot frees)
+   and ship.
+
+8. **Mobile world-visibility 0.53 → 0.55.** The 1.4 %
+   gap is the dense `.player-panel` Stats grid. Closing
+   it is a real UX call — collapse derived combat stats
+   behind tap-to-expand on mobile, or move Stats into
+   the toggle drawer. Logged as an open item under the
+   `## CI follow-ups (2026-05-21)` section above.
+
+9. **§11 — mini-boss leash + respawn + named encounter
+   tracking.** Today bosses reuse the regular leash;
+   product wants tighter constraints. Has not started.
+
+10. **§8 — dispel with categories.** Dispel exists but
+    strips the same fixed set; category-aware dispel
+    (negative / positive / magic / poison / bleed / stun
+    / shield) is open.
+
+11. **§6 — protocol shape for `inventoryUpdateMsg`.** Today
+    ships the flat-slot projection; aggregate-shaped wire
+    DTO is open. Probably folds into item #2 above.
+
+12. **§12 — load-test harness.** Deferred until the
+    histograms above land so we can measure improvements.
+
+13. **§9 — respec / class-change policy.** Today picking
+    a spec is permanent; product hasn't decided respec
+    cost / cooldown yet.
+
+### Stale doc claims to clean up
+
+A code audit (delegated to an Explore agent on 2026-05-21)
+turned up only one half-claim worth touching:
+
+- **L3153** "Add combat log lines that explain hits, misses,
+  heals, and deaths in simple terms" is `[~]`. Hits + crits
+  (#303) + deaths (#314) shipped; misses + heals stay open
+  per item #6 above. Either split the bullet or leave the
+  marker honest.
+
+Two production source files (`server/players/playerSession.ts`
+line 156 + 198) reference "PR NN" placeholders left over from
+the stat-restoration refactor. Doc-only; backfill when
+convenient.
+
+### Code quality at this snapshot
+
+Pulled from the same audit:
+
+- `pnpm run deadcode:report` → **silent** (0 unused
+  exports, 0 unused types).
+- 0 `FIXME` / `HACK` / `XXX` markers in source.
+- 1 explicit `TODO` (quest overflow, #7 above).
+- 31 `as unknown as` / `as any` / `@ts-expect-error`
+  assertions across 16 files, **29 in test fixtures**;
+  2 production sites are content-graph id→def
+  projections (`classPassives.ts`, `skills.ts`) — both
+  load-bearing and intentional.
+- 0 `.skip` / `.todo` / `xit` tests; 0 flake / "skip on
+  CI" comments in spec files.
+- Maintainability gate green; per-function line budget
+  enforced via `scripts/check-maintainability.mjs`.
+- `docs/UNLINKED.md` lists 5 flavor consumables with no
+  current source (`elixir_of_strength`,
+  `ethereal_elixir`, `fire_resistance_potion`,
+  `ice_resistance_potion`, `temporal_draught`) — auto-
+  clears when content drops them somewhere.
+
+### Open count after this pass
+
+ROADMAP.md is **4299 lines, 300 `[x]` items, 1484 `[ ]`
+items, 6 `[~]` items**. Same caveat as §48: ~80 % of the
+`[ ]` mass lives in deferred sections (§2 redo list, §7
+visuals, §15 moderation, §17/18 UX polish sprint, §19
+content tools, §22 social, §24 audio/VFX, §28 milestone
+gates, plus the M3–M16 milestone outlines). The
+13-item prioritized list above is what the next session
+should pick from.
+
+### Recommended next 3 PRs
+
+If the user keeps the "polish what we have" stance:
+
+1. **CommandRejected for skill commands** (`LearnSkill`,
+   `UpgradeSkill`, `CastReq`) — builds on PR #323's
+   helper, same shape, 3 schemas + 3 handlers + tests.
+   Closes most of §4 in one PR.
+2. **Inventory projection retirement** — drop
+   `syncLegacyInventory`, flatten at the wire boundary,
+   remove the dual-storage. Mid-size refactor, well-
+   scoped.
+3. **`OwnerPlayerSnapshot` DTO** (§5) — extract the
+   owner-only fields into an explicit shape, wire it on
+   the join + `playerUpdated` paths. Sibling of PR #260.
+
+If the user pivots to bug/UX:
+
+1. **Quest reward overflow** (#7) — close the explicit
+   TODO with a player-owned ground-stack path.
+2. **Player-panel mobile collapse** (#8) — get back to
+   the 0.55 world-visibility floor without sacrificing
+   touch targets.
+3. **Misses combat log** (#6 part 1) — implement
+   evasion roll in the damage path; add the "missed!"
+   line.
+
 
 ---
 
