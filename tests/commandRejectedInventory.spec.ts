@@ -9,6 +9,7 @@ import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
 import { upsertActivePlayerSession } from '../server/players/playerSession';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { ServerMessage } from '../packages/protocol/messages';
+import { findInventorySlotIndex } from './helpers/inventoryView';
 
 /**
  * §4 — CommandRejected rollout for inventory commands. Sibling of the
@@ -86,7 +87,7 @@ describe('CommandRejected — inventory commands (§4)', () => {
   it('CraftItem: slot holds a non-recipe → notRecipe', () => {
     const { state, player } = setupPlayer();
     addItemsToPlayer(player, 'health_potion', 1);
-    const slot = player.inventory.findIndex((s) => s?.itemId === 'health_potion');
+    const slot = findInventorySlotIndex(player, 'health_potion');
     expect(slot).toBeGreaterThanOrEqual(0);
     const { rejections, direct } = captureRejections();
     onCraftItem({ id: player.socketId! }, direct, state,

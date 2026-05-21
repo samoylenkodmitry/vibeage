@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { makeClientGameStateSnapshot } from '../server/transport/clientState';
 import { getPlayerStreamRegionIds } from '../server/world/regions';
+import { playerInventorySlots } from './helpers/inventoryView';
 import {
   createCombatEncounterScenario,
   createFullInventoryScenario,
@@ -40,7 +41,7 @@ describe('scenario fixtures', () => {
   test('creates a full inventory state', () => {
     const { player } = createFullInventoryScenario(3);
 
-    expect(player.inventory).toHaveLength(3);
+    expect(playerInventorySlots(player)).toHaveLength(3);
     expect(player.maxInventorySlots).toBe(3);
   });
 
@@ -51,12 +52,12 @@ describe('scenario fixtures', () => {
       id: beforeRelog.id,
       socketId: 'new-socket',
       position: beforeRelog.position,
-      inventory: beforeRelog.inventory,
       // basicAttack + escape + class auto-passive are appended on
       // hydrate (universal-skills + PR PP class passive backfill).
       // beforeRelog is mage → passive_arcane_focus.
       unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape', 'passive_arcane_focus'],
     });
+    expect(playerInventorySlots(afterRelog)).toEqual(playerInventorySlots(beforeRelog));
   });
 
   test('creates scoped region streaming state', () => {

@@ -10,6 +10,8 @@ import { buildStablePlayerPersistenceData } from '../server/persistence';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { CharacterInventory } from '../packages/sim/characterInventory';
 import type { PlayerState } from '../packages/sim/entities';
+import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
+import { playerInventorySlots } from './helpers/inventoryView';
 
 // §45.7 — `players.inventory` column was dropped in migration 011;
 // the persisted bag lives entirely in `players.character_inventory`.
@@ -117,8 +119,8 @@ describe('player session hydration', () => {
         isComplete: false,
         rewardGranted: false,
       },
-      inventory: [{ itemId: 'health_potion', quantity: 1 }],
     });
+    expect(playerInventorySlots(player)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
     expect(player.maxHealth).toBeGreaterThan(100);
     expect(player.maxMana).toBeGreaterThan(100);
     expect(player.stats?.dmgMult).toBeGreaterThan(0);
@@ -174,7 +176,7 @@ describe('active player session replacement', () => {
     const oldPlayer = makePlayer('player1', 'old-socket');
     oldPlayer.position = { x: 30, y: 0.5, z: 30 };
     oldPlayer.health = 42;
-    oldPlayer.inventory = [{ itemId: 'health_potion', quantity: 1 }];
+    addItemsToPlayer(oldPlayer, 'health_potion', 1);
     const newPlayer = makePlayer('player1', 'new-socket');
     newPlayer.position = { x: -8, y: 0.5, z: 4 };
     newPlayer.health = 100;
@@ -185,7 +187,7 @@ describe('active player session replacement', () => {
     expect(activePlayer).toBe(oldPlayer);
     expect(state.players.player1.socketId).toBe('new-socket');
     expect(state.players.player1.health).toBe(42);
-    expect(state.players.player1.inventory).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
+    expect(playerInventorySlots(state.players.player1)).toEqual([{ itemId: 'health_potion', quantity: 1 }]);
     expect(findPlayerIdBySocket(state, 'old-socket')).toBeUndefined();
     expect(spatial.queryCircle({ x: 30, z: 30 }, 1)).toContain('player1');
     expect(spatial.queryCircle({ x: -8, z: 4 }, 1)).not.toContain('player1');
@@ -244,10 +246,9 @@ describe('player session relog persistence', () => {
     beforeRelog.unlockedSkills = ['fireball', 'waterSplash'];
     beforeRelog.skillShortcuts = ['fireball', 'waterSplash', ...Array(22).fill(null)];
     beforeRelog.availableSkillPoints = 1;
-    beforeRelog.inventory = [
-      { itemId: 'health_potion', quantity: 2 },
-      { itemId: 'sprite_glow', quantity: 1 },
-    ];
+    addItemsToPlayer(beforeRelog, 'health_potion', 2);
+    addItemsToPlayer(beforeRelog, 'sprite_glow', 1);
+    const expectedInventory = playerInventorySlots(beforeRelog);
 
     const stable = buildStablePlayerPersistenceData(beforeRelog, 123);
     const afterRelog = hydratePersistedPlayer({
@@ -282,7 +283,7 @@ describe('player session relog persistence', () => {
       skillShortcuts: beforeRelog.skillShortcuts,
       availableSkillPoints: beforeRelog.availableSkillPoints,
       starterProgress: stable.starter_progress,
-      inventory: beforeRelog.inventory,
     });
+    expect(playerInventorySlots(afterRelog)).toEqual(expectedInventory);
   });
 });

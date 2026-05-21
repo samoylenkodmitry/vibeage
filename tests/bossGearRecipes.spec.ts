@@ -6,6 +6,7 @@ import { LOOT_TABLES } from '../packages/content/lootTables';
 import { applyCraftRecipe } from '../server/inventory/craftRecipe';
 import { createTransientPlayer } from '../server/playerFactory';
 import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
+import { findInventorySlot, findInventorySlotIndex } from './helpers/inventoryView';
 
 describe('boss gear catalog', () => {
   it('every boss has exactly one gear piece + one recipe', () => {
@@ -50,14 +51,14 @@ describe('applyCraftRecipe', () => {
     expect(addItemsToPlayer(player, 'troll_bone', 4).ok).toBe(true);
     expect(addItemsToPlayer(player, 'orc_fang', 3).ok).toBe(true);
 
-    const recipeSlot = player.inventory.findIndex((s) => s?.itemId === 'recipe_slab_warhammer');
+    const recipeSlot = findInventorySlotIndex(player, 'recipe_slab_warhammer');
     expect(recipeSlot).toBeGreaterThanOrEqual(0);
     const result = applyCraftRecipe(player, recipeSlot);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.outputId).toBe('slab_warhammer');
     }
-    const has = (id: string) => player.inventory.find((s) => s?.itemId === id);
+    const has = (id: string) => findInventorySlot(player, id);
     expect(has('slab_warhammer')).toBeTruthy();
     expect(has('recipe_slab_warhammer')).toBeFalsy();
     expect(has('hammerback_slab_chip')).toBeFalsy();
@@ -71,12 +72,12 @@ describe('applyCraftRecipe', () => {
     addItemsToPlayer(player, 'hammerback_slab_chip', 1);
     addItemsToPlayer(player, 'troll_bone', 4);
     // missing orc_fang × 3
-    const recipeSlot = player.inventory.findIndex((s) => s?.itemId === 'recipe_slab_warhammer');
+    const recipeSlot = findInventorySlotIndex(player, 'recipe_slab_warhammer');
     const result = applyCraftRecipe(player, recipeSlot);
     expect(result.ok).toBe(false);
     if (result.ok === false) expect(result.reason).toBe('missingIngredients');
     // Nothing got consumed (atomicity).
-    const has = (id: string) => player.inventory.find((s) => s?.itemId === id);
+    const has = (id: string) => findInventorySlot(player, id);
     expect(has('recipe_slab_warhammer')).toBeTruthy();
     expect(has('hammerback_slab_chip')).toBeTruthy();
     expect(has('troll_bone')?.quantity).toBe(4);
@@ -85,7 +86,7 @@ describe('applyCraftRecipe', () => {
   it('rejects with notRecipe for a non-recipe slot', () => {
     const player = createTransientPlayer('s3', 't3');
     addItemsToPlayer(player, 'health_potion', 1);
-    const slot = player.inventory.findIndex((s) => s?.itemId === 'health_potion');
+    const slot = findInventorySlotIndex(player, 'health_potion');
     const result = applyCraftRecipe(player, slot);
     expect(result.ok).toBe(false);
     if (result.ok === false) expect(result.reason).toBe('notRecipe');
@@ -102,7 +103,7 @@ describe('applyCraftRecipe', () => {
     expect(addItemsToPlayer(player, 'goblin_ear', 6).ok).toBe(true);
     expect(addItemsToPlayer(player, 'troll_bone', 2).ok).toBe(true);
 
-    const recipeSlot = player.inventory.findIndex((s) => s?.itemId === 'recipe_chieftains_cleaver');
+    const recipeSlot = findInventorySlotIndex(player, 'recipe_chieftains_cleaver');
     expect(recipeSlot).toBeGreaterThanOrEqual(0);
     const result = applyCraftRecipe(player, recipeSlot);
     expect(result.ok).toBe(true);
@@ -110,7 +111,7 @@ describe('applyCraftRecipe', () => {
       expect(result.outputId).toBe('chieftains_cleaver');
       expect(result.recipeId).toBe('recipe_chieftains_cleaver');
     }
-    const has = (id: string) => player.inventory.find((s) => s?.itemId === id);
+    const has = (id: string) => findInventorySlot(player, id);
     expect(has('chieftains_cleaver')).toBeTruthy();
     expect(has('recipe_chieftains_cleaver')).toBeFalsy();
     expect(has('grakk_warband_horn')).toBeFalsy();
@@ -125,11 +126,11 @@ describe('applyCraftRecipe', () => {
     addItemsToPlayer(player, 'goblin_ear', 5);
     addItemsToPlayer(player, 'troll_bone', 2);
 
-    const recipeSlot = player.inventory.findIndex((s) => s?.itemId === 'recipe_chieftains_cleaver');
+    const recipeSlot = findInventorySlotIndex(player, 'recipe_chieftains_cleaver');
     const result = applyCraftRecipe(player, recipeSlot);
     expect(result.ok).toBe(false);
     if (result.ok === false) expect(result.reason).toBe('missingIngredients');
-    const has = (id: string) => player.inventory.find((s) => s?.itemId === id);
+    const has = (id: string) => findInventorySlot(player, id);
     expect(has('recipe_chieftains_cleaver')).toBeTruthy();
     expect(has('grakk_warband_horn')).toBeTruthy();
     expect(has('goblin_ear')?.quantity).toBe(5);

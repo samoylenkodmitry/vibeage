@@ -3,7 +3,7 @@ import type { CharacterInventory } from '../../packages/sim/characterInventory.j
 import { createEmptyInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { addItems, removeItems } from '../../packages/sim/inventoryTransactions.js';
-import { buildInventoryFromSlots, flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
+import { buildInventoryFromSlots } from '../../packages/sim/inventoryWireAdapter.js';
 
 const DEFAULT_LIMITS = { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 };
 
@@ -41,19 +41,6 @@ export function ensureCharacterInventory(player: PlayerState): CharacterInventor
 }
 
 /**
- * §45.7 — `player.inventory` is no longer the source of truth, but
- * it remains as a wire-projection mirror until a proper snapshot
- * boundary lands. Mutators call this after touching the aggregate
- * so legacy readers (tests, the InventoryUpdate wire emitter) see
- * the same shape they always did. New code should read from
- * `player.characterInventory` directly.
- */
-export function syncLegacyInventory(player: PlayerState): void {
-  if (!player.characterInventory) return;
-  player.inventory = flattenInventoryToSlots(player.characterInventory);
-}
-
-/**
  * Push an item into the player's aggregate. Returns the same
  * TransactionResult shape as addItems so callers can branch on
  * success.
@@ -62,6 +49,11 @@ export function syncLegacyInventory(player: PlayerState): void {
  * Every loot table drops it, but it would be noise to carry stacks
  * of coins around. Intercept here and credit the player's `gold`
  * counter directly so a single code path keeps the bag clean.
+ *
+ * §52/PR-queue-#2 — the legacy `player.inventory` mirror is gone.
+ * `flattenInventoryToSlots(ensureCharacterInventory(player))` is
+ * called only at wire-emit time now (`emitInventoryUpdate` +
+ * `emitPlayerUpdated` patches that include inventory).
  */
 export function addItemsToPlayer(player: PlayerState, templateId: string, count: number) {
   if (templateId === 'gold_coin') {
@@ -70,15 +62,11 @@ export function addItemsToPlayer(player: PlayerState, templateId: string, count:
     }
     return { ok: true as const, value: { added: [], changed: [] } };
   }
-  const result = addItems(ensureCharacterInventory(player), { templateId, count }, services());
-  if (result.ok) syncLegacyInventory(player);
-  return result;
+  return addItems(ensureCharacterInventory(player), { templateId, count }, services());
 }
 
 export function removeItemsFromPlayer(player: PlayerState, templateId: string, count: number) {
-  const result = removeItems(ensureCharacterInventory(player), templateId, count, services());
-  if (result.ok) syncLegacyInventory(player);
-  return result;
+  return removeItems(ensureCharacterInventory(player), templateId, count, services());
 }
 
 export function emptyAggregateForPlayer(player: PlayerState): CharacterInventory {
@@ -117,7 +105,6 @@ export function snapshotInventory(player: PlayerState) {
 export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeof snapshotInventory>): void {
   player.characterInventory = snapshot.aggregate;
   player.gold = snapshot.gold;
-  syncLegacyInventory(player);
 }
 
 /**
@@ -134,5 +121,4 @@ export function hydratePersistedCharacterInventory(
   const aggregate = raw as CharacterInventory;
   if (!aggregate.items || !aggregate.equipment || !aggregate.occupancy) return;
   player.characterInventory = aggregate;
-  syncLegacyInventory(player);
 }
