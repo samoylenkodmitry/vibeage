@@ -121,59 +121,68 @@ describe('cast handler resources', () => {
     expect(outboundPublish).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'playerUpdated' }));
   });
 
-  // §4 / §52 — CommandRejected envelope rollout for CastReq.
-  test('CastReq rejection emits the structured CommandRejected envelope alongside legacy CastFail', () => {
+});
+
+// §4 / §52 — sibling describe for the CommandRejected rollout so the
+// parent body stays under the maintainability budget.
+describe('cast handler CommandRejected envelope (§4/§52)', () => {
+  let player: PlayerState;
+  let directSend: ReturnType<typeof vi.fn>;
+  let outboundPublish: ReturnType<typeof vi.fn>;
+  let socket: { id: string };
+  let direct: DirectMessageSink;
+  let outbound: OutboundEventSink;
+  let activeCasts: ActiveCastStore;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-13T00:00:00.000Z'));
+    player = makePlayer();
+    directSend = vi.fn();
+    outboundPublish = vi.fn();
+    socket = { id: 'socket1' };
+    direct = { send: directSend };
+    outbound = { publish: outboundPublish };
+    activeCasts = createActiveCastStore();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('rejection emits the structured CommandRejected envelope alongside legacy CastFail', () => {
     player.unlockedSkills = [];
-    sendFireball({ x: 10, z: 0 });
+    const msg: CastReq = {
+      type: 'CastReq', id: player.id, skillId: 'fireball',
+      clientTs: Date.now(), targetPos: { x: 10, z: 0 },
+    };
+    handleCastReq(socket, player, msg, { direct, outbound }, makeWorld(), activeCasts);
     expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'CommandRejected',
-      commandType: 'CastReq',
-      reason: 'invalid',
+      type: 'CommandRejected', commandType: 'CastReq', reason: 'invalid',
     }));
   });
 
   test('CastFail.clientSeq prefers msg.clientSeq when set; falls back to clientTs otherwise', () => {
-    // Path A: explicit clientSeq → CastFail carries it as ack key.
     player.unlockedSkills = [];
-    const explicitMsg: CastReq = {
-      type: 'CastReq',
-      id: player.id,
-      skillId: 'fireball',
-      clientTs: 100,
-      clientSeq: 77,
-      targetPos: { x: 10, z: 0 },
-    };
-    handleCastReq(socket, player, explicitMsg, { direct, outbound }, makeWorld(), activeCasts);
-    expect(directSend).toHaveBeenCalledWith({
-      type: 'CastFail',
-      clientSeq: 77,
-      reason: 'invalid',
-    });
-    // CommandRejected uses the same clientSeq as `requestId`.
+
+    // Path A: explicit clientSeq → CastFail carries it as ack key.
+    handleCastReq(socket, player, {
+      type: 'CastReq', id: player.id, skillId: 'fireball',
+      clientTs: 100, clientSeq: 77, targetPos: { x: 10, z: 0 },
+    }, { direct, outbound }, makeWorld(), activeCasts);
+    expect(directSend).toHaveBeenCalledWith({ type: 'CastFail', clientSeq: 77, reason: 'invalid' });
     expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'CommandRejected',
-      requestId: 77,
+      type: 'CommandRejected', requestId: 77,
     }));
 
     // Path B: no clientSeq → falls back to clientTs for backward compat.
     directSend.mockClear();
-    const legacyMsg: CastReq = {
-      type: 'CastReq',
-      id: player.id,
-      skillId: 'fireball',
-      clientTs: 200,
-      targetPos: { x: 10, z: 0 },
-    };
-    handleCastReq(socket, player, legacyMsg, { direct, outbound }, makeWorld(), activeCasts);
-    expect(directSend).toHaveBeenCalledWith({
-      type: 'CastFail',
-      clientSeq: 200,
-      reason: 'invalid',
-    });
-    // CommandRejected has no requestId when the client didn't set clientSeq.
-    const rejections = directSend.mock.calls
-      .map((c) => c[0])
-      .filter((m) => m.type === 'CommandRejected');
+    handleCastReq(socket, player, {
+      type: 'CastReq', id: player.id, skillId: 'fireball',
+      clientTs: 200, targetPos: { x: 10, z: 0 },
+    }, { direct, outbound }, makeWorld(), activeCasts);
+    expect(directSend).toHaveBeenCalledWith({ type: 'CastFail', clientSeq: 200, reason: 'invalid' });
+    const rejections = directSend.mock.calls.map((c) => c[0]).filter((m) => m.type === 'CommandRejected');
     expect(rejections).toHaveLength(1);
     expect(rejections[0].requestId).toBeUndefined();
   });
