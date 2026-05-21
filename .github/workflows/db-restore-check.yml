@@ -66,8 +66,19 @@ jobs:
             filename VARCHAR(255) UNIQUE NOT NULL,
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );"
+          # 002_create_base_tables.sql is the bootstrap — it creates
+          # `players`, `server_events`, etc. that 001 (which predates
+          # the rename to ALTER-based migrations) assumes already
+          # exist. Production accumulated state across the rename so
+          # it tolerates the mismatch; a fresh-DB drill has to seed
+          # the base tables first.
+          BOOTSTRAP=scripts/migrations/002_create_base_tables.sql
+          echo "==> Bootstrap: $BOOTSTRAP"
+          psql -v ON_ERROR_STOP=1 -f "$BOOTSTRAP"
+          psql -v ON_ERROR_STOP=1 -c "INSERT INTO migrations (filename) VALUES ('$(basename "$BOOTSTRAP")') ON CONFLICT (filename) DO NOTHING;"
           for file in scripts/migrations/*.sql; do
             name=$(basename "$file")
+            if [ "$file" = "$BOOTSTRAP" ]; then continue; fi
             echo "==> Applying $name"
             psql -v ON_ERROR_STOP=1 -f "$file"
             psql -v ON_ERROR_STOP=1 -c "INSERT INTO migrations (filename) VALUES ('$name') ON CONFLICT (filename) DO NOTHING;"
