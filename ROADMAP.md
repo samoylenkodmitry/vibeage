@@ -3101,11 +3101,11 @@ Character creation
 - [x] Add a clear first prompt: "Talk to Warden Galen." (`WelcomeOverlay` shows on a fresh L1 player with no quest activity — points at Galen + names him. Dismissable via localStorage.)
 - [x] Add a movement hint for desktop. (Same overlay: "Click the ground to walk … Press I/Tab/1-4 for inventory/target/skills".)
 - [x] Add a movement hint for mobile. (WelcomeOverlay swaps to "Tap the ground … Use the on-screen buttons" when `(pointer: coarse) and (hover: none)`. PR #297.)
-- [ ] Add a targeting hint when the first goblin objective appears.
-- [ ] Add a skill-use hint when combat starts.
+- [x] Add a targeting hint when the first goblin objective appears. (`TargetingHint` banner renders when an active kill-objective quest is in the current stage, no target selected, zero defeated enemies. `shouldShowTargetingHint` exported + 6 unit tests. PR #307.)
+- [x] Add a skill-use hint when combat starts. (`SkillUseHint` banner renders the moment a target is selected with zero kills logged; copy names the class starter skill via `getStarterSkillForClass` ("Press 1 to cast Fireball" / "Press 1 to cast Slash"). `pickSkillUseHint` exported + 6 unit tests. PR #308.)
 - [x] Add a loot pickup hint after the first kill. (`LootPickupHint` banner appears when there's ground loot AND zero `lootPickups` recorded AND starter path incomplete. PR #301.)
-- [ ] Add a return-to-NPC hint when the objective is complete.
-- [ ] Ensure tutorial hints are dismissible.
+- [x] Add a return-to-NPC hint when the objective is complete. (`ReturnToNpcHint` banner renders when an active quest enters a `talk` stage with progress < 1; names the target NPC and auto-dismisses on talk progress. `pickReturnNpc` exported + 5 unit tests. PR #309.)
+- [x] Ensure tutorial hints are dismissible. (Each of the four onboarding banners now sports a × button; dismissal is sticky via `localStorage` under `vibeage.hint.<key>.dismissed.v1` and propagates cross-tab via storage events. Shared `useDismissibleHint` hook. PR #310.)
 - [ ] Ensure tutorial hints do not block core HUD on mobile.
 
 ## Quest Flow Polish
