@@ -516,7 +516,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add taunt behavior that changes enemy target priority for the duration.
 - [x] Add knockback behavior with server-owned position changes and collision/bounds validation. (PR §45 — `applyKnockback` in `server/combat/impactResolver.ts:492-540`; pushes target along caster→target vector, sets `dirtySnap`. Tests at `tests/knockback.spec.ts`. Bounds validation is the world-edge clamp inherited from `advanceEnemyPosition` / movement pipeline.)
 - [x] Add invisibility behavior that breaks or suppresses aggro according to product rules.
-- [ ] Add dispel behavior with configurable categories: negative, positive, magic, poison, bleed, stun, shield.
+- [x] Add dispel behavior with configurable categories: negative, positive, magic, poison, bleed, stun, shield. (PR #349 — `SkillEffect.dispelCategory` field, default 'negative' preserves pre-§52 behavior. `negative` / `positive` / `poison` / `stun` / `shield` live; `bleed` / `magic` reserved as empty sets for future content tags. Target sets in `server/combat/statusQueries#dispelTargetSet`.)
 - [x] Add buff stacking policy: replace, stack, refresh, or reject. (PR #257 — `packages/content/effects.ts` declares `stacking` per `EFFECT_SPECS` entry; `impactResolver.upsertStatusEffect` reads `getStackingPolicy(type)`.)
 - [x] Add debuff stacking policy: replace, stack, refresh, or reject. (PR #257 — same registry; DoTs `dot`/`burn`/`poison` use `stack`, CC like `stun`/`slow`/`taunt` use `refresh`.)
 - [x] Add maximum stack validation per effect type. (PR #257 — `getMaxStacks(type)` reads `EFFECT_SPECS[type].maxStacks` (defaults to 1); `reconcileExisting` caps `stacks` at the declared max.)
@@ -2423,9 +2423,10 @@ The "real backlog" after the audit. Ordered by impact × cost.
    slice.
 7. **§9 — respec / class-change policy.** Today picking a spec is
    permanent; product hasn't decided respec cost / cooldown yet.
-8. **§8:519 — dispel with categories.** Dispel exists but strips
-   the same fixed set; category-aware dispel (negative / positive
-   / magic / poison / bleed / stun / shield) is open.
+8. **§8:519 — dispel with categories.** ✅ Shipped (#349).
+   `SkillEffect.dispelCategory` (default 'negative') picks the
+   target family. Categories live: negative / positive / poison /
+   stun / shield; bleed / magic reserved.
 9. **§6 — protocol shape for `inventoryUpdateMsg`.** Today it
    ships the flat-slot projection; carried as the last step of
    the §45 inventory migration. Aggregate-shaped wire DTO is open.
@@ -2766,10 +2767,13 @@ this list.
    tracking.** Today bosses reuse the regular leash;
    product wants tighter constraints. Has not started.
 
-10. **§8 — dispel with categories.** Dispel exists but
-    strips the same fixed set; category-aware dispel
-    (negative / positive / magic / poison / bleed / stun
-    / shield) is open.
+10. **§8 — dispel with categories.** ✅ Shipped (#349).
+    `SkillEffect.dispelCategory` gates which family the
+    purge strips; default 'negative' preserves pre-§52
+    behavior. Categories: negative / positive / poison /
+    stun / shield (live); bleed / magic (reserved empty
+    sets for future content tags). Target sets live in
+    `server/combat/statusQueries#dispelTargetSet`.
 
 11. **§6 — protocol shape for `inventoryUpdateMsg`.** Today
     ships the flat-slot projection; aggregate-shaped wire
@@ -2969,9 +2973,12 @@ queue until they agree with §51 + this section.
 - [ ] Rework combat outcome resolution into one traceable pipeline for
   damage, crit, evasion/miss, shield absorption, healing, buffs,
   debuffs, death, and combat-log events.
-- [ ] Rework dispel/status categories so the registry can say exactly
+- [x] Rework dispel/status categories so the registry can say exactly
   what a skill removes: negative, positive, magic, poison, bleed, stun,
-  shield, or future categories.
+  shield, or future categories. (PR #349 — `SkillEffect.dispelCategory`
+  picks the target family; default 'negative' preserves pre-§52 behavior.
+  negative / positive / poison / stun / shield live; bleed / magic
+  reserved as empty target sets.)
 - [ ] Rework stale historical roadmap sections by either ticking shipped
   lines during nearby PRs or adding a clear "historical/deferred" label.
   Avoid using the old PR-sequence block as an active queue.
