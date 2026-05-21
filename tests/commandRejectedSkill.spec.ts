@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { onLearnSkill } from '../server/players/playerSkills';
 import { applySkillUpgrade } from '../server/players/playerIdentity';
+import { handleClientMessage } from '../server/world/clientMessageRouter';
 import { createTransientPlayer } from '../server/playerFactory';
 import { createGameState } from '../server/gameState';
 import { upsertActivePlayerSession } from '../server/players/playerSession';
@@ -75,6 +76,42 @@ describe('CommandRejected — LearnSkill (§4 / §52)', () => {
     const rejected = all.find((m) => m.type === 'CommandRejected');
     expect(rejected, 'new CommandRejected envelope emitted').toBeDefined();
     if (rejected?.type === 'CommandRejected') expect(rejected.requestId).toBeUndefined();
+  });
+});
+
+describe('CommandRejected — ChatRequest (§4 / §52)', () => {
+  function setupRouterPlayer() {
+    const state = createGameState();
+    const player = createTransientPlayer('s-chat', 'chatter');
+    upsertActivePlayerSession(state, new SpatialHashGrid(), player);
+    return { state, player };
+  }
+
+  it('emits CommandRejected when the trimmed text is empty', () => {
+    const { state, player } = setupRouterPlayer();
+    const sent: ServerMessage[] = [];
+    const socket = {
+      id: player.socketId!,
+      emit: (_event: string, msg: ServerMessage) => { sent.push(msg); },
+    };
+    // Route through handleClientMessage so the direct sink is the
+    // socket-backed one production code uses.
+    handleClientMessage(
+      socket,
+      state,
+      // Schema-min length is 1, so whitespace-only passes the gate
+      // but fails the runtime trim check inside the handler.
+      { type: 'ChatRequest', text: '   ', scope: 'near', clientTs: 1, clientSeq: 99 },
+      { publish: () => undefined },
+      new SpatialHashGrid(),
+    );
+    const rejection = sent.find((m) => m.type === 'CommandRejected');
+    expect(rejection, 'expected CommandRejected on empty chat').toBeDefined();
+    if (rejection?.type === 'CommandRejected') {
+      expect(rejection.commandType).toBe('ChatRequest');
+      expect(rejection.reason).toBe('emptyText');
+      expect(rejection.requestId).toBe(99);
+    }
   });
 });
 
