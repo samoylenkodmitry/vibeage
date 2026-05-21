@@ -1,5 +1,5 @@
 /**
- * PR NN — Stat unification: every input to a player's stats is a
+ * §45.3 — Stat unification: every input to a player's stats is a
  * Contribution. Race base attributes, level growth, class passives,
  * equipment, status effects (buffs/debuffs), and specialization
  * passives are all built into one list. `computeAllStats` walks it
@@ -563,7 +563,7 @@ function pushItemStatBlock(out: Contribution[], source: string, label: string, s
     if (!statId) continue;
     out.push({ source, label, stat: statId, op: 'addPost', value: v });
   }
-  // PR NN — equipment-to-dmgMult contribution (mirrors the old
+  // §45.3 — equipment-to-dmgMult contribution (mirrors the old
   // `equipmentDmg = (mAtk|pAtk) * 0.01` line). Melee classes scale
   // dmgMult by pAtk, magic classes by mAtk.
   const primaryAtk = isMagic ? stats.mAtk : stats.pAtk;

@@ -207,7 +207,7 @@ export function applySpecializationChange(
   // would let the player swap to the sibling spec by re-clicking.
   if (player.specializationId) return false;
   player.specializationId = spec.id;
-  // PR NN — spec passives flow through pushSpecializationContributions
+  // §45.3 — spec passives flow through pushSpecializationContributions
   // in packages/sim/statContributions.ts. The placeholder spec
   // contribution is enough to surface the choice in the breakdown
   // popup; numeric tuning is content-only.

@@ -2802,10 +2802,9 @@ turned up only one half-claim worth touching:
   per item #6 above. Either split the bullet or leave the
   marker honest.
 
-Two production source files (`server/players/playerSession.ts`
-line 156 + 198) reference "PR NN" placeholders left over from
-the stat-restoration refactor. Doc-only; backfill when
-convenient.
+"PR NN" placeholder comments left over from the §45.3
+stat-restoration refactor have been swept to "§45.3" across all
+production source files (7 files) + 1 test. ✅ Done.
 
 ### Code quality at this snapshot
 

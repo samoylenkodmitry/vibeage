@@ -153,7 +153,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
       z: numberOrFallback(row.position_z, 0),
     },
     rotation: { x: 0, y: 0, z: 0 },
-    // PR NN — vitals seeded with placeholders; recomputePlayerStats
+    // §45.3 — vitals seeded with placeholders; `recomputePlayerStats`
     // below derives the real maxes from contributions, then we clamp
     // the persisted current health/mana into the new range.
     health: numberOrFallback(row.health, 1),
@@ -195,7 +195,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   if (player.level === 1 && isBagEmpty(player.characterInventory)) {
     applyStarterLoadout(player);
   }
-  // PR NN — single stat-compute entrypoint. Builds the contributions
+  // §45.3 — single stat-compute entrypoint. Builds the contributions
   // list from the now-restored race / class / level / equipment and
   // writes player.stats / max{Health,Mana}.
   recomputePlayerStats(player);

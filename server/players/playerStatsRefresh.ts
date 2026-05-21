@@ -8,7 +8,7 @@ import {
 import { DEFAULT_RACE } from '../../packages/content/races.js';
 
 /**
- * PR NN — single engine entrypoint that recomputes player stats from
+ * §45.3 — single engine entrypoint that recomputes player stats from
  * the Contribution registry. Replaces the old
  * `refreshPlayerStatsFromEquipment` + `derivePlayerStats` +
  * `projectPlayerStats` triple. Call sites:
