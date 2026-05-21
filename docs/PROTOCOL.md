@@ -193,7 +193,7 @@ type CastSnapshot = {
 | `LootPickup` | Region-scoped public | Visible pickup event. |
 | `SkillLearned` | Owner-only/direct | Skill unlock confirmation. |
 | `SkillShortcutUpdated` | Owner-only/direct | Skill bar update confirmation. |
-| `CastFail` | Owner-only/direct | Rejected cast reason. |
+| `CommandRejected` | Owner-only/direct | Rejection envelope for every command (cast / equip / learn / quest / vendor / craft / item-use / chat / GM). Carries `commandType`, `reason`, optional `requestId` (echo of `clientSeq`), and optional `targetId` (per-subject id, e.g. skill / item / vendor). Replaces the retired `CastFail` / `EquipFailed` / `LearnSkillFailed` payloads. |
 | `InventoryUpdate` | Owner-only/direct | Full owner inventory. |
 | `LootAcquired` | Owner-only/direct | Inventory award details. |
 | `ItemUsed` | Owner-only/direct | Consumable result. |
