@@ -72,6 +72,69 @@ function castFailCopy(reason: string): string {
   }
 }
 
+/**
+ * §52 polish — surface CommandRejecteds from inventory / vendor /
+ * craft / item-use / drop / destroy / GM commands in the combat
+ * log. Pre-§52 these silently dropped on the client, so a vendor
+ * "not enough gold" or a craft "missing reagents" looked like the
+ * button was broken. Each commandType + reason pair gets friendly
+ * copy via `inventoryActionFailCopy`; unknown pairs fall through
+ * to the raw text so future server reasons still surface.
+ */
+export const INVENTORY_VERB_COMMANDS: ReadonlySet<string> = new Set([
+  'BuyFromVendor', 'SellToVendor',
+  'UseItem', 'DropItem', 'DestroyItem', 'CraftItem',
+]);
+
+export function applyInventoryRejectedVisualState(
+  state: GameClientState,
+  message: ServerMessage & { type: 'CommandRejected' },
+  now: number,
+): GameClientState {
+  return addCombatLine(state, {
+    id: makeCombatLineId(`invreject-${message.commandType}-${message.reason}-${message.requestId ?? 'n'}`, state.combatLog.length, now),
+    text: inventoryActionFailCopy(message.commandType, message.reason),
+  });
+}
+
+function inventoryActionFailCopy(commandType: string, reason: string): string {
+  if (commandType === 'BuyFromVendor') {
+    if (reason === 'notEnoughGold') return "You don't have enough gold for that.";
+    if (reason === 'outOfStock') return 'The vendor is out of that item.';
+    if (reason === 'inventoryFull') return 'Your bag is full.';
+    if (reason === 'tooFarFromVendor') return 'You need to be closer to the vendor.';
+    return `Vendor rejected: ${reason}`;
+  }
+  if (commandType === 'SellToVendor') {
+    if (reason === 'itemNotFound') return "You don't have that item to sell.";
+    if (reason === 'notSellable') return "The vendor won't take that.";
+    if (reason === 'tooFarFromVendor') return 'You need to be closer to the vendor.';
+    return `Vendor rejected: ${reason}`;
+  }
+  if (commandType === 'CraftItem') {
+    if (reason === 'missingReagents') return 'Missing reagents for that recipe.';
+    if (reason === 'inventoryFull') return 'Your bag is too full to craft.';
+    if (reason === 'unknownRecipe') return "You don't know that recipe.";
+    return `Craft failed: ${reason}`;
+  }
+  if (commandType === 'UseItem') {
+    if (reason === 'itemNotFound') return "That item isn't in your bag anymore.";
+    if (reason === 'onCooldown') return 'That item is on cooldown.';
+    if (reason === 'notUsable') return "That item can't be used directly.";
+    return `Use failed: ${reason}`;
+  }
+  if (commandType === 'DropItem') {
+    if (reason === 'itemNotFound') return "That item isn't in your bag.";
+    if (reason === 'invalidCount') return 'Invalid drop amount.';
+    return `Drop failed: ${reason}`;
+  }
+  if (commandType === 'DestroyItem') {
+    if (reason === 'itemNotFound') return "That item isn't in your bag.";
+    return `Destroy failed: ${reason}`;
+  }
+  return `${commandType} failed: ${reason}`;
+}
+
 export function applyEnemyAttackVisualState(
   state: GameClientState,
   message: ServerMessage & { type: 'EnemyAttack' },
