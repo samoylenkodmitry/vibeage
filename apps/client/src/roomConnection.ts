@@ -174,10 +174,10 @@ function bindRoom(
     dispatch({ type: 'playerLeft', playerId });
   });
   room.onMessage(SESSION_EVENTS.playerUpdated, (player: Partial<PlayerEntity> & { id: string }) => {
-    dispatch({ type: 'playerUpdated', player });
+    dispatch({ type: 'playerUpdated', player, now: Date.now() });
   });
   room.onMessage(SESSION_EVENTS.enemyUpdated, (enemy: Partial<EnemyEntity> & { id: string }) => {
-    dispatch({ type: 'enemyUpdated', enemy });
+    dispatch({ type: 'enemyUpdated', enemy, now: Date.now() });
   });
   room.onMessage(SESSION_EVENTS.message, (payload: unknown) => processServerPayload(payload, dispatch));
   room.onStateChange((payload: unknown) => {

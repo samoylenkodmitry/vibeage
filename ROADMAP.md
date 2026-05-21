@@ -3140,7 +3140,7 @@ Character creation
 - [x] Show reward summary after claiming a quest. (`applyClaimQuestReward` emits a system `ChatBroadcast` "✓ Quest Name — 120 XP, 25g, 2× Health Potion" using the same `formatRewardSummary` helper as the pre-accept preview. Rendered in the existing chat/combat-log panel.)
 - [x] Add clear error feedback when player is too far from an NPC. (System ChatBroadcast to caller — "You're too far from <NPC name> to accept this." PR #298.)
 - [x] Add clear error feedback when player is too low level for a quest. (Same channel — "You need level N to accept …" PR #298.)
-- [ ] Add regression tests for accept, progress, advance, claim, cancel, and too-far rejection.
+- [x] Add regression tests for accept, progress, advance, claim, cancel, and too-far rejection. (`tests/playerQuests.spec.ts` — end-to-end "rats_in_the_cellar" arc covers accept → 3-kill progress → advance → talk → claim; sibling tests cover too-far rejection, level-too-low rejection, cancel-removes-from-active, advance-noop-before-objective-met, kill-hook-ignores-wrong-enemy. Boss-hunt covered separately under "boss-hunt quest objective".)
 
 ## First Combat Loop
 
@@ -3150,7 +3150,7 @@ Character creation
 - [ ] Ensure ranger target range and projectile behavior feel reliable.
 - [ ] Ensure rogue melee range is readable.
 - [x] Ensure basic attack is always available and clearly visible. (Dedicated `.skill-bar-anchor` row above the bound skill grid renders a red-bordered basic-attack button regardless of shortcuts or panel state. PR #300.)
-- [~] Add combat log lines that explain hits, misses, heals, and deaths in simple terms. (Hits + crits done — CombatLog gained an optional `crits: boolean[]`; client formatter appends "(crit!)". PR #303. Misses/heals/deaths still pending — need additional protocol surfaces.)
+- [~] Add combat log lines that explain hits, misses, heals, and deaths in simple terms. (Hits + crits in PR #303; deaths in PR #314 — client detects `isAlive` true→false transitions on enemies and players and prepends "X has fallen." / "X was defeated." to the combat log. Misses + heals still pending — they need additional server surfaces, since today every hit lands and there is no Heal protocol message.)
 - [x] Add class-specific first-kill smoke tests. (Same file — one test per class via `it.each`-style loop over `CLASS_SKILL_TREES`.)
 - [~] Add a balance test for expected time-to-kill for starter goblins. (Soft check now: 40-round cap. Hard time-to-kill SLO lands with M4 balance report.)
 
@@ -3165,7 +3165,7 @@ Character creation
 - [ ] Add a reasonable cooldown so players see the mechanic but are not spammed.
 - [ ] Make Grakk harder than a normal goblin but soloable for level-appropriate players.
 - [ ] Ensure Grakk drops or rewards a trophy path that leads to gear/crafting.
-- [ ] Add a test that killing Grakk progresses the bounty quest only when `bossId` matches.
+- [x] Add a test that killing Grakk progresses the bounty quest only when `bossId` matches. (`tests/playerQuests.spec.ts` — "kill_boss ticks only when bossId matches" covers: goblin kill no-ops, wrong-bossId no-ops, correct bossId increments to 1, repeat-kill is idempotent at 1.)
 - [ ] Add a test that Grakk’s signature ability respects player position and damage rules.
 
 ## First Gear Reward
@@ -3176,8 +3176,8 @@ Character creation
 - [ ] Ensure the first craftable/equippable item has obvious stat improvement.
 - [ ] Ensure equipping the item visibly changes paperdoll or avatar overlay.
 - [x] Show stat delta when equipping an item. (Item tooltip in the bag now appends green/red `(+N)` / `(-N)` after each stat, comparing to whatever's currently equipped in the same EquipSlot. `resolveCompareStats` + `computeDelta` exported + tested.)
-- [ ] Add an equip success message.
-- [ ] Add an equip rejection message for level/slot/hand conflicts.
+- [x] Add an equip success message. (`applyEquipmentChangeFeedback` diffs incoming `EquipmentUpdate` against the prior slot map and prepends "Equipped <Item>" to the combat log for each newly filled slot. Skips the initial first-spawn payload to avoid a flood. PR #306; `tests/equipFeedback.spec.ts`.)
+- [x] Add an equip rejection message for level/slot/hand conflicts. (`applyEquipFailedVisualState` maps each known `EquipFailed.reason` to friendly copy — "you need a higher level for this item", "another item is in the way", "your hands are full" — and falls back to the raw reason otherwise. PR #306; `tests/equipFeedback.spec.ts`.)
 - [ ] Add a test that the first boss gear recipe consumes correct inputs and outputs correct item.
 
 ## Next-Step Choice

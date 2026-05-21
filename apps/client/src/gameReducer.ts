@@ -21,12 +21,14 @@ import {
   applyCastSnapshotVisualState,
   applyCombatLogVisualState,
   applyEnemyAttackVisualState,
+  applyEnemyDeathFeedback,
   applyEquipFailedVisualState,
   applyEquipmentChangeFeedback,
   applyInstantHitVisualState,
   applyItemUsedVisualState,
   applyLootAcquiredVisualState,
   applyOtherPlayerLootPickupVisualState,
+  applyPlayerDeathFeedback,
   pruneClientVisualState,
 } from './clientVisualState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
@@ -69,8 +71,8 @@ export type GameClientAction =
   | { type: 'worldPublicState'; state: WorldPublicState }
   | { type: 'playerJoined'; player: PlayerEntity }
   | { type: 'playerLeft'; playerId: string }
-  | { type: 'playerUpdated'; player: Partial<PlayerEntity> & { id: string } }
-  | { type: 'enemyUpdated'; enemy: Partial<EnemyEntity> & { id: string } }
+  | { type: 'playerUpdated'; player: Partial<PlayerEntity> & { id: string }; now: number }
+  | { type: 'enemyUpdated'; enemy: Partial<EnemyEntity> & { id: string }; now: number }
   | { type: 'selectTarget'; targetId: string | null }
   | { type: 'setMoveTarget'; target: Vec3 | null }
   | { type: 'serverMessage'; message: ServerMessage; now: number }
@@ -106,9 +108,9 @@ export function gameClientReducer(
     case 'playerLeft':
       return removePlayer(state, action.playerId);
     case 'playerUpdated':
-      return updatePlayer(state, action.player);
+      return updatePlayer(state, action.player, action.now);
     case 'enemyUpdated':
-      return updateEnemy(state, action.enemy);
+      return updateEnemy(state, action.enemy, action.now);
     case 'selectTarget':
       return selectTarget(state, action.targetId);
     case 'setMoveTarget':
@@ -141,6 +143,7 @@ function removePlayer(state: GameClientState, playerId: string): GameClientState
 function updatePlayer(
   state: GameClientState,
   update: Partial<PlayerEntity> & { id: string },
+  now: number,
 ): GameClientState {
   const current = state.players[update.id];
   if (!current) {
@@ -157,10 +160,11 @@ function updatePlayer(
   const starterProgress = update.id === state.myPlayerId
     ? normalizeClientStarterProgress(player.starterProgress ?? state.starterProgress, player)
     : state.starterProgress;
+  const withDeathLog = applyPlayerDeathFeedback(state, update.id, current.name, current.isAlive, player.isAlive, now);
 
   return {
-    ...state,
-    players: { ...state.players, [update.id]: player },
+    ...withDeathLog,
+    players: { ...withDeathLog.players, [update.id]: player },
     inventory,
     starterProgress,
   };
@@ -169,6 +173,7 @@ function updatePlayer(
 function updateEnemy(
   state: GameClientState,
   update: Partial<EnemyEntity> & { id: string },
+  now: number,
 ): GameClientState {
   const current = state.enemies[update.id];
   if (!current) {
@@ -182,8 +187,9 @@ function updateEnemy(
     rotation: mergeVec3(current.rotation, update.rotation),
   };
   const selectedTargetId = enemy.isAlive ? state.selectedTargetId : clearDeadTarget(state, update.id);
+  const withDeathLog = applyEnemyDeathFeedback(state, update.id, current.name, current.isAlive, enemy.isAlive, now);
 
-  return { ...state, enemies: { ...state.enemies, [update.id]: enemy }, selectedTargetId };
+  return { ...withDeathLog, enemies: { ...withDeathLog.enemies, [update.id]: enemy }, selectedTargetId };
 }
 
 function selectTarget(state: GameClientState, targetId: string | null): GameClientState {
@@ -219,7 +225,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'PosSnap') {
-    return applyPositionSnapshot(state, message);
+    return applyPositionSnapshot(state, message, now);
   }
 
   if (message.type === 'CastSnapshot') {
@@ -281,7 +287,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'EffectSnapshot' && 'targetId' in message) {
-    return applyEffectSnapshot(state, message.targetId, message.effects);
+    return applyEffectSnapshot(state, message.targetId, message.effects, now);
   }
 
   if (message.type === 'SkillShortcutUpdated') {
@@ -376,7 +382,7 @@ function applySkillLearned(
   return rejections === state.learnSkillRejections ? next : { ...next, learnSkillRejections: rejections };
 }
 
-function applyPositionSnapshot(state: GameClientState, message: ServerMessage & { type: 'PosSnap' }) {
+function applyPositionSnapshot(state: GameClientState, message: ServerMessage & { type: 'PosSnap' }, now: number) {
   const asPosition = { x: message.pos.x, z: message.pos.z };
   if (state.players[message.id]) {
     return updatePlayer(state, {
@@ -384,7 +390,7 @@ function applyPositionSnapshot(state: GameClientState, message: ServerMessage & 
       position: { ...state.players[message.id].position, ...asPosition },
       rotation: { ...state.players[message.id].rotation, y: message.rotY ?? 0 },
       velocity: message.vel,
-    });
+    }, now);
   }
 
   if (state.enemies[message.id]) {
@@ -393,7 +399,7 @@ function applyPositionSnapshot(state: GameClientState, message: ServerMessage & 
       position: { ...state.enemies[message.id].position, ...asPosition },
       rotation: { ...state.enemies[message.id].rotation, y: message.rotY ?? 0 },
       velocity: message.vel,
-    });
+    }, now);
   }
 
   return state;
@@ -462,13 +468,14 @@ function applyEffectSnapshot(
   state: GameClientState,
   targetId: string,
   statusEffects: PlayerEntity['statusEffects'],
+  now: number,
 ): GameClientState {
   if (state.players[targetId]) {
-    return updatePlayer(state, { id: targetId, statusEffects });
+    return updatePlayer(state, { id: targetId, statusEffects }, now);
   }
 
   if (state.enemies[targetId]) {
-    return updateEnemy(state, { id: targetId, statusEffects });
+    return updateEnemy(state, { id: targetId, statusEffects }, now);
   }
 
   return state;
