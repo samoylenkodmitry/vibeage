@@ -10,6 +10,9 @@ import {
 } from '../transport/outboundEvents.js';
 import { addItemsToPlayer, ensureCharacterInventory } from '../inventory/aggregateBridge.js';
 import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter.js';
+import { createPlayerDroppedLootStack } from '../loot/lootRuntime.js';
+import type { GameState } from '../gameState.js';
+import type { ItemDrop } from '../../packages/protocol/messages.js';
 
 function ensureQuestState(player: PlayerState): PlayerQuestState {
   if (!player.questState) {
@@ -132,13 +135,21 @@ export function applyAdvanceQuest(
 
 /**
  * Hand in: only valid if readyToClaim. Grants reward.xp / gold /
- * items (items added to inventory; if bag is full they're dropped
- * — TODO follow-up). Moves quest to completed.
+ * items (items added to inventory; on bag-full, overflow drops at
+ * the player's feet as a player-owned ground stack via the
+ * existing loot pipeline — §52/PR-queue-#4). Moves quest to
+ * completed.
+ *
+ * `gameState` is optional: callers from `onQuestVerb` pass it so
+ * overflow can spawn ground loot; legacy unit tests that don't
+ * exercise the overflow path can call without it (overflow then
+ * fails silently the same way `addItemsToPlayer` did before).
  */
 export function applyClaimQuestReward(
   player: PlayerState,
   questId: QuestId,
   outbound: OutboundEventSink,
+  gameState?: GameState,
 ): boolean {
   const quest = QUESTS[questId];
   if (!quest) return false;
@@ -150,14 +161,35 @@ export function applyClaimQuestReward(
   if (quest.reward.gold) {
     player.gold = (player.gold ?? 0) + quest.reward.gold;
   }
+  const overflow: ItemDrop[] = [];
   if (quest.reward.items && quest.reward.items.length > 0) {
     for (const grant of quest.reward.items) {
-      addItemsToPlayer(player, grant.itemId, grant.quantity ?? 1);
+      const result = addItemsToPlayer(player, grant.itemId, grant.quantity ?? 1);
+      if (result.ok === false) {
+        overflow.push({ itemId: grant.itemId, quantity: grant.quantity ?? 1 });
+      }
+    }
+  }
+  let overflowSpawn = false;
+  if (overflow.length > 0 && gameState) {
+    const spawn = createPlayerDroppedLootStack(gameState, player, overflow);
+    if (spawn) {
+      overflowSpawn = true;
+      // Reuse the existing LootSpawn wire message so the client
+      // renders the pile via the same ground-loot path as enemy
+      // drops + the existing DropItem flow.
+      emitServerMessage(outbound, {
+        type: 'LootSpawn',
+        enemyId: spawn.enemyId,
+        lootId: spawn.lootId,
+        position: spawn.stack.position,
+        loot: spawn.loot,
+      });
     }
   }
   delete state.active[questId];
   if (!state.completed.includes(questId)) state.completed.push(questId);
-  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} claimed quest ${questId}`);
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} claimed quest ${questId}${overflowSpawn ? ' (overflow dropped at feet)' : ''}`);
   emitPlayerUpdated(outbound, {
     id: player.id,
     experience: player.experience,
@@ -171,11 +203,12 @@ export function applyClaimQuestReward(
   // marks it as a server-issued line. Empty reward bags skip.
   const summary = formatRewardSummary(quest.reward);
   if (summary) {
+    const overflowSuffix = overflowSpawn ? ' (bag full — overflow dropped at your feet)' : '';
     emitServerMessage(outbound, {
       type: 'ChatBroadcast',
       fromId: 'system',
       fromName: 'Quest',
-      text: `✓ ${quest.name} — ${summary}`,
+      text: `✓ ${quest.name} — ${summary}${overflowSuffix}`,
       scope: 'all',
       ts: Date.now(),
     });

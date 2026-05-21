@@ -113,7 +113,7 @@ export function handleClientMessage(
     case 'AdvanceQuest':
       return onQuestVerb(socket, state, msg, outbound, applyAdvanceQuest);
     case 'ClaimQuestReward':
-      return onQuestVerb(socket, state, msg, outbound, applyClaimQuestReward);
+      return onClaimQuestReward(socket, state, msg, outbound);
     case 'BuyFromVendor':
       return onBuyFromVendor(socket, direct, state, msg, outbound);
     case 'SellToVendor':
@@ -241,6 +241,22 @@ function onQuestVerb(
   const player = state.players[playerId];
   if (!player) return;
   apply(player, msg.questId, outbound);
+}
+
+// §52/PR-queue-#4 — ClaimQuestReward forwards GameState to the
+// applier so reward items that overflow the bag get spawned as
+// a player-owned ground stack instead of being silently lost.
+function onClaimQuestReward(
+  socket: WorldClient,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'ClaimQuestReward' }>,
+  outbound: OutboundEventSink,
+): void {
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  if (!player) return;
+  applyClaimQuestReward(player, msg.questId, outbound, state);
 }
 
 function onSelectSpecialization(
