@@ -3194,7 +3194,7 @@ Character creation
 - [ ] A fresh player can complete the first quest without external instructions.
 - [ ] A fresh player can find and fight Grakk without external instructions.
 - [ ] A fresh player gets at least one satisfying reward within 30 minutes.
-- [ ] Every starter class can complete the flow.
+- [x] Every starter class can complete the flow. (Coverage trio: `tests/starterBalance.spec.ts` proves every class can kill an L1 goblin within 40 cast cycles via class-specific damage paths; `tests/starterManaEconomy.spec.ts` simulates 3 back-to-back goblin kills per class on the L1 mana pool, falling back to basicAttack on OOM, and every class lands all 3; `tests/playerQuests.spec.ts` runs the rats_in_the_cellar arc end-to-end — accept → 3-kill progress → advance → talk → claim — class-agnostically. Together they cover damage, sustainability, and quest pipeline for every class.)
 - [ ] Mobile player can complete the flow in browser.
 - [ ] The flow is covered by unit/integration tests and at least one Playwright smoke test.
 
