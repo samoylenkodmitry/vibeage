@@ -1,0 +1,95 @@
+name: DB restore check
+
+# §52 #6 — scheduled backup/restore drill. Spins a fresh Postgres,
+# applies every migration in scripts/migrations/, dumps the result
+# with pg_dump --format=custom (same shape ops uses for production
+# backups), restores it into a SECOND fresh Postgres, then runs the
+# existing scripts/check-restored-postgres-compatibility.sql against
+# the restored copy. Failures mean either a migration is non-
+# replayable or the compatibility SQL caught a drift.
+#
+# Schedule: weekly Sundays 03:17 UTC so cron-fatigue dashboards
+# don't pin it next to every other workflow. workflow_dispatch lets
+# the on-call run it manually after a risky schema change.
+
+on:
+  schedule:
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-restore-check
+  cancel-in-progress: true
+
+jobs:
+  drill:
+    name: pg_dump → pg_restore → compatibility SQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: drill
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install psql client + pg_dump
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Apply every migration in scripts/migrations/
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: drill
+          PGDATABASE: postgres
+        run: |
+          set -Eeuo pipefail
+          psql -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS migrations (
+            id SERIAL PRIMARY KEY,
+            filename VARCHAR(255) UNIQUE NOT NULL,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );"
+          for file in scripts/migrations/*.sql; do
+            name=$(basename "$file")
+            echo "==> Applying $name"
+            psql -v ON_ERROR_STOP=1 -f "$file"
+            psql -v ON_ERROR_STOP=1 -c "INSERT INTO migrations (filename) VALUES ('$name') ON CONFLICT (filename) DO NOTHING;"
+          done
+
+      - name: pg_dump the migrated schema (custom format, same as production backups)
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: drill
+          PGDATABASE: postgres
+        run: |
+          set -Eeuo pipefail
+          mkdir -p /tmp/backup
+          pg_dump --format=custom --file=/tmp/backup/drill.dump postgres
+          ls -lh /tmp/backup/drill.dump
+
+      - name: Restore the dump into a fresh container + run compatibility SQL
+        env:
+          # `test-postgres-restore.sh` spawns its own container, so we
+          # point it at the dump and let it manage isolation.
+          BACKUP_FILE: /tmp/backup/drill.dump
+          APP_NAME: vibeage
+        run: bash scripts/test-postgres-restore.sh
