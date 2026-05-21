@@ -7,6 +7,8 @@
  * us bump if the shape ever changes. Wrapped in try/catch because
  * private-browsing modes throw on `setItem`.
  */
+import { useEffect } from 'react';
+
 const STORAGE_KEY = 'vibeage.trackedQuest.v1';
 
 export function loadTrackedQuestId(): string | null {
@@ -27,4 +29,16 @@ export function saveTrackedQuestId(questId: string | null): void {
   } catch {
     /* private-browsing or quota — best-effort */
   }
+}
+
+/**
+ * Rehydrate the tracked-quest selection once at mount via the
+ * supplied dispatcher. Extracted so App.tsx stays under the
+ * maintainability per-function line budget.
+ */
+export function useRehydrateTrackedQuest(setTrackedQuest: (id: string | null) => void): void {
+  useEffect(() => {
+    const stored = loadTrackedQuestId();
+    if (stored) setTrackedQuest(stored);
+  }, [setTrackedQuest]);
 }
