@@ -250,17 +250,7 @@ function applyServerMessage(
     return applyCombatLogVisualState(state, message, now);
   }
 
-  if (message.type === 'CommandRejected') {
-    if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
-    if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipFailedFromCommandRejected(state, message, now);
-    if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
-    if (INVENTORY_VERB_COMMANDS.has(message.commandType)) return applyInventoryRejectedVisualState(state, message, now);
-    // §52 #1 — LearnSkillFailed retired; the panel rejection state now
-    // reads CommandRejected{commandType:'LearnSkill', targetId:<skillId>}.
-    if (message.commandType === 'LearnSkill' && message.targetId) {
-      return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.targetId]: message.reason } };
-    }
-  }
+  if (message.type === 'CommandRejected') return routeCommandRejected(state, message, now);
 
   if (message.type === 'EnemyAttack') {
     return applyEnemyAttackVisualState(state, message, now);
@@ -319,6 +309,28 @@ function applyServerMessage(
     return appendChatLine(state, message);
   }
 
+  return state;
+}
+
+/**
+ * §52 #1 + polish — fan-out for `CommandRejected` envelopes. Each
+ * commandType has a dedicated client UI hook; this dispatcher keeps
+ * `applyServerMessage` short.
+ */
+function routeCommandRejected(
+  state: GameClientState,
+  message: ServerMessage & { type: 'CommandRejected' },
+  now: number,
+): GameClientState {
+  if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
+  if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipFailedFromCommandRejected(state, message, now);
+  if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
+  if (INVENTORY_VERB_COMMANDS.has(message.commandType)) return applyInventoryRejectedVisualState(state, message, now);
+  // Skill-verb rejections (Learn + Upgrade) share the SkillTreePanel
+  // chip state by skill id — only one chip per row at a time.
+  if ((message.commandType === 'LearnSkill' || message.commandType === 'UpgradeSkill') && message.targetId) {
+    return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.targetId]: message.reason } };
+  }
   return state;
 }
 
