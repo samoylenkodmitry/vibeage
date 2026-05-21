@@ -450,6 +450,48 @@ export function SelectedEnemyBeacon() {
   );
 }
 
+/**
+ * §49/M2 — always-on far-visible beacon for live mini-bosses. The
+ * `MiniBossCrown` (torus on the boss's head) is only legible up
+ * close; this is the long-range "X marks the boss" pillar a player
+ * sees from across the zone while they're still navigating to the
+ * fight. Renders as a tall narrow glowing column with a slow
+ * upward shimmer so it reads as a *marker*, not a hostile spell
+ * effect. Hidden when the boss is dead or selected (the selection
+ * halo + corpse cue take over).
+ */
+export function BossBeacon({ color, height }: { color: string; height: number }) {
+  const innerRef = useRef<THREE.Mesh>(null);
+  const outerRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const pulse = (Math.sin(clock.elapsedTime * 2.0) + 1) / 2;
+    if (innerRef.current) {
+      (innerRef.current.material as THREE.MeshBasicMaterial).opacity = 0.55 + pulse * 0.25;
+    }
+    if (outerRef.current) {
+      (outerRef.current.material as THREE.MeshBasicMaterial).opacity = 0.18 + pulse * 0.12;
+    }
+  });
+
+  const beaconTop = height + 12;
+  const center = (height + beaconTop) / 2;
+  const length = beaconTop - height;
+
+  return (
+    <group>
+      <mesh ref={innerRef} position={[0, center, 0]}>
+        <cylinderGeometry args={[0.12, 0.18, length, 8]} />
+        <meshBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} fog={false} />
+      </mesh>
+      <mesh ref={outerRef} position={[0, center, 0]}>
+        <cylinderGeometry args={[0.32, 0.48, length, 8]} />
+        <meshBasicMaterial color={color} transparent opacity={0.22} depthWrite={false} fog={false} />
+      </mesh>
+    </group>
+  );
+}
+
 export function EnemyThreatRing({ state }: { state?: string }) {
   const ringRef = useRef<THREE.Mesh>(null);
   const isAttacking = state === 'attacking';
