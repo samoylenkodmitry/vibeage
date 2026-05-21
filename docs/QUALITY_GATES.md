@@ -63,3 +63,34 @@ The latest local baseline sample is recorded in `quality/performance-baseline.js
 - Local enforced measurement is `pnpm run measure:check`, using the same stable non-browser subset as CI.
 - Browser FPS is available through `pnpm run measure:browser`; it is diagnostic because headless rendering is noisy.
 - Spawn-scale budgets cover spawned enemies, configured maximum initial enemy spawns, maximum enemies per zone, and zone count.
+
+## Load Test Tooling (§52 #12)
+
+In-process load test scripts let you exercise the full server tick
+pipeline at N simulated players without standing up real WebSocket
+clients. Useful for capacity-planning investigations and one-shot
+"what does the snapshot phase do at 100 bots?" checks.
+
+- `pnpm run load:inprocess` — runs one configuration. Environment
+  knobs: `LOAD_PLAYERS`, `LOAD_TICKS`, `LOAD_TICK_MS`, `LOAD_SNAP_HZ`,
+  `LOAD_MOVE_INTERVAL`. Emits a JSON report covering tick percentiles,
+  every populated runtime histogram (snapshot bytes, DB write
+  latency, join latency), outbound counts by message type, and
+  memory deltas.
+- `pnpm run load:sweep` — runs the same loop at several player
+  counts in sequence (default `10,50,100`; override via
+  `LOAD_SWEEP=10,50,100,200`). Each step gets a fresh GameState +
+  reset runtimeMetrics so they don't contaminate each other. Output
+  includes a `summary.scalingNotes` block with "N → M bots (Xx):
+  tick Yx, outbound Zx" one-liners for the cliff signal.
+- Both scripts use a no-op outbound sink. They measure server tick
+  work, not network/JSON cost. The snapshot.bytes histogram still
+  records because the snapshot phase calls JSON.stringify on its
+  own; the outbound counters live at the emit helpers so they record
+  regardless of sink (see `tests/outboundMessageMetrics.spec.ts`).
+- `tests/loadTestSmoke.spec.ts` runs the inner loop at tiny scale
+  (5 bots, 60 ticks) so the scaffold can't bit-rot in CI.
+
+Run with `--expose-gc` if you want the memory-delta lines to be
+meaningful (`node --expose-gc -- node_modules/.bin/tsx
+scripts/load-test-sweep.ts`).
