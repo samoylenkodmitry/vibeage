@@ -26,7 +26,7 @@ export function applyCombatLogVisualState(
 
   return addCombatLine(withDamageFeedback, {
     id: makeCombatLineId(message.castId, state.combatLog.length, now),
-    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages, message.crits),
+    text: formatCombatLogLine(state, message.skillId, message.targets, message.damages, message.crits, message.misses),
   });
 }
 
@@ -341,16 +341,29 @@ export function formatCombatLogLine(
   targetIds: string[],
   damages: number[],
   crits?: boolean[],
+  misses?: boolean[],
 ): string {
+  const skillName = getSkillName(skillId);
   const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
-  const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
   const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
+  // §52 #6 — every target dodged. Surface the miss directly instead
+  // of saying "hit for 0 damage" which used to print as a no-op
+  // line when invuln/shield ate the hit.
+  const allMissed = !!misses && misses.length > 0 && misses.every(Boolean);
+  if (allMissed) {
+    return `${skillName} missed${targetText}`;
+  }
+  const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
   // §49/M2 — append "(crit!)" when any hit in this CombatLog was a
   // crit. Aggregate behavior so an AOE doesn't print 'crit' three
   // times — one suffix is enough to tell the player something
   // bigger happened.
   const critSuffix = crits?.some(Boolean) ? ' (crit!)' : '';
-  return `${getSkillName(skillId)} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}`;
+  // §52 #6 — AOE with partial dodges: keep the hit line but tell
+  // the player some targets got away.
+  const missedCount = misses?.filter(Boolean).length ?? 0;
+  const missSuffix = missedCount > 0 ? ` (${missedCount} dodged)` : '';
+  return `${skillName} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}${missSuffix}`;
 }
 
 function formatEnemyAttackLine(

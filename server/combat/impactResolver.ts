@@ -17,6 +17,7 @@ import {
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
+import { evasionMissChanceFor } from './statusQueries.js';
 
 type ImpactContext = {
   caster: PlayerState | null;
@@ -68,10 +69,10 @@ export function applyProjectileHit(
   const context: ImpactContext = { caster, skill, outbound, world };
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
   const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world });
-  applyCastToTarget(target, result.damage, context);
+  applyCastToTarget(target, result.damage, context, result.miss);
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
-    targets: [target.id], damages: [result.damage], crits: [result.crit],
+    targets: [target.id], damages: [result.damage], crits: [result.crit], misses: [result.miss],
   });
 }
 
@@ -96,13 +97,14 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world }));
 
   targets.forEach((target, index) => {
-    applyCastToTarget(target, results[index].damage, context);
+    applyCastToTarget(target, results[index].damage, context, results[index].miss);
   });
 
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: targets.map((target) => target.id),
     damages: results.map((r) => r.damage), crits: results.map((r) => r.crit),
+    misses: results.map((r) => r.miss),
   });
 }
 
@@ -144,8 +146,8 @@ function calculateDamage(
   caster: PlayerState | null | undefined,
   upgradeDmgMult: number,
   ctx: DamageContext = {},
-): { damage: number; crit: boolean } {
-  if (!skill?.dmg) return { damage: 0, crit: false };
+): { damage: number; crit: boolean; miss: boolean } {
+  if (!skill?.dmg) return { damage: 0, crit: false, miss: false };
   const { castId, targetId, target, world } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
   const casterDmgMult = baseStats.dmgMult ?? 1;
@@ -153,7 +155,10 @@ function calculateDamage(
     caster: { ...baseStats, dmgMult: casterDmgMult * upgradeDmgMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
+    // §52 #6 — explicit `evasion` buff rolls a dodge.
+    targetMissChance: evasionMissChanceFor(target),
   });
+  if (result.miss) return { damage: 0, crit: false, miss: true };
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target);
   const casterElementMult = casterDamageElementMultiplier(skill, caster);
   const partyAuraMult = partyDamageAuraMultFor(caster, world);
@@ -169,7 +174,7 @@ function calculateDamage(
       elementVulnMult, casterElementMult, partyAuraMult, final,
     });
   }
-  return { damage: final, crit: result.crit };
+  return { damage: final, crit: result.crit, miss: false };
 }
 
 // §45.3 — product of every other-player ally's party-damage aura
@@ -366,8 +371,10 @@ function applyCastToTarget(
   target: Enemy | PlayerState,
   damage: number,
   context: ImpactContext,
+  miss: boolean = false,
 ): void {
   const { caster, skill, outbound, world } = context;
+  if (miss) return; // §52 #6 — dodged; CombatLog at call site carries miss=true.
   // §45.3 follow-up — `invuln` status effect (e.g. from Phoenix
   // Knight Resurrection) zeroes incoming damage entirely for its
   // duration. Skips the rest of the damage pipeline.
