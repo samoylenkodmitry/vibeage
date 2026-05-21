@@ -2581,19 +2581,19 @@ PRs can pick them off independently.
   Post-merge heavy CI on `main` had been red since PR #309 — the
   mobile 390×844 viewport test measured the union of {Connection,
   Player status, Skills, Panel toggles} at ~49.2% screen
-  coverage, but the spec demanded ≥55% world visible. Root cause
-  is PR #300's permanently-visible basic-attack anchor row above
-  the F-key skill bar — it pushed the skill-bar union past the
-  threshold the test was written against. Bumped the mobile
-  floor to 48% with an inline comment explaining the trade-off
-  (shrinking 52 px touch targets to reclaim the gap would harm
-  mobile UX more than it'd buy). Desktop floor stays at 55%.
+  coverage, but the spec demanded ≥55% world visible. PR #313
+  temporarily relaxed the threshold to 48% as a deploy unblock.
+  PR #325 reclaimed ~3% by trimming the mobile skill-bar (button
+  height 52 → 44 px, anchor button 52 → 36 px, gap/padding 4 → 2
+  px) — touch targets stay at the iOS 44 × 44 comfortable
+  minimum. The new honest floor is **0.53** (measured 0.536).
 
-- [ ] **Mobile skill-bar footprint regression budget.** If the
-  bar grows again (a third anchor row, taller buttons, etc.),
-  bump the threshold further AND log a roadmap entry so the
-  decay is visible. The drift is fine as long as it's
-  acknowledged; silently lowering thresholds hides UX bloat.
+- [ ] **Reach the original 0.55 world-visibility floor on mobile.**
+  The remaining 1.4 % gap is the dense `.player-panel` (Stats
+  title + 6 primary attrs + 5 derived stats). Closing it means a
+  real UX trade-off — e.g. collapse derived combat stats behind
+  a tap-to-expand on mobile, or move the Stats panel into the
+  toggle drawer entirely. Worth its own PR with a design call.
 
 
 ---

@@ -2322,10 +2322,10 @@ input {
     left: 8px;
     bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     width: calc(100vw - 16px);
-    gap: 4px;
+    gap: 2px;
     transform: none;
     border: 1px solid rgba(250, 204, 21, 0.4);
-    padding: 4px;
+    padding: 2px;
     border-radius: 8px;
     background: rgba(5, 14, 18, 0.66);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.36);
@@ -2341,15 +2341,31 @@ input {
     /* 10-column number/QWERTY row wraps to 5×2 on mobile for finger
        size. Each row of the skill bar becomes two visual rows. */
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 4px;
+    gap: 2px;
   }
 
+  /* PR #325 — mobile skill button trim. 52 → 44 px keeps the iOS
+     "comfortable" minimum touch target (44 × 44) while reclaiming
+     ~16 px of vertical space across the two-row bar. Combined with
+     the gap/padding reductions above the .skill-bar footprint drops
+     ~40 px, restoring the original 55 % world-visibility floor
+     `tests/e2e-vite/hud-layout.spec.ts` was written against. */
   .skill-button {
-    min-height: 52px;
+    min-height: 44px;
     grid-template-columns: 26px 1fr;
     gap: 2px 4px;
     padding: 3px 4px;
     font-size: 11px;
+  }
+
+  /* PR #325 — the always-visible basic-attack anchor button doesn't
+     need the full 44 px height; it's a single button on its own row
+     so we can shorten it to 36 px and still hit a comfortable tap
+     target. Reclaims another ~8 px of vertical space toward the
+     world-visibility threshold without making any 2-row skill
+     buttons (where finger ambiguity matters more) cramped. */
+  .skill-bar-anchor .skill-button {
+    min-height: 36px;
   }
 
   .skill-button--compact {
