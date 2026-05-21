@@ -104,14 +104,15 @@ describe('mini-boss signature cast', () => {
     expect(boss.signatureCastingUntilTs).toBeUndefined();
     expect(boss.nextSignatureReadyTs).toBeUndefined();
   });
+});
 
-  // §49/M2 — Grakk-specific: locks down that the *first* mini-boss
-  // a new player meets is wired to the same engine pipeline as
-  // Hammerback above, using its own content-defined windUp /
-  // cooldown / radius / damageMul values. Catches a content typo
-  // (missing engine block, wrong radius) without relying on the
-  // Hammerback-only test.
-  it('Grakk fires Warband Howl on its own engine params + applies AOE damage to players in radius', () => {
+// §49/M2 — Grakk-specific cases live in their own describe block so
+// the parent test body stays inside the repo's per-function line
+// budget. Hammerback above proves the engine pipeline; Grakk here
+// proves the first boss a new player meets is wired right against
+// the same pipeline, on its own content-defined engine params.
+describe('Grakk Warband Howl signature ability', () => {
+  function setupGrakk() {
     const boss = createEnemy('goblin', 5, { x: 100, y: 0.5, z: 100 }, 1, {
       isMiniBoss: true,
       bossId: 'grakk',
@@ -122,7 +123,11 @@ describe('mini-boss signature cast', () => {
     boss.position = { x: 110, y: 0.5, z: 110 };
     boss.aiState = 'attacking';
     boss.targetId = 'p1';
+    return boss;
+  }
 
+  it('fires Warband Howl on its own engine params + applies AOE damage to players in radius', () => {
+    const boss = setupGrakk();
     const player = setupPlayer({ x: 110, z: 110 });
     const players = { p1: player };
     const spatial = new SpatialHashGrid();
@@ -162,18 +167,8 @@ describe('mini-boss signature cast', () => {
     expect(sigEvent, 'Grakk Warband Howl impact landed at signature damage').toBeDefined();
   });
 
-  it('Grakk spares players standing outside the Warband Howl radius', () => {
-    const boss = createEnemy('goblin', 5, { x: 100, y: 0.5, z: 100 }, 1, {
-      isMiniBoss: true,
-      bossId: 'grakk',
-      nameOverride: 'Grakk the Goblin Chief',
-      healthMultiplier: 2.8,
-      damageMultiplier: 1.4,
-    });
-    boss.position = { x: 110, y: 0.5, z: 110 };
-    boss.aiState = 'attacking';
-    boss.targetId = 'p1';
-
+  it('spares players standing outside the Warband Howl radius', () => {
+    const boss = setupGrakk();
     const inside = setupPlayer({ x: 110, z: 110 });
     const outside = setupPlayer({ x: 250, z: 250 });
     outside.id = 'p2';
