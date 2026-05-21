@@ -80,10 +80,13 @@ export function classifySkill(effects: readonly { type: SkillEffectType }[]): Sk
   return 'neutral';
 }
 
+/** §52 #10 — dispel target family. Default 'negative' preserves pre-§52 behaviour. Target sets live in `server/combat/statusQueries#dispelTargetSet`. */
+export type DispelCategory = 'negative' | 'positive' | 'poison' | 'stun' | 'shield' | 'bleed' | 'magic';
 export interface SkillEffect {
   type: SkillEffectType;
   value: number; // damage amount, stun duration, slow percentage, etc.
-  durationMs?: number; // how long the effect lasts, in ms
+  durationMs?: number;
+  dispelCategory?: DispelCategory; // §52 #10 — only when type==='dispel'.
 }
 
 /**

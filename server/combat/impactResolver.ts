@@ -17,7 +17,7 @@ import {
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
-import { evasionMissChanceFor } from './statusQueries.js';
+import { dispelTargetSet, evasionMissChanceFor } from './statusQueries.js';
 
 type ImpactContext = {
   caster: PlayerState | null;
@@ -25,16 +25,6 @@ type ImpactContext = {
   outbound: OutboundEventSink;
   world: CombatWorld;
 };
-
-const NEGATIVE_EFFECT_TYPES: ReadonlySet<string> = new Set([
-  'slow',
-  'stun',
-  'burn',
-  'poison',
-  'dot',
-  'freeze',
-  'waterWeakness',
-]);
 
 const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'heal',
@@ -470,7 +460,8 @@ function applySkillEffects(
       continue;
     }
     if (effect.type === 'dispel') {
-      target.statusEffects = target.statusEffects.filter((existing) => !NEGATIVE_EFFECT_TYPES.has(existing.type));
+      const stripSet = dispelTargetSet(effect.dispelCategory ?? 'negative');
+      target.statusEffects = target.statusEffects.filter((existing) => !stripSet.has(existing.type));
       continue;
     }
     if (effect.type === 'aggroReset') {
