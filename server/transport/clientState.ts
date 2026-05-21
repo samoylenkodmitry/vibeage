@@ -97,7 +97,10 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
  * to `PlayerState` no longer requires updating a deny list.
  */
 export type PublicPlayerSnapshot = Pick<PlayerState, PublicPlayerField>;
-type ClientPlayerState = PlayerState | PublicPlayerSnapshot;
+// §52 #3 — the snapshot now ships an `OwnerPlayerSnapshot` for the
+// requesting socket (was the raw `PlayerState`). Other players still
+// come through as `PublicPlayerSnapshot`.
+type ClientPlayerState = OwnerPlayerSnapshot | PublicPlayerSnapshot;
 
 /**
  * §52 #3 / §5 — explicit allowlist of fields shipped to the *owner*
@@ -137,6 +140,48 @@ type OwnerPlayerField = typeof OWNER_PLAYER_FIELDS[number];
  * adding it to the owner snapshot requires an explicit edit here.
  */
 export type OwnerPlayerSnapshot = Pick<PlayerState, OwnerPlayerField>;
+
+/**
+ * §52 #3 / §5 — public world-presence DTO. Matches the live shape
+ * of `PublicPlayerPresenceState` (`server/transport/worldStateSchema.ts`);
+ * defining it here so other consumers (tests, observability dashboards,
+ * presence-list panels) can type-pin the shape without depending on the
+ * Colyseus Schema class.
+ *
+ * Narrower than `PublicPlayerSnapshot`: no position, velocity, health,
+ * status effects, or cast state. Used for the world-wide presence map
+ * that flows alongside `VibeAgePublicState` regardless of region scope.
+ */
+export type PlayerPresenceSnapshot = {
+  id: string;
+  name: string;
+  className: string;
+  level: number;
+  isAlive: boolean;
+  /** Empty string when the player is not currently in any zone. */
+  regionId: string;
+};
+
+/**
+ * §52 #3 — project a `PlayerState` onto the presence shape. The
+ * `PublicPlayerPresenceState` Schema fills the same fields from the
+ * same source; this helper makes the projection callable from plain
+ * TS too (without instantiating a Colyseus Schema), which the tests
+ * + future REST/health endpoints exercise.
+ */
+export function sanitizePlayerForPresence(
+  player: PlayerState,
+  regionId: string = '',
+): PlayerPresenceSnapshot {
+  return {
+    id: player.id,
+    name: player.name,
+    className: player.className,
+    level: player.level,
+    isAlive: player.isAlive,
+    regionId,
+  };
+}
 
 /**
  * Owner-bound bag snapshot. Equivalent to the existing
@@ -238,7 +283,12 @@ function makeClientPlayersSnapshot(
       .filter(([playerId, player]) => player.socketId === socketId || isEntityInScope(state, regions, visibleRegionIds, playerId))
       .map(([playerId, player]) => [
         playerId,
-        player.socketId === socketId ? player : sanitizePlayerForPublic(player),
+        // §52 #3 — the owner now sees a projected DTO too (was the raw
+        // PlayerState before). The allowlist in OWNER_PLAYER_FIELDS
+        // excludes server-only bookkeeping (posHistory, lastRegenTimeMs,
+        // characterInventory aggregate, etc.) so a new server-only
+        // field defaults to NOT leaking to the wire.
+        player.socketId === socketId ? sanitizePlayerForOwner(player) : sanitizePlayerForPublic(player),
       ]),
   ) as ClientGameStateSnapshot['players'];
 }

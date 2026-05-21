@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createStarterProgressState } from '../packages/protocol/messages';
 import { createEmptyInventory } from '../packages/sim/characterInventory';
 import {
+  OWNER_PLAYER_FIELDS,
   PRIVATE_PLAYER_STATE_FIELDS,
   PUBLIC_PLAYER_FIELDS,
   makeClientGameStateSnapshot,
@@ -60,16 +61,14 @@ function makePlayer(id: string, socketId: string): PlayerState {
 }
 
 /**
- * Allow-list of fields the *owner* of a player is permitted to see in their
- * own snapshot. This is the union of PUBLIC_PLAYER_KEYS + every field in
- * PRIVATE_PLAYER_STATE_FIELDS (the owner sees everything). §52 #2 retired
- * the `inventory` field on PlayerState; the bag ships via the dedicated
- * `InventoryUpdate` wire path, not the snapshot.
+ * §52 #3 — owner snapshot allow-list is `OWNER_PLAYER_FIELDS`. Wider
+ * than `PUBLIC_PLAYER_FIELDS` (carries progression, gold, skill state,
+ * stats, quest state) but narrower than the full `PlayerState`
+ * (excludes server-only bookkeeping like socketId, posHistory,
+ * lastRegenTimeMs, characterInventory). Bag + equipment ship via their
+ * own dedicated wire messages, not the snapshot.
  */
-const OWNER_PLAYER_KEYS = new Set<string>([
-  ...PUBLIC_PLAYER_KEYS,
-  ...PRIVATE_PLAYER_STATE_FIELDS,
-]);
+const OWNER_PLAYER_KEYS = new Set<string>(OWNER_PLAYER_FIELDS);
 
 describe('owner snapshot allow-list', () => {
   it('every key on the owner snapshot is in the owner allow-list (no surprise fields)', () => {
@@ -83,24 +82,30 @@ describe('owner snapshot allow-list', () => {
     expect(
       extras,
       `unexpected keys in owner snapshot: ${extras.join(', ')}. ` +
-      'Either add the field to PUBLIC/PRIVATE allow-lists or remove it from PlayerState.',
+      'Either add the field to OWNER_PLAYER_FIELDS or remove it from PlayerState.',
     ).toEqual([]);
   });
 
-  it('owner snapshot includes every PRIVATE_PLAYER_STATE_FIELDS entry the fixture sets', () => {
+  it('owner snapshot surfaces every OWNER_PLAYER_FIELDS entry the fixture sets', () => {
     const state = createGameState();
     const fixture = makePlayer('own', 'own-socket');
     state.players.own = fixture;
     const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
-    // §46/slice-4 — fixture only sets a subset of owner-only fields
-    // (e.g. no skillLevels / usedResurrectionThisLife in the basic
-    // makePlayer). Only assert the owner snapshot still surfaces the
-    // ones the fixture provided — the broader contract (owner ⊇
-    // PlayerState) is type-checked, not runtime-checked.
-    for (const field of PRIVATE_PLAYER_STATE_FIELDS) {
-      if (fixture[field] === undefined) continue;
+    // The fixture only sets a subset of owner-only fields; assert the
+    // ones it does set make it through the projection.
+    for (const field of OWNER_PLAYER_FIELDS) {
+      if ((fixture as unknown as Record<string, unknown>)[field] === undefined) continue;
       expect(snapshot.players.own, `owner is missing their own ${field}`).toHaveProperty(field);
     }
+  });
+
+  it('owner snapshot still scrubs server-only bookkeeping (socketId, characterInventory, posHistory)', () => {
+    const state = createGameState();
+    state.players.own = makePlayer('own', 'own-socket');
+    const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
+    expect(snapshot.players.own).not.toHaveProperty('socketId');
+    expect(snapshot.players.own).not.toHaveProperty('characterInventory');
+    expect(snapshot.players.own).not.toHaveProperty('posHistory');
   });
 });
 
