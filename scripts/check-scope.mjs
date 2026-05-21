@@ -66,7 +66,10 @@ const contentTests = [
   "tests/verticalSlice.spec.ts",
   "tests/starterPath.spec.ts",
   "tests/enemySpawning.spec.ts",
-  "tests/classPassiveBaseStatsParity.spec.ts",
+  // `tests/classPassiveBaseStatsParity.spec.ts` was retired with the
+  // §45.3 stat-contribution refactor; class-passive coverage now lives
+  // in `tests/passivePercentClaims.spec.ts`.
+  "tests/passivePercentClaims.spec.ts",
   "tests/classSkillPrereqIntegrity.spec.ts",
   "tests/effectSpecsCoverage.spec.ts",
   "tests/enemyBalanceBudget.spec.ts",
