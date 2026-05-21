@@ -3,7 +3,6 @@ import type { PlayerEntity } from './gameTypes';
 
 export const SKILL_BAR_ROW_COUNT = 10;
 export const SKILL_BAR_SECONDARY_ROW_COUNT = 10;
-export const SKILL_BAR_SLOT_COUNT = SKILL_BAR_ROW_COUNT + SKILL_BAR_SECONDARY_ROW_COUNT;
 
 // Primary row: the keyboard's number row (1..0). Browser-safe — no
 // reserved shortcuts collide. Replaces the F1..F12 layout that

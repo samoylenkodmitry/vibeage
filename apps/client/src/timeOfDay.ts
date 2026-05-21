@@ -132,7 +132,7 @@ export function computeSunDirection(phase: number): Vec3 {
   return { x: x / len, y: y / len, z: z / len };
 }
 
-export function computeMoonDirection(phase: number): Vec3 {
+function computeMoonDirection(phase: number): Vec3 {
   const angle = phaseToSunAngle(phase) + Math.PI;
   const x = Math.cos(angle);
   const y = Math.sin(angle);

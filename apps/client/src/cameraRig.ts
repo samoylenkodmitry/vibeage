@@ -4,13 +4,13 @@ import type { Vec3 } from './gameTypes';
 export const CAMERA_DISTANCE = 24;
 export const CAMERA_MIN_DISTANCE = 6;
 export const CAMERA_MAX_DISTANCE = 90;
-export const CAMERA_WHEEL_ZOOM_SPEED = 0.0028;
+const CAMERA_WHEEL_ZOOM_SPEED = 0.0028;
 export const CAMERA_FOCUS_RESPONSE = 8;
 export const CAMERA_POSITION_RESPONSE = 10;
 export const CAMERA_MAX_FRAME_DELTA = 1 / 30;
-export const CAMERA_FOCUS_JITTER_EPSILON_SQ = 0.0004;
-export const CAMERA_DRAG_YAW_SPEED = 0.012;
-export const CAMERA_DRAG_PITCH_SPEED = 0.01;
+const CAMERA_FOCUS_JITTER_EPSILON_SQ = 0.0004;
+const CAMERA_DRAG_YAW_SPEED = 0.012;
+const CAMERA_DRAG_PITCH_SPEED = 0.01;
 export const CAMERA_MIN_PITCH = -1.5;
 export const CAMERA_MAX_PITCH = 1.35;
 

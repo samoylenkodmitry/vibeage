@@ -140,7 +140,7 @@ export type WorldPublicState = {
   players: Record<string, WorldPublicPlayerPresence>;
 };
 
-export type ConnectionState =
+type ConnectionState =
   | 'idle'
   | 'connecting'
   | 'joining'
@@ -164,7 +164,7 @@ export type GroundLootStack = {
   items: ItemDrop[];
 };
 
-export type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage';
+type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage';
 
 export type VisualEvent = {
   id: string;
@@ -239,7 +239,7 @@ export type GameClientState = {
   bossTelegraphs: BossTelegraphEntry[];
 };
 
-export type BossTelegraphEntry = {
+type BossTelegraphEntry = {
   enemyId: string;
   bossName: string;
   abilityName: string;
@@ -250,18 +250,18 @@ export type BossTelegraphEntry = {
   impactAt: number;
 };
 
-export type PendingCast = {
+type PendingCast = {
   skillId: string;
   targetId: string;
   expiresAtTs: number;
 };
 
-export type PendingPickup = {
+type PendingPickup = {
   lootId: string;
   expiresAtTs: number;
 };
 
-export type AutoAttack = {
+type AutoAttack = {
   skillId: string;
   targetId: string;
 };
