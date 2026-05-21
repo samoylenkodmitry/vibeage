@@ -131,9 +131,7 @@ export function GameHud(props: GameHudProps) {
       <QuestTrackerStrip
         player={player}
         trackedQuestId={state.trackedQuestId}
-        onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
-        onAdvanceQuest={onAdvanceQuest}
-        onClaimQuestReward={onClaimQuestReward}
+        onOpenQuestPanel={panels.openQuest}
       />
       <WelcomeOverlay player={player} />
       <TargetingHint state={state} />
@@ -343,6 +341,7 @@ function usePanelState() {
     craftRecipeSlot,
     toggleStats: () => setStatsOpen((prev) => !prev),
     toggleQuest: () => setQuestOpen((prev) => !prev),
+    openQuest: () => setQuestOpen(true),
     toggleBag: () => setBagOpen((prev) => !prev),
     toggleGear: () => setGearOpen((prev) => !prev),
     toggleMap: () => setMapOpen((prev) => !prev),

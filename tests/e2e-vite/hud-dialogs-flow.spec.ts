@@ -70,3 +70,31 @@ test('NPC dialog: × close button hides the dialog until the player leaves and r
   const dz = (pos!.z as number) - 4;
   expect(Math.hypot(dx, dz)).toBeLessThanOrEqual(3.5);
 });
+
+test('QuestTrackerStrip: clicking the heads-up strip opens the Quest panel (§52 merge)', async ({ page }) => {
+  await enterWorld(page, `QuestStrip${Date.now()}`);
+  await walkToGalen(page);
+
+  // Open NpcDialog, accept the first offered quest. The strip won't
+  // render until the player has at least one active quest.
+  const dialog = page.getByRole('region', { name: /Dialog with Warden Galen/i });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  const acceptButton = dialog.getByRole('button', { name: 'Accept' }).first();
+  await acceptButton.click();
+
+  // Wait for the strip to show the accepted quest.
+  const strip = page.getByRole('button', { name: /Tracked quest:/i });
+  await expect(strip).toBeVisible({ timeout: 10_000 });
+
+  // The strip used to carry inline Next/Claim/Show-on-map buttons
+  // that duplicated the Quest panel. After the §52 merge the strip
+  // is a single click-target — no nested action buttons.
+  await expect(strip.getByRole('button', { name: 'Next' })).toHaveCount(0);
+  await expect(strip.getByRole('button', { name: 'Claim' })).toHaveCount(0);
+
+  // Quest panel starts closed; clicking the strip opens it.
+  const panel = page.getByRole('region', { name: 'Quests' });
+  await expect(panel).toBeHidden();
+  await strip.click();
+  await expect(panel).toBeVisible({ timeout: 5_000 });
+});
