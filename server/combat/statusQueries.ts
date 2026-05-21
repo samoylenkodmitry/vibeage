@@ -1,4 +1,5 @@
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import type { DispelCategory } from '../../packages/content/skills.js';
 
 /**
  * Shared status-effect predicates used by movement, casting, and AI
@@ -23,6 +24,35 @@ export function isEntityStunned(entity: PlayerState | Enemy, now: number = Date.
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
     return expiresAt > now;
   });
+}
+
+/**
+ * §52 #10 — which effect types each dispel category strips.
+ *
+ *   negative — default; matches the pre-§52 hardcoded set.
+ *   positive — buff purge (heal-over-time, shield, bless, etc.).
+ *   poison   — only poison-flavoured ticks (poison + generic dot).
+ *   stun     — only action-blocking effects.
+ *   shield   — only damage-absorb shields.
+ *   bleed    — reserved; no bleed effect exists today.
+ *   magic    — reserved; no magic-flagged effects exist today.
+ *
+ * The two reserved entries land as empty sets so a content
+ * designer can ship a "Cleanse Bleed" / "Antimagic" skill against
+ * future status types without re-touching this map.
+ */
+const DISPEL_CATEGORY_TARGETS: Readonly<Record<DispelCategory, ReadonlySet<string>>> = {
+  negative: new Set(['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'waterWeakness']),
+  positive: new Set(['heal', 'shield', 'bless', 'evasion', 'invisible']),
+  poison: new Set(['poison', 'dot']),
+  stun: new Set(['stun', 'freeze', 'root']),
+  shield: new Set(['shield']),
+  bleed: new Set<string>(),
+  magic: new Set<string>(),
+};
+
+export function dispelTargetSet(category: DispelCategory): ReadonlySet<string> {
+  return DISPEL_CATEGORY_TARGETS[category];
 }
 
 /**
