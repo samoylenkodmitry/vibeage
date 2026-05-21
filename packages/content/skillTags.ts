@@ -43,7 +43,7 @@ export type ResolvedSkillTags = {
  * the inference (e.g. CC skills with small token damage, hybrid
  * scaling, escapes that look like teleports, etc.).
  */
-export const SKILL_TAG_OVERRIDES: Partial<Record<SkillId, Partial<ResolvedSkillTags>>> = {
+const SKILL_TAG_OVERRIDES: Partial<Record<SkillId, Partial<ResolvedSkillTags>>> = {
   // Petrify deals a token amount of damage but is fundamentally a CC.
   petrify: { role: 'control', pveUse: ['single-target', 'boss'] },
   // Taunt has no damage; it's tank-role aggro.

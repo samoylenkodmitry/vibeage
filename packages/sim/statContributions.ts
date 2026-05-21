@@ -41,9 +41,9 @@ export type StatId =
  * exists for the stat). Multiple `base` contributions sum — useful
  * for stats whose default starting value is constant + race-specific.
  */
-export type ContributionOp = 'base' | 'addPre' | 'mul' | 'addPost';
+type ContributionOp = 'base' | 'addPre' | 'mul' | 'addPost';
 
-export type ResolvedStats = Readonly<Partial<Record<StatId, number>>>;
+type ResolvedStats = Readonly<Partial<Record<StatId, number>>>;
 
 export type Contribution = {
   /** Stable identifier (`race:orc`, `level:8`, `item:worn_sword:abc`, ...). */
@@ -89,7 +89,7 @@ export type StatComputeContext = {
   resolved: ResolvedStats;
 };
 
-export type StatBreakdownEntry = {
+type StatBreakdownEntry = {
   total: number;
   parts: readonly ResolvedContribution[];
 };
@@ -189,20 +189,6 @@ export function computeAllStats(
  * `getOrComputeStats`, the HUD popup calls this when no cache is
  * available on the client side.
  */
-export function computeStatsForPlayer(player: StatPlayerView): StatComputationResult {
-  const contributions = buildContributions(player);
-  const maxHealth = 1; // placeholder; predicates that need HP fraction get refined below
-  const ctx = {
-    level: Math.max(1, Math.floor(player.level)),
-    race: player.race ?? DEFAULT_RACE,
-    className: player.className,
-    health: player.health ?? maxHealth,
-    maxHealth,
-    hpFraction: 1,
-  };
-  return computeAllStats(contributions, ctx);
-}
-
 // ---------------------------------------------------------------- pipeline
 
 /** Resolution order — attributes first, then derived stats that read them. */
@@ -644,5 +630,3 @@ function pushStatusEffectContributions(out: Contribution[], effects: ReadonlyArr
   }
 }
 
-// Reserved hook for future use; keeps the type referenced.
-export const _SLOT_HOOK: readonly EquipSlot[] = EQUIP_SLOTS;

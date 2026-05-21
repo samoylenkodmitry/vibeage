@@ -11,7 +11,7 @@ import {
   type ItemInstanceId,
 } from './itemInstance.js';
 
-export type TransactionError =
+type TransactionError =
   | 'inventoryFull'
   | 'overweight'
   | 'itemNotFound'

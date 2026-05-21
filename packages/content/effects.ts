@@ -14,7 +14,7 @@ import type { SkillEffectType } from './skills.js';
  * on themselves) from debuffs (player wants on the enemy) — useful
  * for tooltip coloring and future buff-stacking policy work.
  */
-export type EffectCategory = 'buff' | 'debuff' | 'damage' | 'heal' | 'utility';
+type EffectCategory = 'buff' | 'debuff' | 'damage' | 'heal' | 'utility';
 
 /**
  * §46/slice-2 — explicit per-effect stacking policy. Was implicit
@@ -202,7 +202,7 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
  * so unknown / future effect types don't silently get richer
  * semantics than the author chose.
  */
-export const DEFAULT_STACKING_POLICY: StackingPolicy = 'replace';
+const DEFAULT_STACKING_POLICY: StackingPolicy = 'replace';
 
 export function getStackingPolicy(type: SkillEffectType): StackingPolicy {
   return EFFECT_SPECS[type]?.stacking ?? DEFAULT_STACKING_POLICY;
@@ -212,24 +212,6 @@ export function getMaxStacks(type: SkillEffectType): number {
   return EFFECT_SPECS[type]?.maxStacks ?? 1;
 }
 
-/**
- * Returns the spec for a known effect type, or `undefined` for stray
- * values coming over the wire. The Record<...> binds the mapping at
- * compile time but runtime data could carry an unknown `type` string
- * (older save / future content), so consumers must handle undefined.
- */
-export function getEffectSpec(type: SkillEffectType): EffectSpec | undefined {
-  return EFFECT_SPECS[type];
-}
-
 export function getEffectLabel(type: SkillEffectType): string {
   return EFFECT_SPECS[type]?.label ?? type;
-}
-
-export function getEffectDescription(type: SkillEffectType): string {
-  return EFFECT_SPECS[type]?.description ?? '';
-}
-
-export function getEffectValueUnit(type: SkillEffectType): string {
-  return EFFECT_SPECS[type]?.valueUnit ?? '';
 }

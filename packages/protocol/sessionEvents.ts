@@ -11,5 +11,3 @@ export const SESSION_EVENTS = {
   enemyUpdated: 'enemyUpdated',
 } as const;
 
-export type SessionEventKey = keyof typeof SESSION_EVENTS;
-export type SessionEventName = typeof SESSION_EVENTS[SessionEventKey];

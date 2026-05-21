@@ -147,7 +147,7 @@ export interface SpecializationPassiveModifiers {
   partyHpRegenAuraRadiusM?: number;
 }
 
-export interface SpecializationPassive {
+interface SpecializationPassive {
   name: string;
   description: string;
   modifiers: SpecializationPassiveModifiers;

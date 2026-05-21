@@ -205,16 +205,6 @@ export function isBagEmpty(inventory: CharacterInventory): boolean {
   return !Object.values(inventory.items).some((instance) => instance.location.kind === 'inventory');
 }
 
-/**
- * §45.7 — convenience factory for PlayerState construction sites
- * that need a default-limits empty bag (test fixtures, transient
- * spawns). Production paths should set their own limits via
- * `createEmptyInventory` + the player's `maxInventorySlots`.
- */
-export function defaultEmptyInventory(characterId: CharacterId): CharacterInventory {
-  return createEmptyInventory(characterId, { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 });
-}
-
 export function maxInventorySlotCount(limits: InventoryLimits): number {
   return limits.baseSlots + limits.bonusSlots;
 }

@@ -1,4 +1,4 @@
-import { ITEMS, type Item } from './items.js';
+import { ITEMS } from './items.js';
 import { LOOT_TABLES } from './lootTables.js';
 import { MINI_BOSSES } from './miniBosses.js';
 import { QUEST_NPCS } from './npcs.js';
@@ -29,7 +29,7 @@ export type ItemVendorSource = {
   price: number;
 };
 
-export type ItemLootSource = {
+type ItemLootSource = {
   kind: 'loot';
   tableId: string;
   // `enemyType` set when a mob template loot table id matches; bosses
@@ -39,7 +39,7 @@ export type ItemLootSource = {
   bossId?: string;
 };
 
-export type ItemRecipeSource = {
+type ItemRecipeSource = {
   kind: 'recipe';
   recipeItemId: string;
 };
@@ -68,7 +68,7 @@ export function getVendorSourcesFor(itemId: string): ItemVendorSource[] {
   return out;
 }
 
-export function getLootSourcesFor(itemId: string): ItemLootSource[] {
+function getLootSourcesFor(itemId: string): ItemLootSource[] {
   const out: ItemLootSource[] = [];
   for (const [tableId, table] of Object.entries(LOOT_TABLES)) {
     for (const drop of table.drops) {
@@ -83,7 +83,7 @@ export function getLootSourcesFor(itemId: string): ItemLootSource[] {
   return out;
 }
 
-export function getRecipeSourcesFor(itemId: string): ItemRecipeSource[] {
+function getRecipeSourcesFor(itemId: string): ItemRecipeSource[] {
   const out: ItemRecipeSource[] = [];
   for (const item of Object.values(ITEMS)) {
     if (item.recipe?.output.itemId === itemId) {
@@ -122,7 +122,7 @@ export function getItemSources(itemId: string): ItemSource[] {
  * resolve. Currency is spent, not obtained directly. Future
  * scaffolding can land here too.
  */
-export const OBTAINABILITY_WHITELIST: ReadonlySet<string> = new Set<string>([
+const OBTAINABILITY_WHITELIST: ReadonlySet<string> = new Set<string>([
   // Currency: credited from quests + loot indirectly via gold_coin
   // auto-conversion; the item template itself has no source by design.
   'gold_coin',
@@ -553,6 +553,3 @@ export function formatContentGraphIssues(issues: readonly ContentGraphIssue[]): 
   }).join('\n');
 }
 
-// Unused import guard — Item is exported above for downstream consumers
-// but TS strips it otherwise. This re-export keeps the public surface stable.
-export type { Item };

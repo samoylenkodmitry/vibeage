@@ -11,7 +11,7 @@ export type TerrainBiome =
   | 'celestial'
   | 'temporal';
 
-export type TerrainVisual = {
+type TerrainVisual = {
   groundColor: string;
   foliageColor: string;
   accentColor: string;
@@ -25,7 +25,7 @@ export type TerrainSample = TerrainVisual & {
   biome: TerrainBiome;
 };
 
-export const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
+const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
   meadow: {
     groundColor: '#2f6f45',
     foliageColor: '#4ade80',

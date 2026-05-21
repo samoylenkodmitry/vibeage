@@ -6,7 +6,7 @@ export const DEFAULT_DAY_DURATION_MS = 18 * 60 * 1000;
 
 export type DayPhaseLabel = 'dawn' | 'day' | 'dusk' | 'night';
 
-export const DAY_PHASE_LABELS: readonly DayPhaseLabel[] = ['dawn', 'day', 'dusk', 'night'];
+const DAY_PHASE_LABELS: readonly DayPhaseLabel[] = ['dawn', 'day', 'dusk', 'night'];
 
 // Phase ratios (sum to 1):
 //   dawn 10% + day 50% + dusk 25% + night 15%  → daytime 60%, nighttime 15%.

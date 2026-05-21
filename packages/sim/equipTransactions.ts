@@ -22,7 +22,7 @@ import {
   type ItemInstanceId,
 } from './itemInstance.js';
 
-export type EquipError =
+type EquipError =
   | 'itemNotFound'
   | 'notOwned'
   | 'notEquippable'

@@ -17,7 +17,7 @@ export type QuestVec3 = { x: number; y: number; z: number };
  *     the player to press Next.
  */
 
-export type QuestStageObjective =
+type QuestStageObjective =
   | { kind: 'kill'; enemyType: string; count: number }
   /**
    * Slay a specific named mini-boss. `bossId` matches an entry in
@@ -30,7 +30,7 @@ export type QuestStageObjective =
   | { kind: 'talk'; npcId: string }
   | { kind: 'manual'; description: string };
 
-export interface QuestStage {
+interface QuestStage {
   id: string;
   description: string;
   objective: QuestStageObjective;
@@ -56,7 +56,7 @@ export interface QuestReward {
  * them via `completedQuests` until a real boss-kill registry
  * lands (own PR).
  */
-export interface QuestPrerequisites {
+interface QuestPrerequisites {
   /** Player must have *completed* every listed quest. */
   completedQuests?: ReadonlyArray<QuestId>;
 }

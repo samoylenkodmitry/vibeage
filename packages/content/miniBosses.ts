@@ -23,7 +23,7 @@ import type { LootTable } from './lootTables.js';
  * Damage = enemy.attackDamage * damageMul (so phase / enrage stack
  * onto the signature too — see PR N).
  */
-export interface MiniBossSignatureEngine {
+interface MiniBossSignatureEngine {
   windUpMs: number;
   cooldownMs: number;
   radiusUnits: number;

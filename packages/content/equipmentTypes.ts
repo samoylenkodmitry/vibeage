@@ -24,7 +24,7 @@ export const EQUIP_SLOTS: readonly EquipSlot[] = [
   'BELT', 'CLOAK', 'SHIRT',
 ] as const;
 
-export type BodyPart =
+type BodyPart =
   | 'head'
   | 'chest'
   | 'legs'
@@ -41,7 +41,7 @@ export type BodyPart =
   | 'cloak'
   | 'shirt';
 
-export type HandUsage =
+type HandUsage =
   | 'none'
   | 'oneHand'
   | 'twoHand'
@@ -50,7 +50,7 @@ export type HandUsage =
   | 'fist'
   | 'shield';
 
-export type WeaponType =
+type WeaponType =
   | 'sword'
   | 'dagger'
   | 'mace'
@@ -60,7 +60,7 @@ export type WeaponType =
   | 'fist'
   | 'orb';
 
-export type ArmorType = 'light' | 'medium' | 'heavy' | 'robe';
+type ArmorType = 'light' | 'medium' | 'heavy' | 'robe';
 
 export type ItemKind =
   | 'weapon'
@@ -102,7 +102,7 @@ export function getEffectiveMinLevel(grade: ItemGrade, perItemMinLevel?: number)
 
 export type ItemFlag = 'bound' | 'questItem' | 'uniqueEquipped' | 'destroyOnLogout';
 
-export type EquipRequirements = {
+type EquipRequirements = {
   minLevel?: number;
   classes?: readonly CharacterClass[];
   grade?: ItemGrade;

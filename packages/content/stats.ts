@@ -134,4 +134,3 @@ export const STATS: Record<string, StatDef> = {
   },
 };
 
-export const STAT_IDS: readonly string[] = Object.keys(STATS);
