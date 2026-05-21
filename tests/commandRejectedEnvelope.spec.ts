@@ -58,7 +58,7 @@ function makeSink(): DirectMessageSink & { sent: unknown[] } {
 }
 
 describe('EquipItem rejection emits CommandRejected', () => {
-  it('emits both legacy EquipFailed and CommandRejected with requestId echo', () => {
+  it('emits CommandRejected with the requestId echo (§52 #1: EquipFailed retired — sole channel now)', () => {
     const player = createTransientPlayer('socket-1', 'EquipTest');
     player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
     player.inventory = [];
@@ -66,9 +66,10 @@ describe('EquipItem rejection emits CommandRejected', () => {
 
     handleEquipItem(player, { type: 'EquipItem', slotIndex: 99, clientSeq: 7 }, sink);
 
-    expect(sink.sent).toHaveLength(2);
-    expect(sink.sent[0]).toEqual({ type: 'EquipFailed', reason: 'itemNotFound' });
-    expect(sink.sent[1]).toEqual({
+    // Pre-§52 this emitted EquipFailed + CommandRejected (2 messages).
+    // After retirement, only CommandRejected goes out.
+    expect(sink.sent).toHaveLength(1);
+    expect(sink.sent[0]).toEqual({
       type: 'CommandRejected',
       commandType: 'EquipItem',
       reason: 'itemNotFound',

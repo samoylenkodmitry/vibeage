@@ -1,5 +1,4 @@
 import type {
-  EquipFailedMsg,
   EquipItem,
   EquipmentEntry,
   EquipmentUpdateMsg,
@@ -116,20 +115,16 @@ export function sendEquipment(
 // max{Health,Mana} in one pass. Equip / unequip call sites above
 // invoke it through `sendEquipment`.
 
-// §46/slice-5 — send both the legacy `EquipFailed` (kept so older
-// clients still see a generic failure) AND the new structured
-// `CommandRejected` envelope so the new client surface can route
-// on `requestId`. Migration is per-command; once every command
-// emits CommandRejected and clients consume it, the legacy fails
-// can be retired.
+// §52 #1 — `EquipFailed` retired. The structured `CommandRejected`
+// envelope is now the sole channel for equip-side failures; client
+// reads it for the combat-log "Couldn't equip: …" line and for ack
+// routing on `requestId`.
 function sendFail(
   direct: DirectMessageSink,
   reason: string,
   commandType: 'EquipItem' | 'UnequipItem',
   clientSeq?: number,
 ): void {
-  const legacy: EquipFailedMsg = { type: 'EquipFailed', reason };
-  direct.send(legacy);
   direct.send({
     type: 'CommandRejected',
     commandType,

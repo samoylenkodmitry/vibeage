@@ -80,12 +80,13 @@ describe('equip handler flow', () => {
     expect(player.stats?.dmgMult).toBeCloseTo(before.dmgMult ?? 0, 5);
   });
 
-  test('equipping an invalid bag slot emits EquipFailed and does not mutate stats', () => {
+  test('equipping an invalid bag slot emits CommandRejected and does not mutate stats (§52 #1: EquipFailed retired)', () => {
     const player = freshPlayer();
     const dmgBefore = player.stats?.dmgMult ?? 0;
     const { sink, sent } = captureSink();
     handleEquipItem(player, { type: 'EquipItem', slotIndex: 99 }, sink);
-    expect(sent.some((msg) => msg.type === 'EquipFailed')).toBe(true);
+    expect(sent.some((msg) => msg.type === 'CommandRejected' && (msg as { commandType?: string }).commandType === 'EquipItem')).toBe(true);
+    expect(sent.some((msg) => msg.type === 'EquipFailed')).toBe(false);
     expect(player.stats?.dmgMult).toBeCloseTo(dmgBefore, 5);
   });
 });

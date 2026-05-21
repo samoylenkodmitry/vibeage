@@ -82,7 +82,6 @@ const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   BatchUpdate: true,
   ChatBroadcast: true,
   EquipmentUpdate: true,
-  EquipFailed: true,
   LearnSkillFailed: true,
   CommandRejected: true,
 };
@@ -151,7 +150,6 @@ describe('protocol type ↔ schema drift', () => {
       BatchUpdate: { updates: [] },
       ChatBroadcast: { fromId: 'p', fromName: 'n', text: 'hi', scope: 'all', ts: 1 },
       EquipmentUpdate: { equipment: [] },
-      EquipFailed: { reason: 'nope' },
       LearnSkillFailed: { skillId: 'fireball', reason: 'noSkillPoints' },
       CommandRejected: { commandType: 'EquipItem', reason: 'itemNotFound' },
     };
