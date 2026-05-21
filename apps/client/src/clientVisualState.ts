@@ -42,18 +42,34 @@ export function applyCombatLogVisualState(
  * retired. Cast-side failures arrive on `CommandRejected` with
  * `commandType: 'CastReq'` and the same `reason` strings the old
  * payload carried (cooldown / nomana / invalid / outofrange / …).
- * The combat-log copy is the same: "Cast failed: <reason>".
+ *
+ * §52 polish — copy made user-friendly so a player sees "out of
+ * range" / "not enough mana" instead of a raw enum string in their
+ * combat log. Unknown reasons fall through to the raw string so a
+ * server-side reason added without client copy still surfaces.
  */
 export function applyCastFailFromCommandRejected(
   state: GameClientState,
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
-  const text = `Cast failed: ${message.reason}`;
+  const text = castFailCopy(message.reason);
   return addCombatLine(
     state,
     { id: makeCombatLineId(`fail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now), text },
   );
+}
+
+function castFailCopy(reason: string): string {
+  switch (reason) {
+    case 'cooldown': return 'Cast failed: still on cooldown.';
+    case 'nomana': return 'Cast failed: not enough mana.';
+    case 'outofrange': return 'Cast failed: target out of range.';
+    case 'invalid': return 'Cast failed: invalid target.';
+    case 'missingTarget': return 'Cast failed: pick a target first.';
+    case 'targetNotFound': return 'Cast failed: target is gone.';
+    default: return `Cast failed: ${reason}`;
+  }
 }
 
 export function applyEnemyAttackVisualState(

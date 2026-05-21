@@ -306,7 +306,9 @@ describe('Vite game client reducer cast visual events', () => {
     });
 
     expect(nextState.message).toBe('Online');
-    expect(nextState.combatLog[0].text).toBe('Cast failed: outofrange');
+    // §52 polish — out-of-range now reads as a friendly sentence
+    // instead of the raw enum string.
+    expect(nextState.combatLog[0].text).toBe('Cast failed: target out of range.');
   });
 });
 
