@@ -266,6 +266,57 @@ function addCombatLine(state: GameClientState, line: CombatLine): GameClientStat
   return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
 }
 
+/**
+ * §49/M2 — death-event combat log line. Detected client-side via
+ * `isAlive` transition (true → false) on the next entity snapshot,
+ * so it works for any cause of death: skill impact, enemy attack,
+ * environmental damage, falling, etc.
+ *
+ * `prevIsAlive` is the snapshot before the merge in the reducer;
+ * `nextIsAlive` is the merged-incoming value. Only fires when the
+ * flag flips alive → dead. Dead-to-dead stays silent (matters for
+ * cleanup updates that re-broadcast a corpse), and dead-to-alive
+ * (respawn) stays silent — there is no "defeated" event to log.
+ */
+export function applyEnemyDeathFeedback(
+  state: GameClientState,
+  enemyId: string,
+  enemyName: string | undefined,
+  prevIsAlive: boolean,
+  nextIsAlive: boolean,
+  now: number,
+): GameClientState {
+  if (!(prevIsAlive && !nextIsAlive)) return state;
+  const label = enemyName?.trim() ? enemyName : 'Enemy';
+  return addCombatLine(state, {
+    id: makeCombatLineId(`death-enemy-${enemyId}`, state.combatLog.length, now),
+    text: `${label} has fallen.`,
+  });
+}
+
+/**
+ * Sibling of `applyEnemyDeathFeedback` for players. Renders as
+ * "Player X was defeated." for any tracked player flipping alive
+ * → dead — including the owning client themselves; the death
+ * pop-up handles UX separately, but the combat log keeps a
+ * historical record of every defeat in range.
+ */
+export function applyPlayerDeathFeedback(
+  state: GameClientState,
+  playerId: string,
+  playerName: string | undefined,
+  prevIsAlive: boolean,
+  nextIsAlive: boolean,
+  now: number,
+): GameClientState {
+  if (!(prevIsAlive && !nextIsAlive)) return state;
+  const label = playerName?.trim() ? playerName : 'A player';
+  return addCombatLine(state, {
+    id: makeCombatLineId(`death-player-${playerId}`, state.combatLog.length, now),
+    text: `${label} was defeated.`,
+  });
+}
+
 export function formatCombatLogLine(
   state: GameClientState,
   skillId: string,
