@@ -50,7 +50,6 @@ function makePlayer(id: string, socketId: string): PlayerState {
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: true,
-    inventory: [{ itemId: 'health_potion', quantity: 1 }],
     maxInventorySlots: 20,
     questState: { active: {}, completed: [] },
     gold: 0,
@@ -63,10 +62,9 @@ function makePlayer(id: string, socketId: string): PlayerState {
 /**
  * Allow-list of fields the *owner* of a player is permitted to see in their
  * own snapshot. This is the union of PUBLIC_PLAYER_KEYS + every field in
- * PRIVATE_PLAYER_STATE_FIELDS (the owner sees everything). Plus
- * `inventory` and `maxInventorySlots` because the makePlayer fixture below
- * sets them; if the live PlayerState shape changes, this set needs to
- * reflect the union so it doesn't drift.
+ * PRIVATE_PLAYER_STATE_FIELDS (the owner sees everything). §52 #2 retired
+ * the `inventory` field on PlayerState; the bag ships via the dedicated
+ * `InventoryUpdate` wire path, not the snapshot.
  */
 const OWNER_PLAYER_KEYS = new Set<string>([
   ...PUBLIC_PLAYER_KEYS,

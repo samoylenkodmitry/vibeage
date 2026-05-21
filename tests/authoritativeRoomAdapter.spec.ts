@@ -48,7 +48,6 @@ describe('socket-backed authoritative room adapter', () => {
 
     expect(client.emit).toHaveBeenCalledWith('msg', {
       type: 'InventoryUpdate',
-      inventory: [],
       maxInventorySlots: 20,
     });
   });
@@ -66,7 +65,6 @@ function makeWorldApi(state: ReturnType<typeof createGameState>): SocketBackedWo
     handleMessage: vi.fn((socket: AuthoritativeRoomSocket) => {
       socket.emit('msg', {
         type: 'InventoryUpdate',
-        inventory: [],
         maxInventorySlots: 20,
       });
     }),

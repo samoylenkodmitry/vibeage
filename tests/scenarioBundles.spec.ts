@@ -74,7 +74,6 @@ describe('scenario: level-up updates stats', () => {
       bound: false,
       createdAtTs: NOW,
     };
-    player.inventory = [{ itemId: 'worn_sword', quantity: 1 }];
     const { direct } = captureDirect();
     handleEquipItem(player, { type: 'EquipItem', slotIndex: 0, requestedSlot: 'MAIN_HAND' }, direct);
     const pAtkWithSwordBeforeLevel = player.stats?.pAtk ?? 0;
@@ -111,7 +110,6 @@ describe('scenario: equip a weapon increases pAtk and cast damage', () => {
       bound: false,
       createdAtTs: NOW,
     };
-    player.inventory = [{ itemId: 'worn_sword', quantity: 1 }];
 
     const { direct } = captureDirect();
     handleEquipItem(player, { type: 'EquipItem', slotIndex: 0, requestedSlot: 'MAIN_HAND' }, direct);

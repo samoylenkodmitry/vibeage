@@ -18,7 +18,7 @@ function makeMage(): PlayerState {
     skillCooldownEndTs: {}, statusEffects: [],
     level: 5, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,
-    isAlive: true, inventory: [], maxInventorySlots: 20,
+    isAlive: true, maxInventorySlots: 20,
     stats: { dmgMult: 1, critChance: 0, critMult: 2 },
   };
 }

@@ -18,10 +18,8 @@ describe('client initial snapshot transport', () => {
     const state = createGameState();
     const player = createTransientPlayer('socket1', 'Tester');
     player.id = 'player1';
-    // §45.7 — reset both inventory fields then route through the
-    // bridge so the aggregate stays the source of truth.
+    // §52 #2 — characterInventory is the sole source of truth.
     player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
-    player.inventory = [];
     addItemsToPlayer(player, 'health_potion', 2);
     state.players[player.id] = player;
 

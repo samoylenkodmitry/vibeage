@@ -21,7 +21,11 @@ describe('client state privacy', () => {
 
     expect(snapshot.players.own).toHaveProperty('socketId', 'own-socket');
     expect(snapshot.players.own).toHaveProperty('starterProgress');
-    expect(snapshot.players.own).toHaveProperty('inventory');
+    // §52 #2 — `inventory` retired from PlayerState; the owner's bag
+    // ships via the dedicated `InventoryUpdate` message, not via the
+    // initial game-state snapshot. Assert the snapshot DOESN'T carry
+    // it (was a privacy concern when the field still rode along).
+    expect(snapshot.players.own).not.toHaveProperty('inventory');
     expect(snapshot.players.own).toHaveProperty('maxInventorySlots', 20);
     expect(snapshot.players.other).toHaveProperty('id', 'other');
 
@@ -46,12 +50,14 @@ describe('client state privacy', () => {
     expect(sanitizePlayerForPublic(player)).not.toHaveProperty('maxInventorySlots');
     expect(sanitizePlayerForPublic(player)).not.toHaveProperty('characterInventory');
 
+    // §52 #2 — `PlayerState.inventory` retired; the wire-only
+    // `PlayerUpdate.inventory` projection still exists, so this test
+    // still asserts the sanitiser scrubs it.
     const update = sanitizePlayerUpdateForPublic({
       id: player.id,
       health: 10,
       socketId: player.socketId,
       starterProgress: player.starterProgress,
-      inventory: player.inventory,
       maxInventorySlots: player.maxInventorySlots,
       characterInventory: player.characterInventory,
     });
@@ -94,7 +100,6 @@ function makePlayer(id: string, socketId: string): PlayerState {
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: true,
-    inventory: [{ itemId: 'health_potion', quantity: 1 }],
     maxInventorySlots: 20,
   };
 }

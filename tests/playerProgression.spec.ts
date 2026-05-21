@@ -100,7 +100,6 @@ describe('skill learning state sync', () => {
       castingSkill: null,
       castingProgressMs: 0,
       isAlive: true,
-      inventory: [],
       maxInventorySlots: 20,
     };
     const state = createGameState();

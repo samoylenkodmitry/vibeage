@@ -66,6 +66,9 @@ type PublicPlayerField = typeof PUBLIC_PLAYER_FIELDS[number];
  * allowlist is the source of truth — this list is computed in a
  * sibling helper to avoid two registries drifting.
  */
+// §52 #2 — `inventory` dropped from this list along with the
+// PlayerState field. The wire-only `PlayerUpdate.inventory` projection
+// is sanitised separately by the public/owner sanitisers.
 export const PRIVATE_PLAYER_STATE_FIELDS = [
   'socketId',
   'unlockedSkills',
@@ -83,7 +86,6 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
   'posHistory',
   'usedResurrectionThisLife',
   'stats',
-  'inventory',
   'maxInventorySlots',
   'characterInventory',
   'gold',

@@ -2,13 +2,13 @@ import { describe, expect, test } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { pickupGroundLoot } from '../server/loot/lootPickup';
 import { createTransientPlayer } from '../server/playerFactory';
+import { playerInventorySlots } from './helpers/inventoryView';
 
 function withTinyBag() {
   const state = createGameState();
   const player = createTransientPlayer('socket-1', 'TightBag');
   // Clear the starter loadout, then force a one-slot bag so a 2-item drop has
   // to partially fail and must roll back atomically.
-  player.inventory = [];
   if (player.characterInventory) {
     player.characterInventory.items = {};
     player.characterInventory.equipment = {};
@@ -36,7 +36,8 @@ describe('loot pickup atomicity', () => {
 
     expect(result).toEqual({ ok: false, reason: 'inventoryFull' });
     // Bag must be empty (no partial add survives), loot must still be on the ground.
-    expect(player.inventory).toEqual([]);
+    // §52 #2 — read via the flatten helper now that `player.inventory` is gone.
+    expect(playerInventorySlots(player)).toEqual([]);
     expect(state.groundLoot[lootId]).toBeDefined();
   });
 });
