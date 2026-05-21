@@ -2408,10 +2408,10 @@ The "real backlog" after the audit. Ordered by impact × cost.
    ISSUE in `server/ai/enemyBehavior.ts:71-79`. Requires removing
    one integration AND rebalancing every enemy template's
    `movementSpeed`. Own PR.
-3. **§5 — finish the DTO trio.** PR #260 added
-   `PublicPlayerSnapshot`. Still missing: `OwnerPlayerSnapshot`
-   (today the owner sees full PlayerState; needs an explicit
-   shape) and `PlayerPresenceSnapshot` for world public state.
+3. **§5 — finish the DTO trio.** ✅ Closed (#358).
+   `OwnerPlayerSnapshot` wired through `makeClientPlayersSnapshot`;
+   `PlayerPresenceSnapshot` TS type + `sanitizePlayerForPresence`
+   helper added (mirrors `PublicPlayerPresenceState` Colyseus schema).
 4. **§11:607-609 — mini-boss leash + respawn + named encounter
    tracking.** Today bosses reuse the regular leash; product
    wants tighter constraints.
@@ -2717,20 +2717,21 @@ this list.
    the owner-only broadcast guard so rejection state doesn't
    leak to nearby players.
 
-2. **Inventory projection retirement.** `aggregateBridge.ts`
-   still calls `syncLegacyInventory(player)` after every
-   mutator to keep `player.inventory` in sync with
-   `player.characterInventory`. The legacy field has no
-   remaining server-side consumers — purely a wire
-   projection now. Cleanest fix: flatten on demand at
-   the single `InventoryUpdate` emit site and drop the
-   stored field. See `server/inventory/aggregateBridge.ts:51`.
+2. **Inventory projection retirement.** ✅ Closed (#357).
+   `PlayerState.inventory` field deleted; `characterInventory` is
+   the sole server-side store. `PlayerUpdate.inventory` stays as
+   the wire-only projection; emit sites already flatten on demand
+   via `flattenInventoryToSlots`. Legacy forward-migration branch
+   in `ensureCharacterInventory` removed; 30+ test fixtures
+   migrated off `player.inventory = …` literals.
 
-3. **§5 — finish the DTO trio.** PR #260 added
-   `PublicPlayerSnapshot`. Still missing:
-   `OwnerPlayerSnapshot` (today the owner sees the full
-   `PlayerState`) and `PlayerPresenceSnapshot` for the
-   public world state. Tight scope per DTO.
+3. **§5 — finish the DTO trio.** ✅ Closed (#358).
+   `OwnerPlayerSnapshot` is now wired through `makeClientPlayersSnapshot`
+   (was shipping raw `PlayerState`). `PlayerPresenceSnapshot` added as
+   a plain-TS type mirroring `PublicPlayerPresenceState` (the Colyseus
+   schema in `worldStateSchema.ts`) — same six fields, callable via
+   `sanitizePlayerForPresence`. Tests pin the type-shape so future
+   field additions don't drift between the schema and the TS type.
 
 4. **§14 histograms** — snapshot size, batch update size,
    DB write latency, join latency, reconnect latency.
@@ -2846,13 +2847,9 @@ If the user keeps the "polish what we have" stance:
    `UpgradeSkill`, `CastReq`) — builds on PR #323's
    helper, same shape, 3 schemas + 3 handlers + tests.
    Closes most of §4 in one PR.
-2. **Inventory projection retirement** — drop
-   `syncLegacyInventory`, flatten at the wire boundary,
-   remove the dual-storage. Mid-size refactor, well-
-   scoped.
-3. **`OwnerPlayerSnapshot` DTO** (§5) — extract the
-   owner-only fields into an explicit shape, wire it on
-   the join + `playerUpdated` paths. Sibling of PR #260.
+2. **Inventory projection retirement** — ✅ Closed (#357).
+3. **`OwnerPlayerSnapshot` DTO** (§5) — ✅ Closed (#358). Also
+   landed `PlayerPresenceSnapshot` to finish the DTO trio.
 
 If the user pivots to bug/UX:
 
