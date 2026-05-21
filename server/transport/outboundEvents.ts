@@ -1,5 +1,6 @@
 import type { InventorySlot, ServerMessage } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { SOCKET_SESSION_EVENTS } from './roomBoundary.js';
 
 export const WORLD_BROADCAST_EVENTS = {
@@ -42,7 +43,25 @@ export function makeSocketMessageSink(target: SocketMessageTarget): DirectMessag
   };
 }
 
+// §52 #12 — per-message-type emit counters. Increments at the helper
+// call so we count what game code *tried* to emit, regardless of the
+// sink (the in-process load test uses a no-op sink; counts still
+// land). For BatchUpdate we count one entry per nested message too so
+// the snapshot phase doesn't undercount its real outbound work.
+function recordOutbound(message: ServerMessage): void {
+  runtimeMetrics.increment(`outbound.serverMessage.${message.type}`);
+  runtimeMetrics.increment('outbound.serverMessage.total');
+  runtimeMetrics.increment('outbound.total');
+  if (message.type === 'BatchUpdate') {
+    for (const inner of message.updates) {
+      runtimeMetrics.increment(`outbound.batched.${inner.type}`);
+      runtimeMetrics.increment('outbound.batched.total');
+    }
+  }
+}
+
 export function emitServerMessage(sink: OutboundEventSink, message: ServerMessage): void {
+  recordOutbound(message);
   sink.publish({ type: 'serverMessage', message });
 }
 
@@ -51,6 +70,8 @@ export function emitServerMessageToClient(
   socketId: string,
   message: ServerMessage,
 ): void {
+  recordOutbound(message);
+  runtimeMetrics.increment('outbound.directServerMessage');
   sink.publish({ type: 'directServerMessage', socketId, message });
 }
 
@@ -63,9 +84,13 @@ export function emitBatchUpdate(sink: OutboundEventSink, updates: ServerMessage[
 }
 
 export function emitPlayerUpdated(sink: OutboundEventSink, update: PlayerUpdate): void {
+  runtimeMetrics.increment('outbound.playerUpdated');
+  runtimeMetrics.increment('outbound.total');
   sink.publish({ type: 'playerUpdated', update });
 }
 
 export function emitEnemyUpdated(sink: OutboundEventSink, update: EnemyUpdate): void {
+  runtimeMetrics.increment('outbound.enemyUpdated');
+  runtimeMetrics.increment('outbound.total');
   sink.publish({ type: 'enemyUpdated', update });
 }
