@@ -3145,7 +3145,7 @@ Character creation
 ## First Combat Loop
 
 - [x] Ensure every class can kill starter goblins with starter gear and starter skill. (`tests/starterBalance.spec.ts` — all 7 classes kill a L1 goblin within 40 cast cycles, using their L1 starter skill or basicAttack.)
-- [ ] Ensure every class has enough mana or no-mana alternatives to complete the first quest.
+- [x] Ensure every class has enough mana or no-mana alternatives to complete the first quest. (`tests/starterManaEconomy.spec.ts` simulates 3 back-to-back goblin kills per class, casting starter while mana ≥ cost and falling back to basicAttack on OOM; every class lands the full 3 kills. A sibling test asserts each class's starter is castable from the L1 mana pool — either 0-cost or `maxMana ≥ manaCost`.)
 - [ ] Ensure healer/paladin support skills do not make the first kill confusing.
 - [ ] Ensure ranger target range and projectile behavior feel reliable.
 - [ ] Ensure rogue melee range is readable.
@@ -3178,7 +3178,7 @@ Character creation
 - [x] Show stat delta when equipping an item. (Item tooltip in the bag now appends green/red `(+N)` / `(-N)` after each stat, comparing to whatever's currently equipped in the same EquipSlot. `resolveCompareStats` + `computeDelta` exported + tested.)
 - [x] Add an equip success message. (`applyEquipmentChangeFeedback` diffs incoming `EquipmentUpdate` against the prior slot map and prepends "Equipped <Item>" to the combat log for each newly filled slot. Skips the initial first-spawn payload to avoid a flood. PR #306; `tests/equipFeedback.spec.ts`.)
 - [x] Add an equip rejection message for level/slot/hand conflicts. (`applyEquipFailedVisualState` maps each known `EquipFailed.reason` to friendly copy — "you need a higher level for this item", "another item is in the way", "your hands are full" — and falls back to the raw reason otherwise. PR #306; `tests/equipFeedback.spec.ts`.)
-- [ ] Add a test that the first boss gear recipe consumes correct inputs and outputs correct item.
+- [x] Add a test that the first boss gear recipe consumes correct inputs and outputs correct item. (`tests/bossGearRecipes.spec.ts` — Grakk's `recipe_chieftains_cleaver` consumes the warband horn + 6 goblin ears + 2 troll bones and grants the cleaver; sibling test confirms a short input (5 ears) returns `missingIngredients` with atomicity preserved.)
 
 ## Next-Step Choice
 
