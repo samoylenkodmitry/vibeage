@@ -41,11 +41,13 @@ describe('client initial snapshot transport', () => {
       progress: player.starterProgress,
       rewardGranted: false,
     });
+    // §52 #3 — owner snapshot is now an OwnerPlayerSnapshot projection.
+    // socketId stays server-only; pin a field the allowlist surfaces.
     expect(client.send).toHaveBeenCalledWith(
       SESSION_EVENTS.gameState,
       expect.objectContaining({
         players: expect.objectContaining({
-          player1: expect.objectContaining({ socketId: 'socket1' }),
+          player1: expect.objectContaining({ id: 'player1', name: player.name }),
         }),
       }),
     );

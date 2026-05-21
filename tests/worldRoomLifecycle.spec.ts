@@ -39,9 +39,18 @@ describe('world room lifecycle boundary', () => {
       SESSION_EVENTS.joinGame,
       expect.objectContaining({ playerId: player.id, serverProtocolVersion: expect.any(Number) }),
     );
+    // §52 #3 — the owner snapshot is now an `OwnerPlayerSnapshot`
+    // projection. `socketId` is server-only bookkeeping; the client
+    // already knows its session id, so it's not in the allowlist.
+    // Pin a field the owner snapshot *does* carry instead.
     expect(client.send).toHaveBeenCalledWith(SESSION_EVENTS.gameState, expect.objectContaining({
-      players: expect.objectContaining({ player1: expect.objectContaining({ socketId: 'socket1' }) }),
+      players: expect.objectContaining({ player1: expect.objectContaining({ id: 'player1', name: player.name }) }),
     }));
+    const gameStateCall = client.send.mock.calls.find((c) => c[0] === SESSION_EVENTS.gameState);
+    expect(gameStateCall?.[1]).toBeDefined();
+    const ownPlayer = (gameStateCall![1] as { players: Record<string, Record<string, unknown>> }).players.player1;
+    expect(ownPlayer).not.toHaveProperty('socketId');
+    expect(ownPlayer).not.toHaveProperty('characterInventory');
   });
 
   test('leaves through the adapter and broadcasts only when a player was active', async () => {

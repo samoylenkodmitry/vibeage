@@ -19,13 +19,14 @@ describe('client state privacy', () => {
 
     const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
 
-    expect(snapshot.players.own).toHaveProperty('socketId', 'own-socket');
+    // §52 #3 — owner snapshot is now an `OwnerPlayerSnapshot` projection.
+    // Server-only bookkeeping (socketId, characterInventory, posHistory,
+    // lastRegenTimeMs) stays out even from the owner; the owner-only
+    // bag/equipment data ships via its dedicated wire messages.
+    expect(snapshot.players.own).not.toHaveProperty('socketId');
     expect(snapshot.players.own).toHaveProperty('starterProgress');
-    // §52 #2 — `inventory` retired from PlayerState; the owner's bag
-    // ships via the dedicated `InventoryUpdate` message, not via the
-    // initial game-state snapshot. Assert the snapshot DOESN'T carry
-    // it (was a privacy concern when the field still rode along).
     expect(snapshot.players.own).not.toHaveProperty('inventory');
+    expect(snapshot.players.own).not.toHaveProperty('characterInventory');
     expect(snapshot.players.own).toHaveProperty('maxInventorySlots', 20);
     expect(snapshot.players.other).toHaveProperty('id', 'other');
 
