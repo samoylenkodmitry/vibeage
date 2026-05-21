@@ -4,6 +4,7 @@ import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
 import { listActiveQuestMarkers } from './hud/questMarkers';
+import { useRehydrateTrackedQuest } from './trackedQuestStorage';
 import { useGameClient } from './useGameClient';
 import { WorldScene } from './WorldScene';
 
@@ -15,6 +16,8 @@ export default function App() {
   const touchClaimRef = useRef<Set<number>>(new Set());
   const [navigationMarker, setNavigationMarker] = useState<VecXZ | null>(null);
   useAutoMarkerOnQuestAccept(state, setNavigationMarker);
+
+  useRehydrateTrackedQuest(client.setTrackedQuest);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
