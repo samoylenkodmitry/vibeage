@@ -155,6 +155,9 @@ describe('handleCastReq rejects stunned players', () => {
     );
 
     expect(Object.keys(activeCasts)).toEqual([]);
-    expect(sentMessages).toContainEqual(expect.objectContaining({ type: 'CastFail', reason: 'invalid' }));
+    // §52 #1 — CastFail retired; check the structured envelope.
+    expect(sentMessages).toContainEqual(expect.objectContaining({
+      type: 'CommandRejected', commandType: 'CastReq', reason: 'invalid',
+    }));
   });
 });

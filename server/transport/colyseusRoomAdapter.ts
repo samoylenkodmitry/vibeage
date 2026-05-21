@@ -171,7 +171,6 @@ const OWNER_ONLY_SERVER_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'SkillLearned',
   'SkillShortcutUpdated',
   'ClassSelected',
-  'CastFail',
   'ItemUsed',
   'LootAcquired',
   'StarterProgressUpdate',

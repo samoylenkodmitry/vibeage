@@ -17,7 +17,7 @@ import {
   normalizeClientStarterProgress,
 } from './starterProgress';
 import {
-  applyCastFailVisualState,
+  applyCastFailFromCommandRejected,
   applyCastSnapshotVisualState,
   applyCombatLogVisualState,
   applyEnemyAttackVisualState,
@@ -247,12 +247,10 @@ function applyServerMessage(
     return applyCombatLogVisualState(state, message, now);
   }
 
-  if (message.type === 'CastFail') {
-    return applyCastFailVisualState(state, message, now);
+  if (message.type === 'CommandRejected') {
+    if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
+    if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
   }
-
-  // §52 playtest — quest-verb CommandRejecteds → combat log copy.
-  if (message.type === 'CommandRejected' && QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
 
   if (message.type === 'EnemyAttack') {
     return applyEnemyAttackVisualState(state, message, now);

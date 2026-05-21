@@ -106,7 +106,10 @@ describe('frozen player blocks move and cast like stun', () => {
       createActiveCastStore(),
     );
 
-    expect(sentMessages).toContainEqual(expect.objectContaining({ type: 'CastFail', reason: 'invalid' }));
+    // §52 #1 — CastFail retired; check CommandRejected envelope.
+    expect(sentMessages).toContainEqual(expect.objectContaining({
+      type: 'CommandRejected', commandType: 'CastReq', reason: 'invalid',
+    }));
   });
 });
 

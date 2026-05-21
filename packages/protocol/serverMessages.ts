@@ -60,12 +60,6 @@ export const classSelectedSchema = z.object({
   // PASSIVE_SKILL_CONTRIBUTIONS, not a wire-shipped multiplier block.
 }).strict();
 
-export const castFailSchema = z.object({
-  type: z.literal('CastFail'),
-  clientSeq: z.number(),
-  reason: z.enum(['cooldown', 'nomana', 'invalid', 'outofrange']),
-}).strict();
-
 export const castSnapshotMsgSchema = z.object({
   type: z.literal('CastSnapshot'),
   data: castSnapshotSchema,
@@ -259,7 +253,6 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   skillLearnedSchema,
   skillShortcutUpdatedSchema,
   classSelectedSchema,
-  castFailSchema,
   castSnapshotMsgSchema,
   combatLogMsgSchema,
   enemyAttackSchema,
@@ -318,12 +311,6 @@ export type SkillShortcutUpdated = {
 export type ClassSelected = {
   type: 'ClassSelected';
   className: string;
-};
-
-export type CastFail = {
-  type: 'CastFail';
-  clientSeq: number;
-  reason: 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 };
 
 export type CastSnapshotMsg = {
@@ -476,7 +463,6 @@ export type ServerMessage =
   | SkillLearned
   | SkillShortcutUpdated
   | ClassSelected
-  | CastFail
   | CastSnapshotMsg
   | EffectSnapshotMsg
   | CombatLogMsg

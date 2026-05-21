@@ -292,13 +292,16 @@ describe('Vite game client reducer cast visual events', () => {
       connectionState: 'online' as const,
       message: 'Online',
     };
+    // §52 #1 — CastFail retired; the same combat-log line now comes
+    // from CommandRejected{commandType:'CastReq'}.
     const nextState = gameClientReducer(onlineState, {
       type: 'serverMessage',
       now: 100,
       message: {
-        type: 'CastFail',
-        clientSeq: 1,
+        type: 'CommandRejected',
+        commandType: 'CastReq',
         reason: 'outofrange',
+        requestId: 1,
       },
     });
 
