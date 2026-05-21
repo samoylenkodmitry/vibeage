@@ -3157,7 +3157,7 @@ Character creation
 ## Grakk Boss Encounter
 
 - [x] Make Grakk easy to find from the bounty quest marker. (Map renders a blue pin per active quest #294; `useAutoMarkerOnQuestAccept` auto-drops the navigation marker on the first-stage marker the moment the player accepts a quest. PR #304.)
-- [ ] Give Grakk a visible nameplate and boss marker.
+- [x] Give Grakk a visible nameplate and boss marker. (Up-close: gold nameplate with level + `MiniBossCrown` (torus) + 1.6× height + brighter point light. Long-range: new `BossBeacon` — a tall glowing column rendered for every live mini-boss while not selected, visible from across the zone. `apps/client/src/SceneVfx.tsx` / wired in `apps/client/src/WorldEntities.tsx`.)
 - [ ] Give Grakk a visible telegraphed signature ability.
 - [ ] Implement Grakk’s signature ability in the engine, not only lore text.
 - [ ] Add a ground telegraph VFX for the ability.

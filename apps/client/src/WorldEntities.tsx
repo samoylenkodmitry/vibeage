@@ -9,6 +9,7 @@ import type {
   VisibleCast,
 } from './gameTypes';
 import {
+  BossBeacon,
   CastVfx,
   EnemyHealthBar,
   EnemyHitFlash,
@@ -422,6 +423,7 @@ export function EnemyMarker({
         <pointLight color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} />
       )}
       {enemy.isAlive && enemy.isMiniBoss && <MiniBossCrown color={visual.color} height={visual.height} />}
+      {enemy.isAlive && enemy.isMiniBoss && !isSelected && <BossBeacon color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
       {enemy.isAlive && enemy.name && (
