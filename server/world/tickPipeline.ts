@@ -159,6 +159,11 @@ function runSnapshotPhase(input: WorldTickRunnerOptions & {
   if (updates.length > 0) {
     runtimeMetrics.increment('snapshot.batches');
     runtimeMetrics.increment('snapshot.updates', updates.length);
+    // §52 #5 — histogram of batch sizes so the dashboard can graph
+    // p50/p95/p99 update payload sizes. Big tails here usually mean
+    // the broadcast loop is shipping more deltas than the snapshot
+    // budget assumed; the percentile is the right alarm signal.
+    runtimeMetrics.recordHistogram('snapshot.batchSize', updates.length);
     emitBatchUpdate(input.outbound, updates);
   }
   return 0;
