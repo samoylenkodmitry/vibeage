@@ -13,7 +13,7 @@ import { QuestPanel } from './QuestPanel';
 import { PlayerPanel } from './PlayerPanel';
 import { GmPanel } from './GmPanel';
 
-export type HudPanelToggleState = {
+type HudPanelToggleState = {
   statsOpen: boolean;
   questOpen: boolean;
   bagOpen: boolean;

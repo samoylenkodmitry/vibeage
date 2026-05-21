@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ITEMS, isUsableConsumable } from '../../../../packages/content/items';
+import { ITEMS } from '../../../../packages/content/items';
 import { openWikiAt } from './wikiNavBus';
 
 /**
@@ -108,20 +108,3 @@ export function BagContextMenu(props: BagContextMenuProps) {
   );
 }
 
-/**
- * Helper for the InventoryPanel: given an item id, what actions
- * apply? Kept out of the panel itself so it stays testable + the
- * component reads as data flow.
- */
-export function actionsForItemId(
-  itemId: string,
-  playerLevel: number,
-  equipMinLevelFn: (itemId: string) => number,
-): { canUse: boolean; canEquip: boolean } {
-  const item = ITEMS[itemId];
-  if (!item) return { canUse: false, canEquip: false };
-  const canUse = isUsableConsumable(item);
-  const equipMinLevel = item.equip ? equipMinLevelFn(itemId) : 0;
-  const canEquip = Boolean(item.equip) && playerLevel >= equipMinLevel;
-  return { canUse, canEquip };
-}
