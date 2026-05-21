@@ -3106,7 +3106,7 @@ Character creation
 - [x] Add a loot pickup hint after the first kill. (`LootPickupHint` banner appears when there's ground loot AND zero `lootPickups` recorded AND starter path incomplete. PR #301.)
 - [x] Add a return-to-NPC hint when the objective is complete. (`ReturnToNpcHint` banner renders when an active quest enters a `talk` stage with progress < 1; names the target NPC and auto-dismisses on talk progress. `pickReturnNpc` exported + 5 unit tests. PR #309.)
 - [x] Ensure tutorial hints are dismissible. (Each of the four onboarding banners now sports a × button; dismissal is sticky via `localStorage` under `vibeage.hint.<key>.dismissed.v1` and propagates cross-tab via storage events. Shared `useDismissibleHint` hook. PR #310.)
-- [ ] Ensure tutorial hints do not block core HUD on mobile.
+- [x] Ensure tutorial hints do not block core HUD on mobile. (Mobile `@media (max-width: 680px)` repositions the four onboarding banners from a viewport-relative `top: 30%` anchor to a bottom anchor 260 px above the bottom edge — between the panel-toggles row (`bottom: 210px`) and the skill-bar — keeping them out of the player-panel / skill-bar collision zones on short mobile viewports.)
 
 ## Quest Flow Polish
 
