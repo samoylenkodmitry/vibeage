@@ -2736,15 +2736,15 @@ this list.
    `sanitizePlayerForPresence`. Tests pin the type-shape so future
    field additions don't drift between the schema and the TS type.
 
-4. **§14 histograms** — snapshot size, batch update size,
-   DB write latency, join latency, reconnect latency.
-   Required before any serious load test. Owner: §12 work
-   blocks on this.
+4. **§14 histograms** — ✅ Closed (#341 + #362).
+   `snapshot.batchSize` (#341), plus `snapshot.bytes` /
+   `snapshot.playerCount` / `snapshot.enemyCount` /
+   `db.updatePlayer.durationMs` / `db.upsertSession.durationMs` /
+   `world.joinDurationMs` (#362). Unblocks #12.
 
-5. **§13 backup/restore drill in CI.** Existing
-   `scripts/check-restored-postgres-compatibility.sql`
-   covers schema parity; wiring it into a scheduled CI
-   job is the next slice.
+5. **§13 backup/restore drill in CI.** ✅ Closed (#342 + #343).
+   `.github/workflows/db-restore-check.yml` runs the parity SQL on a
+   schedule + workflow_dispatch.
 
 6. **Combat log misses + heals.** ✅ Shipped. Hits + crits
    + deaths (#303, #314). Misses (#345): `getDamage` gained
@@ -2755,12 +2755,10 @@ this list.
    renders "X missed Y" / "(K dodged)" / "X healed Y for N" /
    "(+N healed)" suffixes. Queue item closed.
 
-7. **Quest reward overflow.** Single explicit TODO at
-   `server/players/playerQuests.ts:136` — bag full at
-   claim time currently drops items to the ground. Spec
-   a graceful path (spawn a player-owned ground stack at
-   the claim spot OR queue the reward until a slot frees)
-   and ship.
+7. **Quest reward overflow.** ✅ Closed (#336).
+   `applyClaimQuestReward` spawns a player-owned ground stack via
+   `createPlayerDroppedLootStack` when the bag can't hold the reward
+   items.
 
 8. **Mobile world-visibility 0.53 → 0.55.** The 1.4 %
    gap is the dense `.player-panel` Stats grid. Closing
