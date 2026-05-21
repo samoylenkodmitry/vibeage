@@ -13,6 +13,7 @@ import {
 import { BASIC_ATTACK_SKILL_ID } from './skillShortcuts';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { isForceCastHeld } from './modifierKeys';
+import { nextClientSeq } from './commandSeq';
 
 const PENDING_CAST_TTL_MS = 10_000;
 const PENDING_PICKUP_TTL_MS = 12_000;
@@ -163,6 +164,7 @@ function useCastActions(
       skillId,
       targetId: targetId ?? undefined,
       clientTs: Date.now(),
+      clientSeq: nextClientSeq(),
       ...(force ? { force: true } : {}),
     });
     // PR LL — only refocus the plate for cross-entity casts; self-casts
@@ -465,10 +467,10 @@ function useQuestActions(roomRef: RefObject<Room | null>) {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'ClaimQuestReward', questId });
   }, [roomRef]);
   const buyFromVendor = useCallback((vendorId: string, itemId: string, quantity: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'BuyFromVendor', vendorId, itemId, quantity });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'BuyFromVendor', vendorId, itemId, quantity, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const sellToVendor = useCallback((vendorId: string, itemId: string, quantity: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SellToVendor', vendorId, itemId, quantity });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SellToVendor', vendorId, itemId, quantity, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const gmCommand = useCallback((cmd: {
     verb:
@@ -478,7 +480,7 @@ function useQuestActions(roomRef: RefObject<Room | null>) {
     targetId?: string;
     quantity?: number;
   }) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'GmCommand', ...cmd });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'GmCommand', ...cmd, clientSeq: nextClientSeq() });
   }, [roomRef]);
   return { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand };
 }
@@ -488,10 +490,10 @@ function useIdentityAndItemActions(
   stateRef: RefObject<GameClientState>,
 ) {
   const learnSkill = useCallback((skillId: SkillId) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'LearnSkill', skillId });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'LearnSkill', skillId, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const useItem = useCallback((slotIndex: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now() });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UseItem', slotIndex, clientTs: Date.now(), clientSeq: nextClientSeq() });
   }, [roomRef]);
   // §46/slice-new — drop a stack (or partial count) to the ground at
   // the caller's position. Server validates ownership + clamps count
@@ -499,36 +501,36 @@ function useIdentityAndItemActions(
   // stack and an out-of-range value is silently clamped.
   const dropItem = useCallback((slotIndex: number, count?: number) => {
     roomRef.current?.send(SESSION_EVENTS.message, count !== undefined
-      ? { type: 'DropItem', slotIndex, count }
-      : { type: 'DropItem', slotIndex });
+      ? { type: 'DropItem', slotIndex, count, clientSeq: nextClientSeq() }
+      : { type: 'DropItem', slotIndex, clientSeq: nextClientSeq() });
   }, [roomRef]);
   // Bag context menu — destroy. Same shape as dropItem but the
   // server skips the loot spawn so the item is gone for good.
   const destroyItem = useCallback((slotIndex: number, count?: number) => {
     roomRef.current?.send(SESSION_EVENTS.message, count !== undefined
-      ? { type: 'DestroyItem', slotIndex, count }
-      : { type: 'DestroyItem', slotIndex });
+      ? { type: 'DestroyItem', slotIndex, count, clientSeq: nextClientSeq() }
+      : { type: 'DestroyItem', slotIndex, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const craftItem = useCallback((recipeSlotIndex: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'CraftItem', recipeSlotIndex, clientTs: Date.now() });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'CraftItem', recipeSlotIndex, clientTs: Date.now(), clientSeq: nextClientSeq() });
   }, [roomRef]);
   const equipItem = useCallback((slotIndex: number, requestedSlot?: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'EquipItem', slotIndex, requestedSlot });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'EquipItem', slotIndex, requestedSlot, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const unequipItem = useCallback((slot: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UnequipItem', slot });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UnequipItem', slot, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const selectClass = useCallback((className: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectClass', className });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectClass', className, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const selectRace = useCallback((race: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectRace', race });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectRace', race, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const selectSpecialization = useCallback((specializationId: string) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'SelectSpecialization', specializationId });
   }, [roomRef]);
   const upgradeSkill = useCallback((skillId: SkillId) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UpgradeSkill', skillId });
+    roomRef.current?.send(SESSION_EVENTS.message, { type: 'UpgradeSkill', skillId, clientSeq: nextClientSeq() });
   }, [roomRef]);
   const respawn = useCallback(() => {
     const room = roomRef.current;
@@ -569,6 +571,7 @@ function useCommandActions(
       text: trimmed.slice(0, 240),
       scope,
       clientTs: Date.now(),
+      clientSeq: nextClientSeq(),
     });
   }, [roomRef]);
 
