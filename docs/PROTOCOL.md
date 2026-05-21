@@ -62,26 +62,38 @@ The client should be able to rebuild the playable HUD from this path alone. If a
 
 ## Visibility Boundary
 
-The server treats the authoritative `PlayerState` as owner-visible by default. Full snapshots sent to a joining or resyncing client keep private fields only for the player whose `socketId` matches that client. Other players are sanitized in `server/transport/clientState.ts`.
+The server projects `PlayerState` onto three explicit allowlist-driven DTOs (§52 #3, `server/transport/clientState.ts`):
 
-Owner-only player fields:
+- **`OwnerPlayerSnapshot`** — what the owning client sees in its own
+  player entry on the initial snapshot. Wider than the public projection
+  (carries gold, skill state, stats, quest state, progression) but
+  narrower than the full `PlayerState` (excludes server-only bookkeeping:
+  `socketId`, `posHistory`, `lastRegenTimeMs`, `characterInventory`).
+  Built from `OWNER_PLAYER_FIELDS`.
+- **`PublicPlayerSnapshot`** — what every *other* client sees for that
+  player. Built from `PUBLIC_PLAYER_FIELDS` (allowlist). Adding a new
+  field to `PlayerState` defaults to private; opt in by editing the list.
+- **`PlayerPresenceSnapshot`** — world-wide presence record mirroring
+  the Colyseus `PublicPlayerPresenceState` schema. Six fields:
+  `id`, `name`, `className`, `level`, `isAlive`, `regionId`. Used by
+  the public-state broadcast that flows alongside region-scoped
+  snapshots.
 
-- `socketId`
-- `starterProgress`
-- `inventory`
-- `maxInventorySlots`
-
-Owner-only/direct messages:
+Owner-only direct/owner-bound messages (never broadcast to other clients;
+guarded by `OWNER_ONLY_SERVER_MESSAGE_TYPES` in `colyseusRoomAdapter.ts`):
 
 - `InventoryUpdate`
-- `LootAcquired`
-- `ItemUsed`
+- `EquipmentUpdate`
 - `SkillLearned`
 - `SkillShortcutUpdated`
+- `ClassSelected`
+- `ItemUsed`
+- `LootAcquired`
 - `StarterProgressUpdate`
-- `CastFail`
+- `CommandRejected` (§52 #1 — carries per-player failure context such
+  as cooldown state or skill paths; broadcasting would leak it)
 
-Public broadcasts may include combat, movement, loot visibility, enemy updates, and sanitized player joins/updates. Any new player field must be classified here and covered by a transport privacy test before it is broadcast.
+Public broadcasts may include combat, movement, loot visibility, enemy updates, and sanitized player joins/updates. Any new player field must be classified here and covered by a transport privacy test before it is broadcast. The privacy guard is exercised by `tests/clientStatePrivacy.spec.ts`, `tests/playerPrivacyAllowList.spec.ts`, `tests/ownerOnlyServerMessages.spec.ts`, and `tests/ownerPlayerSnapshot.spec.ts`.
 
 ## Region-Scoped State
 
@@ -219,3 +231,16 @@ The following message types have been removed in v0.5.0:
 - ~~ProjHit2~~
 
 These have been replaced by `CastReq`, `CastSnapshot`, `InstantHit`, and `CombatLog` messages validated in `packages/protocol/messages.ts`.
+
+§52 #1 retired three more legacy *Failed messages in favor of the
+structured `CommandRejected` envelope:
+
+- ~~CastFail~~ → `CommandRejected{commandType:'CastReq', reason, requestId}`
+  (PR #353)
+- ~~EquipFailed~~ → `CommandRejected{commandType:'EquipItem'|'UnequipItem',
+  reason, requestId}` (PR #354)
+- ~~LearnSkillFailed~~ → `CommandRejected{commandType:'LearnSkill',
+  reason, requestId, targetId}` (PR #355). The new optional `targetId`
+  field on `CommandRejected` carries per-subject context (skill id,
+  item id, …) so the client can hang the rejection next to the right
+  UI element without per-command outbound bookkeeping.
