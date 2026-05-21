@@ -1,6 +1,6 @@
 # VibeAge Roadmap
 
-Last rewritten: 2026-05-15
+Last rewritten: 2026-05-21
 
 ## Direction
 
@@ -387,10 +387,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add a test that schema-inferred types match exported message types for every protocol message.
 - [x] Add an exhaustive discriminated-union test for client messages.
 - [x] Add an exhaustive discriminated-union test for server messages.
-- [~] Add explicit `clientSeq` fields to commands that need acknowledgement or rejection. (PR #261 — `clientSeq?: number` added to `EquipItem` + `UnequipItem` schemas. Remaining commands — inventory, vendor, skill, chat, drop — follow the same shape but haven't been wired yet.)
+- [~] Add explicit `clientSeq` fields to commands that need acknowledgement or rejection. (PR #261 added `clientSeq?: number` to `EquipItem` + `UnequipItem`; PR #323 extended the optional field and rejection echo to `UseItem`, `CraftItem`, `DropItem`, `DestroyItem`, `BuyFromVendor`, and `SellToVendor`. Remaining: `CastReq`, `LearnSkill`, `UpgradeSkill`, `ChatRequest`, and `GmCommand`, plus a centralized client-side sequence generator.)
 - [ ] Stop overloading `clientTs` as an acknowledgement key.
-- [ ] Add request IDs for inventory, equipment, class, race, skill, chat, and admin commands where user feedback matters. (Partial: equipment done in PR #261; rest pending.)
-- [ ] Add structured rejection messages for all client commands, not only cast, learn-skill, and equip. (Partial: PR #261 added the `CommandRejected` envelope, wired on equip/unequip only.)
+- [ ] Add request IDs for inventory, equipment, class, race, skill, chat, and admin commands where user feedback matters. (Partial: equipment, inventory, and vendor schemas/handlers done; skill, cast, chat, admin, and client action generation remain.)
+- [ ] Add structured rejection messages for all client commands, not only cast, learn-skill, and equip. (Partial: PR #261 added the `CommandRejected` envelope for equip/unequip; PR #323 added Use/Craft/Drop/Destroy/Buy/Sell. `CastFail`, `LearnSkillFailed`, and silent chat/GM/class/race rejections still need migration.)
 - [x] Add a standard error envelope with `requestId`, `commandType`, `reason`, and optional safe detail. (PR #261 — `commandRejectedSchema` in `packages/protocol/serverMessages.ts:200-218`; type at `:438-444`.)
 - [x] Add protocol tests for unknown fields, wrong types, invalid enums, oversized text, invalid coordinates, and stale versions.
 - [ ] Add message-size budget tests for initial snapshot, batch updates, inventory update, equipment update, and chat messages.
@@ -574,7 +574,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Reject movement targets outside playable world bounds.
 - [ ] Reject movement targets into impassable terrain once collision/navmesh exists.
 - [ ] Add per-player movement speed budget based on stats and effects.
-- [ ] **Enemy movement double-step**: `moveEnemyToward` integrates `velocity * dt` into position, and `worldMovement.advanceEnemyPosition` does it again in the same tick. Enemies effectively move at 2× their nominal speed. Fix requires removing one integration AND rebalancing every enemy template's `movementSpeed`.
+- [x] **Enemy movement double-step**: `moveEnemyToward` integrated `velocity * dt` into position, and `worldMovement.advanceEnemyPosition` did it again in the same tick. PR #324 removed the duplicate integration and doubled the baseline speed multiplier to preserve on-screen feel.
 - [ ] Add speed-hack detection metrics.
 - [ ] Add teleport detection metrics.
 - [ ] Add client reconciliation acknowledgements using movement sequence numbers.
@@ -2642,7 +2642,7 @@ Test totals 1248 → **1275** (+27).
 ### What's actually open (prioritized 2026-05-21)
 
 The real backlog after this audit. Ordered by impact × cost.
-The "deferred" sections that dominate the 1484-line open
+The "deferred" sections that dominate the 1538-item open
 count (§2 redo list, §7 visuals, §15 moderation, §17/18 UX
 polish sprint, §19 content tools, §22 social, §24 audio/VFX,
 §28 milestone gates) stay deferred per §48 — they're not on
@@ -2764,8 +2764,8 @@ Pulled from the same audit:
 
 ### Open count after this pass
 
-ROADMAP.md is **4299 lines, 300 `[x]` items, 1484 `[ ]`
-items, 6 `[~]` items**. Same caveat as §48: ~80 % of the
+ROADMAP.md is **4646 lines, 382 `[x]` items, 1538 `[ ]`
+items, 10 `[~]` items**. Same caveat as §48: ~80 % of the
 `[ ]` mass lives in deferred sections (§2 redo list, §7
 visuals, §15 moderation, §17/18 UX polish sprint, §19
 content tools, §22 social, §24 audio/VFX, §28 milestone
@@ -2800,6 +2800,142 @@ If the user pivots to bug/UX:
    evasion roll in the damage path; add the "missed!"
    line.
 
+
+---
+
+# 52. Roadmap refresh: current operating plan (2026-05-21 late)
+
+Audit purpose: reconcile the project after the §49/M2 closeout,
+the PR #320-#325 polish sweep, and a fresh source read. This
+section is the current working roadmap. Older unchecked milestone
+lists remain useful context, but do not treat them as the next
+queue until they agree with §51 + this section.
+
+## Done now
+
+- [x] The level 1-8 starter loop is no longer a loose prototype:
+  first-kill loot hint, trophy tooltip links, quest nav markers,
+  skill-use / targeting / return-to-NPC hints, Grakk boss beacon,
+  Grakk signature-log coverage, starter mana tuning, and mobile-safe
+  hint placement all shipped in PRs #301-#319.
+- [x] Content single source of truth is mostly sound for normal
+  records. Runtime systems and wiki surfaces read the same
+  `packages/content` registries for skills, class trees, specs,
+  items, quests, NPCs, vendors, loot tables, bosses, zones, stats,
+  and obtainability. `content:graph`, `content:audit`,
+  `content:audit:check`, and `balance:report` exist, and
+  `pnpm run check` includes the graph + audit checks.
+- [x] Protocol boundaries are stricter than the old baseline:
+  client/server schemas are strict, discriminated-union drift tests
+  exist, protocol version checks exist, and `CommandRejected` is a
+  shared envelope with a helper in `server/transport/commandRejected.ts`.
+- [x] Engine housekeeping is clean enough to build on: dead-code
+  report is silent, maintainability budgets are enforced, and the
+  enemy double-step movement bug is fixed.
+- [x] Public player privacy has a real allowlist and tests. Owner-only
+  direct messages are covered; the remaining gap is explicit owner
+  DTO construction, not a known leak.
+- [x] Inventory is persisted through the aggregate character-inventory
+  model. The remaining legacy field is an in-memory / wire projection,
+  not the database source of truth.
+
+## Not done
+
+- [ ] `CommandRejected` is incomplete. Equipment, inventory, and vendor
+  rejection paths emit the envelope; `CastReq`, `LearnSkill`,
+  `UpgradeSkill`, `ChatRequest`, `GmCommand`, class/race GM rejects,
+  and client action sequence generation still need a coordinated pass.
+- [ ] `clientTs` is still overloaded for cast failure correlation.
+  `CastFail.clientSeq` is populated from `msg.clientTs`; `CastReq`
+  has no explicit `clientSeq`.
+- [ ] Legacy failure messages remain in the live protocol:
+  `EquipFailed`, `LearnSkillFailed`, and `CastFail`. Keep them during
+  migration, then retire them only after the client consumes
+  `CommandRejected` for the same user-facing surfaces.
+- [ ] Owner DTOs are not finished. `PublicPlayerSnapshot` exists, but
+  `OwnerPlayerSnapshot`, `OwnerInventorySnapshot`,
+  `OwnerEquipmentSnapshot`, and `PlayerPresenceSnapshot` are still
+  design items.
+- [ ] Inventory projection retirement is not finished.
+  `syncLegacyInventory(player)` still copies aggregate inventory into
+  `player.inventory` so `InventoryUpdate` can emit flat slots.
+- [ ] Quest reward overflow is still the only explicit product TODO:
+  a full bag at reward claim time needs a designed outcome.
+- [ ] Observability is underpowered for scaling work. Snapshot-size,
+  batch-size, DB-write, join, and reconnect histograms are open; the
+  load-test harness should wait until these are measured.
+- [ ] Backup/restore compatibility is scripted but not scheduled in CI.
+- [ ] Combat log has hits, crits, and deaths; misses and heals need
+  server surfaces first.
+- [ ] Rich per-feature modules are only a roadmap contract. There is no
+  `loadRichModule` helper, validator, boss module, or spec module yet.
+- [ ] `docs/UNLINKED.md` still lists five unused flavor consumables.
+
+## What should be added
+
+- [ ] A command-ack helper on the client that assigns `clientSeq` for
+  commands with user-visible failure, instead of hand-adding numbers
+  per action.
+- [ ] A `CommandRejected` migration table/test that proves every
+  rejectable client command either emits the envelope or explicitly
+  documents why it is silent.
+- [ ] A `richModule` validator before any folder-based boss/spec/skill
+  conversion. The validator should pass with zero modules, reject
+  missing/orphan modules, and force generation scripts through a single
+  loader.
+- [ ] A combat/balance report that includes miss chance, healing, shield
+  absorption, resource sustain, and time-to-kill by class and target.
+- [ ] A scheduled backup-restore CI job using the existing restore
+  compatibility SQL.
+- [ ] A mini-boss encounter tracker: named spawn identity, leash policy,
+  respawn policy, signature mechanic state, and kill-credit surface.
+- [ ] Content authoring docs for the now-real registry workflow:
+  skills, specs, bosses, quests, vendors, loot, wiki links, graph checks,
+  and audit cleanup.
+
+## What should be refactored or reworked
+
+- [ ] Rework `server/combat/castHandler.ts` so cast rejection uses
+  explicit `clientSeq` + `CommandRejected`, while keeping a temporary
+  compatibility bridge for existing `CastFail` consumers.
+- [ ] Rework `server/players/playerSkills.ts` so learn/upgrade failure
+  paths share the command rejection helper and no longer invent a
+  separate failure protocol.
+- [ ] Rework inventory projection so `InventoryUpdate` flattens
+  `characterInventory` at the wire boundary and `player.inventory`
+  disappears from runtime state.
+- [ ] Rework DTO construction around named builders instead of public
+  sanitizers. Build owner, public, presence, inventory, equipment, and
+  patch DTOs from scratch, then pin exact keys in tests.
+- [ ] Rework combat outcome resolution into one traceable pipeline for
+  damage, crit, evasion/miss, shield absorption, healing, buffs,
+  debuffs, death, and combat-log events.
+- [ ] Rework dispel/status categories so the registry can say exactly
+  what a skill removes: negative, positive, magic, poison, bleed, stun,
+  shield, or future categories.
+- [ ] Rework stale historical roadmap sections by either ticking shipped
+  lines during nearby PRs or adding a clear "historical/deferred" label.
+  Avoid using the old PR-sequence block as an active queue.
+
+## Current PR queue
+
+1. [ ] Finish the `CommandRejected` + `clientSeq` migration for
+   `CastReq`, `LearnSkill`, `UpgradeSkill`, `ChatRequest`, `GmCommand`,
+   class/race GM rejects, and client-side command sequence assignment.
+2. [ ] Retire the legacy inventory projection: flatten
+   `characterInventory` only at `InventoryUpdate`, remove
+   `syncLegacyInventory`, and update tests to assert the aggregate source.
+3. [ ] Ship the owner DTO slice: `OwnerPlayerSnapshot`,
+   `OwnerInventorySnapshot`, `OwnerEquipmentSnapshot`, and exact-key
+   tests.
+4. [ ] Close quest reward overflow with a player-owned ground stack or
+   queued reward design.
+5. [ ] Add runtime histograms, then load-test harness.
+6. [ ] Add backup/restore scheduled CI.
+7. [ ] Add miss + heal combat-log support through the combat trace.
+8. [ ] Add `richModule` validator only when the first concrete
+   boss/spec mechanic needs it; Grakk Warband Howl remains the likely
+   first candidate.
 
 ---
 
@@ -4497,8 +4633,14 @@ Add social systems only after the solo starter loop and server safety are solid.
 
 Start with these three tasks:
 
-- [ ] Add `content:graph` and make content drift impossible.
-- [ ] Polish the level 1–8 Warden Galen → Mira → Grakk → first gear loop.
-- [ ] Add combat/balance reporting so class and gear changes are based on numbers, not guesses.
+- [ ] Finish the `CommandRejected` + `clientSeq` migration for cast,
+  skill, chat, GM, and class/race rejection paths.
+- [ ] Retire the legacy inventory projection by flattening
+  `characterInventory` only at the `InventoryUpdate` wire boundary.
+- [ ] Ship explicit owner DTOs (`OwnerPlayerSnapshot`,
+  `OwnerInventorySnapshot`, `OwnerEquipmentSnapshot`) with exact-key
+  tests.
 
-Once those are complete, the project will have a reliable foundation for expanding prophecies, deeper class identity, richer bosses, and larger world content without becoming unmaintainable.
+Once those are complete, the project can safely move into measured
+load work, richer boss mechanics, and broader content expansion without
+dragging stale protocol or state-shape debt forward.
