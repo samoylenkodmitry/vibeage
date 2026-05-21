@@ -1,6 +1,7 @@
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { PlayerUpdate } from './outboundEvents.js';
+import type { EquipmentEntry, InventorySlot } from '../../packages/protocol/messages.js';
 import {
   getEnemiesInActiveRegions,
   getEntityRegionId,
@@ -95,6 +96,83 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
  */
 export type PublicPlayerSnapshot = Pick<PlayerState, PublicPlayerField>;
 type ClientPlayerState = PlayerState | PublicPlayerSnapshot;
+
+/**
+ * §52 #3 / §5 — explicit allowlist of fields shipped to the *owner*
+ * of the player (the player on its own client). Wider than
+ * `PUBLIC_PLAYER_FIELDS` (carries progression, gold, skill state,
+ * stats, quest state) but narrower than the full `PlayerState`
+ * (excludes purely server-side bookkeeping like `posHistory`,
+ * `lastRegenTimeMs`, `socketId`, `characterInventory`).
+ *
+ * Owner inventory + equipment ride their own DTOs
+ * (`InventoryUpdate`, `EquipmentUpdate`) so they're not duplicated
+ * inside `OwnerPlayerSnapshot`. `OwnerInventorySnapshot` and
+ * `OwnerEquipmentSnapshot` below carve the same shapes out of
+ * the wire messages for explicit consumer typing.
+ */
+export const OWNER_PLAYER_FIELDS = [
+  ...PUBLIC_PLAYER_FIELDS,
+  'experience',
+  'experienceToNextLevel',
+  'unlockedSkills',
+  'skillShortcuts',
+  'availableSkillPoints',
+  'skillLevels',
+  'starterProgress',
+  'questState',
+  'skillCooldownEndTs',
+  'stats',
+  'gold',
+  'maxInventorySlots',
+] as const satisfies ReadonlyArray<keyof PlayerState>;
+type OwnerPlayerField = typeof OWNER_PLAYER_FIELDS[number];
+
+/**
+ * §52 #3 / §5 — projected DTO the owning client sees. Built from
+ * `OWNER_PLAYER_FIELDS` so adding a new server-only field to
+ * `PlayerState` defaults to NOT crossing the owner boundary;
+ * adding it to the owner snapshot requires an explicit edit here.
+ */
+export type OwnerPlayerSnapshot = Pick<PlayerState, OwnerPlayerField>;
+
+/**
+ * Owner-bound bag snapshot. Equivalent to the existing
+ * `InventoryUpdate` wire payload minus the `type` literal so a
+ * consumer that wants the shape on its own can type-pin it
+ * without the discriminant.
+ */
+export type OwnerInventorySnapshot = {
+  playerId?: string;
+  inventory: InventorySlot[];
+  maxInventorySlots: number;
+};
+
+/**
+ * Owner-bound equipment snapshot. Same relationship to
+ * `EquipmentUpdate` as `OwnerInventorySnapshot` has to
+ * `InventoryUpdate`.
+ */
+export type OwnerEquipmentSnapshot = {
+  equipment: EquipmentEntry[];
+};
+
+// §52 #3 — projects a full PlayerState onto the owner snapshot.
+// Matches the shape of `sanitizePlayerForPublic` but uses the
+// wider OWNER_PLAYER_FIELDS allowlist.
+export function sanitizePlayerForOwner(player: PlayerState): OwnerPlayerSnapshot {
+  return pickOwnerFields(player) as OwnerPlayerSnapshot;
+}
+
+function pickOwnerFields<T extends Partial<PlayerState>>(source: T): Partial<OwnerPlayerSnapshot> {
+  const projected: Partial<OwnerPlayerSnapshot> = {};
+  for (const field of OWNER_PLAYER_FIELDS) {
+    if (field in source && source[field] !== undefined) {
+      (projected as Record<string, unknown>)[field] = source[field as keyof T] as unknown;
+    }
+  }
+  return projected;
+}
 export type ClientGameStateSnapshot = Pick<GameState, 'enemies' | 'groundLoot' | 'zones'> & {
   players: Record<string, ClientPlayerState>;
 };
