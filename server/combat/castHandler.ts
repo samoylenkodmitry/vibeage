@@ -36,10 +36,16 @@ export function handleCastReq(
   activeCasts: ActiveCastStore
 ): void {
   const playerId = msg.id;
-  
+  // §52 #5 — count every CastReq the handler sees. Pair with
+  // `castReq.accepted` below so the accept-rate (accepted/received)
+  // can be graphed; a sudden drop is the cheapest signal that
+  // something broke the cast pipeline (e.g. the PR #338 regression).
+  runtimeMetrics.increment('castReq.received');
+
   // Verify player exists and belongs to this socket
   if (!player || player.socketId !== socket.id) {
     warn(LOG_CATEGORIES.COMBAT, `Invalid cast request: player=${playerId}, socketId mismatch`);
+    runtimeMetrics.increment('castReq.rejected.socketMismatch');
     return;
   }
 
@@ -119,6 +125,7 @@ export function handleCastReq(
     id: player.id,
     ...resourceUpdate,
   });
+  runtimeMetrics.increment('castReq.accepted');
 }
 
 function emitCastFail(direct: DirectMessageSink, msg: CastReq, reason: CastFailReason): void {
