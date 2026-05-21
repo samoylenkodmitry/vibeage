@@ -2620,7 +2620,19 @@ can pick them off independently.
   Cross-reload persistence (localStorage) deferred to a
   follow-up — the in-session UX is the playtest blocker.
 
-## CI follow-ups (2026-05-21)
+## Live bugs from playtest (2026-05-21 evening)
+
+- [x] **QuestTrackerStrip + QuestPanel duplicate the action surface.**
+  Strip is now label-only; clicking it opens the Quest panel
+  where Next / Claim / Cancel / Show-on-map live. The
+  completion-pulse visual stays so the player still sees
+  "ready to claim" without opening anything. New
+  `panels.openQuest` action; `onOpenQuestPanel` prop wires
+  the strip to it. Stale-button race conditions are gone
+  because the strip no longer holds quest action state.
+  E2e coverage in `tests/e2e-vite/hud-dialogs-flow.spec.ts`
+  (\"clicking the heads-up strip opens the Quest panel\").
+  PR #344.
 
 - [x] **`hud-layout.spec.ts` mobile world-visibility threshold drift.**
   Post-merge heavy CI on `main` had been red since PR #309 — the

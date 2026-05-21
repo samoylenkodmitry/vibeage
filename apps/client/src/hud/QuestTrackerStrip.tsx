@@ -9,32 +9,27 @@ import { resolveStageMarker } from './questMarkers';
  * §49/M2 PR008 — heads-up quest tracker.
  *
  * Always-visible strip showing the player's current objective so
- * they don't have to open the Quest panel. The strip exposes three
- * actions inline so the player can act without opening the panel:
- *   - Show on map (drops the navigation marker)
- *   - Next (advances the stage when objective is met but not last)
- *   - Claim (claims the reward when the quest is readyToClaim)
+ * the player doesn't have to keep the Quest panel open just to
+ * see what's next.
  *
- * The strip used to be a single button (clicking dropped the
- * marker) — the user reported the Next button was unreachable.
- * Root cause: the strip says "press Next" but the actual Next
- * button was buried in QuestPanel which the player has to open.
- * Fix: inline the Next/Claim buttons directly on the strip.
+ * §52 playtest follow-up — the strip used to carry its own Next /
+ * Claim / Show-on-map buttons, which duplicated the action surface
+ * on the Quest panel and ran into stale-button race conditions
+ * after a successful advance/claim. The strip is now label-only;
+ * clicking it opens the Quest panel where the same actions live.
+ * The visual completion pulse stays so the player still sees
+ * "ready to claim" without opening anything.
  */
 type QuestTrackerStripProps = {
   player: PlayerEntity | null;
   trackedQuestId?: string | null;
-  onShowMarker: (pos: { x: number; z: number }) => void;
-  onAdvanceQuest: (questId: string) => void;
-  onClaimQuestReward: (questId: string) => void;
+  onOpenQuestPanel?: () => void;
 };
 
 export function QuestTrackerStrip({
   player,
   trackedQuestId,
-  onShowMarker,
-  onAdvanceQuest,
-  onClaimQuestReward,
+  onOpenQuestPanel,
 }: QuestTrackerStripProps) {
   const tracked = useMemo(() => pickTrackedStage(player, trackedQuestId ?? null), [player, trackedQuestId]);
   if (!tracked) return null;
@@ -42,23 +37,30 @@ export function QuestTrackerStrip({
   const objectiveText = describeObjective(stage.objective, progress);
   const distance = marker && player ? distanceTo(player.position, marker) : null;
   const objectiveMet = isObjectiveMet(stage.objective, progress);
-  const isLastStage = stageIndex === quest.stages.length - 1;
-  // Show "Claim" when the server says readyToClaim. Show "Next"
-  // when the objective is met but it's not the final stage. The
-  // server is the source of truth for readyToClaim so we never
-  // show Claim prematurely.
-  const showClaim = readyToClaim;
-  const showNext = !readyToClaim && objectiveMet && !isLastStage;
+  const showNext = !readyToClaim && objectiveMet;
   // §49/M2 — light up the strip when the objective is met OR the
   // server has flipped readyToClaim. Two distinct states because
   // the player should be able to tell 'I just hit the goal' apart
   // from 'I can claim the reward right now'. Both flavours pulse
-  // a brighter border so the strip yanks the eye toward Next/Claim.
-  const completionClass = showClaim
+  // a brighter border so the strip yanks the eye toward the panel.
+  const completionClass = readyToClaim
     ? ' quest-tracker-strip--ready'
     : (showNext ? ' quest-tracker-strip--objective-met' : '');
+  // The whole strip is a single button now — clicking anywhere on
+  // it opens the Quest panel. This keeps the heads-up info visible
+  // without duplicating action buttons that the panel already owns.
+  const hint = readyToClaim
+    ? 'ready to claim — open quest'
+    : showNext
+      ? 'objective met — open quest'
+      : 'open quest';
   return (
-    <section className={`quest-tracker-strip${completionClass}`} aria-label="Tracked quest">
+    <button
+      type="button"
+      className={`quest-tracker-strip quest-tracker-strip--button${completionClass}`}
+      aria-label={`Tracked quest: ${quest.name}. ${hint}.`}
+      onClick={() => onOpenQuestPanel?.()}
+    >
       <div className="quest-tracker-text">
         <small className="quest-tracker-label">Quest</small>
         <strong>{quest.name}</strong>
@@ -69,36 +71,8 @@ export function QuestTrackerStrip({
           <small className="quest-tracker-distance">{formatDistance(distance)} away</small>
         )}
       </div>
-      <div className="quest-tracker-actions">
-        <button
-          type="button"
-          className="quest-tracker-marker-button"
-          title="Drop a navigation marker"
-          onClick={() => marker && onShowMarker(marker)}
-          disabled={!marker}
-        >
-          Show on map
-        </button>
-        {showClaim && (
-          <button
-            type="button"
-            className="quest-tracker-action quest-tracker-claim"
-            onClick={() => onClaimQuestReward(quest.id)}
-          >
-            Claim
-          </button>
-        )}
-        {showNext && (
-          <button
-            type="button"
-            className="quest-tracker-action quest-tracker-next"
-            onClick={() => onAdvanceQuest(quest.id)}
-          >
-            Next
-          </button>
-        )}
-      </div>
-    </section>
+      <span className="quest-tracker-hint" aria-hidden="true">{hint}</span>
+    </button>
   );
 }
 

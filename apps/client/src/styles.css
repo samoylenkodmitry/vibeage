@@ -1657,28 +1657,26 @@ input {
   pointer-events: auto;
 }
 .quest-tracker-text { display: grid; gap: 2px; }
-.quest-tracker-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.quest-tracker-actions button {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  background: rgba(15, 23, 42, 0.65);
-  color: inherit;
+/* §52 playtest follow-up — the strip is a single button now that
+   opens the Quest panel; the panel owns the Next/Claim/Cancel
+   action surface. Override the default button chrome so the strip
+   reads the same as before. */
+.quest-tracker-strip--button {
+  font: inherit;
   cursor: pointer;
-  min-height: 28px;
 }
-.quest-tracker-actions button:disabled { cursor: default; opacity: 0.5; }
-.quest-tracker-action.quest-tracker-next {
-  border-color: rgba(96, 165, 250, 0.7);
-  background: rgba(30, 64, 175, 0.55);
-  font-weight: 600;
+.quest-tracker-strip--button:hover { background: rgba(15, 23, 42, 0.92); }
+.quest-tracker-strip--button:focus-visible {
+  outline: 1px solid rgba(250, 204, 21, 0.8);
+  outline-offset: 1px;
 }
-.quest-tracker-action.quest-tracker-claim {
-  border-color: rgba(250, 204, 21, 0.85);
-  background: rgba(180, 130, 8, 0.55);
-  color: #fef3c7;
-  font-weight: 700;
+.quest-tracker-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  opacity: 0.55;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 .quest-tracker-label { font-size: 10px; opacity: 0.65; letter-spacing: 0.5px; }
 .quest-tracker-strip strong { font-size: 13px; }
