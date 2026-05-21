@@ -2,7 +2,7 @@
 // VIBEAGE_DEBUG_LOGS=1 and narrow them with VIBEAGE_DEBUG_CATEGORIES=skill,combat.
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
-export const DEBUG = TRUE_VALUES.has((process.env.VIBEAGE_DEBUG_LOGS ?? '').toLowerCase());
+const DEBUG = TRUE_VALUES.has((process.env.VIBEAGE_DEBUG_LOGS ?? '').toLowerCase());
 
 // Define different log categories
 export const LOG_CATEGORIES = {

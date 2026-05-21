@@ -18,7 +18,7 @@ export function createCombatWorld(
   };
 }
 
-export function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): Array<Enemy | PlayerState> {
+function getEntitiesInCircle(state: GameState, pos: VecXZ, radius: number): Array<Enemy | PlayerState> {
   const result: Array<Enemy | PlayerState> = [];
 
   for (const enemy of Object.values(state.enemies)) {

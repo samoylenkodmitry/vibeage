@@ -43,7 +43,7 @@ export function selectServerActiveZoneIds(
     .map((zone) => zone.id);
 }
 
-export function getActiveZoneIdSet(state: GameState): ReadonlySet<string> {
+function getActiveZoneIdSet(state: GameState): ReadonlySet<string> {
   return new Set(state.zones.activeZoneIds);
 }
 

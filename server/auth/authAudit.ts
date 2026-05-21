@@ -16,7 +16,7 @@ import { database, type ServerEventsTable } from '../db.js';
  * Each entry is also mirrored to console so prod logs stay
  * grep-able without round-tripping through Postgres.
  */
-export type AuthAuditEventType =
+type AuthAuditEventType =
   | 'auth.login.success'
   | 'auth.login.failure'
   | 'auth.register.success'

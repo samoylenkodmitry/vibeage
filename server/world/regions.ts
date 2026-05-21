@@ -3,7 +3,7 @@ import type { Vec3D, VecXZ } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
 import { getRegionCandidatesAtPosition } from './regionIndex.js';
 
-export const DEFAULT_REGION_STREAM_MARGIN = 80;
+const DEFAULT_REGION_STREAM_MARGIN = 80;
 
 export type WorldRegionSpawnPolicy = {
   maxActiveZones: number;
@@ -204,30 +204,6 @@ export function getPositionRegionId(
   }
 
   return findActiveRegionIdAtPosition(regions, toVec3D(position)) ?? undefined;
-}
-
-export function isEntityVisibleToSocket(
-  state: GameState,
-  regions: readonly ServerWorldRegion[],
-  socketId: string,
-  entityId: string,
-): boolean {
-  const player = state.players[entityId];
-  if (player?.socketId === socketId) {
-    return true;
-  }
-
-  const regionId = getEntityRegionId(state, regions, entityId);
-  return !regionId || getPlayerStreamRegionIds(state, regions, socketId).has(regionId);
-}
-
-export function isRegionVisibleToSocket(
-  state: GameState,
-  regions: readonly ServerWorldRegion[],
-  socketId: string,
-  regionId: string | undefined,
-): boolean {
-  return !regionId || getPlayerStreamRegionIds(state, regions, socketId).has(regionId);
 }
 
 export function getWorldRegionStats(

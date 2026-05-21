@@ -68,7 +68,7 @@ export interface ServerEventsTable {
   created_at: TimestampColumn;
 }
 
-export interface GameStatsTable {
+interface GameStatsTable {
   id: Generated<number>;
   category: string;
   name: string;
@@ -83,7 +83,7 @@ export interface GameDatabase {
   accounts: AccountsTable;
 }
 
-export const pool = new Pool({
+const pool = new Pool({
   connectionString: process.env.SERVER_DATABASE_URL ?? process.env.DATABASE_URL,
   max: 10,
 });
@@ -94,7 +94,7 @@ export const database = new Kysely<GameDatabase>({
 
 let closeStarted = false;
 
-export async function closeDatabase(): Promise<void> {
+async function closeDatabase(): Promise<void> {
   if (closeStarted) {
     return;
   }

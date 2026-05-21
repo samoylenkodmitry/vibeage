@@ -286,7 +286,7 @@ export type AddPlayerSessionOptions = {
   accountId?: string;
 };
 
-export class CharacterNotFoundError extends Error {
+class CharacterNotFoundError extends Error {
   constructor(public readonly name: string) {
     super(`Character ${name} not found for account`);
   }

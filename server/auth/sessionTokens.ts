@@ -32,10 +32,6 @@ function getSecret(): string {
   return process.env.VIBEAGE_AUTH_SECRET || DEV_SECRET;
 }
 
-export function isDevAuthSecret(): boolean {
-  return !process.env.VIBEAGE_AUTH_SECRET;
-}
-
 function sign(payload: string): string {
   return createHmac('sha256', getSecret()).update(payload).digest('base64url');
 }

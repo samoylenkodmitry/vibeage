@@ -12,7 +12,7 @@ export type WorldRegionActivationPolicy = {
   frontierMargin: number;
 };
 
-export const DEFAULT_WORLD_REGION_ACTIVATION_POLICY: WorldRegionActivationPolicy = {
+const DEFAULT_WORLD_REGION_ACTIVATION_POLICY: WorldRegionActivationPolicy = {
   maxActiveZones: WORLD_SPAWN_BUDGETS.maxRuntimeActiveZones,
   anchorRegionId: 'starter_meadow',
   frontierNeighborCount: 2,
@@ -34,7 +34,7 @@ export function refreshServerOwnedRegionActivation(
   return activeRegionIds;
 }
 
-export function selectServerOwnedActiveRegionIds(
+function selectServerOwnedActiveRegionIds(
   state: GameState,
   regions: readonly ServerWorldRegion[],
   policy: WorldRegionActivationPolicy = DEFAULT_WORLD_REGION_ACTIVATION_POLICY,

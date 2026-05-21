@@ -41,7 +41,7 @@ export interface PlayerRepository {
   insertServerEvent(eventType: string, playerId: string | null, eventData: unknown, timestamp: number): Promise<void>;
 }
 
-export function createKyselyPlayerRepository(db: PersistenceDatabase): PlayerRepository {
+function createKyselyPlayerRepository(db: PersistenceDatabase): PlayerRepository {
   return {
     async upsertSession(socketId, name, loginTime, accountId) {
       if (accountId) {

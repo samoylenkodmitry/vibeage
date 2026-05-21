@@ -211,7 +211,7 @@ export function learnNewSkill(player: SkillPlayer, skillId: SkillId): boolean {
   }
 }
 
-export function setSkillShortcut(
+function setSkillShortcut(
   player: SkillPlayer,
   slotIndex: number,
   skillId: SkillId | null,

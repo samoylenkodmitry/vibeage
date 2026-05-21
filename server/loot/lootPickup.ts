@@ -5,7 +5,7 @@ import type { GameState } from '../gameState.js';
 import { addItemsToPlayer, restoreInventory, snapshotInventory } from '../inventory/aggregateBridge.js';
 import { dropsToInventorySlots } from '../inventory/inventorySlots.js';
 
-export const PICKUP_DISTANCE = 3.0;
+const PICKUP_DISTANCE = 3.0;
 
 export type GroundLootPickupResult =
   | {

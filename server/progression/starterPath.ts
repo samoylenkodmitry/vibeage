@@ -49,7 +49,7 @@ export function recordStarterLootPickup(player: PlayerState, itemCount: number):
   });
 }
 
-export function makeStarterProgressUpdate(
+function makeStarterProgressUpdate(
   player: PlayerState,
   rewardGranted = false,
 ): StarterProgressUpdate {

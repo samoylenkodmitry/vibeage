@@ -8,7 +8,7 @@ export type PlayerResourceUpdate = {
   skillCooldownEndTs: Record<string, number>;
 };
 
-export function getSkillCooldownEnd(player: PlayerState, skillId: SkillId): number {
+function getSkillCooldownEnd(player: PlayerState, skillId: SkillId): number {
   return player.skillCooldownEndTs?.[skillId] ?? 0;
 }
 
@@ -52,7 +52,7 @@ export function applySkillCostAndCooldown(
   return buildPlayerResourceUpdate(player);
 }
 
-export function buildPlayerResourceUpdate(player: PlayerState): PlayerResourceUpdate {
+function buildPlayerResourceUpdate(player: PlayerState): PlayerResourceUpdate {
   return {
     mana: player.mana,
     skillCooldownEndTs: player.skillCooldownEndTs,

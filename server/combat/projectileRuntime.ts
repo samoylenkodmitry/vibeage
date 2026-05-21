@@ -100,7 +100,7 @@ function collectProjectileHits(cast: Cast, oldPos: VecXZ, world: CombatWorld): E
   return hits;
 }
 
-export function reachedTarget(cast: Cast): boolean {
+function reachedTarget(cast: Cast): boolean {
   if (!cast.pos || !cast.targetPos) {
     return false;
   }
