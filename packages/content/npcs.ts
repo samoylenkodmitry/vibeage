@@ -1,4 +1,4 @@
-import { getQuestsOfferedBy, type QuestVec3 } from './quests.js';
+import type { QuestVec3 } from './quests.js';
 
 /**
  * Quest-giving NPCs. Static positions; non-combatant. The client
@@ -126,6 +126,3 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
   },
 };
 
-export function getOfferedQuestIds(npcId: string): string[] {
-  return getQuestsOfferedBy(npcId).map((q) => q.id);
-}

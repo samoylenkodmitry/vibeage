@@ -56,9 +56,3 @@ export const MEADOW_TROPHY_RECIPE_ITEMS: Record<string, Item> = Object.fromEntri
   )],
 ].map((entry) => [entry[0], entry[1]] as const));
 
-/**
- * Item ids of every meadow-trophy recipe — used by the vendor
- * stock + the obtainability validator. Source of truth is the
- * record above so they don't drift.
- */
-export const MEADOW_TROPHY_RECIPE_IDS = Object.keys(MEADOW_TROPHY_RECIPE_ITEMS);

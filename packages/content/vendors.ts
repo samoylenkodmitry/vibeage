@@ -11,7 +11,7 @@ import { ITEMS, type Item } from './items.js';
  * the rate (`buyRate`) — a trophy buyer pays more for trophies,
  * a general merchant pays less for junk.
  */
-export interface VendorStockEntry {
+interface VendorStockEntry {
   itemId: string;
   price: number;
 }
@@ -115,7 +115,7 @@ const GRADE_BASE_PRICE: Record<NonNullable<Item['grade']>, number> = {
  * back. Derived from the item's grade so a new piece of gear is
  * automatically priced — no per-item override list to maintain.
  */
-export function defaultSellPrice(itemId: string): number {
+function defaultSellPrice(itemId: string): number {
   const item = ITEMS[itemId];
   if (!item) return 0;
   // Currency can't be sold back to a vendor — it's already gold.
@@ -144,6 +144,3 @@ export function getVendorByNpcId(npcId: string): VendorDef | null {
   return null;
 }
 
-export function listVendors(): VendorDef[] {
-  return Object.values(VENDORS);
-}

@@ -4,7 +4,7 @@ export type CharacterRace = 'human' | 'elf' | 'dark_elf' | 'orc' | 'dwarf';
 
 export const CHARACTER_RACES: readonly CharacterRace[] = ['human', 'elf', 'dark_elf', 'orc', 'dwarf'];
 
-export type RaceStatWeights = {
+type RaceStatWeights = {
   str: number;
   dex: number;
   con: number;

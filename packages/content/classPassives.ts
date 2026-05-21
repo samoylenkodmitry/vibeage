@@ -272,11 +272,6 @@ export const PASSIVE_SKILL_CONTRIBUTIONS: Record<SkillId, readonly Contribution[
   ],
 } as unknown as Record<SkillId, readonly Contribution[]>;
 
-/** Compatibility shim until every consumer migrates to the registry. */
-export function getPassiveContributionsForSkill(skillId: SkillId): readonly Contribution[] {
-  return PASSIVE_SKILL_CONTRIBUTIONS[skillId] ?? [];
-}
-
 /**
  * Convenience view used by the Wiki "Classes" + "Tree" tabs to
  * render the class's auto-granted passive name + description.

@@ -1,4 +1,4 @@
-export type EnemyFamily =
+type EnemyFamily =
   | 'beast'
   | 'humanoid'
   | 'undead'
@@ -17,7 +17,7 @@ export type EnemyVisualSpec = {
   glow: boolean;
 };
 
-export type EnemyStatMultipliers = {
+type EnemyStatMultipliers = {
   health: number;
   damage: number;
   attackRange: number;
@@ -43,7 +43,7 @@ export type EnemyTemplate = {
   lootTableId?: string;
 };
 
-export const DEFAULT_ENEMY_STATS: EnemyStatMultipliers = {
+const DEFAULT_ENEMY_STATS: EnemyStatMultipliers = {
   health: 1,
   damage: 1,
   attackRange: 1,
@@ -129,7 +129,7 @@ export const ENEMY_TEMPLATES: Record<string, EnemyTemplate> = Object.fromEntries
   TEMPLATES.map((spec) => [spec.type, spec]),
 );
 
-export const DEFAULT_ENEMY_TEMPLATE: EnemyTemplate = {
+const DEFAULT_ENEMY_TEMPLATE: EnemyTemplate = {
   type: '__default__',
   displayName: 'Unknown',
   family: 'aberration',
