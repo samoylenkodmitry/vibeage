@@ -50,6 +50,7 @@
     "measure:check": "pnpm run build && BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 node scripts/measure-baseline.mjs",
     "measure:browser": "pnpm run build && BASELINE_START_LOCAL=1 node scripts/measure-baseline.mjs",
     "load:inprocess": "tsx scripts/load-test-inprocess.ts",
+    "load:sweep": "tsx scripts/load-test-sweep.ts",
     "test:watch": "vitest",
     "bench": "vitest bench",
     "generate-docs": "tsx generate-project-doc.ts"
