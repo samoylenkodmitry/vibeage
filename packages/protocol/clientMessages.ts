@@ -41,11 +41,13 @@ export const setSkillShortcutSchema = z.object({
 export const selectClassSchema = z.object({
   type: z.literal('SelectClass'),
   className: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const selectRaceSchema = z.object({
   type: z.literal('SelectRace'),
   race: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const respawnRequestSchema = z.object({
@@ -200,6 +202,7 @@ export const gmCommandSchema = z.object({
   value: z.union([z.number(), z.string()]),
   // Optional quantity for grantItem; defaults to 1.
   quantity: z.number().optional(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
@@ -267,11 +270,13 @@ export type SetSkillShortcut = {
 export type SelectClass = {
   type: 'SelectClass';
   className: string;
+  clientSeq?: number;
 };
 
 export type SelectRace = {
   type: 'SelectRace';
   race: string;
+  clientSeq?: number;
 };
 
 export type RespawnRequest = {
@@ -381,6 +386,7 @@ export type GmCommand = {
   value: number | string;
   /** Quantity for grantItem (defaults to 1). */
   quantity?: number;
+  clientSeq?: number;
 };
 
 export type ClientMessage =

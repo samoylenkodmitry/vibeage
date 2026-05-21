@@ -89,9 +89,9 @@ export function handleClientMessage(
     case 'RequestInventory':
       return onRequestInventory(socket, direct, state);
     case 'SelectClass':
-      return onSelectClass(socket, state, msg, outbound);
+      return onSelectClass(socket, direct, state, msg, outbound);
     case 'SelectRace':
-      return onSelectRace(socket, state, msg, outbound);
+      return onSelectRace(socket, direct, state, msg, outbound);
     case 'DevTeleport':
       return onDevTeleport(socket, state, msg);
     case 'ChatRequest':
@@ -119,7 +119,7 @@ export function handleClientMessage(
     case 'SellToVendor':
       return onSellToVendor(socket, direct, state, msg, outbound);
     case 'GmCommand':
-      return onGmCommand(socket, state, msg, outbound);
+      return onGmCommand(socket, direct, state, msg, outbound);
   }
 }
 
@@ -169,14 +169,22 @@ function onSellToVendor(
 
 function onGmCommand(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'GmCommand' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'GmCommand', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
   const caller = state.players[playerId];
-  if (!caller) return;
+  if (!caller) {
+    reject('playerNotFound');
+    return;
+  }
   applyGmCommand(caller, msg, (id) => state.players[id], outbound);
 }
 
@@ -272,10 +280,12 @@ function onUpgradeSkill(
 
 function onSelectClass(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'SelectClass' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'SelectClass', reason, msg.clientSeq);
   // Identity is locked once the player is in the world. Race / class
   // are chosen in the character-creation flow (PR D2); after that
   // only GMs (VIBEAGE_ENABLE_DEV_COMMANDS=1) can mutate them. The
@@ -283,29 +293,45 @@ function onSelectClass(
   // for non-GMs (server-rejected).
   if (!isGmModeEnabled()) {
     warn(LOG_CATEGORIES.PLAYER, `SelectClass rejected (not GM) for ${socket.id}`);
+    reject('notGm');
     return;
   }
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
   const player = state.players[playerId];
-  if (!player) return;
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
   applyClassChange(player, msg.className, outbound);
 }
 
 function onSelectRace(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'SelectRace' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'SelectRace', reason, msg.clientSeq);
   if (!isGmModeEnabled()) {
     warn(LOG_CATEGORIES.PLAYER, `SelectRace rejected (not GM) for ${socket.id}`);
+    reject('notGm');
     return;
   }
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
   const player = state.players[playerId];
-  if (!player) return;
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
   applyRaceChange(player, msg.race, outbound);
 }
 
