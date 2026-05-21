@@ -79,6 +79,11 @@ describe('load-test in-process scaffold (§52 #12)', () => {
     const batchHistogram = metrics.histograms['snapshot.batchSize'];
     expect(batchHistogram).toBeDefined();
     expect(batchHistogram.samples).toBeGreaterThan(0);
+    // §52 #12 follow-up — per-batch bytes histogram fires alongside.
+    const batchBytesHistogram = metrics.histograms['snapshot.batchBytes'];
+    expect(batchBytesHistogram).toBeDefined();
+    expect(batchBytesHistogram.samples).toBeGreaterThan(0);
+    expect(batchBytesHistogram.p50).toBeGreaterThan(0);
     // Sanity: counters incremented to match.
     expect(metrics.counters['snapshot.batches']).toBeGreaterThan(0);
     expect(metrics.counters['snapshot.updates']).toBeGreaterThan(0);
