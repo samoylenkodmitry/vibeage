@@ -23,6 +23,7 @@ import { resolveStageMarker } from './questMarkers';
  */
 type QuestTrackerStripProps = {
   player: PlayerEntity | null;
+  trackedQuestId?: string | null;
   onShowMarker: (pos: { x: number; z: number }) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
@@ -30,11 +31,12 @@ type QuestTrackerStripProps = {
 
 export function QuestTrackerStrip({
   player,
+  trackedQuestId,
   onShowMarker,
   onAdvanceQuest,
   onClaimQuestReward,
 }: QuestTrackerStripProps) {
-  const tracked = useMemo(() => pickTrackedStage(player), [player]);
+  const tracked = useMemo(() => pickTrackedStage(player, trackedQuestId ?? null), [player, trackedQuestId]);
   if (!tracked) return null;
   const { quest, stageIndex, stage, progress, marker, readyToClaim } = tracked;
   const objectiveText = describeObjective(stage.objective, progress);
@@ -121,10 +123,26 @@ export type TrackedStage = {
   readyToClaim: boolean;
 };
 
-export function pickTrackedStage(player: PlayerEntity | null): TrackedStage | null {
+/**
+ * §52 playtest follow-up — the strip used to lock onto whichever
+ * quest happened to be first in `Object.entries(active)`, ignoring
+ * the player's selection in QuestPanel. Now honors `trackedQuestId`
+ * when set (and the quest is still active), falling back to the
+ * first active quest otherwise. The fallback keeps the legacy
+ * single-quest UX working for fresh players who haven't picked
+ * anything yet.
+ */
+export function pickTrackedStage(
+  player: PlayerEntity | null,
+  trackedQuestId: string | null = null,
+): TrackedStage | null {
   if (!player?.questState?.active) return null;
   const active = player.questState.active;
-  for (const [questId, entry] of Object.entries(active)) {
+  const preferred = trackedQuestId && active[trackedQuestId] ? trackedQuestId : null;
+  const order = preferred ? [preferred, ...Object.keys(active).filter((id) => id !== preferred)] : Object.keys(active);
+  for (const questId of order) {
+    const entry = active[questId];
+    if (!entry) continue;
     const quest = QUESTS[questId];
     if (!quest) continue;
     const stage = quest.stages[entry.stageIndex];

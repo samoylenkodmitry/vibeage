@@ -81,6 +81,7 @@ export default function App() {
         onCancelQuest={client.cancelQuest}
         onAdvanceQuest={client.advanceQuest}
         onClaimQuestReward={client.claimQuestReward}
+        onSetTrackedQuest={client.setTrackedQuest}
         onBuyFromVendor={client.buyFromVendor}
         onSellToVendor={client.sellToVendor}
         onGmCommand={client.gmCommand}

@@ -1596,8 +1596,31 @@ input {
   z-index: 100;
   pointer-events: auto;
 }
-.npc-dialog header { display: grid; gap: 2px; }
+.npc-dialog header { display: grid; gap: 2px; position: relative; }
 .npc-dialog header strong { font-size: 13px; }
+/* §52 playtest follow-up — × button so the player can dismiss the
+   dialog manually. Tucked top-right; same visual language as the
+   onboarding hint `.hint-dismiss` button. */
+.npc-dialog-close {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.npc-dialog-close:hover { opacity: 1; }
+.npc-dialog-close:focus-visible { outline: 1px solid currentColor; outline-offset: 1px; }
 .npc-dialog-talk { padding: 4px 8px; cursor: pointer; }
 .npc-dialog-section { display: grid; gap: 4px; }
 .npc-dialog-label { font-weight: 700; opacity: 0.8; }

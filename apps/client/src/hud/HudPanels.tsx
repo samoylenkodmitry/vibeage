@@ -54,6 +54,7 @@ export type HudPanelsProps = {
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
+  onSetTrackedQuest?: (questId: string | null) => void;
   onGmCommand: (cmd: {
     verb:
       | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -72,7 +73,7 @@ export function HudPanels({
   cameraAngleRef, navigationMarker, onSetNavigationMarker,
   onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
-  onCancelQuest, onAdvanceQuest, onClaimQuestReward, onGmCommand,
+  onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, onGmCommand,
   onPickupNearest, onMove, onSendChat,
 }: HudPanelsProps) {
   return (
@@ -81,10 +82,12 @@ export function HudPanels({
       {panels.questOpen && (
         <QuestPanel
           player={player}
+          trackedQuestId={state.trackedQuestId}
           onCancelQuest={onCancelQuest}
           onAdvanceQuest={onAdvanceQuest}
           onClaimQuestReward={onClaimQuestReward}
           onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
+          onSetTrackedQuest={onSetTrackedQuest}
         />
       )}
       {panels.bagOpen && (

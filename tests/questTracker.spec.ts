@@ -59,6 +59,44 @@ describe('QuestTrackerStrip.pickTrackedStage', () => {
     expect(typeof tracked!.marker!.x).toBe('number');
     expect(typeof tracked!.marker!.z).toBe('number');
   });
+
+  // §52 playtest follow-up — the strip used to lock onto whichever
+  // quest happened to be first in `Object.entries(active)`, ignoring
+  // the player's selection in QuestPanel. Now honors `trackedQuestId`.
+  it('honors trackedQuestId when set (multi-active scenario)', () => {
+    const player = makePlayer({
+      active: {
+        // Both quests are active; the user picked `bounty_grakk` in
+        // QuestPanel, so the strip should show Grakk, not the goblin
+        // arc that happens to be earlier in dictionary order.
+        rats_in_the_cellar: { stageIndex: 0, progress: 1 },
+        bounty_grakk: { stageIndex: 0, progress: 0 },
+      },
+      completed: [],
+    });
+    const tracked = pickTrackedStage(player, 'bounty_grakk');
+    expect(tracked!.quest.id).toBe('bounty_grakk');
+  });
+
+  it('falls back to first active quest when trackedQuestId is not in the active set', () => {
+    const player = makePlayer({
+      active: { rats_in_the_cellar: { stageIndex: 0, progress: 1 } },
+      completed: [],
+    });
+    // Stale id (player completed this quest and picked it before
+    // it left active). Should still surface the actual active one.
+    const tracked = pickTrackedStage(player, 'bounty_grakk');
+    expect(tracked!.quest.id).toBe('rats_in_the_cellar');
+  });
+
+  it('falls back to first active quest when trackedQuestId is null', () => {
+    const player = makePlayer({
+      active: { rats_in_the_cellar: { stageIndex: 0, progress: 1 } },
+      completed: [],
+    });
+    const tracked = pickTrackedStage(player, null);
+    expect(tracked!.quest.id).toBe('rats_in_the_cellar');
+  });
 });
 
 describe('QuestTrackerStrip.isObjectiveMet', () => {
