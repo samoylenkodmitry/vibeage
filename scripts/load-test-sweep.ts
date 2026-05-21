@@ -68,6 +68,9 @@ type SweepRow = {
   outboundPlayerUpdated: number;
   outboundEnemyUpdated: number;
   batchedPosSnap: number;
+  /** §52 #12 — derived rates per second of simulated wall time. */
+  outboundTotalPerSec: number;
+  batchedPosSnapPerSec: number;
   rssDeltaKB: number;
   heapDeltaKB: number;
 };
@@ -123,6 +126,8 @@ function runSweepStep(playerCount: number): SweepRow {
     outboundPlayerUpdated: metrics.counters['outbound.playerUpdated'] ?? 0,
     outboundEnemyUpdated: metrics.counters['outbound.enemyUpdated'] ?? 0,
     batchedPosSnap: metrics.counters['outbound.batched.PosSnap'] ?? 0,
+    outboundTotalPerSec: round((metrics.counters['outbound.total'] ?? 0) / ((tickCount * tickMs) / 1000)),
+    batchedPosSnapPerSec: round((metrics.counters['outbound.batched.PosSnap'] ?? 0) / ((tickCount * tickMs) / 1000)),
     rssDeltaKB: kb(memAfter.rss - memBefore.rss),
     heapDeltaKB: kb(memAfter.heapUsed - memBefore.heapUsed),
   };

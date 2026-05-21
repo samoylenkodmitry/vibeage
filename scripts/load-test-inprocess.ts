@@ -135,6 +135,7 @@ console.log(JSON.stringify({
     realtimeRatio: round(elapsedMs / (tickCount * tickMs)),
     averageTickMs: round(elapsedMs / tickCount),
   },
+  rates: ratesPerSecond(metricsSnapshot.counters, tickCount, tickMs),
   tickMs: metricsSnapshot.tickMs,
   histograms: metricsSnapshot.histograms,
   countersTop: pickTopCounters(metricsSnapshot.counters, 20),
@@ -160,4 +161,27 @@ function kb(bytes: number): number {
 function pickTopCounters(counters: Record<string, number>, limit: number): Record<string, number> {
   const sorted = Object.entries(counters).sort(([, a], [, b]) => b - a).slice(0, limit);
   return Object.fromEntries(sorted);
+}
+
+/**
+ * §52 #12 — derived rates (per second of simulated wall time) for the
+ * counters that matter most for capacity planning. Computed from the
+ * total tick window (`tickCount * tickMs / 1000`) so the numbers stay
+ * comparable across runs with different tick budgets.
+ */
+function ratesPerSecond(
+  counters: Record<string, number>,
+  ticks: number,
+  msPerTick: number,
+): Record<string, number> {
+  const seconds = (ticks * msPerTick) / 1000;
+  if (seconds <= 0) return {};
+  const rate = (key: string): number => round((counters[key] ?? 0) / seconds);
+  return {
+    outboundTotalPerSec: rate('outbound.total'),
+    outboundPlayerUpdatedPerSec: rate('outbound.playerUpdated'),
+    outboundEnemyUpdatedPerSec: rate('outbound.enemyUpdated'),
+    batchedPosSnapPerSec: rate('outbound.batched.PosSnap'),
+    snapshotBatchesPerSec: rate('snapshot.batches'),
+  };
 }
