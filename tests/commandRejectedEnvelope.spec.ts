@@ -61,7 +61,6 @@ describe('EquipItem rejection emits CommandRejected', () => {
   it('emits CommandRejected with the requestId echo (§52 #1: EquipFailed retired — sole channel now)', () => {
     const player = createTransientPlayer('socket-1', 'EquipTest');
     player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
-    player.inventory = [];
     const sink = makeSink();
 
     handleEquipItem(player, { type: 'EquipItem', slotIndex: 99, clientSeq: 7 }, sink);
@@ -80,7 +79,6 @@ describe('EquipItem rejection emits CommandRejected', () => {
   it('omits requestId when client did not supply clientSeq', () => {
     const player = createTransientPlayer('socket-2', 'EquipTest');
     player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
-    player.inventory = [];
     const sink = makeSink();
 
     handleEquipItem(player, { type: 'EquipItem', slotIndex: 99 }, sink);

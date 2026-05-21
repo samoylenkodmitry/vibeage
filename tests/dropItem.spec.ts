@@ -16,7 +16,6 @@ function setupPlayer(state: ReturnType<typeof createGameState>, socketId: string
   const player = createTransientPlayer(socketId, 'Dropper');
   player.id = `player-${socketId}`;
   player.characterInventory = createEmptyInventory(player.id, player.characterInventory!.limits);
-  player.inventory = [];
   player.position = position;
   state.players[player.id] = player;
   return player;

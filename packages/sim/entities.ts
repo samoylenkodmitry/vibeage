@@ -240,14 +240,12 @@ export interface PlayerState {
     wit?: number;
     men?: number;
   };
-  // §45.7 — `inventory` is no longer the source of truth for any
-  // server-side path; it survives only as an optional field so
-  // legacy test fixtures keep typing. Production reads + writes
-  // route through `characterInventory`, and the wire shape is
-  // computed by `flattenInventoryToSlots` only at the snapshot
-  // boundary. Will be deleted once every test fixture migrates
-  // to spreading from a real PlayerState factory.
-  inventory?: InventorySlot[];
+  // §52 #2 — `inventory` field retired. Production reads + writes
+  // route through `characterInventory`; the wire shape is computed
+  // by `flattenInventoryToSlots` only at the snapshot boundary.
+  // `PlayerUpdate` in `server/transport/outboundEvents.ts` still
+  // carries `inventory?: InventorySlot[]` because that type is a
+  // wire-only projection — the canonical store is the aggregate.
   maxInventorySlots: number;
   // §45.7 — kept structurally optional so existing test fixtures
   // that pre-date this slice still compile. Production

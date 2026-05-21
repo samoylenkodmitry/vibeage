@@ -44,7 +44,6 @@ function makeCaster(id = 'attacker'): PlayerState {
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: true,
-    inventory: [],
     maxInventorySlots: 20,
   };
 }

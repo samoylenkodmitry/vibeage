@@ -22,7 +22,7 @@ function makeCaster(level = 1): PlayerState {
     statusEffects: [],
     level, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,
-    isAlive: true, inventory: [], maxInventorySlots: 20,
+    isAlive: true, maxInventorySlots: 20,
   };
 }
 

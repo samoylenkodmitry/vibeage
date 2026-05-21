@@ -3,7 +3,6 @@ import type { CharacterInventory } from '../../packages/sim/characterInventory.j
 import { createEmptyInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { addItems, removeItems } from '../../packages/sim/inventoryTransactions.js';
-import { buildInventoryFromSlots } from '../../packages/sim/inventoryWireAdapter.js';
 
 const DEFAULT_LIMITS = { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 };
 
@@ -19,23 +18,16 @@ const services = () => ({
  * for non-inventory scenarios; this helper lazy-initialises an empty
  * aggregate in that case so the rest of the inventory pipeline can
  * assume a present field.
+ *
+ * §52 #2 — the legacy `player.inventory` mirror has been retired;
+ * the forward-migration branch (slot list → aggregate) that used
+ * to live here is gone. Test fixtures now either populate
+ * `characterInventory` directly OR call `addItemsToPlayer` which
+ * routes through this helper.
  */
 export function ensureCharacterInventory(player: PlayerState): CharacterInventory {
   if (!player.characterInventory) {
-    // §45.7 — fixtures that seed `player.inventory = [...]`
-    // without a characterInventory get forward-migrated here, the
-    // same way persistence does on hydrate. Production
-    // construction paths always populate the aggregate so this is
-    // a no-op for them.
-    const legacy = player.inventory ?? [];
-    player.characterInventory = legacy.length > 0
-      ? buildInventoryFromSlots({
-          characterId: player.id,
-          slots: legacy,
-          limits: { ...DEFAULT_LIMITS, baseSlots: player.maxInventorySlots ?? DEFAULT_LIMITS.baseSlots },
-          instanceIdFactory: services().instanceIdFactory,
-        })
-      : emptyAggregateForPlayer(player);
+    player.characterInventory = emptyAggregateForPlayer(player);
   }
   return player.characterInventory;
 }

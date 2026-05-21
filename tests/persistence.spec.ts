@@ -78,7 +78,6 @@ const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   velocity: { x: 1, z: 0 },
   posHistory: [{ ts: 100, x: 3, z: 7 }],
   stats: { dmgMult: 1.2 },
-  inventory: [{ itemId: 'health_potion', quantity: 2 }],
   maxInventorySlots: 20,
   ...overrides,
 });

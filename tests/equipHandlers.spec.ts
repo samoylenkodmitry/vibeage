@@ -17,7 +17,6 @@ function freshPlayer() {
   // the stats at a higher number than the captured baseline.
   recomputePlayerStats(player);
   // Start with an empty bag so tests control exactly what's in slot 0.
-  player.inventory = [];
   if (player.characterInventory) {
     player.characterInventory.items = {};
     player.characterInventory.equipment = {};

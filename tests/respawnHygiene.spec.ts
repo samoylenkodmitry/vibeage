@@ -33,7 +33,6 @@ function makeDeadPlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     castingProgressMs: 0,
     isAlive: false,
     deathTimeTs: NOW,
-    inventory: [],
     maxInventorySlots: 20,
     ...overrides,
   };

@@ -31,7 +31,6 @@ const makePlayer = (overrides: LooterOverrides = {}): PlayerState => {
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: true,
-    inventory: [],
     maxInventorySlots: 20,
     ...rest,
   };

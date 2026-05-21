@@ -26,7 +26,7 @@ function makeCaster(id = 'attacker', specializationId: string | null = null): Pl
     skillCooldownEndTs: {}, statusEffects: [],
     level: 1, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,
-    isAlive: true, inventory: [], maxInventorySlots: 20,
+    isAlive: true, maxInventorySlots: 20,
     specializationId,
     stats: { dmgMult: 1, critChance: 0, critMult: 2 },
   };

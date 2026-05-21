@@ -27,7 +27,6 @@ const makePlayer = (id: string, x: number, z: number): PlayerState => ({
   castingSkill: null,
   castingProgressMs: 0,
   isAlive: true,
-  inventory: [],
   maxInventorySlots: 20,
 });
 

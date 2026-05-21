@@ -31,7 +31,6 @@ function makePlayer(id: string, x: number, z: number, effects: StatusEffect[] = 
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: true,
-    inventory: [],
     maxInventorySlots: 20,
   };
 }

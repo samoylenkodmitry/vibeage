@@ -3,32 +3,41 @@ import { createGameState } from '../server/gameState';
 import { createWorldCombatBridge, handleClientMessage } from '../server/world/clientMessageRouter';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { Enemy, PlayerState } from '../packages/sim/entities';
+import { createEmptyInventory } from '../packages/sim/characterInventory';
+import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
 
-const makePlayer = (): PlayerState => ({
-  id: 'player1',
-  socketId: 'socket1',
-  name: 'InventoryTester',
-  position: { x: 0, y: 0.5, z: 0 },
-  rotation: { x: 0, y: 0, z: 0 },
-  health: 100,
-  maxHealth: 100,
-  mana: 100,
-  maxMana: 100,
-  className: 'mage',
-  unlockedSkills: ['fireball'],
-  skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
-  availableSkillPoints: 0,
-  skillCooldownEndTs: {},
-  statusEffects: [],
-  level: 1,
-  experience: 0,
-  experienceToNextLevel: 100,
-  castingSkill: null,
-  castingProgressMs: 0,
-  isAlive: true,
-  inventory: [{ itemId: 'gold_coin', quantity: 7 }],
-  maxInventorySlots: 20,
-});
+// §52 #2 — `PlayerState.inventory` retired. Seed via the aggregate
+// bridge so the wire-projection still surfaces the item on
+// RequestInventory.
+const makePlayer = (): PlayerState => {
+  const player: PlayerState = {
+    id: 'player1',
+    socketId: 'socket1',
+    name: 'InventoryTester',
+    position: { x: 0, y: 0.5, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    health: 100,
+    maxHealth: 100,
+    mana: 100,
+    maxMana: 100,
+    className: 'mage',
+    unlockedSkills: ['fireball'],
+    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+    availableSkillPoints: 0,
+    skillCooldownEndTs: {},
+    statusEffects: [],
+    level: 1,
+    experience: 0,
+    experienceToNextLevel: 100,
+    castingSkill: null,
+    castingProgressMs: 0,
+    isAlive: true,
+    maxInventorySlots: 20,
+    characterInventory: createEmptyInventory('player1', { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 }),
+  };
+  addItemsToPlayer(player, 'health_potion', 7);
+  return player;
+};
 
 describe('client message router', () => {
   test('handles RequestInventory through the world message boundary', () => {
@@ -48,7 +57,7 @@ describe('client message router', () => {
     expect(emit).toHaveBeenCalledWith('msg', {
       type: 'InventoryUpdate',
       playerId: 'player1',
-      inventory: [{ itemId: 'gold_coin', quantity: 7 }],
+      inventory: [{ itemId: 'health_potion', quantity: 7 }],
       maxInventorySlots: 20,
     });
   });

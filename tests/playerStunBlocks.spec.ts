@@ -46,7 +46,6 @@ function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     castingSkill: null,
     castingProgressMs: 0,
     isAlive: true,
-    inventory: [],
     maxInventorySlots: 20,
     ...overrides,
   };
