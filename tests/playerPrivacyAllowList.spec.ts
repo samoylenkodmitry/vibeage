@@ -94,7 +94,7 @@ describe('owner snapshot allow-list', () => {
     // The fixture only sets a subset of owner-only fields; assert the
     // ones it does set make it through the projection.
     for (const field of OWNER_PLAYER_FIELDS) {
-      if ((fixture as Record<string, unknown>)[field] === undefined) continue;
+      if ((fixture as unknown as Record<string, unknown>)[field] === undefined) continue;
       expect(snapshot.players.own, `owner is missing their own ${field}`).toHaveProperty(field);
     }
   });
