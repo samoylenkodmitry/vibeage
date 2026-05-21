@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from '../../packages/protocol/messages.js';
+import type { ClientMessage } from '../../packages/protocol/messages.js';
 import { SESSION_EVENTS } from '../../packages/protocol/sessionEvents.js';
 import type { GameState } from '../gameState.js';
 
@@ -89,7 +89,6 @@ export function parseWorldRoomJoinOptions(options: unknown): WorldRoomJoinOption
 }
 
 export type AuthoritativeRoomCommand = ClientMessage;
-export type AuthoritativeRoomEvent = ServerMessage;
 
 export interface AuthoritativeRoomClient {
   emit(event: string, payload: unknown): unknown;

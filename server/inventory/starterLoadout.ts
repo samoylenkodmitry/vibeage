@@ -11,7 +11,7 @@ import { addItemsToPlayer } from './aggregateBridge.js';
  * CLASS_STARTER_EXTRAS so each archetype can test its weapon style
  * without grinding for the first drop.
  */
-export const STARTER_LOADOUT: ReadonlyArray<{ templateId: string; count: number }> = [
+const STARTER_LOADOUT: ReadonlyArray<{ templateId: string; count: number }> = [
   { templateId: 'worn_sword', count: 1 },
   { templateId: 'wooden_shield', count: 1 },
   { templateId: 'leather_helmet', count: 1 },

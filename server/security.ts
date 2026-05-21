@@ -1,12 +1,12 @@
 import type { IncomingHttpHeaders } from 'node:http';
 
-export const DEFAULT_CORS_ORIGINS = [
+const DEFAULT_CORS_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'https://vibeage.eu',
 ];
 
-export const ALLOWED_COLYSEUS_MATCHMAKER_METHODS = [
+const ALLOWED_COLYSEUS_MATCHMAKER_METHODS = [
   'joinOrCreate',
   'join',
   'create',

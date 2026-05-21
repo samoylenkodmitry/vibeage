@@ -6,7 +6,7 @@ import { SKILLS, UNIVERSAL_SKILLS, type SkillId } from '../../packages/content/s
 // matching the foldable two-row skill bar the client renders. Older
 // 4- or 9-slot saves are padded to 24 with nulls by
 // normalizeSkillShortcuts on hydrate.
-export const SKILL_SHORTCUT_SLOTS = 24;
+const SKILL_SHORTCUT_SLOTS = 24;
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
 
 /**
@@ -24,7 +24,7 @@ export const STARTER_SKILL_BY_CLASS: Record<CharacterClass, SkillId> = {
   rogue: 'evade',
 };
 
-export const DEFAULT_UNLOCKED_SKILLS: SkillId[] = [STARTER_SKILL_BY_CLASS.mage];
+const DEFAULT_UNLOCKED_SKILLS: SkillId[] = [STARTER_SKILL_BY_CLASS.mage];
 
 export function starterSkillsFor(className: CharacterClass | string | undefined): SkillId[] {
   const key = className as CharacterClass;
@@ -55,14 +55,6 @@ export function numberOrFallback(value: unknown, fallback: number): number {
 
 export function normalizePlayerLevel(value: unknown): number {
   return Math.max(1, Math.floor(numberOrFallback(value, 1)));
-}
-
-export function getMaxHealthForLevel(level: number): number {
-  return 100 + (level - 1) * 20;
-}
-
-export function getMaxManaForLevel(level: number): number {
-  return 100 + (level - 1) * 10;
 }
 
 export function getExperienceToNextLevel(level: number): number {

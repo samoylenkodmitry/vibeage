@@ -176,7 +176,7 @@ export const MAX_CHASE_TIME_WITHOUT_HIT_MS = 8_000;
  * cascade chasing→returning→re-aggro→chasing loop; the player can
  * re-engage after the cooldown by actually approaching the enemy.
  */
-export const ANTI_KITE_REAGGRO_COOLDOWN_MS = 2_000;
+const ANTI_KITE_REAGGRO_COOLDOWN_MS = 2_000;
 
 function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
   const targetId = isAggroSuppressed(enemy, context.now) ? null : findNearbyAggroTarget(enemy, context);

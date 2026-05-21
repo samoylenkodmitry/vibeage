@@ -21,7 +21,7 @@ function hasRecordKey<T>(record: Record<string, T>, key: string): boolean {
  */
 
 export const DOT_TICK_INTERVAL_MS = 1_000;
-export const DOT_EFFECT_TYPES: ReadonlySet<string> = new Set(['burn', 'poison', 'dot']);
+const DOT_EFFECT_TYPES: ReadonlySet<string> = new Set(['burn', 'poison', 'dot']);
 
 const nextTickAt = new WeakMap<StatusEffect, number>();
 

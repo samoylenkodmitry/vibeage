@@ -94,9 +94,7 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
  * to `PlayerState` no longer requires updating a deny list.
  */
 export type PublicPlayerSnapshot = Pick<PlayerState, PublicPlayerField>;
-/** @deprecated Use `PublicPlayerSnapshot`. */
-export type PublicPlayerState = PublicPlayerSnapshot;
-export type ClientPlayerState = PlayerState | PublicPlayerSnapshot;
+type ClientPlayerState = PlayerState | PublicPlayerSnapshot;
 export type ClientGameStateSnapshot = Pick<GameState, 'enemies' | 'groundLoot' | 'zones'> & {
   players: Record<string, ClientPlayerState>;
 };

@@ -227,29 +227,6 @@ export function onEnemyKilledForQuests(
  * for any active reach-stage. Same data-driven shape as the kill
  * hook above.
  */
-export function onPositionChangedForQuests(
-  player: PlayerState,
-  outbound: OutboundEventSink,
-): void {
-  if (!player.questState) return;
-  let changed = false;
-  for (const [questId, entry] of Object.entries(player.questState.active)) {
-    const quest = QUESTS[questId];
-    const stage = quest?.stages[entry.stageIndex];
-    if (stage?.objective.kind === 'reach' && entry.progress === 0) {
-      const dx = stage.objective.position.x - player.position.x;
-      const dz = stage.objective.position.z - player.position.z;
-      if (Math.hypot(dx, dz) <= stage.objective.radius) {
-        entry.progress = 1;
-        changed = true;
-      }
-    }
-  }
-  if (changed) {
-    emitPlayerUpdated(outbound, { id: player.id, questState: player.questState });
-  }
-}
-
 /** Talk-objective auto-progress: called from TalkNpc handler. */
 export function onTalkedToNpcForQuests(
   player: PlayerState,
@@ -291,7 +268,7 @@ function isStageComplete(quest: QuestDef, entry: PlayerActiveQuestProgress): boo
  * needing a separate movement-tick hook. Cheap; only runs on the
  * explicit advance verb.
  */
-export function maybeFulfillReachOnAdvance(player: PlayerState): void {
+function maybeFulfillReachOnAdvance(player: PlayerState): void {
   if (!player.questState) return;
   for (const [questId, entry] of Object.entries(player.questState.active)) {
     const quest = QUESTS[questId];

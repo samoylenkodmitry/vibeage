@@ -1,5 +1,4 @@
 import { nanoid } from 'nanoid';
-import { ITEMS } from '../../packages/content/items.js';
 import type { CharacterInventory } from '../../packages/sim/characterInventory.js';
 import { createEmptyInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
@@ -82,17 +81,11 @@ export function removeItemsFromPlayer(player: PlayerState, templateId: string, c
   return result;
 }
 
-export const inventoryServices = services;
-
 export function emptyAggregateForPlayer(player: PlayerState): CharacterInventory {
   return createEmptyInventory(player.id, {
     ...DEFAULT_LIMITS,
     baseSlots: player.maxInventorySlots,
   });
-}
-
-export function templateOf(templateId: string) {
-  return ITEMS[templateId];
 }
 
 /**

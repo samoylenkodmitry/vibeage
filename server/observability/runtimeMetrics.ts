@@ -1,6 +1,6 @@
 type MetricMap = Record<string, number>;
 
-export type RuntimeMetricsSnapshot = {
+type RuntimeMetricsSnapshot = {
   counters: MetricMap;
   gauges: MetricMap;
   tickMs: {

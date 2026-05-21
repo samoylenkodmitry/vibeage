@@ -122,7 +122,7 @@ export function isValidPosition(pos: VecXZ): boolean {
     && Math.abs(pos.z) <= WORLD_SETTINGS.playableRadius;
 }
 
-export function predictEntityStateAtOffset(
+function predictEntityStateAtOffset(
   entity: PlayerState | Enemy,
   basePos: VecXZ,
   baseVel: VecXZ,

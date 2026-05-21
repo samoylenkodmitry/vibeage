@@ -7,7 +7,7 @@ import type {
   AuthoritativeRoomSocket,
 } from './roomBoundary.js';
 
-export type JoinClientOptions = {
+type JoinClientOptions = {
   /** Lobby-picked race + class; server uses on first character spawn. */
   initialRace?: string;
   initialClass?: string;
@@ -22,7 +22,7 @@ export type SocketBackedWorldApi = {
   removePlayerBySocketId(socketId: string): Promise<string | undefined>;
 };
 
-export class SocketBackedAuthoritativeRoom implements AuthoritativeRoomPort {
+class SocketBackedAuthoritativeRoom implements AuthoritativeRoomPort {
   private readonly clients = new Map<string, AuthoritativeRoomClient>();
 
   constructor(private readonly world: SocketBackedWorldApi) {}
