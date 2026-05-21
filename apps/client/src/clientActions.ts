@@ -65,6 +65,9 @@ export type ClientActions = {
   tryFirePendingCast: () => void;
   tryFirePendingPickup: () => void;
   tryAdvanceAutoAttack: () => void;
+  /** §52 playtest follow-up — switches which active quest the
+   *  heads-up `QuestTrackerStrip` displays. */
+  setTrackedQuest: (questId: string | null) => void;
 };
 
 export function useClientActions(
@@ -128,9 +131,13 @@ export function useClientActions(
 
   const { devTeleport, sendChat } = useCommandActions(roomRef, stateRef);
 
+  const setTrackedQuest = useCallback((questId: string | null) => {
+    dispatch({ type: 'setTrackedQuest', questId });
+  }, [dispatch]);
+
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack, setTrackedQuest }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack, setTrackedQuest],
   );
 }
 

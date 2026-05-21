@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { INTERACTION_RANGE, QUEST_NPCS, type QuestNpcDef } from '../../../../packages/content/npcs';
 import { formatRewardSummary, getQuestsOfferedBy, type QuestDef } from '../../../../packages/content/quests';
 import { getVendorByNpcId } from '../../../../packages/content/vendors';
@@ -13,17 +13,46 @@ type NpcDialogProps = {
 
 /**
  * Floating dialog that appears when the player stands within
- * INTERACTION_RANGE of any quest-giving NPC. Shows the NPC's
- * offered quests filtered by player level and quest state (hides
- * already-active or completed quests). Accept button sends
- * AcceptQuest to the server. The dialog auto-hides on walk-away.
+ * INTERACTION_RANGE of any quest-giving NPC.
  *
- * Pure UI — list of quests comes from QUESTS data, gated by
- * minLevel + the player's questState.
+ * §52 playtest follow-up — explicit close via × button / Escape /
+ * outside-click. Dismiss is per-NPC: re-entering range of the same
+ * NPC re-opens, and a different NPC always opens fresh.
  */
 export function NpcDialog({ player, onTalkNpc, onAcceptQuest, onBrowseVendor }: NpcDialogProps) {
   const nearbyNpc = useMemo(() => findNearbyNpc(player), [player?.position]);
-  if (!player || !nearbyNpc) return null;
+  const [dismissedNpcId, setDismissedNpcId] = useState<string | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!nearbyNpc || nearbyNpc.id !== dismissedNpcId) setDismissedNpcId(null);
+  }, [nearbyNpc, dismissedNpcId]);
+
+  const isShown = Boolean(nearbyNpc) && nearbyNpc?.id !== dismissedNpcId;
+
+  useEffect(() => {
+    if (!isShown || !nearbyNpc) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDismissedNpcId(nearbyNpc.id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isShown, nearbyNpc]);
+
+  useEffect(() => {
+    if (!isShown || !nearbyNpc) return;
+    const onPointer = (e: PointerEvent) => {
+      const node = sectionRef.current;
+      if (!node) return;
+      if (e.target instanceof Node && node.contains(e.target)) return;
+      setDismissedNpcId(nearbyNpc.id);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    return () => document.removeEventListener('pointerdown', onPointer);
+  }, [isShown, nearbyNpc]);
+
+  if (!player || !nearbyNpc || !isShown) return null;
+
   const offered = getQuestsOfferedBy(nearbyNpc.id);
   const active = player.questState?.active ?? {};
   const completed = player.questState?.completed ?? [];
@@ -31,10 +60,22 @@ export function NpcDialog({ player, onTalkNpc, onAcceptQuest, onBrowseVendor }: 
   const activeHere = offered.filter((q) => active[q.id]);
   const vendor = getVendorByNpcId(nearbyNpc.id);
   return (
-    <section className="npc-dialog" aria-label={`Dialog with ${nearbyNpc.name}`}>
+    <section
+      ref={sectionRef}
+      className="npc-dialog"
+      aria-label={`Dialog with ${nearbyNpc.name}`}
+    >
       <header>
         <strong>{nearbyNpc.name}</strong>
         <small>{nearbyNpc.title}</small>
+        <button
+          type="button"
+          className="npc-dialog-close"
+          aria-label="Close dialog"
+          onClick={() => setDismissedNpcId(nearbyNpc.id)}
+        >
+          ×
+        </button>
       </header>
       <button type="button" onClick={() => onTalkNpc(nearbyNpc.id)} className="npc-dialog-talk">Greet</button>
       {vendor && onBrowseVendor && (

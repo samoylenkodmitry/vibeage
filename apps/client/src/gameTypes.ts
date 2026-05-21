@@ -237,6 +237,15 @@ export type GameClientState = {
    * pruned automatically once they're a second past impact.
    */
   bossTelegraphs: BossTelegraphEntry[];
+  /**
+   * §52 playtest follow-up — id of the quest the player has chosen
+   * to focus on. Drives which quest the heads-up
+   * `QuestTrackerStrip` shows when multiple quests are active.
+   * Null means "first active in the dictionary" (legacy default).
+   * Set when the player clicks a row in `QuestPanel`. Persisted
+   * via localStorage so the choice survives a reload.
+   */
+  trackedQuestId: string | null;
 };
 
 type BossTelegraphEntry = {

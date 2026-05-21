@@ -8,23 +8,34 @@ import { useDraggablePanel } from './useDraggablePanel';
 
 type QuestPanelProps = {
   player: PlayerEntity | null;
+  trackedQuestId?: string | null;
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
   onShowMarker: (pos: { x: number; z: number } | null) => void;
+  onSetTrackedQuest?: (questId: string | null) => void;
 };
 
 export function QuestPanel({
   player,
+  trackedQuestId,
   onCancelQuest,
   onAdvanceQuest,
   onClaimQuestReward,
   onShowMarker,
+  onSetTrackedQuest,
 }: QuestPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('quest');
   const activeIds = useMemo(() => Object.keys(player?.questState?.active ?? {}), [player?.questState]);
   const completed = player?.questState?.completed ?? [];
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Selection state in the panel doubles as the "tracked quest" for
+  // the heads-up strip. Default to whatever the strip is already
+  // tracking so opening the panel doesn't reset the user's choice.
+  const [selectedId, setSelectedId] = useState<string | null>(trackedQuestId ?? null);
+  const selectQuest = (id: string) => {
+    setSelectedId(id);
+    onSetTrackedQuest?.(id);
+  };
   const selectedQuest = selectedId ? QUESTS[selectedId] : null;
   const selectedEntry = selectedId ? player?.questState?.active?.[selectedId] : null;
 
@@ -49,7 +60,7 @@ export function QuestPanel({
                 key={id}
                 className={`quest-list-item${selectedId === id ? ' quest-list-item--selected' : ''}${ready ? ' quest-list-item--ready' : ''}`}
               >
-                <button type="button" className="quest-list-button" onClick={() => setSelectedId(id)}>
+                <button type="button" className="quest-list-button" onClick={() => selectQuest(id)}>
                   <strong>{quest.name}</strong>
                   <small>{quest.stages[entry.stageIndex]?.description ?? 'Complete!'}</small>
                 </button>
@@ -61,7 +72,11 @@ export function QuestPanel({
           <QuestDetail
             quest={selectedQuest}
             entry={selectedEntry}
-            onCancel={() => { onCancelQuest(selectedQuest.id); setSelectedId(null); }}
+            onCancel={() => {
+              onCancelQuest(selectedQuest.id);
+              setSelectedId(null);
+              onSetTrackedQuest?.(null);
+            }}
             onAdvance={() => onAdvanceQuest(selectedQuest.id)}
             onClaim={() => onClaimQuestReward(selectedQuest.id)}
             onShowMarker={onShowMarker}

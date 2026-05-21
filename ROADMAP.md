@@ -2582,15 +2582,13 @@ User report after the §52 polish-sweep session merged + deployed
 missing UX surface, captured as a distinct `[ ]` so future PRs
 can pick them off independently.
 
-- [ ] **NPC dialog has no close button / no escape gesture.**
-  The `NpcDialog` opens when the player clicks an NPC but only
-  closes implicitly (clicking the same NPC again, or moving
-  out of range). A player who opens Mira / Galen and changes
-  their mind has no obvious way out. Add an explicit × button
-  in the dialog header AND an `Escape` key handler. Probably
-  also close on outside-click (same UX as the bag context
-  menu — see `InventoryContextMenu.tsx` for the click-outside
-  pattern).
+- [x] **NPC dialog has no close button / no escape gesture.**
+  `NpcDialog` now exposes an explicit × button in its header
+  (aria-label "Close dialog"), plus `Escape` and outside-click
+  dismiss the open dialog. Dismiss is per-NPC and reset when
+  the player walks out of range, so the next time they
+  approach the same NPC the dialog re-opens. PR #339; e2e
+  coverage in `tests/e2e-vite/hud-dialogs-flow.spec.ts`.
 
 - [x] **Attacks and skills did not work on prod.** Root cause
   in PR #329: the `clientSeq` field was added to the
@@ -2609,26 +2607,18 @@ can pick them off independently.
   schema-vs-type drift gets caught at the boundary the unit
   tests can't reach. PR #338.
 
-- [ ] **The current-quest tracker doesn't switch when the
+- [x] **The current-quest tracker doesn't switch when the
   player picks a different quest from the quest panel.**
-  `QuestPanel` lets the player highlight any active quest
-  (multiple can be active at once). The heads-up
-  `QuestTrackerStrip` should show whichever quest the player
-  most recently picked, but appears to stick to the first
-  one accepted. Probably a missing reducer wiring: the panel
-  selection state lives on the client but the strip reads
-  the wrong field (likely the first item in
-  `player.questState.active` rather than a "currently
-  tracked" id). Pick path:
-    1. Confirm via grep that `QuestTrackerStrip` reads from
-       a "tracked quest id" client state rather than just
-       walking `active` and picking the first key.
-    2. If there's no `trackedQuestId` field, add one to the
-       client state, wire `QuestPanel` clicks to set it,
-       and `QuestTrackerStrip` to read it (fallback to
-       first active when unset).
-    3. Persist across reload via localStorage so the
-       tracker picks up where the player left off.
+  Added `trackedQuestId: string | null` to
+  `GameClientState` and a `setTrackedQuest` reducer action.
+  `QuestPanel` row clicks now dispatch it; `QuestTrackerStrip`
+  reads it via the new optional `trackedQuestId` prop. The
+  picker falls back to first-active when the tracked id is
+  null or has dropped out of the active set, preserving the
+  legacy single-quest UX for fresh players. PR #339; logic
+  covered by 3 new cases in `tests/questTracker.spec.ts`.
+  Cross-reload persistence (localStorage) deferred to a
+  follow-up — the in-session UX is the playtest blocker.
 
 ## CI follow-ups (2026-05-21)
 

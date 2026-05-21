@@ -46,6 +46,7 @@ type GameHudProps = {
   onCancelQuest: (questId: string) => void;
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
+  onSetTrackedQuest?: (questId: string | null) => void;
   onBuyFromVendor: (vendorId: string, itemId: string, quantity: number) => void;
   onSellToVendor: (vendorId: string, itemId: string, quantity: number) => void;
   onGmCommand: (cmd: {
@@ -69,7 +70,7 @@ export function GameHud(props: GameHudProps) {
     state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onDisconnect,
     onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onCraftItem, onEquipItem, onUnequipItem,
     onUpgradeSkill, onTalkNpc, onAcceptQuest, onCancelQuest, onAdvanceQuest,
-    onClaimQuestReward, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
+    onClaimQuestReward, onSetTrackedQuest, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
     onSelectTarget, onCycleTarget, onPickupNearest, onMove, onSendChat,
   } = props;
   const player = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
@@ -124,10 +125,12 @@ export function GameHud(props: GameHudProps) {
         onCancelQuest={onCancelQuest}
         onAdvanceQuest={onAdvanceQuest}
         onClaimQuestReward={onClaimQuestReward}
+        onSetTrackedQuest={onSetTrackedQuest}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
       />
       <QuestTrackerStrip
         player={player}
+        trackedQuestId={state.trackedQuestId}
         onShowMarker={(pos) => onSetNavigationMarker?.(pos)}
         onAdvanceQuest={onAdvanceQuest}
         onClaimQuestReward={onClaimQuestReward}

@@ -60,6 +60,7 @@ export const initialGameClientState: GameClientState = {
   pendingPickup: null,
   autoAttack: null,
   bossTelegraphs: [],
+  trackedQuestId: null,
 };
 
 export type GameClientAction =
@@ -83,7 +84,8 @@ export type GameClientAction =
   | { type: 'setPendingPickup'; pendingPickup: GameClientState['pendingPickup'] }
   | { type: 'clearPendingPickup' }
   | { type: 'setAutoAttack'; autoAttack: GameClientState['autoAttack'] }
-  | { type: 'clearAutoAttack' };
+  | { type: 'clearAutoAttack' }
+  | { type: 'setTrackedQuest'; questId: string | null };
 
 export function gameClientReducer(
   state: GameClientState,
@@ -132,6 +134,8 @@ export function gameClientReducer(
       return { ...state, autoAttack: action.autoAttack };
     case 'clearAutoAttack':
       return state.autoAttack ? { ...state, autoAttack: null } : state;
+    case 'setTrackedQuest':
+      return state.trackedQuestId === action.questId ? state : { ...state, trackedQuestId: action.questId };
   }
 }
 
