@@ -230,19 +230,23 @@ export function applySpecializationChange(
  * Spends one availableSkillPoint per tier. Engine reads skillLevels
  * on cast resolution via getSkillUpgradeModifiers.
  */
+export type SkillUpgradeResult =
+  | { ok: true }
+  | { ok: false; reason: 'skillNotLearned' | 'noUpgradesAvailable' | 'maxLevelReached' | 'noSkillPoints' };
+
 export function applySkillUpgrade(
   player: PlayerState,
   skillId: SkillId,
   outbound: OutboundEventSink,
-): boolean {
-  if (!player.unlockedSkills.includes(skillId)) return false;
+): SkillUpgradeResult {
+  if (!player.unlockedSkills.includes(skillId)) return { ok: false, reason: 'skillNotLearned' };
   const skill = SKILLS[skillId];
   const upgrades = skill?.upgrades;
-  if (!upgrades?.length) return false;
+  if (!upgrades?.length) return { ok: false, reason: 'noUpgradesAvailable' };
   const current = Math.max(1, Math.floor(player.skillLevels?.[skillId] ?? 1));
   const maxLevel = 1 + upgrades.length;
-  if (current >= maxLevel) return false;
-  if (player.availableSkillPoints < 1) return false;
+  if (current >= maxLevel) return { ok: false, reason: 'maxLevelReached' };
+  if (player.availableSkillPoints < 1) return { ok: false, reason: 'noSkillPoints' };
   player.availableSkillPoints -= 1;
   const next = current + 1;
   player.skillLevels = { ...(player.skillLevels ?? {}), [skillId]: next };
@@ -252,5 +256,5 @@ export function applySkillUpgrade(
     availableSkillPoints: player.availableSkillPoints,
     skillLevels: player.skillLevels,
   });
-  return true;
+  return { ok: true };
 }

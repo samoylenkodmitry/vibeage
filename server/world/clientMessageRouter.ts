@@ -103,7 +103,7 @@ export function handleClientMessage(
     case 'SelectSpecialization':
       return onSelectSpecialization(socket, state, msg, outbound);
     case 'UpgradeSkill':
-      return onUpgradeSkill(socket, state, msg, outbound);
+      return onUpgradeSkill(socket, direct, state, msg, outbound);
     case 'TalkNpc':
       return onTalkNpc(socket, state, msg, outbound);
     case 'AcceptQuest':
@@ -250,15 +250,24 @@ function onSelectSpecialization(
 
 function onUpgradeSkill(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'UpgradeSkill' }>,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'UpgradeSkill', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
-  if (!playerId) return;
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
   const player = state.players[playerId];
-  if (!player) return;
-  applySkillUpgrade(player, msg.skillId, outbound);
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
+  const result = applySkillUpgrade(player, msg.skillId, outbound);
+  if (result.ok === false) reject(result.reason);
 }
 
 function onSelectClass(

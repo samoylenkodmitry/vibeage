@@ -17,6 +17,7 @@ import {
   type DirectMessageSink,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
+import { sendCommandRejected } from '../transport/commandRejected.js';
 
 type SkillClient = { id: string };
 
@@ -37,9 +38,13 @@ export function onLearnSkill(
   state: GameState,
   msg: LearnSkill,
 ): void {
+  const reject = (reason: LearnSkillFailedMsg['reason']) =>
+    sendLearnSkillFailed(direct, msg.skillId, reason, msg.clientSeq);
   const player = findPlayerBySocket(state, socket.id);
   if (!player) {
     warn(LOG_CATEGORIES.SKILL, `Learn skill request from unknown socket: ${socket.id}`);
+    // No player → no DirectMessageSink would route to them anyway; the
+    // SDK already filters unknown sockets. Skip the rejection emit.
     return;
   }
 
@@ -51,14 +56,14 @@ export function onLearnSkill(
   const rejection = classifyLearnRejection(player, msg.skillId);
   if (rejection) {
     warn(LOG_CATEGORIES.SKILL, `Player ${player.id} cannot learn skill: ${msg.skillId} (${rejection})`);
-    sendLearnSkillFailed(direct, msg.skillId, rejection);
+    reject(rejection);
     return;
   }
 
   if (!learnNewSkill(player, msg.skillId)) {
     // Catch-all if the actual mutation still rejects (shouldn't happen after the
     // classifier above passed). Surface a generic missingPrereq.
-    sendLearnSkillFailed(direct, msg.skillId, 'missingPrereq');
+    reject('missingPrereq');
     return;
   }
 
@@ -123,12 +128,18 @@ function classifyLearnRejection(
   return null;
 }
 
+// §4/§52 — emit BOTH the legacy `LearnSkillFailed` (kept so older
+// clients still see the rejection) AND the structured `CommandRejected`
+// envelope. Migration is per-command; once the client UI consumes
+// `CommandRejected` for skill learning, the legacy can retire.
 function sendLearnSkillFailed(
   direct: DirectMessageSink,
   skillId: SkillId,
   reason: LearnSkillFailedMsg['reason'],
+  clientSeq?: number,
 ): void {
   direct.send({ type: 'LearnSkillFailed', skillId, reason });
+  sendCommandRejected(direct, 'LearnSkill', reason, clientSeq);
 }
 
 export function onSetSkillShortcut(
