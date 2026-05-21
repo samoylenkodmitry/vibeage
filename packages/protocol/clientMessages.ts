@@ -111,6 +111,7 @@ export const chatRequestSchema = z.object({
   text: z.string().min(1).max(240),
   scope: z.union([z.literal('near'), z.literal('all')]),
   clientTs: z.number(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 // §46/slice-5 — `clientSeq` is the client's per-command ack key.
@@ -331,6 +332,7 @@ export type ChatRequest = {
   text: string;
   scope: ChatScope;
   clientTs: number;
+  clientSeq?: number;
 };
 
 export type EquipItem = {

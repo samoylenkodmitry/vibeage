@@ -95,7 +95,7 @@ export function handleClientMessage(
     case 'DevTeleport':
       return onDevTeleport(socket, state, msg);
     case 'ChatRequest':
-      return onChatRequest(socket, state, msg, outbound, spatial);
+      return onChatRequest(socket, direct, state, msg, outbound, spatial);
     case 'EquipItem':
       return onEquipItem(socket, direct, state, msg, outbound);
     case 'UnequipItem':
@@ -343,21 +343,26 @@ const CHAT_NEAR_RADIUS = 150;
 
 function onChatRequest(
   socket: WorldClient,
+  direct: DirectMessageSink,
   state: GameState,
   msg: Extract<ClientMessage, { type: 'ChatRequest' }>,
   outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ): void {
+  const reject = (reason: string) => sendCommandRejected(direct, 'ChatRequest', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
+    reject('playerNotFound');
     return;
   }
   const player = state.players[playerId];
   if (!player) {
+    reject('playerNotFound');
     return;
   }
   const text = msg.text.trim().slice(0, 240);
   if (!text) {
+    reject('emptyText');
     return;
   }
   const broadcast = {
