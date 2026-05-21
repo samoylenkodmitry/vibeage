@@ -1,5 +1,6 @@
 import { QUESTS } from '../../../../packages/content/quests';
 import type { GameClientState } from '../gameTypes';
+import { useDismissibleHint } from './useDismissibleHint';
 
 /**
  * §49/M2 — one-time targeting hint. Renders a small banner when:
@@ -9,21 +10,26 @@ import type { GameClientState } from '../gameTypes';
  *   - has no selected target
  *   - hasn't defeated any enemy yet (avoid pestering after the
  *     first kill — by then targeting is "muscle memory")
+ *   - the player hasn't explicitly dismissed it via × button
+ *     (sticky via localStorage; cross-tab synced)
  *
- * Dismisses automatically by virtue of its own predicate flipping
- * the moment the player selects something or notches their first
- * defeated enemy.
+ * Auto-dismisses via the predicate when the player selects
+ * something or notches their first defeated enemy; manual dismiss
+ * via × covers the "I know how to target, stop reminding me" case.
  */
 type TargetingHintProps = {
   state: GameClientState;
 };
 
 export function TargetingHint({ state }: TargetingHintProps) {
+  const { dismissed, dismiss } = useDismissibleHint('targeting');
+  if (dismissed) return null;
   if (!shouldShowTargetingHint(state)) return null;
   return (
     <section className="targeting-hint" role="status" aria-live="polite">
       <strong>Pick a target</strong>
       <small>Click an enemy or press <kbd>Tab</kbd> to cycle the nearest one.</small>
+      <button type="button" className="hint-dismiss" aria-label="Dismiss hint" onClick={dismiss}>×</button>
     </section>
   );
 }
