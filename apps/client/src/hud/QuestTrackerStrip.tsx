@@ -122,7 +122,7 @@ export function pickTrackedStage(
     const stage = quest.stages[entry.stageIndex];
     if (!stage) continue;
     const giver = QUEST_NPCS[quest.npcId];
-    const marker = resolveStageMarker(stage, giver?.position ?? null);
+    const marker = resolveStageMarker(stage, giver?.position ?? null, entry.readyToClaim ?? false);
     return {
       quest,
       stageIndex: entry.stageIndex,

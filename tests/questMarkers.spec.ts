@@ -40,6 +40,52 @@ describe('questMarkers.resolveStageMarker', () => {
     );
     expect(marker).toEqual({ x: 1, z: 2 });
   });
+  // §52 playtest follow-up — readyToClaim must override the stage's
+  // own marker. Pre-fix, "Show on map" pointed at the original kill
+  // zone, the player walked away from the giver, and the server
+  // then rejected the claim with `notNearNpc`.
+  it('routes to the giver when entry.readyToClaim, even with a kill-stage objective', () => {
+    const marker = resolveStageMarker(
+      { id: 's3', description: '', objective: { kind: 'kill', enemyType: 'rat', count: 5 } },
+      { x: 4, y: 0, z: 4 }, // giver position
+      true, // readyToClaim
+    );
+    // Without the readyToClaim flag this would return the rat zone
+    // centre; with it, the giver wins.
+    expect(marker).toEqual({ x: 4, z: 4 });
+  });
+  it('respects an explicit stage marker over readyToClaim is FALSE — explicit marker still wins on the active stage path', () => {
+    // readyToClaim=false should NOT change the legacy behaviour:
+    // explicit stage.marker still wins for the stage walk-up.
+    const marker = resolveStageMarker(
+      { id: 's4', description: '', objective: { kind: 'manual', description: '' }, marker: { x: 7, y: 0, z: 9 } },
+      { x: 1, y: 0, z: 2 },
+      false,
+    );
+    expect(marker).toEqual({ x: 7, z: 9 });
+  });
+  it("falls through to stage logic when readyToClaim=true but giverPos is null (defensive)", () => {
+    const marker = resolveStageMarker(
+      { id: 's5', description: '', objective: { kind: 'reach', position: { x: 9, y: 0, z: 9 }, radius: 2 } },
+      null,
+      true,
+    );
+    expect(marker).toEqual({ x: 9, z: 9 });
+  });
+});
+
+describe('questMarkers.listActiveQuestMarkers — readyToClaim path', () => {
+  it('emits the giver position for a quest whose entry has readyToClaim=true', () => {
+    // rats_in_the_cellar: stage 0 is the kill objective. Pre-fix this
+    // would return the rat zone center even when the quest was ready.
+    const player = makePlayer({
+      active: { rats_in_the_cellar: { stageIndex: 0, progress: 5, readyToClaim: true } },
+      completed: [],
+    });
+    const markers = listActiveQuestMarkers(player);
+    const npc = QUEST_NPCS.warden_galen;
+    expect(markers[0].marker).toEqual({ x: npc.position.x, z: npc.position.z });
+  });
 });
 
 describe('questMarkers.listActiveQuestMarkers', () => {

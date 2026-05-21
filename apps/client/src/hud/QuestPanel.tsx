@@ -109,7 +109,7 @@ function QuestDetail({
 }) {
   const stage = quest.stages[entry.stageIndex];
   const giver = QUEST_NPCS[quest.npcId];
-  const markerPos = stage ? resolveStageMarker(stage, giver?.position ?? null) : null;
+  const markerPos = stage ? resolveStageMarker(stage, giver?.position ?? null, entry.readyToClaim ?? false) : null;
   const objectiveLabel = stage ? describeObjective(stage.objective, entry.progress) : '';
   const isLastStage = entry.stageIndex === quest.stages.length - 1;
   return (
