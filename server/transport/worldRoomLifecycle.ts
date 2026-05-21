@@ -1,4 +1,6 @@
+import { performance } from 'node:perf_hooks';
 import type { GameState } from '../gameState.js';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { ServerWorldRegion } from '../world/regions.js';
 import { sanitizePlayerForPublic } from './clientState.js';
 import { makeClientDirectSink, sendClientInitialSnapshot, type SnapshotClient } from './clientSnapshot.js';
@@ -25,14 +27,24 @@ export async function joinWorldRoomClient<ClientType extends SnapshotClient>(
   client: ClientType,
   options?: unknown,
 ): Promise<void> {
-  const result = await adapter.handleJoin(client, parseWorldRoomJoinOptions(options));
-  const player = world.getGameState().players[result.playerId];
+  // §52 #4 — end-to-end join latency: from the moment the room
+  // hands the client off to us, through the adapter (which does the
+  // DB upsert), through the public broadcast, through the initial
+  // snapshot send. The DB step has its own histogram so the two
+  // metrics together let #12 isolate where time is going.
+  const startedAt = performance.now();
+  try {
+    const result = await adapter.handleJoin(client, parseWorldRoomJoinOptions(options));
+    const player = world.getGameState().players[result.playerId];
 
-  if (player) {
-    room.broadcast(SOCKET_SESSION_EVENTS.playerJoined, sanitizePlayerForPublic(player), { except: client });
+    if (player) {
+      room.broadcast(SOCKET_SESSION_EVENTS.playerJoined, sanitizePlayerForPublic(player), { except: client });
+    }
+
+    sendWorldRoomClientSnapshot(world, client);
+  } finally {
+    runtimeMetrics.recordHistogram('world.joinDurationMs', performance.now() - startedAt);
   }
-
-  sendWorldRoomClientSnapshot(world, client);
 }
 
 export async function leaveWorldRoomClient<ClientType extends SnapshotClient>(

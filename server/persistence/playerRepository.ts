@@ -1,4 +1,6 @@
+import { performance } from 'node:perf_hooks';
 import { sql, type Insertable, type RawBuilder, type Selectable, type UpdateObject } from 'kysely';
+import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { database, type GameDatabase, type PlayersTable, type ServerEventsTable } from '../db.js';
 import type { SkillId } from '../../packages/content/skills.js';
 import type { StarterProgressState } from '../../packages/protocol/messages.js';
@@ -44,51 +46,30 @@ export interface PlayerRepository {
 function createKyselyPlayerRepository(db: PersistenceDatabase): PlayerRepository {
   return {
     async upsertSession(socketId, name, loginTime, accountId) {
-      if (accountId) {
-        // Account-scoped lookup: the row was created via the
-        // /api/account/characters POST in the lobby. World join only
-        // re-uses it; we don't create a row here. Returning null
-        // signals "unknown character for this account" — caller
-        // rejects the join.
-        const existing = await db
-          .selectFrom('players')
-          .where('account_id', '=', accountId)
-          .where('name', '=', name)
-          .selectAll()
-          .executeTakeFirst();
-        if (!existing) return null;
-        await db
-          .updateTable('players')
-          .set({ socket_id: socketId, last_login: loginTime })
-          .where('id', '=', existing.id)
-          .execute();
-        return { ...existing, socket_id: socketId, last_login: loginTime } as Selectable<PlayersTable>;
+      // §52 #4 — join-flow DB latency. The session upsert runs on
+      // every join (new or reconnect), so this is a load-meaningful
+      // signal that #12 can graph.
+      const startedAt = performance.now();
+      try {
+        return await upsertSessionImpl(db, socketId, name, loginTime, accountId);
+      } finally {
+        runtimeMetrics.recordHistogram('db.upsertSession.durationMs', performance.now() - startedAt);
       }
-      // Legacy path (no account): kept temporarily so non-auth
-      // clients still work. PR I deploy drops this once the auth
-      // wave is rolled out.
-      const values: PlayerSessionInsert = {
-        name,
-        socket_id: socketId,
-        last_login: loginTime,
-      };
-      return db
-        .insertInto('players')
-        .values(values as Insertable<PlayersTable>)
-        .onConflict((oc) => oc.column('name').doUpdateSet({
-          socket_id: socketId,
-          last_login: loginTime,
-        }))
-        .returningAll()
-        .executeTakeFirstOrThrow();
     },
 
     async updatePlayer(playerId, data) {
-      await db
-        .updateTable('players')
-        .set(toPlayerPersistencePatch(data))
-        .where('id', '=', playerId)
-        .execute();
+      // §52 #4 — DB write latency histogram so the load-test work
+      // (#12) has a real signal to graph instead of running blind.
+      const startedAt = performance.now();
+      try {
+        await db
+          .updateTable('players')
+          .set(toPlayerPersistencePatch(data))
+          .where('id', '=', playerId)
+          .execute();
+      } finally {
+        runtimeMetrics.recordHistogram('db.updatePlayer.durationMs', performance.now() - startedAt);
+      }
     },
 
     async insertServerEvent(eventType, playerId, eventData, timestamp) {
@@ -108,6 +89,50 @@ function createKyselyPlayerRepository(db: PersistenceDatabase): PlayerRepository
 }
 
 export const playerRepository = createKyselyPlayerRepository(database);
+
+async function upsertSessionImpl(
+  db: PersistenceDatabase,
+  socketId: string,
+  name: string,
+  loginTime: Date,
+  accountId?: string,
+): Promise<Selectable<PlayersTable> | null> {
+  if (accountId) {
+    // Account-scoped lookup: the row was created via the
+    // /api/account/characters POST in the lobby. World join only
+    // re-uses it; we don't create a row here. Returning null
+    // signals "unknown character for this account" — caller rejects.
+    const existing = await db
+      .selectFrom('players')
+      .where('account_id', '=', accountId)
+      .where('name', '=', name)
+      .selectAll()
+      .executeTakeFirst();
+    if (!existing) return null;
+    await db
+      .updateTable('players')
+      .set({ socket_id: socketId, last_login: loginTime })
+      .where('id', '=', existing.id)
+      .execute();
+    return { ...existing, socket_id: socketId, last_login: loginTime } as Selectable<PlayersTable>;
+  }
+  // Legacy path (no account): kept temporarily so non-auth clients
+  // still work. PR I deploy drops this once the auth wave is rolled out.
+  const values: PlayerSessionInsert = {
+    name,
+    socket_id: socketId,
+    last_login: loginTime,
+  };
+  return db
+    .insertInto('players')
+    .values(values as Insertable<PlayersTable>)
+    .onConflict((oc) => oc.column('name').doUpdateSet({
+      socket_id: socketId,
+      last_login: loginTime,
+    }))
+    .returningAll()
+    .executeTakeFirstOrThrow();
+}
 
 function toPlayerPersistencePatch(data: StablePlayerPersistenceData): PlayerPersistencePatch {
   return {
