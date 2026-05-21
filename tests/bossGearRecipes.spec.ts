@@ -90,4 +90,49 @@ describe('applyCraftRecipe', () => {
     expect(result.ok).toBe(false);
     if (result.ok === false) expect(result.reason).toBe('notRecipe');
   });
+
+  // §49/M2 — Grakk's `recipe_chieftains_cleaver` is the *first*
+  // boss gear recipe a new player encounters (bounty quest from
+  // Mira). Dedicated coverage so the starter-trophy → first-craft
+  // loop is locked down, separate from the Hammerback case above.
+  it('Chieftain\'s Cleaver: consumes Grakk trophy + ingredients and grants the cleaver', () => {
+    const player = createTransientPlayer('s-grakk', 't-grakk');
+    expect(addItemsToPlayer(player, 'recipe_chieftains_cleaver', 1).ok).toBe(true);
+    expect(addItemsToPlayer(player, 'grakk_warband_horn', 1).ok).toBe(true);
+    expect(addItemsToPlayer(player, 'goblin_ear', 6).ok).toBe(true);
+    expect(addItemsToPlayer(player, 'troll_bone', 2).ok).toBe(true);
+
+    const recipeSlot = player.inventory.findIndex((s) => s?.itemId === 'recipe_chieftains_cleaver');
+    expect(recipeSlot).toBeGreaterThanOrEqual(0);
+    const result = applyCraftRecipe(player, recipeSlot);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.outputId).toBe('chieftains_cleaver');
+      expect(result.recipeId).toBe('recipe_chieftains_cleaver');
+    }
+    const has = (id: string) => player.inventory.find((s) => s?.itemId === id);
+    expect(has('chieftains_cleaver')).toBeTruthy();
+    expect(has('recipe_chieftains_cleaver')).toBeFalsy();
+    expect(has('grakk_warband_horn')).toBeFalsy();
+    expect(has('goblin_ear')).toBeFalsy();
+    expect(has('troll_bone')).toBeFalsy();
+  });
+
+  it('Chieftain\'s Cleaver: short on goblin_ear → missingIngredients, atomicity preserved', () => {
+    const player = createTransientPlayer('s-grakk-short', 't-short');
+    addItemsToPlayer(player, 'recipe_chieftains_cleaver', 1);
+    addItemsToPlayer(player, 'grakk_warband_horn', 1);
+    addItemsToPlayer(player, 'goblin_ear', 5);
+    addItemsToPlayer(player, 'troll_bone', 2);
+
+    const recipeSlot = player.inventory.findIndex((s) => s?.itemId === 'recipe_chieftains_cleaver');
+    const result = applyCraftRecipe(player, recipeSlot);
+    expect(result.ok).toBe(false);
+    if (result.ok === false) expect(result.reason).toBe('missingIngredients');
+    const has = (id: string) => player.inventory.find((s) => s?.itemId === id);
+    expect(has('recipe_chieftains_cleaver')).toBeTruthy();
+    expect(has('grakk_warband_horn')).toBeTruthy();
+    expect(has('goblin_ear')?.quantity).toBe(5);
+    expect(has('troll_bone')?.quantity).toBe(2);
+  });
 });
