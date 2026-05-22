@@ -8,11 +8,7 @@ Every entry here is a real item / skill / boss the engine knows about but nothin
 
 Has a source (loot/vendor/recipe/quest reward) but nothing consumes it: not a consumable, not equippable, not a recipe input, not currency.
 
-- [ ] `elixir_of_strength` — Elixir of Strength
-- [ ] `ethereal_elixir` — Ethereal Elixir
-- [ ] `fire_resistance_potion` — Fire Resistance Potion
-- [ ] `ice_resistance_potion` — Ice Resistance Potion
-- [ ] `temporal_draught` — Temporal Draught
+_None._
 
 ## Skills nothing references
 
