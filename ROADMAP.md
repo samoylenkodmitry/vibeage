@@ -448,11 +448,11 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add persistence tests proving bag order survives reconnect. (Same spec — `location.slotIndex` is preserved for every bag instance through the roundtrip.)
 - [x] Add persistence tests proving stack counts survive reconnect. (Same spec — `count` field is preserved for stackable instances; non-stackable equipped item keeps count=1 as a sanity guard against stack inflation.)
 - [ ] Add persistence tests proving invalid persisted inventories are repaired or rejected safely.
-- [ ] Add atomic transaction tests for multi-item loot pickup.
-- [ ] Add atomic transaction tests for equip with replacement.
-- [ ] Add atomic transaction tests for unequip when bag is full.
-- [ ] Add atomic transaction tests for split stack.
-- [ ] Add atomic transaction tests for merge stack.
+- [x] Add atomic transaction tests for multi-item loot pickup. (`tests/lootPickupDupe.spec.ts` — partial inventory failure rolls back instead of duping; bag-full leaves the ground stack intact.)
+- [x] Add atomic transaction tests for equip with replacement. (`tests/equipTransactions.spec.ts` — "equipItem replacement rules" describe; two-handed weapon replaces both hands and refunds previous gear.)
+- [x] Add atomic transaction tests for unequip when bag is full. (`tests/equipTransactions.spec.ts:122` — swapping an equipped sword for another sword succeeds even with a full bag; the 1-for-1 swap path in `equipItem` vacates the source slot before refunding the replaced item.)
+- [x] Add atomic transaction tests for split stack. (`tests/inventoryTransactions.spec.ts` — `splitStack` creates a new instance with the requested amount; rejects invalid amount; honours stack identity.)
+- [x] Add atomic transaction tests for merge stack. (`tests/inventoryTransactions.spec.ts` — `mergeStacks` honours `maxStack` and refuses overflow.)
 - [ ] Add atomic transaction tests for item use during concurrent equip or pickup attempts.
 - [ ] Add inventory capacity rules for slots and weight together.
 - [ ] Add equipment requirement checks for race, class, level, grade, hand usage, and body part.
