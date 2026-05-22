@@ -617,10 +617,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for patrol to chase transitions.
 - [ ] Add tests for chase to attack transitions.
 - [ ] Add tests for attack cooldowns.
-- [ ] Add tests for returning to spawn.
-- [ ] Add tests for pack aggro propagation.
+- [x] Add tests for returning to spawn. (`tests/enemyLifecycle.spec.ts` — `respawnDeadEnemies` resets `position` to `enemy.spawnPosition`, clears `targetId`/`statusEffects`, and rewires the spatial grid; `tests/enemyStateMachine.spec.ts` covers leash-back patterns where the enemy disengages and returns home.)
+- [x] Add tests for pack aggro propagation. (`tests/enemyAI.packAggro.spec.ts` pins the aggro propagation from one pack member to nearby same-pack enemies; `tests/packAggroDisengage.spec.ts` pins the disengage path so packs forget aggro together.)
 - [x] Add tests for inactive-zone enemies not ticking AI. (`tests/inactiveZoneAiSuppression.spec.ts` — pins `isEnemyInActiveRegion` returns false when the enemy's zone isn't in `state.zones.activeZoneIds`, and validates the tickPipeline gate complement so dormant zones don't quietly burn CPU after a future refactor.)
-- [ ] Add tests for respawn after death.
+- [x] Add tests for respawn after death. (`tests/enemyLifecycle.spec.ts` — "respawns dead enemies after the respawn delay" pins the full reset (health→max, position→spawn, statusEffects cleared, targetId null, spatial reinserted) AND the inactive-zone guard "does not respawn enemies from inactive global zones".)
 - [x] Add tests for loot generation on death. (`tests/targetDeathRewards.spec.ts` — `handleTargetDeath` calls `spawnLoot(state, outbound, enemy, killer)` for enemies with a lootTableId; threads the killer through so loot-rate spec passives can scale; graceful no-op when no lootTableId.)
 - [x] Add tests for XP rewards on death. (`tests/targetDeathRewards.spec.ts` — caster gains `baseExperienceValue` XP on kill; `playerUpdated` emit carries the delta + skill points; dead-caster path doesn't award (post-mortem credit guard); already-dead target doesn't double-credit; PvP kill awards no XP.)
 - [ ] Add enemy behavior telemetry: aggro count, attacks, kills, deaths, average lifespan, stuck count.
