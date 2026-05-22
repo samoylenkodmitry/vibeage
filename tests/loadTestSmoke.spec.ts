@@ -84,6 +84,14 @@ describe('load-test in-process scaffold (§52 #12)', () => {
     expect(batchBytesHistogram).toBeDefined();
     expect(batchBytesHistogram.samples).toBeGreaterThan(0);
     expect(batchBytesHistogram.p50).toBeGreaterThan(0);
+    // §52 #12 follow-up — per-tick-phase timing populates so load
+    // investigations can see which phase (movement / AI / combat /
+    // snapshot / maintenance) eats budget.
+    for (const phase of ['inputMovement', 'enemyAi', 'combat', 'snapshot', 'maintenance']) {
+      const h = metrics.histograms[`tick.phase.${phase}`];
+      expect(h, `expected histogram tick.phase.${phase} to populate`).toBeDefined();
+      expect(h.samples).toBeGreaterThan(0);
+    }
     // Sanity: counters incremented to match.
     expect(metrics.counters['snapshot.batches']).toBeGreaterThan(0);
     expect(metrics.counters['snapshot.updates']).toBeGreaterThan(0);
