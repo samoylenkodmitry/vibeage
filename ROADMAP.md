@@ -728,7 +728,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add external WebSocket/Colyseus join check.
 - [ ] Add deploy marker logs and metrics.
 - [ ] Add rollback marker logs and metrics.
-- [ ] Add incident runbook.
+- [x] Add incident runbook. (`docs/INCIDENT_RUNBOOK.md` — single-operator triage flow: health → /runtimez → container state → recent deploys. Symptom-to-first-action sections for can't-log-in, lost progress on respawn, combat desync, CPU pinned, OOM/restart loop. Rollback path + post-incident write-up checklist.)
 - [ ] Add dashboard for runtime metrics.
 
 ## 15. Security and Abuse Prevention
@@ -1065,7 +1065,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add local development troubleshooting guide.
 - [ ] Add production troubleshooting guide.
 - [ ] Add rollback runbook.
-- [ ] Add incident runbook.
+- [x] Add incident runbook. (`docs/INCIDENT_RUNBOOK.md` — single-operator triage flow: health → /runtimez → container state → recent deploys. Symptom-to-first-action sections for can't-log-in, lost progress on respawn, combat desync, CPU pinned, OOM/restart loop. Rollback path + post-incident write-up checklist.)
 - [ ] Add contribution rules for future agents or collaborators.
 - [ ] Add dependency update policy.
 - [ ] Add architecture diagrams if the project grows beyond solo development.
