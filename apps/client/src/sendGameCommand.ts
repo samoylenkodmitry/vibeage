@@ -69,7 +69,6 @@ export function sendRejectable(
   // type past TS. Dev-time guard; in production the server's Zod
   // schema rejection is the safety net.
   if (process.env.NODE_ENV !== 'production' && !isRejectableCommand(command.type)) {
-    // eslint-disable-next-line no-console
     console.warn(`sendRejectable: ${command.type} is not in REJECTABLE_COMMANDS — should be sendFireAndForget`);
   }
 }
