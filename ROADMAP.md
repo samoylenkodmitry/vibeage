@@ -686,7 +686,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add DB connection pool sizing policy.
 - [ ] Add graceful shutdown that persists active players before process exit.
 - [ ] Add crash recovery tests for player state.
-- [ ] Add tests for disconnect persistence.
+- [x] Add tests for disconnect persistence. (`tests/disconnectPersistsPlayer.spec.ts` — pins `removePlayerSessionBySocketId` calling `persistPlayer` with the full PlayerState before deleting from memory; `recordServerEvent('player_disconnect')` fires; persist rejection doesn't block removal (crash-recovery property); unknown-socket disconnect is a clean no-op.)
 - [ ] Add tests for periodic persistence.
 - [ ] Add tests for persistence disabled mode.
 - [ ] Add tests for partial persistence failure.
