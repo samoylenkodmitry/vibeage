@@ -32,6 +32,43 @@ type PlayerUpdatePayload = {
   velocity?: PlayerState['velocity'];
 };
 
+/**
+ * Archwork item #2 sub-work 1 — unified player-death helper.
+ *
+ * Pre-rework the death state mutations were duplicated across
+ * `enemyBehavior.applyEnemyAttack` (normal enemy hits player),
+ * `enemyStateMachine` (boss signature damage), and `dotTicker`
+ * (player DoT ticks). Each site flipped `isAlive=false` and
+ * partially cleared cast / target state — slightly differently
+ * depending on which path. A future cast-pipeline tweak that
+ * forgot to update one site would leave a "dead player with a
+ * pending cast" footgun.
+ *
+ * One helper, one state shape. Returns `true` if the call killed
+ * the player (was alive before, is dead now), `false` if the
+ * player was already dead. The caller decides whether to emit a
+ * `playerUpdated` — the helper deliberately stays silent so it can
+ * be called from contexts that batch outbound events differently.
+ *
+ * The helper does NOT remove the player from the spatial grid:
+ * dead players keep their position so `respawnPlayer` can
+ * teleport them away from the corpse and the spatial grid stays
+ * consistent across the respawn.
+ */
+export function killPlayer(player: PlayerState, now: number = Date.now()): boolean {
+  if (!player.isAlive) return false;
+  player.health = 0;
+  player.isAlive = false;
+  player.deathTimeTs = now;
+  // Clear pre-death intent / commitments so the new life doesn't
+  // start mid-cast or pre-targeting an enemy that may not exist
+  // anymore by respawn time.
+  player.targetId = null;
+  player.castingSkill = null;
+  player.castingProgressMs = 0;
+  return true;
+}
+
 export function awardPlayerXP(
   player: PlayerState,
   xpAmount: number,
