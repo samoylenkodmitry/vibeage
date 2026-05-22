@@ -256,11 +256,15 @@ The protocol surface is allowlisted by the Zod + TS-union pair in
 `packages/protocol/{clientMessages,serverMessages}.ts`, and
 `tests/protocolTypeDrift.spec.ts` fails CI if a TS union variant
 lacks a matching Zod schema entry. Whenever a wire message is
-added, renamed, retired, or has its shape changed in a non-additive
-way, append a one-line entry here so an old client can be traced
-back to the deploy where the boundary moved on it.
+added, renamed, retired, or has its shape changed (additive
+included — old clients can grow to depend on the new field),
+append a one-line entry here so an old client can be traced back
+to the deploy where the boundary moved on it.
 
-Format: `version-tag — description (PR #)`.
+Entry format: a Markdown `### v<tag> — (<theme>)` header per
+release group, then one bullet per affected message in the form
+`message-name — what changed (PR #N)`. Group several related PRs
+under one header when the change tells a single story.
 
 ### v0.6.0+ (§52 #11 — aggregate-shaped inventory)
 
