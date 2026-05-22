@@ -395,7 +395,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add protocol tests for unknown fields, wrong types, invalid enums, oversized text, invalid coordinates, and stale versions.
 - [ ] Add message-size budget tests for initial snapshot, batch updates, inventory update, equipment update, and chat messages.
 - [ ] Add snapshot compression and payload-size tracking as explicit metrics.
-- [ ] Add a changelog for protocol changes.
+- [x] Add a changelog for protocol changes. (`docs/PROTOCOL.md` — "Protocol Changelog" section with version-tagged entries: v0.5.0 cast pipeline consolidation, v0.6.0 §52 #1 `CommandRejected` rollout, v0.6.0+ §52 #11 aggregate-shaped InventorySlot. Format `version-tag — description (PR #)` so an old-client triage can trace boundary moves to a specific deploy.)
 - [ ] Add protocol fixtures for old-client compatibility tests.
 - [ ] Add schema docs generated from protocol definitions.
 
