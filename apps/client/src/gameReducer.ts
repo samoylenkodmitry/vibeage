@@ -388,8 +388,6 @@ const COMMAND_REJECTED_ROUTE: { [C in RejectableCommand]: CommandRejectedSink } 
   ChatRequest: 'chatInline',
   SelectClass: 'silent',
   SelectRace: 'silent',
-  SelectSpecialization: 'silent',
-  RespawnRequest: 'silent',
   GmCommand: 'silent',
 };
 

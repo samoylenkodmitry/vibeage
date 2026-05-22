@@ -161,24 +161,32 @@ export const talkNpcSchema = z.object({
   npcId: z.string(),
 }).strict();
 
+// Archwork #4 — the quest verbs gained an optional `clientSeq` so
+// the server's CommandRejected envelopes can carry `requestId` back
+// to the client for routing. Additive (optional) so older clients
+// without the field keep passing the Zod schema.
 export const acceptQuestSchema = z.object({
   type: z.literal('AcceptQuest'),
   questId: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const cancelQuestSchema = z.object({
   type: z.literal('CancelQuest'),
   questId: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const advanceQuestSchema = z.object({
   type: z.literal('AdvanceQuest'),
   questId: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const claimQuestRewardSchema = z.object({
   type: z.literal('ClaimQuestReward'),
   questId: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 // PR GG — vendor messages. `vendorId` references VENDORS in
@@ -379,10 +387,10 @@ export type UpgradeSkill = {
 };
 
 export type TalkNpc = { type: 'TalkNpc'; npcId: string };
-export type AcceptQuest = { type: 'AcceptQuest'; questId: string };
-export type CancelQuest = { type: 'CancelQuest'; questId: string };
-export type AdvanceQuest = { type: 'AdvanceQuest'; questId: string };
-export type ClaimQuestReward = { type: 'ClaimQuestReward'; questId: string };
+export type AcceptQuest = { type: 'AcceptQuest'; questId: string; clientSeq?: number };
+export type CancelQuest = { type: 'CancelQuest'; questId: string; clientSeq?: number };
+export type AdvanceQuest = { type: 'AdvanceQuest'; questId: string; clientSeq?: number };
+export type ClaimQuestReward = { type: 'ClaimQuestReward'; questId: string; clientSeq?: number };
 export type BuyFromVendor = { type: 'BuyFromVendor'; vendorId: string; itemId: string; quantity: number; clientSeq?: number };
 export type SellToVendor = { type: 'SellToVendor'; vendorId: string; itemId: string; quantity: number; clientSeq?: number };
 

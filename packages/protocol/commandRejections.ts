@@ -56,12 +56,16 @@ export const REJECTABLE_COMMANDS = [
   // Identity (race/class selection)
   'SelectClass',
   'SelectRace',
-  'SelectSpecialization',
-  // Lifecycle
-  'RespawnRequest',
   // GM / dev
   'GmCommand',
 ] as const;
+// `RespawnRequest` and `SelectSpecialization` are intentionally NOT
+// in this list. The wire schemas don't carry `clientSeq` for them
+// and the server doesn't emit `CommandRejected` for either
+// (RespawnRequest logs invalidOwnership via counters;
+// SelectSpecialization just no-ops on unknown spec). Add them back
+// only after both halves of the contract land — schema field +
+// server emit.
 
 export type RejectableCommand = typeof REJECTABLE_COMMANDS[number];
 
@@ -211,9 +215,6 @@ export type CommandRejectionReasons = {
   // Identity
   SelectClass: 'notGm' | 'playerNotFound' | 'invalid' | 'rateLimited';
   SelectRace: 'notGm' | 'playerNotFound' | 'invalid' | 'rateLimited';
-  SelectSpecialization: 'playerNotFound' | 'invalid' | 'levelTooLow' | 'rateLimited';
-  // Lifecycle
-  RespawnRequest: 'playerNotFound' | 'alreadyAlive' | 'invalidOwnership';
   // GM / dev
   GmCommand: 'playerNotFound' | 'notGm' | 'invalid' | 'rateLimited';
 };

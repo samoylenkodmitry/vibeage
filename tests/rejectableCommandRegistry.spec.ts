@@ -30,8 +30,7 @@ const EXPECTED_REJECTABLE_COMMANDS = [
   'AcceptQuest', 'CancelQuest', 'AdvanceQuest', 'ClaimQuestReward',
   'BuyFromVendor', 'SellToVendor',
   'ChatRequest',
-  'SelectClass', 'SelectRace', 'SelectSpecialization',
-  'RespawnRequest',
+  'SelectClass', 'SelectRace',
   'GmCommand',
 ] as const;
 
