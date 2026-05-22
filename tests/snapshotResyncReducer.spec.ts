@@ -68,7 +68,7 @@ function dispatchSnapshot(
   return gameClientReducer(state, { type: 'gameState', state: snapshot });
 }
 
-describe('gameClientReducer — snapshot resync', () => {
+describe('gameClientReducer — snapshot resync, entity churn', () => {
   it('prunes players and enemies that are NOT in the new snapshot', () => {
     const before: GameClientState = {
       ...initialGameClientState,
@@ -103,6 +103,9 @@ describe('gameClientReducer — snapshot resync', () => {
     expect(after.enemies.e1).toBeDefined();
   });
 
+});
+
+describe('gameClientReducer — snapshot resync, selection + inventory', () => {
   it('selectedTargetId survives a resync when the target is still in the snapshot', () => {
     const before: GameClientState = {
       ...initialGameClientState,
@@ -157,6 +160,9 @@ describe('gameClientReducer — snapshot resync', () => {
     expect(after.maxInventorySlots).toBe(30);
   });
 
+});
+
+describe('gameClientReducer — snapshot resync, region + identity', () => {
   it('derives streamedRegionIds from the snapshot\'s zone maps', () => {
     const before: GameClientState = {
       ...initialGameClientState,
