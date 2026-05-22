@@ -688,10 +688,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add crash recovery tests for player state. (Crash recovery is the persist → hydrate roundtrip applied across a process restart. Tests: `tests/handtestFixes.spec.ts` (equipment + skill state survives), `tests/scenarioBundles.spec.ts` (full identity/level/skill/equipment hydration), `tests/inventoryReconnectIntegrity.spec.ts` (no dupe, no stack inflation), `tests/disconnectPersistsPlayer.spec.ts` (persist rejection during shutdown does not stall the leave path — the crash-recovery property that matters most).)
 - [x] Add tests for disconnect persistence. (`tests/disconnectPersistsPlayer.spec.ts` — pins `removePlayerSessionBySocketId` calling `persistPlayer` with the full PlayerState before deleting from memory; `recordServerEvent('player_disconnect')` fires; persist rejection doesn't block removal (crash-recovery property); unknown-socket disconnect is a clean no-op.)
 - [x] Add tests for periodic persistence. (`tests/periodicPersistence.spec.ts` — pins `persistActivePlayers(state)`: persists every active player exactly once with the full PlayerState; a single rejected persist does NOT cancel the rest (Promise.allSettled semantics) so the loop survives a transient DB hiccup; empty player set is a clean no-op.)
-- [ ] Add tests for persistence disabled mode.
-- [ ] Add tests for partial persistence failure.
+- [x] Add tests for persistence disabled mode. (`tests/persistence.spec.ts:152` — `recordServerEvent` writes when persistence is enabled and is a no-op when `VIBEAGE_DISABLE_PERSISTENCE=1`; same gate covers `persistPlayer` (`server/persistence.ts:154`).)
+- [x] Add tests for partial persistence failure. (`tests/disconnectPersistsPlayer.spec.ts` — a persistPlayer rejection does not block the player removal; `tests/periodicPersistence.spec.ts` — a single rejected persist in the active-player sweep does not cancel the others and the sweep does not throw (allSettled semantics).)
 - [ ] Add tests for invalid JSONB values.
-- [ ] Add tests for legacy row hydration.
+- [x] Add tests for legacy row hydration. (`tests/playerSession.spec.ts:128` — "hydrates legacy xp and level-derived stats" walks a row with pre-cutover XP/level shape and verifies the modern PlayerState comes out correct; complements `tests/hydrateBackfill.spec.ts` which covers class-starter-skill backfill.)
 - [ ] Update `docs/PERSISTENCE.md` whenever a persisted field changes.
 
 ## 14. Server Operations, Observability, and Alerting
