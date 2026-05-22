@@ -147,3 +147,67 @@ describe('projectile pierce', () => {
     expect(cast.pierceHits).toBeUndefined();
   });
 });
+
+describe('projectile max-range expiry', () => {
+  test('projectile transitions to Impact once it travels past skill.range', () => {
+    // ROADMAP L534. Fireball has range=1800 (skills.ts). Place the
+    // cast position ~2000 units from origin so the next tick's
+    // `shouldImpact` finds outOfRange === true and ends the cast,
+    // even if no enemy is in the swept path. Pin behaviour: a
+    // projectile fired into empty space terminates rather than
+    // travelling forever.
+    const cast: Cast = {
+      castId: 'fb-far',
+      casterId: 'player1',
+      skillId: 'fireball',
+      state: CastState.Traveling,
+      startedAt: 0,
+      castTimeMs: 0,
+      origin: { x: 0, z: 0 },
+      pos: { x: 2_000, z: 0 },
+      dir: { x: 1, z: 0 },
+      speed: 22,
+    };
+    const world: CombatWorld = {
+      getEnemyById: vi.fn(() => null as Enemy | null),
+      getPlayerById: vi.fn(() => null as PlayerState | null),
+      // No enemies in the swept path — out-of-range is the ONLY
+      // reason this cast should impact.
+      getEntitiesInCircle: vi.fn(() => []),
+      onTargetDied: vi.fn(),
+    };
+    const outbound: OutboundEventSink = { publish: vi.fn() };
+
+    updateTravelingCast(cast, 1, 100, 50, outbound, world);
+
+    expect(cast.state).toBe(CastState.Impact);
+  });
+
+  test('projectile inside skill.range stays in Traveling (range gate complement)', () => {
+    // The complement: at the same setup but pos well within range,
+    // an empty path should NOT terminate the cast.
+    const cast: Cast = {
+      castId: 'fb-near',
+      casterId: 'player1',
+      skillId: 'fireball',
+      state: CastState.Traveling,
+      startedAt: 0,
+      castTimeMs: 0,
+      origin: { x: 0, z: 0 },
+      pos: { x: 5, z: 0 }, // 5 << 1800
+      dir: { x: 1, z: 0 },
+      speed: 22,
+    };
+    const world: CombatWorld = {
+      getEnemyById: vi.fn(() => null as Enemy | null),
+      getPlayerById: vi.fn(() => null as PlayerState | null),
+      getEntitiesInCircle: vi.fn(() => []),
+      onTargetDied: vi.fn(),
+    };
+    const outbound: OutboundEventSink = { publish: vi.fn() };
+
+    updateTravelingCast(cast, 1, 100, 50, outbound, world);
+
+    expect(cast.state).toBe(CastState.Traveling);
+  });
+});
