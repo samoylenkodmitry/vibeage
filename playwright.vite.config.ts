@@ -10,6 +10,13 @@ export default defineConfig({
   testDir: "./tests/e2e-vite",
   timeout: 75_000,
   workers: process.env.CI ? 1 : undefined,
+  // Archwork item #1 follow-up — one CI retry on failure so a single
+  // flaky timeout (Chromium cold-start, slow runner) doesn't block
+  // the whole post-merge gate. Local runs (CI undefined) stay strict
+  // so authors see real failures immediately.
+  retries: process.env.CI ? 1 : 0,
+  // `on-first-retry` would skip the trace for the initial fail; we
+  // want both so the artifact upload captures whatever happens.
   expect: {
     timeout: 10_000
   },
