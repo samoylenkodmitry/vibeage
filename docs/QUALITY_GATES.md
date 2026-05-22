@@ -88,6 +88,11 @@ clients. Useful for capacity-planning investigations and one-shot
   reset runtimeMetrics so they don't contaminate each other. Output
   includes a `summary.scalingNotes` block with "N → M bots (Xx):
   tick Yx, outbound Zx" one-liners for the cliff signal.
+- `pnpm run load:baseline` — convenience wrapper that runs the
+  inprocess harness with the same config captured in
+  [PERF_BASELINE.md](./PERF_BASELINE.md) (50 players, 600 ticks,
+  LOAD_COMBAT=1). Use it to compare a branch against the committed
+  baseline before flagging a perf regression.
 - Both scripts use a no-op outbound sink. They measure server tick
   work, not network/JSON cost. The snapshot.bytes histogram still
   records because the snapshot phase calls JSON.stringify on its
