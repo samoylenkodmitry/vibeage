@@ -270,6 +270,9 @@ type BossTelegraphEntry = {
   x: number;
   z: number;
   radius: number;
+  // Archwork #6 — present on donut mechanics; 0 / undefined means
+  // a plain circle (no safe spot at centre).
+  innerRadius?: number;
   startedAt: number;
   impactAt: number;
 };

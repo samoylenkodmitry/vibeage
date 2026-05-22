@@ -141,6 +141,11 @@ export const bossTelegraphSchema = z.object({
   x: z.number(),
   z: z.number(),
   radius: z.number(),
+  // Archwork #6 — donut mechanic carries a non-zero safe-spot
+  // radius; circle mechanics either omit it or send 0. Older
+  // clients that don't render the inner ring still get the outer
+  // threat ring at the same place.
+  innerRadius: z.number().optional(),
   windUpMs: z.number(),
   impactAt: z.number(),
 }).strict();
@@ -371,6 +376,7 @@ export type BossTelegraph = {
   x: number;
   z: number;
   radius: number;
+  innerRadius?: number;
   windUpMs: number;
   impactAt: number;
 };

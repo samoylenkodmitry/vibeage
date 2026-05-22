@@ -57,6 +57,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           x={t.x}
           z={t.z}
           radius={t.radius}
+          innerRadius={t.innerRadius}
           startedAt={t.startedAt}
           impactAt={t.impactAt}
         />

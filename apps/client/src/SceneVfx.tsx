@@ -55,8 +55,18 @@ const PROJECTILE_TRAIL_POINTS = [
  * application is server-authoritative via EnemyAttack messages.
  */
 export function BossTelegraphRing({
-  x, z, radius, startedAt, impactAt,
-}: { x: number; z: number; radius: number; startedAt: number; impactAt: number }) {
+  x, z, radius, innerRadius, startedAt, impactAt,
+}: {
+  x: number;
+  z: number;
+  radius: number;
+  /** Archwork #6 — donut mechanic safe-spot radius. When > 0 the
+   *  inner area is rendered as a soft "safe" ring so the player can
+   *  see where to stand to dodge. */
+  innerRadius?: number;
+  startedAt: number;
+  impactAt: number;
+}) {
   const ringRef = useRef<THREE.Mesh>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const totalMs = Math.max(1, impactAt - startedAt);
@@ -79,14 +89,23 @@ export function BossTelegraphRing({
     }
   });
 
+  const hasSafeSpot = (innerRadius ?? 0) > 0.1;
   return (
     <group position={[x, getTerrainY(x, z) + 0.04, z]}>
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[Math.max(0.1, radius - 0.3), radius, 64]} />
         <meshBasicMaterial color="#ef4444" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
+      {hasSafeSpot && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[Math.max(0.1, (innerRadius ?? 0) - 0.25), innerRadius ?? 0, 48]} />
+          <meshBasicMaterial color="#22c55e" transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      )}
       <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[radius, 64]} />
+        {hasSafeSpot
+          ? <ringGeometry args={[innerRadius ?? 0, radius, 64]} />
+          : <circleGeometry args={[radius, 64]} />}
         <meshBasicMaterial color="#fb923c" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>

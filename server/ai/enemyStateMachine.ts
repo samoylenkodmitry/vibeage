@@ -1,4 +1,9 @@
-import { getMiniBossById } from '../../packages/content/miniBosses.js';
+import {
+  getMiniBossById,
+  mechanicInnerRadius,
+  mechanicOuterRadius,
+  type MiniBossMechanic,
+} from '../../packages/content/miniBosses.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
@@ -31,6 +36,7 @@ export type EnemyAIEvent =
       x: number;
       z: number;
       radius: number;
+      innerRadius?: number;
       windUpMs: number;
       impactAt: number;
     }
@@ -515,18 +521,20 @@ function resetBossProgression(enemy: Enemy): void {
 function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
   if (!enemy.bossId) return;
   const spec = getMiniBossById(enemy.bossId);
-  const eng = spec?.signatureAbility.engine;
-  if (!spec || !eng) return;
+  const mech = spec?.signatureAbility.mechanic;
+  if (!spec || !mech) return;
+  const outer = mechanicOuterRadius(mech);
+  const inner = mechanicInnerRadius(mech);
 
   // Active cast → check for impact.
   if (enemy.signatureCastingUntilTs !== undefined) {
     if (context.now >= enemy.signatureCastingUntilTs) {
-      resolveBossSignatureImpact(enemy, eng, spec.name, context, progress);
+      resolveBossSignatureImpact(enemy, mech, spec.name, context, progress);
       enemy.signatureCastingUntilTs = undefined;
       enemy.signatureCastTargetX = undefined;
       enemy.signatureCastTargetZ = undefined;
       enemy.signatureCastRadius = undefined;
-      enemy.nextSignatureReadyTs = context.now + eng.cooldownMs;
+      enemy.nextSignatureReadyTs = context.now + mech.cooldownMs;
     }
     return;
   }
@@ -537,7 +545,7 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
   // First sight of combat seeds the cooldown so the boss doesn't open
   // with the signature the very first tick.
   if (enemy.nextSignatureReadyTs === undefined) {
-    enemy.nextSignatureReadyTs = context.now + Math.min(eng.cooldownMs, 4_000);
+    enemy.nextSignatureReadyTs = context.now + Math.min(mech.cooldownMs, 4_000);
     return;
   }
   if (context.now < enemy.nextSignatureReadyTs) return;
@@ -546,10 +554,10 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
   const target = enemy.targetId ? context.players[enemy.targetId] : null;
   if (!target?.isAlive) return;
 
-  enemy.signatureCastingUntilTs = context.now + eng.windUpMs;
+  enemy.signatureCastingUntilTs = context.now + mech.windUpMs;
   enemy.signatureCastTargetX = target.position.x;
   enemy.signatureCastTargetZ = target.position.z;
-  enemy.signatureCastRadius = eng.radiusUnits;
+  enemy.signatureCastRadius = outer;
   progress.events.push({
     type: 'bossTelegraph',
     enemyId: enemy.id,
@@ -557,27 +565,35 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
     abilityName: spec.signatureAbility.name,
     x: target.position.x,
     z: target.position.z,
-    radius: eng.radiusUnits,
-    windUpMs: eng.windUpMs,
-    impactAt: context.now + eng.windUpMs,
+    radius: outer,
+    ...(inner > 0 ? { innerRadius: inner } : {}),
+    windUpMs: mech.windUpMs,
+    impactAt: context.now + mech.windUpMs,
   });
 }
 
 function resolveBossSignatureImpact(
   enemy: Enemy,
-  eng: { radiusUnits: number; damageMul: number },
+  mech: MiniBossMechanic,
   bossName: string,
   context: EnemyAIContext,
   progress: EnemyAIProgress,
 ): void {
   const cx = enemy.signatureCastTargetX ?? enemy.position.x;
   const cz = enemy.signatureCastTargetZ ?? enemy.position.z;
-  const damage = enemy.attackDamage * eng.damageMul;
+  const outer = mechanicOuterRadius(mech);
+  const inner = mechanicInnerRadius(mech);
+  const damage = enemy.attackDamage * mech.damageMul;
   for (const p of Object.values(context.players)) {
     if (!p.isAlive) continue;
     const dx = p.position.x - cx;
     const dz = p.position.z - cz;
-    if (dx * dx + dz * dz > eng.radiusUnits * eng.radiusUnits) continue;
+    const distSq = dx * dx + dz * dz;
+    if (distSq > outer * outer) continue;
+    // Archwork #6 — donut mechanic: spare players inside the safe
+    // spot at the centre. Circle mechanics have inner = 0 so this
+    // is a no-op for them.
+    if (inner > 0 && distSq < inner * inner) continue;
     p.health -= damage;
     // Archwork item #2 sub-work 1 — boss-signature damage funnels
     // through the same player-death helper as normal enemy hits so

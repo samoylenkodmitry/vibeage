@@ -15,19 +15,45 @@ import type { LootTable } from './lootTables.js';
  * and merged into the global ITEMS / LOOT_TABLES at the seams.
  */
 /**
- * PR Q — per-boss tuning for the telegraphed-AOE engine. Every boss
- * casts a single signature on a fixed cooldown when in attacking
- * state. The visual telegraph (a ring on the ground) is the same
- * shape for all of them; tone / pace varies by these numbers.
+ * Archwork #6 — typed mini-boss mechanic union. Every boss declares
+ * which mechanic kind its signature uses; the server engine dispatches
+ * impact resolution per kind. Damage = enemy.attackDamage * damageMul
+ * so phase / enrage (PR N) still stack on the signature.
  *
- * Damage = enemy.attackDamage * damageMul (so phase / enrage stack
- * onto the signature too — see PR N).
+ * Today: 'circle' (the original PR Q one-size-fits-all behaviour) and
+ * 'donut' (Magmaheart's "jump in or stand far to skip" — safe spot
+ * at center). Future kinds: 'cone' (Vorthax), 'summonPack' (Grakk),
+ * 'blink' (Mistwalker), etc. Adding a kind requires updating
+ * `tickBossSignature` + `resolveBossSignatureImpact` + the wire
+ * schema; the exhaustive switch enforces this at compile time.
  */
-interface MiniBossSignatureEngine {
-  windUpMs: number;
-  cooldownMs: number;
-  radiusUnits: number;
-  damageMul: number;
+interface CommonMechanicTiming {
+  readonly windUpMs: number;
+  readonly cooldownMs: number;
+  readonly damageMul: number;
+}
+
+export type MiniBossMechanic =
+  | (CommonMechanicTiming & { readonly kind: 'circle'; readonly radiusUnits: number })
+  | (CommonMechanicTiming & { readonly kind: 'donut'; readonly outerRadius: number; readonly innerRadius: number });
+
+/** Outer radius of the mechanic's danger footprint — the radius the
+ *  client uses to draw the threat ring. */
+export function mechanicOuterRadius(m: MiniBossMechanic): number {
+  switch (m.kind) {
+    case 'circle': return m.radiusUnits;
+    case 'donut': return m.outerRadius;
+  }
+}
+
+/** Inner safe-spot radius. Players inside this distance from the
+ *  cast point are spared on impact. Zero for shapes without a safe
+ *  spot (every player inside outerRadius takes damage). */
+export function mechanicInnerRadius(m: MiniBossMechanic): number {
+  switch (m.kind) {
+    case 'circle': return 0;
+    case 'donut': return m.innerRadius;
+  }
 }
 
 export interface MiniBossSpec {
@@ -39,7 +65,7 @@ export interface MiniBossSpec {
   signatureAbility: {
     name: string;
     description: string;
-    engine: MiniBossSignatureEngine;
+    mechanic: MiniBossMechanic;
   };
   trophyItemId: string;
   lootTableId: string;
@@ -59,14 +85,29 @@ export const DEFAULT_BOSS_CONFIG = {
   phaseTwoDamageMul: 1.25,
 } as const;
 
-const DEFAULT_ENGINE: MiniBossSignatureEngine = {
+const DEFAULT_CIRCLE_TIMING: CommonMechanicTiming & { radiusUnits: number } = {
   windUpMs: 2000,
   cooldownMs: 12_000,
   radiusUnits: 8,
   damageMul: 2.0,
 };
-function engine(overrides: Partial<MiniBossSignatureEngine> = {}): MiniBossSignatureEngine {
-  return { ...DEFAULT_ENGINE, ...overrides };
+function circle(
+  overrides: Partial<CommonMechanicTiming & { radiusUnits: number }> = {},
+): MiniBossMechanic {
+  return { kind: 'circle', ...DEFAULT_CIRCLE_TIMING, ...overrides };
+}
+function donut(
+  overrides: Partial<CommonMechanicTiming & { outerRadius: number; innerRadius: number }>,
+): MiniBossMechanic {
+  return {
+    kind: 'donut',
+    windUpMs: DEFAULT_CIRCLE_TIMING.windUpMs,
+    cooldownMs: DEFAULT_CIRCLE_TIMING.cooldownMs,
+    damageMul: DEFAULT_CIRCLE_TIMING.damageMul,
+    outerRadius: 10,
+    innerRadius: 3,
+    ...overrides,
+  };
 }
 
 export const MINI_BOSSES: Record<string, MiniBossSpec> = {
@@ -79,7 +120,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Warband Howl',
       description: 'Calls every goblin in the zone to converge on the threat. Killing Grakk first thins the pack fast.',
-      engine: engine({ windUpMs: 1500, cooldownMs: 9_000, radiusUnits: 6, damageMul: 1.4 }),
+      mechanic: circle({ windUpMs: 1500, cooldownMs: 9_000, radiusUnits: 6, damageMul: 1.4 }),
     },
     trophyItemId: 'grakk_warband_horn',
     lootTableId: 'boss_loot_grakk',
@@ -93,7 +134,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Hamstring Lunge',
       description: 'A sudden burst of speed that cuts the target’s movement on hit. Easier to dodge if you keep moving.',
-      engine: engine({ windUpMs: 1200, cooldownMs: 8_000, radiusUnits: 5, damageMul: 1.5 }),
+      mechanic: circle({ windUpMs: 1200, cooldownMs: 8_000, radiusUnits: 5, damageMul: 1.5 }),
     },
     trophyItemId: 'greyfang_pelt',
     lootTableId: 'boss_loot_old_greyfang',
@@ -107,7 +148,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Stone Slam',
       description: 'A wide ground-pound that staggers and knocks back. Telegraphed by Hammerback raising the slab two-handed overhead.',
-      engine: engine({ windUpMs: 2000, cooldownMs: 10_000, radiusUnits: 7, damageMul: 2.6 }),
+      mechanic: circle({ windUpMs: 2000, cooldownMs: 10_000, radiusUnits: 7, damageMul: 2.6 }),
     },
     trophyItemId: 'hammerback_slab_chip',
     lootTableId: 'boss_loot_hammerback',
@@ -121,7 +162,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Veil Step',
       description: 'Phases briefly out of sight and reappears behind the target. Watch the fog’s direction — it leans toward where the Mistwalker will emerge.',
-      engine: engine({ windUpMs: 1400, cooldownMs: 8_500, radiusUnits: 4, damageMul: 2.2 }),
+      mechanic: circle({ windUpMs: 1400, cooldownMs: 8_500, radiusUnits: 4, damageMul: 2.2 }),
     },
     trophyItemId: 'mistwalker_shroud',
     lootTableId: 'boss_loot_mistwalker',
@@ -135,7 +176,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Marrow Tithe',
       description: 'Drains a portion of the target’s HP and routes it into nearby allied skeletons. Burn the skeletons before they hit max stack.',
-      engine: engine({ windUpMs: 2200, cooldownMs: 11_000, radiusUnits: 9, damageMul: 1.8 }),
+      mechanic: circle({ windUpMs: 2200, cooldownMs: 11_000, radiusUnits: 9, damageMul: 1.8 }),
     },
     trophyItemId: 'vereth_phylactery',
     lootTableId: 'boss_loot_vereth_bone_lord',
@@ -149,7 +190,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Cinder Breath',
       description: 'A cone of burning embers that leaves a damage-over-time field on the ground for several seconds. Reposition perpendicular to the cone to clear it.',
-      engine: engine({ windUpMs: 2500, cooldownMs: 14_000, radiusUnits: 12, damageMul: 2.4 }),
+      mechanic: circle({ windUpMs: 2500, cooldownMs: 14_000, radiusUnits: 12, damageMul: 2.4 }),
     },
     trophyItemId: 'vorthax_ember_scale',
     lootTableId: 'boss_loot_vorthax_ember_wyrm',
@@ -163,7 +204,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Hollow Echo',
       description: 'Splits into two shadow-copies for a few seconds. The copies hit for half but spread your focus; the original always casts last.',
-      engine: engine({ windUpMs: 1800, cooldownMs: 10_000, radiusUnits: 7, damageMul: 1.9 }),
+      mechanic: circle({ windUpMs: 1800, cooldownMs: 10_000, radiusUnits: 7, damageMul: 1.9 }),
     },
     trophyItemId: 'nyaraal_hollow_shard',
     lootTableId: 'boss_loot_nyaraal',
@@ -177,7 +218,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Refraction Bloom',
       description: 'Reflects the next incoming spell back at the caster as a delayed shard. Time your big nukes for after the bloom resolves.',
-      engine: engine({ windUpMs: 2400, cooldownMs: 13_000, radiusUnits: 9, damageMul: 2.1 }),
+      mechanic: circle({ windUpMs: 2400, cooldownMs: 13_000, radiusUnits: 9, damageMul: 2.1 }),
     },
     trophyItemId: 'prism_warden_facet',
     lootTableId: 'boss_loot_prism_warden',
@@ -191,7 +232,11 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Forge Pulse',
       description: 'A rhythmic shockwave from the molten core. The pulse hits in a ring; jump in or stand far to skip it.',
-      engine: engine({ windUpMs: 1700, cooldownMs: 7_500, radiusUnits: 10, damageMul: 2.2 }),
+      // Archwork #6 — first non-circle mechanic. The lore literally
+      // describes a donut (safe spot at the centre); engine + client
+      // now honour that. Outer radius matches the old circle (10);
+      // inner safe radius is 3.5 — tight enough to feel risky.
+      mechanic: donut({ windUpMs: 1700, cooldownMs: 7_500, outerRadius: 10, innerRadius: 3.5, damageMul: 2.2 }),
     },
     trophyItemId: 'magmaheart_core',
     lootTableId: 'boss_loot_magmaheart',
@@ -205,7 +250,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Blizzard Crown',
       description: 'Summons a localized blizzard that slows everyone in melee range. Skadrun ignores his own slow; you don’t.',
-      engine: engine({ windUpMs: 1600, cooldownMs: 9_000, radiusUnits: 6, damageMul: 2.4 }),
+      mechanic: circle({ windUpMs: 1600, cooldownMs: 9_000, radiusUnits: 6, damageMul: 2.4 }),
     },
     trophyItemId: 'skadrun_crown_shard',
     lootTableId: 'boss_loot_skadrun',
@@ -219,7 +264,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Rootbind',
       description: 'Vines erupt under the target and root them in place. Break free by burning a movement skill or by killing the vine sprouts.',
-      engine: engine({ windUpMs: 2200, cooldownMs: 11_000, radiusUnits: 8, damageMul: 1.8 }),
+      mechanic: circle({ windUpMs: 2200, cooldownMs: 11_000, radiusUnits: 8, damageMul: 1.8 }),
     },
     trophyItemId: 'vinebrook_heartwood',
     lootTableId: 'boss_loot_elder_vinebrook',
@@ -233,7 +278,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Drowning Grasp',
       description: 'Long-reach tentacle that pulls the target into melee and silences them. Pre-cast escape skills before pulling aggro.',
-      engine: engine({ windUpMs: 1900, cooldownMs: 10_000, radiusUnits: 10, damageMul: 2.6 }),
+      mechanic: circle({ windUpMs: 1900, cooldownMs: 10_000, radiusUnits: 10, damageMul: 2.6 }),
     },
     trophyItemId: 'cthulun_barnacle_crown',
     lootTableId: 'boss_loot_cthulun',
@@ -247,7 +292,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Solar Verdict',
       description: 'Marks the target with a slow descending sunbeam. Move out of the marked tile before the beam lands or eat a heavy hit.',
-      engine: engine({ windUpMs: 2800, cooldownMs: 12_000, radiusUnits: 5, damageMul: 3.0 }),
+      mechanic: circle({ windUpMs: 2800, cooldownMs: 12_000, radiusUnits: 5, damageMul: 3.0 }),
     },
     trophyItemId: 'auriel_dawnfeather',
     lootTableId: 'boss_loot_auriel',
@@ -261,7 +306,7 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     signatureAbility: {
       name: 'Hourglass Reversal',
       description: 'Rewinds his own HP to where it was a few seconds earlier. The window to burst him down is between the rewind cooldowns.',
-      engine: engine({ windUpMs: 2600, cooldownMs: 15_000, radiusUnits: 11, damageMul: 2.5 }),
+      mechanic: circle({ windUpMs: 2600, cooldownMs: 15_000, radiusUnits: 11, damageMul: 2.5 }),
     },
     trophyItemId: 'aethariel_hourglass_sand',
     lootTableId: 'boss_loot_aethariel',

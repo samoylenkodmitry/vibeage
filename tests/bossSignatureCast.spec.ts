@@ -3,7 +3,13 @@ import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import { createTransientPlayer } from '../server/playerFactory';
-import { MINI_BOSSES } from '../packages/content/miniBosses';
+import { MINI_BOSSES, type MiniBossMechanic } from '../packages/content/miniBosses';
+
+function circleMechanic(bossId: keyof typeof MINI_BOSSES): Extract<MiniBossMechanic, { kind: 'circle' }> {
+  const m = MINI_BOSSES[bossId].signatureAbility.mechanic;
+  if (m.kind !== 'circle') throw new Error(`${bossId} mechanic is ${m.kind}, not circle`);
+  return m;
+}
 
 function setupHammerback() {
   const boss = createEnemy('troll', 5, { x: 50, y: 0.5, z: 50 }, 1, {
@@ -34,7 +40,7 @@ describe('mini-boss signature cast', () => {
     const player = setupPlayer();
     const players = { p1: player };
     const spatial = new SpatialHashGrid();
-    const eng = MINI_BOSSES.hammerback.signatureAbility.engine;
+    const eng = circleMechanic('hammerback');
     const start = 5_000_000;
 
     // First tick seeds nextSignatureReadyTs but no cast yet.
@@ -77,7 +83,7 @@ describe('mini-boss signature cast', () => {
     outside.id = 'p2';
     const players = { p1: inside, p2: outside };
     const spatial = new SpatialHashGrid();
-    const eng = MINI_BOSSES.hammerback.signatureAbility.engine;
+    const eng = circleMechanic('hammerback');
 
     const start = 5_000_000;
     advanceEnemyState(boss, { players, spatialGrid: spatial, deltaTime: 0.05, now: start });
@@ -131,7 +137,7 @@ describe('Grakk Warband Howl signature ability', () => {
     const player = setupPlayer({ x: 110, z: 110 });
     const players = { p1: player };
     const spatial = new SpatialHashGrid();
-    const eng = MINI_BOSSES.grakk.signatureAbility.engine;
+    const eng = circleMechanic('grakk');
     // Sanity-check the content shape so a future typo (missing
     // engine block) fails *here* with a clear message rather than
     // a downstream undefined-access.
@@ -174,7 +180,7 @@ describe('Grakk Warband Howl signature ability', () => {
     outside.id = 'p2';
     const players = { p1: inside, p2: outside };
     const spatial = new SpatialHashGrid();
-    const eng = MINI_BOSSES.grakk.signatureAbility.engine;
+    const eng = circleMechanic('grakk');
 
     advanceEnemyState(boss, { players, spatialGrid: spatial, deltaTime: 0.05, now: 7_000_000 });
     const castStart = (boss.nextSignatureReadyTs ?? 7_000_000) + 10;
