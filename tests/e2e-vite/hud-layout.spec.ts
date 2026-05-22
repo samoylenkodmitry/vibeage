@@ -14,18 +14,13 @@ const HUD_VIEWPORTS = [
     name: "mobile",
     size: { width: 390, height: 844 },
     infoPanelsVisible: false,
-    // PR #313 relaxed the floor to 0.48 as an emergency unblock
-    // after PR #300's basic-attack anchor row pushed the union of
-    // {Connection, Player status, Skills, Panel toggles} past the
-    // original 0.55 spec. PR #325 reclaimed ~3 % by trimming the
-    // mobile skill-bar (button height 52 → 44 px, anchor button
-    // 52 → 36 px, gap/padding 4 → 2 px) without sacrificing the
-    // iOS 44 × 44 comfortable touch target. The remaining gap to
-    // 0.55 is the dense .player-panel (Stats title + 6 primary
-    // attrs + 5 derived stats); shrinking that would mean a real
-    // UX trade-off (collapse derived combat stats on mobile) and
-    // belongs in its own PR. 0.53 is the new honest floor.
-    minWorldVisibilityRatio: 0.53,
+    // PR #313 relaxed to 0.48 (basic-attack anchor row); PR #325
+    // reclaimed ~3 % via the mobile skill-bar trim back to 0.53.
+    // §11 PR collapses the 12-row derived-combat-stats grid
+    // behind a tap-to-expand toggle on mobile (default closed at
+    // width ≤ 680 px), reclaiming the remaining gap back to the
+    // original 0.55 spec.
+    minWorldVisibilityRatio: 0.55,
   },
 ] as const;
 
