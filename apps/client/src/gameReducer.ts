@@ -473,6 +473,7 @@ function applyBossTelegraph(
     x: message.x,
     z: message.z,
     radius: message.radius,
+    innerRadius: message.innerRadius,
     startedAt: now,
     impactAt: message.impactAt,
   };

@@ -4,6 +4,8 @@ import { ITEMS } from '../../../../packages/content/items';
 import {
   DEFAULT_BOSS_CONFIG,
   listMiniBosses,
+  mechanicInnerRadius,
+  mechanicOuterRadius,
   type MiniBossSpec,
 } from '../../../../packages/content/miniBosses';
 import { GAME_ZONES } from '../../../../packages/content/zones';
@@ -57,7 +59,7 @@ function BossLi({
   const level = baseLevel + levelBonus;
   const hp = tpl ? Math.round((100 + level * 20) * tpl.stats.health * healthMult) : 0;
   const dmg = tpl ? Math.round((10 + level * 2) * tpl.stats.damage * damageMult) : 0;
-  const eng = boss.signatureAbility.engine;
+  const mech = boss.signatureAbility.mechanic;
   return (
     <li ref={ref} className={`wiki-row${isFocus ? ' wiki-row--focus' : ''}`}>
       <header>
@@ -73,8 +75,12 @@ function BossLi({
         <dd>{boss.signatureAbility.description}</dd>
       </div>
       <small className="wiki-row-footer">
-        {(eng.windUpMs / 1000).toFixed(1)}s wind-up · {eng.radiusUnits}m radius ·{' '}
-        ×{eng.damageMul} damage · {(eng.cooldownMs / 1000).toFixed(0)}s cooldown
+        {(mech.windUpMs / 1000).toFixed(1)}s wind-up · {mechanicOuterRadius(mech)}m radius{
+          mechanicInnerRadius(mech) > 0
+            ? ` (safe inside ${mechanicInnerRadius(mech)}m)`
+            : ''
+        } ·{' '}
+        ×{mech.damageMul} damage · {(mech.cooldownMs / 1000).toFixed(0)}s cooldown
       </small>
       <small className="wiki-row-footer">
         Enrages after {(DEFAULT_BOSS_CONFIG.enrageAfterMs / 1000).toFixed(0)}s
