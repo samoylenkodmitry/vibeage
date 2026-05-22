@@ -121,7 +121,7 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
         chance: 0.25,
       },
       {
-        itemId: 'elixir_of_strength',
+        itemId: 'health_potion',
         quantity: { min: 1, max: 2 },
         chance: 0.4,
       },
@@ -186,7 +186,7 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
         chance: 0.4,
       },
       {
-        itemId: 'elixir_of_strength',
+        itemId: 'health_potion',
         quantity: { min: 2, max: 4 },
         chance: 0.7,
       },
@@ -367,7 +367,7 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
         chance: 0.6,
       },
       {
-        itemId: 'elixir_of_strength',
+        itemId: 'health_potion',
         quantity: { min: 1, max: 2 },
         chance: 0.4,
       },
@@ -487,7 +487,7 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
         chance: 0.9,
       },
       {
-        itemId: 'elixir_of_strength',
+        itemId: 'health_potion',
         quantity: { min: 2, max: 4 },
         chance: 0.7,
       },
@@ -617,7 +617,7 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
         chance: 0.3,
       },
       {
-        itemId: 'elixir_of_strength',
+        itemId: 'health_potion',
         quantity: { min: 2, max: 4 },
         chance: 0.7,
       },
@@ -682,7 +682,7 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
         chance: 0.4,
       },
       {
-        itemId: 'elixir_of_strength',
+        itemId: 'health_potion',
         quantity: { min: 3, max: 6 },
         chance: 0.8,
       },

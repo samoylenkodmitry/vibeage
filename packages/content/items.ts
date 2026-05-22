@@ -485,55 +485,14 @@ export const ITEMS: Record<ItemId, Item> = {
     type: 'consumable',
     healAmount: 150,
   },
-  // PR Y — these buff/utility "consumables" don't have a runtime
-  // effect yet (no buff or scroll system on the server). Marked as
-  // 'material' so the bag UI doesn't surface a non-working "Use"
-  // affordance. Flip back to 'consumable' once the buff engine ships.
-  'elixir_of_strength': {
-    id: 'elixir_of_strength',
-    name: 'Elixir of Strength',
-    description: 'Temporarily increases attack power for 5 minutes (effect not yet implemented).',
-    icon: 'elixir_of_strength.svg',
-    stackable: true,
-    maxStack: 10,
-    type: 'material',
-  },
-  'fire_resistance_potion': {
-    id: 'fire_resistance_potion',
-    name: 'Fire Resistance Potion',
-    description: 'Provides temporary immunity to fire damage (effect not yet implemented).',
-    icon: 'fire_resistance_potion.svg',
-    stackable: true,
-    maxStack: 10,
-    type: 'material',
-  },
-  'ice_resistance_potion': {
-    id: 'ice_resistance_potion',
-    name: 'Ice Resistance Potion',
-    description: 'Provides temporary immunity to cold damage (effect not yet implemented).',
-    icon: 'ice_resistance_potion.svg',
-    stackable: true,
-    maxStack: 10,
-    type: 'material',
-  },
-  'ethereal_elixir': {
-    id: 'ethereal_elixir',
-    name: 'Ethereal Elixir',
-    description: 'A mystical elixir that phases the drinker partially out of reality (effect not yet implemented).',
-    icon: 'ethereal_elixir.svg',
-    stackable: true,
-    maxStack: 5,
-    type: 'material',
-  },
-  'temporal_draught': {
-    id: 'temporal_draught',
-    name: 'Temporal Draught',
-    description: 'Slows down time around the drinker, increasing reaction speed (effect not yet implemented).',
-    icon: 'temporal_draught.svg',
-    stackable: true,
-    maxStack: 5,
-    type: 'material',
-  },
+  // Archwork #7 — five fake consumables removed (elixir_of_strength,
+  // fire_resistance_potion, ice_resistance_potion, ethereal_elixir,
+  // temporal_draught). Each had a "(effect not yet implemented)"
+  // tag and no runtime effect for as long as they existed. Vendor
+  // stock + loot drops swapped to health_potion to preserve player-
+  // facing value. When a buff/resistance engine ships, the items
+  // should be re-added with real effects rather than as type:
+  // 'material' placeholders.
   // Quest-specific items
   'ancient_tome': {
     id: 'ancient_tome',
