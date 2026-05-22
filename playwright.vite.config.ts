@@ -30,7 +30,7 @@ export default defineConfig({
       // CI_AUTH_SECRET (40-byte 'x's) is mirrored in
       // scripts/ci-session-token.mjs and used by the e2e helper to mint
       // matching tokens; server falls through to transient (no-DB) joins.
-      command: `PORT=${gameServerPort} VIBEAGE_DISABLE_PERSISTENCE=1 VIBEAGE_AUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx CORS_ORIGINS=${clientUrl},${clientLocalhostUrl} WS_COMPRESSION=0 pnpm exec tsx apps/server/src/main.ts`,
+      command: `PORT=${gameServerPort} VIBEAGE_DISABLE_PERSISTENCE=1 VIBEAGE_ENABLE_DEV_COMMANDS=1 VIBEAGE_AUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx CORS_ORIGINS=${clientUrl},${clientLocalhostUrl} WS_COMPRESSION=0 pnpm exec tsx apps/server/src/main.ts`,
       url: `${gameServerUrl}/healthz`,
       reuseExistingServer: false,
       stdout: "pipe",

@@ -143,7 +143,21 @@ server {
     listen 80;
     server_name $DOMAIN;
 
-    # Frontend static files
+    # Frontend static files. Hashed bundles (filenames change every
+    # build) safely cache forever; index.html points at the current
+    # hash so it must revalidate on every load — otherwise a browser
+    # holding a stale index.html keeps loading the old bundle even
+    # after a deploy.
+    location = /index.html {
+        root $FRONTEND_DIR/out;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+    }
+    location /assets/ {
+        root $FRONTEND_DIR/out;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
     location / {
         root $FRONTEND_DIR/out;
         try_files \$uri \$uri/ /index.html;
