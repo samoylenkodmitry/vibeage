@@ -101,20 +101,16 @@ describe('updateEnemyAI invocation gate', () => {
 
   it('an enemy in an active zone DOES get the AI tick (gate complement)', () => {
     // The complement of the gate must work too, otherwise the gate
-    // is a coin-flip in disguise.
+    // is a coin-flip in disguise. We only check the gate here; the
+    // AI behavior itself has its own dedicated suites.
     const state = createGameState();
-    const spatial = new SpatialHashGrid();
-    const outbound = { publish: vi.fn() };
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0.5, z: 0 }, 6);
     enemy.isAlive = true;
     state.enemies[enemy.id] = enemy;
-    spatial.insert(enemy.id, { x: 0, z: 0 });
     state.zones.activeZoneIds = ['active-zone'];
     state.zones.enemyZoneIds[enemy.id] = 'active-zone';
 
     expect(isEnemyInActiveRegion(state, enemy.id)).toBe(true);
-    // (Don't actually invoke the AI tick — just pin the gate result;
-    // the AI behavior itself has its own dedicated suites.)
   });
 });
 
