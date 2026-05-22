@@ -5,6 +5,7 @@ import {
   rotationYForDirection,
 } from '../../packages/sim/geometry.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import { killPlayer } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 
 export type EnemyAttackResult = {
@@ -134,13 +135,10 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
 
   let killed = false;
   if (targetPlayer.health <= 0) {
-    targetPlayer.health = 0;
-    targetPlayer.isAlive = false;
-    targetPlayer.deathTimeTs = now;
-    targetPlayer.targetId = null;
-    targetPlayer.castingSkill = null;
-    targetPlayer.castingProgressMs = 0;
-    killed = true;
+    // Archwork item #2 sub-work 1 — unified killPlayer keeps the
+    // death-state shape identical across normal-enemy hits, boss
+    // signatures, and DoT ticks.
+    killed = killPlayer(targetPlayer, now);
   }
 
   return { damage, killed };

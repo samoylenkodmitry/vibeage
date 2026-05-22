@@ -2,6 +2,7 @@ import { getMiniBossById } from '../../packages/content/miniBosses.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
+import { killPlayer } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   applyEnemyAttack,
@@ -578,16 +579,10 @@ function resolveBossSignatureImpact(
     const dz = p.position.z - cz;
     if (dx * dx + dz * dz > eng.radiusUnits * eng.radiusUnits) continue;
     p.health -= damage;
-    let killed = false;
-    if (p.health <= 0) {
-      p.health = 0;
-      p.isAlive = false;
-      p.deathTimeTs = context.now;
-      p.targetId = null;
-      p.castingSkill = null;
-      p.castingProgressMs = 0;
-      killed = true;
-    }
+    // Archwork item #2 sub-work 1 — boss-signature damage funnels
+    // through the same player-death helper as normal enemy hits so
+    // the death-state shape stays in sync.
+    const killed = p.health <= 0 ? killPlayer(p, context.now) : false;
     progress.events.push({
       type: 'enemyAttack',
       enemyId: enemy.id,
