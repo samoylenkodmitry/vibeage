@@ -704,7 +704,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add counters for rate-limit hits by command type.
 - [x] Add counters for invalid ownership attempts.
 - [x] Add counters for protocol-version rejections.
-- [ ] Add counters for chat moderation rejections.
+- [x] Add counters for chat moderation rejections. (`server/transport/commandRejected.ts` — every `sendCommandRejected` emits `commandRejected.<cmd>.<reason>` + `.total` + `commandRejected.total`. Chat rejections (`emptyText`, `playerNotFound`, `rateLimited`) surface as `commandRejected.ChatRequest.*` in the runtime metrics dump.)
 - [ ] Add gauges for active rooms.
 - [x] Add gauges for connected clients. (`runtimeMetrics.setGauge('players.active', …)` in `server/world/tickPipeline.ts:228`, updated every `WORLD_GAUGE_INTERVAL_TICKS` (30 ticks). Counts active player records, which is 1:1 with connected world-room clients.)
 - [x] Add gauges for active players.
