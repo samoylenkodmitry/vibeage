@@ -876,20 +876,20 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Define quest data schema.
 - [ ] Define quest objective types: kill, collect, talk, explore, equip, learn skill, reach level, use item, discover zone.
 - [ ] Define quest reward types: XP, item, currency, skill point, unlock, title.
-- [ ] Persist quest state per character.
-- [ ] Add server-owned quest progress updates.
+- [x] Persist quest state per character. (Migration `008_add_quest_state.sql` added the `quest_state` jsonb column; `server/persistence.ts` reads/writes `questState` as a stable field; `tests/playerSession.spec.ts` "round-trips relog-critical progression state" covers the persist + hydrate roundtrip.)
+- [x] Add server-owned quest progress updates. (`server/players/playerQuests.ts` — `onEnemyKilledForQuests`, `onTalkedToNpcForQuests`, `applyAdvanceQuest`, `applyClaimQuestReward` all emit `playerUpdated.questState` after every server-side mutation. Client reads via `gameReducer`. Pinned by `tests/playerQuests.spec.ts`.)
 - [ ] Add quest visibility rules.
 - [ ] Add quest acceptance rules.
 - [ ] Add quest completion rules.
 - [ ] Add quest reward claiming rules.
 - [x] Add quest rollback protection against duplicate rewards. (`server/players/playerQuests.ts:applyClaimQuestReward` removes the quest from `state.active` and pushes to `state.completed` atomically; a replayed `ClaimQuestReward` finds no entry and returns `false` without granting XP/gold/items. Pinned by `tests/playerQuests.spec.ts` — "a second claim of the same quest does NOT double-grant rewards".)
-- [ ] Add tests for starter path progress.
-- [ ] Add tests for kill objectives.
+- [x] Add tests for starter path progress. (`tests/starterPath.spec.ts` — pins the server-side starter progression engine; `tests/viteClientReducer.spec.ts` "Vite game client starter progress" pins the client-side derivation.)
+- [x] Add tests for kill objectives. (`tests/playerQuests.spec.ts` — kill-quest arc walks 3 goblin kills → stage advance → readyToClaim; `kill_boss` covered in "boss-hunt quest objective" describe; "kill hook ignores non-matching enemy types" guards against wrong-type credit.)
 - [ ] Add tests for collect objectives.
 - [ ] Add tests for level objectives.
 - [ ] Add tests for equip objectives.
-- [ ] Add tests for reward claiming.
-- [ ] Add tests for reconnect restoring quest state.
+- [x] Add tests for reward claiming. (`tests/playerQuests.spec.ts` — `applyClaimQuestReward` grants XP + moves the quest to completed[]; `tests/questRewardOverflow.spec.ts` — bag-full claim drops the rewards as ground loot at the claim spot; `tests/questClaimToast.spec.ts` — client-side toast; double-claim guard pinned at the same describe (L885).)
+- [x] Add tests for reconnect restoring quest state. (`tests/playerSession.spec.ts` "round-trips relog-critical progression state" includes questState; `tests/scenarioBundles.spec.ts` covers a fuller identity/level/skill/equipment/quest hydration via the same persist → row → hydrate path.)
 - [ ] Add initial quest chain beyond starter path.
 - [ ] Add zone discovery quests.
 - [ ] Add class tutorial quests.
