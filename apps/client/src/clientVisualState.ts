@@ -490,6 +490,31 @@ export function applyPlayerDeathFeedback(
 }
 
 /**
+ * Respawn feedback: dead → alive transition for any tracked player.
+ * Renders as "You're back!" for the local player and "X respawned."
+ * for others. Symmetric with `applyPlayerDeathFeedback`; only the
+ * transition matters, so a snapshot resync re-asserting alive=true
+ * is silent.
+ */
+export function applyPlayerRespawnFeedback(
+  state: GameClientState,
+  playerId: string,
+  playerName: string | undefined,
+  prevIsAlive: boolean,
+  nextIsAlive: boolean,
+  now: number,
+): GameClientState {
+  if (!(prevIsAlive === false && nextIsAlive === true)) return state;
+  const text = playerId === state.myPlayerId
+    ? "You're back."
+    : `${playerName?.trim() ? playerName : 'A player'} respawned.`;
+  return addCombatLine(state, {
+    id: makeCombatLineId(`respawn-${playerId}`, state.combatLog.length, now),
+    text,
+  });
+}
+
+/**
  * Level-up feedback for the local player. Server emits `playerUpdated`
  * with the new `level` after `awardPlayerXP` carries the player past
  * `experienceToNextLevel`. The HUD has the bar; the combat log needs
