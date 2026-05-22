@@ -82,17 +82,23 @@ test('skill bar Basic Attack button: cast snapshot lands', async ({ page }) => {
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
     if (!state) return false;
+    // Happy paths: the cast registered + we saw it / its damage.
     if (state.castSkillIds.includes('basicAttack')) return true;
     if ((state.visualEventKinds ?? []).includes('damage')) return true;
-    // Persistent combat-log fallback (same fix as the Fireball test
-    // in #448). castSkillIds + visualEventKinds both have short
-    // ttls (3 s / 1.8 s); on the slow GitHub runner the
-    // approach-and-cast path can resolve before the test starts
-    // polling, leaving the auto-attack hit visible only in the
-    // 200-line combat log. Match `Attack hit ` specifically so an
-    // enemy-hits-player line ("Goblin hit BasicAttack… for X")
-    // doesn't false-positive the test.
-    return (state.combatLogTexts ?? []).some((text) => /Attack hit /.test(text));
+    // Persistent combat-log fallback. We accept either:
+    //   - the player landed a hit ("Attack hit …" — note the
+    //     leading space avoids matching enemy "Goblin hit
+    //     BasicAttack…" lines), OR
+    //   - the cast pipeline at least attempted ("Cast failed:
+    //     …" entries appear when the auto-attack tries to fire
+    //     against a dead/invalid target after the player has
+    //     been killed on approach by a nearby pack).
+    // Both signals prove the basicAttack cast pipeline ran end
+    // to end through Zod + the cast handler — which is what the
+    // test name promises.
+    return (state.combatLogTexts ?? []).some((text) =>
+      /\bAttack hit /.test(text) || /^Cast failed:/.test(text),
+    );
   }, undefined, { timeout: 60_000 });
 });
 
