@@ -440,8 +440,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Persist sockets/gems/augments if those will exist.
 - [ ] Persist item custom names only if product rules allow them.
 - [ ] Add schema versioning for inventory aggregates.
-- [ ] Add migration from legacy `InventorySlot[]` to item instances.
-- [ ] Add restore compatibility checks for item instances and equipment.
+- [x] Add migration from legacy `InventorySlot[]` to item instances. (Migration `006_persist_character_inventory.sql` added the `character_inventory` jsonb column; `011_drop_legacy_inventory_column.sql` retired the flat `players.inventory` shim once every hydrate path migrated forward. `hydratePlayerCharacterInventory` is the conversion seam for any rows that pre-date the cutover.)
+- [x] Add restore compatibility checks for item instances and equipment. (`scripts/check-restored-postgres-compatibility.sql` pins `players.character_inventory` as the required jsonb column on every restore. Shape-level hydration is exercised by `tests/inventoryReconnectIntegrity.spec.ts` and `tests/handtestFixes.spec.ts`.)
 - [ ] Add hydration tests for equipped weapon, shield, armor, jewelry, consumables, stackables, and multi-slot items.
 - [x] Add persistence tests proving equipped items survive disconnect/reconnect. (`tests/inventoryReconnectIntegrity.spec.ts` — persist → row → hydrate roundtrip pins the equipped MAIN_HAND `instanceId`, `templateId`, and `location.slot`.)
 - [x] Add persistence tests proving equipped items are not duplicated on reconnect. (Same spec — equipped item is not copied into bag slots on hydration, instance count for the templateId stays at 1, instanceIds remain unique.)
