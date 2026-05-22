@@ -146,6 +146,13 @@ export const bossTelegraphSchema = z.object({
   // clients that don't render the inner ring still get the outer
   // threat ring at the same place.
   innerRadius: z.number().optional(),
+  // Archwork #6 follow-up — cone mechanic. When present, the
+  // client renders a wedge instead of a ring: cone vertex at
+  // (x, z), forward direction `directionRad` (radians, world
+  // XZ plane), length = radius, total arc = 2× halfAngleDeg.
+  // Circle / donut mechanics omit these.
+  directionRad: z.number().optional(),
+  halfAngleDeg: z.number().optional(),
   windUpMs: z.number(),
   impactAt: z.number(),
 }).strict();
@@ -377,6 +384,8 @@ export type BossTelegraph = {
   z: number;
   radius: number;
   innerRadius?: number;
+  directionRad?: number;
+  halfAngleDeg?: number;
   windUpMs: number;
   impactAt: number;
 };

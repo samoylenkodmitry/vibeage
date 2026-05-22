@@ -58,6 +58,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           z={t.z}
           radius={t.radius}
           innerRadius={t.innerRadius}
+          directionRad={t.directionRad}
+          halfAngleDeg={t.halfAngleDeg}
           startedAt={t.startedAt}
           impactAt={t.impactAt}
         />

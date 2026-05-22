@@ -75,11 +75,13 @@ function BossLi({
         <dd>{boss.signatureAbility.description}</dd>
       </div>
       <small className="wiki-row-footer">
-        {(mech.windUpMs / 1000).toFixed(1)}s wind-up · {mechanicOuterRadius(mech)}m radius{
-          mechanicInnerRadius(mech) > 0
-            ? ` (safe inside ${mechanicInnerRadius(mech)}m)`
-            : ''
-        } ·{' '}
+        {(mech.windUpMs / 1000).toFixed(1)}s wind-up · {mech.kind === 'cone'
+          ? `${mech.lengthUnits}m cone @ ${mech.halfAngleDeg * 2}° arc`
+          : `${mechanicOuterRadius(mech)}m radius${
+              mechanicInnerRadius(mech) > 0
+                ? ` (safe inside ${mechanicInnerRadius(mech)}m)`
+                : ''
+            }`} ·{' '}
         ×{mech.damageMul} damage · {(mech.cooldownMs / 1000).toFixed(0)}s cooldown
       </small>
       <small className="wiki-row-footer">

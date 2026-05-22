@@ -474,6 +474,8 @@ function applyBossTelegraph(
     z: message.z,
     radius: message.radius,
     innerRadius: message.innerRadius,
+    directionRad: message.directionRad,
+    halfAngleDeg: message.halfAngleDeg,
     startedAt: now,
     impactAt: message.impactAt,
   };

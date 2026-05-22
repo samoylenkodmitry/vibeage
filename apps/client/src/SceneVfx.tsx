@@ -55,7 +55,7 @@ const PROJECTILE_TRAIL_POINTS = [
  * application is server-authoritative via EnemyAttack messages.
  */
 export function BossTelegraphRing({
-  x, z, radius, innerRadius, startedAt, impactAt,
+  x, z, radius, innerRadius, directionRad, halfAngleDeg, startedAt, impactAt,
 }: {
   x: number;
   z: number;
@@ -64,6 +64,11 @@ export function BossTelegraphRing({
    *  inner area is rendered as a soft "safe" ring so the player can
    *  see where to stand to dodge. */
   innerRadius?: number;
+  /** Archwork #6 follow-up — cone mechanic forward direction
+   *  (world XZ plane, radians). When set alongside `halfAngleDeg`,
+   *  the renderer draws a wedge instead of a ring. */
+  directionRad?: number;
+  halfAngleDeg?: number;
   startedAt: number;
   impactAt: number;
 }) {
@@ -90,6 +95,30 @@ export function BossTelegraphRing({
   });
 
   const hasSafeSpot = (innerRadius ?? 0) > 0.1;
+  const isCone = directionRad !== undefined && halfAngleDeg !== undefined;
+  if (isCone) {
+    // Archwork #6 follow-up — cone telegraph. ringGeometry's
+    // thetaStart/thetaLength carve a wedge out of a disc. Three.js
+    // measures the wedge angle in the local XY plane; we rotate the
+    // mesh -PI/2 on X so that's the world XZ plane, but the wedge
+    // is then mirrored along Z. Apply a Y rotation of `directionRad`
+    // to align with the server's atan2(dz, dx) direction.
+    const halfRad = ((halfAngleDeg ?? 0) * Math.PI) / 180;
+    const thetaStart = -halfRad;
+    const thetaLength = halfRad * 2;
+    return (
+      <group position={[x, getTerrainY(x, z) + 0.04, z]} rotation={[0, -(directionRad ?? 0), 0]}>
+        <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.4, radius, 48, 1, thetaStart, thetaLength]} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+        <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0, radius, 48, 1, thetaStart, thetaLength]} />
+          <meshBasicMaterial color="#fb923c" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      </group>
+    );
+  }
   return (
     <group position={[x, getTerrainY(x, z) + 0.04, z]}>
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>

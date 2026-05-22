@@ -37,6 +37,8 @@ export type EnemyAIEvent =
       z: number;
       radius: number;
       innerRadius?: number;
+      directionRad?: number;
+      halfAngleDeg?: number;
       windUpMs: number;
       impactAt: number;
     }
@@ -504,6 +506,7 @@ function resetBossProgression(enemy: Enemy): void {
   enemy.signatureCastTargetX = undefined;
   enemy.signatureCastTargetZ = undefined;
   enemy.signatureCastRadius = undefined;
+  enemy.signatureCastDirRad = undefined;
   enemy.nextSignatureReadyTs = undefined;
   if (enemy.baseAttackDamage !== undefined) enemy.attackDamage = enemy.baseAttackDamage;
   if (enemy.baseMovementSpeed !== undefined) enemy.movementSpeed = enemy.baseMovementSpeed;
@@ -534,6 +537,7 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
       enemy.signatureCastTargetX = undefined;
       enemy.signatureCastTargetZ = undefined;
       enemy.signatureCastRadius = undefined;
+      enemy.signatureCastDirRad = undefined;
       enemy.nextSignatureReadyTs = context.now + mech.cooldownMs;
     }
     return;
@@ -554,19 +558,31 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
   const target = enemy.targetId ? context.players[enemy.targetId] : null;
   if (!target?.isAlive) return;
 
+  // Archwork #6 follow-up — cone mechanics project from the boss's
+  // own position toward the target's locked position at cast start.
+  // Circle / donut mechanics still land at the target's position.
+  const isCone = mech.kind === 'cone';
+  const castX = isCone ? enemy.position.x : target.position.x;
+  const castZ = isCone ? enemy.position.z : target.position.z;
+  const dirRad = isCone
+    ? Math.atan2(target.position.z - enemy.position.z, target.position.x - enemy.position.x)
+    : undefined;
+
   enemy.signatureCastingUntilTs = context.now + mech.windUpMs;
-  enemy.signatureCastTargetX = target.position.x;
-  enemy.signatureCastTargetZ = target.position.z;
+  enemy.signatureCastTargetX = isCone ? target.position.x : target.position.x;
+  enemy.signatureCastTargetZ = isCone ? target.position.z : target.position.z;
   enemy.signatureCastRadius = outer;
+  enemy.signatureCastDirRad = dirRad;
   progress.events.push({
     type: 'bossTelegraph',
     enemyId: enemy.id,
     bossName: spec.name,
     abilityName: spec.signatureAbility.name,
-    x: target.position.x,
-    z: target.position.z,
+    x: castX,
+    z: castZ,
     radius: outer,
     ...(inner > 0 ? { innerRadius: inner } : {}),
+    ...(mech.kind === 'cone' ? { directionRad: dirRad, halfAngleDeg: mech.halfAngleDeg } : {}),
     windUpMs: mech.windUpMs,
     impactAt: context.now + mech.windUpMs,
   });
@@ -579,10 +595,16 @@ function resolveBossSignatureImpact(
   context: EnemyAIContext,
   progress: EnemyAIProgress,
 ): void {
-  const cx = enemy.signatureCastTargetX ?? enemy.position.x;
-  const cz = enemy.signatureCastTargetZ ?? enemy.position.z;
+  // Cone mechanics anchor at the boss's current position (the cone
+  // projects forward from the caster). Circle / donut mechanics
+  // anchor at the locked target position from cast start.
+  const isCone = mech.kind === 'cone';
+  const cx = isCone ? enemy.position.x : enemy.signatureCastTargetX ?? enemy.position.x;
+  const cz = isCone ? enemy.position.z : enemy.signatureCastTargetZ ?? enemy.position.z;
   const outer = mechanicOuterRadius(mech);
   const inner = mechanicInnerRadius(mech);
+  const dirRad = enemy.signatureCastDirRad;
+  const halfAngleRad = mech.kind === 'cone' ? (mech.halfAngleDeg * Math.PI) / 180 : 0;
   const damage = enemy.attackDamage * mech.damageMul;
   for (const p of Object.values(context.players)) {
     if (!p.isAlive) continue;
@@ -594,6 +616,20 @@ function resolveBossSignatureImpact(
     // spot at the centre. Circle mechanics have inner = 0 so this
     // is a no-op for them.
     if (inner > 0 && distSq < inner * inner) continue;
+    // Archwork #6 follow-up — cone mechanic: also require the
+    // player to sit inside the angular wedge around the locked
+    // direction. Skip if no direction recorded (defensive — should
+    // not happen for cone mechanics).
+    if (mech.kind === 'cone') {
+      if (dirRad === undefined) continue;
+      const playerAngle = Math.atan2(dz, dx);
+      let delta = playerAngle - dirRad;
+      // Normalise to [-PI, PI] so the cone wraps correctly across
+      // the angular discontinuity.
+      while (delta > Math.PI) delta -= 2 * Math.PI;
+      while (delta < -Math.PI) delta += 2 * Math.PI;
+      if (Math.abs(delta) > halfAngleRad) continue;
+    }
     p.health -= damage;
     // Archwork item #2 sub-work 1 — boss-signature damage funnels
     // through the same player-death helper as normal enemy hits so
