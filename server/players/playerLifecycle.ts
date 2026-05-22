@@ -3,7 +3,7 @@ import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import type { GameState } from '../gameState.js';
-import { log, LOG_CATEGORIES, warn } from '../logger.js';
+import { error as logError, log, LOG_CATEGORIES, warn } from '../logger.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
@@ -149,12 +149,12 @@ export function respawnPlayer(
   const player = state.players[playerId];
 
   if (!player) {
-    console.error(`[RespawnRequest] Player ${playerId} not found`);
+    logError(LOG_CATEGORIES.PLAYER, `RespawnRequest: player ${playerId} not found`);
     return null;
   }
 
   if (player.isAlive) {
-    console.warn(`[RespawnRequest] Player ${playerId} is already alive`);
+    warn(LOG_CATEGORIES.PLAYER, `RespawnRequest: player ${playerId} is already alive`);
     return null;
   }
 
