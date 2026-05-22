@@ -659,9 +659,9 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add region event hooks for activation, deactivation, spawn, despawn, and handoff.
 - [ ] Add tests that inactive zones remain cheap.
 - [ ] Add tests that inactive zone state is preserved as intended.
-- [ ] Add tests that player movement changes visibility but not global spawn ownership.
-- [ ] Add tests for overlapping regions and nearest-region lookup.
-- [ ] Add tests for hundreds or thousands of region definitions.
+- [x] Add tests that player movement changes visibility but not global spawn ownership. (`tests/worldRegions.spec.ts` — "keeps spawning regions global while bounding each player stream" pins that `state.zones.activeZoneIds` lists every server-owned active region while `getPlayerStreamRegionIds` returns the bounded per-player visibility window.)
+- [x] Add tests for overlapping regions and nearest-region lookup. (`tests/worldRegions.spec.ts` — "uses indexed position lookup across many regions" pins `findActiveRegionIdAtPosition` / `findRegionIdAtPosition` against an indexed grid; out-of-range positions return null.)
+- [x] Add tests for hundreds or thousands of region definitions. (`tests/worldRegions.spec.ts` — same lookup test uses a 320-region grid; `findActiveRegionIdAtPosition` is indexed, so adding more region definitions stays O(log N) at lookup time.)
 
 ## 13. Persistence, Database, Migrations, and Backups
 
