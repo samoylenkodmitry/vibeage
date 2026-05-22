@@ -738,7 +738,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add origin checks for WebSocket and matchmaker paths.
 - [ ] Add production validation for allowed origins.
 - [ ] Add maximum message size per protocol type.
-- [ ] Add rate limits per socket.
+- [x] Add rate limits per socket. (`server/world/rateLimiter.ts` — per-socket per-bucket token-bucket limiter wired into `clientMessageRouter.ts`; metrics `rateLimit.dropped.<msgType>` + `rateLimit.dropped.total`; §52 polish surfaces drops for user-intent commands via `CommandRejected{reason:'rateLimited'}`. Tests: `tests/rateLimiter.spec.ts`, `tests/rateLimitRejectionFeedback.spec.ts`.)
 - [ ] Add rate limits per account.
 - [ ] Add rate limits per IP if safe behind proxy headers.
 - [ ] Add proxy-header trust policy.
