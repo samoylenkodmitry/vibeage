@@ -773,14 +773,14 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add reducer tests for inventory update after equip/unequip.
 - [ ] Add reducer tests for duplicate or out-of-order updates.
 - [ ] Add reducer tests for disconnected/reconnected state transitions.
-- [ ] Add explicit client-side handling for command rejections.
-- [ ] Add UI feedback for rate-limited actions.
-- [ ] Add UI feedback for protocol rejection.
-- [ ] Add UI feedback for inventory full.
-- [ ] Add UI feedback for invalid equip slot.
-- [ ] Add UI feedback for wrong class/race/level requirements.
-- [ ] Add UI feedback for out-of-range casts.
-- [ ] Add UI feedback for missing target.
+- [x] Add explicit client-side handling for command rejections. (§52 #1 + polish — `routeCommandRejected` in `gameReducer.ts` routes every commandType to a dedicated UI surface: cast / equip / quest / inventory verbs to the combat log, learn / upgrade to the SkillTreePanel chip, chat to the inline `lastChatError`. PRs #353–#355, #372–#375, #380.)
+- [x] Add UI feedback for rate-limited actions. (PR #380 — `RATE_LIMIT_FEEDBACK_COMMANDS` set in `clientMessageRouter.ts` emits `CommandRejected{rateLimited}` for user-intent commands; client surfaces via the same routing as other rejections.)
+- [ ] Add UI feedback for protocol rejection. (Connection-rejected payload is already surfaced via `state.connectionState === 'rejected'`; granular per-message protocol validation errors still drop with a server-side log only.)
+- [x] Add UI feedback for inventory full. (PR #373 — `applyInventoryRejectedVisualState` maps `BuyFromVendor.inventoryFull` → "Your bag is full." and `CraftItem.inventoryFull` → "Your bag is too full to craft.".)
+- [x] Add UI feedback for invalid equip slot. (PR #354 + #373 — `applyEquipFailedFromCommandRejected` + `equipReasonCopy` map `slotConflict` / `handConflict` / `notEquippable` to friendly copy.)
+- [x] Add UI feedback for wrong class/race/level requirements. (PR #354 — `equipReasonCopy` covers `levelTooLow` / `wrongClass` / `wrongRace`; PR #375 — `REJECTION_LABEL` in `SkillTreePanel.tsx` covers the LearnSkill `levelTooLow` / `wrongClass` / `missingPrereq` cases for skills.)
+- [x] Add UI feedback for out-of-range casts. (PR #372 — `castFailCopy('outofrange')` → "Cast failed: target out of range.".)
+- [x] Add UI feedback for missing target. (PR #372 — `castFailCopy('missingTarget')` → "Cast failed: pick a target first.".)
 - [ ] Add a local event bus or domain action layer if reducer actions become too broad.
 - [ ] Add client telemetry hooks for load time, FPS, WebSocket reconnects, and major UI errors.
 - [ ] Add error boundary around the game UI.
