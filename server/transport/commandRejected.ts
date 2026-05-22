@@ -1,6 +1,6 @@
 import type { DirectMessageSink } from './outboundEvents.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
-import type { RejectableCommand } from '../../packages/protocol/commandRejections.js';
+import type { CommandRejectionReason, RejectableCommand } from '../../packages/protocol/commandRejections.js';
 
 /**
  * §4/§46-slice-5 — shared helper for the structured `CommandRejected`
@@ -19,13 +19,17 @@ import type { RejectableCommand } from '../../packages/protocol/commandRejection
  * the legacy *Failed messages (EquipFailed, LearnSkillFailed, …) can
  * be retired in a follow-up PR.
  */
-export function sendCommandRejected(
+export function sendCommandRejected<C extends RejectableCommand>(
   direct: DirectMessageSink,
-  // Archwork #3 — typed registry of rejectable commands. A typo at
-  // the call site is now a TS error instead of a runtime
+  // Archwork #3 sub-work 1 — typed registry of rejectable commands.
+  // A typo at the call site is now a TS error instead of a runtime
   // "unknown rejection" with an unbounded metrics label.
-  commandType: RejectableCommand,
-  reason: string,
+  commandType: C,
+  // Archwork #3 sub-work 3 — reason is now narrowed to the union
+  // declared for THIS specific commandType. Mismatched reason +
+  // command combos (e.g. CastReq + 'levelTooLow') are compile
+  // errors at the emit site.
+  reason: CommandRejectionReason<C>,
   clientSeq?: number,
   /**
    * §52 #1 — optional command-specific subject id (skill id, item id,

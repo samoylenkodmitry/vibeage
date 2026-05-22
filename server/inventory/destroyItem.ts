@@ -5,6 +5,7 @@ import type { GameState } from '../gameState.js';
 import { findPlayerIdBySocket } from '../players/playerSession.js';
 import type { DirectMessageSink } from '../transport/outboundEvents.js';
 import { sendCommandRejected } from '../transport/commandRejected.js';
+import type { CommandRejectionReason } from '../../packages/protocol/commandRejections.js';
 import { ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
 
@@ -22,7 +23,7 @@ export function onDestroyItem(
   state: GameState,
   msg: DestroyItem,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'DestroyItem', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'DestroyItem'>) => sendCommandRejected(direct, 'DestroyItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     warn(LOG_CATEGORIES.PLAYER, `DestroyItem rejected: no player for socket ${socket.id}`);
@@ -56,7 +57,12 @@ export function onDestroyItem(
   const removed = removeItemsFromPlayer(player, instance.templateId, destroyedCount);
   if (removed.ok === false) {
     warn(LOG_CATEGORIES.PLAYER, `DestroyItem failed during remove for ${playerId}: ${removed.error}`);
-    reject(removed.error);
+    // TransactionError carries values broader than DestroyItem's
+    // reason union (e.g. 'inventoryFull'). The realistic outcomes
+    // for a Destroy are itemNotFound / invariantViolation; cast
+    // narrowly here rather than widen the registry to cover paths
+    // that can't actually occur during destroy.
+    reject(removed.error as CommandRejectionReason<'DestroyItem'>);
     return;
   }
 

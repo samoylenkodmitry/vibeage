@@ -11,6 +11,7 @@ import { applyInventoryItemUse, type ItemUsePlayerUpdate } from './itemRuntime.j
 import { instanceAtSlot } from '../../packages/sim/characterInventory.js';
 import { ensureCharacterInventory } from './aggregateBridge.js';
 import { sendCommandRejected } from '../transport/commandRejected.js';
+import type { CommandRejectionReason } from '../../packages/protocol/commandRejections.js';
 
 type ItemUseClient = { id: string };
 
@@ -86,7 +87,7 @@ export function onUseItem(
   msg: UseItem,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'UseItem', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'UseItem'>) => sendCommandRejected(direct, 'UseItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
 
   if (!playerId) {
@@ -97,7 +98,7 @@ export function onUseItem(
 
   const result = useItemForPlayer(state, playerId, msg.slotIndex);
   if (result.ok === false) {
-    reject(result.reason);
+    reject(result.reason as CommandRejectionReason<'UseItem'>);
     return;
   }
 
