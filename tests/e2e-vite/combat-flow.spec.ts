@@ -89,8 +89,10 @@ test('skill bar Basic Attack button: cast snapshot lands', async ({ page }) => {
     // ttls (3 s / 1.8 s); on the slow GitHub runner the
     // approach-and-cast path can resolve before the test starts
     // polling, leaving the auto-attack hit visible only in the
-    // 200-line combat log.
-    return (state.combatLogTexts ?? []).some((text) => / hit /.test(text));
+    // 200-line combat log. Match `Attack hit ` specifically so an
+    // enemy-hits-player line ("Goblin hit BasicAttack… for X")
+    // doesn't false-positive the test.
+    return (state.combatLogTexts ?? []).some((text) => /Attack hit /.test(text));
   }, undefined, { timeout: 60_000 });
 });
 
