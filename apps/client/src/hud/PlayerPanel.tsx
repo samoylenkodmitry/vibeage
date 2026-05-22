@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getSpecializationById,
   PROFICIENCY_LEVEL,
@@ -21,6 +21,11 @@ export function PlayerPanel({
   const derived = player?.stats ?? {};
   const panelRef = useDraggablePanel<HTMLElement>('stats');
   const [popup, setPopup] = useState<{ statId: StatId; clientX: number; clientY: number } | null>(null);
+  // §49/M2 follow-up — derived combat stats (pAtk, mAtk, …) collapse
+  // behind a tap-to-expand on mobile so the 12-row grid doesn't eat
+  // 5 % of the world-visibility ratio. Desktop stays expanded by
+  // default. Preference is sticky per device via localStorage.
+  const [combatOpen, setCombatOpen] = useCombatStatsOpenState();
   const raceLabel = player?.race ? capitalize(player.race) : '';
   const level = player?.level ?? 1;
   const spec = player?.specializationId ? getSpecializationById(player.specializationId) ?? null : null;
@@ -52,16 +57,29 @@ export function PlayerPanel({
         ))}
       </dl>
       {derived.pAtk !== undefined && (
-        <dl className="player-stats player-stats-combat">
-          {DERIVED_ROWS.map(({ id, format }) => (
-            <StatRow
-              key={id}
-              id={id}
-              value={format(derived[id])}
-              onClick={makeOpenPopup(setPopup, id)}
-            />
-          ))}
-        </dl>
+        <>
+          <button
+            type="button"
+            className="player-stats-combat-toggle"
+            aria-expanded={combatOpen}
+            aria-controls="player-combat-stats"
+            onClick={() => setCombatOpen((open) => !open)}
+          >
+            Combat stats {combatOpen ? '▴' : '▾'}
+          </button>
+          {combatOpen && (
+            <dl className="player-stats player-stats-combat" id="player-combat-stats">
+              {DERIVED_ROWS.map(({ id, format }) => (
+                <StatRow
+                  key={id}
+                  id={id}
+                  value={format(derived[id])}
+                  onClick={makeOpenPopup(setPopup, id)}
+                />
+              ))}
+            </dl>
+          )}
+        </>
       )}
       <StatusPills effects={player?.statusEffects ?? []} />
       {popup && player && (
@@ -79,6 +97,27 @@ export function PlayerPanel({
 }
 
 const ATTR_IDS: readonly StatId[] = ['str', 'dex', 'con', 'int', 'wit', 'men'];
+
+const COMBAT_OPEN_STORAGE_KEY = 'vibeage.playerPanel.combatStats.open.v1';
+const MOBILE_BREAKPOINT_PX = 680;
+
+function useCombatStatsOpenState(): [boolean, (next: boolean | ((prev: boolean) => boolean)) => void] {
+  const [open, setOpenState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.localStorage.getItem(COMBAT_OPEN_STORAGE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+    // Default: collapsed on phone-width viewports, expanded otherwise.
+    return window.innerWidth > MOBILE_BREAKPOINT_PX;
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(COMBAT_OPEN_STORAGE_KEY, String(open)); } catch {
+      // Storage may be denied (Safari private mode, etc.); the UI
+      // still works, the preference just doesn't persist.
+    }
+  }, [open]);
+  return [open, setOpenState];
+}
 
 type DerivedRowSpec = { id: StatId; format: (v: number | undefined) => number | undefined };
 const DERIVED_ROWS: readonly DerivedRowSpec[] = [
