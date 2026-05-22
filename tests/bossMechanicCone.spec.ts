@@ -108,10 +108,10 @@ describe('Vorthax cone — damage selection', () => {
   });
 });
 
-describe('Vorthax cone — direction lock', () => {
-  it('direction is locked at cast start (boss can move during wind-up)', () => {
+describe('Vorthax cone — vertex + direction lock', () => {
+  it('vertex and direction are both locked at cast start (boss can move during wind-up)', () => {
     const boss = setupVorthax();
-    const target = setupPlayerAt('p_target', 113, 100);
+    const target = setupPlayerAt('p_target', 113, 100); // east of locked vertex
     const players = { p_target: target };
     const spatial = new SpatialHashGrid();
 
@@ -120,14 +120,16 @@ describe('Vorthax cone — direction lock', () => {
     const castStart = (boss.nextSignatureReadyTs ?? start) + 10;
     advanceEnemyState(boss, { players, spatialGrid: spatial, deltaTime: 0.05, now: castStart });
 
-    // Warp boss north 5 units mid wind-up. Direction stays east.
-    boss.position = { x: 100, y: 0.5, z: 95 };
+    // Warp boss far north mid wind-up. The cone stays anchored to
+    // the locked cast-start vertex (100, 100) firing east, so the
+    // target at (113, 100) is still inside.
+    boss.position = { x: 100, y: 0.5, z: 500 };
 
     advanceEnemyState(boss, {
       players, spatialGrid: spatial, deltaTime: 0.05, now: castStart + 2500 + 10,
     });
-    // (113, 100) relative to new boss pos (100, 95) is (+13, +5):
-    // atan2(5, 13) ≈ 21° < 30°, distance ≈ 13.9 < 14. Still hits.
+    // Relative to locked vertex (100, 100), target is at (+13, 0):
+    // angle = 0° (on-axis), distance = 13 < 14. HIT.
     expect(target.health).toBeLessThan(target.maxHealth);
   });
 });

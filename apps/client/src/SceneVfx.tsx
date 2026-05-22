@@ -109,7 +109,7 @@ export function BossTelegraphRing({
     return (
       <group position={[x, getTerrainY(x, z) + 0.04, z]} rotation={[0, -(directionRad ?? 0), 0]}>
         <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.4, radius, 48, 1, thetaStart, thetaLength]} />
+          <ringGeometry args={[Math.max(0.1, radius - 0.3), radius, 48, 1, thetaStart, thetaLength]} />
           <meshBasicMaterial color="#ef4444" transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
         </mesh>
         <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]}>

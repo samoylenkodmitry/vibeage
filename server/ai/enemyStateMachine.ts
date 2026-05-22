@@ -558,9 +558,13 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
   const target = enemy.targetId ? context.players[enemy.targetId] : null;
   if (!target?.isAlive) return;
 
-  // Archwork #6 follow-up — cone mechanics project from the boss's
-  // own position toward the target's locked position at cast start.
-  // Circle / donut mechanics still land at the target's position.
+  // Archwork #6 follow-up — cone mechanics anchor the vertex at
+  // the BOSS's position at cast start (the dragon's maw at the
+  // moment of channel). Circle / donut mechanics anchor at the
+  // target's position. Direction is locked toward the target at
+  // cast start; both vertex and direction stay frozen through
+  // wind-up so the visual telegraph and the impact resolution
+  // agree even if the boss moves.
   const isCone = mech.kind === 'cone';
   const castX = isCone ? enemy.position.x : target.position.x;
   const castZ = isCone ? enemy.position.z : target.position.z;
@@ -569,8 +573,8 @@ function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progress: Enem
     : undefined;
 
   enemy.signatureCastingUntilTs = context.now + mech.windUpMs;
-  enemy.signatureCastTargetX = isCone ? target.position.x : target.position.x;
-  enemy.signatureCastTargetZ = isCone ? target.position.z : target.position.z;
+  enemy.signatureCastTargetX = castX;
+  enemy.signatureCastTargetZ = castZ;
   enemy.signatureCastRadius = outer;
   enemy.signatureCastDirRad = dirRad;
   progress.events.push({
@@ -595,12 +599,15 @@ function resolveBossSignatureImpact(
   context: EnemyAIContext,
   progress: EnemyAIProgress,
 ): void {
-  // Cone mechanics anchor at the boss's current position (the cone
-  // projects forward from the caster). Circle / donut mechanics
-  // anchor at the locked target position from cast start.
-  const isCone = mech.kind === 'cone';
-  const cx = isCone ? enemy.position.x : enemy.signatureCastTargetX ?? enemy.position.x;
-  const cz = isCone ? enemy.position.z : enemy.signatureCastTargetZ ?? enemy.position.z;
+  // All mechanic kinds anchor impact at the LOCKED cast-start
+  // position (`signatureCastTargetX/Z`). For circle / donut that's
+  // the target's position; for cone it's the boss's own position
+  // at cast start (the dragon's maw at the moment of channel).
+  // This keeps the server impact area aligned with the client
+  // telegraph, which renders from the same x/z carried on the
+  // BossTelegraph event.
+  const cx = enemy.signatureCastTargetX ?? enemy.position.x;
+  const cz = enemy.signatureCastTargetZ ?? enemy.position.z;
   const outer = mechanicOuterRadius(mech);
   const inner = mechanicInnerRadius(mech);
   const dirRad = enemy.signatureCastDirRad;
