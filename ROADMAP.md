@@ -619,7 +619,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for attack cooldowns.
 - [ ] Add tests for returning to spawn.
 - [ ] Add tests for pack aggro propagation.
-- [ ] Add tests for inactive-zone enemies not ticking AI.
+- [x] Add tests for inactive-zone enemies not ticking AI. (`tests/inactiveZoneAiSuppression.spec.ts` — pins `isEnemyInActiveRegion` returns false when the enemy's zone isn't in `state.zones.activeZoneIds`, and validates the tickPipeline gate complement so dormant zones don't quietly burn CPU after a future refactor.)
 - [ ] Add tests for respawn after death.
 - [ ] Add tests for loot generation on death.
 - [ ] Add tests for XP rewards on death.
