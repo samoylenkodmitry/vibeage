@@ -22,7 +22,8 @@ function emptyState(): GameClientState {
   return { enemies: {}, players: {}, combatLog: [] } as unknown as GameClientState;
 }
 
-function reject(commandType: string, reason: string): ServerMessage & { type: 'CommandRejected' } {
+type RejectMsg = ServerMessage & { type: 'CommandRejected' };
+function reject(commandType: RejectMsg['commandType'], reason: string): RejectMsg {
   return { type: 'CommandRejected', commandType, reason };
 }
 
@@ -93,7 +94,14 @@ describe('applyInventoryRejectedVisualState — unknown-reason fall-through', ()
     expect(next.combatLog[0].text).toBe('Vendor rejected: weirdNewReason');
   });
   it('falls through to "<commandType> failed:" for an entirely unknown commandType (defensive)', () => {
-    const next = applyInventoryRejectedVisualState(emptyState(), reject('SomeFuture', 'someReason'), 0);
+    // Archwork #3 — the typed registry forbids unknown commandType
+    // at compile time, but the runtime fallback in
+    // `applyInventoryRejectedVisualState` must still work in case a
+    // server sends a string that wasn't in the client's registry
+    // (e.g., during an old-client/new-server rollout). Cast through
+    // `as RejectMsg['commandType']` to assert the runtime path.
+    const msg = reject('SomeFuture' as RejectMsg['commandType'], 'someReason');
+    const next = applyInventoryRejectedVisualState(emptyState(), msg, 0);
     expect(next.combatLog[0].text).toBe('SomeFuture failed: someReason');
   });
 });
