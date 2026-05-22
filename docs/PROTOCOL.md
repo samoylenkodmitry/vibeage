@@ -266,6 +266,13 @@ release group, then one bullet per affected message in the form
 `message-name — what changed (PR #N)`. Group several related PRs
 under one header when the change tells a single story.
 
+### v0.6.0+ (archwork #2 — DoT ownership)
+
+- `StatusEffect` extended with optional `sourceCasterId` carrying
+  the id of the entity that applied the effect. Lets a future
+  death-API consumer credit DoT-tick kills back to the caster
+  (XP / quest / loot). Additive; old clients ignore.
+
 ### v0.6.0+ (§52 #11 — aggregate-shaped inventory)
 
 - `InventorySlot` extended with optional `slotIndex` + `instanceId`

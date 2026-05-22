@@ -53,6 +53,16 @@ export const statusEffectSchema = z.object({
   durationMs: z.number(),
   startTimeTs: z.number(),
   sourceSkill: z.string(),
+  /**
+   * Archwork #2 sub-work 2 — id of the entity that applied this
+   * effect (the caster for a player-cast DoT, the enemy for an
+   * NPC-applied debuff). Lets DoT kill credit flow through to
+   * XP / quest / loot when the damage-over-time tick lands the
+   * killing blow. Optional for backwards compat with the
+   * pre-2026-05 wire shape and for self-applied / system effects
+   * that have no logical owner.
+   */
+  sourceCasterId: z.string().optional(),
   stacks: z.number().optional(),
 }).passthrough();
 
@@ -127,6 +137,14 @@ export type StatusEffect = {
   durationMs: number;
   startTimeTs: number;
   sourceSkill: string;
+  /**
+   * Archwork #2 sub-work 2 — id of the entity that applied this
+   * effect. Lets DoT kill credit flow through to XP / quest / loot
+   * when the damage-over-time tick lands the killing blow. Optional
+   * because pre-2026-05 wire payloads don't carry it and
+   * self-applied / system effects have no logical owner.
+   */
+  sourceCasterId?: string;
   stacks?: number;
 };
 

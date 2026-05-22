@@ -611,6 +611,11 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     durationMs,
     startTimeTs: Date.now(),
     sourceSkill: skillId,
+    // Archwork #2 sub-work 2 — capture the applying entity so a
+    // future DoT-kill credit path can read it. Optional because
+    // self-applied effects (e.g. resurrection invuln) have no
+    // outside owner.
+    ...(caster ? { sourceCasterId: caster.id } : {}),
   };
 
   // §46/slice-2 — per-effect stacking policy from EFFECT_SPECS.
