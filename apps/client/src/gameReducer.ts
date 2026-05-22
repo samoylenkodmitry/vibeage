@@ -2,6 +2,7 @@ import {
   type InventorySlot,
   type ServerMessage,
 } from '../../../packages/protocol/messages';
+import type { RejectableCommand } from '../../../packages/protocol/commandRejections';
 import type {
   EnemyEntity,
   GameClientState,
@@ -347,32 +348,84 @@ function applyServerMessage(
 }
 
 /**
- * §52 #1 + polish — fan-out for `CommandRejected` envelopes. Each
- * commandType has a dedicated client UI hook; this dispatcher keeps
- * `applyServerMessage` short.
+ * Archwork #3 sub-work 4 — table-driven CommandRejected routing.
+ *
+ * Every `RejectableCommand` is mapped to exactly one UI sink. The
+ * mapping is a record indexed by commandType so adding a new
+ * rejectable command requires picking a sink at compile time
+ * (TypeScript flags the registry as non-exhaustive otherwise), and
+ * `tests/commandRejectedRouting.spec.ts` asserts every entry
+ * resolves at runtime.
+ *
+ * Sinks:
+ *  - 'combatLog' — friendly red line in the combat log
+ *    (`apply*RejectedVisualState`)
+ *  - 'skillTreeChip' — per-skill chip on the SkillTreePanel keyed
+ *    by `targetId` (the skill id)
+ *  - 'chatInline' — `state.lastChatError`, rendered inline under the
+ *    chat input
+ *  - 'silent' — no client-side UX (the rejection is server-internal,
+ *    e.g. SelectClass/SelectRace which only fire from the GM panel)
  */
+type CommandRejectedSink = 'combatLog' | 'skillTreeChip' | 'chatInline' | 'silent';
+
+const COMMAND_REJECTED_ROUTE: { [C in RejectableCommand]: CommandRejectedSink } = {
+  CastReq: 'combatLog',
+  EquipItem: 'combatLog',
+  UnequipItem: 'combatLog',
+  UseItem: 'combatLog',
+  DropItem: 'combatLog',
+  DestroyItem: 'combatLog',
+  CraftItem: 'combatLog',
+  LearnSkill: 'skillTreeChip',
+  UpgradeSkill: 'skillTreeChip',
+  AcceptQuest: 'combatLog',
+  CancelQuest: 'combatLog',
+  AdvanceQuest: 'combatLog',
+  ClaimQuestReward: 'combatLog',
+  BuyFromVendor: 'combatLog',
+  SellToVendor: 'combatLog',
+  ChatRequest: 'chatInline',
+  SelectClass: 'silent',
+  SelectRace: 'silent',
+  SelectSpecialization: 'silent',
+  RespawnRequest: 'silent',
+  GmCommand: 'silent',
+};
+
 function routeCommandRejected(
   state: GameClientState,
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
-  if (message.commandType === 'CastReq') return applyCastRejected(state, message, now);
-  if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipRejected(state, message, now);
-  if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
-  if (INVENTORY_VERB_COMMANDS.has(message.commandType)) return applyInventoryRejectedVisualState(state, message, now);
-  // Skill-verb rejections (Learn + Upgrade) share the SkillTreePanel
-  // chip state by skill id — only one chip per row at a time.
-  if ((message.commandType === 'LearnSkill' || message.commandType === 'UpgradeSkill') && message.targetId) {
-    return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.targetId]: message.reason } };
+  const sink = COMMAND_REJECTED_ROUTE[message.commandType];
+  switch (sink) {
+    case 'combatLog':
+      // Three combat-log handlers based on the originating verb
+      // family; each maps reasons to friendly copy and prepends a
+      // line. The choice between them mirrors the verb sets the
+      // server uses (EQUIP / QUEST / INVENTORY / cast).
+      if (message.commandType === 'CastReq') return applyCastRejected(state, message, now);
+      if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipRejected(state, message, now);
+      if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
+      if (INVENTORY_VERB_COMMANDS.has(message.commandType)) return applyInventoryRejectedVisualState(state, message, now);
+      return state;
+    case 'skillTreeChip':
+      // Learn + Upgrade share the SkillTreePanel chip slot keyed by
+      // skill id — only one chip per row at a time. targetId is the
+      // failing skill id; without it we have nowhere to hang the
+      // chip, so we silently drop (defensive).
+      if (!message.targetId) return state;
+      return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.targetId]: message.reason } };
+    case 'chatInline':
+      return { ...state, lastChatError: { reason: message.reason, at: now } };
+    case 'silent':
+      return state;
   }
-  // §52 polish — chat rejections (empty text, rate limit, player
-  // gone) surface inline in the ChatPanel, NOT in the combat log
-  // since chat has its own UI surface.
-  if (message.commandType === 'ChatRequest') {
-    return { ...state, lastChatError: { reason: message.reason, at: now } };
-  }
-  return state;
 }
+
+export { COMMAND_REJECTED_ROUTE };
+export type { CommandRejectedSink };
 
 const CHAT_RING_BUFFER = 50;
 
