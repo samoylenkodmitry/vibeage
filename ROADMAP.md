@@ -830,7 +830,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add player tooltip details with public-safe fields only.
 - [ ] Add combat log filters.
 - [ ] Add chat tabs for near/all/system/party/guild if those channels exist.
-- [ ] Add system messages for level up, death, respawn, loot, learn skill, equip, unequip, and errors.
+- [~] Add system messages for level up, death, respawn, loot, learn skill, equip, unequip, and errors. (Combat log + chip channels carry: level up (PR — `applyPlayerLevelUpFeedback`), death (`applyPlayerDeathFeedback`/`applyEnemyDeathFeedback`), loot acquired (`applyLootAcquiredVisualState`), equip/unequip (`applyEquipmentChangeFeedback`), item used (`applyItemUsedVisualState`), errors via `CommandRejected` routing → `applyCastFailFromCommandRejected`/`applyEquipFailedFromCommandRejected`/`applyInventoryRejectedVisualState`/`applyQuestRejectedVisualState`/`learnSkillRejections` panel chip. Pending: respawn and learn-skill success log lines.)
 - [ ] Add quest tracker objective states.
 - [ ] Add minimap or compass if world navigation remains large.
 - [ ] Add navigation pin persistence per session.
