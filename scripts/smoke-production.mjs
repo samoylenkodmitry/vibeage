@@ -14,10 +14,27 @@ const client = new Client(endpoint, {
 let room;
 
 try {
-  room = await client.joinOrCreate('world', {
-    playerName,
-    clientProtocolVersion: 2,
-  });
+  // §52 polish — production world requires a signed session token
+  // since the lobby/auth wave (PR I). Pass it via the join options
+  // when SMOKE_SESSION_TOKEN is set; otherwise the SDK gets a
+  // "Rejected join: missing or invalid session token" error from
+  // colyseusRoomAdapter.
+  const sessionToken = process.env.SMOKE_SESSION_TOKEN;
+  try {
+    room = await client.joinOrCreate('world', {
+      playerName,
+      clientProtocolVersion: 2,
+      ...(sessionToken ? { sessionToken } : {}),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/session token/i.test(msg) && !sessionToken) {
+      throw new Error(
+        `${msg}\n  hint: production requires SMOKE_SESSION_TOKEN (a signed token from /api/auth/login or scripts/ci-session-token.mjs against the real auth secret).`,
+      );
+    }
+    throw err;
+  }
 
   const result = await waitForRoomSnapshot(room, timeoutMs);
   const aliveEnemies = Object.values(result.gameState.enemies ?? {})
