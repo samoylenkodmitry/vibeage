@@ -621,8 +621,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for pack aggro propagation.
 - [x] Add tests for inactive-zone enemies not ticking AI. (`tests/inactiveZoneAiSuppression.spec.ts` — pins `isEnemyInActiveRegion` returns false when the enemy's zone isn't in `state.zones.activeZoneIds`, and validates the tickPipeline gate complement so dormant zones don't quietly burn CPU after a future refactor.)
 - [ ] Add tests for respawn after death.
-- [ ] Add tests for loot generation on death.
-- [ ] Add tests for XP rewards on death.
+- [x] Add tests for loot generation on death. (`tests/targetDeathRewards.spec.ts` — `handleTargetDeath` calls `spawnLoot(state, outbound, enemy, killer)` for enemies with a lootTableId; threads the killer through so loot-rate spec passives can scale; graceful no-op when no lootTableId.)
+- [x] Add tests for XP rewards on death. (`tests/targetDeathRewards.spec.ts` — caster gains `baseExperienceValue` XP on kill; `playerUpdated` emit carries the delta + skill points; dead-caster path doesn't award (post-mortem credit guard); already-dead target doesn't double-credit; PvP kill awards no XP.)
 - [ ] Add enemy behavior telemetry: aggro count, attacks, kills, deaths, average lifespan, stuck count.
 
 ## 12. World, Regions, Streaming, and Sharding
