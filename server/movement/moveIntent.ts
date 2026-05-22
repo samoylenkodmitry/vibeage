@@ -5,7 +5,7 @@ import { calculateDir, distance, getPlayerSpeed, isValidPosition } from './world
 
 export type MoveIntentResult =
   | { ok: true; kind: 'move' | 'stop'; playerId: string; speed: number }
-  | { ok: false; reason: 'playerNotFound' | 'socketMismatch' | 'invalidTarget' | 'stunned'; playerId: string };
+  | { ok: false; reason: 'playerNotFound' | 'socketMismatch' | 'invalidTarget' | 'stunned' | 'dead'; playerId: string };
 
 export function applyMoveIntent(
   state: GameState,
@@ -22,6 +22,13 @@ export function applyMoveIntent(
 
   if (player.socketId !== socketId) {
     return { ok: false, reason: 'socketMismatch', playerId };
+  }
+
+  if (!player.isAlive) {
+    // Polish bug fix — a corpse must not start fresh motion. The
+    // respawn handler resets position/velocity; until then the
+    // dead player stays put.
+    return { ok: false, reason: 'dead', playerId };
   }
 
   if (isEntityStunned(player, now)) {
