@@ -754,7 +754,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add dependency vulnerability scanning. (`.github/dependabot.yml` — npm + github-actions + docker ecosystems are configured with monthly checks; Dependabot's security advisory channel surfaces CVEs even with `open-pull-requests-limit: 0` for routine version churn. Re-enable the limit when intentional dependency work resumes.)
 - [ ] Add secret scanning for full Git history if not already done.
 - [ ] Add security review checklist before production deploy.
-- [ ] Add safe handling for unhandled exceptions and rejections without duplicate handlers.
+- [x] Add safe handling for unhandled exceptions and rejections without duplicate handlers. (`server/server.ts` — single `unhandledRejection` handler that logs and `process.exit(1)`s so the container restarts on async failure; single `uncaughtException` handler that logs but does not exit (lets one bad sync tick handler not take the world down). De-duped — the prior file registered `unhandledRejection` twice, which would log the same rejection twice and double-stack the listener.)
 - [ ] Add graceful process shutdown path.
 - [ ] Add container user hardening if the Docker image currently runs as root.
 - [ ] Add Nginx security header checks for the frontend.
