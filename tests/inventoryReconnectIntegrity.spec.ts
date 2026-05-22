@@ -42,7 +42,7 @@ function makePlayerWithBag() {
         instanceId: 'inst-potion-stack',
         ownerId: player.id,
         templateId: 'health_potion',
-        location: { kind: 'bag' as const, slotIndex: 0 },
+        location: { kind: 'inventory' as const, slotIndex: 0 },
         count: 17,
         enchantLevel: 0,
         bound: false,
@@ -52,7 +52,7 @@ function makePlayerWithBag() {
         instanceId: 'inst-coin-stack',
         ownerId: player.id,
         templateId: 'gold_coin',
-        location: { kind: 'bag' as const, slotIndex: 3 },
+        location: { kind: 'inventory' as const, slotIndex: 3 },
         count: 250,
         enchantLevel: 0,
         bound: false,
@@ -112,8 +112,8 @@ describe('inventory reconnect integrity — bag order + stack counts', () => {
     const hydrated = roundtrip(makePlayerWithBag());
     const potion = hydrated.characterInventory?.items['inst-potion-stack'];
     const coin = hydrated.characterInventory?.items['inst-coin-stack'];
-    expect(potion?.location).toEqual({ kind: 'bag', slotIndex: 0 });
-    expect(coin?.location).toEqual({ kind: 'bag', slotIndex: 3 });
+    expect(potion?.location).toEqual({ kind: 'inventory', slotIndex: 0 });
+    expect(coin?.location).toEqual({ kind: 'inventory', slotIndex: 3 });
   });
 
   it('stack counts are preserved across reconnect (no silent loss or inflation)', () => {
