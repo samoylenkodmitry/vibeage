@@ -104,14 +104,86 @@ function emitEnemyAIEvent(
       x: event.x,
       z: event.z,
       radius: event.radius,
+      innerRadius: event.innerRadius,
+      directionRad: event.directionRad,
+      halfAngleDeg: event.halfAngleDeg,
       windUpMs: event.windUpMs,
       impactAt: event.impactAt,
     });
     return;
   }
 
+  if (event.type === 'summonPack') {
+    propagateSummonPack({
+      gameState,
+      spatialGrid,
+      outbound,
+      packId: event.packId,
+      targetId: event.targetId,
+      sourceEnemyId: event.sourceEnemyId,
+      radius: event.radius,
+      bossName: event.bossName,
+      source,
+    });
+    return;
+  }
+
   debug(LOG_CATEGORIES.ENEMY, event.message);
   emitPlayerUpdated(outbound, event.update);
+}
+
+type SummonPackArgs = {
+  gameState: EntityState;
+  spatialGrid: SpatialHashGrid;
+  outbound: OutboundEventSink;
+  packId: string;
+  targetId: string;
+  sourceEnemyId: string;
+  radius: number;
+  bossName: string;
+  source: Enemy;
+};
+
+/**
+ * Archwork #6 follow-up — Grakk's Warband Howl. Stronger than the
+ * `packAggro` rally: every alive packmate within `radius` is yanked
+ * onto `targetId` regardless of their current state (idle, patrol,
+ * mid-chase against a different player, mid-attack against a
+ * different player — all get re-targeted to the boss's target).
+ *
+ * Also broadcasts a server-wide chat line so the player has a clear
+ * "the warband heard him" signal alongside the visual telegraph.
+ */
+function propagateSummonPack({
+  gameState, spatialGrid, outbound, packId, targetId, sourceEnemyId, radius, bossName, source,
+}: SummonPackArgs): void {
+  const candidateIds = spatialGrid.queryCircle(
+    { x: source.position.x, z: source.position.z },
+    radius,
+  );
+  let summoned = 0;
+  for (const id of candidateIds) {
+    const enemy = gameState.enemies[id];
+    if (!enemy || enemy.packId !== packId || enemy.id === sourceEnemyId || !enemy.isAlive) {
+      continue;
+    }
+    enemy.targetId = targetId;
+    enemy.aiState = 'chasing';
+    enemy.chaseStartedAt = Date.now();
+    enemy.patrolTarget = undefined;
+    emitEnemyUpdated(outbound, { id: enemy.id, targetId: enemy.targetId, aiState: enemy.aiState });
+    summoned += 1;
+  }
+  if (summoned > 0) {
+    emitServerMessage(outbound, {
+      type: 'ChatBroadcast',
+      fromId: source.id,
+      fromName: bossName,
+      text: `${bossName} howls — ${summoned} warband${summoned === 1 ? '' : 'mate'} answer${summoned === 1 ? 's' : ''}!`,
+      scope: 'all',
+      ts: Date.now(),
+    });
+  }
 }
 
 type PackAggroArgs = {
