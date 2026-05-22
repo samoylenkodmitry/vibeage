@@ -785,7 +785,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add client telemetry hooks for load time, FPS, WebSocket reconnects, and major UI errors.
 - [ ] Add error boundary around the game UI.
 - [ ] Add fallback screen for WebGL unsupported or failed context.
-- [ ] Add fallback screen for server unavailable.
+- [x] Add fallback screen for server unavailable. (`apps/client/src/App.tsx` — when `state.connectionState !== 'online'` the HUD renders a `joining-overlay` carrying the reducer's `state.message`; `connectionRejected` / `disconnected` / `connecting` actions all populate it. Pinned by `tests/connectionStateReducer.spec.ts` for the state-machine side.)
 
 ## 17. Mobile UX, Input, and Accessibility
 
