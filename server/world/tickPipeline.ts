@@ -84,12 +84,27 @@ function runWorldTick(input: WorldTickRunnerOptions & {
   maintenanceTick: number;
   maintenanceEveryTicks: number;
 }): number {
-  runInputAndMovementPhase(input);
-  runEnemyAiPhase(input);
-  runCombatPhase(input);
-  const nextAccumulator = runSnapshotPhase(input);
-  runMaintenancePhase(input);
+  // §52 #12 follow-up — per-phase timing so the load test (and a
+  // future Grafana dashboard) can isolate which slice eats budget
+  // as the world scales. `runtimeMetrics.tickMs` already covers the
+  // whole tick; this decomposes the budget without doubling cost
+  // (a single `performance.now()` per phase, negligible).
+  timed('tick.phase.inputMovement', () => runInputAndMovementPhase(input));
+  timed('tick.phase.enemyAi', () => runEnemyAiPhase(input));
+  timed('tick.phase.combat', () => runCombatPhase(input));
+  let nextAccumulator = input.snapAccumulator;
+  timed('tick.phase.snapshot', () => { nextAccumulator = runSnapshotPhase(input); });
+  timed('tick.phase.maintenance', () => runMaintenancePhase(input));
   return nextAccumulator;
+}
+
+function timed(name: string, fn: () => void): void {
+  const startedAt = performance.now();
+  try {
+    fn();
+  } finally {
+    runtimeMetrics.recordHistogram(name, performance.now() - startedAt);
+  }
 }
 
 function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number }): void {
