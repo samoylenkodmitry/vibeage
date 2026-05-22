@@ -631,10 +631,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Define target maximum active enemies for the first production milestone.
 - [ ] Define target active regions per room.
 - [ ] Define target snapshot payload budget per client.
-- [ ] Add load tests with 10 simulated clients.
-- [ ] Add load tests with 50 simulated clients.
-- [ ] Add load tests with 100 simulated clients.
-- [ ] Add load tests with 200 simulated clients if that remains the room cap.
+- [x] Add load tests with 10 simulated clients. (`scripts/load-test-sweep.ts` — default `LOAD_SWEEP=10,50,100`. Single-config harness in `scripts/load-test-inprocess.ts` runs the full tick pipeline with N bots; `tests/loadTestSmoke.spec.ts` keeps the scaffold alive in CI.)
+- [x] Add load tests with 50 simulated clients. (Same — covered by the default sweep.)
+- [x] Add load tests with 100 simulated clients. (Same — covered by the default sweep.)
+- [x] Add load tests with 200 simulated clients if that remains the room cap. (Supported via `LOAD_SWEEP=10,50,100,200`. Not in the default to keep the sweep fast for routine runs; trivial opt-in.)
 - [ ] Add soak tests running for at least one hour.
 - [ ] Add reconnect churn tests.
 - [ ] Add region-transition churn tests.
@@ -642,12 +642,12 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add loot-heavy tests.
 - [ ] Add chat-heavy tests.
 - [ ] Add inventory/equipment-heavy tests.
-- [ ] Track CPU per tick during load tests.
-- [ ] Track memory during load tests.
-- [ ] Track outbound messages per second during load tests.
-- [ ] Track bytes per second per client during load tests.
-- [ ] Track initial snapshot size during load tests.
-- [ ] Track batch update size during load tests.
+- [x] Track CPU per tick during load tests. (`runtimeMetrics.tickMs` histogram + the §52 #12 per-phase histograms `tick.phase.inputMovement` / `enemyAi` / `combat` / `snapshot` / `maintenance` in `server/world/tickPipeline.ts`.)
+- [x] Track memory during load tests. (`scripts/load-test-inprocess.ts` reports `memory` delta in its JSON output — `process.memoryUsage()` before and after the loop; meaningful when run with `node --expose-gc`.)
+- [x] Track outbound messages per second during load tests. (`recordOutbound()` counter helpers in `server/transport/outboundEvents.ts` tally every emit by message type; load harness derives `ratesPerSecond`. Pinned by `tests/outboundMessageMetrics.spec.ts`.)
+- [x] Track bytes per second per client during load tests. (`snapshot.batchBytes` histogram captures per-tick wire payload; divided by tick rate × player count = per-client bytes/s. Reported in the load-test JSON output.)
+- [x] Track initial snapshot size during load tests. (`snapshot.bytes` histogram in `server/transport/clientSnapshot.ts` records each per-join snapshot length. Surfaced in the load-test JSON via the runtimeMetrics histogram dump.)
+- [x] Track batch update size during load tests. (`snapshot.batchSize` (count of updates) + `snapshot.batchBytes` (JSON length) histograms in `server/world/tickPipeline.ts`. Both included in the load-test JSON output.)
 - [ ] Track region visibility count per client during load tests.
 - [ ] Decide whether one Colyseus `world` room can meet the target.
 - [ ] Design shard strategy if one room cannot meet the target.
