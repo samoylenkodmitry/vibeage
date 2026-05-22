@@ -58,6 +58,7 @@ export const initialGameClientState: GameClientState = {
   learnSkillRejections: {},
   combatLog: [],
   chatLines: [],
+  lastChatError: null,
   starterProgress: createInitialStarterProgress(),
   worldPublicState: null,
   streamedRegionIds: [],
@@ -331,6 +332,12 @@ function routeCommandRejected(
   if ((message.commandType === 'LearnSkill' || message.commandType === 'UpgradeSkill') && message.targetId) {
     return { ...state, learnSkillRejections: { ...state.learnSkillRejections, [message.targetId]: message.reason } };
   }
+  // §52 polish — chat rejections (empty text, rate limit, player
+  // gone) surface inline in the ChatPanel, NOT in the combat log
+  // since chat has its own UI surface.
+  if (message.commandType === 'ChatRequest') {
+    return { ...state, lastChatError: { reason: message.reason, at: now } };
+  }
   return state;
 }
 
@@ -351,7 +358,12 @@ function appendChatLine(
   const sameScope = state.chatLines.filter((line) => line.scope === message.scope);
   const otherScope = state.chatLines.filter((line) => line.scope !== message.scope);
   const trimmedSameScope = [...sameScope, newLine].slice(-CHAT_RING_BUFFER);
-  return { ...state, chatLines: [...otherScope, ...trimmedSameScope] };
+  // §52 polish — a successful broadcast for the local player implies
+  // the previous attempt succeeded; clear any stale rejection chip.
+  // Other-player broadcasts leave the rejection alone (only the local
+  // player's send/error pair is meaningful for the chip).
+  const lastChatError = message.fromId === state.myPlayerId ? null : state.lastChatError;
+  return { ...state, chatLines: [...otherScope, ...trimmedSameScope], lastChatError };
 }
 
 function applyEquipmentUpdate(

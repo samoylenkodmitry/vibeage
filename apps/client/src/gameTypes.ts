@@ -207,6 +207,13 @@ export type GameClientState = {
   learnSkillRejections: Record<string, string>;
   combatLog: CombatLine[];
   chatLines: ChatLine[];
+  /**
+   * §52 polish — last `CommandRejected` for a ChatRequest. Renders
+   * inline in the ChatPanel under the input. Cleared when the next
+   * chat message broadcasts back (success) or the player closes
+   * + reopens the panel.
+   */
+  lastChatError: { reason: string; at: number } | null;
   starterProgress: StarterProgress;
   worldPublicState: WorldPublicState | null;
   streamedRegionIds: string[];

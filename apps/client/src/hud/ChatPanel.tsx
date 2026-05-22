@@ -6,6 +6,13 @@ type ChatPanelProps = {
   lines: ChatLine[];
   myPlayerId: string | null;
   onSendChat: (text: string, scope: ChatScopeView) => void;
+  /**
+   * §52 polish — server-side rejection reason for the last
+   * ChatRequest. Renders under the input form when set. Cleared
+   * automatically by the reducer when the next successful broadcast
+   * for this player lands.
+   */
+  lastError?: { reason: string; at: number } | null;
 };
 
 const TABS: { id: ChatScopeView; label: string }[] = [
@@ -13,7 +20,7 @@ const TABS: { id: ChatScopeView; label: string }[] = [
   { id: 'all', label: 'All' },
 ];
 
-export function ChatPanel({ lines, myPlayerId, onSendChat }: ChatPanelProps) {
+export function ChatPanel({ lines, myPlayerId, onSendChat, lastError }: ChatPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('chat');
   const [activeTab, setActiveTab] = useState<ChatScopeView>('near');
   const [draft, setDraft] = useState('');
@@ -81,6 +88,18 @@ export function ChatPanel({ lines, myPlayerId, onSendChat }: ChatPanelProps) {
         />
         <button type="submit" disabled={!draft.trim()}>Send</button>
       </form>
+      {lastError && (
+        <small className="chat-error" role="status">{chatErrorCopy(lastError.reason)}</small>
+      )}
     </section>
   );
+}
+
+function chatErrorCopy(reason: string): string {
+  switch (reason) {
+    case 'rateLimited': return 'Slow down — too many messages.';
+    case 'emptyText': return 'Type something first.';
+    case 'playerNotFound': return 'Reconnect — your session was lost.';
+    default: return `Chat failed: ${reason}`;
+  }
 }

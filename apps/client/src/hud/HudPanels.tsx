@@ -144,7 +144,12 @@ export function HudPanels({
         />
       )}
       {panels.chatOpen && onSendChat && (
-        <ChatPanel lines={state.chatLines} myPlayerId={state.myPlayerId} onSendChat={onSendChat} />
+        <ChatPanel
+          lines={state.chatLines}
+          myPlayerId={state.myPlayerId}
+          onSendChat={onSendChat}
+          lastError={state.lastChatError}
+        />
       )}
       {panels.wikiOpen && <WikiPanel onShowMarker={(pos) => onSetNavigationMarker?.(pos)} />}
       {panels.gmOpen && (
