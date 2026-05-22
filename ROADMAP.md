@@ -552,9 +552,9 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add starter skill rules per class and race.
 - [ ] Add tests for each starter class loadout.
 - [ ] Add tests for learning available skills.
-- [ ] Add tests for rejecting wrong-class skills.
-- [ ] Add tests for rejecting insufficient-level skills.
-- [ ] Add tests for rejecting missing-prerequisite skills.
+- [x] Add tests for rejecting wrong-class skills. (`tests/commandRejectedSkill.spec.ts:59` — pins `CommandRejected.reason === 'wrongClass'` when a player's class can't learn the skill.)
+- [x] Add tests for rejecting insufficient-level skills. (`tests/learnSkillRejection.spec.ts:29` — emits `CommandRejected{reason:'levelTooLow', targetId:<skillId>}`.)
+- [x] Add tests for rejecting missing-prerequisite skills. (`tests/learnSkillRejection.spec.ts:45` — emits `CommandRejected{reason:'missingPrereq'}` when level is fine but a prereq skill is unlocked.)
 - [x] Add tests for rejecting duplicate skill learn attempts. (`tests/learnSkillRejection.spec.ts` — duplicate-learn is idempotent: the server re-sends `SkillLearned` without a rejection, without decrementing SP or duplicating the unlock. Pinned so a future "make this a rejection" decision is deliberate, not accidental.)
 - [ ] Add tests for skill shortcut persistence.
 - [ ] Add tests for skill shortcut validation after class changes.
