@@ -44,7 +44,16 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
     }),
     sendMoveIntent: api.sendMoveIntent,
     selectFirstEnemy: () => {
-      const enemy = Object.values(state.enemies).find((candidate) => candidate.isAlive);
+      // Archwork item #1 — skip mini-bosses. The starter zone spawns
+      // Grakk (level-5, 600 HP, 27-47 damage hits) as its mini-boss,
+      // and `spawnInitialEnemies` inserts the mini-boss first per
+      // zone — so a naïve "first alive enemy" picks the toughest
+      // mob in the zone. A level-1 mage test player dies on approach
+      // before a cast can land, and the combat-flow E2E times out
+      // waiting for a damage visual event. Filter mini-bosses out so
+      // the test exercises the cast pipeline against a normal mob.
+      const enemy = Object.values(state.enemies)
+        .find((candidate) => candidate.isAlive && !candidate.isMiniBoss);
       api.selectTarget(enemy?.id ?? null);
       return enemy?.id ?? null;
     },
