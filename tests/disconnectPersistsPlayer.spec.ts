@@ -19,14 +19,21 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
  * production-mode contract.
  */
 
+type PersistPlayerCall = [player: { id: string; level: number; [key: string]: unknown }];
+type RecordServerEventCall = [eventType: string, playerId: string | null, data: unknown];
+type MockWithCalls<C extends unknown[]> = ReturnType<typeof vi.fn> & {
+  mock: { calls: C[] };
+};
+
 const persistenceMock = vi.hoisted(() => ({
-  persistPlayer: vi.fn(async (_player: unknown): Promise<void> => undefined),
-  recordServerEvent: vi.fn(
-    async (_eventType: string, _playerId: string | null, _data: unknown): Promise<void> => undefined,
-  ),
+  persistPlayer: vi.fn(),
+  recordServerEvent: vi.fn(),
   isPersistenceDisabled: vi.fn(() => false),
-  upsertPlayerSession: vi.fn(async (): Promise<{ id: string }> => ({ id: 'pid-1' })),
+  upsertPlayerSession: vi.fn(),
 }));
+
+const typedPersistPlayer = persistenceMock.persistPlayer as unknown as MockWithCalls<PersistPlayerCall>;
+const typedRecordServerEvent = persistenceMock.recordServerEvent as unknown as MockWithCalls<RecordServerEventCall>;
 
 vi.mock('../server/persistence', () => persistenceMock);
 
@@ -56,8 +63,8 @@ describe('removePlayerSessionBySocketId — disconnect persistence', () => {
     // persistPlayer must have been called exactly once with the
     // *full* player object — not a stripped projection — so the
     // persistence layer sees the latest progression.
-    expect(persistenceMock.persistPlayer).toHaveBeenCalledTimes(1);
-    const argv = persistenceMock.persistPlayer.mock.calls[0][0] as { id: string; level: number };
+    expect(typedPersistPlayer).toHaveBeenCalledTimes(1);
+    const argv = typedPersistPlayer.mock.calls[0][0] as { id: string; level: number };
     expect(argv.id).toBe(player.id);
     expect(argv.level).toBe(7);
     // …and the player IS gone from state afterward.
@@ -72,8 +79,8 @@ describe('removePlayerSessionBySocketId — disconnect persistence', () => {
 
     await removePlayerSessionBySocketId(state, spatial, 'socket-2');
 
-    expect(persistenceMock.recordServerEvent).toHaveBeenCalledTimes(1);
-    const [eventType, playerId] = persistenceMock.recordServerEvent.mock.calls[0];
+    expect(typedRecordServerEvent).toHaveBeenCalledTimes(1);
+    const [eventType, playerId] = typedRecordServerEvent.mock.calls[0];
     expect(eventType).toBe('player_disconnect');
     expect(playerId).toBe(player.id);
   });
@@ -83,7 +90,7 @@ describe('removePlayerSessionBySocketId — disconnect persistence', () => {
     const spatial = new SpatialHashGrid();
     const player = createTransientPlayer('socket-3', 'BoomTester');
     upsertActivePlayerSession(state, spatial, player);
-    persistenceMock.persistPlayer.mockRejectedValueOnce(new Error('db down'));
+    typedPersistPlayer.mockRejectedValueOnce(new Error('db down'));
 
     // Should not throw, and the player should still leave the world
     // — otherwise a transient DB outage would pile up zombie players
@@ -101,7 +108,7 @@ describe('removePlayerSessionBySocketId — disconnect persistence', () => {
     const removed = await removePlayerSessionBySocketId(state, spatial, 'ghost-socket');
 
     expect(removed).toBeNull();
-    expect(persistenceMock.persistPlayer).not.toHaveBeenCalled();
-    expect(persistenceMock.recordServerEvent).not.toHaveBeenCalled();
+    expect(typedPersistPlayer).not.toHaveBeenCalled();
+    expect(typedRecordServerEvent).not.toHaveBeenCalled();
   });
 });
