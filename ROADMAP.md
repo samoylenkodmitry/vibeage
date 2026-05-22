@@ -751,7 +751,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add admin permission model.
 - [ ] Add audit logs for admin actions.
 - [ ] Add dev-command access control beyond environment flag if any admin tools exist online.
-- [ ] Add dependency vulnerability scanning.
+- [x] Add dependency vulnerability scanning. (`.github/dependabot.yml` — npm + github-actions + docker ecosystems are configured with monthly checks; Dependabot's security advisory channel surfaces CVEs even with `open-pull-requests-limit: 0` for routine version churn. Re-enable the limit when intentional dependency work resumes.)
 - [ ] Add secret scanning for full Git history if not already done.
 - [ ] Add security review checklist before production deploy.
 - [ ] Add safe handling for unhandled exceptions and rejections without duplicate handlers.
