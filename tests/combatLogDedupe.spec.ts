@@ -24,7 +24,7 @@ function castReject(seq: number) {
   return {
     type: 'serverMessage' as const,
     now: 100 + seq,
-    message: { type: 'CommandRejected' as const, commandType: 'CastReq', reason: 'cooldown', requestId: seq },
+    message: { type: 'CommandRejected' as const, commandType: 'CastReq' as const, reason: 'cooldown', requestId: seq },
   };
 }
 

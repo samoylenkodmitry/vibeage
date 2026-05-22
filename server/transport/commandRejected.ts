@@ -1,5 +1,6 @@
 import type { DirectMessageSink } from './outboundEvents.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import type { RejectableCommand } from '../../packages/protocol/commandRejections.js';
 
 /**
  * §4/§46-slice-5 — shared helper for the structured `CommandRejected`
@@ -20,7 +21,10 @@ import { runtimeMetrics } from '../observability/runtimeMetrics.js';
  */
 export function sendCommandRejected(
   direct: DirectMessageSink,
-  commandType: string,
+  // Archwork #3 — typed registry of rejectable commands. A typo at
+  // the call site is now a TS error instead of a runtime
+  // "unknown rejection" with an unbounded metrics label.
+  commandType: RejectableCommand,
   reason: string,
   clientSeq?: number,
   /**

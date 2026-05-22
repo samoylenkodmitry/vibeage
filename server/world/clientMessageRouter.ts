@@ -18,6 +18,7 @@ import { onCraftItem } from '../inventory/craftRecipe.js';
 import { onDropItem } from '../inventory/dropItem.js';
 import { onDestroyItem } from '../inventory/destroyItem.js';
 import { sendCommandRejected } from '../transport/commandRejected.js';
+import type { RejectableCommand } from '../../packages/protocol/commandRejections.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
@@ -58,7 +59,7 @@ type WorldClient = SocketMessageTarget & { id: string };
  * combat log. User-initiated, low-frequency commands get the
  * envelope so the UI can surface "slow down" feedback.
  */
-const RATE_LIMIT_FEEDBACK_COMMANDS: ReadonlySet<string> = new Set([
+const RATE_LIMIT_FEEDBACK_COMMANDS: ReadonlySet<RejectableCommand> = new Set<RejectableCommand>([
   'ChatRequest',
   'BuyFromVendor', 'SellToVendor',
   'CraftItem', 'UseItem', 'DropItem', 'DestroyItem',
@@ -86,8 +87,11 @@ export function handleClientMessage(
     // feedback. Movement / cast intents stay silent because they're
     // client-initiated at high frequency; a rate-limit drop is normal
     // there and would spam the combat log.
-    if (RATE_LIMIT_FEEDBACK_COMMANDS.has(msg.type)) {
-      sendCommandRejected(direct, msg.type, 'rateLimited',
+    // RATE_LIMIT_FEEDBACK_COMMANDS is typed as a Set of
+    // RejectableCommand so the narrow lookup below also narrows
+    // msg.type for the emit helper.
+    if ((RATE_LIMIT_FEEDBACK_COMMANDS as ReadonlySet<string>).has(msg.type)) {
+      sendCommandRejected(direct, msg.type as RejectableCommand, 'rateLimited',
         (msg as { clientSeq?: number }).clientSeq);
     }
     return;
@@ -260,7 +264,9 @@ function onQuestVerb(
   socket: WorldClient,
   direct: DirectMessageSink,
   state: GameState,
-  msg: { type: string; questId: string },
+  // Archwork #3 — quest verbs are the four rejectable types; the
+  // typed parameter keeps the rejection emit narrow.
+  msg: { type: 'AcceptQuest' | 'CancelQuest' | 'AdvanceQuest' | 'ClaimQuestReward'; questId: string },
   outbound: OutboundEventSink,
   apply: (player: PlayerState, questId: string, outbound: OutboundEventSink) => boolean,
 ): void {

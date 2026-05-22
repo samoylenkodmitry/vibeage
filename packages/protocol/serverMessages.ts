@@ -19,6 +19,7 @@ import {
   type VecXZ,
 } from './common.js';
 import { lootPickupSchema, type LootPickup } from './clientMessages.js';
+import { rejectableCommandSchema, type RejectableCommand } from './commandRejections.js';
 import { starterProgressStateSchema, type StarterProgressState } from './starterProgress.js';
 
 export const posSnapSchema = z.object({
@@ -219,8 +220,15 @@ export const commandRejectedSchema = z.object({
   type: z.literal('CommandRejected'),
   /** Client's `clientSeq` for the offending command, when set. */
   requestId: z.number().optional(),
-  /** The client message `type` the rejection is for (e.g. 'DropItem'). */
-  commandType: z.string(),
+  /**
+   * The client message `type` the rejection is for. Archwork #3 —
+   * was `z.string()`, now constrained to the rejectable-command
+   * registry in `commandRejections.ts`. A typo in a handler's
+   * commandType is now a Zod parse failure on the wire and a TS
+   * error at the emit site (once the helper is typed in the
+   * sub-work 3 follow-up).
+   */
+  commandType: rejectableCommandSchema,
   /** Short stable enum-ish string the client can branch on. */
   reason: z.string(),
   /** Optional one-line human-readable detail. Safe for direct render. */
@@ -432,11 +440,12 @@ export type LearnSkillFailedReason = z.infer<typeof learnSkillFailedReasonSchema
 // §46/slice-5 — structured rejection envelope. See schema for the
 // contract; consumers route on `requestId` (the client's matching
 // `clientSeq`) to surface per-request rejection UX without parsing
-// log lines.
+// log lines. Archwork #3 — `commandType` is now constrained to
+// `RejectableCommand` so a typo at the emit site is a compile error.
 export type CommandRejected = {
   type: 'CommandRejected';
   requestId?: number;
-  commandType: string;
+  commandType: RejectableCommand;
   reason: string;
   detail?: string;
   /** §52 #1 — optional subject id (skill / item / vendor / quest …). */

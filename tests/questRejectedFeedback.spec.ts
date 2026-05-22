@@ -24,7 +24,8 @@ function emptyState(): GameClientState {
   } as unknown as GameClientState;
 }
 
-function rejectMsg(commandType: string, reason: string): ServerMessage & { type: 'CommandRejected' } {
+type RejectMsg = ServerMessage & { type: 'CommandRejected' };
+function rejectMsg(commandType: RejectMsg['commandType'], reason: string): RejectMsg {
   return { type: 'CommandRejected', commandType, reason };
 }
 
