@@ -246,11 +246,7 @@ export function respawnDeadEnemies(
       continue;
     }
 
-    enemy.isAlive = true;
-    enemy.health = enemy.maxHealth;
-    enemy.position = { ...enemy.spawnPosition };
-    enemy.targetId = null;
-    enemy.statusEffects = [];
+    resetEnemyForRespawn(enemy);
 
     spatial.insert(enemyId, { x: enemy.position.x, z: enemy.position.z });
     emitEnemyUpdated(outbound, enemy);
@@ -258,4 +254,69 @@ export function respawnDeadEnemies(
   }
 
   return respawned;
+}
+
+/**
+ * Archwork item #2 — explicit full reset for a respawning enemy.
+ *
+ * The prior implementation only reset isAlive / health / position /
+ * targetId / statusEffects. Everything else carried through to the
+ * new life:
+ *
+ *  - `deathTimeTs` stayed at the old kill time, so the next death
+ *    test (now - deathTimeTs >= delay) was technically true the
+ *    moment the enemy died (a no-op for the loop, but a footgun).
+ *  - `aiState` could be 'chasing' / 'attacking' / 'returning' at
+ *    death, so the new life started mid-state.
+ *  - velocity could be non-zero, so a respawned mob would drift.
+ *  - chase / patrol bookkeeping (chaseStartedAt, aggroSuppressedUntilTs,
+ *    patrolTarget, patrolWaitUntilTs) stayed stale.
+ *  - mini-boss enrage / phase-shift / mid-signature state carried over,
+ *    so a boss killed mid-enrage respawned still enraged with a
+ *    pre-broken signature timer and elevated attackDamage / movementSpeed.
+ *
+ * Doing the reset explicitly here (instead of recreating the enemy
+ * from createEnemy) preserves the same instance identity so the
+ * spatial grid + scoped snapshots keep their references; this is
+ * only a state clear, not a re-spawn of a new entity.
+ */
+function resetEnemyForRespawn(enemy: Enemy): void {
+  enemy.isAlive = true;
+  enemy.health = enemy.maxHealth;
+  enemy.position = { ...enemy.spawnPosition };
+  enemy.statusEffects = [];
+
+  // Combat targeting / AI state.
+  enemy.targetId = null;
+  enemy.aiState = 'idle';
+  enemy.velocity = { x: 0, z: 0 };
+  enemy.deathTimeTs = undefined;
+  enemy.lastAttackTime = 0;
+  enemy.attackCooldown = undefined;
+
+  // Chase / patrol bookkeeping.
+  enemy.chaseStartedAt = undefined;
+  enemy.aggroSuppressedUntilTs = undefined;
+  enemy.patrolTarget = undefined;
+  enemy.patrolWaitUntilTs = undefined;
+  enemy.combatStartedTs = undefined;
+
+  // Mini-boss lifecycle: enrage / phase / signature all clear, and
+  // attackDamage / movementSpeed restore to the values captured at
+  // spawn so the next life starts clean. baseAttackDamage /
+  // baseMovementSpeed are only populated for mini-bosses; the
+  // optional-chain falls through to a no-op for normal mobs.
+  if (enemy.baseAttackDamage !== undefined) {
+    enemy.attackDamage = enemy.baseAttackDamage;
+  }
+  if (enemy.baseMovementSpeed !== undefined) {
+    enemy.movementSpeed = enemy.baseMovementSpeed;
+  }
+  enemy.enraged = undefined;
+  enemy.phaseShifted = undefined;
+  enemy.signatureCastingUntilTs = undefined;
+  enemy.signatureCastTargetX = undefined;
+  enemy.signatureCastTargetZ = undefined;
+  enemy.signatureCastRadius = undefined;
+  enemy.nextSignatureReadyTs = undefined;
 }
