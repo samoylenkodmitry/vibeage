@@ -456,10 +456,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add atomic transaction tests for item use during concurrent equip or pickup attempts.
 - [ ] Add inventory capacity rules for slots and weight together.
 - [ ] Add equipment requirement checks for race, class, level, grade, hand usage, and body part.
-- [ ] Add item stat sanity validation in `content:check`.
+- [x] Add item stat sanity validation in `content:check`. (`tests/contentIntegrity.spec.ts` — "content integrity: stat sanity" describe: every equippable item has positive weight; every weapon has at least one positive damage stat; every armor piece (non-jewelry) has at least one positive defense stat; every mob template has positive health/damage/speed/aggro/range; every skill has positive levelRequired + description + a non-empty effects[] for non-passives.)
 - [ ] Add item visual metadata validation in `content:check`.
 - [ ] Add set bonus validation in `content:check`.
-- [ ] Add loot table validation that every referenced item template exists.
+- [x] Add loot table validation that every referenced item template exists. (`tests/contentIntegrity.spec.ts:90` — "every LOOT_TABLES drop resolves to a real item" walks every drop in every table; recipes + equipment sets + starter loot get the same treatment in adjacent cases.)
 - [ ] Add economy flags for no-drop, no-trade, quest item, bound-on-pickup, bound-on-equip, and unique-equipped.
 - [ ] Add item deletion audit logs.
 - [ ] Add item creation audit logs.
@@ -523,7 +523,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add effect source tracking for ownership, threat, and combat logs.
 - [ ] Add status-effect snapshots that avoid leaking hidden entity IDs.
 - [ ] Add combat logs that distinguish raw damage, absorbed damage, resisted damage, crits, misses, heals, and kills.
-- [ ] Add tests for each skill effect type currently present in content.
+- [x] Add tests for each skill effect type currently present in content. (Per-effect-type coverage: damage (combat tests broadly), heal (`tests/healsInCombatLog.spec.ts`), burn/poison/dot (`tests/dotTicker.spec.ts`), slow (`tests/enemySlowEffect.spec.ts`, `tests/playerSpeedFromRunSpeed.spec.ts`), speed_boost (`tests/playerSpeedFromRunSpeed.spec.ts`), stun (`tests/playerStunBlocks.spec.ts`), freeze + root (`tests/freezeRootAsStun.spec.ts`). `tests/skillSpecAudit.spec.ts` audits every SkillEffectType for "implemented or explicitly unimplemented" so new effect types can't slip in untested.)
 - [x] Add tests for simultaneous effects on one target. (`tests/dotTicker.spec.ts` — burn + poison applied by two different sources both tick in the same call; player health falls by their sum; neither effect consumes the other.)
 - [x] Add tests for shield absorption order.
 - [x] Add tests for effect expiration during combat.
