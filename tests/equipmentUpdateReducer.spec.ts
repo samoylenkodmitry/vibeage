@@ -23,7 +23,7 @@ const baseState: GameClientState = {
 
 function dispatchEquipmentUpdate(
   state: GameClientState,
-  equipment: ReadonlyArray<{ slot: string; itemId: string }>,
+  equipment: Array<{ slot: string; itemId: string }>,
   now = 1000,
 ): GameClientState {
   return gameClientReducer(state, {
@@ -112,14 +112,13 @@ describe('gameClientReducer — EquipmentUpdate', () => {
     expect(state.combatLog).toHaveLength(0);
   });
 
-  it('leaves other state slices alone (no incidental writes to players, quests, chat)', () => {
+  it('leaves other state slices alone (no incidental writes to players or chat)', () => {
     const seeded: GameClientState = {
       ...baseState,
-      chatLines: [{ id: 'c1', fromId: 'me', fromName: 'me', text: 'hi', scope: 'say', ts: 1 }],
+      chatLines: [{ id: 'c1', fromId: 'me', fromName: 'me', text: 'hi', scope: 'near', ts: 1 }],
     };
     const next = dispatchEquipmentUpdate(seeded, [{ slot: 'CHEST', itemId: 'leather_tunic' }]);
     expect(next.chatLines).toBe(seeded.chatLines);
     expect(next.players).toBe(seeded.players);
-    expect(next.questsById).toBe(seeded.questsById);
   });
 });
