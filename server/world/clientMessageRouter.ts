@@ -646,7 +646,7 @@ function incrementStaleMovementCounter(reason: StaleIntentReason): void {
 }
 
 function warnRejectedMoveIntent(
-  reason: 'playerNotFound' | 'socketMismatch' | 'invalidTarget' | 'stunned',
+  reason: 'playerNotFound' | 'socketMismatch' | 'invalidTarget' | 'stunned' | 'dead',
   playerId: string,
   targetPos: Extract<ClientMessage, { type: 'MoveIntent' }>['targetPos'],
 ): void {
@@ -658,6 +658,12 @@ function warnRejectedMoveIntent(
   if (reason === 'stunned') {
     runtimeMetrics.increment('movement.rejectedStunned');
     debug(LOG_CATEGORIES.MOVEMENT, `MoveIntent rejected: player ${playerId} is stunned`);
+    return;
+  }
+
+  if (reason === 'dead') {
+    runtimeMetrics.increment('movement.rejectedDead');
+    debug(LOG_CATEGORIES.MOVEMENT, `MoveIntent rejected: player ${playerId} is dead`);
     return;
   }
 

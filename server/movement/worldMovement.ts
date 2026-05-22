@@ -82,7 +82,11 @@ export function advanceAll(
   outbound?: OutboundEventSink,
 ): void {
   for (const player of Object.values(state.players)) {
-    if (player.movement?.isMoving && player.movement?.targetPos) {
+    // Polish bug fix — dead player's in-flight motion freezes at the
+    // death position; without this gate a player who died mid-sprint
+    // kept gliding toward their old target until they reached it,
+    // dirtying snapshot deltas and confusing spatial queries.
+    if (player.isAlive && player.movement?.isMoving && player.movement?.targetPos) {
       advancePlayerPosition(player, spatial, deltaTimeMs, now);
     }
     // PR LL — emit when the prune actually changed the list, so the
