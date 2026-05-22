@@ -846,14 +846,14 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 - [ ] Add content schema validation for classes.
 - [ ] Add content schema validation for races.
-- [ ] Add content schema validation for skills.
-- [ ] Add content schema validation for items.
-- [ ] Add content schema validation for equipment specs.
-- [ ] Add content schema validation for loot tables.
-- [ ] Add content schema validation for enemies.
-- [ ] Add content schema validation for zones.
-- [ ] Add content schema validation for roads, rivers, passes, landmarks, and biome data.
-- [ ] Add content schema validation for quests.
+- [x] Add content schema validation for skills. (`packages/content/worldContentValidation.ts` — Zod `SkillSchema`; `tests/contentIntegrity.spec.ts` extends with stat-sanity + shape checks (levelRequired ≥ 1, non-empty name/description, non-passives have non-empty effects[]).)
+- [x] Add content schema validation for items. (`worldContentValidation.ts` Zod `ItemSchema`; `contentIntegrity.spec.ts` checks every item template, equippable-with-allowedSlots, stackable-with-maxStack, consumable healAmount/manaAmount.)
+- [x] Add content schema validation for equipment specs. (`contentIntegrity.spec.ts` — every item with `setId` points to a registered EquipmentSet; every equippable item declares non-empty `allowedSlots`; `tests/equipmentTypes.spec.ts` pins the grade-min-level matrix.)
+- [x] Add content schema validation for loot tables. (`contentIntegrity.spec.ts` — every drop chance ∈ (0,1], quantity.min ≤ quantity.max, both positive; every drop's itemId resolves to a real item template.)
+- [x] Add content schema validation for enemies. (`contentIntegrity.spec.ts` — every mob template has positive health/damage/movementSpeed/aggroRadius/attackRange + non-empty displayName.)
+- [x] Add content schema validation for zones. (`worldContentValidation.ts` Zod `ZoneSchema`; `contentIntegrity.spec.ts` — every zone has at least one mob, minLevel > 0, minLevel ≤ maxLevel.)
+- [x] Add content schema validation for roads, rivers, passes, landmarks, and biome data. (`worldContentValidation.ts` — Zod `WorldPointSchema`, `TravelLaneSchema`, `LandmarkSchema` validate the worldFeatures registries.)
+- [x] Add content schema validation for quests. (`contentIntegrity.spec.ts` — "every quest references real NPCs, skills, items, mobs, bosses" walks every stage's objective and every reward, asserting the referenced ids resolve to the right registry.)
 - [ ] Add validation that every skill icon exists or has fallback.
 - [ ] Add validation that every item icon exists or has fallback.
 - [ ] Add validation that every enemy visual exists or has fallback.
