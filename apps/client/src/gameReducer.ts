@@ -36,6 +36,7 @@ import {
   applyOtherPlayerLootPickupVisualState,
   applyPlayerDeathFeedback,
   applyPlayerLevelUpFeedback,
+  applyPlayerRespawnFeedback,
   pruneClientVisualState,
 } from './clientVisualState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
@@ -173,7 +174,8 @@ function updatePlayer(
     ? normalizeClientStarterProgress(player.starterProgress ?? state.starterProgress, player)
     : state.starterProgress;
   const withDeathLog = applyPlayerDeathFeedback(state, update.id, current.name, current.isAlive, player.isAlive, now);
-  const withLevelUpLog = applyPlayerLevelUpFeedback(withDeathLog, update.id, current.level, player.level, now);
+  const withRespawnLog = applyPlayerRespawnFeedback(withDeathLog, update.id, current.name, current.isAlive, player.isAlive, now);
+  const withLevelUpLog = applyPlayerLevelUpFeedback(withRespawnLog, update.id, current.level, player.level, now);
   // §52 polish — a successful UpgradeSkill arrives as a
   // `playerUpdated.skillLevels` delta (no dedicated SkillUpgraded
   // message). Mirror the SkillLearned → clear path so the
