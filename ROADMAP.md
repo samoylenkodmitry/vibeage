@@ -2175,36 +2175,21 @@ contiguous list so the audit doesn't fragment.
   Obtainability whitelist intentionally lists known no-source
   items (`gold_coin`, `ancient_tome`, etc.) — re-evaluating that
   on each pass is a follow-up wiki / content task.
-- [~] **Inventory migration — single source of truth on disk.**
-  Persistence layer now only writes / reads `character_inventory`;
-  the legacy `inventory` jsonb column is left in the schema for
-  compat but persisted as `[]` and ignored on hydrate. Mutators
-  already went through `addItemsToPlayer` / `removeItemsFromPlayer`
-  (which keep `player.inventory` and `player.characterInventory`
-  in lockstep), so readers (vendor / craft / quest / item-use /
-  client panels) continue working off the projected legacy shape
-  while the aggregate is the truth. Outstanding follow-ups:
+- [x] **Inventory migration — single source of truth on disk + wire.**
+  Persistence + runtime + wire all use `characterInventory` now.
   - [x] Drop the `inventory` column entirely. Migration 011
-    runs `ALTER TABLE players DROP COLUMN IF EXISTS inventory`;
-    `PlayersTable` type, `PERSISTED_PLAYER_COLUMNS`, the
-    persistence write-path, and the restore-compat check all
-    stopped referencing it. Tests that used to seed legacy
-    inventory data now build a `CharacterInventory` aggregate.
-    `players.character_inventory` is the only inventory column
-    on disk.
-  - [~] Stop maintaining the in-memory `player.inventory` wire
-    projection. Server code now reads from `characterInventory`
-    everywhere (vendor, craft, quest, item use, snapshot emit);
-    `player.inventory` is downgraded to a deprecated wire-shape
-    mirror tagged transient on the persistence policy. Mutators
-    still call `syncLegacyInventory` after every aggregate change
-    so tests + the InventoryUpdate wire emitter keep observing
-    the slot view. Final removal needs a real snapshot boundary
-    that computes the projection on the way out — filed as a
-    follow-up.
-  - [ ] Migrate the protocol's `inventoryUpdateMsg` to ship the
-    full aggregate (or a typed delta) instead of the flat-bag
-    slot array.
+    runs `ALTER TABLE players DROP COLUMN IF EXISTS inventory`.
+  - [x] Stop maintaining the in-memory `player.inventory` wire
+    projection. PR #357 deleted the field from `PlayerState`;
+    `PlayerUpdate.inventory` remains as the wire-only projection
+    that `flattenInventoryToSlots` builds on demand at every
+    `InventoryUpdate` / `playerUpdated` emit site. No stored
+    mirror anywhere.
+  - [x] Migrate the protocol's `inventoryUpdateMsg` to ship the
+    aggregate shape. PR #360 added explicit `slotIndex` +
+    `instanceId` per slot so the wire mirrors the aggregate's
+    per-instance identity; symmetric server-side fix to
+    `instanceAtSlot` so sparse bags render in the right cells.
 - [x] **Restore-compatibility check is stale.** Extended
   `scripts/check-restored-postgres-compatibility.sql` to require
   the `accounts` table + every column added by migrations 002
