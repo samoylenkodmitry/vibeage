@@ -179,3 +179,36 @@ Rollback only after the user asks:
 - Pull review comments into `ROADMAP.md` only if they still apply to current code.
 - For review fixes, prefer a small patch and focused tests over broad rewrites.
 - If a comment points at stale code, document why it is stale instead of changing unrelated runtime paths.
+
+## Surfacing Silent Server Rejections (§52 pattern)
+
+When a user-triggered action silently fails (the button does nothing,
+the panel chip doesn't update, the chat doesn't send), the fix is
+almost always to wire `CommandRejected` from the server through to
+a client UI surface. The pattern that's been validated across many
+PRs:
+
+1. **Server**: replace `return` / `return false` in the handler
+   with `sendCommandRejected(direct, '<CommandType>', '<reason>', clientSeq, targetId?)`.
+   Pick the most informative reason; pass `targetId` (skill id,
+   item id, etc.) when the rejection is per-subject.
+2. **Client reducer**: route the envelope in `routeCommandRejected`
+   (in `apps/client/src/gameReducer.ts`). Either append a friendly
+   combat-log line (`applyXxxRejectedVisualState`) or update a
+   panel state slot keyed by `targetId` (`learnSkillRejections`,
+   `lastChatError`).
+3. **Client UI**: render the friendly copy. Add a `<verb>RejectCopy`
+   helper that maps `(commandType, reason)` to a sentence; fall
+   through to the raw reason so future server enums still surface.
+4. **Tests**:
+   - Server-side: pin the envelope shape + `targetId` echo + the
+     no-clientSeq fallback.
+   - Reducer-side: pin the state write + the "unrelated commandType"
+     no-op guard.
+   - UI copy: one case per known (type, reason) pair + an
+     unknown-fall-through case.
+5. **Rate-limit drops**: only emit `CommandRejected` for low-frequency
+   user-intent commands (see `RATE_LIMIT_FEEDBACK_COMMANDS` in
+   `server/world/clientMessageRouter.ts`). Movement / cast / loot
+   intents stay silent on rate-limit drop — they're high-frequency
+   client-initiated, and the drop is normal there.
