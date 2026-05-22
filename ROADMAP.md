@@ -736,7 +736,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add account/session authentication before durable player ownership matters.
 - [ ] Add CSRF policy for any HTTP endpoints that mutate state.
 - [ ] Add origin checks for WebSocket and matchmaker paths.
-- [ ] Add production validation for allowed origins.
+- [x] Add production validation for allowed origins. (`server/productionEnvAssertions.ts` — `CORS_ORIGINS` MUST be set to a non-empty allowlist in production, and `ALLOW_MISSING_ORIGIN=1` is forbidden. The server hard-fails at startup if either guardrail trips, preventing accidental dev escape hatches in prod.)
 - [ ] Add maximum message size per protocol type.
 - [x] Add rate limits per socket. (`server/world/rateLimiter.ts` — per-socket per-bucket token-bucket limiter wired into `clientMessageRouter.ts`; metrics `rateLimit.dropped.<msgType>` + `rateLimit.dropped.total`; §52 polish surfaces drops for user-intent commands via `CommandRejected{reason:'rateLimited'}`. Tests: `tests/rateLimiter.spec.ts`, `tests/rateLimitRejectionFeedback.spec.ts`.)
 - [ ] Add rate limits per account.
