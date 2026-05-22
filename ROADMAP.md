@@ -882,7 +882,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add quest acceptance rules.
 - [ ] Add quest completion rules.
 - [ ] Add quest reward claiming rules.
-- [ ] Add quest rollback protection against duplicate rewards.
+- [x] Add quest rollback protection against duplicate rewards. (`server/players/playerQuests.ts:applyClaimQuestReward` removes the quest from `state.active` and pushes to `state.completed` atomically; a replayed `ClaimQuestReward` finds no entry and returns `false` without granting XP/gold/items. Pinned by `tests/playerQuests.spec.ts` — "a second claim of the same quest does NOT double-grant rewards".)
 - [ ] Add tests for starter path progress.
 - [ ] Add tests for kill objectives.
 - [ ] Add tests for collect objectives.
