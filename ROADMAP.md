@@ -767,7 +767,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Normalize world public state separately from gameplay state.
 - [ ] Split `gameReducer` into domain reducers: connection, entities, combat visuals, inventory, equipment, chat, world, progression.
 - [ ] Add reducer tests for every server message type.
-- [ ] Add reducer tests for snapshot resync.
+- [x] Add reducer tests for snapshot resync. (`tests/snapshotResyncReducer.spec.ts` pins the full-snapshot replace path: stale entities pruned, new entities appear, selectedTargetId survives or clears based on snapshot contents, inventory + maxInventorySlots pulled from snapshot's own player record, streamedRegionIds derived from zone maps, empty snapshot wipes safely, connectionState/myPlayerId preserved.)
 - [ ] Add reducer tests for region visibility changes.
 - [x] Add reducer tests for equipment update. (`tests/equipmentUpdateReducer.spec.ts` pins the `EquipmentUpdate` dispatch end-to-end: slot map replace, idempotency, empty payload, first-payload silence, and "Equipped X" combat-log emission. Caught and fixed a real bug — the reducer composed `applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), …)` so the diff compared the new payload against itself; swapping the order restored the feedback line.)
 - [x] Add reducer tests for inventory update after equip/unequip. (`tests/inventoryUpdateReducer.spec.ts` pins the dispatch end-to-end: slot-vacated-on-equip, slot-restored-on-unequip, players-mirror writes, missing-playerId means "local", cross-player updates don't overwrite my bag, idempotent repeat payloads, empty payload clears the bag, unknown playerId stays defensive.)
