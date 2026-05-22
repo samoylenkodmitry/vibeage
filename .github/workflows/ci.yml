@@ -13,8 +13,18 @@ permissions:
   contents: read
 
 concurrency:
+  # Archwork item #1 (was #8): PR runs are cancellable — a new push
+  # to the same PR branch should kill the old run so we don't burn
+  # CI minutes on a SHA the author already replaced. But main pushes
+  # MUST queue, not cancel, because the post-merge heavy gate is the
+  # last thing standing between a merge and production. Cancelling
+  # those (the old `cancel-in-progress: true` for every ref) silently
+  # hid 100+ runs worth of heavy-check evidence; two completed runs
+  # after the cadence slowed both turned out red (browser-smoke E2E
+  # combat-flow timeouts), and we'd been deploying production
+  # un-gated against them the whole time.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Fast feedback for PRs — source-only checks that finish in ~3 minutes.
@@ -121,3 +131,20 @@ jobs:
 
       - name: Browser smoke
         run: pnpm run test:e2e
+
+      # Archwork item #1 follow-up — when the browser smoke fails, the
+      # Playwright trace.zip / error-context.md per failing test is the
+      # only way to triage without standing up Chromium locally. The
+      # workflow previously dropped them on the runner and they
+      # disappeared with it. Upload on failure only so green runs stay
+      # cheap.
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace-${{ github.run_id }}
+          path: |
+            test-results/**
+            playwright-report/**
+          if-no-files-found: ignore
+          retention-days: 14
