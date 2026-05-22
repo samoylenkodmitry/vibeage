@@ -489,6 +489,33 @@ export function applyPlayerDeathFeedback(
   });
 }
 
+/**
+ * Level-up feedback for the local player. Server emits `playerUpdated`
+ * with the new `level` after `awardPlayerXP` carries the player past
+ * `experienceToNextLevel`. The HUD has the bar; the combat log needs
+ * a discrete row so the player has a textual record (and so a
+ * mid-fight level up isn't drowned by damage numbers).
+ *
+ * Only emits for the local player — other-player level-ups are not
+ * news to me. Only fires on a strict increase, so a snapshot resync
+ * that re-asserts the same level is silent.
+ */
+export function applyPlayerLevelUpFeedback(
+  state: GameClientState,
+  playerId: string,
+  prevLevel: number | undefined,
+  nextLevel: number | undefined,
+  now: number,
+): GameClientState {
+  if (playerId !== state.myPlayerId) return state;
+  if (nextLevel === undefined || prevLevel === undefined) return state;
+  if (nextLevel <= prevLevel) return state;
+  return addCombatLine(state, {
+    id: makeCombatLineId(`level-up-${nextLevel}`, state.combatLog.length, now),
+    text: `You reached level ${nextLevel}!`,
+  });
+}
+
 export type CombatLogLineParts = {
   skillId: string;
   targets: string[];
