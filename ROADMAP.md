@@ -401,11 +401,11 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 
 ## 5. Player State Privacy and DTO Boundary
 
-- [ ] Define `OwnerPlayerSnapshot` with only fields the owning client needs. (Today the owner snapshot is the full `PlayerState`; explicit owner DTO not modelled.)
+- [x] Define `OwnerPlayerSnapshot` with only fields the owning client needs. (PR #358 — `OWNER_PLAYER_FIELDS` allowlist + `OwnerPlayerSnapshot` type + `sanitizePlayerForOwner` projector; wired through `makeClientPlayersSnapshot` so the owner snapshot is an explicit DTO not a raw `PlayerState`.)
 - [x] Define `PublicPlayerSnapshot` with only fields other players may see. (PR #260 — `server/transport/clientState.ts` `PUBLIC_PLAYER_FIELDS` allowlist + `PublicPlayerSnapshot` type; `sanitizePlayerForPublic` projects to it.)
-- [ ] Define `PlayerPresenceSnapshot` for world/public room state.
-- [ ] Define `OwnerInventorySnapshot` separately from player state.
-- [ ] Define `OwnerEquipmentSnapshot` separately from player state.
+- [x] Define `PlayerPresenceSnapshot` for world/public room state. (PR #358 — TS type in `clientState.ts` mirroring the Colyseus `PublicPlayerPresenceState` schema; `sanitizePlayerForPresence(player, regionId?)` projector. Six fields: id, name, className, level, isAlive, regionId.)
+- [x] Define `OwnerInventorySnapshot` separately from player state. (Already lived in `server/transport/clientState.ts` as the typed counterpart to the `InventoryUpdate` wire message — `{ playerId?, inventory: InventorySlot[], maxInventorySlots }`. Covered by `tests/ownerPlayerSnapshot.spec.ts`.)
+- [x] Define `OwnerEquipmentSnapshot` separately from player state. (Sibling of `OwnerInventorySnapshot` in `clientState.ts` — `{ equipment: EquipmentEntry[] }`. Covered by the same test file.)
 - [ ] Define `PublicEquipmentVisualSnapshot` for visible gear cosmetics only.
 - [ ] Define `PlayerCombatPatch` for health, mana, cast state, death, and status effects.
 - [ ] Define `PlayerMovementPatch` for position, rotation, velocity, and prediction data.
