@@ -38,6 +38,14 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
       groundLootIds: Object.keys(state.groundLoot),
       castSkillIds: Object.values(state.casts).map((cast) => cast.snapshot.skillId),
       visualEventKinds: Object.values(state.visualEvents).map((event) => event.kind),
+      // Archwork item #1 — `visualEvents` are pruned ~1.8 s after they
+      // fire. On the slow GitHub runner the Fireball E2E's Phase 2
+      // can start polling AFTER the damage popup has already been
+      // pruned, even though the cast landed (proven by the combat
+      // log entry that persists for 200 lines / many minutes). Expose
+      // combat log text so the test has a persistent signal to wait
+      // on instead of racing the visual-event ttl.
+      combatLogTexts: state.combatLog.map((line) => line.text),
       liveProjectileSkillIds: Object.values(state.casts)
         .filter((cast) => cast.snapshot.state !== 2)
         .map((cast) => cast.snapshot.skillId),
@@ -122,6 +130,7 @@ declare global {
         groundLootIds: string[];
         castSkillIds: SkillId[];
         visualEventKinds: string[];
+        combatLogTexts: string[];
         liveProjectileSkillIds: SkillId[];
       };
       sendMoveIntent: (target: VecXZ) => void;

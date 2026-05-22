@@ -52,10 +52,19 @@ test('skill bar Fireball button: full cast + damage flow', async ({ page }) => {
   // Phase 2: cast actually reaches the impact phase and any damage
   // is applied. `visualEventKinds` carries the damage popups the
   // client renders on enemy hit; if the cast was silently rejected
-  // (schema mismatch, validation gate) we'd see neither.
+  // (schema mismatch, validation gate) we'd see neither. The OR on
+  // `combatLogTexts` covers the slow-CI-runner race: visual events
+  // are pruned ~1.8 s after they fire, so on a slow runner the
+  // window between Phase 1 finishing and Phase 2 starting can miss
+  // the popup entirely even though the cast landed. The combat-log
+  // entry ("Fireball hit X for N damage") persists in the 200-line
+  // ring buffer and is the canonical proof that damage was applied
+  // server-side.
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
-    return (state?.visualEventKinds ?? []).includes('damage');
+    if (!state) return false;
+    if ((state.visualEventKinds ?? []).includes('damage')) return true;
+    return (state.combatLogTexts ?? []).some((text) => /Fireball hit /.test(text));
   }, undefined, { timeout: 30_000 });
 });
 
