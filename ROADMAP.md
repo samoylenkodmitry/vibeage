@@ -741,7 +741,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add rate limits per socket. (`server/world/rateLimiter.ts` — per-socket per-bucket token-bucket limiter wired into `clientMessageRouter.ts`; metrics `rateLimit.dropped.<msgType>` + `rateLimit.dropped.total`; §52 polish surfaces drops for user-intent commands via `CommandRejected{reason:'rateLimited'}`. Tests: `tests/rateLimiter.spec.ts`, `tests/rateLimitRejectionFeedback.spec.ts`.)
 - [ ] Add rate limits per account.
 - [ ] Add rate limits per IP if safe behind proxy headers.
-- [ ] Add proxy-header trust policy.
+- [x] Add proxy-header trust policy. (`server/security.ts:getClientIp` — only trusts `x-forwarded-for` when `remoteAddress` is loopback (i.e., behind a same-host Nginx). Non-loopback remote addresses are used as-is so a hostile client can't spoof the IP. Pinned by `server/__tests__/security.spec.ts`.)
 - [x] Add suspicious activity metrics. (`clientMessages.invalidOwnership.<MsgType>` + `clientMessages.invalidOwnership.total` counters across `clientMessageRouter.ts` (MoveIntent, CastReq, LootPickup) and `playerLifecycle.ts` (RespawnRequest); `clientMessages.rejected` for schema-fail message drops in `colyseusRoomAdapter.ts`; rate-limit drops counted via `rateLimit.dropped.*`; `commandRejected.*` totals roll up every user-visible rejection; durable `ownership.suspicious` server-events row via `authAudit.ts` when a socket targets a player it doesn't own.)
 - [ ] Add temporary mute for chat spam.
 - [ ] Add temporary disconnect or cooldown for severe spam.
