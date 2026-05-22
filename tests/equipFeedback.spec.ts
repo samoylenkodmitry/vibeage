@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyEquipFailedFromCommandRejected,
+  applyEquipRejected,
   applyEquipmentChangeFeedback,
 } from '../apps/client/src/clientVisualState';
 import type { GameClientState } from '../apps/client/src/gameTypes';
@@ -24,14 +24,14 @@ function reject(reason: string): ServerMessage & { type: 'CommandRejected' } {
   return { type: 'CommandRejected', commandType: 'EquipItem', reason };
 }
 
-describe('applyEquipFailedFromCommandRejected', () => {
+describe('applyEquipRejected', () => {
   it('prepends a friendly reason line for known reasons', () => {
-    const next = applyEquipFailedFromCommandRejected(emptyState(), reject('levelTooLow'), 1);
+    const next = applyEquipRejected(emptyState(), reject('levelTooLow'), 1);
     expect(next.combatLog).toHaveLength(1);
     expect(next.combatLog[0].text).toMatch(/level/i);
   });
   it('falls back to raw reason when unknown', () => {
-    const next = applyEquipFailedFromCommandRejected(emptyState(), reject('weird_unknown_reason'), 1);
+    const next = applyEquipRejected(emptyState(), reject('weird_unknown_reason'), 1);
     expect(next.combatLog[0].text).toContain('weird_unknown_reason');
   });
 });
