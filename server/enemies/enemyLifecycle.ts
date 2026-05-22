@@ -6,14 +6,25 @@ import { hash, rng } from '../../packages/sim/combatMath.js';
 import type { Enemy } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
-import { emitEnemyUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { emitEnemyUpdated, emitServerMessage, type OutboundEventSink } from '../transport/outboundEvents.js';
 
 const PACK_CLUSTER_RADIUS = 4;
 
 export const ENEMY_RESPAWN_DELAY_MS = 30_000;
+// §11 mini-boss named encounter tracking — mini-bosses respawn on
+// a much longer timer so the kill feels like a meaningful zone
+// event, not a 30-second farming loop. Combined with the death /
+// respawn ChatBroadcast emitted from targetDeath.ts +
+// respawnDeadEnemies, players in any zone know when a mini-boss is
+// down vs available.
+export const MINI_BOSS_RESPAWN_DELAY_MS = 10 * 60_000;
+
+function respawnDelayFor(enemy: { isMiniBoss?: boolean }): number {
+  return enemy.isMiniBoss ? MINI_BOSS_RESPAWN_DELAY_MS : ENEMY_RESPAWN_DELAY_MS;
+}
 
 export { DEFAULT_BOSS_CONFIG } from '../../packages/content/miniBosses.js';
-import { DEFAULT_BOSS_CONFIG } from '../../packages/content/miniBosses.js';
+import { DEFAULT_BOSS_CONFIG, getMiniBossById } from '../../packages/content/miniBosses.js';
 
 export type SpawnInitialEnemiesOptions = {
   activeZoneIds?: readonly string[];
@@ -242,7 +253,7 @@ export function respawnDeadEnemies(
       continue;
     }
 
-    if (now - enemy.deathTimeTs < ENEMY_RESPAWN_DELAY_MS) {
+    if (now - enemy.deathTimeTs < respawnDelayFor(enemy)) {
       continue;
     }
 
@@ -251,9 +262,32 @@ export function respawnDeadEnemies(
     spatial.insert(enemyId, { x: enemy.position.x, z: enemy.position.z });
     emitEnemyUpdated(outbound, enemy);
     respawned += 1;
+
+    // §11 named encounter tracking — broadcast the comeback so
+    // players know the mini-boss is available again.
+    if (enemy.isMiniBoss) {
+      emitMiniBossRespawnBroadcast(outbound, enemy, now);
+    }
   }
 
   return respawned;
+}
+
+function emitMiniBossRespawnBroadcast(
+  outbound: OutboundEventSink,
+  enemy: Enemy,
+  now: number,
+): void {
+  const spec = enemy.bossId ? getMiniBossById(enemy.bossId) : null;
+  const where = spec?.zoneHint ? ` stalks ${spec.zoneHint} once more!` : ' has returned!';
+  emitServerMessage(outbound, {
+    type: 'ChatBroadcast',
+    fromId: enemy.id,
+    fromName: enemy.name,
+    text: `${enemy.name}${where}`,
+    scope: 'all',
+    ts: now,
+  });
 }
 
 /**
