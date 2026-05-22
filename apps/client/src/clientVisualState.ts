@@ -426,6 +426,15 @@ function addItemUseVisualEvent(
 }
 
 function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
+  // §52 polish — collapse consecutive duplicates so spamming a
+  // skill on cooldown reads as one line with "(×N)" instead of N
+  // identical lines. Match on `text` only; the id is per-emit so
+  // it would never collide on its own.
+  const top = state.combatLog[0];
+  if (top && top.text === line.text) {
+    const merged: CombatLine = { ...top, count: (top.count ?? 1) + 1 };
+    return { ...state, combatLog: [merged, ...state.combatLog.slice(1)] };
+  }
   return { ...state, combatLog: [line, ...state.combatLog].slice(0, MAX_COMBAT_LINES) };
 }
 

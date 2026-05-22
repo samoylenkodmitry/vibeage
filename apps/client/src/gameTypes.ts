@@ -156,6 +156,14 @@ export type VisibleCast = {
 export type CombatLine = {
   id: string;
   text: string;
+  /**
+   * §52 polish — consecutive-duplicate collapse counter. When the
+   * same text would be prepended back-to-back (e.g. spamming a
+   * skill that's on cooldown), `addCombatLine` increments this
+   * counter on the existing top entry instead of adding a new row.
+   * 1 means "shown once". Renderer appends "(×N)" when count > 1.
+   */
+  count?: number;
 };
 
 export type GroundLootStack = {
