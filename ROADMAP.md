@@ -531,8 +531,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add tests for self-cast skills.
 - [ ] Add tests for ground-target skills.
 - [x] Add tests for target-required skills.
-- [ ] Add tests for projectile impact at max range.
-- [ ] Add tests for projectile piercing and max-pierce hits.
+- [x] Add tests for projectile impact at max range. (`tests/combat.projectileRuntime.spec.ts` — projectile transitions to Impact once it travels past `skill.range`, even with no enemy in the swept path; complement: a projectile inside `skill.range` stays in Traveling.)
+- [x] Add tests for projectile piercing and max-pierce hits. (`tests/combat.projectileRuntime.spec.ts` — "volley pierces multiple enemies and stops at maxPierceHits"; non-piercing projectile stops on first hit.)
 - [x] Add tests for AoE target deduplication.
 - [ ] Add tests for player-vs-player behavior if PvP will exist, or explicitly disable PvP in protocol and server rules.
 
