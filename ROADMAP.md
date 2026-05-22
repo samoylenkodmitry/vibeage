@@ -783,7 +783,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add UI feedback for missing target. (PR #372 — `castFailCopy('missingTarget')` → "Cast failed: pick a target first.".)
 - [ ] Add a local event bus or domain action layer if reducer actions become too broad.
 - [ ] Add client telemetry hooks for load time, FPS, WebSocket reconnects, and major UI errors.
-- [ ] Add error boundary around the game UI.
+- [x] Add error boundary around the game UI. (`apps/client/src/ErrorBoundary.tsx` — `GameErrorBoundary` class component wraps the entire app in `main.tsx`. Catches render-time exceptions, logs the original error with componentStack to console.error, and shows a static fallback with a "Reload page" button. The reload is intentional — game UI carries lots of mutual state and a surgical re-mount tends to leave the rest half-broken. Pinned by `tests/errorBoundary.spec.ts`.)
 - [ ] Add fallback screen for WebGL unsupported or failed context.
 - [x] Add fallback screen for server unavailable. (`apps/client/src/App.tsx` — when `state.connectionState !== 'online'` the HUD renders a `joining-overlay` carrying the reducer's `state.message`; `connectionRejected` / `disconnected` / `connecting` actions all populate it. Pinned by `tests/connectionStateReducer.spec.ts` for the state-machine side.)
 
