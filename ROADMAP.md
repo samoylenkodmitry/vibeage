@@ -769,7 +769,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add reducer tests for every server message type.
 - [ ] Add reducer tests for snapshot resync.
 - [ ] Add reducer tests for region visibility changes.
-- [ ] Add reducer tests for equipment update.
+- [x] Add reducer tests for equipment update. (`tests/equipmentUpdateReducer.spec.ts` pins the `EquipmentUpdate` dispatch end-to-end: slot map replace, idempotency, empty payload, first-payload silence, and "Equipped X" combat-log emission. Caught and fixed a real bug — the reducer composed `applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), …)` so the diff compared the new payload against itself; swapping the order restored the feedback line.)
 - [ ] Add reducer tests for inventory update after equip/unequip.
 - [ ] Add reducer tests for duplicate or out-of-order updates.
 - [ ] Add reducer tests for disconnected/reconnected state transitions.
