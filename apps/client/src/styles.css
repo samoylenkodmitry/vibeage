@@ -631,6 +631,50 @@ input {
   backdrop-filter: blur(12px);
 }
 
+/* The wrapper holds the primary slot button + the corner ⋯ menu
+   button. Two separate <button>s as siblings — nesting them inside
+   each other would be invalid HTML and would silently swallow
+   events on Safari. */
+.inventory-slot-wrapper {
+  position: relative;
+  width: 42px;
+  height: 42px;
+}
+
+/* Visible always-tappable menu trigger on every populated slot.
+   Tap = open BagContextMenu. The right-click + long-press
+   gestures still work as power-user shortcuts but this is the
+   primary, gesture-independent path. */
+.inventory-slot-menu {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(141, 233, 215, 0.35);
+  border-radius: 3px;
+  background: rgba(2, 6, 10, 0.78);
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  /* Override any inherited pointer-events: none. */
+  pointer-events: auto;
+}
+.inventory-slot-menu:hover {
+  background: rgba(96, 165, 250, 0.45);
+  color: #ffffff;
+  border-color: rgba(96, 165, 250, 0.85);
+}
+.inventory-slot-menu:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.85);
+  outline-offset: 1px;
+}
+
 .inventory-slot {
   position: relative;
   display: grid;
