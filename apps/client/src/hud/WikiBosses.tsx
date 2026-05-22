@@ -16,6 +16,8 @@ function mechanicShapeLabel(mech: MiniBossMechanic): string {
       return `${mech.lengthUnits}m cone @ ${mech.halfAngleDeg * 2}° arc`;
     case 'summonPack':
       return `${mech.summonRadius}m rally call`;
+    case 'blink':
+      return `teleport ${mech.teleportOffset}m behind target`;
     case 'circle':
     case 'donut': {
       const inner = mechanicInnerRadius(mech);
@@ -93,7 +95,7 @@ function BossLi({
         {(mech.windUpMs / 1000).toFixed(1)}s wind-up · {mechanicShapeLabel(mech)} ·{' '}
         {mech.kind === 'summonPack'
           ? 'rallies packmates (no direct damage)'
-          : `×${mech.damageMul} damage`} · {(mech.cooldownMs / 1000).toFixed(0)}s cooldown
+          : `×${mech.damageMul} damage`}{mech.kind === 'blink' ? ' (single target)' : ''} · {(mech.cooldownMs / 1000).toFixed(0)}s cooldown
       </small>
       <small className="wiki-row-footer">
         Enrages after {(DEFAULT_BOSS_CONFIG.enrageAfterMs / 1000).toFixed(0)}s

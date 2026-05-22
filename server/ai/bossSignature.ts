@@ -53,6 +53,7 @@ export function resetBossProgression(enemy: Enemy): void {
   enemy.signatureCastTargetZ = undefined;
   enemy.signatureCastRadius = undefined;
   enemy.signatureCastDirRad = undefined;
+  enemy.signatureCastTargetPlayerId = undefined;
   enemy.nextSignatureReadyTs = undefined;
   if (enemy.baseAttackDamage !== undefined) enemy.attackDamage = enemy.baseAttackDamage;
   if (enemy.baseMovementSpeed !== undefined) enemy.movementSpeed = enemy.baseMovementSpeed;
@@ -84,6 +85,7 @@ export function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progres
       enemy.signatureCastTargetZ = undefined;
       enemy.signatureCastRadius = undefined;
       enemy.signatureCastDirRad = undefined;
+      enemy.signatureCastTargetPlayerId = undefined;
       enemy.nextSignatureReadyTs = context.now + mech.cooldownMs;
     }
     return;
@@ -121,6 +123,10 @@ export function tickBossSignature(enemy: Enemy, context: EnemyAIContext, progres
   enemy.signatureCastTargetZ = castZ;
   enemy.signatureCastRadius = outer;
   enemy.signatureCastDirRad = dirRad;
+  // Blink mechanic also locks the target's id so the boss
+  // reappears behind whoever was marked, not behind a later
+  // aggro target.
+  enemy.signatureCastTargetPlayerId = mech.kind === 'blink' ? target.id : undefined;
   progress.events.push({
     type: 'bossTelegraph',
     enemyId: enemy.id,
@@ -143,27 +149,94 @@ function resolveBossSignatureImpact(
   context: EnemyAIContext,
   progress: EnemyAIProgress,
 ): void {
-  // summonPack is a non-damaging mechanic (the howl rallies
-  // packmates instead of hurting players). Emit the event and bail
-  // before the damage loop.
-  if (mech.kind === 'summonPack') {
-    if (enemy.packId && enemy.targetId) {
-      progress.events.push({
-        type: 'summonPack',
-        packId: enemy.packId,
-        targetId: enemy.targetId,
-        sourceEnemyId: enemy.id,
-        radius: mech.summonRadius,
-        bossName,
-      });
-    }
-    return;
+  switch (mech.kind) {
+    case 'summonPack':
+      resolveSummonPackImpact(enemy, mech, bossName, progress);
+      return;
+    case 'blink':
+      resolveBlinkImpact(enemy, mech, bossName, context, progress);
+      return;
+    case 'circle':
+    case 'donut':
+    case 'cone':
+      resolveAreaImpact(enemy, mech, bossName, context, progress);
+      return;
   }
+}
 
-  // All other mechanic kinds anchor impact at the LOCKED cast-start
-  // position. This keeps the server impact area aligned with the
-  // client telegraph, which renders from the same x/z carried on
-  // the BossTelegraph event.
+function resolveSummonPackImpact(
+  enemy: Enemy,
+  mech: Extract<MiniBossMechanic, { kind: 'summonPack' }>,
+  bossName: string,
+  progress: EnemyAIProgress,
+): void {
+  // Non-damaging — emit the rally event for the enemyAI propagator.
+  if (enemy.packId && enemy.targetId) {
+    progress.events.push({
+      type: 'summonPack',
+      packId: enemy.packId,
+      targetId: enemy.targetId,
+      sourceEnemyId: enemy.id,
+      radius: mech.summonRadius,
+      bossName,
+    });
+  }
+}
+
+function resolveBlinkImpact(
+  enemy: Enemy,
+  mech: Extract<MiniBossMechanic, { kind: 'blink' }>,
+  bossName: string,
+  context: EnemyAIContext,
+  progress: EnemyAIProgress,
+): void {
+  // Teleport behind the LOCKED target and apply single-target
+  // backstab damage. "Behind" = far side of the target from the
+  // boss's current position; degenerate cases (boss on top of
+  // target) fall back to +X.
+  const lockedId = enemy.signatureCastTargetPlayerId;
+  const target = lockedId ? context.players[lockedId] : null;
+  if (!target?.isAlive) return;
+  const dx = target.position.x - enemy.position.x;
+  const dz = target.position.z - enemy.position.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  const ux = dist > 0.01 ? dx / dist : 1;
+  const uz = dist > 0.01 ? dz / dist : 0;
+  enemy.position = {
+    x: target.position.x + ux * mech.teleportOffset,
+    y: enemy.position.y,
+    z: target.position.z + uz * mech.teleportOffset,
+  };
+  progress.shouldBroadcastEnemyUpdate = true;
+  const damage = enemy.attackDamage * mech.damageMul;
+  target.health -= damage;
+  const killed = target.health <= 0 ? killPlayer(target, context.now) : false;
+  progress.events.push({
+    type: 'enemyAttack',
+    enemyId: enemy.id,
+    targetId: target.id,
+    damage,
+    targetHealth: target.health,
+  });
+  if (killed) {
+    progress.events.push({
+      type: 'playerKilled',
+      message: `[BOSS] ${bossName}'s Veil Step killed ${target.id}`,
+      update: pickPlayerKilledUpdate(target),
+    });
+  }
+}
+
+function resolveAreaImpact(
+  enemy: Enemy,
+  mech: Extract<MiniBossMechanic, { kind: 'circle' | 'donut' | 'cone' }>,
+  bossName: string,
+  context: EnemyAIContext,
+  progress: EnemyAIProgress,
+): void {
+  // All area kinds anchor impact at the LOCKED cast-start position
+  // (signatureCastTargetX/Z), so the server impact area lines up
+  // with the client telegraph.
   const cx = enemy.signatureCastTargetX ?? enemy.position.x;
   const cz = enemy.signatureCastTargetZ ?? enemy.position.z;
   const outer = mechanicOuterRadius(mech);
@@ -178,14 +251,7 @@ function resolveBossSignatureImpact(
     const distSq = dx * dx + dz * dz;
     if (distSq > outer * outer) continue;
     if (inner > 0 && distSq < inner * inner) continue;
-    if (mech.kind === 'cone') {
-      if (dirRad === undefined) continue;
-      const playerAngle = Math.atan2(dz, dx);
-      let delta = playerAngle - dirRad;
-      while (delta > Math.PI) delta -= 2 * Math.PI;
-      while (delta < -Math.PI) delta += 2 * Math.PI;
-      if (Math.abs(delta) > halfAngleRad) continue;
-    }
+    if (mech.kind === 'cone' && !insideConeWedge(dx, dz, dirRad, halfAngleRad)) continue;
     p.health -= damage;
     const killed = p.health <= 0 ? killPlayer(p, context.now) : false;
     progress.events.push({
@@ -199,16 +265,29 @@ function resolveBossSignatureImpact(
       progress.events.push({
         type: 'playerKilled',
         message: `[BOSS] ${bossName}'s signature killed ${p.id}`,
-        update: {
-          id: p.id,
-          health: p.health,
-          isAlive: p.isAlive,
-          deathTimeTs: p.deathTimeTs,
-          targetId: p.targetId,
-          castingSkill: p.castingSkill,
-          castingProgressMs: p.castingProgressMs,
-        },
+        update: pickPlayerKilledUpdate(p),
       });
     }
   }
+}
+
+function insideConeWedge(dx: number, dz: number, dirRad: number | undefined, halfAngleRad: number): boolean {
+  if (dirRad === undefined) return false;
+  const playerAngle = Math.atan2(dz, dx);
+  let delta = playerAngle - dirRad;
+  while (delta > Math.PI) delta -= 2 * Math.PI;
+  while (delta < -Math.PI) delta += 2 * Math.PI;
+  return Math.abs(delta) <= halfAngleRad;
+}
+
+function pickPlayerKilledUpdate(p: import('../../packages/sim/entities.js').PlayerState) {
+  return {
+    id: p.id,
+    health: p.health,
+    isAlive: p.isAlive,
+    deathTimeTs: p.deathTimeTs,
+    targetId: p.targetId,
+    castingSkill: p.castingSkill,
+    castingProgressMs: p.castingProgressMs,
+  };
 }
