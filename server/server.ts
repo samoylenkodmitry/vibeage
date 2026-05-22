@@ -111,13 +111,18 @@ gameServer.router = createRouter({
 
 gameServer.define('world', VibeAgeRoom);
 
-// Error handling
+// Error handling.
+// `unhandledRejection` lives once below (line ~182) with an explicit
+// `process.exit(1)` so the container restarts on an unrecoverable
+// async failure. Registering a second handler here would log the
+// rejection twice and obscure the source line in the stderr buffer.
+//
+// `uncaughtException` swallows the error and continues running. Kept
+// separate so a synchronous throw in a non-critical path (a single
+// tick handler) doesn't take the whole world down — the container
+// restart-on-async-fail path remains the harder safety net.
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-});
-
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
 });
 
 // Variables to track server state
