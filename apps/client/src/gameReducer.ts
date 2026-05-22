@@ -287,7 +287,13 @@ function applyServerMessage(
     return applyInventoryUpdate(state, message.inventory, message.maxInventorySlots, message.playerId);
   }
 
-  if (message.type === 'EquipmentUpdate') return applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), message, now);
+  if (message.type === 'EquipmentUpdate') {
+    // §52 polish — feedback must read the *previous* equipment slots
+    // to diff what changed. If we update first, the helper compares
+    // the new payload against itself and never emits "Equipped X".
+    const withFeedback = applyEquipmentChangeFeedback(state, message, now);
+    return applyEquipmentUpdate(withFeedback, message);
+  }
 
   if (message.type === 'LootSpawn') {
     return addGroundLoot(state, {
