@@ -50,6 +50,17 @@ export type MiniBossMechanic =
        *  regardless of their current AI state. Doubles as the
        *  visual telegraph radius. */
       readonly summonRadius: number;
+    })
+  | (CommonMechanicTiming & {
+      readonly kind: 'blink';
+      /** Distance behind the target the boss reappears. "Behind"
+       *  means on the far side of the target from the boss's
+       *  pre-teleport position. */
+      readonly teleportOffset: number;
+      /** Visual telegraph radius (drawn on the target's position so
+       *  the player sees they've been marked). Damage is single-
+       *  target only — the player landed on. */
+      readonly markerRadius: number;
     });
 
 /** Outer radius of the mechanic's danger footprint — the radius the
@@ -60,6 +71,7 @@ export function mechanicOuterRadius(m: MiniBossMechanic): number {
     case 'donut': return m.outerRadius;
     case 'cone': return m.lengthUnits;
     case 'summonPack': return m.summonRadius;
+    case 'blink': return m.markerRadius;
   }
 }
 
@@ -72,6 +84,7 @@ export function mechanicInnerRadius(m: MiniBossMechanic): number {
     case 'donut': return m.innerRadius;
     case 'cone': return 0;
     case 'summonPack': return 0;
+    case 'blink': return 0;
   }
 }
 
@@ -155,6 +168,19 @@ function summonPack(
     ...overrides,
   };
 }
+function blink(
+  overrides: Partial<CommonMechanicTiming & { teleportOffset: number; markerRadius: number }>,
+): MiniBossMechanic {
+  return {
+    kind: 'blink',
+    windUpMs: DEFAULT_CIRCLE_TIMING.windUpMs,
+    cooldownMs: DEFAULT_CIRCLE_TIMING.cooldownMs,
+    damageMul: DEFAULT_CIRCLE_TIMING.damageMul,
+    teleportOffset: 1.5,
+    markerRadius: 2,
+    ...overrides,
+  };
+}
 
 export const MINI_BOSSES: Record<string, MiniBossSpec> = {
   grakk: {
@@ -213,8 +239,12 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     lore: 'A nameless skeleton wreathed in fog so thick it muffles its own footsteps. Cannot be heard coming.',
     signatureAbility: {
       name: 'Veil Step',
-      description: 'Phases briefly out of sight and reappears behind the target. Watch the fog’s direction — it leans toward where the Mistwalker will emerge.',
-      mechanic: circle({ windUpMs: 1400, cooldownMs: 8_500, radiusUnits: 4, damageMul: 2.2 }),
+      description: 'Phases briefly out of sight and reappears 1.5m behind the target — backstab damage on landing. Watch the fog\'s direction; it leans toward where the Mistwalker will emerge.',
+      // Archwork #6 follow-up — blink mechanic. The lore was always
+      // "reappears behind the target"; the engine now teleports
+      // the Mistwalker to the far side of the locked target and
+      // applies single-target backstab damage on landing.
+      mechanic: blink({ windUpMs: 1400, cooldownMs: 8_500, teleportOffset: 1.5, markerRadius: 2, damageMul: 2.2 }),
     },
     trophyItemId: 'mistwalker_shroud',
     lootTableId: 'boss_loot_mistwalker',

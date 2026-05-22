@@ -110,6 +110,10 @@ export interface Enemy {
    *  Stored at cast start so the impact resolves to the original
    *  aim even if the boss rotated mid wind-up. */
   signatureCastDirRad?: number;
+  /** Blink-mechanic locked target id. Resolved at cast start so
+   *  the boss reappears behind whoever was originally marked even
+   *  if aggro changed during wind-up. */
+  signatureCastTargetPlayerId?: string;
   nextSignatureReadyTs?: number;
   /**
    * First moment this enemy entered an aggressive state (chasing /
