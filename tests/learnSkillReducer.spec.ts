@@ -93,4 +93,52 @@ describe('gameClientReducer — sticky-chip regression net', () => {
     expect(next.learnSkillRejections.iceBolt).toBeUndefined();
     expect(next.learnSkillRejections.arcaneBlast).toBe('noSkillPoints');
   });
+
+  // §52 polish — UpgradeSkill doesn't have a dedicated success
+  // message; the success arrives as a `playerUpdated.skillLevels`
+  // delta. Mirror the SkillLearned → clear behavior so the chip
+  // disappears once the upgrade actually lands.
+  it('clears the rejection when playerUpdated shows a skillLevels bump for that skill', () => {
+    const seeded = {
+      ...baseState,
+      players: {
+        me: {
+          ...baseState.players.me,
+          skillLevels: { fireball: 1, iceBolt: 1 } as Record<string, number>,
+        } as unknown as (typeof baseState.players)['me'],
+      },
+      learnSkillRejections: { fireball: 'maxRank', iceBolt: 'noSkillPoints' },
+    };
+    const next = gameClientReducer(seeded, {
+      type: 'playerUpdated',
+      now: 300,
+      player: { id: 'me', skillLevels: { fireball: 2, iceBolt: 1 } },
+    });
+    expect(next.learnSkillRejections.fireball).toBeUndefined();
+    // iceBolt didn't level up — chip stays.
+    expect(next.learnSkillRejections.iceBolt).toBe('noSkillPoints');
+  });
+
+  it("doesn't perturb learnSkillRejections when playerUpdated has no skillLevels", () => {
+    const seeded = { ...baseState, learnSkillRejections: { fireball: 'maxRank' } };
+    const next = gameClientReducer(seeded, {
+      type: 'playerUpdated',
+      now: 300,
+      player: { id: 'me', health: 50 },
+    });
+    expect(next.learnSkillRejections.fireball).toBe('maxRank');
+  });
+
+  it("doesn't clear chips for OTHER players' upgrades", () => {
+    const seeded = {
+      ...baseState,
+      learnSkillRejections: { fireball: 'maxRank' },
+    };
+    const next = gameClientReducer(seeded, {
+      type: 'playerUpdated',
+      now: 300,
+      player: { id: 'other', skillLevels: { fireball: 2 } },
+    });
+    expect(next.learnSkillRejections.fireball).toBe('maxRank');
+  });
 });
