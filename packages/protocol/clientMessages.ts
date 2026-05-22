@@ -150,6 +150,16 @@ export const selectSpecializationSchema = z.object({
   specializationId: z.string(),
 }).strict();
 
+// §9 — respec / class-change policy. Clears the player's current
+// specializationId for a gold cost so they can re-pick at the spec
+// selector. Permanent class-change is intentionally NOT in scope —
+// that would require respeccing skill points too. This unlocks
+// only the spec dial.
+export const respecSpecializationSchema = z.object({
+  type: z.literal('RespecSpecialization'),
+  clientSeq: z.number().int().nonnegative().optional(),
+}).strict();
+
 export const upgradeSkillSchema = z.object({
   type: z.literal('UpgradeSkill'),
   skillId: skillIdSchema,
@@ -244,6 +254,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   unequipItemSchema,
   selectRaceSchema,
   selectSpecializationSchema,
+  respecSpecializationSchema,
   upgradeSkillSchema,
   talkNpcSchema,
   acceptQuestSchema,
@@ -380,6 +391,11 @@ export type SelectSpecialization = {
   specializationId: string;
 };
 
+export type RespecSpecialization = {
+  type: 'RespecSpecialization';
+  clientSeq?: number;
+};
+
 export type UpgradeSkill = {
   type: 'UpgradeSkill';
   skillId: SkillId;
@@ -428,6 +444,7 @@ export type ClientMessage =
   | UnequipItem
   | SelectRace
   | SelectSpecialization
+  | RespecSpecialization
   | UpgradeSkill
   | TalkNpc
   | AcceptQuest

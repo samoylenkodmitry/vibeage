@@ -221,6 +221,44 @@ export function applySpecializationChange(
 }
 
 /**
+ * §9 — specialization respec. Clears the player's current
+ * `specializationId` for a fixed gold cost. The spec selector then
+ * lets them re-pick. Class-change is intentionally out of scope —
+ * that would require respeccing skill points too.
+ *
+ * Reasons mirror the typed CommandRejectionReason<'RespecSpecialization'>
+ * union: notSpecced (no spec to clear) / notEnoughGold.
+ */
+export const SPECIALIZATION_RESPEC_GOLD_COST = 5000;
+
+export type RespecResult =
+  | { ok: true }
+  | { ok: false; reason: 'notSpecced' | 'notEnoughGold' };
+
+export function applySpecializationRespec(
+  player: PlayerState,
+  outbound: OutboundEventSink,
+): RespecResult {
+  if (!player.specializationId) {
+    return { ok: false, reason: 'notSpecced' };
+  }
+  if ((player.gold ?? 0) < SPECIALIZATION_RESPEC_GOLD_COST) {
+    return { ok: false, reason: 'notEnoughGold' };
+  }
+  const priorSpec = player.specializationId;
+  player.gold = (player.gold ?? 0) - SPECIALIZATION_RESPEC_GOLD_COST;
+  player.specializationId = null;
+  recomputePlayerStats(player);
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} respecced (was ${priorSpec}, paid ${SPECIALIZATION_RESPEC_GOLD_COST}g)`);
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    specializationId: null,
+    gold: player.gold,
+  });
+  return { ok: true };
+}
+
+/**
  * Bump a skill's upgrade tier by one. Requires:
  *   - skill is currently unlocked
  *   - skill has an upgrades[] table

@@ -56,6 +56,8 @@ export const REJECTABLE_COMMANDS = [
   // Identity (race/class selection)
   'SelectClass',
   'SelectRace',
+  // §9 — spec respec (clears specializationId for a gold cost)
+  'RespecSpecialization',
   // GM / dev
   'GmCommand',
 ] as const;
@@ -215,6 +217,8 @@ export type CommandRejectionReasons = {
   // Identity
   SelectClass: 'notGm' | 'playerNotFound' | 'invalid' | 'rateLimited';
   SelectRace: 'notGm' | 'playerNotFound' | 'invalid' | 'rateLimited';
+  // §9 — spec respec
+  RespecSpecialization: 'playerNotFound' | 'notSpecced' | 'notEnoughGold' | 'rateLimited';
   // GM / dev
   GmCommand: 'playerNotFound' | 'notGm' | 'invalid' | 'rateLimited';
 };

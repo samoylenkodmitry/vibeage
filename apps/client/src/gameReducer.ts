@@ -388,6 +388,11 @@ const COMMAND_REJECTED_ROUTE: { [C in RejectableCommand]: CommandRejectedSink } 
   ChatRequest: 'chatInline',
   SelectClass: 'silent',
   SelectRace: 'silent',
+  // §9 — respec rejections feel like a vendor transaction (player
+  // tried to spend gold, got an insufficient-gold or no-spec
+  // reply). Combat log matches the BuyFromVendor / SellToVendor
+  // sink choice.
+  RespecSpecialization: 'combatLog',
   GmCommand: 'silent',
 };
 

@@ -8,6 +8,7 @@ import {
   applyRaceChange,
   applySkillUpgrade,
   applySpecializationChange,
+  applySpecializationRespec,
 } from '../../players/playerIdentity.js';
 import { sendCommandRejected } from '../../transport/commandRejected.js';
 import type {
@@ -82,6 +83,29 @@ export function onSelectSpecialization(
   const player = state.players[playerId];
   if (!player) return;
   applySpecializationChange(player, msg.specializationId, outbound);
+}
+
+export function onRespecSpecialization(
+  socket: WorldClient,
+  direct: DirectMessageSink,
+  state: GameState,
+  msg: Extract<ClientMessage, { type: 'RespecSpecialization' }>,
+  outbound: OutboundEventSink,
+): void {
+  const reject = (reason: CommandRejectionReason<'RespecSpecialization'>) =>
+    sendCommandRejected(direct, 'RespecSpecialization', reason, msg.clientSeq);
+  const playerId = findPlayerIdBySocket(state, socket.id);
+  if (!playerId) {
+    reject('playerNotFound');
+    return;
+  }
+  const player = state.players[playerId];
+  if (!player) {
+    reject('playerNotFound');
+    return;
+  }
+  const result = applySpecializationRespec(player, outbound);
+  if (result.ok === false) reject(result.reason);
 }
 
 export function onUpgradeSkill(

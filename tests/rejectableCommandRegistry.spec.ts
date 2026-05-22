@@ -31,6 +31,7 @@ const EXPECTED_REJECTABLE_COMMANDS = [
   'BuyFromVendor', 'SellToVendor',
   'ChatRequest',
   'SelectClass', 'SelectRace',
+  'RespecSpecialization',
   'GmCommand',
 ] as const;
 

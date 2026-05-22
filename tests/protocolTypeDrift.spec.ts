@@ -50,6 +50,7 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   EquipItem: true,
   UnequipItem: true,
   SelectSpecialization: true,
+  RespecSpecialization: true,
   UpgradeSkill: true,
   TalkNpc: true,
   AcceptQuest: true,
