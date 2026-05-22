@@ -266,7 +266,10 @@ function onQuestVerb(
   state: GameState,
   // Archwork #3 — quest verbs are the four rejectable types; the
   // typed parameter keeps the rejection emit narrow.
-  msg: { type: 'AcceptQuest' | 'CancelQuest' | 'AdvanceQuest' | 'ClaimQuestReward'; questId: string },
+  // Archwork #4 — `clientSeq` is now optional on the wire so the
+  // server can echo it back as `requestId` for client-side
+  // correlation.
+  msg: { type: 'AcceptQuest' | 'CancelQuest' | 'AdvanceQuest' | 'ClaimQuestReward'; questId: string; clientSeq?: number },
   outbound: OutboundEventSink,
   apply: (player: PlayerState, questId: string, outbound: OutboundEventSink) => boolean,
 ): void {
@@ -279,7 +282,7 @@ function onQuestVerb(
     & CommandRejectionReason<'AdvanceQuest'>
     & CommandRejectionReason<'ClaimQuestReward'>;
   const reject = (reason: QuestRejectReason) =>
-    sendCommandRejected<typeof msg.type>(direct, msg.type, reason);
+    sendCommandRejected<typeof msg.type>(direct, msg.type, reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
@@ -302,7 +305,7 @@ function onClaimQuestReward(
   msg: Extract<ClientMessage, { type: 'ClaimQuestReward' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: CommandRejectionReason<'ClaimQuestReward'>) => sendCommandRejected(direct, 'ClaimQuestReward', reason);
+  const reject = (reason: CommandRejectionReason<'ClaimQuestReward'>) => sendCommandRejected(direct, 'ClaimQuestReward', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];

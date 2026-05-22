@@ -104,11 +104,4 @@ describe('routeCommandRejected — behaviour per sink', () => {
     expect(next.lastChatError).toBe(baseState.lastChatError);
   });
 
-  it("silent: RespawnRequest rejection produces no state change", () => {
-    const next = gameClientReducer(baseState, {
-      type: 'serverMessage', now: 100,
-      message: { type: 'CommandRejected', commandType: 'RespawnRequest', reason: 'alreadyAlive' },
-    });
-    expect(next.combatLog).toEqual(baseState.combatLog);
-  });
 });

@@ -14,6 +14,7 @@ import { BASIC_ATTACK_SKILL_ID } from './skillShortcuts';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { isForceCastHeld } from './modifierKeys';
 import { nextClientSeq } from './commandSeq';
+import { sendFireAndForget, sendRejectable } from './sendGameCommand';
 import { saveTrackedQuestId } from './trackedQuestStorage';
 
 const PENDING_CAST_TTL_MS = 10_000;
@@ -463,26 +464,30 @@ function useTryFirePendingPickup(
 }
 
 function useQuestActions(roomRef: RefObject<Room | null>) {
+  // Archwork #4 — these were sending without `clientSeq` pre-rework
+  // so the server's quest-verb rejection envelopes couldn't be
+  // correlated back to specific button presses. The sendRejectable
+  // helper auto-stamps clientSeq for every rejectable command.
   const talkNpc = useCallback((npcId: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'TalkNpc', npcId });
+    sendFireAndForget(roomRef.current, { type: 'TalkNpc', npcId });
   }, [roomRef]);
   const acceptQuest = useCallback((questId: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'AcceptQuest', questId });
+    sendRejectable(roomRef.current, { type: 'AcceptQuest', questId });
   }, [roomRef]);
   const cancelQuest = useCallback((questId: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'CancelQuest', questId });
+    sendRejectable(roomRef.current, { type: 'CancelQuest', questId });
   }, [roomRef]);
   const advanceQuest = useCallback((questId: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'AdvanceQuest', questId });
+    sendRejectable(roomRef.current, { type: 'AdvanceQuest', questId });
   }, [roomRef]);
   const claimQuestReward = useCallback((questId: string) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'ClaimQuestReward', questId });
+    sendRejectable(roomRef.current, { type: 'ClaimQuestReward', questId });
   }, [roomRef]);
   const buyFromVendor = useCallback((vendorId: string, itemId: string, quantity: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'BuyFromVendor', vendorId, itemId, quantity, clientSeq: nextClientSeq() });
+    sendRejectable(roomRef.current, { type: 'BuyFromVendor', vendorId, itemId, quantity });
   }, [roomRef]);
   const sellToVendor = useCallback((vendorId: string, itemId: string, quantity: number) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'SellToVendor', vendorId, itemId, quantity, clientSeq: nextClientSeq() });
+    sendRejectable(roomRef.current, { type: 'SellToVendor', vendorId, itemId, quantity });
   }, [roomRef]);
   const gmCommand = useCallback((cmd: {
     verb:
@@ -492,7 +497,7 @@ function useQuestActions(roomRef: RefObject<Room | null>) {
     targetId?: string;
     quantity?: number;
   }) => {
-    roomRef.current?.send(SESSION_EVENTS.message, { type: 'GmCommand', ...cmd, clientSeq: nextClientSeq() });
+    sendRejectable(roomRef.current, { type: 'GmCommand', ...cmd });
   }, [roomRef]);
   return { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand };
 }
