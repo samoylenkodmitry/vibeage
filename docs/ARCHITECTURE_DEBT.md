@@ -8,20 +8,22 @@ Source: external read-only architecture audit captured at `/tmp/archwork.md` on 
 
 ### Status table (all 8 items shipped 2026-05-22)
 
+Numbering matches the audit's own section ordering below (Enemy lifecycle = #1, CI discipline = #8). The user's working order on 2026-05-22 was different (CI first); see commit history for the chronological landing sequence.
+
 | # | Item | Status | PRs |
 |---|---|---|---|
-| 1 | CI main heavy-check discipline | ✅ Shipped | #445 (concurrency split + deploy guard + trace upload), #447 (selectFirstEnemy skips mini-boss), #448 (Fireball combat-log fallback), #459 (Attack hit matcher), #463 (Cast failed fallback) |
-| 2 | Enemy death/respawn lifecycle | ✅ Shipped | #446 (resetEnemyForRespawn), #450 (StatusEffect.sourceCasterId), #451 (DoT kill credit), #452 (unified killPlayer) |
+| 1 | Enemy death/respawn lifecycle | ✅ Shipped | #446 (resetEnemyForRespawn), #450 (StatusEffect.sourceCasterId), #451 (DoT kill credit), #452 (unified killPlayer) |
+| 2 | Mini-boss typed mechanic union | ✅ Shipped (first slice) | #465 (MiniBossMechanic union; Magmaheart donut). Follow-ups: cone/summonPack/blink for Vorthax/Grakk/Mistwalker. |
 | 3 | CommandRejected typed contract | ✅ Shipped | #453 (registry), #455 (reason unions), #456 (typed helper), #457 (legacy rename), #460 (table-driven routing) |
 | 4 | Client command sending helper | ✅ Shipped | #461 (sendRejectable + sendFireAndForget + quest verbs gain clientSeq) |
 | 5 | Router modularization | ✅ Shipped | #464 (split clientMessageRouter into 9 per-domain modules under server/world/router/) |
-| 6 | Mini-boss typed mechanic union | ✅ Shipped (first slice) | #465 (MiniBossMechanic union; Magmaheart donut). Follow-ups: cone/summonPack/blink for Vorthax/Grakk/Mistwalker. |
-| 7 | Fake consumables | ✅ Shipped | #466 (removed 5 placeholder items; loot drops → health_potion; vendor lines stripped) |
-| 8 | Roadmap discipline (this split) | ✅ Shipped | this PR — ROADMAP.md / ROADMAP_HISTORY.md / ARCHITECTURE_DEBT.md three-file split |
+| 6 | Fake consumables | ✅ Shipped | #466 (removed 5 placeholder items; loot drops → health_potion; vendor lines stripped) |
+| 7 | Roadmap discipline (this split) | ✅ Shipped | this PR — ROADMAP.md / ROADMAP_HISTORY.md / ARCHITECTURE_DEBT.md three-file split |
+| 8 | CI main heavy-check discipline | ✅ Shipped | #445 (concurrency split + deploy guard + trace upload), #447 (selectFirstEnemy skips mini-boss), #448 (Fireball combat-log fallback), #459 (Attack hit matcher), #463 (Cast failed fallback) |
 
 ### Archive — original audit text
 
-# Architecture Rework Feedback (2026-05-22 — Codex audit)
+#### Architecture Rework Feedback (2026-05-22 — Codex audit)
 
 Source: external read-only architecture audit captured at
 `/tmp/archwork.md` on 2026-05-22 (out-of-git scratch file). Pasted
@@ -31,7 +33,7 @@ across active / history / architecture-debt files; that
 restructure is itself a tracked item below and has not been done
 yet — read accordingly.
 
-# VibeAge Architecture Rework Notes
+#### VibeAge Architecture Rework Notes
 
 Source: Codex read-only architecture audit on 2026-05-22.
 
