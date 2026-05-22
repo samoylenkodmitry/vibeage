@@ -6,8 +6,23 @@ import {
   listMiniBosses,
   mechanicInnerRadius,
   mechanicOuterRadius,
+  type MiniBossMechanic,
   type MiniBossSpec,
 } from '../../../../packages/content/miniBosses';
+
+function mechanicShapeLabel(mech: MiniBossMechanic): string {
+  switch (mech.kind) {
+    case 'cone':
+      return `${mech.lengthUnits}m cone @ ${mech.halfAngleDeg * 2}° arc`;
+    case 'summonPack':
+      return `${mech.summonRadius}m rally call`;
+    case 'circle':
+    case 'donut': {
+      const inner = mechanicInnerRadius(mech);
+      return `${mechanicOuterRadius(mech)}m radius${inner > 0 ? ` (safe inside ${inner}m)` : ''}`;
+    }
+  }
+}
 import { GAME_ZONES } from '../../../../packages/content/zones';
 import { LootDropsForTable } from './WikiLoot';
 
@@ -75,14 +90,10 @@ function BossLi({
         <dd>{boss.signatureAbility.description}</dd>
       </div>
       <small className="wiki-row-footer">
-        {(mech.windUpMs / 1000).toFixed(1)}s wind-up · {mech.kind === 'cone'
-          ? `${mech.lengthUnits}m cone @ ${mech.halfAngleDeg * 2}° arc`
-          : `${mechanicOuterRadius(mech)}m radius${
-              mechanicInnerRadius(mech) > 0
-                ? ` (safe inside ${mechanicInnerRadius(mech)}m)`
-                : ''
-            }`} ·{' '}
-        ×{mech.damageMul} damage · {(mech.cooldownMs / 1000).toFixed(0)}s cooldown
+        {(mech.windUpMs / 1000).toFixed(1)}s wind-up · {mechanicShapeLabel(mech)} ·{' '}
+        {mech.kind === 'summonPack'
+          ? 'rallies packmates (no direct damage)'
+          : `×${mech.damageMul} damage`} · {(mech.cooldownMs / 1000).toFixed(0)}s cooldown
       </small>
       <small className="wiki-row-footer">
         Enrages after {(DEFAULT_BOSS_CONFIG.enrageAfterMs / 1000).toFixed(0)}s

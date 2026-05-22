@@ -42,6 +42,14 @@ export type MiniBossMechanic =
       readonly lengthUnits: number;
       /** Half-angle of the cone in degrees. Total cone arc is 2× this value. */
       readonly halfAngleDeg: number;
+    })
+  | (CommonMechanicTiming & {
+      readonly kind: 'summonPack';
+      /** Range of the howl — alive packmates with matching packId
+       *  within this distance get pulled onto the boss's target,
+       *  regardless of their current AI state. Doubles as the
+       *  visual telegraph radius. */
+      readonly summonRadius: number;
     });
 
 /** Outer radius of the mechanic's danger footprint — the radius the
@@ -51,6 +59,7 @@ export function mechanicOuterRadius(m: MiniBossMechanic): number {
     case 'circle': return m.radiusUnits;
     case 'donut': return m.outerRadius;
     case 'cone': return m.lengthUnits;
+    case 'summonPack': return m.summonRadius;
   }
 }
 
@@ -62,6 +71,7 @@ export function mechanicInnerRadius(m: MiniBossMechanic): number {
     case 'circle': return 0;
     case 'donut': return m.innerRadius;
     case 'cone': return 0;
+    case 'summonPack': return 0;
   }
 }
 
@@ -131,6 +141,20 @@ function cone(
     ...overrides,
   };
 }
+function summonPack(
+  overrides: Partial<CommonMechanicTiming & { summonRadius: number }>,
+): MiniBossMechanic {
+  return {
+    kind: 'summonPack',
+    windUpMs: DEFAULT_CIRCLE_TIMING.windUpMs,
+    cooldownMs: DEFAULT_CIRCLE_TIMING.cooldownMs,
+    // damageMul kept in the union for shape consistency but
+    // unused — summonPack never deals direct damage on impact.
+    damageMul: 0,
+    summonRadius: 80,
+    ...overrides,
+  };
+}
 
 export const MINI_BOSSES: Record<string, MiniBossSpec> = {
   grakk: {
@@ -141,8 +165,14 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     lore: 'A scarred goblin warlord who claims the meadow ridge as his throne. His shrieks rally any goblin within earshot.',
     signatureAbility: {
       name: 'Warband Howl',
-      description: 'Calls every goblin in the zone to converge on the threat. Killing Grakk first thins the pack fast.',
-      mechanic: circle({ windUpMs: 1500, cooldownMs: 9_000, radiusUnits: 6, damageMul: 1.4 }),
+      description: 'Calls every goblin within 80m to converge on Grakk\'s target — pulls them off whatever they were doing, including chasing a different player. Killing Grakk first thins the pack fast.',
+      // Archwork #6 follow-up — summonPack mechanic. The lore
+      // promised a pack-call; the engine now honours it by pulling
+      // every alive goblin within summonRadius onto Grakk's target
+      // regardless of their current AI state (idle / patrolling /
+      // chasing-different / attacking-different — all get
+      // re-targeted).
+      mechanic: summonPack({ windUpMs: 1500, cooldownMs: 9_000, summonRadius: 80 }),
     },
     trophyItemId: 'grakk_warband_horn',
     lootTableId: 'boss_loot_grakk',
