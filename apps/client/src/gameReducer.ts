@@ -17,13 +17,13 @@ import {
   normalizeClientStarterProgress,
 } from './starterProgress';
 import {
-  applyCastFailFromCommandRejected,
+  applyCastRejected,
   applyCastSnapshotVisualState,
   applyCombatLogVisualState,
   applyEnemyAttackVisualState,
   applyBossTelegraphFeedback,
   applyEnemyDeathFeedback,
-  applyEquipFailedFromCommandRejected,
+  applyEquipRejected,
   applyEquipmentChangeFeedback,
   applyInventoryRejectedVisualState,
   applyQuestRejectedVisualState,
@@ -356,8 +356,8 @@ function routeCommandRejected(
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
-  if (message.commandType === 'CastReq') return applyCastFailFromCommandRejected(state, message, now);
-  if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipFailedFromCommandRejected(state, message, now);
+  if (message.commandType === 'CastReq') return applyCastRejected(state, message, now);
+  if (EQUIP_VERB_COMMANDS.has(message.commandType)) return applyEquipRejected(state, message, now);
   if (QUEST_VERB_COMMANDS.has(message.commandType)) return applyQuestRejectedVisualState(state, message, now);
   if (INVENTORY_VERB_COMMANDS.has(message.commandType)) return applyInventoryRejectedVisualState(state, message, now);
   // Skill-verb rejections (Learn + Upgrade) share the SkillTreePanel

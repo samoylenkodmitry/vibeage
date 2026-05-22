@@ -39,7 +39,7 @@ export function onLearnSkill(
   msg: LearnSkill,
 ): void {
   const reject = (reason: LearnSkillFailedReason) =>
-    sendLearnSkillFailed(direct, msg.skillId, reason, msg.clientSeq);
+    sendLearnSkillRejected(direct, msg.skillId, reason, msg.clientSeq);
   const player = findPlayerBySocket(state, socket.id);
   if (!player) {
     warn(LOG_CATEGORIES.SKILL, `Learn skill request from unknown socket: ${socket.id}`);
@@ -133,7 +133,7 @@ function classifyLearnRejection(
 // failing `skillId` so the client's panel can hang the rejection
 // next to the right skill icon (this is what
 // `LearnSkillFailedMsg.skillId` used to carry).
-function sendLearnSkillFailed(
+function sendLearnSkillRejected(
   direct: DirectMessageSink,
   skillId: SkillId,
   reason: LearnSkillFailedReason,

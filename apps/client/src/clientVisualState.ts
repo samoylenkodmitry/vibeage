@@ -48,7 +48,7 @@ export function applyCombatLogVisualState(
  * combat log. Unknown reasons fall through to the raw string so a
  * server-side reason added without client copy still surfaces.
  */
-export function applyCastFailFromCommandRejected(
+export function applyCastRejected(
   state: GameClientState,
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,
@@ -215,7 +215,7 @@ function questRejectCopy(commandType: string, reason: string): string {
  */
 export const EQUIP_VERB_COMMANDS: ReadonlySet<string> = new Set(['EquipItem', 'UnequipItem']);
 
-export function applyEquipFailedFromCommandRejected(
+export function applyEquipRejected(
   state: GameClientState,
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,

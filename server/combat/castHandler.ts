@@ -19,7 +19,7 @@ import {
 // §52 #1 — kept as a stable union for the cast pipeline's internal
 // validation. Pre-retirement this was derived from `CastFail['reason']`;
 // inlined now that the wire-side `CastFail` type is gone.
-type CastFailReason = 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
+type CastRejectionReason = 'cooldown' | 'nomana' | 'invalid' | 'outofrange';
 type CastRequestClient = { id: string };
 type CastHandlerTransport = {
   direct: DirectMessageSink;
@@ -60,7 +60,7 @@ export function handleCastReq(
   if (isEntityStunned(player, now)) {
     runtimeMetrics.increment('cast.rejectedStunned');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is stunned`);
-    emitCastFail(transport.direct, msg, 'invalid');
+    sendCastRejected(transport.direct, msg, 'invalid');
     return;
   }
 
@@ -71,7 +71,7 @@ export function handleCastReq(
   if (interrupt === 'block') {
     runtimeMetrics.increment('cast.rejectedBlocked');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is in a blocking cast`);
-    emitCastFail(transport.direct, msg, 'invalid');
+    sendCastRejected(transport.direct, msg, 'invalid');
     return;
   }
 
@@ -93,7 +93,7 @@ export function handleCastReq(
       skillId: msg.skillId,
       reason: castCheck.reason,
     });
-    emitCastFail(transport.direct, msg, castCheck.reason);
+    sendCastRejected(transport.direct, msg, castCheck.reason);
     return;
   }
 
@@ -111,13 +111,13 @@ export function handleCastReq(
     world,
   });
   
-  const failReason = typeof castResult === 'string' ? toCastFailReason(castResult) : null;
+  const failReason = typeof castResult === 'string' ? toCastRejectionReason(castResult) : null;
   if (failReason) {
     debug(LOG_CATEGORIES.COMBAT, `Cast failed for player ${playerId}`, {
       skillId: castCheck.skillId,
       reason: castResult,
     });
-    emitCastFail(transport.direct, msg, failReason);
+    sendCastRejected(transport.direct, msg, failReason);
     return;
   }
   
@@ -131,18 +131,18 @@ export function handleCastReq(
   runtimeMetrics.increment('castReq.accepted');
 }
 
-function emitCastFail(direct: DirectMessageSink, msg: CastReq, reason: CastFailReason): void {
+function sendCastRejected(direct: DirectMessageSink, msg: CastReq, reason: CastRejectionReason): void {
   // §52 #1 follow-up — `CastFail` retired. The `CommandRejected`
   // envelope is now the sole channel for cast-side failures.
   // `requestId` prefers the explicit `clientSeq`; falls back to
   // `clientTs` for older clients that haven't migrated yet — the
-  // same ack-key fallback `emitCastFail` carried before retirement,
+  // same ack-key fallback `sendCastRejected` carried before retirement,
   // preserved so ack routing on legacy clients still hits.
   const ackKey = msg.clientSeq ?? msg.clientTs;
   sendCommandRejected(direct, 'CastReq', reason, ackKey);
 }
 
-function toCastFailReason(reason: string): CastFailReason | null {
+function toCastRejectionReason(reason: string): CastRejectionReason | null {
   if (reason === 'cooldown' || reason === 'nomana' || reason === 'invalid' || reason === 'outofrange') {
     return reason;
   }
@@ -178,13 +178,13 @@ function rejectFriendlyFire(
   if (align === 'beneficial' && targetIsEnemy) {
     runtimeMetrics.increment('cast.rejectedFriendlyFire.beneficialOnEnemy');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: beneficial ${skillId} aimed at enemy without force`);
-    emitCastFail(transport.direct, msg, 'invalid');
+    sendCastRejected(transport.direct, msg, 'invalid');
     return true;
   }
   if (align === 'harmful' && targetIsFriendlyPlayer) {
     runtimeMetrics.increment('cast.rejectedFriendlyFire.harmfulOnAlly');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: harmful ${skillId} aimed at ally without force`);
-    emitCastFail(transport.direct, msg, 'invalid');
+    sendCastRejected(transport.direct, msg, 'invalid');
     return true;
   }
   return false;
