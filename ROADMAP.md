@@ -30,18 +30,35 @@ bottom of this file, "Architecture Rework Feedback"). Work top-down
      slow runner widened the Phase-1→Phase-2 gap past the
      visual event's ttl. `combatLogTexts` exposed from
      `e2eHooks.ts` is the persistent fallback.
-2. Enemy death/respawn lifecycle — one death API, DoT credit,
-   full mini-boss reset on respawn.
-   - **#446** ✅ sub-work #4 done — `resetEnemyForRespawn` in
-     `server/enemies/enemyLifecycle.ts` clears every leaked
-     field (deathTimeTs, aiState, velocity, chase/patrol
-     bookkeeping, mini-boss enrage/phase/signature,
-     restore base attackDamage/movementSpeed).
-   - Pending: sub-work #1 (unified death API),
-     sub-work #2 (DoT ownership for kill credit),
-     sub-work #3 (rewire impactResolver/dotTicker/enemyBehavior
-     /enemyStateMachine through the unified API).
-3. CommandRejected typed contract — per-command reason unions.
+2. ~~**Enemy death/respawn lifecycle**~~ ✅ **Done 2026-05-22**.
+   Four PRs across the four sub-works:
+   - **#446** sub-work #4 — `resetEnemyForRespawn` clears every
+     leaked field on respawn (deathTimeTs, aiState, velocity,
+     chase/patrol, mini-boss enrage/phase/signature, restore
+     base attackDamage/movementSpeed).
+   - **#450** sub-work #2 — `StatusEffect.sourceCasterId` data
+     foundation; `upsertStatusEffect` records the applying
+     entity.
+   - **#451** sub-work #3 (partial) — DoT kills route through
+     `handleTargetDeath` when a caster is known; XP / quest /
+     loot credit flows. Legacy untracked DoTs fall back to a
+     plain death.
+   - **#452** sub-work #1 — unified `killPlayer(player, now)`.
+     `enemyBehavior.applyEnemyAttack`, `enemyStateMachine` boss
+     signature damage, and `dotTicker` player DoT all route
+     through it.
+3. **CommandRejected typed contract** — per-command reason unions.
+   - **#453** ✅ sub-work #1 — `RejectableCommand` registry in
+     `packages/protocol/commandRejections.ts`. `commandType` is
+     now a typed enum at the Zod boundary and the TS type;
+     `sendCommandRejected` rejects unknown commands at compile
+     time. Pinned by `tests/rejectableCommandRegistry.spec.ts`.
+   - Pending: sub-work 2 (per-command reason unions),
+     sub-work 3 (typed `sendCommandRejected` overloads),
+     sub-work 4 (table-driven client routing),
+     sub-work 5 (rename legacy `emitCastFail` /
+     `sendLearnSkillFailed` / `applyCastFailFromCommandRejected`
+     / `applyEquipFailedFromCommandRejected`).
 4. Client command sending helper — auto-stamp clientSeq.
 5. Router modularization — shrink `clientMessageRouter.ts`.
 6. Mini-boss mechanics — typed mechanic union.
