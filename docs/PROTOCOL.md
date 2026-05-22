@@ -95,6 +95,38 @@ guarded by `OWNER_ONLY_SERVER_MESSAGE_TYPES` in `colyseusRoomAdapter.ts`):
 
 Public broadcasts may include combat, movement, loot visibility, enemy updates, and sanitized player joins/updates. Any new player field must be classified here and covered by a transport privacy test before it is broadcast. The privacy guard is exercised by `tests/clientStatePrivacy.spec.ts`, `tests/playerPrivacyAllowList.spec.ts`, `tests/ownerOnlyServerMessages.spec.ts`, and `tests/ownerPlayerSnapshot.spec.ts`.
 
+### Player Field Privacy Table
+
+Source of truth: `PUBLIC_PLAYER_FIELDS`, `OWNER_PLAYER_FIELDS`, `PRIVATE_PLAYER_STATE_FIELDS` in `server/transport/clientState.ts`. The pin against drift is `tests/playerPrivacyAllowList.spec.ts`.
+
+| Field | Public | Owner-only | Server-only | Notes |
+| --- | :-: | :-: | :-: | --- |
+| `id` | ✓ | ✓ | | Player id is public. |
+| `name` | ✓ | ✓ | | Display name. |
+| `className` | ✓ | ✓ | | Race / class are public for nameplates and PvP awareness. |
+| `race` | ✓ | ✓ | | |
+| `specializationId` | ✓ | ✓ | | Visible spec choice (drives nameplate badges). |
+| `level` | ✓ | ✓ | | |
+| `position`, `rotation`, `velocity`, `movement` | ✓ | ✓ | | Region-scoped — only visible to same-region clients. |
+| `health`, `maxHealth`, `mana`, `maxMana` | ✓ | ✓ | | Resource bars are public for visible players. |
+| `isAlive`, `deathTimeTs` | ✓ | ✓ | | |
+| `castingSkill`, `castingProgressMs` | ✓ | ✓ | | Public so other players see cast bars. |
+| `targetId` | ✓ | ✓ | | |
+| `statusEffects` | ✓ | ✓ | | Public buff/debuff icons. |
+| `dirtySnap` | ✓ | ✓ | | Snap bookkeeping. |
+| `experience`, `experienceToNextLevel` | | ✓ | | Progression — only owner sees their XP. |
+| `unlockedSkills`, `skillShortcuts`, `availableSkillPoints`, `skillLevels` | | ✓ | | Skill state. |
+| `starterProgress` | | ✓ | | Onboarding state. |
+| `questState` | | ✓ | | Per-player quest tracking. |
+| `skillCooldownEndTs` | | ✓ | | Cooldown ledger. |
+| `stats` | | ✓ | | Derived stat block. |
+| `gold` | | ✓ | | Economy. |
+| `maxInventorySlots` | | ✓ | | Owner-only; bag size doesn't leak to others. |
+| `socketId` | | | ✓ | Transport bookkeeping — never wire. |
+| `posHistory`, `lastUpdateTime`, `lastSnapTime`, `lastRegenTimeMs` | | | ✓ | Server-tick bookkeeping. |
+| `usedResurrectionThisLife` | | | ✓ | Lifetime flag. |
+| `characterInventory` | | | ✓ | Aggregate inventory state — `InventoryUpdate` owns the wire path. |
+
 ## Region-Scoped State
 
 Region activation and spawning are global server decisions. Region scoping only limits what each client sees.

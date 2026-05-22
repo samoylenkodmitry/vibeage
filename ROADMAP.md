@@ -419,8 +419,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests that region-scoped messages do not leak hidden entity IDs through nested arrays.
 - [x] Add tests that batch updates preserve privacy after filtering.
 - [x] Add tests that empty filtered batches are not sent.
-- [ ] Add a privacy classification table in docs for every player field.
-- [ ] Add a privacy classification table in docs for every server message type.
+- [x] Add a privacy classification table in docs for every player field. (`docs/PROTOCOL.md` — "Player Field Privacy Table" section under Visibility Boundary. Source of truth is the three allowlists in `server/transport/clientState.ts`, pinned by `tests/playerPrivacyAllowList.spec.ts`.)
+- [x] Add a privacy classification table in docs for every server message type. (`docs/PROTOCOL.md` — "Message Ownership" table under Server Messages. Pinned by `tests/ownerOnlyServerMessages.spec.ts` for the owner-only set and `tests/clientStatePrivacy.spec.ts` for the public/region paths.)
 
 ## 6. Inventory, Equipment, Items, and Persistence
 
