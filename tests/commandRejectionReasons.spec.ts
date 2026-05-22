@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   REJECTABLE_COMMANDS,
   type CommandRejectionReason,
-  type CommandRejectionReasons,
   type CommandRejectedFor,
   type RejectableCommand,
 } from '../packages/protocol/commandRejections';
