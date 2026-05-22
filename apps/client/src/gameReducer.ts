@@ -172,13 +172,35 @@ function updatePlayer(
     ? normalizeClientStarterProgress(player.starterProgress ?? state.starterProgress, player)
     : state.starterProgress;
   const withDeathLog = applyPlayerDeathFeedback(state, update.id, current.name, current.isAlive, player.isAlive, now);
+  // §52 polish — a successful UpgradeSkill arrives as a
+  // `playerUpdated.skillLevels` delta (no dedicated SkillUpgraded
+  // message). Mirror the SkillLearned → clear path so the
+  // SkillTreePanel chip disappears once the upgrade actually lands.
+  const learnSkillRejections = clearRejectionsForUpgradedSkills(state, update);
 
   return {
     ...withDeathLog,
     players: { ...withDeathLog.players, [update.id]: player },
     inventory,
     starterProgress,
+    learnSkillRejections,
   };
+}
+
+function clearRejectionsForUpgradedSkills(
+  state: GameClientState,
+  update: Partial<PlayerEntity> & { id: string },
+): Record<string, string> {
+  if (state.myPlayerId !== update.id || !update.skillLevels) return state.learnSkillRejections;
+  const prior = state.players[update.id]?.skillLevels ?? {};
+  let next: Record<string, string> | null = null;
+  for (const [skillId, level] of Object.entries(update.skillLevels)) {
+    if ((prior[skillId] ?? 1) < level && skillId in state.learnSkillRejections) {
+      next = next ?? { ...state.learnSkillRejections };
+      delete next[skillId];
+    }
+  }
+  return next ?? state.learnSkillRejections;
 }
 
 function updateEnemy(
