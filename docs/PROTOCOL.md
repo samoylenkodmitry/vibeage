@@ -250,7 +250,44 @@ When adding or changing a protocol message:
    - `tests/transportBoundary.spec.ts`
 7. Run `pnpm run check:protocol`.
 
-## Legacy Messages (Removed)
+## Protocol Changelog
+
+The protocol surface is allowlisted by the Zod + TS-union pair in
+`packages/protocol/{clientMessages,serverMessages}.ts`, and
+`tests/protocolTypeDrift.spec.ts` fails CI if a TS union variant
+lacks a matching Zod schema entry. Whenever a wire message is
+added, renamed, retired, or has its shape changed (additive
+included — old clients can grow to depend on the new field),
+append a one-line entry here so an old client can be traced back
+to the deploy where the boundary moved on it.
+
+Entry format: a Markdown `### v<tag> — (<theme>)` header per
+release group, then one bullet per affected message in the form
+`message-name — what changed (PR #N)`. Group several related PRs
+under one header when the change tells a single story.
+
+### v0.6.0+ (§52 #11 — aggregate-shaped inventory)
+
+- `InventorySlot` extended with optional `slotIndex` + `instanceId`
+  (additive; old clients ignore the new fields). Sparse-bag rendering
+  on the client keys on `slotIndex`. (PR #379)
+
+### v0.6.0 (§52 #1 — CommandRejected envelope)
+
+Three legacy `*Failed` messages retired in favor of the structured
+`CommandRejected{commandType, reason, requestId?, targetId?}` envelope:
+
+- ~~CastFail~~ → `CommandRejected{commandType:'CastReq', …}` (PR #353)
+- ~~EquipFailed~~ → `CommandRejected{commandType:'EquipItem'|'UnequipItem', …}` (PR #354)
+- ~~LearnSkillFailed~~ → `CommandRejected{commandType:'LearnSkill', …, targetId}` (PR #355). The optional `targetId` carries per-subject context (skill id, item id, vendor id, etc.) so the client can hang the rejection next to the right UI element without per-command outbound bookkeeping.
+
+`CommandRejected` also now covers every user-intent command (Equip /
+Unequip / Buy / Sell / Use / Drop / Destroy / Craft / Learn /
+Upgrade / Quest verbs / ChatRequest) and rate-limit drops for
+low-frequency commands. See `RATE_LIMIT_FEEDBACK_COMMANDS` in
+`server/world/clientMessageRouter.ts`.
+
+### v0.5.0 (cast-pipeline consolidation)
 
 The following message types have been removed in v0.5.0:
 
@@ -263,16 +300,3 @@ The following message types have been removed in v0.5.0:
 - ~~ProjHit2~~
 
 These have been replaced by `CastReq`, `CastSnapshot`, `InstantHit`, and `CombatLog` messages validated in `packages/protocol/messages.ts`.
-
-§52 #1 retired three more legacy *Failed messages in favor of the
-structured `CommandRejected` envelope:
-
-- ~~CastFail~~ → `CommandRejected{commandType:'CastReq', reason, requestId}`
-  (PR #353)
-- ~~EquipFailed~~ → `CommandRejected{commandType:'EquipItem'|'UnequipItem',
-  reason, requestId}` (PR #354)
-- ~~LearnSkillFailed~~ → `CommandRejected{commandType:'LearnSkill',
-  reason, requestId, targetId}` (PR #355). The new optional `targetId`
-  field on `CommandRejected` carries per-subject context (skill id,
-  item id, …) so the client can hang the rejection next to the right
-  UI element without per-command outbound bookkeeping.
