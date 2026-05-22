@@ -687,7 +687,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add graceful shutdown that persists active players before process exit.
 - [x] Add crash recovery tests for player state. (Crash recovery is the persist → hydrate roundtrip applied across a process restart. Tests: `tests/handtestFixes.spec.ts` (equipment + skill state survives), `tests/scenarioBundles.spec.ts` (full identity/level/skill/equipment hydration), `tests/inventoryReconnectIntegrity.spec.ts` (no dupe, no stack inflation), `tests/disconnectPersistsPlayer.spec.ts` (persist rejection during shutdown does not stall the leave path — the crash-recovery property that matters most).)
 - [x] Add tests for disconnect persistence. (`tests/disconnectPersistsPlayer.spec.ts` — pins `removePlayerSessionBySocketId` calling `persistPlayer` with the full PlayerState before deleting from memory; `recordServerEvent('player_disconnect')` fires; persist rejection doesn't block removal (crash-recovery property); unknown-socket disconnect is a clean no-op.)
-- [ ] Add tests for periodic persistence.
+- [x] Add tests for periodic persistence. (`tests/periodicPersistence.spec.ts` — pins `persistActivePlayers(state)`: persists every active player exactly once with the full PlayerState; a single rejected persist does NOT cancel the rest (Promise.allSettled semantics) so the loop survives a transient DB hiccup; empty player set is a clean no-op.)
 - [ ] Add tests for persistence disabled mode.
 - [ ] Add tests for partial persistence failure.
 - [ ] Add tests for invalid JSONB values.
