@@ -47,18 +47,27 @@ bottom of this file, "Architecture Rework Feedback"). Work top-down
      `enemyBehavior.applyEnemyAttack`, `enemyStateMachine` boss
      signature damage, and `dotTicker` player DoT all route
      through it.
-3. **CommandRejected typed contract** — per-command reason unions.
-   - **#453** ✅ sub-work #1 — `RejectableCommand` registry in
-     `packages/protocol/commandRejections.ts`. `commandType` is
-     now a typed enum at the Zod boundary and the TS type;
-     `sendCommandRejected` rejects unknown commands at compile
-     time. Pinned by `tests/rejectableCommandRegistry.spec.ts`.
-   - Pending: sub-work 2 (per-command reason unions),
-     sub-work 3 (typed `sendCommandRejected` overloads),
-     sub-work 4 (table-driven client routing),
-     sub-work 5 (rename legacy `emitCastFail` /
-     `sendLearnSkillFailed` / `applyCastFailFromCommandRejected`
-     / `applyEquipFailedFromCommandRejected`).
+3. **CommandRejected typed contract** — 4/5 sub-works done.
+   - **#453** sub-work #1 ✅ — `RejectableCommand` registry.
+   - **#455** sub-work #2 ✅ — per-command reason unions
+     (`CommandRejectionReasons`, `CommandRejectionReason<C>`,
+     `CommandRejectedFor<C>`); typed envelopes narrow at the
+     literal level (`@ts-expect-error` proves mismatch fails).
+   - **#456** sub-work #3 ✅ — `sendCommandRejected` is generic
+     over commandType; reason is `CommandRejectionReason<C>`.
+     All 24 call sites typed; dynamic-reason sources (validation
+     result strings, TransactionError) keep narrow `as` casts at
+     the seams (cleanup is #5 router-modularization territory).
+   - **#457** sub-work #5 ✅ — legacy `*Fail*` helper names
+     retired: `emitCastFail` → `sendCastRejected`,
+     `sendLearnSkillFailed` → `sendLearnSkillRejected`,
+     `applyCastFailFromCommandRejected` → `applyCastRejected`,
+     `applyEquipFailedFromCommandRejected` → `applyEquipRejected`.
+     Wire schema names kept for backwards compat.
+   - Pending: sub-work 4 (table-driven client routing — currently
+     the dispatcher in `gameReducer.routeCommandRejected` uses
+     half-table-driven if/else; a full Record-based registry with
+     test-enforced coverage is the remaining piece).
 4. Client command sending helper — auto-stamp clientSeq.
 5. Router modularization — shrink `clientMessageRouter.ts`.
 6. Mini-boss mechanics — typed mechanic union.
