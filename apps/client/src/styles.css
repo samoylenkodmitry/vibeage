@@ -820,6 +820,25 @@ input {
   background: rgba(44, 52, 55, 0.92);
 }
 
+/* The actions-panel overlaps the inventory-panel at typical
+   desktop / tablet viewports (both anchored bottom-right), so the
+   panel's chrome (background, gap between buttons) and its
+   disabled buttons were intercepting pointer events on the bag
+   slots beneath — right-click on the top inventory row did nothing.
+   Solution: the panel + grid let pointer events fall through, and
+   only ACTIVE action buttons catch them. Disabled action buttons
+   are non-interactive anyway; they already display a subtitle
+   explaining the disabled state ("Pick target", "Dead", cooldown
+   timer), so losing hover-tooltip on them doesn't cost signal. */
+.actions-panel,
+.actions-panel-grid,
+.actions-panel .panel-title {
+  pointer-events: none;
+}
+.action-button:not(:disabled) {
+  pointer-events: auto;
+}
+
 .action-button__hotkey {
   display: grid;
   width: 28px;

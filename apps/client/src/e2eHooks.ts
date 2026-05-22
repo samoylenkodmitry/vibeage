@@ -91,6 +91,13 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
     },
     useItem: api.useItem,
     respawn: api.respawn,
+    // Test-only — grants `count` of an item to the player via the
+    // server's GmCommand path. Requires VIBEAGE_ENABLE_DEV_COMMANDS=1
+    // on the server (the Vite e2e config sets it). No-op in
+    // production builds (the server rejects the command).
+    grantItem: (itemId: string, count: number) => {
+      api.gmCommand({ verb: 'grantItem', value: itemId, quantity: count });
+    },
   };
 }
 
@@ -141,6 +148,7 @@ declare global {
       moveNearPlayer: (offset?: VecXZ) => VecXZ | null;
       useItem: (slotIndex: number) => void;
       respawn: () => void;
+      grantItem: (itemId: string, count: number) => void;
     };
   }
 }
