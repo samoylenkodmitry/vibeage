@@ -156,7 +156,7 @@ function runCombatPhase(input: WorldTickRunnerOptions & { now: number }): void {
     input.outbound,
     createWorldCombatBridge(input.state, input.outbound, input.spatial),
   );
-  tickDamageOverTimeEffects(input.state, input.outbound, input.now);
+  tickDamageOverTimeEffects(input.state, input.spatial, input.outbound, input.now);
 }
 
 function runSnapshotPhase(input: WorldTickRunnerOptions & {

@@ -1,7 +1,9 @@
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { StatusEffect } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
+import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { handleTargetDeath } from './targetDeath.js';
 
 function hasRecordKey<T>(record: Record<string, T>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
@@ -35,15 +37,25 @@ export function resetDotTrackerForTests(): void {
 type DotApplyResult = {
   damaged: boolean;
   died: boolean;
+  /**
+   * Archwork item #2 sub-work 3 — when a DoT tick landed the
+   * killing blow, this is the `sourceCasterId` of the effect that
+   * killed (the player who originally cast the DoT). The caller
+   * uses it to route the kill through `handleTargetDeath` so XP /
+   * quest / loot credit flows to the right player.
+   */
+  killerCasterId?: string;
 };
 
 /**
  * Walks every player and enemy in the state, applies any due DoT
  * ticks, emits playerUpdated / enemyUpdated for damaged entities,
- * and returns nothing (mutates state in place).
+ * and routes enemy DoT-kills through `handleTargetDeath` so the
+ * caster gets XP / quest / loot credit (archwork item #2 sub-work 3).
  */
 export function tickDamageOverTimeEffects(
   state: GameState,
+  spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
   now: number = Date.now(),
 ): void {
@@ -51,6 +63,11 @@ export function tickDamageOverTimeEffects(
     if (!hasRecordKey(state.players, playerId)) continue;
     const player = state.players[playerId];
     if (!player.isAlive) continue;
+    // Player DoT death is left as a plain isAlive=false flip for now;
+    // archwork sub-work #1 (killPlayer unified API) will route it
+    // through a player-death helper. Today the corresponding cleanup
+    // (cast / target / pre-death state) happens at the equivalent
+    // sites in enemyBehavior / enemyStateMachine.
     if (applyDueDotTicks(player, now).damaged) {
       emitPlayerUpdated(outbound, {
         id: player.id,
@@ -63,7 +80,25 @@ export function tickDamageOverTimeEffects(
     if (!hasRecordKey(state.enemies, enemyId)) continue;
     const enemy = state.enemies[enemyId];
     if (!enemy.isAlive) continue;
-    if (applyDueDotTicks(enemy, now).damaged) {
+    const result = applyDueDotTicks(enemy, now);
+    if (result.died && result.killerCasterId) {
+      // Roll the kill credit + side effects through the canonical
+      // death seam. handleTargetDeath sets isAlive=false, removes
+      // from spatial, awards XP/quest/loot, etc.
+      const caster = state.players[result.killerCasterId];
+      if (caster) {
+        handleTargetDeath(caster, enemy, { state, spatial, outbound, now });
+        continue;
+      }
+      // Caster disconnected between DoT apply and the killing tick.
+      // applyDueDotTicks deliberately left isAlive=true expecting us
+      // to route through handleTargetDeath; we don't have a caster
+      // so we flip the death state manually (no credit, but the
+      // enemy must not stay alive at 0 hp).
+      enemy.isAlive = false;
+      spatial.remove(enemy.id, { x: enemy.position.x, z: enemy.position.z });
+    }
+    if (result.damaged) {
       emitEnemyUpdated(outbound, { id: enemy.id, health: enemy.health, isAlive: enemy.isAlive });
     }
   }
@@ -94,6 +129,17 @@ function applyDueDotTicks(entity: PlayerState | Enemy, now: number): DotApplyRes
       damaged = damaged || damage > 0;
       nextDue += DOT_TICK_INTERVAL_MS;
       if (entity.health <= 0) {
+        // Caller (tickDamageOverTimeEffects) decides whether to
+        // route through handleTargetDeath. We don't flip isAlive
+        // here when a caster is known — handleTargetDeath does
+        // it as part of the full death seam.
+        if (effect.sourceCasterId) {
+          return { damaged: true, died: true, killerCasterId: effect.sourceCasterId };
+        }
+        // No known killer (system DoT, or pre-rework effect without
+        // ownership): fall back to the legacy flip so the enemy
+        // visibly dies. Cleanup (no XP, no loot, no quest) matches
+        // pre-rework behaviour for these untracked deaths.
         entity.isAlive = false;
         return { damaged: true, died: true };
       }
