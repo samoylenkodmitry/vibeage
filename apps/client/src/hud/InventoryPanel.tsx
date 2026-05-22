@@ -41,10 +41,18 @@ export function InventoryPanel({
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<string>();
   const [menu, setMenu] = useState<BagContextMenuTrigger | null>(null);
+  const openMenu = (slotIndex: number, itemId: string, clientX: number, clientY: number) =>
+    setMenu({ slotIndex, itemId, clientX, clientY });
   const callbacks: InventorySlotCallbacks = {
     onUseItem, onEquipItem, onOpenRecipe, onDropItem,
-    onOpenMenu: (slotIndex, itemId, clientX, clientY) => setMenu({ slotIndex, itemId, clientX, clientY }),
-    tooltipTriggerProps: (itemId) => tooltip.triggerProps(itemId),
+    onOpenMenu: openMenu,
+    // Bag slots redirect both long-press (mobile) and right-click
+    // (desktop) into the action menu instead of the item tooltip.
+    // The hover tooltip on desktop pointer is unaffected.
+    tooltipTriggerProps: (slotIndex, itemId) => tooltip.triggerProps(itemId, {
+      onLongPress: (x, y) => openMenu(slotIndex, itemId, x, y),
+      onContextAction: (x, y) => openMenu(slotIndex, itemId, x, y),
+    }),
     consumePendingClick: () => tooltip.consumePendingClick(),
   };
   // §52 #11 — render by explicit `slotIndex` when the server provides

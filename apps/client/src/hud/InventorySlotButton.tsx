@@ -16,7 +16,10 @@ export type InventorySlotCallbacks = {
   onOpenRecipe: (slotIndex: number) => void;
   onDropItem: (slotIndex: number) => void;
   onOpenMenu: (slotIndex: number, itemId: string, clientX: number, clientY: number) => void;
-  tooltipTriggerProps: (itemId: string) => HTMLAttributes<HTMLElement> | undefined;
+  /** Per-slot tooltip trigger handlers — the panel-level call site
+   *  supplies onLongPress + onContextAction overrides so both
+   *  gestures land on the action menu instead of the item tooltip. */
+  tooltipTriggerProps: (slotIndex: number, itemId: string) => HTMLAttributes<HTMLElement> | undefined;
   consumePendingClick: () => boolean;
 };
 
@@ -47,14 +50,14 @@ export function InventorySlotButton({
       ? 'Recipe'
       : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
   const title = slot
-    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · Shift+click to drop · right-click for menu · hover or long-press for details`
+    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · Shift+click to drop · right-click or long-press for menu · hover for details`
     : 'Empty slot';
   const onClick = canUse
     ? () => callbacks.onUseItem(index)
     : isRecipe
       ? () => callbacks.onOpenRecipe(index)
       : canEquip ? () => callbacks.onEquipItem(index) : undefined;
-  const triggerProps = slot ? callbacks.tooltipTriggerProps(slot.itemId) : undefined;
+  const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
   return (
     <button
       type="button"
@@ -74,11 +77,6 @@ export function InventorySlotButton({
         }
         onClick?.();
         event.stopPropagation();
-      }}
-      onContextMenu={(event) => {
-        if (!slot) return;
-        event.preventDefault();
-        callbacks.onOpenMenu(index, slot.itemId, event.clientX, event.clientY);
       }}
       {...(triggerProps ?? {})}
     >
