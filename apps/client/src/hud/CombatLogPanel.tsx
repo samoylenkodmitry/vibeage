@@ -46,7 +46,10 @@ export function CombatLogPanel({ lines }: CombatLogPanelProps) {
     <section className="combat-log" aria-label="Combat log">
       <div className="combat-log-scroll" ref={scrollRef} onScroll={onScroll}>
         {ordered.map((line) => (
-          <span key={line.id}>{line.text}</span>
+          <span key={line.id}>
+            {line.text}
+            {line.count && line.count > 1 ? ` (×${line.count})` : ''}
+          </span>
         ))}
       </div>
       {!stuckToBottom && (
