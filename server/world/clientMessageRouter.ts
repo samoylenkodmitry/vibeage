@@ -50,6 +50,24 @@ import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 
 type WorldClient = SocketMessageTarget & { id: string };
 
+/**
+ * §52 polish — commands that emit a `CommandRejected{reason:'rateLimited'}`
+ * envelope when the rate limiter drops them. Movement / cast / loot
+ * intents stay silent because they're client-initiated at high
+ * frequency; a rate-limit drop is normal there and would spam the
+ * combat log. User-initiated, low-frequency commands get the
+ * envelope so the UI can surface "slow down" feedback.
+ */
+const RATE_LIMIT_FEEDBACK_COMMANDS: ReadonlySet<string> = new Set([
+  'ChatRequest',
+  'BuyFromVendor', 'SellToVendor',
+  'CraftItem', 'UseItem', 'DropItem', 'DestroyItem',
+  'EquipItem', 'UnequipItem',
+  'LearnSkill', 'UpgradeSkill',
+  'AcceptQuest', 'CancelQuest', 'AdvanceQuest', 'ClaimQuestReward',
+  'GmCommand',
+]);
+
 export function handleClientMessage(
   socket: WorldClient,
   state: GameState,
@@ -58,13 +76,22 @@ export function handleClientMessage(
   spatial: SpatialHashGrid,
 ): void {
   const bucket = bucketForCommand(msg.type);
+  const direct = makeSocketMessageSink(socket);
   if (bucket && !sharedRateLimiter().allow(socket.id, bucket)) {
     debug(LOG_CATEGORIES.SYSTEM, `Rate-limited ${msg.type} from ${socket.id}`);
     runtimeMetrics.increment(`rateLimit.dropped.${msg.type}`);
     runtimeMetrics.increment('rateLimit.dropped.total');
+    // §52 polish — surface rate-limit drops for user-intent commands
+    // so the ChatPanel / vendor / craft / etc. can show "slow down"
+    // feedback. Movement / cast intents stay silent because they're
+    // client-initiated at high frequency; a rate-limit drop is normal
+    // there and would spam the combat log.
+    if (RATE_LIMIT_FEEDBACK_COMMANDS.has(msg.type)) {
+      sendCommandRejected(direct, msg.type, 'rateLimited',
+        (msg as { clientSeq?: number }).clientSeq);
+    }
     return;
   }
-  const direct = makeSocketMessageSink(socket);
   switch (msg.type) {
     case 'MoveIntent':
       return onMoveIntent(socket, state, msg, outbound);
