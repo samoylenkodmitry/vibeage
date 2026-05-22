@@ -580,8 +580,8 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add client reconciliation acknowledgements using movement sequence numbers.
 - [ ] Add server snapshots with authoritative sequence acknowledgement.
 - [ ] Add tests for long-walk synchronization.
-- [ ] Add tests for movement under slow and speed boost effects.
-- [ ] Add tests for movement after stun/freeze/root.
+- [x] Add tests for movement under slow and speed boost effects. (`tests/playerSpeedFromRunSpeed.spec.ts` — slow proportionally reduces, speed_boost proportionally raises; `tests/enemySlowEffect.spec.ts` — slow propagates into enemy chase movement.)
+- [x] Add tests for movement after stun/freeze/root. (`tests/playerStunBlocks.spec.ts` — `applyMoveIntent` rejects stunned players; `handleCastReq` rejects stunned players. `tests/freezeRootAsStun.spec.ts` — freeze and root blocks move + cast on both players and enemies; pinned via the `isEntityStunned` shared helper.)
 - [ ] Add tests for movement after death and respawn.
 - [ ] Add tests for crossing region boundaries while moving.
 - [x] Add tests for client sending movement for another player ID.
