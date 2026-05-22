@@ -8,27 +8,39 @@ Execution order for the 2026-05-22 Codex audit (full text at the
 bottom of this file, "Architecture Rework Feedback"). Work top-down
 — do not skip; each item assumes the prior is shipped.
 
-1. **Fix main CI discipline** (was item #8; promoted to #1 because
-   it's blocking us from seeing whether subsequent rework actually
-   stays green). Concrete signal: two completed post-merge heavy
-   runs in a row failed on the same browser-smoke E2E
-   (`tests/e2e-vite/combat-flow.spec.ts:23` + `:62`, 60s timeout
-   waiting for `castSkillIds.includes('fireball'|'basicAttack')`).
-   The 100+ runs before that were cancelled by rapid merges
-   (`concurrency: cancel-in-progress: true` on every push,
-   including `main`), so we've been deploying production un-gated
-   on the post-merge gate. Fix:
-   - Split workflow concurrency so PR refs cancel but `main`
-     queues (separate group or non-cancellable push runs).
-   - Diagnose the two failing combat-flow specs. Triage path:
-     pull the trace artifact, check whether the cast queues
-     behind a movement step that's failing, then either fix the
-     server-side gate or stabilise the test.
-   - Add a deploy guard in `pnpm run deploy:production` that
-     refuses to deploy a SHA whose latest main heavy CI hasn't
-     reported success.
+1. ~~**Fix main CI discipline**~~ ✅ **Done 2026-05-22** —
+   first green main heavy CI run in 100+ attempts at
+   `9ea0fd45`. Shipped across four PRs:
+   - **#445** — concurrency policy split: PR refs cancellable,
+     main pushes queue (`cancel-in-progress: ${{ event_name ==
+     'pull_request' }}`). Restored visibility of the post-merge
+     gate.
+   - **#445** — deploy guard in `scripts/deploy-from-local.sh`
+     (`ensure_heavy_ci_passed`). Refuses to deploy a SHA whose
+     latest main heavy CI isn't `success`. `SKIP_CI_GATE=1`
+     for emergency-deploy escape hatch.
+   - **#445** — Playwright trace artifact upload on failure +
+     `retries: 1` for E2E. Without the artifact upload the
+     failing tests were undiagnosable from outside the runner.
+   - **#447** — `selectFirstEnemy` skips mini-bosses. Spawn
+     order put Grakk (level-5 mini-boss) at index 0; level-1
+     test player died on approach.
+   - **#448** — Fireball Phase 2 also accepts a persistent
+     combat-log entry, not just the 1.8 s `visualEvent`. CI's
+     slow runner widened the Phase-1→Phase-2 gap past the
+     visual event's ttl. `combatLogTexts` exposed from
+     `e2eHooks.ts` is the persistent fallback.
 2. Enemy death/respawn lifecycle — one death API, DoT credit,
    full mini-boss reset on respawn.
+   - **#446** ✅ sub-work #4 done — `resetEnemyForRespawn` in
+     `server/enemies/enemyLifecycle.ts` clears every leaked
+     field (deathTimeTs, aiState, velocity, chase/patrol
+     bookkeeping, mini-boss enrage/phase/signature,
+     restore base attackDamage/movementSpeed).
+   - Pending: sub-work #1 (unified death API),
+     sub-work #2 (DoT ownership for kill credit),
+     sub-work #3 (rewire impactResolver/dotTicker/enemyBehavior
+     /enemyStateMachine through the unified API).
 3. CommandRejected typed contract — per-command reason unions.
 4. Client command sending helper — auto-stamp clientSeq.
 5. Router modularization — shrink `clientMessageRouter.ts`.
