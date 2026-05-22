@@ -128,6 +128,43 @@ describe('tickDamageOverTimeEffects', () => {
     }));
   });
 
+});
+
+describe('tickDamageOverTimeEffects: simultaneous effects', () => {
+  beforeEach(() => {
+    resetDotTrackerForTests();
+  });
+
+  it('sums damage from simultaneous DoT effects on the same target in one tick', () => {
+    // ROADMAP L527 — "Add tests for simultaneous effects on one target."
+    // A bleed + a burn applied by two different casters should both tick
+    // every interval; the player loses health equal to the sum of values.
+    // Without this guarantee, the DoT ticker could mistakenly process
+    // only the first effect (an early implementation bug) or stomp on
+    // effects[1] when writing back.
+    const state = createGameState();
+    const player = makePlayer('p', [
+      burnEffect('b1', 5, { type: 'burn', sourceSkill: 'fireball' }),
+      burnEffect('b2', 7, { type: 'poison', sourceSkill: 'venomstrike' }),
+    ]);
+    state.players[player.id] = player;
+    const { sink } = captureOutbound();
+
+    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS);
+
+    // 100 - 5 - 7 = 88.
+    expect(player.health).toBe(88);
+    // Both effects still live on the player; neither was consumed.
+    expect(player.statusEffects).toHaveLength(2);
+  });
+
+});
+
+describe('tickDamageOverTimeEffects: enemy side', () => {
+  beforeEach(() => {
+    resetDotTrackerForTests();
+  });
+
   it('also ticks DoTs on enemies and emits enemyUpdated', () => {
     const state = createGameState();
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 1);
