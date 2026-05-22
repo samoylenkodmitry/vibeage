@@ -81,10 +81,16 @@ test('skill bar Basic Attack button: cast snapshot lands', async ({ page }) => {
 
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
-    return Boolean(
-      state?.castSkillIds.includes('basicAttack')
-      || (state?.visualEventKinds ?? []).includes('damage'),
-    );
+    if (!state) return false;
+    if (state.castSkillIds.includes('basicAttack')) return true;
+    if ((state.visualEventKinds ?? []).includes('damage')) return true;
+    // Persistent combat-log fallback (same fix as the Fireball test
+    // in #448). castSkillIds + visualEventKinds both have short
+    // ttls (3 s / 1.8 s); on the slow GitHub runner the
+    // approach-and-cast path can resolve before the test starts
+    // polling, leaving the auto-attack hit visible only in the
+    // 200-line combat log.
+    return (state.combatLogTexts ?? []).some((text) => / hit /.test(text));
   }, undefined, { timeout: 60_000 });
 });
 
