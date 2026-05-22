@@ -443,10 +443,10 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add migration from legacy `InventorySlot[]` to item instances.
 - [ ] Add restore compatibility checks for item instances and equipment.
 - [ ] Add hydration tests for equipped weapon, shield, armor, jewelry, consumables, stackables, and multi-slot items.
-- [ ] Add persistence tests proving equipped items survive disconnect/reconnect.
-- [ ] Add persistence tests proving equipped items are not duplicated on reconnect.
-- [ ] Add persistence tests proving bag order survives reconnect.
-- [ ] Add persistence tests proving stack counts survive reconnect.
+- [x] Add persistence tests proving equipped items survive disconnect/reconnect. (`tests/inventoryReconnectIntegrity.spec.ts` — persist → row → hydrate roundtrip pins the equipped MAIN_HAND `instanceId`, `templateId`, and `location.slot`.)
+- [x] Add persistence tests proving equipped items are not duplicated on reconnect. (Same spec — equipped item is not copied into bag slots on hydration, instance count for the templateId stays at 1, instanceIds remain unique.)
+- [x] Add persistence tests proving bag order survives reconnect. (Same spec — `location.slotIndex` is preserved for every bag instance through the roundtrip.)
+- [x] Add persistence tests proving stack counts survive reconnect. (Same spec — `count` field is preserved for stackable instances; non-stackable equipped item keeps count=1 as a sanity guard against stack inflation.)
 - [ ] Add persistence tests proving invalid persisted inventories are repaired or rejected safely.
 - [ ] Add atomic transaction tests for multi-item loot pickup.
 - [ ] Add atomic transaction tests for equip with replacement.
