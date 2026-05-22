@@ -412,9 +412,9 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Define `PlayerProgressionPatch` for owner-only level, XP, skills, and starter path changes.
 - [ ] Replace `sanitizePlayerForPublic` with constructors that build public DTOs from scratch.
 - [ ] Replace `sanitizePlayerUpdateForPublic` with explicit patch mappers.
-- [ ] Add exact-key tests for every DTO constructor.
+- [x] Add exact-key tests for every DTO constructor. (`tests/ownerPlayerSnapshot.spec.ts` pins exact keys for the owner / inventory / equipment DTOs; `tests/clientStatePrivacy.spec.ts` covers the public sanitiser shape; `tests/playerPresenceSnapshot.spec.ts` pins the six-field presence shape.)
 - [x] Add tests that new fields added to `PlayerState` fail privacy audits until classified. (PR #260 — `tests/playerPrivacyAllowList.spec.ts` derives the expected key set from the runtime `PUBLIC_PLAYER_FIELDS` allowlist; a new PlayerState field defaults to private and the test catches it.)
-- [ ] Add tests that owner-only fields never appear in public room state.
+- [x] Add tests that owner-only fields never appear in public room state. (`tests/playerPrivacyAllowList.spec.ts` "every key on the public snapshot is in the public allow-list" + `tests/clientStatePrivacy.spec.ts` "strips private player fields from public broadcasts and update payloads".)
 - [x] Add tests that owner-only fields never appear in public server messages.
 - [ ] Add tests that region-scoped messages do not leak hidden entity IDs through nested arrays.
 - [x] Add tests that batch updates preserve privacy after filtering.
