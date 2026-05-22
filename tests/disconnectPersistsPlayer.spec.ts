@@ -20,10 +20,12 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
  */
 
 const persistenceMock = vi.hoisted(() => ({
-  persistPlayer: vi.fn(async () => undefined),
-  recordServerEvent: vi.fn(async () => undefined),
+  persistPlayer: vi.fn(async (_player: unknown): Promise<void> => undefined),
+  recordServerEvent: vi.fn(
+    async (_eventType: string, _playerId: string | null, _data: unknown): Promise<void> => undefined,
+  ),
   isPersistenceDisabled: vi.fn(() => false),
-  upsertPlayerSession: vi.fn(async () => ({ id: 'pid-1' })),
+  upsertPlayerSession: vi.fn(async (): Promise<{ id: string }> => ({ id: 'pid-1' })),
 }));
 
 vi.mock('../server/persistence', () => persistenceMock);
