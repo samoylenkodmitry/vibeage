@@ -341,7 +341,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Redo status effects as a server-owned effect engine rather than mostly passive arrays.
 - [ ] Redo combat damage resolution so player attacks, enemy attacks, shields, defense, crits, evasion, buffs, debuffs, and death all pass through one combat pipeline.
 - [ ] Redo protocol schemas to be strict at the network boundary unless a field is explicitly versioned and documented.
-- [ ] Redo protocol typing so Zod schemas and TypeScript message types cannot drift.
+- [x] Redo protocol typing so Zod schemas and TypeScript message types cannot drift. (`tests/protocolTypeDrift.spec.ts` — exhaustiveness-typed maps from `ClientMessage['type']` / `ServerMessage['type']` to literals force a compile-time error if a TS union gains a variant the Zod schema doesn't know about. Pins discriminator literals on both sides. Pre-existing — PR #100 baked it in after a real drift incident; flipping here so the audit shows it as done.)
 - [ ] Redo public player updates as minimal patch DTOs instead of sanitized runtime partials.
 - [ ] Redo the legacy inventory bridge as a temporary migration adapter with a planned removal date.
 - [ ] Redo client game state so inventory, equipment, character panel, paperdoll, and avatar visuals consume one normalized owner state model.
