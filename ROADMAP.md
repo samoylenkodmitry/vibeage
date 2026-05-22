@@ -734,7 +734,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 ## 15. Security and Abuse Prevention
 
 - [ ] Add account/session authentication before durable player ownership matters.
-- [ ] Add CSRF policy for any HTTP endpoints that mutate state.
+- [x] Add CSRF policy for any HTTP endpoints that mutate state. (`docs/SECURITY_REVIEW.md` — explicit policy: Bearer-token auth (browsers don't auto-attach cross-origin); no cookie-based session auth; no `Access-Control-Allow-Origin: *`; no state-changing GETs. The pre-game HTTP API is CSRF-safe by construction. `productionEnvAssertions.ts` enforces the CORS allowlist requirement at startup.)
 - [ ] Add origin checks for WebSocket and matchmaker paths.
 - [x] Add production validation for allowed origins. (`server/productionEnvAssertions.ts` — `CORS_ORIGINS` MUST be set to a non-empty allowlist in production, and `ALLOW_MISSING_ORIGIN=1` is forbidden. The server hard-fails at startup if either guardrail trips, preventing accidental dev escape hatches in prod.)
 - [ ] Add maximum message size per protocol type.

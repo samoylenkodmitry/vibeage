@@ -30,6 +30,27 @@ env assertions — this list is the human-readable index.
   `clientMessages.invalidOwnership.*` and writes a durable
   `ownership.suspicious` `server_events` row via `authAudit.ts`.
 
+## CSRF Policy
+
+The pre-game HTTP API (`/api/auth/*`, `/api/account/*`) is
+deliberately CSRF-safe by construction rather than by middleware:
+
+- **Bearer-token auth, not cookies.** Tokens are HMAC-signed and
+  carried in the `Authorization: Bearer …` header (`authRoutes.ts`).
+  Browsers do NOT auto-attach Authorization headers to cross-origin
+  requests, so a malicious site cannot use the player's existing
+  session against `/api/account/*`.
+- **No CORS allow-all on Express.** Any cross-origin request to a
+  mutating endpoint triggers a preflight; without a server-side CORS
+  permissive response, the preflight fails and the actual request
+  never fires.
+- **No state-changing GETs.** All mutations are POST/DELETE. The
+  combination of "no cookies" + "no GET mutations" closes the
+  classic CSRF surface.
+
+Do not introduce cookie-based session auth or `Access-Control-Allow-Origin: *`
+without revisiting this section.
+
 ## Auth + Secrets
 
 - [ ] `VIBEAGE_AUTH_SECRET` is set to a 32+ byte secret in production
