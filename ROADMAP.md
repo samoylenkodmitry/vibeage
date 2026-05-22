@@ -712,11 +712,11 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add gauges for active casts.
 - [x] Add gauges for ground loot stacks.
 - [x] Add histograms for tick duration.
-- [ ] Add histograms for initial snapshot size.
-- [ ] Add histograms for batch update size.
-- [ ] Add histograms for DB write latency.
-- [ ] Add histograms for Colyseus join latency.
-- [ ] Add histograms for reconnect latency.
+- [x] Add histograms for initial snapshot size. (PR #362 — `snapshot.bytes` records JSON-stringify size of the initial snapshot at `sendClientGameStateSnapshot`. PR #376 added the per-tick `snapshot.batchBytes` companion.)
+- [x] Add histograms for batch update size. (PR #341 — `snapshot.batchSize` records the count of updates per BatchUpdate. PR #376 added bytes alongside.)
+- [x] Add histograms for DB write latency. (PR #362 — `db.updatePlayer.durationMs` + `db.upsertSession.durationMs` wrap the kysely calls in `playerRepository.ts`.)
+- [x] Add histograms for Colyseus join latency. (PR #362 — `world.joinDurationMs` wraps the full `joinWorldRoomClient` flow with a try/finally so latency records even on adapter rejection.)
+- [ ] Add histograms for reconnect latency. (Reconnect goes through the same `joinWorldRoomClient` path so `world.joinDurationMs` already counts it; distinguishing reconnect from new-join in the histogram needs a tag layer, deferred.)
 - [ ] Add alert threshold for server tick average.
 - [ ] Add alert threshold for server tick max.
 - [ ] Add alert threshold for memory usage.
