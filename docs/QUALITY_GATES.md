@@ -73,10 +73,15 @@ clients. Useful for capacity-planning investigations and one-shot
 
 - `pnpm run load:inprocess` — runs one configuration. Environment
   knobs: `LOAD_PLAYERS`, `LOAD_TICKS`, `LOAD_TICK_MS`, `LOAD_SNAP_HZ`,
-  `LOAD_MOVE_INTERVAL`. Emits a JSON report covering tick percentiles,
-  every populated runtime histogram (snapshot bytes, DB write
-  latency, join latency), outbound counts by message type, and
-  memory deltas.
+  `LOAD_MOVE_INTERVAL`. Set `LOAD_COMBAT=1` and (optionally)
+  `LOAD_CAST_INTERVAL=N` to make each bot pick the nearest in-range
+  enemy and fire a Fireball through the real `handleClientMessage`
+  boundary — exercises cast → CastSnapshot → impact → damage →
+  EnemyAttack / playerUpdated instead of only the snapshot/movement
+  loop. Emits a JSON report covering tick percentiles, every
+  populated runtime histogram (snapshot bytes, DB write latency,
+  join latency), outbound counts by message type, per-second rate
+  derivations, and memory deltas.
 - `pnpm run load:sweep` — runs the same loop at several player
   counts in sequence (default `10,50,100`; override via
   `LOAD_SWEEP=10,50,100,200`). Each step gets a fresh GameState +

@@ -27,21 +27,39 @@
 import { performance } from 'node:perf_hooks';
 import { ZoneManager } from '../packages/content/zones.js';
 import { spawnInitialEnemies } from '../server/enemies/enemyLifecycle.js';
+import type { GameState } from '../server/gameState.js';
 import { createGameState } from '../server/gameState.js';
 import { createTransientPlayer } from '../server/playerFactory.js';
 import { runtimeMetrics } from '../server/observability/runtimeMetrics.js';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid.js';
+import { handleClientMessage } from '../server/world/clientMessageRouter.js';
 import { createWorldTickRunner } from '../server/world/tickPipeline.js';
 import {
   DEFAULT_WORLD_ZONE_SPAWN_POLICY,
   initializeServerDrivenZoneRuntime,
 } from '../server/world/zoneRuntime.js';
+import type { Enemy, PlayerState } from '../packages/sim/entities.js';
 
 const playerCount = Number(process.env.LOAD_PLAYERS ?? 10);
 const tickCount = Number(process.env.LOAD_TICKS ?? 600);
 const tickMs = Number(process.env.LOAD_TICK_MS ?? 1000 / 30);
 const snapHz = Number(process.env.LOAD_SNAP_HZ ?? 10);
 const moveIntervalTicks = Number(process.env.LOAD_MOVE_INTERVAL ?? 30);
+// §52 #12 — combat behavior. Each bot finds the nearest alive enemy
+// every `castIntervalTicks` and fires a CastReq for its starter skill
+// through the real `handleClientMessage` boundary. Turns the test from
+// a snapshot/movement smoke into a snapshot/movement/AI/combat one —
+// the relative cost of each phase shows up in the histograms.
+const combatEnabled = process.env.LOAD_COMBAT === '1';
+const castIntervalTicks = Number(process.env.LOAD_CAST_INTERVAL ?? 60);
+/**
+ * §52 #12 — bots fire Fireball at the nearest alive enemy within
+ * this radius. Outside the radius they stay passive (mirrors a
+ * player who hasn't pulled aggro yet). Fireball reaches ~40m which
+ * is far enough to engage from the default seed spread without
+ * burning every cast on out-of-range rejects.
+ */
+const CAST_ENGAGEMENT_RADIUS_M = 40;
 
 runtimeMetrics.resetForTests();
 
@@ -92,23 +110,8 @@ const runner = createWorldTickRunner({
 const startedAt = performance.now();
 let now = Date.now();
 for (let t = 0; t < tickCount; t += 1) {
-  // Throw a movement intent every `moveIntervalTicks` so the input phase
-  // does real work instead of being a no-op.
-  if (moveIntervalTicks > 0 && t % moveIntervalTicks === 0) {
-    for (const playerId in state.players) {
-      const player = state.players[playerId];
-      const offset = ((t / moveIntervalTicks) % 4) * (Math.PI / 2);
-      player.movement = {
-        targetPos: {
-          x: player.position.x + Math.cos(offset) * 2,
-          z: player.position.z + Math.sin(offset) * 2,
-        },
-        isMoving: true,
-        lastUpdateTime: now,
-        speed: 5,
-      };
-    }
-  }
+  if (moveIntervalTicks > 0 && t % moveIntervalTicks === 0) throwMovementIntents(state, t, now);
+  if (combatEnabled && castIntervalTicks > 0 && t % castIntervalTicks === 0) throwCastIntents(state, spatial, now);
   runner.tick(now);
   now += tickMs;
 }
@@ -183,5 +186,67 @@ function ratesPerSecond(
     outboundEnemyUpdatedPerSec: rate('outbound.enemyUpdated'),
     batchedPosSnapPerSec: rate('outbound.batched.PosSnap'),
     snapshotBatchesPerSec: rate('snapshot.batches'),
+    castReqReceivedPerSec: rate('castReq.received'),
+    castReqAcceptedPerSec: rate('castReq.accepted'),
   };
+}
+
+function throwMovementIntents(state: GameState, tick: number, now: number): void {
+  for (const playerId in state.players) {
+    const player = state.players[playerId];
+    const offset = ((tick / moveIntervalTicks) % 4) * (Math.PI / 2);
+    player.movement = {
+      targetPos: {
+        x: player.position.x + Math.cos(offset) * 2,
+        z: player.position.z + Math.sin(offset) * 2,
+      },
+      isMoving: true,
+      lastUpdateTime: now,
+      speed: 5,
+    };
+  }
+}
+
+/**
+ * §52 #12 (LOAD_COMBAT=1) — each bot picks the nearest alive enemy
+ * within a generous radius and fires a CastReq through the real
+ * `handleClientMessage` boundary. Uses the bot's starter skill
+ * (basicAttack always exists). Output stays consistent across runs
+ * because the search is positional, not pseudorandom.
+ */
+function throwCastIntents(state: GameState, spatial: SpatialHashGrid, now: number): void {
+  for (const playerId in state.players) {
+    const player = state.players[playerId];
+    if (!player.isAlive) continue;
+    const target = findNearestEnemyWithin(state, player, CAST_ENGAGEMENT_RADIUS_M);
+    if (!target) continue;
+    const socket = { id: player.socketId ?? player.id, emit: () => undefined };
+    handleClientMessage(
+      socket,
+      state,
+      {
+        type: 'CastReq', id: player.id, skillId: 'fireball',
+        clientTs: now, targetId: target.id,
+      },
+      { publish: () => undefined },
+      spatial,
+    );
+  }
+}
+
+function findNearestEnemyWithin(state: GameState, player: PlayerState, maxDist: number): Enemy | null {
+  let nearest: Enemy | null = null;
+  let nearestDist = maxDist;
+  for (const enemyId in state.enemies) {
+    const enemy = state.enemies[enemyId];
+    if (!enemy.isAlive) continue;
+    const dx = enemy.position.x - player.position.x;
+    const dz = enemy.position.z - player.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < nearestDist) {
+      nearest = enemy;
+      nearestDist = dist;
+    }
+  }
+  return nearest;
 }
