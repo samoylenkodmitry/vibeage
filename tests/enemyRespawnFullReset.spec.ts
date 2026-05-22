@@ -1,6 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
 import { createGameState } from '../server/gameState';
-import { createEnemy, ENEMY_RESPAWN_DELAY_MS, respawnDeadEnemies } from '../server/enemies/enemyLifecycle';
+import {
+  createEnemy,
+  ENEMY_RESPAWN_DELAY_MS,
+  MINI_BOSS_RESPAWN_DELAY_MS,
+  respawnDeadEnemies,
+} from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 
 /**
@@ -100,7 +105,10 @@ describe('respawnDeadEnemies — mini-boss reset', () => {
     // mid-signature — every dial flipped.
     enemy.isAlive = false;
     enemy.health = 0;
-    enemy.deathTimeTs = NOW - ENEMY_RESPAWN_DELAY_MS;
+    // §11 — mini-boss respawn delay is much longer; use the boss-
+    // specific constant so the elapsed-time check passes for this
+    // fixture.
+    enemy.deathTimeTs = NOW - MINI_BOSS_RESPAWN_DELAY_MS;
     enemy.enraged = true;
     enemy.phaseShifted = true;
     enemy.signatureCastingUntilTs = NOW - 200;

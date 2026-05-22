@@ -6,7 +6,7 @@ import { awardPlayerXP } from '../players/playerLifecycle.js';
 import { onEnemyKilledForQuests } from '../players/playerQuests.js';
 import { emitStarterProgressUpdate, recordStarterEnemyDefeat } from '../progression/starterPath.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
-import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { emitPlayerUpdated, emitServerMessage, type OutboundEventSink } from '../transport/outboundEvents.js';
 
 export type TargetDeathContext = {
   state: GameState;
@@ -33,6 +33,20 @@ export function handleTargetDeath(
   target.deathTimeTs = context.now ?? Date.now();
   target.health = 0;
   context.spatial.remove(target.id, { x: target.position.x, z: target.position.z });
+
+  // §11 named encounter tracking — broadcast mini-boss falls so
+  // players in any zone see the killfeed. Pairs with the respawn
+  // broadcast in respawnDeadEnemies.
+  if (isEnemy(target) && target.isMiniBoss) {
+    emitServerMessage(context.outbound, {
+      type: 'ChatBroadcast',
+      fromId: target.id,
+      fromName: target.name,
+      text: `${target.name} has fallen to ${caster.name}!`,
+      scope: 'all',
+      ts: target.deathTimeTs,
+    });
+  }
 
   if (caster.isAlive && isEnemy(target)) {
     const xpUpdate = awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`);
