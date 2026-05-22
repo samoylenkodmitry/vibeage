@@ -48,13 +48,10 @@ export const VENDORS: Record<string, VendorDef> = {
       { itemId: 'health_potion', price: 25 },
       { itemId: 'mana_potion', price: 35 },
       { itemId: 'greater_health_potion', price: 80 },
-      // PR HH — resistance brews. Same shelf as the basic potions
-      // so the obtainability validator sees them as sold rather
-      // than hanging.
-      { itemId: 'fire_resistance_potion', price: 90 },
-      { itemId: 'ice_resistance_potion', price: 90 },
-      { itemId: 'ethereal_elixir', price: 140 },
-      { itemId: 'temporal_draught', price: 180 },
+      // Archwork #7 — the four "(effect not yet implemented)" brews
+      // (fire/ice resistance, ethereal elixir, temporal draught)
+      // were removed. Re-add with real effects once the buff engine
+      // exists.
     ],
     buyRate: 0.6,
   },
