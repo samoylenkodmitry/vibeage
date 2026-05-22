@@ -2,6 +2,42 @@
 
 Last rewritten: 2026-05-21
 
+## Active Architecture Rework (start here)
+
+Execution order for the 2026-05-22 Codex audit (full text at the
+bottom of this file, "Architecture Rework Feedback"). Work top-down
+— do not skip; each item assumes the prior is shipped.
+
+1. **Fix main CI discipline** (was item #8; promoted to #1 because
+   it's blocking us from seeing whether subsequent rework actually
+   stays green). Concrete signal: two completed post-merge heavy
+   runs in a row failed on the same browser-smoke E2E
+   (`tests/e2e-vite/combat-flow.spec.ts:23` + `:62`, 60s timeout
+   waiting for `castSkillIds.includes('fireball'|'basicAttack')`).
+   The 100+ runs before that were cancelled by rapid merges
+   (`concurrency: cancel-in-progress: true` on every push,
+   including `main`), so we've been deploying production un-gated
+   on the post-merge gate. Fix:
+   - Split workflow concurrency so PR refs cancel but `main`
+     queues (separate group or non-cancellable push runs).
+   - Diagnose the two failing combat-flow specs. Triage path:
+     pull the trace artifact, check whether the cast queues
+     behind a movement step that's failing, then either fix the
+     server-side gate or stabilise the test.
+   - Add a deploy guard in `pnpm run deploy:production` that
+     refuses to deploy a SHA whose latest main heavy CI hasn't
+     reported success.
+2. Enemy death/respawn lifecycle — one death API, DoT credit,
+   full mini-boss reset on respawn.
+3. CommandRejected typed contract — per-command reason unions.
+4. Client command sending helper — auto-stamp clientSeq.
+5. Router modularization — shrink `clientMessageRouter.ts`.
+6. Mini-boss mechanics — typed mechanic union.
+7. Fake consumables — implement / rename / retype.
+8. Roadmap discipline — split active / history / debt files.
+   (This item itself; tackle once items 1–7 are in motion so the
+   split is informed by the rework's actual shape.)
+
 ## Direction
 
 VibeAge should become a browser-first multiplayer RPG with a very large fantasy world, server-owned simulation, mobile-friendly controls, and a world view that feels alive instead of a flat prototype grid.
