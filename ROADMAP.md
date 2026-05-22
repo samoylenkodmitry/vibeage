@@ -555,7 +555,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add tests for rejecting wrong-class skills.
 - [ ] Add tests for rejecting insufficient-level skills.
 - [ ] Add tests for rejecting missing-prerequisite skills.
-- [ ] Add tests for rejecting duplicate skill learn attempts.
+- [x] Add tests for rejecting duplicate skill learn attempts. (`tests/learnSkillRejection.spec.ts` — duplicate-learn is idempotent: the server re-sends `SkillLearned` without a rejection, without decrementing SP or duplicating the unlock. Pinned so a future "make this a rejection" decision is deliberate, not accidental.)
 - [ ] Add tests for skill shortcut persistence.
 - [ ] Add tests for skill shortcut validation after class changes.
 - [ ] Add balance sheet for all class stats from level 1 to target cap.

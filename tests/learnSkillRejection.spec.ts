@@ -72,6 +72,29 @@ describe('learn skill rejections (§52 #1: LearnSkillFailed retired — sole cha
     expect(reject?.targetId).toBe('waterSplash');
   });
 
+  test('duplicate-learn is idempotent: re-sends SkillLearned without a rejection (no spurious error)', () => {
+    // ROADMAP L558 — "Add tests for rejecting duplicate skill learn
+    // attempts." The actual server behavior is BETTER than rejection:
+    // since the player already has the skill, the request is a no-op
+    // that re-confirms via SkillLearned. Pin that so a future change
+    // to make this a rejection is intentional, not accidental.
+    const { state, player } = setupMage();
+    player.level = 5;
+    player.availableSkillPoints = 1;
+    player.unlockedSkills = ['fireball'];
+    const { direct, sent } = captureDirect();
+    onLearnSkill({ id: player.socketId }, direct, fakeOutbound(), state, {
+      type: 'LearnSkill',
+      skillId: 'fireball',
+    });
+    expect(findRejection(sent)).toBeUndefined();
+    const learned = sent.find((m) => m.type === 'SkillLearned') as { skillId?: string } | undefined;
+    expect(learned?.skillId).toBe('fireball');
+    // Side-effect guard: SP wasn't decremented, unlockedSkills wasn't duplicated.
+    expect(player.availableSkillPoints).toBe(1);
+    expect(player.unlockedSkills.filter((s) => s === 'fireball')).toHaveLength(1);
+  });
+
   test('STARTER_SKILL_BY_CLASS maps every class to a sensible starter', () => {
     expect(STARTER_SKILL_BY_CLASS.mage).toBe('fireball');
     expect(STARTER_SKILL_BY_CLASS.warrior).toBe('slash');
