@@ -273,6 +273,12 @@ type BossTelegraphEntry = {
   // Archwork #6 — present on donut mechanics; 0 / undefined means
   // a plain circle (no safe spot at centre).
   innerRadius?: number;
+  // Archwork #6 follow-up — cone mechanic shape data. When both
+  // are present the renderer draws a forward wedge instead of a
+  // ring; cone vertex at (x, z), forward direction `directionRad`,
+  // length = radius, total arc = 2× halfAngleDeg.
+  directionRad?: number;
+  halfAngleDeg?: number;
   startedAt: number;
   impactAt: number;
 };

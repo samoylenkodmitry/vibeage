@@ -106,6 +106,10 @@ export interface Enemy {
   signatureCastTargetX?: number;
   signatureCastTargetZ?: number;
   signatureCastRadius?: number;
+  /** Cone-mechanic direction snapshot (radians, world XZ plane).
+   *  Stored at cast start so the impact resolves to the original
+   *  aim even if the boss rotated mid wind-up. */
+  signatureCastDirRad?: number;
   nextSignatureReadyTs?: number;
   /**
    * First moment this enemy entered an aggressive state (chasing /

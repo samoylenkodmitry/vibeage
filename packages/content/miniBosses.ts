@@ -35,14 +35,22 @@ interface CommonMechanicTiming {
 
 export type MiniBossMechanic =
   | (CommonMechanicTiming & { readonly kind: 'circle'; readonly radiusUnits: number })
-  | (CommonMechanicTiming & { readonly kind: 'donut'; readonly outerRadius: number; readonly innerRadius: number });
+  | (CommonMechanicTiming & { readonly kind: 'donut'; readonly outerRadius: number; readonly innerRadius: number })
+  | (CommonMechanicTiming & {
+      readonly kind: 'cone';
+      /** Cone length — players further than this from the cast origin are out of range. */
+      readonly lengthUnits: number;
+      /** Half-angle of the cone in degrees. Total cone arc is 2× this value. */
+      readonly halfAngleDeg: number;
+    });
 
 /** Outer radius of the mechanic's danger footprint — the radius the
- *  client uses to draw the threat ring. */
+ *  client uses to size the threat decal. */
 export function mechanicOuterRadius(m: MiniBossMechanic): number {
   switch (m.kind) {
     case 'circle': return m.radiusUnits;
     case 'donut': return m.outerRadius;
+    case 'cone': return m.lengthUnits;
   }
 }
 
@@ -53,6 +61,7 @@ export function mechanicInnerRadius(m: MiniBossMechanic): number {
   switch (m.kind) {
     case 'circle': return 0;
     case 'donut': return m.innerRadius;
+    case 'cone': return 0;
   }
 }
 
@@ -106,6 +115,19 @@ function donut(
     damageMul: DEFAULT_CIRCLE_TIMING.damageMul,
     outerRadius: 10,
     innerRadius: 3,
+    ...overrides,
+  };
+}
+function cone(
+  overrides: Partial<CommonMechanicTiming & { lengthUnits: number; halfAngleDeg: number }>,
+): MiniBossMechanic {
+  return {
+    kind: 'cone',
+    windUpMs: DEFAULT_CIRCLE_TIMING.windUpMs,
+    cooldownMs: DEFAULT_CIRCLE_TIMING.cooldownMs,
+    damageMul: DEFAULT_CIRCLE_TIMING.damageMul,
+    lengthUnits: 14,
+    halfAngleDeg: 30,
     ...overrides,
   };
 }
@@ -189,8 +211,11 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
     lore: 'A wyrm whose embers never cooled. Sleeps coiled around the caldera and rises when the wind turns north.',
     signatureAbility: {
       name: 'Cinder Breath',
-      description: 'A cone of burning embers that leaves a damage-over-time field on the ground for several seconds. Reposition perpendicular to the cone to clear it.',
-      mechanic: circle({ windUpMs: 2500, cooldownMs: 14_000, radiusUnits: 12, damageMul: 2.4 }),
+      description: 'A cone of burning embers fired forward from Vorthax\'s maw. Reposition perpendicular to the cone to clear it.',
+      // Archwork #6 follow-up — cone mechanic. The lore was always
+      // "a cone of burning embers"; the engine now honours the
+      // shape via angular impact resolution.
+      mechanic: cone({ windUpMs: 2500, cooldownMs: 14_000, lengthUnits: 14, halfAngleDeg: 30, damageMul: 2.4 }),
     },
     trophyItemId: 'vorthax_ember_scale',
     lootTableId: 'boss_loot_vorthax_ember_wyrm',
