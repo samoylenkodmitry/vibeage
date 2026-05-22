@@ -770,7 +770,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add reducer tests for snapshot resync.
 - [ ] Add reducer tests for region visibility changes.
 - [x] Add reducer tests for equipment update. (`tests/equipmentUpdateReducer.spec.ts` pins the `EquipmentUpdate` dispatch end-to-end: slot map replace, idempotency, empty payload, first-payload silence, and "Equipped X" combat-log emission. Caught and fixed a real bug — the reducer composed `applyEquipmentChangeFeedback(applyEquipmentUpdate(state, message), …)` so the diff compared the new payload against itself; swapping the order restored the feedback line.)
-- [ ] Add reducer tests for inventory update after equip/unequip.
+- [x] Add reducer tests for inventory update after equip/unequip. (`tests/inventoryUpdateReducer.spec.ts` pins the dispatch end-to-end: slot-vacated-on-equip, slot-restored-on-unequip, players-mirror writes, missing-playerId means "local", cross-player updates don't overwrite my bag, idempotent repeat payloads, empty payload clears the bag, unknown playerId stays defensive.)
 - [ ] Add reducer tests for duplicate or out-of-order updates.
 - [ ] Add reducer tests for disconnected/reconnected state transitions.
 - [x] Add explicit client-side handling for command rejections. (§52 #1 + polish — `routeCommandRejected` in `gameReducer.ts` routes every commandType to a dedicated UI surface: cast / equip / quest / inventory verbs to the combat log, learn / upgrade to the SkillTreePanel chip, chat to the inline `lastChatError`. PRs #353–#355, #372–#375, #380.)
