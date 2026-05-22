@@ -706,7 +706,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add counters for protocol-version rejections.
 - [ ] Add counters for chat moderation rejections.
 - [ ] Add gauges for active rooms.
-- [ ] Add gauges for connected clients.
+- [x] Add gauges for connected clients. (`runtimeMetrics.setGauge('players.active', …)` in `server/world/tickPipeline.ts:228`, updated every `WORLD_GAUGE_INTERVAL_TICKS` (30 ticks). Counts active player records, which is 1:1 with connected world-room clients.)
 - [x] Add gauges for active players.
 - [x] Add gauges for active enemies.
 - [x] Add gauges for active casts.
