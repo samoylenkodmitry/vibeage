@@ -68,7 +68,15 @@ bottom of this file, "Architecture Rework Feedback"). Work top-down
      the dispatcher in `gameReducer.routeCommandRejected` uses
      half-table-driven if/else; a full Record-based registry with
      test-enforced coverage is the remaining piece).
-4. Client command sending helper — auto-stamp clientSeq.
+4. ~~**Client command sending helper**~~ ✅ **Done 2026-05-22** —
+   `apps/client/src/sendGameCommand.ts` exposes
+   `sendRejectable(room, command)` (auto-stamps clientSeq) +
+   `sendFireAndForget(room, command)` (no clientSeq). Quest verbs
+   now carry optional `clientSeq` on the wire and the server
+   echoes it back as `requestId` on CommandRejected. `RespawnRequest`
+   + `SelectSpecialization` removed from `REJECTABLE_COMMANDS`
+   (no clientSeq on the wire, no CommandRejected emit on server
+   — add back when both halves land). PR #461.
 5. Router modularization — shrink `clientMessageRouter.ts`.
 6. Mini-boss mechanics — typed mechanic union.
 7. Fake consumables — implement / rename / retype.
