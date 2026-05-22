@@ -524,7 +524,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add status-effect snapshots that avoid leaking hidden entity IDs.
 - [ ] Add combat logs that distinguish raw damage, absorbed damage, resisted damage, crits, misses, heals, and kills.
 - [ ] Add tests for each skill effect type currently present in content.
-- [ ] Add tests for simultaneous effects on one target.
+- [x] Add tests for simultaneous effects on one target. (`tests/dotTicker.spec.ts` — burn + poison applied by two different sources both tick in the same call; player health falls by their sum; neither effect consumes the other.)
 - [x] Add tests for shield absorption order.
 - [x] Add tests for effect expiration during combat.
 - [x] Add tests for death while affected by DoT.
