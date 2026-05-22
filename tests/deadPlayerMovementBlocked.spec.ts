@@ -62,13 +62,11 @@ describe('dead player cannot start new movement (applyMoveIntent)', () => {
     player.velocity = { x: 0, z: 0 };
 
     const result = applyMoveIntent(state, 'socket-runner', {
-      type: 'MoveIntent', id: player.id, targetPos: { x: 50, z: 0 },
+      type: 'MoveIntent', id: player.id, clientTs: 0, targetPos: { x: 50, z: 0 },
     }, 1_000);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe('dead');
-    }
+    expect(result.ok === false && result.reason).toBe('dead');
     // Movement state must NOT have been mutated by the dead-MoveIntent.
     expect(player.movement?.isMoving).toBe(false);
     expect(spatial.queryCircle({ x: 0, z: 0 }, 1)).toContain(player.id);
@@ -103,7 +101,7 @@ describe('alive player still moves (regression net for over-correction)', () => 
     spatial.insert(player.id, { x: 0, z: 0 });
 
     const result = applyMoveIntent(state, 'socket-alive', {
-      type: 'MoveIntent', id: player.id, targetPos: { x: 50, z: 0 },
+      type: 'MoveIntent', id: player.id, clientTs: 0, targetPos: { x: 50, z: 0 },
     }, 1_000);
 
     expect(result.ok).toBe(true);
