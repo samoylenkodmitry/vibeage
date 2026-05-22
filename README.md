@@ -129,7 +129,7 @@ A **hanging-content guard** (`tests/contentGraph.spec.ts`) fails CI when an item
 
 ## Project Status
 
-Pre-alpha. Iteration cadence is "merge to main and deploy"; see [ROADMAP.md](ROADMAP.md) §48 for the current real backlog (10 prioritized items) and the broader audit/rebuild framework that captures the longer arc.
+Pre-alpha. Iteration cadence is "merge to main and deploy"; see [ROADMAP.md](ROADMAP.md) for the current active focus, [docs/ARCHITECTURE_DEBT.md](docs/ARCHITECTURE_DEBT.md) for outstanding architecture audits, and [docs/ROADMAP_HISTORY.md](docs/ROADMAP_HISTORY.md) for the long-form rewrite plan that captures the broader arc.
 
 ## Development
 
