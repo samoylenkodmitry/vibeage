@@ -425,17 +425,17 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 ## 6. Inventory, Equipment, Items, and Persistence
 
 - [ ] Decide whether durable inventory is normalized relational tables, JSONB aggregate, or a staged JSONB-to-relational migration.
-- [ ] Persist every item instance with stable `instanceId`.
-- [ ] Persist item template ID.
-- [ ] Persist item owner ID.
-- [ ] Persist item count.
-- [ ] Persist item location kind.
-- [ ] Persist bag slot index.
-- [ ] Persist equipped slot.
-- [ ] Persist secondary occupancy for multi-slot items or derive it safely on hydration.
-- [ ] Persist enchant level.
-- [ ] Persist bound/tradeable state.
-- [ ] Persist creation timestamp.
+- [x] Persist every item instance with stable `instanceId`. (`ItemInstance.instanceId` is the map key in `CharacterInventory.items`; aggregate is stored in `players.character_inventory` JSONB column.)
+- [x] Persist item template ID. (`ItemInstance.templateId`.)
+- [x] Persist item owner ID. (`ItemInstance.ownerId`.)
+- [x] Persist item count. (`ItemInstance.count`.)
+- [x] Persist item location kind. (`ItemInstance.location.kind` ∈ ground / inventory / equipped / warehouse / trade / mail / destroyed.)
+- [x] Persist bag slot index. (`ItemInstance.location.slotIndex` when `kind === 'inventory'`.)
+- [x] Persist equipped slot. (`ItemInstance.location.slot` when `kind === 'equipped'`; mirrored in `CharacterInventory.equipment[slot]` for fast lookup.)
+- [x] Persist secondary occupancy for multi-slot items or derive it safely on hydration. (`CharacterInventory.occupancy` map; two-handed weapons claim MAIN_HAND + OFF_HAND via `EquippedEntry.occupiedSlots`.)
+- [x] Persist enchant level. (`ItemInstance.enchantLevel`.)
+- [x] Persist bound/tradeable state. (`ItemInstance.bound: boolean`.)
+- [x] Persist creation timestamp. (`ItemInstance.createdAtTs`, Unix ms.)
 - [ ] Persist durability if durability will exist.
 - [ ] Persist sockets/gems/augments if those will exist.
 - [ ] Persist item custom names only if product rules allow them.
