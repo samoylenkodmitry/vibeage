@@ -89,6 +89,35 @@ describe('quest flow: kill -> talk -> claim', () => {
     expect(player.experience).toBeGreaterThan(xpBefore);
   });
 
+  it('a second claim of the same quest does NOT double-grant rewards', () => {
+    // ROADMAP L885 — quest rollback protection against duplicate
+    // rewards. Once a claim removes the quest from `active` and
+    // pushes to `completed`, a hostile or replayed ClaimQuestReward
+    // for the same quest must not re-grant XP or items.
+    const player = freshPlayerAt('warden_galen');
+    const { sink } = captureOutbound();
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    onEnemyKilledForQuests(player, 'goblin', sink);
+    applyAdvanceQuest(player, 'rats_in_the_cellar', sink);
+    onTalkedToNpcForQuests(player, 'warden_galen', sink);
+    applyAdvanceQuest(player, 'rats_in_the_cellar', sink);
+
+    // First claim succeeds + records XP.
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink)).toBe(true);
+    const xpAfterFirst = player.experience;
+    const goldAfterFirst = player.gold ?? 0;
+
+    // Second claim returns false (no active entry) AND no further
+    // mutation to xp / gold. The quest is in completed[], not active{},
+    // so the readyToClaim gate fails fast.
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink)).toBe(false);
+    expect(player.experience).toBe(xpAfterFirst);
+    expect(player.gold ?? 0).toBe(goldAfterFirst);
+    expect(player.questState!.completed).toContain('rats_in_the_cellar');
+  });
+
   it('rejects accept when the player is not near the giver', () => {
     const player = createTransientPlayer('s2', 'tester2');
     player.level = 20;
