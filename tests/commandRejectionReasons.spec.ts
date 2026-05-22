@@ -52,6 +52,7 @@ const REASON_INVENTORY: { [C in RejectableCommand]: ReadonlyArray<CommandRejecti
   ChatRequest: ['playerNotFound', 'emptyText', 'rateLimited'],
   SelectClass: ['notGm', 'playerNotFound', 'invalid', 'rateLimited'],
   SelectRace: ['notGm', 'playerNotFound', 'invalid', 'rateLimited'],
+  RespecSpecialization: ['playerNotFound', 'notSpecced', 'notEnoughGold', 'rateLimited'],
   GmCommand: ['playerNotFound', 'notGm', 'invalid', 'rateLimited'],
 };
 

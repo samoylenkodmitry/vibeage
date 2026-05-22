@@ -31,6 +31,7 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'DevTeleport',
   'ChatRequest',
   'SelectSpecialization',
+  'RespecSpecialization',
   'UpgradeSkill',
   'TalkNpc',
   'AcceptQuest',

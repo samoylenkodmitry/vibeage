@@ -25,7 +25,13 @@ import { onCastReq, createWorldCombatBridge } from './router/castHandlers.js';
 import { onChatRequest } from './router/chatHandlers.js';
 import type { WorldClient } from './router/commandContext.js';
 import { onDevTeleport, onGmCommand } from './router/devHandlers.js';
-import { onSelectClass, onSelectRace, onSelectSpecialization, onUpgradeSkill } from './router/identityHandlers.js';
+import {
+  onRespecSpecialization,
+  onSelectClass,
+  onSelectRace,
+  onSelectSpecialization,
+  onUpgradeSkill,
+} from './router/identityHandlers.js';
 import {
   emitInventoryUpdate,
   onEquipItem,
@@ -113,6 +119,8 @@ export function handleClientMessage(
       return onUnequipItem(socket, direct, state, msg, outbound);
     case 'SelectSpecialization':
       return onSelectSpecialization(socket, state, msg, outbound);
+    case 'RespecSpecialization':
+      return onRespecSpecialization(socket, direct, state, msg, outbound);
     case 'UpgradeSkill':
       return onUpgradeSkill(socket, direct, state, msg, outbound);
     case 'TalkNpc':
