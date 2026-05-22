@@ -502,7 +502,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Make accuracy affect hit chance.
 - [ ] Make crit chance and crit multiplier affect eligible skills only.
 - [ ] Make attack speed and cast speed affect relevant cooldown/cast-time rules only if intended.
-- [ ] Make run speed feed movement consistently through shared stats.
+- [x] Make run speed feed movement consistently through shared stats. (`server/movement/worldMovement.ts:getPlayerSpeed` reads `player.stats.runSpeed` as the single source — class passives, race modifiers, slow/speed_boost status effects all funnel through the runSpeed stat. Pinned by `tests/playerSpeedFromRunSpeed.spec.ts`: baseline, slow proportional reduction, speed_boost proportional raise.)
 - [ ] Add an effect tick system for players and enemies.
 - [x] Add expiration pruning for player status effects.
 - [x] Add expiration pruning for enemy status effects.
@@ -753,7 +753,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [ ] Add dev-command access control beyond environment flag if any admin tools exist online.
 - [x] Add dependency vulnerability scanning. (`.github/dependabot.yml` — npm + github-actions + docker ecosystems are configured with monthly checks; Dependabot's security advisory channel surfaces CVEs even with `open-pull-requests-limit: 0` for routine version churn. Re-enable the limit when intentional dependency work resumes.)
 - [ ] Add secret scanning for full Git history if not already done.
-- [ ] Add security review checklist before production deploy.
+- [x] Add security review checklist before production deploy. (`docs/SECURITY_REVIEW.md` — covers network boundary, rate limits + suspicious activity, auth + secrets, origins/CORS, dev escape hatches, persistence, process+container, deploy mechanics, and post-deploy baseline checks. Each item references the concrete CI gate / file enforcing it.)
 - [x] Add safe handling for unhandled exceptions and rejections without duplicate handlers. (`server/server.ts` — single `unhandledRejection` handler that logs and `process.exit(1)`s so the container restarts on async failure; single `uncaughtException` handler that logs but does not exit (lets one bad sync tick handler not take the world down). De-duped — the prior file registered `unhandledRejection` twice, which would log the same rejection twice and double-stack the listener.)
 - [ ] Add graceful process shutdown path.
 - [ ] Add container user hardening if the Docker image currently runs as root.
