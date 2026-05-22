@@ -756,7 +756,7 @@ Status: every checkbox is intentionally open. Use this as a hardening, rewrite, 
 - [x] Add security review checklist before production deploy. (`docs/SECURITY_REVIEW.md` — covers network boundary, rate limits + suspicious activity, auth + secrets, origins/CORS, dev escape hatches, persistence, process+container, deploy mechanics, and post-deploy baseline checks. Each item references the concrete CI gate / file enforcing it.)
 - [x] Add safe handling for unhandled exceptions and rejections without duplicate handlers. (`server/server.ts` — single `unhandledRejection` handler that logs and `process.exit(1)`s so the container restarts on async failure; single `uncaughtException` handler that logs but does not exit (lets one bad sync tick handler not take the world down). De-duped — the prior file registered `unhandledRejection` twice, which would log the same rejection twice and double-stack the listener.)
 - [ ] Add graceful process shutdown path.
-- [ ] Add container user hardening if the Docker image currently runs as root.
+- [x] Add container user hardening if the Docker image currently runs as root. (`Dockerfile` — creates a dedicated `vibeage` user/group with `addgroup -S` + `adduser -S`, copies app sources with `--chown=vibeage:vibeage`, and runs `USER vibeage` before the CMD. The container never runs as root in production.)
 - [ ] Add Nginx security header checks for the frontend.
 
 ## 16. Client Architecture and State Management
