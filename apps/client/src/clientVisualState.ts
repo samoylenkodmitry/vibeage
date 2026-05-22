@@ -490,6 +490,30 @@ export function applyPlayerDeathFeedback(
 }
 
 /**
+ * Skill-learn success feedback for the local player. Server emits
+ * `SkillLearned` after the learn request lands; the SkillTreePanel
+ * gets the new skill row visually, but the combat log was silent.
+ * Adding a "You learned X." line so the player has a scroll-back
+ * record (and a clear delineation between server confirmation and
+ * a passive panel refresh).
+ *
+ * SkillLearned is owner-only (see `OWNER_ONLY_SERVER_MESSAGE_TYPES`)
+ * so it always targets the local player; no playerId guard needed.
+ */
+export function applySkillLearnedFeedback(
+  state: GameClientState,
+  skillId: string,
+  now: number,
+): GameClientState {
+  const skill = getSkillDef(skillId);
+  const label = skill?.name ?? skillId;
+  return addCombatLine(state, {
+    id: makeCombatLineId(`learn-${skillId}`, state.combatLog.length, now),
+    text: `You learned ${label}.`,
+  });
+}
+
+/**
  * Respawn feedback: dead → alive transition for any tracked player.
  * Renders as "You're back!" for the local player and "X respawned."
  * for others. Symmetric with `applyPlayerDeathFeedback`; only the

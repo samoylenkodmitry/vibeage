@@ -37,6 +37,7 @@ import {
   applyPlayerDeathFeedback,
   applyPlayerLevelUpFeedback,
   applyPlayerRespawnFeedback,
+  applySkillLearnedFeedback,
   pruneClientVisualState,
 } from './clientVisualState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
@@ -335,7 +336,7 @@ function applyServerMessage(
   }
 
   if (message.type === 'SkillLearned') {
-    return applySkillLearned(state, message);
+    return applySkillLearned(state, message, now);
   }
 
   if (message.type === 'ChatBroadcast') {
@@ -436,11 +437,17 @@ function applyBossTelegraph(
 function applySkillLearned(
   state: GameClientState,
   message: ServerMessage & { type: 'SkillLearned' },
+  now: number,
 ): GameClientState {
   // Clear any previous LearnSkillFailed rejection for this skill so the panel
   // chip disappears once the learn finally succeeds.
   const { [message.skillId]: removed, ...remainingRejections } = state.learnSkillRejections;
   const rejections = removed ? remainingRejections : state.learnSkillRejections;
+  // Only emit the "You learned X." log line on a NEW unlock — the
+  // server re-sends SkillLearned idempotently on duplicate-learn
+  // (see server/players/playerSkills.ts:51-54), which we don't want
+  // to spam the combat log with.
+  const alreadyKnown = state.players[state.myPlayerId ?? '']?.unlockedSkills.includes(message.skillId) ?? false;
   const next = updateMyPlayer(state, (player) => ({
     ...player,
     availableSkillPoints: message.remainingPoints,
@@ -451,7 +458,8 @@ function applySkillLearned(
       ? player.skillShortcuts
       : assignFirstEmptyShortcut(player.skillShortcuts, message.skillId),
   }));
-  return rejections === state.learnSkillRejections ? next : { ...next, learnSkillRejections: rejections };
+  const withLog = alreadyKnown ? next : applySkillLearnedFeedback(next, message.skillId, now);
+  return rejections === state.learnSkillRejections ? withLog : { ...withLog, learnSkillRejections: rejections };
 }
 
 function applyPositionSnapshot(state: GameClientState, message: ServerMessage & { type: 'PosSnap' }, now: number) {
