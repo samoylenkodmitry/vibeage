@@ -21,30 +21,30 @@ import { MINI_BOSSES, mechanicOuterRadius } from '../packages/content/miniBosses
  *
  * Expected after impact: only the in-cone player takes damage.
  */
-describe('Vorthax Cinder Breath cone mechanic', () => {
-  function setupVorthax() {
-    const boss = createEnemy('dragon', 30, { x: 0, y: 0.5, z: 0 }, 1, {
-      isMiniBoss: true,
-      bossId: 'vorthax_ember_wyrm',
-      nameOverride: 'Vorthax the Ember Wyrm',
-      healthMultiplier: 3.0,
-      damageMultiplier: 1.8,
-    });
-    boss.position = { x: 100, y: 0.5, z: 100 };
-    boss.aiState = 'attacking';
-    boss.targetId = 'p_target';
-    return boss;
-  }
+function setupVorthax() {
+  const boss = createEnemy('dragon', 30, { x: 0, y: 0.5, z: 0 }, 1, {
+    isMiniBoss: true,
+    bossId: 'vorthax_ember_wyrm',
+    nameOverride: 'Vorthax the Ember Wyrm',
+    healthMultiplier: 3.0,
+    damageMultiplier: 1.8,
+  });
+  boss.position = { x: 100, y: 0.5, z: 100 };
+  boss.aiState = 'attacking';
+  boss.targetId = 'p_target';
+  return boss;
+}
 
-  function setupPlayerAt(id: string, x: number, z: number) {
-    const p = createTransientPlayer(`s-${id}`, `tester-${id}`);
-    p.id = id;
-    p.position = { x, y: 0.5, z };
-    p.health = 1_000_000;
-    p.maxHealth = 1_000_000;
-    return p;
-  }
+function setupPlayerAt(id: string, x: number, z: number) {
+  const p = createTransientPlayer(`s-${id}`, `tester-${id}`);
+  p.id = id;
+  p.position = { x, y: 0.5, z };
+  p.health = 1_000_000;
+  p.maxHealth = 1_000_000;
+  return p;
+}
 
+describe('Vorthax cone — content spec', () => {
   it('is typed as a cone mechanic on the content spec', () => {
     const mech = MINI_BOSSES.vorthax_ember_wyrm.signatureAbility.mechanic;
     expect(mech.kind).toBe('cone');
@@ -54,10 +54,11 @@ describe('Vorthax Cinder Breath cone mechanic', () => {
     }
     expect(mechanicOuterRadius(mech)).toBe(14);
   });
+});
 
-  it('emits BossTelegraph carrying directionRad + halfAngleDeg for the wedge renderer', () => {
+describe('Vorthax cone — telegraph event', () => {
+  it('carries directionRad + halfAngleDeg + boss-anchored vertex', () => {
     const boss = setupVorthax();
-    // Target east of the boss so direction is ~0 rad.
     const target = setupPlayerAt('p_target', 110, 100);
     const players = { p_target: target };
     const spatial = new SpatialHashGrid();
@@ -75,19 +76,19 @@ describe('Vorthax Cinder Breath cone mechanic', () => {
       expect(telegraph.radius).toBe(14);
       expect(telegraph.halfAngleDeg).toBe(30);
       expect(telegraph.directionRad).toBeCloseTo(0, 3);
-      // Cone vertex is the boss, not the target.
       expect(telegraph.x).toBe(100);
       expect(telegraph.z).toBe(100);
       expect(telegraph.abilityName).toBe('Cinder Breath');
     }
   });
+});
 
+describe('Vorthax cone — damage selection', () => {
   it('hits inside the wedge, spares off-axis + over-length players', () => {
     const boss = setupVorthax();
-    // Target east of the boss so the cone points east.
-    const target = setupPlayerAt('p_target', 113, 100); // inside cone
-    const offAxis = setupPlayerAt('p_off', 100, 112);   // 12 units north — within length but ~90° off
-    const far = setupPlayerAt('p_far', 140, 100);       // 40 units east — on-axis but past 14m length
+    const target = setupPlayerAt('p_target', 113, 100);
+    const offAxis = setupPlayerAt('p_off', 100, 112);
+    const far = setupPlayerAt('p_far', 140, 100);
     const players = { p_target: target, p_off: offAxis, p_far: far };
     const spatial = new SpatialHashGrid();
 
@@ -105,10 +106,12 @@ describe('Vorthax Cinder Breath cone mechanic', () => {
     expect(offAxis.health, 'off-axis player spared').toBe(hpBefore.off);
     expect(far.health, 'over-length player spared').toBe(hpBefore.far);
   });
+});
 
-  it('cone direction is locked at cast start (boss can move during wind-up)', () => {
+describe('Vorthax cone — direction lock', () => {
+  it('direction is locked at cast start (boss can move during wind-up)', () => {
     const boss = setupVorthax();
-    const target = setupPlayerAt('p_target', 113, 100); // east of initial boss pos
+    const target = setupPlayerAt('p_target', 113, 100);
     const players = { p_target: target };
     const spatial = new SpatialHashGrid();
 
@@ -117,17 +120,14 @@ describe('Vorthax Cinder Breath cone mechanic', () => {
     const castStart = (boss.nextSignatureReadyTs ?? start) + 10;
     advanceEnemyState(boss, { players, spatialGrid: spatial, deltaTime: 0.05, now: castStart });
 
-    // After cast starts, "warp" the boss north by 5 units. The cone
-    // still points east (locked direction) but its origin moves with
-    // the boss, so a player at the OLD aim point is now off-axis.
+    // Warp boss north 5 units mid wind-up. Direction stays east.
     boss.position = { x: 100, y: 0.5, z: 95 };
 
     advanceEnemyState(boss, {
       players, spatialGrid: spatial, deltaTime: 0.05, now: castStart + 2500 + 10,
     });
-    // Target is at (113, 100) — relative to new boss pos (100, 95) is (+13, +5).
-    // That's still inside the 30° wedge pointing east (atan2(5, 13) ≈ 21° < 30°)
-    // and within 14m length (sqrt(13² + 5²) ≈ 13.9). Should still hit.
+    // (113, 100) relative to new boss pos (100, 95) is (+13, +5):
+    // atan2(5, 13) ≈ 21° < 30°, distance ≈ 13.9 < 14. Still hits.
     expect(target.health).toBeLessThan(target.maxHealth);
   });
 });
