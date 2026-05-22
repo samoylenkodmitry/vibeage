@@ -11,6 +11,7 @@ import {
 } from '../transport/outboundEvents.js';
 import { ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 import { sendCommandRejected } from '../transport/commandRejected.js';
+import type { CommandRejectionReason } from '../../packages/protocol/commandRejections.js';
 import { emitInventoryUpdate } from '../world/clientMessageRouter.js';
 
 type DropItemClient = { id: string };
@@ -30,7 +31,7 @@ export function onDropItem(
   msg: DropItem,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'DropItem', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'DropItem'>) => sendCommandRejected(direct, 'DropItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     warn(LOG_CATEGORIES.PLAYER, `DropItem rejected: no player for socket ${socket.id}`);
@@ -64,7 +65,7 @@ export function onDropItem(
   const removed = removeItemsFromPlayer(player, instance.templateId, droppedCount);
   if (removed.ok === false) {
     warn(LOG_CATEGORIES.PLAYER, `DropItem failed during remove for ${playerId}: ${removed.error}`);
-    reject(removed.error);
+    reject(removed.error as CommandRejectionReason<'DropItem'>);
     return;
   }
 

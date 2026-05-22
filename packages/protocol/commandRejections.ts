@@ -139,21 +139,33 @@ export type CommandRejectionReasons = {
     | 'noEffect'
     | 'playerDead'
     | 'playerNotFound'
-    | 'rateLimited';
+    | 'rateLimited'
+    // Reasons returned by the item-use validation layer.
+    | 'itemNotFound'
+    | 'notConsumable'
+    | 'cooldown';
   DropItem:
     | 'invalidSlot'
     | 'invalidCount'
+    | 'playerDead'
+    | 'itemNotFound'
     | 'playerNotFound'
     | 'rateLimited';
   DestroyItem:
     | 'invalidSlot'
     | 'invalidCount'
+    | 'playerDead'
+    | 'itemNotFound'
     | 'playerNotFound'
     | 'rateLimited';
   CraftItem:
     | 'unknownRecipe'
     | 'missingReagents'
+    | 'missingIngredients'
     | 'inventoryFull'
+    | 'invalidSlot'
+    | 'playerDead'
+    | 'notRecipe'
     | 'playerNotFound'
     | 'rateLimited';
   // Skill progression
@@ -163,12 +175,16 @@ export type CommandRejectionReasons = {
     | 'wrongClass'
     | 'missingPrereq'
     | 'noSkillPoints'
+    | 'alreadyKnown'
     | 'rateLimited';
   UpgradeSkill:
     | 'unknownSkill'
     | 'maxRank'
+    | 'maxLevelReached'
     | 'missingPrereq'
     | 'noSkillPoints'
+    | 'skillNotLearned'
+    | 'noUpgradesAvailable'
     | 'playerNotFound'
     | 'rateLimited';
   // Quest verbs

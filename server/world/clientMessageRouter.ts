@@ -18,7 +18,7 @@ import { onCraftItem } from '../inventory/craftRecipe.js';
 import { onDropItem } from '../inventory/dropItem.js';
 import { onDestroyItem } from '../inventory/destroyItem.js';
 import { sendCommandRejected } from '../transport/commandRejected.js';
-import type { RejectableCommand } from '../../packages/protocol/commandRejections.js';
+import type { CommandRejectionReason, RejectableCommand } from '../../packages/protocol/commandRejections.js';
 import { tryGiveLoot } from '../loot/groundLoot.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../movement/devTeleport.js';
@@ -161,7 +161,7 @@ function onBuyFromVendor(
   msg: Extract<ClientMessage, { type: 'BuyFromVendor' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'BuyFromVendor', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'BuyFromVendor'>) => sendCommandRejected(direct, 'BuyFromVendor', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
@@ -173,7 +173,7 @@ function onBuyFromVendor(
     return;
   }
   const result = applyBuyFromVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
-  if (result.ok === false) reject(result.reason);
+  if (result.ok === false) reject(result.reason as CommandRejectionReason<'BuyFromVendor'>);
 }
 
 function onSellToVendor(
@@ -183,7 +183,7 @@ function onSellToVendor(
   msg: Extract<ClientMessage, { type: 'SellToVendor' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'SellToVendor', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'SellToVendor'>) => sendCommandRejected(direct, 'SellToVendor', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
@@ -195,7 +195,7 @@ function onSellToVendor(
     return;
   }
   const result = applySellToVendor(player, msg.vendorId, msg.itemId, msg.quantity, outbound);
-  if (result.ok === false) reject(result.reason);
+  if (result.ok === false) reject(result.reason as CommandRejectionReason<'SellToVendor'>);
 }
 
 function onGmCommand(
@@ -205,7 +205,7 @@ function onGmCommand(
   msg: Extract<ClientMessage, { type: 'GmCommand' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'GmCommand', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'GmCommand'>) => sendCommandRejected(direct, 'GmCommand', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
@@ -270,7 +270,16 @@ function onQuestVerb(
   outbound: OutboundEventSink,
   apply: (player: PlayerState, questId: string, outbound: OutboundEventSink) => boolean,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, msg.type, reason);
+  // Quest verbs share a reason space (the four quest commands all
+  // accept playerNotFound / noEffect / rateLimited). Narrow to the
+  // intersection here so the wrapper is safely typed across the
+  // four commandTypes.
+  type QuestRejectReason = CommandRejectionReason<'AcceptQuest'>
+    & CommandRejectionReason<'CancelQuest'>
+    & CommandRejectionReason<'AdvanceQuest'>
+    & CommandRejectionReason<'ClaimQuestReward'>;
+  const reject = (reason: QuestRejectReason) =>
+    sendCommandRejected<typeof msg.type>(direct, msg.type, reason);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
@@ -293,7 +302,7 @@ function onClaimQuestReward(
   msg: Extract<ClientMessage, { type: 'ClaimQuestReward' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'ClaimQuestReward', reason);
+  const reject = (reason: CommandRejectionReason<'ClaimQuestReward'>) => sendCommandRejected(direct, 'ClaimQuestReward', reason);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
@@ -307,7 +316,7 @@ function onClaimQuestReward(
   if (!ok) reject(claimRejectReason(player, msg.questId));
 }
 
-function claimRejectReason(player: PlayerState, questId: string): string {
+function claimRejectReason(player: PlayerState, questId: string): CommandRejectionReason<'ClaimQuestReward'> {
   const entry = player.questState?.active?.[questId];
   if (!entry) return 'notActive';
   if (!entry.readyToClaim) return 'notReady';
@@ -337,7 +346,7 @@ function onUpgradeSkill(
   // §52 polish — pass msg.skillId as targetId so the client's
   // skill tree panel can hang the rejection chip next to the right
   // row (same pattern as LearnSkill from §52 #1).
-  const reject = (reason: string) => sendCommandRejected(direct, 'UpgradeSkill', reason, msg.clientSeq, msg.skillId);
+  const reject = (reason: CommandRejectionReason<'UpgradeSkill'>) => sendCommandRejected(direct, 'UpgradeSkill', reason, msg.clientSeq, msg.skillId);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
@@ -349,7 +358,7 @@ function onUpgradeSkill(
     return;
   }
   const result = applySkillUpgrade(player, msg.skillId, outbound);
-  if (result.ok === false) reject(result.reason);
+  if (result.ok === false) reject(result.reason as CommandRejectionReason<'UpgradeSkill'>);
 }
 
 function onSelectClass(
@@ -359,7 +368,7 @@ function onSelectClass(
   msg: Extract<ClientMessage, { type: 'SelectClass' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'SelectClass', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'SelectClass'>) => sendCommandRejected(direct, 'SelectClass', reason, msg.clientSeq);
   // Identity is locked once the player is in the world. Race / class
   // are chosen in the character-creation flow (PR D2); after that
   // only GMs (VIBEAGE_ENABLE_DEV_COMMANDS=1) can mutate them. The
@@ -390,7 +399,7 @@ function onSelectRace(
   msg: Extract<ClientMessage, { type: 'SelectRace' }>,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'SelectRace', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'SelectRace'>) => sendCommandRejected(direct, 'SelectRace', reason, msg.clientSeq);
   if (!isGmModeEnabled()) {
     warn(LOG_CATEGORIES.PLAYER, `SelectRace rejected (not GM) for ${socket.id}`);
     reject('notGm');
@@ -449,7 +458,7 @@ function onChatRequest(
   outbound: OutboundEventSink,
   spatial: SpatialHashGrid,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'ChatRequest', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'ChatRequest'>) => sendCommandRejected(direct, 'ChatRequest', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');

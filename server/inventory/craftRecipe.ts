@@ -13,6 +13,7 @@ import {
 } from '../transport/outboundEvents.js';
 import { addItemsToPlayer, ensureCharacterInventory, removeItemsFromPlayer } from './aggregateBridge.js';
 import { sendCommandRejected } from '../transport/commandRejected.js';
+import type { CommandRejectionReason } from '../../packages/protocol/commandRejections.js';
 
 export type CraftResult =
   | { ok: true; recipeId: string; outputId: string }
@@ -95,7 +96,7 @@ export function onCraftItem(
   msg: CraftItem,
   outbound: OutboundEventSink,
 ): void {
-  const reject = (reason: string) => sendCommandRejected(direct, 'CraftItem', reason, msg.clientSeq);
+  const reject = (reason: CommandRejectionReason<'CraftItem'>) => sendCommandRejected(direct, 'CraftItem', reason, msg.clientSeq);
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     error(LOG_CATEGORIES.SYSTEM, `CraftItem: No player found for socket ${socket.id}`);
