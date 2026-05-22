@@ -6,6 +6,7 @@ import {
   resetDotTrackerForTests,
   tickDamageOverTimeEffects,
 } from '../server/combat/dotTicker';
+import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { OutboundEvent, OutboundEventSink } from '../server/transport/outboundEvents';
 import type { PlayerState } from '../packages/sim/entities';
 import type { StatusEffect } from '../packages/protocol/messages';
@@ -67,7 +68,7 @@ describe('tickDamageOverTimeEffects', () => {
     state.players[player.id] = player;
     const { events, sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS - 1);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS - 1);
 
     expect(player.health).toBe(100);
     expect(events).toEqual([]);
@@ -79,7 +80,7 @@ describe('tickDamageOverTimeEffects', () => {
     state.players[player.id] = player;
     const { events, sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS);
 
     expect(player.health).toBe(95);
     expect(events).toContainEqual(expect.objectContaining({
@@ -95,7 +96,7 @@ describe('tickDamageOverTimeEffects', () => {
     const { sink } = captureOutbound();
 
     // Called 3 ticks late → applies 3 ticks of damage in one call.
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS * 3);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS * 3);
 
     expect(player.health).toBe(85);
   });
@@ -107,7 +108,7 @@ describe('tickDamageOverTimeEffects', () => {
     const { sink } = captureOutbound();
 
     // Effect lasts 2500ms; only 2 ticks should land (at +1000 and +2000).
-    tickDamageOverTimeEffects(state, sink, NOW + 10_000);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + 10_000);
 
     expect(player.health).toBe(90);
   });
@@ -118,7 +119,7 @@ describe('tickDamageOverTimeEffects', () => {
     state.players[player.id] = player;
     const { events, sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS);
 
     expect(player.health).toBe(0);
     expect(player.isAlive).toBe(false);
@@ -150,7 +151,7 @@ describe('tickDamageOverTimeEffects: simultaneous effects', () => {
     state.players[player.id] = player;
     const { sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS);
 
     // 100 - 5 - 7 = 88.
     expect(player.health).toBe(88);
@@ -173,7 +174,7 @@ describe('tickDamageOverTimeEffects: enemy side', () => {
     const startingHealth = enemy.health;
     const { events, sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS);
 
     expect(enemy.health).toBe(startingHealth - 10);
     expect(events).toContainEqual(expect.objectContaining({
@@ -198,7 +199,7 @@ describe('tickDamageOverTimeEffects: non-DoT and edge cases', () => {
     state.players[player.id] = player;
     const { events, sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS * 5);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS * 5);
 
     expect(player.health).toBe(100);
     expect(events).toEqual([]);
@@ -209,7 +210,7 @@ describe('tickDamageOverTimeEffects: non-DoT and edge cases', () => {
     const player = makePlayer('p');
     state.players[player.id] = player;
     const { sink } = captureOutbound();
-    expect(() => tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS)).not.toThrow();
+    expect(() => tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS)).not.toThrow();
   });
 
   it('skips dead entities', () => {
@@ -220,7 +221,7 @@ describe('tickDamageOverTimeEffects: non-DoT and edge cases', () => {
     state.players[player.id] = player;
     const { events, sink } = captureOutbound();
 
-    tickDamageOverTimeEffects(state, sink, NOW + DOT_TICK_INTERVAL_MS);
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS);
 
     expect(events).toEqual([]);
   });
@@ -233,7 +234,7 @@ describe('tickDamageOverTimeEffects: non-DoT and edge cases', () => {
     const realNow = Date.now();
     vi.spyOn(Date, 'now').mockReturnValue(realNow);
 
-    expect(() => tickDamageOverTimeEffects(state, sink)).not.toThrow();
+    expect(() => tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink)).not.toThrow();
     vi.restoreAllMocks();
   });
 });
