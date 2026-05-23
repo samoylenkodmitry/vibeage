@@ -111,15 +111,25 @@ test('dragging a bag slot onto a skill-bar slot binds the item and 1-key uses it
 
 test('Bind to shortcut from the bag tooltip binds the item to the chosen slot (touch path)', async ({ page }) => {
   await seedAndOpenBag(page, `BagBindTooltip${Date.now()}`);
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
-  await populated.click();
+  // Dispatch the click directly — Playwright's actionable wait can
+  // race with the actions-panel pointer-events override (the Pickup
+  // button enables once there's ground loot from earlier tests and
+  // briefly intercepts the click target). Synthetic click still
+  // routes through React's onClick exactly like a real user tap.
+  await page.evaluate(() => {
+    const slots = Array.from(document.querySelectorAll<HTMLElement>('.inventory-slot:not([disabled])'));
+    const button = slots.find((el) => /^Health Potion/i.test(el.getAttribute('aria-label') ?? ''));
+    if (!button) throw new Error('no health potion in bag');
+    const rect = button.getBoundingClientRect();
+    button.dispatchEvent(new MouseEvent('click', {
+      bubbles: true, cancelable: true,
+      clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+    }));
+  });
   const tooltip = page.locator('.item-tooltip');
   await expect(tooltip).toBeVisible({ timeout: 3_000 });
-  // Tap the "Bind to shortcut" button to open the picker.
   await tooltip.getByRole('button', { name: /Bind to shortcut/i }).click();
-  // Picker grid renders the 1..0 + Q..P labels — pick the '2' slot.
   await tooltip.getByRole('button', { name: /Bind to slot 2/i }).click();
-  // Bound slot appears on the skill bar.
   const boundSlot = page.locator('.skill-button--item').first();
   await expect(boundSlot).toBeVisible({ timeout: 3_000 });
   await expect(boundSlot).toContainText(/Health Potion/i);

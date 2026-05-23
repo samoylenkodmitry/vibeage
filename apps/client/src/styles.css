@@ -2389,9 +2389,32 @@ input {
 @media (max-width: 680px) {
   .hud-stats,
   .movement-panel,
-  .navigation-panel,
-  .combat-log {
+  .navigation-panel {
     display: none;
+  }
+
+  /* §52 follow-up — combat log was display:none on mobile, so the
+     player couldn't read "your bag is full / item retired / pickup
+     too far" responses to their actions. Anchor a slim version to
+     the right side under vitals so it sits clear of the bag panel
+     (bottom-anchored, full width) and the action panel (bottom-
+     right, 240px). Two lines of recent text is enough signal for
+     the typical reject; the dedicated chat panel still works for
+     long history. */
+  .combat-log {
+    top: 50px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: min(54vw, 240px);
+    max-height: 88px;
+    font-size: 11px;
+    padding: 4px 6px;
+    background: rgba(3, 10, 13, 0.6);
+  }
+  .combat-log-scroll {
+    max-height: 78px;
+    gap: 2px;
   }
 
   .starter-progress {
@@ -2587,9 +2610,32 @@ input {
     transform: none;
   }
 
+  /* §52 follow-up — desktop puts the action panel bottom-right at
+     96px in a 240px-wide column, which on mobile overlapped with
+     both the bottom-anchored skill bar (60-200px) AND the bag panel
+     (140-340px). Restack: action buttons sit in a horizontal strip
+     above the skill bar; bag floats above that. */
+  .actions-panel {
+    right: 8px;
+    left: 8px;
+    bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 16px);
+    padding: 6px 8px;
+  }
+  .actions-panel-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .action-button {
+    min-height: 44px;
+    grid-template-rows: auto;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
   .inventory-panel {
     right: 8px;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(260px + env(safe-area-inset-bottom, 0px));
     left: 8px;
     display: grid;
     width: calc(100vw - 16px);
