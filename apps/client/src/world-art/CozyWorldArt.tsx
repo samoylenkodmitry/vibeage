@@ -2,6 +2,7 @@ import { CozyAuthoredCoast } from './CozyAuthoredCoast';
 import { CozyBonfireGlow } from './CozyBonfireGlow';
 import { CozyBonfireSmoke } from './CozyBonfireSmoke';
 import { CozyDistantMountains } from './CozyDistantMountains';
+import { CozyFireflies } from './CozyFireflies';
 import { CozyLanterns } from './CozyLanterns';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
@@ -49,6 +50,7 @@ export function CozyWorldArt({
       <CozyBonfireGlow scene={scene} />
       <CozyBonfireSmoke scene={scene} />
       <CozyLanterns scene={scene} />
+      <CozyFireflies scene={scene} />
       <CozyPineForest scene={scene} quality={quality} />
     </>
   );
