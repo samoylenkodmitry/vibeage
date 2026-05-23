@@ -142,9 +142,12 @@ describe('item use rejection', () => {
   });
 
   test('rejects unsupported consumables without changing inventory', () => {
+    // Pick any non-consumable item to verify the `notConsumable`
+    // rejection — goblin_ear is a stable trophy material so the test
+    // doesn't need to track future content removals.
     const state = createGameState();
     state.players.player1 = makePlayer({
-      seedInventory: [{ itemId: 'teleport_scroll', quantity: 1 }],
+      seedInventory: [{ itemId: 'goblin_ear', quantity: 1 }],
     });
 
     const result = useItemForPlayer(state, 'player1', 0);

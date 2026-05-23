@@ -8,13 +8,7 @@ Every entry here is a real item / skill / boss the engine knows about but nothin
 
 In `ITEMS` but nothing drops / sells / crafts / quest-rewards them. The wiki shows the item but the player has no way to obtain it. Whitelist members (`OBTAINABILITY_WHITELIST` in `packages/content/obtainability.ts`) are flagged with `(whitelisted)` — CI accepts them today but the gap is real and should be wired up.
 
-- [ ] `ancient_tome` — Ancient Tome (whitelisted)
-- [ ] `dungeon_key` — Dungeon Key (whitelisted)
-- [ ] `experience_orb` — Experience Orb (whitelisted)
-- [ ] `mysterious_artifact` — Mysterious Artifact (whitelisted)
-- [ ] `sealed_letter` — Sealed Letter (whitelisted)
-- [ ] `shadow_crown` — Crown of Shadows (whitelisted)
-- [ ] `teleport_scroll` — Teleport Scroll (whitelisted)
+_None._
 
 ## Items with no use
 

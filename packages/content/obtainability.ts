@@ -128,17 +128,6 @@ const OBTAINABILITY_WHITELIST: ReadonlySet<string> = new Set<string>([
   'gold_coin',
   'silver_coin',
   'platinum_coin',
-  // PR HH — flavour / future-content placeholders. Listed in ITEMS so
-  // the catalog and wiki can render them, but no in-game source yet.
-  // Re-evaluate every time we touch the obtainability index: if a
-  // quest hook lands for ancient_tome (etc.), drop it from this list.
-  'ancient_tome',
-  'sealed_letter',
-  'mysterious_artifact',
-  'dungeon_key',
-  'teleport_scroll',
-  'experience_orb',
-  'shadow_crown',
 ]);
 
 /**
