@@ -7,6 +7,7 @@ import { CozyLanterns } from './CozyLanterns';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
 import { CozyShoreFoam } from './CozyShoreFoam';
+import { CozyWaterSparkles } from './CozyWaterSparkles';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
 import type { WorldArtQuality } from './quality';
 import type { WorldArtScene } from './worldArtScenes';
@@ -44,6 +45,7 @@ export function CozyWorldArt({
     <>
       <CozyDistantMountains scene={scene} />
       <SimpleStylizedWater scene={scene} />
+      <CozyWaterSparkles scene={scene} />
       <CozyShoreBand scene={scene} />
       <CozyShoreFoam scene={scene} />
       <CozyAuthoredCoast scene={scene} />
