@@ -36,13 +36,21 @@ export function CozyWorldArt({
   return (
     <>
       <CozyAtmosphere focus={focus} quality={quality} />
+      {/*
+       * Sky parameters tuned for a saturated late-afternoon look.
+       * Earlier (turbidity=6, rayleigh=2.2, high sun) the shader
+       * read as bleached high-noon white. Lower turbidity drops
+       * the haze, higher rayleigh pushes blue, and a lower /
+       * closer sun produces a warm horizon band that matches the
+       * cozy reference imagery.
+       */}
       <Sky
         distance={4500}
-        sunPosition={[400, 220, 280]}
-        turbidity={6}
-        rayleigh={2.2}
+        sunPosition={[220, 90, 320]}
+        turbidity={2.6}
+        rayleigh={3.0}
         mieCoefficient={0.005}
-        mieDirectionalG={0.8}
+        mieDirectionalG={0.86}
       />
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
