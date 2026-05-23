@@ -74,6 +74,10 @@ const waterFragmentShader = `
     vec3 color = mix(uShallow, uDeep, clamp(depth + ripple + smallRipple, 0.0, 1.0));
     float foamLine = 1.0 - smoothstep(0.035, 0.08, abs(vUv.x - 0.18));
     color = mix(color, uFoam, foamLine * 0.35);
-    gl_FragColor = vec4(color, 0.76);
+    // Depth-based alpha: clearer at the shore, more opaque
+    // further out. Reads as actual water depth rather than a
+    // uniform translucent slab.
+    float alpha = mix(0.6, 0.88, depth);
+    gl_FragColor = vec4(color, alpha);
   }
 `;
