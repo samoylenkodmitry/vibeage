@@ -34,7 +34,9 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
         isAlive: state.players[state.myPlayerId]?.isAlive ?? false,
       } : null,
       starterProgress: state.starterProgress,
-      inventoryItems: state.inventory.map((slot) => ({ itemId: slot.itemId, quantity: slot.quantity })),
+      inventoryItems: state.inventory.map((slot) => ({ itemId: slot.itemId, quantity: slot.quantity, slotIndex: slot.slotIndex })),
+      maxInventorySlots: state.maxInventorySlots,
+      groundLootPositions: Object.values(state.groundLoot).map((stack) => ({ id: stack.id, x: stack.position.x, z: stack.position.z })),
       groundLootIds: Object.keys(state.groundLoot),
       castSkillIds: Object.values(state.casts).map((cast) => cast.snapshot.skillId),
       visualEventKinds: Object.values(state.visualEvents).map((event) => event.kind),
@@ -133,8 +135,10 @@ declare global {
           isAlive: boolean;
         } | null;
         starterProgress: GameClientState['starterProgress'];
-        inventoryItems: { itemId: string; quantity: number }[];
+        inventoryItems: { itemId: string; quantity: number; slotIndex?: number }[];
+        maxInventorySlots: number;
         groundLootIds: string[];
+        groundLootPositions: { id: string; x: number; z: number }[];
         castSkillIds: SkillId[];
         visualEventKinds: string[];
         combatLogTexts: string[];
