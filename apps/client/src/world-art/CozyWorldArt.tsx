@@ -8,28 +8,36 @@ import type { WorldArtQuality } from './quality';
 import { pickActiveScene } from './worldArtScenes';
 
 /**
- * Top-level cozy-coast layer. Owns sky, atmosphere, water, shore,
- * and the starter-area tree silhouettes. Mounted unconditionally
- * by `WorldScene`; the internal `pickActiveScene` decides whether
- * the cozy hero scene is active for the current player position.
- * When the player is outside every registered scene we render
- * nothing here — the existing `WorldEnvironment` stays the
- * fallback presentation for the rest of the world.
+ * Cozy world-art layer.
  *
- * Stack:
- *   Sky        — Drei's atmospheric sky shader
- *   Atmosphere — fog + warm sun + cool hemisphere fill
- *   Water      — stylized procedural plane, raycast-disabled
- *   Shore      — pale sand band along the waterline
- *   Foliage    — GLB pines/rocks/grass (PR 2). Falls back to PR 1
- *                procedural silhouettes if assets fail to load.
- *   AuthoredCoast — hand-placed dock/rowboat/bonfire (PR 4).
+ * Two tiers of presentation:
+ *
+ * 1. **Global atmosphere** — `CozyAtmosphere` (sky color / fog /
+ *    sun / hemisphere fill) and Drei `<Sky>` are mounted
+ *    unconditionally so the whole world reads under one cozy
+ *    palette. The PR 1 design hard-cut between zones (cozy
+ *    inside / `<color attach="background">` outside) made the
+ *    declarative background fight `CozyAtmosphere`'s imperative
+ *    `scene.background` writes — outside the cozy radius the
+ *    sky reverted to the renderer's default (white). Hoisting
+ *    fixes that and removes the jarring zone transition.
+ *
+ * 2. **Anchored hero scene** — water, shore band, authored
+ *    dock/rowboat/bonfire, and GLB foliage scatter only render
+ *    when `pickActiveScene(focus)` resolves to a registered
+ *    scene. Other zones get the atmosphere but not the coast
+ *    geography — water doesn't follow the player around.
  */
 type Focus = { x: number; y?: number; z: number };
 
-export function CozyWorldArt({ focus, quality }: { focus: Focus; quality: WorldArtQuality }) {
+export function CozyWorldArt({
+  focus, quality, cozyActive,
+}: {
+  focus: Focus;
+  quality: WorldArtQuality;
+  cozyActive: boolean;
+}) {
   const scene = pickActiveScene(focus.x, focus.z);
-  if (!scene) return null;
   return (
     <>
       <CozyAtmosphere focus={focus} quality={quality} />
@@ -41,10 +49,14 @@ export function CozyWorldArt({ focus, quality }: { focus: Focus; quality: WorldA
         mieCoefficient={0.005}
         mieDirectionalG={0.8}
       />
-      <SimpleStylizedWater scene={scene} />
-      <CozyShoreBand scene={scene} />
-      <CozyAuthoredCoast scene={scene} />
-      <CozyPineForest scene={scene} quality={quality} />
+      {cozyActive && scene && (
+        <>
+          <SimpleStylizedWater scene={scene} />
+          <CozyShoreBand scene={scene} />
+          <CozyAuthoredCoast scene={scene} />
+          <CozyPineForest scene={scene} quality={quality} />
+        </>
+      )}
     </>
   );
 }
