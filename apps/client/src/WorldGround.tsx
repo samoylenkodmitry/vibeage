@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../packages/content/terrain';
@@ -11,12 +11,27 @@ import {
   shouldStartDragMove,
   TOUCH_MOVE_THROTTLE_MS,
 } from './touchMovement';
+import { useTerrainTextures } from './world-art/useTerrainTextures';
+
+/**
+ * Render modes for the clickable terrain chunks.
+ *
+ * - 'normal'    — vertex-colored standard material (the original
+ *   look, used everywhere outside cozy hero scenes).
+ * - 'textured'  — sand/grass PBR textures mixed with the existing
+ *   vertex colors so biome tinting still reads through.
+ * - 'collider'  — invisible color writes but pointer-raycast
+ *   stays on, so click-to-move keeps working when another art
+ *   layer paints the ground (PR 4's authored GLB will use this).
+ */
+export type TerrainVisualMode = 'normal' | 'textured' | 'collider';
 
 type WorldGroundProps = {
   focus: Vec3D;
   onMove: (target: VecXZ) => void;
   cameraControlsRef?: MutableRefObject<CameraControls | null>;
   touchClaimRef?: MutableRefObject<Set<number>>;
+  visualMode?: TerrainVisualMode;
 };
 
 type DragMoveState = {
@@ -38,7 +53,7 @@ type TouchPendingState = {
 
 const TOUCH_DRAG_THRESHOLD_PX = 6;
 
-export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef }: WorldGroundProps) {
+export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, visualMode = 'normal' }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
@@ -90,6 +105,7 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef }:
           key={`${chunk.x}:${chunk.z}`}
           originX={chunk.x}
           originZ={chunk.z}
+          visualMode={visualMode}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -300,19 +316,16 @@ function useActiveTouchCount(onChange?: () => void) {
   return countRef;
 }
 
-function TerrainChunk({
-  originX,
-  originZ,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-}: {
+type TerrainChunkProps = {
   originX: number;
   originZ: number;
+  visualMode: TerrainVisualMode;
   onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
   onPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onPointerUp: (event: ThreeEvent<PointerEvent>) => void;
-}) {
+};
+
+function TerrainChunk({ originX, originZ, visualMode, onPointerDown, onPointerMove, onPointerUp }: TerrainChunkProps) {
   const geometry = useMemo(
     () => createTerrainGeometry(originX, originZ),
     [originX, originZ],
@@ -324,10 +337,42 @@ function TerrainChunk({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      receiveShadow
+      receiveShadow={visualMode !== 'collider'}
     >
-      <meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />
+      <TerrainMaterial visualMode={visualMode} />
     </mesh>
+  );
+}
+
+function TerrainMaterial({ visualMode }: { visualMode: TerrainVisualMode }) {
+  if (visualMode === 'collider') {
+    // Invisible color writes; raycasting still hits the geometry
+    // so click-to-move keeps working under an authored art layer.
+    return <meshBasicMaterial colorWrite={false} depthWrite={false} transparent opacity={0} />;
+  }
+  if (visualMode === 'textured') {
+    return (
+      <Suspense fallback={<meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />}>
+        <TexturedTerrainMaterial />
+      </Suspense>
+    );
+  }
+  return <meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />;
+}
+
+function TexturedTerrainMaterial() {
+  const tex = useTerrainTextures();
+  // Sand-first map keeps the cozy coast warm; vertex colors stay
+  // on so biome tinting and slope shading still read through the
+  // base texture instead of flattening the world.
+  return (
+    <meshStandardMaterial
+      map={tex.sandColor}
+      normalMap={tex.sandNormal}
+      vertexColors
+      roughness={0.95}
+      metalness={0.02}
+    />
   );
 }
 
@@ -356,13 +401,14 @@ function getVisibleTerrainChunks(centerChunkX: number, centerChunkZ: number): Ar
   return chunks;
 }
 
-function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGeometry {
+export function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGeometry {
   const size = WORLD_SETTINGS.terrainChunkSize;
   const segments = WORLD_SETTINGS.terrainChunkSegments;
   const verticesPerSide = segments + 1;
   const vertexCount = verticesPerSide * verticesPerSide;
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
+  const uvs = new Float32Array(vertexCount * 2);
   const indices: number[] = [];
   const color = new THREE.Color();
   const accentColor = new THREE.Color();
@@ -376,12 +422,18 @@ function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGe
       const worldZ = originZ + zOffset;
       const terrain = sampleTerrain(worldX, worldZ);
       const base = vertexIndex * 3;
+      const uvBase = vertexIndex * 2;
 
       positions[base] = worldX;
       positions[base + 1] = terrain.height;
       positions[base + 2] = worldZ;
       color.set(terrain.groundColor).lerp(accentColor.set(terrain.accentColor), heightTint(terrain.height));
       color.toArray(colors, base);
+      // 0..1 across the chunk; the material applies `repeat` on
+      // top so a single 1K texture tiles enough times to read at
+      // MMO camera height without obvious seams at chunk borders.
+      uvs[uvBase] = xIndex / segments;
+      uvs[uvBase + 1] = zIndex / segments;
     }
   }
 
@@ -398,6 +450,7 @@ function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGe
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
