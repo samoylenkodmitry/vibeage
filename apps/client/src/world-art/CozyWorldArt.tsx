@@ -1,7 +1,7 @@
 import { Sky } from '@react-three/drei';
 import { CozyAtmosphere } from './CozyAtmosphere';
+import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
-import { CozyStarterPines } from './CozyStarterPines';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
 import type { WorldArtQuality } from './quality';
 import { pickActiveScene } from './worldArtScenes';
@@ -15,12 +15,13 @@ import { pickActiveScene } from './worldArtScenes';
  * nothing here — the existing `WorldEnvironment` stays the
  * fallback presentation for the rest of the world.
  *
- * PR 1 keeps the stack simple:
- *   Sky      — Drei's atmospheric sky shader
+ * Stack:
+ *   Sky        — Drei's atmospheric sky shader
  *   Atmosphere — fog + warm sun + cool hemisphere fill
- *   Water    — stylized procedural plane, raycast-disabled
- *   Shore    — pale sand band along the waterline
- *   Pines    — instanced procedural silhouettes (real GLB in PR 2)
+ *   Water      — stylized procedural plane, raycast-disabled
+ *   Shore      — pale sand band along the waterline
+ *   Foliage    — GLB pines/rocks/grass (PR 2). Falls back to PR 1
+ *                procedural silhouettes if assets fail to load.
  */
 type Focus = { x: number; y?: number; z: number };
 
@@ -40,7 +41,7 @@ export function CozyWorldArt({ focus, quality }: { focus: Focus; quality: WorldA
       />
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
-      <CozyStarterPines scene={scene} quality={quality} />
+      <CozyPineForest scene={scene} quality={quality} />
     </>
   );
 }
