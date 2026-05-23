@@ -95,8 +95,12 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
   // "Source: Dropped by Grakk" AND "Used in: Chieftain's Cleaver".
   // Lists up to two output names so the line fits.
   const usesLabel = useMemo(() => item ? formatRecipeUses(item.id) : null, [item]);
-  if (!item || typeof document === 'undefined' || !document.body) {
-    return null;
+  if (typeof document === 'undefined' || !document.body) return null;
+  if (!item) {
+    return createPortal(
+      <OrphanItemTooltip itemId={itemId} pos={pos} containerRef={ref} hoverHandlers={hoverHandlers} bagActions={bagActions} />,
+      document.body,
+    );
   }
   const stats = item.stats ?? {};
   const grade = getItemGrade(item);
@@ -155,6 +159,46 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
       )}
     </div>,
     document.body,
+  );
+}
+
+function OrphanItemTooltip({
+  itemId, pos, containerRef, hoverHandlers, bagActions,
+}: {
+  itemId: string;
+  pos: { left: number; top: number };
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  hoverHandlers?: { onPointerEnter: () => void; onPointerLeave: () => void };
+  bagActions?: BagTooltipActions;
+}) {
+  return (
+    <div
+      ref={containerRef}
+      className="item-tooltip"
+      role="tooltip"
+      style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
+      onPointerEnter={hoverHandlers?.onPointerEnter}
+      onPointerLeave={hoverHandlers?.onPointerLeave}
+    >
+      <TooltipHeader name={itemId} grade="none" onClose={bagActions?.onClose} />
+      <p>This item was retired from the game in a content update. You can destroy it to free the slot.</p>
+      {bagActions && (
+        <div className="item-tooltip-actions">
+          <button
+            type="button"
+            className="item-tooltip-action item-tooltip-action--destroy"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              bagActions.onDestroy(bagActions.slotIndex);
+              bagActions.onClose();
+            }}
+          >
+            Destroy
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

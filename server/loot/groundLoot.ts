@@ -50,7 +50,7 @@ export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEvent
 
 export type TryGiveLootResult =
   | { ok: true }
-  | { ok: false; reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull' };
+  | { ok: false; reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull' | 'itemNotFound' | 'invariantViolation' };
 
 export function tryGiveLoot(
   state: GameState,
