@@ -74,8 +74,37 @@ export function onLootPickup(
     return;
   }
 
+  // [BAGDIAG] Server-side inventory snapshot at pickup time. Flows
+  // back to the client via console (server logs are not visible from
+  // a browser tab) by piggybacking on the CommandRejected envelope
+  // when we reject — see the inventoryFull branch below.
+  const inv = player.characterInventory;
+  const occupied: number[] = [];
+  let nonInventoryCount = 0;
+  if (inv) {
+    for (const instance of Object.values(inv.items)) {
+      if (instance.location.kind === 'inventory' && typeof instance.location.slotIndex === 'number') {
+        occupied.push(instance.location.slotIndex);
+      } else {
+        nonInventoryCount += 1;
+      }
+    }
+  }
+  const slotCap = inv ? inv.limits.baseSlots + inv.limits.bonusSlots : -1;
+  console.log('[BAGDIAG] LootPickup attempt', {
+    playerId: msg.playerId,
+    lootId: msg.lootId,
+    maxInventorySlots: player.maxInventorySlots,
+    limits: inv?.limits,
+    slotCap,
+    occupiedCount: occupied.length,
+    occupiedIndices: occupied.sort((a, b) => a - b),
+    nonInventoryCount,
+  });
+
   const result = tryGiveLoot(state, outbound, msg.playerId, msg.lootId);
   if (result.ok === false) {
+    console.log('[BAGDIAG] LootPickup rejected', { reason: result.reason, slotCap, occupiedCount: occupied.length });
     reject(result.reason);
     return;
   }
