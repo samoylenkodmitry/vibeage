@@ -170,7 +170,9 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
 
 const BROADLEAF_GLB = '/models/trees/pine_b.glb';
 const CONIFER_GLB = '/models/trees/pine_a.glb';
-const ACCENT_GLB = '/models/rocks/rock_round_small.glb';
+const ACCENT_GLB_SMALL = '/models/rocks/rock_round_small.glb';
+const ACCENT_GLB_MEDIUM = '/models/rocks/rock_medium_a.glb';
+const TREE_GLB_ALT = '/models/trees/pine_c.glb';
 
 function FoliageField({ focus }: WorldEnvironmentProps) {
   const regenCell = getFoliageRegenCell(focus.x, focus.z);
@@ -186,23 +188,45 @@ function FoliageField({ focus }: WorldEnvironmentProps) {
   // the procedural foliage had: forest stays dark green, autumn
   // shifts amber, ethereal trends cool, etc. The Quaternius
   // texture still shows through; we're modulating, not replacing.
-  const treeMatrices = useMemo(() => instances.trees.map(instanceMatrix), [instances.trees]);
-  const treeColors = useMemo(() => instances.trees.map(instanceColor), [instances.trees]);
-  const coniferMatrices = useMemo(() => instances.conifers.map(instanceMatrix), [instances.conifers]);
-  const coniferColors = useMemo(() => instances.conifers.map(instanceColor), [instances.conifers]);
-  const accentMatrices = useMemo(() => instances.accents.map(instanceMatrix), [instances.accents]);
-  const accentColors = useMemo(() => instances.accents.map(instanceColor), [instances.accents]);
+  // Split each kind into two pools by index parity so the forest
+  // reads as varied (two pine GLBs) and the rock fields mix
+  // small/medium boulders instead of cloned pebbles.
+  const trees = useMemo(() => splitByParity(instances.trees), [instances.trees]);
+  const conifers = useMemo(() => splitByParity(instances.conifers), [instances.conifers]);
+  const accents = useMemo(() => splitByParity(instances.accents), [instances.accents]);
 
   return (
     <>
       <Suspense fallback={null}>
-        <InstancedGltf src={BROADLEAF_GLB} matrices={treeMatrices} colors={treeColors} baseScale={1.4} />
-        <InstancedGltf src={CONIFER_GLB} matrices={coniferMatrices} colors={coniferColors} baseScale={1.6} />
-        <InstancedGltf src={ACCENT_GLB} matrices={accentMatrices} colors={accentColors} baseScale={0.8} />
+        <InstancedGltf src={BROADLEAF_GLB} matrices={trees.evenMatrices} colors={trees.evenColors} baseScale={1.4} />
+        <InstancedGltf src={TREE_GLB_ALT} matrices={trees.oddMatrices} colors={trees.oddColors} baseScale={1.4} />
+        <InstancedGltf src={CONIFER_GLB} matrices={conifers.evenMatrices} colors={conifers.evenColors} baseScale={1.6} />
+        <InstancedGltf src={TREE_GLB_ALT} matrices={conifers.oddMatrices} colors={conifers.oddColors} baseScale={1.6} />
+        <InstancedGltf src={ACCENT_GLB_SMALL} matrices={accents.evenMatrices} colors={accents.evenColors} baseScale={0.8} />
+        <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={accents.oddMatrices} colors={accents.oddColors} baseScale={0.6} />
       </Suspense>
       <InstancedFoliage instances={instances.grass} geometry="cone" radius={0.22} height={0.9} yOffset={0.45} />
     </>
   );
+}
+
+function splitByParity(insts: FoliageInstance[]): {
+  evenMatrices: THREE.Matrix4[];
+  oddMatrices: THREE.Matrix4[];
+  evenColors: THREE.Color[];
+  oddColors: THREE.Color[];
+} {
+  const evenMatrices: THREE.Matrix4[] = [];
+  const oddMatrices: THREE.Matrix4[] = [];
+  const evenColors: THREE.Color[] = [];
+  const oddColors: THREE.Color[] = [];
+  for (let i = 0; i < insts.length; i += 1) {
+    const m = instanceMatrix(insts[i]);
+    const c = instanceColor(insts[i]);
+    if (i % 2 === 0) { evenMatrices.push(m); evenColors.push(c); }
+    else { oddMatrices.push(m); oddColors.push(c); }
+  }
+  return { evenMatrices, oddMatrices, evenColors, oddColors };
 }
 
 function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
