@@ -53,8 +53,8 @@ export function InventoryPanel({
     // (Use / Equip / Recipe / Drop / Destroy / Wiki) without
     // multiple gesture paths.
     tooltipTriggerProps: (slotIndex, itemId) => tooltip.triggerProps({ slotIndex, itemId }),
-    onOpenStickyTooltip: (slotIndex, itemId, clientX, clientY) =>
-      tooltip.openSticky({ slotIndex, itemId }, clientX, clientY),
+    onOpenStickyTooltip: (slotIndex, itemId, clientX, clientY, anchorRect) =>
+      tooltip.openSticky({ slotIndex, itemId }, clientX, clientY, anchorRect),
     consumePendingClick: () => tooltip.consumePendingClick(),
   };
   // §52 #11 — render by explicit `slotIndex` when the server provides
@@ -83,6 +83,7 @@ export function InventoryPanel({
           itemId={tooltip.info.payload.itemId}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          anchorRect={tooltip.info.anchorRect}
           hoverHandlers={tooltip.hoverHandlers}
           compareStats={resolveCompareStats(tooltip.info.payload.itemId, equipment)}
           sticky={tooltip.info.sticky}

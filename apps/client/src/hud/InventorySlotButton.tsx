@@ -38,8 +38,15 @@ export type InventorySlotCallbacks = {
   onEquipItem: (slotIndex: number) => void;
   onOpenRecipe: (slotIndex: number) => void;
   onDropItem: (slotIndex: number) => void;
-  /** Open the click-sticky tooltip at the cursor for this slot. */
-  onOpenStickyTooltip: (slotIndex: number, itemId: string, clientX: number, clientY: number) => void;
+  /** Open the click-sticky tooltip for this slot. Passes both the
+   *  click coords AND the slot's bounding rect so the tooltip can
+   *  position itself outside the slot (above/below/side) without
+   *  overlapping the item the player just clicked. */
+  onOpenStickyTooltip: (
+    slotIndex: number, itemId: string,
+    clientX: number, clientY: number,
+    anchorRect: { top: number; bottom: number; left: number; right: number },
+  ) => void;
   tooltipTriggerProps: (slotIndex: number, itemId: string) => HTMLAttributes<HTMLElement> | undefined;
   consumePendingClick: () => boolean;
 };
@@ -111,7 +118,10 @@ export function InventorySlotButton({
           return;
         }
         event.stopPropagation();
-        callbacks.onOpenStickyTooltip(index, slot.itemId, event.clientX, event.clientY);
+        const r = event.currentTarget.getBoundingClientRect();
+        callbacks.onOpenStickyTooltip(index, slot.itemId, event.clientX, event.clientY, {
+          top: r.top, bottom: r.bottom, left: r.left, right: r.right,
+        });
       }}
       {...(triggerProps ?? {})}
     >

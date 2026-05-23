@@ -11,10 +11,16 @@ const SUPPRESS_CLICK_MS = 450;
 // inside it without the tooltip vanishing mid-motion.
 const CLOSE_DELAY_MS = 200;
 
+export type TooltipAnchor = { top: number; bottom: number; left: number; right: number };
 export type TooltipInfo<T> = {
   payload: T;
   clientX: number;
   clientY: number;
+  /** Source element rect — when present, the rendered tooltip
+   *  positions outside this rect (above/below/side) so the source
+   *  slot stays visible underneath. Click-sticky from a slot sets
+   *  this; cursor-anchored hover leaves it undefined. */
+  anchorRect?: TooltipAnchor | null;
   /** When true, hover-leave / pointer-leave do NOT auto-close the
    *  tooltip. Only an explicit dismiss (× button, outside-click,
    *  Escape) takes it down. Click-to-open uses this; hover and
@@ -36,7 +42,9 @@ export function useTooltipTrigger<T>() {
   const [info, setInfo] = useState<TooltipInfo<T> | null>(null);
   const t = useTooltipTimers<T>();
   const setOpen = useCallback((p: T, x: number, y: number) => setInfo({ payload: p, clientX: x, clientY: y }), []);
-  const setOpenSticky = useCallback((p: T, x: number, y: number) => setInfo({ payload: p, clientX: x, clientY: y, sticky: true }), []);
+  const setOpenSticky = useCallback((p: T, x: number, y: number, anchor?: TooltipAnchor) =>
+    setInfo({ payload: p, clientX: x, clientY: y, sticky: true, anchorRect: anchor ?? null }),
+  []);
 
   const scheduleHover = useCallback((payload: T, x: number, y: number) => {
     t.clearTimers();
@@ -101,9 +109,9 @@ export function useTooltipTrigger<T>() {
     setOpen(payload, x, y);
   }, [t, setOpen]);
 
-  const openSticky = useCallback((payload: T, x: number, y: number) => {
+  const openSticky = useCallback((payload: T, x: number, y: number, anchor?: TooltipAnchor) => {
     t.clearTimers();
-    setOpenSticky(payload, x, y);
+    setOpenSticky(payload, x, y, anchor);
   }, [t, setOpenSticky]);
 
   const dismiss = useCallback(() => { t.clearTimers(); setInfo(null); }, [t]);
