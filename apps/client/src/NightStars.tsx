@@ -42,9 +42,9 @@ export function NightStars() {
       ref={pointsRef}
       radius={520}
       depth={120}
-      count={4000}
-      factor={5.5}
-      saturation={0.3}
+      count={6500}
+      factor={6.0}
+      saturation={0.55}
       fade
       speed={0.4}
     />
