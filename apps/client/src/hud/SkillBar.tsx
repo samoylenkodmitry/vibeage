@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { SKILLS, type SkillId } from '../../../../packages/content/skills';
+import { SKILLS, isPassiveSkill, type SkillId } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import {
   BASIC_ATTACK_HOTKEY,
@@ -23,13 +23,17 @@ type SkillBarProps = {
 };
 
 export function SkillBar({ player, now, hasSelectedTarget, onCastSkill }: SkillBarProps) {
+  // Passive skills (cat: 'aura') never cast — render them as empty
+  // slots in the bar so the player can rebind. The server also
+  // refuses passives on SetSkillShortcut so this stays in sync.
+  const passiveFilter = (id: SkillId | null) => (id && !isPassiveSkill(id) ? id : null);
   const primarySlots = useMemo(
-    () => Array.from({ length: SKILL_BAR_ROW_COUNT }, (_, index) => getHotkeySkill(player, index)),
+    () => Array.from({ length: SKILL_BAR_ROW_COUNT }, (_, index) => passiveFilter(getHotkeySkill(player, index))),
     [player],
   );
   const secondarySlots = useMemo(
     () => Array.from({ length: SKILL_BAR_SECONDARY_ROW_COUNT }, (_, index) =>
-      getHotkeySkill(player, SKILL_BAR_ROW_COUNT + index)),
+      passiveFilter(getHotkeySkill(player, SKILL_BAR_ROW_COUNT + index))),
     [player],
   );
   const tooltip = useTooltipTrigger<SkillId>();

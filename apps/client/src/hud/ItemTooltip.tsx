@@ -21,8 +21,10 @@ export type BagTooltipActions = {
   slotIndex: number;
   canUse: boolean;
   canEquip: boolean;
+  canOpenRecipe: boolean;
   onUse: (slotIndex: number) => void;
   onEquip: (slotIndex: number) => void;
+  onOpenRecipe: (slotIndex: number) => void;
   onDrop: (slotIndex: number) => void;
   onDestroy: (slotIndex: number) => void;
   /** Called after any action button fires so the tooltip dismisses
@@ -52,9 +54,14 @@ type ItemTooltipProps = {
   compareStats?: ItemStatBlock;
   /** Bag-action buttons — see BagTooltipActions doc. */
   bagActions?: BagTooltipActions;
+  /** When true (click-to-open tooltips), render an explicit ×
+   *  close control so the user has a visible way to dismiss. The
+   *  hover-opened path doesn't need this — pointer-leave + outside-
+   *  click both close it for free. */
+  sticky?: boolean;
 };
 
-export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareStats, bagActions }: ItemTooltipProps) {
+export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareStats, bagActions, sticky }: ItemTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -118,10 +125,7 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
       onPointerEnter={hoverHandlers?.onPointerEnter}
       onPointerLeave={hoverHandlers?.onPointerLeave}
     >
-      <header>
-        <strong>{item.name}</strong>
-        {grade !== 'none' && <span className="item-tooltip-grade">{grade.toUpperCase()}</span>}
-      </header>
+      <TooltipHeader name={item.name} grade={grade} onClose={sticky && bagActions ? bagActions.onClose : undefined} />
       <p>{item.description}</p>
       {item.equip && (
         <small className="item-tooltip-slot">
@@ -151,6 +155,29 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
       )}
     </div>,
     document.body,
+  );
+}
+
+function TooltipHeader({
+  name, grade, onClose,
+}: {
+  name: string;
+  grade: ReturnType<typeof getItemGrade>;
+  onClose?: () => void;
+}) {
+  return (
+    <header>
+      <strong>{name}</strong>
+      {grade !== 'none' && <span className="item-tooltip-grade">{grade.toUpperCase()}</span>}
+      {onClose && (
+        <button
+          type="button"
+          className="item-tooltip-close"
+          aria-label="Close tooltip"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+        >×</button>
+      )}
+    </header>
   );
 }
 
@@ -190,6 +217,11 @@ function BagActionRow({ itemId, actions }: { itemId: string; actions: BagTooltip
       {actions.canEquip && (
         <button type="button" className="item-tooltip-action" onClick={fire(actions.onEquip)}>
           Equip
+        </button>
+      )}
+      {actions.canOpenRecipe && (
+        <button type="button" className="item-tooltip-action" onClick={fire(actions.onOpenRecipe)}>
+          Open recipe
         </button>
       )}
       <button type="button" className="item-tooltip-action" onClick={fire(actions.onDrop)}>

@@ -1,4 +1,4 @@
-import { SKILLS, type SkillId } from '../../packages/content/skills.js';
+import { SKILLS, isPassiveSkill, type SkillId } from '../../packages/content/skills.js';
 import { canLearnSkill, CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
 import {
   getSpecForSkill,
@@ -231,6 +231,14 @@ function setSkillShortcut(
     if (!isValidShortcutSlot(slotIndex) || (skillId !== null && !player.unlockedSkills.includes(skillId))) {
       return false;
     }
+    // Passives never cast — refusing them on the shortcut bar keeps
+    // the hotkey row useful (pressing a passive's hotkey would do
+    // nothing). Clear the slot instead so old persisted assignments
+    // self-heal on next set.
+    if (skillId !== null && isPassiveSkill(skillId)) {
+      player.skillShortcuts[slotIndex] = null;
+      return true;
+    }
 
     if (skillId !== null) {
       clearDuplicateShortcut(player, slotIndex, skillId);
@@ -250,6 +258,11 @@ function findPlayerBySocket(state: GameState, socketId: string): PlayerState | u
 }
 
 function assignFirstEmptyShortcut(player: SkillPlayer, skillId: SkillId): void {
+  // Passives never cast; don't auto-bind them on Learn. Players who
+  // want to see the class passive in the bar can still drag it in
+  // manually once item-on-shortcut lands (and the server will
+  // still refuse it via setSkillShortcut).
+  if (isPassiveSkill(skillId)) return;
   const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
   if (!player.skillShortcuts.includes(skillId) && emptySlotIndex !== -1) {
     player.skillShortcuts[emptySlotIndex] = skillId;

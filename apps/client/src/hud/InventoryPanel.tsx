@@ -42,11 +42,15 @@ export function InventoryPanel({
   const tooltip = useTooltipTrigger<TooltipPayload>();
   const callbacks: InventorySlotCallbacks = {
     onUseItem, onEquipItem, onOpenRecipe, onDropItem,
-    // Hover / long-press / right-click all open the ItemTooltip;
-    // the tooltip body carries Use / Equip / Drop / Destroy /
-    // Wiki buttons so the player has a gesture-independent path
-    // to every action without a separate context menu.
+    // Hover / long-press / right-click open the ItemTooltip in
+    // its auto-close mode. Click opens the SAME tooltip in sticky
+    // mode (no auto-close; explicit × needed) — this gives the
+    // player a single discoverable surface for every action
+    // (Use / Equip / Recipe / Drop / Destroy / Wiki) without
+    // multiple gesture paths.
     tooltipTriggerProps: (slotIndex, itemId) => tooltip.triggerProps({ slotIndex, itemId }),
+    onOpenStickyTooltip: (slotIndex, itemId, clientX, clientY) =>
+      tooltip.openSticky({ slotIndex, itemId }, clientX, clientY),
     consumePendingClick: () => tooltip.consumePendingClick(),
   };
   // §52 #11 — render by explicit `slotIndex` when the server provides
@@ -77,6 +81,7 @@ export function InventoryPanel({
           clientY={tooltip.info.clientY}
           hoverHandlers={tooltip.hoverHandlers}
           compareStats={resolveCompareStats(tooltip.info.payload.itemId, equipment)}
+          sticky={tooltip.info.sticky}
           bagActions={{
             slotIndex: tooltip.info.payload.slotIndex,
             canUse: Boolean(ITEMS[tooltip.info.payload.itemId] && isUsableConsumable(ITEMS[tooltip.info.payload.itemId])),
@@ -86,8 +91,10 @@ export function InventoryPanel({
             // the combat log shows "Couldn't equip: …" so the user
             // sees the actual constraint instead of a no-op click.
             canEquip: Boolean(ITEMS[tooltip.info.payload.itemId]?.equip),
+            canOpenRecipe: Boolean(ITEMS[tooltip.info.payload.itemId]?.recipe),
             onUse: onUseItem,
             onEquip: onEquipItem,
+            onOpenRecipe,
             onDrop: onDropItem,
             onDestroy: onDestroyItem,
             onClose: tooltip.dismiss,

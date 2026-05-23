@@ -14,6 +14,11 @@ export type TooltipInfo<T> = {
   payload: T;
   clientX: number;
   clientY: number;
+  /** When true, hover-leave / pointer-leave do NOT auto-close the
+   *  tooltip. Only an explicit dismiss (× button, outside-click,
+   *  Escape) takes it down. Click-to-open uses this; hover and
+   *  long-press use the default auto-close behaviour. */
+  sticky?: boolean;
 };
 
 /**
@@ -30,6 +35,7 @@ export function useTooltipTrigger<T>() {
   const [info, setInfo] = useState<TooltipInfo<T> | null>(null);
   const t = useTooltipTimers<T>();
   const setOpen = useCallback((p: T, x: number, y: number) => setInfo({ payload: p, clientX: x, clientY: y }), []);
+  const setOpenSticky = useCallback((p: T, x: number, y: number) => setInfo({ payload: p, clientX: x, clientY: y, sticky: true }), []);
 
   const scheduleHover = useCallback((payload: T, x: number, y: number) => {
     t.clearTimers();
@@ -43,7 +49,13 @@ export function useTooltipTrigger<T>() {
     if (t.closeTimer.current !== null) window.clearTimeout(t.closeTimer.current);
     t.closeTimer.current = window.setTimeout(() => {
       t.closeTimer.current = null;
-      setInfo((prev) => (prev?.payload === payload ? null : prev));
+      setInfo((prev) => {
+        if (prev?.payload !== payload) return prev;
+        // Sticky tooltips ignore auto-close — only an explicit
+        // dismiss (× / outside-click / Escape) takes them down.
+        if (prev.sticky) return prev;
+        return null;
+      });
     }, CLOSE_DELAY_MS);
   }, [t]);
 
@@ -86,6 +98,11 @@ export function useTooltipTrigger<T>() {
     setOpen(payload, x, y);
   }, [t, setOpen]);
 
+  const openSticky = useCallback((payload: T, x: number, y: number) => {
+    t.clearTimers();
+    setOpenSticky(payload, x, y);
+  }, [t, setOpenSticky]);
+
   const dismiss = useCallback(() => { t.clearTimers(); setInfo(null); }, [t]);
 
   useDismissOnOutside(info, setInfo);
@@ -103,7 +120,7 @@ export function useTooltipTrigger<T>() {
     onPointerLeave: () => { if (info) scheduleClose(info.payload); },
   };
 
-  return { info, dismiss, triggerProps, consumePendingClick, hoverHandlers, openAt: openInstant };
+  return { info, dismiss, triggerProps, consumePendingClick, hoverHandlers, openAt: openInstant, openSticky };
 }
 
 function useTooltipTimers<T>() {

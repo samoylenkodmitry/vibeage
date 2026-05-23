@@ -4,6 +4,7 @@ import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
 import { listActiveQuestMarkers } from './hud/questMarkers';
+import { useWorldDropTarget } from './hud/useWorldDropTarget';
 import { useRehydrateTrackedQuest } from './trackedQuestStorage';
 import { useGameClient } from './useGameClient';
 import { WorldScene } from './WorldScene';
@@ -51,8 +52,10 @@ export default function App() {
     );
   }
 
+  const worldDropHandlers = useWorldDropTarget(client.dropItem);
+
   return (
-    <main className="app-shell">
+    <main className="app-shell" {...worldDropHandlers}>
       <WorldScene
         state={state}
         onMove={client.sendMoveIntent}

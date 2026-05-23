@@ -1016,6 +1016,28 @@ input {
   color: #fde68a;
 }
 
+.item-tooltip-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.item-tooltip-close:hover {
+  background: rgba(220, 38, 38, 0.4);
+  color: #ffffff;
+}
+
 .panel-close {
   margin-left: auto;
   border: 0;
