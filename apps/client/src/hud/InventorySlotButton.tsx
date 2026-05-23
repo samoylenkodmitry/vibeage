@@ -4,21 +4,28 @@ import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/co
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 
 /**
- * Single bag slot — a button that handles tap-to-use / equip /
- * open-recipe and Shift+click to drop. Drop / Destroy / Use /
- * Equip / Wiki actions live inside the ItemTooltip (rendered on
- * hover, long-press, or right-click), so the bag has a reliable,
- * gesture-independent path to every action without needing a
- * separate context-menu element.
+ * Single bag slot. Click opens the ItemTooltip in sticky mode
+ * (won't auto-close on pointer-leave; needs an explicit × tap).
+ * The tooltip carries every action — Use / Equip / Open recipe /
+ * Drop / Destroy / Open in Wiki. Shift+click is a power-user
+ * shortcut that drops the stack without opening the tooltip.
+ * Drag the slot to drop on the ground.
  */
 export type InventorySlotCallbacks = {
   onUseItem: (slotIndex: number) => void;
   onEquipItem: (slotIndex: number) => void;
   onOpenRecipe: (slotIndex: number) => void;
   onDropItem: (slotIndex: number) => void;
+  /** Open the click-sticky tooltip at the cursor for this slot. */
+  onOpenStickyTooltip: (slotIndex: number, itemId: string, clientX: number, clientY: number) => void;
   tooltipTriggerProps: (slotIndex: number, itemId: string) => HTMLAttributes<HTMLElement> | undefined;
   consumePendingClick: () => boolean;
 };
+
+/** Dragstart payload: a JSON blob with the source slot so a drop
+ *  target (world canvas, future shortcut-bar) can identify what
+ *  the user dragged without sharing React state across panels. */
+export const INVENTORY_DRAG_MIME = 'application/x-vibeage-bag-slot';
 
 export function InventorySlotButton({
   slot,
@@ -47,38 +54,41 @@ export function InventorySlotButton({
       ? 'Recipe'
       : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
   const title = slot
-    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · Shift+click to drop · hover or long-press for actions`
+    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions · Shift+click to drop · drag to ground to drop`
     : 'Empty slot';
-  // Locked equippable items still fire onEquipItem so the server's
-  // typed CommandRejected ('levelTooLow') reaches the combat log
-  // with a clear "you need a higher level for this item" message.
-  // Silent gating left the player wondering whether the click
-  // registered at all.
-  const onClick = canUse
-    ? () => callbacks.onUseItem(index)
-    : isRecipe
-      ? () => callbacks.onOpenRecipe(index)
-      : isEquippable ? () => callbacks.onEquipItem(index) : undefined;
   const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
   return (
     <button
       type="button"
       className="inventory-slot"
-      disabled={!onClick && !slot}
+      disabled={!slot}
       title={title}
-      aria-label={slot && action ? `${action} ${itemName}` : `Inventory slot ${index + 1}: ${itemName}`}
+      aria-label={slot ? `${itemName}: click for actions` : `Inventory slot ${index + 1}: empty`}
+      draggable={Boolean(slot)}
+      onDragStart={(event) => {
+        if (!slot) return;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData(INVENTORY_DRAG_MIME, JSON.stringify({
+          slotIndex: index,
+          itemId: slot.itemId,
+        }));
+        // Also stash on text/plain so older targets (including the
+        // built-in Three.js canvas) at least see something.
+        event.dataTransfer.setData('text/plain', `bag-slot:${index}`);
+      }}
       onClick={(event) => {
         if (callbacks.consumePendingClick()) {
           event.stopPropagation();
           return;
         }
-        if (slot && event.shiftKey) {
+        if (!slot) return;
+        if (event.shiftKey) {
           event.stopPropagation();
           callbacks.onDropItem(index);
           return;
         }
-        onClick?.();
         event.stopPropagation();
+        callbacks.onOpenStickyTooltip(index, slot.itemId, event.clientX, event.clientY);
       }}
       {...(triggerProps ?? {})}
     >

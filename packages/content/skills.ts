@@ -694,6 +694,5 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
  */
 import { PASSIVE_SKILLS } from './classPassives.js';
 
-export const SKILLS = {
-  ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS,
-} as unknown as Record<SkillId, SkillDef>;
+export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS } as unknown as Record<SkillId, SkillDef>;
+export { isPassiveSkill } from './classPassives.js';

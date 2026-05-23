@@ -351,6 +351,11 @@ input {
   gap: 4px;
 }
 
+.skill-bar-slot { display: flex; min-width: 0; }
+.skill-bar-slot > .skill-button { width: 100%; }
+.skill-button--item { border-color: rgba(255, 198, 109, 0.55); }
+.skill-button--item .skill-button__name { color: #ffd590; }
+
 /* §49/M2 — dedicated basic-attack anchor, sits above the skill bar.
    Wider, brighter than a normal slot so it reads as 'always there'
    instead of an empty hotkey. */
@@ -1014,6 +1019,28 @@ input {
 }
 .item-tooltip-requires strong {
   color: #fde68a;
+}
+
+.item-tooltip-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.item-tooltip-close:hover {
+  background: rgba(220, 38, 38, 0.4);
+  color: #ffffff;
 }
 
 .panel-close {

@@ -70,6 +70,17 @@ const PASSIVE_CAT: SkillCategory = 'aura';
  * contribution rows. Surfacing it in the skill tree gives the
  * player something concrete to spend a skill point on.
  */
+/**
+ * Passive skills modify stats but are never CAST. They shouldn't
+ * occupy a shortcut-bar hotkey (pressing the hotkey would do
+ * nothing). Used by SkillBar (client) + setSkillShortcut (server)
+ * to filter passives out of the shortcut row.
+ */
+export function isPassiveSkill(skillId: SkillId | null | undefined): boolean {
+  if (!skillId) return false;
+  return Boolean(PASSIVE_SKILLS[skillId]);
+}
+
 export const PASSIVE_SKILLS: Record<SkillId, SkillDef> = {
   // Auto-granted per class.
   passive_arcane_focus: {
