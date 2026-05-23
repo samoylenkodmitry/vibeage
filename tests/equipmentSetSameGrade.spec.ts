@@ -30,7 +30,6 @@ describe('equipment sets — single-grade invariant', () => {
     const violations = listGradeMixingSets(allSets);
     if (violations.length > 0) {
       const lines = violations.map((v) => `  - ${v.setId}: ${v.grades.join(', ')}`);
-      // eslint-disable-next-line no-console
       console.warn(
         `[equipmentSetSameGrade] ${violations.length} set(s) mix grades:\n${lines.join('\n')}\n`
         + 'Flip STRICT_GRADE_GATE in this file to true once these are normalized.',
