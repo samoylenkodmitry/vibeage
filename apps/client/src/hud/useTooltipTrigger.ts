@@ -54,12 +54,7 @@ export function useTooltipTrigger<T>() {
     }
   }, [t]);
 
-  const beginLongPress = useCallback((
-    payload: T,
-    x: number,
-    y: number,
-    onFire?: (x: number, y: number) => void,
-  ) => {
+  const beginLongPress = useCallback((payload: T, x: number, y: number) => {
     t.clearTimers();
     t.pressOrigin.current = { payload, x, y };
     t.pressTimer.current = window.setTimeout(() => {
@@ -68,11 +63,7 @@ export function useTooltipTrigger<T>() {
       t.pressOrigin.current = null;
       if (!origin) return;
       t.suppressClickUntil.current = Date.now() + SUPPRESS_CLICK_MS;
-      // When the trigger consumer supplies an `onLongPress` override
-      // (e.g. bag slots opening an action menu instead of the
-      // tooltip) we fire that instead of opening the tooltip popup.
-      if (onFire) onFire(origin.x, origin.y);
-      else setOpen(origin.payload, origin.x, origin.y);
+      setOpen(origin.payload, origin.x, origin.y);
     }, LONG_PRESS_MS);
   }, [t, setOpen]);
 
@@ -99,14 +90,9 @@ export function useTooltipTrigger<T>() {
 
   useDismissOnOutside(info, setInfo);
 
-  const triggerProps = useCallback((
-    payload: T,
-    opts?: TriggerPropsOptions,
-  ) => buildTriggerProps({
+  const triggerProps = useCallback((payload: T) => buildTriggerProps({
     payload, scheduleHover, beginLongPress, onPointerMove,
     openInstant, clearTimers: t.clearTimers, scheduleClose, cancelClose,
-    onLongPress: opts?.onLongPress,
-    onContextAction: opts?.onContextAction,
   }), [scheduleHover, beginLongPress, onPointerMove, openInstant, t, scheduleClose, cancelClose]);
 
   // PR JJ — spread on the floating tooltip element to keep it alive
@@ -158,34 +144,15 @@ function useDismissOnOutside<T>(
   }, [info, setInfo]);
 }
 
-/**
- * Per-consumer trigger overrides. When provided, the long-press
- * timer / right-click handler fires the supplied callback instead
- * of opening the tooltip popup. The bag-slot button uses these to
- * route both gestures into its own action menu (Drop / Destroy /
- * Use / Equip / Wiki) without sacrificing hover-tooltip on desktop.
- */
-export type TriggerPropsOptions = {
-  onLongPress?: (clientX: number, clientY: number) => void;
-  onContextAction?: (clientX: number, clientY: number) => void;
-};
-
 type BuildTriggerPropsArgs<T> = {
   payload: T;
   scheduleHover: (payload: T, x: number, y: number) => void;
-  beginLongPress: (
-    payload: T,
-    x: number,
-    y: number,
-    onFire?: (x: number, y: number) => void,
-  ) => void;
+  beginLongPress: (payload: T, x: number, y: number) => void;
   onPointerMove: (x: number, y: number) => void;
   openInstant: (payload: T, x: number, y: number) => void;
   clearTimers: () => void;
   scheduleClose: (payload: T) => void;
   cancelClose: () => void;
-  onLongPress?: (clientX: number, clientY: number) => void;
-  onContextAction?: (clientX: number, clientY: number) => void;
 };
 
 function buildTriggerProps<T>({
@@ -197,8 +164,6 @@ function buildTriggerProps<T>({
   clearTimers,
   scheduleClose,
   cancelClose,
-  onLongPress,
-  onContextAction,
 }: BuildTriggerPropsArgs<T>) {
   return {
     onPointerEnter: (event: React.PointerEvent) => {
@@ -213,7 +178,7 @@ function buildTriggerProps<T>({
       scheduleClose(payload);
     },
     onPointerDown: (event: React.PointerEvent) => {
-      if (event.pointerType === 'touch') beginLongPress(payload, event.clientX, event.clientY, onLongPress);
+      if (event.pointerType === 'touch') beginLongPress(payload, event.clientX, event.clientY);
     },
     onPointerMove: (event: React.PointerEvent) => {
       if (event.pointerType === 'touch') onPointerMove(event.clientX, event.clientY);
@@ -222,11 +187,7 @@ function buildTriggerProps<T>({
     onPointerCancel: () => clearTimers(),
     onContextMenu: (event: React.MouseEvent) => {
       event.preventDefault();
-      // Bag slots (and other consumers that supply onContextAction)
-      // open their own menu on right-click. Default: open the
-      // tooltip popup at the click point.
-      if (onContextAction) onContextAction(event.clientX, event.clientY);
-      else openInstant(payload, event.clientX, event.clientY);
+      openInstant(payload, event.clientX, event.clientY);
     },
   };
 }
