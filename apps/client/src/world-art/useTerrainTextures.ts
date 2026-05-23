@@ -21,11 +21,12 @@ export type TerrainTextures = {
 };
 
 /**
- * Repeat count for a 256m chunk. A ~3-meter texture tile reads
- * as cozy stylized ground without obvious tiling artifacts at
- * MMO camera height.
+ * Repeat count for a 256m chunk. Originally 80 (≈3m per tile),
+ * which aliased into a checkerboard pattern at MMO camera height.
+ * 16 tiles ≈ 16m per tile reads as broad sandy patches without
+ * the visible grid.
  */
-export const TERRAIN_TEXTURE_TILES_PER_CHUNK = 80;
+export const TERRAIN_TEXTURE_TILES_PER_CHUNK = 16;
 
 const SAND_COLOR = '/textures/sand_color.jpg';
 const SAND_NORMAL = '/textures/sand_normal.jpg';
