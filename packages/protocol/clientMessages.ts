@@ -72,6 +72,10 @@ export const lootPickupSchema = z.object({
   type: z.literal('LootPickup'),
   lootId: z.string(),
   playerId: z.string(),
+  // Optional client-sequence stamp so the server can echo the
+  // failure reason back via a CommandRejected envelope addressed
+  // to the originating click / F-press.
+  clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
 // §46/slice-new — drop items from the bag to the ground at the
@@ -320,6 +324,7 @@ export type LootPickup = {
   type: 'LootPickup';
   lootId: string;
   playerId: string;
+  clientSeq?: number;
 };
 
 export type DropItem = {

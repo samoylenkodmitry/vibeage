@@ -40,6 +40,7 @@ export const REJECTABLE_COMMANDS = [
   'DropItem',
   'DestroyItem',
   'CraftItem',
+  'LootPickup',
   // Skill progression
   'LearnSkill',
   'UpgradeSkill',
@@ -173,6 +174,12 @@ export type CommandRejectionReasons = {
     | 'playerDead'
     | 'notRecipe'
     | 'playerNotFound'
+    | 'rateLimited';
+  LootPickup:
+    | 'playerNotFound'
+    | 'lootNotFound'
+    | 'tooFar'
+    | 'inventoryFull'
     | 'rateLimited';
   // Skill progression
   LearnSkill:

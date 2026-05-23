@@ -41,6 +41,7 @@ const REASON_INVENTORY: { [C in RejectableCommand]: ReadonlyArray<CommandRejecti
   DropItem: ['invalidSlot', 'invalidCount', 'playerNotFound', 'rateLimited'],
   DestroyItem: ['invalidSlot', 'invalidCount', 'playerNotFound', 'rateLimited'],
   CraftItem: ['unknownRecipe', 'missingReagents', 'inventoryFull', 'playerNotFound', 'rateLimited'],
+  LootPickup: ['playerNotFound', 'lootNotFound', 'tooFar', 'inventoryFull', 'rateLimited'],
   LearnSkill: ['unknownSkill', 'levelTooLow', 'wrongClass', 'missingPrereq', 'noSkillPoints', 'rateLimited'],
   UpgradeSkill: ['unknownSkill', 'maxRank', 'missingPrereq', 'noSkillPoints', 'playerNotFound', 'rateLimited'],
   AcceptQuest: ['playerNotFound', 'notNearNpc', 'missingPrereq', 'noEffect', 'rateLimited'],

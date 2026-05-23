@@ -84,6 +84,7 @@ function castFailCopy(reason: string): string {
 export const INVENTORY_VERB_COMMANDS: ReadonlySet<string> = new Set([
   'BuyFromVendor', 'SellToVendor',
   'UseItem', 'DropItem', 'DestroyItem', 'CraftItem',
+  'LootPickup',
 ]);
 
 export function applyInventoryRejectedVisualState(
@@ -131,6 +132,12 @@ function inventoryActionFailCopy(commandType: string, reason: string): string {
   if (commandType === 'DestroyItem') {
     if (reason === 'itemNotFound') return "That item isn't in your bag.";
     return `Destroy failed: ${reason}`;
+  }
+  if (commandType === 'LootPickup') {
+    if (reason === 'inventoryFull') return 'Your bag is full — make room before picking up.';
+    if (reason === 'tooFar') return 'Walk closer to the loot to pick it up.';
+    if (reason === 'lootNotFound') return 'That loot is already gone.';
+    return `Pickup failed: ${reason}`;
   }
   return `${commandType} failed: ${reason}`;
 }
