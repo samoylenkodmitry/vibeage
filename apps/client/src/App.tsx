@@ -33,6 +33,7 @@ export default function App() {
       client.sendMoveIntent({ x: navigationMarker.x, z: navigationMarker.z });
     }
   }, [state.selectedTargetId, state.enemies, navigationMarker, client]);
+  const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
     return (
@@ -51,8 +52,6 @@ export default function App() {
       />
     );
   }
-
-  const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   return (
     <main className="app-shell" {...worldDropHandlers}>

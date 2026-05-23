@@ -14,6 +14,7 @@ import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
+import { useItemShortcutBindings } from './hud/useItemShortcuts';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
@@ -83,8 +84,8 @@ export function GameHud(props: GameHudProps) {
     : '-';
   const now = useNow(100);
   const panels = usePanelState();
-
-  useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest, onMove);
+  const items = useItemShortcutBindings(state.inventory, onUseItem);
+  useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest, onMove, items.tryUseAt);
 
   // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
   // tooltips, SkillBar buttons) calls openWikiAt, force the Wiki
@@ -152,6 +153,11 @@ export function GameHud(props: GameHudProps) {
         now={now}
         hasSelectedTarget={targetIsAlive}
         onCastSkill={onCastSkill}
+        itemShortcuts={items.itemShortcuts}
+        inventory={state.inventory}
+        onUseItem={onUseItem}
+        onBindItem={items.bindItem}
+        onClearItem={items.clearItem}
       />
       <PanelToggleStrip panels={panels} />
       {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
@@ -477,6 +483,7 @@ function useSkillHotkeys(
   onCycleTarget?: () => void,
   onPickupNearest?: () => void,
   onMove?: () => void,
+  itemShortcutLookup?: (slotIndex: number) => boolean,
 ) {
   const playerRef = useRef(player);
   playerRef.current = player;
@@ -486,59 +493,40 @@ function useSkillHotkeys(
   pickupRef.current = onPickupNearest;
   const moveRef = useRef(onMove);
   moveRef.current = onMove;
+  const itemRef = useRef(itemShortcutLookup);
+  itemRef.current = itemShortcutLookup;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isEditableTarget(event.target)) {
-        return;
-      }
-
-      // Tab cycles to the next enemy by distance. preventDefault stops
-      // the browser from shifting focus to the next focusable element
-      // (which would yank focus off the canvas and break subsequent
-      // hotkeys).
+      if (isEditableTarget(event.target)) return;
       if (event.code === 'Tab') {
-        if (cycleRef.current) {
-          event.preventDefault();
-          cycleRef.current();
-        }
+        if (cycleRef.current) { event.preventDefault(); cycleRef.current(); }
         return;
       }
-
       if (event.code === 'KeyF') {
-        if (pickupRef.current) {
-          event.preventDefault();
-          pickupRef.current();
-        }
+        if (pickupRef.current) { event.preventDefault(); pickupRef.current(); }
         return;
       }
-
       if (event.code === 'KeyM') {
-        if (moveRef.current) {
-          event.preventDefault();
-          moveRef.current();
-        }
+        if (moveRef.current) { event.preventDefault(); moveRef.current(); }
         return;
       }
-
       if (isBasicAttackKeyboardCode(event.code)) {
         event.preventDefault();
         onCastSkill(BASIC_ATTACK_SKILL_ID);
         return;
       }
-
-      // Number row 1..0 → slots 0..9, top QWERTY row Q..P → slots
-      // 10..19. Both rows are browser-safe (no F-key reservations).
       const slotIndex = getSkillSlotIndexForKeyboardCode(event.code);
       if (slotIndex !== null) {
         const skillId = getHotkeySkill(playerRef.current, slotIndex);
         if (skillId) {
           event.preventDefault();
           onCastSkill(skillId);
+          return;
         }
+        if (itemRef.current?.(slotIndex)) event.preventDefault();
       }
     }
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onCastSkill]);
