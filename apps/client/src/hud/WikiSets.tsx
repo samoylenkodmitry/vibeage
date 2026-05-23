@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { EQUIPMENT_SETS, type EquipmentSet, getSetMaxWearable } from '../../../../packages/content/equipmentSets';
 import { ITEMS } from '../../../../packages/content/items';
+import { GRADE_SPECS, getGradeSpec, type ItemGrade } from '../../../../packages/content/equipmentTypes';
 import type { WikiNav } from './WikiBosses';
 
 /**
@@ -43,21 +44,57 @@ function SetLi({
   const capText = cap < set.requiredPieces.length
     ? `${cap} of ${set.requiredPieces.length} pieces wearable`
     : `${set.requiredPieces.length} pieces`;
+  // Set grade = highest piece grade in the set. Single source: same
+  // `item.grade` field the engine + tooltip + items wiki tab read.
+  // When all pieces share one grade we render it as "B set"; when
+  // the set mixes tiers (rare in practice — set-bonuses ship at one
+  // grade) we annotate "B set · mixed" so the player knows the
+  // entry tier comes from the lowest piece.
+  const pieceGrades = set.requiredPieces.map((id) => (ITEMS[id]?.grade ?? 'none') as ItemGrade);
+  const topGrade = pieceGrades.reduce<ItemGrade>(
+    (top, g) => (GRADE_SPECS[g].rank > GRADE_SPECS[top].rank ? g : top),
+    'none',
+  );
+  const mixed = pieceGrades.some((g) => g !== topGrade);
+  const topSpec = getGradeSpec(topGrade);
   return (
     <li ref={ref} className={`wiki-row${isFocus ? ' wiki-row--focus' : ''}`}>
       <header>
         <strong>{set.name}</strong>
-        <span className="wiki-row-tag">set · {capText}</span>
+        <span className="wiki-row-tag">
+          {topGrade !== 'none' && (
+            <span
+              className="wiki-set-grade"
+              title={topSpec.description}
+              style={{ color: topSpec.color, borderColor: topSpec.color }}
+            >{topSpec.label}</span>
+          )}
+          {' '}set · {capText}{mixed ? ' · mixed tiers' : ''}
+        </span>
       </header>
       <small className="wiki-row-footer">
         Pieces:{' '}
         {set.requiredPieces.map((id, i) => {
           const it = ITEMS[id];
+          const grade = (it?.grade ?? 'none') as ItemGrade;
+          const spec = getGradeSpec(grade);
           return (
             <span key={`${id}-${i}`}>
               {i > 0 && ', '}
-              <button type="button" className="wiki-effect-chip" onClick={() => navigate('items', id)}>
+              <button
+                type="button"
+                className="wiki-effect-chip"
+                onClick={() => navigate('items', id)}
+                title={grade !== 'none' ? `${spec.label} · Lv ${spec.minLevel}+ · ${spec.description}` : undefined}
+              >
                 {it?.name ?? id}
+                {grade !== 'none' && (
+                  <span
+                    className="wiki-set-piece-grade"
+                    aria-label={`grade ${spec.label}`}
+                    style={{ color: spec.color, borderColor: spec.color }}
+                  >{spec.label}</span>
+                )}
               </button>
             </span>
           );
