@@ -264,6 +264,20 @@ export const batchUpdateSchema = z.object({
   updates: z.array(z.lazy(getServerMessageSchema)),
 }).strict();
 
+/**
+ * §52 follow-up — free-form system messages addressed to one player.
+ * Used for action confirmations that don't fit a structured event
+ * (e.g. \"Crafted Worn Sword — consumed Iron Ore ×2, Leather Strap\").
+ * Client appends to its combat-log so the player sees a record of
+ * what just happened.
+ */
+export const systemMessageSchema = z.object({
+  type: z.literal('SystemMessage'),
+  text: z.string(),
+  /** Optional category, may drive future styling (info / warn / etc.) */
+  kind: z.union([z.literal('info'), z.literal('craft'), z.literal('reward')]).optional(),
+}).strict();
+
 export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   posSnapSchema,
   instantHitSchema,
@@ -284,6 +298,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   chatBroadcastSchema,
   equipmentUpdateSchema,
   commandRejectedSchema,
+  systemMessageSchema,
 ]);
 
 export const serverMessageSchema = z.union([
@@ -467,6 +482,12 @@ export type CommandRejected = {
   targetId?: string;
 };
 
+export type SystemMessage = {
+  type: 'SystemMessage';
+  text: string;
+  kind?: 'info' | 'craft' | 'reward';
+};
+
 export type ServerMessage =
   | PosSnap
   | InstantHit
@@ -487,4 +508,5 @@ export type ServerMessage =
   | BatchUpdate
   | ChatBroadcast
   | EquipmentUpdateMsg
-  | CommandRejected;
+  | CommandRejected
+  | SystemMessage;

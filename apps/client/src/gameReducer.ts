@@ -282,6 +282,8 @@ function applyServerMessage(
 
   if (message.type === 'CommandRejected') return routeCommandRejected(state, message, now);
 
+  if (message.type === 'SystemMessage') return applySystemMessage(state, message, now);
+
   if (message.type === 'EnemyAttack') {
     return applyEnemyAttackVisualState(state, message, now);
   }
@@ -397,6 +399,20 @@ const COMMAND_REJECTED_ROUTE: { [C in RejectableCommand]: CommandRejectedSink } 
   RespecSpecialization: 'combatLog',
   GmCommand: 'silent',
 };
+
+function applySystemMessage(
+  state: GameClientState,
+  message: ServerMessage & { type: 'SystemMessage' },
+  now: number,
+): GameClientState {
+  return {
+    ...state,
+    combatLog: [
+      ...state.combatLog,
+      { id: `sys-${state.combatLog.length}-${now}`, text: message.text },
+    ].slice(-200),
+  };
+}
 
 function routeCommandRejected(
   state: GameClientState,

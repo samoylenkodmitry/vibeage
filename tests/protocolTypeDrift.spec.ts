@@ -84,6 +84,7 @@ const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   ChatBroadcast: true,
   EquipmentUpdate: true,
   CommandRejected: true,
+  SystemMessage: true,
 };
 const SERVER_MESSAGE_TYPE_LITERALS = Object.keys(SERVER_MESSAGE_TYPES) as ServerMessage['type'][];
 
@@ -151,6 +152,7 @@ describe('protocol type ↔ schema drift', () => {
       ChatBroadcast: { fromId: 'p', fromName: 'n', text: 'hi', scope: 'all', ts: 1 },
       EquipmentUpdate: { equipment: [] },
       CommandRejected: { commandType: 'EquipItem', reason: 'itemNotFound' },
+      SystemMessage: { text: 'Crafted Worn Sword' },
     };
 
     const unaccepted: string[] = [];
