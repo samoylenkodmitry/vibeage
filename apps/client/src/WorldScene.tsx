@@ -39,15 +39,18 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  // Cozy atmosphere (sky, fog, sun, lights) renders globally so
-  // the whole world reads under one consistent palette — the
-  // hard cut between zones that PR 1 shipped was too jarring.
-  // What stays anchored to the cozy hero scene: water plane,
-  // shore band, authored coast props, and the GLB foliage
-  // scatter. Outside the scene radius we still show the
-  // procedural `WorldEnvironment` so other zones aren't barren.
+  // Cozy hero scene is geographically anchored
+  // (`worldArtScenes.ts`). Mutually-exclusive presentation:
+  // inside the radius we render `CozyWorldArt` (sky, fog, lights,
+  // water, shore, props, GLB foliage); outside it we render the
+  // existing `WorldEnvironment` (procedural lights + foliage +
+  // day/night palette). The two stacks both touch
+  // `scene.background`/`scene.fog`, which is why
+  // `CozyAtmosphere` hands those off as live `Color`/`Fog`
+  // objects on unmount (otherwise the canvas falls back to the
+  // renderer's default clear color — white).
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
-  const cozyActive = pickActiveScene(focus.x, focus.z) !== null;
+  const activeCozyScene = pickActiveScene(focus.x, focus.z);
 
   return (
     <Canvas
@@ -56,9 +59,12 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
       }}
     >
-      <CozyWorldArt focus={focus} quality={worldArtQuality} cozyActive={cozyActive} />
-      {!cozyActive && <WorldEnvironment focus={focus} />}
-      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode={cozyActive ? 'textured' : 'normal'} />
+      {activeCozyScene ? (
+        <CozyWorldArt focus={focus} quality={worldArtQuality} scene={activeCozyScene} />
+      ) : (
+        <WorldEnvironment focus={focus} />
+      )}
+      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode={activeCozyScene ? 'textured' : 'normal'} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />

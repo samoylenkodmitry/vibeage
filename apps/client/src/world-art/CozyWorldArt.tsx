@@ -5,39 +5,34 @@ import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
 import type { WorldArtQuality } from './quality';
-import { pickActiveScene } from './worldArtScenes';
+import type { WorldArtScene } from './worldArtScenes';
 
 /**
- * Cozy world-art layer.
+ * Cozy hero-scene presentation. Mounted only when the player is
+ * inside a registered scene radius (`pickActiveScene` resolves to
+ * a non-null scene in `WorldScene`). When the component unmounts
+ * `CozyAtmosphere` hands `scene.background`/`scene.fog` back as
+ * valid objects so `WorldEnvironment`'s day/night useFrame can
+ * keep mutating them — that handoff is what fixes the "bleak
+ * white sky" regression after leaving the cozy zone.
  *
- * Two tiers of presentation:
- *
- * 1. **Global atmosphere** — `CozyAtmosphere` (sky color / fog /
- *    sun / hemisphere fill) and Drei `<Sky>` are mounted
- *    unconditionally so the whole world reads under one cozy
- *    palette. The PR 1 design hard-cut between zones (cozy
- *    inside / `<color attach="background">` outside) made the
- *    declarative background fight `CozyAtmosphere`'s imperative
- *    `scene.background` writes — outside the cozy radius the
- *    sky reverted to the renderer's default (white). Hoisting
- *    fixes that and removes the jarring zone transition.
- *
- * 2. **Anchored hero scene** — water, shore band, authored
- *    dock/rowboat/bonfire, and GLB foliage scatter only render
- *    when `pickActiveScene(focus)` resolves to a registered
- *    scene. Other zones get the atmosphere but not the coast
- *    geography — water doesn't follow the player around.
+ * Stack:
+ *   Atmosphere   — sky color + fog + sun + hemisphere fill
+ *   Sky          — Drei atmospheric sky shader
+ *   Water        — stylized procedural plane, raycast-disabled
+ *   Shore        — pale sand band along the waterline
+ *   AuthoredCoast — hand-placed dock/rowboat/bonfire
+ *   Foliage      — GLB pines/rocks/grass with procedural fallback
  */
 type Focus = { x: number; y?: number; z: number };
 
 export function CozyWorldArt({
-  focus, quality, cozyActive,
+  focus, quality, scene,
 }: {
   focus: Focus;
   quality: WorldArtQuality;
-  cozyActive: boolean;
+  scene: WorldArtScene;
 }) {
-  const scene = pickActiveScene(focus.x, focus.z);
   return (
     <>
       <CozyAtmosphere focus={focus} quality={quality} />
@@ -49,14 +44,10 @@ export function CozyWorldArt({
         mieCoefficient={0.005}
         mieDirectionalG={0.8}
       />
-      {cozyActive && scene && (
-        <>
-          <SimpleStylizedWater scene={scene} />
-          <CozyShoreBand scene={scene} />
-          <CozyAuthoredCoast scene={scene} />
-          <CozyPineForest scene={scene} quality={quality} />
-        </>
-      )}
+      <SimpleStylizedWater scene={scene} />
+      <CozyShoreBand scene={scene} />
+      <CozyAuthoredCoast scene={scene} />
+      <CozyPineForest scene={scene} quality={quality} />
     </>
   );
 }
