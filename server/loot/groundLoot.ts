@@ -76,6 +76,18 @@ export function tryGiveLoot(
     sourceEnemyName: result.sourceEnemyName,
   });
 
+  // §52 follow-up — gold credit is in-memory only; without an
+  // explicit playerUpdated the wallet stays stale on the client
+  // (vitals strip shows old gold). The user sees "Picked up 45 gold"
+  // in the chat but the counter doesn't move until the next unrelated
+  // tick. Push the value now so the chat line and the counter agree.
+  const goldCredited = result.items
+    .filter((item) => item.itemId === 'gold_coin')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  if (goldCredited > 0) {
+    emitPlayerUpdated(outbound, { id: result.player.id, gold: result.player.gold });
+  }
+
   const itemCount = result.items.reduce((sum, item) => sum + item.quantity, 0);
   const starterProgress = recordStarterLootPickup(result.player, itemCount);
   emitStarterProgressUpdate(outbound, result.player, starterProgress.rewardGranted);
