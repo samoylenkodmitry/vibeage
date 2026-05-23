@@ -1,6 +1,7 @@
 import { CozyAuthoredCoast } from './CozyAuthoredCoast';
 import { CozyBonfireGlow } from './CozyBonfireGlow';
 import { CozyBonfireSmoke } from './CozyBonfireSmoke';
+import { CozyDistantMountains } from './CozyDistantMountains';
 import { CozyLanterns } from './CozyLanterns';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
@@ -20,13 +21,14 @@ import type { WorldArtScene } from './worldArtScenes';
  * only contributes anchored geometry on top of that.
  *
  * Stack:
- *   Water         — stylized procedural plane, raycast-disabled
- *   Shore         — pale sand band along the waterline
- *   AuthoredCoast — hand-placed dock/rowboat/bonfire
- *   BonfireGlow   — warm flickering pointLight at each bonfire
- *   BonfireSmoke  — drifting smoke column above each bonfire
- *   Lanterns      — small flickering pointLight at each lantern
- *   Foliage       — GLB pines/rocks/grass with procedural fallback
+ *   DistantMountains — low-poly silhouette ring on the horizon
+ *   Water            — stylized procedural plane, raycast-disabled
+ *   Shore            — pale sand band along the waterline
+ *   AuthoredCoast    — hand-placed dock/rowboat/bonfire
+ *   BonfireGlow      — warm flickering pointLight at each bonfire
+ *   BonfireSmoke     — drifting smoke column above each bonfire
+ *   Lanterns         — small flickering pointLight at each lantern
+ *   Foliage          — GLB pines/rocks/grass with procedural fallback
  */
 
 export function CozyWorldArt({
@@ -37,6 +39,7 @@ export function CozyWorldArt({
 }) {
   return (
     <>
+      <CozyDistantMountains scene={scene} />
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
       <CozyAuthoredCoast scene={scene} />
