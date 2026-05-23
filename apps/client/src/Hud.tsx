@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
@@ -20,10 +20,10 @@ import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePane
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
   BASIC_ATTACK_SKILL_ID,
-  getHotkeySkill,
   getSkillSlotIndexForKeyboardCode,
   isBasicAttackKeyboardCode,
   isEditableTarget,
+  resolveSlotBinding,
 } from './skillShortcuts';
 
 type GameHudProps = {
@@ -85,7 +85,7 @@ export function GameHud(props: GameHudProps) {
   const now = useNow(100);
   const panels = usePanelState();
   const items = useItemShortcutBindings(state.inventory, onUseItem);
-  useSkillHotkeys(player, onCastSkill, onCycleTarget, onPickupNearest, onMove, items.tryUseAt);
+  useSlotHotkeysFor(player, items, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
 
   // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
   // tooltips, SkillBar buttons) calls openWikiAt, force the Wiki
@@ -478,14 +478,38 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function useSkillHotkeys(
+function useSlotHotkeysFor(
   player: PlayerEntity | null,
-  onCastSkill: (skillId: SkillId) => void,
-  onCycleTarget?: () => void,
-  onPickupNearest?: () => void,
-  onMove?: () => void,
-  itemShortcutLookup?: (slotIndex: number) => boolean,
+  items: ReturnType<typeof useItemShortcutBindings>,
+  cbs: {
+    onCastSkill: (skillId: SkillId) => void;
+    onCycleTarget?: () => void;
+    onPickupNearest?: () => void;
+    onMove?: () => void;
+  },
 ) {
+  const resolveSlot = useCallback(
+    (i: number) => resolveSlotBinding(player, items.itemShortcuts, i),
+    [player, items.itemShortcuts],
+  );
+  useSkillHotkeys({
+    player, ...cbs, resolveSlot, tryUseItem: items.tryUseAt,
+  });
+}
+
+type SkillHotkeyDeps = {
+  player: PlayerEntity | null;
+  onCastSkill: (skillId: SkillId) => void;
+  onCycleTarget?: () => void;
+  onPickupNearest?: () => void;
+  onMove?: () => void;
+  resolveSlot?: (slotIndex: number) => import('./skillShortcuts').SlotBinding;
+  tryUseItem?: (slotIndex: number) => boolean;
+};
+
+function useSkillHotkeys({
+  player, onCastSkill, onCycleTarget, onPickupNearest, onMove, resolveSlot, tryUseItem,
+}: SkillHotkeyDeps) {
   const playerRef = useRef(player);
   playerRef.current = player;
   const cycleRef = useRef(onCycleTarget);
@@ -494,8 +518,10 @@ function useSkillHotkeys(
   pickupRef.current = onPickupNearest;
   const moveRef = useRef(onMove);
   moveRef.current = onMove;
-  const itemRef = useRef(itemShortcutLookup);
-  itemRef.current = itemShortcutLookup;
+  const resolveRef = useRef(resolveSlot);
+  resolveRef.current = resolveSlot;
+  const useItemRef = useRef(tryUseItem);
+  useItemRef.current = tryUseItem;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -519,13 +545,15 @@ function useSkillHotkeys(
       }
       const slotIndex = getSkillSlotIndexForKeyboardCode(event.code);
       if (slotIndex !== null) {
-        const skillId = getHotkeySkill(playerRef.current, slotIndex);
-        if (skillId) {
+        const binding = resolveRef.current?.(slotIndex) ?? null;
+        if (binding?.kind === 'skill') {
           event.preventDefault();
-          onCastSkill(skillId);
+          onCastSkill(binding.id);
           return;
         }
-        if (itemRef.current?.(slotIndex)) event.preventDefault();
+        if (binding?.kind === 'item' && useItemRef.current?.(slotIndex)) {
+          event.preventDefault();
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown);
