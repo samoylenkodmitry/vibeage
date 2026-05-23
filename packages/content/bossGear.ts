@@ -84,7 +84,11 @@ const GEAR: BossGearDef[] = [
       id: 'slab_warhammer',
       name: 'Slab Warhammer',
       description: "A chunk of Hammerback's slab fitted to a haft. Both halves still bear his weight.",
-      icon: 'slab_warhammer.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 6800, setId: 'wildlands_hunter',
+      // setId dropped: the warhammer is a two-hand weapon that
+      // collides with `chieftains_cleaver` on MAIN_HAND, so it's
+      // no longer part of `wildlands_hunter`'s requiredPieces. The
+      // item lives on as an independent boss reward.
+      icon: 'slab_warhammer.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 6800,
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'mace', handUsage: 'twoHand', requirements: { minLevel: 7 } },
       stats: { pAtk: 52, attackSpeed: -8 },
     },
@@ -163,7 +167,11 @@ const GEAR: BossGearDef[] = [
       id: 'refraction_staff',
       name: 'Refraction Staff',
       description: "Channels spell energy through the Warden's facet. Damage spreads to nearby foes.",
-      icon: 'refraction_staff.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2600, setId: 'elementborn',
+      // setId dropped: the staff is a two-hand caster weapon that
+      // collides with `embers_edge` on MAIN_HAND, so it's no
+      // longer part of `elementborn`'s requiredPieces. Lives on
+      // as an independent boss reward.
+      icon: 'refraction_staff.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2600,
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'staff', handUsage: 'twoHand', requirements: { minLevel: 12 } },
       stats: { mAtk: 92, mp: 30 },
     },
