@@ -233,6 +233,29 @@ export function findUnusedItems(): string[] {
 }
 
 /**
+ * §49/M1+ audit query — items that exist in `ITEMS` but have NO
+ * source anywhere (no loot table drops them, no vendor sells them,
+ * no recipe produces them, no quest rewards them). These are the
+ * "hanging in the air" items the wiki can't tell the player how to
+ * get. Currency is excluded because it's credited via the gold
+ * counter, not via item drops.
+ *
+ * The whitelist members ARE included here so the audit surfaces
+ * them as work to do — being on the whitelist just means CI
+ * doesn't fail; the gap is still real.
+ */
+export function findUnsourcedItems(): { id: string; whitelisted: boolean }[] {
+  const out: { id: string; whitelisted: boolean }[] = [];
+  for (const item of Object.values(ITEMS)) {
+    if (item.type === 'currency') continue;
+    if (getItemSources(item.id).length === 0) {
+      out.push({ id: item.id, whitelisted: OBTAINABILITY_WHITELIST.has(item.id) });
+    }
+  }
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
  * §49/M1+ audit query — skills declared in `SKILLS` but not
  * referenced by any class skill tree, spec/proficiency skill
  * list, or universal skill list. Same audit-soft semantics as

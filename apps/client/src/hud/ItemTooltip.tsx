@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemStatBlock } from '../../../../packages/content/equipmentTypes';
+import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
 import { getItemSources, type ItemSource } from '../../../../packages/content/obtainability';
 import { recipesUsingMaterial } from '../../../../packages/content/recipeLookups';
@@ -127,6 +128,7 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
           {item.equip.bodyPart} · {item.equip.handUsage ?? item.equip.armorType ?? item.equip.weaponType ?? 'jewelry'}
         </small>
       )}
+      {item.equip && <EquipRequirementsLine equip={item.equip} grade={grade} />}
       <StatRowList rows={visibleStats} />
       {(weight > 0 || item.healAmount || item.manaAmount) && (
         <footer>
@@ -149,6 +151,25 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
       )}
     </div>,
     document.body,
+  );
+}
+
+function EquipRequirementsLine({
+  equip,
+  grade,
+}: {
+  equip: NonNullable<import('../../../../packages/content/items').Item['equip']>;
+  grade: ReturnType<typeof getItemGrade>;
+}) {
+  const minLevel = getEffectiveMinLevel(grade, equip.requirements?.minLevel);
+  const classes = equip.requirements?.classes;
+  return (
+    <small className="item-tooltip-requires">
+      Requires: <strong>Lv {minLevel}</strong>
+      {classes && classes.length > 0
+        ? <>{' · '}<strong>{classes.join(' / ')}</strong></>
+        : null}
+    </small>
   );
 }
 
