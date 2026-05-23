@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMou
 import { SKILL_BAR_HOTKEYS, SKILL_BAR_ROW_COUNT, SKILL_BAR_SECONDARY_HOTKEYS } from '../skillShortcuts';
 import { createPortal } from 'react-dom';
 import type { ItemStatBlock } from '../../../../packages/content/equipmentTypes';
-import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
+import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
 import { getItemSources, type ItemSource } from '../../../../packages/content/obtainability';
 import { recipesUsingMaterial } from '../../../../packages/content/recipeLookups';
@@ -251,10 +251,17 @@ function TooltipHeader({
   grade: ReturnType<typeof getItemGrade>;
   onClose?: () => void;
 }) {
+  const spec = getGradeSpec(grade);
   return (
     <header>
       <strong>{name}</strong>
-      {grade !== 'none' && <span className="item-tooltip-grade">{grade.toUpperCase()}</span>}
+      {grade !== 'none' && (
+        <span
+          className="item-tooltip-grade"
+          title={spec.description}
+          style={{ color: spec.color, borderColor: spec.color }}
+        >{spec.label}</span>
+      )}
       {onClose && (
         <button
           type="button"

@@ -76,28 +76,89 @@ export type ItemKind =
 export type ItemGrade = 'none' | 'd' | 'c' | 'b' | 'a' | 's';
 
 /**
- * Minimum player level required to equip an item of a given grade.
- * Acts as a floor: an item's own `equip.requirements.minLevel`
- * (per-item tuning) is OR'd with this — the higher value wins. So a
- * D-grade sword tuned for level 5 is still equippable at 5, but the
- * cheap "any D sword" baseline is 8. The grade itself never lets a
- * lv1 player wear an S-grade chestpiece.
+ * Single source of truth for item grades. Engine reads `minLevel` for
+ * the equip gate; wiki + tooltips read `label`, `color`, and
+ * `description` for the player-facing UI. Everywhere that touches
+ * grades — `getEffectiveMinLevel`, the tooltip grade tag, the wiki
+ * grade chip, the wiki Grades tab — pulls from this record so the
+ * displayed tier and the actual gate can't drift apart.
  *
- * Numbers picked to mirror the L2-style D/C/B/A/S progression in a
- * 1–80 level band.
+ * Grades mirror the L2-style D/C/B/A/S progression in a 1–80 level
+ * band. `none` is the tier for unequippable / non-gear items
+ * (consumables, materials, currency).
+ */
+export type GradeSpec = {
+  id: ItemGrade;
+  /** Display label rendered next to the item name. `—` for `none`. */
+  label: string;
+  /** Display order on the wiki Grades tab. Higher tier = larger. */
+  rank: number;
+  /** CSS color token used for tooltip / wiki chips. */
+  color: string;
+  /** Minimum player level required to equip an item at this grade. */
+  minLevel: number;
+  /** One-line player-facing description shown in tooltips + wiki. */
+  description: string;
+};
+
+export const GRADE_SPECS: Record<ItemGrade, GradeSpec> = {
+  none: {
+    id: 'none', label: '—', rank: 0, color: '#94a3b8', minLevel: 1,
+    description: 'Common items with no tier requirement (consumables, materials, currency).',
+  },
+  d: {
+    id: 'd', label: 'D', rank: 1, color: '#a3a3a3', minLevel: 8,
+    description: 'Starter-tier gear. Available from Lv 8.',
+  },
+  c: {
+    id: 'c', label: 'C', rank: 2, color: '#6ee7b7', minLevel: 20,
+    description: 'Mid-tier gear crafted from common materials. Available from Lv 20.',
+  },
+  b: {
+    id: 'b', label: 'B', rank: 3, color: '#93c5fd', minLevel: 36,
+    description: 'Refined gear requiring rare trophies. Available from Lv 36.',
+  },
+  a: {
+    id: 'a', label: 'A', rank: 4, color: '#c4b5fd', minLevel: 52,
+    description: 'Elite gear forged from boss-tier materials. Available from Lv 52.',
+  },
+  s: {
+    id: 's', label: 'S', rank: 5, color: '#fcd34d', minLevel: 68,
+    description: 'Apex gear. Available from Lv 68.',
+  },
+};
+
+/**
+ * Derived from `GRADE_SPECS` so the engine and the UI can never
+ * disagree on the minimum level for a grade.
  */
 export const GRADE_MIN_LEVEL: Record<ItemGrade, number> = {
-  none: 1,
-  d: 8,
-  c: 20,
-  b: 36,
-  a: 52,
-  s: 68,
+  none: GRADE_SPECS.none.minLevel,
+  d: GRADE_SPECS.d.minLevel,
+  c: GRADE_SPECS.c.minLevel,
+  b: GRADE_SPECS.b.minLevel,
+  a: GRADE_SPECS.a.minLevel,
+  s: GRADE_SPECS.s.minLevel,
 };
 
 /** Effective level floor for an item, combining grade + per-item override. */
 export function getEffectiveMinLevel(grade: ItemGrade, perItemMinLevel?: number): number {
-  return Math.max(GRADE_MIN_LEVEL[grade] ?? 1, perItemMinLevel ?? 0);
+  return Math.max(GRADE_SPECS[grade]?.minLevel ?? 1, perItemMinLevel ?? 0);
+}
+
+/** Convenience accessors that read GRADE_SPECS for the UI. */
+export function getGradeSpec(grade: ItemGrade): GradeSpec {
+  return GRADE_SPECS[grade] ?? GRADE_SPECS.none;
+}
+export function getGradeLabel(grade: ItemGrade): string {
+  return GRADE_SPECS[grade]?.label ?? '—';
+}
+export function getGradeColor(grade: ItemGrade): string {
+  return GRADE_SPECS[grade]?.color ?? GRADE_SPECS.none.color;
+}
+/** Grades sorted low → high tier for wiki listing. */
+export function listGradeSpecs(): GradeSpec[] {
+  return Object.values(GRADE_SPECS).sort((a, b) => a.rank - b.rank);
 }
 
 export type ItemFlag = 'bound' | 'questItem' | 'uniqueEquipped' | 'destroyOnLogout';
