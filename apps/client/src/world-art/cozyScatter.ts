@@ -45,7 +45,10 @@ function seedFor(scene: WorldArtScene, salt: number): () => number {
 
 export function makeCozyTreeScatter(scene: WorldArtScene, quality: WorldArtQuality): PineTransform[] {
   const rand = seedFor(scene, 0);
-  const count = quality === 'low' ? 36 : quality === 'medium' ? 72 : 120;
+  // Reduced after WorldEnvironment.FoliageField started rendering
+  // global GLB pines (#521) — the two layers overlap in the cozy
+  // band and combined density read as cluttered.
+  const count = quality === 'low' ? 18 : quality === 'medium' ? 36 : 60;
   const trees: PineTransform[] = [];
   for (let i = 0; i < count; i += 1) {
     const band = rand();
