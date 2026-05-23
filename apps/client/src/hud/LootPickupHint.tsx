@@ -2,15 +2,14 @@ import type { GameClientState } from '../gameTypes';
 import { useDismissibleHint } from './useDismissibleHint';
 
 /**
- * §49/M2 — first-loot hint. Renders a small one-line banner the
- * moment a brand-new player has ground loot nearby but hasn't
- * picked anything up yet. Dismisses itself by virtue of its own
- * gating: once the player has any \`lootPickups\` recorded in
- * starterProgress, the predicate stops returning true.
+ * §49/M2 — loot pickup hint. Renders a small one-line banner
+ * whenever ground loot exists in the player's view (mob drops,
+ * dropped-from-bag piles, quest reward overflow, etc.). Tells the
+ * player every path to pick it up so the discoverability gap that
+ * trips up Mac/keyboard-unfamiliar users disappears.
  *
- * Lives outside the WelcomeOverlay so it can show *after* the
- * player accepts Galen's quest (which dismisses the welcome) but
- * before they figure out what to do with the corpse they just made.
+ * Dismissible via the × button; the dismissal persists via
+ * localStorage (see useDismissibleHint).
  */
 type LootPickupHintProps = {
   state: GameClientState;
@@ -22,8 +21,8 @@ export function LootPickupHint({ state }: LootPickupHintProps) {
   if (!shouldShowLootHint(state)) return null;
   return (
     <section className="loot-pickup-hint" role="status" aria-live="polite">
-      <strong>Loot dropped!</strong>
-      <small>Click the glowing pile — your character will walk over and grab it.</small>
+      <strong>Loot nearby</strong>
+      <small>Press <kbd>F</kbd>, click the glowing pile, or tap the Pickup button.</small>
       <button type="button" className="hint-dismiss" aria-label="Dismiss hint" onClick={dismiss}>×</button>
     </section>
   );
@@ -33,20 +32,19 @@ export function LootPickupHint({ state }: LootPickupHintProps) {
  * Visibility predicate, pulled out so it stays unit-testable
  * without rendering the React tree.
  *
- *   - need a player (renders nothing pre-spawn)
+ *   - need a live player (renders nothing pre-spawn / while dead)
  *   - need at least one ground-loot stack on screen
- *   - need zero recorded \`lootPickups\` (first-time gate)
- *   - need the player to not yet be past the starter path
- *     (\`isComplete === false\`), so we don't pester veterans whose
- *     progress was cleared by a reset.
+ *
+ * Previously the hint also gated on `starterProgress.lootPickups
+ * === 0` so it only fired on a brand-new account. Players who had
+ * picked anything up before (a mob drop, a quest reward) then later
+ * dropped an item from their bag had no UI cue for how to pick it
+ * back up — exactly the issue a fresh-account Mac tester hit. The
+ * gate is gone; the persistent × dismiss is the right knob for
+ * "I don't need this hint any more".
  */
 export function shouldShowLootHint(state: GameClientState): boolean {
   const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
   if (!player?.isAlive) return false;
-  const lootCount = Object.keys(state.groundLoot).length;
-  if (lootCount === 0) return false;
-  const progress = state.starterProgress;
-  if (!progress) return false;
-  if (progress.isComplete) return false;
-  return progress.lootPickups === 0;
+  return Object.keys(state.groundLoot).length > 0;
 }

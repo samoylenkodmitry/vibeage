@@ -50,11 +50,15 @@ function makeState(opts: {
 }
 
 describe('shouldShowLootHint', () => {
-  it('shows when there is loot nearby and zero pickups so far', () => {
+  it('shows whenever loot is on the ground for a live player', () => {
     expect(shouldShowLootHint(makeState({ loot: 1 }))).toBe(true);
   });
-  it('hides when the player has already picked up loot', () => {
-    expect(shouldShowLootHint(makeState({ loot: 1, lootPickups: 1 }))).toBe(false);
+  it('keeps showing even after the player has picked up loot before', () => {
+    // The previous first-time-only gate hid the hint forever once
+    // a player picked up anything; players who later dropped a
+    // bag item had no UI cue. The hint now stays available; the
+    // persistent × dismiss is the right knob to silence it.
+    expect(shouldShowLootHint(makeState({ loot: 1, lootPickups: 1 }))).toBe(true);
   });
   it('hides when there is no loot on the ground', () => {
     expect(shouldShowLootHint(makeState({ loot: 0 }))).toBe(false);
@@ -62,7 +66,7 @@ describe('shouldShowLootHint', () => {
   it('hides for dead players (no panic prompts while corpsed)', () => {
     expect(shouldShowLootHint(makeState({ loot: 1, alive: false }))).toBe(false);
   });
-  it('hides once the starter path is complete (post-tutorial veteran)', () => {
-    expect(shouldShowLootHint(makeState({ loot: 1, isComplete: true }))).toBe(false);
+  it('still shows for starter-path veterans (no gate on isComplete)', () => {
+    expect(shouldShowLootHint(makeState({ loot: 1, isComplete: true }))).toBe(true);
   });
 });

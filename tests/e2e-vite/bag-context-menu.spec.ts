@@ -44,6 +44,85 @@ test('hover on a populated bag slot opens the ItemTooltip with action buttons', 
   await expect(tooltip.getByRole('button', { name: /^Use$/i })).toBeVisible();
 });
 
+test('drop → pickup via the actions-panel Pickup (F) button', async ({ page }) => {
+  await seedAndOpenBag(page, `BagBtnPickup${Date.now()}`);
+
+  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  await populated.hover();
+  await expect(page.locator('.item-tooltip')).toBeVisible({ timeout: 5_000 });
+  await page.locator('.item-tooltip').getByRole('button', { name: /^Drop on ground$/i }).click();
+
+  await page.waitForFunction(() => {
+    const lootIds = window.__VIBEAGE_VITE_E2E__?.getState().groundLootIds ?? [];
+    return lootIds.length >= 1;
+  }, undefined, { timeout: 10_000 });
+
+  const pickupBtn = page.getByRole('button', { name: /Pickup \(F\)/i });
+  await expect(pickupBtn).toBeEnabled();
+  await pickupBtn.click();
+
+  await page.waitForFunction(() => {
+    const inv = window.__VIBEAGE_VITE_E2E__?.getState().inventoryItems ?? [];
+    return inv.some((s) => s.itemId === 'health_potion' && s.quantity >= 1);
+  }, undefined, { timeout: 10_000 });
+});
+
+test('drop → pickup round-trip via the in-world loot pile click', async ({ page }) => {
+  await seedAndOpenBag(page, `BagClickPickup${Date.now()}`);
+
+  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  await populated.hover();
+  await expect(page.locator('.item-tooltip')).toBeVisible({ timeout: 5_000 });
+  await page.locator('.item-tooltip').getByRole('button', { name: /^Drop on ground$/i }).click();
+
+  await page.waitForFunction(() => {
+    const lootIds = window.__VIBEAGE_VITE_E2E__?.getState().groundLootIds ?? [];
+    return lootIds.length >= 1;
+  }, undefined, { timeout: 10_000 });
+
+  // Use the e2e pickup hook (mirrors what clicking the in-world
+  // loot mesh does — calls walkThenPickup with the loot id).
+  const lootId = await page.evaluate(() => {
+    return window.__VIBEAGE_VITE_E2E__?.pickUpFirstLoot();
+  });
+  expect(lootId).not.toBeNull();
+
+  await page.waitForFunction(() => {
+    const inv = window.__VIBEAGE_VITE_E2E__?.getState().inventoryItems ?? [];
+    return inv.some((s) => s.itemId === 'health_potion' && s.quantity >= 1);
+  }, undefined, { timeout: 10_000 });
+});
+
+test('drop → pickup round-trip via the tooltip Drop button + F hotkey', async ({ page }) => {
+  await seedAndOpenBag(page, `BagDropPickup${Date.now()}`);
+
+  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  await populated.hover();
+  const tooltip = page.locator('.item-tooltip');
+  await expect(tooltip).toBeVisible({ timeout: 5_000 });
+
+  await tooltip.getByRole('button', { name: /^Drop on ground$/i }).click();
+
+  // After the drop the bag should be empty AND ground loot should
+  // exist at the player's feet.
+  await page.waitForFunction(() => {
+    const s = window.__VIBEAGE_VITE_E2E__?.getState();
+    const inv = s?.inventoryItems ?? [];
+    const lootIds = s?.groundLootIds ?? [];
+    return inv.every((slot) => slot.itemId !== 'health_potion' || slot.quantity === 0)
+      && lootIds.length >= 1;
+  }, undefined, { timeout: 10_000 });
+
+  // Press F to pick the nearest loot stack back up.
+  await page.keyboard.press('KeyF');
+
+  await page.waitForFunction(() => {
+    const s = window.__VIBEAGE_VITE_E2E__?.getState();
+    const inv = s?.inventoryItems ?? [];
+    return inv.some((slot) => slot.itemId === 'health_potion' && slot.quantity >= 1);
+  }, undefined, { timeout: 10_000 });
+});
+
 test('clicking the Destroy button removes the stack from the bag', async ({ page }) => {
   await seedAndOpenBag(page, `BagDestroy${Date.now()}`);
 
