@@ -123,4 +123,20 @@ export function onCraftItem(
     inventory: flattenInventoryToSlots(ensureCharacterInventory(player)),
     maxInventorySlots: player.maxInventorySlots,
   });
+  // §52 follow-up — surface a system message so the combat log records
+  // the successful craft. Without this the player sees inventory
+  // update silently and has no record of what happened.
+  const outputItem = ITEMS[result.outputId];
+  const recipeItem = ITEMS[result.recipeId];
+  const outputName = outputItem?.name ?? result.outputId;
+  const inputsText = recipeItem?.recipe?.inputs
+    .map((inp) => `${ITEMS[inp.itemId]?.name ?? inp.itemId} ×${inp.quantity}`)
+    .join(', ') ?? '';
+  direct.send({
+    type: 'SystemMessage',
+    kind: 'craft',
+    text: inputsText
+      ? `Crafted ${outputName} (consumed ${inputsText})`
+      : `Crafted ${outputName}`,
+  });
 }
