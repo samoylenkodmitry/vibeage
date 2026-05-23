@@ -243,12 +243,13 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
     if (enemy?.isAlive) {
       targets.push(enemy);
     } else {
-      // PvP: targetId can be another player. Damage / death flow
-      // through the same Enemy|PlayerState path below.
+      // PvP path: targetId can be another player. Self-cast lands
+      // here too — client redirects beneficial casts to player.id.
+      // Pre-fix a `!== casterId` guard dropped self; accept self
+      // now so buffs actually land. No harmful cast routes here
+      // (client never targets self for damage).
       const otherPlayer = world.getPlayerById(cast.targetId);
-      if (otherPlayer?.isAlive && otherPlayer.id !== cast.casterId) {
-        targets.push(otherPlayer);
-      }
+      if (otherPlayer?.isAlive) targets.push(otherPlayer);
     }
   }
 
