@@ -84,7 +84,11 @@ const GEAR: BossGearDef[] = [
       id: 'slab_warhammer',
       name: 'Slab Warhammer',
       description: "A chunk of Hammerback's slab fitted to a haft. Both halves still bear his weight.",
-      icon: 'slab_warhammer.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 6800, setId: 'wildlands_hunter',
+      // setId dropped: the warhammer is a two-hand weapon that
+      // collides with `chieftains_cleaver` on MAIN_HAND, so it's
+      // no longer part of `wildlands_hunter`'s requiredPieces. The
+      // item lives on as an independent boss reward.
+      icon: 'slab_warhammer.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'd', weight: 6800,
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'mace', handUsage: 'twoHand', requirements: { minLevel: 7 } },
       stats: { pAtk: 52, attackSpeed: -8 },
     },
@@ -163,7 +167,11 @@ const GEAR: BossGearDef[] = [
       id: 'refraction_staff',
       name: 'Refraction Staff',
       description: "Channels spell energy through the Warden's facet. Damage spreads to nearby foes.",
-      icon: 'refraction_staff.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2600, setId: 'elementborn',
+      // setId dropped: the staff is a two-hand caster weapon that
+      // collides with `embers_edge` on MAIN_HAND, so it's no
+      // longer part of `elementborn`'s requiredPieces. Lives on
+      // as an independent boss reward.
+      icon: 'refraction_staff.svg', stackable: false, type: 'weapon', kind: 'weapon', grade: 'c', weight: 2600,
       equip: { bodyPart: 'mainHand', allowedSlots: ['MAIN_HAND'], weaponType: 'staff', handUsage: 'twoHand', requirements: { minLevel: 12 } },
       stats: { mAtk: 92, mp: 30 },
     },
@@ -292,12 +300,17 @@ export const BOSS_GEAR_RECIPE_BY_BOSS: Record<string, string> = Object.fromEntri
  */
 export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
   wildlands_hunter: {
+    // Set is `chieftains_cleaver` (one-hand) + `greyfang_leathers`.
+    // `slab_warhammer` used to be listed here too but it's a two-
+    // hand weapon that claims MAIN_HAND just like the cleaver — the
+    // two can never be worn together, so making both "required"
+    // pieces of one set was inconsistent. The warhammer remains a
+    // craftable boss reward; it's just not part of this set.
     setId: 'wildlands_hunter',
     name: 'Wildlands Hunter',
-    requiredPieces: ['chieftains_cleaver', 'greyfang_leathers', 'slab_warhammer'],
+    requiredPieces: ['chieftains_cleaver', 'greyfang_leathers'],
     bonuses: [
-      { requiredCount: 2, statModifiers: { pAtk: 6, hp: 12 } },
-      { requiredCount: 3, statModifiers: { pAtk: 14, hp: 30, moveSpeed: 0.1 } },
+      { requiredCount: 2, statModifiers: { pAtk: 10, hp: 30, moveSpeed: 0.1 } },
     ],
   },
   veiled_mantle: {
@@ -310,13 +323,18 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     ],
   },
   elementborn: {
+    // Set is `embers_edge` + chest + helm. `refraction_staff` used
+    // to be listed too, but it's a two-hand staff that claims
+    // MAIN_HAND just like the edge — the two can never be worn
+    // together. Staff stays a craftable boss reward outside this
+    // set; the M-Atk caster path will get its own dedicated set
+    // when an additional caster piece (offhand orb / focus) lands.
     setId: 'elementborn',
     name: 'Elementborn',
-    requiredPieces: ['embers_edge', 'refraction_staff', 'forge_avatar_plate', 'tundra_helm'],
+    requiredPieces: ['embers_edge', 'forge_avatar_plate', 'tundra_helm'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pDef: 15, hp: 20 } },
-      { requiredCount: 3, statModifiers: { pDef: 30, hp: 50, mDef: 18 } },
-      { requiredCount: 4, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },
+      { requiredCount: 3, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },
     ],
   },
   worldspine_regalia: {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { EQUIPMENT_SETS, type EquipmentSet } from '../../../../packages/content/equipmentSets';
+import { EQUIPMENT_SETS, type EquipmentSet, getSetMaxWearable } from '../../../../packages/content/equipmentSets';
 import { ITEMS } from '../../../../packages/content/items';
 import type { WikiNav } from './WikiBosses';
 
@@ -33,11 +33,21 @@ function SetLi({
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isFocus, focusKey]);
+  const cap = getSetMaxWearable(set);
+  // Same source of truth the runtime uses for bonus-tier ceilings
+  // and the equipmentSetSlotValidity test uses for cross-content
+  // checks. If `cap < requiredPieces.length` the player can never
+  // wear the full set — that's a content bug and validation will
+  // block it; the wiki shows the cap explicitly so the constraint
+  // is visible.
+  const capText = cap < set.requiredPieces.length
+    ? `${cap} of ${set.requiredPieces.length} pieces wearable`
+    : `${set.requiredPieces.length} pieces`;
   return (
     <li ref={ref} className={`wiki-row${isFocus ? ' wiki-row--focus' : ''}`}>
       <header>
         <strong>{set.name}</strong>
-        <span className="wiki-row-tag">set · {set.requiredPieces.length} pieces</span>
+        <span className="wiki-row-tag">set · {capText}</span>
       </header>
       <small className="wiki-row-footer">
         Pieces:{' '}

@@ -18,6 +18,14 @@ import { openWikiAt } from './wikiNavBus';
  * wiki contexts pass `bagActions: undefined` and the buttons are
  * hidden.
  */
+export type EquippedTooltipActions = {
+  slot: string;
+  onUnequip: (slot: string) => void;
+  /** Called after any action button fires so the tooltip dismisses
+   *  immediately and the player isn't left looking at stale UI. */
+  onClose: () => void;
+};
+
 export type BagTooltipActions = {
   slotIndex: number;
   canUse: boolean;
@@ -41,6 +49,11 @@ type ItemTooltipProps = {
   itemId: string;
   clientX: number;
   clientY: number;
+  /** Bounding rect of the element that opened the tooltip — when
+   *  present, positioning prefers placing the tooltip outside this
+   *  rect (above → below → side) so the source slot stays visible
+   *  beneath the tooltip. */
+  anchorRect?: { top: number; bottom: number; left: number; right: number } | null;
   /**
    * PR JJ — pointer-enter/leave handlers from the parent's
    * useTooltipTrigger.hoverHandlers. Keeps the tooltip alive while
@@ -59,6 +72,11 @@ type ItemTooltipProps = {
   compareStats?: ItemStatBlock;
   /** Bag-action buttons — see BagTooltipActions doc. */
   bagActions?: BagTooltipActions;
+  /** Paperdoll-equipped-item action buttons: Put in bag (= unequip)
+   *  + Open in Wiki. Mutually exclusive with
+   *  bagActions — an item is either in the bag OR on the paperdoll
+   *  when the tooltip is shown. */
+  equippedActions?: EquippedTooltipActions;
   /** When true (click-to-open tooltips), render an explicit ×
    *  close control so the user has a visible way to dismiss. The
    *  hover-opened path doesn't need this — pointer-leave + outside-
@@ -66,7 +84,7 @@ type ItemTooltipProps = {
   sticky?: boolean;
 };
 
-export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareStats, bagActions, sticky }: ItemTooltipProps) {
+export function ItemTooltip({ itemId, clientX, clientY, anchorRect, hoverHandlers, compareStats, bagActions, equippedActions, sticky }: ItemTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -74,22 +92,22 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
   }));
   const item = ITEMS[itemId];
 
-  // Measure the tooltip after mount and clamp it inside the viewport for real.
+  // Measure the tooltip after mount and clamp it inside the viewport.
+  // When `anchorRect` is provided (click-sticky on a bag/paperdoll
+  // slot), prefer positioning OUTSIDE the anchor — above first, then
+  // below, then to the side — so the source element stays visible.
+  // Without an anchor (hover at a free coord), fall back to the old
+  // cursor-relative behaviour.
   useLayoutEffect(() => {
     const node = ref.current;
     if (!node) return;
     const rect = node.getBoundingClientRect();
-    const margin = 8;
-    const left = Math.min(
-      Math.max(margin, clientX),
-      Math.max(margin, window.innerWidth - rect.width - margin),
-    );
-    const top = Math.min(
-      Math.max(margin, clientY - rect.height - 12),
-      Math.max(margin, window.innerHeight - rect.height - margin),
-    );
-    setPos({ left, top });
-  }, [clientX, clientY, itemId]);
+    setPos(computeTooltipPos({
+      width: rect.width, height: rect.height,
+      vw: window.innerWidth, vh: window.innerHeight,
+      anchor: anchorRect ?? null, cursorX: clientX, cursorY: clientY,
+    }));
+  }, [clientX, clientY, anchorRect, itemId]);
 
   // §49/M8 + M14 — single-line "Source:" hint so the player can
   // tell where to look for more of this item without opening the
@@ -152,19 +170,38 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
       )}
       {sourceLabel && <small className="item-tooltip-source">Source: {sourceLabel}</small>}
       {usesLabel && <small className="item-tooltip-source">Used in: {usesLabel}</small>}
-      {bagActions ? (
-        <BagActionRow itemId={item.id} actions={bagActions} />
-      ) : (
-        <button
-          type="button"
-          className="tooltip-wiki-link"
-          onClick={(e) => { e.stopPropagation(); openWikiAt('items', item.id); }}
-          title="Open in Wiki"
-        >Open in Wiki →</button>
-      )}
+      <TooltipFooter itemId={item.id} bagActions={bagActions} equippedActions={equippedActions} />
     </div>,
     document.body,
   );
+}
+
+export function computeTooltipPos({
+  width, height, vw, vh, anchor, cursorX, cursorY,
+}: {
+  width: number; height: number; vw: number; vh: number;
+  anchor: { top: number; bottom: number; left: number; right: number } | null;
+  cursorX: number; cursorY: number;
+}): { left: number; top: number } {
+  const m = 8;
+  const clampX = (x: number) => Math.min(Math.max(m, x), Math.max(m, vw - width - m));
+  const clampY = (y: number) => Math.min(Math.max(m, y), Math.max(m, vh - height - m));
+  if (anchor) {
+    const centerX = (anchor.left + anchor.right) / 2;
+    const left = clampX(centerX - width / 2);
+    // Try above the anchor.
+    if (anchor.top - m - height >= m) return { left, top: anchor.top - m - height };
+    // Try below.
+    if (anchor.bottom + m + height <= vh - m) return { left, top: anchor.bottom + m };
+    // Try side (right of anchor preferred, else left).
+    const sideTop = clampY(anchor.top);
+    if (anchor.right + m + width <= vw - m) return { left: anchor.right + m, top: sideTop };
+    if (anchor.left - m - width >= m) return { left: anchor.left - m - width, top: sideTop };
+    // No room anywhere — clamp inside the viewport and accept overlay.
+    return { left, top: clampY(anchor.top) };
+  }
+  // Cursor-relative fallback (hover path with no anchor).
+  return { left: clampX(cursorX), top: clampY(cursorY - height - 12) };
 }
 
 function OrphanItemTooltip({
@@ -273,6 +310,44 @@ function BagActionRow({ itemId, actions }: { itemId: string; actions: BagTooltip
       <button type="button" className="tooltip-wiki-link" onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}>
         Open in Wiki →
       </button>
+    </div>
+  );
+}
+
+function TooltipFooter({
+  itemId, bagActions, equippedActions,
+}: {
+  itemId: string;
+  bagActions?: BagTooltipActions;
+  equippedActions?: EquippedTooltipActions;
+}) {
+  if (bagActions) return <BagActionRow itemId={itemId} actions={bagActions} />;
+  if (equippedActions) return <EquippedActionRow itemId={itemId} actions={equippedActions} />;
+  return (
+    <button
+      type="button"
+      className="tooltip-wiki-link"
+      onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}
+      title="Open in Wiki"
+    >Open in Wiki →</button>
+  );
+}
+
+function EquippedActionRow({ itemId, actions }: { itemId: string; actions: EquippedTooltipActions }) {
+  const unequip = (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    actions.onUnequip(actions.slot);
+    actions.onClose();
+  };
+  return (
+    <div className="item-tooltip-actions">
+      <button type="button" className="item-tooltip-action" onClick={unequip}>Put in bag</button>
+      <button
+        type="button"
+        className="tooltip-wiki-link"
+        onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}
+      >Open in Wiki →</button>
     </div>
   );
 }
