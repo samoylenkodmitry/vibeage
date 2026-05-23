@@ -146,11 +146,11 @@ export function addItems(
     remaining -= perStack;
   }
 
-  const projectedWeight = totalInventoryWeight(draft, templates);
-  if (projectedWeight > draft.limits.maxWeight) {
-    return { ok: false, error: 'overweight' };
-  }
-
+  // §49/M2 follow-up — weight cap was invisible to the player (no
+  // UI shows current vs max bag weight, no encumbrance mechanic
+  // reads it) so an over-weight bag rejected pickup silently with
+  // no actionable signal. Slot count is the visible cap; weight is
+  // not enforced any more.
   const violations = validateInvariants(draft, templates);
   if (violations.length > 0) {
     return { ok: false, error: 'invariantViolation' };

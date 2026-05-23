@@ -53,11 +53,15 @@ describe('addItems', () => {
     expect(listInventoryItems(inv)).toHaveLength(0);
   });
 
-  test('refuses to commit when weight cap would be exceeded', () => {
+  test('weight cap is no longer enforced — slot count is the only constraint', () => {
+    // §49/M2 follow-up — the weight cap was invisible to players
+    // (no UI surfaced it). It mostly fired on persisted accounts
+    // that accumulated heavy loot and rejected pickup with a
+    // misleading "bag full" message. Slots are the visible cap.
     const tinyLimits = { baseSlots: 10, bonusSlots: 0, maxWeight: 2000 };
     const inv = createEmptyInventory('char-1', tinyLimits);
     const result = addItems(inv, { templateId: 'worn_sword', count: 3 }, services());
-    expect(result).toEqual({ ok: false, error: 'overweight' });
+    expect(result.ok).toBe(true);
   });
 });
 

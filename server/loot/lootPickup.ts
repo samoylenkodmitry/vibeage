@@ -17,7 +17,7 @@ export type GroundLootPickupResult =
     }
   | {
       ok: false;
-      reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull' | 'overweight';
+      reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull';
     };
 
 export function pickupGroundLoot(state: GameState, playerId: string, lootId: string): GroundLootPickupResult {
@@ -50,10 +50,7 @@ export function pickupGroundLoot(state: GameState, playerId: string, lootId: str
       // different problem than "your bag is full" to a user staring at
       // empty slots.
       restoreInventory(player, snapshot);
-      const reason = (result as { ok: false; error: string }).error === 'overweight'
-        ? 'overweight' as const
-        : 'inventoryFull' as const;
-      return { ok: false, reason };
+      return { ok: false, reason: 'inventoryFull' };
     }
     addedItems.push({ itemId: drop.itemId, quantity: drop.quantity });
   }
