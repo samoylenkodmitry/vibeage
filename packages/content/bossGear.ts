@@ -292,12 +292,17 @@ export const BOSS_GEAR_RECIPE_BY_BOSS: Record<string, string> = Object.fromEntri
  */
 export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
   wildlands_hunter: {
+    // Chieftain's Cleaver + Slab Warhammer both claim MAIN_HAND, so a
+    // single character can wear at most two of these three pieces at
+    // a time (one weapon + the leathers). A 3-piece tier would be
+    // unreachable — the equipmentSetSlotValidity.spec.ts test guards
+    // this. If the design wants a bigger payoff, move one weapon to
+    // a different slot or split into two sets.
     setId: 'wildlands_hunter',
     name: 'Wildlands Hunter',
     requiredPieces: ['chieftains_cleaver', 'greyfang_leathers', 'slab_warhammer'],
     bonuses: [
-      { requiredCount: 2, statModifiers: { pAtk: 6, hp: 12 } },
-      { requiredCount: 3, statModifiers: { pAtk: 14, hp: 30, moveSpeed: 0.1 } },
+      { requiredCount: 2, statModifiers: { pAtk: 10, hp: 30, moveSpeed: 0.1 } },
     ],
   },
   veiled_mantle: {
@@ -310,13 +315,16 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     ],
   },
   elementborn: {
+    // Ember's Edge + Refraction Staff both claim MAIN_HAND, so a
+    // character can wear at most three pieces (one weapon + chest +
+    // helm). The 4-piece tier was unreachable; collapsed into the
+    // 3-piece tier so the design still rewards completing the set.
     setId: 'elementborn',
     name: 'Elementborn',
     requiredPieces: ['embers_edge', 'refraction_staff', 'forge_avatar_plate', 'tundra_helm'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pDef: 15, hp: 20 } },
-      { requiredCount: 3, statModifiers: { pDef: 30, hp: 50, mDef: 18 } },
-      { requiredCount: 4, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },
+      { requiredCount: 3, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },
     ],
   },
   worldspine_regalia: {
