@@ -1671,6 +1671,23 @@ input {
   background: rgba(141, 233, 215, 0.22);
 }
 
+.wiki-set-grade,
+.wiki-set-piece-grade {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+.wiki-set-grade {
+  margin-left: 0;
+}
+
 .wiki-row--focus {
   outline: 2px solid rgba(250, 204, 21, 0.55);
   outline-offset: 2px;
