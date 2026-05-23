@@ -105,13 +105,11 @@ export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeo
  * that hasn't been persisted yet) — the caller seeds an empty
  * aggregate in that case.
  *
- * The persisted blob can be missing or wrong on the `limits` field
- * (older rows, partial migrations, manual edits). Without a valid
- * `limits.baseSlots`, `maxInventorySlotCount` returns 0/NaN and
- * every `addItems` call rejects with `inventoryFull` — looks like
- * a perfectly full bag from the outside. Repair the limits here
- * using `player.maxInventorySlots` as the source of truth so the
- * bag actually has the capacity the rest of the system claims.
+ * Repairs `limits.baseSlots` when the persisted value is missing,
+ * zero, or NaN — without this, `maxInventorySlotCount` returns
+ * 0/NaN and every `addItems` rejects with `inventoryFull` (looks
+ * like a perpetually full bag). `player.maxInventorySlots` is the
+ * source of truth for the cap.
  */
 export function hydratePersistedCharacterInventory(
   player: PlayerState,
@@ -135,6 +133,9 @@ function repairInventoryLimits(
   return {
     baseSlots: Number.isFinite(raw.baseSlots) && raw.baseSlots > 0 ? raw.baseSlots : baseFromPlayer,
     bonusSlots: Number.isFinite(raw.bonusSlots) && raw.bonusSlots >= 0 ? raw.bonusSlots : DEFAULT_LIMITS.bonusSlots,
-    maxWeight: Number.isFinite(raw.maxWeight) && raw.maxWeight > 0 ? raw.maxWeight : DEFAULT_LIMITS.maxWeight,
+    // Weight cap is unused (the addItems check that read it was
+    // removed); kept on the type for back-compat with persisted
+    // rows. Just copy whatever was there.
+    maxWeight: typeof raw.maxWeight === 'number' ? raw.maxWeight : DEFAULT_LIMITS.maxWeight,
   };
 }
