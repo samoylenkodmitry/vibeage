@@ -16,15 +16,18 @@ import { useTerrainTextures } from './world-art/useTerrainTextures';
 /**
  * Render modes for the clickable terrain chunks.
  *
- * - 'normal'    — vertex-colored standard material (the original
- *   look, used everywhere outside cozy hero scenes).
- * - 'textured'  — sand/grass PBR textures mixed with the existing
- *   vertex colors so biome tinting still reads through.
+ * - 'normal'    — vertex-colored standard material.
+ * - 'textured'  — PBR sand/grass texture mixed with the existing
+ *   vertex colors so biome tinting still reads through. Uses
+ *   `palette` to pick which texture pair (grass for the open
+ *   world, sand for the cozy beach).
  * - 'collider'  — invisible color writes but pointer-raycast
  *   stays on, so click-to-move keeps working when another art
- *   layer paints the ground (PR 4's authored GLB will use this).
+ *   layer paints the ground.
  */
 export type TerrainVisualMode = 'normal' | 'textured' | 'collider';
+
+export type TerrainPalette = 'grass' | 'sand';
 
 type WorldGroundProps = {
   focus: Vec3D;
@@ -32,6 +35,8 @@ type WorldGroundProps = {
   cameraControlsRef?: MutableRefObject<CameraControls | null>;
   touchClaimRef?: MutableRefObject<Set<number>>;
   visualMode?: TerrainVisualMode;
+  /** Texture pair used when visualMode === 'textured'. Default 'grass'. */
+  palette?: TerrainPalette;
 };
 
 type DragMoveState = {
@@ -53,7 +58,7 @@ type TouchPendingState = {
 
 const TOUCH_DRAG_THRESHOLD_PX = 6;
 
-export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, visualMode = 'normal' }: WorldGroundProps) {
+export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, visualMode = 'textured', palette = 'grass' }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
@@ -106,6 +111,7 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, v
           originX={chunk.x}
           originZ={chunk.z}
           visualMode={visualMode}
+          palette={palette}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -320,12 +326,13 @@ type TerrainChunkProps = {
   originX: number;
   originZ: number;
   visualMode: TerrainVisualMode;
+  palette: TerrainPalette;
   onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
   onPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onPointerUp: (event: ThreeEvent<PointerEvent>) => void;
 };
 
-function TerrainChunk({ originX, originZ, visualMode, onPointerDown, onPointerMove, onPointerUp }: TerrainChunkProps) {
+function TerrainChunk({ originX, originZ, visualMode, palette, onPointerDown, onPointerMove, onPointerUp }: TerrainChunkProps) {
   const geometry = useMemo(
     () => createTerrainGeometry(originX, originZ),
     [originX, originZ],
@@ -339,36 +346,35 @@ function TerrainChunk({ originX, originZ, visualMode, onPointerDown, onPointerMo
       onPointerUp={onPointerUp}
       receiveShadow={visualMode !== 'collider'}
     >
-      <TerrainMaterial visualMode={visualMode} />
+      <TerrainMaterial visualMode={visualMode} palette={palette} />
     </mesh>
   );
 }
 
-function TerrainMaterial({ visualMode }: { visualMode: TerrainVisualMode }) {
+function TerrainMaterial({ visualMode, palette }: { visualMode: TerrainVisualMode; palette: TerrainPalette }) {
   if (visualMode === 'collider') {
-    // Invisible color writes; raycasting still hits the geometry
-    // so click-to-move keeps working under an authored art layer.
     return <meshBasicMaterial colorWrite={false} depthWrite={false} transparent opacity={0} />;
   }
   if (visualMode === 'textured') {
     return (
       <Suspense fallback={<meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />}>
-        <TexturedTerrainMaterial />
+        <TexturedTerrainMaterial palette={palette} />
       </Suspense>
     );
   }
   return <meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />;
 }
 
-function TexturedTerrainMaterial() {
+function TexturedTerrainMaterial({ palette }: { palette: TerrainPalette }) {
   const tex = useTerrainTextures();
-  // Sand-first map keeps the cozy coast warm; vertex colors stay
-  // on so biome tinting and slope shading still read through the
-  // base texture instead of flattening the world.
+  // Vertex colors stay on so biome tinting and slope shading
+  // still read through the base texture.
+  const map = palette === 'sand' ? tex.sandColor : tex.grassColor;
+  const normalMap = palette === 'sand' ? tex.sandNormal : tex.grassNormal;
   return (
     <meshStandardMaterial
-      map={tex.sandColor}
-      normalMap={tex.sandNormal}
+      map={map}
+      normalMap={normalMap}
       vertexColors
       roughness={0.95}
       metalness={0.02}
