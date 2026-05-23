@@ -183,6 +183,8 @@ export type CommandRejectionReasons = {
     | 'lootNotFound'
     | 'tooFar'
     | 'inventoryFull'
+    | 'itemNotFound'
+    | 'invariantViolation'
     | 'rateLimited';
   // Skill progression
   LearnSkill:

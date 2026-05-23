@@ -28,6 +28,19 @@ function makePlayer(socketId: string): PlayerState {
   return player;
 }
 
+function withOrphanInBag(player: PlayerState): PlayerState {
+  player.maxInventorySlots = 20;
+  if (player.characterInventory) {
+    player.characterInventory.limits = { baseSlots: 20, bonusSlots: 0, maxWeight: 80000 };
+    player.characterInventory.items['orphan-1'] = {
+      instanceId: 'orphan-1', ownerId: 'p1', templateId: 'retired_item_from_old_release',
+      location: { kind: 'inventory', slotIndex: 5 },
+      count: 1, enchantLevel: 0, bound: false, createdAtTs: 0,
+    };
+  }
+  return player;
+}
+
 
 describe('onLootPickup → CommandRejected', () => {
   test('emits playerNotFound when the player id is wrong', () => {
@@ -48,11 +61,12 @@ describe('onLootPickup → CommandRejected', () => {
     const state = createGameState();
     const socket = { id: 'sock1', send: vi.fn(), emit: vi.fn() };
     state.players.p1 = makePlayer('sock1');
-    // Bag is already at 1/1 capacity (a wolf_pelt). Drop different
-    // loot to trigger inventoryFull.
+    // Bag is already at 1/1 capacity (a worn_sword — non-stackable).
+    // Drop a different non-stackable item so addItems can't fold
+    // into an existing stack and has to claim a new slot.
     state.groundLoot.l1 = {
       position: { x: 0, z: 0 },
-      items: [{ itemId: 'leather_strap', quantity: 1 }],
+      items: [{ itemId: 'health_potion', quantity: 1 }],
     };
     const events: OutboundEvent[] = [];
     const outbound = { publish: (e: OutboundEvent) => events.push(e) };
@@ -74,7 +88,7 @@ describe('onLootPickup → CommandRejected', () => {
     state.players.p1 = makePlayer('sock1');
     state.groundLoot.l1 = {
       position: { x: 100, z: 0 },
-      items: [{ itemId: 'leather_strap', quantity: 1 }],
+      items: [{ itemId: 'health_potion', quantity: 1 }],
     };
     const outbound = { publish: vi.fn() };
     onLootPickup(socket as never, { send: (m) => socket.emit('msg', m) } as never, state, {
@@ -83,6 +97,52 @@ describe('onLootPickup → CommandRejected', () => {
     expect(socket.emit).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       reason: 'tooFar',
     }));
+  });
+
+});
+
+describe('onLootPickup → orphan-template regressions', () => {
+  test('emits itemNotFound when loot references a retired item id (not inventoryFull)', () => {
+    const state = createGameState();
+    const socket = { id: 'sock1', send: vi.fn(), emit: vi.fn() };
+    state.players.p1 = makePlayer('sock1');
+    // Loot drop pointing at an id removed from ITEMS in a content
+    // update. Pre-fix this reported `inventoryFull` and looked like a
+    // bag problem to the player. Now the true cause propagates.
+    state.groundLoot.l1 = {
+      position: { x: 0, z: 0 },
+      items: [{ itemId: 'ethereal_elixir_retired_in_archwork_7', quantity: 1 }],
+    };
+    const outbound = { publish: vi.fn() };
+    onLootPickup(socket as never, { send: (m) => socket.emit('msg', m) } as never, state, {
+      type: 'LootPickup', lootId: 'l1', playerId: 'p1', clientSeq: 3,
+    }, outbound);
+    expect(socket.emit).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      type: 'CommandRejected', commandType: 'LootPickup', reason: 'itemNotFound',
+    }));
+  });
+
+  test('pickup succeeds when the bag has a pre-existing orphan instance', () => {
+    // Pre-fix this rejected as invariantViolation→inventoryFull —
+    // the orphan made `validateInvariants` push a violation for every
+    // future transaction, including unrelated pickups. Simulates
+    // account 'a' on prod with a leftover `ethereal_elixir` retired
+    // in Archwork #7.
+    const state = createGameState();
+    const socket = { id: 'sock1', send: vi.fn(), emit: vi.fn() };
+    const player = withOrphanInBag(makePlayer('sock1'));
+    state.players.p1 = player;
+    state.groundLoot.l1 = {
+      position: { x: 0, z: 0 },
+      items: [{ itemId: 'health_potion', quantity: 1 }],
+    };
+    const outbound = { publish: vi.fn() };
+    onLootPickup(socket as never, { send: (m) => socket.emit('msg', m) } as never, state, {
+      type: 'LootPickup', lootId: 'l1', playerId: 'p1', clientSeq: 7,
+    }, outbound);
+    const rejection = socket.emit.mock.calls.find((c) => c[1]?.type === 'CommandRejected');
+    expect(rejection).toBeUndefined();
+    expect(state.groundLoot.l1).toBeUndefined();
   });
 
   test('emits lootNotFound for unknown loot ids', () => {

@@ -59,10 +59,11 @@ export function validateInvariants(
       violations.push(`item ${instanceId} is destroyed but still present in aggregate.items`);
     }
     const template = templates[instance.templateId];
-    if (!template) {
-      violations.push(`item ${instanceId} references missing template ${instance.templateId}`);
-      continue;
-    }
+    // Orphan template (retired in a content release): skip the
+    // per-template checks so a pre-existing orphan doesn't fail
+    // every future transaction. The instance sits harmlessly in
+    // the bag until the user destroys it via the tooltip.
+    if (!template) continue;
     if (instance.count <= 0) {
       violations.push(`item ${instanceId} has non-positive count ${instance.count}`);
     }

@@ -17,7 +17,7 @@ export type GroundLootPickupResult =
     }
   | {
       ok: false;
-      reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull';
+      reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull' | 'itemNotFound' | 'invariantViolation';
     };
 
 export function pickupGroundLoot(state: GameState, playerId: string, lootId: string): GroundLootPickupResult {
@@ -43,14 +43,13 @@ export function pickupGroundLoot(state: GameState, playerId: string, lootId: str
   for (const drop of items) {
     const result = addItemsToPlayer(player, drop.itemId, drop.quantity);
     if (!result.ok) {
-      // Anti-dupe: any partial add is rolled back so the loot pile stays on
-      // the ground for another attempt. Caller sees a clean failure. The
-      // specific reason is propagated so the client can render the
-      // *actual* cause — "your bag is too heavy" looks like a totally
-      // different problem than "your bag is full" to a user staring at
-      // empty slots.
       restoreInventory(player, snapshot);
-      return { ok: false, reason: 'inventoryFull' };
+      // Propagate the ACTUAL TransactionError instead of squashing
+      // every failure to `inventoryFull` — that lied to users staring
+      // at a half-empty bag whose pickup was rejected because of
+      // either an `itemNotFound` (retired loot template) or an
+      // `invariantViolation` (pre-existing orphan instance).
+      return { ok: false, reason: mapAddError('error' in result ? result.error : 'invariantViolation') };
     }
     addedItems.push({ itemId: drop.itemId, quantity: drop.quantity });
   }
@@ -68,4 +67,17 @@ export function pickupGroundLoot(state: GameState, playerId: string, lootId: str
 
 function getSourceEnemyName(lootId: string): string | undefined {
   return lootId.split('-')[1];
+}
+
+type AddError = 'inventoryFull' | 'itemNotFound' | 'invariantViolation' | 'itemLocked' | 'notStackable' | 'invalidSplitAmount' | 'templateMismatch' | 'stackOverflow';
+
+function mapAddError(error: AddError | string): Extract<GroundLootPickupResult, { ok: false }>['reason'] {
+  if (error === 'inventoryFull' || error === 'itemNotFound' || error === 'invariantViolation') {
+    return error;
+  }
+  // itemLocked / notStackable / stackOverflow don't reach the pickup
+  // path today. Fold them into invariantViolation so the player gets
+  // a clear "something is wrong" message instead of a misleading
+  // "bag is full".
+  return 'invariantViolation';
 }

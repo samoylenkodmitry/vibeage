@@ -137,6 +137,8 @@ function inventoryActionFailCopy(commandType: string, reason: string): string {
     if (reason === 'inventoryFull') return 'Your bag is full — make room before picking up.';
     if (reason === 'tooFar') return 'Walk closer to the loot to pick it up.';
     if (reason === 'lootNotFound') return 'That loot is already gone.';
+    if (reason === 'itemNotFound') return "This loot contains an item that's no longer in the game — skipping the pickup. Drop a ticket and we'll clean it up.";
+    if (reason === 'invariantViolation') return 'Your bag has a corrupted item blocking pickups. Open the bag and Destroy the slot showing a raw id (e.g. ethereal_elixir).';
     return `Pickup failed: ${reason}`;
   }
   return `${commandType} failed: ${reason}`;
