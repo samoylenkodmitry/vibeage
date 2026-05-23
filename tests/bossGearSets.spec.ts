@@ -14,11 +14,23 @@ describe('boss-gear sets', () => {
     }
   });
 
-  it('every boss-gear equipment piece points back at a registered set', () => {
+  it('every boss-gear equipment piece with a setId is actually in that set\'s requiredPieces (no dangling backref)', () => {
+    // Some boss-gear pieces are independent rewards (e.g. the two-
+    // hand weapons that conflict with their set's main weapon on
+    // MAIN_HAND). Those pieces simply have no setId. The integrity
+    // rule is bidirectional: if a piece DOES declare a setId, that
+    // set must exist AND list the piece. The reverse check
+    // (\"every requiredPieces entry has matching setId\") lives in
+    // the cross-content `itemSetBackref.spec.ts` test that scans
+    // all of ITEMS (not just boss gear).
     for (const item of Object.values(BOSS_GEAR_ITEMS)) {
-      if (item.type !== 'weapon' && item.type !== 'armor') continue;
-      expect(item.setId, `${item.id} has no setId`).toBeTruthy();
-      expect(EQUIPMENT_SETS[item.setId!], `set ${item.setId} not registered`).toBeDefined();
+      if (!item.setId) continue;
+      const set = EQUIPMENT_SETS[item.setId];
+      expect(set, `${item.id}.setId="${item.setId}" but set is not registered`).toBeDefined();
+      expect(
+        set!.requiredPieces.includes(item.id),
+        `${item.id} declares setId="${item.setId}" but the set's requiredPieces don't include it`,
+      ).toBe(true);
     }
   });
 

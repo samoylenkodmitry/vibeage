@@ -65,6 +65,7 @@ function ItemLi({
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
       <ItemSourcesSummary item={item} navigate={navigate} />
+      {item.recipe && <ItemRecipeContents item={item} navigate={navigate} />}
       {item.setId && EQUIPMENT_SETS[item.setId] && (
         <small className="wiki-row-footer">
           Part of:{' '}
@@ -74,6 +75,42 @@ function ItemLi({
         </small>
       )}
     </li>
+  );
+}
+
+/**
+ * For an item with a `recipe` payload (i.e. it IS a recipe), render
+ * the inputs + output inline so the player doesn't have to bounce
+ * to the Recipes tab to see what the recipe makes. Single source
+ * of truth: same `item.recipe` field the engine consumes when the
+ * player uses the recipe in their bag.
+ */
+function ItemRecipeContents({ item, navigate }: { item: Item; navigate: WikiNav }) {
+  const spec = item.recipe!;
+  const outputItem = ITEMS[spec.output.itemId];
+  return (
+    <>
+      <small className="wiki-row-footer">
+        Recipe inputs:{' '}
+        {spec.inputs.map((inp, i) => {
+          const it = ITEMS[inp.itemId];
+          return (
+            <span key={`${inp.itemId}-${i}`}>
+              {i > 0 && ', '}
+              <button type="button" className="wiki-effect-chip" onClick={() => navigate('items', inp.itemId)}>
+                {(it?.name ?? inp.itemId)} ×{inp.quantity}
+              </button>
+            </span>
+          );
+        })}
+      </small>
+      <small className="wiki-row-footer">
+        Recipe output:{' '}
+        <button type="button" className="wiki-effect-chip" onClick={() => navigate('items', spec.output.itemId)}>
+          {(outputItem?.name ?? spec.output.itemId)} ×{spec.output.quantity}
+        </button>
+      </small>
+    </>
   );
 }
 
