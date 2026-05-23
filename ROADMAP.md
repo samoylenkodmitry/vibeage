@@ -29,17 +29,9 @@ Surfaced by playtesting on account `a/a`. Each item is a fix the player can feel
 
 ### 1. Hanging items: wire every entry in `ITEMS` to a source
 
-`pnpm run content:audit` lists items with no loot / vendor / recipe / quest source. As of this writing, **7 items are hanging** (all on the legacy `OBTAINABILITY_WHITELIST`):
+✅ **Shipped 2026-05-23.** All 7 legacy `OBTAINABILITY_WHITELIST` orphans (`ancient_tome`, `dungeon_key`, `experience_orb`, `mysterious_artifact`, `sealed_letter`, `shadow_crown`, `teleport_scroll`) were declared in `ITEMS` and rendered in the wiki without any source in the world. They've been **removed from `ITEMS` entirely** rather than left as placeholders — `docs/UNLINKED.md` now reports zero hanging items and the whitelist is currency-only. Items can be re-added when a real source + use ships.
 
-- [ ] `ancient_tome` — design a low-level "lost lore" quest reward chain
-- [ ] `dungeon_key` — gate it behind a chest spawn or quest objective
-- [ ] `experience_orb` — drop from a high-level boss or quest reward
-- [ ] `mysterious_artifact` — quest reward (mid-tier hook)
-- [ ] `sealed_letter` — quest hand-in chain
-- [ ] `shadow_crown` — make it actual mini-boss loot (Nyaraal / The Mistwalker)
-- [ ] `teleport_scroll` — vendor stock (Gludin general goods, after first kill)
-
-For each: drop from `OBTAINABILITY_WHITELIST` once a real source ships. The wiki's Items tab already warns "⚠ No source yet — placeholder item" on each hanging item.
+A bidirectional integrity test (`tests/itemSetBackref.spec.ts`) plus `tests/equipmentSetSlotValidity.spec.ts` keep future additions consistent.
 
 ### 2. Equip feedback — clear "why not" line
 
@@ -52,6 +44,23 @@ For each: drop from `OBTAINABILITY_WHITELIST` once a real source ships. The wiki
 ### 4. Full-body armor equip clarity
 
 ✅ **Shipped 2026-05-23.** The two relevant rejections (`inventoryFullForUnequippedItems`, `twoHandBlocksOffhand`) now have user-readable copy in the combat log. Mechanic itself is correct — equipping a full-body when chest + legs are already worn needs at least one free bag slot (the unequipped piece has to land somewhere).
+
+### 5. Equipment sets — one grade per set + full coverage
+
+Surfaced from playtesting (Wildlands Hunter / Elementborn) — the wiki now exposes each set's tier via `GRADE_SPECS`, and players noticed that today's sets mix grades inside a single set (e.g. C-grade chest + D-grade weapon). The design target is:
+
+- [ ] **Every set is single-grade.** Each `EQUIPMENT_SETS` entry should declare items all sharing the same `item.grade`. Add a `tests/equipmentSetSameGrade.spec.ts` gate so this is CI-enforced. The wiki Sets tab's "mixed tiers" warning becomes unreachable.
+- [ ] **Sets per specialization × grade.** Goal: every player specialization has one set at each grade (D / C / B / A / S). That's roughly `(#specs) × 5` sets total. Each set ships with:
+  - 3–4 pieces (whatever the spec's primary slots can wear simultaneously — validated by `equipmentSetSlotValidity.spec.ts`)
+  - Two bonus tiers tuned to the spec's stat priorities (e.g. crit-focused for Treasure Hunter, mDef-focused for Templar)
+  - Drops/recipes wired to a boss or quest of the matching level band (`GRADE_SPECS[grade].minLevel`)
+- [ ] **Cross-link in wiki Specs tab.** Each specialization page should list the sets that exist for it across all grades, so a player picking a spec sees the gear progression at a glance.
+
+### 6. World map UX
+
+Surfaced from playtesting — opening the map at the current zoom centers on the player but their surroundings collapse to a single dot.
+
+✅ **Shipped 2026-05-23.** Default zoom is now \"~30 seconds of run-speed\" (1200 world units = 60s × 20u/s baseline runSpeed in each direction). Max zoom raised so the player can frame ~2 m around themselves; min zoom still shows the whole world. Labels use a non-scaling-text technique so they stay readable at every zoom. Overlapping labels collapse to a count badge (e.g. \"Riverhead District (4)\") so dense regions don't pile up into illegible text.
 
 ## Quality Gate
 
