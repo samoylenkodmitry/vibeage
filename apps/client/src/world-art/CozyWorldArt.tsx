@@ -5,6 +5,7 @@ import { CozyDistantMountains } from './CozyDistantMountains';
 import { CozyLanterns } from './CozyLanterns';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
+import { CozyShoreFoam } from './CozyShoreFoam';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
 import type { WorldArtQuality } from './quality';
 import type { WorldArtScene } from './worldArtScenes';
@@ -24,6 +25,7 @@ import type { WorldArtScene } from './worldArtScenes';
  *   DistantMountains — low-poly silhouette ring on the horizon
  *   Water            — stylized procedural plane, raycast-disabled
  *   Shore            — pale sand band along the waterline
+ *   ShoreFoam        — animated foam crests at the water edge
  *   AuthoredCoast    — hand-placed dock/rowboat/bonfire
  *   BonfireGlow      — warm flickering pointLight at each bonfire
  *   BonfireSmoke     — drifting smoke column above each bonfire
@@ -42,6 +44,7 @@ export function CozyWorldArt({
       <CozyDistantMountains scene={scene} />
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
+      <CozyShoreFoam scene={scene} />
       <CozyAuthoredCoast scene={scene} />
       <CozyBonfireGlow scene={scene} />
       <CozyBonfireSmoke scene={scene} />
