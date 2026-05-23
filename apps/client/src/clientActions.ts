@@ -364,7 +364,7 @@ function usePickupActions(
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
     if (room && playerId) {
-      room.send(SESSION_EVENTS.message, { type: 'LootPickup', lootId, playerId });
+      sendRejectable(room, { type: 'LootPickup', lootId, playerId });
     }
   }, [roomRef, stateRef]);
 

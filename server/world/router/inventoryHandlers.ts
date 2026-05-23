@@ -6,6 +6,8 @@ import { handleEquipItem, handleUnequipItem } from '../../inventory/equipHandler
 import { tryGiveLoot } from '../../loot/groundLoot.js';
 import { runtimeMetrics } from '../../observability/runtimeMetrics.js';
 import { findPlayerIdBySocket } from '../../players/playerSession.js';
+import { sendCommandRejected } from '../../transport/commandRejected.js';
+import type { CommandRejectionReason } from '../../../packages/protocol/commandRejections.js';
 import type {
   DirectMessageSink,
   OutboundEventSink,
@@ -59,8 +61,11 @@ export function onLootPickup(
   msg: LootPickup,
   outbound: OutboundEventSink,
 ): void {
+  const reject = (reason: CommandRejectionReason<'LootPickup'>) =>
+    sendCommandRejected(direct, 'LootPickup', reason, msg.clientSeq);
   const player = state.players[msg.playerId];
   if (!player) {
+    reject('playerNotFound');
     return;
   }
   if (player.socketId !== socket.id) {
@@ -69,7 +74,9 @@ export function onLootPickup(
     return;
   }
 
-  if (!tryGiveLoot(state, outbound, msg.playerId, msg.lootId)) {
+  const result = tryGiveLoot(state, outbound, msg.playerId, msg.lootId);
+  if (result.ok === false) {
+    reject(result.reason);
     return;
   }
 

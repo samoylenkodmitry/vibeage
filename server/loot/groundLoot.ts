@@ -48,11 +48,20 @@ export function spawnLootForEnemyDeath(state: GameState, outbound: OutboundEvent
   debug(LOG_CATEGORIES.LOOT, `Broadcast loot spawn ${spawn.lootId}`, { itemCount: loot.length });
 }
 
-export function tryGiveLoot(state: GameState, outbound: OutboundEventSink, playerId: string, lootId: string): boolean {
+export type TryGiveLootResult =
+  | { ok: true }
+  | { ok: false; reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull' };
+
+export function tryGiveLoot(
+  state: GameState,
+  outbound: OutboundEventSink,
+  playerId: string,
+  lootId: string,
+): TryGiveLootResult {
   const result = pickupGroundLoot(state, playerId, lootId);
 
   if (result.ok === false) {
-    return false;
+    return { ok: false, reason: result.reason };
   }
 
   emitServerMessage(outbound, {
@@ -78,5 +87,5 @@ export function tryGiveLoot(state: GameState, outbound: OutboundEventSink, playe
     });
   }
 
-  return true;
+  return { ok: true };
 }

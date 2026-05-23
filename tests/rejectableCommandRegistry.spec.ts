@@ -26,6 +26,7 @@ const EXPECTED_REJECTABLE_COMMANDS = [
   'CastReq',
   'EquipItem', 'UnequipItem',
   'UseItem', 'DropItem', 'DestroyItem', 'CraftItem',
+  'LootPickup',
   'LearnSkill', 'UpgradeSkill',
   'AcceptQuest', 'CancelQuest', 'AdvanceQuest', 'ClaimQuestReward',
   'BuyFromVendor', 'SellToVendor',

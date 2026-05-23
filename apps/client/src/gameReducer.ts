@@ -377,6 +377,7 @@ const COMMAND_REJECTED_ROUTE: { [C in RejectableCommand]: CommandRejectedSink } 
   DropItem: 'combatLog',
   DestroyItem: 'combatLog',
   CraftItem: 'combatLog',
+  LootPickup: 'combatLog',
   LearnSkill: 'skillTreeChip',
   UpgradeSkill: 'skillTreeChip',
   AcceptQuest: 'combatLog',

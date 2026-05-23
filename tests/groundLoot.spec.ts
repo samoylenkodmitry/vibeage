@@ -53,7 +53,7 @@ describe('ground loot', () => {
       ],
     };
 
-    expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
+    expect(tryGiveLoot(state, outbound, 'player1', 'loot1').ok).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
     // PR GG — gold_coin auto-converts to the gold counter on pickup
     // instead of taking a bag slot. The bag only carries the other
@@ -96,7 +96,7 @@ describe('ground loot', () => {
       items: [{ itemId: 'wolf_pelt', quantity: 1 }],
     };
 
-    expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(false);
+    expect(tryGiveLoot(state, outbound, 'player1', 'loot1').ok).toBe(false);
     expect(state.groundLoot.loot1).toBeDefined();
     expect(playerInventorySlots(state.players.player1)).toMatchObject([{ itemId: 'health_potion', quantity: 1 }]);
     expect(outbound.publish).not.toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe('ground loot', () => {
       items: [{ itemId: 'health_potion', quantity: 2 }],
     };
 
-    expect(tryGiveLoot(state, outbound, 'player1', 'loot1')).toBe(true);
+    expect(tryGiveLoot(state, outbound, 'player1', 'loot1').ok).toBe(true);
     expect(state.groundLoot.loot1).toBeUndefined();
     expect(playerInventorySlots(state.players.player1)).toMatchObject([{ itemId: 'health_potion', quantity: 3 }]);
     expect(outbound.publish).toHaveBeenCalledWith({
