@@ -78,18 +78,19 @@ function InstancedSub({
   receiveShadow: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  // Clone the material once when per-instance tinting is wanted
-  // so `vertexColors=true` (needed for instanceColor to modulate)
-  // doesn't leak back to other InstancedGltf consumers sharing
-  // the same GLB.
+  // Clone the material once per consumer-with-colors, gated on a
+  // boolean — not on the `colors` array reference — so a fresh
+  // scatter (new array, same shape) doesn't churn material
+  // clones every regeneration.
+  const colorsEnabled = colors !== undefined;
   const material = useMemo(() => {
-    if (!colors) return sub.material;
+    if (!colorsEnabled) return sub.material;
     const clone = sub.material.clone();
     if ('vertexColors' in clone) {
       (clone as THREE.MeshStandardMaterial).vertexColors = true;
     }
     return clone;
-  }, [sub.material, colors]);
+  }, [sub.material, colorsEnabled]);
 
   useLayoutEffect(() => {
     const mesh = ref.current;

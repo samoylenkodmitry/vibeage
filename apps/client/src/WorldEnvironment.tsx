@@ -213,8 +213,19 @@ function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
   return m;
 }
 
+// Reused Color objects keyed by hex; biome palettes have a small
+// fixed set of colors (one per biome × foliage type), so this
+// caps total allocations at ~20-30 Color objects regardless of
+// how many trees are scattered.
+const FOLIAGE_COLOR_CACHE = new Map<string, THREE.Color>();
+
 function instanceColor(instance: FoliageInstance): THREE.Color {
-  return new THREE.Color(instance.color);
+  let cached = FOLIAGE_COLOR_CACHE.get(instance.color);
+  if (!cached) {
+    cached = new THREE.Color(instance.color);
+    FOLIAGE_COLOR_CACHE.set(instance.color, cached);
+  }
+  return cached;
 }
 
 function InstancedFoliage({
