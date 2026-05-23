@@ -109,6 +109,22 @@ test('dragging a bag slot onto a skill-bar slot binds the item and 1-key uses it
   }, beforeQty, { timeout: 5_000 });
 });
 
+test('Bind to shortcut from the bag tooltip binds the item to the chosen slot (touch path)', async ({ page }) => {
+  await seedAndOpenBag(page, `BagBindTooltip${Date.now()}`);
+  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  await populated.click();
+  const tooltip = page.locator('.item-tooltip');
+  await expect(tooltip).toBeVisible({ timeout: 3_000 });
+  // Tap the "Bind to shortcut" button to open the picker.
+  await tooltip.getByRole('button', { name: /Bind to shortcut/i }).click();
+  // Picker grid renders the 1..0 + Q..P labels — pick the '2' slot.
+  await tooltip.getByRole('button', { name: /Bind to slot 2/i }).click();
+  // Bound slot appears on the skill bar.
+  const boundSlot = page.locator('.skill-button--item').first();
+  await expect(boundSlot).toBeVisible({ timeout: 3_000 });
+  await expect(boundSlot).toContainText(/Health Potion/i);
+});
+
 test('passive class skills do not appear in the shortcut bar', async ({ page }) => {
   await enterWorld(page, `PassiveFilter${Date.now()}`);
   // Mage's auto passive is passive_arcane_focus. Skill-bar must

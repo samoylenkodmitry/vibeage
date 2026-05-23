@@ -22,6 +22,9 @@ type InventoryPanelProps = {
   onDropItem: (slotIndex: number) => void;
   /** Destroy a stack without spawning ground loot. */
   onDestroyItem: (slotIndex: number) => void;
+  /** Touch-friendly tap-to-bind for the shortcut bar (drag-to-bind
+   *  doesn't fire on touch devices — see #488). */
+  onBindItem: (shortcutSlotIndex: number, itemId: string) => void;
 };
 
 type TooltipPayload = { slotIndex: number; itemId: string };
@@ -36,6 +39,7 @@ export function InventoryPanel({
   onOpenRecipe,
   onDropItem,
   onDestroyItem,
+  onBindItem,
 }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
@@ -97,6 +101,7 @@ export function InventoryPanel({
             onOpenRecipe,
             onDrop: onDropItem,
             onDestroy: onDestroyItem,
+            onBind: onBindItem,
             onClose: tooltip.dismiss,
           }}
         />

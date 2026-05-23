@@ -129,6 +129,7 @@ export function GameHud(props: GameHudProps) {
         onClaimQuestReward={onClaimQuestReward}
         onSetTrackedQuest={onSetTrackedQuest}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
+        onBindItem={items.bindItem}
       />
       <QuestTrackerStrip
         player={player}
