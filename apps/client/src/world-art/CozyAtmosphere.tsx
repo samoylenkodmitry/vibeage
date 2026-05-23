@@ -24,8 +24,17 @@ export function CozyAtmosphere({ focus, quality }: { focus: Focus; quality: Worl
   useEffect(() => {
     const previousBackground = scene.background;
     const previousFog = scene.fog;
-    scene.background = new THREE.Color('#78ccea');
-    scene.fog = new THREE.Fog('#a9deea', quality === 'low' ? 180 : 120, quality === 'low' ? 760 : 950);
+    // Saturated cozy palette: deeper blue background, warmer fog
+    // that reads as late-afternoon haze rather than uniform
+    // pale-blue. Fog pushed farther out (260→1400) so the
+    // foreground stays clean and the haze only colors the
+    // horizon band.
+    scene.background = new THREE.Color('#4ba1c4');
+    scene.fog = new THREE.Fog(
+      '#dcc4a6',
+      quality === 'low' ? 320 : 260,
+      quality === 'low' ? 1200 : 1400,
+    );
     return () => {
       // Restore if the previous value was already a real Color/Fog;
       // otherwise leave a fresh handoff so the next owner (usually
@@ -42,14 +51,14 @@ export function CozyAtmosphere({ focus, quality }: { focus: Focus; quality: Worl
 
   return (
     <>
-      <hemisphereLight color="#c7f7ff" groundColor="#31563a" intensity={1.15} />
+      <hemisphereLight color="#a0d8ee" groundColor="#3b5740" intensity={0.95} />
       <directionalLight
-        position={[focus.x + 120, 180, focus.z + 90]}
-        color="#fff0b8"
-        intensity={2.1}
+        position={[focus.x + 220, 140, focus.z + 320]}
+        color="#ffe2a8"
+        intensity={1.55}
         castShadow={false}
       />
-      <ambientLight color="#8fcbd5" intensity={0.18} />
+      <ambientLight color="#8fb8d0" intensity={0.22} />
     </>
   );
 }
