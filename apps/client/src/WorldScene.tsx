@@ -55,7 +55,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
     >
       <WorldEnvironment focus={focus} />
       {activeCozyScene && <CozyWorldArt scene={activeCozyScene} quality={worldArtQuality} />}
-      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode={activeCozyScene ? 'textured' : 'normal'} />
+      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" palette={activeCozyScene ? 'sand' : 'grass'} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
