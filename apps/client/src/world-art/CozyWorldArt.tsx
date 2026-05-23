@@ -1,9 +1,6 @@
 import { CozyAuthoredCoast } from './CozyAuthoredCoast';
-<<<<<<< HEAD
 import { CozyBonfireGlow } from './CozyBonfireGlow';
-=======
 import { CozyLanterns } from './CozyLanterns';
->>>>>>> e74d9e8 (feat(world-art): warm flickering lantern at the cozy dock end)
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
@@ -25,6 +22,8 @@ import type { WorldArtScene } from './worldArtScenes';
  *   Water         — stylized procedural plane, raycast-disabled
  *   Shore         — pale sand band along the waterline
  *   AuthoredCoast — hand-placed dock/rowboat/bonfire
+ *   BonfireGlow   — warm flickering pointLight at each bonfire
+ *   Lanterns      — small flickering pointLight at each lantern
  *   Foliage       — GLB pines/rocks/grass with procedural fallback
  */
 
@@ -39,11 +38,8 @@ export function CozyWorldArt({
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
       <CozyAuthoredCoast scene={scene} />
-<<<<<<< HEAD
       <CozyBonfireGlow scene={scene} />
-=======
       <CozyLanterns scene={scene} />
->>>>>>> e74d9e8 (feat(world-art): warm flickering lantern at the cozy dock end)
       <CozyPineForest scene={scene} quality={quality} />
     </>
   );

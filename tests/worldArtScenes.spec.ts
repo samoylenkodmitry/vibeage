@@ -54,11 +54,12 @@ describe('worldArtScenes', () => {
     expect(WORLD_ART_SCENES.every((s) => s.enabledByDefault)).toBe(true);
   });
 
-  it('starter scene has dock + rowboat + bonfire authored props', () => {
+  it('starter scene has dock + rowboat + bonfire + lantern authored props', () => {
     const ids = new Set((STARTER_COZY_COAST.props ?? []).map((p) => p.id));
     expect(ids.has('bonfire')).toBe(true);
     expect(ids.has('dock')).toBe(true);
     expect(ids.has('rowboat')).toBe(true);
+    expect(ids.has('lantern')).toBe(true);
   });
 
   it('the dock sits inside the waterline strip', () => {
