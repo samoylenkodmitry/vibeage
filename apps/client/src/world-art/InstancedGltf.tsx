@@ -8,20 +8,21 @@ import * as THREE from 'three';
  * difference between cloning a 1300-tree forest as 1300
  * draw-calls (frame-killer) and rendering it as ~2 calls.
  *
- * Caveat: the GLB's existing material is reused as-is. Per-
- * instance tinting (the procedural foliage colored each cone by
- * biome) isn't supported here — Quaternius pines ship with a
- * flat green canopy + brown trunk material and we accept that
- * baseline. A future PR can re-introduce per-instance color via
- * `instanceColor` if biome tinting matters.
+ * Per-instance tinting: pass `colors` and the material is cloned
+ * with `vertexColors=true` so `instanceColor` modulates the base
+ * texture. The Quaternius pines we ship are green canopy + brown
+ * trunk; per-biome tints shift the whole tree subtly without
+ * losing the texture detail.
  */
 type InstancedGltfProps = {
   /** Path of the GLB inside `public/`. */
   src: string;
   /** Per-instance world-space matrices. Length == instance count. */
   matrices: readonly THREE.Matrix4[];
-  /** Optional uniform scale baked on top of every matrix (handy for
-   * making a Quaternius pine taller without re-authoring matrices). */
+  /** Optional per-instance tint (multiplied with the GLB material).
+   * Must match `matrices.length` if provided. */
+  colors?: readonly THREE.Color[];
+  /** Optional uniform scale baked on top of every matrix. */
   baseScale?: number;
   castShadow?: boolean;
   receiveShadow?: boolean;
@@ -37,16 +38,15 @@ function collectSubMeshes(root: THREE.Object3D): SubMesh[] {
     const geometry = child.geometry as THREE.BufferGeometry;
     const material = child.material as THREE.Material | THREE.Material[];
     const localMatrix = new THREE.Matrix4().copy(child.matrixWorld);
-    // Single-material case is the common one. If we ever hit a
-    // multi-material mesh, fall through with the first material —
-    // Quaternius GLBs don't use them so this is defensive.
     const mat = Array.isArray(material) ? material[0] : material;
     out.push({ geometry, material: mat, localMatrix });
   });
   return out;
 }
 
-export function InstancedGltf({ src, matrices, baseScale = 1, castShadow = false, receiveShadow = false }: InstancedGltfProps) {
+export function InstancedGltf({
+  src, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false,
+}: InstancedGltfProps) {
   const gltf = useGLTF(src);
   const subMeshes = useMemo(() => collectSubMeshes(gltf.scene), [gltf]);
   if (matrices.length === 0 || subMeshes.length === 0) return null;
@@ -57,6 +57,7 @@ export function InstancedGltf({ src, matrices, baseScale = 1, castShadow = false
           key={`${src}#${idx}`}
           sub={sub}
           matrices={matrices}
+          colors={colors}
           baseScale={baseScale}
           castShadow={castShadow}
           receiveShadow={receiveShadow}
@@ -67,15 +68,30 @@ export function InstancedGltf({ src, matrices, baseScale = 1, castShadow = false
 }
 
 function InstancedSub({
-  sub, matrices, baseScale, castShadow, receiveShadow,
+  sub, matrices, colors, baseScale, castShadow, receiveShadow,
 }: {
   sub: SubMesh;
   matrices: readonly THREE.Matrix4[];
+  colors?: readonly THREE.Color[];
   baseScale: number;
   castShadow: boolean;
   receiveShadow: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
+  // Clone the material once per consumer-with-colors, gated on a
+  // boolean — not on the `colors` array reference — so a fresh
+  // scatter (new array, same shape) doesn't churn material
+  // clones every regeneration.
+  const colorsEnabled = colors !== undefined;
+  const material = useMemo(() => {
+    if (!colorsEnabled) return sub.material;
+    const clone = sub.material.clone();
+    if ('vertexColors' in clone) {
+      (clone as THREE.MeshStandardMaterial).vertexColors = true;
+    }
+    return clone;
+  }, [sub.material, colorsEnabled]);
+
   useLayoutEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
@@ -86,12 +102,19 @@ function InstancedSub({
       mesh.setMatrixAt(i, tmp);
     }
     mesh.instanceMatrix.needsUpdate = true;
+    if (colors && colors.length === matrices.length) {
+      for (let i = 0; i < colors.length; i += 1) {
+        mesh.setColorAt(i, colors[i]);
+      }
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
     mesh.count = matrices.length;
-  }, [matrices, baseScale, sub.localMatrix]);
+  }, [matrices, colors, baseScale, sub.localMatrix]);
+
   return (
     <instancedMesh
       ref={ref}
-      args={[sub.geometry, sub.material, matrices.length]}
+      args={[sub.geometry, material, matrices.length]}
       castShadow={castShadow}
       receiveShadow={receiveShadow}
     />

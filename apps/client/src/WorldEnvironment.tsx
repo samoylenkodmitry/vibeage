@@ -179,16 +179,24 @@ function FoliageField({ focus }: WorldEnvironmentProps) {
   // Trees and accents are GLB-instanced (Quaternius CC0 pines +
   // rock); grass stays procedural since a 1300-tuft GLB layer
   // would dominate the draw budget for tiny ground detail.
+  //
+  // Per-instance tint via `colors` brings back the biome variety
+  // the procedural foliage had: forest stays dark green, autumn
+  // shifts amber, ethereal trends cool, etc. The Quaternius
+  // texture still shows through; we're modulating, not replacing.
   const treeMatrices = useMemo(() => instances.trees.map(instanceMatrix), [instances.trees]);
+  const treeColors = useMemo(() => instances.trees.map(instanceColor), [instances.trees]);
   const coniferMatrices = useMemo(() => instances.conifers.map(instanceMatrix), [instances.conifers]);
+  const coniferColors = useMemo(() => instances.conifers.map(instanceColor), [instances.conifers]);
   const accentMatrices = useMemo(() => instances.accents.map(instanceMatrix), [instances.accents]);
+  const accentColors = useMemo(() => instances.accents.map(instanceColor), [instances.accents]);
 
   return (
     <>
       <Suspense fallback={null}>
-        <InstancedGltf src={BROADLEAF_GLB} matrices={treeMatrices} baseScale={1.4} />
-        <InstancedGltf src={CONIFER_GLB} matrices={coniferMatrices} baseScale={1.6} />
-        <InstancedGltf src={ACCENT_GLB} matrices={accentMatrices} baseScale={0.8} />
+        <InstancedGltf src={BROADLEAF_GLB} matrices={treeMatrices} colors={treeColors} baseScale={1.4} />
+        <InstancedGltf src={CONIFER_GLB} matrices={coniferMatrices} colors={coniferColors} baseScale={1.6} />
+        <InstancedGltf src={ACCENT_GLB} matrices={accentMatrices} colors={accentColors} baseScale={0.8} />
       </Suspense>
       <InstancedFoliage instances={instances.grass} geometry="cone" radius={0.22} height={0.9} yOffset={0.45} />
     </>
@@ -203,6 +211,21 @@ function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
     new THREE.Vector3(instance.scale, instance.scale, instance.scale),
   );
   return m;
+}
+
+// Reused Color objects keyed by hex; biome palettes have a small
+// fixed set of colors (one per biome × foliage type), so this
+// caps total allocations at ~20-30 Color objects regardless of
+// how many trees are scattered.
+const FOLIAGE_COLOR_CACHE = new Map<string, THREE.Color>();
+
+function instanceColor(instance: FoliageInstance): THREE.Color {
+  let cached = FOLIAGE_COLOR_CACHE.get(instance.color);
+  if (!cached) {
+    cached = new THREE.Color(instance.color);
+    FOLIAGE_COLOR_CACHE.set(instance.color, cached);
+  }
+  return cached;
 }
 
 function InstancedFoliage({
