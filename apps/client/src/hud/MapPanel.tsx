@@ -14,6 +14,7 @@ import type { EnemyEntity, PlayerEntity } from '../gameTypes';
 import { listActiveQuestMarkers } from './questMarkers';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
+import { renderLandmarks } from './MapLandmarks';
 
 type Marker = { x: number; z: number };
 
@@ -28,14 +29,26 @@ type MapPanelProps = {
 const VIEW_PADDING = 0.08;
 const WORLD_BOUNDS = computeWorldBounds(GAME_ZONES, WORLD_LANDMARKS);
 const TICK_SPACING = chooseTickSpacing(WORLD_BOUNDS);
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 200;
-// Default zoom bumped 12 → 40: at 12 the player's surroundings were
-// the size of a fingernail and labels for neighbouring objects all
-// collapsed onto one pixel. 40 lines the on-map scale up with what
-// the player actually sees in the 3D world.
-const INITIAL_ZOOM = 40;
+// §52 follow-up — derive zoom limits from real world distances so
+// the player can frame anything from "the whole world" to "2 m
+// around me".
+//   Baseline run speed is 20 units/sec (statContributions.ts).
+//   30 s walk = 600 units → 1 200 units diameter view = the
+//   default "what's nearby" frame.
+//   Close-zoom = 2 m view diameter (you + your immediate ring).
+const RUN_SPEED_UPS = 20;
+const DEFAULT_VIEW_DIAMETER = 30 * 2 * RUN_SPEED_UPS; // 1200 world units
+const MIN_VIEW_DIAMETER = 2;                          // 2 m close-up
+const MIN_ZOOM = 1; // whole world fits
+const MAX_ZOOM = Math.max(50, WORLD_BOUNDS.width / MIN_VIEW_DIAMETER);
+const INITIAL_ZOOM = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, WORLD_BOUNDS.width / DEFAULT_VIEW_DIAMETER));
 const DRAG_PIXEL_THRESHOLD = 5;
+/** Constant on-screen pixel size targets — convert to world units
+ *  via the current `viewWidth / svgWidthPx` ratio so the rendered
+ *  px stays the same regardless of zoom. */
+const LABEL_PX = 12;
+const SMALL_LABEL_PX = 11;
+const DOT_PX = 8;
 
 type ViewState = {
   zoom: number;
@@ -59,12 +72,26 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
     centerX: px,
     centerZ: pz,
   }));
+  const [svgWidthPx, setSvgWidthPx] = useState<number>(500);
+  useEffect(() => {
+    const node = svgRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const obs = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect?.width) setSvgWidthPx(rect.width);
+    });
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
 
   const viewWidth = WORLD_BOUNDS.width / view.zoom;
   const viewHeight = WORLD_BOUNDS.height / view.zoom;
   const viewMinX = view.centerX - viewWidth / 2;
   const viewMinZ = view.centerZ - viewHeight / 2;
   const tickSpacing = chooseTickSpacingForWidth(viewWidth);
+  // World units per CSS pixel at the current zoom — used to size
+  // labels + dots in screen-space (constant px regardless of zoom).
+  const worldPerPx = viewWidth / Math.max(1, svgWidthPx);
 
   const handlers = useMapInteraction({ svgRef, view, viewMinX, viewMinZ, viewWidth, viewHeight, setView, onSetNavigationMarker });
   const recenterOnPlayer = () => setView((prev) => ({ ...prev, centerX: px, centerZ: pz }));
@@ -106,13 +133,13 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         <rect x={viewMinX} y={viewMinZ} width={viewWidth} height={viewHeight} fill="url(#map-bg-gradient)" />
         {tickSpacing > 0 && renderGridLines({ minX: viewMinX, minZ: viewMinZ, width: viewWidth, height: viewHeight }, tickSpacing)}
         {GAME_ZONES.map((zone) => (
-          <ZoneShape key={zone.id} zone={zone} viewWidth={viewWidth} />
+          <ZoneShape key={zone.id} zone={zone} viewWidth={viewWidth} worldPerPx={worldPerPx} />
         ))}
-        {renderLandmarks(viewWidth)}
-        <BossMarkers enemies={enemies} viewWidth={viewWidth} />
-        <QuestMarkers player={player} viewWidth={viewWidth} onSetNavigationMarker={onSetNavigationMarker} />
-        {navigationMarker && <NavigationDot marker={navigationMarker} viewWidth={viewWidth} />}
-        <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} viewWidth={viewWidth} />
+        {renderLandmarks(viewWidth, worldPerPx)}
+        <BossMarkers enemies={enemies} worldPerPx={worldPerPx} />
+        <QuestMarkers player={player} worldPerPx={worldPerPx} onSetNavigationMarker={onSetNavigationMarker} />
+        {navigationMarker && <NavigationDot marker={navigationMarker} worldPerPx={worldPerPx} />}
+        <PlayerMarker x={px} z={pz} dirX={arrowDir.x} dirZ={arrowDir.z} worldPerPx={worldPerPx} />
       </svg>
       <ol className="map-legend">
         <li><span className="map-legend-dot map-legend-dot--player" />You</li>
@@ -324,12 +351,12 @@ function useCameraYaw(angleRef?: MutableRefObject<number>): number {
   return yaw;
 }
 
-function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {
-  // Zone label: scale with viewport width (~1.6% of viewport),
-  // but suppress when the zone footprint is too small to comfortably
-  // host the text — at deep zoom-outs, label clutter is worse than
-  // having to hover the dot.
-  const labelSize = viewWidth * 0.016;
+function ZoneShape({ zone, viewWidth, worldPerPx }: { zone: Zone; viewWidth: number; worldPerPx: number }) {
+  // Zone label sized at a constant 13 CSS px regardless of zoom.
+  // Suppress the label when the zone footprint is too small to
+  // comfortably host the text (label clutter is worse than a bare
+  // dot at deep zoom-outs).
+  const labelSize = worldPerPx * 13;
   const minViewportRatio = 0.06;
   const zoneFitsLabel = zone.radius * 2 > viewWidth * minViewportRatio;
   return (
@@ -340,7 +367,7 @@ function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {
         r={zone.radius}
         fill="rgba(141,233,215,0.08)"
         stroke="rgba(141,233,215,0.55)"
-        strokeWidth={viewWidth * 0.0008}
+        strokeWidth={worldPerPx}
       />
       {zoneFitsLabel && (
         <text
@@ -357,44 +384,6 @@ function ZoneShape({ zone, viewWidth }: { zone: Zone; viewWidth: number }) {
   );
 }
 
-function LandmarkDot({
-  landmark,
-  viewWidth,
-  hideLabel,
-}: {
-  landmark: WorldLandmark;
-  viewWidth: number;
-  hideLabel: boolean;
-}) {
-  // Dot + label sized as fractions of the visible viewport so they
-  // stay legible across zoom levels. The old `Math.max(viewWidth *
-  // 0.006, 600)` floor was in world units — at high zoom 600 world-
-  // units painted across the whole canvas.
-  const dotSize = viewWidth * 0.012;
-  const isMega = landmark.mega === true;
-  return (
-    <g>
-      <circle
-        cx={landmark.position.x}
-        cy={landmark.position.z}
-        r={isMega ? dotSize * 1.6 : dotSize}
-        fill={isMega ? '#facc15' : '#fde68a'}
-        opacity={isMega ? 0.95 : 0.7}
-      />
-      {!hideLabel && (
-        <text
-          x={landmark.position.x + dotSize * 1.8}
-          y={landmark.position.z}
-          fontSize={dotSize * 1.6}
-          fill={isMega ? '#fef3c7' : '#fde68a'}
-          dominantBaseline="middle"
-        >
-          {landmark.name}
-        </text>
-      )}
-    </g>
-  );
-}
 
 /**
  * PR W — mini-boss pins. The boss is alive iff a live enemy with
@@ -403,7 +392,7 @@ function LandmarkDot({
  * the boss content registry (PR V), not the live enemy snapshot,
  * so a slain boss still shows where it used to stand.
  */
-function BossMarkers({ enemies, viewWidth }: { enemies?: Record<string, EnemyEntity>; viewWidth: number }) {
+function BossMarkers({ enemies, worldPerPx }: { enemies?: Record<string, EnemyEntity>; worldPerPx: number }) {
   const aliveBossIds = new Set<string>();
   for (const e of Object.values(enemies ?? {})) {
     if (e.isMiniBoss && e.bossId && e.isAlive) aliveBossIds.add(e.bossId);
@@ -415,32 +404,29 @@ function BossMarkers({ enemies, viewWidth }: { enemies?: Record<string, EnemyEnt
         if (!zone?.miniBoss?.position) return null;
         const pos = zone.miniBoss.position;
         const alive = aliveBossIds.has(boss.id);
-        return <BossDot key={boss.id} boss={boss} x={pos.x} z={pos.z} alive={alive} viewWidth={viewWidth} />;
+        return <BossDot key={boss.id} boss={boss} x={pos.x} z={pos.z} alive={alive} worldPerPx={worldPerPx} />;
       })}
     </>
   );
 }
 
 function BossDot({
-  boss, x, z, alive, viewWidth,
-}: { boss: MiniBossSpec; x: number; z: number; alive: boolean; viewWidth: number }) {
-  // Dot + label sized as fractions of the visible viewport so they
-  // scale across zoom levels. The old \`Math.max(..., 900)\` floor was
-  // in world units and overflowed the viewport at every default
-  // zoom — 900 world units at zoom 40 is ~36% of the visible map.
-  const size = viewWidth * 0.012;
+  boss, x, z, alive, worldPerPx,
+}: { boss: MiniBossSpec; x: number; z: number; alive: boolean; worldPerPx: number }) {
+  const size = worldPerPx * DOT_PX;
+  const labelSize = worldPerPx * LABEL_PX;
   const fill = alive ? '#fbbf24' : '#475569';
   const halo = alive ? 'rgba(251,191,36,0.28)' : 'rgba(71,85,105,0.22)';
   return (
     <g style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openWikiAt('bosses', boss.id); }}>
       <circle cx={x} cy={z} r={size * 1.8} fill={halo} />
-      <circle cx={x} cy={z} r={size * 0.85} fill={fill} stroke="#04100d" strokeWidth={viewWidth * 0.0006} />
+      <circle cx={x} cy={z} r={size * 0.85} fill={fill} stroke="#04100d" strokeWidth={worldPerPx * 0.5} />
       <text
         x={x}
         y={z + size * 2.4}
         textAnchor="middle"
         fill={alive ? '#fde68a' : '#94a3b8'}
-        fontSize={viewWidth * 0.018}
+        fontSize={labelSize}
         style={{ pointerEvents: 'none' }}
       >
         {boss.name}
@@ -457,16 +443,17 @@ function BossDot({
  */
 function QuestMarkers({
   player,
-  viewWidth,
+  worldPerPx,
   onSetNavigationMarker,
 }: {
   player: PlayerEntity | null;
-  viewWidth: number;
+  worldPerPx: number;
   onSetNavigationMarker?: (marker: Marker | null) => void;
 }) {
   const markers = listActiveQuestMarkers(player);
   if (markers.length === 0) return null;
-  const size = viewWidth * 0.009;
+  const size = worldPerPx * DOT_PX * 0.85;
+  const labelSize = worldPerPx * SMALL_LABEL_PX;
   return (
     <>
       {markers.map((m) => (
@@ -485,14 +472,14 @@ function QuestMarkers({
             r={size * 0.7}
             fill="#60a5fa"
             stroke="#04100d"
-            strokeWidth={viewWidth * 0.0006}
+            strokeWidth={worldPerPx * 0.5}
           />
           <text
             x={m.marker.x}
             y={m.marker.z + size * 2.4}
             textAnchor="middle"
             fill="#bfdbfe"
-            fontSize={viewWidth * 0.014}
+            fontSize={labelSize}
             style={{ pointerEvents: 'none' }}
           >
             {m.questName}
@@ -503,13 +490,12 @@ function QuestMarkers({
   );
 }
 
-function NavigationDot({ marker, viewWidth }: { marker: Marker; viewWidth: number }) {
-  // Same floor-removal as BossDot — keep the pin pure-fractional.
-  const size = viewWidth * 0.01;
+function NavigationDot({ marker, worldPerPx }: { marker: Marker; worldPerPx: number }) {
+  const size = worldPerPx * DOT_PX;
   return (
     <g>
       <circle cx={marker.x} cy={marker.z} r={size * 1.6} fill="rgba(250,204,21,0.22)" />
-      <circle cx={marker.x} cy={marker.z} r={size * 0.7} fill="#facc15" stroke="#04100d" strokeWidth={viewWidth * 0.0006} />
+      <circle cx={marker.x} cy={marker.z} r={size * 0.7} fill="#facc15" stroke="#04100d" strokeWidth={worldPerPx * 0.5} />
     </g>
   );
 }
@@ -519,19 +505,16 @@ function PlayerMarker({
   z,
   dirX,
   dirZ,
-  viewWidth,
+  worldPerPx,
 }: {
   x: number;
   z: number;
   dirX: number;
   dirZ: number;
-  viewWidth: number;
+  worldPerPx: number;
 }) {
-  // Constant on-screen size regardless of zoom: triangle is always
-  // ~3.2% of the visible viewport width (~25 px in a 800px-wide
-  // SVG). Player asked specifically: "the triangle should not be
-  // scalable, it should be always same size about 20-30dp".
-  const size = viewWidth * 0.032;
+  // Constant 24 CSS-pixel arrow, regardless of zoom.
+  const size = worldPerPx * 24;
   const tipX = x + dirX * size;
   const tipZ = z + dirZ * size;
   const baseLx = x - dirZ * size * 0.55 - dirX * size * 0.32;
@@ -546,44 +529,12 @@ function PlayerMarker({
         points={`${tipX},${tipZ} ${baseLx},${baseLz} ${baseRx},${baseRz}`}
         fill="#75f5c8"
         stroke="#04100d"
-        strokeWidth={viewWidth * 0.0025}
+        strokeWidth={worldPerPx * 2}
       />
     </g>
   );
 }
 
-/**
- * Landmark layer with width-aware label dedup. Sorts mega landmarks
- * first so their labels survive collisions, then walks the rest:
- * each label reserves an approximate bounding box (text width *
- * fontSize) and any later label overlapping that box is suppressed
- * (dot still renders so the player sees the cluster).
- */
-function renderLandmarks(viewWidth: number): ReactElement[] {
-  const dotSize = viewWidth * 0.012;
-  const fontSize = dotSize * 1.6;
-  const charWidth = fontSize * 0.55;
-  const padding = fontSize * 0.4;
-  const sorted = [...WORLD_LANDMARKS].sort((a, b) => Number(b.mega === true) - Number(a.mega === true));
-  type LabelBox = { minX: number; maxX: number; minZ: number; maxZ: number };
-  const placed: LabelBox[] = [];
-  return sorted.map((landmark) => {
-    const lx = landmark.position.x + dotSize * 1.8;
-    const lz = landmark.position.z;
-    const width = landmark.name.length * charWidth;
-    const box: LabelBox = {
-      minX: lx - padding,
-      maxX: lx + width + padding,
-      minZ: lz - fontSize * 0.6 - padding,
-      maxZ: lz + fontSize * 0.6 + padding,
-    };
-    const overlaps = placed.some((p) =>
-      box.minX < p.maxX && box.maxX > p.minX && box.minZ < p.maxZ && box.maxZ > p.minZ,
-    );
-    if (!overlaps) placed.push(box);
-    return <LandmarkDot key={landmark.id} landmark={landmark} viewWidth={viewWidth} hideLabel={overlaps} />;
-  });
-}
 
 function renderGridLines(
   bounds: { minX: number; minZ: number; width: number; height: number },
