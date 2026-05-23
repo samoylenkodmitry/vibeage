@@ -160,10 +160,27 @@ export function applyLootAcquiredVisualState(
   message: ServerMessage & { type: 'LootAcquired' },
   now: number,
 ): GameClientState {
-  return addCombatLine(state, {
-    id: makeCombatLineId(`loot-${now}`, state.combatLog.length, now),
-    text: `Picked up ${formatItemDrops(message.items)}`,
-  });
+  // §52 follow-up — gold is currency, credited to player.gold and
+  // shown on the vitals strip. Pre-fix the chat just said
+  // \"Picked up 45x Gold Coin\" so the player looked in the bag and
+  // got confused when the slot didn't appear. Split the line: gold
+  // mentions the wallet explicitly, real items stay on \"Picked up\".
+  const goldAmount = message.items
+    .filter((item) => item.itemId === 'gold_coin')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const bagItems = message.items.filter((item) => item.itemId !== 'gold_coin');
+  const lines: string[] = [];
+  if (bagItems.length > 0) lines.push(`Picked up ${formatItemDrops(bagItems)}`);
+  if (goldAmount > 0) lines.push(`Looted ${goldAmount} gold (→ wallet)`);
+  if (lines.length === 0) return state;
+  let next = state;
+  for (const text of lines) {
+    next = addCombatLine(next, {
+      id: makeCombatLineId(`loot-${now}-${text.slice(0, 8)}`, next.combatLog.length, now),
+      text,
+    });
+  }
+  return next;
 }
 
 /**
