@@ -18,6 +18,14 @@ import { openWikiAt } from './wikiNavBus';
  * wiki contexts pass `bagActions: undefined` and the buttons are
  * hidden.
  */
+export type EquippedTooltipActions = {
+  slot: string;
+  onUnequip: (slot: string) => void;
+  /** Called after any action button fires so the tooltip dismisses
+   *  immediately and the player isn't left looking at stale UI. */
+  onClose: () => void;
+};
+
 export type BagTooltipActions = {
   slotIndex: number;
   canUse: boolean;
@@ -64,6 +72,11 @@ type ItemTooltipProps = {
   compareStats?: ItemStatBlock;
   /** Bag-action buttons — see BagTooltipActions doc. */
   bagActions?: BagTooltipActions;
+  /** Paperdoll-equipped-item action buttons (Put in bag = unequip,
+   *  Drop on ground, Open in Wiki). Mutually exclusive with
+   *  bagActions — an item is either in the bag OR on the paperdoll
+   *  when the tooltip is shown. */
+  equippedActions?: EquippedTooltipActions;
   /** When true (click-to-open tooltips), render an explicit ×
    *  close control so the user has a visible way to dismiss. The
    *  hover-opened path doesn't need this — pointer-leave + outside-
@@ -71,7 +84,7 @@ type ItemTooltipProps = {
   sticky?: boolean;
 };
 
-export function ItemTooltip({ itemId, clientX, clientY, anchorRect, hoverHandlers, compareStats, bagActions, sticky }: ItemTooltipProps) {
+export function ItemTooltip({ itemId, clientX, clientY, anchorRect, hoverHandlers, compareStats, bagActions, equippedActions, sticky }: ItemTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -157,16 +170,7 @@ export function ItemTooltip({ itemId, clientX, clientY, anchorRect, hoverHandler
       )}
       {sourceLabel && <small className="item-tooltip-source">Source: {sourceLabel}</small>}
       {usesLabel && <small className="item-tooltip-source">Used in: {usesLabel}</small>}
-      {bagActions ? (
-        <BagActionRow itemId={item.id} actions={bagActions} />
-      ) : (
-        <button
-          type="button"
-          className="tooltip-wiki-link"
-          onClick={(e) => { e.stopPropagation(); openWikiAt('items', item.id); }}
-          title="Open in Wiki"
-        >Open in Wiki →</button>
-      )}
+      <TooltipFooter itemId={item.id} bagActions={bagActions} equippedActions={equippedActions} />
     </div>,
     document.body,
   );
@@ -306,6 +310,44 @@ function BagActionRow({ itemId, actions }: { itemId: string; actions: BagTooltip
       <button type="button" className="tooltip-wiki-link" onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}>
         Open in Wiki →
       </button>
+    </div>
+  );
+}
+
+function TooltipFooter({
+  itemId, bagActions, equippedActions,
+}: {
+  itemId: string;
+  bagActions?: BagTooltipActions;
+  equippedActions?: EquippedTooltipActions;
+}) {
+  if (bagActions) return <BagActionRow itemId={itemId} actions={bagActions} />;
+  if (equippedActions) return <EquippedActionRow itemId={itemId} actions={equippedActions} />;
+  return (
+    <button
+      type="button"
+      className="tooltip-wiki-link"
+      onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}
+      title="Open in Wiki"
+    >Open in Wiki →</button>
+  );
+}
+
+function EquippedActionRow({ itemId, actions }: { itemId: string; actions: EquippedTooltipActions }) {
+  const unequip = (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    actions.onUnequip(actions.slot);
+    actions.onClose();
+  };
+  return (
+    <div className="item-tooltip-actions">
+      <button type="button" className="item-tooltip-action" onClick={unequip}>Put in bag</button>
+      <button
+        type="button"
+        className="tooltip-wiki-link"
+        onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}
+      >Open in Wiki →</button>
     </div>
   );
 }

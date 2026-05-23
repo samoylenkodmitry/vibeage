@@ -11,27 +11,19 @@ type PaperdollPanelProps = {
 };
 
 const SLOT_LABELS: Record<EquipSlot, string> = {
-  HEAD: 'Head',
-  CHEST: 'Chest',
-  LEGS: 'Legs',
-  GLOVES: 'Gloves',
-  BOOTS: 'Boots',
-  MAIN_HAND: 'Main hand',
-  OFF_HAND: 'Off hand',
-  NECK: 'Neck',
-  EAR_LEFT: 'Ear (L)',
-  EAR_RIGHT: 'Ear (R)',
-  RING_LEFT: 'Ring (L)',
-  RING_RIGHT: 'Ring (R)',
-  BELT: 'Belt',
-  CLOAK: 'Cloak',
-  SHIRT: 'Shirt',
+  HEAD: 'Head', CHEST: 'Chest', LEGS: 'Legs', GLOVES: 'Gloves', BOOTS: 'Boots',
+  MAIN_HAND: 'Main hand', OFF_HAND: 'Off hand',
+  NECK: 'Neck', EAR_LEFT: 'Ear (L)', EAR_RIGHT: 'Ear (R)',
+  RING_LEFT: 'Ring (L)', RING_RIGHT: 'Ring (R)',
+  BELT: 'Belt', CLOAK: 'Cloak', SHIRT: 'Shirt',
 };
+
+type PaperdollTooltipPayload = { itemId: string; slot: string };
 
 export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('paperdoll');
   const equippedCount = Object.values(equipment).filter(Boolean).length;
-  const tooltip = useTooltipTrigger<string>();
+  const tooltip = useTooltipTrigger<PaperdollTooltipPayload>();
   return (
     <section ref={panelRef} className="paperdoll-panel" aria-label="Equipment">
       <div className="panel-title">
@@ -44,7 +36,7 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
           const item = itemId ? ITEMS[itemId] : null;
           const itemName = item?.name ?? '—';
           const canUnequip = Boolean(item);
-          const triggerProps = itemId ? tooltip.triggerProps(itemId) : undefined;
+          const triggerProps = itemId ? tooltip.triggerProps({ itemId, slot }) : undefined;
           return (
             <li key={slot} className={`paperdoll-row${canUnequip ? ' paperdoll-row--filled' : ''}`}>
               <span className="paperdoll-slot-label">{SLOT_LABELS[slot]}</span>
@@ -52,33 +44,23 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
                 type="button"
                 className="paperdoll-slot-item"
                 disabled={!itemId}
-                title={canUnequip ? `${itemName} — click for details, right-click jumps to Wiki` : 'Empty'}
+                title={canUnequip ? `${itemName} — click for actions, right-click jumps to Wiki` : 'Empty'}
                 onContextMenu={(event) => {
                   if (!itemId) return;
                   event.preventDefault();
                   openWikiAt('items', itemId);
                 }}
                 onClick={(event) => {
-                  // PR JJ — clicking the equipped item name opens the
-                  // info popup immediately (was hover-only). The popup
-                  // carries the "Open in Wiki" link; the hover-bridge
-                  // keeps it alive so users can reach the link.
                   if (!itemId) return;
-                  tooltip.openAt(itemId, event.clientX, event.clientY);
+                  event.stopPropagation();
+                  const r = event.currentTarget.getBoundingClientRect();
+                  tooltip.openSticky({ itemId, slot }, event.clientX, event.clientY, {
+                    top: r.top, bottom: r.bottom, left: r.left, right: r.right,
+                  });
                 }}
                 {...(triggerProps ?? {})}
               >
                 {itemName}
-              </button>
-              <button
-                type="button"
-                className="paperdoll-unequip"
-                disabled={!canUnequip}
-                onClick={() => canUnequip && onUnequip(slot)}
-                title={canUnequip ? `Unequip ${itemName}` : 'Empty slot'}
-                aria-label={canUnequip ? `Unequip ${itemName} from ${SLOT_LABELS[slot]}` : `${SLOT_LABELS[slot]} is empty`}
-              >
-                {canUnequip ? '×' : ''}
               </button>
             </li>
           );
@@ -86,10 +68,17 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
       </ul>
       {tooltip.info && (
         <ItemTooltip
-          itemId={tooltip.info.payload}
+          itemId={tooltip.info.payload.itemId}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          anchorRect={tooltip.info.anchorRect}
           hoverHandlers={tooltip.hoverHandlers}
+          sticky={tooltip.info.sticky}
+          equippedActions={tooltip.info.sticky ? {
+            slot: tooltip.info.payload.slot,
+            onUnequip,
+            onClose: tooltip.dismiss,
+          } : undefined}
         />
       )}
     </section>
