@@ -1002,6 +1002,20 @@ input {
   color: #a5b4fc;
 }
 
+.wiki-row-footer--warn {
+  color: #fbbf24;
+}
+
+.item-tooltip-requires {
+  display: block;
+  margin-top: 4px;
+  color: #fcd34d;
+  font-size: 11px;
+}
+.item-tooltip-requires strong {
+  color: #fde68a;
+}
+
 .panel-close {
   margin-left: auto;
   border: 0;

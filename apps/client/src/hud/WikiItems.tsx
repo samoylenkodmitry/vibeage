@@ -64,10 +64,7 @@ function ItemLi({
         {item.setId && <Pair k="Set" v={EQUIPMENT_SETS[item.setId]?.name ?? item.setId} />}
         {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
       </dl>
-      <ItemDropSources itemId={item.id} navigate={navigate} />
-      <ItemVendorSources itemId={item.id} navigate={navigate} />
-      <ItemQuestRewardSources itemId={item.id} navigate={navigate} />
-      <ItemRecipeLinks itemId={item.id} navigate={navigate} />
+      <ItemSourcesSummary item={item} navigate={navigate} />
       {item.setId && EQUIPMENT_SETS[item.setId] && (
         <small className="wiki-row-footer">
           Part of:{' '}
@@ -80,9 +77,49 @@ function ItemLi({
   );
 }
 
-function ItemRecipeLinks({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
-  const usedIn = recipesUsingMaterial(itemId);
-  const craftedBy = recipesProducing(itemId);
+/**
+ * Combined source block for an item. Renders the four source-type
+ * lines (drop / vendor / quest-reward / recipe) when each has
+ * entries; when ALL are empty, surfaces a clear "no source yet"
+ * banner so the player knows the item is a placeholder rather
+ * than something they failed to find. Currency is exempt — it's
+ * obtained via gold credit, not item drops.
+ */
+function ItemSourcesSummary({ item, navigate }: { item: Item; navigate: WikiNav }) {
+  const dropSources = getLootSourcesForItem(item.id);
+  const vendorSources = getVendorSourcesFor(item.id);
+  const questSources = getQuestRewardSourcesFor(item.id);
+  const usedIn = recipesUsingMaterial(item.id);
+  const craftedBy = recipesProducing(item.id);
+  const hasAny =
+    dropSources.length > 0
+    || vendorSources.length > 0
+    || questSources.length > 0
+    || craftedBy.length > 0;
+  return (
+    <>
+      <ItemDropSources itemId={item.id} navigate={navigate} sources={dropSources} />
+      <ItemVendorSources itemId={item.id} navigate={navigate} sources={vendorSources} />
+      <ItemQuestRewardSources itemId={item.id} navigate={navigate} sources={questSources} />
+      <ItemRecipeLinks itemId={item.id} navigate={navigate} usedIn={usedIn} craftedBy={craftedBy} />
+      {!hasAny && item.type !== 'currency' && (
+        <small className="wiki-row-footer wiki-row-footer--warn">
+          ⚠ No source yet — placeholder item, not obtainable in-world. See <code>docs/UNLINKED.md</code>.
+        </small>
+      )}
+    </>
+  );
+}
+
+function ItemRecipeLinks({
+  itemId, navigate, usedIn, craftedBy,
+}: {
+  itemId: string;
+  navigate: WikiNav;
+  usedIn: ReturnType<typeof recipesUsingMaterial>;
+  craftedBy: ReturnType<typeof recipesProducing>;
+}) {
+  void itemId;
   if (usedIn.length === 0 && craftedBy.length === 0) return null;
   return (
     <>
@@ -112,8 +149,14 @@ function ItemRecipeLinks({ itemId, navigate }: { itemId: string; navigate: WikiN
   );
 }
 
-function ItemDropSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
-  const sources = getLootSourcesForItem(itemId);
+function ItemDropSources({
+  itemId, navigate, sources,
+}: {
+  itemId: string;
+  navigate: WikiNav;
+  sources: ReturnType<typeof getLootSourcesForItem>;
+}) {
+  void itemId;
   if (sources.length === 0) return null;
   return (
     <small className="wiki-row-footer">
@@ -145,8 +188,14 @@ function ItemDropSources({ itemId, navigate }: { itemId: string; navigate: WikiN
   );
 }
 
-function ItemVendorSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
-  const sources = getVendorSourcesFor(itemId);
+function ItemVendorSources({
+  itemId, navigate, sources,
+}: {
+  itemId: string;
+  navigate: WikiNav;
+  sources: ReturnType<typeof getVendorSourcesFor>;
+}) {
+  void itemId;
   if (sources.length === 0) return null;
   return (
     <small className="wiki-row-footer">
@@ -163,8 +212,14 @@ function ItemVendorSources({ itemId, navigate }: { itemId: string; navigate: Wik
   );
 }
 
-function ItemQuestRewardSources({ itemId, navigate }: { itemId: string; navigate: WikiNav }) {
-  const sources = getQuestRewardSourcesFor(itemId);
+function ItemQuestRewardSources({
+  itemId, navigate, sources,
+}: {
+  itemId: string;
+  navigate: WikiNav;
+  sources: ReturnType<typeof getQuestRewardSourcesFor>;
+}) {
+  void itemId;
   if (sources.length === 0) return null;
   return (
     <small className="wiki-row-footer">

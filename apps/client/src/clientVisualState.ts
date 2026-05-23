@@ -273,6 +273,11 @@ function equipReasonCopy(reason: string): string {
     case 'slotConflict': return 'another item is in the way';
     case 'handConflict': return 'your hands are full';
     case 'notEquippable': return "that item can't be equipped";
+    case 'twoHandBlocksOffhand': return 'you can\'t hold a shield with a two-handed weapon';
+    case 'uniqueAlreadyEquipped': return 'that unique item is already equipped';
+    case 'inventoryFullForUnequippedItems': return 'your bag needs a free slot to hold the unequipped piece';
+    case 'notOwned': return 'that item is not yours';
+    case 'itemLocked': return 'that item is locked (already equipped or in flight)';
     default: return reason;
   }
 }

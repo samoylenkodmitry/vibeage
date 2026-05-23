@@ -133,6 +133,9 @@ export type CommandRejectionReasons = {
     | 'twoHandBlocksOffhand'
     | 'uniqueAlreadyEquipped'
     | 'invalidSlot'
+    | 'inventoryFullForUnequippedItems'
+    | 'notOwned'
+    | 'itemLocked'
     | 'playerNotFound'
     | 'rateLimited';
   UnequipItem:

@@ -49,11 +49,16 @@ export function InventorySlotButton({
   const title = slot
     ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · Shift+click to drop · hover or long-press for actions`
     : 'Empty slot';
+  // Locked equippable items still fire onEquipItem so the server's
+  // typed CommandRejected ('levelTooLow') reaches the combat log
+  // with a clear "you need a higher level for this item" message.
+  // Silent gating left the player wondering whether the click
+  // registered at all.
   const onClick = canUse
     ? () => callbacks.onUseItem(index)
     : isRecipe
       ? () => callbacks.onOpenRecipe(index)
-      : canEquip ? () => callbacks.onEquipItem(index) : undefined;
+      : isEquippable ? () => callbacks.onEquipItem(index) : undefined;
   const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
   return (
     <button

@@ -1,5 +1,5 @@
-import { getEffectiveMinLevel, occupiedSlotsForSpec } from '../../../../packages/content/equipmentTypes';
-import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
+import { occupiedSlotsForSpec } from '../../../../packages/content/equipmentTypes';
+import { ITEMS, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { InventorySlotButton, type InventorySlotCallbacks } from './InventorySlotButton';
 import { ItemTooltip } from './ItemTooltip';
@@ -80,7 +80,12 @@ export function InventoryPanel({
           bagActions={{
             slotIndex: tooltip.info.payload.slotIndex,
             canUse: Boolean(ITEMS[tooltip.info.payload.itemId] && isUsableConsumable(ITEMS[tooltip.info.payload.itemId])),
-            canEquip: canEquipAt(tooltip.info.payload.itemId, playerLevel),
+            // Show the Equip button whenever the item IS equippable.
+            // If the player can't (low level / wrong class), the
+            // server returns CommandRejected with a typed reason and
+            // the combat log shows "Couldn't equip: …" so the user
+            // sees the actual constraint instead of a no-op click.
+            canEquip: Boolean(ITEMS[tooltip.info.payload.itemId]?.equip),
             onUse: onUseItem,
             onEquip: onEquipItem,
             onDrop: onDropItem,
@@ -106,13 +111,6 @@ export function resolveCompareStats(
   const equippedId = equipment[primarySlot];
   if (!equippedId) return undefined;
   return ITEMS[equippedId]?.stats;
-}
-
-function canEquipAt(itemId: string, playerLevel: number): boolean {
-  const item = ITEMS[itemId];
-  if (!item?.equip) return false;
-  const minLevel = getEffectiveMinLevel(getItemGrade(item), item.equip.requirements?.minLevel);
-  return playerLevel >= minLevel;
 }
 
 /**
