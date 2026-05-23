@@ -51,13 +51,15 @@ describe('asset registry', () => {
       if (asset.kind === 'tree') expect(asset.fallback.kind).toBe('pine');
       else if (asset.kind === 'rock') expect(asset.fallback.kind).toBe('rock');
       else if (asset.kind === 'grass') expect(asset.fallback.kind).toBe('grass');
+      else if (asset.kind === 'prop') expect(asset.fallback.kind).toBe('prop');
     }
   });
 
-  it('has at least one tree, one rock, and one grass asset', () => {
+  it('has at least one tree, rock, grass, and prop asset', () => {
     expect(getAssetsByKind('tree').length).toBeGreaterThan(0);
     expect(getAssetsByKind('rock').length).toBeGreaterThan(0);
     expect(getAssetsByKind('grass').length).toBeGreaterThan(0);
+    expect(getAssetsByKind('prop').length).toBeGreaterThan(0);
   });
 
   it('getAssetById returns null for unknown ids', () => {

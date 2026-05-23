@@ -1,5 +1,6 @@
 import { Sky } from '@react-three/drei';
 import { CozyAtmosphere } from './CozyAtmosphere';
+import { CozyAuthoredCoast } from './CozyAuthoredCoast';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
@@ -22,6 +23,7 @@ import { pickActiveScene } from './worldArtScenes';
  *   Shore      — pale sand band along the waterline
  *   Foliage    — GLB pines/rocks/grass (PR 2). Falls back to PR 1
  *                procedural silhouettes if assets fail to load.
+ *   AuthoredCoast — hand-placed dock/rowboat/bonfire (PR 4).
  */
 type Focus = { x: number; y?: number; z: number };
 
@@ -41,6 +43,7 @@ export function CozyWorldArt({ focus, quality }: { focus: Focus; quality: WorldA
       />
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
+      <CozyAuthoredCoast scene={scene} />
       <CozyPineForest scene={scene} quality={quality} />
     </>
   );
