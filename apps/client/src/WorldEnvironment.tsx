@@ -173,6 +173,7 @@ const CONIFER_GLB = '/models/trees/pine_a.glb';
 const ACCENT_GLB_SMALL = '/models/rocks/rock_round_small.glb';
 const ACCENT_GLB_MEDIUM = '/models/rocks/rock_medium_a.glb';
 const TREE_GLB_ALT = '/models/trees/pine_c.glb';
+const TREE_WIND = { amplitude: 0.22, speed: 1.1 } as const;
 
 function FoliageField({ focus }: WorldEnvironmentProps) {
   const regenCell = getFoliageRegenCell(focus.x, focus.z);
@@ -198,10 +199,10 @@ function FoliageField({ focus }: WorldEnvironmentProps) {
   return (
     <>
       <Suspense fallback={null}>
-        <InstancedGltf src={BROADLEAF_GLB} matrices={trees.evenMatrices} colors={trees.evenColors} baseScale={1.4} />
-        <InstancedGltf src={TREE_GLB_ALT} matrices={trees.oddMatrices} colors={trees.oddColors} baseScale={1.4} />
-        <InstancedGltf src={CONIFER_GLB} matrices={conifers.evenMatrices} colors={conifers.evenColors} baseScale={1.6} />
-        <InstancedGltf src={TREE_GLB_ALT} matrices={conifers.oddMatrices} colors={conifers.oddColors} baseScale={1.6} />
+        <InstancedGltf src={BROADLEAF_GLB} matrices={trees.evenMatrices} colors={trees.evenColors} baseScale={1.4} wind={TREE_WIND} />
+        <InstancedGltf src={TREE_GLB_ALT} matrices={trees.oddMatrices} colors={trees.oddColors} baseScale={1.4} wind={TREE_WIND} />
+        <InstancedGltf src={CONIFER_GLB} matrices={conifers.evenMatrices} colors={conifers.evenColors} baseScale={1.6} wind={TREE_WIND} />
+        <InstancedGltf src={TREE_GLB_ALT} matrices={conifers.oddMatrices} colors={conifers.oddColors} baseScale={1.6} wind={TREE_WIND} />
         <InstancedGltf src={ACCENT_GLB_SMALL} matrices={accents.evenMatrices} colors={accents.evenColors} baseScale={0.8} />
         <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={accents.oddMatrices} colors={accents.oddColors} baseScale={0.6} />
       </Suspense>

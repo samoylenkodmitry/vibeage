@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -13,7 +14,19 @@ import * as THREE from 'three';
  * texture. The Quaternius pines we ship are green canopy + brown
  * trunk; per-biome tints shift the whole tree subtly without
  * losing the texture detail.
+ *
+ * Wind sway: pass `wind` and the material is cloned (always, even
+ * without colors) with an onBeforeCompile patch that displaces
+ * vertices by a sine-wave wobble. The displacement scales with
+ * vertex Y so trunks stay still and canopies sway.
  */
+type WindParams = {
+  /** Peak XZ displacement at full height (world meters). */
+  amplitude?: number;
+  /** Angular frequency in rad/s. */
+  speed?: number;
+};
+
 type InstancedGltfProps = {
   /** Path of the GLB inside `public/`. */
   src: string;
@@ -26,6 +39,9 @@ type InstancedGltfProps = {
   baseScale?: number;
   castShadow?: boolean;
   receiveShadow?: boolean;
+  /** Subtle wind sway on canopies. Trunks stay still because the
+   * displacement scales with the vertex's Y coordinate. */
+  wind?: WindParams;
 };
 
 type SubMesh = { geometry: THREE.BufferGeometry; material: THREE.Material; localMatrix: THREE.Matrix4 };
@@ -45,7 +61,7 @@ function collectSubMeshes(root: THREE.Object3D): SubMesh[] {
 }
 
 export function InstancedGltf({
-  src, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false,
+  src, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false, wind,
 }: InstancedGltfProps) {
   const gltf = useGLTF(src);
   const subMeshes = useMemo(() => collectSubMeshes(gltf.scene), [gltf]);
@@ -61,6 +77,7 @@ export function InstancedGltf({
           baseScale={baseScale}
           castShadow={castShadow}
           receiveShadow={receiveShadow}
+          wind={wind}
         />
       ))}
     </>
@@ -68,7 +85,7 @@ export function InstancedGltf({
 }
 
 function InstancedSub({
-  sub, matrices, colors, baseScale, castShadow, receiveShadow,
+  sub, matrices, colors, baseScale, castShadow, receiveShadow, wind,
 }: {
   sub: SubMesh;
   matrices: readonly THREE.Matrix4[];
@@ -76,21 +93,37 @@ function InstancedSub({
   baseScale: number;
   castShadow: boolean;
   receiveShadow: boolean;
+  wind?: WindParams;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  // Clone the material once per consumer-with-colors, gated on a
-  // boolean — not on the `colors` array reference — so a fresh
-  // scatter (new array, same shape) doesn't churn material
-  // clones every regeneration.
+  // Clone the material when we need to mutate it (per-instance
+  // colors or wind sway shader patch). Gated on booleans so a
+  // fresh scatter (new array, same shape) doesn't churn clones.
   const colorsEnabled = colors !== undefined;
+  const windEnabled = wind !== undefined;
+  const windUniformRef = useRef<{ uTime: { value: number }; uAmplitude: { value: number }; uSpeed: { value: number } } | null>(null);
   const material = useMemo(() => {
-    if (!colorsEnabled) return sub.material;
+    if (!colorsEnabled && !windEnabled) return sub.material;
     const clone = sub.material.clone();
-    if ('vertexColors' in clone) {
+    if (colorsEnabled && 'vertexColors' in clone) {
       (clone as THREE.MeshStandardMaterial).vertexColors = true;
     }
+    if (windEnabled) {
+      const uniforms = {
+        uTime: { value: 0 },
+        uAmplitude: { value: wind!.amplitude ?? 0.18 },
+        uSpeed: { value: wind!.speed ?? 1.4 },
+      };
+      windUniformRef.current = uniforms;
+      patchWindShader(clone as THREE.MeshStandardMaterial, uniforms);
+    }
     return clone;
-  }, [sub.material, colorsEnabled]);
+  }, [sub.material, colorsEnabled, windEnabled, wind]);
+
+  useFrame((_, delta) => {
+    const u = windUniformRef.current;
+    if (u) u.uTime.value += delta;
+  });
 
   useLayoutEffect(() => {
     const mesh = ref.current;
@@ -119,4 +152,39 @@ function InstancedSub({
       receiveShadow={receiveShadow}
     />
   );
+}
+
+function patchWindShader(
+  material: THREE.MeshStandardMaterial,
+  uniforms: { uTime: { value: number }; uAmplitude: { value: number }; uSpeed: { value: number } },
+): void {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.uniforms.uAmplitude = uniforms.uAmplitude;
+    shader.uniforms.uSpeed = uniforms.uSpeed;
+    shader.vertexShader = `
+      uniform float uTime;
+      uniform float uAmplitude;
+      uniform float uSpeed;
+    ` + shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      `
+        #include <begin_vertex>
+        // Each instance's world position seeds a phase so a forest
+        // doesn't sway in lockstep. Vertical scale (transformed.y)
+        // gates the displacement so trunks stay anchored — Quaternius
+        // pines have trunk vertices near y=0 and canopy vertices
+        // up to y≈5.
+        vec3 worldOrigin = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float instancePhase = worldOrigin.x * 0.13 + worldOrigin.z * 0.11;
+        float swayPrimary = sin(uTime * uSpeed + instancePhase);
+        float swaySecondary = sin(uTime * uSpeed * 1.7 + instancePhase * 0.6) * 0.4;
+        float heightWeight = clamp(transformed.y / 3.0, 0.0, 1.5);
+        float swayAmount = uAmplitude * heightWeight;
+        transformed.x += swayPrimary * swayAmount;
+        transformed.z += swaySecondary * swayAmount;
+      `,
+    );
+  };
+  material.needsUpdate = true;
 }
