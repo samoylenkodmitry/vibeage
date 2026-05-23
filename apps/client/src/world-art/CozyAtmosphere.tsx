@@ -24,16 +24,15 @@ export function CozyAtmosphere({ focus, quality }: { focus: Focus; quality: Worl
   useEffect(() => {
     const previousBackground = scene.background;
     const previousFog = scene.fog;
-    // Saturated cozy palette: deeper blue background, warmer fog
-    // that reads as late-afternoon haze rather than uniform
-    // pale-blue. Fog pushed farther out (260→1400) so the
-    // foreground stays clean and the haze only colors the
-    // horizon band.
-    scene.background = new THREE.Color('#4ba1c4');
+    // Saturated cozy palette. The Drei <Sky> shader was dropped
+    // because its physics-based scattering reads as bleached
+    // daylight; a flat saturated blue background + warm horizon
+    // fog matches the cozy reference far more reliably.
+    scene.background = new THREE.Color('#3a86b8');
     scene.fog = new THREE.Fog(
-      '#dcc4a6',
-      quality === 'low' ? 320 : 260,
-      quality === 'low' ? 1200 : 1400,
+      '#e0c89a',
+      quality === 'low' ? 220 : 180,
+      quality === 'low' ? 900 : 1100,
     );
     return () => {
       // Restore if the previous value was already a real Color/Fog;
