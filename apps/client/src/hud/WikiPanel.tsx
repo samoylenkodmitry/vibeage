@@ -2,17 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLASS_PASSIVES } from '../../../../packages/content/classPassives';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/content/classes';
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
-import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
-import { getMiniBossesByMobType } from '../../../../packages/content/miniBosses';
 import { BossesTab } from './WikiBosses';
 import { ItemsTab } from './WikiItems';
-import { LootDropsForTable } from './WikiLoot';
 import { QuestsTab } from './WikiQuests';
 import { NpcsTab } from './WikiNpcs';
 import { VendorsTab } from './WikiVendors';
 import { RecipesTab } from './WikiRecipes';
 import { SetsTab } from './WikiSets';
 import { GradesTab } from './WikiGrades';
+import { WikiFilters, type WikiFilterChip } from './WikiFilters';
+import { MobsTab } from './WikiMobs';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
@@ -46,7 +45,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'grades', label: 'Grades' },
 ];
 
-type WikiNav = (tab: WikiTab, id: string) => void;
+export type WikiNav = (tab: WikiTab, id: string) => void;
 
 type WikiPanelProps = {
   onShowMarker?: (pos: { x: number; z: number } | null) => void;
@@ -153,7 +152,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
   );
 }
 
-function filterMatch(haystack: string, needle: string): boolean {
+export function filterMatch(haystack: string, needle: string): boolean {
   if (!needle) return true;
   return haystack.toLowerCase().includes(needle.toLowerCase());
 }
@@ -167,7 +166,7 @@ function useFocusScroll(focusKey: string, ref: React.RefObject<HTMLLIElement | n
   }, [focusKey]);
 }
 
-function FocusableLi({
+export function FocusableLi({
   isFocus, focusKey, children, className,
 }: {
   isFocus: boolean;
@@ -186,16 +185,73 @@ function FocusableLi({
 
 // ---------- Skills ----------
 
+type SkillSortId = 'name' | 'level' | 'mana' | 'cooldown';
+const SKILL_KIND_FILTERS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'physical', label: 'Physical' },
+  { id: 'magical', label: 'Magical' },
+  { id: 'utility', label: 'Utility' },
+];
+const SKILL_CAT_FILTERS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'instant', label: 'Instant' },
+  { id: 'projectile', label: 'Projectile' },
+  { id: 'aura', label: 'Aura' },
+];
+const SKILL_SORTS: ReadonlyArray<{ id: SkillSortId; label: string; compare: (a: SkillDef, b: SkillDef) => number }> = [
+  { id: 'name', label: 'Name (A→Z)', compare: (a, b) => a.name.localeCompare(b.name) },
+  { id: 'level', label: 'Lv requirement', compare: (a, b) => (a.levelRequired - b.levelRequired) || a.name.localeCompare(b.name) },
+  { id: 'mana', label: 'Mana cost', compare: (a, b) => (a.manaCost - b.manaCost) || a.name.localeCompare(b.name) },
+  { id: 'cooldown', label: 'Cooldown', compare: (a, b) => (a.cooldownMs - b.cooldownMs) || a.name.localeCompare(b.name) },
+];
+
 function SkillsTab({ query, focusId, focusKey, navigate }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
-  const rows = useMemo(() => Object.values(SKILLS).filter((s) =>
+  const [kindIds, setKindIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [catIds, setCatIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [sortId, setSortId] = useState<SkillSortId>('level');
+  const queried = useMemo(() => Object.values(SKILLS).filter((s) =>
     filterMatch(`${s.name} ${s.description} ${s.kind ?? ''}`, query),
   ), [query]);
+  const rows = useMemo(() => {
+    let out = queried;
+    if (kindIds.size > 0) out = out.filter((s) => kindIds.has(s.kind ?? 'magical'));
+    if (catIds.size > 0) out = out.filter((s) => catIds.has(s.cat));
+    const sort = SKILL_SORTS.find((s) => s.id === sortId) ?? SKILL_SORTS[0];
+    return [...out].sort(sort.compare);
+  }, [queried, kindIds, catIds, sortId]);
+  const chips: WikiFilterChip[] = [
+    ...SKILL_KIND_FILTERS.map((f) => ({ id: `kind:${f.id}`, label: f.label, active: kindIds.has(f.id) })),
+    ...SKILL_CAT_FILTERS.map((f) => ({ id: `cat:${f.id}`, label: f.label, active: catIds.has(f.id) })),
+  ];
+  const toggleChip = (id: string) => {
+    if (id.startsWith('kind:')) {
+      const key = id.slice(5);
+      const next = new Set(kindIds);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      setKindIds(next);
+    } else if (id.startsWith('cat:')) {
+      const key = id.slice(4);
+      const next = new Set(catIds);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      setCatIds(next);
+    }
+  };
   return (
-    <ul className="wiki-list">
-      {rows.map((skill) => (
-        <SkillRow key={skill.id} skill={skill} isFocus={skill.id === focusId} focusKey={focusKey} navigate={navigate} />
-      ))}
-    </ul>
+    <>
+      <WikiFilters
+        chips={chips}
+        onToggleChip={toggleChip}
+        onResetChips={() => { setKindIds(new Set()); setCatIds(new Set()); }}
+        sortOptions={SKILL_SORTS.map((s) => ({ id: s.id, label: s.label }))}
+        sortId={sortId}
+        onSortChange={(id) => setSortId(id as SkillSortId)}
+        count={rows.length}
+        total={queried.length}
+      />
+      <ul className="wiki-list">
+        {rows.map((skill) => (
+          <SkillRow key={skill.id} skill={skill} isFocus={skill.id === focusId} focusKey={focusKey} navigate={navigate} />
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -548,101 +604,6 @@ function StatRow({ stat, isFocus, focusKey }: { stat: StatDef; isFocus: boolean;
   );
 }
 
-// ---------- Mobs ----------
-
-function MobsTab({
-  query, focusId, focusKey, onShowMarker, navigate,
-}: {
-  query: string;
-  focusId: string | null;
-  focusKey: string;
-  onShowMarker?: (pos: { x: number; z: number } | null) => void;
-  navigate: WikiNav;
-}) {
-  const rows = useMemo(() => listMobTemplates().filter((t) =>
-    filterMatch(`${t.type} ${t.displayName} ${t.family}`, query),
-  ), [query]);
-  return (
-    <ul className="wiki-list">
-      {rows.map((tpl) => {
-        const zones = getMobZones(tpl.type);
-        const bosses = getMiniBossesByMobType(tpl.type);
-        return (
-          <FocusableLi key={tpl.type} isFocus={tpl.type === focusId} focusKey={focusKey}>
-            <header>
-              <strong>{tpl.displayName}</strong>
-              <span className="wiki-row-tag">{tpl.family}</span>
-            </header>
-            <small className="wiki-row-footer">
-              Type id: <code>{tpl.type}</code>
-            </small>
-            <MobStatsSummary tpl={tpl} zones={zones} />
-            {zones.length === 0 && <small className="wiki-row-footer">No known spawn zone.</small>}
-            {zones.length > 0 && (
-              <small className="wiki-row-footer">
-                Spawns in:{' '}
-                {zones.map((z, i) => (
-                  <span key={z.zone.id}>
-                    {i > 0 && ', '}
-                    <button
-                      type="button"
-                      className="wiki-effect-chip"
-                      onClick={() => onShowMarker?.({ x: z.position.x, z: z.position.z })}
-                      title={`${z.zone.name} (${Math.round(z.position.x)}, ${Math.round(z.position.z)})`}
-                    >
-                      {z.zone.name}
-                    </button>
-                  </span>
-                ))}
-              </small>
-            )}
-            {bosses.length > 0 && (
-              <small className="wiki-row-footer">
-                Boss variant:{' '}
-                {bosses.map((b, i) => (
-                  <span key={b.id}>
-                    {i > 0 && ', '}
-                    <button type="button" className="wiki-effect-chip" onClick={() => navigate('bosses', b.id)}>
-                      {b.name}
-                    </button>
-                  </span>
-                ))}
-              </small>
-            )}
-            <LootDropsForTable tableId={`${tpl.type}_loot`} navigate={navigate} />
-          </FocusableLi>
-        );
-      })}
-    </ul>
-  );
-}
-
-/**
- * PR W — derived HP / damage at the lowest level the mob spawns at,
- * computed from the same formula createEnemy uses (server-side):
- *   hp = (100 + level*20) * template.stats.health
- *   dmg = (10 + level*2)  * template.stats.damage
- * Same template + same constants, so the displayed numbers match
- * what actually spawns in the world.
- */
-function MobStatsSummary({
-  tpl, zones,
-}: {
-  tpl: ReturnType<typeof listMobTemplates>[number];
-  zones: ReturnType<typeof getMobZones>;
-}) {
-  const lvl = zones.length > 0 ? Math.min(...zones.map((z) => z.zone.minLevel)) : 1;
-  const hp = Math.round((100 + lvl * 20) * tpl.stats.health);
-  const dmg = Math.round((10 + lvl * 2) * tpl.stats.damage);
-  return (
-    <small className="wiki-row-footer">
-      Lv {lvl}: <strong>{hp}</strong> HP · <strong>{dmg}</strong> dmg ·
-      {' '}aggro {Math.round(15 * tpl.stats.aggroRadius)}m
-      {tpl.stats.movementSpeed !== 1 && <> · speed ×{tpl.stats.movementSpeed.toFixed(2)}</>}
-      {tpl.stats.attackRange !== 1 && <> · reach ×{tpl.stats.attackRange.toFixed(2)}</>}
-    </small>
-  );
-}
 
 // ---------- Shared ----------
 
