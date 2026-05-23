@@ -72,8 +72,8 @@ type ItemTooltipProps = {
   compareStats?: ItemStatBlock;
   /** Bag-action buttons — see BagTooltipActions doc. */
   bagActions?: BagTooltipActions;
-  /** Paperdoll-equipped-item action buttons (Put in bag = unequip,
-   *  Drop on ground, Open in Wiki). Mutually exclusive with
+  /** Paperdoll-equipped-item action buttons: Put in bag (= unequip)
+   *  + Open in Wiki. Mutually exclusive with
    *  bagActions — an item is either in the bag OR on the paperdoll
    *  when the tooltip is shown. */
   equippedActions?: EquippedTooltipActions;
