@@ -16,6 +16,7 @@ import { isForceCastHeld } from './modifierKeys';
 import { nextClientSeq } from './commandSeq';
 import { sendFireAndForget, sendRejectable } from './sendGameCommand';
 import { saveTrackedQuestId } from './trackedQuestStorage';
+import { logBagDiag } from './bagDiag';
 
 const PENDING_CAST_TTL_MS = 10_000;
 const PENDING_PICKUP_TTL_MS = 12_000;
@@ -363,9 +364,17 @@ function usePickupActions(
   const sendPickup = useCallback((lootId: string) => {
     const room = roomRef.current;
     const playerId = stateRef.current?.myPlayerId;
-    if (room && playerId) {
-      sendRejectable(room, { type: 'LootPickup', lootId, playerId });
-    }
+    const state = stateRef.current;
+    const player = state && playerId ? state.players[playerId] : null;
+    logBagDiag('sendPickup', {
+      lootId, playerId, hasRoom: Boolean(room),
+      inventoryLen: state?.inventory.length,
+      filledSlots: state?.inventory.filter((s) => s && s.quantity > 0).length,
+      maxInventorySlots: state?.maxInventorySlots,
+      playerMaxSlots: player?.maxInventorySlots,
+      slotIndexes: state?.inventory.map((s) => s.slotIndex),
+    });
+    if (room && playerId) sendRejectable(room, { type: 'LootPickup', lootId, playerId });
   }, [roomRef, stateRef]);
 
   const sendApproach = useCallback((target: VecXZ) => {
@@ -387,11 +396,12 @@ function usePickupActions(
   // periodic `tryFirePendingPickup` tick lands the grab on arrival.
   const walkThenPickup = useCallback((lootId: string) => {
     const current = stateRef.current;
+    logBagDiag('walkThenPickup', { lootId, hasState: Boolean(current), groundLootCount: current ? Object.keys(current.groundLoot).length : 0 });
     if (!current) return;
     const player = current.myPlayerId ? current.players[current.myPlayerId] : null;
-    if (!player?.isAlive) return;
+    if (!player?.isAlive) { logBagDiag('walkThenPickup.bail.notAlive', { isAlive: player?.isAlive }); return; }
     const stack = current.groundLoot[lootId];
-    if (!stack) return;
+    if (!stack) { logBagDiag('walkThenPickup.bail.lootGone', { lootId, ids: Object.keys(current.groundLoot) }); return; }
     dispatch({ type: 'clearAutoAttack' });
     const dx = stack.position.x - player.position.x;
     const dz = stack.position.z - player.position.z;

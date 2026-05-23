@@ -1,7 +1,29 @@
-import type { HTMLAttributes } from 'react';
+import { useEffect, useState, type HTMLAttributes } from 'react';
 import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
+
+/**
+ * Mobile/touch devices can't reliably initiate HTML5 drag from a
+ * `<button>` element — Safari/Chrome dispatch their own touch
+ * handling that preempts our pointerdown long-press. We detect
+ * mouse capability via the CSS media query `(hover: hover)` and
+ * gate `draggable` accordingly. Touch users get the tooltip's
+ * explicit Drop button instead; mouse users get drag.
+ */
+function useHasMousePointer(): boolean {
+  const [hasMouse, setHasMouse] = useState<boolean>(() =>
+    typeof window === 'undefined' ? true : window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const onChange = () => setHasMouse(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return hasMouse;
+}
 
 /**
  * Single bag slot. Click opens the ItemTooltip in sticky mode
@@ -53,8 +75,9 @@ export function InventorySlotButton({
     : isRecipe
       ? 'Recipe'
       : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
+  const hasMouse = useHasMousePointer();
   const title = slot
-    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions · Shift+click to drop · drag to ground to drop`
+    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ''}`
     : 'Empty slot';
   const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
   return (
@@ -64,7 +87,7 @@ export function InventorySlotButton({
       disabled={!slot}
       title={title}
       aria-label={slot ? `${itemName}: click for actions` : `Inventory slot ${index + 1}: empty`}
-      draggable={Boolean(slot)}
+      draggable={Boolean(slot) && hasMouse}
       onDragStart={(event) => {
         if (!slot) return;
         event.dataTransfer.effectAllowed = 'move';

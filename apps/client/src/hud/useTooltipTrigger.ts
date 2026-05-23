@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { logBagDiag } from '../bagDiag';
 
 const HOVER_DELAY_MS = 350;
 const LONG_PRESS_MS = 380;
@@ -67,13 +68,15 @@ export function useTooltipTrigger<T>() {
   }, [t]);
 
   const beginLongPress = useCallback((payload: T, x: number, y: number) => {
+    logBagDiag('lp.armed', { x, y });
     t.clearTimers();
     t.pressOrigin.current = { payload, x, y };
     t.pressTimer.current = window.setTimeout(() => {
       t.pressTimer.current = null;
       const origin = t.pressOrigin.current;
       t.pressOrigin.current = null;
-      if (!origin) return;
+      if (!origin) { logBagDiag('lp.canceled', {}); return; }
+      logBagDiag('lp.fired', {});
       t.suppressClickUntil.current = Date.now() + SUPPRESS_CLICK_MS;
       setOpen(origin.payload, origin.x, origin.y);
     }, LONG_PRESS_MS);
@@ -195,13 +198,14 @@ function buildTriggerProps<T>({
       scheduleClose(payload);
     },
     onPointerDown: (event: React.PointerEvent) => {
+      logBagDiag('pd', { pt: event.pointerType, x: event.clientX, y: event.clientY });
       if (event.pointerType === 'touch') beginLongPress(payload, event.clientX, event.clientY);
     },
     onPointerMove: (event: React.PointerEvent) => {
       if (event.pointerType === 'touch') onPointerMove(event.clientX, event.clientY);
     },
-    onPointerUp: () => clearTimers(),
-    onPointerCancel: () => clearTimers(),
+    onPointerUp: (event: React.PointerEvent) => { logBagDiag('pu', { pt: event.pointerType }); clearTimers(); },
+    onPointerCancel: (event: React.PointerEvent) => { logBagDiag('pc', { pt: event.pointerType }); clearTimers(); },
     onContextMenu: (event: React.MouseEvent) => {
       event.preventDefault();
       openInstant(payload, event.clientX, event.clientY);

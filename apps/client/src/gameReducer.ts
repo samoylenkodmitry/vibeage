@@ -43,6 +43,7 @@ import {
 } from './clientVisualState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
 import { mergeVec3, normalizeVec3 } from './vec3';
+import { logBagDiag } from './bagDiag';
 
 export const initialGameClientState: GameClientState = {
   connectionState: 'idle',
@@ -402,6 +403,18 @@ function routeCommandRejected(
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
+  if (message.commandType === 'LootPickup' || message.reason === 'inventoryFull') {
+    const player = state.myPlayerId ? state.players[state.myPlayerId] : null;
+    logBagDiag('CommandRejected', {
+      commandType: message.commandType, reason: message.reason, requestId: message.requestId,
+      clientInventoryLen: state.inventory.length,
+      clientFilledSlots: state.inventory.filter((s) => s && s.quantity > 0).length,
+      clientMaxInventorySlots: state.maxInventorySlots,
+      playerMaxSlots: player?.maxInventorySlots,
+      slotIndexes: state.inventory.map((s) => s.slotIndex),
+      itemIds: state.inventory.map((s) => s.itemId),
+    });
+  }
   const sink = COMMAND_REJECTED_ROUTE[message.commandType];
   switch (sink) {
     case 'combatLog':
