@@ -2,7 +2,8 @@ import { Suspense, useMemo } from 'react';
 import { Clone, useGLTF } from '@react-three/drei';
 import type { Group } from 'three';
 import { ASSET_REGISTRY, getAssetsByKind, type WorldArtAsset } from './assetRegistry';
-import { CozyStarterPines } from './CozyStarterPines';
+import { AssetErrorBoundary } from './AssetErrorBoundary';
+import { CozyProceduralFallback } from './CozyProceduralFallback';
 import {
   makeCozyGrassScatter,
   makeCozyRockScatter,
@@ -14,19 +15,26 @@ import type { WorldArtScene } from './worldArtScenes';
 
 /**
  * GLB-backed cozy foliage layer. Replaces PR 1's primitive pines
- * with real stylized Quaternius (CC0) pines, rocks, and grass
+ * with real stylized Quaternius (CC0) trees, rocks, and grass
  * tufts read from `assetRegistry.ts`.
  *
- * Architecture:
- *   - one scatter table per kind (`cozyScatter.ts`), seeded off
- *     the scene id so layout is stable across reloads.
- *   - each scatter row picks an asset by `variant` and clones the
- *     loaded GLB at its transform. `Clone` keeps draw-calls
- *     reasonable for PR 2; PR 5 will measure and decide whether
- *     to merge them into instanced meshes.
- *   - `Suspense` falls back to the procedural `CozyStarterPines`
- *     while GLBs load (and stays as fallback if loading fails).
- *     The scene is never blank.
+ * Loading + failure model:
+ *   1. `useGLTF.preload` is fired at module init for every
+ *      registered asset so the first frame already has the
+ *      binary in flight.
+ *   2. `Suspense` paints `CozyProceduralFallback` (pines + rocks
+ *      + grass primitives) while GLBs stream in.
+ *   3. `AssetErrorBoundary` paints the same procedural fallback
+ *      if anything in the GLB pipeline throws (parse failure,
+ *      asset 404, GPU upload error). Suspense alone doesn't
+ *      catch render-time errors — boundary is required.
+ *
+ * Scatter:
+ *   one scatter table per kind (`cozyScatter.ts`), seeded off
+ *   the scene id so layout is stable across reloads. Each
+ *   row picks an asset by `variant` and Drei `Clone`s the loaded
+ *   GLB at that transform. `Clone` is acceptable for PR 2;
+ *   draw-call budget hardening lives in PR 5.
  */
 ASSET_REGISTRY.forEach((a) => useGLTF.preload(a.path));
 
@@ -37,30 +45,15 @@ const GRASS_POOL = getAssetsByKind('grass');
 type ForestProps = { scene: WorldArtScene; quality: WorldArtQuality };
 
 export function CozyPineForest({ scene, quality }: ForestProps) {
+  const fallback = <CozyProceduralFallback scene={scene} quality={quality} />;
   return (
-    <Suspense fallback={<CozyStarterPines scene={scene} quality={quality} />}>
-      <CozyGltfLayer
-        scene={scene}
-        quality={quality}
-        pool={TREE_POOL}
-        scatterFn={makeCozyTreeScatter}
-        baseScale={1.6}
-      />
-      <CozyGltfLayer
-        scene={scene}
-        quality={quality}
-        pool={ROCK_POOL}
-        scatterFn={makeCozyRockScatter}
-        baseScale={0.9}
-      />
-      <CozyGltfLayer
-        scene={scene}
-        quality={quality}
-        pool={GRASS_POOL}
-        scatterFn={makeCozyGrassScatter}
-        baseScale={0.7}
-      />
-    </Suspense>
+    <AssetErrorBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <CozyGltfLayer scene={scene} quality={quality} pool={TREE_POOL} scatterFn={makeCozyTreeScatter} baseScale={1.6} />
+        <CozyGltfLayer scene={scene} quality={quality} pool={ROCK_POOL} scatterFn={makeCozyRockScatter} baseScale={0.9} />
+        <CozyGltfLayer scene={scene} quality={quality} pool={GRASS_POOL} scatterFn={makeCozyGrassScatter} baseScale={0.7} />
+      </Suspense>
+    </AssetErrorBoundary>
   );
 }
 
@@ -74,9 +67,16 @@ type LayerProps = {
 
 function CozyGltfLayer({ scene, quality, pool, scatterFn, baseScale }: LayerProps) {
   const rows = useMemo(() => scatterFn(scene, quality), [scene, quality, scatterFn]);
-  // Load every pool entry up front. Pool sizes are module-level
-  // constants (≤3 per kind), so the hook order is stable.
-  const loaded = pool.map((asset) => ({ asset, scene: useGLTF(asset.path).scene as Group }));
+  // Drei's `useGLTF` natively accepts an array of paths and
+  // returns a same-length array. This keeps the hook call stable
+  // across renders without depending on the pool being literally
+  // constant.
+  const paths = useMemo(() => pool.map((a) => a.path), [pool]);
+  const gltfs = useGLTF(paths);
+  const loaded = useMemo(() => {
+    const arr = Array.isArray(gltfs) ? gltfs : [gltfs];
+    return pool.map((asset, i) => ({ asset, scene: arr[i].scene as Group }));
+  }, [pool, gltfs]);
   if (loaded.length === 0) return null;
   return (
     <group>
