@@ -180,6 +180,7 @@ export type CommandRejectionReasons = {
     | 'lootNotFound'
     | 'tooFar'
     | 'inventoryFull'
+    | 'overweight'
     | 'rateLimited';
   // Skill progression
   LearnSkill:
