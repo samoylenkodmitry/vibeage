@@ -72,26 +72,22 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
     centerX: px,
     centerZ: pz,
   }));
-  const [svgWidthPx, setSvgWidthPx] = useState<number>(500);
-  useEffect(() => {
-    const node = svgRef.current;
-    if (!node || typeof ResizeObserver === 'undefined') return;
-    const obs = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect?.width) setSvgWidthPx(rect.width);
-    });
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
+  const svgPxSize = useSvgPxSize(svgRef);
 
   const viewWidth = WORLD_BOUNDS.width / view.zoom;
   const viewHeight = WORLD_BOUNDS.height / view.zoom;
   const viewMinX = view.centerX - viewWidth / 2;
   const viewMinZ = view.centerZ - viewHeight / 2;
   const tickSpacing = chooseTickSpacingForWidth(viewWidth);
-  // World units per CSS pixel at the current zoom — used to size
-  // labels + dots in screen-space (constant px regardless of zoom).
-  const worldPerPx = viewWidth / Math.max(1, svgWidthPx);
+  // World units per CSS pixel at the current zoom. The SVG uses
+  // `preserveAspectRatio="xMidYMid meet"`, which fits the viewBox
+  // inside the element using the SMALLER of the two ratios — so
+  // the effective screen-pixels-per-world-unit is the min of
+  // width-ratio and height-ratio. Pre-fix we used only width and
+  // labels rendered smaller than the intended 12 px whenever the
+  // panel was wider than tall (the default).
+  const pxPerWorld = Math.min(svgPxSize.w / Math.max(1, viewWidth), svgPxSize.h / Math.max(1, viewHeight));
+  const worldPerPx = 1 / Math.max(0.0001, pxPerWorld);
 
   const handlers = useMapInteraction({ svgRef, view, viewMinX, viewMinZ, viewWidth, viewHeight, setView, onSetNavigationMarker });
   const recenterOnPlayer = () => setView((prev) => ({ ...prev, centerX: px, centerZ: pz }));
@@ -153,6 +149,21 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
       </ol>
     </section>
   );
+}
+
+function useSvgPxSize(svgRef: React.MutableRefObject<SVGSVGElement | null>): { w: number; h: number } {
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 500, h: 500 });
+  useEffect(() => {
+    const node = svgRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const obs = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect?.width && rect?.height) setSize({ w: rect.width, h: rect.height });
+    });
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [svgRef]);
+  return size;
 }
 
 type MapInteractionInput = {
