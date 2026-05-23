@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import type { Points, ShaderMaterial } from 'three';
@@ -6,30 +6,36 @@ import { computeDayPhase } from './timeOfDay';
 
 /**
  * Drei `<Stars>` faded against the day/night cycle. Stars hold
- * full intensity at night, dim as the sun rises, and disappear
- * by midday. The vibe is the same "MMO night sky" silhouettes
- * the player already gets from the big moon — stars add depth
- * without competing.
+ * full intensity at night and fade out by midday. The vibe
+ * complements the existing big moon without competing.
  *
- * Implementation: Drei's `Stars` doesn't expose an opacity prop,
- * so we ref the underlying `Points` and modulate its
- * ShaderMaterial's `opacity` uniform every frame (the material
- * is internally transparent already). When the sun is up the
- * stars are effectively invisible; the renderer still skips
- * them because of the alpha threshold.
+ * Drei's StarfieldMaterial is a ShaderMaterial without an opacity
+ * uniform — setting `material.opacity` directly does nothing
+ * because the shader hardcodes `gl_FragColor = vec4(vColor,
+ * opacity)` from a sigmoid. The first mount monkey-patches the
+ * fragment shader to multiply the final alpha by a new `dayFade`
+ * uniform; each frame we set that uniform from the sun direction.
+ *
+ * `computeDayPhase(Date.now())` is also called by `WorldEnvironment`
+ * every frame; the cost is tiny (handful of lerps) so re-evaluating
+ * here keeps `NightStars` self-contained without a context/ref
+ * wire-up.
  */
 export function NightStars() {
   const pointsRef = useRef<Points>(null);
+  useEffect(() => {
+    const points = pointsRef.current;
+    if (!points) return;
+    patchStarMaterial(points.material as ShaderMaterial);
+  }, []);
   useFrame(() => {
     const points = pointsRef.current;
     if (!points) return;
     const material = points.material as ShaderMaterial;
     const palette = computeDayPhase(Date.now());
-    // sunDir.y above 0 = sun up; below = sun down. Map to 0..1
-    // with a small overlap window so the fade isn't a hard cut.
     const nightness = clamp(1 - smoothstep(-0.05, 0.18, palette.sunDir.y), 0, 1);
-    if (material.opacity !== undefined) material.opacity = nightness;
-    if (material.uniforms?.fade) material.uniforms.fade.value = nightness > 0.05;
+    if (material.uniforms?.dayFade) material.uniforms.dayFade.value = nightness;
+    points.visible = nightness > 0.01;
   });
   return (
     <Stars
@@ -43,6 +49,17 @@ export function NightStars() {
       speed={0.4}
     />
   );
+}
+
+function patchStarMaterial(material: ShaderMaterial): void {
+  if (material.uniforms?.dayFade) return;
+  material.uniforms.dayFade = { value: 1 };
+  material.fragmentShader = `uniform float dayFade;\n${material.fragmentShader}`.replace(
+    'gl_FragColor = vec4(vColor, opacity);',
+    'gl_FragColor = vec4(vColor, opacity * dayFade);',
+  );
+  material.transparent = true;
+  material.needsUpdate = true;
 }
 
 function clamp(v: number, lo: number, hi: number): number {
