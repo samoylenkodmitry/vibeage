@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { ITEMS } from '../../../../packages/content/items';
 import { vendorSellPriceFor, type VendorDef } from '../../../../packages/content/vendors';
 import type { PlayerEntity } from '../gameTypes';
+import { ItemCell } from './ItemCell';
 
 /**
  * PR GG — Vendor browse panel. Opens when the player clicks Browse
@@ -55,11 +55,10 @@ export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPa
           <h4>For Sale</h4>
           {vendor.stock.length === 0 && <small>This vendor has nothing for sale.</small>}
           {vendor.stock.map((entry) => {
-            const item = ITEMS[entry.itemId];
             const canAfford = gold >= entry.price;
             return (
               <div key={entry.itemId} className="vendor-row">
-                <span>{item?.name ?? entry.itemId}</span>
+                <ItemCell itemId={entry.itemId} />
                 <span>{entry.price.toLocaleString()}g</span>
                 <button
                   type="button"
@@ -73,19 +72,16 @@ export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPa
         <div className="vendor-panel-col">
           <h4>Buy Back</h4>
           {inventoryRows.length === 0 && <small>You have nothing this vendor wants.</small>}
-          {inventoryRows.map((row) => {
-            const item = ITEMS[row.itemId];
-            return (
-              <div key={row.itemId} className="vendor-row">
-                <span>{item?.name ?? row.itemId} × {row.quantity}</span>
-                <span>{row.unitPrice.toLocaleString()}g ea.</span>
-                <button
-                  type="button"
-                  onClick={() => onSell(vendor.id, row.itemId, 1)}
-                >Sell 1</button>
-              </div>
-            );
-          })}
+          {inventoryRows.map((row) => (
+            <div key={row.itemId} className="vendor-row">
+              <ItemCell itemId={row.itemId} extra={`× ${row.quantity}`} />
+              <span>{row.unitPrice.toLocaleString()}g ea.</span>
+              <button
+                type="button"
+                onClick={() => onSell(vendor.id, row.itemId, 1)}
+              >Sell 1</button>
+            </div>
+          ))}
         </div>
       </div>
     </section>

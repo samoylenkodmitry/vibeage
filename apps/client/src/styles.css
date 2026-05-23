@@ -2125,6 +2125,41 @@ input {
 }
 .vendor-row button { padding: 3px 8px; cursor: pointer; }
 .vendor-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.item-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 4px;
+  padding: 3px 8px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.item-cell:hover { background: rgba(148, 163, 184, 0.16); border-color: rgba(141, 233, 215, 0.45); }
+.item-cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.item-cell-grade {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+.item-cell-extra { color: #9dded3; font-size: 11px; white-space: nowrap; }
 @media (max-width: 600px) {
   .vendor-panel-body { grid-template-columns: 1fr; }
 }

@@ -6,10 +6,10 @@ import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/conten
  * inside the per-file budget.
  *
  * Two stages:
- *   1. Cluster by SCREEN-SPACE proximity (~24 px). Anywhere zoomed
- *      out enough that multiple landmarks land on the same pixel
- *      gets folded into a single count badge. One readable chip
- *      beats a stack of unreadable text.
+ *   1. Cluster by SCREEN-SPACE proximity (~40 px). Anywhere zoomed
+ *      out enough that multiple landmarks land in the same finger
+ *      target gets folded into a single count badge. One readable
+ *      chip beats a stack of unreadable text.
  *   2. For singletons, run a per-landmark label-collision dedup —
  *      megas keep their labels first; ordinary names that would
  *      overlap drop to just a dot.
@@ -17,16 +17,17 @@ import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/conten
  * All sizing flows through `worldPerPx` so labels stay constant
  * px regardless of map zoom.
  */
-const LABEL_PX = 12;
+const LABEL_PX = 13;
 const DOT_PX = 8;
+const CLUSTER_PX = 40;
 
 export function renderLandmarks(viewWidth: number, worldPerPx: number): ReactElement[] {
   void viewWidth;
   const dotSize = worldPerPx * DOT_PX;
   const fontSize = worldPerPx * LABEL_PX;
-  const clusterRadius = worldPerPx * 24;
-  const charWidth = fontSize * 0.55;
-  const padding = fontSize * 0.4;
+  const clusterRadius = worldPerPx * CLUSTER_PX;
+  const charWidth = fontSize * 0.6;
+  const padding = fontSize * 0.6;
 
   type Cluster = { members: WorldLandmark[]; cx: number; cz: number };
   const clusters: Cluster[] = [];
