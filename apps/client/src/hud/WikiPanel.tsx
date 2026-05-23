@@ -12,6 +12,7 @@ import { NpcsTab } from './WikiNpcs';
 import { VendorsTab } from './WikiVendors';
 import { RecipesTab } from './WikiRecipes';
 import { SetsTab } from './WikiSets';
+import { GradesTab } from './WikiGrades';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
 import {
@@ -24,7 +25,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 import { subscribeWikiNav } from './wikiNavBus';
 type WikiTab =
   | 'skills' | 'items' | 'tree' | 'classes' | 'specs' | 'races'
-  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes' | 'sets' | 'npcs' | 'vendors';
+  | 'effects' | 'quests' | 'stats' | 'mobs' | 'bosses' | 'recipes' | 'sets' | 'npcs' | 'vendors' | 'grades';
 
 const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'skills', label: 'Skills' },
@@ -42,6 +43,7 @@ const TABS: ReadonlyArray<{ id: WikiTab; label: string }> = [
   { id: 'sets', label: 'Sets' },
   { id: 'npcs', label: 'NPCs' },
   { id: 'vendors', label: 'Vendors' },
+  { id: 'grades', label: 'Grades' },
 ];
 
 type WikiNav = (tab: WikiTab, id: string) => void;
@@ -145,6 +147,7 @@ export function WikiPanel({ onShowMarker }: WikiPanelProps) {
         {tab === 'sets' && <SetsTab query={query} focusId={focusId} focusKey={focusKey} navigate={navigate} />}
         {tab === 'npcs' && <NpcsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
         {tab === 'vendors' && <VendorsTab query={query} focusId={focusId} focusKey={focusKey} onShowMarker={onShowMarker} navigate={navigate} />}
+        {tab === 'grades' && <GradesTab query={query} focusId={focusId} focusKey={focusKey} />}
       </div>
     </section>
   );

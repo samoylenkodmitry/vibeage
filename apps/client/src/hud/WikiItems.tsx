@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { EQUIPMENT_SETS } from '../../../../packages/content/equipmentSets';
+import { getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { getLootSourcesForItem, resolveLootTableOwner } from '../../../../packages/content/lootSources';
 import {
@@ -62,7 +63,7 @@ function ItemLi({
         {item.healAmount && <Pair k="Heals" v={`${item.healAmount} HP`} />}
         {item.manaAmount && <Pair k="Restores" v={`${item.manaAmount} MP`} />}
         {item.setId && <Pair k="Set" v={EQUIPMENT_SETS[item.setId]?.name ?? item.setId} />}
-        {item.grade && item.grade !== 'none' && <Pair k="Grade" v={item.grade.toUpperCase()} />}
+        {item.grade && item.grade !== 'none' && <GradePair grade={item.grade} />}
       </dl>
       <ItemSourcesSummary item={item} navigate={navigate} />
       {item.recipe && <ItemRecipeContents item={item} navigate={navigate} />}
@@ -278,6 +279,20 @@ function Pair({ k, v }: { k: string; v: string }) {
     <div className="wiki-pair">
       <dt>{k}</dt>
       <dd>{v}</dd>
+    </div>
+  );
+}
+
+function GradePair({ grade }: { grade: import('../../../../packages/content/equipmentTypes').ItemGrade }) {
+  const spec = getGradeSpec(grade);
+  return (
+    <div className="wiki-pair">
+      <dt>Grade</dt>
+      <dd>
+        <span style={{ color: spec.color }} title={spec.description}>
+          {spec.label} <small>(Lv {spec.minLevel}+)</small>
+        </span>
+      </dd>
     </div>
   );
 }
