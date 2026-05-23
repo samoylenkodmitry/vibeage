@@ -184,11 +184,14 @@ export function removeItems(
   count: number,
   services: InventoryServices,
 ): TransactionResult<RemoveItemsOk> {
-  const { templates } = getServices(services);
-  const template = templates[templateId];
-  if (!template) {
-    return { ok: false, error: 'itemNotFound' };
-  }
+  // We deliberately do NOT verify `templateId` against the template
+  // registry. Orphan instances (template retired in a later content
+  // release) are legitimate player data — refusing to remove them
+  // by id leaves the player unable to destroy them and free the
+  // slot. The bag-items check below is the only validity gate: if
+  // the bag holds enough of the id, remove it; otherwise it's a
+  // genuine "not in bag" miss.
+  void services;
   if (count <= 0) {
     return { ok: true, value: { removed: 0, removedInstanceIds: [] } };
   }
