@@ -1,4 +1,4 @@
-import { useRef, type MutableRefObject } from 'react';
+import { useMemo, useRef, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
@@ -9,6 +9,9 @@ import { WorldEnvironment } from './WorldEnvironment';
 import { WorldFeatures } from './WorldFeatures';
 import { ZoneLandmarks } from './ZoneLandmarks';
 import { CameraRig, type CameraControls } from './CameraRig';
+import { CozyWorldArt } from './world-art/CozyWorldArt';
+import { chooseWorldArtQuality } from './world-art/quality';
+import { pickActiveScene } from './world-art/worldArtScenes';
 import {
   CastMarker,
   EnemyMarker,
@@ -36,17 +39,31 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
+  // Cozy-coast hero scene is anchored geographically (see
+  // `worldArtScenes.ts`); when the player is inside its radius
+  // we hand atmosphere + water + foliage off to `CozyWorldArt`.
+  // Outside that radius the existing `<color>` / `<fog>` /
+  // `WorldEnvironment` fallback owns the look so the rest of the
+  // map doesn't suddenly turn into coastline.
+  const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
+  const cozyActive = pickActiveScene(focus.x, focus.z) !== null;
 
   return (
     <Canvas
-      camera={{ position: [0, 18, 22], fov: 55, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
+      camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
       onCreated={({ gl }) => {
-        gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
       }}
     >
-      <color attach="background" args={['#071015']} />
-      <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
-      <WorldEnvironment focus={focus} />
+      {cozyActive ? (
+        <CozyWorldArt focus={focus} quality={worldArtQuality} />
+      ) : (
+        <>
+          <color attach="background" args={['#071015']} />
+          <fog attach="fog" args={['#071015', WORLD_SETTINGS.fogNear, WORLD_SETTINGS.fogFar]} />
+          <WorldEnvironment focus={focus} />
+        </>
+      )}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
