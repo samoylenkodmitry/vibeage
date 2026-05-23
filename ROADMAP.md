@@ -62,6 +62,19 @@ Surfaced from playtesting — opening the map at the current zoom centers on the
 
 ✅ **Shipped 2026-05-23.** Default zoom is now \"~30 seconds of run-speed\" (1200 world units = 60s × 20u/s baseline runSpeed in each direction). Max zoom raised so the player can frame ~2 m around themselves; min zoom still shows the whole world. Labels use a non-scaling-text technique so they stay readable at every zoom. Overlapping labels collapse to a count badge (e.g. \"Riverhead District (4)\") so dense regions don't pile up into illegible text.
 
+### 7. Cozy world art layer
+
+Shipped iteratively across PRs #512-#537 (2026-05-23). World now reads as authored rather than prototype:
+
+- **Foliage everywhere**: Quaternius CC0 GLB pines + rocks scattered globally via `InstancedGltf` (one InstancedMesh per geometry/material leaf), preserving the existing biome-aware density and vertex-color tints. Multiple pine variants split by index parity for variety.
+- **Textured ground**: `WorldGround` default mode is now `'textured'` — grass texture everywhere, sand inside the cozy hero scene radius.
+- **Wind sway**: tree canopies subtly sway via shader injection on the GLB material (per-instance phase from world position).
+- **Cozy hero scene (Peaceful Meadows / starter spawn)**: anchored composition with low-poly water + foam crests + shore band + dock + rowboat + bonfire (flicker light + drifting smoke) + lanterns + distant mountain silhouettes + drifting cherry-blossom petals + water lilies + wandering fireflies + moonlit water sparkles.
+- **Day / night**: night stars (Drei `<Stars>` with fragment-shader patched fade), distant bird flock at dawn/dusk, loot piles glow with a warm pointLight.
+- **Architecture**: `WorldEnvironment` still owns the sky / sun / moon / clouds / day-night palette everywhere (the user explicitly preferred this over any flat cozy sky). `CozyWorldArt` only contributes anchored geometry under it.
+
+Files: `apps/client/src/world-art/*`, `apps/client/src/{WorldEnvironment,WorldGround,WorldScene,NightStars,BirdFlock,SceneVfx}.tsx`. Asset payload ~16 MB (8.5 MB GLBs + 8 MB textures); budgets pinned in `quality/performance-budgets.json` and enforced by `tests/worldArtBudget.spec.ts`.
+
 ## Quality Gate
 
 Before merge:
