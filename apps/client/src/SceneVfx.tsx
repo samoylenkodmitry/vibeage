@@ -418,6 +418,14 @@ export function LootMarker({
       {hovered && labelText ? (
         <NameLabel text={labelText} color="#fde68a" yOffset={1.1} height={0.42} />
       ) : null}
+      <pointLight
+        color="#fff0a8"
+        intensity={1.4}
+        distance={6}
+        decay={1.8}
+        position={[0, 0.4, 0]}
+        castShadow={false}
+      />
       <group ref={sparkGroupRef}>
         {sparks.map((spark) => (
           <mesh
