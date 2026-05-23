@@ -64,7 +64,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           <WorldEnvironment focus={focus} />
         </>
       )}
-      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} />
+      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode={cozyActive ? 'textured' : 'normal'} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />
