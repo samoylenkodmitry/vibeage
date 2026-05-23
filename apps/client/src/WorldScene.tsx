@@ -39,16 +39,10 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  // Cozy hero scene is geographically anchored
-  // (`worldArtScenes.ts`). Mutually-exclusive presentation:
-  // inside the radius we render `CozyWorldArt` (sky, fog, lights,
-  // water, shore, props, GLB foliage); outside it we render the
-  // existing `WorldEnvironment` (procedural lights + foliage +
-  // day/night palette). The two stacks both touch
-  // `scene.background`/`scene.fog`, which is why
-  // `CozyAtmosphere` hands those off as live `Color`/`Fog`
-  // objects on unmount (otherwise the canvas falls back to the
-  // renderer's default clear color — white).
+  // WorldEnvironment owns the sky/sun/moon/clouds/day-night
+  // palette everywhere. The cozy hero scene only contributes
+  // anchored geometry (water, shore, dock, foliage) on top of
+  // that — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
 
@@ -59,11 +53,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
       }}
     >
-      {activeCozyScene ? (
-        <CozyWorldArt focus={focus} quality={worldArtQuality} scene={activeCozyScene} />
-      ) : (
-        <WorldEnvironment focus={focus} />
-      )}
+      <WorldEnvironment focus={focus} />
+      {activeCozyScene && <CozyWorldArt scene={activeCozyScene} quality={worldArtQuality} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode={activeCozyScene ? 'textured' : 'normal'} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />

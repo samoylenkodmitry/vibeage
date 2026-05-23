@@ -1,4 +1,3 @@
-import { CozyAtmosphere } from './CozyAtmosphere';
 import { CozyAuthoredCoast } from './CozyAuthoredCoast';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
@@ -9,37 +8,29 @@ import type { WorldArtScene } from './worldArtScenes';
 /**
  * Cozy hero-scene presentation. Mounted only when the player is
  * inside a registered scene radius (`pickActiveScene` resolves to
- * a non-null scene in `WorldScene`). When the component unmounts
- * `CozyAtmosphere` hands `scene.background`/`scene.fog` back as
- * valid objects so `WorldEnvironment`'s day/night useFrame can
- * keep mutating them — that handoff is what fixes the "bleak
- * white sky" regression after leaving the cozy zone.
+ * a non-null scene in `WorldScene`).
+ *
+ * Atmosphere is intentionally NOT owned here. `WorldEnvironment`
+ * already paints a dramatic day/night sky (sun, moon, clouds,
+ * palette in `computeDayPhase`) that the user prefers across the
+ * whole world — including inside cozy scenes. The cozy layer
+ * only contributes anchored geometry on top of that.
  *
  * Stack:
- *   Atmosphere    — sky color + fog + sun + hemisphere fill.
- *                   Drei's atmospheric `<Sky>` shader is
- *                   *not* used: it overpaints whatever
- *                   `scene.background` we set and reads as a
- *                   bleached daytime blue around the sun. A
- *                   saturated flat background + warm horizon fog
- *                   gives the cozy palette much more reliably.
  *   Water         — stylized procedural plane, raycast-disabled
  *   Shore         — pale sand band along the waterline
  *   AuthoredCoast — hand-placed dock/rowboat/bonfire
  *   Foliage       — GLB pines/rocks/grass with procedural fallback
  */
-type Focus = { x: number; y?: number; z: number };
 
 export function CozyWorldArt({
-  focus, quality, scene,
+  scene, quality,
 }: {
-  focus: Focus;
-  quality: WorldArtQuality;
   scene: WorldArtScene;
+  quality: WorldArtQuality;
 }) {
   return (
     <>
-      <CozyAtmosphere focus={focus} quality={quality} />
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
       <CozyAuthoredCoast scene={scene} />
