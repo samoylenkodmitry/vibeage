@@ -53,4 +53,17 @@ describe('worldArtScenes', () => {
     void disabled;
     expect(WORLD_ART_SCENES.every((s) => s.enabledByDefault)).toBe(true);
   });
+
+  it('starter scene has dock + rowboat + bonfire authored props', () => {
+    const ids = (STARTER_COZY_COAST.props ?? []).map((p) => p.id).sort();
+    expect(ids).toEqual(['bonfire', 'dock', 'rowboat']);
+  });
+
+  it('the dock sits inside the waterline strip', () => {
+    const dock = STARTER_COZY_COAST.props?.find((p) => p.id === 'dock');
+    expect(dock).toBeDefined();
+    // Dock should be on the water side — same sign of X as the
+    // waterline so it juts into the water, not away from it.
+    expect(Math.sign(dock!.position.x)).toBe(Math.sign(STARTER_COZY_COAST.waterline.x));
+  });
 });

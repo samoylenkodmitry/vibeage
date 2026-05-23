@@ -10,6 +10,19 @@
  * The waterline sits on negative X so the player faces sand → water
  * looking left, and forest silhouettes occupy positive X.
  */
+/**
+ * Authored prop placement inside a scene. Unlike the scatter
+ * tables (`cozyScatter.ts`) these are individually positioned —
+ * the dock, the rowboat, the bonfire — so the coast reads as
+ * composed rather than randomly populated.
+ */
+export type AnchoredProp = {
+  id: 'dock' | 'rowboat' | 'bonfire';
+  position: { x: number; y: number; z: number };
+  rotationY: number;
+  scale: number;
+};
+
 export type WorldArtScene = {
   id: string;
   origin: { x: number; z: number };
@@ -17,6 +30,8 @@ export type WorldArtScene = {
   rotationY: number;
   /** Strip where the visible water plane lives (centered on its midpoint). */
   waterline: { x: number; z: number; width: number; length: number };
+  /** Named, hand-placed props (dock/boat/fire). Optional — scenes can be foliage-only. */
+  props?: AnchoredProp[];
   enabledByDefault: boolean;
 };
 
@@ -26,6 +41,15 @@ export const STARTER_COZY_COAST: WorldArtScene = {
   radius: 220,
   rotationY: 0,
   waterline: { x: -180, z: 0, width: 280, length: 520 },
+  // Composition (looking at the coast from spawn at +Z facing -X):
+  //   bonfire is on the dry sand off to the right
+  //   dock juts straight out into the water
+  //   rowboat sits beside the dock, lightly angled
+  props: [
+    { id: 'bonfire', position: { x: -55, y: 0, z: 40 }, rotationY: 0, scale: 1.3 },
+    { id: 'dock', position: { x: -150, y: 0, z: -10 }, rotationY: Math.PI / 2, scale: 1.0 },
+    { id: 'rowboat', position: { x: -195, y: -0.3, z: -28 }, rotationY: Math.PI / 6, scale: 1.1 },
+  ],
   enabledByDefault: true,
 };
 

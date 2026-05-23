@@ -26,12 +26,13 @@ export type AssetSource = {
 export type FallbackRecipe =
   | { kind: 'pine'; trunkColor: string; canopyColor: string }
   | { kind: 'rock'; color: string }
-  | { kind: 'grass'; color: string };
+  | { kind: 'grass'; color: string }
+  | { kind: 'prop'; color: string };
 
 export type WorldArtAsset = {
   /** Stable cross-file id used by the scatter tables. */
   id: string;
-  kind: 'tree' | 'rock' | 'grass';
+  kind: 'tree' | 'rock' | 'grass' | 'prop';
   /** Web-served path, relative to `public/`. */
   path: string;
   polyCount: number;
@@ -118,6 +119,42 @@ const GRASS_TUFT: WorldArtAsset = {
   fallback: { kind: 'grass', color: '#618a4a' },
 };
 
+const PROP_DOCK: WorldArtAsset = {
+  id: 'prop.dock',
+  kind: 'prop',
+  path: '/models/coast/dock_long.glb',
+  polyCount: 600,
+  license: 'CC0',
+  source: POLY('bN9Oz3niNm'),
+  baseScale: 2.4,
+  yOffset: 0,
+  fallback: { kind: 'prop', color: '#8b6a3f' },
+};
+
+const PROP_ROWBOAT: WorldArtAsset = {
+  id: 'prop.rowboat',
+  kind: 'prop',
+  path: '/models/coast/rowboat.glb',
+  polyCount: 320,
+  license: 'CC0',
+  source: POLY('adoP7kR7S17'),
+  baseScale: 1.6,
+  yOffset: 0,
+  fallback: { kind: 'prop', color: '#6e4f2c' },
+};
+
+const PROP_BONFIRE: WorldArtAsset = {
+  id: 'prop.bonfire',
+  kind: 'prop',
+  path: '/models/coast/bonfire.glb',
+  polyCount: 240,
+  license: 'CC0',
+  source: POLY('Azj9hJwwwG'),
+  baseScale: 1.2,
+  yOffset: 0,
+  fallback: { kind: 'prop', color: '#7a4a28' },
+};
+
 export const ASSET_REGISTRY: readonly WorldArtAsset[] = [
   TREE_PINE_A,
   TREE_PINE_B,
@@ -125,6 +162,9 @@ export const ASSET_REGISTRY: readonly WorldArtAsset[] = [
   ROCK_ROUND_SMALL,
   ROCK_MEDIUM_A,
   GRASS_TUFT,
+  PROP_DOCK,
+  PROP_ROWBOAT,
+  PROP_BONFIRE,
 ] as const;
 
 export function getAssetsByKind(kind: WorldArtAsset['kind']): readonly WorldArtAsset[] {
@@ -138,4 +178,21 @@ export function getAssetById(id: string): WorldArtAsset | null {
 /** Stable ordered list of tree paths Drei `useGLTF.preload` can prime. */
 export function getTreeAssetPaths(): readonly string[] {
   return getAssetsByKind('tree').map((a) => a.path);
+}
+
+const PROP_BY_ANCHOR_ID: Record<string, string> = {
+  dock: 'prop.dock',
+  rowboat: 'prop.rowboat',
+  bonfire: 'prop.bonfire',
+};
+
+/**
+ * Resolves a scene-level anchor id (the `id` on AnchoredProp) to
+ * the matching registry asset. Keeps the scene description free
+ * of asset paths — the scene knows "where to put the dock" and
+ * the registry knows "which GLB is the dock".
+ */
+export function getAssetForPropAnchor(anchorId: string): WorldArtAsset | null {
+  const assetId = PROP_BY_ANCHOR_ID[anchorId];
+  return assetId ? getAssetById(assetId) : null;
 }

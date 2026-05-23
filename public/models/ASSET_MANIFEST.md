@@ -30,6 +30,18 @@ scene under 60 on `medium` quality.
 |---|---:|---|---|
 | `foliage/grass_tuft.glb` | 60 | Quaternius (CC0) | <https://poly.pizza/m/UGTOzcO3P2> |
 
+## Coast props (PR 4 — authored placements)
+
+These are hand-placed at registered positions in
+`worldArtScenes.ts` (`STARTER_COZY_COAST.props`) — dock juts into
+the water, rowboat beside it, bonfire on the dry sand.
+
+| File | Polys | Source | Page |
+|---|---:|---|---|
+| `coast/dock_long.glb` | ~600 | Quaternius (CC0) | <https://poly.pizza/m/bN9Oz3niNm> |
+| `coast/rowboat.glb` | ~320 | Quaternius (CC0) | <https://poly.pizza/m/adoP7kR7S17> |
+| `coast/bonfire.glb` | ~240 | Quaternius (CC0) | <https://poly.pizza/m/Azj9hJwwwG> |
+
 ## License
 
 CC0 1.0 Universal — Public Domain Dedication.
