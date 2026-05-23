@@ -145,11 +145,16 @@ export function addItems(
     remaining -= perStack;
   }
 
-  // §49/M2 follow-up — weight cap was invisible to the player (no
-  // UI shows current vs max bag weight, no encumbrance mechanic
-  // reads it) so an over-weight bag rejected pickup silently with
-  // no actionable signal. Slot count is the visible cap; weight is
-  // not enforced any more.
+  // §52 follow-up — fold any same-template stacks left over from
+  // older drops into one (or as few as possible). Without this, a
+  // bag could legitimately end up with [5×potion, 15×potion] in
+  // two slots because each addItems call only stops as soon as
+  // `remaining` hits zero, leaving the existing stack short of
+  // maxStack. User-visible bug; consolidation runs every transaction
+  // so the invariant \"at most one non-full stack per (templateId,
+  // enchant, bound)\" holds everywhere.
+  consolidateStacks(draft, templates);
+
   const violations = validateInvariants(draft, templates);
   if (violations.length > 0) {
     return { ok: false, error: 'invariantViolation' };
@@ -157,6 +162,51 @@ export function addItems(
 
   applyDraft(inventory, draft);
   return { ok: true, value: { added, changed } };
+}
+
+/**
+ * Merge multiple bag stacks of the same `(templateId, enchantLevel,
+ * bound)` into the fewest stacks possible. Items are kept at the
+ * LOWER slot indices first — predictable layout, fewer surprises for
+ * the player. Non-stackable templates are left alone. Single source
+ * of truth for the \"one stack per item kind\" invariant.
+ */
+export function consolidateStacks(
+  inventory: CharacterInventory,
+  templates: Record<string, Item>,
+): void {
+  type Group = { templateId: string; enchantLevel: number; bound: boolean };
+  const key = (g: Group) => `${g.templateId}|${g.enchantLevel}|${g.bound ? 1 : 0}`;
+  const groups = new Map<string, ItemInstance[]>();
+  for (const instance of Object.values(inventory.items)) {
+    if (instance.location.kind !== 'inventory') continue;
+    const template = templates[instance.templateId];
+    if (!template?.stackable) continue;
+    const k = key({ templateId: instance.templateId, enchantLevel: instance.enchantLevel, bound: instance.bound });
+    const bucket = groups.get(k) ?? [];
+    bucket.push(instance);
+    groups.set(k, bucket);
+  }
+  for (const bucket of groups.values()) {
+    if (bucket.length < 2) continue;
+    bucket.sort((a, b) => {
+      const ai = a.location.kind === 'inventory' ? (a.location.slotIndex ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+      const bi = b.location.kind === 'inventory' ? (b.location.slotIndex ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+      return ai - bi;
+    });
+    const maxStack = templates[bucket[0].templateId]?.maxStack ?? Number.MAX_SAFE_INTEGER;
+    let target = 0;
+    for (let i = 1; i < bucket.length; i += 1) {
+      const src = bucket[i];
+      while (target < i && bucket[target].count >= maxStack) target += 1;
+      if (target >= i) break;
+      const room = maxStack - bucket[target].count;
+      const moved = Math.min(room, src.count);
+      bucket[target].count += moved;
+      src.count -= moved;
+      if (src.count === 0) delete inventory.items[src.instanceId];
+    }
+  }
 }
 
 function collectOccupiedBagSlots(inventory: CharacterInventory): Set<number> {
