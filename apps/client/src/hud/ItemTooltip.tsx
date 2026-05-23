@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { ItemStatBlock } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, getItemWeight } from '../../../../packages/content/items';
@@ -7,6 +7,27 @@ import { recipesUsingMaterial } from '../../../../packages/content/recipeLookups
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import { ENEMY_TEMPLATES } from '../../../../packages/content/enemies';
 import { openWikiAt } from './wikiNavBus';
+
+/**
+ * Bag-slot action callbacks. When the tooltip is shown for an item
+ * in the player's bag, the tooltip renders Use / Equip / Drop /
+ * Destroy buttons next to the Wiki link so the player has a
+ * gesture-independent path to every action. Empty / paperdoll /
+ * wiki contexts pass `bagActions: undefined` and the buttons are
+ * hidden.
+ */
+export type BagTooltipActions = {
+  slotIndex: number;
+  canUse: boolean;
+  canEquip: boolean;
+  onUse: (slotIndex: number) => void;
+  onEquip: (slotIndex: number) => void;
+  onDrop: (slotIndex: number) => void;
+  onDestroy: (slotIndex: number) => void;
+  /** Called after any action button fires so the tooltip dismisses
+   *  immediately and the player isn't left looking at stale UI. */
+  onClose: () => void;
+};
 
 type ItemTooltipProps = {
   itemId: string;
@@ -28,9 +49,11 @@ type ItemTooltipProps = {
    * "before / after" without doing arithmetic in their head.
    */
   compareStats?: ItemStatBlock;
+  /** Bag-action buttons — see BagTooltipActions doc. */
+  bagActions?: BagTooltipActions;
 };
 
-export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareStats }: ItemTooltipProps) {
+export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareStats, bagActions }: ItemTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -114,14 +137,58 @@ export function ItemTooltip({ itemId, clientX, clientY, hoverHandlers, compareSt
       )}
       {sourceLabel && <small className="item-tooltip-source">Source: {sourceLabel}</small>}
       {usesLabel && <small className="item-tooltip-source">Used in: {usesLabel}</small>}
+      {bagActions ? (
+        <BagActionRow itemId={item.id} actions={bagActions} />
+      ) : (
+        <button
+          type="button"
+          className="tooltip-wiki-link"
+          onClick={(e) => { e.stopPropagation(); openWikiAt('items', item.id); }}
+          title="Open in Wiki"
+        >Open in Wiki →</button>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+function BagActionRow({ itemId, actions }: { itemId: string; actions: BagTooltipActions }) {
+  const fire = (cb: (slotIndex: number) => void) => (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    cb(actions.slotIndex);
+    actions.onClose();
+  };
+  return (
+    <div className="item-tooltip-actions">
+      {actions.canUse && (
+        <button type="button" className="item-tooltip-action" onClick={fire(actions.onUse)}>
+          Use
+        </button>
+      )}
+      {actions.canEquip && (
+        <button type="button" className="item-tooltip-action" onClick={fire(actions.onEquip)}>
+          Equip
+        </button>
+      )}
+      <button type="button" className="item-tooltip-action" onClick={fire(actions.onDrop)}>
+        Drop on ground
+      </button>
+      <button
+        type="button"
+        className="item-tooltip-action item-tooltip-action--destroy"
+        onClick={fire(actions.onDestroy)}
+      >
+        Destroy
+      </button>
       <button
         type="button"
         className="tooltip-wiki-link"
-        onClick={(e) => { e.stopPropagation(); openWikiAt('items', item.id); }}
-        title="Open in Wiki"
-      >Open in Wiki →</button>
-    </div>,
-    document.body,
+        onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}
+      >
+        Open in Wiki →
+      </button>
+    </div>
   );
 }
 

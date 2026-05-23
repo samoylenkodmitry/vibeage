@@ -4,16 +4,11 @@ import { enterWorld } from "../e2e-helpers/gameClient";
 test.setTimeout(120_000);
 
 /**
- * Bag context menu regression suite. Two paths to the same menu:
- *  - The always-visible ⋯ button on every populated slot
- *    (`.inventory-slot-menu`). This is the gesture-independent
- *    primary path and the one the test must pin.
- *  - Right-click on the slot body, as a power-user shortcut.
- *
- * Earlier attempts relied purely on right-click, which on the
- * user's Mac browser produced no reaction (layout overlap + Safari
- * quirks). The ⋯ button architecture removes the dependency on
- * any specific gesture.
+ * Bag actions live inside the ItemTooltip (rendered on hover,
+ * long-press, or right-click). Drop / Destroy / Use / Equip /
+ * Open in Wiki are all rendered as buttons at the bottom of the
+ * tooltip. This e2e pins the wire so the action surface can't
+ * regress to gesture-dependent code again.
  */
 
 async function seedAndOpenBag(page: import('@playwright/test').Page, label: string) {
@@ -30,29 +25,39 @@ async function seedAndOpenBag(page: import('@playwright/test').Page, label: stri
   await expect(page.locator('.inventory-panel')).toBeVisible();
 }
 
-test('⋯ button on a populated bag slot opens the BagContextMenu', async ({ page }) => {
-  await seedAndOpenBag(page, `BagMenuBtn${Date.now()}`);
-
-  // The visible menu button on every populated slot — the path
-  // every device can take regardless of right-click support.
-  const menuBtn = page.locator('.inventory-slot-menu').first();
-  await expect(menuBtn).toBeVisible();
-  await menuBtn.click();
-
-  const menu = page.locator('.bag-context-menu');
-  await expect(menu).toBeVisible({ timeout: 5_000 });
-  await expect(menu.getByRole('menuitem', { name: /Drop on ground/i })).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: /Destroy/i })).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: /Open in Wiki/i })).toBeVisible();
-});
-
-test('right-click on a populated bag slot also opens the menu (shortcut)', async ({ page }) => {
-  await seedAndOpenBag(page, `BagRClick${Date.now()}`);
+test('hover on a populated bag slot opens the ItemTooltip with action buttons', async ({ page }) => {
+  await seedAndOpenBag(page, `BagTooltip${Date.now()}`);
 
   const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
-  await expect(populated).toBeEnabled();
-  await populated.click({ button: 'right' });
+  await expect(populated).toBeVisible();
+  await populated.hover();
 
-  const menu = page.locator('.bag-context-menu');
-  await expect(menu).toBeVisible({ timeout: 5_000 });
+  // The tooltip's hover-open delay is 350ms; allow up to 5s.
+  const tooltip = page.locator('.item-tooltip');
+  await expect(tooltip).toBeVisible({ timeout: 5_000 });
+
+  // The action row is appended at the bottom of the tooltip.
+  await expect(tooltip.getByRole('button', { name: /^Drop on ground$/i })).toBeVisible();
+  await expect(tooltip.getByRole('button', { name: /^Destroy$/i })).toBeVisible();
+  await expect(tooltip.getByRole('button', { name: /Open in Wiki/i })).toBeVisible();
+  // Health Potion is a consumable, so the Use button is offered.
+  await expect(tooltip.getByRole('button', { name: /^Use$/i })).toBeVisible();
+});
+
+test('clicking the Destroy button removes the stack from the bag', async ({ page }) => {
+  await seedAndOpenBag(page, `BagDestroy${Date.now()}`);
+
+  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  await populated.hover();
+
+  const tooltip = page.locator('.item-tooltip');
+  await expect(tooltip).toBeVisible({ timeout: 5_000 });
+
+  await tooltip.getByRole('button', { name: /^Destroy$/i }).click();
+
+  // The inventory should no longer contain the stack.
+  await page.waitForFunction(() => {
+    const inv = window.__VIBEAGE_VITE_E2E__?.getState().inventoryItems ?? [];
+    return !inv.some((s) => s.itemId === 'health_potion' && s.quantity > 0);
+  }, undefined, { timeout: 10_000 });
 });

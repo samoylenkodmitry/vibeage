@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { getEffectiveMinLevel, occupiedSlotsForSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
-import { BagContextMenu, type BagContextMenuTrigger } from './InventoryContextMenu';
 import { InventorySlotButton, type InventorySlotCallbacks } from './InventorySlotButton';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -22,9 +20,11 @@ type InventoryPanelProps = {
   onOpenRecipe: (recipeSlotIndex: number) => void;
   /** §46/slice-new — Shift+click drops the full stack at the player's feet. */
   onDropItem: (slotIndex: number) => void;
-  /** Bag context menu — destroy a stack without spawning ground loot. */
+  /** Destroy a stack without spawning ground loot. */
   onDestroyItem: (slotIndex: number) => void;
 };
+
+type TooltipPayload = { slotIndex: number; itemId: string };
 
 export function InventoryPanel({
   inventory,
@@ -39,20 +39,14 @@ export function InventoryPanel({
 }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
-  const tooltip = useTooltipTrigger<string>();
-  const [menu, setMenu] = useState<BagContextMenuTrigger | null>(null);
-  const openMenu = (slotIndex: number, itemId: string, clientX: number, clientY: number) =>
-    setMenu({ slotIndex, itemId, clientX, clientY });
+  const tooltip = useTooltipTrigger<TooltipPayload>();
   const callbacks: InventorySlotCallbacks = {
     onUseItem, onEquipItem, onOpenRecipe, onDropItem,
-    onOpenMenu: openMenu,
-    // Bag slots redirect both long-press (mobile) and right-click
-    // (desktop) into the action menu instead of the item tooltip.
-    // The hover tooltip on desktop pointer is unaffected.
-    tooltipTriggerProps: (slotIndex, itemId) => tooltip.triggerProps(itemId, {
-      onLongPress: (x, y) => openMenu(slotIndex, itemId, x, y),
-      onContextAction: (x, y) => openMenu(slotIndex, itemId, x, y),
-    }),
+    // Hover / long-press / right-click all open the ItemTooltip;
+    // the tooltip body carries Use / Equip / Drop / Destroy /
+    // Wiki buttons so the player has a gesture-independent path
+    // to every action without a separate context menu.
+    tooltipTriggerProps: (slotIndex, itemId) => tooltip.triggerProps({ slotIndex, itemId }),
     consumePendingClick: () => tooltip.consumePendingClick(),
   };
   // §52 #11 — render by explicit `slotIndex` when the server provides
@@ -78,23 +72,21 @@ export function InventoryPanel({
       </div>
       {tooltip.info && (
         <ItemTooltip
-          itemId={tooltip.info.payload}
+          itemId={tooltip.info.payload.itemId}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
           hoverHandlers={tooltip.hoverHandlers}
-          compareStats={resolveCompareStats(tooltip.info.payload, equipment)}
-        />
-      )}
-      {menu && (
-        <BagContextMenu
-          trigger={menu}
-          canUse={Boolean(ITEMS[menu.itemId] && isUsableConsumable(ITEMS[menu.itemId]))}
-          canEquip={canEquipAt(menu.itemId, playerLevel)}
-          onUse={onUseItem}
-          onEquip={onEquipItem}
-          onDrop={onDropItem}
-          onDestroy={onDestroyItem}
-          onClose={() => setMenu(null)}
+          compareStats={resolveCompareStats(tooltip.info.payload.itemId, equipment)}
+          bagActions={{
+            slotIndex: tooltip.info.payload.slotIndex,
+            canUse: Boolean(ITEMS[tooltip.info.payload.itemId] && isUsableConsumable(ITEMS[tooltip.info.payload.itemId])),
+            canEquip: canEquipAt(tooltip.info.payload.itemId, playerLevel),
+            onUse: onUseItem,
+            onEquip: onEquipItem,
+            onDrop: onDropItem,
+            onDestroy: onDestroyItem,
+            onClose: tooltip.dismiss,
+          }}
         />
       )}
     </section>
