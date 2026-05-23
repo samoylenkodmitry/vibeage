@@ -713,6 +713,35 @@ input {
   border-color: rgba(220, 38, 38, 0.7);
 }
 
+.item-tooltip-bind {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+.item-tooltip-bind small { color: #cbd5f5; }
+.item-tooltip-bind-row {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+}
+.item-tooltip-bind-slot {
+  min-height: 36px;
+  padding: 4px 0;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 4px;
+  background: rgba(250, 204, 21, 0.08);
+  color: #fef3c7;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.item-tooltip-bind-slot:hover {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: rgba(250, 204, 21, 0.7);
+}
+
 .death-overlay {
   position: absolute;
   inset: 0;

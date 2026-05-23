@@ -66,6 +66,10 @@ export type HudPanelsProps = {
   onPickupNearest?: () => void;
   onMove?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
+  /** §52 — touch users can't drag a bag slot to bind it on the
+   *  shortcut bar (HTML5 DnD preempts touch events). Tooltip path
+   *  routes the binding through this callback instead. */
+  onBindItem: (slotIndex: number, itemId: string) => void;
 };
 
 export function HudPanels({
@@ -74,7 +78,7 @@ export function HudPanels({
   onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
   onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, onGmCommand,
-  onPickupNearest, onMove, onSendChat,
+  onPickupNearest, onMove, onSendChat, onBindItem,
 }: HudPanelsProps) {
   return (
     <>
@@ -101,6 +105,7 @@ export function HudPanels({
           onOpenRecipe={panels.openCraft}
           onDropItem={onDropItem}
           onDestroyItem={onDestroyItem}
+          onBindItem={onBindItem}
         />
       )}
       {panels.craftRecipeSlot !== null && (

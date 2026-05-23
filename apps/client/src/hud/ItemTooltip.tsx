@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { SKILL_BAR_HOTKEYS, SKILL_BAR_ROW_COUNT, SKILL_BAR_SECONDARY_HOTKEYS } from '../skillShortcuts';
 import { createPortal } from 'react-dom';
 import type { ItemStatBlock } from '../../../../packages/content/equipmentTypes';
 import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
@@ -27,6 +28,10 @@ export type BagTooltipActions = {
   onOpenRecipe: (slotIndex: number) => void;
   onDrop: (slotIndex: number) => void;
   onDestroy: (slotIndex: number) => void;
+  /** Touch-friendly tap-to-bind. Tooltip opens an inline slot picker
+   *  on press; tapping a slot fires this callback with the chosen
+   *  shortcut-bar index plus the bag item id. */
+  onBind: (shortcutSlotIndex: number, itemId: string) => void;
   /** Called after any action button fires so the tooltip dismisses
    *  immediately and the player isn't left looking at stale UI. */
   onClose: () => void;
@@ -245,46 +250,56 @@ function EquipRequirementsLine({
 }
 
 function BagActionRow({ itemId, actions }: { itemId: string; actions: BagTooltipActions }) {
+  const [bindMode, setBindMode] = useState(false);
   const fire = (cb: (slotIndex: number) => void) => (event: ReactMouseEvent) => {
     event.stopPropagation();
     event.preventDefault();
     cb(actions.slotIndex);
     actions.onClose();
   };
+  if (bindMode) {
+    return <BindShortcutPicker itemId={itemId} actions={actions} onCancel={() => setBindMode(false)} />;
+  }
   return (
     <div className="item-tooltip-actions">
-      {actions.canUse && (
-        <button type="button" className="item-tooltip-action" onClick={fire(actions.onUse)}>
-          Use
-        </button>
-      )}
-      {actions.canEquip && (
-        <button type="button" className="item-tooltip-action" onClick={fire(actions.onEquip)}>
-          Equip
-        </button>
-      )}
-      {actions.canOpenRecipe && (
-        <button type="button" className="item-tooltip-action" onClick={fire(actions.onOpenRecipe)}>
-          Open recipe
-        </button>
-      )}
-      <button type="button" className="item-tooltip-action" onClick={fire(actions.onDrop)}>
-        Drop on ground
+      {actions.canUse && <button type="button" className="item-tooltip-action" onClick={fire(actions.onUse)}>Use</button>}
+      {actions.canEquip && <button type="button" className="item-tooltip-action" onClick={fire(actions.onEquip)}>Equip</button>}
+      {actions.canOpenRecipe && <button type="button" className="item-tooltip-action" onClick={fire(actions.onOpenRecipe)}>Open recipe</button>}
+      <button type="button" className="item-tooltip-action" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setBindMode(true); }}>
+        Bind to shortcut
       </button>
-      <button
-        type="button"
-        className="item-tooltip-action item-tooltip-action--destroy"
-        onClick={fire(actions.onDestroy)}
-      >
-        Destroy
-      </button>
-      <button
-        type="button"
-        className="tooltip-wiki-link"
-        onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}
-      >
+      <button type="button" className="item-tooltip-action" onClick={fire(actions.onDrop)}>Drop on ground</button>
+      <button type="button" className="item-tooltip-action item-tooltip-action--destroy" onClick={fire(actions.onDestroy)}>Destroy</button>
+      <button type="button" className="tooltip-wiki-link" onClick={(e) => { e.stopPropagation(); openWikiAt('items', itemId); }}>
         Open in Wiki →
       </button>
+    </div>
+  );
+}
+
+function BindShortcutPicker({
+  itemId, actions, onCancel,
+}: { itemId: string; actions: BagTooltipActions; onCancel: () => void }) {
+  const pick = (event: ReactMouseEvent, hotkeyIndex: number) => {
+    event.stopPropagation();
+    event.preventDefault();
+    actions.onBind(hotkeyIndex, itemId);
+    actions.onClose();
+  };
+  return (
+    <div className="item-tooltip-bind">
+      <small>Tap a shortcut slot:</small>
+      <div className="item-tooltip-bind-row">
+        {SKILL_BAR_HOTKEYS.map((label, i) => (
+          <button key={`p${i}`} type="button" className="item-tooltip-bind-slot" onClick={(e) => pick(e, i)} aria-label={`Bind to slot ${label}`}>{label}</button>
+        ))}
+      </div>
+      <div className="item-tooltip-bind-row">
+        {SKILL_BAR_SECONDARY_HOTKEYS.map((label, i) => (
+          <button key={`s${i}`} type="button" className="item-tooltip-bind-slot" onClick={(e) => pick(e, SKILL_BAR_ROW_COUNT + i)} aria-label={`Bind to slot ${label}`}>{label}</button>
+        ))}
+      </div>
+      <button type="button" className="item-tooltip-action" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onCancel(); }}>Cancel</button>
     </div>
   );
 }
