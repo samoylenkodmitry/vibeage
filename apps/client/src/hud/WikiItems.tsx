@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EQUIPMENT_SETS } from '../../../../packages/content/equipmentSets';
-import { getGradeSpec } from '../../../../packages/content/equipmentTypes';
+import { getGradeSpec, GRADE_SPECS, type ItemGrade } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { getLootSourcesForItem, resolveLootTableOwner } from '../../../../packages/content/lootSources';
 import {
@@ -9,6 +9,7 @@ import {
 } from '../../../../packages/content/obtainability';
 import type { WikiNav } from './WikiBosses';
 import { recipesProducing, recipesUsingMaterial } from './WikiRecipes';
+import { WikiFilters, type WikiFilterChip } from './WikiFilters';
 
 /**
  * PR T+U — Wiki Items tab. Cross-links every item to its drop
@@ -16,18 +17,90 @@ import { recipesProducing, recipesUsingMaterial } from './WikiRecipes';
  * Reads `ITEMS` directly so adding a new item or recipe in content
  * lights up here automatically; no manual registration anywhere.
  */
+const TYPE_FILTERS: ReadonlyArray<{ id: string; label: string; match: (item: Item) => boolean }> = [
+  { id: 'weapon', label: 'Weapons', match: (i) => i.type === 'weapon' || i.kind === 'weapon' },
+  { id: 'armor', label: 'Armor', match: (i) => i.kind === 'armor' || i.kind === 'shield' },
+  { id: 'jewelry', label: 'Jewelry', match: (i) => i.kind === 'jewelry' },
+  { id: 'consumable', label: 'Consumables', match: (i) => i.type === 'consumable' },
+  { id: 'recipe', label: 'Recipes', match: (i) => i.type === 'recipe' },
+  { id: 'material', label: 'Materials', match: (i) => i.type === 'material' },
+];
+
+type ItemSortId = 'name' | 'gradeHigh' | 'gradeLow' | 'level';
+const ITEM_SORTS: ReadonlyArray<{ id: ItemSortId; label: string; compare: (a: Item, b: Item) => number }> = [
+  { id: 'name', label: 'Name (A→Z)', compare: (a, b) => a.name.localeCompare(b.name) },
+  { id: 'gradeHigh', label: 'Grade (S→D)', compare: (a, b) => (GRADE_SPECS[b.grade ?? 'none'].rank - GRADE_SPECS[a.grade ?? 'none'].rank) || a.name.localeCompare(b.name) },
+  { id: 'gradeLow', label: 'Grade (D→S)', compare: (a, b) => (GRADE_SPECS[a.grade ?? 'none'].rank - GRADE_SPECS[b.grade ?? 'none'].rank) || a.name.localeCompare(b.name) },
+  { id: 'level', label: 'Lv requirement', compare: (a, b) => (effectiveMin(a) - effectiveMin(b)) || a.name.localeCompare(b.name) },
+];
+
+function effectiveMin(item: Item): number {
+  const grade = (item.grade ?? 'none') as ItemGrade;
+  return Math.max(GRADE_SPECS[grade]?.minLevel ?? 1, item.equip?.requirements?.minLevel ?? 0);
+}
+
 export function ItemsTab({
   query, focusId, focusKey, navigate,
 }: { query: string; focusId: string | null; focusKey: string; navigate: WikiNav }) {
-  const rows = useMemo(() => Object.values(ITEMS).filter((i) =>
+  const [typeIds, setTypeIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [gradeIds, setGradeIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [sortId, setSortId] = useState<ItemSortId>('name');
+
+  const queried = useMemo(() => Object.values(ITEMS).filter((i) =>
     matches(`${i.name} ${i.description} ${i.type ?? ''} ${i.kind ?? ''}`, query),
   ), [query]);
+
+  const rows = useMemo(() => {
+    let out = queried;
+    if (typeIds.size > 0) {
+      out = out.filter((it) => TYPE_FILTERS.some((f) => typeIds.has(f.id) && f.match(it)));
+    }
+    if (gradeIds.size > 0) {
+      out = out.filter((it) => gradeIds.has(it.grade ?? 'none'));
+    }
+    const sort = ITEM_SORTS.find((s) => s.id === sortId) ?? ITEM_SORTS[0];
+    return [...out].sort(sort.compare);
+  }, [queried, typeIds, gradeIds, sortId]);
+
+  const chips: WikiFilterChip[] = [
+    ...TYPE_FILTERS.map((f) => ({ id: `type:${f.id}`, label: f.label, active: typeIds.has(f.id) })),
+    ...Object.values(GRADE_SPECS).filter((g) => g.id !== 'none').map((g) => ({
+      id: `grade:${g.id}`, label: g.label, active: gradeIds.has(g.id), color: g.color,
+    })),
+  ];
+  const toggleChip = (id: string) => {
+    if (id.startsWith('type:')) {
+      const key = id.slice(5);
+      const next = new Set(typeIds);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      setTypeIds(next);
+    } else if (id.startsWith('grade:')) {
+      const key = id.slice(6);
+      const next = new Set(gradeIds);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      setGradeIds(next);
+    }
+  };
+  const resetChips = () => { setTypeIds(new Set()); setGradeIds(new Set()); };
+
   return (
-    <ul className="wiki-list">
-      {rows.map((item) => (
-        <ItemLi key={item.id} item={item} isFocus={item.id === focusId} focusKey={focusKey} navigate={navigate} />
-      ))}
-    </ul>
+    <>
+      <WikiFilters
+        chips={chips}
+        onToggleChip={toggleChip}
+        onResetChips={resetChips}
+        sortOptions={ITEM_SORTS.map((s) => ({ id: s.id, label: s.label }))}
+        sortId={sortId}
+        onSortChange={(id) => setSortId(id as ItemSortId)}
+        count={rows.length}
+        total={queried.length}
+      />
+      <ul className="wiki-list">
+        {rows.map((item) => (
+          <ItemLi key={item.id} item={item} isFocus={item.id === focusId} focusKey={focusKey} navigate={navigate} />
+        ))}
+      </ul>
+    </>
   );
 }
 
