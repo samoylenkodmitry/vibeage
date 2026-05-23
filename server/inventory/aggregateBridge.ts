@@ -104,6 +104,14 @@ export function restoreInventory(player: PlayerState, snapshot: ReturnType<typeo
  * hydrated player. Tolerates the row column being null (any player
  * that hasn't been persisted yet) — the caller seeds an empty
  * aggregate in that case.
+ *
+ * The persisted blob can be missing or wrong on the `limits` field
+ * (older rows, partial migrations, manual edits). Without a valid
+ * `limits.baseSlots`, `maxInventorySlotCount` returns 0/NaN and
+ * every `addItems` call rejects with `inventoryFull` — looks like
+ * a perfectly full bag from the outside. Repair the limits here
+ * using `player.maxInventorySlots` as the source of truth so the
+ * bag actually has the capacity the rest of the system claims.
  */
 export function hydratePersistedCharacterInventory(
   player: PlayerState,
@@ -112,5 +120,21 @@ export function hydratePersistedCharacterInventory(
   if (!raw || typeof raw !== 'object') return;
   const aggregate = raw as CharacterInventory;
   if (!aggregate.items || !aggregate.equipment || !aggregate.occupancy) return;
+  aggregate.limits = repairInventoryLimits(aggregate.limits, player.maxInventorySlots);
   player.characterInventory = aggregate;
+}
+
+function repairInventoryLimits(
+  raw: CharacterInventory['limits'] | undefined,
+  fallbackBaseSlots: number,
+): CharacterInventory['limits'] {
+  const baseFromPlayer = fallbackBaseSlots > 0 ? fallbackBaseSlots : DEFAULT_LIMITS.baseSlots;
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULT_LIMITS, baseSlots: baseFromPlayer };
+  }
+  return {
+    baseSlots: Number.isFinite(raw.baseSlots) && raw.baseSlots > 0 ? raw.baseSlots : baseFromPlayer,
+    bonusSlots: Number.isFinite(raw.bonusSlots) && raw.bonusSlots >= 0 ? raw.bonusSlots : DEFAULT_LIMITS.bonusSlots,
+    maxWeight: Number.isFinite(raw.maxWeight) && raw.maxWeight > 0 ? raw.maxWeight : DEFAULT_LIMITS.maxWeight,
+  };
 }
