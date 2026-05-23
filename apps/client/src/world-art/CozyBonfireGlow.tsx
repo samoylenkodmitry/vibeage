@@ -17,8 +17,12 @@ import type { WorldArtScene } from './worldArtScenes';
  */
 const FLICKER_BASE = 1.6;
 const FLICKER_AMPLITUDE = 0.55;
-const FLICKER_HZ_PRIMARY = 6.0;
-const FLICKER_HZ_SECONDARY = 11.5;
+// Angular frequencies in rad/s (multiplied directly with the
+// elapsed-time seconds). ~6 rad/s ≈ 0.95 Hz reads as a calm
+// campfire wobble; ~11.5 rad/s ≈ 1.83 Hz adds the small twitch
+// on top.
+const FLICKER_PRIMARY_RAD_PER_SEC = 6.0;
+const FLICKER_SECONDARY_RAD_PER_SEC = 11.5;
 const FLICKER_DISTANCE = 26;
 const FLICKER_COLOR = '#ffb462';
 
@@ -49,10 +53,9 @@ function FlickerLight({ x, y, z, seed }: { x: number; y: number; z: number; seed
     if (!light) return;
     const t = clock.elapsedTime + seed * 1.37;
     // Two unrelated frequencies summed gives a believable flame
-    // wobble — primary (~6 Hz) is the visible flicker, secondary
-    // (~11.5 Hz) adds the small twitch on top.
-    const primary = Math.sin(t * FLICKER_HZ_PRIMARY);
-    const secondary = Math.sin(t * FLICKER_HZ_SECONDARY + 1.8);
+    // wobble.
+    const primary = Math.sin(t * FLICKER_PRIMARY_RAD_PER_SEC);
+    const secondary = Math.sin(t * FLICKER_SECONDARY_RAD_PER_SEC + 1.8);
     const wobble = primary * 0.7 + secondary * 0.3;
     light.intensity = FLICKER_BASE + wobble * FLICKER_AMPLITUDE;
   });
