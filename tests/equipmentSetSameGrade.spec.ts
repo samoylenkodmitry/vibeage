@@ -12,7 +12,7 @@ import { ITEMS } from '../packages/content/items';
  * spec passes. Flip `STRICT_GRADE_GATE` to true once every set has
  * been normalized so a future regression actually breaks CI.
  */
-const STRICT_GRADE_GATE = false;
+const STRICT_GRADE_GATE = true;
 
 describe('equipment sets — single-grade invariant', () => {
   const allSets = Object.values(EQUIPMENT_SETS);
