@@ -122,6 +122,23 @@ describe('onLootPickup → orphan-template regressions', () => {
     }));
   });
 
+  test('Destroy on an orphan instance removes it from the bag (was blocked by removeItems template gate)', async () => {
+    const { onDestroyItem } = await import('../server/inventory/destroyItem');
+    const state = createGameState();
+    const socket = { id: 'sock1', send: vi.fn(), emit: vi.fn() };
+    const player = withOrphanInBag(makePlayer('sock1'));
+    state.players.p1 = player;
+    // Trust the right socket id so the auth gate doesn't reject.
+    player.socketId = 'sock1';
+    onDestroyItem(socket as never, { send: (m) => socket.emit('msg', m) } as never, state, {
+      type: 'DestroyItem', slotIndex: 5, count: 1, clientSeq: 11,
+    });
+    const rejection = socket.emit.mock.calls.find((c) => c[1]?.type === 'CommandRejected');
+    expect(rejection, `destroy should not be rejected, got: ${JSON.stringify(rejection)}`).toBeUndefined();
+    // Orphan instance is gone from the bag.
+    expect(player.characterInventory?.items['orphan-1']).toBeUndefined();
+  });
+
   test('pickup succeeds when the bag has a pre-existing orphan instance', () => {
     // Pre-fix this rejected as invariantViolation→inventoryFull —
     // the orphan made `validateInvariants` push a violation for every
