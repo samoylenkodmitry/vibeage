@@ -13,7 +13,6 @@ import {
 
 type TransactionError =
   | 'inventoryFull'
-  | 'overweight'
   | 'itemNotFound'
   | 'itemLocked'
   | 'notStackable'
