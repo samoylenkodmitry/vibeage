@@ -4,6 +4,7 @@ import { listRecipeItems, recipesProducing, recipesUsingMaterial } from '../../.
 import { getItemSources } from '../../../../packages/content/obtainability';
 import { ENEMY_TEMPLATES } from '../../../../packages/content/enemies';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
+import { EQUIPMENT_SETS } from '../../../../packages/content/equipmentSets';
 import type { WikiNav } from './WikiBosses';
 
 /**
@@ -74,8 +75,37 @@ function RecipeLi({
           {(outputItem?.name ?? spec.output.itemId)} ×{spec.output.quantity}
         </button>
       </small>
+      {outputItem && <OutputStatsLine item={outputItem} />}
+      {outputItem?.setId && <OutputSetLine setId={outputItem.setId} navigate={navigate} />}
       <RecipeSourceLine recipeId={recipe.id} navigate={navigate} />
     </li>
+  );
+}
+
+function OutputStatsLine({ item }: { item: Item }) {
+  const stats = item.stats ?? {};
+  const parts: string[] = [];
+  if (stats.pAtk) parts.push(`+${stats.pAtk} P.Atk`);
+  if (stats.mAtk) parts.push(`+${stats.mAtk} M.Atk`);
+  if (stats.pDef) parts.push(`+${stats.pDef} P.Def`);
+  if (stats.mDef) parts.push(`+${stats.mDef} M.Def`);
+  if (stats.hp) parts.push(`+${stats.hp} HP`);
+  if (stats.mp) parts.push(`+${stats.mp} MP`);
+  if (stats.critRate) parts.push(`+${stats.critRate} crit`);
+  if (item.healAmount) parts.push(`Heals ${item.healAmount}`);
+  if (item.manaAmount) parts.push(`Restores ${item.manaAmount} MP`);
+  if (parts.length === 0) return null;
+  return <small className="wiki-row-footer">Output stats: {parts.join(' · ')}</small>;
+}
+
+function OutputSetLine({ setId, navigate }: { setId: string; navigate: WikiNav }) {
+  const set = EQUIPMENT_SETS[setId];
+  if (!set) return null;
+  return (
+    <small className="wiki-row-footer">
+      Part of:{' '}
+      <button type="button" className="wiki-effect-chip" onClick={() => navigate('sets', set.setId)}>{set.name}</button>
+    </small>
   );
 }
 

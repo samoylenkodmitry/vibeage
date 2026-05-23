@@ -292,15 +292,15 @@ export const BOSS_GEAR_RECIPE_BY_BOSS: Record<string, string> = Object.fromEntri
  */
 export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
   wildlands_hunter: {
-    // Chieftain's Cleaver + Slab Warhammer both claim MAIN_HAND, so a
-    // single character can wear at most two of these three pieces at
-    // a time (one weapon + the leathers). A 3-piece tier would be
-    // unreachable — the equipmentSetSlotValidity.spec.ts test guards
-    // this. If the design wants a bigger payoff, move one weapon to
-    // a different slot or split into two sets.
+    // Set is `chieftains_cleaver` (one-hand) + `greyfang_leathers`.
+    // `slab_warhammer` used to be listed here too but it's a two-
+    // hand weapon that claims MAIN_HAND just like the cleaver — the
+    // two can never be worn together, so making both "required"
+    // pieces of one set was inconsistent. The warhammer remains a
+    // craftable boss reward; it's just not part of this set.
     setId: 'wildlands_hunter',
     name: 'Wildlands Hunter',
-    requiredPieces: ['chieftains_cleaver', 'greyfang_leathers', 'slab_warhammer'],
+    requiredPieces: ['chieftains_cleaver', 'greyfang_leathers'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pAtk: 10, hp: 30, moveSpeed: 0.1 } },
     ],
@@ -315,13 +315,15 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     ],
   },
   elementborn: {
-    // Ember's Edge + Refraction Staff both claim MAIN_HAND, so a
-    // character can wear at most three pieces (one weapon + chest +
-    // helm). The 4-piece tier was unreachable; collapsed into the
-    // 3-piece tier so the design still rewards completing the set.
+    // Set is `embers_edge` + chest + helm. `refraction_staff` used
+    // to be listed too, but it's a two-hand staff that claims
+    // MAIN_HAND just like the edge — the two can never be worn
+    // together. Staff stays a craftable boss reward outside this
+    // set; the M-Atk caster path will get its own dedicated set
+    // when an additional caster piece (offhand orb / focus) lands.
     setId: 'elementborn',
     name: 'Elementborn',
-    requiredPieces: ['embers_edge', 'refraction_staff', 'forge_avatar_plate', 'tundra_helm'],
+    requiredPieces: ['embers_edge', 'forge_avatar_plate', 'tundra_helm'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pDef: 15, hp: 20 } },
       { requiredCount: 3, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },

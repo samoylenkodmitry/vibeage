@@ -23,15 +23,15 @@ describe('boss-gear sets', () => {
   });
 
   it('activeSetBonuses returns stacked tiers as pieces accumulate', () => {
-    // Elementborn has two bonus tiers (2-piece, 3-piece). The
-    // 4-piece tier was removed in equipmentSetSlotValidity work
-    // because two of its pieces (embers_edge / refraction_staff)
-    // share MAIN_HAND, so wearing all 4 simultaneously is
-    // impossible.
+    // Elementborn is now exactly 3 pieces (edge, plate, helm).
+    // The two-handed `refraction_staff` was removed from
+    // `requiredPieces` because it competed with `embers_edge` for
+    // MAIN_HAND, leaving the set internally inconsistent — see
+    // equipmentSetSlotValidity.spec.ts for the rule.
     const set = BOSS_GEAR_SETS.elementborn;
+    expect(set.requiredPieces.length).toBe(3);
     expect(activeSetBonuses(set.setId, [set.requiredPieces[0]]).length).toBe(0);
     expect(activeSetBonuses(set.setId, set.requiredPieces.slice(0, 2)).length).toBe(1);
-    expect(activeSetBonuses(set.setId, set.requiredPieces.slice(0, 3)).length).toBe(2);
-    expect(activeSetBonuses(set.setId, set.requiredPieces.slice(0, 4)).length).toBe(2);
+    expect(activeSetBonuses(set.setId, set.requiredPieces).length).toBe(2);
   });
 });
