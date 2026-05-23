@@ -15,15 +15,15 @@ import type { WorldArtScene } from './worldArtScenes';
  * with a sprite would look stacked. The light alone is the
  * difference between "wood pile" and "you're invited".
  */
-const FLICKER_BASE = 1.6;
-const FLICKER_AMPLITUDE = 0.55;
+const FLICKER_BASE = 2.4;
+const FLICKER_AMPLITUDE = 0.7;
 // Angular frequencies in rad/s (multiplied directly with the
 // elapsed-time seconds). ~6 rad/s ≈ 0.95 Hz reads as a calm
 // campfire wobble; ~11.5 rad/s ≈ 1.83 Hz adds the small twitch
 // on top.
 const FLICKER_PRIMARY_RAD_PER_SEC = 6.0;
 const FLICKER_SECONDARY_RAD_PER_SEC = 11.5;
-const FLICKER_DISTANCE = 26;
+const FLICKER_DISTANCE = 48;
 const FLICKER_COLOR = '#ffb462';
 
 export function CozyBonfireGlow({ scene }: { scene: WorldArtScene }) {
