@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain, type TerrainBiome } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { computeDayPhase, SUN_DISTANCE } from './timeOfDay';
+import { InstancedGltf } from './world-art/InstancedGltf';
 
 type WorldEnvironmentProps = {
   focus: Vec3D;
@@ -165,40 +166,43 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
   }
 }
 
+const BROADLEAF_GLB = '/models/trees/pine_b.glb';
+const CONIFER_GLB = '/models/trees/pine_a.glb';
+const ACCENT_GLB = '/models/rocks/rock_round_small.glb';
+
 function FoliageField({ focus }: WorldEnvironmentProps) {
   const regenCell = getFoliageRegenCell(focus.x, focus.z);
   const instances = useMemo(
     () => getFoliageInstances(regenCell.x, regenCell.z),
     [regenCell.x, regenCell.z],
   );
+  // Trees and accents are GLB-instanced (Quaternius CC0 pines +
+  // rock); grass stays procedural since a 1300-tuft GLB layer
+  // would dominate the draw budget for tiny ground detail.
+  const treeMatrices = useMemo(() => instances.trees.map(instanceMatrix), [instances.trees]);
+  const coniferMatrices = useMemo(() => instances.conifers.map(instanceMatrix), [instances.conifers]);
+  const accentMatrices = useMemo(() => instances.accents.map(instanceMatrix), [instances.accents]);
 
   return (
     <>
-      {/* Broadleaf canopy: tall trunk, wide cone canopy, sphere crown */}
-      <InstancedFoliage instances={instances.trees} geometry="cone" radius={2.4} height={6.4} yOffset={4.6} />
-      <InstancedFoliage instances={instances.trees} geometry="sphere" radius={1.9} height={1} yOffset={7.6} />
-      <InstancedFoliage
-        instances={instances.trunks}
-        geometry="cylinder"
-        radius={0.5}
-        height={4.2}
-        yOffset={2.1}
-      />
-      {/* Conifer: three stacked cones produce a fir silhouette */}
-      <InstancedFoliage instances={instances.conifers} geometry="cone" radius={1.7} height={5.0} yOffset={4.8} />
-      <InstancedFoliage instances={instances.conifers} geometry="cone" radius={1.25} height={4.4} yOffset={8.2} />
-      <InstancedFoliage instances={instances.conifers} geometry="cone" radius={0.8} height={3.8} yOffset={11.4} />
-      <InstancedFoliage
-        instances={instances.coniferTrunks}
-        geometry="cylinder"
-        radius={0.55}
-        height={5.0}
-        yOffset={2.5}
-      />
+      <Suspense fallback={null}>
+        <InstancedGltf src={BROADLEAF_GLB} matrices={treeMatrices} baseScale={1.4} />
+        <InstancedGltf src={CONIFER_GLB} matrices={coniferMatrices} baseScale={1.6} />
+        <InstancedGltf src={ACCENT_GLB} matrices={accentMatrices} baseScale={0.8} />
+      </Suspense>
       <InstancedFoliage instances={instances.grass} geometry="cone" radius={0.22} height={0.9} yOffset={0.45} />
-      <InstancedFoliage instances={instances.accents} geometry="dodecahedron" radius={0.72} height={1} yOffset={0.5} />
     </>
   );
+}
+
+function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
+  const m = new THREE.Matrix4();
+  m.compose(
+    new THREE.Vector3(instance.x, instance.y, instance.z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, instance.rotation, 0)),
+    new THREE.Vector3(instance.scale, instance.scale, instance.scale),
+  );
+  return m;
 }
 
 function InstancedFoliage({
