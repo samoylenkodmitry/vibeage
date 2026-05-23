@@ -2193,14 +2193,48 @@ input {
   background: rgba(141, 233, 215, 0.14);
 }
 
+/* §52 follow-up — make the drag handle obvious on all panels and
+   reachable on touch. Pre-fix the only cue was a `cursor: grab`
+   that touch users can't see; this adds a visible ⋮⋮ grip icon, a
+   subtle background, and a min-height tall enough for a finger. */
 .panel-drag-handle {
   cursor: grab;
   user-select: none;
   touch-action: none;
+  min-height: 28px;
+  padding: 4px 8px;
+  margin: -8px -8px 4px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  background: rgba(148, 163, 184, 0.08);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  position: relative;
+}
+
+.panel-drag-handle::before {
+  content: '⋮⋮';
+  display: inline-block;
+  margin-right: 8px;
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 14px;
+  letter-spacing: -2px;
+  vertical-align: middle;
+}
+
+.panel-drag-handle:hover {
+  background: rgba(148, 163, 184, 0.14);
 }
 
 .panel-drag-handle:active {
   cursor: grabbing;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+@media (max-width: 680px) {
+  .panel-drag-handle {
+    min-height: 36px;
+    padding: 8px;
+  }
 }
 
 .inventory-grid {
