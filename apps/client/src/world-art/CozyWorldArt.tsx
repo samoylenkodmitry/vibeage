@@ -1,5 +1,9 @@
 import { CozyAuthoredCoast } from './CozyAuthoredCoast';
+<<<<<<< HEAD
 import { CozyBonfireGlow } from './CozyBonfireGlow';
+=======
+import { CozyLanterns } from './CozyLanterns';
+>>>>>>> e74d9e8 (feat(world-art): warm flickering lantern at the cozy dock end)
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShoreBand } from './CozyShoreBand';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
@@ -35,7 +39,11 @@ export function CozyWorldArt({
       <SimpleStylizedWater scene={scene} />
       <CozyShoreBand scene={scene} />
       <CozyAuthoredCoast scene={scene} />
+<<<<<<< HEAD
       <CozyBonfireGlow scene={scene} />
+=======
+      <CozyLanterns scene={scene} />
+>>>>>>> e74d9e8 (feat(world-art): warm flickering lantern at the cozy dock end)
       <CozyPineForest scene={scene} quality={quality} />
     </>
   );

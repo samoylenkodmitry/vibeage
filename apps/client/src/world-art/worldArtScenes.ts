@@ -17,7 +17,7 @@
  * composed rather than randomly populated.
  */
 export type AnchoredProp = {
-  id: 'dock' | 'rowboat' | 'bonfire';
+  id: 'dock' | 'rowboat' | 'bonfire' | 'lantern';
   position: { x: number; y: number; z: number };
   rotationY: number;
   scale: number;
@@ -48,6 +48,10 @@ export const STARTER_COZY_COAST: WorldArtScene = {
   props: [
     { id: 'bonfire', position: { x: -55, y: 0, z: 40 }, rotationY: 0, scale: 1.3 },
     { id: 'dock', position: { x: -150, y: 0, z: -10 }, rotationY: Math.PI / 2, scale: 1.0 },
+    // Lantern hovers at the water-end of the dock — the dock is
+    // 60-ish world-units long after baseScale, anchored at x=-150
+    // and laid along -Z, so the far end sits roughly at z=-40.
+    { id: 'lantern', position: { x: -150, y: 3.6, z: -40 }, rotationY: 0, scale: 1 },
     { id: 'rowboat', position: { x: -195, y: -0.3, z: -28 }, rotationY: Math.PI / 6, scale: 1.1 },
   ],
   enabledByDefault: true,

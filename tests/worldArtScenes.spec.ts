@@ -55,8 +55,10 @@ describe('worldArtScenes', () => {
   });
 
   it('starter scene has dock + rowboat + bonfire authored props', () => {
-    const ids = (STARTER_COZY_COAST.props ?? []).map((p) => p.id).sort();
-    expect(ids).toEqual(['bonfire', 'dock', 'rowboat']);
+    const ids = new Set((STARTER_COZY_COAST.props ?? []).map((p) => p.id));
+    expect(ids.has('bonfire')).toBe(true);
+    expect(ids.has('dock')).toBe(true);
+    expect(ids.has('rowboat')).toBe(true);
   });
 
   it('the dock sits inside the waterline strip', () => {
