@@ -1,7 +1,8 @@
 {
   "bundle": {
-    "warningTotalGzipBytes": 470000,
-    "maxTotalGzipBytes": 500000
+    "warningTotalGzipBytes": 525000,
+    "maxTotalGzipBytes": 560000,
+    "comment": "Bumped 470/500 kB → 525/560 kB in cozy-coast PR 5 to fit @react-three/drei + postprocessing + GLTF loader. Headroom for PR 6 codesplit."
   },
   "tickCost": {
     "warningAverageTickMs": 0.1,
@@ -26,5 +27,25 @@
     "minAverageFps": 15,
     "warningP95FrameMs": 70,
     "maxP95FrameMs": 110
+  },
+  "worldArt": {
+    "assetPayloadMb": {
+      "modelsTotal": 8.5,
+      "texturesTotal": 9.0,
+      "comment": "Combined GLB + texture payload limits. Plan target: < 20 MB initial cozy payload."
+    },
+    "singleAssetMbMax": 3.0,
+    "drawCallTargets": {
+      "low": 60,
+      "medium": 90,
+      "high": 140,
+      "comment": "Soft targets for the cozy hero scene. PR 6 will replace Drei `Clone` with instanced merges if exceeded."
+    },
+    "mobileFallback": {
+      "qualityFloor": "low",
+      "shadowsDisabledUnderQuality": "medium",
+      "postprocessingDisabledUnderQuality": "medium",
+      "comment": "Devices with saveData=true, effectiveType 2g/3g, or deviceMemory<=4 GB are pinned to 'low' (see apps/client/src/world-art/quality.ts)."
+    }
   }
 }
