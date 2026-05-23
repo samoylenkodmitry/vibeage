@@ -17,7 +17,7 @@ export type GroundLootPickupResult =
     }
   | {
       ok: false;
-      reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull';
+      reason: 'playerNotFound' | 'lootNotFound' | 'tooFar' | 'inventoryFull' | 'overweight';
     };
 
 export function pickupGroundLoot(state: GameState, playerId: string, lootId: string): GroundLootPickupResult {
@@ -44,9 +44,16 @@ export function pickupGroundLoot(state: GameState, playerId: string, lootId: str
     const result = addItemsToPlayer(player, drop.itemId, drop.quantity);
     if (!result.ok) {
       // Anti-dupe: any partial add is rolled back so the loot pile stays on
-      // the ground for another attempt. Caller sees a clean failure.
+      // the ground for another attempt. Caller sees a clean failure. The
+      // specific reason is propagated so the client can render the
+      // *actual* cause — "your bag is too heavy" looks like a totally
+      // different problem than "your bag is full" to a user staring at
+      // empty slots.
       restoreInventory(player, snapshot);
-      return { ok: false, reason: 'inventoryFull' };
+      const reason = (result as { ok: false; error: string }).error === 'overweight'
+        ? 'overweight' as const
+        : 'inventoryFull' as const;
+      return { ok: false, reason };
     }
     addedItems.push({ itemId: drop.itemId, quantity: drop.quantity });
   }
