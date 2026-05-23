@@ -5,6 +5,7 @@ import { sampleTerrain, type TerrainBiome } from '../../../packages/content/terr
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { computeDayPhase, SUN_DISTANCE } from './timeOfDay';
+import { BirdFlock } from './BirdFlock';
 import { NightStars } from './NightStars';
 import { InstancedGltf } from './world-art/InstancedGltf';
 
@@ -104,6 +105,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
         ))}
       </group>
       <NightStars />
+      <BirdFlock focus={focus} />
       <FoliageField focus={focus} />
     </>
   );
