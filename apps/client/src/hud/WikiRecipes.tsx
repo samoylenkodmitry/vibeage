@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ITEMS, type Item } from '../../../../packages/content/items';
 import { listRecipeItems, recipesProducing, recipesUsingMaterial } from '../../../../packages/content/recipeLookups';
+import { getItemSources } from '../../../../packages/content/obtainability';
+import { ENEMY_TEMPLATES } from '../../../../packages/content/enemies';
+import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import type { WikiNav } from './WikiBosses';
 
 /**
@@ -71,7 +74,43 @@ function RecipeLi({
           {(outputItem?.name ?? spec.output.itemId)} ×{spec.output.quantity}
         </button>
       </small>
+      <RecipeSourceLine recipeId={recipe.id} navigate={navigate} />
     </li>
+  );
+}
+
+function RecipeSourceLine({ recipeId, navigate }: { recipeId: string; navigate: WikiNav }) {
+  const sources = getItemSources(recipeId);
+  const chips = sources.map((src, i) => {
+    const key = `${src.kind}-${i}`;
+    if (src.kind === 'loot' && src.bossId) {
+      const boss = getMiniBossById(src.bossId);
+      return boss
+        ? <button key={key} type="button" className="wiki-effect-chip" onClick={() => navigate('bosses', boss.id)}>{boss.name}</button>
+        : null;
+    }
+    if (src.kind === 'loot' && src.enemyType) {
+      const mob = ENEMY_TEMPLATES[src.enemyType];
+      return mob
+        ? <button key={key} type="button" className="wiki-effect-chip" onClick={() => navigate('mobs', mob.type)}>{mob.displayName}</button>
+        : null;
+    }
+    if (src.kind === 'vendor') {
+      return <button key={key} type="button" className="wiki-effect-chip" onClick={() => navigate('vendors', src.vendorId)}>Sold by {src.vendorName}</button>;
+    }
+    if (src.kind === 'quest') {
+      return <button key={key} type="button" className="wiki-effect-chip" onClick={() => navigate('quests', src.questId)}>Quest: {src.questName}</button>;
+    }
+    return null;
+  }).filter(Boolean);
+  if (chips.length === 0) {
+    return <small className="wiki-row-footer wiki-row-footer--orphan">Source: not yet placed in the world</small>;
+  }
+  return (
+    <small className="wiki-row-footer">
+      Source:{' '}
+      {chips.map((chip, i) => <span key={i}>{i > 0 && ', '}{chip}</span>)}
+    </small>
   );
 }
 

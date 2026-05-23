@@ -48,4 +48,15 @@ describe('formatPrimarySource', () => {
     const sources = getItemSources('worn_sword');
     expect(formatPrimarySource(sources)).toBe('Sold by Tinker Drev');
   });
+
+  it('every recipe item has at least one source (no hanging recipes in the wiki)', () => {
+    // User reported "recipes in wiki doesn't link who drops them".
+    // Anchor that every recipe item has a getItemSources entry, so
+    // the RecipesTab "Source: …" line always has something to show.
+    const orphans = Object.values(ITEMS)
+      .filter((it) => it.type === 'recipe')
+      .filter((it) => getItemSources(it.id).length === 0)
+      .map((it) => it.id);
+    expect(orphans, `recipes without sources: ${orphans.join(', ')}`).toEqual([]);
+  });
 });

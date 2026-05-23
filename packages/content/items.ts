@@ -493,32 +493,10 @@ export const ITEMS: Record<ItemId, Item> = {
   // facing value. When a buff/resistance engine ships, the items
   // should be re-added with real effects rather than as type:
   // 'material' placeholders.
-  // Quest-specific items
-  'ancient_tome': {
-    id: 'ancient_tome',
-    name: 'Ancient Tome',
-    description: 'A weathered book containing forgotten knowledge and spells.',
-    icon: 'ancient_tome.svg',
-    stackable: false,
-    type: 'material',
-  },
-  'sealed_letter': {
-    id: 'sealed_letter',
-    name: 'Sealed Letter',
-    description: 'An important message with an unbroken wax seal.',
-    icon: 'sealed_letter.svg',
-    stackable: true,
-    maxStack: 10,
-    type: 'material',
-  },
-  'mysterious_artifact': {
-    id: 'mysterious_artifact',
-    name: 'Mysterious Artifact',
-    description: 'An ancient relic of unknown origin and purpose.',
-    icon: 'mysterious_artifact.svg',
-    stackable: false,
-    type: 'material',
-  },
+  // Quest-specific items removed: ancient_tome, sealed_letter,
+  // mysterious_artifact were declared but no quest/recipe/loot/vendor
+  // touched them — the wiki rendered ghosts the player could never
+  // obtain. Re-add when an actual quest hook lands.
 
   'phoenix_feather': {
     id: 'phoenix_feather',
@@ -529,16 +507,9 @@ export const ITEMS: Record<ItemId, Item> = {
     maxStack: 3,
     type: 'material',
   },
-  // Dungeon-specific rare drops
-  'shadow_crown': {
-    id: 'shadow_crown',
-    name: 'Crown of Shadows',
-    description: 'A dark crown that grants dominion over shadow magic.',
-    icon: 'shadow_crown.svg',
-    stackable: false,
-    type: 'armor',
-    defenseValue: 45,
-  },
+  // Dungeon-specific rare drops removed: shadow_crown — declared
+  // but no dungeon, no loot table, no quest. Re-add when a dungeon
+  // ships.
   'flame_heart': {
     id: 'flame_heart',
     name: 'Heart of Flame',
@@ -573,33 +544,11 @@ export const ITEMS: Record<ItemId, Item> = {
     maxStack: 9999,
     type: 'currency',
   },
-  'dungeon_key': {
-    id: 'dungeon_key',
-    name: 'Dungeon Key',
-    description: 'A magical key that can unlock special dungeon doors.',
-    icon: 'dungeon_key.svg',
-    stackable: true,
-    maxStack: 10,
-    type: 'material',
-  },
-  'teleport_scroll': {
-    id: 'teleport_scroll',
-    name: 'Teleport Scroll',
-    description: 'A scroll that instantly transports the user to a safe location (effect not yet implemented).',
-    icon: 'teleport_scroll.svg',
-    stackable: true,
-    maxStack: 5,
-    type: 'material',
-  },
-  'experience_orb': {
-    id: 'experience_orb',
-    name: 'Experience Orb',
-    description: 'A crystallized orb containing pure experience energy (effect not yet implemented).',
-    icon: 'experience_orb.svg',
-    stackable: true,
-    maxStack: 20,
-    type: 'material',
-  },
+  // Future-content placeholders removed: dungeon_key, teleport_scroll,
+  // experience_orb. Each had "(effect not yet implemented)" or no
+  // engine handler, and no source ever placed them in the world.
+  // Re-add when the supporting feature (dungeon doors, teleport
+  // engine, XP-orb pickup) actually ships with a real effect.
   ...EQUIPMENT_STARTER_ITEMS,
   ...BOSS_TROPHY_ITEMS,
   ...BOSS_GEAR_ITEMS,
