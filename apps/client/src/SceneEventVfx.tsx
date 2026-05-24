@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { DamageNumber } from './DamageNumber';
 import type { Vec3, VisualEvent } from './gameTypes';
 import { getTerrainY } from './worldSceneConfig';
 
@@ -66,6 +67,9 @@ function DamagePulseVfx({ event }: { event: VisualEvent }) {
         <sphereGeometry args={[0.28, 12, 12]} />
         <meshBasicMaterial color="#fff7ad" transparent opacity={0.5} depthWrite={false} />
       </mesh>
+      {event.amount !== undefined && event.amount > 0 && (
+        <DamageNumber amount={event.amount} color="#fda4a4" baseY={1.1} />
+      )}
     </group>
   );
 }
@@ -105,6 +109,9 @@ function RecoveryVfx({ event }: { event: VisualEvent }) {
           <meshBasicMaterial color={color} transparent opacity={0.74} depthWrite={false} />
         </mesh>
       ))}
+      {event.amount !== undefined && event.amount > 0 && (
+        <DamageNumber amount={event.amount} color={color} baseY={1.0} />
+      )}
       <pointLight color={color} intensity={0.9} distance={2.8} />
     </group>
   );
