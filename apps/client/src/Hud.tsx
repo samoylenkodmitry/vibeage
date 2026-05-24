@@ -6,6 +6,7 @@ import { GainBurst } from './hud/GainBurst';
 import { HudPanels } from './hud/HudPanels';
 import { HitShake } from './hud/HitShake';
 import { LifeCueBridge } from './hud/LifeCueBridge';
+import { LowHealthHeartbeat } from './hud/LowHealthHeartbeat';
 import { HurtVignette } from './hud/HurtVignette';
 import { LevelUpBurst } from './hud/LevelUpBurst';
 import { QuestCompleteBurst } from './hud/QuestCompleteBurst';
@@ -105,7 +106,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
+      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><LowHealthHeartbeat health={player.health} maxHealth={player.maxHealth} isAlive={player.isAlive} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
       <HudTopStrips
         state={state}
         player={player}
