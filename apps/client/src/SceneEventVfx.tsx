@@ -27,7 +27,72 @@ export function WorldEventVfx({ event }: { event: VisualEvent }) {
     return <PetrifyFlashVfx position={event.position} />;
   }
 
+  if (event.kind === 'miss') {
+    return <MissVfx event={event} />;
+  }
+
   return <SplashImpactVfx event={event} />;
+}
+
+function MissVfx({ event }: { event: VisualEvent }) {
+  const matRef = useRef<THREE.SpriteMaterial>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const spriteRef = useRef<THREE.Sprite>(null);
+  const baseY = getTerrainY(event.position.x, event.position.z) + 1.1;
+  const texture = useRef<THREE.CanvasTexture | null>(null);
+  if (!texture.current) texture.current = buildMissTexture();
+  const tex = texture.current;
+  const aspect = tex.image.width / tex.image.height;
+
+  useFrame(({ clock }) => {
+    if (startedAtRef.current === null) startedAtRef.current = clock.elapsedTime;
+    const age = clock.elapsedTime - startedAtRef.current;
+    const t = Math.min(1, age / 0.75);
+    if (spriteRef.current) {
+      // Wobble + rise for a "whiff" feel.
+      spriteRef.current.position.y = baseY + t * 0.6;
+      spriteRef.current.position.x = Math.sin(age * 12) * 0.08;
+    }
+    if (matRef.current) {
+      matRef.current.opacity = t < 0.12 ? t / 0.12 : 1 - (t - 0.12) / 0.88;
+    }
+  });
+
+  const height = 0.5;
+  return (
+    <group position={[event.position.x, baseY, event.position.z]}>
+      <sprite ref={spriteRef} position={[0, 0, 0]} scale={[height * aspect, height, 1]}>
+        <spriteMaterial ref={matRef} map={tex} transparent depthTest={false} depthWrite={false} sizeAttenuation />
+      </sprite>
+    </group>
+  );
+}
+
+function buildMissTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const font = '800 64px "Inter", system-ui, -apple-system, sans-serif';
+  ctx.font = font;
+  const metrics = ctx.measureText('MISS');
+  const textWidth = Math.ceil(metrics.width);
+  const width = textWidth + 36;
+  const height = 88;
+  canvas.width = width;
+  canvas.height = height;
+  ctx.font = font;
+  ctx.fillStyle = '#cbd5e1';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+  ctx.shadowBlur = 10;
+  ctx.fillText('MISS', width / 2, height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function DamagePulseVfx({ event }: { event: VisualEvent }) {

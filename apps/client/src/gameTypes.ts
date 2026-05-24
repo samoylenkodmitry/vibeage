@@ -172,7 +172,7 @@ export type GroundLootStack = {
   items: ItemDrop[];
 };
 
-type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage';
+type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage' | 'miss';
 
 export type VisualEvent = {
   id: string;
