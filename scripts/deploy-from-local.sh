@@ -69,74 +69,54 @@ push_if_needed() {
 }
 
 ensure_heavy_ci_passed() {
-  # Archwork item #1 (post-#444) — refuse to deploy a SHA whose
-  # latest main heavy CI hasn't reported success.
+  # Heavy CI is now nightly (see .github/workflows/ci.yml — the
+  # `nightly-checks` job runs on a cron schedule, not on push). The
+  # per-merge gate this function used to enforce no longer exists,
+  # so the default behaviour is to skip with a one-line note. We
+  # still honour SKIP_CI_GATE=1 for parity with the rollback script
+  # and old muscle memory, but it's a no-op in the new model.
   #
-  # Before this guard, rapid main merges cancelled the post-merge
-  # heavy job (concurrency: cancel-in-progress was true for every
-  # ref), and we deployed un-gated against the heavy gate dozens of
-  # times in a row without noticing the gate was red.
-  #
-  # Honors SKIP_CI_GATE=1 for explicit emergency deploys (rollback,
-  # production-down incident). gh CLI is the dependency; if it's not
-  # available, this falls back to a soft warning rather than blocking
-  # — but the soft path expects an operator to make the call.
+  # If a deploy actually needs to wait on a heavy run (e.g. after
+  # touching the perf budget), trigger the nightly workflow manually
+  # via `gh workflow run CI` and check the run yourself before deploy.
   local deploy_sha=$1
-
+  if [ "${ENFORCE_HEAVY_CI:-0}" != "1" ]; then
+    log "Heavy CI is nightly-only — skipping per-deploy gate for $deploy_sha"
+    return
+  fi
   if [ "${SKIP_CI_GATE:-0}" = "1" ]; then
-    log "SKIP_CI_GATE=1 set — bypassing main heavy-CI guard"
+    log "SKIP_CI_GATE=1 set — bypassing heavy-CI guard"
     return
   fi
 
   if ! command -v gh >/dev/null 2>&1; then
-    log "WARN: gh CLI not installed; cannot verify heavy CI for $deploy_sha. Set SKIP_CI_GATE=1 to acknowledge."
-    fail "Deploy guard requires the gh CLI. Install it or set SKIP_CI_GATE=1 if this is an emergency deploy."
+    fail "ENFORCE_HEAVY_CI=1 requires the gh CLI. Install it or unset ENFORCE_HEAVY_CI."
   fi
 
-  log "Checking latest main heavy CI for $deploy_sha"
-
-  # Query the workflow run list filtered to this SHA. Take the most
-  # recent completed run. status=completed restricts to runs that
-  # finished (success / failure / cancelled).
+  log "ENFORCE_HEAVY_CI=1 — checking latest nightly CI"
   local ci_json
-  if ! ci_json=$(gh run list --commit "$deploy_sha" --workflow CI --limit 5 --json status,conclusion,databaseId,event 2>/dev/null); then
-    fail "Could not query CI status for $deploy_sha via gh. Check 'gh auth status' or set SKIP_CI_GATE=1."
+  if ! ci_json=$(gh run list --workflow CI --limit 5 --json status,conclusion,databaseId,event 2>/dev/null); then
+    fail "Could not query CI status via gh. Check 'gh auth status'."
   fi
 
-  # Pick the post-merge (push event) run. If none exists yet, the
-  # heavy gate hasn't even started for this SHA — refuse to deploy
-  # against a SHA whose heavy CI never ran.
   local conclusion
   conclusion=$(printf '%s' "$ci_json" | python3 -c "
 import json, sys
 runs = json.loads(sys.stdin.read())
-push_runs = [r for r in runs if r.get('event') == 'push']
-if not push_runs:
-    print('no-push-run')
-    sys.exit(0)
-r = push_runs[0]
+nightly = [r for r in runs if r.get('event') in ('schedule', 'workflow_dispatch')]
+if not nightly:
+    print('no-nightly-run'); sys.exit(0)
+r = nightly[0]
 if r.get('status') != 'completed':
-    print('not-completed:' + r.get('status', '?'))
-    sys.exit(0)
+    print('not-completed:' + r.get('status', '?')); sys.exit(0)
 print(r.get('conclusion', '?'))
-" 2>/dev/null) || fail "Failed to parse CI status JSON for $deploy_sha"
+" 2>/dev/null) || fail "Failed to parse CI status JSON"
 
   case "$conclusion" in
-    success)
-      log "Heavy CI for $deploy_sha: success"
-      ;;
-    no-push-run)
-      fail "No push-event CI run found for $deploy_sha. Wait for the post-merge heavy gate to start, then re-run. (Or SKIP_CI_GATE=1 if you've manually verified.)"
-      ;;
-    not-completed:*)
-      fail "Heavy CI for $deploy_sha is still ${conclusion#not-completed:}. Wait for it to finish, then re-run. (Or SKIP_CI_GATE=1.)"
-      ;;
-    failure|cancelled|timed_out|action_required)
-      fail "Heavy CI for $deploy_sha is '$conclusion'. Refusing to deploy. Investigate the failing run or SKIP_CI_GATE=1 for an emergency deploy."
-      ;;
-    *)
-      fail "Heavy CI for $deploy_sha returned unexpected conclusion '$conclusion'. Investigate or SKIP_CI_GATE=1."
-      ;;
+    success) log "Nightly CI: success" ;;
+    no-nightly-run) fail "No nightly CI run found. Trigger with 'gh workflow run CI'." ;;
+    not-completed:*) fail "Nightly CI is still ${conclusion#not-completed:}." ;;
+    *) fail "Nightly CI conclusion '$conclusion'. Investigate or unset ENFORCE_HEAVY_CI." ;;
   esac
 }
 
