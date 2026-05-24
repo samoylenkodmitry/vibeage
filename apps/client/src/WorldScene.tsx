@@ -11,7 +11,8 @@ import { ZoneLandmarks } from './ZoneLandmarks';
 import { CameraRig, type CameraControls } from './CameraRig';
 import { CozyWorldArt } from './world-art/CozyWorldArt';
 import { chooseWorldArtQuality } from './world-art/quality';
-import { pickActiveScene } from './world-art/worldArtScenes';
+import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
+import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 import {
   CastMarker,
   EnemyMarker,
@@ -54,6 +55,12 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       }}
     >
       <WorldEnvironment focus={focus} />
+      {/* Stylized water always renders (anchored to the starter
+          coast's waterline), so the sea stays visible from far
+          inland sectors instead of vanishing the moment the player
+          steps outside the cozy scene radius. The rest of the cozy
+          art (foam, shells, driftwood) stays scene-bound below. */}
+      <SimpleStylizedWater scene={STARTER_COZY_COAST} />
       {activeCozyScene && <CozyWorldArt scene={activeCozyScene} quality={worldArtQuality} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" palette={activeCozyScene ? 'sand' : 'grass'} />
       <WorldFeatures focus={focus} />
