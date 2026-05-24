@@ -6,6 +6,7 @@ import { GainBurst } from './hud/GainBurst';
 import { HudPanels } from './hud/HudPanels';
 import { HurtVignette } from './hud/HurtVignette';
 import { LevelUpBurst } from './hud/LevelUpBurst';
+import { QuestCompleteBurst } from './hud/QuestCompleteBurst';
 import { SfxMuteButton } from './hud/SfxMuteButton';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
@@ -101,7 +102,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /></>)}
+      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
       <HudTopStrips
         state={state}
         player={player}

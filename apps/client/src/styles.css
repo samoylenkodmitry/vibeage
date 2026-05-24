@@ -3664,3 +3664,39 @@ button.character-option {
 }
 .sfx-mute-button:hover { background: rgba(5, 14, 18, 0.86); }
 .sfx-mute-button[aria-pressed="true"] { opacity: 0.55; }
+
+/* QuestCompleteBurst — smaller cousin of LevelUp, top-center */
+.quest-complete-burst {
+  position: fixed;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 10px 22px;
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  border-radius: 10px;
+  background: rgba(5, 14, 18, 0.78);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 0 14px rgba(250, 204, 21, 0.28);
+  text-align: center;
+  animation: quest-complete-fade 2400ms ease-out forwards;
+}
+.quest-complete-burst__title {
+  font: 700 14px/1 "Inter", system-ui, sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #fde68a;
+}
+.quest-complete-burst__name {
+  font: 600 17px/1.1 "Inter", system-ui, sans-serif;
+  color: #f8fafc;
+}
+@keyframes quest-complete-fade {
+  0%   { transform: translate(-50%, 12px); opacity: 0; }
+  10%  { transform: translate(-50%, 0);    opacity: 1; }
+  85%  { transform: translate(-50%, 0);    opacity: 1; }
+  100% { transform: translate(-50%, -8px); opacity: 0; }
+}
