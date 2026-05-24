@@ -176,7 +176,7 @@ export function GameHud(props: GameHudProps) {
         onBindItem={items.bindItem}
         onClearItem={items.clearItem}
       />
-      <PanelToggleStrip panels={panels} />
+      <PanelToggleStrip panels={panels} unspentSkillPoints={player?.availableSkillPoints ?? 0} />
       {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
     </>
@@ -315,11 +315,12 @@ function HudWorldStatsStrip({
 }
 
 
-function PanelToggleStrip({ panels }: { panels: PanelState }) {
+function PanelToggleStrip({ panels, unspentSkillPoints }: { panels: PanelState; unspentSkillPoints: number }) {
+  const spBadge = unspentSkillPoints > 0 ? unspentSkillPoints : null;
   return (
     <aside className="panel-toggles" aria-label="Panel toggles">
       <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
-      <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} />
+      <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} badge={spBadge} />
       <PanelToggleButton open={panels.actionsOpen} label="Actions" onClick={panels.toggleActions} />
       <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
       <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
@@ -389,19 +390,26 @@ function PanelToggleButton({
   open,
   label,
   onClick,
+  badge,
 }: {
   open: boolean;
   label: string;
   onClick: () => void;
+  /** Optional small chip next to the label — e.g. unspent skill point count. */
+  badge?: number | null;
 }) {
+  const hasBadge = badge !== undefined && badge !== null && badge > 0;
   return (
     <button
       type="button"
-      className={`panel-toggle${open ? ' panel-toggle--open' : ''}`}
+      className={`panel-toggle${open ? ' panel-toggle--open' : ''}${hasBadge ? ' panel-toggle--badged' : ''}`}
       aria-label={open ? `Hide ${label}` : `Show ${label}`}
       onClick={onClick}
     >
       {label}
+      {hasBadge && (
+        <span className="panel-toggle__badge" aria-label={`${badge} unspent`}>{badge}</span>
+      )}
     </button>
   );
 }

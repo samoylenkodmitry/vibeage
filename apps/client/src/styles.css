@@ -2688,6 +2688,37 @@ input {
   background: rgba(254, 220, 76, 0.96);
 }
 
+.panel-toggle__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #6ee7b7;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.panel-toggle--badged {
+  animation: panel-toggle-badged-pulse 2.2s ease-in-out infinite;
+}
+@keyframes panel-toggle-badged-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(110, 231, 183, 0); }
+  50%      { box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.45); }
+}
+.panel-toggle--open .panel-toggle__badge {
+  background: rgba(15, 23, 42, 0.85);
+  color: #6ee7b7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-toggle--badged { animation: none; }
+}
+
 .combat-log {
   position: absolute;
   left: 18px;
