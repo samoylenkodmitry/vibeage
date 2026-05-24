@@ -1,4 +1,5 @@
 import type { GameClientState, PlayerEntity } from '../gameTypes';
+import { AutoAttackChip } from './AutoAttackChip';
 import { BossDefeatBanner } from './BossDefeatBanner';
 import { BossEncounterBanner } from './BossEncounterBanner';
 import { BossTelegraphBar } from './BossTelegraphBar';
@@ -46,6 +47,7 @@ export function HudOverlays({ state, player }: HudOverlaysProps) {
       <BossTelegraphCue telegraphs={state.bossTelegraphs} />
       <BossTelegraphBar telegraphs={state.bossTelegraphs} />
       <ChatReceiveCue chatLines={state.chatLines} myPlayerId={state.myPlayerId} />
+      <AutoAttackChip autoAttack={state.autoAttack} enemies={state.enemies} />
       {player && (
         <>
           <HurtVignette health={player.health} />
