@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isEditableTarget } from '../skillShortcuts';
+import { subscribeKeybindOpen } from './keybindBus';
 
 const ROWS: readonly { key: string; label: string }[] = [
   { key: '1 — 0', label: 'Skill bar (primary row)' },
@@ -42,6 +43,10 @@ export function KeybindCheatsheet() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
+
+  // Bus subscription so the visible '?' button (or any other
+  // surface) can open the same overlay without lifting state.
+  useEffect(() => subscribeKeybindOpen(() => setOpen(true)), []);
 
   if (!open) return null;
   return (
