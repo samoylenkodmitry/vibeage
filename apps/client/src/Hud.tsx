@@ -463,11 +463,15 @@ function CastingPanel({ player }: { player: PlayerEntity | null }) {
 
 function DeathOverlay({ onRespawn }: { onRespawn: () => void }) {
   return (
-    <section className="death-overlay" aria-label="Death">
-      <strong>You died</strong>
-      <button type="button" onClick={onRespawn}>
-        Respawn
-      </button>
+    <section className="death-overlay" aria-label="Death" role="dialog" aria-modal="true">
+      <div className="death-overlay__card">
+        <span className="death-overlay__icon" aria-hidden="true">✦</span>
+        <strong className="death-overlay__title">You have fallen</strong>
+        <p className="death-overlay__subtitle">Return to the nearest waypoint to keep adventuring.</p>
+        <button type="button" className="death-overlay__button" onClick={onRespawn} autoFocus>
+          Respawn
+        </button>
+      </div>
     </section>
   );
 }

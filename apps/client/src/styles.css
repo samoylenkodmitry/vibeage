@@ -747,13 +747,54 @@ input {
   inset: 0;
   display: grid;
   place-items: center;
-  align-content: center;
-  gap: 16px;
-  background: rgba(3, 10, 13, 0.66);
+  background: radial-gradient(ellipse at center, rgba(60, 5, 5, 0.55) 0%, rgba(3, 10, 13, 0.82) 80%);
+  backdrop-filter: blur(3px);
+  z-index: 10000;
+  animation: death-overlay-fade-in 380ms ease-out forwards;
 }
-
-.death-overlay strong {
-  font-size: 30px;
+.death-overlay__card {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 36px 56px;
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 14px;
+  background: rgba(5, 14, 18, 0.78);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 18px rgba(220, 38, 38, 0.25);
+  text-align: center;
+}
+.death-overlay__icon {
+  font-size: 42px;
+  color: #fb7185;
+  line-height: 1;
+}
+.death-overlay__title {
+  font-size: 32px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+.death-overlay__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(248, 250, 252, 0.66);
+  max-width: 280px;
+}
+.death-overlay__button {
+  margin-top: 4px;
+  padding: 8px 24px;
+  border: 1px solid rgba(141, 233, 215, 0.45);
+  border-radius: 6px;
+  background: rgba(15, 118, 110, 0.42);
+  color: #f0fdfa;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.death-overlay__button:hover { background: rgba(15, 118, 110, 0.62); }
+@keyframes death-overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .vitals-strip {
