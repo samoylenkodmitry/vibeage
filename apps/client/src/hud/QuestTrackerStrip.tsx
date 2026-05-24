@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
@@ -24,14 +24,56 @@ type QuestTrackerStripProps = {
   player: PlayerEntity | null;
   trackedQuestId?: string | null;
   onOpenQuestPanel?: () => void;
+  /** Camera yaw in radians (0 = +Z forward). Drives the compass arrow rotation. */
+  cameraAngleRef?: MutableRefObject<number>;
 };
+
+/**
+ * Camera-relative bearing (degrees) from player to marker. 0° = the
+ * direction the camera is currently facing, +90° = right, etc. Pure
+ * function so it can be unit-tested without React.
+ */
+export function bearingToMarkerDeg(
+  player: { x: number; z: number },
+  marker: { x: number; z: number },
+  cameraAngleRad: number,
+): number {
+  const dx = marker.x - player.x;
+  const dz = marker.z - player.z;
+  // atan2(x, z) gives world-space yaw matching the orbit-camera
+  // convention (forward = -Z). Subtract camera yaw to get a
+  // viewer-relative bearing. Convert to degrees for the CSS rotate.
+  const worldYaw = Math.atan2(dx, -dz);
+  const rel = worldYaw - cameraAngleRad;
+  // Normalize to (-180, 180].
+  let deg = (rel * 180) / Math.PI;
+  while (deg > 180) deg -= 360;
+  while (deg <= -180) deg += 360;
+  return deg;
+}
 
 export function QuestTrackerStrip({
   player,
   trackedQuestId,
   onOpenQuestPanel,
+  cameraAngleRef,
 }: QuestTrackerStripProps) {
   const tracked = useMemo(() => pickTrackedStage(player, trackedQuestId ?? null), [player, trackedQuestId]);
+  // Camera yaw is a ref (mutated in WorldScene's render loop). Poll
+  // it on a 100ms interval — fast enough that the arrow follows the
+  // camera smoothly without re-rendering the whole strip every frame.
+  const [bearingDeg, setBearingDeg] = useState<number | null>(null);
+  useEffect(() => {
+    if (!tracked?.marker || !player) {
+      setBearingDeg(null);
+      return;
+    }
+    const id = window.setInterval(() => {
+      const yaw = cameraAngleRef?.current ?? 0;
+      setBearingDeg(bearingToMarkerDeg(player.position, tracked.marker!, yaw));
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [tracked?.marker, player, cameraAngleRef]);
   const trackedKey = tracked ? `${tracked.quest.id}-${tracked.stageIndex}` : null;
   const lastProgressRef = useRef<{ key: string | null; value: number }>({ key: trackedKey, value: tracked?.progress ?? 0 });
   const [bumpKey, setBumpKey] = useState(0);
@@ -88,6 +130,15 @@ export function QuestTrackerStrip({
           <small className="quest-tracker-distance">{formatDistance(distance)} away</small>
         )}
       </div>
+      {bearingDeg !== null && (
+        <span
+          className="quest-tracker-compass"
+          style={{ transform: `rotate(${bearingDeg}deg)` }}
+          aria-hidden="true"
+        >
+          ▲
+        </span>
+      )}
       <span className="quest-tracker-hint" aria-hidden="true">{hint}</span>
       {bumpKey > 0 && (
         <span key={`pulse-${bumpKey}`} className="quest-tracker-strip__pulse" aria-hidden="true" />

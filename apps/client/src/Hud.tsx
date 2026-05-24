@@ -139,6 +139,7 @@ export function GameHud(props: GameHudProps) {
         player={player}
         trackedQuestId={state.trackedQuestId}
         onOpenQuestPanel={panels.openQuest}
+        cameraAngleRef={cameraAngleRef}
       />
       <WelcomeOverlay player={player} /><ZoneBanner player={player} />
       <TargetingHint state={state} />

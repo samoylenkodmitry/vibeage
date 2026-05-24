@@ -2220,6 +2220,26 @@ input {
 .quest-tracker-strip strong { font-size: 13px; }
 .quest-tracker-stage { opacity: 0.85; }
 .quest-tracker-distance { font-size: 11px; color: #fde68a; }
+.quest-tracker-compass {
+  position: absolute;
+  top: 50%;
+  right: 36px;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fde68a;
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 120ms linear;
+  pointer-events: none;
+  text-shadow: 0 0 6px rgba(253, 230, 138, 0.55);
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-tracker-compass { transition: none; }
+}
 
 /* §49/M2 — objective-met / ready-to-claim states. Lifts the
    border so the player notices Next/Claim without having to read
