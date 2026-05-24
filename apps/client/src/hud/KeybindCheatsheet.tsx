@@ -2,16 +2,33 @@ import { useEffect, useState } from 'react';
 import { isEditableTarget } from '../skillShortcuts';
 import { subscribeKeybindOpen } from './keybindBus';
 
-const ROWS: readonly { key: string; label: string }[] = [
-  { key: '1 — 0', label: 'Skill bar (primary row)' },
-  { key: 'Q W E R T Y U I O P', label: 'Skill bar (secondary row)' },
-  { key: 'A', label: 'Basic attack' },
-  { key: 'Tab', label: 'Cycle to nearest enemy' },
-  { key: 'F', label: 'Pick up nearest loot' },
-  { key: 'M', label: 'Move to map marker' },
-  { key: 'R', label: 'Respawn (on death overlay)' },
-  { key: 'H / ?', label: 'Toggle this cheatsheet' },
-  { key: 'Esc', label: 'Close panels / dialogs' },
+type Row = { key: string; label: string };
+
+const GROUPS: readonly { title: string; rows: readonly Row[] }[] = [
+  {
+    title: 'Combat',
+    rows: [
+      { key: '1 — 0', label: 'Skill bar (primary row)' },
+      { key: 'Q W E R T Y U I O P', label: 'Skill bar (secondary row)' },
+      { key: 'A', label: 'Basic attack' },
+      { key: 'Tab', label: 'Cycle to nearest enemy' },
+    ],
+  },
+  {
+    title: 'World',
+    rows: [
+      { key: 'F', label: 'Pick up nearest loot' },
+      { key: 'M', label: 'Move to map marker' },
+      { key: 'R', label: 'Respawn (on death overlay)' },
+    ],
+  },
+  {
+    title: 'UI',
+    rows: [
+      { key: 'H / ?', label: 'Toggle this cheatsheet' },
+      { key: 'Esc', label: 'Close panels / dialogs' },
+    ],
+  },
 ];
 
 /**
@@ -62,14 +79,19 @@ export function KeybindCheatsheet() {
           ×
         </button>
       </header>
-      <dl className="keybind-cheatsheet__list">
-        {ROWS.map((row) => (
-          <div key={row.key} className="keybind-cheatsheet__row">
-            <dt><kbd>{row.key}</kbd></dt>
-            <dd>{row.label}</dd>
-          </div>
-        ))}
-      </dl>
+      {GROUPS.map((group) => (
+        <div key={group.title} className="keybind-cheatsheet__group">
+          <h3 className="keybind-cheatsheet__group-title">{group.title}</h3>
+          <dl className="keybind-cheatsheet__list">
+            {group.rows.map((row) => (
+              <div key={row.key} className="keybind-cheatsheet__row">
+                <dt><kbd>{row.key}</kbd></dt>
+                <dd>{row.label}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
     </section>
   );
 }
