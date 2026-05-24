@@ -3,6 +3,7 @@ import { BossDefeatBanner } from './BossDefeatBanner';
 import { BossEncounterBanner } from './BossEncounterBanner';
 import { BossTelegraphBar } from './BossTelegraphBar';
 import { BossTelegraphCue } from './BossTelegraphCue';
+import { ChatReceiveCue } from './ChatReceiveCue';
 import { CombatSfxBridge } from './CombatSfxBridge';
 import { GainBurst } from './GainBurst';
 import { HitShake } from './HitShake';
@@ -44,6 +45,7 @@ export function HudOverlays({ state, player }: HudOverlaysProps) {
       <BossDefeatBanner enemies={state.enemies} />
       <BossTelegraphCue telegraphs={state.bossTelegraphs} />
       <BossTelegraphBar telegraphs={state.bossTelegraphs} />
+      <ChatReceiveCue chatLines={state.chatLines} myPlayerId={state.myPlayerId} />
       {player && (
         <>
           <HurtVignette health={player.health} />
