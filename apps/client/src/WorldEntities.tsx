@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { QUEST_NPCS } from '../../../packages/content/npcs';
@@ -399,6 +399,7 @@ export function EnemyMarker({
   const isMoving = enemy.isAlive && speedSq > 0.5;
 
   const groundedYOffset = enemy.isAlive ? 0.55 : 0.1;
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <SmoothedEntityGroup
@@ -411,6 +412,12 @@ export function EnemyMarker({
       {isSelected && <SelectedEnemyRing />}
       {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
       {enemy.isAlive && enemy.aiState && enemy.aiState !== 'idle' && <EnemyThreatRing state={enemy.aiState} />}
+      {enemy.isAlive && isHovered && !isSelected && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]} raycast={() => null}>
+          <ringGeometry args={[0.95, 1.12, 36]} />
+          <meshBasicMaterial color="#cffafe" transparent opacity={0.45} depthWrite={false} />
+        </mesh>
+      )}
       <EnemyBody
         shape={visual.shape}
         color={color}
@@ -418,6 +425,8 @@ export function EnemyMarker({
         isMoving={isMoving}
         isAlive={enemy.isAlive}
         onPointerDown={handlePointerDown}
+        onPointerOver={() => setIsHovered(true)}
+        onPointerOut={() => setIsHovered(false)}
       />
       {enemy.isAlive && visual.glow && (
         <pointLight color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} />
@@ -460,6 +469,8 @@ function EnemyBody({
   isMoving,
   isAlive,
   onPointerDown,
+  onPointerOver,
+  onPointerOut,
 }: {
   shape: 'sphere' | 'box';
   color: string;
@@ -467,6 +478,8 @@ function EnemyBody({
   isMoving: boolean;
   isAlive: boolean;
   onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerOver?: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: (event: ThreeEvent<PointerEvent>) => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -492,7 +505,13 @@ function EnemyBody({
   });
 
   return (
-    <mesh ref={meshRef} castShadow onPointerDown={onPointerDown}>
+    <mesh
+      ref={meshRef}
+      castShadow
+      onPointerDown={onPointerDown}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
+    >
       {shape === 'sphere'
         ? <sphereGeometry args={[0.58, 18, 14]} />
         : <boxGeometry args={[1.05, height, 1.05]} />}
