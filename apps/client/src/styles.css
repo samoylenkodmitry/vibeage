@@ -2664,6 +2664,16 @@ input {
   color: #fff7ad;
   text-shadow: 0 0 14px rgba(250, 204, 21, 0.36);
 }
+.combat-log-time {
+  display: inline-block;
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 10px;
+}
+.combat-log-scroll span:last-child .combat-log-time {
+  color: rgba(250, 204, 21, 0.6);
+}
 
 .combat-log-jump {
   position: absolute;
