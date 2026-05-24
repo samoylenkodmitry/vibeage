@@ -47,7 +47,7 @@ export const STARTER_COZY_COAST: WorldArtScene = {
   //   rowboat sits beside the dock, lightly angled
   props: [
     { id: 'bonfire', position: { x: -55, y: 0, z: 40 }, rotationY: 0, scale: 1.3 },
-    { id: 'dock', position: { x: -150, y: 0, z: -10 }, rotationY: Math.PI / 2, scale: 1.0 },
+    { id: 'dock', position: { x: -150, y: 0, z: -10 }, rotationY: -Math.PI / 2, scale: 1.0 },
     { id: 'rowboat', position: { x: -195, y: -0.3, z: -28 }, rotationY: Math.PI / 6, scale: 1.1 },
     // Lanterns sit near landmarks where they read as intentional
     // even without visiting the scene in-engine to measure dock
