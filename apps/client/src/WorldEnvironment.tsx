@@ -175,7 +175,7 @@ const CONIFER_GLB = '/models/trees/pine_a.glb';
 const ACCENT_GLB_SMALL = '/models/rocks/rock_round_small.glb';
 const ACCENT_GLB_MEDIUM = '/models/rocks/rock_medium_a.glb';
 const TREE_GLB_ALT = '/models/trees/pine_c.glb';
-const TREE_WIND = { amplitude: 0.22, speed: 1.1 } as const;
+const TREE_WIND = { amplitude: 0.14, speed: 0.85 } as const;
 
 function FoliageField({ focus }: WorldEnvironmentProps) {
   const regenCell = getFoliageRegenCell(focus.x, focus.z);
