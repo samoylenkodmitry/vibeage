@@ -173,7 +173,9 @@ function renderEnemyTargetPanel(
         >
           <strong>{enemy.name}</strong>
         </button>
-        <span>Level {enemy.level}</span>
+        <span className={`enemy-level enemy-level--${enemyLevelTone(player?.level ?? 1, enemy.level)}`}>
+          Level {enemy.level}
+        </span>
         {onClose && (
           <button type="button" className="panel-close" aria-label="Clear target" onClick={onClose}>×</button>
         )}
@@ -186,4 +188,20 @@ function renderEnemyTargetPanel(
       <StatusPills effects={enemy.statusEffects ?? []} />
     </section>
   );
+}
+
+export type EnemyLevelTone = 'low' | 'fair' | 'high';
+
+/**
+ * Quick combat-decision tint for an enemy's level in the target
+ * panel. Three-band threshold relative to the local player:
+ *   - enemy.level > player.level + 2 → 'high' (red, watch out)
+ *   - enemy.level < player.level - 2 → 'low' (grey, trivial)
+ *   - else → 'fair' (default colour, normal fight)
+ * Exported so a unit test can pin the boundaries.
+ */
+export function enemyLevelTone(playerLevel: number, enemyLevel: number): EnemyLevelTone {
+  if (enemyLevel > playerLevel + 2) return 'high';
+  if (enemyLevel < playerLevel - 2) return 'low';
+  return 'fair';
 }
