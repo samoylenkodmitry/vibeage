@@ -802,6 +802,41 @@ input {
   30%, 50%, 70% { transform: translate3d(-4px, -1px, 0); }
   40%, 60% { transform: translate3d(4px, 1px, 0); }
 }
+.zone-banner {
+  position: fixed;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 22px;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 8px;
+  background: rgba(8, 18, 28, 0.56);
+  color: #f0fdfa;
+  pointer-events: none;
+  animation: zone-banner-fade 2600ms ease-out both;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+.zone-banner__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(240, 253, 250, 0.62);
+}
+.zone-banner__name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+@keyframes zone-banner-fade {
+  0%   { opacity: 0; transform: translate(-50%, -8px); }
+  12%  { opacity: 1; transform: translate(-50%, 0); }
+  78%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
 @keyframes death-overlay-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
