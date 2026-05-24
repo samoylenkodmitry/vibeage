@@ -4,6 +4,12 @@ import { openKeybindCheatsheet } from './keybindBus';
 
 const MUTE_STORAGE_KEY = 'vibeage.sfx.muted';
 const VOLUME_STORAGE_KEY = 'vibeage.sfx.volume';
+const HELP_SEEN_KEY = 'vibeage.help.seen';
+
+function loadHelpSeen(): boolean {
+  if (typeof window === 'undefined') return true;
+  try { return window.localStorage.getItem(HELP_SEEN_KEY) === '1'; } catch { return true; }
+}
 
 function loadStoredMute(): boolean {
   if (typeof window === 'undefined') return false;
@@ -30,6 +36,13 @@ function loadStoredVolume(): number {
 export function SfxMuteButton() {
   const [muted, setMutedState] = useState(loadStoredMute);
   const [volume, setVolumeState] = useState(loadStoredVolume);
+  const [helpSeen, setHelpSeen] = useState(loadHelpSeen);
+  const markHelpSeen = () => {
+    setHelpSeen(true);
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(HELP_SEEN_KEY, '1'); } catch { /* ignore */ }
+    }
+  };
 
   useEffect(() => {
     setMuted(muted);
@@ -54,10 +67,10 @@ export function SfxMuteButton() {
     <div className="sfx-controls">
       <button
         type="button"
-        className="sfx-mute-button"
+        className={`sfx-mute-button${helpSeen ? '' : ' sfx-mute-button--unseen'}`}
         aria-label="Open keybind cheatsheet"
         title="Keybinds (H or ?)"
-        onClick={() => openKeybindCheatsheet()}
+        onClick={() => { markHelpSeen(); openKeybindCheatsheet(); }}
       >
         ?
       </button>
