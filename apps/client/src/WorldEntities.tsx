@@ -292,7 +292,11 @@ function EnemyBody({
  * Visuals: a tall yellow cylinder with a glowing "!" sphere above to
  * read as "questionable / interactable" without an icon system.
  */
-export function NpcMarkers() {
+// Memoized — NpcMarkers takes no props and renders from the static
+// QUEST_NPCS constant, so with empty props memo bails on every
+// re-render after the first. NPCs are stationary, so this removes
+// their entire subtree from per-snapshot reconciliation.
+function NpcMarkersImpl() {
   return (
     <>
       {Object.values(QUEST_NPCS).map((npc) => {
@@ -317,6 +321,8 @@ export function NpcMarkers() {
     </>
   );
 }
+
+export const NpcMarkers = memo(NpcMarkersImpl);
 
 export function CastMarker({ cast }: { cast: VisibleCast }) {
   const snapshot = cast.snapshot;
