@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
@@ -32,6 +32,23 @@ export function QuestTrackerStrip({
   onOpenQuestPanel,
 }: QuestTrackerStripProps) {
   const tracked = useMemo(() => pickTrackedStage(player, trackedQuestId ?? null), [player, trackedQuestId]);
+  const trackedKey = tracked ? `${tracked.quest.id}-${tracked.stageIndex}` : null;
+  const lastProgressRef = useRef<{ key: string | null; value: number }>({ key: trackedKey, value: tracked?.progress ?? 0 });
+  const [bumpKey, setBumpKey] = useState(0);
+  useEffect(() => {
+    if (!tracked) {
+      lastProgressRef.current = { key: null, value: 0 };
+      return;
+    }
+    const prev = lastProgressRef.current;
+    lastProgressRef.current = { key: trackedKey, value: tracked.progress };
+    // Only pulse when the SAME stage's progress ticked up. Switching
+    // quests or stages already has its own UI signal (panel state),
+    // and we don't want a new tracker to flash for its baseline.
+    if (prev.key === trackedKey && tracked.progress > prev.value) {
+      setBumpKey((k) => k + 1);
+    }
+  }, [tracked, trackedKey]);
   if (!tracked) return null;
   const { quest, stageIndex, stage, progress, marker, readyToClaim } = tracked;
   const objectiveText = describeObjective(stage.objective, progress);
@@ -72,6 +89,9 @@ export function QuestTrackerStrip({
         )}
       </div>
       <span className="quest-tracker-hint" aria-hidden="true">{hint}</span>
+      {bumpKey > 0 && (
+        <span key={`pulse-${bumpKey}`} className="quest-tracker-strip__pulse" aria-hidden="true" />
+      )}
     </button>
   );
 }
