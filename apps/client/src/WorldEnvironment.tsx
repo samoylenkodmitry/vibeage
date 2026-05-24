@@ -241,10 +241,31 @@ function splitByParity(insts: FoliageInstance[]): {
   for (let i = 0; i < insts.length; i += 1) {
     const m = instanceMatrix(insts[i]);
     const c = instanceColor(insts[i]);
-    if (i % 2 === 0) { evenMatrices.push(m); evenColors.push(c); }
+    // Pre-fix used `i % 2` (array index) to choose between the two
+    // pine GLBs. The set of visible cells shifts as the player walks,
+    // so the SAME tree's index in the instances array changes — and
+    // therefore which GLB it renders as. Players saw trees "morph"
+    // (pine ↔ alt-pine) as they moved, even though world position
+    // was stable. Hash the absolute world position into the parity
+    // bit instead so each tree picks the same GLB every time.
+    const parity = (hashPositionToBit(insts[i].x, insts[i].z) === 0);
+    if (parity) { evenMatrices.push(m); evenColors.push(c); }
     else { oddMatrices.push(m); oddColors.push(c); }
   }
   return { evenMatrices, oddMatrices, evenColors, oddColors };
+}
+
+/**
+ * Position-stable parity bit. Same (x, z) → same bit, regardless
+ * of where it landed in the iteration order. Uses the same
+ * imul-based mixer as seededRandom so the distribution is uniform.
+ */
+function hashPositionToBit(x: number, z: number): 0 | 1 {
+  const ix = Math.round(x * 13);
+  const iz = Math.round(z * 13);
+  let h = Math.imul(ix, 374_761_393) ^ Math.imul(iz, 668_265_263);
+  h = Math.imul(h ^ (h >>> 13), 1_274_126_177);
+  return ((h >>> 16) & 1) as 0 | 1;
 }
 
 function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
