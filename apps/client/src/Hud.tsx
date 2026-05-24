@@ -3,6 +3,7 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudOverlays } from './hud/HudOverlays';
 import { HudPanels } from './hud/HudPanels';
+import { CurrentZoneChip } from './hud/CurrentZoneChip';
 import { TimeOfDayChip } from './hud/TimeOfDayChip';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
@@ -237,10 +238,8 @@ function HudTopStrips({
         onDisconnect={onDisconnect}
       />
       <HudWorldStatsStrip
-        playerCount={playerCount}
-        enemyCount={enemyCount}
-        regionStatus={regionStatus}
-        lootCount={Object.keys(state.groundLoot).length}
+        playerCount={playerCount} enemyCount={enemyCount} regionStatus={regionStatus}
+        lootCount={Object.keys(state.groundLoot).length} player={player}
       />
       <VitalsStrip
         player={player}
@@ -281,15 +280,13 @@ function HudConnectionStrip({
 }
 
 function HudWorldStatsStrip({
-  playerCount,
-  enemyCount,
-  regionStatus,
-  lootCount,
+  playerCount, enemyCount, regionStatus, lootCount, player,
 }: {
   playerCount: number;
   enemyCount: number;
   regionStatus: string;
   lootCount: number;
+  player: PlayerEntity | null;
 }) {
   return (
     <section className="hud hud-stats" aria-label="World status">
@@ -298,6 +295,7 @@ function HudWorldStatsStrip({
       <Metric label="Regions" value={regionStatus} />
       <Metric label="Loot" value={String(lootCount)} />
       <TimeOfDayChip />
+      <CurrentZoneChip player={player} />
     </section>
   );
 }
