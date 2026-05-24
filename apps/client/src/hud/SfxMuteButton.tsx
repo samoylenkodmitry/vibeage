@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { setMuted, setVolume } from '../sfx';
+import { openKeybindCheatsheet } from './keybindBus';
 
 const MUTE_STORAGE_KEY = 'vibeage.sfx.muted';
 const VOLUME_STORAGE_KEY = 'vibeage.sfx.volume';
@@ -51,6 +52,15 @@ export function SfxMuteButton() {
 
   return (
     <div className="sfx-controls">
+      <button
+        type="button"
+        className="sfx-mute-button"
+        aria-label="Open keybind cheatsheet"
+        title="Keybinds (H or ?)"
+        onClick={() => openKeybindCheatsheet()}
+      >
+        ?
+      </button>
       <button
         type="button"
         className="sfx-mute-button"
