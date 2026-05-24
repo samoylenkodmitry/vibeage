@@ -95,6 +95,13 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
              feel like a major sky landmark, not a hint. */}
           <sphereGeometry args={[72, 28, 18]} />
         </mesh>
+        {/* Soft bluish halo: a slightly larger transparent sphere
+           sitting behind the moon disc gives a "moonlit haze" ring
+           without needing postprocessing bloom. */}
+        <mesh>
+          <sphereGeometry args={[96, 18, 12]} />
+          <meshBasicMaterial color="#cfd9ff" transparent opacity={0.16} depthWrite={false} fog={false} />
+        </mesh>
         <pointLight ref={refs.moonLight} color="#bcd0ff" intensity={0.0} distance={2_200} />
       </group>
       <group ref={refs.cloudGroup}>
