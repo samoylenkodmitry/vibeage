@@ -1,7 +1,25 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CombatLine } from '../gameTypes';
 
 const STICK_TO_BOTTOM_PX = 24;
+
+/**
+ * Combat log ids are formatted as `${castId}:${nowMs}:${count}` by
+ * makeCombatLineId in clientVisualState. Parse the middle segment
+ * back into a wall-clock HH:MM string so each line carries a tiny
+ * timestamp prefix. Falls back to '--:--' on parse failure so a
+ * future id format change can't blank-screen the whole log.
+ */
+function formatLineTime(id: string): string {
+  const parts = id.split(':');
+  if (parts.length < 3) return '--:--';
+  const ms = Number(parts[parts.length - 2]);
+  if (!Number.isFinite(ms)) return '--:--';
+  const d = new Date(ms);
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 type CombatLogPanelProps = {
   lines: readonly CombatLine[];
@@ -40,13 +58,14 @@ export function CombatLogPanel({ lines }: CombatLogPanelProps) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [lines, stuckToBottom]);
 
-  const ordered = [...lines].reverse();
+  const ordered = useMemo(() => [...lines].reverse(), [lines]);
 
   return (
     <section className="combat-log" aria-label="Combat log">
       <div className="combat-log-scroll" ref={scrollRef} onScroll={onScroll}>
         {ordered.map((line) => (
-          <span key={line.id}>
+          <span key={line.id} className="combat-log-line">
+            <span className="combat-log-time">{formatLineTime(line.id)}</span>
             {line.text}
             {line.count && line.count > 1 ? ` (×${line.count})` : ''}
           </span>
