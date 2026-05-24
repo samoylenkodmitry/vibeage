@@ -36,7 +36,12 @@ export function BossTelegraphBar({ telegraphs }: BossTelegraphBarProps) {
   const remainingMs = Math.max(0, active.impactAt - now);
 
   return (
-    <section className="boss-telegraph-bar" aria-live="polite" aria-label="Boss casting">
+    <section
+      className="boss-telegraph-bar"
+      aria-live="polite"
+      aria-label="Boss casting"
+      data-testid="boss-telegraph-bar"
+    >
       <header className="boss-telegraph-bar__header">
         <strong className="boss-telegraph-bar__name">{active.bossName}</strong>
         <span className="boss-telegraph-bar__ability">{active.abilityName}</span>

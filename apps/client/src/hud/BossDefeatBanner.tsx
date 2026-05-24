@@ -66,7 +66,12 @@ export function BossDefeatBanner({ enemies }: BossDefeatBannerProps) {
 
   if (!banner) return null;
   return (
-    <div className="boss-defeat-banner" key={banner.key} aria-live="polite">
+    <div
+      className="boss-defeat-banner"
+      key={banner.key}
+      aria-live="polite"
+      data-testid="boss-defeat-banner"
+    >
       <span className="boss-defeat-banner__eyebrow">Defeated</span>
       <strong className="boss-defeat-banner__name">{banner.name}</strong>
     </div>

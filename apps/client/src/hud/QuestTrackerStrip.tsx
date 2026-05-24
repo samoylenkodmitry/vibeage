@@ -135,6 +135,7 @@ export function QuestTrackerStrip({
           className="quest-tracker-compass"
           style={{ transform: `rotate(${bearingDeg}deg)` }}
           aria-hidden="true"
+          data-testid="quest-tracker-compass"
         >
           ▲
         </span>
