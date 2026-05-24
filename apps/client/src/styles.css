@@ -330,6 +330,30 @@ input {
   letter-spacing: 0.04em;
 }
 
+.current-zone-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid rgba(141, 233, 215, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 14, 18, 0.5);
+  color: #e7f7f1;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.current-zone-chip__level {
+  font-size: 10px;
+  color: rgba(231, 247, 241, 0.65);
+  letter-spacing: 0.08em;
+}
+.current-zone-chip--difficulty-high { border-color: rgba(248, 113, 113, 0.55); }
+.current-zone-chip--difficulty-high .current-zone-chip__level { color: #fda4a4; }
+.current-zone-chip--difficulty-fair { border-color: rgba(110, 231, 183, 0.45); }
+.current-zone-chip--difficulty-fair .current-zone-chip__level { color: #6ee7b7; }
+.current-zone-chip--difficulty-low  { border-color: rgba(148, 163, 184, 0.32); }
+.current-zone-chip--difficulty-low  .current-zone-chip__level { color: rgba(203, 213, 225, 0.7); }
+
 .ghost-button {
   min-height: 32px;
   border-color: rgba(141, 233, 215, 0.32);
