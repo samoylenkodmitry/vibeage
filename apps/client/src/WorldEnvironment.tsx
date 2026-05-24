@@ -327,9 +327,7 @@ function getFoliageRegenCell(focusX: number, focusZ: number): { x: number; z: nu
 
 function getFoliageInstances(centerX: number, centerZ: number): {
   trees: FoliageInstance[];
-  trunks: FoliageInstance[];
   conifers: FoliageInstance[];
-  coniferTrunks: FoliageInstance[];
   grass: FoliageInstance[];
   accents: FoliageInstance[];
 } {
@@ -388,14 +386,7 @@ function getFoliageInstances(centerX: number, centerZ: number): {
     }
   }
 
-  return {
-    trees,
-    trunks: trees.map((tree) => ({ ...tree, color: '#76543a' })),
-    conifers,
-    coniferTrunks: conifers.map((tree) => ({ ...tree, color: '#3a2615' })),
-    grass,
-    accents,
-  };
+  return { trees, conifers, grass, accents };
 }
 
 function getConiferShare(biome: TerrainBiome): number {
