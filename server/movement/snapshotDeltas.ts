@@ -50,10 +50,15 @@ function collectPlayerDeltas(
 
     const pos = predictPosition(player, timestamp);
     const vel = player.velocity || { x: 0, z: 0 };
-    const predictions = playerPredictions(state, player, pos, vel, timestamp);
-    debugPrediction(playerId, predictions);
 
+    // Perf: only build prediction keyframes when we're actually
+    // going to send this snap. Pre-fix predictions were allocated
+    // for every player every tick, then discarded for any player
+    // that hadn't moved (the common case once a group is standing
+    // around). The allocation scales with idle entity count.
     if (playersToForceInclude.has(playerId) || shouldSendSnap(playerId, pos, player)) {
+      const predictions = playerPredictions(state, player, pos, vel, timestamp);
+      debugPrediction(playerId, predictions);
       pushSnap({ messages, id: playerId, pos, vel, timestamp, predictions });
       clearDirtySnap(player);
     }
@@ -69,17 +74,21 @@ function collectEnemyDeltas(state: GameState, timestamp: number, messages: PosSn
 
     const pos = { x: enemy.position.x, z: enemy.position.z };
     const vel = enemy.velocity || { x: 0, z: 0 };
-    const predictions = createPredictionKeyframes({
-      entity: enemy,
-      currentPos: pos,
-      currentVel: vel,
-      currentRotY: enemy.rotation?.y || 0,
-      timestamp,
-      offsetsMs: PREDICTION_TICK_OFFSETS,
-      state,
-    });
 
+    // Perf: build keyframes only behind the send gate (see the
+    // player path above). Most enemies idle/patrol slowly, so the
+    // majority of ticks skip the snap — no reason to allocate the
+    // prediction array for them.
     if (shouldSendSnap(enemyId, pos, enemy)) {
+      const predictions = createPredictionKeyframes({
+        entity: enemy,
+        currentPos: pos,
+        currentVel: vel,
+        currentRotY: enemy.rotation?.y || 0,
+        timestamp,
+        offsetsMs: PREDICTION_TICK_OFFSETS,
+        state,
+      });
       pushSnap({ messages, id: enemyId, pos, vel, timestamp, predictions });
       clearDirtySnap(enemy);
     }
