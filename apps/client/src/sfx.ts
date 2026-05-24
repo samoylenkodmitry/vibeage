@@ -120,6 +120,13 @@ export function playCue(cue: CueId): void {
       tone(audio, 740, 0.08, 'sine', 0.10);
       tone(audio, 980, 0.06, 'sine', 0.07, 0.05);
       break;
+    default: {
+      // Exhaustive: if a new CueId is added to the union without a
+      // case above, this assignment fails typecheck. Cheap safety
+      // net for a synth-by-cue table that's easy to forget about.
+      const _exhaustive: never = cue;
+      return _exhaustive;
+    }
   }
 }
 
