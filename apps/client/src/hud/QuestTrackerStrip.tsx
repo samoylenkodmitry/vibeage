@@ -59,21 +59,30 @@ export function QuestTrackerStrip({
   cameraAngleRef,
 }: QuestTrackerStripProps) {
   const tracked = useMemo(() => pickTrackedStage(player, trackedQuestId ?? null), [player, trackedQuestId]);
-  // Camera yaw is a ref (mutated in WorldScene's render loop). Poll
-  // it on a 100ms interval — fast enough that the arrow follows the
-  // camera smoothly without re-rendering the whole strip every frame.
-  const [bearingDeg, setBearingDeg] = useState<number | null>(null);
+  // Compass arrow rotation. Pre-perf this called setState every
+  // 100ms, re-rendering the WHOLE strip 10×/sec just to spin a
+  // glyph. Now we write the transform straight to the span's DOM
+  // node via a ref, so the React tree never re-renders for the
+  // arrow. Latest player pos + marker live in refs the interval
+  // reads — no effect re-subscription on every server tick either.
+  const compassRef = useRef<HTMLSpanElement | null>(null);
+  const compassDataRef = useRef<{ px: number; pz: number; mx: number; mz: number } | null>(null);
+  const hasMarker = Boolean(tracked?.marker && player);
+  compassDataRef.current = tracked?.marker && player
+    ? { px: player.position.x, pz: player.position.z, mx: tracked.marker.x, mz: tracked.marker.z }
+    : null;
   useEffect(() => {
-    if (!tracked?.marker || !player) {
-      setBearingDeg(null);
-      return;
-    }
+    if (!hasMarker) return;
     const id = window.setInterval(() => {
+      const el = compassRef.current;
+      const d = compassDataRef.current;
+      if (!el || !d) return;
       const yaw = cameraAngleRef?.current ?? 0;
-      setBearingDeg(bearingToMarkerDeg(player.position, tracked.marker!, yaw));
+      const deg = bearingToMarkerDeg({ x: d.px, z: d.pz }, { x: d.mx, z: d.mz }, yaw);
+      el.style.transform = `rotate(${deg}deg)`;
     }, 100);
     return () => window.clearInterval(id);
-  }, [tracked?.marker, player, cameraAngleRef]);
+  }, [hasMarker, cameraAngleRef]);
   const trackedKey = tracked ? `${tracked.quest.id}-${tracked.stageIndex}` : null;
   const lastProgressRef = useRef<{ key: string | null; value: number }>({ key: trackedKey, value: tracked?.progress ?? 0 });
   const [bumpKey, setBumpKey] = useState(0);
@@ -130,15 +139,8 @@ export function QuestTrackerStrip({
           <small className="quest-tracker-distance">{formatDistance(distance)} away</small>
         )}
       </div>
-      {bearingDeg !== null && (
-        <span
-          className="quest-tracker-compass"
-          style={{ transform: `rotate(${bearingDeg}deg)` }}
-          aria-hidden="true"
-          data-testid="quest-tracker-compass"
-        >
-          ▲
-        </span>
+      {hasMarker && (
+        <span ref={compassRef} className="quest-tracker-compass" aria-hidden="true" data-testid="quest-tracker-compass">▲</span>
       )}
       <span className="quest-tracker-hint" aria-hidden="true">{hint}</span>
       {bumpKey > 0 && (
