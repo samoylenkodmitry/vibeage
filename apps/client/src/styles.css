@@ -1073,6 +1073,17 @@ input {
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+.zone-banner__level {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(240, 253, 250, 0.7);
+}
+.zone-banner--difficulty-high { border-color: rgba(248, 113, 113, 0.7); }
+.zone-banner--difficulty-high .zone-banner__level { color: #fda4a4; }
+.zone-banner--difficulty-fair { border-color: rgba(110, 231, 183, 0.55); }
+.zone-banner--difficulty-fair .zone-banner__level { color: #6ee7b7; }
+.zone-banner--difficulty-low  { border-color: rgba(148, 163, 184, 0.4); }
+.zone-banner--difficulty-low  .zone-banner__level { color: rgba(203, 213, 225, 0.7); }
 @keyframes zone-banner-fade {
   0%   { opacity: 0; transform: translate(-50%, -8px); }
   12%  { opacity: 1; transform: translate(-50%, 0); }
