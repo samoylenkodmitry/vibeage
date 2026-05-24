@@ -100,10 +100,8 @@ function PlayerMarkerImpl({
   );
 }
 
-// Memoized like EnemyMarker: other players keep their object ref
-// across snapshots while idle, so shallow compare skips reconciling
-// them. The local player re-renders on its own movement (ref changes
-// each tick) — unavoidable and fine since it's a single figure.
+// Memoized like EnemyMarker: idle other-players keep their ref, so
+// shallow compare skips reconciling them each snapshot.
 export const PlayerMarker = memo(PlayerMarkerImpl);
 
 type PlayerAnimationRefs = {
@@ -461,9 +459,8 @@ function EnemyMarkerImpl({
   );
 }
 
-// Memoized: unchanged enemies keep their object ref across snapshots
-// (reducer replaces only what moved) + stable callbacks, so shallow
-// compare skips reconciling idle mobs — the bulk of per-snapshot work.
+// Memoized: idle enemies keep their object ref, so shallow compare
+// skips reconciling them — the bulk of per-snapshot marker work.
 export const EnemyMarker = memo(EnemyMarkerImpl);
 
 function MiniBossCrown({ color, height }: { color: string; height: number }) {
