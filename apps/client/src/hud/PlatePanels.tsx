@@ -183,11 +183,36 @@ function renderEnemyTargetPanel(
       <Meter label="HP" value={enemy.health} max={enemy.maxHealth} className="meter-enemy" />
       <div className="target-meta">
         <span>{getTargetState(enemy.isAlive, healthRatio)}</span>
+        {enemy.isAlive && enemy.aiState && (
+          <span
+            className={`enemy-ai-state enemy-ai-state--${enemy.aiState}`}
+            title={`AI: ${enemy.aiState}`}
+            data-testid="enemy-ai-state"
+          >
+            {formatAiState(enemy.aiState)}
+          </span>
+        )}
         <span>{distance === null ? '-' : `${distance.toFixed(1)}m`}</span>
       </div>
       <StatusPills effects={enemy.statusEffects ?? []} />
     </section>
   );
+}
+
+/**
+ * Map server aiState values to short human-readable labels. Unknown
+ * states fall through to the raw value so a future server-side AI
+ * addition surfaces (instead of silently being hidden).
+ */
+export function formatAiState(state: string): string {
+  switch (state) {
+    case 'idle': return 'Idle';
+    case 'patrolling': return 'Patrol';
+    case 'chasing': return 'Chasing';
+    case 'attacking': return 'Attacking';
+    case 'returning': return 'Returning';
+    default: return state;
+  }
 }
 
 export type EnemyLevelTone = 'low' | 'fair' | 'high';
