@@ -100,8 +100,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton />
-      {player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /></>)}
+      <SfxMuteButton />{player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /></>)}
       <HudTopStrips
         state={state}
         player={player}
