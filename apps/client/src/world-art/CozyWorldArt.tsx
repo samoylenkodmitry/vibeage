@@ -25,7 +25,6 @@ import { CozyWaterLilies } from './CozyWaterLilies';
 import { CozyWaterRipples } from './CozyWaterRipples';
 import { CozyWaterSparkles } from './CozyWaterSparkles';
 import { CozyWildflowers } from './CozyWildflowers';
-import { SimpleStylizedWater } from './SimpleStylizedWater';
 import type { WorldArtQuality } from './quality';
 import type { WorldArtScene } from './worldArtScenes';
 
@@ -61,7 +60,8 @@ export function CozyWorldArt({
   return (
     <>
       <CozyDistantMountains scene={scene} />
-      <SimpleStylizedWater scene={scene} />
+      {/* Water plane was here; hoisted to WorldScene so the sea
+          stays visible from anywhere inland. */}
       <CozyWaterLilies scene={scene} />
       <CozyWaterRipples scene={scene} />
       <CozyBuoys scene={scene} />
