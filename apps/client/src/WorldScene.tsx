@@ -1,5 +1,6 @@
 import { useMemo, useRef, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { StatsGl } from '@react-three/drei';
 import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type VecXZ } from '../../../packages/protocol/messages';
@@ -46,6 +47,14 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   // that — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
+  // Dev perf HUD: add ?perf=1 to the URL to mount drei's StatsGl
+  // (FPS + draw calls + GPU time). Off by default so it costs
+  // nothing for players; gives a real frame-time readout to target
+  // optimisation work instead of guessing.
+  const showPerf = useMemo(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('perf'),
+    [],
+  );
 
   return (
     <Canvas
@@ -54,6 +63,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
       }}
     >
+      {showPerf && <StatsGl />}
       <WorldEnvironment focus={focus} />
       {/* Stylized water always renders (anchored to the starter
           coast's waterline), so the sea stays visible from far
