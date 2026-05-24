@@ -64,16 +64,16 @@ Surfaced from playtesting — opening the map at the current zoom centers on the
 
 ### 7. Cozy world art layer
 
-Shipped iteratively across PRs #512-#537 (2026-05-23). World now reads as authored rather than prototype:
+Shipped iteratively across PRs #512-#567 (2026-05-23 → 2026-05-24, overnight). World now reads as authored rather than prototype:
 
 - **Foliage everywhere**: Quaternius CC0 GLB pines + rocks scattered globally via `InstancedGltf` (one InstancedMesh per geometry/material leaf), preserving the existing biome-aware density and vertex-color tints. Multiple pine variants split by index parity for variety.
 - **Textured ground**: `WorldGround` default mode is now `'textured'` — grass texture everywhere, sand inside the cozy hero scene radius.
 - **Wind sway**: tree canopies subtly sway via shader injection on the GLB material (per-instance phase from world position).
-- **Cozy hero scene (Peaceful Meadows / starter spawn)**: anchored composition with low-poly water + foam crests + shore band + dock + rowboat + bonfire (flicker light + drifting smoke) + lanterns + distant mountain silhouettes + drifting cherry-blossom petals + water lilies + wandering fireflies + moonlit water sparkles.
-- **Day / night**: night stars (Drei `<Stars>` with fragment-shader patched fade), distant bird flock at dawn/dusk, loot piles glow with a warm pointLight.
+- **Cozy hero scene (Peaceful Meadows / starter spawn)**: anchored composition with low-poly water + foam crests + depth alpha + lily pads + ripple rings + moonlit sparkles, shore band + foam + seashells + pebbles + driftwood, dock + rowboat (bobs gently) + fishing rod, bonfire (stone ring + firewood stack + flicker light + flame cones + drifting smoke + rising orange embers), lanterns, distant mountain silhouettes, drifting cherry-blossom petals, fireflies at night + butterflies by day, mushrooms + pinecones + wildflowers on the forest floor, two seagulls orbiting the waterline.
+- **Day / night**: night stars (Drei `<Stars>` with fragment-shader patched fade) + occasional shooting stars + bluish moon halo + warm sun halo, distant bird flock at dawn/dusk, loot piles glow with a warm pointLight.
 - **Architecture**: `WorldEnvironment` still owns the sky / sun / moon / clouds / day-night palette everywhere (the user explicitly preferred this over any flat cozy sky). `CozyWorldArt` only contributes anchored geometry under it.
 
-Files: `apps/client/src/world-art/*`, `apps/client/src/{WorldEnvironment,WorldGround,WorldScene,NightStars,BirdFlock,SceneVfx}.tsx`. Asset payload ~16 MB (8.5 MB GLBs + 8 MB textures); budgets pinned in `quality/performance-budgets.json` and enforced by `tests/worldArtBudget.spec.ts`.
+Files: `apps/client/src/world-art/*`, `apps/client/src/{WorldEnvironment,WorldGround,WorldScene,NightStars,ShootingStars,BirdFlock,SceneVfx}.tsx`. Asset payload ~16 MB (8.5 MB GLBs + 8 MB textures); budgets pinned in `quality/performance-budgets.json` and enforced by `tests/worldArtBudget.spec.ts`. Same-grade gate for boss equipment sets (§5 first bullet) now enforces via `tests/equipmentSetSameGrade.spec.ts`.
 
 ## Quality Gate
 
