@@ -63,7 +63,12 @@ export function BossEncounterBanner({ enemies }: BossEncounterBannerProps) {
 
   if (!banner) return null;
   return (
-    <div className="boss-encounter-banner" key={banner.key} aria-live="polite">
+    <div
+      className="boss-encounter-banner"
+      key={banner.key}
+      aria-live="polite"
+      data-testid="boss-encounter-banner"
+    >
       <span className="boss-encounter-banner__eyebrow">Boss encounter</span>
       <strong className="boss-encounter-banner__name">{banner.name}</strong>
       {banner.level > 0 && (

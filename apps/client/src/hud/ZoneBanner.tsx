@@ -98,6 +98,8 @@ export function ZoneBanner({ player }: ZoneBannerProps) {
       className={`zone-banner zone-banner--difficulty-${banner.difficulty}`}
       key={banner.key}
       aria-live="polite"
+      data-testid="zone-banner"
+      data-difficulty={banner.difficulty}
     >
       <span className="zone-banner__eyebrow">You enter</span>
       <strong className="zone-banner__name">{banner.name}</strong>
