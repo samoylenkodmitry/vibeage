@@ -101,6 +101,57 @@ export function findSetSlotConflicts(set: EquipmentSet): Array<readonly [ItemId,
  * Duplicate template ids are collapsed before counting so a (currently
  * impossible) double-equip wouldn't inflate the count.
  */
+/**
+ * Hand-curated armor-type preference per class. Used by the
+ * wiki Specs tab (§5 bullet 3) to surface "sets for this spec"
+ * via the class's preferred armor + the set's chest piece. Two
+ * armor types per class so e.g. a knight sees both heavy and
+ * medium chests as eligible.
+ */
+type ArmorTypeHint = 'light' | 'medium' | 'heavy' | 'robe';
+
+const CLASS_ARMOR_PREFERENCE: Record<string, readonly ArmorTypeHint[]> = {
+  mage: ['light', 'robe'],
+  healer: ['light', 'robe'],
+  ranger: ['medium', 'light'],
+  rogue: ['medium', 'light'],
+  warrior: ['heavy', 'medium'],
+  knight: ['heavy', 'medium'],
+  paladin: ['heavy', 'medium'],
+};
+
+/**
+ * Returns the set ids whose primary armor piece matches the
+ * class's preferred armor types. Heuristic — items don't carry
+ * explicit class restrictions, so we infer eligibility from the
+ * armor type on any equipable piece in the set.
+ *
+ * If a future EquipmentSet declares an explicit `intendedClasses`
+ * field, this helper should defer to that and skip the
+ * heuristic.
+ */
+export function getSetsForClass(
+  className: string,
+  items: Record<ItemId, { equip?: { armorType?: ArmorTypeHint } }>,
+): EquipmentSetId[] {
+  const preferred = CLASS_ARMOR_PREFERENCE[className];
+  if (!preferred) return [];
+  const out: EquipmentSetId[] = [];
+  for (const set of Object.values(EQUIPMENT_SETS)) {
+    let matches = false;
+    for (const id of set.requiredPieces) {
+      const item = items[id];
+      const armorType = item?.equip?.armorType;
+      if (armorType && preferred.includes(armorType)) {
+        matches = true;
+        break;
+      }
+    }
+    if (matches) out.push(set.setId);
+  }
+  return out;
+}
+
 export function activeSetBonuses(
   setId: EquipmentSetId,
   equippedTemplateIds: readonly ItemId[],
