@@ -1,24 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
-import { BossDefeatBanner } from './hud/BossDefeatBanner';
-import { BossEncounterBanner } from './hud/BossEncounterBanner';
-import { BossTelegraphBar } from './hud/BossTelegraphBar';
-import { BossTelegraphCue } from './hud/BossTelegraphCue';
-import { CombatSfxBridge } from './hud/CombatSfxBridge';
-import { GainBurst } from './hud/GainBurst';
+import { HudOverlays } from './hud/HudOverlays';
 import { HudPanels } from './hud/HudPanels';
-import { KeybindCheatsheet } from './hud/KeybindCheatsheet';
-import { HitShake } from './hud/HitShake';
-import { LifeCueBridge } from './hud/LifeCueBridge';
-import { LowHealthHeartbeat } from './hud/LowHealthHeartbeat';
-import { LowManaCue } from './hud/LowManaCue';
-import { PageTitle } from './hud/PageTitle';
 import { TimeOfDayChip } from './hud/TimeOfDayChip';
-import { HurtVignette } from './hud/HurtVignette';
-import { LevelUpBurst } from './hud/LevelUpBurst';
-import { QuestCompleteBurst } from './hud/QuestCompleteBurst';
-import { SfxMuteButton } from './hud/SfxMuteButton';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
@@ -114,7 +99,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton /><KeybindCheatsheet /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} /><BossEncounterBanner enemies={state.enemies} /><BossDefeatBanner enemies={state.enemies} /><BossTelegraphCue telegraphs={state.bossTelegraphs} /><BossTelegraphBar telegraphs={state.bossTelegraphs} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><LowHealthHeartbeat health={player.health} maxHealth={player.maxHealth} isAlive={player.isAlive} /><LowManaCue mana={player.mana} maxMana={player.maxMana} isAlive={player.isAlive} /><PageTitle player={player} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
+      <HudOverlays state={state} player={player} />
       <HudTopStrips
         state={state}
         player={player}
