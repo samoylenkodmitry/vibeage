@@ -13,10 +13,10 @@ import type { WorldArtScene } from './worldArtScenes';
  * Implementation: one Points buffer, per-frame attribute updates.
  * Custom shader draws soft pink-cream dots with per-petal opacity.
  */
-const COUNT = 80;
-const FALL_SPEED = 0.85;
-const SWAY_AMPLITUDE = 0.6;
-const SWAY_HZ = 0.55;
+const COUNT = 50;
+const FALL_SPEED = 0.6;
+const SWAY_AMPLITUDE = 0.5;
+const SWAY_HZ = 0.45;
 const SPAWN_HEIGHT = 24;
 const GROUND_Y = 0.3;
 
