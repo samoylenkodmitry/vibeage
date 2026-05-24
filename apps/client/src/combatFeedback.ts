@@ -18,6 +18,7 @@ export function addCombatDamageVisualEvents(
       kind: 'damage',
       position: normalizeEventPosition(entity.position),
       amount: damage,
+      isCrit: message.crits?.[index] ?? false,
       createdAt: now + index,
     });
   }, state);

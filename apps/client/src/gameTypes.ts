@@ -180,6 +180,8 @@ export type VisualEvent = {
   position: Vec3;
   amount?: number;
   radius?: number;
+  /** §49/M2 — set on 'damage' events when the hit was a crit. Drives the bigger orange damage-number variant in DamageNumber. */
+  isCrit?: boolean;
   createdAt: number;
 };
 
