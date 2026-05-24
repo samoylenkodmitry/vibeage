@@ -353,6 +353,23 @@ input {
 
 .skill-bar-slot { display: flex; min-width: 0; }
 .skill-bar-slot > .skill-button { width: 100%; }
+.skill-button { position: relative; }
+.skill-button__ready-pulse {
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.7), 0 0 14px 3px rgba(110, 231, 183, 0.32);
+  animation: skill-button-ready-pulse 600ms ease-out forwards;
+}
+@keyframes skill-button-ready-pulse {
+  0%   { opacity: 0.95; transform: scale(0.985); }
+  60%  { opacity: 0.55; transform: scale(1.01); }
+  100% { opacity: 0; transform: scale(1.015); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skill-button__ready-pulse { animation: none; opacity: 0; }
+}
 .skill-button--item { border-color: rgba(255, 198, 109, 0.55); }
 .skill-button--item .skill-button__name { color: #ffd590; }
 
