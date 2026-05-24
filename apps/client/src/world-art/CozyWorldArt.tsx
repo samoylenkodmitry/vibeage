@@ -11,6 +11,7 @@ import { CozyFireStones } from './CozyFireStones';
 import { CozyFirewoodStack } from './CozyFirewoodStack';
 import { CozyFishingRods } from './CozyFishingRods';
 import { CozyLanterns } from './CozyLanterns';
+import { CozyLogBench } from './CozyLogBench';
 import { CozyMushrooms } from './CozyMushrooms';
 import { CozyPetals } from './CozyPetals';
 import { CozyPineCones } from './CozyPineCones';
@@ -71,6 +72,7 @@ export function CozyWorldArt({
       <CozyFishingRods scene={scene} />
       <CozyFireStones scene={scene} />
       <CozyFirewoodStack scene={scene} />
+      <CozyLogBench scene={scene} />
       <CozyBonfireFlame scene={scene} />
       <CozyBonfireEmbers scene={scene} />
       <CozyBonfireGlow scene={scene} />
