@@ -8,6 +8,7 @@ import { CozyFireflies } from './CozyFireflies';
 import { CozyFireStones } from './CozyFireStones';
 import { CozyFishingRods } from './CozyFishingRods';
 import { CozyLanterns } from './CozyLanterns';
+import { CozyMushrooms } from './CozyMushrooms';
 import { CozyPetals } from './CozyPetals';
 import { CozyPineForest } from './CozyPineForest';
 import { CozyShells } from './CozyShells';
@@ -66,6 +67,7 @@ export function CozyWorldArt({
       <CozyBonfireSmoke scene={scene} />
       <CozyLanterns scene={scene} />
       <CozyFireflies scene={scene} />
+      <CozyMushrooms scene={scene} />
       <CozyPetals scene={scene} />
       <CozyPineForest scene={scene} quality={quality} />
     </>
