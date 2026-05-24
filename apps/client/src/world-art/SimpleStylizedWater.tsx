@@ -18,8 +18,8 @@ export function SimpleStylizedWater({ scene }: { scene: WorldArtScene }) {
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uDeep: { value: new THREE.Color('#15516b') },
-      uShallow: { value: new THREE.Color('#63e6d1') },
+      uDeep: { value: new THREE.Color('#0e4a68') },
+      uShallow: { value: new THREE.Color('#74efd6') },
       uFoam: { value: new THREE.Color('#e6fff5') },
     }),
     [],
