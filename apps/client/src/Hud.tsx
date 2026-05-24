@@ -473,8 +473,8 @@ function CastingPanel({ player }: { player: PlayerEntity | null }) {
 function DeathOverlay({ onRespawn }: { onRespawn: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      if (e.key === 'r' || e.key === 'R') {
+      if (e.repeat || isEditableTarget(e.target)) return;
+      if (e.code === 'KeyR') {
         e.preventDefault();
         onRespawn();
       }
