@@ -8,7 +8,7 @@
  * the player interacts with the page.
  */
 
-type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death';
+type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -86,6 +86,12 @@ export function playCue(cue: CueId): void {
       // Descending thud: A3 → E3 — short and heavy.
       tone(audio, 220, 0.22, 'sine', 0.30);
       tone(audio, 165, 0.36, 'sine', 0.26, 0.14);
+      break;
+    case 'lowHealth':
+      // Quiet "heartbeat" double-thump — diegetic urgency that
+      // stays under the music. Short attack, fast decay.
+      tone(audio, 90, 0.12, 'sine', 0.14);
+      tone(audio, 110, 0.10, 'sine', 0.12, 0.10);
       break;
   }
 }
