@@ -26,7 +26,7 @@ import { getTerrainY } from './worldSceneConfig';
 
 export { LootMarker };
 
-export function PlayerMarker({
+function PlayerMarkerImpl({
   player,
   isSelf,
   isSelected,
@@ -99,6 +99,12 @@ export function PlayerMarker({
     </SmoothedEntityGroup>
   );
 }
+
+// Memoized like EnemyMarker: other players keep their object ref
+// across snapshots while idle, so shallow compare skips reconciling
+// them. The local player re-renders on its own movement (ref changes
+// each tick) — unavoidable and fine since it's a single figure.
+export const PlayerMarker = memo(PlayerMarkerImpl);
 
 type PlayerAnimationRefs = {
   group: THREE.Group | null;
