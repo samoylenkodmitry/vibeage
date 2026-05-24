@@ -52,7 +52,7 @@ export function VitalsStrip({
       </div>
       <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" />
       <Meter label="MP" value={player?.mana} max={player?.maxMana} className="meter-mp" />
-      <div className="meter-row">
+      <div className={`meter-row${xpProgress >= 90 ? ' meter-row--near-levelup' : ''}`}>
         <span>XP</span>
         <div className="meter-track">
           <div className="meter-fill meter-xp" style={{ width: `${xpProgress}%` }} />
