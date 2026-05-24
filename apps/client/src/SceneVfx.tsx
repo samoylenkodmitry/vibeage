@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
-import { ITEMS } from '../../../packages/content/items';
+import { ITEMS, getItemGrade } from '../../../packages/content/items';
+import { getGradeSpec } from '../../../packages/content/equipmentTypes';
 import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
 import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
@@ -365,7 +366,26 @@ export function LootMarker({
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const sparkGroupRef = useRef<THREE.Group>(null);
-  const color = loot.items.length > 1 ? '#facc15' : '#eab308';
+  // Pile color reflects the best item in the pile so rare drops
+  // (gold S-tier) read across the field as different from common
+  // (grey D-tier) drops. Stacked piles still tend slightly more
+  // yellow via the small +0x08 offset.
+  const bestGrade = useMemo(() => {
+    let bestRank = -1;
+    let bestColor = loot.items.length > 1 ? '#facc15' : '#eab308';
+    for (const i of loot.items) {
+      const item = ITEMS[i.itemId];
+      if (!item) continue;
+      const grade = getItemGrade(item);
+      const spec = getGradeSpec(grade);
+      if (spec.rank > bestRank) {
+        bestRank = spec.rank;
+        bestColor = spec.color;
+      }
+    }
+    return bestColor;
+  }, [loot.items]);
+  const color = bestGrade;
   const sparks = useMemo(() => LOOT_SPARKS, []);
   // §46/slice-new — cursor-hover label. Derived client-side from
   // ITEMS[itemId] so the server never has to ship the display name
@@ -419,9 +439,9 @@ export function LootMarker({
         <NameLabel text={labelText} color="#fde68a" yOffset={1.1} height={0.42} />
       ) : null}
       <pointLight
-        color="#fff0a8"
-        intensity={1.4}
-        distance={6}
+        color={color}
+        intensity={1.6}
+        distance={7}
         decay={1.8}
         position={[0, 0.4, 0]}
         castShadow={false}
