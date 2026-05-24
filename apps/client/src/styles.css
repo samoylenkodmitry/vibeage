@@ -879,6 +879,22 @@ input {
   78%  { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -8px); }
 }
+.death-overlay__hotkey {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(240, 253, 250, 0.6);
+  letter-spacing: 0.04em;
+}
+.death-overlay__hotkey kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid rgba(141, 233, 215, 0.45);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.55);
+  font-family: inherit;
+  font-size: 11px;
+  color: #f0fdfa;
+}
 @keyframes death-overlay-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
