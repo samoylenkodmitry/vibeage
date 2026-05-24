@@ -435,6 +435,14 @@ export function EnemyMarker({
       {enemy.isAlive && enemy.isMiniBoss && !isSelected && <BossBeacon color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
+      {enemy.isAlive && isSelected && (
+        <NameLabel
+          text={formatEnemyHpText(enemy.health, enemy.maxHealth)}
+          color="#f8fafc"
+          yOffset={visual.height + 0.95}
+          height={0.36}
+        />
+      )}
       {enemy.isAlive && enemy.name && (
         <NameLabel
           text={enemy.name + (enemy.level ? `  Lv ${enemy.level}` : '')}
@@ -460,6 +468,18 @@ function MiniBossCrown({ color, height }: { color: string; height: number }) {
       </mesh>
     </group>
   );
+}
+
+/**
+ * Quantize HP text to 5% buckets so the underlying CanvasTexture
+ * sprite doesn't regenerate on every tick of damage — only when
+ * the visible "percent left" actually changes.
+ */
+function formatEnemyHpText(health: number, maxHealth: number): string {
+  if (maxHealth <= 0) return '';
+  const pct = Math.max(0, Math.min(100, Math.round((health / maxHealth) * 20) * 5));
+  const approxHealth = Math.round((pct / 100) * maxHealth);
+  return `${approxHealth} / ${Math.round(maxHealth)}`;
 }
 
 function EnemyBody({
