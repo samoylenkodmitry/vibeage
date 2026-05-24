@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { playCue } from '../sfx';
 
 type GainBurstProps = {
   /** Player's current XP total — watched for upward deltas. */
@@ -39,6 +40,7 @@ export function GainBurst({ experience, gold }: GainBurstProps) {
     lastGoldRef.current = gold;
     if (additions.length === 0) return;
     setBursts((prev) => [...prev, ...additions]);
+    playCue('pickup');
     // Auto-remove each burst after the animation completes.
     const timers = additions.map((b) =>
       window.setTimeout(() => {

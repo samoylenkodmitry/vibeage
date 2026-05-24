@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { playCue } from '../sfx';
 
 type HurtVignetteProps = {
   health: number;
@@ -25,6 +26,7 @@ export function HurtVignette({ health }: HurtVignetteProps) {
       // HP flashes bright.
       const intensity = Math.min(0.85, 0.18 + loss * 0.012);
       setTint((t) => ({ key: t.key + 1, intensity }));
+      playCue('hurt');
     }
     lastHealthRef.current = health;
   }, [health]);

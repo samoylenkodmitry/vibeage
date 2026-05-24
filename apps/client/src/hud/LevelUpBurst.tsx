@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { playCue } from '../sfx';
 
 type LevelUpBurstProps = {
   level: number;
@@ -20,6 +21,7 @@ export function LevelUpBurst({ level }: LevelUpBurstProps) {
     const prev = lastLevelRef.current;
     if (level > prev) {
       setBurst({ key: (burst?.key ?? 0) + 1, level });
+      playCue('levelUp');
       const t = window.setTimeout(() => setBurst(null), 2400);
       lastLevelRef.current = level;
       return () => window.clearTimeout(t);
