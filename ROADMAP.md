@@ -60,7 +60,28 @@ Surfaced from playtesting (Wildlands Hunter / Elementborn) — the wiki now expo
 
 Surfaced from playtesting — opening the map at the current zoom centers on the player but their surroundings collapse to a single dot.
 
-✅ **Shipped 2026-05-23.** Default zoom is now \"~30 seconds of run-speed\" (1200 world units = 60s × 20u/s baseline runSpeed in each direction). Max zoom raised so the player can frame ~2 m around themselves; min zoom still shows the whole world. Labels use a non-scaling-text technique so they stay readable at every zoom. Overlapping labels collapse to a count badge (e.g. \"Riverhead District (4)\") so dense regions don't pile up into illegible text.
+✅ **Shipped 2026-05-23.** Default zoom is now "~30 seconds of run-speed" (1200 world units = 60s × 20u/s baseline runSpeed in each direction). Max zoom raised so the player can frame ~2 m around themselves; min zoom still shows the whole world. Labels use a non-scaling-text technique so they stay readable at every zoom. Overlapping labels collapse to a count badge (e.g. "Riverhead District (4)") so dense regions don't pile up into illegible text.
+
+## Next Slice — Cozy Coast Visual Upgrade
+
+Plan owned at `docs/COZY_COAST_VISUAL_UPGRADE_PLAN.md` (Codex 2026-05-22). Goal: turn the procedural-prototype world into a screenshotable indie-MMO coast — pale sand, turquoise water, blue atmospheric haze, dark conifer silhouettes, warm sunlight, low MMO camera.
+
+Constraints (from the plan):
+- **No feature flags.** Every PR must make the *default* starter area visibly better and ship complete by itself.
+- **No half-merged scaffolding.** Foundation-only changes stay on the branch.
+- **Water never steals click-to-move.** Every water mesh sets `raycast={() => null}`; regression covered by an e2e click-to-move check.
+- **No server walkability change** in this slice — water/sand/trees are cosmetic until a shared terrain/walkability contract lands.
+- **Anchored scenes**, not "follow the player forever." Cozy art renders only when the player is inside the scene radius defined in `worldArtScenes.ts`.
+
+PR queue (default-on, vertical slices):
+
+- [ ] **PR 1 — Complete cozy-coast starter slice.** Sky + warm sun + blue fog + simple water + pale shore band + deterministic procedural pine silhouettes. Default-on at the starter spawn with water on negative X. Adds `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`. Tests cover the quality picker, scene registry, and a Playwright that verifies water doesn't intercept clicks.
+- [ ] **PR 2 — Real assets + manifest.** Replace temp procedural pines with GLB trees + rocks + grass via an asset registry with stable IDs and fallback meshes. Asset manifest committed.
+- [ ] **PR 3 — Terrain UVs + collider mode.** Add UVs to generated terrain; `visualMode: 'normal' | 'textured' | 'collider'`. Use the new mode in the starter coast so the merged game looks better, not just more configurable.
+- [ ] **PR 4 — Authored cozy coast GLB.** Hand-placed dock / cliffs / tree wall / beach props in `cozy_coast_scene.glb`. Procedural ground stays as collider underneath.
+- [ ] **PR 5 — Visual smoke + budget hardening.** Screenshot/pixel smoke (canvas non-blank, water/sky/tree colors present, HUD readable, click-to-move still works) + mobile fallback documented.
+
+Acceptance per PR is in the plan doc; full `pnpm run check` before merging each.
 
 ### 7. Cozy world art layer
 
