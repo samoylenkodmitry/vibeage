@@ -14,9 +14,9 @@ import type { WorldArtScene } from './worldArtScenes';
  * flicker light — the smoke is the "this fire is alive" cue at
  * range; the flicker is the cue when you stand near it.
  */
-const PARTICLES_PER_FIRE = 22;
-const MAX_AGE_SECONDS = 5.5;
-const RISE_SPEED = 1.5;
+const PARTICLES_PER_FIRE = 14;
+const MAX_AGE_SECONDS = 6.5;
+const RISE_SPEED = 1.2;
 const SPAWN_RADIUS = 0.45;
 const SMOKE_COLOR = '#dcdcdc';
 
