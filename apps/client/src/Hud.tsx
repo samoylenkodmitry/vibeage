@@ -3,6 +3,7 @@ import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { BossDefeatBanner } from './hud/BossDefeatBanner';
 import { BossEncounterBanner } from './hud/BossEncounterBanner';
+import { BossTelegraphCue } from './hud/BossTelegraphCue';
 import { CombatSfxBridge } from './hud/CombatSfxBridge';
 import { GainBurst } from './hud/GainBurst';
 import { HudPanels } from './hud/HudPanels';
@@ -111,7 +112,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton /><KeybindCheatsheet /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} /><BossEncounterBanner enemies={state.enemies} /><BossDefeatBanner enemies={state.enemies} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><LowHealthHeartbeat health={player.health} maxHealth={player.maxHealth} isAlive={player.isAlive} /><LowManaCue mana={player.mana} maxMana={player.maxMana} isAlive={player.isAlive} /><PageTitle player={player} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
+      <SfxMuteButton /><KeybindCheatsheet /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} /><BossEncounterBanner enemies={state.enemies} /><BossDefeatBanner enemies={state.enemies} /><BossTelegraphCue telegraphs={state.bossTelegraphs} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><LowHealthHeartbeat health={player.health} maxHealth={player.maxHealth} isAlive={player.isAlive} /><LowManaCue mana={player.mana} maxMana={player.maxMana} isAlive={player.isAlive} /><PageTitle player={player} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
       <HudTopStrips
         state={state}
         player={player}

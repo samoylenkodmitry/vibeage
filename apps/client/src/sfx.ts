@@ -8,7 +8,7 @@
  * the player interacts with the page.
  */
 
-type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana';
+type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana' | 'bossTelegraph';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -107,6 +107,12 @@ export function playCue(cue: CueId): void {
       // Short descending click — quiet, casters-only nudge.
       tone(audio, 660, 0.06, 'triangle', 0.12);
       tone(audio, 440, 0.08, 'triangle', 0.10, 0.05);
+      break;
+    case 'bossTelegraph':
+      // Tense low-pitched swell — "something dangerous is winding up"
+      // without overpowering the music. Two layered sine tones.
+      tone(audio, 130, 0.45, 'sine', 0.22);
+      tone(audio, 170, 0.35, 'sine', 0.18, 0.06);
       break;
   }
 }
