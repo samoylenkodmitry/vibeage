@@ -17,17 +17,21 @@ const SAMPLE_THROTTLE_MS = 400;
  * server's view). First sample after mount is treated as baseline
  * so reconnects don't spam the banner.
  */
-type Difficulty = 'low' | 'fair' | 'high';
+export type ZoneDifficulty = 'low' | 'fair' | 'high';
 
 type Banner = {
   key: number;
   name: string;
   minLevel: number;
   maxLevel: number;
-  difficulty: Difficulty;
+  difficulty: ZoneDifficulty;
 };
 
-function difficultyFor(playerLevel: number, minLevel: number, maxLevel: number): Difficulty {
+/**
+ * Pure threshold function — exported so tests can pin the
+ * boundary semantics (inclusive on both ends of the 'fair' band).
+ */
+export function difficultyFor(playerLevel: number, minLevel: number, maxLevel: number): ZoneDifficulty {
   if (playerLevel < minLevel) return 'high';
   if (playerLevel > maxLevel) return 'low';
   return 'fair';
