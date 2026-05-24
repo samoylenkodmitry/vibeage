@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import * as THREE from 'three';
 
 type NameLabelProps = {
@@ -25,14 +25,12 @@ export function NameLabel({
   yOffset = 1.6,
   height = 0.5,
 }: NameLabelProps) {
-  const texture = useMemo(() => buildLabelTexture(text, color), [text, color]);
+  // Shared cache (see getLabelTexture): names like "Goblin  Lv 1"
+  // and quantized HP strings repeat across many entities, so one
+  // texture serves them all instead of one build + GPU upload per
+  // nameplate. Cache owns the lifetime — instances don't dispose.
+  const texture = useMemo(() => getLabelTexture(text, color), [text, color]);
   const aspect = texture.image.width / texture.image.height;
-
-  useEffect(() => {
-    return () => {
-      texture.dispose();
-    };
-  }, [texture]);
 
   return (
     <sprite position={[0, yOffset, 0]} scale={[height * aspect, height, 1]}>
@@ -50,6 +48,30 @@ export function NameLabel({
 const LABEL_FONT = 'bold 64px "Inter", system-ui, -apple-system, sans-serif';
 const LABEL_PADDING_X = 28;
 const LABEL_PADDING_Y = 18;
+
+// Shared, bounded cache keyed by (text, color). Enemy nameplates of
+// the same type + quantized HP strings repeat heavily; caching turns
+// many identical canvas builds + GPU uploads into one. FIFO eviction
+// disposes the displaced texture so a long session with lots of
+// distinct labels can't leak GPU memory.
+const NAME_TEXTURE_CACHE = new Map<string, THREE.CanvasTexture>();
+const NAME_TEXTURE_CACHE_MAX = 512;
+
+function getLabelTexture(text: string, color: string): THREE.CanvasTexture {
+  const key = `${text}|${color}`;
+  const cached = NAME_TEXTURE_CACHE.get(key);
+  if (cached) return cached;
+  const texture = buildLabelTexture(text, color);
+  if (NAME_TEXTURE_CACHE.size >= NAME_TEXTURE_CACHE_MAX) {
+    const oldestKey = NAME_TEXTURE_CACHE.keys().next().value;
+    if (oldestKey !== undefined) {
+      NAME_TEXTURE_CACHE.get(oldestKey)?.dispose();
+      NAME_TEXTURE_CACHE.delete(oldestKey);
+    }
+  }
+  NAME_TEXTURE_CACHE.set(key, texture);
+  return texture;
+}
 
 function buildLabelTexture(text: string, color: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
