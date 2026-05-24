@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLASS_PASSIVES } from '../../../../packages/content/classPassives';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../../../packages/content/classes';
 import { EFFECT_SPECS, type EffectSpec } from '../../../../packages/content/effects';
+import { EQUIPMENT_SETS, getSetsForClass } from '../../../../packages/content/equipmentSets';
+import { ITEMS } from '../../../../packages/content/items';
+import { getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { BossesTab } from './WikiBosses';
 import { ItemsTab } from './WikiItems';
 import { QuestsTab } from './WikiQuests';
@@ -448,6 +451,26 @@ function SpecsTab({ query, focusId, focusKey, navigate }: { query: string; focus
 function SpecRow({ spec, isFocus, focusKey, navigate }: { spec: Specialization; isFocus: boolean; focusKey: string; navigate: WikiNav }) {
   const specSkills = spec.specSkills ?? [];
   const profSkills = spec.proficiencySkills ?? [];
+  // §5 bullet 3 — sets visible per spec, sorted by grade so the
+  // player sees a clean progression D → S.
+  const eligibleSets = useMemo(() => {
+    const ids = getSetsForClass(spec.baseClass, ITEMS);
+    return ids
+      .map((id) => {
+        const set = EQUIPMENT_SETS[id];
+        if (!set) return null;
+        // Set grade = grade of any required piece (post-§5-gate
+        // they're all the same; pre-gate take the first non-none).
+        let grade = 'none' as ReturnType<typeof getGradeSpec>['id'];
+        for (const itemId of set.requiredPieces) {
+          const g = ITEMS[itemId]?.grade;
+          if (g && g !== 'none') { grade = g; break; }
+        }
+        return { id, name: set.name, grade };
+      })
+      .filter((s): s is { id: string; name: string; grade: ReturnType<typeof getGradeSpec>['id'] } => s !== null)
+      .sort((a, b) => getGradeSpec(a.grade).rank - getGradeSpec(b.grade).rank);
+  }, [spec.baseClass]);
   return (
     <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
@@ -488,6 +511,24 @@ function SpecRow({ spec, isFocus, focusKey, navigate }: { spec: Specialization; 
               {i > 0 && ', '}
               <button type="button" className="wiki-effect-chip" onClick={() => navigate('skills', id)}>
                 {SKILLS[id]?.name ?? id}
+              </button>
+            </span>
+          ))}
+        </small>
+      )}
+      {eligibleSets.length > 0 && (
+        <small className="wiki-row-footer">
+          Sets:{' '}
+          {eligibleSets.map((s, i) => (
+            <span key={s.id}>
+              {i > 0 && ', '}
+              <button
+                type="button"
+                className="wiki-effect-chip"
+                onClick={() => navigate('sets', s.id)}
+                title={`${getGradeSpec(s.grade).label} tier · Lv ${getGradeSpec(s.grade).minLevel}+`}
+              >
+                {s.name} <span className="wiki-set-piece-grade">{getGradeSpec(s.grade).label}</span>
               </button>
             </span>
           ))}
