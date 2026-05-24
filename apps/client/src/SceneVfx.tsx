@@ -609,7 +609,10 @@ export function EnemyHitFlash({ health }: { health: number }) {
 
   useFrame((_, delta) => {
     const mesh = meshRef.current;
-    if (!mesh) {
+    // No active flash → opacity is already 0 from the last animated frame,
+    // so skip the per-enemy material write entirely until the next hit
+    // (useEffect re-arms flashSecondsRef). Saves a write/frame per enemy.
+    if (!mesh || flashSecondsRef.current <= 0) {
       return;
     }
 
