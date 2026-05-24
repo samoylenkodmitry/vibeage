@@ -100,8 +100,7 @@ function PlayerMarkerImpl({
   );
 }
 
-// Memoized like EnemyMarker: idle other-players keep their ref, so
-// shallow compare skips reconciling them each snapshot.
+// Memoized — idle other-players keep their ref; skip reconciliation.
 export const PlayerMarker = memo(PlayerMarkerImpl);
 
 type PlayerAnimationRefs = {
@@ -459,8 +458,7 @@ function EnemyMarkerImpl({
   );
 }
 
-// Memoized: idle enemies keep their object ref, so shallow compare
-// skips reconciling them — the bulk of per-snapshot marker work.
+// Memoized — idle enemies keep their ref; skip reconciliation.
 export const EnemyMarker = memo(EnemyMarkerImpl);
 
 function MiniBossCrown({ color, height }: { color: string; height: number }) {
