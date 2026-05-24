@@ -90,7 +90,7 @@ export function PlayerMarker({
       />
       {player.isAlive && player.name && (
         <NameLabel
-          text={player.name}
+          text={player.level > 0 ? `${player.name}  Lv ${player.level}` : player.name}
           color={isSelf ? '#facc15' : '#bcd0ff'}
           yOffset={height + 0.45}
           height={isSelf ? 0.55 : 0.45}
