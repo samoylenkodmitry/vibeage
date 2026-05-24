@@ -9,7 +9,7 @@ import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyClassChange, applyRaceChange, applySpecializationChange } from './playerIdentity.js';
-import { isGmModeEnabled } from './gmMode.js';
+import { isGmAccount, isGmModeEnabled } from './gmMode.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 
@@ -39,6 +39,12 @@ export function applyGmCommand(
 ): boolean {
   if (!isGmModeEnabled()) {
     warn(LOG_CATEGORIES.PLAYER, `GmCommand rejected (GM mode off) caller=${caller.id} verb=${msg.verb}`);
+    return false;
+  }
+  // In production-safe mode (VIBEAGE_GM_ACCOUNTS set, dev-commands
+  // flag off), only allowlisted account names can issue GM verbs.
+  if (!isGmAccount(caller.name)) {
+    warn(LOG_CATEGORIES.PLAYER, `GmCommand rejected (caller not in GM allowlist) caller=${caller.id} name=${caller.name} verb=${msg.verb}`);
     return false;
   }
   const target = msg.targetId ? resolveTarget(msg.targetId) ?? null : caller;
