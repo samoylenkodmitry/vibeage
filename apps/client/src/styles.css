@@ -3626,6 +3626,7 @@ button.character-option {
 }
 .gain-burst--xp   { color: #c4b5fd; }
 .gain-burst--gold { color: #facc15; }
+.gain-burst--sp   { color: #5eead4; }
 @keyframes gain-burst-rise {
   0%   { transform: translateY(0);     opacity: 0; }
   18%  { transform: translateY(-6px);  opacity: 1; }
