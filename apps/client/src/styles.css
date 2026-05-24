@@ -565,6 +565,21 @@ input {
 .meter-xp {
   background: #c4b5fd;
 }
+.meter-row--near-levelup .meter-xp {
+  background: linear-gradient(90deg, #c4b5fd, #fcd34d 60%, #fef3c7);
+  animation: xp-near-levelup 1.6s ease-in-out infinite;
+}
+.meter-row--near-levelup strong {
+  color: #fcd34d;
+  text-shadow: 0 0 6px rgba(252, 211, 77, 0.5);
+}
+@keyframes xp-near-levelup {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0); }
+  50%      { box-shadow: 0 0 8px 1px rgba(252, 211, 77, 0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meter-row--near-levelup .meter-xp { animation: none; }
+}
 
 .meter-cast {
   background: #facc15;
