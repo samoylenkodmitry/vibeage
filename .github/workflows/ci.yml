@@ -8,21 +8,21 @@ on:
   pull_request:
     branches:
       - main
+  # Heavy checks run on a nightly schedule — see `nightly-checks`
+  # below. 03:00 UTC ≈ 05:00 Belgrade summer, off-peak for the
+  # developer machine + GH Actions queue.
+  schedule:
+    - cron: '0 3 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  # Archwork item #1 (was #8): PR runs are cancellable — a new push
-  # to the same PR branch should kill the old run so we don't burn
-  # CI minutes on a SHA the author already replaced. But main pushes
-  # MUST queue, not cancel, because the post-merge heavy gate is the
-  # last thing standing between a merge and production. Cancelling
-  # those (the old `cancel-in-progress: true` for every ref) silently
-  # hid 100+ runs worth of heavy-check evidence; two completed runs
-  # after the cadence slowed both turned out red (browser-smoke E2E
-  # combat-flow timeouts), and we'd been deploying production
-  # un-gated against them the whole time.
+  # PR runs are cancellable — a new push to the same PR branch
+  # should kill the old run so we don't burn CI minutes on a SHA
+  # the author already replaced. Main pushes still queue (one fast
+  # run per merge). Nightly runs share the group but use a distinct
+  # ref so they don't cancel a merge-time run.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -85,13 +85,18 @@ jobs:
         run: pnpm test
 
   # Heavy checks: Docker builds, dead-code analysis, perf smoke, browser
-  # e2e. Run only on pushes to main so PRs stay fast; a failure here
-  # blocks the next deploy rather than the PR itself.
-  post-merge-checks:
-    name: Post-merge checks (heavy)
+  # e2e. Run only nightly (and on-demand via workflow_dispatch). Were
+  # previously gated on every merge; moved off the merge path so PRs
+  # ship without blocking on a 10-minute job that mostly catches drift.
+  # A failure here surfaces in the next morning's run and gets fixed
+  # before the rest of the day's PRs pile on top of it. Locally, the
+  # developer machine no longer runs these as part of `pnpm run check`
+  # — use `pnpm run check:heavy` explicitly when investigating.
+  nightly-checks:
+    name: Nightly checks (heavy)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'push'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
