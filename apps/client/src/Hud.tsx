@@ -145,8 +145,7 @@ export function GameHud(props: GameHudProps) {
         trackedQuestId={state.trackedQuestId}
         onOpenQuestPanel={panels.openQuest}
       />
-      <WelcomeOverlay player={player} />
-      <ZoneBanner player={player} />
+      <WelcomeOverlay player={player} /><ZoneBanner player={player} />
       <TargetingHint state={state} />
       <ReturnToNpcHint state={state} />
       <SkillUseHint state={state} />
