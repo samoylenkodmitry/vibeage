@@ -31,8 +31,13 @@ export function HitShake({ health }: HitShakeProps) {
 
     const shell = document.querySelector<HTMLElement>('.app-shell');
     if (!shell) return;
-    shell.classList.add('is-shaking');
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    // Force a reflow between remove + add so a second heavy hit
+    // during the previous shake restarts the keyframes instead of
+    // being a no-op (already-classed element doesn't replay).
+    shell.classList.remove('is-shaking');
+    void shell.offsetWidth;
+    shell.classList.add('is-shaking');
     timerRef.current = window.setTimeout(() => {
       shell.classList.remove('is-shaking');
       timerRef.current = null;
