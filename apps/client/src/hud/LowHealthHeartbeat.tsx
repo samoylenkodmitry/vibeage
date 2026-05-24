@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { playCue } from '../sfx';
 
 type LowHealthHeartbeatProps = {
@@ -19,28 +19,16 @@ const PULSE_INTERVAL_MS = 1500;
  * proportional across level-ups + maxHealth changes.
  */
 export function LowHealthHeartbeat({ health, maxHealth, isAlive }: LowHealthHeartbeatProps) {
-  const intervalRef = useRef<number | null>(null);
   const isLow = isAlive && maxHealth > 0 && health / maxHealth <= LOW_HEALTH_THRESHOLD;
 
   useEffect(() => {
-    if (!isLow) {
-      if (intervalRef.current !== null) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-    if (intervalRef.current !== null) return;
+    if (!isLow) return;
     // Fire immediately so the player notices the moment they
-    // cross the threshold, then again on the interval.
+    // cross the threshold, then again on the interval. React's
+    // standard cleanup handles teardown when isLow flips back.
     playCue('lowHealth');
-    intervalRef.current = window.setInterval(() => playCue('lowHealth'), PULSE_INTERVAL_MS);
-    return () => {
-      if (intervalRef.current !== null) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
+    const id = window.setInterval(() => playCue('lowHealth'), PULSE_INTERVAL_MS);
+    return () => window.clearInterval(id);
   }, [isLow]);
 
   return null;
