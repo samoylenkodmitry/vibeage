@@ -8,7 +8,7 @@
  * the player interacts with the page.
  */
 
-type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana' | 'bossTelegraph';
+type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana' | 'bossTelegraph' | 'chat';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -113,6 +113,12 @@ export function playCue(cue: CueId): void {
       // without overpowering the music. Two layered sine tones.
       tone(audio, 130, 0.45, 'sine', 0.22);
       tone(audio, 170, 0.35, 'sine', 0.18, 0.06);
+      break;
+    case 'chat':
+      // Soft, friendly blip — one mid sine + a faint higher tail.
+      // Quieter than any combat cue so it doesn't compete.
+      tone(audio, 740, 0.08, 'sine', 0.10);
+      tone(audio, 980, 0.06, 'sine', 0.07, 0.05);
       break;
   }
 }
