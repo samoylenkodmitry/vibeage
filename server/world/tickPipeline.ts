@@ -27,6 +27,14 @@ import {
 
 const WORLD_GAUGE_INTERVAL_TICKS = 30;
 
+// Sample the (expensive) snapshot-bytes metric 1-in-N batches.
+// At 10Hz snapshot cadence this records ~1 sample/sec, plenty for
+// a stable p50/p95/p99 histogram without JSON.stringify'ing every
+// batch in the hot path. Module-level counter — there's one tick
+// loop per process.
+const SNAPSHOT_BYTES_SAMPLE_EVERY = 10;
+let snapshotBytesSampleCounter = 0;
+
 export type WorldTickRunnerOptions = {
   state: GameState;
   spatial: SpatialHashGrid;
@@ -179,11 +187,18 @@ function runSnapshotPhase(input: WorldTickRunnerOptions & {
     // the broadcast loop is shipping more deltas than the snapshot
     // budget assumed; the percentile is the right alarm signal.
     runtimeMetrics.recordHistogram('snapshot.batchSize', updates.length);
-    // §52 #12 follow-up — also record the bytes weight per batch.
-    // `snapshot.bytes` only fires at join; load tests need a per-tick
-    // signal to see how the wire payload scales with concurrent
-    // players. Same JSON.stringify trick used at the join boundary.
-    runtimeMetrics.recordHistogram('snapshot.batchBytes', JSON.stringify(updates).length);
+    // §52 #12 follow-up — record the bytes weight per batch so load
+    // tests can see how the wire payload scales with concurrent
+    // players. Perf: JSON.stringify of the whole batch is O(payload)
+    // and ran on EVERY snapshot (10Hz) purely for this metric —
+    // double-serializing the batch in the hot path as player count
+    // grows. Sample 1-in-N instead: a histogram's p50/p95/p99 stays
+    // representative from a 10% sample, at a tenth of the cost.
+    snapshotBytesSampleCounter += 1;
+    if (snapshotBytesSampleCounter >= SNAPSHOT_BYTES_SAMPLE_EVERY) {
+      snapshotBytesSampleCounter = 0;
+      runtimeMetrics.recordHistogram('snapshot.batchBytes', JSON.stringify(updates).length);
+    }
     emitBatchUpdate(input.outbound, updates);
   }
   return 0;
