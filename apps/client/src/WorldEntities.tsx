@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { QUEST_NPCS } from '../../../packages/content/npcs';
@@ -359,7 +359,7 @@ function templateColor(templateId: string | undefined, fallback: string): string
   }
 }
 
-export function EnemyMarker({
+function EnemyMarkerImpl({
   enemy,
   isSelected,
   onSelect,
@@ -454,6 +454,17 @@ export function EnemyMarker({
     </SmoothedEntityGroup>
   );
 }
+
+/**
+ * Memoized so an unchanged enemy skips reconciliation on every
+ * server snapshot. The client reducer replaces only the entities
+ * that actually moved/changed (idle enemies keep their object ref),
+ * and the onSelect/onAttack callbacks are stable (memoized in
+ * clientActions) — so shallow prop comparison correctly re-renders
+ * only the enemies that changed this tick. At scale (dozens of
+ * mostly-idle mobs) this skips the bulk of per-snapshot marker work.
+ */
+export const EnemyMarker = memo(EnemyMarkerImpl);
 
 function MiniBossCrown({ color, height }: { color: string; height: number }) {
   return (
