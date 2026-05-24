@@ -87,6 +87,12 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
         <mesh material={sunMaterial}>
           <sphereGeometry args={[34, 24, 16]} />
         </mesh>
+        {/* Warm halo behind the sun disc — gives golden bloom feel
+           at sunrise/sunset without needing postprocessing. */}
+        <mesh>
+          <sphereGeometry args={[50, 18, 12]} />
+          <meshBasicMaterial color="#ffd76b" transparent opacity={0.22} depthWrite={false} fog={false} />
+        </mesh>
         <pointLight ref={refs.sunPointLight} color="#ffe7a3" intensity={2.2} distance={1_400} />
       </group>
       <group ref={refs.moonGroup}>
