@@ -8,7 +8,7 @@
  * the player interacts with the page.
  */
 
-type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth';
+type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -92,6 +92,11 @@ export function playCue(cue: CueId): void {
       // stays under the music. Short attack, fast decay.
       tone(audio, 90, 0.12, 'sine', 0.14);
       tone(audio, 110, 0.10, 'sine', 0.12, 0.10);
+      break;
+    case 'lowMana':
+      // Short descending click — quiet, casters-only nudge.
+      tone(audio, 660, 0.06, 'triangle', 0.12);
+      tone(audio, 440, 0.08, 'triangle', 0.10, 0.05);
       break;
   }
 }
