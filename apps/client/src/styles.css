@@ -3499,3 +3499,23 @@ button.character-option {
 .error-boundary-fallback button:hover {
   background: #364541;
 }
+
+
+/* §49/M3 — hurt vignette: brief red edges when the player takes
+ * damage. Triggered by a key change on the wrapper div so the
+ * animation re-runs on each hit even if intensity is unchanged.
+ */
+.hurt-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(220, 38, 38, var(--vignette-intensity, 0.4)) 110%);
+  animation: hurt-vignette-flash 480ms ease-out forwards;
+}
+@keyframes hurt-vignette-flash {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
