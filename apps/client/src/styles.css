@@ -2014,6 +2014,14 @@ input {
 @media (prefers-reduced-motion: reduce) {
   .quest-tracker-strip--objective-met,
   .quest-tracker-strip--ready { animation: none; }
+  .quest-tracker-strip__pulse { animation: none; opacity: 0; }
+  .app-shell.is-shaking { animation: none; }
+  .hurt-vignette { animation-duration: 1ms; }
+  .gain-burst { animation: none; opacity: 1; }
+  .level-up-burst,
+  .quest-complete-burst,
+  .zone-banner,
+  .boss-encounter-banner { animation-duration: 1ms; animation-iteration-count: 1; }
 }
 
 /* §49/M2 — first-time welcome overlay. Centered, dismissable. */
