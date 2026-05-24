@@ -1,39 +1,78 @@
 import { useEffect, useState } from 'react';
-import { setMuted } from '../sfx';
+import { setMuted, setVolume } from '../sfx';
 
-const STORAGE_KEY = 'vibeage.sfx.muted';
+const MUTE_STORAGE_KEY = 'vibeage.sfx.muted';
+const VOLUME_STORAGE_KEY = 'vibeage.sfx.volume';
 
 function loadStoredMute(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(STORAGE_KEY) === '1';
+  return window.localStorage.getItem(MUTE_STORAGE_KEY) === '1';
+}
+
+function loadStoredVolume(): number {
+  if (typeof window === 'undefined') return 1;
+  const raw = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+  if (raw === null) return 1;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1;
 }
 
 /**
- * Tiny top-right mute toggle. Persists to localStorage so the
- * choice survives reload. Calls `setMuted` on every change so the
- * shared sfx module honours it immediately.
+ * Top-right SFX controls: mute toggle + volume slider.
  *
- * Default: SFX on (storage value '0' / unset). Players who don't
- * want audio can mute once; the state sticks.
+ * The slider reveals on focus / hover so the chrome stays tiny
+ * during gameplay. Both values persist to localStorage so the
+ * choice survives reload. The mute button shows three icons —
+ * muted, low-volume, full — so the player has a glanceable
+ * indicator of current state.
  */
 export function SfxMuteButton() {
   const [muted, setMutedState] = useState(loadStoredMute);
+  const [volume, setVolumeState] = useState(loadStoredVolume);
+
   useEffect(() => {
     setMuted(muted);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, muted ? '1' : '0');
+      window.localStorage.setItem(MUTE_STORAGE_KEY, muted ? '1' : '0');
     }
   }, [muted]);
+
+  useEffect(() => {
+    setVolume(volume);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
+    }
+  }, [volume]);
+
+  const icon = muted ? '🔇' : volume < 0.34 ? '🔈' : volume < 0.67 ? '🔉' : '🔊';
+  const title = muted
+    ? 'SFX muted — click to enable'
+    : `SFX volume ${Math.round(volume * 100)}% — click to mute`;
+
   return (
-    <button
-      type="button"
-      className="sfx-mute-button"
-      aria-pressed={muted}
-      aria-label={muted ? 'Unmute SFX' : 'Mute SFX'}
-      title={muted ? 'SFX muted — click to enable' : 'SFX on — click to mute'}
-      onClick={() => setMutedState((m) => !m)}
-    >
-      {muted ? '🔇' : '🔊'}
-    </button>
+    <div className="sfx-controls">
+      <button
+        type="button"
+        className="sfx-mute-button"
+        aria-pressed={muted}
+        aria-label={muted ? 'Unmute SFX' : 'Mute SFX'}
+        title={title}
+        onClick={() => setMutedState((m) => !m)}
+      >
+        {icon}
+      </button>
+      <input
+        type="range"
+        className="sfx-volume-slider"
+        min={0}
+        max={1}
+        step={0.05}
+        value={muted ? 0 : volume}
+        disabled={muted}
+        aria-label="SFX volume"
+        title={`SFX volume ${Math.round(volume * 100)}%`}
+        onChange={(e) => setVolumeState(Number(e.target.value))}
+      />
+    </div>
   );
 }
