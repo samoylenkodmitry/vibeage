@@ -46,8 +46,9 @@ export function DamageNumber({
     }
   });
 
-  // Height ~0.55 m so the number reads from across the field.
-  const height = 0.55;
+  // Bigger hits get bigger numbers — clamps so a 1-damage tick
+  // doesn't vanish and a 200-damage crit doesn't fill the screen.
+  const height = THREE.MathUtils.clamp(0.45 + amount * 0.012, 0.45, 1.1);
   return (
     <sprite ref={spriteRef} position={[0, baseY, 0]} scale={[height * aspect, height, 1]}>
       <spriteMaterial ref={matRef} map={texture} transparent depthTest={false} depthWrite={false} sizeAttenuation />
