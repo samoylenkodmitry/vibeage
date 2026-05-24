@@ -34,7 +34,6 @@ export type HudPanelsProps = {
   panels: HudPanelToggleState;
   state: GameClientState;
   player: PlayerEntity | null;
-  now: number;
   hasSelectedTarget: boolean;
   hasLootNearby: boolean;
   cameraAngleRef?: MutableRefObject<number>;
@@ -73,7 +72,7 @@ export type HudPanelsProps = {
 };
 
 export function HudPanels({
-  panels, state, player, now, hasSelectedTarget, hasLootNearby,
+  panels, state, player, hasSelectedTarget, hasLootNearby,
   cameraAngleRef, navigationMarker, onSetNavigationMarker,
   onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
@@ -139,7 +138,6 @@ export function HudPanels({
       {panels.actionsOpen && (
         <ActionsPanel
           player={player}
-          now={now}
           hasSelectedTarget={hasSelectedTarget}
           hasLootNearby={hasLootNearby}
           hasNavigationMarker={Boolean(navigationMarker)}

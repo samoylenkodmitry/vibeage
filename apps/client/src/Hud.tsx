@@ -87,7 +87,6 @@ export function GameHud(props: GameHudProps) {
   const regionStatus = state.worldPublicState
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
-  const now = useNow(100);
   const panels = usePanelState();
   const items = useItemShortcutBindings(state.inventory, onUseItem);
   useSlotHotkeysFor(player, items, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
@@ -118,7 +117,6 @@ export function GameHud(props: GameHudProps) {
         panels={panels}
         state={state}
         player={player}
-        now={now}
         hasSelectedTarget={targetIsAlive}
         hasLootNearby={Object.keys(state.groundLoot).length > 0}
         cameraAngleRef={cameraAngleRef}
@@ -156,7 +154,6 @@ export function GameHud(props: GameHudProps) {
       <CastingPanel player={player} />
       <SkillBar
         player={player}
-        now={now}
         hasSelectedTarget={targetIsAlive}
         onCastSkill={onCastSkill}
         itemShortcuts={items.itemShortcuts}
@@ -603,15 +600,4 @@ function formatTravelEta(distance: number | null, speed: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}m ${remainingSeconds}s`;
-}
-
-function useNow(intervalMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(timer);
-  }, [intervalMs]);
-
-  return now;
 }

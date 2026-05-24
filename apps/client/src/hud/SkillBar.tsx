@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
+import { useNow } from './useNow';
 import type { PlayerEntity } from '../gameTypes';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import {
@@ -21,7 +22,6 @@ import { findBagSlotForItem } from './useItemShortcuts';
 
 type SkillBarProps = {
   player: PlayerEntity | null;
-  now: number;
   hasSelectedTarget: boolean;
   onCastSkill: (skillId: SkillId) => void;
   /** Per-slot client-side item bindings (length 20). */
@@ -34,6 +34,12 @@ type SkillBarProps = {
 
 export function SkillBar(props: SkillBarProps) {
   const { player, itemShortcuts } = props;
+  // Own the cooldown clock here instead of receiving it as a prop
+  // from GameHud — a useNow up there forced the entire HUD to
+  // re-render 10×/sec. The skill bar is small + always visible, so
+  // ticking it locally is far cheaper than reconciling the whole
+  // tree.
+  const now = useNow(100);
   // Single source of truth for slot resolution (skill vs item vs
   // fallback) — `resolveSlotBinding` is shared with the keydown
   // handler in Hud.tsx, so a slot that renders a potion icon will
@@ -58,7 +64,7 @@ export function SkillBar(props: SkillBarProps) {
       <div className="skill-bar-anchor">
         <SkillButton
           skillId={BASIC_ATTACK_SKILL_ID} hotkey={BASIC_ATTACK_HOTKEY} ariaHotkeys={BASIC_ATTACK_HOTKEY}
-          player={player} now={props.now} hasSelectedTarget={props.hasSelectedTarget}
+          player={player} now={now} hasSelectedTarget={props.hasSelectedTarget}
           onCastSkill={props.onCastSkill} tooltipHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
         />
       </div>
@@ -67,7 +73,7 @@ export function SkillBar(props: SkillBarProps) {
           <SkillBarSlot
             key={`p${index}:${binding?.id ?? 'empty'}`}
             slotIndex={index} binding={binding} hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
-            tooltip={tooltip} {...props}
+            tooltip={tooltip} now={now} {...props}
           />
         ))}
       </div>
@@ -77,7 +83,7 @@ export function SkillBar(props: SkillBarProps) {
             <SkillBarSlot
               key={`s${index}:${binding?.id ?? 'empty'}`}
               slotIndex={SKILL_BAR_ROW_COUNT + index} binding={binding}
-              hotkey={SKILL_BAR_SECONDARY_HOTKEYS[index] ?? ''} compact tooltip={tooltip} {...props}
+              hotkey={SKILL_BAR_SECONDARY_HOTKEYS[index] ?? ''} compact tooltip={tooltip} now={now} {...props}
             />
           ))}
         </div>
@@ -104,6 +110,7 @@ type SkillBarSlotProps = SkillBarProps & {
   binding: ReturnType<typeof resolveSlotBinding>;
   hotkey: string;
   tooltip: TooltipApi;
+  now: number;
   compact?: boolean;
 };
 
