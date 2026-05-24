@@ -792,6 +792,16 @@ input {
   cursor: pointer;
 }
 .death-overlay__button:hover { background: rgba(15, 118, 110, 0.62); }
+.app-shell.is-shaking {
+  animation: hit-shake 280ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  will-change: transform;
+}
+@keyframes hit-shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 1px, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, -1px, 0); }
+  40%, 60% { transform: translate3d(4px, 1px, 0); }
+}
 @keyframes death-overlay-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
