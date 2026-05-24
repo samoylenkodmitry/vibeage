@@ -12,6 +12,7 @@ type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill';
 
 let ctx: AudioContext | null = null;
 let muted = false;
+let unlockHandlersInstalled = false;
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -19,8 +20,26 @@ function getCtx(): AudioContext | null {
     const Ctor = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return null;
     ctx = new Ctor();
+    installUnlockHandlers();
+  }
+  // Chrome/Safari autoplay policy: contexts start 'suspended' until
+  // a user gesture resumes them. Try resuming opportunistically; the
+  // gesture-bound listeners below cover the case where resume() is
+  // still rejected here.
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => undefined);
   }
   return ctx;
+}
+
+function installUnlockHandlers(): void {
+  if (unlockHandlersInstalled || typeof window === 'undefined') return;
+  unlockHandlersInstalled = true;
+  const resume = (): void => {
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => undefined);
+  };
+  window.addEventListener('pointerdown', resume, { capture: true, once: true });
+  window.addEventListener('keydown', resume, { capture: true, once: true });
 }
 
 export function setMuted(value: boolean): void {
@@ -79,4 +98,10 @@ function tone(
   osc.connect(gain).connect(audio.destination);
   osc.start(now);
   osc.stop(now + duration + 0.02);
+  // Tear down explicitly when the note ends so the audio graph
+  // doesn't wait for GC to release Web Audio resources.
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
 }
