@@ -4,11 +4,11 @@ import type { PlayerEntity } from '../gameTypes';
 import { BASIC_ATTACK_HOTKEY, BASIC_ATTACK_SKILL_ID } from '../skillShortcuts';
 import { SkillTooltip } from './SkillTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
+import { useNow } from './useNow';
 import { useTooltipTrigger } from './useTooltipTrigger';
 
 type ActionsPanelProps = {
   player: PlayerEntity | null;
-  now: number;
   hasSelectedTarget: boolean;
   hasLootNearby: boolean;
   hasNavigationMarker: boolean;
@@ -19,7 +19,6 @@ type ActionsPanelProps = {
 
 export function ActionsPanel({
   player,
-  now,
   hasSelectedTarget,
   hasLootNearby,
   hasNavigationMarker,
@@ -28,6 +27,9 @@ export function ActionsPanel({
   onMove,
 }: ActionsPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('actions');
+  // Own the cooldown clock locally (only ticks while the panel is
+  // open) instead of taking it from GameHud's tree-wide useNow.
+  const now = useNow(100);
   const attackSkill = SKILLS[BASIC_ATTACK_SKILL_ID];
   const attackCdEnd = player?.skillCooldownEndTs?.[BASIC_ATTACK_SKILL_ID] ?? 0;
   const attackCdRemaining = Math.max(0, attackCdEnd - now);
