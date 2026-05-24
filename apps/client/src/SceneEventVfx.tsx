@@ -68,7 +68,12 @@ function DamagePulseVfx({ event }: { event: VisualEvent }) {
         <meshBasicMaterial color="#fff7ad" transparent opacity={0.5} depthWrite={false} />
       </mesh>
       {event.amount !== undefined && event.amount > 0 && (
-        <DamageNumber amount={event.amount} color="#fda4a4" baseY={1.1} />
+        <DamageNumber
+          amount={event.amount}
+          color={event.isCrit ? '#fbbf24' : '#fda4a4'}
+          baseY={1.1}
+          isCrit={event.isCrit ?? false}
+        />
       )}
     </group>
   );
