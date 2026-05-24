@@ -18,8 +18,8 @@ import type { WorldArtScene } from './worldArtScenes';
  * already multiplies the day fade so they disappear at noon
  * without renderer cost.
  */
-const COUNT = 38;
-const WANDER_SPEED = 1.1;
+const COUNT = 24;
+const WANDER_SPEED = 0.8;
 const PULSE_HZ = 1.4;
 const HEIGHT_BAND = { min: 0.6, max: 2.4 };
 
