@@ -3639,3 +3639,9 @@ button.character-option {
   20%  { transform: scale(1.05); opacity: 0.9; }
   100% { transform: scale(1.6); opacity: 0; }
 }
+
+/* Grade-tinted border on inventory slots so rare drops pop. */
+.inventory-slot[style*="--slot-grade-color"] {
+  border-color: var(--slot-grade-color);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--slot-grade-color) 45%, transparent);
+}

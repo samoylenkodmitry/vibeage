@@ -1,5 +1,5 @@
-import { useEffect, useState, type HTMLAttributes } from 'react';
-import { getEffectiveMinLevel } from '../../../../packages/content/equipmentTypes';
+import { useEffect, useState, type CSSProperties, type HTMLAttributes } from 'react';
+import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 
@@ -87,10 +87,18 @@ export function InventorySlotButton({
     ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ''}`
     : 'Empty slot';
   const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
+  // Tint the slot border by item grade so rare drops jump out of
+  // the bag at a glance.
+  const grade = slot && item ? getItemGrade(item) : 'none';
+  const gradeColor = getGradeSpec(grade).color;
+  const slotStyle = slot && grade !== 'none'
+    ? { ['--slot-grade-color' as string]: gradeColor } as CSSProperties
+    : undefined;
   return (
     <button
       type="button"
-      className="inventory-slot"
+      className={`inventory-slot${slot && grade !== 'none' ? ` inventory-slot--grade-${grade}` : ''}`}
+      style={slotStyle}
       disabled={!slot}
       title={title}
       aria-label={slot ? `${itemName}: click for actions` : `Inventory slot ${index + 1}: empty`}
