@@ -56,7 +56,10 @@ export function WelcomeOverlay({ player }: WelcomeOverlayProps) {
       {isTouch ? (
         <small>Use the on-screen buttons to attack, pick up loot, and open panels.</small>
       ) : (
-        <small>Press <kbd>I</kbd> for inventory, <kbd>Tab</kbd> to cycle targets, <kbd>1-4</kbd> for skills.</small>
+        <small>
+          <kbd>Tab</kbd> cycles targets, <kbd>A</kbd> basic attacks, <kbd>1–0</kbd>/<kbd>Q–P</kbd> cast skills,
+          <kbd>F</kbd> picks up loot, <kbd>H</kbd> opens the full keybind list.
+        </small>
       )}
       <button type="button" onClick={onDismiss}>Got it</button>
     </section>
