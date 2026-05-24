@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -27,13 +27,16 @@ export function DamageNumber({
   amount, color = '#fff7ad', duration = 0.95, baseY = 0.5, rise = 1.4, isCrit = false,
 }: DamageNumberProps) {
   const text = useMemo(() => formatAmount(amount, isCrit), [amount, isCrit]);
-  const texture = useMemo(() => buildLabelTexture(text, color, isCrit), [text, color, isCrit]);
+  // Textures are cached + shared across instances (see getLabelTexture).
+  // Combat spams repeated values ("8", "12", "12!"), and rebuilding a
+  // canvas + re-uploading to the GPU for each duplicate was the main
+  // churn during a fight. Do NOT dispose here — the cache owns the
+  // texture's lifetime.
+  const texture = useMemo(() => getLabelTexture(text, color, isCrit), [text, color, isCrit]);
   const aspect = texture.image.width / texture.image.height;
   const spriteRef = useRef<THREE.Sprite>(null);
   const matRef = useRef<THREE.SpriteMaterial>(null);
   const startedAtRef = useRef<number | null>(null);
-
-  useEffect(() => () => texture.dispose(), [texture]);
 
   useFrame(({ clock }) => {
     if (startedAtRef.current === null) startedAtRef.current = clock.elapsedTime;
@@ -98,5 +101,31 @@ function buildLabelTexture(text: string, color: string, isCrit: boolean): THREE.
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
+  return texture;
+}
+
+// Shared, bounded cache of damage-number textures. Combat repeats
+// the same few strings constantly ("8", "12", "12!"), so caching by
+// (text, color, isCrit) turns N hits of the same value into one
+// canvas build + one GPU upload instead of N. Capped with simple
+// FIFO eviction so a long session with thousands of distinct values
+// (unlikely, but possible with big crits) can't grow unbounded —
+// evicted textures are disposed.
+const LABEL_TEXTURE_CACHE = new Map<string, THREE.CanvasTexture>();
+const LABEL_TEXTURE_CACHE_MAX = 256;
+
+function getLabelTexture(text: string, color: string, isCrit: boolean): THREE.CanvasTexture {
+  const key = `${text}|${color}|${isCrit ? 'c' : 'n'}`;
+  const cached = LABEL_TEXTURE_CACHE.get(key);
+  if (cached) return cached;
+  const texture = buildLabelTexture(text, color, isCrit);
+  if (LABEL_TEXTURE_CACHE.size >= LABEL_TEXTURE_CACHE_MAX) {
+    const oldestKey = LABEL_TEXTURE_CACHE.keys().next().value;
+    if (oldestKey !== undefined) {
+      LABEL_TEXTURE_CACHE.get(oldestKey)?.dispose();
+      LABEL_TEXTURE_CACHE.delete(oldestKey);
+    }
+  }
+  LABEL_TEXTURE_CACHE.set(key, texture);
   return texture;
 }
