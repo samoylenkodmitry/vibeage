@@ -18,6 +18,7 @@ import { CozyShells } from './CozyShells';
 import { CozyShoreBand } from './CozyShoreBand';
 import { CozyShoreFoam } from './CozyShoreFoam';
 import { CozyWaterLilies } from './CozyWaterLilies';
+import { CozyWaterRipples } from './CozyWaterRipples';
 import { CozyWaterSparkles } from './CozyWaterSparkles';
 import { CozyWildflowers } from './CozyWildflowers';
 import { SimpleStylizedWater } from './SimpleStylizedWater';
@@ -58,6 +59,7 @@ export function CozyWorldArt({
       <CozyDistantMountains scene={scene} />
       <SimpleStylizedWater scene={scene} />
       <CozyWaterLilies scene={scene} />
+      <CozyWaterRipples scene={scene} />
       <CozyWaterSparkles scene={scene} />
       <CozyShoreBand scene={scene} />
       <CozyShoreFoam scene={scene} />
