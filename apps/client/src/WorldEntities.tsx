@@ -100,7 +100,6 @@ function PlayerMarkerImpl({
   );
 }
 
-// Memoized — idle other-players keep their ref; skip reconciliation.
 export const PlayerMarker = memo(PlayerMarkerImpl);
 
 type PlayerAnimationRefs = {
