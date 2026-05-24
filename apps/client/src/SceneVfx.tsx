@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
@@ -371,7 +371,7 @@ function renderProjectileCore(theme: SkillTheme, ref: RefObject<THREE.Mesh | nul
   );
 }
 
-export function LootMarker({
+function LootMarkerImpl({
   loot,
   onPickUpLoot,
 }: {
@@ -461,6 +461,11 @@ export function LootMarker({
     </group>
   );
 }
+
+// Memoized: a ground-loot pile is static once dropped (position +
+// items don't change), and onPickUpLoot is a stable callback, so
+// shallow compare skips re-rendering every pile on each snapshot.
+export const LootMarker = memo(LootMarkerImpl);
 
 export function SelectedEnemyRing() {
   const outerRef = useRef<THREE.Mesh>(null);
