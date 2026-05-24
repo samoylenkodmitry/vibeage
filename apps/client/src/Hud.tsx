@@ -16,6 +16,7 @@ import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
 import { ReturnToNpcHint } from './hud/ReturnToNpcHint';
 import { SkillUseHint } from './hud/SkillUseHint';
 import { TargetingHint } from './hud/TargetingHint';
+import { ZoneBanner } from './hud/ZoneBanner';
 import { usePersistedToggle } from './hud/usePersistedToggle';
 import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
@@ -145,6 +146,7 @@ export function GameHud(props: GameHudProps) {
         onOpenQuestPanel={panels.openQuest}
       />
       <WelcomeOverlay player={player} />
+      <ZoneBanner player={player} />
       <TargetingHint state={state} />
       <ReturnToNpcHint state={state} />
       <SkillUseHint state={state} />
