@@ -14,6 +14,11 @@ type WorldEnvironmentProps = {
   focus: Vec3D;
 };
 
+// Day-phase palette recompute cadence. 0.2s ≈ 5Hz — far below
+// perceptible for a sky that cycles over minutes, but kills ~55
+// keyframe-interpolation passes per second.
+const PALETTE_REFRESH_S = 0.2;
+
 type FoliageInstance = {
   x: number;
   y: number;
@@ -70,9 +75,20 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     };
   }, [sunMaterial, cloudMaterial, moonMaterial]);
 
+  // Day-phase palette changes over minutes, so recomputing the
+  // keyframe interpolation every frame (60fps) is wasted work.
+  // Cache it and refresh at ~5Hz; the per-frame applyDayPhaseToScene
+  // still runs every frame for the cheap bits that DO need it
+  // (sun/moon/cloud following the player's focus + cloud rotation).
+  const paletteRef = useRef(computeDayPhase(Date.now()));
+  const paletteAccumRef = useRef(0);
   useFrame((_, delta) => {
-    const palette = computeDayPhase(Date.now());
-    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta });
+    paletteAccumRef.current += delta;
+    if (paletteAccumRef.current >= PALETTE_REFRESH_S) {
+      paletteAccumRef.current = 0;
+      paletteRef.current = computeDayPhase(Date.now());
+    }
+    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette: paletteRef.current, delta });
   });
 
   return (
