@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { QUEST_NPCS } from '../../../packages/content/npcs';
@@ -359,7 +359,7 @@ function templateColor(templateId: string | undefined, fallback: string): string
   }
 }
 
-export function EnemyMarker({
+function EnemyMarkerImpl({
   enemy,
   isSelected,
   onSelect,
@@ -454,6 +454,11 @@ export function EnemyMarker({
     </SmoothedEntityGroup>
   );
 }
+
+// Memoized: unchanged enemies keep their object ref across snapshots
+// (reducer replaces only what moved) + stable callbacks, so shallow
+// compare skips reconciling idle mobs — the bulk of per-snapshot work.
+export const EnemyMarker = memo(EnemyMarkerImpl);
 
 function MiniBossCrown({ color, height }: { color: string; height: number }) {
   return (
