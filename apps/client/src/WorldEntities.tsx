@@ -341,6 +341,12 @@ const MAX_EXTRAPOLATE_SECONDS = 0.2;
 // update (a few units) still smooths, but a teleport (>10 units)
 // reads as instant.
 const SNAP_THRESHOLD = 10;
+// Below these gaps a stationary entity is visually "arrived"; we snap it
+// exactly and park the per-frame lerp/terrain/rotation work until the next
+// snapshot moves it again. Saves a sqrt + terrain sample + angle-lerp every
+// frame for every idle entity (the common case in a populated field).
+const SETTLE_POS_EPSILON = 0.002;
+const SETTLE_ANGLE_EPSILON = 0.0015;
 
 function SmoothedEntityGroup({
   position,
@@ -362,6 +368,7 @@ function SmoothedEntityGroup({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
+  const settledRef = useRef(false);
   const targetRef = useRef(new THREE.Vector3());
   const lastPosRef = useRef({ x: position.x, y: position.y, z: position.z });
   const lastVelRef = useRef({ x: velocity?.x ?? 0, z: velocity?.z ?? 0 });
@@ -379,6 +386,7 @@ function SmoothedEntityGroup({
     lastPosRef.current = { x: position.x, y: position.y, z: position.z };
     lastVelRef.current = { x: vxNow, z: vzNow };
     lastSnapTimeRef.current = performance.now();
+    settledRef.current = false;
   }
 
   useEffect(() => {
@@ -396,10 +404,9 @@ function SmoothedEntityGroup({
 
   useFrame((_, delta) => {
     const group = groupRef.current;
-    if (!group) {
+    if (!group || settledRef.current) {
       return;
     }
-
     const elapsed = Math.min(
       (performance.now() - lastSnapTimeRef.current) / 1000,
       MAX_EXTRAPOLATE_SECONDS,
@@ -419,22 +426,12 @@ function SmoothedEntityGroup({
       return;
     }
 
-    const alpha = smoothingAlpha(response, delta);
-    targetRef.current.set(targetX, position.y, targetZ);
-    // Teleports (Escape skill, GM setPosition, etc.) push the target
-    // far enough that the smooth lerp would visibly drift across the
-    // world for many frames. Snap when the gap is larger than the
-    // SNAP_THRESHOLD so a teleport reads as instant.
-    const gap = group.position.distanceTo(targetRef.current);
-    if (gap > SNAP_THRESHOLD) {
-      group.position.copy(targetRef.current);
-    } else {
-      group.position.lerp(targetRef.current, alpha);
-    }
-    if (typeof groundedOffset === 'number') {
-      group.position.y = getTerrainY(group.position.x, group.position.z) + groundedOffset;
-    }
-    group.rotation.y = lerpAngle(group.rotation.y, rotationY, alpha);
+    settledRef.current = advanceSmoothedGroup(group, targetRef.current, {
+      targetX, targetZ, posY: position.y, rotationY,
+      alpha: smoothingAlpha(response, delta),
+      stationary: vx === 0 && vz === 0,
+      groundedOffset,
+    });
   });
 
   return <group ref={groupRef}>{children}</group>;
@@ -443,4 +440,41 @@ function SmoothedEntityGroup({
 function lerpAngle(from: number, to: number, alpha: number): number {
   const delta = Math.atan2(Math.sin(to - from), Math.cos(to - from));
   return from + delta * alpha;
+}
+
+// One smoothing step toward the target. Returns true once a stationary
+// entity has converged to within epsilon (position + facing): the caller
+// parks the per-frame work until the next snapshot changes its inputs.
+function advanceSmoothedGroup(
+  group: THREE.Group,
+  scratch: THREE.Vector3,
+  p: {
+    targetX: number; targetZ: number; posY: number; rotationY: number;
+    alpha: number; stationary: boolean; groundedOffset?: number;
+  },
+): boolean {
+  scratch.set(p.targetX, p.posY, p.targetZ);
+  // Teleports (Escape, GM setPosition) push the target past SNAP_THRESHOLD,
+  // so snap instead of drifting across the world for many frames.
+  const gap = group.position.distanceTo(scratch);
+  if (gap > SNAP_THRESHOLD) {
+    group.position.copy(scratch);
+  } else {
+    group.position.lerp(scratch, p.alpha);
+  }
+  if (typeof p.groundedOffset === 'number') {
+    group.position.y = getTerrainY(group.position.x, group.position.z) + p.groundedOffset;
+  }
+  group.rotation.y = lerpAngle(group.rotation.y, p.rotationY, p.alpha);
+
+  const angleGap = Math.abs(Math.atan2(Math.sin(p.rotationY - group.rotation.y), Math.cos(p.rotationY - group.rotation.y)));
+  if (!p.stationary || gap > SETTLE_POS_EPSILON || angleGap > SETTLE_ANGLE_EPSILON) {
+    return false;
+  }
+  group.position.set(p.targetX, p.posY, p.targetZ);
+  if (typeof p.groundedOffset === 'number') {
+    group.position.y = getTerrainY(p.targetX, p.targetZ) + p.groundedOffset;
+  }
+  group.rotation.y = p.rotationY;
+  return true;
 }
