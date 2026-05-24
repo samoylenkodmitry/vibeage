@@ -3519,3 +3519,30 @@ button.character-option {
   100% { opacity: 0; }
 }
 
+
+/* GainBurst — floating +XP / +gold notifications */
+.gain-burst-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.gain-burst {
+  font: 600 18px/1 "Inter", system-ui, sans-serif;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  animation: gain-burst-rise 1500ms ease-out forwards;
+}
+.gain-burst--xp   { color: #c4b5fd; }
+.gain-burst--gold { color: #facc15; }
+@keyframes gain-burst-rise {
+  0%   { transform: translateY(0);     opacity: 0; }
+  18%  { transform: translateY(-6px);  opacity: 1; }
+  85%  { transform: translateY(-44px); opacity: 1; }
+  100% { transform: translateY(-58px); opacity: 0; }
+}
