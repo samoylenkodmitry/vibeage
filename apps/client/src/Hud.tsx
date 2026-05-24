@@ -471,6 +471,17 @@ function CastingPanel({ player }: { player: PlayerEntity | null }) {
 }
 
 function DeathOverlay({ onRespawn }: { onRespawn: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        onRespawn();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onRespawn]);
   return (
     <section className="death-overlay" aria-label="Death" role="dialog" aria-modal="true">
       <div className="death-overlay__card">
@@ -480,6 +491,9 @@ function DeathOverlay({ onRespawn }: { onRespawn: () => void }) {
         <button type="button" className="death-overlay__button" onClick={onRespawn} autoFocus>
           Respawn
         </button>
+        <span className="death-overlay__hotkey" aria-hidden="true">
+          or press <kbd>R</kbd>
+        </span>
       </div>
     </section>
   );
