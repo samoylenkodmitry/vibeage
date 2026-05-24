@@ -26,7 +26,7 @@ import { getTerrainY } from './worldSceneConfig';
 
 export { LootMarker };
 
-export function PlayerMarker({
+function PlayerMarkerImpl({
   player,
   isSelf,
   isSelected,
@@ -99,6 +99,8 @@ export function PlayerMarker({
     </SmoothedEntityGroup>
   );
 }
+
+export const PlayerMarker = memo(PlayerMarkerImpl);
 
 type PlayerAnimationRefs = {
   group: THREE.Group | null;
@@ -455,9 +457,7 @@ function EnemyMarkerImpl({
   );
 }
 
-// Memoized: unchanged enemies keep their object ref across snapshots
-// (reducer replaces only what moved) + stable callbacks, so shallow
-// compare skips reconciling idle mobs — the bulk of per-snapshot work.
+// Memoized — idle enemies keep their ref; skip reconciliation.
 export const EnemyMarker = memo(EnemyMarkerImpl);
 
 function MiniBossCrown({ color, height }: { color: string; height: number }) {
