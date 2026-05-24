@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
+import { GainBurst } from './hud/GainBurst';
 import { HudPanels } from './hud/HudPanels';
 import { HurtVignette } from './hud/HurtVignette';
 import { CombatLogPanel } from './hud/CombatLogPanel';
@@ -97,7 +98,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      {player && <HurtVignette health={player.health} />}
+      {player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /></>)}
       <HudTopStrips
         state={state}
         player={player}
