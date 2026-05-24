@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
@@ -176,6 +176,19 @@ function SkillButton({
   const disabled = !skill || !player?.isAlive || !isReady;
   const cooldownProgress = skill ? Math.min(1, remainingMs / skill.cooldownMs) : 0;
   const targetState = needsTarget ? 'needs-target' : skill?.requiresTarget ? 'has-target' : 'self-cast';
+  // Pulse the slot for ~600ms whenever a previously-cooling skill
+  // returns to ready. Useful peripheral signal in a rotation —
+  // a CD that just expired is the easiest one to forget about.
+  // The first sample after mount is silent so a freshly-bound slot
+  // doesn't pop just because it loaded already-ready.
+  const wasCoolingRef = useRef(remainingMs > 0);
+  const [readyPulseKey, setReadyPulseKey] = useState(0);
+  useEffect(() => {
+    if (wasCoolingRef.current && remainingMs === 0 && skill) {
+      setReadyPulseKey((k) => k + 1);
+    }
+    wasCoolingRef.current = remainingMs > 0;
+  }, [remainingMs, skill]);
   return (
     <button
       type="button"
@@ -202,6 +215,13 @@ function SkillButton({
       )}
       {needsTarget && skill && (
         <span className="skill-button__hint" aria-hidden="true">Pick target</span>
+      )}
+      {readyPulseKey > 0 && (
+        <span
+          key={`ready-${readyPulseKey}`}
+          className="skill-button__ready-pulse"
+          aria-hidden="true"
+        />
       )}
     </button>
   );
