@@ -259,3 +259,27 @@ export function buildSkillRows(player: PlayerEntity | null): Row[] {
   }
   return [...classRows, ...specRows];
 }
+
+/**
+ * True if the player has spendable SP — i.e. ≥1 SP AND at least
+ * one row is either 'available' (can learn now) or 'unlocked'
+ * with a remaining upgrade tier. The SP badge on the Skills
+ * panel toggle used to read availableSkillPoints raw, which
+ * lit up green even when every skill was maxed and the player
+ * had nothing to do with it — confusing onboarding signal.
+ */
+export function hasSpendableSkillPoints(player: PlayerEntity | null): boolean {
+  if (!player) return false;
+  if ((player.availableSkillPoints ?? 0) <= 0) return false;
+  const rows = buildSkillRows(player);
+  const skillLevels = player.skillLevels ?? {};
+  for (const row of rows) {
+    if (row.status === 'available') return true;
+    if (row.status === 'unlocked') {
+      const maxLevel = 1 + (SKILLS[row.skillId]?.upgrades?.length ?? 0);
+      const level = skillLevels[row.skillId] ?? 1;
+      if (level < maxLevel) return true;
+    }
+  }
+  return false;
+}

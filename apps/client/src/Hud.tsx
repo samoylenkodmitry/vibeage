@@ -4,6 +4,7 @@ import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudOverlays } from './hud/HudOverlays';
 import { HudPanels } from './hud/HudPanels';
 import { CurrentZoneChip } from './hud/CurrentZoneChip';
+import { hasSpendableSkillPoints } from './hud/SkillTreePanel';
 import { TimeOfDayChip } from './hud/TimeOfDayChip';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
@@ -164,7 +165,7 @@ export function GameHud(props: GameHudProps) {
         onBindItem={items.bindItem}
         onClearItem={items.clearItem}
       />
-      <PanelToggleStrip panels={panels} unspentSkillPoints={player?.availableSkillPoints ?? 0} />
+      <PanelToggleStrip panels={panels} unspentSkillPoints={hasSpendableSkillPoints(player) ? (player?.availableSkillPoints ?? 0) : 0} />
       {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
     </>
