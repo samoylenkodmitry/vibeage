@@ -12,6 +12,7 @@ type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death
 
 let ctx: AudioContext | null = null;
 let muted = false;
+let volume = 1;
 let unlockHandlersInstalled = false;
 
 function getCtx(): AudioContext | null {
@@ -48,6 +49,15 @@ export function setMuted(value: boolean): void {
 
 export function isMuted(): boolean {
   return muted;
+}
+
+/** Master SFX volume, 0–1. Multiplies every cue's gain envelope. */
+export function setVolume(value: number): void {
+  volume = Math.min(1, Math.max(0, value));
+}
+
+export function getVolume(): number {
+  return volume;
 }
 
 export function playCue(cue: CueId): void {
@@ -114,9 +124,11 @@ function tone(
   const gain = audio.createGain();
   osc.type = type;
   osc.frequency.value = frequency;
-  // Attack/decay envelope so the click doesn't pop.
+  // Attack/decay envelope so the click doesn't pop. Master volume
+  // scales the peak so the slider acts on every cue uniformly.
+  const scaledPeak = gainPeak * volume;
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(gainPeak, now + 0.01);
+  gain.gain.linearRampToValueAtTime(scaledPeak, now + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
   osc.connect(gain).connect(audio.destination);
   osc.start(now);
