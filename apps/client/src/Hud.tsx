@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
+import { BossEncounterBanner } from './hud/BossEncounterBanner';
 import { CombatSfxBridge } from './hud/CombatSfxBridge';
 import { GainBurst } from './hud/GainBurst';
 import { HudPanels } from './hud/HudPanels';
@@ -106,7 +107,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><LowHealthHeartbeat health={player.health} maxHealth={player.maxHealth} isAlive={player.isAlive} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
+      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} /><BossEncounterBanner enemies={state.enemies} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><LowHealthHeartbeat health={player.health} maxHealth={player.maxHealth} isAlive={player.isAlive} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
       <HudTopStrips
         state={state}
         player={player}
