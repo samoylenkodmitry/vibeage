@@ -43,7 +43,15 @@ export function BossEncounterBanner({ enemies }: BossEncounterBannerProps) {
           setBanner(null);
           timeoutRef.current = null;
         }, BANNER_DURATION_MS);
-      } else if (!inCombat) {
+      }
+      // Pre-fix this branch also reset the marker whenever aiState
+      // ticked back to 'idle' (e.g. boss patrolling between chase
+      // strides, or briefly disengaging at range edge). That made
+      // the banner re-fire every few seconds the player stayed
+      // near the boss. Now the marker only clears when the boss
+      // actually dies — one banner per (boss, life). Respawns are
+      // covered by the despawn-prune below.
+      if (enemy.isAlive === false) {
         aggroedRef.current.delete(enemy.id);
       }
     }
