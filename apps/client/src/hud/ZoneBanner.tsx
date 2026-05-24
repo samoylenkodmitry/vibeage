@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ZoneManager } from '../../../../packages/content/zones';
 import type { PlayerEntity } from '../gameTypes';
 
 type ZoneBannerProps = {
@@ -9,26 +9,20 @@ type ZoneBannerProps = {
 const BANNER_DURATION_MS = 2600;
 const SAMPLE_THROTTLE_MS = 400;
 
-function pickZoneAt(x: number, z: number): Zone | null {
-  for (const zone of GAME_ZONES) {
-    const dx = x - zone.position.x;
-    const dz = z - zone.position.z;
-    if (dx * dx + dz * dz <= zone.radius * zone.radius) return zone;
-  }
-  return null;
-}
-
 /**
  * Brief "Welcome to <Zone>" banner when the player crosses into a
  * different named GAME_ZONES region. Computes the current zone
- * client-side from player position (no server plumbing). The first
- * zone after spawn doesn't trigger — we treat the initial sample as
- * baseline so reconnects don't spam the banner.
+ * client-side via the shared ZoneManager (same predicate the server
+ * uses to assign players to zones, so a crossing here matches the
+ * server's view). First sample after mount is treated as baseline
+ * so reconnects don't spam the banner.
  */
 export function ZoneBanner({ player }: ZoneBannerProps) {
+  const zoneManager = useMemo(() => new ZoneManager(), []);
   const lastZoneIdRef = useRef<string | null>(null);
   const lastSampleAtRef = useRef(0);
   const initializedRef = useRef(false);
+  const timeoutRef = useRef<number | null>(null);
   const [banner, setBanner] = useState<{ key: number; name: string } | null>(null);
   const seqRef = useRef(0);
 
@@ -38,7 +32,7 @@ export function ZoneBanner({ player }: ZoneBannerProps) {
     if (now - lastSampleAtRef.current < SAMPLE_THROTTLE_MS) return;
     lastSampleAtRef.current = now;
 
-    const zone = pickZoneAt(player.position.x, player.position.z);
+    const zone = zoneManager.getZoneAtPosition(player.position);
     const id = zone?.id ?? null;
     if (!initializedRef.current) {
       initializedRef.current = true;
@@ -49,11 +43,25 @@ export function ZoneBanner({ player }: ZoneBannerProps) {
     lastZoneIdRef.current = id;
     if (!zone) return;
 
+    // Replace any in-flight timer so frequent crossings restart the
+    // fade instead of letting a stale callback clear the newest
+    // banner mid-flight. Re-running this effect on every player
+    // update would otherwise eat the timeout immediately.
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     seqRef.current += 1;
     setBanner({ key: seqRef.current, name: zone.name });
-    const t = window.setTimeout(() => setBanner(null), BANNER_DURATION_MS);
-    return () => window.clearTimeout(t);
-  }, [player]);
+    timeoutRef.current = window.setTimeout(() => {
+      setBanner(null);
+      timeoutRef.current = null;
+    }, BANNER_DURATION_MS);
+  }, [player, zoneManager]);
+
+  useEffect(
+    () => () => {
+      if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+    },
+    [],
+  );
 
   if (!banner) return null;
   return (
