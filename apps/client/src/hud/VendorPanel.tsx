@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { vendorSellPriceFor, type VendorDef } from '../../../../packages/content/vendors';
 import type { PlayerEntity } from '../gameTypes';
 import { ItemCell } from './ItemCell';
+import { useDraggablePanel } from './useDraggablePanel';
 
 /**
  * PR GG — Vendor browse panel. Opens when the player clicks Browse
@@ -19,6 +20,7 @@ type VendorPanelProps = {
 };
 
 export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPanelProps) {
+  const panelRef = useDraggablePanel<HTMLElement>('vendor');
   const gold = player.gold ?? 0;
   const inventoryRows = useMemo(() => {
     // Aggregate by itemId so an item that spans multiple stacks
@@ -38,8 +40,8 @@ export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPa
   }, [player.inventory, vendor]);
 
   return (
-    <section className="vendor-panel" aria-label={`Browse ${vendor.name}`}>
-      <header className="vendor-panel-header">
+    <section ref={panelRef} className="vendor-panel" aria-label={`Browse ${vendor.name}`}>
+      <header className="vendor-panel-header panel-title">
         <div>
           <strong>{vendor.name}</strong>
           <small>{vendor.title}</small>

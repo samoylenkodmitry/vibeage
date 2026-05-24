@@ -2943,6 +2943,18 @@ input {
      button positioning. */
 }
 
+.combat-log-titlebar {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(141, 233, 215, 0.45);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(141, 233, 215, 0.1);
+  user-select: none;
+}
+
 .combat-log-scroll {
   display: flex;
   flex-direction: column;
