@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CombatLine } from '../gameTypes';
+import { useDraggablePanel } from './useDraggablePanel';
 
 const STICK_TO_BOTTOM_PX = 24;
 
@@ -37,6 +38,7 @@ type CombatLogPanelProps = {
  * they can jump back to the latest on demand.
  */
 export function CombatLogPanel({ lines }: CombatLogPanelProps) {
+  const panelRef = useDraggablePanel<HTMLElement>('combat-log');
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [stuckToBottom, setStuckToBottom] = useState(true);
 
@@ -61,7 +63,8 @@ export function CombatLogPanel({ lines }: CombatLogPanelProps) {
   const ordered = useMemo(() => [...lines].reverse(), [lines]);
 
   return (
-    <section className="combat-log" aria-label="Combat log">
+    <section ref={panelRef} className="combat-log" aria-label="Combat log">
+      <div className="combat-log-titlebar panel-title" aria-hidden="true">Log</div>
       <div className="combat-log-scroll" ref={scrollRef} onScroll={onScroll}>
         {ordered.map((line) => (
           <span key={line.id} className="combat-log-line">
