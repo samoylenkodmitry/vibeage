@@ -8,7 +8,7 @@
  * the player interacts with the page.
  */
 
-type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill';
+type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -74,6 +74,18 @@ export function playCue(cue: CueId): void {
     case 'pickup':
       tone(audio, 880, 0.10, 'sine', 0.18);
       tone(audio, 1320, 0.14, 'sine', 0.18, 0.06);
+      break;
+    case 'respawn':
+      // Soft uplift: G4 → C5 → E5 — gentler than levelUp so it
+      // reads as "you're back" rather than "achievement".
+      tone(audio, 392, 0.22, 'sine', 0.20);
+      tone(audio, 523, 0.22, 'sine', 0.20, 0.14);
+      tone(audio, 659, 0.34, 'sine', 0.20, 0.28);
+      break;
+    case 'death':
+      // Descending thud: A3 → E3 — short and heavy.
+      tone(audio, 220, 0.22, 'sine', 0.30);
+      tone(audio, 165, 0.36, 'sine', 0.26, 0.14);
       break;
   }
 }
