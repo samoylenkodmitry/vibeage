@@ -4,6 +4,20 @@ import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
 import { ITEMS, getItemGrade } from '../../../packages/content/items';
 import { getGradeSpec } from '../../../packages/content/equipmentTypes';
+function pickBestGradeColor(items: readonly { itemId: string }[]): string {
+  let bestRank = -1;
+  let bestColor = items.length > 1 ? '#facc15' : '#eab308';
+  for (const i of items) {
+    const item = ITEMS[i.itemId];
+    if (!item) continue;
+    const spec = getGradeSpec(getItemGrade(item));
+    if (spec.rank > bestRank) {
+      bestRank = spec.rank;
+      bestColor = spec.color;
+    }
+  }
+  return bestColor;
+}
 import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
 import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
@@ -367,25 +381,8 @@ export function LootMarker({
   const meshRef = useRef<THREE.Mesh>(null);
   const sparkGroupRef = useRef<THREE.Group>(null);
   // Pile color reflects the best item in the pile so rare drops
-  // (gold S-tier) read across the field as different from common
-  // (grey D-tier) drops. Stacked piles still tend slightly more
-  // yellow via the small +0x08 offset.
-  const bestGrade = useMemo(() => {
-    let bestRank = -1;
-    let bestColor = loot.items.length > 1 ? '#facc15' : '#eab308';
-    for (const i of loot.items) {
-      const item = ITEMS[i.itemId];
-      if (!item) continue;
-      const grade = getItemGrade(item);
-      const spec = getGradeSpec(grade);
-      if (spec.rank > bestRank) {
-        bestRank = spec.rank;
-        bestColor = spec.color;
-      }
-    }
-    return bestColor;
-  }, [loot.items]);
-  const color = bestGrade;
+  // read different from common ones across the field.
+  const color = useMemo(() => pickBestGradeColor(loot.items), [loot.items]);
   const sparks = useMemo(() => LOOT_SPARKS, []);
   // §46/slice-new — cursor-hover label. Derived client-side from
   // ITEMS[itemId] so the server never has to ship the display name
