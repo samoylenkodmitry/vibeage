@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudPanels } from './hud/HudPanels';
+import { HurtVignette } from './hud/HurtVignette';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
@@ -96,6 +97,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
+      {player && <HurtVignette health={player.health} />}
       <HudTopStrips
         state={state}
         player={player}
