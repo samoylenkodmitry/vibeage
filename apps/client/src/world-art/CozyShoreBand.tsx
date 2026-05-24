@@ -21,7 +21,7 @@ export function CozyShoreBand({ scene }: { scene: WorldArtScene }) {
       receiveShadow={false}
     >
       <planeGeometry args={[44, waterline.length * 0.95]} />
-      <meshStandardMaterial color="#efe0b6" roughness={1} metalness={0} transparent depthWrite={false} opacity={0.85} />
+      <meshStandardMaterial color="#f4e6c1" roughness={1} metalness={0} transparent depthWrite={false} opacity={0.95} />
     </mesh>
   );
 }
