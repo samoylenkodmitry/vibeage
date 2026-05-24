@@ -317,6 +317,19 @@ input {
   font-size: 14px;
 }
 
+.time-of-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid rgba(141, 233, 215, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 14, 18, 0.5);
+  color: #e7f7f1;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
 .ghost-button {
   min-height: 32px;
   border-color: rgba(141, 233, 215, 0.32);

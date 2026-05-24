@@ -13,6 +13,7 @@ import { LifeCueBridge } from './hud/LifeCueBridge';
 import { LowHealthHeartbeat } from './hud/LowHealthHeartbeat';
 import { LowManaCue } from './hud/LowManaCue';
 import { PageTitle } from './hud/PageTitle';
+import { TimeOfDayChip } from './hud/TimeOfDayChip';
 import { HurtVignette } from './hud/HurtVignette';
 import { LevelUpBurst } from './hud/LevelUpBurst';
 import { QuestCompleteBurst } from './hud/QuestCompleteBurst';
@@ -311,6 +312,7 @@ function HudWorldStatsStrip({
       <Metric label="Enemies" value={String(enemyCount)} />
       <Metric label="Regions" value={regionStatus} />
       <Metric label="Loot" value={String(lootCount)} />
+      <TimeOfDayChip />
     </section>
   );
 }
