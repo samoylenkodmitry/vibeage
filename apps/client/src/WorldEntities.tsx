@@ -428,7 +428,7 @@ export function EnemyMarker({
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
       {enemy.isAlive && enemy.name && (
         <NameLabel
-          text={enemy.name + (enemy.level ? ` Lv${enemy.level}` : '')}
+          text={enemy.name + (enemy.level ? `  Lv ${enemy.level}` : '')}
           color={enemy.isMiniBoss ? '#fde68a' : '#fca5a5'}
           yOffset={visual.height + 0.65}
           height={enemy.isMiniBoss ? 0.55 : 0.42}
