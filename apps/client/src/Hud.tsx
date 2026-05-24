@@ -105,7 +105,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
+      <SfxMuteButton /><CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />{player && (<><HurtVignette health={player.health} /><HitShake health={player.health} /><LifeCueBridge isAlive={player.isAlive} /><GainBurst experience={player.experience} gold={player.gold ?? 0} skillPoints={player.availableSkillPoints} /><LevelUpBurst level={player.level} /><QuestCompleteBurst completed={player.questState?.completed ?? []} /></>)}
       <HudTopStrips
         state={state}
         player={player}
