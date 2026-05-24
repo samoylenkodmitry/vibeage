@@ -5,6 +5,7 @@ import { GainBurst } from './hud/GainBurst';
 import { HudPanels } from './hud/HudPanels';
 import { HurtVignette } from './hud/HurtVignette';
 import { LevelUpBurst } from './hud/LevelUpBurst';
+import { SfxMuteButton } from './hud/SfxMuteButton';
 import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
@@ -99,7 +100,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <>
-      {player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /></>)}
+      <SfxMuteButton />{player && (<><HurtVignette health={player.health} /><GainBurst experience={player.experience} gold={player.gold ?? 0} /><LevelUpBurst level={player.level} /></>)}
       <HudTopStrips
         state={state}
         player={player}
