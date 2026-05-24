@@ -1067,6 +1067,18 @@ input {
   line-height: 1;
 }
 .keybind-cheatsheet__close:hover { background: rgba(141, 233, 215, 0.15); }
+.keybind-cheatsheet__group {
+  margin-top: 10px;
+}
+.keybind-cheatsheet__group:first-of-type { margin-top: 0; }
+.keybind-cheatsheet__group-title {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(141, 233, 215, 0.6);
+}
 .keybind-cheatsheet__list {
   display: grid;
   grid-template-columns: auto 1fr;
