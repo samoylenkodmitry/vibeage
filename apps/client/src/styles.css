@@ -3645,3 +3645,22 @@ button.character-option {
   border-color: var(--slot-grade-color);
   box-shadow: 0 0 6px color-mix(in srgb, var(--slot-grade-color) 45%, transparent);
 }
+
+/* SFX mute toggle — sits top-right, small + unobtrusive */
+.sfx-mute-button {
+  position: fixed;
+  top: 8px;
+  right: 14px;
+  z-index: 100;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 8px;
+  background: rgba(5, 14, 18, 0.62);
+  color: #f8fafc;
+  font-size: 16px;
+  cursor: pointer;
+}
+.sfx-mute-button:hover { background: rgba(5, 14, 18, 0.86); }
+.sfx-mute-button[aria-pressed="true"] { opacity: 0.55; }
