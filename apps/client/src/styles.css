@@ -3587,3 +3587,55 @@ button.character-option {
   85%  { transform: translateY(-44px); opacity: 1; }
   100% { transform: translateY(-58px); opacity: 0; }
 }
+
+/* LevelUpBurst — big golden celebration when player levels up */
+.level-up-burst {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  animation: level-up-fade 2400ms ease-out forwards;
+}
+.level-up-burst__halo {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.45) 0%, rgba(250, 204, 21, 0) 65%);
+  animation: level-up-halo 2400ms ease-out forwards;
+}
+.level-up-burst__title {
+  position: relative;
+  font: 800 64px/1 "Inter", system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  color: #fef3c7;
+  text-shadow: 0 4px 18px rgba(250, 204, 21, 0.75), 0 0 6px rgba(0, 0, 0, 0.85);
+  animation: level-up-pop 600ms cubic-bezier(.16,1,.3,1) forwards;
+}
+.level-up-burst__subtitle {
+  position: relative;
+  margin-top: 8px;
+  font: 600 18px/1 "Inter", system-ui, sans-serif;
+  color: rgba(254, 243, 199, 0.86);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+@keyframes level-up-fade {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes level-up-pop {
+  0%   { transform: scale(0.4); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes level-up-halo {
+  0%   { transform: scale(0.4); opacity: 0; }
+  20%  { transform: scale(1.05); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
