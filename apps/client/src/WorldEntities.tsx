@@ -248,6 +248,7 @@ function EnemyBody({
   onPointerOut?: (event: ThreeEvent<PointerEvent>) => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const deadPoseRef = useRef(false);
 
   useFrame(({ clock }) => {
     const mesh = meshRef.current;
@@ -255,10 +256,17 @@ function EnemyBody({
       return;
     }
     if (!isAlive) {
+      // Corpse pose is static: apply it once, then skip the per-frame
+      // write until the entity revives (deadPoseRef cleared below).
+      if (deadPoseRef.current) {
+        return;
+      }
       mesh.rotation.set(Math.PI / 2, 0, 0);
       mesh.position.y = -height * 0.3;
+      deadPoseRef.current = true;
       return;
     }
+    deadPoseRef.current = false;
     const t = clock.elapsedTime;
     if (isMoving) {
       mesh.position.y = Math.abs(Math.sin(t * 9)) * 0.18;
