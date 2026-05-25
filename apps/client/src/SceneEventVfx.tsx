@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { DamageNumber } from './DamageNumber';
 import type { Vec3, VisualEvent } from './gameTypes';
 import { getTerrainY } from './worldSceneConfig';
+import { GlowEmitter } from './dynamicLights';
 
 const RECOVERY_PARTICLES = [
   { angle: 0.15, radius: 0.25, height: 0.25, size: 0.08 },
@@ -182,7 +183,7 @@ function RecoveryVfx({ event }: { event: VisualEvent }) {
       {event.amount !== undefined && event.amount > 0 && (
         <DamageNumber amount={event.amount} color={color} baseY={1.0} />
       )}
-      <pointLight color={color} intensity={0.9} distance={2.8} />
+      <GlowEmitter color={color} intensity={0.9} distance={2.8} priority={2} />
     </group>
   );
 }
@@ -240,7 +241,7 @@ function SplashImpactVfx({ event }: { event: VisualEvent }) {
         <ringGeometry args={[0.24, 0.42, 48]} />
         <meshBasicMaterial ref={ringMaterialRef} color="#7dd3fc" transparent opacity={0.62} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <pointLight color="#38bdf8" intensity={0.8} distance={4} />
+      <GlowEmitter color="#38bdf8" intensity={0.8} distance={4} priority={2} />
     </group>
   );
 }

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { getZoneLandmarks, type ZoneLandmarkVisual } from './worldVisuals';
+import { GlowEmitter } from './dynamicLights';
 
 const RING_THICKNESS = 2.8;
 
@@ -62,7 +63,7 @@ function ZoneBeacon({ landmark }: { landmark: ZoneLandmarkVisual }) {
           roughness={0.72}
         />
       </mesh>
-      <pointLight color={landmark.accentColor} intensity={0.65} distance={landmark.beaconRadius * 5} />
+      <GlowEmitter color={landmark.accentColor} intensity={0.65} distance={landmark.beaconRadius * 5} priority={1} />
     </group>
   );
 }

@@ -22,6 +22,7 @@ import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
 import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
+import { GlowEmitter } from './dynamicLights';
 
 type SkillTheme = {
   core: string;
@@ -435,14 +436,7 @@ function LootMarkerImpl({
       {hovered && labelText ? (
         <NameLabel text={labelText} color="#fde68a" yOffset={1.1} height={0.42} />
       ) : null}
-      <pointLight
-        color={color}
-        intensity={1.6}
-        distance={7}
-        decay={1.8}
-        position={[0, 0.4, 0]}
-        castShadow={false}
-      />
+      <GlowEmitter color={color} intensity={1.6} distance={7} priority={2} />
       <group ref={sparkGroupRef}>
         {sparks.map((spark) => (
           <mesh

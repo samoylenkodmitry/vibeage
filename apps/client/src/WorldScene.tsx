@@ -24,6 +24,7 @@ import {
 import { WorldGround } from './WorldGround';
 import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
 import { getTerrainY } from './worldSceneConfig';
+import { DynamicLightPool } from './dynamicLights';
 
 type WorldSceneProps = {
   state: GameClientState;
@@ -64,7 +65,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
     >
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
       <Preload all />
-      {/* Dev-only perf HUD; import.meta.env.DEV tree-shakes it from production. */}
+      <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
       {/* Stylized water always renders (anchored to the starter
