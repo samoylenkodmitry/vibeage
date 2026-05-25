@@ -47,14 +47,13 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   // that — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
-  // Dev perf HUD: add ?perf=1 to the URL to mount drei's StatsGl
-  // (FPS + draw calls + GPU time). Off by default so it costs
-  // nothing for players; gives a real frame-time readout to target
-  // optimisation work instead of guessing.
-  const showPerf = useMemo(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('perf'),
-    [],
-  );
+  // Keep the cozy scene mounted once entered — re-crossing the radius would
+  // otherwise re-clone ~310 GLB instances (multi-second hitch). Swap only on a new scene.
+  const mountedSceneRef = useRef(activeCozyScene);
+  if (activeCozyScene && activeCozyScene !== mountedSceneRef.current) {
+    mountedSceneRef.current = activeCozyScene;
+  }
+  const mountedScene = mountedSceneRef.current;
 
   return (
     <Canvas
@@ -63,7 +62,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
       }}
     >
-      {showPerf && <StatsGl />}
+      {/* Dev-only perf HUD (FPS + draw calls + GPU time). import.meta.env.DEV
+          is a build-time constant, so production tree-shakes it out entirely. */}
+      {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
       {/* Stylized water always renders (anchored to the starter
           coast's waterline), so the sea stays visible from far
@@ -71,7 +72,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           steps outside the cozy scene radius. The rest of the cozy
           art (foam, shells, driftwood) stays scene-bound below. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
-      {activeCozyScene && <CozyWorldArt scene={activeCozyScene} quality={worldArtQuality} />}
+      {mountedScene && <CozyWorldArt scene={mountedScene} quality={worldArtQuality} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" palette={activeCozyScene ? 'sand' : 'grass'} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
