@@ -10,6 +10,7 @@ import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
 import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
+import { useDraggablePanel } from './hud/useDraggablePanel';
 import { ReturnToNpcHint } from './hud/ReturnToNpcHint';
 import { SkillUseHint } from './hud/SkillUseHint';
 import { TargetingHint } from './hud/TargetingHint';
@@ -265,8 +266,10 @@ function HudConnectionStrip({
   message: string;
   onDisconnect: () => void;
 }) {
+  const ref = useDraggablePanel<HTMLElement>('hud-connection', { handleSelector: '.drag-grip' });
   return (
-    <section className="hud hud-top" aria-label="Connection">
+    <section ref={ref} className="hud hud-top" aria-label="Connection">
+      <span className="drag-grip" aria-hidden="true" title="Drag to move">⠿</span>
       <strong>VibeAge</strong>
       <span className={`status-dot status-${connectionState}`} />
       <span>{message}</span>
@@ -286,8 +289,10 @@ function HudWorldStatsStrip({
   lootCount: number;
   player: PlayerEntity | null;
 }) {
+  const ref = useDraggablePanel<HTMLElement>('hud-stats', { handleSelector: '.drag-grip' });
   return (
-    <section className="hud hud-stats" aria-label="World status">
+    <section ref={ref} className="hud hud-stats" aria-label="World status">
+      <span className="drag-grip" aria-hidden="true" title="Drag to move">⠿</span>
       <Metric label="Players" value={String(playerCount)} />
       <Metric label="Enemies" value={String(enemyCount)} />
       <Metric label="Regions" value={regionStatus} />

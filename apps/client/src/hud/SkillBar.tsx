@@ -19,6 +19,7 @@ import { openWikiAt } from './wikiNavBus';
 import { INVENTORY_DRAG_MIME } from './InventorySlotButton';
 import { ItemShortcutButton } from './ItemShortcutButton';
 import { findBagSlotForItem } from './useItemShortcuts';
+import { useDraggablePanel } from './useDraggablePanel';
 
 type SkillBarProps = {
   player: PlayerEntity | null;
@@ -58,9 +59,14 @@ export function SkillBar(props: SkillBarProps) {
   const tooltip = useTooltipTrigger<SkillId>();
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const hasSecondaryContent = secondarySlots.some(Boolean);
+  const dragRef = useDraggablePanel<HTMLElement>('skill-bar', {
+    handleSelector: '.drag-grip',
+    baseTransform: 'translateX(-50%)',
+  });
 
   return (
-    <section className="skill-bar" aria-label="Skills">
+    <section ref={dragRef} className="skill-bar" aria-label="Skills">
+      <span className="drag-grip skill-bar-grip" aria-hidden="true" title="Drag to move">⠿</span>
       <div className="skill-bar-primary">
         <div className="skill-bar-anchor">
           <SkillButton

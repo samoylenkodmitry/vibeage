@@ -426,6 +426,30 @@ input {
   display: flex;
   align-items: stretch;
 }
+
+/* Drag grip for always-on HUD strips/bars (connection, world stats,
+   vitals, skill bar) that have no title bar. Absolutely positioned in
+   the element's corner so it never disturbs the strip's own layout. */
+.drag-grip {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  z-index: 2;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(200, 230, 225, 0.5);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.drag-grip:hover {
+  color: rgba(200, 230, 225, 0.9);
+}
+.skill-bar-grip {
+  top: -15px;
+  left: auto;
+  right: 2px;
+}
 .skill-bar-anchor .skill-button {
   min-width: 96px;
   border-color: rgba(248, 113, 113, 0.5);
