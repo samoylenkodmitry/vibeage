@@ -366,7 +366,6 @@ function SmoothedEntityGroup({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const hasInitializedRef = useRef(false);
-  const settledRef = useRef(false);
   const targetRef = useRef(new THREE.Vector3());
   const lastPosRef = useRef({ x: position.x, y: position.y, z: position.z });
   const lastVelRef = useRef({ x: velocity?.x ?? 0, z: velocity?.z ?? 0 });
@@ -384,7 +383,6 @@ function SmoothedEntityGroup({
     lastPosRef.current = { x: position.x, y: position.y, z: position.z };
     lastVelRef.current = { x: vxNow, z: vzNow };
     lastSnapTimeRef.current = performance.now();
-    settledRef.current = false;
   }
 
   useEffect(() => {
@@ -402,7 +400,7 @@ function SmoothedEntityGroup({
 
   useFrame((_, delta) => {
     const group = groupRef.current;
-    if (!group || settledRef.current) {
+    if (!group) {
       return;
     }
     const elapsed = Math.min(
@@ -424,10 +422,9 @@ function SmoothedEntityGroup({
       return;
     }
 
-    settledRef.current = advanceSmoothedGroup(group, targetRef.current, {
+    advanceSmoothedGroup(group, targetRef.current, {
       targetX, targetZ, posY: position.y, rotationY,
       alpha: smoothingAlpha(response, delta),
-      stationary: vx === 0 && vz === 0,
       groundedOffset,
     });
   });
