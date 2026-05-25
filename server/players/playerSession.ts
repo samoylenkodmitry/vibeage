@@ -18,7 +18,6 @@ import {
   normalizePlayerLevel,
   normalizeAvailableSkillPoints,
   numberOrFallback,
-  normalizeSkillShortcuts,
   normalizeUnlockedSkills,
 } from './playerProgression.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
@@ -172,7 +171,6 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     className,
     race,
     unlockedSkills,
-    skillShortcuts: normalizeSkillShortcuts(row.skill_shortcuts, unlockedSkills),
     availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
     starterProgress,
     posHistory: [],
@@ -260,17 +258,6 @@ function ensureClassStarterUnlocked(player: PlayerState): void {
       player.unlockedSkills.push(required);
     }
   }
-  // Same prune on shortcuts: drop slots referencing skills no longer
-  // unlocked, then bind the starter into the first empty slot.
-  player.skillShortcuts = player.skillShortcuts.map((skill) =>
-    skill && player.unlockedSkills.includes(skill) ? skill : null,
-  );
-  if (!player.skillShortcuts.includes(starter)) {
-    const emptySlotIndex = player.skillShortcuts.findIndex((slot) => slot === null);
-    if (emptySlotIndex !== -1) {
-      player.skillShortcuts[emptySlotIndex] = starter;
-    }
-  }
 }
 
 export type AddPlayerSessionOptions = {
@@ -312,7 +299,6 @@ function applyInitialIdentity(
       // and let the existing class-switch tests prove the rest.
       const starters = starterSkillsFor(candidate);
       player.unlockedSkills = [...starters];
-      player.skillShortcuts = normalizeSkillShortcuts(undefined, starters);
     }
   }
   return player;

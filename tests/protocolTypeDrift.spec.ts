@@ -35,7 +35,6 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   MoveIntent: true,
   CastReq: true,
   LearnSkill: true,
-  SetSkillShortcut: true,
   SelectClass: true,
   SelectRace: true,
   RespawnRequest: true,
@@ -68,7 +67,6 @@ const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   PosSnap: true,
   InstantHit: true,
   SkillLearned: true,
-  SkillShortcutUpdated: true,
   ClassSelected: true,
   CastSnapshot: true,
   EffectSnapshot: true,
@@ -135,7 +133,6 @@ describe('protocol type ↔ schema drift', () => {
       PosSnap: { id: 'x', pos: { x: 0, z: 0 }, vel: { x: 0, z: 0 }, snapTs: 1 },
       InstantHit: { skillId: 'fireball', origin: { x: 0, y: 0, z: 0 }, targetPos: { x: 0, y: 0, z: 0 }, hitIds: [] },
       SkillLearned: { skillId: 'fireball', remainingPoints: 0 },
-      SkillShortcutUpdated: { slotIndex: 0, skillId: null },
       ClassSelected: { className: 'mage' },
       CastFail: { clientSeq: 0, reason: 'cooldown' },
       CastSnapshot: { data: { castId: 'c', casterId: 'p', skillId: 'fireball', state: 0, origin: { x: 0, z: 0 }, pos: { x: 0, z: 0 }, startedAt: 0, castTimeMs: 0, progressMs: 0 } },
@@ -222,24 +219,6 @@ describe('protocol fuzz: client message hardening', () => {
       id: 'p',
       skillId: 'not_a_real_skill',
       clientTs: 1,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects SetSkillShortcut with slotIndex out of range', () => {
-    const result = clientMessageSchema.safeParse({
-      type: 'SetSkillShortcut',
-      slotIndex: 99,
-      skillId: null,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects SetSkillShortcut with non-integer slotIndex', () => {
-    const result = clientMessageSchema.safeParse({
-      type: 'SetSkillShortcut',
-      slotIndex: 1.5,
-      skillId: null,
     });
     expect(result.success).toBe(false);
   });

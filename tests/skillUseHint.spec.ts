@@ -9,7 +9,7 @@ function makePlayer(opts: { alive?: boolean; className?: string } = {}): PlayerE
     health: 100, maxHealth: 100, mana: 100, maxMana: 100,
     className: (opts.className ?? 'mage'),
     race: 'human',
-    unlockedSkills: [], skillShortcuts: [],
+    unlockedSkills: [],
     availableSkillPoints: 0, level: 1,
     experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0, isAlive: opts.alive ?? true,

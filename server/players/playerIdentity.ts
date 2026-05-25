@@ -59,7 +59,6 @@ export function applyClassChange(
     health: player.health,
     mana: player.mana,
     unlockedSkills: player.unlockedSkills,
-    skillShortcuts: player.skillShortcuts,
     availableSkillPoints: player.availableSkillPoints,
     // Stale-spec cleared above; broadcast the null so the client
     // drops the old spec passive label from CharacterPanel.
@@ -106,17 +105,6 @@ function resetSkillsForClassChange(player: PlayerState): void {
   const refundable = Math.max(0, player.unlockedSkills.length - paidFreebies);
   player.availableSkillPoints += refundable;
   player.unlockedSkills = [...starters];
-  player.skillShortcuts = player.skillShortcuts.map((skill) =>
-    skill && player.unlockedSkills.includes(skill) ? skill : null,
-  );
-  for (const skill of starters) {
-    if (!player.skillShortcuts.includes(skill)) {
-      const emptyIndex = player.skillShortcuts.findIndex((slot) => slot === null);
-      if (emptyIndex !== -1) {
-        player.skillShortcuts[emptyIndex] = skill;
-      }
-    }
-  }
 }
 
 export function applyRaceChange(
@@ -167,7 +155,6 @@ export function applyRaceChange(
     health: player.health,
     mana: player.mana,
     unlockedSkills: player.unlockedSkills,
-    skillShortcuts: player.skillShortcuts,
     availableSkillPoints: player.availableSkillPoints,
     // Include spec id so the client drops the stale spec passive
     // label when the class got snapped to a different one.

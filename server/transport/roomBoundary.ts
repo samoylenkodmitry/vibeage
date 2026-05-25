@@ -16,7 +16,6 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'MoveIntent',
   'CastReq',
   'LearnSkill',
-  'SetSkillShortcut',
   'SelectClass',
   'SelectRace',
   'RespawnRequest',

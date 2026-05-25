@@ -24,53 +24,15 @@ export const BASIC_ATTACK_HOTKEY = 'A';
 export const BASIC_ATTACK_SKILL_ID: SkillId = 'basicAttack';
 
 /**
- * Single source of truth for "what is bound to this skill-bar slot?".
- * Order of precedence, from most explicit to least:
- *   1. an EXPLICIT skill shortcut the player set                (kind: 'skill')
- *   2. an item shortcut the player bound via the bag tooltip   (kind: 'item')
- *   3. a fallback skill from the unlocked-skills list           (kind: 'skill')
- *
- * Pre-fix only steps 1 + 3 existed, so binding a potion to a slot
- * whose index was below `unlockedSkills.length` silently lost the
- * binding under the fallback skill. The hotkey-handler then cast
- * that skill instead of using the potion. `resolveSlotBinding` is
- * the one function both the skill bar rendering and the keydown
- * handler call, so the two can never disagree.
+ * The player's "active" skills — unlocked, minus universal (always-on,
+ * e.g. basic attack / escape) and passive skills. The action bar seeds
+ * from this list, and a `skill` ActionRef is only valid/castable if its
+ * id appears here.
  */
-export type SlotBinding =
-  | { kind: 'skill'; id: SkillId }
-  | { kind: 'item'; id: string }
-  | null;
-
-export function resolveSlotBinding(
-  player: PlayerEntity | null,
-  itemShortcuts: ReadonlyArray<string | null>,
-  slotIndex: number,
-): SlotBinding {
-  const explicit = (player?.skillShortcuts ?? [])[slotIndex];
-  if (explicit && !isUniversalSkill(explicit) && !isPassiveSkill(explicit)) {
-    return { kind: 'skill', id: explicit };
-  }
-  const itemId = itemShortcuts[slotIndex];
-  if (itemId) return { kind: 'item', id: itemId };
-  const fallback = (player?.unlockedSkills ?? [])
-    .filter((skill) => !isUniversalSkill(skill) && !isPassiveSkill(skill));
-  const fallbackSkill = fallback[slotIndex];
-  return fallbackSkill ? { kind: 'skill', id: fallbackSkill } : null;
-}
-
-/**
- * Back-compat wrapper: returns just the skill id for callers that
- * don't know about item shortcuts yet. Skill bar + hotkey handler
- * have moved to `resolveSlotBinding`; this stays for tests / older
- * call sites that haven't been migrated.
- */
-export function getHotkeySkill(
-  player: PlayerEntity | null,
-  slotIndex: number,
-): SkillId | null {
-  const binding = resolveSlotBinding(player, [], slotIndex);
-  return binding?.kind === 'skill' ? binding.id : null;
+export function activeSkillsFor(player: PlayerEntity | null): SkillId[] {
+  return (player?.unlockedSkills ?? []).filter(
+    (skill) => !isUniversalSkill(skill) && !isPassiveSkill(skill),
+  );
 }
 
 function isUniversalSkill(skillId: string): boolean {

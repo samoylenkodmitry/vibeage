@@ -4,7 +4,8 @@ import {
   canLearnSkill,
   type CharacterClass,
 } from '../../../../packages/content/classes';
-import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/content/skills';
+import { SKILLS, isPassiveSkill, type SkillDef, type SkillId } from '../../../../packages/content/skills';
+import { SKILL_DRAG_MIME } from './useActionBar';
 import {
   getSpecializationsForClass,
   PROFICIENCY_LEVEL,
@@ -116,6 +117,12 @@ function SkillRow({
         className="skill-tree-row-head"
         aria-expanded={expanded}
         onClick={onToggleExpand}
+        draggable={row.status === 'unlocked' && !isPassiveSkill(row.skillId)}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: row.skillId }));
+        }}
+        title={row.status === 'unlocked' && !isPassiveSkill(row.skillId) ? 'Drag to the action bar' : undefined}
       >
         <strong>
           {row.name}

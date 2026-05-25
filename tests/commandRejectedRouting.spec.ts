@@ -26,7 +26,7 @@ function makePlayer(id: string): PlayerEntity {
   return {
     id, name: id, isAlive: true, level: 1,
     unlockedSkills: [], skillLevels: {},
-    availableSkillPoints: 1, skillShortcuts: [],
+    availableSkillPoints: 1,
   } as unknown as PlayerEntity;
 }
 

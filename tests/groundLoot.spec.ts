@@ -21,7 +21,7 @@ const makePlayer = (overrides: LooterOverrides = {}): PlayerState => {
     maxMana: 100,
     className: 'mage',
     unlockedSkills: [],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: [],

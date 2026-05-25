@@ -69,7 +69,6 @@ BEGIN
       ('players', 'quest_state', 'jsonb'),
       ('players', 'race', 'text'),
       ('players', 'skill_levels', 'jsonb'),
-      ('players', 'skill_shortcuts', 'jsonb'),
       ('players', 'skills', 'jsonb'),
       ('players', 'socket_id', 'text'),
       ('players', 'specialization_id', 'text'),

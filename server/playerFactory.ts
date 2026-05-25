@@ -7,7 +7,6 @@ import { recomputePlayerStats } from './players/playerStatsRefresh.js';
 import { applyStarterLoadout } from './inventory/starterLoadout.js';
 import {
   DEFAULT_AVAILABLE_SKILL_POINTS,
-  normalizeSkillShortcuts,
   starterSkillsFor,
 } from './players/playerProgression.js';
 import { createInitialPlayerStarterProgress } from './progression/starterPath.js';
@@ -57,7 +56,6 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     className: 'mage',
     race: DEFAULT_RACE,
     unlockedSkills: starterSkillsFor('mage'),
-    skillShortcuts: normalizeSkillShortcuts(undefined, starterSkillsFor('mage')),
     availableSkillPoints: DEFAULT_AVAILABLE_SKILL_POINTS,
     starterProgress: createInitialPlayerStarterProgress({
       level: 1,

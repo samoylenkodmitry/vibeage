@@ -20,16 +20,16 @@ import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
-import { useItemShortcutBindings } from './hud/useItemShortcuts';
+import { useActionBar, findBagSlotForItem, type ActionRef } from './hud/useActionBar';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
   BASIC_ATTACK_SKILL_ID,
+  activeSkillsFor,
   getSkillSlotIndexForKeyboardCode,
   isBasicAttackKeyboardCode,
   isEditableTarget,
-  resolveSlotBinding,
 } from './skillShortcuts';
 
 type GameHudProps = {
@@ -90,8 +90,11 @@ export function GameHud(props: GameHudProps) {
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
   const panels = usePanelState();
-  const items = useItemShortcutBindings(state.inventory, onUseItem);
-  useSlotHotkeysFor(player, items, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
+  const { actionBar, setSlot, swapSlots, clearSlot } = useActionBar(activeSkillsFor(player));
+  const bindItemToSlot = useCallback((slotIndex: number, itemId: string) => {
+    setSlot(slotIndex, { kind: 'item', id: itemId });
+  }, [setSlot]);
+  useSlotHotkeysFor(player, actionBar, state.inventory, onUseItem, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
 
   // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
   // tooltips, SkillBar buttons) calls openWikiAt, force the Wiki
@@ -135,7 +138,7 @@ export function GameHud(props: GameHudProps) {
         onClaimQuestReward={onClaimQuestReward}
         onSetTrackedQuest={onSetTrackedQuest}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
-        onBindItem={items.bindItem}
+        onBindItem={bindItemToSlot}
       />
       <QuestTrackerStrip
         player={player} trackedQuestId={state.trackedQuestId}
@@ -158,11 +161,12 @@ export function GameHud(props: GameHudProps) {
         player={player}
         hasSelectedTarget={targetIsAlive}
         onCastSkill={onCastSkill}
-        itemShortcuts={items.itemShortcuts}
         inventory={state.inventory}
         onUseItem={onUseItem}
-        onBindItem={items.bindItem}
-        onClearItem={items.clearItem}
+        actionBar={actionBar}
+        onSetSlot={setSlot}
+        onSwapSlot={swapSlots}
+        onClearSlot={clearSlot}
       />
       <PanelToggleStrip panels={panels} unspentSkillPoints={hasSpendableSkillPoints(player) ? (player?.availableSkillPoints ?? 0) : 0} />
       {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
@@ -512,7 +516,9 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function useSlotHotkeysFor(
   player: PlayerEntity | null,
-  items: ReturnType<typeof useItemShortcutBindings>,
+  actionBar: (ActionRef | null)[],
+  inventory: readonly { itemId: string; quantity: number; slotIndex?: number }[],
+  onUseItem: (slotIndex: number) => void,
   cbs: {
     onCastSkill: (skillId: SkillId) => void;
     onCycleTarget?: () => void;
@@ -520,13 +526,16 @@ function useSlotHotkeysFor(
     onMove?: () => void;
   },
 ) {
-  const resolveSlot = useCallback(
-    (i: number) => resolveSlotBinding(player, items.itemShortcuts, i),
-    [player, items.itemShortcuts],
-  );
-  useSkillHotkeys({
-    player, ...cbs, resolveSlot, tryUseItem: items.tryUseAt,
-  });
+  const resolveSlot = useCallback((i: number) => actionBar[i] ?? null, [actionBar]);
+  const tryUseItem = useCallback((i: number): boolean => {
+    const ref = actionBar[i];
+    if (ref?.kind !== 'item') return false;
+    const bagSlot = findBagSlotForItem(inventory, ref.id);
+    if (bagSlot === null) return false;
+    onUseItem(bagSlot);
+    return true;
+  }, [actionBar, inventory, onUseItem]);
+  useSkillHotkeys({ player, ...cbs, resolveSlot, tryUseItem });
 }
 
 type SkillHotkeyDeps = {
@@ -535,7 +544,7 @@ type SkillHotkeyDeps = {
   onCycleTarget?: () => void;
   onPickupNearest?: () => void;
   onMove?: () => void;
-  resolveSlot?: (slotIndex: number) => import('./skillShortcuts').SlotBinding;
+  resolveSlot?: (slotIndex: number) => ActionRef | null;
   tryUseItem?: (slotIndex: number) => boolean;
 };
 
@@ -579,8 +588,10 @@ function useSkillHotkeys({
       if (slotIndex !== null) {
         const binding = resolveRef.current?.(slotIndex) ?? null;
         if (binding?.kind === 'skill') {
-          event.preventDefault();
-          onCastSkill(binding.id);
+          if (playerRef.current?.unlockedSkills?.includes(binding.id)) {
+            event.preventDefault();
+            onCastSkill(binding.id);
+          }
           return;
         }
         if (binding?.kind === 'item' && useItemRef.current?.(slotIndex)) {

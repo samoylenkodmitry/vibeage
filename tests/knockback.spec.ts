@@ -14,7 +14,7 @@ function makeWarrior(): PlayerState {
     rotation: { x: 0, y: 0, z: 0 },
     health: 200, maxHealth: 200, mana: 50, maxMana: 50,
     className: 'warrior', unlockedSkills: ['powerStrike'],
-    skillShortcuts: [], availableSkillPoints: 0,
+ availableSkillPoints: 0,
     skillCooldownEndTs: {}, statusEffects: [],
     level: 5, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,

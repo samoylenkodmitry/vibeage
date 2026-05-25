@@ -33,7 +33,6 @@ export type PlayerEntity = {
   experienceToNextLevel: number;
   isAlive: boolean;
   unlockedSkills: SkillId[];
-  skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
   starterProgress?: StarterProgressState;
   specializationId?: string | null;

@@ -19,7 +19,7 @@ function makeAvenger(specializationId: string | null): PlayerState {
     position: { x: 0, y: 0.5, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
     health: 100, maxHealth: 1000, mana: 100, maxMana: 100,
     className: 'knight', unlockedSkills: ['slash'],
-    skillShortcuts: [], availableSkillPoints: 0,
+ availableSkillPoints: 0,
     skillCooldownEndTs: {}, statusEffects: [],
     level: PROFICIENCY_LEVEL, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,

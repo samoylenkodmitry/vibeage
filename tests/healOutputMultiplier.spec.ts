@@ -21,7 +21,7 @@ function makeHealer(specializationId: string | null): PlayerState {
     rotation: { x: 0, y: 0, z: 0 },
     health: 50, maxHealth: 1, mana: 100, maxMana: 1,
     className: 'healer', unlockedSkills: ['holyLight'],
-    skillShortcuts: [], availableSkillPoints: 0,
+ availableSkillPoints: 0,
     skillCooldownEndTs: {}, statusEffects: [],
     level: SPECIALIZATION_UNLOCK_LEVEL, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,

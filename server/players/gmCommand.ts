@@ -157,13 +157,10 @@ function grantSkill(target: PlayerState, value: number | string, outbound: Outbo
   if (!SKILLS[skillId]) return false;
   if (!target.unlockedSkills.includes(skillId)) {
     target.unlockedSkills.push(skillId);
-    const emptyIndex = target.skillShortcuts.findIndex((s) => s === null);
-    if (emptyIndex !== -1) target.skillShortcuts[emptyIndex] = skillId;
   }
   emitPlayerUpdated(outbound, {
     id: target.id,
     unlockedSkills: target.unlockedSkills,
-    skillShortcuts: target.skillShortcuts,
   });
   return true;
 }

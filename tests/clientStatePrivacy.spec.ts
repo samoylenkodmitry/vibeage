@@ -90,7 +90,7 @@ function makePlayer(id: string, socketId: string): PlayerState {
     maxMana: 100,
     className: 'mage',
     unlockedSkills: ['fireball'],
-    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+
     availableSkillPoints: 1,
     starterProgress: createStarterProgressState({ defeatedEnemies: 2, collectedDrops: 1 }),
     skillCooldownEndTs: {},

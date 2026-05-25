@@ -45,7 +45,6 @@ export interface AuthoritativePlayerState extends AuthoritativeActorState {
   maxMana: number;
   className: string;
   unlockedSkills: SkillId[];
-  skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
   starterProgress?: StarterProgressState;
   skillCooldownEndTs: Record<string, number>;

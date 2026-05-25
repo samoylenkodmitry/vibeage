@@ -23,7 +23,7 @@ const baseState = {
       id: 'me', name: 'me',
       unlockedSkills: ['fireball'],
       availableSkillPoints: 1,
-      skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+
     } as unknown as (typeof initialGameClientState.players)['me'],
   },
 };

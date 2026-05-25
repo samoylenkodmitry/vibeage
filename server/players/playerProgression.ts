@@ -2,11 +2,6 @@ import type { CharacterClass } from '../../packages/content/classes.js';
 import { CLASS_AUTO_PASSIVE_SKILL } from '../../packages/content/classPassives.js';
 import { SKILLS, UNIVERSAL_SKILLS, type SkillId } from '../../packages/content/skills.js';
 
-// 24 = 12 (F1-F12) primary row + 12 (Ctrl+F1..F12) secondary row,
-// matching the foldable two-row skill bar the client renders. Older
-// 4- or 9-slot saves are padded to 24 with nulls by
-// normalizeSkillShortcuts on hydrate.
-const SKILL_SHORTCUT_SLOTS = 24;
 export const DEFAULT_AVAILABLE_SKILL_POINTS = 1;
 
 /**
@@ -34,11 +29,9 @@ export function starterSkillsFor(className: CharacterClass | string | undefined)
   // unlockedSkills to apply class HP/MP/dmg/speed deltas, so this
   // is what makes a warrior tankier than a mage.
   const autoPassive = CLASS_AUTO_PASSIVE_SKILL[key];
-  // Class starter goes first so it binds to the Q hotkey via the default
-  // normalizeSkillShortcuts assignment. Universal skills (Basic Attack)
-  // follow — they live on a dedicated UI button, not the 4-slot bar, so
-  // their position in this list mostly just keeps the skillShortcuts
-  // fallback from binding them to a number key.
+  // Class starter goes first so the client's default action-bar seed
+  // (activeSkillsFor) puts it in the first slot. Universal skills (Basic
+  // Attack) follow; passives are filtered out of the bar seed entirely.
   const out: SkillId[] = [starter, ...UNIVERSAL_SKILLS];
   if (autoPassive) out.push(autoPassive);
   return out;
@@ -100,36 +93,6 @@ export function normalizeUnlockedSkills(
   }
 
   return normalized;
-}
-
-export function normalizeSkillShortcuts(
-  rawShortcuts: unknown,
-  unlockedSkills: readonly SkillId[],
-): (SkillId | null)[] {
-  const unlocked = new Set(unlockedSkills);
-  const shortcuts: (SkillId | null)[] = Array(SKILL_SHORTCUT_SLOTS).fill(null);
-  const rawShortcutValues = arrayInput(rawShortcuts);
-
-  if (rawShortcutValues.length > 0) {
-    for (let index = 0; index < SKILL_SHORTCUT_SLOTS; index += 1) {
-      const skill = rawShortcutValues[index];
-      shortcuts[index] = isSkillId(skill) && unlocked.has(skill) ? skill : null;
-    }
-  }
-
-  if (shortcuts.some(Boolean)) {
-    return shortcuts;
-  }
-
-  // Universal skills (Basic Attack) live on a dedicated Attack button —
-  // exclude them from the auto-binding so they don't squat one of the
-  // four bar slots and steal the player's Q key.
-  const barCandidates = unlockedSkills.filter((skill) => !(UNIVERSAL_SKILLS as readonly SkillId[]).includes(skill));
-  for (let index = 0; index < Math.min(barCandidates.length, SKILL_SHORTCUT_SLOTS); index += 1) {
-    shortcuts[index] = barCandidates[index];
-  }
-
-  return shortcuts;
 }
 
 function arrayInput(value: unknown): unknown[] {

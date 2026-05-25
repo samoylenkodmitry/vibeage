@@ -21,7 +21,7 @@ const makePlayer = (overrides: PlayerOverrides = {}): PlayerState => {
     maxMana: 100,
     className: 'mage',
     unlockedSkills: ['fireball'],
-    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+
     availableSkillPoints: 1,
     skillCooldownEndTs: {},
     statusEffects: [],

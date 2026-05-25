@@ -22,7 +22,7 @@ const makePlayer = (id: string, socketId: string): PlayerState => ({
   maxMana: 100,
   className: 'mage',
   unlockedSkills: ['fireball'],
-  skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+
   availableSkillPoints: 0,
   skillCooldownEndTs: {},
   statusEffects: [],

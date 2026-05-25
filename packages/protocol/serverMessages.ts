@@ -48,12 +48,6 @@ export const skillLearnedSchema = z.object({
   remainingPoints: z.number(),
 }).strict();
 
-export const skillShortcutUpdatedSchema = z.object({
-  type: z.literal('SkillShortcutUpdated'),
-  slotIndex: z.number().int().min(0).max(8),
-  skillId: skillIdSchema.nullable(),
-}).strict();
-
 export const classSelectedSchema = z.object({
   type: z.literal('ClassSelected'),
   className: z.string(),
@@ -282,7 +276,6 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   posSnapSchema,
   instantHitSchema,
   skillLearnedSchema,
-  skillShortcutUpdatedSchema,
   classSelectedSchema,
   castSnapshotMsgSchema,
   combatLogMsgSchema,
@@ -332,11 +325,6 @@ export type SkillLearned = {
   remainingPoints: number;
 };
 
-export type SkillShortcutUpdated = {
-  type: 'SkillShortcutUpdated';
-  slotIndex: number;
-  skillId: SkillId | null;
-};
 
 export type ClassSelected = {
   type: 'ClassSelected';
@@ -492,7 +480,6 @@ export type ServerMessage =
   | PosSnap
   | InstantHit
   | SkillLearned
-  | SkillShortcutUpdated
   | ClassSelected
   | CastSnapshotMsg
   | EffectSnapshotMsg

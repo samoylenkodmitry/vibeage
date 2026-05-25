@@ -168,7 +168,6 @@ export interface PlayerState {
   className: CharacterClass;
   race?: CharacterRace;
   unlockedSkills: SkillId[];
-  skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
   /**
    * Specialization id (e.g. 'arcanist') the player chose at

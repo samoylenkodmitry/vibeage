@@ -52,7 +52,7 @@ describe('REJECTABLE_COMMANDS registry', () => {
   it('isRejectableCommand returns false for known non-rejectable commands', () => {
     // Movement and bookkeeping commands are deliberately silent on
     // rate-limit drops and don't have a rejection envelope.
-    for (const nonReject of ['MoveIntent', 'SetSkillShortcut', 'RequestInventory', 'TalkNpc', 'DevTeleport']) {
+    for (const nonReject of ['MoveIntent', 'RequestInventory', 'TalkNpc', 'DevTeleport']) {
       expect(isRejectableCommand(nonReject)).toBe(false);
     }
   });

@@ -18,7 +18,7 @@ const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   maxMana: 100,
   className: 'paladin',
   unlockedSkills: ['holyLight', 'divineShield', 'dispel'],
-  skillShortcuts: ['holyLight', null, null, null, null, null, null, null, null],
+
   availableSkillPoints: 0,
   skillCooldownEndTs: {},
   statusEffects: [],

@@ -52,17 +52,13 @@ describe('applyGmCommand', () => {
     expect(caller.specializationId).toBeNull();
   });
 
-  it('grantSkill adds the id to unlockedSkills and binds the first empty shortcut', () => {
+  it('grantSkill adds the id to unlockedSkills', () => {
     const caller = createTransientPlayer('s6', 'gm');
     // Use slash — default mage character doesn't have it (so the
-    // grant actually mutates state and binds the next free slot).
-    const firstEmptyBefore = caller.skillShortcuts.findIndex((s) => s === null);
+    // grant actually mutates state).
     const { sink } = captureOutbound();
     applyGmCommand(caller, { type: 'GmCommand', verb: 'grantSkill', value: 'slash' }, () => undefined, sink);
     expect(caller.unlockedSkills).toContain('slash');
-    if (firstEmptyBefore !== -1) {
-      expect(caller.skillShortcuts[firstEmptyBefore]).toBe('slash');
-    }
   });
 
   it('setLevel re-derives HP/MP caps + emits the new stats', () => {

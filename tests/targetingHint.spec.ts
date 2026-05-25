@@ -11,7 +11,7 @@ function makePlayer(opts: { alive?: boolean; activeKill?: boolean } = {}): Playe
     id: 'p1', name: 'p', position: { x: 0, y: 0.5, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
     health: 100, maxHealth: 100, mana: 100, maxMana: 100,
     className: 'mage', race: 'human',
-    unlockedSkills: [], skillShortcuts: [],
+    unlockedSkills: [],
     availableSkillPoints: 0, level: 1,
     experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0, isAlive: opts.alive ?? true,

@@ -35,17 +35,6 @@ export function makeScenarioPlayer(options: {
     addItemsToPlayer(player, slot.itemId, slot.quantity);
   }
   player.unlockedSkills = [...unlockedSkills];
-  player.skillShortcuts = [
-    unlockedSkills[0] ?? null,
-    unlockedSkills[1] ?? null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-  ];
   player.lastUpdateTime = 1;
   return player;
 }
@@ -185,7 +174,6 @@ export function createPersistedPlayerReconnectScenario(): {
     is_alive: stable.is_alive,
     class_name: stable.class_name,
     skills: stable.skills,
-    skill_shortcuts: stable.skill_shortcuts,
     available_skill_points: stable.available_skill_points,
     starter_progress: stable.starter_progress,
     character_inventory: stable.character_inventory,
