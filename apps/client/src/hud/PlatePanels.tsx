@@ -32,8 +32,10 @@ export function VitalsStrip({
 }) {
   const xpProgress = getMeterProgress(player?.experience, player?.experienceToNextLevel);
   const clickable = Boolean(player && onSelectSelf);
+  const dragRef = useDraggablePanel<HTMLElement>('vitals', { handleSelector: '.drag-grip' });
   return (
     <section
+      ref={dragRef}
       className={`vitals-strip${selected ? ' vitals-strip--selected' : ''}${clickable ? ' vitals-strip--clickable' : ''}`}
       aria-label="Vitals"
       role={clickable ? 'button' : undefined}
@@ -47,6 +49,7 @@ export function VitalsStrip({
       }}
     >
       <div className="vitals-header">
+        <span className="drag-grip" aria-hidden="true" title="Drag to move" onClick={(e) => e.stopPropagation()}>⠿</span>
         <strong>{player?.name ?? 'Hero'}</strong>
         <span>Lv {player?.level ?? 1}</span>
       </div>

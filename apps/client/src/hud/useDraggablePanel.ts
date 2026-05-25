@@ -37,16 +37,19 @@ function writeStoredOffset(key: string | undefined, offset: { x: number; y: numb
 
 export function useDraggablePanel<T extends HTMLElement = HTMLElement>(
   storageKey?: string,
+  options?: { handleSelector?: string; baseTransform?: string },
 ): React.RefObject<T | null> {
   const panelRef = useRef<T | null>(null);
   const offsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const handleSelector = options?.handleSelector ?? '.panel-title';
+  const baseTransform = options?.baseTransform ?? '';
 
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) {
       return undefined;
     }
-    const handle = panel.querySelector<HTMLElement>('.panel-title');
+    const handle = panel.querySelector<HTMLElement>(handleSelector);
     if (!handle) {
       return undefined;
     }
@@ -59,7 +62,8 @@ export function useDraggablePanel<T extends HTMLElement = HTMLElement>(
     let startY = 0;
 
     const apply = () => {
-      panel.style.transform = `translate(${offsetRef.current.x}px, ${offsetRef.current.y}px)`;
+      const drag = `translate(${offsetRef.current.x}px, ${offsetRef.current.y}px)`;
+      panel.style.transform = baseTransform ? `${baseTransform} ${drag}` : drag;
     };
 
     apply();
@@ -108,7 +112,7 @@ export function useDraggablePanel<T extends HTMLElement = HTMLElement>(
       handle.removeEventListener('pointerup', release);
       handle.removeEventListener('pointercancel', release);
     };
-  }, [storageKey]);
+  }, [storageKey, handleSelector, baseTransform]);
 
   return panelRef;
 }
