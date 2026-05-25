@@ -39,12 +39,12 @@ const KEYFRAMES: Keyframe[] = [
   {
     phase: 0,
     sunColor: '#ffb27a',
-    sunIntensity: 0.95,
+    sunIntensity: 1.05,
     hemisphereSky: '#ffd1a5',
-    hemisphereGround: '#3a2d2a',
-    hemisphereIntensity: 0.7,
-    fogColor: '#3a2740',
-    backgroundColor: '#2a1f33',
+    hemisphereGround: '#4a3a34',
+    hemisphereIntensity: 0.9,
+    fogColor: '#4a3550',
+    backgroundColor: '#382a44',
     cloudColor: '#ffd9b8',
     cloudOpacity: 0.4,
   },
@@ -54,7 +54,7 @@ const KEYFRAMES: Keyframe[] = [
     sunIntensity: 1.55,
     hemisphereSky: '#ccecff',
     hemisphereGround: '#21402d',
-    hemisphereIntensity: 0.85,
+    hemisphereIntensity: 0.92,
     fogColor: '#a4d2e3',
     backgroundColor: '#7fb6dd',
     cloudColor: '#dff8ff',
@@ -63,12 +63,12 @@ const KEYFRAMES: Keyframe[] = [
   {
     phase: 0.7,
     sunColor: '#ff8a4d',
-    sunIntensity: 0.85,
-    hemisphereSky: '#ff8a5b',
-    hemisphereGround: '#2a1320',
-    hemisphereIntensity: 0.55,
-    fogColor: '#3d1f2c',
-    backgroundColor: '#1f1226',
+    sunIntensity: 1.25,
+    hemisphereSky: '#ff9e72',
+    hemisphereGround: '#4a3340',
+    hemisphereIntensity: 0.88,
+    fogColor: '#5a3a48',
+    backgroundColor: '#3a2440',
     cloudColor: '#ff9466',
     cloudOpacity: 0.46,
   },
@@ -85,10 +85,10 @@ const KEYFRAMES: Keyframe[] = [
     sunIntensity: 1.0,
     hemisphereSky: '#3a5394',
     hemisphereGround: '#1f3258',
-    // Just under midday's 0.85 so day vs night ambient invariant
-    // still holds. The (now 3.2×) moon point light + brighter sky
-    // colour pick up the slack on actual scene visibility.
-    hemisphereIntensity: 0.82,
+    // Just under midday's 0.92 so day vs night ambient invariant
+    // still holds. The moon point light + brighter sky colour pick
+    // up the slack on actual scene visibility.
+    hemisphereIntensity: 0.88,
     fogColor: '#1d3160',
     backgroundColor: '#1a2f60',
     cloudColor: '#506b9a',
