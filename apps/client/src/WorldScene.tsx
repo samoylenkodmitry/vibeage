@@ -1,6 +1,6 @@
 import { useMemo, useRef, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { StatsGl } from '@react-three/drei';
+import { Preload, StatsGl } from '@react-three/drei';
 import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type VecXZ } from '../../../packages/protocol/messages';
@@ -62,8 +62,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
       }}
     >
-      {/* Dev-only perf HUD (FPS + draw calls + GPU time). import.meta.env.DEV
-          is a build-time constant, so production tree-shakes it out entirely. */}
+      {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
+      <Preload all />
+      {/* Dev-only perf HUD; import.meta.env.DEV tree-shakes it from production. */}
       {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
       {/* Stylized water always renders (anchored to the starter
