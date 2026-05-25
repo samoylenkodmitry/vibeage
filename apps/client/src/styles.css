@@ -379,6 +379,8 @@ input {
   /* 10 columns (number row 1..0). Mobile shrinks below. */
   width: min(840px, calc(100vw - 36px));
   gap: 4px;
+  /* Reserve the left pad for the drag handle (.skill-bar-grip). */
+  padding-left: 16px;
   transform: translateX(-50%);
 }
 
@@ -410,23 +412,6 @@ input {
 .skill-button--item { border-color: rgba(255, 198, 109, 0.55); }
 .skill-button--item .skill-button__name { color: #ffd590; }
 
-/* §49/M2 — dedicated basic-attack anchor. Sits inline at the left of the
-   primary row (grouped with the skills, not floating alone above it).
-   Wider, brighter than a normal slot so it reads as 'always there'. */
-.skill-bar-primary {
-  display: flex;
-  gap: 4px;
-  align-items: stretch;
-}
-.skill-bar-primary .skill-bar-row {
-  flex: 1;
-  min-width: 0;
-}
-.skill-bar-anchor {
-  display: flex;
-  align-items: stretch;
-}
-
 /* Drag grip for always-on HUD strips/bars (connection, world stats,
    vitals, skill bar) that have no title bar. Absolutely positioned in
    the element's corner so it never disturbs the strip's own layout. */
@@ -445,17 +430,18 @@ input {
 .drag-grip:hover {
   color: rgba(200, 230, 225, 0.9);
 }
+/* The skill bar's drag handle is its left pad — a full-height grab
+   strip down the left edge, not a corner dot. `.skill-bar` reserves
+   the width via padding-left. */
 .skill-bar-grip {
-  top: -15px;
-  left: auto;
-  right: 2px;
-}
-.skill-bar-anchor .skill-button {
-  min-width: 96px;
-  border-color: rgba(248, 113, 113, 0.5);
-}
-.skill-bar-anchor .skill-button:hover:not(:disabled) {
-  border-color: rgba(248, 113, 113, 0.85);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: auto;
+  width: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .skill-bar-row--secondary .skill-button {
@@ -3227,6 +3213,7 @@ input {
     transform: none;
     border: 1px solid rgba(250, 204, 21, 0.4);
     padding: 2px;
+    padding-left: 16px;
     border-radius: 8px;
     background: rgba(5, 14, 18, 0.66);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.36);
@@ -3257,26 +3244,6 @@ input {
     gap: 2px 4px;
     padding: 3px 4px;
     font-size: 11px;
-  }
-
-  /* PR #325 — the always-visible basic-attack anchor button doesn't
-     need the full 44 px height; it's a single button on its own row
-     so we can shorten it to 36 px and still hit a comfortable tap
-     target. Reclaims another ~8 px of vertical space toward the
-     world-visibility threshold without making any 2-row skill
-     buttons (where finger ambiguity matters more) cramped. */
-  .skill-bar-anchor .skill-button {
-    min-height: 36px;
-  }
-
-  /* Mobile keeps the attack button stacked above the wrapped 5×2 row
-     (inline flex would stretch it to the full two-row height). */
-  .skill-bar-primary {
-    display: block;
-  }
-  .skill-bar-anchor {
-    justify-content: center;
-    margin-bottom: 2px;
   }
 
   .skill-button--compact {

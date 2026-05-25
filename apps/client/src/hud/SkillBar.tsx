@@ -4,8 +4,6 @@ import { useNow } from './useNow';
 import type { PlayerEntity } from '../gameTypes';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import {
-  BASIC_ATTACK_HOTKEY,
-  BASIC_ATTACK_SKILL_ID,
   getSkillSlotAriaHotkeys,
   resolveSlotBinding,
   SKILL_BAR_HOTKEYS,
@@ -67,23 +65,14 @@ export function SkillBar(props: SkillBarProps) {
   return (
     <section ref={dragRef} className="skill-bar" aria-label="Skills">
       <span className="drag-grip skill-bar-grip" aria-hidden="true" title="Drag to move">⠿</span>
-      <div className="skill-bar-primary">
-        <div className="skill-bar-anchor">
-          <SkillButton
-            skillId={BASIC_ATTACK_SKILL_ID} hotkey={BASIC_ATTACK_HOTKEY} ariaHotkeys={BASIC_ATTACK_HOTKEY}
-            player={player} now={now} hasSelectedTarget={props.hasSelectedTarget}
-            onCastSkill={props.onCastSkill} tooltipHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
+      <div className="skill-bar-row">
+        {primarySlots.map((binding, index) => (
+          <SkillBarSlot
+            key={`p${index}:${binding?.id ?? 'empty'}`}
+            slotIndex={index} binding={binding} hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
+            tooltip={tooltip} now={now} {...props}
           />
-        </div>
-        <div className="skill-bar-row">
-          {primarySlots.map((binding, index) => (
-            <SkillBarSlot
-              key={`p${index}:${binding?.id ?? 'empty'}`}
-              slotIndex={index} binding={binding} hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
-              tooltip={tooltip} now={now} {...props}
-            />
-          ))}
-        </div>
+        ))}
       </div>
       {(hasSecondaryContent || secondaryOpen) && (
         <div className="skill-bar-row skill-bar-row--secondary">
