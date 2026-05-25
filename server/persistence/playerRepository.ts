@@ -20,7 +20,6 @@ export type StablePlayerPersistenceData = {
   race: NonNullable<PlayerState['race']>;
   character_inventory: CharacterInventory | null;
   skills: SkillId[];
-  skill_shortcuts: Array<SkillId | null>;
   available_skill_points: number;
   starter_progress: StarterProgressState;
   specialization_id: string | null;
@@ -139,7 +138,6 @@ function toPlayerPersistencePatch(data: StablePlayerPersistenceData): PlayerPers
     ...data,
     character_inventory: toJsonb<CharacterInventory | null>(data.character_inventory),
     skills: toJsonb<SkillId[]>(data.skills),
-    skill_shortcuts: toJsonb<Array<SkillId | null>>(data.skill_shortcuts),
     starter_progress: toJsonb<StarterProgressState>(data.starter_progress),
     skill_levels: toJsonb<Record<string, number>>(data.skill_levels),
     quest_state: toJsonb<PlayerQuestState>(data.quest_state),

@@ -22,7 +22,7 @@ function makeCaster(id: string): PlayerState {
     maxMana: 100,
     className: 'warrior',
     unlockedSkills: ['taunt'],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: [],

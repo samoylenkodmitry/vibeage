@@ -38,7 +38,7 @@ function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     maxMana: 100,
     className: 'mage',
     unlockedSkills: ['fireball'],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: [],

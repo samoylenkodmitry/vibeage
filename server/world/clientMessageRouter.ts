@@ -11,7 +11,7 @@ import { onCraftItem } from '../inventory/craftRecipe.js';
 import { onDropItem } from '../inventory/dropItem.js';
 import { onDestroyItem } from '../inventory/destroyItem.js';
 import { onMoveInventorySlot } from '../inventory/moveInventorySlot.js';
-import { onLearnSkill, onSetSkillShortcut } from '../players/playerSkills.js';
+import { onLearnSkill } from '../players/playerSkills.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import type { GameState } from '../gameState.js';
@@ -90,8 +90,6 @@ export function handleClientMessage(
       return onCastReq(socket, direct, state, msg, outbound, spatial);
     case 'LearnSkill':
       return onLearnSkill(socket, direct, outbound, state, msg);
-    case 'SetSkillShortcut':
-      return onSetSkillShortcut(socket, direct, outbound, state, msg);
     case 'RespawnRequest':
       return onRespawnRequest(state, msg, outbound, spatial, socket.id);
     case 'UseItem':

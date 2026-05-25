@@ -23,7 +23,7 @@ function makePlayer(id: string, x: number, z: number): PlayerState {
     maxMana: 100,
     className: 'rogue',
     unlockedSkills: [],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: [],

@@ -9,7 +9,6 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
         class_name: 'warrior',
         race: 'orc',
         skills: ['fireball'],
-        skill_shortcuts: ['fireball', null, null, null, null, null, null, null, null],
         available_skill_points: 0,
         level: 5,
         experience: 0,
@@ -26,7 +25,6 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
 
     expect(player.className).toBe('warrior');
     expect(player.unlockedSkills).toContain('slash');
-    expect(player.skillShortcuts).toContain('slash');
   });
 
   it('unlocks evade for a saved rogue with no rogue skill (legacy record)', () => {
@@ -36,7 +34,6 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
         class_name: 'rogue',
         race: 'dark_elf',
         skills: ['fireball'],
-        skill_shortcuts: ['fireball', null, null, null, null, null, null, null, null],
         available_skill_points: 0,
         level: 5,
         experience: 0,
@@ -67,7 +64,6 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
         class_name: 'warrior',
         race: 'orc',
         skills: ['fireball', 'waterSplash'],
-        skill_shortcuts: ['fireball', 'waterSplash', null, null, null, null, null, null, null],
         available_skill_points: 0,
         level: 5,
         experience: 0,
@@ -86,7 +82,6 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
     // After backfill: only warrior-tree skills survive. starter is added.
     expect(player.unlockedSkills).toContain('slash');
     expect(player.unlockedSkills).not.toContain('waterSplash');
-    expect(player.skillShortcuts).not.toContain('waterSplash');
   });
 
   it('does not duplicate the starter if already unlocked', () => {
@@ -96,7 +91,6 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
         class_name: 'warrior',
         race: 'orc',
         skills: ['slash', 'bash'],
-        skill_shortcuts: ['slash', 'bash', null, null, null, null, null, null, null],
         available_skill_points: 0,
         level: 5,
         experience: 0,

@@ -22,7 +22,7 @@ function makeCaster(id = 'attacker', specializationId: string | null = null): Pl
     position: { x: 0, y: 0.5, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
     health: 100, maxHealth: 100, mana: 100, maxMana: 100,
     className: 'mage', unlockedSkills: ['poisonBlade', 'bless', 'fireball'],
-    skillShortcuts: [], availableSkillPoints: 0,
+ availableSkillPoints: 0,
     skillCooldownEndTs: {}, statusEffects: [],
     level: 1, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,

@@ -139,8 +139,8 @@ test('passive class skills do not appear in the shortcut bar', async ({ page }) 
   await enterWorld(page, `PassiveFilter${Date.now()}`);
   // Mage's auto passive is passive_arcane_focus. Skill-bar must
   // never render a button labelled "Arcane Focus" — passives are
-  // filtered out client-side and the server refuses them on
-  // SetSkillShortcut so any persisted assignment self-heals.
+  // filtered out of the action bar's default seed and aren't
+  // draggable from the skill tree.
   await expect(page.locator('.skill-button')).not.toHaveCount(0);
   const passiveSlot = page.locator('.skill-button__name', { hasText: /Arcane Focus/i });
   await expect(passiveSlot).toHaveCount(0);

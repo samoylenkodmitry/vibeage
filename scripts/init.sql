@@ -14,7 +14,6 @@ create table if not exists players (
   position_z real not null default 0,
   inventory  jsonb not null default '[]'::jsonb,
   skills     jsonb not null default '["fireball"]'::jsonb,
-  skill_shortcuts jsonb not null default '["fireball", null, null, null, null, null, null, null, null]'::jsonb,
   available_skill_points int not null default 1,
   starter_progress jsonb not null default '{"defeatedEnemies":0,"defeatedEnemyIds":[],"lootPickups":0,"levelReached":1,"learnedSkills":1,"isComplete":false,"rewardGranted":false}'::jsonb,
   class_name text not null default 'mage',

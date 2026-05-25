@@ -21,7 +21,7 @@ function makePlayer(id: string, x: number, z: number, effects: StatusEffect[] = 
     maxMana: 100,
     className: 'rogue',
     unlockedSkills: [],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: effects,

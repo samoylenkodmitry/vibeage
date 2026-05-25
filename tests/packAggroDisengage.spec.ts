@@ -17,7 +17,7 @@ function makePlayer(id: string, x: number, z: number): PlayerState {
     position: { x, y: 0.5, z }, rotation: { x: 0, y: 0, z: 0 },
     health: 100, maxHealth: 100, mana: 100, maxMana: 100,
     className: 'mage', unlockedSkills: [],
-    skillShortcuts: [], availableSkillPoints: 0,
+ availableSkillPoints: 0,
     skillCooldownEndTs: {}, statusEffects: [],
     level: 5, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,

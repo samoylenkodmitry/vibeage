@@ -31,7 +31,6 @@ export interface PlayersTable {
     CharacterInventory | string | null
   >;
   skills: JsonColumn<SkillId[]>;
-  skill_shortcuts: JsonColumn<(SkillId | null)[]>;
   available_skill_points: DefaultColumn<number>;
   starter_progress: JsonColumn<StarterProgressState>;
   class_name: DefaultColumn<string>;

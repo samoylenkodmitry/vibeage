@@ -13,7 +13,6 @@ import type {
 } from './gameTypes';
 import type { ServerGameState } from './gameTypes';
 import {
-  assignFirstEmptyShortcut,
   createInitialStarterProgress,
   normalizeClientStarterProgress,
 } from './starterProgress';
@@ -332,12 +331,6 @@ function applyServerMessage(
     return applyEffectSnapshot(state, message.targetId, message.effects, now);
   }
 
-  if (message.type === 'SkillShortcutUpdated') {
-    return updateMyPlayer(state, (player) => ({
-      ...player,
-      skillShortcuts: replaceAt(player.skillShortcuts ?? [], message.slotIndex, message.skillId),
-    }));
-  }
 
   if (message.type === 'SkillLearned') {
     return applySkillLearned(state, message, now);
@@ -543,9 +536,6 @@ function applySkillLearned(
     unlockedSkills: player.unlockedSkills.includes(message.skillId)
       ? player.unlockedSkills
       : [...player.unlockedSkills, message.skillId],
-    skillShortcuts: player.skillShortcuts.includes(message.skillId)
-      ? player.skillShortcuts
-      : assignFirstEmptyShortcut(player.skillShortcuts, message.skillId),
   }));
   const withLog = alreadyKnown ? next : applySkillLearnedFeedback(next, message.skillId, now);
   return rejections === state.learnSkillRejections ? withLog : { ...withLog, learnSkillRejections: rejections };
@@ -664,12 +654,6 @@ function updateMyPlayer(
     players: { ...state.players, [player.id]: player },
     starterProgress: normalizeClientStarterProgress(player.starterProgress ?? state.starterProgress, player),
   };
-}
-
-function replaceAt<T>(items: T[], index: number, item: T): T[] {
-  const nextItems = [...items];
-  nextItems[index] = item;
-  return nextItems;
 }
 
 function clearDeadTarget(state: GameClientState, enemyId: string): string | null {

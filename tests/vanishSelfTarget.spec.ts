@@ -22,7 +22,7 @@ function makeCaster(): PlayerState {
     maxMana: 100,
     className: 'rogue',
     unlockedSkills: ['vanish'],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: [],

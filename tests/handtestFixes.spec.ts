@@ -106,7 +106,6 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
     player.race = 'human'; // allows mage
     applyClassChange(player, 'mage', sink); // drops slash, adds fireball + mage auto-passive
     expect(player.unlockedSkills).toEqual(['fireball', 'basicAttack', 'escape', 'passive_arcane_focus']);
-    expect(player.skillShortcuts).toContain('fireball');
   });
 
   it('refunds previously-spent skill points so the player can re-spec for the new class', () => {
@@ -137,7 +136,6 @@ describe('Fix #2: switching class actually unlocks the new starter skill', () =>
 
     applyClassChange(player, 'warrior', sink);
 
-    expect(player.skillShortcuts).toContain('slash');
   });
 });
 

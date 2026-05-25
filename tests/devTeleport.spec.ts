@@ -18,7 +18,7 @@ const makePlayer = (): PlayerState => ({
   maxMana: 100,
   className: 'mage',
   unlockedSkills: [],
-  skillShortcuts: [null, null, null, null, null, null, null, null, null],
+
   availableSkillPoints: 0,
   skillCooldownEndTs: {},
   statusEffects: [],

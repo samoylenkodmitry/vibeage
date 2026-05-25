@@ -16,7 +16,7 @@ function fakePlayer(overrides: Partial<{
     level: 30,
     className: 'mage',
     unlockedSkills: ['basicAttack', 'escape'] as SkillId[],
-    skillShortcuts: [],
+
     availableSkillPoints: 1,
     specializationId: null as string | null,
     ...overrides,

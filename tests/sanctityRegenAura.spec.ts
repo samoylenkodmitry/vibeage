@@ -15,7 +15,7 @@ function makeAlly(id: string, specializationId: string | null, x: number, level 
     position: { x, y: 0.5, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
     health: 50, maxHealth: 100, mana: 100, maxMana: 100,
     className: id === 'cardinal' ? 'healer' : 'mage',
-    unlockedSkills: [], skillShortcuts: [], availableSkillPoints: 0,
+    unlockedSkills: [], availableSkillPoints: 0,
     skillCooldownEndTs: {}, statusEffects: [],
     level, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0,

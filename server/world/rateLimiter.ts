@@ -84,7 +84,6 @@ const COMMAND_BUCKET: Partial<Record<string, RateLimitBucket>> = {
   EquipItem: 'equipment',
   UnequipItem: 'equipment',
   LearnSkill: 'lifecycle',
-  SetSkillShortcut: 'lifecycle',
   RespawnRequest: 'lifecycle',
   SelectClass: 'identity',
   SelectRace: 'identity',

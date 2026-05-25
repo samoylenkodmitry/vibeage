@@ -1,62 +1,50 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import { useNow } from './useNow';
 import type { PlayerEntity } from '../gameTypes';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import {
   getSkillSlotAriaHotkeys,
-  resolveSlotBinding,
   SKILL_BAR_HOTKEYS,
   SKILL_BAR_ROW_COUNT,
   SKILL_BAR_SECONDARY_HOTKEYS,
-  SKILL_BAR_SECONDARY_ROW_COUNT,
 } from '../skillShortcuts';
 import { SkillTooltip } from './SkillTooltip';
 import { useTooltipTrigger } from './useTooltipTrigger';
 import { openWikiAt } from './wikiNavBus';
 import { INVENTORY_DRAG_MIME } from './InventorySlotButton';
 import { ItemShortcutButton } from './ItemShortcutButton';
-import { findBagSlotForItem } from './useItemShortcuts';
 import { useDraggablePanel } from './useDraggablePanel';
+import {
+  ACTION_BAR_DRAG_MIME,
+  SKILL_DRAG_MIME,
+  findBagSlotForItem,
+  type ActionRef,
+} from './useActionBar';
 
 type SkillBarProps = {
   player: PlayerEntity | null;
   hasSelectedTarget: boolean;
   onCastSkill: (skillId: SkillId) => void;
-  /** Per-slot client-side item bindings (length 20). */
-  itemShortcuts: (string | null)[];
   inventory: InventorySlot[];
   onUseItem: (slotIndex: number) => void;
-  onBindItem: (slotIndex: number, itemId: string) => void;
-  onClearItem: (slotIndex: number) => void;
+  /** Unified action-bar layout (length 20): skill | item | empty per slot. */
+  actionBar: (ActionRef | null)[];
+  onSetSlot: (slotIndex: number, ref: ActionRef) => void;
+  onSwapSlot: (from: number, to: number) => void;
+  onClearSlot: (slotIndex: number) => void;
 };
 
 export function SkillBar(props: SkillBarProps) {
-  const { player, itemShortcuts } = props;
-  // Own the cooldown clock here instead of receiving it as a prop
-  // from GameHud — a useNow up there forced the entire HUD to
-  // re-render 10×/sec. The skill bar is small + always visible, so
-  // ticking it locally is far cheaper than reconciling the whole
-  // tree.
+  const { player, actionBar } = props;
+  // Own the cooldown clock here instead of receiving it as a prop from
+  // GameHud — a useNow up there forced the entire HUD to re-render
+  // 10×/sec. The bar is small + always visible, so ticking it locally
+  // is far cheaper than reconciling the whole tree.
   const now = useNow(100);
-  // Single source of truth for slot resolution (skill vs item vs
-  // fallback) — `resolveSlotBinding` is shared with the keydown
-  // handler in Hud.tsx, so a slot that renders a potion icon will
-  // also fire the potion hotkey, and one that renders a skill
-  // button will cast that skill. Drift between visible UI and key
-  // press is unrepresentable.
-  const primarySlots = useMemo(
-    () => Array.from({ length: SKILL_BAR_ROW_COUNT }, (_, i) => resolveSlotBinding(player, itemShortcuts, i)),
-    [player, itemShortcuts],
-  );
-  const secondarySlots = useMemo(
-    () => Array.from({ length: SKILL_BAR_SECONDARY_ROW_COUNT }, (_, i) =>
-      resolveSlotBinding(player, itemShortcuts, SKILL_BAR_ROW_COUNT + i)),
-    [player, itemShortcuts],
-  );
   const tooltip = useTooltipTrigger<SkillId>();
   const [secondaryOpen, setSecondaryOpen] = useState(false);
-  const hasSecondaryContent = secondarySlots.some(Boolean);
+  const hasSecondaryContent = actionBar.slice(SKILL_BAR_ROW_COUNT).some(Boolean);
   const dragRef = useDraggablePanel<HTMLElement>('skill-bar', {
     handleSelector: '.drag-grip',
     baseTransform: 'translateX(-50%)',
@@ -66,23 +54,24 @@ export function SkillBar(props: SkillBarProps) {
     <section ref={dragRef} className="skill-bar" aria-label="Skills">
       <span className="drag-grip skill-bar-grip" aria-hidden="true" title="Drag to move">⠿</span>
       <div className="skill-bar-row">
-        {primarySlots.map((binding, index) => (
+        {Array.from({ length: SKILL_BAR_ROW_COUNT }, (_, index) => (
           <SkillBarSlot
-            key={`p${index}:${binding?.id ?? 'empty'}`}
-            slotIndex={index} binding={binding} hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
-            tooltip={tooltip} now={now} {...props}
+            key={index} slotIndex={index} slot={actionBar[index] ?? null}
+            hotkey={SKILL_BAR_HOTKEYS[index] ?? ''} tooltip={tooltip} now={now} {...props}
           />
         ))}
       </div>
       {(hasSecondaryContent || secondaryOpen) && (
         <div className="skill-bar-row skill-bar-row--secondary">
-          {secondarySlots.map((binding, index) => (
-            <SkillBarSlot
-              key={`s${index}:${binding?.id ?? 'empty'}`}
-              slotIndex={SKILL_BAR_ROW_COUNT + index} binding={binding}
-              hotkey={SKILL_BAR_SECONDARY_HOTKEYS[index] ?? ''} compact tooltip={tooltip} now={now} {...props}
-            />
-          ))}
+          {Array.from({ length: SKILL_BAR_SECONDARY_HOTKEYS.length }, (_, index) => {
+            const slotIndex = SKILL_BAR_ROW_COUNT + index;
+            return (
+              <SkillBarSlot
+                key={slotIndex} slotIndex={slotIndex} slot={actionBar[slotIndex] ?? null}
+                hotkey={SKILL_BAR_SECONDARY_HOTKEYS[index] ?? ''} compact tooltip={tooltip} now={now} {...props}
+              />
+            );
+          })}
         </div>
       )}
       <button type="button" className="skill-bar-fold"
@@ -104,7 +93,7 @@ export function SkillBar(props: SkillBarProps) {
 type TooltipApi = ReturnType<typeof useTooltipTrigger<SkillId>>;
 type SkillBarSlotProps = SkillBarProps & {
   slotIndex: number;
-  binding: ReturnType<typeof resolveSlotBinding>;
+  slot: ActionRef | null;
   hotkey: string;
   tooltip: TooltipApi;
   now: number;
@@ -112,46 +101,71 @@ type SkillBarSlotProps = SkillBarProps & {
 };
 
 function SkillBarSlot({
-  slotIndex, binding, hotkey, compact, player, now, hasSelectedTarget, onCastSkill,
-  inventory, onUseItem, onBindItem, onClearItem, tooltip,
+  slotIndex, slot, hotkey, compact, player, now, hasSelectedTarget, onCastSkill,
+  inventory, onUseItem, onSetSlot, onSwapSlot, onClearSlot, tooltip,
 }: SkillBarSlotProps) {
   const aria = getSkillSlotAriaHotkeys(slotIndex);
+  // A skill ref is only live if the player still knows that skill.
+  const knownSkill = slot?.kind === 'skill' && (player?.unlockedSkills?.includes(slot.id) ?? false)
+    ? slot.id : null;
+  const ACCEPTED = [ACTION_BAR_DRAG_MIME, INVENTORY_DRAG_MIME, SKILL_DRAG_MIME];
   const onDragOver = (e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(INVENTORY_DRAG_MIME)) {
+    if (ACCEPTED.some((mime) => e.dataTransfer.types.includes(mime))) {
       e.preventDefault();
       e.stopPropagation();
-      e.dataTransfer.dropEffect = 'copy';
+      e.dataTransfer.dropEffect = 'move';
     }
   };
   const onDrop = (e: React.DragEvent) => {
-    const raw = e.dataTransfer.getData(INVENTORY_DRAG_MIME);
-    if (!raw) return;
+    const reorder = e.dataTransfer.getData(ACTION_BAR_DRAG_MIME);
+    const item = e.dataTransfer.getData(INVENTORY_DRAG_MIME);
+    const skill = e.dataTransfer.getData(SKILL_DRAG_MIME);
+    if (!reorder && !item && !skill) return;
     e.preventDefault();
     e.stopPropagation();
     try {
-      const payload = JSON.parse(raw) as { itemId?: string };
-      if (typeof payload.itemId === 'string') onBindItem(slotIndex, payload.itemId);
+      if (reorder) {
+        const { fromSlot } = JSON.parse(reorder) as { fromSlot?: number };
+        if (typeof fromSlot === 'number') onSwapSlot(fromSlot, slotIndex);
+      } else if (skill) {
+        const { skillId } = JSON.parse(skill) as { skillId?: string };
+        if (typeof skillId === 'string') onSetSlot(slotIndex, { kind: 'skill', id: skillId as SkillId });
+      } else {
+        const { itemId } = JSON.parse(item) as { itemId?: string };
+        if (typeof itemId === 'string') onSetSlot(slotIndex, { kind: 'item', id: itemId });
+      }
     } catch { /* malformed payload */ }
   };
+  const onDragStart = (e: React.DragEvent) => {
+    if (!slot) return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(ACTION_BAR_DRAG_MIME, JSON.stringify({ fromSlot: slotIndex }));
+  };
   return (
-    <div className="skill-bar-slot" onDragOver={onDragOver} onDrop={onDrop}>
-      {binding?.kind === 'item' ? (
+    <div
+      className="skill-bar-slot"
+      draggable={Boolean(slot)}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      {slot?.kind === 'item' ? (
         <ItemShortcutButton
-          itemId={binding.id} hotkey={hotkey} ariaHotkeys={aria}
-          count={inventory.filter((s) => s.itemId === binding.id).reduce((n, s) => n + s.quantity, 0)}
+          itemId={slot.id} hotkey={hotkey} ariaHotkeys={aria}
+          count={inventory.filter((s) => s.itemId === slot.id).reduce((n, s) => n + s.quantity, 0)}
           onUse={() => {
-            const idx = findBagSlotForItem(inventory, binding.id);
+            const idx = findBagSlotForItem(inventory, slot.id);
             if (idx !== null) onUseItem(idx);
           }}
-          onClear={() => onClearItem(slotIndex)} compact={compact}
+          onClear={() => onClearSlot(slotIndex)} compact={compact}
         />
       ) : (
         <SkillButton
-          skillId={binding?.kind === 'skill' ? binding.id : null}
+          skillId={knownSkill}
           hotkey={hotkey} ariaHotkeys={aria}
           player={player} now={now} hasSelectedTarget={hasSelectedTarget}
           onCastSkill={onCastSkill}
-          tooltipHandlers={binding?.kind === 'skill' ? tooltip.triggerProps(binding.id) : undefined}
+          tooltipHandlers={knownSkill ? tooltip.triggerProps(knownSkill) : undefined}
           compact={compact}
         />
       )}

@@ -23,7 +23,7 @@ const basePlayer: PlayerEntity = {
   experienceToNextLevel: 100,
   isAlive: true,
   unlockedSkills: ['fireball'],
-  skillShortcuts: ['fireball', null, null, null],
+
   availableSkillPoints: 0,
   skillCooldownEndTs: {},
   castingSkill: null,
@@ -432,7 +432,6 @@ describe('Vite game client starter progress', () => {
     });
 
     expect(nextState.players['player-1'].unlockedSkills).toContain('waterSplash');
-    expect(nextState.players['player-1'].skillShortcuts[1]).toBe('waterSplash');
   });
 });
 

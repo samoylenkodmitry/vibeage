@@ -51,7 +51,7 @@ const makePlayer = (id: string, socketId: string): PlayerState => ({
   maxMana: 100,
   className: 'mage',
   unlockedSkills: ['fireball'],
-  skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+
   availableSkillPoints: 1,
   skillCooldownEndTs: {},
   statusEffects: [],
@@ -77,7 +77,6 @@ describe('player session hydration', () => {
       is_alive: true,
       class_name: 'mage',
       skills: [],
-      skill_shortcuts: ['fireball'],
       available_skill_points: 2,
       starter_progress: {
         defeatedEnemies: 2,
@@ -104,7 +103,7 @@ describe('player session hydration', () => {
       // is included on hydrate so class HP/MP/dmg deltas land via the
       // Contribution registry.
       unlockedSkills: ['fireball', 'basicAttack', 'escape', 'passive_arcane_focus'],
-      skillShortcuts: ['fireball', ...Array(23).fill(null)],
+
       availableSkillPoints: 2,
       starterProgress: {
         defeatedEnemies: 2,
@@ -243,7 +242,6 @@ describe('player session relog persistence', () => {
     beforeRelog.level = 3;
     beforeRelog.experience = 80;
     beforeRelog.unlockedSkills = ['fireball', 'waterSplash'];
-    beforeRelog.skillShortcuts = ['fireball', 'waterSplash', ...Array(22).fill(null)];
     beforeRelog.availableSkillPoints = 1;
     addItemsToPlayer(beforeRelog, 'health_potion', 2);
     addItemsToPlayer(beforeRelog, 'sprite_glow', 1);
@@ -261,7 +259,6 @@ describe('player session relog persistence', () => {
       is_alive: stable.is_alive,
       class_name: stable.class_name,
       skills: stable.skills,
-      skill_shortcuts: stable.skill_shortcuts,
       available_skill_points: stable.available_skill_points,
       starter_progress: stable.starter_progress,
       character_inventory: stable.character_inventory,
@@ -279,7 +276,6 @@ describe('player session relog persistence', () => {
       // compat for saves written before either concept existed).
       // beforeRelog is a mage, so passive_arcane_focus is added.
       unlockedSkills: [...beforeRelog.unlockedSkills, 'basicAttack', 'escape', 'passive_arcane_focus'],
-      skillShortcuts: beforeRelog.skillShortcuts,
       availableSkillPoints: beforeRelog.availableSkillPoints,
       starterProgress: stable.starter_progress,
     });

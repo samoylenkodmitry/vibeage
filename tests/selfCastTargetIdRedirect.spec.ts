@@ -21,7 +21,7 @@ function makePlayer(id: string): PlayerState {
     id, socketId: 's', name: id,
     position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
     health: 50, maxHealth: 100, mana: 100, maxMana: 100,
-    className: 'warrior', unlockedSkills: ['rage'], skillShortcuts: [],
+    className: 'warrior', unlockedSkills: ['rage'],
     availableSkillPoints: 0, skillCooldownEndTs: {}, statusEffects: [],
     level: 20, experience: 0, experienceToNextLevel: 100,
     castingSkill: null, castingProgressMs: 0, isAlive: true, maxInventorySlots: 20,

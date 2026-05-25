@@ -17,7 +17,7 @@ function makeCaster(level = 1): PlayerState {
     rotation: { x: 0, y: 0, z: 0 },
     health: 100, maxHealth: 100, mana: 100, maxMana: 100,
     className: 'mage', race: 'human',
-    unlockedSkills: ['escape'], skillShortcuts: [],
+    unlockedSkills: ['escape'],
     availableSkillPoints: 0, skillCooldownEndTs: {},
     statusEffects: [],
     level, experience: 0, experienceToNextLevel: 100,

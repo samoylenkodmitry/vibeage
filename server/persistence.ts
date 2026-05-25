@@ -4,7 +4,6 @@ import { normalizeStarterProgressState } from '../packages/protocol/messages.js'
 import { ensureCharacterInventory } from './inventory/aggregateBridge.js';
 import {
   normalizeUnlockedSkills,
-  normalizeSkillShortcuts,
 } from './players/playerProgression.js';
 import {
   playerRepository,
@@ -26,7 +25,6 @@ export const PERSISTED_PLAYER_COLUMNS = [
   'race',
   'character_inventory',
   'skills',
-  'skill_shortcuts',
   'available_skill_points',
   'starter_progress',
   'specialization_id',
@@ -46,7 +44,6 @@ export const STABLE_PLAYER_STATE_FIELDS = [
   'race',
   'characterInventory',
   'unlockedSkills',
-  'skillShortcuts',
   'availableSkillPoints',
   'starterProgress',
   'specializationId',
@@ -133,7 +130,6 @@ export function buildStablePlayerPersistenceData(
     // `character_inventory` is the only persisted store.
     character_inventory: aggregate,
     skills: unlockedSkills,
-    skill_shortcuts: normalizeSkillShortcuts(player.skillShortcuts, unlockedSkills),
     available_skill_points: player.availableSkillPoints,
     starter_progress: starterProgress,
     specialization_id: player.specializationId ?? null,

@@ -4,8 +4,8 @@ import { ITEMS } from '../../../../packages/content/items';
 /**
  * Skill-bar slot rendered as a bound item (consumable). Click /
  * hotkey fires UseItem on the first bag slot that still holds the
- * itemId. Right-click clears the binding (client-side only — the
- * server's skillShortcuts array is never touched by items today).
+ * itemId. Right-click clears the binding (the action bar is
+ * client-only localStorage state — see useActionBar).
  */
 export function ItemShortcutButton({
   itemId, hotkey, ariaHotkeys, count, onUse, onClear, compact,

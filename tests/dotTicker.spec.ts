@@ -26,7 +26,7 @@ function makePlayer(id: string, effects: StatusEffect[] = []): PlayerState {
     maxMana: 100,
     className: 'mage',
     unlockedSkills: [],
-    skillShortcuts: [],
+
     availableSkillPoints: 0,
     skillCooldownEndTs: {},
     statusEffects: effects,

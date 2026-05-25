@@ -26,7 +26,7 @@ function makePlayer(id: string, overrides: Partial<PlayerEntity> = {}): PlayerEn
     level: 5,
     availableSkillPoints: 1,
     unlockedSkills: ['fireball'],
-    skillShortcuts: ['fireball', null, null, null, null, null, null, null, null],
+
     skillLevels: { fireball: 1 },
     ...overrides,
   } as unknown as PlayerEntity;

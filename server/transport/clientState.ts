@@ -19,7 +19,7 @@ import {
  * now private by default unless it's added here.
  *
  * Owner-only data (socketId, inventory, characterInventory,
- * questState, gold, skillShortcuts, skillLevels,
+ * questState, gold, skillLevels,
  * availableSkillPoints, starterProgress, stats, skill cooldowns,
  * regen bookkeeping, persistence flags) is *not* listed below
  * and therefore never reaches another player's client.
@@ -72,7 +72,6 @@ type PublicPlayerField = typeof PUBLIC_PLAYER_FIELDS[number];
 export const PRIVATE_PLAYER_STATE_FIELDS = [
   'socketId',
   'unlockedSkills',
-  'skillShortcuts',
   'availableSkillPoints',
   'skillLevels',
   'starterProgress',
@@ -121,7 +120,6 @@ export const OWNER_PLAYER_FIELDS = [
   'experience',
   'experienceToNextLevel',
   'unlockedSkills',
-  'skillShortcuts',
   'availableSkillPoints',
   'skillLevels',
   'starterProgress',

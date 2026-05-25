@@ -5,7 +5,6 @@ import type { PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
 import {
   normalizeAvailableSkillPoints,
-  normalizeSkillShortcuts,
   normalizeUnlockedSkills,
 } from '../server/players/playerProgression';
 
@@ -15,42 +14,16 @@ type TestPlayer = {
   level: number;
   className: string;
   unlockedSkills: SkillId[];
-  skillShortcuts: (SkillId | null)[];
   availableSkillPoints: number;
 };
-
-const starterShortcuts = (): (SkillId | null)[] => [
-  'fireball',
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-];
 
 describe('player progression hydration', () => {
   test('gives a persisted player the starter skill when the database has an empty skills array', () => {
     const unlockedSkills = normalizeUnlockedSkills([]);
-    const skillShortcuts = normalizeSkillShortcuts(['fireball', null], unlockedSkills);
 
     // Class starter (fireball — defaults to mage) plus the universal
     // Basic Attack + Escape are unconditionally restored on hydrate.
     expect(unlockedSkills).toEqual(['fireball', 'basicAttack', 'escape']);
-    expect(skillShortcuts.length).toBe(24);
-    expect(skillShortcuts[0]).toBe('fireball');
-    expect(skillShortcuts.slice(1)).toEqual(Array(23).fill(null));
-  });
-
-  test('drops shortcuts for unknown skill ids', () => {
-    const unlockedSkills = normalizeUnlockedSkills(['fireball']);
-    const result = normalizeSkillShortcuts(['mysticBlast', 'fireball'], unlockedSkills);
-    expect(result.length).toBe(24);
-    expect(result[0]).toBeNull();
-    expect(result[1]).toBe('fireball');
-    expect(result.slice(2)).toEqual(Array(22).fill(null));
   });
 
   test('normalizes persisted skill points', () => {
@@ -61,20 +34,20 @@ describe('player progression hydration', () => {
 });
 
 describe('skill learning state sync', () => {
-  test('does not duplicate a skill that is already on the shortcut panel', () => {
+  test('learns a skill into unlockedSkills exactly once', () => {
     const player: TestPlayer = {
       id: 'player1',
       socketId: 'socket1',
       level: 1,
       className: 'mage',
       unlockedSkills: [],
-      skillShortcuts: starterShortcuts(),
       availableSkillPoints: 1,
     };
 
     expect(learnNewSkill(player, 'fireball')).toBe(true);
     expect(player.unlockedSkills).toEqual(['fireball']);
-    expect(player.skillShortcuts.filter(skillId => skillId === 'fireball')).toHaveLength(1);
+    expect(learnNewSkill(player, 'fireball')).toBe(true);
+    expect(player.unlockedSkills.filter((s) => s === 'fireball')).toHaveLength(1);
   });
 
   test('sends the learning player a full skill update after learning a skill', () => {
@@ -91,7 +64,7 @@ describe('skill learning state sync', () => {
       level: 1,
       className: 'mage',
       unlockedSkills: [],
-      skillShortcuts: starterShortcuts(),
+
       availableSkillPoints: 1,
       skillCooldownEndTs: {},
       statusEffects: [],

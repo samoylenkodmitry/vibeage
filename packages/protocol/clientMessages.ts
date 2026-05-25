@@ -44,12 +44,6 @@ export const learnSkillSchema = z.object({
   clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
-export const setSkillShortcutSchema = z.object({
-  type: z.literal('SetSkillShortcut'),
-  slotIndex: z.number().int().min(0).max(8),
-  skillId: skillIdSchema.nullable(),
-}).strict();
-
 export const selectClassSchema = z.object({
   type: z.literal('SelectClass'),
   className: z.string(),
@@ -253,7 +247,6 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   moveIntentSchema,
   castReqSchema,
   learnSkillSchema,
-  setSkillShortcutSchema,
   selectClassSchema,
   respawnRequestSchema,
   lootPickupSchema,
@@ -307,11 +300,6 @@ export type LearnSkill = {
   clientSeq?: number;
 };
 
-export type SetSkillShortcut = {
-  type: 'SetSkillShortcut';
-  slotIndex: number;
-  skillId: SkillId | null;
-};
 
 export type SelectClass = {
   type: 'SelectClass';
@@ -452,7 +440,6 @@ export type ClientMessage =
   | MoveIntent
   | CastReq
   | LearnSkill
-  | SetSkillShortcut
   | SelectClass
   | RespawnRequest
   | LootPickup

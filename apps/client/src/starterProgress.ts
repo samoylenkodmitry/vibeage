@@ -1,4 +1,3 @@
-import type { SkillId } from '../../../packages/content/skills';
 import {
   createStarterProgressState,
   normalizeStarterProgressState,
@@ -20,14 +19,3 @@ export function normalizeClientStarterProgress(
   });
 }
 
-export function assignFirstEmptyShortcut(
-  shortcuts: Array<SkillId | null>,
-  skillId: SkillId,
-): Array<SkillId | null> {
-  const nextShortcuts = [...shortcuts];
-  const emptySlotIndex = nextShortcuts.findIndex((slot) => slot === null);
-  if (emptySlotIndex >= 0) {
-    nextShortcuts[emptySlotIndex] = skillId;
-  }
-  return nextShortcuts;
-}

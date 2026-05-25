@@ -22,7 +22,7 @@ import { nextClientSeq } from './commandSeq';
  *   - `sendFireAndForget(room, command)` — no clientSeq, no
  *     correlation. Use for high-frequency client-initiated
  *     intents (MoveIntent, LootPickup) or intentionally silent
- *     ones (RequestInventory, DevTeleport, TalkNpc, SetSkillShortcut).
+ *     ones (RequestInventory, DevTeleport, TalkNpc).
  *
  * Both no-op gracefully when `room` is null so the call site can
  * be a one-liner without a guard.

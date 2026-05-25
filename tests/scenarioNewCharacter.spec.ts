@@ -73,7 +73,6 @@ describe('scenario: new orc knight can cast slash on a goblin', () => {
     // class differentiation lights up via Contributions.
     expect(player.unlockedSkills).toEqual(['slash', 'basicAttack', 'escape', 'passive_iron_discipline']);
     expect(player.unlockedSkills).not.toContain('fireball');
-    expect(player.skillShortcuts).toContain('slash');
   });
 
   it('slash on a goblin in range deals damage end-to-end (resolves through tickCasts)', () => {

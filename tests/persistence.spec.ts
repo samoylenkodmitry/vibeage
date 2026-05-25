@@ -61,7 +61,7 @@ const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   maxMana: 120,
   className: 'mage',
   unlockedSkills: ['fireball', 'fireball', 'waterSplash'],
-  skillShortcuts: ['waterSplash', 'petrify', 'fireball', null, null, null, null, null, null],
+
   availableSkillPoints: 2,
   skillCooldownEndTs: { fireball: 1234 },
   statusEffects: [{ id: 'burn1', type: 'burn', value: 1, durationMs: 5000, startTimeTs: 1000, sourceSkill: 'fireball' }],
@@ -109,7 +109,6 @@ describe('stable persistence contract', () => {
       // Universal Basic Attack + Escape are unconditionally appended
       // on hydrate / creation, so they round-trip through persistence.
       skills: ['fireball', 'waterSplash', 'basicAttack', 'escape'],
-      skill_shortcuts: ['waterSplash', null, 'fireball', ...Array(21).fill(null)],
       available_skill_points: 2,
       starter_progress: {
         defeatedEnemies: 0,

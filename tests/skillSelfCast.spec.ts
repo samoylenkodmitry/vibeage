@@ -19,7 +19,7 @@ const makePlayer = (): PlayerState => ({
   maxMana: 100,
   className: 'healer',
   unlockedSkills: ['holyLight', 'divineShield', 'smite'],
-  skillShortcuts: [],
+
   availableSkillPoints: 0,
   skillCooldownEndTs: {},
   statusEffects: [],
