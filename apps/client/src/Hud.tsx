@@ -92,9 +92,8 @@ export function GameHud(props: GameHudProps) {
   const panels = usePanelState();
   const activeSkills = useMemo(() => activeSkillsFor(player), [player?.unlockedSkills]);
   const { actionBar, setSlot, swapSlots, clearSlot } = useActionBar(activeSkills);
-  const bindItemToSlot = useCallback((slotIndex: number, itemId: string) => {
-    setSlot(slotIndex, { kind: 'item', id: itemId });
-  }, [setSlot]);
+  const bindItemToSlot = useCallback(
+    (slotIndex: number, itemId: string) => setSlot(slotIndex, { kind: 'item', id: itemId }), [setSlot]);
   useSlotHotkeysFor(player, actionBar, state.inventory, onUseItem, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
 
   // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
