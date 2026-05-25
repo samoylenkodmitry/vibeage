@@ -99,6 +99,16 @@ export const destroyItemSchema = z.object({
   clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
+// Drag-to-rearrange the bag: move the stack at `fromSlotIndex` to
+// `toSlotIndex`, swapping with any occupant. Server resolves the item
+// instance by slot and applies the `moveSlot` transaction.
+export const moveInventorySlotSchema = z.object({
+  type: z.literal('MoveInventorySlot'),
+  fromSlotIndex: z.number().int().min(0),
+  toSlotIndex: z.number().int().min(0),
+  clientSeq: z.number().int().nonnegative().optional(),
+}).strict();
+
 export const useItemSchema = z.object({
   type: z.literal('UseItem'),
   slotIndex: z.number().int().min(0),
@@ -249,6 +259,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   lootPickupSchema,
   dropItemSchema,
   destroyItemSchema,
+  moveInventorySlotSchema,
   useItemSchema,
   craftItemSchema,
   requestInventorySchema,
@@ -338,6 +349,13 @@ export type DestroyItem = {
   type: 'DestroyItem';
   slotIndex: number;
   count?: number;
+  clientSeq?: number;
+};
+
+export type MoveInventorySlot = {
+  type: 'MoveInventorySlot';
+  fromSlotIndex: number;
+  toSlotIndex: number;
   clientSeq?: number;
 };
 
@@ -440,6 +458,7 @@ export type ClientMessage =
   | LootPickup
   | DropItem
   | DestroyItem
+  | MoveInventorySlot
   | UseItem
   | CraftItem
   | RequestInventory

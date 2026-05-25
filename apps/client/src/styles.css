@@ -829,6 +829,10 @@ input {
 .inventory-slot:hover {
   background: rgba(30, 41, 59, 0.92);
 }
+.inventory-slot--empty {
+  opacity: 0.55;
+  cursor: default;
+}
 
 .inventory-slot:not(:disabled):active {
   transform: scale(0.92);

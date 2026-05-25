@@ -38,6 +38,8 @@ export type InventorySlotCallbacks = {
   onEquipItem: (slotIndex: number) => void;
   onOpenRecipe: (slotIndex: number) => void;
   onDropItem: (slotIndex: number) => void;
+  /** Drag a bag slot onto this one to rearrange (move/swap). */
+  onMoveItem: (fromSlotIndex: number, toSlotIndex: number) => void;
   /** Open the click-sticky tooltip for this slot. Passes both the
    *  click coords AND the slot's bounding rect so the tooltip can
    *  position itself outside the slot (above/below/side) without
@@ -97,12 +99,30 @@ export function InventorySlotButton({
   return (
     <button
       type="button"
-      className={`inventory-slot${slot && grade !== 'none' ? ` inventory-slot--grade-${grade}` : ''}`}
+      className={`inventory-slot${slot ? '' : ' inventory-slot--empty'}${slot && grade !== 'none' ? ` inventory-slot--grade-${grade}` : ''}`}
       style={slotStyle}
-      disabled={!slot}
+      aria-disabled={!slot}
       title={title}
       aria-label={slot ? `${itemName}: click for actions` : `Inventory slot ${index + 1}: empty`}
       draggable={Boolean(slot) && hasMouse}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes(INVENTORY_DRAG_MIME)) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+        }
+      }}
+      onDrop={(event) => {
+        const raw = event.dataTransfer.getData(INVENTORY_DRAG_MIME);
+        if (!raw) return;
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          const payload = JSON.parse(raw) as { slotIndex?: number };
+          if (typeof payload.slotIndex === 'number' && payload.slotIndex !== index) {
+            callbacks.onMoveItem(payload.slotIndex, index);
+          }
+        } catch { /* malformed payload */ }
+      }}
       onDragStart={(event) => {
         if (!slot) return;
         event.dataTransfer.effectAllowed = 'move';

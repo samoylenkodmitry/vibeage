@@ -25,6 +25,8 @@ type InventoryPanelProps = {
   /** Touch-friendly tap-to-bind for the shortcut bar (drag-to-bind
    *  doesn't fire on touch devices — see #488). */
   onBindItem: (shortcutSlotIndex: number, itemId: string) => void;
+  /** Drag a bag slot onto another to rearrange (move/swap). */
+  onMoveItem: (fromSlotIndex: number, toSlotIndex: number) => void;
 };
 
 type TooltipPayload = { slotIndex: number; itemId: string };
@@ -40,12 +42,13 @@ export function InventoryPanel({
   onDropItem,
   onDestroyItem,
   onBindItem,
+  onMoveItem,
 }: InventoryPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('inventory');
   const usedSlots = inventory.filter((slot) => slot && slot.quantity > 0).length;
   const tooltip = useTooltipTrigger<TooltipPayload>();
   const callbacks: InventorySlotCallbacks = {
-    onUseItem, onEquipItem, onOpenRecipe, onDropItem,
+    onUseItem, onEquipItem, onOpenRecipe, onDropItem, onMoveItem,
     // Hover / long-press / right-click open the ItemTooltip in
     // its auto-close mode. Click opens the SAME tooltip in sticky
     // mode (no auto-close; explicit × needed) — this gives the

@@ -45,6 +45,7 @@ type GameHudProps = {
   onDropItem: (slotIndex: number, count?: number) => void;
   /** Bag context menu — destroy a stack (no ground loot). */
   onDestroyItem: (slotIndex: number, count?: number) => void;
+  onMoveItem: (fromSlotIndex: number, toSlotIndex: number) => void;
   onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
@@ -76,7 +77,7 @@ type GameHudProps = {
 export function GameHud(props: GameHudProps) {
   const {
     state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onDisconnect,
-    onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onCraftItem, onEquipItem, onUnequipItem,
+    onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onMoveItem, onCraftItem, onEquipItem, onUnequipItem,
     onUpgradeSkill, onTalkNpc, onAcceptQuest, onCancelQuest, onAdvanceQuest,
     onClaimQuestReward, onSetTrackedQuest, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
     onSelectTarget, onCycleTarget, onPickupNearest, onMove, onSendChat,
@@ -125,7 +126,7 @@ export function GameHud(props: GameHudProps) {
         onSetNavigationMarker={onSetNavigationMarker}
         onCastSkill={onCastSkill}
         onLearnSkill={onLearnSkill}
-        onUseItem={onUseItem} onDropItem={onDropItem} onDestroyItem={onDestroyItem} onCraftItem={onCraftItem}
+        onUseItem={onUseItem} onDropItem={onDropItem} onDestroyItem={onDestroyItem} onMoveItem={onMoveItem} onCraftItem={onCraftItem}
         onEquipItem={onEquipItem}
         onUnequipItem={onUnequipItem}
         onUpgradeSkill={onUpgradeSkill}

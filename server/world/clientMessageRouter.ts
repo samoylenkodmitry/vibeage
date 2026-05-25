@@ -10,6 +10,7 @@ import { onUseItem } from '../inventory/itemUse.js';
 import { onCraftItem } from '../inventory/craftRecipe.js';
 import { onDropItem } from '../inventory/dropItem.js';
 import { onDestroyItem } from '../inventory/destroyItem.js';
+import { onMoveInventorySlot } from '../inventory/moveInventorySlot.js';
 import { onLearnSkill, onSetSkillShortcut } from '../players/playerSkills.js';
 import { onRespawnRequest } from '../players/playerLifecycle.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
@@ -103,6 +104,8 @@ export function handleClientMessage(
       return onDropItem(socket, direct, state, msg, outbound);
     case 'DestroyItem':
       return onDestroyItem(socket, direct, state, msg);
+    case 'MoveInventorySlot':
+      return onMoveInventorySlot(socket, direct, state, msg);
     case 'RequestInventory':
       return onRequestInventory(socket, direct, state);
     case 'SelectClass':
