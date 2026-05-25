@@ -61,21 +61,23 @@ export function SkillBar(props: SkillBarProps) {
 
   return (
     <section className="skill-bar" aria-label="Skills">
-      <div className="skill-bar-anchor">
-        <SkillButton
-          skillId={BASIC_ATTACK_SKILL_ID} hotkey={BASIC_ATTACK_HOTKEY} ariaHotkeys={BASIC_ATTACK_HOTKEY}
-          player={player} now={now} hasSelectedTarget={props.hasSelectedTarget}
-          onCastSkill={props.onCastSkill} tooltipHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
-        />
-      </div>
-      <div className="skill-bar-row">
-        {primarySlots.map((binding, index) => (
-          <SkillBarSlot
-            key={`p${index}:${binding?.id ?? 'empty'}`}
-            slotIndex={index} binding={binding} hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
-            tooltip={tooltip} now={now} {...props}
+      <div className="skill-bar-primary">
+        <div className="skill-bar-anchor">
+          <SkillButton
+            skillId={BASIC_ATTACK_SKILL_ID} hotkey={BASIC_ATTACK_HOTKEY} ariaHotkeys={BASIC_ATTACK_HOTKEY}
+            player={player} now={now} hasSelectedTarget={props.hasSelectedTarget}
+            onCastSkill={props.onCastSkill} tooltipHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
           />
-        ))}
+        </div>
+        <div className="skill-bar-row">
+          {primarySlots.map((binding, index) => (
+            <SkillBarSlot
+              key={`p${index}:${binding?.id ?? 'empty'}`}
+              slotIndex={index} binding={binding} hotkey={SKILL_BAR_HOTKEYS[index] ?? ''}
+              tooltip={tooltip} now={now} {...props}
+            />
+          ))}
+        </div>
       </div>
       {(hasSecondaryContent || secondaryOpen) && (
         <div className="skill-bar-row skill-bar-row--secondary">

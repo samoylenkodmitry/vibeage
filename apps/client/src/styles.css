@@ -410,12 +410,21 @@ input {
 .skill-button--item { border-color: rgba(255, 198, 109, 0.55); }
 .skill-button--item .skill-button__name { color: #ffd590; }
 
-/* §49/M2 — dedicated basic-attack anchor, sits above the skill bar.
-   Wider, brighter than a normal slot so it reads as 'always there'
-   instead of an empty hotkey. */
+/* §49/M2 — dedicated basic-attack anchor. Sits inline at the left of the
+   primary row (grouped with the skills, not floating alone above it).
+   Wider, brighter than a normal slot so it reads as 'always there'. */
+.skill-bar-primary {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.skill-bar-primary .skill-bar-row {
+  flex: 1;
+  min-width: 0;
+}
 .skill-bar-anchor {
   display: flex;
-  justify-content: center;
+  align-items: stretch;
 }
 .skill-bar-anchor .skill-button {
   min-width: 96px;
@@ -999,7 +1008,7 @@ input {
 }
 .boss-encounter-banner {
   position: fixed;
-  top: 26%;
+  top: 64px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 7;
@@ -3230,6 +3239,16 @@ input {
      buttons (where finger ambiguity matters more) cramped. */
   .skill-bar-anchor .skill-button {
     min-height: 36px;
+  }
+
+  /* Mobile keeps the attack button stacked above the wrapped 5×2 row
+     (inline flex would stretch it to the full two-row height). */
+  .skill-bar-primary {
+    display: block;
+  }
+  .skill-bar-anchor {
+    justify-content: center;
+    margin-bottom: 2px;
   }
 
   .skill-button--compact {
