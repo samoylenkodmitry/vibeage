@@ -24,6 +24,7 @@ import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
 import { getTerrainY } from './worldSceneConfig';
 import { advanceSmoothedGroup } from './entitySmoothing';
+import { GlowEmitter } from './dynamicLights';
 
 export { LootMarker };
 
@@ -173,7 +174,7 @@ function EnemyMarkerImpl({
         onPointerOut={() => setIsHovered(false)}
       />
       {enemy.isAlive && visual.glow && (
-        <pointLight color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} />
+        <GlowEmitter color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} priority={enemy.isMiniBoss ? 3 : 1} />
       )}
       {enemy.isAlive && enemy.isMiniBoss && <MiniBossCrown color={visual.color} height={visual.height} />}
       {enemy.isAlive && enemy.isMiniBoss && !isSelected && <BossBeacon color={visual.color} height={visual.height} />}
