@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudOverlays } from './hud/HudOverlays';
@@ -90,7 +90,8 @@ export function GameHud(props: GameHudProps) {
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
   const panels = usePanelState();
-  const { actionBar, setSlot, swapSlots, clearSlot } = useActionBar(activeSkillsFor(player));
+  const activeSkills = useMemo(() => activeSkillsFor(player), [player?.unlockedSkills]);
+  const { actionBar, setSlot, swapSlots, clearSlot } = useActionBar(activeSkills);
   const bindItemToSlot = useCallback((slotIndex: number, itemId: string) => {
     setSlot(slotIndex, { kind: 'item', id: itemId });
   }, [setSlot]);

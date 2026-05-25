@@ -63,7 +63,7 @@ export function SkillBar(props: SkillBarProps) {
       </div>
       {(hasSecondaryContent || secondaryOpen) && (
         <div className="skill-bar-row skill-bar-row--secondary">
-          {Array.from({ length: SKILL_BAR_HOTKEYS.length }, (_, index) => {
+          {Array.from({ length: SKILL_BAR_SECONDARY_HOTKEYS.length }, (_, index) => {
             const slotIndex = SKILL_BAR_ROW_COUNT + index;
             return (
               <SkillBarSlot
