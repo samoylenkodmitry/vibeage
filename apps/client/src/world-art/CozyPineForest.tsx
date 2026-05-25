@@ -1,8 +1,9 @@
 import { Suspense, useMemo } from 'react';
-import { Clone, useGLTF } from '@react-three/drei';
-import type { Group } from 'three';
+import { useGLTF } from '@react-three/drei';
+import * as THREE from 'three';
 import { ASSET_REGISTRY, getAssetsByKind, type WorldArtAsset } from './assetRegistry';
 import { AssetErrorBoundary } from './AssetErrorBoundary';
+import { InstancedGltf } from './InstancedGltf';
 import { CozyProceduralFallback } from './CozyProceduralFallback';
 import {
   makeCozyGrassScatter,
@@ -67,29 +68,36 @@ type LayerProps = {
 
 function CozyGltfLayer({ scene, quality, pool, scatterFn, baseScale }: LayerProps) {
   const rows = useMemo(() => scatterFn(scene, quality), [scene, quality, scatterFn]);
-  // Drei's `useGLTF` natively accepts an array of paths and
-  // returns a same-length array. This keeps the hook call stable
-  // across renders without depending on the pool being literally
-  // constant.
-  const paths = useMemo(() => pool.map((a) => a.path), [pool]);
-  const gltfs = useGLTF(paths);
-  const loaded = useMemo(() => {
-    const arr = Array.isArray(gltfs) ? gltfs : [gltfs];
-    return pool.map((asset, i) => ({ asset, scene: arr[i].scene as Group }));
-  }, [pool, gltfs]);
-  if (loaded.length === 0) return null;
+  // Group scatter rows into one InstancedGltf draw per pool asset. Per-instance
+  // position / yaw / scale (layer baseScale × asset.baseScale × variance) bake
+  // into the matrix. This renders the whole layer as a few InstancedMeshes
+  // instead of a deep <Clone> per row — the old approach froze the main thread
+  // for seconds when a scene mounted (~310 GLB scene-graph copies).
+  const matricesByAsset = useMemo(() => {
+    const groups: THREE.Matrix4[][] = pool.map(() => []);
+    if (pool.length === 0) return groups;
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const euler = new THREE.Euler();
+    const scaleVec = new THREE.Vector3();
+    for (const row of rows) {
+      const idx = row.variant % pool.length;
+      const asset = pool[idx];
+      const s = baseScale * asset.baseScale * (0.85 + row.scaleVariance * 0.5);
+      position.set(row.x, row.y + asset.yOffset, row.z);
+      euler.set(0, row.rotationY, 0);
+      quaternion.setFromEuler(euler);
+      scaleVec.set(s, s, s);
+      groups[idx].push(new THREE.Matrix4().compose(position, quaternion, scaleVec));
+    }
+    return groups;
+  }, [rows, pool, baseScale]);
+
   return (
-    <group>
-      {rows.map((row) => {
-        const idx = row.variant % loaded.length;
-        const { asset, scene: gltfScene } = loaded[idx];
-        const scale = baseScale * asset.baseScale * (0.85 + row.scaleVariance * 0.5);
-        return (
-          <group key={row.id} position={[row.x, row.y + asset.yOffset, row.z]} rotation={[0, row.rotationY, 0]} scale={scale}>
-            <Clone object={gltfScene} />
-          </group>
-        );
-      })}
-    </group>
+    <>
+      {pool.map((asset, i) => (
+        <InstancedGltf key={asset.path} src={asset.path} matrices={matricesByAsset[i]} />
+      ))}
+    </>
   );
 }
