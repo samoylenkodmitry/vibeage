@@ -23,6 +23,7 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'LootPickup',
   'DropItem',
   'DestroyItem',
+  'MoveInventorySlot',
   'UseItem',
   'CraftItem',
   'RequestInventory',

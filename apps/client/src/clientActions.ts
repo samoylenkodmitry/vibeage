@@ -40,6 +40,8 @@ export type ClientActions = {
   dropItem: (slotIndex: number, count?: number) => void;
   /** Bag context menu — destroy a stack without spawning ground loot. */
   destroyItem: (slotIndex: number, count?: number) => void;
+  /** Drag-to-rearrange: move/swap the stack at one bag slot into another. */
+  moveInventorySlot: (fromSlotIndex: number, toSlotIndex: number) => void;
   craftItem: (recipeSlotIndex: number) => void;
   equipItem: (slotIndex: number, requestedSlot?: string) => void;
   unequipItem: (slot: string) => void;
@@ -128,7 +130,7 @@ export function useClientActions(
   // pending-pickup machinery as the `pickupNearest` hotkey path.
   const pickUpLoot = walkThenPickup;
 
-  const { learnSkill, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
+  const { learnSkill, useItem, dropItem, destroyItem, moveInventorySlot, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn } =
     useIdentityAndItemActions(roomRef, stateRef);
   const { talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand } = useQuestActions(roomRef);
 
@@ -143,8 +145,8 @@ export function useClientActions(
   }, [dispatch]);
 
   return useMemo(
-    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack, setTrackedQuest }),
-    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack, setTrackedQuest],
+    () => ({ sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, moveInventorySlot, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack, setTrackedQuest }),
+    [sendMoveIntent, selectTarget, cycleTarget, castSkill, attackTarget, learnSkill, pickUpLoot, pickupNearest, useItem, dropItem, destroyItem, moveInventorySlot, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, talkNpc, acceptQuest, cancelQuest, advanceQuest, claimQuestReward, buyFromVendor, sellToVendor, gmCommand, respawn, devTeleport, sendChat, tryFirePendingCast, tryFirePendingPickup, tryAdvanceAutoAttack, setTrackedQuest],
   );
 }
 
@@ -298,13 +300,9 @@ function useTryFirePendingCast(
       dispatch({ type: 'clearPendingCast' });
       return;
     }
-    // PR BB — wait until we're firmly inside range, not just at the
-    // edge. Server-side position runs a tick or two behind the
-    // client's predicted position, so firing at exactly the range
-    // boundary tripped a CastFail(outofrange) on the first attempt
-    // (the second press worked because the player had walked closer
-    // by then). Padding here so the server is virtually always
-    // already inside range when CastReq arrives.
+    // PR BB — wait until firmly inside range (not the edge): server
+    // position lags the client's prediction, so firing at the boundary
+    // tripped CastFail(outofrange) on the first press. Pad with a margin.
     if (isOutOfCastRange(player, target, pending.skillId as SkillId, PENDING_CAST_RANGE_MARGIN)) {
       return;
     }
@@ -538,6 +536,10 @@ function useIdentityAndItemActions(
       ? { type: 'DestroyItem', slotIndex, count, clientSeq: nextClientSeq() }
       : { type: 'DestroyItem', slotIndex, clientSeq: nextClientSeq() });
   }, [roomRef]);
+  // Drag-to-rearrange the bag (server is authoritative on slot order).
+  const moveInventorySlot = useCallback((fromSlotIndex: number, toSlotIndex: number) => {
+    if (fromSlotIndex !== toSlotIndex) roomRef.current?.send(SESSION_EVENTS.message, { type: 'MoveInventorySlot', fromSlotIndex, toSlotIndex, clientSeq: nextClientSeq() });
+  }, [roomRef]);
   const craftItem = useCallback((recipeSlotIndex: number) => {
     roomRef.current?.send(SESSION_EVENTS.message, { type: 'CraftItem', recipeSlotIndex, clientTs: Date.now(), clientSeq: nextClientSeq() });
   }, [roomRef]);
@@ -566,7 +568,7 @@ function useIdentityAndItemActions(
       room.send(SESSION_EVENTS.message, { type: 'RespawnRequest', id: playerId, clientTs: Date.now() });
     }
   }, [roomRef, stateRef]);
-  return { learnSkill, useItem, dropItem, destroyItem, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
+  return { learnSkill, useItem, dropItem, destroyItem, moveInventorySlot, craftItem, equipItem, unequipItem, selectClass, selectRace, selectSpecialization, upgradeSkill, respawn };
 }
 
 function useCommandActions(

@@ -46,6 +46,8 @@ export type HudPanelsProps = {
   onDropItem: (slotIndex: number, count?: number) => void;
   /** Bag context menu — destroy a stack (no ground loot). */
   onDestroyItem: (slotIndex: number, count?: number) => void;
+  /** Drag a bag slot onto another to rearrange (move/swap). */
+  onMoveItem: (fromSlotIndex: number, toSlotIndex: number) => void;
   onCraftItem: (recipeSlotIndex: number) => void;
   onEquipItem: (slotIndex: number, requestedSlot?: string) => void;
   onUnequipItem: (slot: string) => void;
@@ -74,7 +76,7 @@ export type HudPanelsProps = {
 export function HudPanels({
   panels, state, player, hasSelectedTarget, hasLootNearby,
   cameraAngleRef, navigationMarker, onSetNavigationMarker,
-  onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem,
+  onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onMoveItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
   onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, onGmCommand,
   onPickupNearest, onMove, onSendChat, onBindItem,
@@ -104,6 +106,7 @@ export function HudPanels({
           onOpenRecipe={panels.openCraft}
           onDropItem={onDropItem}
           onDestroyItem={onDestroyItem}
+          onMoveItem={onMoveItem}
           onBindItem={onBindItem}
         />
       )}

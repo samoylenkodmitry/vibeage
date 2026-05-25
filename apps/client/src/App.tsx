@@ -77,6 +77,7 @@ export default function App() {
         onUseItem={client.useItem}
         onDropItem={client.dropItem}
         onDestroyItem={client.destroyItem}
+        onMoveItem={client.moveInventorySlot}
         onCraftItem={client.craftItem}
         onEquipItem={client.equipItem}
         onUnequipItem={client.unequipItem}

@@ -42,6 +42,7 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   LootPickup: true,
   DropItem: true,
   DestroyItem: true,
+  MoveInventorySlot: true,
   UseItem: true,
   CraftItem: true,
   RequestInventory: true,
