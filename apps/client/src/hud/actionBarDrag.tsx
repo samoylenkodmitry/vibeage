@@ -23,6 +23,7 @@ import type { ActionRef } from './useActionBar';
 export type BarDragPayload =
   | { kind: 'skill'; id: SkillId }
   | { kind: 'item'; id: string }
+  | { kind: 'action'; id: string }
   | { kind: 'reorder'; fromSlot: number };
 
 export type BarDropAction =
@@ -43,6 +44,9 @@ export function resolveBarDrop(payload: BarDragPayload, toSlot: number | null): 
   }
   if (payload.kind === 'skill') {
     return { type: 'set', slot: toSlot, ref: { kind: 'skill', id: payload.id } };
+  }
+  if (payload.kind === 'action') {
+    return { type: 'set', slot: toSlot, ref: { kind: 'action', id: payload.id } };
   }
   return { type: 'set', slot: toSlot, ref: { kind: 'item', id: payload.id } };
 }

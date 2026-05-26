@@ -1378,8 +1378,14 @@ input {
   text-align: left;
 }
 
-.action-button:hover:not(:disabled) {
+.action-button:hover:not([aria-disabled='true']) {
   background: rgba(44, 52, 55, 0.92);
+}
+
+/* Cast-disabled actions stay draggable (aria-disabled, not the native
+   attribute) so they can be bound to the action bar; just dim them. */
+.action-button[aria-disabled='true'] {
+  opacity: 0.5;
 }
 
 /* The actions-panel overlaps the inventory-panel at typical
@@ -1397,7 +1403,10 @@ input {
 .actions-panel .panel-title {
   pointer-events: none;
 }
-.action-button:not(:disabled) {
+/* Action buttons stay interactive even when cast-disabled (aria-disabled)
+   so they can still be dragged onto the action bar. Only the panel chrome
+   and gaps fall through to the bag beneath. */
+.action-button {
   pointer-events: auto;
 }
 

@@ -19,7 +19,7 @@ import { usePersistedToggle } from './hud/usePersistedToggle';
 import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
-import { SkillBar } from './hud/SkillBar';
+import { SkillBar, type BuiltinBarAction } from './hud/SkillBar';
 import { useActionBar, findBagSlotForItem, type ActionRef } from './hud/useActionBar';
 import { ActionBarDragProvider } from './hud/actionBarDrag';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
@@ -74,6 +74,31 @@ type GameHudProps = {
   onMove?: () => void;
   onSendChat?: (text: string, scope: 'near' | 'all') => void;
 };
+
+/** Metadata + handlers for the built-in UI actions (Move/Pickup) that can be
+ *  bound to action-bar slots. Skills/items resolve themselves; these don't. */
+function buildBuiltinBarActions(
+  alive: boolean,
+  hasSelectedTarget: boolean,
+  hasNavMarker: boolean,
+  lootCount: number,
+  onMove?: () => void,
+  onPickupNearest?: () => void,
+): Record<string, BuiltinBarAction> {
+  const noop = () => undefined;
+  return {
+    move: {
+      label: 'Move', hotkey: 'M',
+      disabled: !alive || (!hasSelectedTarget && !hasNavMarker),
+      onInvoke: onMove ?? noop,
+    },
+    pickup: {
+      label: 'Pickup', hotkey: 'F',
+      disabled: !alive || lootCount === 0,
+      onInvoke: onPickupNearest ?? noop,
+    },
+  };
+}
 
 export function GameHud(props: GameHudProps) {
   const {
@@ -166,6 +191,7 @@ export function GameHud(props: GameHudProps) {
         onUseItem={onUseItem}
         actionBar={actionBar}
         onSetSlot={setSlot} onSwapSlot={swapSlots} onClearSlot={clearSlot}
+        builtinActions={buildBuiltinBarActions(Boolean(player?.isAlive), targetIsAlive, Boolean(navigationMarker), Object.keys(state.groundLoot).length, onMove, onPickupNearest)}
         locked={locked} onToggleLock={toggleLocked}
       />
       <PanelToggleStrip panels={panels} unspentSkillPoints={hasSpendableSkillPoints(player) ? (player?.availableSkillPoints ?? 0) : 0} />
@@ -592,6 +618,12 @@ function useSkillHotkeys({
             event.preventDefault();
             onCastSkill(binding.id);
           }
+          return;
+        }
+        if (binding?.kind === 'action') {
+          // A slot is just a shortcut: pressing it invokes whatever it holds.
+          if (binding.id === 'move') { event.preventDefault(); moveRef.current?.(); }
+          else if (binding.id === 'pickup') { event.preventDefault(); pickupRef.current?.(); }
           return;
         }
         if (binding?.kind === 'item' && useItemRef.current?.(slotIndex)) {
