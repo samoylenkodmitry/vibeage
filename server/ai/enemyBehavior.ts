@@ -145,9 +145,10 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
     return { damage: 0, killed: false, miss: true };
   }
 
-  // Route through the shared defensive pipeline so shield absorb and
-  // below-half-HP mitigation apply to mob damage, not just PvP casts.
-  const damage = applyResolvedDamageToTarget(targetPlayer, enemy.attackDamage, now);
+  // Route through the shared defensive pipeline so shield absorb,
+  // below-half-HP mitigation, and P.Def apply to mob damage, not just
+  // PvP casts. Mob swings are physical.
+  const damage = applyResolvedDamageToTarget(targetPlayer, enemy.attackDamage, now, { kind: 'physical' });
 
   let killed = false;
   if (targetPlayer.health <= 0) {

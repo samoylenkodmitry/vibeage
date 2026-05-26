@@ -318,7 +318,10 @@ function applyCastToTarget(
   // shield absorb, and the Resurrection 1-HP save all live in
   // `applyResolvedDamageToTarget` so enemy melee / boss signatures
   // run the identical math. Returns the amount that reached HP.
-  const incoming = applyResolvedDamageToTarget(target, damage);
+  // Magical skills test M.Def, everything else P.Def (utility skills
+  // with a damage component are rare and read as physical).
+  const damageKind = skill.kind === 'magical' ? 'magical' : 'physical';
+  const incoming = applyResolvedDamageToTarget(target, damage, Date.now(), { kind: damageKind });
 
   // §45.3 follow-up — Dark Avenger Sanguine Blade: hits restore
   // a small fraction of the post-mitigation damage as caster HP.

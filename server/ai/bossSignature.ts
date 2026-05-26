@@ -209,8 +209,8 @@ function resolveBlinkImpact(
     z: target.position.z + uz * mech.teleportOffset,
   };
   progress.shouldBroadcastEnemyUpdate = true;
-  // Shield absorb + below-half-HP mitigation apply to boss damage too.
-  const damage = applyResolvedDamageToTarget(target, enemy.attackDamage * mech.damageMul, context.now);
+  // Shield absorb + below-half-HP mitigation + P.Def apply to boss damage too.
+  const damage = applyResolvedDamageToTarget(target, enemy.attackDamage * mech.damageMul, context.now, { kind: 'physical' });
   const killed = target.health <= 0 ? killPlayer(target, context.now) : false;
   progress.events.push({
     type: 'enemyAttack',
@@ -253,8 +253,8 @@ function resolveAreaImpact(
     if (distSq > outer * outer) continue;
     if (inner > 0 && distSq < inner * inner) continue;
     if (mech.kind === 'cone' && !insideConeWedge(dx, dz, dirRad, halfAngleRad)) continue;
-    // Shield absorb + below-half-HP mitigation apply to area damage too.
-    const damage = applyResolvedDamageToTarget(p, rawDamage, context.now);
+    // Shield absorb + below-half-HP mitigation + P.Def apply to area damage too.
+    const damage = applyResolvedDamageToTarget(p, rawDamage, context.now, { kind: 'physical' });
     const killed = p.health <= 0 ? killPlayer(p, context.now) : false;
     progress.events.push({
       type: 'enemyAttack',

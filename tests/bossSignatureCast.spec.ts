@@ -3,6 +3,7 @@ import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import { createTransientPlayer } from '../server/playerFactory';
+import { mitigatedDamage } from '../packages/sim/combatMath';
 import { MINI_BOSSES, type MiniBossMechanic } from '../packages/content/miniBosses';
 
 function circleMechanic(bossId: keyof typeof MINI_BOSSES): Extract<MiniBossMechanic, { kind: 'circle' }> {
@@ -67,7 +68,9 @@ describe('mini-boss signature cast', () => {
       players, spatialGrid: spatial, deltaTime: 0.05, now: castStart + eng.windUpMs + 10,
     });
     expect(player.health).toBeLessThan(hpBeforeImpact);
-    const signatureDamage = boss.attackDamage * eng.damageMul;
+    // The event reports the *applied* damage, i.e. the raw signature
+    // damage after the player's P.Def mitigation.
+    const signatureDamage = mitigatedDamage(boss.attackDamage * eng.damageMul, player.stats?.pDef ?? 0);
     const sigEvent = impactRes.events.find(
       (e) => e.type === 'enemyAttack' && e.targetId === 'p1' && Math.abs(e.damage - signatureDamage) < 0.01,
     );
