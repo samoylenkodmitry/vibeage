@@ -8,7 +8,7 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { killPlayer } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { applyResolvedDamageToTarget } from '../combat/damageResolution.js';
-import { evasionMissChanceFor } from '../combat/statusQueries.js';
+import { incomingMissChance } from '../combat/statusQueries.js';
 import { rollMiss } from '../../packages/sim/combatMath.js';
 
 export type EnemyAttackResult = {
@@ -136,11 +136,11 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
   }
   enemy.lastAttackTime = now;
 
-  // Evasion buffs (Evade / Mist Step) now dodge mob swings too — the
-  // miss roll used to live only in the player-cast path, so a 50%
-  // dodge buff did nothing against the common case of being hit by a
-  // mob. Seeded per (enemy, player, tick) so it's deterministic.
-  const missChance = evasionMissChanceFor(targetPlayer, now);
+  // Evasion now dodges mob swings too (it used to only roll in the
+  // player-cast path): the accuracy-vs-evasion stat differential plus
+  // any flat evasion-buff dodge. Seeded per (enemy, player, tick) so
+  // it's deterministic. Enemy accuracy defaults to the baseline.
+  const missChance = incomingMissChance(enemy.accuracy, targetPlayer, now);
   if (rollMiss(`${enemy.id}:${targetPlayer.id}:${now}`, missChance)) {
     return { damage: 0, killed: false, miss: true };
   }

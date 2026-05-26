@@ -1,4 +1,18 @@
 import { SKILLS, type SkillId } from '../content/skills.js';
+import { ACCURACY_BASELINE, EVASION_BASELINE, MAX_DODGE_CHANCE } from '../content/stats.js';
+
+/**
+ * Dodge chance (0..1) from the opposing accuracy/evasion stats,
+ * measured against their baselines (see stats.ts HIT model). Net
+ * evasion points over the attacker's accuracy convert 1 point = 1%
+ * dodge; equal-or-favourable accuracy yields 0. Evade-style flat
+ * dodge buffs are summed on top by the caller, then clamped.
+ */
+export function computeMissChance(attackerAccuracy: number, targetEvasion: number): number {
+  const deltaPct = (targetEvasion - EVASION_BASELINE) - (attackerAccuracy - ACCURACY_BASELINE);
+  if (deltaPct <= 0) return 0;
+  return Math.min(MAX_DODGE_CHANCE, deltaPct / 100);
+}
 
 /**
  * Calculate the mana cost of a skill.

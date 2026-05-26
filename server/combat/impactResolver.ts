@@ -17,7 +17,7 @@ import {
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
-import { dispelTargetSet, evasionMissChanceFor } from './statusQueries.js';
+import { dispelTargetSet, incomingMissChance } from './statusQueries.js';
 import { applyResolvedDamageToTarget } from './damageResolution.js';
 
 type ImpactContext = {
@@ -144,8 +144,9 @@ function calculateDamage(
     caster: { ...baseStats, dmgMult: casterDmgMult * upgradeDmgMult },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
-    // §52 #6 — explicit `evasion` buff rolls a dodge.
-    targetMissChance: evasionMissChanceFor(target),
+    // Dodge = the accuracy-vs-evasion stat differential plus any flat
+    // evasion-buff dodge (Evade / Mist Step), clamped to the cap.
+    targetMissChance: incomingMissChance(caster?.stats?.accuracy, target),
   });
   if (result.miss) return { damage: 0, crit: false, miss: true };
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target);
@@ -556,18 +557,18 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     target.statusEffects[existingIndex] = reconcileExisting(existing, statusEffect, policy, effect.type);
     if (target.statusEffects[existingIndex] === existing) return; // 'reject' policy — keep existing untouched
   }
-  // §45.3 — a stat-affecting buff (Bless, Slow, Evasion buff) changes
-  // player.stats via the Contribution registry. Recompute here so the
-  // next damage roll / regen tick / display reflects the new buff
-  // immediately. Shield is absent — it's a pure absorb pool, not a
-  // stat contribution.
+  // §45.3 — a stat-affecting buff (Bless, Slow) changes player.stats
+  // via the Contribution registry. Recompute here so the next damage
+  // roll / regen tick / display reflects the new buff immediately.
+  // Shield (pure absorb pool) and the evasion buff (flat dodge applied
+  // in the damage path) are absent — neither is a stat contribution.
   if (!isEnemyEntity(target) && STAT_AFFECTING_EFFECTS.has(effect.type)) {
     recomputePlayerStats(target);
   }
 }
 
 const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set([
-  'bless', 'slow', 'evasion',
+  'bless', 'slow',
 ]);
 
 // §46/slice-2 — applies the four stacking policies. Returns the

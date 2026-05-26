@@ -45,6 +45,14 @@ export interface Enemy {
   maxHealth: number;
   isAlive: boolean;
   attackDamage: number;
+  /**
+   * Hit rating opposed by the target's Evasion (see stats.ts HIT
+   * model). Optional + defaulted to `ACCURACY_BASELINE` in the
+   * damage path, so a mob with no authored accuracy lands every hit
+   * on an unbuffed player and only an evasion build / Evade buff
+   * makes it miss. Authorable per template for evasion-heavy fights.
+   */
+  accuracy?: number;
   attackRange: number;
   baseExperienceValue: number;
   experienceValue: number;
