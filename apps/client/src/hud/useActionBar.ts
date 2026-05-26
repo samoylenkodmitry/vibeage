@@ -18,6 +18,21 @@ export type ActionRef =
   | { kind: 'item'; id: string };
 
 const STORAGE_KEY = 'vibeage:actionBar:v1';
+const LOCK_STORAGE_KEY = 'vibeage:actionBar:locked:v1';
+
+function loadLocked(): boolean {
+  try {
+    const raw = window.localStorage.getItem(LOCK_STORAGE_KEY);
+    if (raw === '1') return true;
+    if (raw === '0') return false;
+    // No stored preference: touch-first devices default to locked so list
+    // scrolling and tap-to-cast aren't hijacked by accidental drags;
+    // mouse/desktop defaults to unlocked (HTML5 drag works out of the box).
+    return !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  } catch {
+    return false;
+  }
+}
 
 /** Drag a skill out of the skill tree onto a bar slot. Payload: `{ skillId }`. */
 export const SKILL_DRAG_MIME = 'application/x-vibeage-skill';
@@ -133,5 +148,21 @@ export function useActionBar(defaultSkills: readonly SkillId[]) {
     });
   }, []);
 
-  return { actionBar, setSlot, clearSlot, swapSlots };
+  // Lock = "freeze" the bar so taps only cast/use and nothing can be
+  // dragged onto, off, or within it. Mainly for touch, where an
+  // accidental drag during combat is easy; persisted so it sticks.
+  const [locked, setLocked] = useState<boolean>(() => loadLocked());
+  const toggleLocked = useCallback(() => {
+    setLocked((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(LOCK_STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        // localStorage unavailable — keep in-memory only.
+      }
+      return next;
+    });
+  }, []);
+
+  return { actionBar, setSlot, clearSlot, swapSlots, locked, toggleLocked };
 }

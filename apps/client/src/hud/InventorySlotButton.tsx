@@ -1,7 +1,14 @@
-import { useEffect, useState, type CSSProperties, type HTMLAttributes } from 'react';
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type DragEvent as ReactDragEvent,
+  type HTMLAttributes,
+} from 'react';
 import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
+import { useActionBarDrag } from './actionBarDrag';
 
 /**
  * Mobile/touch devices can't reliably initiate HTML5 drag from a
@@ -58,6 +65,30 @@ export type InventorySlotCallbacks = {
  *  the user dragged without sharing React state across panels. */
 export const INVENTORY_DRAG_MIME = 'application/x-vibeage-bag-slot';
 
+function handleBagDragOver(event: ReactDragEvent) {
+  if (event.dataTransfer.types.includes(INVENTORY_DRAG_MIME)) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+}
+
+function handleBagDrop(
+  event: ReactDragEvent,
+  index: number,
+  onMoveItem: (fromSlotIndex: number, toSlotIndex: number) => void,
+) {
+  const raw = event.dataTransfer.getData(INVENTORY_DRAG_MIME);
+  if (!raw) return;
+  event.preventDefault();
+  event.stopPropagation();
+  try {
+    const payload = JSON.parse(raw) as { slotIndex?: number };
+    if (typeof payload.slotIndex === 'number' && payload.slotIndex !== index) {
+      onMoveItem(payload.slotIndex, index);
+    }
+  } catch { /* malformed payload */ }
+}
+
 export function InventorySlotButton({
   slot,
   index,
@@ -85,6 +116,7 @@ export function InventorySlotButton({
       ? 'Recipe'
       : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
   const hasMouse = useHasMousePointer();
+  const { beginDrag, consumeDragClick } = useActionBarDrag();
   const title = slot
     ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ''}`
     : 'Empty slot';
@@ -105,24 +137,8 @@ export function InventorySlotButton({
       title={title}
       aria-label={slot ? `${itemName}: click for actions` : `Inventory slot ${index + 1}: empty`}
       draggable={Boolean(slot) && hasMouse}
-      onDragOver={(event) => {
-        if (event.dataTransfer.types.includes(INVENTORY_DRAG_MIME)) {
-          event.preventDefault();
-          event.dataTransfer.dropEffect = 'move';
-        }
-      }}
-      onDrop={(event) => {
-        const raw = event.dataTransfer.getData(INVENTORY_DRAG_MIME);
-        if (!raw) return;
-        event.preventDefault();
-        event.stopPropagation();
-        try {
-          const payload = JSON.parse(raw) as { slotIndex?: number };
-          if (typeof payload.slotIndex === 'number' && payload.slotIndex !== index) {
-            callbacks.onMoveItem(payload.slotIndex, index);
-          }
-        } catch { /* malformed payload */ }
-      }}
+      onDragOver={handleBagDragOver}
+      onDrop={(event) => handleBagDrop(event, index, callbacks.onMoveItem)}
       onDragStart={(event) => {
         if (!slot) return;
         event.dataTransfer.effectAllowed = 'move';
@@ -134,8 +150,15 @@ export function InventorySlotButton({
         // built-in Three.js canvas) at least see something.
         event.dataTransfer.setData('text/plain', `bag-slot:${index}`);
       }}
+      onPointerDown={(event) => {
+        // Touch path: drag onto an action-bar slot. Mouse keeps native
+        // HTML5 drag (and bag-to-ground), so beginDrag ignores it.
+        if (slot) beginDrag({ kind: 'item', id: slot.itemId }, event, itemName);
+      }}
       onClick={(event) => {
-        if (callbacks.consumePendingClick()) {
+        // Swallow the click that ends a touch drag (consumeDragClick) or a
+        // synthetic pending click so neither re-opens the sticky tooltip.
+        if (consumeDragClick() || callbacks.consumePendingClick()) {
           event.stopPropagation();
           return;
         }

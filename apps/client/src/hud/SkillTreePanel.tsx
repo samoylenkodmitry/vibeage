@@ -6,6 +6,7 @@ import {
 } from '../../../../packages/content/classes';
 import { SKILLS, isPassiveSkill, type SkillDef, type SkillId } from '../../../../packages/content/skills';
 import { SKILL_DRAG_MIME } from './useActionBar';
+import { useActionBarDrag } from './actionBarDrag';
 import {
   getSpecializationsForClass,
   PROFICIENCY_LEVEL,
@@ -103,6 +104,8 @@ function SkillRow({
   onUpgradeSkill: (skillId: SkillId) => void;
 }) {
   const skill = SKILLS[row.skillId];
+  const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const canDragToBar = row.status === 'unlocked' && !isPassiveSkill(row.skillId);
   // maxLevel = base level 1 + N upgrade tiers (each tier description
   // lives in SKILLS[id].upgrades[i] and bumps the level by one).
   const maxLevel = 1 + (skill?.upgrades?.length ?? 0);
@@ -116,13 +119,24 @@ function SkillRow({
         type="button"
         className="skill-tree-row-head"
         aria-expanded={expanded}
-        onClick={onToggleExpand}
-        draggable={row.status === 'unlocked' && !isPassiveSkill(row.skillId)}
+        onClick={(e) => {
+          // Swallow the click that ends a touch drag-to-bar so the row
+          // doesn't also expand/collapse.
+          if (consumeDragClick()) {
+            e.preventDefault();
+            return;
+          }
+          onToggleExpand();
+        }}
+        draggable={canDragToBar}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'copy';
           e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: row.skillId }));
         }}
-        title={row.status === 'unlocked' && !isPassiveSkill(row.skillId) ? 'Drag to the action bar' : undefined}
+        onPointerDown={(e) => {
+          if (canDragToBar) beginDrag({ kind: 'skill', id: row.skillId }, e, row.name);
+        }}
+        title={canDragToBar ? 'Drag to the action bar' : undefined}
       >
         <strong>
           {row.name}

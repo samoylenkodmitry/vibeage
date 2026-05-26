@@ -390,7 +390,7 @@ input {
   gap: 4px;
 }
 
-.skill-bar-slot { display: flex; min-width: 0; }
+.skill-bar-slot { display: flex; min-width: 0; touch-action: none; }
 .skill-bar-slot > .skill-button { width: 100%; }
 .skill-button { position: relative; }
 .skill-button__ready-pulse {
@@ -458,6 +458,44 @@ input {
   color: #9dded3;
   font-size: 10px;
   letter-spacing: 0.04em;
+}
+
+.skill-bar-lock {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  z-index: 3;
+  min-height: 20px;
+  padding: 1px 9px;
+  border: 1px solid rgba(141, 233, 215, 0.32);
+  border-radius: 999px;
+  background: rgba(5, 14, 18, 0.72);
+  color: #9dded3;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.skill-bar-lock[aria-pressed='true'] {
+  color: #ffd27d;
+  border-color: rgba(255, 210, 125, 0.5);
+}
+
+/* Floating label that follows the finger during a touch drag-to-bar.
+   pointer-events:none keeps elementFromPoint hitting the slot beneath. */
+.action-bar-drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  transform: translate(-50%, -150%);
+  pointer-events: none;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(5, 14, 18, 0.92);
+  border: 1px solid rgba(141, 233, 215, 0.5);
+  color: #e7fff8;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
 .skill-button {
