@@ -44,8 +44,10 @@ describe('C15 harmful self-auras sweep nearby enemies', () => {
 });
 
 describe('C16 silent_step drops chasers', () => {
-  it('emits invisibility + aggroReset', () => {
+  it('emits invisibility + aggroReset and self-targets', () => {
     expect(SKILLS.silent_step.effects.map((e) => e.type).sort()).toEqual(['aggroReset', 'invisible']);
+    // selfTarget guards the with-an-enemy-selected cast path (like Vanish).
+    expect(SKILLS.silent_step.selfTarget).toBe(true);
   });
 });
 
