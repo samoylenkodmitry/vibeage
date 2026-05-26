@@ -1,5 +1,6 @@
 import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messages.js';
+import { effectiveCastMs } from '../../packages/sim/combatMath.js';
 import { nanoid } from 'nanoid';
 import { PlayerState as Player } from '../../packages/sim/entities.js';
 import { emitCastSnapshot, makeCastSnapshot, sendCastSnapshotToClient } from './castSnapshots.js';
@@ -94,7 +95,8 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
     state: CastStateEnum.Casting,
     origin: { x: player.position.x, z: player.position.z },
     startedAt: now,
-    castTimeMs: skill.castMs || 0,
+    // castSpeed shortens the cast bar (see stats.ts TIMING model).
+    castTimeMs: effectiveCastMs(skill.castMs || 0, player.stats?.castSpeed),
     targetId: targetId,
     targetPos: targetPos,
     pos: { x: player.position.x, z: player.position.z }
