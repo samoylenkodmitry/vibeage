@@ -24,7 +24,7 @@ export const EFFECT_LABEL: Record<string, string> = {
   invisible: 'Invisible',
   invuln: 'Invulnerable',
   speed_boost: 'Haste',
-  attackSpeed: 'Rapid Fire',
+  attackSpeed: 'Attack Speed',
   transform: 'Transform',
 };
 

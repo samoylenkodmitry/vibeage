@@ -619,7 +619,7 @@ const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionS
   attackSpeed: [{
     stat: 'attackSpeed', op: 'mul',
     valueFrom: (e) => 1 + (e.value ?? 0) / 100,
-    labelFrom: (e) => `Rapid Fire (+${e.value ?? 0}% atk speed)`,
+    labelFrom: (e) => `Attack speed (+${e.value ?? 0}%)`,
   }],
   // NOTE: `shield` is intentionally absent. A shield is a damage-
   // absorb pool drained by `absorbWithShield` in the damage pipeline

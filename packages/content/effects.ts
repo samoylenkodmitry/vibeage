@@ -190,7 +190,7 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
   },
   attackSpeed: {
     type: 'attackSpeed',
-    label: 'Rapid Fire',
+    label: 'Attack Speed',
     description: 'Increases attack speed (shorter auto-attack interval) by the listed percent.',
     category: 'buff',
     valueUnit: '%',
