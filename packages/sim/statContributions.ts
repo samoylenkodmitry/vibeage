@@ -10,7 +10,7 @@
  * anywhere else in the codebase.
  */
 import type { CharacterClass } from '../content/classes.js';
-import { ACCURACY_BASELINE, EVASION_BASELINE } from '../content/stats.js';
+import { ACCURACY_BASELINE, ATTACK_SPEED_BASELINE, EVASION_BASELINE } from '../content/stats.js';
 import { PASSIVE_SKILL_CONTRIBUTIONS } from '../content/classPassives.js';
 import type { SkillId } from '../content/skills.js';
 import { activeSetBonuses } from '../content/equipmentSets.js';
@@ -304,7 +304,7 @@ function pushBaselineDerivedContributions(out: Contribution[]): void {
   out.push({ source: 'baseline:maxMana', label: 'Baseline MP', stat: 'maxMana', op: 'base', value: 100 });
   out.push({ source: 'baseline:accuracy', label: 'Baseline accuracy', stat: 'accuracy', op: 'base', value: ACCURACY_BASELINE });
   out.push({ source: 'baseline:evasion', label: 'Baseline evasion', stat: 'evasion', op: 'base', value: EVASION_BASELINE });
-  out.push({ source: 'baseline:attackSpeed', label: 'Baseline attack speed', stat: 'attackSpeed', op: 'base', value: 300 });
+  out.push({ source: 'baseline:attackSpeed', label: 'Baseline attack speed', stat: 'attackSpeed', op: 'base', value: ATTACK_SPEED_BASELINE });
   out.push({ source: 'baseline:castSpeed', label: 'Baseline cast speed', stat: 'castSpeed', op: 'base', value: 1 });
   // PR TT — baseline matches the legacy DEFAULT_PLAYER_SPEED so the
   // server can read `player.stats.runSpeed` directly as units/sec

@@ -1,5 +1,24 @@
 import { SKILLS, type SkillId } from '../content/skills.js';
-import { ACCURACY_BASELINE, DEFENSE_HALF_REDUCTION, EVASION_BASELINE, MAX_DODGE_CHANCE } from '../content/stats.js';
+import { ACCURACY_BASELINE, ATTACK_SPEED_BASELINE, DEFENSE_HALF_REDUCTION, EVASION_BASELINE, MAX_DODGE_CHANCE } from '../content/stats.js';
+
+/**
+ * Effective cast time after castSpeed (see stats.ts TIMING model):
+ * `castMs / castSpeed`, castSpeed floored at 1 so it never lengthens
+ * a cast. Baseline castSpeed 1 → unchanged.
+ */
+export function effectiveCastMs(castMs: number, castSpeed: number | undefined): number {
+  const speed = Math.max(1, castSpeed ?? 1);
+  return Math.round(castMs / speed);
+}
+
+/**
+ * Cooldown multiplier from attackSpeed for auto-attacks: `BASELINE /
+ * attackSpeed`, so more attackSpeed = shorter interval. Baseline
+ * attackSpeed → 1 (unchanged). Floored to avoid div-by-zero.
+ */
+export function attackSpeedCooldownFactor(attackSpeed: number | undefined): number {
+  return ATTACK_SPEED_BASELINE / Math.max(1, attackSpeed ?? ATTACK_SPEED_BASELINE);
+}
 
 /**
  * Scale incoming damage by the target's defense (see stats.ts DEFENSE

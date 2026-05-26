@@ -17,10 +17,10 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 
 | # | Stat | Claim (stats.ts) | Reality | Plan | Status |
 |---|------|------------------|---------|------|--------|
-| A1 | **pDef** | "Reduces incoming physical damage." | No damage path subtracts it. | Mitigation curve in the damage pipeline keyed on attacker `kind: 'physical'`. Data-driven constant in stats.ts; wiki shows the formula. | ⬜ |
-| A2 | **mDef** | "Reduces incoming magical damage." | Same — never applied. | Same curve for `kind: 'magical'`. | ⬜ |
-| A3 | **attackSpeed** | "Swings per minute multiplier… faster auto-attack cadence." | Only stored/displayed; no cooldown reads it. | Scale auto-attack (`autoRepeat`) cooldown by attackSpeed. Unblocks Rapid Fire (B6). | ⬜ |
-| A4 | **castSpeed** | "Cast-rate multiplier (higher = faster)." | `skillSystem` sets `castTimeMs = skill.castMs` flat. | Divide effective cast time by castSpeed (floor 1.0, already capped 2.5). | ⬜ |
+| A1 | **pDef** | "Reduces incoming physical damage." | No damage path subtracts it. | `mitigatedDamage` curve (K=`DEFENSE_HALF_REDUCTION`) keyed on attacker kind. | ✅ #687 |
+| A2 | **mDef** | "Reduces incoming magical damage." | Same — never applied. | Same curve for `kind: 'magical'`. | ✅ #687 |
+| A3 | **attackSpeed** | "Swings per minute multiplier… faster auto-attack cadence." | Only stored/displayed; no cooldown reads it. | `attackSpeedCooldownFactor` scales auto-attack (`autoRepeat`) cooldown. Unblocks B6. | ✅ |
+| A4 | **castSpeed** | "Cast-rate multiplier (higher = faster)." | `skillSystem` sets `castTimeMs = skill.castMs` flat. | `effectiveCastMs` divides cast time by castSpeed (floor 1.0). | ✅ |
 
 ## B. Skill description ↔ behavior mismatches — skill does the wrong thing (or nothing) vs its text
 
