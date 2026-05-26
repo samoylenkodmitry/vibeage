@@ -30,7 +30,7 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'burn',       // dotTicker
   'poison',     // dotTicker
   'freeze',     // status effect → enemy state machine
-  'shield',     // absorbWithShield + STATUS_EFFECT_STAT_CONTRIBUTIONS
+  'shield',     // absorbWithShield (damage-absorb pool in the defensive pipeline)
   'bless',      // STATUS_EFFECT_STAT_CONTRIBUTIONS (dmgMult mul)
   'dispel',     // applySkillEffects → filter negative effects
   'taunt',      // applySkillEffects → set targetId

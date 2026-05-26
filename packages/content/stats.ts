@@ -54,7 +54,7 @@ export const STATS: Record<string, StatDef> = {
   // the HUD chip can share one description per key. Single source.
   maxHealth: {
     id: 'maxHealth', short: 'Max HP', name: 'Maximum Health',
-    description: 'Maximum hit points the player can hold. CON, equipment, class passives, and shield buffs raise it.',
+    description: 'Maximum hit points the player can hold. CON, equipment, and class passives raise it. (Shield buffs add a separate absorb pool, not max HP.)',
     tags: ['derived', 'defensive', 'vital'],
   },
   maxMana: {

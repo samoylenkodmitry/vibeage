@@ -70,12 +70,12 @@ describe('enemy behavior helpers', () => {
     expect(applyEnemyAttack(enemy, player, 6_000)).toBeNull();
 
     const firstAttack = applyEnemyAttack(enemy, player, 7_000);
-    expect(firstAttack).toEqual({ damage: 80, killed: false });
+    expect(firstAttack).toEqual({ damage: 80, killed: false, miss: false });
     expect(player.health).toBe(20);
     expect(enemy.lastAttackTime).toBe(7_000);
 
     const lethalAttack = applyEnemyAttack(enemy, player, 9_000);
-    expect(lethalAttack).toEqual({ damage: 80, killed: true });
+    expect(lethalAttack).toEqual({ damage: 80, killed: true, miss: false });
     expect(player).toMatchObject({
       health: 0,
       isAlive: false,

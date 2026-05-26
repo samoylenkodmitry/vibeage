@@ -18,6 +18,7 @@ import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 import { dispelTargetSet, evasionMissChanceFor } from './statusQueries.js';
+import { applyResolvedDamageToTarget } from './damageResolution.js';
 
 type ImpactContext = {
   caster: PlayerState | null;
@@ -264,19 +265,6 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
   return targets;
 }
 
-// §45.3 follow-up — live-eval mitigation against current HP, not stale stats snapshot.
-function targetDamageTakenMult(target: PlayerState): number {
-  const spec = target.specializationId ? getSpecializationById(target.specializationId) : null;
-  if (!spec) return 1;
-  const hpFraction = target.maxHealth > 0 ? target.health / target.maxHealth : 1;
-  if (hpFraction >= 0.5) return 1;
-  const specMul = spec.specializationPassive.modifiers.belowHalfHpDamageTakenMultiplier ?? 1;
-  const profMul = target.level >= PROFICIENCY_LEVEL
-    ? (spec.proficiencyPassive.modifiers.belowHalfHpDamageTakenMultiplier ?? 1)
-    : 1;
-  return specMul * profMul;
-}
-
 // §45.3 follow-up — spec + proficiency tier multiplier on beneficial-buff durations.
 function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): number {
   if (!caster?.specializationId) return 1;
@@ -291,45 +279,6 @@ function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): 
 
 function isBeneficialEffectType(type: string): boolean {
   return BENEFICIAL_EFFECT_TYPES.has(type);
-}
-
-// §45.3 — active invuln (Phoenix Knight Resurrection) zeroes incoming damage.
-function hasActiveInvuln(player: PlayerState): boolean {
-  const now = Date.now();
-  return (player.statusEffects ?? []).some((e) => {
-    if (e.type !== 'invuln') return false;
-    return (e.startTimeTs ?? 0) + (e.durationMs ?? 0) > now;
-  });
-}
-
-function resurrectionInvulnMsFor(target: PlayerState): number {
-  if (!target.specializationId) return 0;
-  const spec = getSpecializationById(target.specializationId);
-  if (!spec) return 0;
-  const specMs = spec.specializationPassive.modifiers.resurrectionInvulnMs ?? 0;
-  const profMs = target.level >= PROFICIENCY_LEVEL
-    ? (spec.proficiencyPassive.modifiers.resurrectionInvulnMs ?? 0)
-    : 0;
-  // Take the larger of the two so a spec that grants Resurrection
-  // at both tiers uses the more generous window, not the sum.
-  return Math.max(specMs, profMs);
-}
-
-function upsertInvulnEffect(target: PlayerState, durationMs: number): void {
-  target.statusEffects = target.statusEffects ?? [];
-  // Replace any existing invuln so a second save (impossible
-  // today — one-shot per life) wouldn't stack.
-  const existingIndex = target.statusEffects.findIndex((e) => e.type === 'invuln');
-  const effect = {
-    id: nanoid(), type: 'invuln', value: 1,
-    durationMs, startTimeTs: Date.now(),
-    sourceSkill: 'spec:resurrection',
-  };
-  if (existingIndex >= 0) {
-    target.statusEffects[existingIndex] = effect;
-  } else {
-    target.statusEffects.push(effect);
-  }
 }
 
 // §45.3 — caster spec poison-tick multiplier (spec × proficiency tier).
@@ -364,34 +313,11 @@ function applyCastToTarget(
 ): number {
   const { caster, skill, outbound, world } = context;
   if (miss) return 0; // §52 #6 — dodged; CombatLog at call site carries miss=true.
-  // §45.3 follow-up — `invuln` status effect (e.g. from Phoenix
-  // Knight Resurrection) zeroes incoming damage entirely for its
-  // duration. Skips the rest of the damage pipeline.
-  if (!isEnemy(target) && hasActiveInvuln(target)) {
-    return 0;
-  }
-  // §45.3 follow-up — spec passives like Templar Knight's
-  // Last Stand mitigate damage when the player is already below
-  // half HP. Evaluated live against current HP because the stat
-  // pipeline only recomputes on level/equip/effect changes —
-  // health-fraction predicates would otherwise stay stale across
-  // a fight.
-  const mitigated = isEnemy(target) ? damage : damage * targetDamageTakenMult(target);
-  let incoming = absorbWithShield(target, mitigated);
-
-  // §45.3 follow-up — Phoenix Knight Resurrection: a hit that
-  // would otherwise kill the player snaps them to 1 HP and grants
-  // a brief invuln window. One-shot per life; reset on respawn.
-  if (!isEnemy(target) && incoming >= target.health) {
-    const saveMs = resurrectionInvulnMsFor(target);
-    if (saveMs > 0 && !target.usedResurrectionThisLife) {
-      target.usedResurrectionThisLife = true;
-      incoming = Math.max(0, target.health - 1);
-      upsertInvulnEffect(target, saveMs);
-    }
-  }
-
-  target.health = Math.max(0, target.health - incoming);
+  // Shared defensive pipeline — invuln, below-half-HP mitigation,
+  // shield absorb, and the Resurrection 1-HP save all live in
+  // `applyResolvedDamageToTarget` so enemy melee / boss signatures
+  // run the identical math. Returns the amount that reached HP.
+  const incoming = applyResolvedDamageToTarget(target, damage);
 
   // §45.3 follow-up — Dark Avenger Sanguine Blade: hits restore
   // a small fraction of the post-mitigation damage as caster HP.
@@ -630,17 +556,18 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     target.statusEffects[existingIndex] = reconcileExisting(existing, statusEffect, policy, effect.type);
     if (target.statusEffects[existingIndex] === existing) return; // 'reject' policy — keep existing untouched
   }
-  // §45.3 — a stat-affecting buff (Bless, Slow, Shield, Evasion buff)
-  // changes player.stats via the Contribution registry. Recompute
-  // here so the next damage roll / regen tick / display reflects the
-  // new buff immediately.
+  // §45.3 — a stat-affecting buff (Bless, Slow, Evasion buff) changes
+  // player.stats via the Contribution registry. Recompute here so the
+  // next damage roll / regen tick / display reflects the new buff
+  // immediately. Shield is absent — it's a pure absorb pool, not a
+  // stat contribution.
   if (!isEnemyEntity(target) && STAT_AFFECTING_EFFECTS.has(effect.type)) {
     recomputePlayerStats(target);
   }
 }
 
 const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set([
-  'bless', 'slow', 'shield', 'evasion',
+  'bless', 'slow', 'evasion',
 ]);
 
 // §46/slice-2 — applies the four stacking policies. Returns the
@@ -664,30 +591,6 @@ function reconcileExisting(
 
 function isEnemyEntity(target: Enemy | PlayerState): target is Enemy {
   return 'type' in target && 'spawnPosition' in target;
-}
-
-function absorbWithShield(target: Enemy | PlayerState, damage: number): number {
-  if (damage <= 0) {
-    return damage;
-  }
-  const effects = target.statusEffects;
-  if (!effects?.length) {
-    return damage;
-  }
-  let remaining = damage;
-  for (const effect of effects) {
-    if (effect.type !== 'shield' || effect.value <= 0) {
-      continue;
-    }
-    const absorbed = Math.min(effect.value, remaining);
-    effect.value -= absorbed;
-    remaining -= absorbed;
-    if (remaining <= 0) {
-      break;
-    }
-  }
-  target.statusEffects = effects.filter((effect) => effect.type !== 'shield' || effect.value > 0);
-  return remaining;
 }
 
 function isEnemy(target: Enemy | PlayerState): target is Enemy {

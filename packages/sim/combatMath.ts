@@ -64,16 +64,23 @@ export interface DamageOpts {
   targetMissChance?: number;
 }
 
+/**
+ * §52 #6 — independent, seeded miss roll. XORs a fixed constant so
+ * the stream doesn't share bits with the variance or crit rolls. A
+ * `missChance` of 0 (or less) never misses; values are clamped to
+ * [0, 1]. Shared by `getDamage` (player casts) and the enemy-attack
+ * path so both resolve dodges through one implementation.
+ */
+export function rollMiss(seed: string, missChance: number): boolean {
+  const chance = Math.max(0, Math.min(1, missChance));
+  if (chance <= 0) return false;
+  return rng(hash(seed) ^ 0xD0DEC0DE)() < chance;
+}
+
 export function getDamage(opts: DamageOpts): { dmg: number; crit: boolean; miss: boolean } {
   const { caster, skill, seed, targetMissChance } = opts;
-  // §52 #6 — independent miss-roll stream. XOR a fresh constant so
-  // it doesn't share bits with the variance or crit streams.
-  const missChance = Math.max(0, Math.min(1, targetMissChance ?? 0));
-  if (missChance > 0) {
-    const missRoll = rng(hash(seed) ^ 0xD0DEC0DE)();
-    if (missRoll < missChance) {
-      return { dmg: 0, crit: false, miss: true };
-    }
+  if (rollMiss(seed, targetMissChance ?? 0)) {
+    return { dmg: 0, crit: false, miss: true };
   }
   const roll = rng(hash(seed))();              // 0-1 uniform
   const variance = 1 + (roll * 2 - 1) * (skill.variance ?? 0.1);

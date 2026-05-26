@@ -7,10 +7,16 @@ import {
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { killPlayer } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import { applyResolvedDamageToTarget } from '../combat/damageResolution.js';
+import { evasionMissChanceFor } from '../combat/statusQueries.js';
+import { rollMiss } from '../../packages/sim/combatMath.js';
 
 export type EnemyAttackResult = {
+  /** Damage actually applied to the player's HP (post shield / mitigation). 0 on a dodge. */
   damage: number;
   killed: boolean;
+  /** True when the player dodged the swing (active evasion buff). */
+  miss: boolean;
 };
 
 export function findAggroTargetId(
@@ -128,10 +134,20 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
   if (now - enemy.lastAttackTime < enemy.attackCooldownMs) {
     return null;
   }
-
-  const damage = enemy.attackDamage;
-  targetPlayer.health -= damage;
   enemy.lastAttackTime = now;
+
+  // Evasion buffs (Evade / Mist Step) now dodge mob swings too — the
+  // miss roll used to live only in the player-cast path, so a 50%
+  // dodge buff did nothing against the common case of being hit by a
+  // mob. Seeded per (enemy, player, tick) so it's deterministic.
+  const missChance = evasionMissChanceFor(targetPlayer, now);
+  if (rollMiss(`${enemy.id}:${targetPlayer.id}:${now}`, missChance)) {
+    return { damage: 0, killed: false, miss: true };
+  }
+
+  // Route through the shared defensive pipeline so shield absorb and
+  // below-half-HP mitigation apply to mob damage, not just PvP casts.
+  const damage = applyResolvedDamageToTarget(targetPlayer, enemy.attackDamage, now);
 
   let killed = false;
   if (targetPlayer.health <= 0) {
@@ -141,7 +157,7 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
     killed = killPlayer(targetPlayer, now);
   }
 
-  return { damage, killed };
+  return { damage, killed, miss: false };
 }
 
 export function makeEnemyUpdate(enemy: Enemy): Pick<Enemy, 'id' | 'targetId' | 'aiState'> {
