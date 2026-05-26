@@ -1382,9 +1382,11 @@ input {
   background: rgba(44, 52, 55, 0.92);
 }
 
-/* Cast-disabled actions stay draggable (aria-disabled, not the native
-   attribute) so they can be bound to the action bar; just dim them. */
-.action-button[aria-disabled='true'] {
+/* Cast-disabled actions/slots stay draggable (aria-disabled, not the native
+   attribute) so they can be bound to / reordered on the action bar; dim them
+   to match the native disabled look. */
+.action-button[aria-disabled='true'],
+.skill-button[aria-disabled='true'] {
   opacity: 0.5;
 }
 

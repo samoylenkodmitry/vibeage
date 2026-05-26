@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import { useNow } from './useNow';
 import type { PlayerEntity } from '../gameTypes';
@@ -197,12 +197,18 @@ function SkillBarSlot({
   const knownSkill = slot?.kind === 'skill' && (player?.unlockedSkills?.includes(slot.id) ?? false)
     ? slot.id : null;
   const dragLabel = slotDragLabel(slot, slotIndex, builtinActions);
-  const drag = makeSlotDragHandlers(slotIndex, Boolean(slot), locked, { onSetSlot, onSwapSlot, onClearSlot });
+  const hasContent = Boolean(slot);
+  // Memoized so the 100ms cooldown tick (now) doesn't recreate four handlers
+  // across all 20 slots every frame.
+  const drag = useMemo(
+    () => makeSlotDragHandlers(slotIndex, hasContent, locked, { onSetSlot, onSwapSlot, onClearSlot }),
+    [slotIndex, hasContent, locked, onSetSlot, onSwapSlot, onClearSlot],
+  );
   return (
     <div
       className="skill-bar-slot"
       data-bar-slot={slotIndex}
-      draggable={Boolean(slot) && !locked && hasMouse}
+      draggable={hasContent && !locked && hasMouse}
       onDragStart={drag.onDragStart}
       onDragEnd={drag.onDragEnd}
       onDragOver={drag.onDragOver}
@@ -270,8 +276,9 @@ function BarActionButton({
 }) {
   const className = `skill-button skill-button--self-cast${compact ? ' skill-button--compact' : ''}`;
   if (!action) {
+    // aria-disabled (not native) so the slot stays draggable/removable.
     return (
-      <button type="button" className={className} disabled aria-label="Empty slot">
+      <button type="button" className={className} aria-disabled aria-label="Empty slot">
         <span className="skill-button__hotkey">{hotkey}</span>
         <strong className="skill-button__name">Empty</strong>
       </button>
@@ -281,10 +288,10 @@ function BarActionButton({
     <button
       type="button"
       className={className}
-      disabled={action.disabled}
+      aria-disabled={action.disabled}
       aria-label={`${action.label} action`}
       aria-keyshortcuts={ariaHotkeys}
-      onClick={action.onInvoke}
+      onClick={() => { if (!action.disabled) action.onInvoke(); }}
     >
       <span className="skill-button__hotkey">{hotkey}</span>
       <strong className="skill-button__name">{action.label}</strong>
