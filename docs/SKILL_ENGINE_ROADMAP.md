@@ -30,10 +30,10 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 | B6 | **rapidFire** | "Increase your **attack speed**." | Emits `bless` (a +40% *damage* buff). | New `attackSpeed` buff effect (rapidFire emits it), wired to A3. | ✅ |
 | B7 | **wind_dash** | "Burst of **speed** that **breaks pursuit**." | Emits `evasion` (dodge). | Now emits `speed_boost` + `aggroReset`. | ✅ |
 | B8 | **treasure_sense** | "Reveals loot drops at a glance." | Emits `evasion 15` (unrelated). | Loot-highlight effect (client reveal) or repurpose. | 🔎 |
-| B9 | **execute** | "Finishing blow against a **wounded** target." | Flat damage, no low-HP scaling. | Execute bonus: damage scales up as target HP% drops. | ⬜ |
-| B10 | **lucky_strike** | "Chance to **crit big**." | Flat damage, no crit interaction. | Bonus crit chance / crit mult on this cast. | ⬜ |
-| B11 | **soul_eater** | "**Drain life** from your target." | Flat damage, no lifesteal. | `lifesteal` on the cast (heal caster for a % of damage dealt). | ⬜ |
-| B12 | **shadow_strike / shadow_arrow** | "Bypasses / ignores **defenses**." | Flat damage. | Armor-penetration flag that reduces target pDef/mDef in the A1/A2 curve. (Depends on A1/A2.) | ⬜ |
+| B9 | **execute** | "Finishing blow against a **wounded** target." | Flat damage, no low-HP scaling. | `offense.executeBonus` — damage ×(1+bonus·(1−hpFraction)). | ✅ |
+| B10 | **lucky_strike** | "Chance to **crit big**." | Flat damage, no crit interaction. | `offense.bonusCritChance/Mult` added to the cast. | ✅ |
+| B11 | **soul_eater** | "**Drain life** from your target." | Flat damage, no lifesteal. | `offense.lifestealPct` heals caster for % of damage dealt. | ✅ |
+| B12 | **shadow_strike / shadow_arrow** | "Bypasses / ignores **defenses**." | Flat damage. | `offense.armorPen` → mitigation penetration (A1/A2 curve). | ✅ |
 | B13 | **rebirth** | "nearly **invulnerable**." | `shield 800` only. | Acceptable as a big shield; consider a brief `invuln`. Low priority. | 🔎 |
 
 ## C. Area / aura targeting gaps
@@ -50,7 +50,7 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 |---|------|------|--------|
 | D17 | `speed_boost` effect | Now a real `SkillEffectType`; wind_dash (B7) emits it. | ✅ |
 | D18 | `iceBolt` poison `value: 0.5` | Tick does `Math.max(0, value)` = 0.5 flat dmg/tick (negligible). Comment claims "0.5% damage". Reconcile value vs intent. | ⬜ |
-| D19 | New effect types needed | `lifesteal` (B11), `attackSpeed` buff (B6), execute-scaling (B9 — may be a skill flag, not an effect), armor-pen (B12 — skill flag). Add to `SkillEffectType` + `EFFECT_SPECS` + skillSpecAudit as each lands. | ⬜ |
+| D19 | New effect types needed | Done: attackSpeed/speed_boost effects (B6/B7); execute/crit/lifesteal/armor-pen as `SkillOffense` flags (B9–B12). | ✅ |
 
 ---
 
