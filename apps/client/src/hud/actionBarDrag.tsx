@@ -131,8 +131,10 @@ function installDragListeners(
     setGhost({ x: event.clientX, y: event.clientY, label: c.label });
   };
   // Once a drag is active, cancel the browser's scroll for the gesture.
+  // Guard on cancelable: preventDefault on an in-progress scroll is a no-op
+  // that logs a console warning.
   const onTouchMove = (event: TouchEvent) => {
-    if (candidateRef.current?.active) event.preventDefault();
+    if (candidateRef.current?.active && event.cancelable) event.preventDefault();
   };
   const finish = (event: PointerEvent, drop: boolean) => {
     const c = candidateRef.current;
@@ -163,6 +165,10 @@ function installDragListeners(
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onCancel);
   return () => {
+    // Drag armed but not finished at unmount: clear the pending long-press so
+    // it can't fire setGhost on a gone component or leave touchAction stuck.
+    const c = candidateRef.current;
+    if (c) abandon(c);
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('touchmove', onTouchMove);
     window.removeEventListener('pointerup', onUp);
@@ -194,6 +200,14 @@ export function ActionBarDragProvider({
 
   const beginDrag = useCallback<DragContext['beginDrag']>((payload, event, label) => {
     if (locked || event.pointerType === 'mouse') return;
+    // Tear down a still-armed prior candidate (rapid taps / multi-touch) so we
+    // don't leak its timer, ghost, or a stuck touchAction.
+    const prev = candidateRef.current;
+    if (prev) {
+      clearTimeout(prev.timerId);
+      prev.el.style.touchAction = prev.prevTouchAction;
+      setGhost(null);
+    }
     const el = event.currentTarget as HTMLElement;
     const x0 = event.clientX;
     const y0 = event.clientY;
