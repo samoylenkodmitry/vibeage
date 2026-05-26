@@ -128,6 +128,10 @@ function useTickingNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;
+    // Re-sync immediately so the first frame after effects appear uses
+    // a fresh clock, not the (possibly long-stale) mount timestamp —
+    // otherwise the bars/timers would be wrong until the first tick.
+    setNow(Date.now());
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(id);
   }, [active]);

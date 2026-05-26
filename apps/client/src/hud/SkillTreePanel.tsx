@@ -239,7 +239,7 @@ function PassiveDetail({ skill }: { skill: SkillDef }) {
       {rows.length > 0 && (
         <ul className="skill-tree-passive-effects">
           {rows.map((row) => (
-            <li key={row.source}>
+            <li key={`${row.source}:${row.stat}`}>
               <span>{STATS[row.stat]?.short ?? row.stat}</span>
               <strong>{formatContribution(row)}</strong>
             </li>
@@ -258,7 +258,10 @@ function formatContribution(c: Contribution): string {
     return `${pct >= 0 ? '+' : '−'}${Math.abs(pct)}%`;
   }
   // crit chance is a 0..1 fraction; everyone else is a flat point value.
-  if (c.stat === 'critChance') return `+${Math.round(c.value * 100)}%`;
+  if (c.stat === 'critChance') {
+    const pct = Math.round(c.value * 100);
+    return `${pct >= 0 ? '+' : '−'}${Math.abs(pct)}%`;
+  }
   return `${c.value >= 0 ? '+' : '−'}${Math.abs(c.value)}`;
 }
 
