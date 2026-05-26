@@ -176,13 +176,16 @@ export function consolidateStacks(
   templates: Record<string, Item>,
 ): void {
   type Group = { templateId: string; enchantLevel: number; bound: boolean };
-  const key = (g: Group) => `${g.templateId}|${g.enchantLevel}|${g.bound ? 1 : 0}`;
+  // Coalesce undefined → defaults so legacy instances (persisted before these
+  // fields existed) group with freshly-created ones instead of forming a
+  // separate, never-merging bucket.
+  const key = (g: Group) => `${g.templateId}|${g.enchantLevel ?? 0}|${g.bound ? 1 : 0}`;
   const groups = new Map<string, ItemInstance[]>();
   for (const instance of Object.values(inventory.items)) {
     if (instance.location.kind !== 'inventory') continue;
     const template = templates[instance.templateId];
     if (!template?.stackable) continue;
-    const k = key({ templateId: instance.templateId, enchantLevel: instance.enchantLevel, bound: instance.bound });
+    const k = key({ templateId: instance.templateId, enchantLevel: instance.enchantLevel ?? 0, bound: instance.bound ?? false });
     const bucket = groups.get(k) ?? [];
     bucket.push(instance);
     groups.set(k, bucket);
@@ -206,6 +209,79 @@ export function consolidateStacks(
       src.count -= moved;
       if (src.count === 0) delete inventory.items[src.instanceId];
     }
+  }
+}
+
+/**
+ * Repair an aggregate into a state that satisfies every invariant. Used at the
+ * persistence boundary so legacy or hand-edited data can never inject an
+ * invariant-violating aggregate into the live game (which would make every
+ * subsequent validate-before-apply transaction fail). Mutates in place.
+ *
+ * Steps: coerce per-instance fields (enchant/bound/count) + drop destroyed
+ * items; merge partial stacks; split stacks that now exceed maxStack (e.g.
+ * after a content rebalance lowered it); re-slot any item whose bag slot is
+ * missing, duplicated, or out of range; drop overflow beyond the slot cap.
+ */
+export function normalizeInventory(inventory: CharacterInventory, services: InventoryServices): void {
+  const { templates, instanceIdFactory } = getServices(services);
+
+  for (const [id, instance] of Object.entries(inventory.items)) {
+    if (instance.location?.kind === 'destroyed') {
+      delete inventory.items[id];
+      continue;
+    }
+    instance.enchantLevel = Number.isFinite(instance.enchantLevel) ? instance.enchantLevel : 0;
+    instance.bound = Boolean(instance.bound);
+    const count = Math.floor(Number(instance.count));
+    instance.count = Number.isFinite(count) && count > 0 ? count : 1;
+    const template = templates[instance.templateId];
+    if (template && !template.stackable) instance.count = 1;
+  }
+
+  consolidateStacks(inventory, templates);
+
+  // Split anything still over maxStack into full stacks plus the remainder.
+  for (const instance of [...Object.values(inventory.items)]) {
+    if (instance.location.kind !== 'inventory') continue;
+    const template = templates[instance.templateId];
+    if (!template?.stackable) continue;
+    const maxStack = template.maxStack ?? Number.MAX_SAFE_INTEGER;
+    while (instance.count > maxStack) {
+      const extra: ItemInstance = {
+        ...instance,
+        instanceId: instanceIdFactory(),
+        location: inventoryLocation(undefined),
+        count: maxStack,
+      };
+      inventory.items[extra.instanceId] = extra;
+      instance.count -= maxStack;
+    }
+  }
+
+  // Re-slot: keep valid, unique, in-range slots; reassign everything else to
+  // the lowest free slot; drop items that overflow the cap (corrupt data).
+  const cap = maxInventorySlotCount(inventory.limits);
+  const used = new Set<number>();
+  const needsSlot: ItemInstance[] = [];
+  for (const instance of Object.values(inventory.items)) {
+    if (instance.location.kind !== 'inventory') continue;
+    const slot = instance.location.slotIndex;
+    if (typeof slot === 'number' && Number.isInteger(slot) && slot >= 0 && slot < cap && !used.has(slot)) {
+      used.add(slot);
+    } else {
+      needsSlot.push(instance);
+    }
+  }
+  let next = 0;
+  for (const instance of needsSlot) {
+    while (next < cap && used.has(next)) next += 1;
+    if (next >= cap) {
+      delete inventory.items[instance.instanceId];
+      continue;
+    }
+    instance.location = inventoryLocation(next);
+    used.add(next);
   }
 }
 
@@ -269,6 +345,9 @@ export function removeItems(
     }
   }
 
+  if (validateInvariants(draft).length > 0) {
+    return { ok: false, error: 'invariantViolation' };
+  }
   applyDraft(inventory, draft);
   return { ok: true, value: { removed: count, removedInstanceIds } };
 }
@@ -300,51 +379,11 @@ export function moveSlot(
   if (occupant) {
     occupant.location = inventoryLocation(previousIndex);
   }
+  if (validateInvariants(draft).length > 0) {
+    return { ok: false, error: 'invariantViolation' };
+  }
   applyDraft(inventory, draft);
   return { ok: true, value: { moved: instance } };
-}
-
-export function splitStack(
-  inventory: CharacterInventory,
-  instanceId: ItemInstanceId,
-  amount: number,
-  services: InventoryServices,
-): TransactionResult<{ created: ItemInstance; remaining: ItemInstance }> {
-  const { templates, instanceIdFactory, now } = getServices(services);
-  const draft = cloneInventory(inventory);
-  const source = draft.items[instanceId];
-  if (!source) {
-    return { ok: false, error: 'itemNotFound' };
-  }
-  if (source.location.kind !== 'inventory') {
-    return { ok: false, error: 'itemLocked' };
-  }
-  const template = templates[source.templateId];
-  if (!template?.stackable) {
-    return { ok: false, error: 'notStackable' };
-  }
-  if (amount <= 0 || amount >= source.count) {
-    return { ok: false, error: 'invalidSplitAmount' };
-  }
-  const cap = maxInventorySlotCount(draft.limits);
-  const nextIndex = nextFreeBagSlot(collectOccupiedBagSlots(draft), cap);
-  if (nextIndex === null) {
-    return { ok: false, error: 'inventoryFull' };
-  }
-  source.count -= amount;
-  const created: ItemInstance = {
-    instanceId: instanceIdFactory(),
-    ownerId: draft.characterId,
-    templateId: source.templateId,
-    location: inventoryLocation(nextIndex),
-    count: amount,
-    enchantLevel: 0,
-    bound: source.bound,
-    createdAtTs: now(),
-  };
-  draft.items[created.instanceId] = created;
-  applyDraft(inventory, draft);
-  return { ok: true, value: { created, remaining: source } };
 }
 
 export function mergeStacks(
@@ -379,6 +418,9 @@ export function mergeStacks(
   }
   target.count += source.count;
   delete draft.items[source.instanceId];
+  if (validateInvariants(draft, templates).length > 0) {
+    return { ok: false, error: 'invariantViolation' };
+  }
   applyDraft(inventory, draft);
   return { ok: true, value: { target } };
 }
