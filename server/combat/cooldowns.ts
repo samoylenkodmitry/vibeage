@@ -46,7 +46,9 @@ export function applySkillCostAndCooldown(
   // attackSpeed shortens the auto-attack interval (autoRepeat skills:
   // Basic Attack, Arrow Shot). Other skills keep their fixed cooldown.
   const attackSpeedMult = skill.autoRepeat ? attackSpeedCooldownFactor(player.stats?.attackSpeed) : 1;
-  const cooldownMs = (skill.cooldownMs ?? 0) * mods.cooldownMultiplier * specCooldownMult * attackSpeedMult;
+  // Round so the cooldown end timestamp stays an integer ms even after
+  // the floating-point attackSpeed / upgrade / spec multipliers.
+  const cooldownMs = Math.round((skill.cooldownMs ?? 0) * mods.cooldownMultiplier * specCooldownMult * attackSpeedMult);
   player.mana = Math.max(0, player.mana - manaCost);
   player.skillCooldownEndTs = {
     ...(player.skillCooldownEndTs ?? {}),
