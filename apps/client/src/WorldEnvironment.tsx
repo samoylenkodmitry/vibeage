@@ -82,7 +82,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   // (sun/moon/cloud following the player's focus + cloud rotation).
   const paletteRef = useRef(computeDayPhase(Date.now()));
   const paletteAccumRef = useRef(0);
-  useInitSceneBackground(scene, paletteRef);
+  useInitSceneBackground(scene, paletteRef.current.backgroundColor);
 
   useFrame((_, delta) => {
     paletteAccumRef.current += delta;
@@ -152,17 +152,14 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
  * (most obvious in daylight). WorldEnvironment owns the sky; it restores the
  * previous value on unmount.
  */
-function useInitSceneBackground(
-  scene: THREE.Scene,
-  paletteRef: React.MutableRefObject<ReturnType<typeof computeDayPhase>>,
-): void {
+function useInitSceneBackground(scene: THREE.Scene, initialColor: string): void {
   useLayoutEffect(() => {
     const previous = scene.background;
-    scene.background = new THREE.Color(paletteRef.current.backgroundColor);
+    scene.background = new THREE.Color(initialColor);
     return () => {
       scene.background = previous;
     };
-  }, [scene, paletteRef]);
+  }, [scene, initialColor]);
 }
 
 function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
