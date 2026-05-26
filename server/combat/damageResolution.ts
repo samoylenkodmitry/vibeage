@@ -20,10 +20,14 @@ import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content
  * Returns the amount actually subtracted from `health` (post-shield,
  * post-cap) so the caller can credit lifesteal / report the number.
  */
-export function applyResolvedDamageToTarget(target: Enemy | PlayerState, rawDamage: number): number {
+export function applyResolvedDamageToTarget(
+  target: Enemy | PlayerState,
+  rawDamage: number,
+  now: number = Date.now(),
+): number {
   if (rawDamage <= 0) return 0;
   // Phoenix Knight Resurrection invuln window zeroes incoming damage.
-  if (!isEnemy(target) && hasActiveInvuln(target)) {
+  if (!isEnemy(target) && hasActiveInvuln(target, now)) {
     return 0;
   }
   // Spec passives (Templar Last Stand) mitigate when already below
@@ -40,7 +44,7 @@ export function applyResolvedDamageToTarget(target: Enemy | PlayerState, rawDama
     if (saveMs > 0 && !target.usedResurrectionThisLife) {
       target.usedResurrectionThisLife = true;
       incoming = Math.max(0, target.health - 1);
-      upsertInvulnEffect(target, saveMs);
+      upsertInvulnEffect(target, saveMs, now);
     }
   }
 
@@ -83,12 +87,12 @@ function resurrectionInvulnMsFor(target: PlayerState): number {
   return Math.max(specMs, profMs);
 }
 
-function upsertInvulnEffect(target: PlayerState, durationMs: number): void {
+function upsertInvulnEffect(target: PlayerState, durationMs: number, now: number = Date.now()): void {
   target.statusEffects = target.statusEffects ?? [];
   const existingIndex = target.statusEffects.findIndex((e) => e.type === 'invuln');
   const effect = {
     id: nanoid(), type: 'invuln', value: 1,
-    durationMs, startTimeTs: Date.now(),
+    durationMs, startTimeTs: now,
     sourceSkill: 'spec:resurrection',
   };
   if (existingIndex >= 0) {

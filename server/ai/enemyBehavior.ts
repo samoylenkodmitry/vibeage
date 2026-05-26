@@ -147,7 +147,7 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
 
   // Route through the shared defensive pipeline so shield absorb and
   // below-half-HP mitigation apply to mob damage, not just PvP casts.
-  const damage = applyResolvedDamageToTarget(targetPlayer, enemy.attackDamage);
+  const damage = applyResolvedDamageToTarget(targetPlayer, enemy.attackDamage, now);
 
   let killed = false;
   if (targetPlayer.health <= 0) {
