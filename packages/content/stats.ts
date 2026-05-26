@@ -104,12 +104,12 @@ export const STATS: Record<string, StatDef> = {
   },
   pDef: {
     id: 'pDef', short: 'P.Def', name: 'Physical Defense',
-    description: 'Reduces incoming physical damage (melee, arrows). Damage taken ×200/(200+P.Def) — P.Def 200 halves it, with diminishing returns above.',
+    description: `Reduces incoming physical damage (melee, arrows). Damage taken ×${DEFENSE_HALF_REDUCTION}/(${DEFENSE_HALF_REDUCTION}+P.Def) — P.Def ${DEFENSE_HALF_REDUCTION} halves it, with diminishing returns above.`,
     tags: ['derived', 'defensive', 'physical'],
   },
   mDef: {
     id: 'mDef', short: 'M.Def', name: 'Magical Defense',
-    description: 'Reduces incoming magical damage (spells). Damage taken ×200/(200+M.Def) — M.Def 200 halves it, with diminishing returns above.',
+    description: `Reduces incoming magical damage (spells). Damage taken ×${DEFENSE_HALF_REDUCTION}/(${DEFENSE_HALF_REDUCTION}+M.Def) — M.Def ${DEFENSE_HALF_REDUCTION} halves it, with diminishing returns above.`,
     tags: ['derived', 'defensive', 'magical'],
   },
   hpRegen: {
