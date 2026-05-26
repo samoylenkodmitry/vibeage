@@ -42,11 +42,11 @@ type WorldSceneProps = {
 export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
+  const lootRevealed = hasActiveEffect(myPlayer?.statusEffects, 'reveal_loot'); // Treasure Sense
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  // WorldEnvironment owns the sky/sun/moon/clouds/day-night
-  // palette everywhere. The cozy hero scene only contributes
-  // anchored geometry (water, shore, dock, foliage) on top of
-  // that — never atmosphere.
+  // WorldEnvironment owns the sky/sun/moon/clouds/day-night palette
+  // everywhere. The cozy hero scene only contributes anchored geometry
+  // (water, shore, dock, foliage) on top of that — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
   // Keep the cozy scene mounted once entered — re-crossing the radius would
@@ -121,7 +121,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <NpcMarkers />
 
       {Object.values(state.groundLoot).map((loot) => (
-        <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} revealed={hasActiveEffect(myPlayer?.statusEffects, 'reveal_loot')} />
+        <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} />
       ))}
       {Object.values(state.casts).map((cast) => (
         <CastMarker key={cast.snapshot.castId} cast={cast} />
