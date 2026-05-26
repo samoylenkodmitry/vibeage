@@ -34,6 +34,8 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'dispel',
   'evasion',
   'invisible',
+  'speed_boost',
+  'attackSpeed',
   // Escape: counts as beneficial so the impact resolver self-targets
   // the caster instead of demanding an enemy in range.
   'teleport',
@@ -589,7 +591,7 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
 }
 
 const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set([
-  'bless', 'slow',
+  'bless', 'slow', 'speed_boost', 'attackSpeed',
 ]);
 
 // §46/slice-2 — applies the four stacking policies. Returns the

@@ -26,9 +26,9 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 
 | # | Skill | Says | Does | Plan | Status |
 |---|-------|------|------|------|--------|
-| B5 | **bless** | "Boost your damage **and hit chance**." | Only `dmgMult` (+25%). | Add an accuracy contribution from `bless` (now that accuracy is live, A-block of #682). | ⬜ |
-| B6 | **rapidFire** | "Increase your **attack speed**." | Emits `bless` (a +40% *damage* buff). | New `attackSpeed` buff effect, wired to A3. | ⬜ |
-| B7 | **wind_dash** | "Burst of **speed** that **breaks pursuit**." | Emits `evasion` (dodge). | `speed_boost` + `aggroReset`. | ⬜ |
+| B5 | **bless** | "Boost your damage **and hit chance**." | Only `dmgMult` (+25%). | `bless` effect now contributes +v% dmg AND +v accuracy. | ✅ |
+| B6 | **rapidFire** | "Increase your **attack speed**." | Emits `bless` (a +40% *damage* buff). | New `attackSpeed` buff effect (rapidFire emits it), wired to A3. | ✅ |
+| B7 | **wind_dash** | "Burst of **speed** that **breaks pursuit**." | Emits `evasion` (dodge). | Now emits `speed_boost` + `aggroReset`. | ✅ |
 | B8 | **treasure_sense** | "Reveals loot drops at a glance." | Emits `evasion 15` (unrelated). | Loot-highlight effect (client reveal) or repurpose. | 🔎 |
 | B9 | **execute** | "Finishing blow against a **wounded** target." | Flat damage, no low-HP scaling. | Execute bonus: damage scales up as target HP% drops. | ⬜ |
 | B10 | **lucky_strike** | "Chance to **crit big**." | Flat damage, no crit interaction. | Bonus crit chance / crit mult on this cast. | ⬜ |
@@ -48,7 +48,7 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 
 | # | Item | Note | Status |
 |---|------|------|--------|
-| D17 | `speed_boost` effect | Wired in `statContributions` (runSpeed mul) + enemy movement, but **no skill emits it**. wind_dash (B7) will be the first. | ⬜ |
+| D17 | `speed_boost` effect | Now a real `SkillEffectType`; wind_dash (B7) emits it. | ✅ |
 | D18 | `iceBolt` poison `value: 0.5` | Tick does `Math.max(0, value)` = 0.5 flat dmg/tick (negligible). Comment claims "0.5% damage". Reconcile value vs intent. | ⬜ |
 | D19 | New effect types needed | `lifesteal` (B11), `attackSpeed` buff (B6), execute-scaling (B9 — may be a skill flag, not an effect), armor-pen (B12 — skill flag). Add to `SkillEffectType` + `EFFECT_SPECS` + skillSpecAudit as each lands. | ⬜ |
 

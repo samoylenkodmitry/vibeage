@@ -586,25 +586,41 @@ type StatusEffectContributionSpec = {
   labelFrom?: (effect: StatusEffect) => string;
 };
 
-const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionSpec> = {
-  bless: {
-    stat: 'dmgMult', op: 'mul',
-    valueFrom: (e) => 1 + (e.value ?? 0) / 100,
-    labelFrom: (e) => `Bless (+${e.value ?? 0}% dmg)`,
-  },
-  slow: {
+const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionSpec[]> = {
+  // Bless boosts damage *and* hit chance (per its description) — one
+  // value drives both: +v% damage and +v accuracy points.
+  bless: [
+    {
+      stat: 'dmgMult', op: 'mul',
+      valueFrom: (e) => 1 + (e.value ?? 0) / 100,
+      labelFrom: (e) => `Bless (+${e.value ?? 0}% dmg)`,
+    },
+    {
+      stat: 'accuracy', op: 'addPre',
+      valueFrom: (e) => e.value ?? 0,
+      labelFrom: (e) => `Bless (+${e.value ?? 0} acc)`,
+    },
+  ],
+  slow: [{
     stat: 'runSpeed', op: 'mul',
     valueFrom: (e) => 1 - (e.value ?? 0) / 100,
     labelFrom: (e) => `Slow (-${e.value ?? 0}% speed)`,
-  },
+  }],
   // PR TT — speed_boost feeds the same runSpeed pipeline as slow so
   // movement reads a single stat instead of dispatching per-effect
   // multipliers. `value` is treated as a percent (e.g. 30 → ×1.30).
-  speed_boost: {
+  speed_boost: [{
     stat: 'runSpeed', op: 'mul',
     valueFrom: (e) => 1 + (e.value ?? 0) / 100,
     labelFrom: (e) => `Speed boost (+${e.value ?? 0}% speed)`,
-  },
+  }],
+  // attackSpeed buff (Rapid Fire): raises the attackSpeed rating by
+  // v%, shortening the auto-attack cooldown via the A3 factor.
+  attackSpeed: [{
+    stat: 'attackSpeed', op: 'mul',
+    valueFrom: (e) => 1 + (e.value ?? 0) / 100,
+    labelFrom: (e) => `Attack speed (+${e.value ?? 0}%)`,
+  }],
   // NOTE: `shield` is intentionally absent. A shield is a damage-
   // absorb pool drained by `absorbWithShield` in the damage pipeline
   // — it must NOT also inflate maxHealth, or the buff double-counts
@@ -622,10 +638,10 @@ const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionS
 
 function pushStatusEffectContributions(out: Contribution[], effects: ReadonlyArray<StatusEffect>): void {
   for (const effect of effects) {
-    const spec = STATUS_EFFECT_STAT_CONTRIBUTIONS[effect.type];
-    if (!spec) continue;
-    out.push({
-      source: `effect:${effect.type}:${effect.id}`,
+    const specs = STATUS_EFFECT_STAT_CONTRIBUTIONS[effect.type];
+    if (!specs) continue;
+    for (const spec of specs) out.push({
+      source: `effect:${effect.type}:${spec.stat}:${effect.id}`,
       label: spec.labelFrom ? spec.labelFrom(effect) : `Effect: ${effect.type}`,
       stat: spec.stat,
       op: spec.op,

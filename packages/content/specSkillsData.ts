@@ -114,7 +114,9 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     description: 'A burst of speed that breaks pursuit.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
     manaCost: 18, castMs: 0, cooldownMs: 20000, levelRequired: 20, isBlocking: false,
-    effects: [{ type: 'evasion', value: 40, durationMs: 6000 }],
+    // §SKILL-ENGINE B7 — actually a speed burst that drops chasers
+    // (was an `evasion` dodge buff, unrelated to its text).
+    effects: [{ type: 'speed_boost', value: 40, durationMs: 6000 }, { type: 'aggroReset', value: 1 }],
   },
   // ---- Proficiency skills (Lv 40 unlock) ----
   arcane_supremacy: {

@@ -180,6 +180,22 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     category: 'buff',
     stacking: 'refresh',
   },
+  speed_boost: {
+    type: 'speed_boost',
+    label: 'Haste',
+    description: 'Increases movement speed by the listed percent.',
+    category: 'buff',
+    valueUnit: '%',
+    stacking: 'refresh',
+  },
+  attackSpeed: {
+    type: 'attackSpeed',
+    label: 'Attack Speed',
+    description: 'Increases attack speed (shorter auto-attack interval) by the listed percent.',
+    category: 'buff',
+    valueUnit: '%',
+    stacking: 'refresh',
+  },
   aggroReset: {
     type: 'aggroReset',
     label: 'Aggro Reset',

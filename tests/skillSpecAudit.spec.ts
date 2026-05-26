@@ -36,6 +36,8 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'taunt',      // applySkillEffects → set targetId
   'evasion',    // evasionMissChanceFor → flat dodge in the damage path
   'invisible',  // enemy AI ignores invisible targets + status display
+  'speed_boost', // STATUS_EFFECT_STAT_CONTRIBUTIONS (runSpeed mul) → movement
+  'attackSpeed', // STATUS_EFFECT_STAT_CONTRIBUTIONS (attackSpeed mul) → auto-attack cooldown
   'aggroReset', // applyAggroResetAround
   'teleport',   // applySkillEffects → recall to village
   'knockback',     // §45.4 — applyKnockback pushes target along caster→target vector
