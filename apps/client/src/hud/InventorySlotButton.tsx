@@ -6,7 +6,6 @@ import {
 import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
-import { useActionBarDrag } from './actionBarDrag';
 import { useHasMousePointer } from './useHasMousePointer';
 
 /**
@@ -93,7 +92,6 @@ export function InventorySlotButton({
       ? 'Recipe'
       : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
   const hasMouse = useHasMousePointer();
-  const { beginDrag, consumeDragClick } = useActionBarDrag();
   const title = slot
     ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ''}`
     : 'Empty slot';
@@ -127,15 +125,8 @@ export function InventorySlotButton({
         // built-in Three.js canvas) at least see something.
         event.dataTransfer.setData('text/plain', `bag-slot:${index}`);
       }}
-      onPointerDown={(event) => {
-        // Touch path: drag onto an action-bar slot. Mouse keeps native
-        // HTML5 drag (and bag-to-ground), so beginDrag ignores it.
-        if (slot) beginDrag({ kind: 'item', id: slot.itemId }, event, itemName);
-      }}
       onClick={(event) => {
-        // Swallow the click that ends a touch drag (consumeDragClick) or a
-        // synthetic pending click so neither re-opens the sticky tooltip.
-        if (consumeDragClick() || callbacks.consumePendingClick()) {
+        if (callbacks.consumePendingClick()) {
           event.stopPropagation();
           return;
         }

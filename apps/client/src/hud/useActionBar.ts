@@ -22,13 +22,10 @@ const LOCK_STORAGE_KEY = 'vibeage:actionBar:locked:v1';
 
 function loadLocked(): boolean {
   try {
-    const raw = window.localStorage.getItem(LOCK_STORAGE_KEY);
-    if (raw === '1') return true;
-    if (raw === '0') return false;
-    // No stored preference: touch-first devices default to locked so list
-    // scrolling and tap-to-cast aren't hijacked by accidental drags;
-    // mouse/desktop defaults to unlocked (HTML5 drag works out of the box).
-    return !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    // Default unlocked everywhere. Touch drag is long-press initiated, so a
+    // quick tap still casts and a swipe still scrolls — accidental drags
+    // aren't a concern, and locking-by-default would just hide the feature.
+    return window.localStorage.getItem(LOCK_STORAGE_KEY) === '1';
   } catch {
     return false;
   }
