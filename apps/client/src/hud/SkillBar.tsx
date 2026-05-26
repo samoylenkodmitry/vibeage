@@ -132,10 +132,17 @@ function SkillBarSlot({
       ? ITEMS[slot.id]?.name ?? slot.id
       : SKILLS[slot.id]?.name ?? `Slot ${slotIndex + 1}`
     : `Slot ${slotIndex + 1}`;
-  const ACCEPTED = [ACTION_BAR_DRAG_MIME, INVENTORY_DRAG_MIME, SKILL_DRAG_MIME];
   const onDragOver = (e: React.DragEvent) => {
     if (locked) return;
-    if (ACCEPTED.some((mime) => e.dataTransfer.types.includes(mime))) {
+    const types = e.dataTransfer.types;
+    // dropEffect must be compatible with the source's effectAllowed or the
+    // browser refuses the drop. Skill-tree drags are 'copy'; bar reorder and
+    // bag items are 'move'. Mismatching here silently drops nothing.
+    if (types.includes(SKILL_DRAG_MIME)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+    } else if (types.includes(ACTION_BAR_DRAG_MIME) || types.includes(INVENTORY_DRAG_MIME)) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
