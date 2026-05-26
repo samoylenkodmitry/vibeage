@@ -7,7 +7,7 @@ import {
 import { STATS } from '../../../../packages/content/stats';
 import type { StatId } from '../../../../packages/sim/statContributions';
 import type { PlayerEntity } from '../gameTypes';
-import { StatusPills } from './hudPrimitives';
+import { ActiveEffects } from './ActiveEffects';
 import { StatBreakdownPopup } from './StatBreakdownPopup';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -81,7 +81,7 @@ export function PlayerPanel({
           )}
         </>
       )}
-      <StatusPills effects={player?.statusEffects ?? []} />
+      <ActiveEffects effects={player?.statusEffects ?? []} />
       {popup && player && (
         <StatBreakdownPopup
           statId={popup.statId}

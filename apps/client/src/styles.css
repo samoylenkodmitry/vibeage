@@ -716,6 +716,76 @@ input {
   background: rgba(141, 233, 215, 0.18);
 }
 
+/* Active Effects panel — buffs/debuffs on the player with live timers. */
+.active-effects {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.active-effects-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9fb7c9;
+}
+.active-effects-group {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.active-effect-button {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: 'name value remaining' 'bar bar bar';
+  align-items: center;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  color: #e2f2ec;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-left-width: 3px;
+}
+.active-effect-row--buff .active-effect-button {
+  border-left-color: #34d399;
+  background: rgba(34, 197, 94, 0.1);
+}
+.active-effect-row--debuff .active-effect-button {
+  border-left-color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+.active-effect-button:hover { border-color: rgba(141, 233, 215, 0.55); }
+.active-effect-name { grid-area: name; font-weight: 600; }
+.active-effect-value { grid-area: value; color: #cbd5e1; }
+.active-effect-remaining { grid-area: remaining; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.active-effect-bar {
+  grid-area: bar;
+  height: 3px;
+  margin-top: 3px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  overflow: hidden;
+}
+.active-effect-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  transition: width 0.25s linear;
+}
+.active-effect-row--buff .active-effect-bar-fill { color: #34d399; }
+.active-effect-row--debuff .active-effect-bar-fill { color: #f87171; }
+
 .target-meta {
   display: flex;
   min-width: 0;
@@ -2065,6 +2135,55 @@ input {
 .skill-tree-tag--locked {
   color: #94a3b8;
 }
+
+/* Inline kind badges next to a skill name in the tree. */
+.skill-tag-kind {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.skill-tag-kind--passive {
+  color: #ddd6fe;
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+.skill-tag-kind--buff {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.skill-tree-passive-note {
+  margin: 6px 0;
+  font-size: 11px;
+  color: #c4b5fd;
+  opacity: 0.85;
+}
+.skill-tree-passive-effects {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.skill-tree-passive-effects li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  font-size: 11px;
+}
+.skill-tree-passive-effects li span { color: #cbd5e1; }
+.skill-tree-passive-effects li strong { color: #ede9fe; }
 
 .skill-tree-upgrade-list {
   list-style: none;
