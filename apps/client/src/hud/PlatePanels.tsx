@@ -68,7 +68,11 @@ export function VitalsStrip({
         <span>Gold</span>
         <strong>{(player?.gold ?? 0).toLocaleString()}</strong>
       </div>
-      <ActiveEffects effects={player?.statusEffects ?? []} />
+      {/* Stop clicks/keys inside the effects list from bubbling to the
+          strip's select-self handler (effect rows deep-link to the Wiki). */}
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <ActiveEffects effects={player?.statusEffects ?? []} />
+      </div>
     </section>
   );
 }
