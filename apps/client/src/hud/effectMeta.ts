@@ -24,6 +24,7 @@ export const EFFECT_LABEL: Record<string, string> = {
   invisible: 'Invisible',
   invuln: 'Invulnerable',
   speed_boost: 'Haste',
+  attackSpeed: 'Rapid Fire',
   transform: 'Transform',
 };
 
@@ -46,6 +47,7 @@ export const EFFECT_DESCRIPTION: Record<string, string> = {
   invisible: 'Breaks enemy aggro and hides the player from their searches.',
   invuln: 'Negates all incoming damage for the duration.',
   speed_boost: 'Increases movement speed by the listed percent.',
+  attackSpeed: 'Increases attack speed — shorter auto-attack interval — by the listed percent.',
   transform: 'Converts the target into stone (or equivalent) for the duration.',
 };
 
@@ -55,7 +57,7 @@ export const EFFECT_DESCRIPTION: Record<string, string> = {
  * set (impactResolver BENEFICIAL_EFFECT_TYPES) plus speed_boost / invuln.
  */
 const BENEFICIAL_EFFECTS: ReadonlySet<string> = new Set([
-  'heal', 'shield', 'bless', 'evasion', 'invisible', 'invuln', 'speed_boost', 'teleport',
+  'heal', 'shield', 'bless', 'evasion', 'invisible', 'invuln', 'speed_boost', 'attackSpeed', 'teleport',
 ]);
 
 export function isBeneficialEffect(type: string): boolean {

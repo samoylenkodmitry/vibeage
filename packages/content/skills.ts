@@ -54,6 +54,7 @@ export type SkillEffectType =
   | 'knockback'
   | 'evasion'  // dodge buff
   | 'invisible'
+  | 'speed_boost' | 'attackSpeed' // movement / auto-attack speed buffs
   | 'aggroReset' // PR KK — wipe attackers' threat on the caster
   | 'teleport'; // recall to nearest village (Escape)
 
@@ -69,7 +70,7 @@ const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
   'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
 ]);
 const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible', 'aggroReset',
+  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'aggroReset',
 ]);
 
 export type SkillAlignment = 'harmful' | 'beneficial' | 'neutral';
@@ -599,7 +600,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 7,
     isBlocking: false,
     effects: [
-      { type: 'bless', value: 40, durationMs: 8000 },
+      { type: 'attackSpeed', value: 40, durationMs: 8000 }, // B6 — was a bless damage buff
     ],
   },
   evade: {

@@ -76,14 +76,14 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     expect(evade, 'evade should add an evasion status effect').toBeDefined();
   });
 
-  it('Rapid Fire applies a bless buff status effect (damage tilt)', () => {
+  it('Rapid Fire applies an attackSpeed buff status effect', () => {
     const caster = createTransientPlayer('s', 'p');
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
     resolveCastImpact(selfCast(caster.id, 'rapidFire'), outbound, makeWorld(caster));
 
-    const buff = caster.statusEffects.find(e => e.type === 'bless');
-    expect(buff, 'rapidFire should add a bless status effect').toBeDefined();
+    const buff = caster.statusEffects.find(e => e.type === 'attackSpeed');
+    expect(buff, 'rapidFire should add an attackSpeed status effect').toBeDefined();
   });
 
   it('Shield Wall applies a shield/damage-reduction effect', () => {
