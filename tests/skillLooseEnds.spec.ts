@@ -57,3 +57,9 @@ describe('D18 iceBolt poison is a real (flat) DoT', () => {
     expect(poison?.value).toBe(3);
   });
 });
+
+describe('B8 treasure_sense reveals loot', () => {
+  it('emits a reveal_loot buff, not the old evasion buff', () => {
+    expect(SKILLS.treasure_sense.effects.map((e) => e.type)).toEqual(['reveal_loot']);
+  });
+});

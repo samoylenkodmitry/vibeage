@@ -25,6 +25,7 @@ export const EFFECT_LABEL: Record<string, string> = {
   invuln: 'Invulnerable',
   speed_boost: 'Haste',
   attackSpeed: 'Attack Speed',
+  reveal_loot: 'Treasure Sense',
   transform: 'Transform',
 };
 
@@ -48,6 +49,7 @@ export const EFFECT_DESCRIPTION: Record<string, string> = {
   invuln: 'Negates all incoming damage for the duration.',
   speed_boost: 'Increases movement speed by the listed percent.',
   attackSpeed: 'Increases attack speed — shorter auto-attack interval — by the listed percent.',
+  reveal_loot: 'Reveals nearby ground loot — item names show at a glance.',
   transform: 'Converts the target into stone (or equivalent) for the duration.',
 };
 
@@ -57,11 +59,21 @@ export const EFFECT_DESCRIPTION: Record<string, string> = {
  * set (impactResolver BENEFICIAL_EFFECT_TYPES) plus speed_boost / invuln.
  */
 const BENEFICIAL_EFFECTS: ReadonlySet<string> = new Set([
-  'heal', 'shield', 'bless', 'evasion', 'invisible', 'invuln', 'speed_boost', 'attackSpeed', 'teleport',
+  'heal', 'shield', 'bless', 'evasion', 'invisible', 'invuln', 'speed_boost', 'attackSpeed', 'reveal_loot', 'teleport',
 ]);
 
 export function isBeneficialEffect(type: string): boolean {
   return BENEFICIAL_EFFECTS.has(type);
+}
+
+/** True if `effects` has an unexpired effect of `type`. */
+export function hasActiveEffect(
+  effects: StatusEffect[] | undefined,
+  type: string,
+  now: number = Date.now(),
+): boolean {
+  if (!effects?.length) return false;
+  return effects.some((e) => e.type === type && (effectRemainingMs(e, now) ?? 1) > 0);
 }
 
 export function effectLabel(type: string): string {

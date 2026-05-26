@@ -23,6 +23,7 @@ import {
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
+import { hasActiveEffect } from './hud/effectMeta';
 import { getTerrainY } from './worldSceneConfig';
 import { DynamicLightPool } from './dynamicLights';
 
@@ -120,7 +121,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <NpcMarkers />
 
       {Object.values(state.groundLoot).map((loot) => (
-        <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} />
+        <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} revealed={hasActiveEffect(myPlayer?.statusEffects, 'reveal_loot')} />
       ))}
       {Object.values(state.casts).map((cast) => (
         <CastMarker key={cast.snapshot.castId} cast={cast} />
