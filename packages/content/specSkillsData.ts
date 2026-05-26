@@ -41,6 +41,8 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'physical',
     manaCost: 25, castMs: 400, cooldownMs: 8000, dmg: 280, range: 4,
     levelRequired: 20, requiresTarget: true,
+    // B9 — up to +150% damage as the target's HP drops to 0.
+    offense: { executeBonus: 1.5 },
     effects: [{ type: 'damage', value: 280 }],
   },
   greater_heal: {
@@ -85,6 +87,8 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'physical',
     manaCost: 25, castMs: 500, cooldownMs: 10000, dmg: 240, range: 4,
     levelRequired: 20, requiresTarget: true,
+    // B12 — ignores up to 500 P.Def/M.Def (most armor).
+    offense: { armorPen: 500 },
     effects: [{ type: 'damage', value: 240 }],
   },
   phoenix_ward: {
@@ -107,6 +111,8 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'physical',
     manaCost: 22, castMs: 300, cooldownMs: 12000, dmg: 220, range: 4,
     levelRequired: 20, requiresTarget: true,
+    // B10 — +50% crit chance and a bigger crit on this hit.
+    offense: { bonusCritChance: 0.5, bonusCritMult: 0.5 },
     effects: [{ type: 'damage', value: 220 }],
   },
   wind_dash: {
@@ -178,6 +184,8 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     icon: '/game/skills/skill_melee.svg', cat: 'projectile', kind: 'physical',
     manaCost: 45, castMs: 800, cooldownMs: 12000, dmg: 360, range: 28,
     levelRequired: 40, requiresTarget: true,
+    // B12 — ignores up to 500 P.Def/M.Def (most armor).
+    offense: { armorPen: 500 },
     effects: [{ type: 'damage', value: 360 }],
   },
   divine_taunt: {
@@ -193,6 +201,8 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'magical',
     manaCost: 50, castMs: 600, cooldownMs: 15000, dmg: 280, range: 8,
     levelRequired: 40, requiresTarget: true,
+    // B11 — heals the caster for 50% of the damage dealt.
+    offense: { lifestealPct: 0.5 },
     effects: [{ type: 'damage', value: 280 }],
   },
   rebirth: {

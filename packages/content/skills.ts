@@ -110,6 +110,7 @@ import type {
   SkillScalingStat,
   SkillTargetMode,
   SkillPveUse,
+  SkillOffense,
 } from './skillTags.js';
 export type {
   SkillRole,
@@ -168,6 +169,8 @@ export interface SkillDef {
   isBlocking?: boolean;
   /** False = locked channel (Escape recall); conflicting actions can't cancel. Default true. */
   isInterruptable?: boolean;
+  /** §SKILL-ENGINE B9–B12 — execute / crit / lifesteal / armor-pen modifiers. */
+  offense?: SkillOffense;
 }
 
 /**
@@ -213,18 +216,14 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     manaCost: 0,
     castMs: 0,
     cooldownMs: 1200,
-    // Damage scales through caster.dmgMult, which already factors in
-    // primary stat + equipped weapon pAtk via the Contribution
-    // registry (statContributions.ts). A small flat base keeps
-    // unarmed viable while letting weapons multiply through dmgMult.
+    // Damage scales through caster.dmgMult (primary stat + weapon pAtk
+    // via the Contribution registry); small flat base keeps unarmed viable.
     dmg: 8,
     range: 4,
     levelRequired: 1,
     requiresTarget: true,
     autoRepeat: true,
-    // PR Y — instants don't block movement; an auto-attack swing
-    // shouldn't freeze the player. Default isBlocking is true so we
-    // declare it explicitly here.
+    // PR Y — instants don't block movement (an auto-swing shouldn't freeze).
     isBlocking: false,
     effects: [
       { type: 'damage', value: 8 },

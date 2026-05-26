@@ -160,8 +160,15 @@ function calculateDamage(
   const { castId, targetId, target, world } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
   const casterDmgMult = baseStats.dmgMult ?? 1;
+  const off = skill.offense;
   const result = getDamage({
-    caster: { ...baseStats, dmgMult: casterDmgMult * upgradeDmgMult },
+    caster: {
+      ...baseStats,
+      dmgMult: casterDmgMult * upgradeDmgMult,
+      // B10 — Lucky Strike-style bonus crit chance / multiplier on this cast.
+      critChance: (baseStats.critChance ?? 0) + (off?.bonusCritChance ?? 0),
+      critMult: (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0),
+    },
     skill: { base: skill.dmg, variance: 0.1 },
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
     // Dodge = the accuracy-vs-evasion stat differential plus any flat
@@ -172,7 +179,9 @@ function calculateDamage(
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target);
   const casterElementMult = casterDamageElementMultiplier(skill, caster);
   const partyAuraMult = partyDamageAuraMultFor(caster, world);
-  const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult;
+  // B9 — Execute scales up as the target's HP drops.
+  const executeMult = executeMultiplier(off?.executeBonus, target);
+  const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult * executeMult;
   // §49/M4 PR016 — combat trace. crit factored out of varianceRoll.
   if (isCombatTraceEnabled()) {
     const critMult = baseStats.critMult ?? 2;
@@ -185,6 +194,14 @@ function calculateDamage(
     });
   }
   return { damage: final, crit: result.crit, miss: false };
+}
+
+// B9 — Execute: damage rises as the target's HP fraction falls,
+// peaking at `1 + executeBonus` near 0 HP. No bonus / no target → 1.
+function executeMultiplier(executeBonus: number | undefined, target: Enemy | PlayerState | null | undefined): number {
+  if (!executeBonus || !target || target.maxHealth <= 0) return 1;
+  const hpFraction = Math.max(0, Math.min(1, target.health / target.maxHealth));
+  return 1 + executeBonus * (1 - hpFraction);
 }
 
 // §45.3 — product of every other-player ally's party-damage aura
@@ -341,15 +358,15 @@ function applyCastToTarget(
   // Magical skills test M.Def, everything else P.Def (utility skills
   // with a damage component are rare and read as physical).
   const damageKind = skill.kind === 'magical' ? 'magical' : 'physical';
-  const incoming = applyResolvedDamageToTarget(target, damage, Date.now(), { kind: damageKind });
+  // B12 — armor-pen skills (Shadow Strike / Shadow Arrow) ignore part of the target's defense.
+  const incoming = applyResolvedDamageToTarget(target, damage, Date.now(), { kind: damageKind, penetration: skill.offense?.armorPen ?? 0 });
 
-  // §45.3 follow-up — Dark Avenger Sanguine Blade: hits restore
-  // a small fraction of the post-mitigation damage as caster HP.
-  // Applied per cast hit (AoE casts heal once per target). No-op
-  // when the caster has no spec, isn't the right spec, or hit
-  // for zero (no over-heal from misses).
+  // §45.3 follow-up — Dark Avenger Sanguine Blade lifesteal, plus
+  // B11 per-skill lifesteal (Soul Eater): restore a fraction of the
+  // post-mitigation damage as caster HP. Applied per cast hit (AoE
+  // heals once per target). No over-heal from misses (incoming > 0).
   if (caster && incoming > 0 && caster.isAlive) {
-    const pct = casterLifestealPercent(caster);
+    const pct = casterLifestealPercent(caster) + (skill.offense?.lifestealPct ?? 0);
     if (pct > 0) {
       caster.health = Math.min(caster.maxHealth, caster.health + incoming * pct);
     }

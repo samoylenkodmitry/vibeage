@@ -38,6 +38,24 @@ export type ResolvedSkillTags = {
 };
 
 /**
+ * §SKILL-ENGINE B9–B12 — per-skill offensive modifiers the cast
+ * pipeline reads. All optional; absent = no effect. Defined here
+ * (not skills.ts) to keep that file under the maintainability cap.
+ */
+export interface SkillOffense {
+  /** Execute: damage ×(1 + executeBonus·(1 − targetHpFraction)). Full at 0 HP. */
+  executeBonus?: number;
+  /** Added to this cast's crit chance (0..1). */
+  bonusCritChance?: number;
+  /** Added to this cast's crit multiplier. */
+  bonusCritMult?: number;
+  /** Heal the caster for this fraction (0..1) of damage dealt. */
+  lifestealPct?: number;
+  /** Armor penetration — subtracts from the target's P.Def/M.Def before mitigation. */
+  armorPen?: number;
+}
+
+/**
  * Per-skill overrides for cases where the derived defaults would be
  * wrong. Add an entry here when the author's intent doesn't match
  * the inference (e.g. CC skills with small token damage, hybrid
