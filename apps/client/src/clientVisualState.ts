@@ -629,7 +629,7 @@ export function formatCombatLogLine(state: GameClientState, parts: CombatLogLine
   // Wall, Bless, Evade, Dispel, Vanish…). Don't render it as a "0
   // damage" hit — name what was applied. (A *damage* skill that
   // happens to report 0 — e.g. invuln ate it — keeps the hit line.)
-  const skillDef = SKILLS[skillId];
+  const skillDef = getSkillDef(skillId);
   if (totalDamage <= 0 && !(skillDef?.dmg && skillDef.dmg > 0)) {
     const beneficial = classifySkill(skillDef?.effects ?? []) === 'beneficial';
     return beneficial ? `${skillName} applied` : `${skillName} cast${targetText}`;

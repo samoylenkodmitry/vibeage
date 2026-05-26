@@ -31,7 +31,7 @@ export function Meter({
       <div className="meter-track">
         <div className={`meter-fill ${className}`} style={{ width: `${hpPct}%` }} />
         {shieldPct > 0 && (
-          <div className="meter-shield" style={{ left: `${hpPct}%`, width: `${shieldPct}%` }} aria-hidden />
+          <div className="meter-shield" style={{ left: `${hpPct}%`, width: `${shieldPct}%` }} aria-hidden="true" />
         )}
       </div>
       <strong>{formatMeter(value, max)}{shield > 0 ? ` +${Math.round(shield)}` : ''}</strong>
