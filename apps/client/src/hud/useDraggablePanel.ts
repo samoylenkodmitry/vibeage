@@ -99,7 +99,13 @@ function installPanelDrag(
     offset.x = event.clientX - startX;
     offset.y = event.clientY - startY;
     apply();
-    clampIntoView();
+    // Rebase the drag origin when a clamp nudges the offset, otherwise the
+    // pointer has to travel back over the boundary before the panel moves
+    // again (a dead zone at the screen edge).
+    if (clampIntoView()) {
+      startX = event.clientX - offset.x;
+      startY = event.clientY - offset.y;
+    }
   };
   const release = (event: PointerEvent) => {
     if (event.pointerId !== pointerId) return;

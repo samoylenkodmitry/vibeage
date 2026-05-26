@@ -17,6 +17,7 @@ import { INVENTORY_DRAG_MIME } from './InventorySlotButton';
 import { ItemShortcutButton } from './ItemShortcutButton';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useActionBarDrag } from './actionBarDrag';
+import { useHasMousePointer } from './useHasMousePointer';
 import {
   ACTION_BAR_DRAG_MIME,
   SKILL_DRAG_MIME,
@@ -122,6 +123,7 @@ function SkillBarSlot({
 }: SkillBarSlotProps) {
   const aria = getSkillSlotAriaHotkeys(slotIndex);
   const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const hasMouse = useHasMousePointer();
   // A skill ref is only live if the player still knows that skill.
   const knownSkill = slot?.kind === 'skill' && (player?.unlockedSkills?.includes(slot.id) ?? false)
     ? slot.id : null;
@@ -169,7 +171,7 @@ function SkillBarSlot({
     <div
       className="skill-bar-slot"
       data-bar-slot={slotIndex}
-      draggable={Boolean(slot) && !locked}
+      draggable={Boolean(slot) && !locked && hasMouse}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}

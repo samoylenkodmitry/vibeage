@@ -48,6 +48,15 @@ export function resolveBarDrop(payload: BarDragPayload, toSlot: number | null): 
 
 const DRAG_THRESHOLD_PX = 8;
 
+/** The action-bar slot index under a viewport point, or null if none. */
+function slotUnderPoint(x: number, y: number): number | null {
+  const el = document.elementFromPoint(x, y);
+  const slotEl = el?.closest<HTMLElement>('[data-bar-slot]');
+  if (!slotEl) return null;
+  const idx = Number(slotEl.dataset.barSlot);
+  return Number.isInteger(idx) ? idx : null;
+}
+
 type DragContext = {
   /** Start a touch drag from a source. No-op for mouse pointers or when
    *  the bar is locked. `label` is shown in the drag ghost. */
@@ -70,7 +79,15 @@ export function useActionBarDrag(): DragContext {
   return useContext(ActionBarDragContext);
 }
 
-type Candidate = { payload: BarDragPayload; x0: number; y0: number; label: string; active: boolean };
+type Candidate = {
+  payload: BarDragPayload;
+  x0: number;
+  y0: number;
+  label: string;
+  active: boolean;
+  el: HTMLElement;
+  prevTouchAction: string;
+};
 
 export function ActionBarDragProvider({
   locked,
@@ -96,7 +113,14 @@ export function ActionBarDragProvider({
 
   const beginDrag = useCallback<DragContext['beginDrag']>((payload, event, label) => {
     if (locked || event.pointerType === 'mouse') return;
-    candidateRef.current = { payload, x0: event.clientX, y0: event.clientY, label, active: false };
+    // Disable scrolling on the source for the gesture's duration so a swipe
+    // can't fire pointercancel and abort the drag; restored on finish. We're
+    // unlocked here (returned early when locked), so list scroll still works
+    // in the normal locked/play mode.
+    const el = event.currentTarget as HTMLElement;
+    const prevTouchAction = el.style.touchAction;
+    el.style.touchAction = 'none';
+    candidateRef.current = { payload, x0: event.clientX, y0: event.clientY, label, active: false, el, prevTouchAction };
   }, [locked]);
 
   const consumeDragClick = useCallback(() => {
@@ -108,13 +132,6 @@ export function ActionBarDragProvider({
   }, []);
 
   useEffect(() => {
-    const slotUnder = (x: number, y: number): number | null => {
-      const el = document.elementFromPoint(x, y);
-      const slotEl = el?.closest<HTMLElement>('[data-bar-slot]');
-      if (!slotEl) return null;
-      const idx = Number(slotEl.dataset.barSlot);
-      return Number.isInteger(idx) ? idx : null;
-    };
     const onMove = (event: PointerEvent) => {
       const c = candidateRef.current;
       if (!c) return;
@@ -129,10 +146,17 @@ export function ActionBarDragProvider({
       const c = candidateRef.current;
       candidateRef.current = null;
       setGhost(null);
+      if (c) c.el.style.touchAction = c.prevTouchAction; // restore source scroll
       if (!c || !c.active) return; // never crossed threshold — let it be a tap
       justDraggedRef.current = true;
+      // Clear after the click that immediately follows pointerup. If the drag
+      // ended over a non-consuming target (e.g. the world), this stops the
+      // flag from swallowing the user's *next* unrelated tap.
+      setTimeout(() => {
+        justDraggedRef.current = false;
+      }, 0);
       if (!drop) return;
-      const action = resolveBarDrop(c.payload, slotUnder(event.clientX, event.clientY));
+      const action = resolveBarDrop(c.payload, slotUnderPoint(event.clientX, event.clientY));
       const cb = cbRef.current;
       if (action.type === 'set') cb.setSlot(action.slot, action.ref);
       else if (action.type === 'swap') cb.swapSlots(action.from, action.to);

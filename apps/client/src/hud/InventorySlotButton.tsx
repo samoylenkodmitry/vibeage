@@ -1,6 +1,4 @@
 import {
-  useEffect,
-  useState,
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type HTMLAttributes,
@@ -9,28 +7,7 @@ import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { useActionBarDrag } from './actionBarDrag';
-
-/**
- * Mobile/touch devices can't reliably initiate HTML5 drag from a
- * `<button>` element — Safari/Chrome dispatch their own touch
- * handling that preempts our pointerdown long-press. We detect
- * mouse capability via the CSS media query `(hover: hover)` and
- * gate `draggable` accordingly. Touch users get the tooltip's
- * explicit Drop button instead; mouse users get drag.
- */
-function useHasMousePointer(): boolean {
-  const [hasMouse, setHasMouse] = useState<boolean>(() =>
-    typeof window === 'undefined' ? true : window.matchMedia('(hover: hover) and (pointer: fine)').matches,
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
-    const onChange = () => setHasMouse(mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return hasMouse;
-}
+import { useHasMousePointer } from './useHasMousePointer';
 
 /**
  * Single bag slot. Click opens the ItemTooltip in sticky mode
