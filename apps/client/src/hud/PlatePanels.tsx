@@ -1,6 +1,7 @@
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { Meter, StatusPills, formatMeter, getDistance, getMeterProgress, getTargetState, getTargetTone } from './hudPrimitives';
 import { totalShield } from './effectMeta';
+import { ActiveEffects } from './ActiveEffects';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
 
@@ -67,6 +68,7 @@ export function VitalsStrip({
         <span>Gold</span>
         <strong>{(player?.gold ?? 0).toLocaleString()}</strong>
       </div>
+      <ActiveEffects effects={player?.statusEffects ?? []} />
     </section>
   );
 }
