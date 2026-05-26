@@ -79,7 +79,7 @@ describe('B11 soul_eater drains life to the caster', () => {
     const out: OutboundEventSink = { publish: vi.fn() };
     resolveCastImpact(cast('soul_eater', atk.id, enemy.id), out, worldFor(atk, enemy));
     const dealt = 10_000 - enemy.health;
-    expect(atk.health).toBe(100 + Math.round(dealt * 0.5));
+    expect(atk.health).toBeCloseTo(100 + dealt * 0.5, 5);
   });
 });
 

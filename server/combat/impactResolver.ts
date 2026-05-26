@@ -368,7 +368,9 @@ function applyCastToTarget(
   if (caster && incoming > 0 && caster.isAlive) {
     const pct = casterLifestealPercent(caster) + (skill.offense?.lifestealPct ?? 0);
     if (pct > 0) {
-      caster.health = Math.min(caster.maxHealth, caster.health + Math.round(incoming * pct));
+      // Health is kept fractional engine-wide (heals aren't rounded either);
+      // the wire/CombatLog rounds at the boundary. Keep parity with that.
+      caster.health = Math.min(caster.maxHealth, caster.health + incoming * pct);
     }
   }
 
