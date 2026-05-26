@@ -35,6 +35,19 @@ export const ACCURACY_BASELINE = 90;
 export const EVASION_BASELINE = 5;
 export const MAX_DODGE_CHANCE = 0.95;
 
+/**
+ * Defense model — single source for P.Def / M.Def mitigation. Damage
+ * taken is scaled by `DEFENSE_HALF_REDUCTION / (DEFENSE_HALF_REDUCTION
+ * + effectiveDefense)`, i.e. a target whose relevant defense equals
+ * this constant takes half damage; diminishing returns above it, so
+ * defense never zeroes a hit. `effectiveDefense` is the target's
+ * P.Def (physical attacks) or M.Def (magical), minus any attacker
+ * armor penetration. Tuning lever: raise to make defense gentler,
+ * lower to make it stronger. Entities with no defense (mobs) take
+ * full damage, so this only softens *incoming* player damage today.
+ */
+export const DEFENSE_HALF_REDUCTION = 200;
+
 export const STATS: Record<string, StatDef> = {
   str: {
     id: 'str', short: 'STR', name: 'Strength',
@@ -91,12 +104,12 @@ export const STATS: Record<string, StatDef> = {
   },
   pDef: {
     id: 'pDef', short: 'P.Def', name: 'Physical Defense',
-    description: 'Reduces incoming physical damage. Higher P.Def = less damage from melee swings, arrows, knockback.',
+    description: `Reduces incoming physical damage (melee, arrows). Damage taken ×${DEFENSE_HALF_REDUCTION}/(${DEFENSE_HALF_REDUCTION}+P.Def) — P.Def ${DEFENSE_HALF_REDUCTION} halves it, with diminishing returns above.`,
     tags: ['derived', 'defensive', 'physical'],
   },
   mDef: {
     id: 'mDef', short: 'M.Def', name: 'Magical Defense',
-    description: 'Reduces incoming magical damage. Higher M.Def = less damage from spells and DoT effects.',
+    description: `Reduces incoming magical damage (spells). Damage taken ×${DEFENSE_HALF_REDUCTION}/(${DEFENSE_HALF_REDUCTION}+M.Def) — M.Def ${DEFENSE_HALF_REDUCTION} halves it, with diminishing returns above.`,
     tags: ['derived', 'defensive', 'magical'],
   },
   hpRegen: {

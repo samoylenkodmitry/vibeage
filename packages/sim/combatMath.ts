@@ -1,5 +1,17 @@
 import { SKILLS, type SkillId } from '../content/skills.js';
-import { ACCURACY_BASELINE, EVASION_BASELINE, MAX_DODGE_CHANCE } from '../content/stats.js';
+import { ACCURACY_BASELINE, DEFENSE_HALF_REDUCTION, EVASION_BASELINE, MAX_DODGE_CHANCE } from '../content/stats.js';
+
+/**
+ * Scale incoming damage by the target's defense (see stats.ts DEFENSE
+ * model): `raw × K/(K + max(0, defense − penetration))`. Defense ≤ 0
+ * (mobs, untyped hits) returns the raw damage unchanged, so this only
+ * softens damage to entities that actually carry P.Def / M.Def.
+ */
+export function mitigatedDamage(rawDamage: number, defense: number, penetration = 0): number {
+  const effective = Math.max(0, defense - penetration);
+  if (effective <= 0 || rawDamage <= 0) return rawDamage;
+  return rawDamage * DEFENSE_HALF_REDUCTION / (DEFENSE_HALF_REDUCTION + effective);
+}
 
 /**
  * Dodge chance (0..1) from the opposing accuracy/evasion stats,

@@ -1,6 +1,19 @@
 import { nanoid } from 'nanoid';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
+import { mitigatedDamage } from '../../packages/sim/combatMath.js';
+
+/**
+ * How an incoming hit interacts with the target's defense:
+ *   - `kind` selects P.Def ('physical') or M.Def ('magical'); omit /
+ *     'none' to skip defense (DoT-style, untyped).
+ *   - `penetration` subtracts from the target's effective defense
+ *     (armor-pierce skills).
+ */
+export type DamageResolveOpts = {
+  kind?: 'physical' | 'magical' | 'none';
+  penetration?: number;
+};
 
 /**
  * Single defensive pipeline for *all* incoming damage — player casts
@@ -24,6 +37,7 @@ export function applyResolvedDamageToTarget(
   target: Enemy | PlayerState,
   rawDamage: number,
   now: number = Date.now(),
+  opts: DamageResolveOpts = {},
 ): number {
   if (rawDamage <= 0) return 0;
   // Phoenix Knight Resurrection invuln window zeroes incoming damage.
@@ -34,7 +48,11 @@ export function applyResolvedDamageToTarget(
   // half HP. Evaluated live against current HP — the stat pipeline
   // only recomputes on level/equip/effect changes, so an hpFraction
   // predicate would go stale across a fight.
-  const mitigated = isEnemy(target) ? rawDamage : rawDamage * targetDamageTakenMult(target);
+  const lastStand = isEnemy(target) ? rawDamage : rawDamage * targetDamageTakenMult(target);
+  // P.Def / M.Def reduction. Enemies carry no defense stats, so
+  // player→mob damage is unchanged; this only softens incoming player
+  // damage. Untyped hits (kind 'none'/unset) skip defense.
+  const mitigated = mitigatedDamage(lastStand, targetDefense(target, opts.kind), opts.penetration ?? 0);
   let incoming = absorbWithShield(target, mitigated);
 
   // Phoenix Knight Resurrection: a hit that would kill snaps the
@@ -50,6 +68,14 @@ export function applyResolvedDamageToTarget(
 
   target.health = Math.max(0, target.health - incoming);
   return incoming;
+}
+
+// Relevant defense for a hit of `kind`. Enemies have no `stats`
+// block → 0 (no mitigation). Untyped / unset kind → 0 (DoT etc.).
+function targetDefense(target: Enemy | PlayerState, kind: DamageResolveOpts['kind']): number {
+  if (kind !== 'physical' && kind !== 'magical') return 0;
+  if (!('stats' in target) || !target.stats) return 0;
+  return (kind === 'physical' ? target.stats.pDef : target.stats.mDef) ?? 0;
 }
 
 // §45.3 follow-up — live-eval mitigation against current HP, not a
