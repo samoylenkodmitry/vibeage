@@ -82,6 +82,8 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   // (sun/moon/cloud following the player's focus + cloud rotation).
   const paletteRef = useRef(computeDayPhase(Date.now()));
   const paletteAccumRef = useRef(0);
+  useInitSceneBackground(scene, paletteRef.current.backgroundColor);
+
   useFrame((_, delta) => {
     paletteAccumRef.current += delta;
     if (paletteAccumRef.current >= PALETTE_REFRESH_S) {
@@ -140,6 +142,24 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
       <FoliageField focus={focus} />
     </>
   );
+}
+
+/**
+ * Seed scene.background with a THREE.Color on mount. It defaults to null (the
+ * canvas then shows its black clear colour), and applyDayPhaseToScene only
+ * *updates* the background when it's already a Color — so without this the
+ * day-phase sky colour is never applied and the sky stays black at every phase
+ * (most obvious in daylight). WorldEnvironment owns the sky; it restores the
+ * previous value on unmount.
+ */
+function useInitSceneBackground(scene: THREE.Scene, initialColor: string): void {
+  useLayoutEffect(() => {
+    const previous = scene.background;
+    scene.background = new THREE.Color(initialColor);
+    return () => {
+      scene.background = previous;
+    };
+  }, [scene, initialColor]);
 }
 
 function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
