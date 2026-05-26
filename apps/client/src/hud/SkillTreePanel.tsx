@@ -4,7 +4,10 @@ import {
   canLearnSkill,
   type CharacterClass,
 } from '../../../../packages/content/classes';
-import { SKILLS, isPassiveSkill, type SkillDef, type SkillId } from '../../../../packages/content/skills';
+import { SKILLS, classifySkill, isPassiveSkill, type SkillDef, type SkillId } from '../../../../packages/content/skills';
+import { PASSIVE_SKILL_CONTRIBUTIONS } from '../../../../packages/content/classPassives';
+import { STATS } from '../../../../packages/content/stats';
+import type { Contribution } from '../../../../packages/sim/statContributions';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
 import {
@@ -105,7 +108,12 @@ function SkillRow({
 }) {
   const skill = SKILLS[row.skillId];
   const { beginDrag, consumeDragClick } = useActionBarDrag();
-  const canDragToBar = row.status === 'unlocked' && !isPassiveSkill(row.skillId);
+  const isPassive = isPassiveSkill(row.skillId);
+  const canDragToBar = row.status === 'unlocked' && !isPassive;
+  // Self-buff = a beneficial-only active skill (Bless, Shield Wall,
+  // Evade…) that lands on you. Tagged so it reads as a buff, not an
+  // attack, in the tree.
+  const isSelfBuff = !isPassive && !!skill?.effects?.length && classifySkill(skill.effects) === 'beneficial';
   // maxLevel = base level 1 + N upgrade tiers (each tier description
   // lives in SKILLS[id].upgrades[i] and bumps the level by one).
   const maxLevel = 1 + (skill?.upgrades?.length ?? 0);
@@ -140,6 +148,8 @@ function SkillRow({
       >
         <strong>
           {row.name}
+          {isPassive && <span className="skill-tag-kind skill-tag-kind--passive">Passive</span>}
+          {isSelfBuff && <span className="skill-tag-kind skill-tag-kind--buff">Self-buff</span>}
           {row.status === 'unlocked' && skill?.upgrades?.length ? ` · Lv ${skillLevel}/${maxLevel}` : ''}
         </strong>
         <small>{row.detail}</small>
@@ -176,6 +186,12 @@ function SkillRow({
 }
 
 function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: number }) {
+  // Passives are never cast — the damage/range/mana/cast/cooldown grid
+  // is all blank for them, which read as a broken skill. Show what the
+  // passive actually does instead.
+  if (isPassiveSkill(skill.id)) {
+    return <PassiveDetail skill={skill} />;
+  }
   // Show the *effective* numbers the engine will apply at this tier.
   // Headline values reflect the player's actual leveled skill, not
   // the base; the upgrade list below shows the per-tier deltas.
@@ -212,6 +228,43 @@ function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: numbe
   );
 }
 
+function PassiveDetail({ skill }: { skill: SkillDef }) {
+  const rows = PASSIVE_SKILL_CONTRIBUTIONS[skill.id] ?? [];
+  return (
+    <div className="skill-tree-detail">
+      <p className="skill-tree-detail-desc">{skill.description}</p>
+      <p className="skill-tree-passive-note">
+        Passive — always active once learned. No cast, no cooldown; it shapes your stats directly.
+      </p>
+      {rows.length > 0 && (
+        <ul className="skill-tree-passive-effects">
+          {rows.map((row) => (
+            <li key={`${row.source}:${row.stat}`}>
+              <span>{STATS[row.stat]?.short ?? row.stat}</span>
+              <strong>{formatContribution(row)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Compact "+30%" / "+5" rendering of a passive's stat contribution. */
+function formatContribution(c: Contribution): string {
+  if (typeof c.value !== 'number') return '';
+  if (c.op === 'mul') {
+    const pct = Math.round((c.value - 1) * 100);
+    return `${pct >= 0 ? '+' : '−'}${Math.abs(pct)}%`;
+  }
+  // crit chance is a 0..1 fraction; everyone else is a flat point value.
+  if (c.stat === 'critChance') {
+    const pct = Math.round(c.value * 100);
+    return `${pct >= 0 ? '+' : '−'}${Math.abs(pct)}%`;
+  }
+  return `${c.value >= 0 ? '+' : '−'}${Math.abs(c.value)}`;
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="skill-tree-detail-stat">
@@ -232,7 +285,10 @@ export function buildSkillRows(player: PlayerEntity | null): Row[] {
     const id = skillId as SkillId;
     const skill = SKILLS[id];
     if (unlocked.includes(id)) {
-      return { skillId: id, name: skill?.name ?? id, status: 'unlocked', detail: 'In your bar' };
+      // Passives can't sit in the action bar — they're always on. The
+      // old "In your bar" label was misleading for them.
+      const detail = isPassiveSkill(id) ? 'Always active' : 'In your bar';
+      return { skillId: id, name: skill?.name ?? id, status: 'unlocked', detail };
     }
     if (canLearnSkill(id, className, level, unlocked)) {
       return { skillId: id, name: skill?.name ?? id, status: 'available', detail: `Required Lv ${req.level}` };

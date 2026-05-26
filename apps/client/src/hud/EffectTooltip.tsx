@@ -1,51 +1,12 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { StatusEffect } from '../../../../packages/protocol/messages';
+import { EFFECT_DESCRIPTION, EFFECT_LABEL } from './effectMeta';
 
 type EffectTooltipProps = {
   effect: StatusEffect;
   clientX: number;
   clientY: number;
-};
-
-const EFFECT_LABEL: Record<string, string> = {
-  damage: 'Damage',
-  heal: 'Heal over time',
-  stun: 'Stun',
-  slow: 'Slow',
-  dot: 'Bleed',
-  burn: 'Burn',
-  poison: 'Poison',
-  waterWeakness: 'Water weakness',
-  freeze: 'Freeze',
-  shield: 'Shield',
-  bless: 'Bless',
-  dispel: 'Dispel',
-  taunt: 'Taunt',
-  knockback: 'Knockback',
-  evasion: 'Evasion',
-  invisible: 'Invisible',
-  transform: 'Transform',
-};
-
-const EFFECT_DESCRIPTION: Record<string, string> = {
-  damage: 'Inflicts a flat amount of damage on application.',
-  heal: 'Restores health.',
-  stun: 'Locks movement, casting, and attacks for the duration.',
-  slow: 'Reduces movement speed by the listed percentage.',
-  dot: 'Ticks damage every second over the duration.',
-  burn: 'Fire damage tick — fire-weak enemies take more.',
-  poison: 'Poison damage tick — ignores armor.',
-  waterWeakness: 'Target takes the listed % more damage from water attacks.',
-  freeze: 'Target is locked solid; cannot act.',
-  shield: 'Absorbs incoming damage up to the listed amount, then breaks.',
-  bless: 'Increases the caster’s outgoing damage by the listed percent.',
-  dispel: 'Strips a negative status effect (handled on apply, no duration).',
-  taunt: 'Forces the target enemy to attack the caster for the duration.',
-  knockback: 'Pushes the target back the listed distance.',
-  evasion: 'Increases dodge chance by the listed percent.',
-  invisible: 'Breaks enemy aggro and hides the player from their searches.',
-  transform: 'Converts the target into stone (or equivalent) for the duration.',
 };
 
 export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) {
