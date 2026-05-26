@@ -135,9 +135,8 @@ function resolveCastTargets(
 function beneficialAreaTargets(caster: PlayerState, radius: number, world: CombatWorld): Array<Enemy | PlayerState> {
   const targets: Array<Enemy | PlayerState> = [caster];
   for (const entity of world.getEntitiesInCircle({ x: caster.position.x, z: caster.position.z }, radius)) {
-    if (entity.id === caster.id) continue;
-    const ally = world.getPlayerById(entity.id);
-    if (ally?.isAlive) targets.push(ally);
+    if (entity.id === caster.id || isEnemy(entity)) continue;
+    if (entity.isAlive) targets.push(entity);
   }
   return targets;
 }
