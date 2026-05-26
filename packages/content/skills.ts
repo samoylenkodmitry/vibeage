@@ -296,7 +296,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 3,
     effects: [
       { type: 'damage', value: 30 },
-      { type: 'poison', value: 0.5, durationMs: 10000 }, // Poisons enemy for 0.5% damage for 10 seconds
+      { type: 'poison', value: 3, durationMs: 10000 }, // D18 — flat 3 dmg/tick (DoT ticks are flat; 0.5 was a no-op)
       { type: 'slow', value: 50, durationMs: 10000 } // Slows enemy by 50% for 10 seconds
     ],
     projectile: {
