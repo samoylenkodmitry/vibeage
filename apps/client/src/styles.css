@@ -635,6 +635,7 @@ input {
 }
 
 .meter-track {
+  position: relative;
   overflow: hidden;
   height: 8px;
   border-radius: 999px;
@@ -645,6 +646,22 @@ input {
   height: 100%;
   border-radius: inherit;
   transition: width 120ms linear;
+}
+
+/* Shield absorb overshield — a gold segment riding the empty space to
+   the right of HP. Absorbs (and drains) before HP. */
+.meter-shield {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(250, 204, 21, 0.95),
+    rgba(250, 204, 21, 0.95) 4px,
+    rgba(217, 170, 10, 0.95) 4px,
+    rgba(217, 170, 10, 0.95) 8px
+  );
+  transition: left 120ms linear, width 120ms linear;
 }
 
 .meter-hp,

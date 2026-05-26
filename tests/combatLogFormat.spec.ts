@@ -83,4 +83,16 @@ describe('formatCombatLogLine', () => {
       crits: [false], misses: [false], heals: [0],
     })).toBe('Fireball hit Goblin for 0 damage');
   });
+  it('renders a beneficial self-buff cast as "applied", not a 0-damage hit', () => {
+    // Shield Wall has no .dmg and a beneficial (shield) effect — the
+    // self-cast used to print "Shield Wall hit <you> for 0 damage".
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'shieldWall', targets: ['hero'], damages: [0], heals: [0], misses: [false],
+    })).toBe('Shield Wall applied');
+  });
+  it('renders a non-damaging non-beneficial utility as "cast <target>"', () => {
+    expect(formatCombatLogLine(makeStateWithGoblin(), {
+      skillId: 'taunt', targets: ['gob1'], damages: [0], heals: [0], misses: [false],
+    })).toBe('Taunt cast Goblin');
+  });
 });

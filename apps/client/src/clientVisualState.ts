@@ -1,5 +1,5 @@
 import { ITEMS } from '../../../packages/content/items';
-import { SKILLS } from '../../../packages/content/skills';
+import { SKILLS, classifySkill } from '../../../packages/content/skills';
 import {
   CastState,
   type CastSnapshot,
@@ -624,6 +624,15 @@ export function formatCombatLogLine(state: GameClientState, parts: CombatLogLine
   // restores don't look like a 0-damage hit.
   if (totalDamage <= 0 && totalHeal > 0) {
     return `${skillName} healed${targetText} for ${Math.round(totalHeal)}`;
+  }
+  // A non-damaging skill that landed is a buff / utility (Shield
+  // Wall, Bless, Evade, Dispel, Vanish…). Don't render it as a "0
+  // damage" hit — name what was applied. (A *damage* skill that
+  // happens to report 0 — e.g. invuln ate it — keeps the hit line.)
+  const skillDef = SKILLS[skillId];
+  if (totalDamage <= 0 && !(skillDef?.dmg && skillDef.dmg > 0)) {
+    const beneficial = classifySkill(skillDef?.effects ?? []) === 'beneficial';
+    return beneficial ? `${skillName} applied` : `${skillName} cast${targetText}`;
   }
   // §49/M2 — append "(crit!)" when any hit in this CombatLog was a
   // crit. Aggregate behavior so an AOE doesn't print 'crit' three

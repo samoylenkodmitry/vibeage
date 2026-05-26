@@ -83,3 +83,20 @@ export function effectRemainingFraction(effect: StatusEffect, now: number = Date
   if (remaining === null || !effect.durationMs) return 1;
   return Math.max(0, Math.min(1, remaining / effect.durationMs));
 }
+
+/**
+ * Sum of the still-active `shield` absorb pools on an entity — the
+ * damage the shield eats before HP. Drives the HP-bar overshield
+ * overlay (shield is absorb-only, so it no longer shows up as
+ * inflated max HP).
+ */
+export function totalShield(effects: StatusEffect[] | undefined, now: number = Date.now()): number {
+  if (!effects?.length) return 0;
+  let total = 0;
+  for (const effect of effects) {
+    if (effect.type !== 'shield') continue;
+    if (effectRemainingMs(effect, now) === 0) continue; // timed-out (untimed shields keep their value)
+    total += Math.max(0, effect.value ?? 0);
+  }
+  return total;
+}
