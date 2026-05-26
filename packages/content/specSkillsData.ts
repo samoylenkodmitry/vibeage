@@ -72,7 +72,12 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     description: 'Brief invisibility for repositioning.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
     manaCost: 30, castMs: 0, cooldownMs: 45000, levelRequired: 20, isBlocking: false,
-    effects: [{ type: 'invisible', value: 1, durationMs: 8000 }],
+    // selfTarget so the stealth/aggroReset always land on the caster, never
+    // a targeted enemy (matches Vanish; guards the with-target cast path).
+    selfTarget: true,
+    // C16 — drop current chasers too, so the invisibility actually lets
+    // you reposition (invisible alone doesn't clear existing threat).
+    effects: [{ type: 'invisible', value: 1, durationMs: 8000 }, { type: 'aggroReset', value: 1 }],
   },
   holy_shield: {
     id: 'holy_shield', name: 'Holy Shield',
