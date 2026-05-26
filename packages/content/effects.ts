@@ -196,6 +196,13 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     valueUnit: '%',
     stacking: 'refresh',
   },
+  reveal_loot: {
+    type: 'reveal_loot',
+    label: 'Treasure Sense',
+    description: 'Reveals nearby ground loot — names shown at a glance for the duration.',
+    category: 'buff',
+    stacking: 'refresh',
+  },
   aggroReset: {
     type: 'aggroReset',
     label: 'Aggro Reset',

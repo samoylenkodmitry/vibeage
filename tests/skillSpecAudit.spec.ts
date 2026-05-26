@@ -38,6 +38,7 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'invisible',  // enemy AI ignores invisible targets + status display
   'speed_boost', // STATUS_EFFECT_STAT_CONTRIBUTIONS (runSpeed mul) → movement
   'attackSpeed', // STATUS_EFFECT_STAT_CONTRIBUTIONS (attackSpeed mul) → auto-attack cooldown
+  'reveal_loot', // client LootMarker shows names while the buff is active
   'aggroReset', // applyAggroResetAround
   'teleport',   // applySkillEffects → recall to village
   'knockback',     // §45.4 — applyKnockback pushes target along caster→target vector

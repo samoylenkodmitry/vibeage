@@ -6,6 +6,7 @@ import {
   effectRemainingMs,
   isBeneficialEffect,
   totalShield,
+  hasActiveEffect,
 } from '../apps/client/src/hud/effectMeta';
 import type { StatusEffect } from '../packages/protocol/messages';
 
@@ -58,5 +59,15 @@ describe('effectMeta', () => {
     expect(totalShield(effects, NOW + 1000)).toBe(350);
     expect(totalShield([], NOW)).toBe(0);
     expect(totalShield(undefined, NOW)).toBe(0);
+  });
+});
+
+describe('hasActiveEffect', () => {
+  it('detects an unexpired effect of a given type', () => {
+    const effs = [eff({ type: 'reveal_loot', startTimeTs: NOW, durationMs: 30_000 })];
+    expect(hasActiveEffect(effs, 'reveal_loot', NOW + 1000)).toBe(true);
+    expect(hasActiveEffect(effs, 'reveal_loot', NOW + 40_000)).toBe(false); // expired
+    expect(hasActiveEffect(effs, 'bless', NOW)).toBe(false);
+    expect(hasActiveEffect([], 'reveal_loot', NOW)).toBe(false);
   });
 });

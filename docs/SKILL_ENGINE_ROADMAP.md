@@ -7,6 +7,8 @@ description says — "to full extent." This doc audits the current catalog
 
 Status legend: ✅ done · 🟡 in progress · ⬜ planned · 🔎 needs design call
 
+**STATUS: complete — every row below is ✅ (shipped PRs #687–#693).**
+
 Recently closed (context for this push): accuracy & evasion now affect hit
 chance (#682); shield/mitigation/evasion apply to mob & boss damage, not just
 PvP (#681); shield is absorb-only + shown on the HP bar (#684).
@@ -29,7 +31,7 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 | B5 | **bless** | "Boost your damage **and hit chance**." | Only `dmgMult` (+25%). | `bless` effect now contributes +v% dmg AND +v accuracy. | ✅ |
 | B6 | **rapidFire** | "Increase your **attack speed**." | Emits `bless` (a +40% *damage* buff). | New `attackSpeed` buff effect (rapidFire emits it), wired to A3. | ✅ |
 | B7 | **wind_dash** | "Burst of **speed** that **breaks pursuit**." | Emits `evasion` (dodge). | Now emits `speed_boost` + `aggroReset`. | ✅ |
-| B8 | **treasure_sense** | "Reveals loot drops at a glance." | Emits `evasion 15` (unrelated). | Loot-highlight effect (client reveal) or repurpose. | 🔎 |
+| B8 | **treasure_sense** | "Reveals loot drops at a glance." | Emits `evasion 15` (unrelated). | New `reveal_loot` effect; client LootMarker shows loot names while active. | ✅ |
 | B9 | **execute** | "Finishing blow against a **wounded** target." | Flat damage, no low-HP scaling. | `offense.executeBonus` — damage ×(1+bonus·(1−hpFraction)). | ✅ |
 | B10 | **lucky_strike** | "Chance to **crit big**." | Flat damage, no crit interaction. | `offense.bonusCritChance/Mult` added to the cast. | ✅ |
 | B11 | **soul_eater** | "**Drain life** from your target." | Flat damage, no lifesteal. | `offense.lifestealPct` heals caster for % of damage dealt. | ✅ |
@@ -40,7 +42,7 @@ PvP (#681); shield is absorb-only + shown on the HP bar (#684).
 
 | # | Skill(s) | Issue | Plan | Status |
 |---|----------|-------|------|--------|
-| C14 | **sacred_pulse, mass_heal, sacred_aura, group_bless** | Beneficial auras run `getTargetsInArea`, which **excludes the caster and includes enemies** → they heal/buff nearby *enemies* and never the caster. | Beneficial area effects target self + allied players in radius, never enemies. | ⬜ |
+| C14 | **sacred_pulse, mass_heal, sacred_aura, group_bless** | Beneficial auras ran `getTargetsInArea`, which **excluded the caster and included enemies** → they healed/buffed nearby *enemies* and never the caster. | Beneficial-only AOE now targets the caster + allied players in radius, never enemies. | ✅ #689 |
 | C15 | **inferno_aura, divine_taunt, meteor** | Harmful auras center on `cast.pos` and exclude the caster — fine *if* the client sends caster position; verify self-centered auras actually sweep nearby enemies. | Verified: self-auras center on the caster (`cast.pos`) and sweep nearby enemies; test added. | ✅ |
 | C16 | **silent_step** | "Repositioning" invisibility but no `aggroReset`, so current chasers keep chasing. | Now emits `aggroReset` (drops chasers) so the "repositioning" is real. | ✅ |
 

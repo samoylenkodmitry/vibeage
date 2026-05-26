@@ -54,7 +54,7 @@ export type SkillEffectType =
   | 'knockback'
   | 'evasion'  // dodge buff
   | 'invisible'
-  | 'speed_boost' | 'attackSpeed' // movement / auto-attack speed buffs
+  | 'speed_boost' | 'attackSpeed' | 'reveal_loot' // movement / auto-attack / loot-reveal buffs
   | 'aggroReset' // PR KK — wipe attackers' threat on the caster
   | 'teleport'; // recall to nearest village (Escape)
 
@@ -70,7 +70,7 @@ const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
   'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
 ]);
 const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'aggroReset',
+  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'aggroReset',
 ]);
 
 export type SkillAlignment = 'harmful' | 'beneficial' | 'neutral';

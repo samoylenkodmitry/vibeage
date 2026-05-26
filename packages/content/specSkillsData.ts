@@ -229,7 +229,8 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     description: 'Reveals loot drops at a glance.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
     manaCost: 20, castMs: 0, cooldownMs: 60000, levelRequired: 40, isBlocking: false,
-    effects: [{ type: 'evasion', value: 15, durationMs: 30000 }],
+    // B8 — actually reveals ground loot (was an unrelated evasion buff).
+    effects: [{ type: 'reveal_loot', value: 1, durationMs: 30000 }],
   },
   stalking_arrow: {
     id: 'stalking_arrow', name: 'Stalking Arrow',

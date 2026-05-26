@@ -375,9 +375,12 @@ function renderProjectileCore(theme: SkillTheme, ref: RefObject<THREE.Mesh | nul
 function LootMarkerImpl({
   loot,
   onPickUpLoot,
+  revealed = false,
 }: {
   loot: GroundLootStack;
   onPickUpLoot: (lootId: string) => void;
+  /** Treasure Sense — show the loot's name without hovering. */
+  revealed?: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const sparkGroupRef = useRef<THREE.Group>(null);
@@ -433,7 +436,7 @@ function LootMarkerImpl({
         <boxGeometry args={[0.62, 0.62, 0.62]} />
         <meshStandardMaterial color={color} emissive="#7c4a03" emissiveIntensity={0.75} roughness={0.48} />
       </mesh>
-      {hovered && labelText ? (
+      {(hovered || revealed) && labelText ? (
         <NameLabel text={labelText} color="#fde68a" yOffset={1.1} height={0.42} />
       ) : null}
       <GlowEmitter color={color} intensity={1.6} distance={7} priority={2} />
