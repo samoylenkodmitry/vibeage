@@ -1,6 +1,7 @@
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { Meter, StatusPills, formatMeter, getDistance, getMeterProgress, getTargetState, getTargetTone } from './hudPrimitives';
 import { totalShield } from './effectMeta';
+import { ActiveEffects } from './ActiveEffects';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
 
@@ -66,6 +67,11 @@ export function VitalsStrip({
       <div className="vitals-gold" aria-label="Gold">
         <span>Gold</span>
         <strong>{(player?.gold ?? 0).toLocaleString()}</strong>
+      </div>
+      {/* Stop clicks/keys inside the effects list from bubbling to the
+          strip's select-self handler (effect rows deep-link to the Wiki). */}
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <ActiveEffects effects={player?.statusEffects ?? []} />
       </div>
     </section>
   );
