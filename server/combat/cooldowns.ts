@@ -2,6 +2,7 @@ import type { SkillDef, SkillId } from '../../packages/content/skills.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
+import { attackSpeedCooldownFactor } from '../../packages/sim/combatMath.js';
 
 export type PlayerResourceUpdate = {
   mana: number;
@@ -28,7 +29,7 @@ export function hasEnoughMana(player: PlayerState, skill: Pick<SkillDef, 'manaCo
 export function applySkillCostAndCooldown(
   player: PlayerState,
   skillId: SkillId,
-  skill: Pick<SkillDef, 'manaCost' | 'cooldownMs'>,
+  skill: Pick<SkillDef, 'manaCost' | 'cooldownMs' | 'autoRepeat'>,
   now: number,
 ): PlayerResourceUpdate {
   // Drive mana cost + cooldown through the upgrade modifiers so a
@@ -42,7 +43,12 @@ export function applySkillCostAndCooldown(
   // Multiplies on top of the skill-upgrade modifier so a leveled
   // Vanish with Shadow Step gets BOTH reductions.
   const specCooldownMult = specCooldownMultiplierFor(player, skillId);
-  const cooldownMs = (skill.cooldownMs ?? 0) * mods.cooldownMultiplier * specCooldownMult;
+  // attackSpeed shortens the auto-attack interval (autoRepeat skills:
+  // Basic Attack, Arrow Shot). Other skills keep their fixed cooldown.
+  const attackSpeedMult = skill.autoRepeat ? attackSpeedCooldownFactor(player.stats?.attackSpeed) : 1;
+  // Round so the cooldown end timestamp stays an integer ms even after
+  // the floating-point attackSpeed / upgrade / spec multipliers.
+  const cooldownMs = Math.round((skill.cooldownMs ?? 0) * mods.cooldownMultiplier * specCooldownMult * attackSpeedMult);
   player.mana = Math.max(0, player.mana - manaCost);
   player.skillCooldownEndTs = {
     ...(player.skillCooldownEndTs ?? {}),

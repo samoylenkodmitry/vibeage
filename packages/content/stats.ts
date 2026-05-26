@@ -48,6 +48,18 @@ export const MAX_DODGE_CHANCE = 0.95;
  */
 export const DEFENSE_HALF_REDUCTION = 200;
 
+/**
+ * Timing model — single source for how attackSpeed / castSpeed turn
+ * into real cadence. `ATTACK_SPEED_BASELINE` is the neutral
+ * auto-attack rating (also the `baseline:attackSpeed` contribution):
+ * an auto-attack's cooldown is scaled by `ATTACK_SPEED_BASELINE /
+ * attackSpeed`, so more attackSpeed = shorter interval. castSpeed is
+ * already a 1.0–2.5 multiplier (`baseline:castSpeed` = 1); a cast's
+ * time is divided by it. Both are neutral at their baselines, so
+ * wiring them in doesn't shift unbuffed timing.
+ */
+export const ATTACK_SPEED_BASELINE = 300;
+
 export const STATS: Record<string, StatDef> = {
   str: {
     id: 'str', short: 'STR', name: 'Strength',
