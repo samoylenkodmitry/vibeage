@@ -79,16 +79,31 @@ describe('B11 soul_eater drains life to the caster', () => {
     const out: OutboundEventSink = { publish: vi.fn() };
     resolveCastImpact(cast('soul_eater', atk.id, enemy.id), out, worldFor(atk, enemy));
     const dealt = 10_000 - enemy.health;
-    expect(atk.health).toBeCloseTo(100 + dealt * 0.5, 0);
+    expect(atk.health).toBe(100 + Math.round(dealt * 0.5));
   });
 });
 
-describe('B12 shadow_strike pierces armor', () => {
-  it('a defended target takes more from an armor-pen hit than a normal one', () => {
-    // Compare the mitigation an armored target would suffer: with 500
-    // penetration vs 500 P.Def, the hit is fully un-mitigated.
-    const raw = 240;
-    expect(mitigatedDamage(raw, 500, 500)).toBe(raw);          // pierced → full
-    expect(mitigatedDamage(raw, 500, 0)).toBeLessThan(raw);    // unpierced → reduced
+describe('B12 shadow_strike pierces armor (cast path)', () => {
+  it('a P.Def-500 player takes near-full damage from shadow_strike (armorPen 500)', () => {
+    // armorPen only matters vs a target that *has* defense — i.e. a
+    // player (mobs carry none). pDef 500 vs armorPen 500 → no mitigation.
+    const atk = caster();
+    const defender = caster({
+      id: 'def', position: { x: 1, y: 0.5, z: 0 }, health: 100_000, maxHealth: 100_000,
+      stats: { dmgMult: 1, critChance: 0, critMult: 2, pDef: 500 },
+    });
+    const world: CombatWorld = {
+      getEnemyById: () => null,
+      getPlayerById: (id) => (id === atk.id ? atk : id === defender.id ? defender : null),
+      getEntitiesInCircle: () => [defender],
+      onTargetDied: vi.fn(),
+    };
+    const out: OutboundEventSink = { publish: vi.fn() };
+    resolveCastImpact(cast('shadow_strike', atk.id, defender.id), out, world);
+    const dealt = 100_000 - defender.health;
+    // Without pen a 240 hit vs pDef 500 mitigates to ~69; with full pen
+    // it lands near 240 (±variance), well above the mitigated value.
+    expect(dealt).toBeGreaterThan(mitigatedDamage(240, 500, 0) * 2);
+    expect(dealt).toBeGreaterThan(180);
   });
 });

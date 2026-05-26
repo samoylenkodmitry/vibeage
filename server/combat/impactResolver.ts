@@ -184,7 +184,7 @@ function calculateDamage(
   const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult * executeMult;
   // §49/M4 PR016 — combat trace. crit factored out of varianceRoll.
   if (isCombatTraceEnabled()) {
-    const critMult = baseStats.critMult ?? 2;
+    const critMult = (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0);
     const expanded = skill.dmg * casterDmgMult * upgradeDmgMult * (result.crit ? critMult : 1);
     recordCombatTrace({
       skillId: skill.id, casterId: caster?.id ?? null, targetId: targetId ?? null,
@@ -368,7 +368,7 @@ function applyCastToTarget(
   if (caster && incoming > 0 && caster.isAlive) {
     const pct = casterLifestealPercent(caster) + (skill.offense?.lifestealPct ?? 0);
     if (pct > 0) {
-      caster.health = Math.min(caster.maxHealth, caster.health + incoming * pct);
+      caster.health = Math.min(caster.maxHealth, caster.health + Math.round(incoming * pct));
     }
   }
 
