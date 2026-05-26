@@ -84,6 +84,10 @@ describe('applyEnemyAttack (normal enemy → player) routes through killPlayer',
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0.5, z: 0 }, 1);
     enemy.attackDamage = 50;
     enemy.lastAttackTime = 0;
+    // Guarantee the swing lands — this test pins the death-state shape,
+    // not the dodge roll. A real (full-stat) player has a few % base
+    // evasion vs a baseline-accuracy mob, which would otherwise flake.
+    enemy.accuracy = 10_000;
 
     const result = applyEnemyAttack(enemy, player, NOW);
 

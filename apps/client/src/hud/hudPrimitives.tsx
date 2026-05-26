@@ -9,19 +9,32 @@ export function Meter({
   value,
   max,
   className,
+  shield = 0,
 }: {
   label: string;
   value: number | undefined;
   max: number | undefined;
   className: string;
+  /** Active shield absorb (HP-bar overshield). Shown as a gold segment + `+N` readout. */
+  shield?: number;
 }) {
+  const hpPct = getMeterProgress(value, max);
+  // Shield rides in the empty space to the right of HP (it absorbs
+  // before HP, and drains first). Clamped so it never overflows the
+  // track; any excess beyond the bar still shows in the `+N` readout.
+  const shieldPct = shield > 0 && max && max > 0
+    ? Math.min(100 - hpPct, (shield / max) * 100)
+    : 0;
   return (
     <div className="meter-row">
       <span>{label}</span>
       <div className="meter-track">
-        <div className={`meter-fill ${className}`} style={{ width: `${getMeterProgress(value, max)}%` }} />
+        <div className={`meter-fill ${className}`} style={{ width: `${hpPct}%` }} />
+        {shieldPct > 0 && (
+          <div className="meter-shield" style={{ left: `${hpPct}%`, width: `${shieldPct}%` }} aria-hidden="true" />
+        )}
       </div>
-      <strong>{formatMeter(value, max)}</strong>
+      <strong>{formatMeter(value, max)}{shield > 0 ? ` +${Math.round(shield)}` : ''}</strong>
     </div>
   );
 }

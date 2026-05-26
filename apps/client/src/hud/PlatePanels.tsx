@@ -1,5 +1,6 @@
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { Meter, StatusPills, formatMeter, getDistance, getMeterProgress, getTargetState, getTargetTone } from './hudPrimitives';
+import { totalShield } from './effectMeta';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
 
@@ -53,7 +54,7 @@ export function VitalsStrip({
         <strong>{player?.name ?? 'Hero'}</strong>
         <span>Lv {player?.level ?? 1}</span>
       </div>
-      <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" />
+      <Meter label="HP" value={player?.health} max={player?.maxHealth} className="meter-hp" shield={totalShield(player?.statusEffects)} />
       <Meter label="MP" value={player?.mana} max={player?.maxMana} className="meter-mp" />
       <div className={`meter-row${xpProgress >= 90 ? ' meter-row--near-levelup' : ''}`}>
         <span>XP</span>
@@ -140,7 +141,7 @@ function renderSelfTargetPanel(
           <button type="button" className="panel-close" aria-label="Clear target" onClick={onClose}>×</button>
         )}
       </div>
-      <Meter label="HP" value={player.health} max={player.maxHealth} className="meter-hp" />
+      <Meter label="HP" value={player.health} max={player.maxHealth} className="meter-hp" shield={totalShield(player.statusEffects)} />
       <Meter label="MP" value={player.mana} max={player.maxMana} className="meter-mp" />
       <div className="target-meta">
         <span>{getTargetState(player.isAlive, healthRatio)}</span>

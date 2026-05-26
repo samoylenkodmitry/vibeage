@@ -5,6 +5,7 @@ import {
   effectRemainingFraction,
   effectRemainingMs,
   isBeneficialEffect,
+  totalShield,
 } from '../apps/client/src/hud/effectMeta';
 import type { StatusEffect } from '../packages/protocol/messages';
 
@@ -45,5 +46,17 @@ describe('effectMeta', () => {
 
   it('returns null remaining for untimed effects', () => {
     expect(effectRemainingMs(eff({ type: 'invisible' }), NOW)).toBeNull();
+  });
+
+  it('totalShield sums active shield pools and ignores other/expired effects', () => {
+    const effects = [
+      eff({ type: 'shield', value: 250, startTimeTs: NOW, durationMs: 8000 }),
+      eff({ type: 'shield', value: 100, startTimeTs: NOW, durationMs: 6000 }),
+      eff({ type: 'bless', value: 25, startTimeTs: NOW, durationMs: 5000 }),
+      eff({ type: 'shield', value: 999, startTimeTs: NOW - 9000, durationMs: 1000 }), // expired
+    ];
+    expect(totalShield(effects, NOW + 1000)).toBe(350);
+    expect(totalShield([], NOW)).toBe(0);
+    expect(totalShield(undefined, NOW)).toBe(0);
   });
 });
