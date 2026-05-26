@@ -227,7 +227,12 @@ export function normalizeInventory(inventory: CharacterInventory, services: Inve
   const { templates, instanceIdFactory } = getServices(services);
 
   for (const [id, instance] of Object.entries(inventory.items)) {
-    if (instance.location?.kind === 'destroyed') {
+    // Corrupt/legacy rows may lack a location; default it so the later
+    // location.kind reads (and re-slotting) can't throw.
+    if (!instance.location) {
+      instance.location = inventoryLocation(undefined);
+    }
+    if (instance.location.kind === 'destroyed') {
       delete inventory.items[id];
       continue;
     }
@@ -246,7 +251,9 @@ export function normalizeInventory(inventory: CharacterInventory, services: Inve
     if (instance.location.kind !== 'inventory') continue;
     const template = templates[instance.templateId];
     if (!template?.stackable) continue;
-    const maxStack = template.maxStack ?? Number.MAX_SAFE_INTEGER;
+    // Clamp to ≥1: a misconfigured maxStack of 0/negative would make the
+    // split loop never terminate (DoS).
+    const maxStack = Math.max(1, template.maxStack ?? Number.MAX_SAFE_INTEGER);
     while (instance.count > maxStack) {
       const extra: ItemInstance = {
         ...instance,
@@ -316,8 +323,8 @@ export function removeItems(
   // by id leaves the player unable to destroy them and free the
   // slot. The bag-items check below is the only validity gate: if
   // the bag holds enough of the id, remove it; otherwise it's a
-  // genuine "not in bag" miss.
-  void services;
+  // genuine "not in bag" miss. `services` is still used for the
+  // validate-before-apply templates below.
   if (count <= 0) {
     return { ok: true, value: { removed: 0, removedInstanceIds: [] } };
   }
@@ -345,7 +352,7 @@ export function removeItems(
     }
   }
 
-  if (validateInvariants(draft).length > 0) {
+  if (validateInvariants(draft, getServices(services).templates).length > 0) {
     return { ok: false, error: 'invariantViolation' };
   }
   applyDraft(inventory, draft);
