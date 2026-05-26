@@ -3,9 +3,12 @@ import { SKILLS } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import { BASIC_ATTACK_HOTKEY, BASIC_ATTACK_SKILL_ID } from '../skillShortcuts';
 import { SkillTooltip } from './SkillTooltip';
+import { useActionBarDrag } from './actionBarDrag';
 import { useDraggablePanel } from './useDraggablePanel';
+import { useHasMousePointer } from './useHasMousePointer';
 import { useNow } from './useNow';
 import { useTooltipTrigger } from './useTooltipTrigger';
+import { SKILL_DRAG_MIME } from './useActionBar';
 
 type ActionsPanelProps = {
   player: PlayerEntity | null;
@@ -59,6 +62,7 @@ export function ActionsPanel({
           }
           onClick={() => onCastSkill(BASIC_ATTACK_SKILL_ID)}
           extraHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
+          dragSkillId={BASIC_ATTACK_SKILL_ID}
         />
         <ActionButton
           label="Move"
@@ -138,6 +142,7 @@ function EscapeButton({
       }
       onClick={() => onCastSkill('escape')}
       extraHandlers={tooltip.triggerProps('escape' as SkillId)}
+      dragSkillId={'escape' as SkillId}
     />
   );
 }
@@ -149,6 +154,7 @@ function ActionButton({
   subtitle,
   onClick,
   extraHandlers,
+  dragSkillId,
 }: {
   label: string;
   hotkey: string;
@@ -156,7 +162,14 @@ function ActionButton({
   subtitle: string;
   onClick: () => void;
   extraHandlers?: React.HTMLAttributes<HTMLButtonElement>;
+  /** When set, the button is also a drag source for binding this skill
+   *  onto the action bar (mouse: native HTML5; touch: long-press). Only
+   *  while enabled — a disabled button can't initiate a drag. */
+  dragSkillId?: SkillId;
 }) {
+  const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const hasMouse = useHasMousePointer();
+  const isDragSource = Boolean(dragSkillId) && !disabled;
   return (
     <button
       type="button"
@@ -164,8 +177,22 @@ function ActionButton({
       disabled={disabled}
       aria-label={`${label} (${hotkey})`}
       aria-keyshortcuts={hotkey}
-      onClick={onClick}
+      draggable={isDragSource && hasMouse}
+      onDragStart={isDragSource ? (e) => {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: dragSkillId }));
+      } : undefined}
+      onClick={(e) => {
+        if (isDragSource && consumeDragClick()) {
+          e.preventDefault();
+          return;
+        }
+        onClick();
+      }}
       {...(extraHandlers ?? {})}
+      {...(isDragSource
+        ? { onPointerDown: (e: React.PointerEvent) => beginDrag({ kind: 'skill', id: dragSkillId as SkillId }, e, label) }
+        : {})}
     >
       <span className="action-button__hotkey">{hotkey}</span>
       <strong className="action-button__label">{label}</strong>

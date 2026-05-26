@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -46,7 +47,12 @@ export function resolveBarDrop(payload: BarDragPayload, toSlot: number | null): 
   return { type: 'set', slot: toSlot, ref: { kind: 'item', id: payload.id } };
 }
 
-const DRAG_THRESHOLD_PX = 8;
+// Touch drag is long-press initiated: hold still for LONG_PRESS_MS to pick the
+// thing up, then drag. A quick tap casts/uses; a swipe scrolls the list. If the
+// finger travels more than MOVE_CANCEL_PX before the hold completes, it's read
+// as a scroll/tap and the drag is abandoned.
+const LONG_PRESS_MS = 350;
+const MOVE_CANCEL_PX = 12;
 
 /** The action-bar slot index under a viewport point, or null if none. */
 function slotUnderPoint(x: number, y: number): number | null {
@@ -81,13 +87,88 @@ export function useActionBarDrag(): DragContext {
 
 type Candidate = {
   payload: BarDragPayload;
-  x0: number;
-  y0: number;
   label: string;
-  active: boolean;
   el: HTMLElement;
   prevTouchAction: string;
+  x0: number;
+  y0: number;
+  lastX: number;
+  lastY: number;
+  active: boolean;
+  timerId: number;
 };
+
+type Ghost = { x: number; y: number; label: string };
+type DropCallbacks = {
+  setSlot: (slotIndex: number, ref: ActionRef) => void;
+  swapSlots: (from: number, to: number) => void;
+  clearSlot: (slotIndex: number) => void;
+};
+
+/** Install the window pointer/touch listeners that drive an active drag.
+ *  Bound once; reads live state through refs. Returns a teardown. */
+function installDragListeners(
+  candidateRef: MutableRefObject<Candidate | null>,
+  justDraggedRef: MutableRefObject<boolean>,
+  setGhost: (ghost: Ghost | null) => void,
+  cbRef: MutableRefObject<DropCallbacks>,
+): () => void {
+  const abandon = (c: Candidate) => {
+    clearTimeout(c.timerId);
+    c.el.style.touchAction = c.prevTouchAction;
+    candidateRef.current = null;
+  };
+  const onMove = (event: PointerEvent) => {
+    const c = candidateRef.current;
+    if (!c) return;
+    c.lastX = event.clientX;
+    c.lastY = event.clientY;
+    if (!c.active) {
+      // Moved before the hold completed → treat as a scroll/tap, not a drag.
+      if (Math.hypot(event.clientX - c.x0, event.clientY - c.y0) > MOVE_CANCEL_PX) abandon(c);
+      return;
+    }
+    setGhost({ x: event.clientX, y: event.clientY, label: c.label });
+  };
+  // Once a drag is active, cancel the browser's scroll for the gesture.
+  const onTouchMove = (event: TouchEvent) => {
+    if (candidateRef.current?.active) event.preventDefault();
+  };
+  const finish = (event: PointerEvent, drop: boolean) => {
+    const c = candidateRef.current;
+    candidateRef.current = null;
+    if (!c) return;
+    clearTimeout(c.timerId);
+    c.el.style.touchAction = c.prevTouchAction;
+    setGhost(null);
+    if (!c.active) return; // released before the hold — let it be a tap
+    justDraggedRef.current = true;
+    // Clear after the click that immediately follows pointerup. If the drag
+    // ended over a non-consuming target (e.g. the world), this stops the flag
+    // from swallowing the user's *next* unrelated tap.
+    setTimeout(() => {
+      justDraggedRef.current = false;
+    }, 0);
+    if (!drop) return;
+    const action = resolveBarDrop(c.payload, slotUnderPoint(event.clientX, event.clientY));
+    const cb = cbRef.current;
+    if (action.type === 'set') cb.setSlot(action.slot, action.ref);
+    else if (action.type === 'swap') cb.swapSlots(action.from, action.to);
+    else if (action.type === 'clear') cb.clearSlot(action.slot);
+  };
+  const onUp = (event: PointerEvent) => finish(event, true);
+  const onCancel = (event: PointerEvent) => finish(event, false);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onCancel);
+  return () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('touchmove', onTouchMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel);
+  };
+}
 
 export function ActionBarDragProvider({
   locked,
@@ -104,23 +185,32 @@ export function ActionBarDragProvider({
 }) {
   const candidateRef = useRef<Candidate | null>(null);
   const justDraggedRef = useRef(false);
-  const [ghost, setGhost] = useState<{ x: number; y: number; label: string } | null>(null);
+  const [ghost, setGhost] = useState<Ghost | null>(null);
 
   // Keep the latest callbacks in a ref so the window listeners (bound
   // once) always dispatch through the current action-bar setters.
-  const cbRef = useRef({ setSlot, swapSlots, clearSlot });
+  const cbRef = useRef<DropCallbacks>({ setSlot, swapSlots, clearSlot });
   cbRef.current = { setSlot, swapSlots, clearSlot };
 
   const beginDrag = useCallback<DragContext['beginDrag']>((payload, event, label) => {
     if (locked || event.pointerType === 'mouse') return;
-    // Disable scrolling on the source for the gesture's duration so a swipe
-    // can't fire pointercancel and abort the drag; restored on finish. We're
-    // unlocked here (returned early when locked), so list scroll still works
-    // in the normal locked/play mode.
     const el = event.currentTarget as HTMLElement;
-    const prevTouchAction = el.style.touchAction;
-    el.style.touchAction = 'none';
-    candidateRef.current = { payload, x0: event.clientX, y0: event.clientY, label, active: false, el, prevTouchAction };
+    const x0 = event.clientX;
+    const y0 = event.clientY;
+    const candidate: Candidate = {
+      payload, label, el, prevTouchAction: el.style.touchAction,
+      x0, y0, lastX: x0, lastY: y0, active: false, timerId: 0,
+    };
+    // Arm the long-press: if the finger is still here after the hold, pick the
+    // thing up. touch-action:none is only set on activation so a swipe before
+    // then still scrolls the list normally (onMove abandons the candidate).
+    candidate.timerId = window.setTimeout(() => {
+      if (candidateRef.current !== candidate) return;
+      candidate.active = true;
+      el.style.touchAction = 'none';
+      setGhost({ x: candidate.lastX, y: candidate.lastY, label });
+    }, LONG_PRESS_MS);
+    candidateRef.current = candidate;
   }, [locked]);
 
   const consumeDragClick = useCallback(() => {
@@ -131,48 +221,10 @@ export function ActionBarDragProvider({
     return false;
   }, []);
 
-  useEffect(() => {
-    const onMove = (event: PointerEvent) => {
-      const c = candidateRef.current;
-      if (!c) return;
-      if (!c.active) {
-        if (Math.hypot(event.clientX - c.x0, event.clientY - c.y0) < DRAG_THRESHOLD_PX) return;
-        c.active = true;
-      }
-      event.preventDefault(); // suppress scroll while actively dragging
-      setGhost({ x: event.clientX, y: event.clientY, label: c.label });
-    };
-    const finish = (event: PointerEvent, drop: boolean) => {
-      const c = candidateRef.current;
-      candidateRef.current = null;
-      setGhost(null);
-      if (c) c.el.style.touchAction = c.prevTouchAction; // restore source scroll
-      if (!c || !c.active) return; // never crossed threshold — let it be a tap
-      justDraggedRef.current = true;
-      // Clear after the click that immediately follows pointerup. If the drag
-      // ended over a non-consuming target (e.g. the world), this stops the
-      // flag from swallowing the user's *next* unrelated tap.
-      setTimeout(() => {
-        justDraggedRef.current = false;
-      }, 0);
-      if (!drop) return;
-      const action = resolveBarDrop(c.payload, slotUnderPoint(event.clientX, event.clientY));
-      const cb = cbRef.current;
-      if (action.type === 'set') cb.setSlot(action.slot, action.ref);
-      else if (action.type === 'swap') cb.swapSlots(action.from, action.to);
-      else if (action.type === 'clear') cb.clearSlot(action.slot);
-    };
-    const onUp = (event: PointerEvent) => finish(event, true);
-    const onCancel = (event: PointerEvent) => finish(event, false);
-    window.addEventListener('pointermove', onMove, { passive: false });
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
-    };
-  }, []);
+  useEffect(
+    () => installDragListeners(candidateRef, justDraggedRef, setGhost, cbRef),
+    [],
+  );
 
   return (
     <ActionBarDragContext.Provider value={{ beginDrag, consumeDragClick }}>
