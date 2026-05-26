@@ -5,7 +5,6 @@ import {
   mergeStacks,
   moveSlot,
   removeItems,
-  splitStack,
   totalInventoryWeight,
 } from '../packages/sim/inventoryTransactions';
 
@@ -86,28 +85,7 @@ describe('removeItems', () => {
   });
 });
 
-describe('splitStack / mergeStacks', () => {
-  test('splitStack creates a new instance with the requested amount', () => {
-    const inv = freshInventory();
-    addItems(inv, { templateId: 'health_potion', count: 10 }, services());
-    const source = listInventoryItems(inv)[0];
-    const result = splitStack(inv, source.instanceId, 4, services());
-    expect(result.ok).toBe(true);
-    const stacks = listInventoryItems(inv);
-    const counts = stacks.map((item) => item.count).sort();
-    expect(counts).toEqual([4, 6]);
-  });
-
-  test('splitStack rejects invalid amount', () => {
-    const inv = freshInventory();
-    addItems(inv, { templateId: 'health_potion', count: 5 }, services());
-    const source = listInventoryItems(inv)[0];
-    const tooMuch = splitStack(inv, source.instanceId, 5, services());
-    expect(tooMuch.ok).toBe(false);
-    const zero = splitStack(inv, source.instanceId, 0, services());
-    expect(zero.ok).toBe(false);
-  });
-
+describe('mergeStacks', () => {
   test('mergeStacks honours maxStack and refuses overflow', () => {
     const inv = freshInventory();
     addItems(inv, { templateId: 'health_potion', count: 30 }, services()); // becomes 20 + 10
@@ -158,20 +136,6 @@ describe('slot allocation with gaps', () => {
     expect(gold).toBeDefined();
     expect(gold && gold.location.kind === 'inventory' && gold.location.slotIndex).toBe(1);
     expect(validateInvariants(inv)).toEqual([]);
-  });
-
-  test('splitStack picks the lowest free slot index when a gap is open', () => {
-    const inv = freshInventory();
-    addItems(inv, { templateId: 'gold_coin', count: 50 }, services());
-    addItems(inv, { templateId: 'worn_sword', count: 1 }, services());
-    const items = listInventoryItems(inv);
-    delete inv.items[items[1].instanceId];
-
-    const stackItem = listInventoryItems(inv)[0];
-    const result = splitStack(inv, stackItem.instanceId, 10, services());
-    expect(result.ok).toBe(true);
-    const refreshed = listInventoryItems(inv).find((item) => item.count === 10);
-    expect(refreshed && refreshed.location.kind === 'inventory' && refreshed.location.slotIndex).toBe(1);
   });
 });
 

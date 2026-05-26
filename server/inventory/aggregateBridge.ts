@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import type { CharacterInventory } from '../../packages/sim/characterInventory.js';
 import { createEmptyInventory } from '../../packages/sim/characterInventory.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
-import { addItems, removeItems } from '../../packages/sim/inventoryTransactions.js';
+import { addItems, normalizeInventory, removeItems } from '../../packages/sim/inventoryTransactions.js';
 
 const DEFAULT_LIMITS = { baseSlots: 20, bonusSlots: 0, maxWeight: 80_000 };
 
@@ -119,6 +119,11 @@ export function hydratePersistedCharacterInventory(
   const aggregate = raw as CharacterInventory;
   if (!aggregate.items || !aggregate.equipment || !aggregate.occupancy) return;
   aggregate.limits = repairInventoryLimits(aggregate.limits, player.maxInventorySlots);
+  // Persisted data is untrusted: normalize it into an invariant-satisfying
+  // aggregate before it enters the live game. Heals legacy split stacks
+  // (the firegem 15+15 bug), missing enchant/bound fields, stacks left over
+  // maxStack by a content rebalance, and duplicate/out-of-range slots.
+  normalizeInventory(aggregate, services());
   player.characterInventory = aggregate;
 }
 

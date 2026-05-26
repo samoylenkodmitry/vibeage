@@ -135,6 +135,65 @@ export function validateInvariants(
     }
   }
 
+  violations.push(...bagSlotViolations(inventory));
+  violations.push(...stackingViolations(inventory, templates));
+
+  return violations;
+}
+
+/**
+ * Every inventory item must occupy a unique, in-range bag slot. A duplicate or
+ * out-of-range slotIndex used to be silently possible (no transaction checked
+ * it), which corrupts slot-addressed reads.
+ */
+function bagSlotViolations(inventory: CharacterInventory): InvariantViolation[] {
+  const violations: InvariantViolation[] = [];
+  const cap = maxInventorySlotCount(inventory.limits);
+  const slotOwner = new Map<number, ItemInstanceId>();
+  for (const instance of Object.values(inventory.items)) {
+    if (instance.location.kind !== 'inventory') continue;
+    const slot = instance.location.slotIndex;
+    if (slot === undefined || !Number.isInteger(slot) || slot < 0 || slot >= cap) {
+      violations.push(`item ${instance.instanceId} has invalid bag slotIndex ${String(slot)} (cap ${cap})`);
+      continue;
+    }
+    const existing = slotOwner.get(slot);
+    if (existing) {
+      violations.push(`bag slot ${slot} is held by both ${existing} and ${instance.instanceId}`);
+    } else {
+      slotOwner.set(slot, instance.instanceId);
+    }
+  }
+  return violations;
+}
+
+/**
+ * At most one *partial* (count < maxStack) bag stack per (templateId,
+ * enchantLevel, bound). This is the rule consolidateStacks maintains; encoding
+ * it here turns "two half-stacks of the same item" into a hard violation that
+ * every validate-before-apply transaction rejects, instead of a convention any
+ * new code path could silently break.
+ */
+function stackingViolations(
+  inventory: CharacterInventory,
+  templates: Record<string, Item>,
+): InvariantViolation[] {
+  const violations: InvariantViolation[] = [];
+  const partialByKey = new Map<string, ItemInstanceId>();
+  for (const instance of Object.values(inventory.items)) {
+    if (instance.location.kind !== 'inventory') continue;
+    const template = templates[instance.templateId];
+    if (!template?.stackable) continue;
+    const maxStack = template.maxStack ?? Number.MAX_SAFE_INTEGER;
+    if (instance.count >= maxStack) continue; // full stacks may coexist freely
+    const key = `${instance.templateId}|${instance.enchantLevel ?? 0}|${instance.bound ? 1 : 0}`;
+    const existing = partialByKey.get(key);
+    if (existing) {
+      violations.push(`items ${existing} and ${instance.instanceId} are both partial stacks of ${instance.templateId} (must be consolidated)`);
+    } else {
+      partialByKey.set(key, instance.instanceId);
+    }
+  }
   return violations;
 }
 
