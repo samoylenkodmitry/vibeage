@@ -58,8 +58,9 @@ function makeTarget(evasion: number): PlayerState {
 }
 
 describe('base evasion stat dodges mob swings', () => {
+  const SPAWN_TS = 1_700_000_000_000; // createEnemy's 4th arg is spawnTimeTs, not an id.
   function readyEnemy(accuracy?: number) {
-    const enemy = createEnemy('goblin', 1, { x: 1, y: 0, z: 0 }, 1_700_000_000_000);
+    const enemy = createEnemy('goblin', 1, { x: 1, y: 0, z: 0 }, SPAWN_TS);
     enemy.id = 'goblin-test';
     enemy.attackDamage = 100;
     enemy.attackCooldownMs = 1_000;

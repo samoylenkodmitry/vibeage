@@ -97,7 +97,7 @@ export function incomingMissChance(
 ): number {
   if (!target) return 0;
   // Enemies carry no `stats` block → 0 evasion (they don't dodge today).
-  const targetEvasion = (target as PlayerState).stats?.evasion ?? 0;
+  const targetEvasion = 'stats' in target ? (target.stats?.evasion ?? 0) : 0;
   const statDodge = computeMissChance(attackerAccuracy ?? ACCURACY_BASELINE, targetEvasion);
   return Math.min(MAX_DODGE_CHANCE, evasionMissChanceFor(target, now) + statDodge);
 }
