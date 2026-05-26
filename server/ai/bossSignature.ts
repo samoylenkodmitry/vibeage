@@ -6,6 +6,7 @@ import {
 } from '../../packages/content/miniBosses.js';
 import type { Enemy } from '../../packages/sim/entities.js';
 import { killPlayer } from '../players/playerLifecycle.js';
+import { applyResolvedDamageToTarget } from '../combat/damageResolution.js';
 import type { EnemyAIContext, EnemyAIProgress } from './enemyStateMachine.js';
 
 /**
@@ -208,8 +209,8 @@ function resolveBlinkImpact(
     z: target.position.z + uz * mech.teleportOffset,
   };
   progress.shouldBroadcastEnemyUpdate = true;
-  const damage = enemy.attackDamage * mech.damageMul;
-  target.health -= damage;
+  // Shield absorb + below-half-HP mitigation apply to boss damage too.
+  const damage = applyResolvedDamageToTarget(target, enemy.attackDamage * mech.damageMul);
   const killed = target.health <= 0 ? killPlayer(target, context.now) : false;
   progress.events.push({
     type: 'enemyAttack',
@@ -243,7 +244,7 @@ function resolveAreaImpact(
   const inner = mechanicInnerRadius(mech);
   const dirRad = enemy.signatureCastDirRad;
   const halfAngleRad = mech.kind === 'cone' ? (mech.halfAngleDeg * Math.PI) / 180 : 0;
-  const damage = enemy.attackDamage * mech.damageMul;
+  const rawDamage = enemy.attackDamage * mech.damageMul;
   for (const p of Object.values(context.players)) {
     if (!p.isAlive) continue;
     const dx = p.position.x - cx;
@@ -252,7 +253,8 @@ function resolveAreaImpact(
     if (distSq > outer * outer) continue;
     if (inner > 0 && distSq < inner * inner) continue;
     if (mech.kind === 'cone' && !insideConeWedge(dx, dz, dirRad, halfAngleRad)) continue;
-    p.health -= damage;
+    // Shield absorb + below-half-HP mitigation apply to area damage too.
+    const damage = applyResolvedDamageToTarget(p, rawDamage);
     const killed = p.health <= 0 ? killPlayer(p, context.now) : false;
     progress.events.push({
       type: 'enemyAttack',

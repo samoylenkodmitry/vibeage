@@ -604,11 +604,12 @@ const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionS
     valueFrom: (e) => 1 + (e.value ?? 0) / 100,
     labelFrom: (e) => `Speed boost (+${e.value ?? 0}% speed)`,
   },
-  shield: {
-    stat: 'maxHealth', op: 'addPost',
-    valueFrom: (e) => e.value ?? 0,
-    labelFrom: (e) => `Shield (+${e.value ?? 0} HP absorb)`,
-  },
+  // NOTE: `shield` is intentionally absent. A shield is a damage-
+  // absorb pool drained by `absorbWithShield` in the damage pipeline
+  // — it must NOT also inflate maxHealth, or the buff double-counts
+  // (a 500 shield gave +500 max HP *and* a 500 absorb). Absorb is the
+  // single mechanic; the buff surfaces via the status pill / effects
+  // panel, not the HP bar.
   evasion: {
     stat: 'evasion', op: 'addPre',
     valueFrom: (e) => e.value ?? 0,
