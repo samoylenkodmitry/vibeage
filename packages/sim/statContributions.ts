@@ -10,6 +10,7 @@
  * anywhere else in the codebase.
  */
 import type { CharacterClass } from '../content/classes.js';
+import { ACCURACY_BASELINE, EVASION_BASELINE } from '../content/stats.js';
 import { PASSIVE_SKILL_CONTRIBUTIONS } from '../content/classPassives.js';
 import type { SkillId } from '../content/skills.js';
 import { activeSetBonuses } from '../content/equipmentSets.js';
@@ -301,8 +302,8 @@ function pushBaselineDerivedContributions(out: Contribution[]): void {
   out.push({ source: 'baseline:mDef', label: 'Baseline M.Def', stat: 'mDef', op: 'base', value: 6 });
   out.push({ source: 'baseline:maxHealth', label: 'Baseline HP', stat: 'maxHealth', op: 'base', value: 100 });
   out.push({ source: 'baseline:maxMana', label: 'Baseline MP', stat: 'maxMana', op: 'base', value: 100 });
-  out.push({ source: 'baseline:accuracy', label: 'Baseline accuracy', stat: 'accuracy', op: 'base', value: 90 });
-  out.push({ source: 'baseline:evasion', label: 'Baseline evasion', stat: 'evasion', op: 'base', value: 5 });
+  out.push({ source: 'baseline:accuracy', label: 'Baseline accuracy', stat: 'accuracy', op: 'base', value: ACCURACY_BASELINE });
+  out.push({ source: 'baseline:evasion', label: 'Baseline evasion', stat: 'evasion', op: 'base', value: EVASION_BASELINE });
   out.push({ source: 'baseline:attackSpeed', label: 'Baseline attack speed', stat: 'attackSpeed', op: 'base', value: 300 });
   out.push({ source: 'baseline:castSpeed', label: 'Baseline cast speed', stat: 'castSpeed', op: 'base', value: 1 });
   // PR TT — baseline matches the legacy DEFAULT_PLAYER_SPEED so the
@@ -610,11 +611,13 @@ const STATUS_EFFECT_STAT_CONTRIBUTIONS: Record<string, StatusEffectContributionS
   // (a 500 shield gave +500 max HP *and* a 500 absorb). Absorb is the
   // single mechanic; the buff surfaces via the status pill / effects
   // panel, not the HP bar.
-  evasion: {
-    stat: 'evasion', op: 'addPre',
-    valueFrom: (e) => e.value ?? 0,
-    labelFrom: (e) => `Evasion buff (+${e.value ?? 0})`,
-  },
+  //
+  // NOTE: `evasion` is intentionally absent too. The evasion *buff*
+  // is a flat dodge % applied in the damage path (evasionMissChanceFor);
+  // routing it through the evasion *stat* as well would double-count it
+  // (computeMissChance's stat differential would add a second dodge on
+  // top of the flat buff). Base / gear / passive / spec evasion still
+  // feeds the stat through their own contributions.
 };
 
 function pushStatusEffectContributions(out: Contribution[], effects: ReadonlyArray<StatusEffect>): void {
