@@ -21,6 +21,7 @@ import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
 import { SkillBar } from './hud/SkillBar';
 import { useActionBar, findBagSlotForItem, type ActionRef } from './hud/useActionBar';
+import { ActionBarDragProvider } from './hud/actionBarDrag';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
@@ -91,7 +92,7 @@ export function GameHud(props: GameHudProps) {
     : '-';
   const panels = usePanelState();
   const activeSkills = useMemo(() => activeSkillsFor(player), [player?.unlockedSkills]);
-  const { actionBar, setSlot, swapSlots, clearSlot } = useActionBar(activeSkills);
+  const { actionBar, setSlot, swapSlots, clearSlot, locked, toggleLocked } = useActionBar(activeSkills);
   const bindItemToSlot = useCallback(
     (slotIndex: number, itemId: string) => setSlot(slotIndex, { kind: 'item', id: itemId }), [setSlot]);
   useSlotHotkeysFor(player, actionBar, state.inventory, onUseItem, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
@@ -104,7 +105,7 @@ export function GameHud(props: GameHudProps) {
   }, [panels]);
 
   return (
-    <>
+    <ActionBarDragProvider locked={locked} setSlot={setSlot} swapSlots={swapSlots} clearSlot={clearSlot}>
       <HudOverlays state={state} player={player} />
       <HudTopStrips
         state={state}
@@ -164,14 +165,13 @@ export function GameHud(props: GameHudProps) {
         inventory={state.inventory}
         onUseItem={onUseItem}
         actionBar={actionBar}
-        onSetSlot={setSlot}
-        onSwapSlot={swapSlots}
-        onClearSlot={clearSlot}
+        onSetSlot={setSlot} onSwapSlot={swapSlots} onClearSlot={clearSlot}
+        locked={locked} onToggleLock={toggleLocked}
       />
       <PanelToggleStrip panels={panels} unspentSkillPoints={hasSpendableSkillPoints(player) ? (player?.availableSkillPoints ?? 0) : 0} />
       {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
-    </>
+    </ActionBarDragProvider>
   );
 }
 

@@ -12,9 +12,12 @@ import {
 import { SkillTooltip } from './SkillTooltip';
 import { useTooltipTrigger } from './useTooltipTrigger';
 import { openWikiAt } from './wikiNavBus';
+import { ITEMS } from '../../../../packages/content/items';
 import { INVENTORY_DRAG_MIME } from './InventorySlotButton';
 import { ItemShortcutButton } from './ItemShortcutButton';
 import { useDraggablePanel } from './useDraggablePanel';
+import { useActionBarDrag } from './actionBarDrag';
+import { useHasMousePointer } from './useHasMousePointer';
 import {
   ACTION_BAR_DRAG_MIME,
   SKILL_DRAG_MIME,
@@ -33,10 +36,14 @@ type SkillBarProps = {
   onSetSlot: (slotIndex: number, ref: ActionRef) => void;
   onSwapSlot: (from: number, to: number) => void;
   onClearSlot: (slotIndex: number) => void;
+  /** When locked the bar is "frozen": no drag onto/off/within it, taps
+   *  only. Mainly a touch affordance against accidental rearranging. */
+  locked: boolean;
+  onToggleLock: () => void;
 };
 
 export function SkillBar(props: SkillBarProps) {
-  const { player, actionBar } = props;
+  const { player, actionBar, locked, onToggleLock } = props;
   // Own the cooldown clock here instead of receiving it as a prop from
   // GameHud — a useNow up there forced the entire HUD to re-render
   // 10×/sec. The bar is small + always visible, so ticking it locally
@@ -51,8 +58,18 @@ export function SkillBar(props: SkillBarProps) {
   });
 
   return (
-    <section ref={dragRef} className="skill-bar" aria-label="Skills">
+    <section ref={dragRef} className={`skill-bar${locked ? ' skill-bar--locked' : ''}`} aria-label="Skills">
       <span className="drag-grip skill-bar-grip" aria-hidden="true" title="Drag to move">⠿</span>
+      <button
+        type="button"
+        className="skill-bar-lock"
+        aria-pressed={locked}
+        aria-label={locked ? 'Unlock action bar (allow rearranging)' : 'Lock action bar (freeze layout)'}
+        title={locked ? 'Bar locked — tap to allow dragging' : 'Bar unlocked — tap to freeze layout'}
+        onClick={onToggleLock}
+      >
+        {locked ? 'Locked' : 'Unlocked'}
+      </button>
       <div className="skill-bar-row">
         {Array.from({ length: SKILL_BAR_ROW_COUNT }, (_, index) => (
           <SkillBarSlot
@@ -102,14 +119,22 @@ type SkillBarSlotProps = SkillBarProps & {
 
 function SkillBarSlot({
   slotIndex, slot, hotkey, compact, player, now, hasSelectedTarget, onCastSkill,
-  inventory, onUseItem, onSetSlot, onSwapSlot, onClearSlot, tooltip,
+  inventory, onUseItem, onSetSlot, onSwapSlot, onClearSlot, tooltip, locked,
 }: SkillBarSlotProps) {
   const aria = getSkillSlotAriaHotkeys(slotIndex);
+  const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const hasMouse = useHasMousePointer();
   // A skill ref is only live if the player still knows that skill.
   const knownSkill = slot?.kind === 'skill' && (player?.unlockedSkills?.includes(slot.id) ?? false)
     ? slot.id : null;
+  const dragLabel = slot
+    ? slot.kind === 'item'
+      ? ITEMS[slot.id]?.name ?? slot.id
+      : SKILLS[slot.id]?.name ?? `Slot ${slotIndex + 1}`
+    : `Slot ${slotIndex + 1}`;
   const ACCEPTED = [ACTION_BAR_DRAG_MIME, INVENTORY_DRAG_MIME, SKILL_DRAG_MIME];
   const onDragOver = (e: React.DragEvent) => {
+    if (locked) return;
     if (ACCEPTED.some((mime) => e.dataTransfer.types.includes(mime))) {
       e.preventDefault();
       e.stopPropagation();
@@ -117,6 +142,7 @@ function SkillBarSlot({
     }
   };
   const onDrop = (e: React.DragEvent) => {
+    if (locked) return;
     const reorder = e.dataTransfer.getData(ACTION_BAR_DRAG_MIME);
     const item = e.dataTransfer.getData(INVENTORY_DRAG_MIME);
     const skill = e.dataTransfer.getData(SKILL_DRAG_MIME);
@@ -137,17 +163,29 @@ function SkillBarSlot({
     } catch { /* malformed payload */ }
   };
   const onDragStart = (e: React.DragEvent) => {
-    if (!slot) return;
+    if (locked || !slot) return;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData(ACTION_BAR_DRAG_MIME, JSON.stringify({ fromSlot: slotIndex }));
   };
   return (
     <div
       className="skill-bar-slot"
-      draggable={Boolean(slot)}
+      data-bar-slot={slotIndex}
+      draggable={Boolean(slot) && !locked && hasMouse}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
+      onPointerDown={(e) => {
+        if (slot) beginDrag({ kind: 'reorder', fromSlot: slotIndex }, e, dragLabel);
+      }}
+      onClickCapture={(e) => {
+        // A touch drag ends in a click on the inner button; swallow it so
+        // a rearrange doesn't also cast/use the slot's action.
+        if (consumeDragClick()) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
     >
       {slot?.kind === 'item' ? (
         <ItemShortcutButton
