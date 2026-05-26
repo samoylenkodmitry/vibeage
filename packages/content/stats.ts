@@ -18,6 +18,23 @@ export interface StatDef {
   tags?: readonly string[];
 }
 
+/**
+ * Hit/dodge model — single source of truth for the numbers the
+ * engine applies and the Wiki/HUD describe. Accuracy and Evasion are
+ * opposing stats measured from these baselines: a hit's dodge chance
+ * is `(targetEvasion − EVASION_BASELINE) − (attackerAccuracy −
+ * ACCURACY_BASELINE)` percent, clamped to `[0, MAX_DODGE_CHANCE]`.
+ *
+ * The baselines are exactly the `baseline:accuracy` / `baseline:evasion`
+ * contributions, so an unbuffed attacker (accuracy 90) vs an unbuffed
+ * target (evasion 5) lands every hit — no balance shift — and the
+ * stats only bite once gear / passives / level gaps move them apart.
+ * Evade-style evasion *buffs* add a separate flat dodge % on top.
+ */
+export const ACCURACY_BASELINE = 90;
+export const EVASION_BASELINE = 5;
+export const MAX_DODGE_CHANCE = 0.95;
+
 export const STATS: Record<string, StatDef> = {
   str: {
     id: 'str', short: 'STR', name: 'Strength',
@@ -94,12 +111,12 @@ export const STATS: Record<string, StatDef> = {
   },
   accuracy: {
     id: 'accuracy', short: 'Acc', name: 'Accuracy',
-    description: 'Chance to land an attack. DEX-driven; opposed by the target\'s Evasion.',
+    description: 'Lands your hits. DEX-driven, baseline 90. Each point above 90 cancels one point of the target\'s Evasion, so a dodge needs evasion to out-pace your accuracy.',
     tags: ['derived', 'offensive', 'physical'],
   },
   evasion: {
     id: 'evasion', short: 'Evd', name: 'Evasion',
-    description: 'Chance to dodge incoming physical attacks. DEX-driven; opposed by the attacker\'s Accuracy.',
+    description: 'Dodges incoming attacks. DEX-driven, baseline 5. Each point above 5 is +1% dodge, reduced 1-for-1 by the attacker\'s Accuracy above 90, capped at 95%. Evade-style buffs add a separate flat dodge on top.',
     tags: ['derived', 'defensive', 'physical'],
   },
   attackSpeed: {

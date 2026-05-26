@@ -34,7 +34,7 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'bless',      // STATUS_EFFECT_STAT_CONTRIBUTIONS (dmgMult mul)
   'dispel',     // applySkillEffects → filter negative effects
   'taunt',      // applySkillEffects → set targetId
-  'evasion',    // STATUS_EFFECT_STAT_CONTRIBUTIONS
+  'evasion',    // evasionMissChanceFor → flat dodge in the damage path
   'invisible',  // enemy AI ignores invisible targets + status display
   'aggroReset', // applyAggroResetAround
   'teleport',   // applySkillEffects → recall to village

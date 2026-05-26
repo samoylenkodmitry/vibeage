@@ -1,5 +1,7 @@
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { DispelCategory } from '../../packages/content/skills.js';
+import { computeMissChance } from '../../packages/sim/combatMath.js';
+import { ACCURACY_BASELINE, MAX_DODGE_CHANCE } from '../../packages/content/stats.js';
 
 /**
  * Shared status-effect predicates used by movement, casting, and AI
@@ -76,5 +78,26 @@ export function evasionMissChanceFor(
     totalPct += effect.value ?? 0;
   }
   if (totalPct <= 0) return 0;
-  return Math.min(0.95, totalPct / 100);
+  return Math.min(MAX_DODGE_CHANCE, totalPct / 100);
+}
+
+/**
+ * Total chance (0..1) that an incoming hit on `target` is dodged:
+ * the accuracy-vs-evasion stat differential (`computeMissChance`)
+ * plus any flat evasion-*buff* dodge (`evasionMissChanceFor`),
+ * clamped to the shared cap. `attackerAccuracy` defaults to the
+ * baseline (an attacker with no accuracy stat is neutral). Shared by
+ * the player-cast path and the enemy-attack path so both resolve
+ * dodges identically.
+ */
+export function incomingMissChance(
+  attackerAccuracy: number | undefined,
+  target: PlayerState | Enemy | null | undefined,
+  now: number = Date.now(),
+): number {
+  if (!target) return 0;
+  // Enemies carry no `stats` block → 0 evasion (they don't dodge today).
+  const targetEvasion = (target as PlayerState).stats?.evasion ?? 0;
+  const statDodge = computeMissChance(attackerAccuracy ?? ACCURACY_BASELINE, targetEvasion);
+  return Math.min(MAX_DODGE_CHANCE, evasionMissChanceFor(target, now) + statDodge);
 }
