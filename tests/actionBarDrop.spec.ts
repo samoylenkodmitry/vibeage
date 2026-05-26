@@ -18,6 +18,14 @@ describe('resolveBarDrop — touch drag-and-drop resolution', () => {
     });
   });
 
+  it('drops a built-in action onto a slot → set that slot to the action', () => {
+    expect(resolveBarDrop({ kind: 'action', id: 'move' }, 2)).toEqual({
+      type: 'set',
+      slot: 2,
+      ref: { kind: 'action', id: 'move' },
+    });
+  });
+
   it('drags a slot onto a different slot → swap', () => {
     expect(resolveBarDrop({ kind: 'reorder', fromSlot: 2 }, 5)).toEqual({
       type: 'swap',

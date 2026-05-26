@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import { useNow } from './useNow';
 import type { PlayerEntity } from '../gameTypes';
@@ -20,10 +20,15 @@ import { useActionBarDrag } from './actionBarDrag';
 import { useHasMousePointer } from './useHasMousePointer';
 import {
   ACTION_BAR_DRAG_MIME,
+  ACTION_DRAG_MIME,
   SKILL_DRAG_MIME,
   findBagSlotForItem,
   type ActionRef,
 } from './useActionBar';
+
+/** A built-in UI action (Move/Pickup) bound to a bar slot. Skills and items
+ *  resolve themselves; these need their label/hotkey/handler from GameHud. */
+export type BuiltinBarAction = { label: string; hotkey: string; disabled: boolean; onInvoke: () => void };
 
 type SkillBarProps = {
   player: PlayerEntity | null;
@@ -31,11 +36,13 @@ type SkillBarProps = {
   onCastSkill: (skillId: SkillId) => void;
   inventory: InventorySlot[];
   onUseItem: (slotIndex: number) => void;
-  /** Unified action-bar layout (length 20): skill | item | empty per slot. */
+  /** Unified action-bar layout: skill | item | action | empty per slot. */
   actionBar: (ActionRef | null)[];
   onSetSlot: (slotIndex: number, ref: ActionRef) => void;
   onSwapSlot: (from: number, to: number) => void;
   onClearSlot: (slotIndex: number) => void;
+  /** Metadata + handlers for `kind:'action'` slots, keyed by action id. */
+  builtinActions: Record<string, BuiltinBarAction>;
   /** When locked the bar is "frozen": no drag onto/off/within it, taps
    *  only. Mainly a touch affordance against accidental rearranging. */
   locked: boolean;
@@ -117,28 +124,22 @@ type SkillBarSlotProps = SkillBarProps & {
   compact?: boolean;
 };
 
-function SkillBarSlot({
-  slotIndex, slot, hotkey, compact, player, now, hasSelectedTarget, onCastSkill,
-  inventory, onUseItem, onSetSlot, onSwapSlot, onClearSlot, tooltip, locked,
-}: SkillBarSlotProps) {
-  const aria = getSkillSlotAriaHotkeys(slotIndex);
-  const { beginDrag, consumeDragClick } = useActionBarDrag();
-  const hasMouse = useHasMousePointer();
-  // A skill ref is only live if the player still knows that skill.
-  const knownSkill = slot?.kind === 'skill' && (player?.unlockedSkills?.includes(slot.id) ?? false)
-    ? slot.id : null;
-  const dragLabel = slot
-    ? slot.kind === 'item'
-      ? ITEMS[slot.id]?.name ?? slot.id
-      : SKILLS[slot.id]?.name ?? `Slot ${slotIndex + 1}`
-    : `Slot ${slotIndex + 1}`;
+type SlotDragCbs = {
+  onSetSlot: (slotIndex: number, ref: ActionRef) => void;
+  onSwapSlot: (from: number, to: number) => void;
+  onClearSlot: (slotIndex: number) => void;
+};
+
+/** HTML5 (mouse) drag handlers for one bar slot: accept skill/action ('copy')
+ *  and bar-reorder/bag ('move') drops, be a reorder source, and remove the
+ *  slot when dragged out of the bar (dropEffect 'none'). */
+function makeSlotDragHandlers(slotIndex: number, hasContent: boolean, locked: boolean, cbs: SlotDragCbs) {
   const onDragOver = (e: React.DragEvent) => {
     if (locked) return;
     const types = e.dataTransfer.types;
-    // dropEffect must be compatible with the source's effectAllowed or the
-    // browser refuses the drop. Skill-tree drags are 'copy'; bar reorder and
-    // bag items are 'move'. Mismatching here silently drops nothing.
-    if (types.includes(SKILL_DRAG_MIME)) {
+    // dropEffect must match the source's effectAllowed or the browser refuses
+    // the drop. Skill/action drags are 'copy'; bar reorder and bag items 'move'.
+    if (types.includes(SKILL_DRAG_MIME) || types.includes(ACTION_DRAG_MIME)) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'copy';
@@ -153,35 +154,65 @@ function SkillBarSlot({
     const reorder = e.dataTransfer.getData(ACTION_BAR_DRAG_MIME);
     const item = e.dataTransfer.getData(INVENTORY_DRAG_MIME);
     const skill = e.dataTransfer.getData(SKILL_DRAG_MIME);
-    if (!reorder && !item && !skill) return;
+    const action = e.dataTransfer.getData(ACTION_DRAG_MIME);
+    if (!reorder && !item && !skill && !action) return;
     e.preventDefault();
     e.stopPropagation();
     try {
       if (reorder) {
         const { fromSlot } = JSON.parse(reorder) as { fromSlot?: number };
-        if (typeof fromSlot === 'number') onSwapSlot(fromSlot, slotIndex);
+        if (typeof fromSlot === 'number') cbs.onSwapSlot(fromSlot, slotIndex);
       } else if (skill) {
         const { skillId } = JSON.parse(skill) as { skillId?: string };
-        if (typeof skillId === 'string') onSetSlot(slotIndex, { kind: 'skill', id: skillId as SkillId });
+        if (typeof skillId === 'string') cbs.onSetSlot(slotIndex, { kind: 'skill', id: skillId as SkillId });
+      } else if (action) {
+        const { actionId } = JSON.parse(action) as { actionId?: string };
+        if (typeof actionId === 'string') cbs.onSetSlot(slotIndex, { kind: 'action', id: actionId });
       } else {
         const { itemId } = JSON.parse(item) as { itemId?: string };
-        if (typeof itemId === 'string') onSetSlot(slotIndex, { kind: 'item', id: itemId });
+        if (typeof itemId === 'string') cbs.onSetSlot(slotIndex, { kind: 'item', id: itemId });
       }
     } catch { /* malformed payload */ }
   };
   const onDragStart = (e: React.DragEvent) => {
-    if (locked || !slot) return;
+    if (locked || !hasContent) return;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData(ACTION_BAR_DRAG_MIME, JSON.stringify({ fromSlot: slotIndex }));
   };
+  const onDragEnd = (e: React.DragEvent) => {
+    // Dropped outside any slot (no target accepted it) → remove from the bar.
+    if (!locked && e.dataTransfer.dropEffect === 'none') cbs.onClearSlot(slotIndex);
+  };
+  return { onDragOver, onDrop, onDragStart, onDragEnd };
+}
+
+function SkillBarSlot({
+  slotIndex, slot, hotkey, compact, player, now, hasSelectedTarget, onCastSkill,
+  inventory, onUseItem, onSetSlot, onSwapSlot, onClearSlot, tooltip, locked, builtinActions,
+}: SkillBarSlotProps) {
+  const aria = getSkillSlotAriaHotkeys(slotIndex);
+  const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const hasMouse = useHasMousePointer();
+  // A skill ref is only live if the player still knows that skill.
+  const knownSkill = slot?.kind === 'skill' && (player?.unlockedSkills?.includes(slot.id) ?? false)
+    ? slot.id : null;
+  const dragLabel = slotDragLabel(slot, slotIndex, builtinActions);
+  const hasContent = Boolean(slot);
+  // Memoized so the 100ms cooldown tick (now) doesn't recreate four handlers
+  // across all 20 slots every frame.
+  const drag = useMemo(
+    () => makeSlotDragHandlers(slotIndex, hasContent, locked, { onSetSlot, onSwapSlot, onClearSlot }),
+    [slotIndex, hasContent, locked, onSetSlot, onSwapSlot, onClearSlot],
+  );
   return (
     <div
       className="skill-bar-slot"
       data-bar-slot={slotIndex}
-      draggable={Boolean(slot) && !locked && hasMouse}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
+      draggable={hasContent && !locked && hasMouse}
+      onDragStart={drag.onDragStart}
+      onDragEnd={drag.onDragEnd}
+      onDragOver={drag.onDragOver}
+      onDrop={drag.onDrop}
       onPointerDown={(e) => {
         if (slot) beginDrag({ kind: 'reorder', fromSlot: slotIndex }, e, dragLabel);
       }}
@@ -204,6 +235,10 @@ function SkillBarSlot({
           }}
           onClear={() => onClearSlot(slotIndex)} compact={compact}
         />
+      ) : slot?.kind === 'action' ? (
+        <BarActionButton
+          action={builtinActions[slot.id]} hotkey={hotkey} ariaHotkeys={aria} compact={compact}
+        />
       ) : (
         <SkillButton
           skillId={knownSkill}
@@ -215,6 +250,53 @@ function SkillBarSlot({
         />
       )}
     </div>
+  );
+}
+
+function slotDragLabel(
+  slot: ActionRef | null,
+  slotIndex: number,
+  builtinActions: Record<string, BuiltinBarAction>,
+): string {
+  if (!slot) return `Slot ${slotIndex + 1}`;
+  if (slot.kind === 'item') return ITEMS[slot.id]?.name ?? slot.id;
+  if (slot.kind === 'action') return builtinActions[slot.id]?.label ?? slot.id;
+  return SKILLS[slot.id]?.name ?? `Slot ${slotIndex + 1}`;
+}
+
+/** A bar slot holding a built-in UI action (Move/Pickup). Reuses skill-button
+ *  chrome; tap invokes the action's handler unless it's currently disabled. */
+function BarActionButton({
+  action, hotkey, ariaHotkeys, compact,
+}: {
+  action: BuiltinBarAction | undefined;
+  hotkey: string;
+  ariaHotkeys: string;
+  compact?: boolean;
+}) {
+  const className = `skill-button skill-button--self-cast${compact ? ' skill-button--compact' : ''}`;
+  if (!action) {
+    // aria-disabled (not native) so the slot stays draggable/removable.
+    return (
+      <button type="button" className={className} aria-disabled aria-label="Empty slot">
+        <span className="skill-button__hotkey">{hotkey}</span>
+        <strong className="skill-button__name">Empty</strong>
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-disabled={action.disabled}
+      aria-label={`${action.label} action`}
+      aria-keyshortcuts={ariaHotkeys}
+      onClick={() => { if (!action.disabled) action.onInvoke(); }}
+    >
+      <span className="skill-button__hotkey">{hotkey}</span>
+      <strong className="skill-button__name">{action.label}</strong>
+      <small className="skill-button__footer">{action.hotkey}</small>
+    </button>
   );
 }
 

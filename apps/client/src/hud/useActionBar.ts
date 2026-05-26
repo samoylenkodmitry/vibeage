@@ -15,7 +15,8 @@ export const ACTION_BAR_SLOT_COUNT = SKILL_BAR_ROW_COUNT + SKILL_BAR_SECONDARY_R
  */
 export type ActionRef =
   | { kind: 'skill'; id: SkillId }
-  | { kind: 'item'; id: string };
+  | { kind: 'item'; id: string }
+  | { kind: 'action'; id: string };
 
 const STORAGE_KEY = 'vibeage:actionBar:v1';
 const LOCK_STORAGE_KEY = 'vibeage:actionBar:locked:v1';
@@ -33,13 +34,16 @@ function loadLocked(): boolean {
 
 /** Drag a skill out of the skill tree onto a bar slot. Payload: `{ skillId }`. */
 export const SKILL_DRAG_MIME = 'application/x-vibeage-skill';
+/** Drag a built-in action (Move/Pickup) onto a bar slot. Payload: `{ actionId }`. */
+export const ACTION_DRAG_MIME = 'application/x-vibeage-action';
 /** Reorder within the bar: drag one slot onto another. Payload: `{ fromSlot }`. */
 export const ACTION_BAR_DRAG_MIME = 'application/x-vibeage-actionbar-slot';
 
 function isActionRef(value: unknown): value is ActionRef {
   if (!value || typeof value !== 'object') return false;
   const ref = value as { kind?: unknown; id?: unknown };
-  return (ref.kind === 'skill' || ref.kind === 'item') && typeof ref.id === 'string';
+  const kindOk = ref.kind === 'skill' || ref.kind === 'item' || ref.kind === 'action';
+  return kindOk && typeof ref.id === 'string';
 }
 
 function loadFromStorage(): (ActionRef | null)[] | null {
@@ -72,11 +76,6 @@ function seedFromSkills(defaultSkills: readonly SkillId[]): (ActionRef | null)[]
   });
 }
 
-function sameRef(a: ActionRef | null, b: ActionRef | null): boolean {
-  if (a === null || b === null) return a === b;
-  return a.kind === b.kind && a.id === b.id;
-}
-
 /** First bag slot holding `itemId` with quantity > 0 (for use-routing). */
 export function findBagSlotForItem(
   inventory: readonly { itemId: string; quantity: number; slotIndex?: number }[],
@@ -106,19 +105,14 @@ export function useActionBar(defaultSkills: readonly SkillId[]) {
     if (seeded) saveToStorage(actionBar);
   }, [actionBar, seeded]);
 
-  // Place a ref on a slot. A given skill/item lives in one slot only,
-  // so a stale duplicate elsewhere is cleared (matches the old bind
-  // behavior and keeps hotkeys unambiguous).
+  // Place a ref on a slot. Slots are independent shortcuts: the same
+  // skill/item/action may sit in any number of slots (no dedup) — pressing
+  // a slot just invokes whatever it holds.
   const setSlot = useCallback((slotIndex: number, ref: ActionRef | null) => {
     if (slotIndex < 0 || slotIndex >= ACTION_BAR_SLOT_COUNT) return;
     setSeeded(true);
     setBar((prev) => {
       const next = [...prev];
-      if (ref) {
-        next.forEach((existing, i) => {
-          if (i !== slotIndex && sameRef(existing, ref)) next[i] = null;
-        });
-      }
       next[slotIndex] = ref;
       return next;
     });

@@ -3,12 +3,12 @@ import { SKILLS } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
 import { BASIC_ATTACK_HOTKEY, BASIC_ATTACK_SKILL_ID } from '../skillShortcuts';
 import { SkillTooltip } from './SkillTooltip';
-import { useActionBarDrag } from './actionBarDrag';
+import { useActionBarDrag, type BarDragPayload } from './actionBarDrag';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useHasMousePointer } from './useHasMousePointer';
 import { useNow } from './useNow';
 import { useTooltipTrigger } from './useTooltipTrigger';
-import { SKILL_DRAG_MIME } from './useActionBar';
+import { ACTION_DRAG_MIME, SKILL_DRAG_MIME } from './useActionBar';
 
 type ActionsPanelProps = {
   player: PlayerEntity | null;
@@ -78,6 +78,7 @@ export function ActionsPanel({
                   : 'Pick target or pin'
           }
           onClick={onMove}
+          dragActionId="move"
         />
         <ActionButton
           label="Pickup"
@@ -85,6 +86,7 @@ export function ActionsPanel({
           disabled={!player?.isAlive || !hasLootNearby}
           subtitle={!player?.isAlive ? 'Dead' : hasLootNearby ? 'Walk to nearest' : 'No loot'}
           onClick={onPickupNearest}
+          dragActionId="pickup"
         />
         <EscapeButton player={player} now={now} onCastSkill={onCastSkill} tooltip={tooltip} />
       </div>
@@ -155,6 +157,7 @@ function ActionButton({
   onClick,
   extraHandlers,
   dragSkillId,
+  dragActionId,
 }: {
   label: string;
   hotkey: string;
@@ -162,37 +165,45 @@ function ActionButton({
   subtitle: string;
   onClick: () => void;
   extraHandlers?: React.HTMLAttributes<HTMLButtonElement>;
-  /** When set, the button is also a drag source for binding this skill
-   *  onto the action bar (mouse: native HTML5; touch: long-press). Only
-   *  while enabled — a disabled button can't initiate a drag. */
+  /** Bind this skill onto the action bar when dragged (Attack/Escape). */
   dragSkillId?: SkillId;
+  /** Bind this built-in action onto the action bar when dragged (Move/Pickup). */
+  dragActionId?: string;
 }) {
   const { beginDrag, consumeDragClick } = useActionBarDrag();
   const hasMouse = useHasMousePointer();
-  const isDragSource = Boolean(dragSkillId) && !disabled;
+  const payload: BarDragPayload | null = dragSkillId
+    ? { kind: 'skill', id: dragSkillId }
+    : dragActionId
+      ? { kind: 'action', id: dragActionId }
+      : null;
+  const isDragSource = payload !== null;
+  // aria-disabled (not the native attribute) so a cast-disabled action — e.g.
+  // Attack with no target, Escape on cooldown — can still be dragged onto the
+  // bar. The click handler ignores activation while disabled.
   return (
     <button
       type="button"
       className="action-button"
-      disabled={disabled}
+      aria-disabled={disabled}
       aria-label={`${label} (${hotkey})`}
       aria-keyshortcuts={hotkey}
       draggable={isDragSource && hasMouse}
-      onDragStart={isDragSource ? (e) => {
+      onDragStart={payload ? (e) => {
         e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: dragSkillId }));
+        if (payload.kind === 'skill') e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: payload.id }));
+        else if (payload.kind === 'action') e.dataTransfer.setData(ACTION_DRAG_MIME, JSON.stringify({ actionId: payload.id }));
       } : undefined}
       onClick={(e) => {
         if (isDragSource && consumeDragClick()) {
           e.preventDefault();
           return;
         }
+        if (disabled) return;
         onClick();
       }}
       {...(extraHandlers ?? {})}
-      {...(isDragSource
-        ? { onPointerDown: (e: React.PointerEvent) => beginDrag({ kind: 'skill', id: dragSkillId as SkillId }, e, label) }
-        : {})}
+      {...(payload ? { onPointerDown: (e: React.PointerEvent) => beginDrag(payload, e, label) } : {})}
     >
       <span className="action-button__hotkey">{hotkey}</span>
       <strong className="action-button__label">{label}</strong>
