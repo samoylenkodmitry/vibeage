@@ -120,7 +120,26 @@ function resolveCastTargets(
   if (caster && !cast.targetId && (!skill.area || skill.area <= 0) && isBeneficialOnly(skill)) {
     return [caster];
   }
+  // Beneficial AOE (Sacred Pulse, Mass Heal, Sacred Aura, Group Bless):
+  // land on the caster + allied players in radius, never enemies.
+  // `getTargetsInArea` excludes the caster and collects enemies, so
+  // without this branch these skills healed/buffed nearby mobs and
+  // skipped the caster entirely.
+  if (caster && isBeneficialOnly(skill) && skill.area && skill.area > 0) {
+    return beneficialAreaTargets(caster, skill.area, world);
+  }
   return getTargetsInArea(cast, world);
+}
+
+/** Caster + alive allied players within `radius`. Never enemies. */
+function beneficialAreaTargets(caster: PlayerState, radius: number, world: CombatWorld): Array<Enemy | PlayerState> {
+  const targets: Array<Enemy | PlayerState> = [caster];
+  for (const entity of world.getEntitiesInCircle({ x: caster.position.x, z: caster.position.z }, radius)) {
+    if (entity.id === caster.id) continue;
+    const ally = world.getPlayerById(entity.id);
+    if (ally?.isAlive) targets.push(ally);
+  }
+  return targets;
 }
 
 type DamageContext = {
