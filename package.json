@@ -22,6 +22,7 @@
     "content:audit:check": "NODE_OPTIONS=--no-deprecation tsx scripts/content-audit.ts --check",
     "balance:report": "NODE_OPTIONS=--no-deprecation tsx scripts/balance-report.ts",
     "check:maintainability": "node scripts/check-maintainability.mjs",
+    "check:engine-abstraction": "node scripts/check-engine-abstraction.mjs",
     "check:server": "node scripts/check-scope.mjs server",
     "check:client": "node scripts/check-scope.mjs client",
     "check:protocol": "node scripts/check-scope.mjs protocol",
