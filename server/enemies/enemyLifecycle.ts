@@ -1,4 +1,4 @@
-import { DEFAULT_PACK_AGGRO_RADIUS_M, getEnemyTemplate, resolveEnemyCombat } from '../../packages/content/enemies.js';
+import { DEFAULT_PACK_AGGRO_RADIUS_M, ENEMY_BASE_SCALING, getEnemyTemplate, resolveEnemyCombat } from '../../packages/content/enemies.js';
 import { getTerrainHeight } from '../../packages/content/terrain.js';
 import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
@@ -54,14 +54,13 @@ export function createEnemy(
   const healthMult = options.healthMultiplier ?? 1;
   const damageMult = options.damageMultiplier ?? 1;
   const expMult = options.experienceMultiplier ?? (options.isMiniBoss ? 4 : 1);
-  const baseHealth = (100 + level * 20) * template.stats.health * healthMult;
-  const baseExp = (50 + level * 10) * template.stats.experience * expMult;
-  const attackDamage = (10 + level * 2) * template.stats.damage * damageMult;
-  // PR #324 — base multiplier was 6 when enemies were double-stepped
-  // (AI phase added velocity*dt AND the movement phase added it again).
-  // Removing the double-step required doubling this baseline to keep
-  // the same on-screen movement speed.
-  const movementSpeed = 12 * template.stats.movementSpeed;
+  // The mob power curve lives in content (ENEMY_BASE_SCALING); this just
+  // evaluates `(flat + level*perLevel) × species-multiplier × option-mult`.
+  const S = ENEMY_BASE_SCALING;
+  const baseHealth = (S.health.flat + level * S.health.perLevel) * template.stats.health * healthMult;
+  const baseExp = (S.experience.flat + level * S.experience.perLevel) * template.stats.experience * expMult;
+  const attackDamage = (S.damage.flat + level * S.damage.perLevel) * template.stats.damage * damageMult;
+  const movementSpeed = S.movementSpeed * template.stats.movementSpeed;
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
@@ -77,14 +76,14 @@ export function createEnemy(
     // Spec-derived combat characteristics — the same `stats` shape a
     // player carries, so the damage/dodge systems read them uniformly.
     stats: { ...resolveEnemyCombat(template) },
-    attackRange: 2 * template.stats.attackRange,
+    attackRange: S.attackRange * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,
     statusEffects: [],
     targetId: null,
     aiState: 'idle',
-    aggroRadius: 15 * template.stats.aggroRadius,
-    attackCooldownMs: 2000 * template.stats.attackCooldownMs,
+    aggroRadius: S.aggroRadius * template.stats.aggroRadius,
+    attackCooldownMs: S.attackCooldownMs * template.stats.attackCooldownMs,
     lastAttackTime: 0,
     movementSpeed,
     velocity: { x: 0, z: 0 },

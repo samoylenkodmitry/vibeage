@@ -61,6 +61,28 @@ const DEFAULT_ENEMY_COMBAT: EnemyCombatSpec = {
   hpRegen: 0,
 };
 
+/**
+ * The shared mob power curve: how a level-N mob's raw combat values
+ * scale before its per-species `stats` multipliers apply. These are the
+ * baseline the engine combines with each mob's spec — `createEnemy` owns
+ * no magic numbers, it just evaluates `(flat + level*perLevel) * mult`.
+ * Tuning the global mob progression happens here in the spec layer, not
+ * in engine code.
+ */
+export const ENEMY_BASE_SCALING = {
+  /** Max HP = (flat + level*perLevel) × stats.health. */
+  health: { flat: 100, perLevel: 20 },
+  /** XP award = (flat + level*perLevel) × stats.experience. */
+  experience: { flat: 50, perLevel: 10 },
+  /** Attack damage = (flat + level*perLevel) × stats.damage. */
+  damage: { flat: 10, perLevel: 2 },
+  /** Flat baselines (level-independent) × the matching stats multiplier. */
+  movementSpeed: 12, // doubled in PR #324 when the AI double-step was removed
+  attackRange: 2,
+  aggroRadius: 15,
+  attackCooldownMs: 2000,
+} as const;
+
 export type EnemyTemplate = {
   type: string;
   displayName: string;
