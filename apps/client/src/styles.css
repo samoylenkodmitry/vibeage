@@ -2354,6 +2354,33 @@ input {
   background: rgba(141, 233, 215, 0.22);
 }
 
+/* Ability schema (docs/ABILITY_SYSTEM.md): the geometry/delivery summary
+   line + the "used by" chips colour-coded per combatant kind. */
+.wiki-row-delivery {
+  margin: 2px 0 6px;
+  font-size: 0.82em;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.wiki-user-chip {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 0 5px;
+  margin: 1px 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wiki-user-chip:hover { border-color: rgba(255, 255, 255, 0.7); }
+.wiki-user-class { border-color: rgba(122, 162, 247, 0.5); background: rgba(122, 162, 247, 0.14); }
+.wiki-user-spec  { border-color: rgba(187, 154, 247, 0.5); background: rgba(187, 154, 247, 0.14); }
+.wiki-user-mob   { border-color: rgba(158, 206, 106, 0.5); background: rgba(158, 206, 106, 0.14); }
+.wiki-user-boss  { border-color: rgba(247, 118, 142, 0.55); background: rgba(247, 118, 142, 0.16); }
+
 .wiki-set-grade,
 .wiki-set-piece-grade {
   display: inline-block;
