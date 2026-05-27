@@ -124,17 +124,21 @@ export function spawnInitialEnemies(
   for (const zoneId of activeZoneIds) {
     let spawnedInZone = 0;
     spawnedSet.add(zoneId);
+    // Deterministic per-zone spawn stream (count, level, miniboss
+    // placement), seeded on the injected spawn tick — so a simulator
+    // replay populates each zone identically with no ambient RNG.
+    const zoneRng = rng(hash(`spawn:${zoneId}:${now}`));
 
-    const miniBoss = zoneManager.getMiniBoss(zoneId);
+    const miniBoss = zoneManager.getMiniBoss(zoneId, now);
     if (miniBoss && spawned < maxEnemies && spawnedInZone < maxEnemiesPerZone) {
       // PR V — honour an explicit `position` on the miniBoss spec
       // (so Vorthax always spawns on the caldera, not a random rock
       // in the peaks). Falls back to a random in-zone point.
       const position = miniBoss.position
         ? { ...miniBoss.position }
-        : zoneManager.getRandomPositionInZone(zoneId);
+        : zoneManager.getRandomPositionInZone(zoneId, zoneRng);
       if (position) {
-        const zoneBaseLevel = zoneManager.getMobLevel(zoneId);
+        const zoneBaseLevel = zoneManager.getMobLevel(zoneId, zoneRng);
         const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position, now);
         state.enemies[enemy.id] = enemy;
         state.zones.enemyZoneIds[enemy.id] = zoneId;
@@ -144,7 +148,7 @@ export function spawnInitialEnemies(
       }
     }
 
-    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId)) {
+    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId, now, zoneRng)) {
       const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
       const worldBudgetRemaining = maxEnemies - spawned;
       const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
@@ -208,14 +212,14 @@ function spawnMobBatch(
     // jittered point). Otherwise fall back to a random in-zone point.
     const center = mobConfig.position
       ? jitterAround(mobConfig.position, mobConfig.spawnRadius ?? DEFAULT_MOB_SPAWN_RADIUS, rand)
-      : zoneManager.getRandomPositionInZone(zoneId);
+      : zoneManager.getRandomPositionInZone(zoneId, rand);
     if (!center) {
       break;
     }
     const packId = groupSize > 1 ? `pack-${zoneId}-${mobConfig.type}-${spawned}-${now}` : undefined;
     for (let i = 0; i < groupSize; i += 1) {
       const position = packId ? clusterAround(center, i, rand) : center;
-      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position, now, { packId });
+      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId, rand), position, now, { packId });
       state.enemies[enemy.id] = enemy;
       state.zones.enemyZoneIds[enemy.id] = zoneId;
       spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });

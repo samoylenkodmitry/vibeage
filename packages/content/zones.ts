@@ -106,7 +106,7 @@ export class ZoneManager {
         return null;
     }
 
-    getMobsToSpawn(zoneId: string, nowMs: number = Date.now()): MobSpawnConfig[] {
+    getMobsToSpawn(zoneId: string, nowMs: number = Date.now(), rng: () => number = Math.random): MobSpawnConfig[] {
         const zone = this.getZoneById(zoneId);
         if (!zone) return [];
         const phase = dayPhaseLabel(nowMs);
@@ -115,7 +115,7 @@ export class ZoneManager {
             .filter((mobConfig) => isMobAllowedInPhase(mobConfig.activePhases, phase))
             .map(mobConfig => {
                 const count = Math.floor(
-                    Math.random() * (mobConfig.maxCount - mobConfig.minCount + 1) +
+                    rng() * (mobConfig.maxCount - mobConfig.minCount + 1) +
                     mobConfig.minCount
                 );
                 return {
@@ -137,13 +137,13 @@ export class ZoneManager {
         return miniBoss;
     }
 
-    getRandomPositionInZone(zoneId: string): { x: number; y: number; z: number } | null {
+    getRandomPositionInZone(zoneId: string, rng: () => number = Math.random): { x: number; y: number; z: number } | null {
         const zone = this.getZoneById(zoneId);
         if (!zone) return null;
 
-        const angle = Math.random() * Math.PI * 2;
+        const angle = rng() * Math.PI * 2;
         const minDistance = zone.spawnExclusionRadius ?? 0;
-        const distance = randomAnnulusDistance(minDistance, zone.radius, Math.random());
+        const distance = randomAnnulusDistance(minDistance, zone.radius, rng());
 
         const x = zone.position.x + Math.cos(angle) * distance;
         const z = zone.position.z + Math.sin(angle) * distance;
@@ -155,12 +155,12 @@ export class ZoneManager {
         };
     }
 
-    getMobLevel(zoneId: string): number {
+    getMobLevel(zoneId: string, rng: () => number = Math.random): number {
         const zone = this.getZoneById(zoneId);
         if (!zone) return 1;
 
         return Math.floor(
-            Math.random() * (zone.maxLevel - zone.minLevel + 1) +
+            rng() * (zone.maxLevel - zone.minLevel + 1) +
             zone.minLevel
         );
     }

@@ -66,10 +66,10 @@ export function createSimWorld(options: SimWorldOptions = {}): SimWorld {
   initializeServerDrivenZoneRuntime(state, regions, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
 
   if (options.seedEnemies) {
-    // Populate active zones the way the live boot does. NB: zone spawn
-    // positions still draw from the content layer's Math.random, so a
-    // seeded full world is reproducible in *structure* but not exact
-    // mob coordinates — fine for a smoke run, not a determinism assert.
+    // Populate active zones the way the live boot does. Spawn count,
+    // level, and placement run off a stream seeded on the spawn tick,
+    // so two sims built at the same startMs populate identically —
+    // a full-world replay is exactly reproducible.
     spawnInitialEnemies(state, spatial, zoneManager, clock.now(), {
       activeZoneIds: state.zones.activeZoneIds,
       maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,

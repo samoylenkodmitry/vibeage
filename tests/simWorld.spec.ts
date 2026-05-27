@@ -63,10 +63,15 @@ describe('SimWorld — real tick pipeline on a virtual clock', () => {
     expect(sim.now()).toBe(2_000);
   });
 
-  it('seeded full-world smoke: spawns mobs and ticks the real engine without throwing', () => {
-    const sim = createSimWorld({ seedEnemies: true });
-    const spawned = Object.keys(sim.state.enemies).length;
-    expect(spawned).toBeGreaterThan(0);
-    expect(() => sim.advance(2_000)).not.toThrow();
+  it('seeded full-world spawn is deterministic (same startMs → identical population)', () => {
+    const run = () => {
+      const sim = createSimWorld({ seedEnemies: true, startMs: 1_700_000_000_000 });
+      sim.advance(2_000);
+      return enemySnapshot(sim.state);
+    };
+    const a = run();
+    const b = run();
+    expect(Object.keys(a).length).toBeGreaterThan(0);
+    expect(a).toEqual(b);
   });
 });
