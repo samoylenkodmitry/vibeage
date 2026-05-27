@@ -209,7 +209,10 @@ export function castMobSkill(
 function lockTelegraph(cast: Cast, skill: SkillDef, casterPos: VecXZ, targetPos: VecXZ): void {
   if (!skill.telegraph) return;
   cast.castTimeMs = skill.telegraph.windUpMs;
-  cast.shapeOrigin = { x: casterPos.x, z: casterPos.z };
+  // A ground-targeted blast (anchor: 'target') drops on the locked target
+  // position; a nova / breath (default 'caster') centres on the caster.
+  const onTarget = skill.shape && skill.shape.kind !== 'single' && skill.shape.anchor === 'target';
+  cast.shapeOrigin = onTarget ? { x: targetPos.x, z: targetPos.z } : { x: casterPos.x, z: casterPos.z };
   if (skill.shape?.kind === 'cone') {
     cast.shapeDirRad = Math.atan2(targetPos.z - casterPos.z, targetPos.x - casterPos.x);
   }

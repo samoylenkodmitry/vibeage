@@ -1,5 +1,6 @@
 // PR UU — `SKILL_IDS` is the canonical list; `SkillId` + the Zod
 // schema in `protocol/common.ts` both derive from it.
+import { BOSS_SIGNATURE_SKILL_IDS } from './bossSkills.js';
 export const SKILL_IDS = [
   'basicAttack', 'escape',
   'fireball', 'iceBolt', 'waterSplash', 'petrify',
@@ -27,6 +28,8 @@ export const SKILL_IDS = [
   'passive_radiant_focus', 'passive_shadow_grace', 'passive_lethal_focus',
   // Mob abilities (mobSkills.ts) — owned by enemy templates, never learnable.
   'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt', 'mobBreath', 'mobWarbandHowl',
+  // Boss signatures (generated defs in bossSkills.ts).
+  ...BOSS_SIGNATURE_SKILL_IDS,
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
@@ -163,20 +166,13 @@ export interface SkillDef {
   offense?: SkillOffense;
   // Ability schema (docs/ABILITY_SYSTEM.md) — data-driven geometry,
   // delivery, and caster mechanics; one generic resolver per axis.
-  /** AOE geometry; absent = single-target / legacy `area` circle. */
-  shape?: AbilityShape;
-  /** Allegiance filter for the shape's hits; absent = inferred from skill. */
-  affects?: AbilityAffects;
-  /** Telegraphed delivery: lock origin/dir, show telegraph, resolve after wind-up. */
-  telegraph?: AbilityTelegraph;
-  /** Caster spawns mobs on resolution. */
-  summon?: SummonSpec;
-  /** Caster teleports behind the target on resolution. */
-  blink?: BlinkSpec;
-  /** Registered custom resolver (CUSTOM_SKILL_BEHAVIORS) when data can't express it. */
-  customBehavior?: string;
-  /** Flat multiplier on the damage base (e.g. a boss signature hitting 2.4×). */
-  damageMult?: number;
+  shape?: AbilityShape;          // AOE geometry; absent = single-target
+  affects?: AbilityAffects;      // allegiance filter; absent = inferred
+  telegraph?: AbilityTelegraph;  // lock origin/dir, resolve after wind-up
+  summon?: SummonSpec;           // caster spawns mobs on resolution
+  blink?: BlinkSpec;             // caster teleports behind target on resolution
+  customBehavior?: string;       // CUSTOM_SKILL_BEHAVIORS resolver (escape hatch)
+  damageMult?: number;           // flat multiplier on the damage base (e.g. 2.4×)
 }
 
 /**
@@ -694,6 +690,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
  */
 import { PASSIVE_SKILLS } from './classPassives.js';
 import { MOB_SKILLS } from './mobSkills.js';
+import { BOSS_SIGNATURE_SKILLS } from './bossSkills.js';
 
-export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS } as unknown as Record<SkillId, SkillDef>;
+export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>;
 export { isPassiveSkill } from './classPassives.js';

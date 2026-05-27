@@ -5,11 +5,6 @@ import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
-  resetBossProgression,
-  tickBossProgression,
-  tickBossSignature,
-} from './bossSignature.js';
-import {
   faceEnemyToward,
   findAggroTargetId,
   isPlayerInvisible,
@@ -30,32 +25,6 @@ export type EnemyAIEvent =
   | { type: 'castSkill'; enemyId: string; targetId: string; skillId: SkillId }
   | { type: 'packAggro'; packId: string; targetId: string; sourceEnemyId: string }
   | { type: 'packDisengage'; packId: string; sourceEnemyId: string }
-  | {
-      // Archwork #6 follow-up — Grakk's Warband Howl. Pulls EVERY
-      // alive packmate within `radius` onto `targetId` regardless of
-      // their current AI state. Stronger than packAggro (which only
-      // wakes idle/patrolling packmates).
-      type: 'summonPack';
-      packId: string;
-      targetId: string;
-      sourceEnemyId: string;
-      radius: number;
-      bossName: string;
-    }
-  | {
-      type: 'bossTelegraph';
-      enemyId: string;
-      bossName: string;
-      abilityName: string;
-      x: number;
-      z: number;
-      radius: number;
-      innerRadius?: number;
-      directionRad?: number;
-      halfAngleDeg?: number;
-      windUpMs: number;
-      impactAt: number;
-    }
   | {
       type: 'playerKilled';
       message: string;
@@ -107,7 +76,6 @@ export function advanceEnemyState(enemy: Enemy, context: EnemyAIContext): EnemyA
 
   if (enemy.isMiniBoss) {
     tickBossProgression(enemy, context.now, progress);
-    tickBossSignature(enemy, context, progress);
   }
 
   // Stun: skip all state actions while a stun effect is active. The
@@ -480,15 +448,52 @@ function findNearbyAggroTarget(enemy: Enemy, context: EnemyAIContext): string | 
  *  - After `enrageAfterMs`, damage gets a one-time multiplier.
  *  - Once HP crosses below `phaseTwoHpFraction`, speed + damage get a
  *    second one-time multiplier.
- * Both flags persist until the boss returns to spawn (then reset by
- * resetBossProgression in ./bossSignature.ts) or respawns
- * (createEnemy starts from base).
+ * Both apply to `attackPower` (the source the boss's weapon-scaled
+ * skills — basic strikes AND the signature — read), so escalation
+ * lands on every ability. Reset on return-to-spawn / respawn.
+ * (Signatures themselves are ordinary skills now — see bossSkills.ts.)
  */
+function tickBossProgression(enemy: Enemy, now: number, progress: EnemyAIProgress): void {
+  const cfg = enemy.bossConfig;
+  if (!cfg) return;
+  const inCombat = enemy.aiState === 'chasing' || enemy.aiState === 'attacking';
+  if (inCombat && enemy.combatStartedTs === undefined) enemy.combatStartedTs = now;
+  if (!enemy.enraged && enemy.combatStartedTs !== undefined && now - enemy.combatStartedTs >= cfg.enrageAfterMs) {
+    enemy.enraged = true;
+    applyBossDamageScaling(enemy);
+    progress.events.push({ type: 'log', message: `[BOSS] ${enemy.name} enrages — damage now ${enemy.attackDamage.toFixed(1)}` });
+    progress.shouldBroadcastEnemyUpdate = true;
+  }
+  if (!enemy.phaseShifted && enemy.health < enemy.maxHealth * cfg.phaseTwoHpFraction) {
+    enemy.phaseShifted = true;
+    applyBossDamageScaling(enemy);
+    enemy.movementSpeed = (enemy.baseMovementSpeed ?? enemy.movementSpeed) * cfg.phaseTwoSpeedMul;
+    progress.events.push({ type: 'log', message: `[BOSS] ${enemy.name} phase 2 — speed ${enemy.movementSpeed.toFixed(1)}, damage ${enemy.attackDamage.toFixed(1)}` });
+    progress.shouldBroadcastEnemyUpdate = true;
+  }
+}
 
-// Mini-boss signature ticks + impact resolution live in
-// ./bossSignature.ts (extracted in archwork #6 follow-up so the
-// state-machine file stays under the 700-line maintainability cap
-// once the typed mechanic kinds landed).
+/** Re-derive attackDamage + attackPower from base × the active enrage/phase muls. */
+function applyBossDamageScaling(enemy: Enemy): void {
+  const cfg = enemy.bossConfig;
+  const base = enemy.baseAttackDamage ?? enemy.attackDamage;
+  let mul = 1;
+  if (cfg && enemy.enraged) mul *= cfg.enragedDamageMul;
+  if (cfg && enemy.phaseShifted) mul *= cfg.phaseTwoDamageMul;
+  enemy.attackDamage = base * mul;
+  if (enemy.stats) enemy.stats.attackPower = base * mul;
+}
+
+function resetBossProgression(enemy: Enemy): void {
+  enemy.combatStartedTs = undefined;
+  enemy.enraged = false;
+  enemy.phaseShifted = false;
+  if (enemy.baseAttackDamage !== undefined) {
+    enemy.attackDamage = enemy.baseAttackDamage;
+    if (enemy.stats) enemy.stats.attackPower = enemy.baseAttackDamage;
+  }
+  if (enemy.baseMovementSpeed !== undefined) enemy.movementSpeed = enemy.baseMovementSpeed;
+}
 
 function markDirtyIfMotionChanged(
   enemy: Enemy,

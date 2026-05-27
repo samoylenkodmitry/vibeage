@@ -298,9 +298,10 @@ describe('content integrity: dead-leftover survey', () => {
     // Spec-tier skill ids follow `<word>_<word>` (underscored). Base
     // class skills are camelCase. Anything underscored that no spec
     // grants is dead weight — *except* class passives (`passive_*`),
-    // which are auto-granted by class or learned from the class tree.
+    // auto-granted/learned from the tree, and boss signatures (`boss_*`),
+    // owned by enemy templates (never learnable by players).
     const orphanSpecSkills = Object.keys(SKILLS)
-      .filter((id) => id.includes('_') && !id.startsWith('passive_') && !granted.has(id));
+      .filter((id) => id.includes('_') && !id.startsWith('passive_') && !id.startsWith('boss_') && !granted.has(id));
     expect(orphanSpecSkills, `spec-style skills not granted by any spec: ${orphanSpecSkills.join(', ')}`).toEqual([]);
   });
 });

@@ -1,9 +1,10 @@
+import { SKILLS } from '../../packages/content/skills.js';
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 
 export type CustomSkillBehavior = (cast: Cast, world: CombatWorld, now: number) => void;
 
-/** Fallback rally radius when the caster carries no per-mob pack radius. */
+/** Fallback rally radius when the skill / mob carries no explicit range. */
 const WARBAND_HOWL_RADIUS = 60;
 
 /**
@@ -20,15 +21,17 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
    * current target, regardless of their AI state. Bespoke because it
    * re-targets *existing* mobs (not a shape, not a spawn).
    */
-  warbandHowl: (cast, world) => {
+  warbandHowl: (cast, world, now) => {
     const caster = world.getEnemyById(cast.casterId);
     const targetId = cast.targetId;
     if (!caster?.packId || !targetId) return;
-    const radius = caster.packAggroRadius ?? WARBAND_HOWL_RADIUS;
+    const radius = SKILLS[cast.skillId]?.range ?? caster.packAggroRadius ?? WARBAND_HOWL_RADIUS;
     for (const entity of world.getEntitiesInCircle(caster.position, radius)) {
       if ('type' in entity && entity.id !== caster.id && entity.packId === caster.packId && entity.isAlive) {
         entity.targetId = targetId;
         entity.aiState = 'chasing';
+        entity.chaseStartedAt = now;
+        entity.patrolTarget = undefined;
       }
     }
   },

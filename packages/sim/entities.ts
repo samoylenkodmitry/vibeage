@@ -160,26 +160,6 @@ export interface Enemy {
    */
   bossId?: string;
   /**
-   * Mini-boss signature-AOE cast machine. `nextSignatureReadyTs` is
-   * the earliest tick this boss may begin the next telegraph;
-   * `signatureCastingUntilTs` is set when a cast is in flight (impact
-   * fires when context.now passes it). Both clear on respawn /
-   * return-to-spawn so the encounter starts clean.
-   */
-  signatureCastingUntilTs?: number;
-  signatureCastTargetX?: number;
-  signatureCastTargetZ?: number;
-  signatureCastRadius?: number;
-  /** Cone-mechanic direction snapshot (radians, world XZ plane).
-   *  Stored at cast start so the impact resolves to the original
-   *  aim even if the boss rotated mid wind-up. */
-  signatureCastDirRad?: number;
-  /** Blink-mechanic locked target id. Resolved at cast start so
-   *  the boss reappears behind whoever was originally marked even
-   *  if aggro changed during wind-up. */
-  signatureCastTargetPlayerId?: string;
-  nextSignatureReadyTs?: number;
-  /**
    * First moment this enemy entered an aggressive state (chasing /
    * attacking) since its current life. Reset when the enemy returns
    * to spawn or respawns. Drives mini-boss enrage timer.
