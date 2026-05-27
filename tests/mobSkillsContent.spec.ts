@@ -28,9 +28,12 @@ describe('mob skills — spec integrity', () => {
     }
   });
 
-  it('every mob carries the universal mobStrike as its primary attack', () => {
+  it('every mob carries the universal mobStrike as its guaranteed fallback', () => {
     for (const [type, t] of entries) {
-      expect(t.skills[0], `${type} primary skill should be mobStrike`).toBe('mobStrike');
+      expect(t.skills, `${type} must include mobStrike`).toContain('mobStrike');
+      // mobStrike (cooldown 0) is the always-ready fallback, so it's listed
+      // last — signature skills come first in selection priority.
+      expect(t.skills[t.skills.length - 1], `${type} mobStrike should be the last/fallback skill`).toBe('mobStrike');
     }
   });
 

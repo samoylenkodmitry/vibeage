@@ -11,6 +11,8 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { advanceEnemyState, type EnemyAIEvent } from './enemyStateMachine.js';
+import { castMobSkill, type ActiveCastStore } from '../combat/skillSystem.js';
+import type { CombatWorld } from '../combat/worldContract.js';
 
 // §46/slice-3 — pack aggro / disengage now read the source enemy's
 // `packAggroRadius` (set per species via EnemyStatMultipliers).
@@ -24,6 +26,8 @@ export function updateEnemyAI(
   spatialGrid: SpatialHashGrid,
   deltaTime: number,
   now: number,
+  world: CombatWorld,
+  activeCasts: ActiveCastStore,
 ): void {
   const result = advanceEnemyState(enemy, {
     players: gameState.players,
@@ -33,7 +37,7 @@ export function updateEnemyAI(
   });
 
   for (const event of result.events) {
-    emitEnemyAIEvent(outbound, event, gameState, spatialGrid, enemy, now);
+    emitEnemyAIEvent(outbound, event, gameState, spatialGrid, enemy, now, world, activeCasts);
   }
 
   if (result.enemyUpdate) {
@@ -48,9 +52,21 @@ function emitEnemyAIEvent(
   spatialGrid: SpatialHashGrid,
   source: Enemy,
   now: number,
+  world: CombatWorld,
+  activeCasts: ActiveCastStore,
 ): void {
   if (event.type === 'log') {
     debug(LOG_CATEGORIES.ENEMY, event.message);
+    return;
+  }
+
+  if (event.type === 'castSkill') {
+    // Turn the AI's intent into a real cast through the shared pipeline;
+    // tickCasts (combat phase) resolves it. Only cast at a live target.
+    const target = gameState.players[event.targetId];
+    if (target?.isAlive) {
+      castMobSkill(source, target, event.skillId, now, world, activeCasts, outbound);
+    }
     return;
   }
 

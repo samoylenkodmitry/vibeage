@@ -145,6 +145,9 @@ function spawnNewlyActivatedZones(input: WorldTickRunnerOptions & { now: number 
 }
 
 function runEnemyAiPhase(input: WorldTickRunnerOptions & { now: number }): void {
+  // The AI casts mob skills through the shared pipeline; the cast lands
+  // in activeCasts and the combat phase's tickCasts resolves it.
+  const world = createWorldCombatBridge(input.state, input.outbound, input.spatial);
   for (const enemyId in input.state.enemies) {
     if (!hasRecordKey(input.state.enemies, enemyId)) {
       continue;
@@ -152,7 +155,7 @@ function runEnemyAiPhase(input: WorldTickRunnerOptions & { now: number }): void 
 
     const enemy = input.state.enemies[enemyId];
     if (enemy.isAlive && isEnemyInActiveRegion(input.state, enemyId)) {
-      updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000, input.now);
+      updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000, input.now, world, input.state.activeCasts);
     }
   }
 }

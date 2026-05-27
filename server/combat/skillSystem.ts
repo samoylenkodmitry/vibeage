@@ -237,7 +237,9 @@ function resolveCastTargetPosition(
     return undefined;
   }
 
-  const target = world.getEnemyById(targetId);
+  // Resolve enemy OR player targets — a mob projectile aims at a player,
+  // a player projectile at an enemy (or another player in PvP).
+  const target = world.getEnemyById(targetId) ?? world.getPlayerById(targetId);
   return target ? { x: target.position.x, z: target.position.z } : undefined;
 }
 

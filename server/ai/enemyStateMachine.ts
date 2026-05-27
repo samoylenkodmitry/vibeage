@@ -1,4 +1,5 @@
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import type { SkillId } from '../../packages/content/skills.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
@@ -9,7 +10,6 @@ import {
   tickBossSignature,
 } from './bossSignature.js';
 import {
-  applyEnemyAttack,
   faceEnemyToward,
   findAggroTargetId,
   isPlayerInvisible,
@@ -25,6 +25,9 @@ type EnemyUpdate = Pick<Enemy, 'id' | 'targetId' | 'aiState'>;
 export type EnemyAIEvent =
   | { type: 'log'; message: string }
   | { type: 'enemyAttack'; enemyId: string; targetId: string; damage: number; targetHealth: number }
+  // The mob wants to cast `skillId` at `targetId` — resolved by the
+  // emitter through the same cast pipeline players use (castMobSkill).
+  | { type: 'castSkill'; enemyId: string; targetId: string; skillId: SkillId }
   | { type: 'packAggro'; packId: string; targetId: string; sourceEnemyId: string }
   | { type: 'packDisengage'; packId: string; sourceEnemyId: string }
   | {
@@ -425,38 +428,29 @@ function applyAttackIfReady(
   now: number,
   progress: EnemyAIProgress,
 ): void {
-  const attack = applyEnemyAttack(enemy, targetPlayer, now);
-  if (!attack) {
-    return;
-  }
+  // Global attack cadence (attackCooldownMs). The actual hit/miss +
+  // damage + effects resolve later this tick in the combat phase: the
+  // emitter turns this intent into a real cast (castMobSkill) and
+  // tickCasts resolves it through the same pipeline players use. The
+  // enemy drops a target it has killed organically next tick (the dead
+  // player is no longer a valid aggro target).
+  if (now - enemy.lastAttackTime < enemy.attackCooldownMs) return;
+  const skillId = selectMobSkill(enemy, now);
+  if (!skillId) return;
+  enemy.lastAttackTime = now;
+  progress.events.push({ type: 'castSkill', enemyId: enemy.id, targetId: targetPlayer.id, skillId });
+}
 
-  progress.events.push({
-    type: 'enemyAttack',
-    enemyId: enemy.id,
-    targetId: targetPlayer.id,
-    damage: attack.damage,
-    targetHealth: targetPlayer.health,
-  });
-
-  if (attack.killed) {
-    progress.events.push({
-      type: 'playerKilled',
-      message: `[AI] Player ${targetPlayer.id} was killed by enemy ${enemy.id}`,
-      update: {
-        id: targetPlayer.id,
-        health: targetPlayer.health,
-        isAlive: targetPlayer.isAlive,
-        deathTimeTs: targetPlayer.deathTimeTs,
-        targetId: targetPlayer.targetId,
-        castingSkill: targetPlayer.castingSkill,
-        castingProgressMs: targetPlayer.castingProgressMs,
-      },
-    });
-    enemy.targetId = null;
-    enemy.aiState = 'returning';
-    emitPackDisengageIfNeeded(enemy, progress);
-    progress.shouldBroadcastEnemyUpdate = true;
+/**
+ * The first skill in the mob's priority list that's off its per-skill
+ * cooldown. Signature skills are listed first; `mobStrike` (cooldown 0)
+ * is the always-ready fallback at the end.
+ */
+function selectMobSkill(enemy: Enemy, now: number): SkillId | null {
+  for (const id of enemy.skills ?? []) {
+    if ((enemy.skillCooldownEndTs?.[id] ?? 0) <= now) return id;
   }
+  return null;
 }
 
 // §46/slice-3 — emit a packDisengage event when this enemy quits a

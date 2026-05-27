@@ -133,7 +133,7 @@ const TEMPLATES: EnemyTemplate[] = [
   template('goblin', 'Goblin', 'humanoid', { color: '#8fbf6a', height: 1.0, shape: 'box', glow: false }, { damage: 0.9, movementSpeed: 1.05 }),
   template('wolf', 'Gray Wolf', 'beast', { color: '#b08968', height: 0.9, shape: 'box', glow: false }, { health: 0.85, damage: 1.05, movementSpeed: 1.25 }),
   template('skeleton', 'Skeleton', 'undead', { color: '#d7d3c7', height: 1.1, shape: 'box', glow: false }, { health: 1.1 }),
-  template('slime', 'Forest Slime', 'aberration', { color: '#56d88b', height: 0.85, shape: 'sphere', glow: false }, { health: 1.3, damage: 0.6, movementSpeed: 0.6, attackRange: 0.9 }, ['mobStrike', 'mobPoisonBite']),
+  template('slime', 'Forest Slime', 'aberration', { color: '#56d88b', height: 0.85, shape: 'sphere', glow: false }, { health: 1.3, damage: 0.6, movementSpeed: 0.6, attackRange: 0.9 }, ['mobPoisonBite', 'mobStrike']),
   template('meadow_sprite', 'Meadow Sprite', 'fey', { color: '#f9d66a', height: 0.9, shape: 'sphere', glow: true }, { health: 0.7, damage: 0.8, movementSpeed: 1.2 }),
 
   // Dark forest / misty / rocky
@@ -146,7 +146,7 @@ const TEMPLATES: EnemyTemplate[] = [
 
   // Dragon peaks
   template('wyvern', 'Wyvern', 'dragon', { color: '#7a5b3a', height: 1.5, shape: 'box', glow: false }, { health: 1.5, damage: 1.4, movementSpeed: 1.15 }),
-  template('drake', 'Drake', 'dragon', { color: '#bf5a3a', height: 1.6, shape: 'box', glow: true }, { health: 1.7, damage: 1.5, attackRange: 1.3 }, ['mobStrike', 'mobFirebolt']),
+  template('drake', 'Drake', 'dragon', { color: '#bf5a3a', height: 1.6, shape: 'box', glow: true }, { health: 1.7, damage: 1.5, attackRange: 1.3 }, ['mobFirebolt', 'mobStrike']),
   template('dragon', 'Wyrm', 'dragon', { color: '#8b1a1a', height: 2.0, shape: 'box', glow: true }, { health: 2.5, damage: 2.0, attackRange: 1.6, aggroRadius: 1.4 }),
 
   // Shadow valley
@@ -160,14 +160,14 @@ const TEMPLATES: EnemyTemplate[] = [
   template('crystal_guardian', 'Crystal Guardian', 'construct', { color: '#67e8f9', height: 1.7, shape: 'box', glow: true }, { health: 2.2, damage: 1.6, attackRange: 1.3 }),
 
   // Sunspire steppe / fire
-  template('fire_elemental', 'Fire Elemental', 'elemental', { color: '#fb923c', height: 1.2, shape: 'sphere', glow: true }, { damage: 1.4, movementSpeed: 1.1 }, ['mobStrike', 'mobFirebolt']),
-  template('lava_golem', 'Lava Golem', 'construct', { color: '#dc2626', height: 1.6, shape: 'box', glow: true }, { health: 2.0, damage: 1.5, movementSpeed: 0.85 }, ['mobStrike', 'mobFirebolt']),
-  template('flame_wraith', 'Flame Wraith', 'spirit', { color: '#f97316', height: 1.3, shape: 'sphere', glow: true }, { damage: 1.5, movementSpeed: 1.2, aggroRadius: 1.2 }, ['mobStrike', 'mobFirebolt']),
+  template('fire_elemental', 'Fire Elemental', 'elemental', { color: '#fb923c', height: 1.2, shape: 'sphere', glow: true }, { damage: 1.4, movementSpeed: 1.1 }, ['mobFirebolt', 'mobStrike']),
+  template('lava_golem', 'Lava Golem', 'construct', { color: '#dc2626', height: 1.6, shape: 'box', glow: true }, { health: 2.0, damage: 1.5, movementSpeed: 0.85 }, ['mobFirebolt', 'mobStrike']),
+  template('flame_wraith', 'Flame Wraith', 'spirit', { color: '#f97316', height: 1.3, shape: 'sphere', glow: true }, { damage: 1.5, movementSpeed: 1.2, aggroRadius: 1.2 }, ['mobFirebolt', 'mobStrike']),
 
   // Moonfall highland / ice
-  template('frost_wolf', 'Frost Wolf', 'beast', { color: '#bae6fd', height: 0.95, shape: 'box', glow: false }, { health: 1.0, damage: 1.2, movementSpeed: 1.3 }, ['mobStrike', 'mobFrostbolt']),
-  template('ice_giant', 'Ice Giant', 'humanoid', { color: '#cffafe', height: 1.9, shape: 'box', glow: true }, { health: 2.2, damage: 1.7, movementSpeed: 0.85 }, ['mobStrike', 'mobFrostbolt']),
-  template('ice_elemental', 'Ice Elemental', 'elemental', { color: '#bfdbfe', height: 1.3, shape: 'sphere', glow: true }, { health: 1.2, damage: 1.4, attackRange: 1.4 }, ['mobStrike', 'mobFrostbolt']),
+  template('frost_wolf', 'Frost Wolf', 'beast', { color: '#bae6fd', height: 0.95, shape: 'box', glow: false }, { health: 1.0, damage: 1.2, movementSpeed: 1.3 }, ['mobFrostbolt', 'mobStrike']),
+  template('ice_giant', 'Ice Giant', 'humanoid', { color: '#cffafe', height: 1.9, shape: 'box', glow: true }, { health: 2.2, damage: 1.7, movementSpeed: 0.85 }, ['mobFrostbolt', 'mobStrike']),
+  template('ice_elemental', 'Ice Elemental', 'elemental', { color: '#bfdbfe', height: 1.3, shape: 'sphere', glow: true }, { health: 1.2, damage: 1.4, attackRange: 1.4 }, ['mobFrostbolt', 'mobStrike']),
   template('star_weaver', 'Star Weaver', 'fey', { color: '#e9d5ff', height: 1.2, shape: 'sphere', glow: true }, { damage: 1.3, attackRange: 1.6, attackCooldownMs: 1.1 }),
 
   // Silverwood forest / fey
@@ -176,7 +176,7 @@ const TEMPLATES: EnemyTemplate[] = [
   template('ancient_treant', 'Ancient Treant', 'plant', { color: '#65a30d', height: 1.9, shape: 'box', glow: false }, { health: 2.4, damage: 1.5, movementSpeed: 0.7, attackRange: 1.4 }),
 
   // Abyssal wetland
-  template('tentacle_horror', 'Tentacle Horror', 'aberration', { color: '#4c1d95', height: 1.4, shape: 'sphere', glow: true }, { health: 1.4, damage: 1.4, attackRange: 1.5 }, ['mobStrike', 'mobPoisonBite']),
+  template('tentacle_horror', 'Tentacle Horror', 'aberration', { color: '#4c1d95', height: 1.4, shape: 'sphere', glow: true }, { health: 1.4, damage: 1.4, attackRange: 1.5 }, ['mobPoisonBite', 'mobStrike']),
   template('void_spawner', 'Void Spawner', 'aberration', { color: '#312e81', height: 1.2, shape: 'sphere', glow: true }, { health: 1.1, damage: 1.3 }),
   template('deep_leviathan', 'Deep Leviathan', 'aberration', { color: '#1e1b4b', height: 2.1, shape: 'box', glow: true }, { health: 2.6, damage: 1.8, attackRange: 1.8, movementSpeed: 0.9 }),
 
@@ -188,7 +188,7 @@ const TEMPLATES: EnemyTemplate[] = [
   // Bonus tier
   template('radiant_seraph', 'Radiant Seraph', 'spirit', { color: '#fef08a', height: 1.7, shape: 'sphere', glow: true }, { health: 1.8, damage: 1.7, attackRange: 1.5 }),
   template('celestial_guardian', 'Celestial Guardian', 'construct', { color: '#fef9c3', height: 2.0, shape: 'box', glow: true }, { health: 2.5, damage: 1.9, attackRange: 1.5 }),
-  template('spider', 'Giant Spider', 'beast', { color: '#1f2937', height: 0.9, shape: 'box', glow: false }, { health: 0.95, damage: 1.1, movementSpeed: 1.3 }, ['mobStrike', 'mobPoisonBite']),
+  template('spider', 'Giant Spider', 'beast', { color: '#1f2937', height: 0.9, shape: 'box', glow: false }, { health: 0.95, damage: 1.1, movementSpeed: 1.3 }, ['mobPoisonBite', 'mobStrike']),
 ];
 
 export const ENEMY_TEMPLATES: Record<string, EnemyTemplate> = Object.fromEntries(

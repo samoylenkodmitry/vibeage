@@ -720,20 +720,18 @@ const MOB_SKILLS: Record<string, SkillDef> = {
     effects: [{ type: 'damage', value: 1 }, { type: 'poison', value: 4, durationMs: 8000 }],
   },
   mobFirebolt: {
-    id: 'mobFirebolt', name: 'Fire Bolt', description: 'Hurls a bolt of fire that burns on impact.',
-    icon: '/game/skills/skill_fireball.png', cat: 'projectile', kind: 'magical', damageElement: 'fire',
-    manaCost: 0, castMs: 600, cooldownMs: 4000, weaponScaled: true, isBlocking: true,
-    range: 14, speed: 16, levelRequired: 1, requiresTarget: true,
+    id: 'mobFirebolt', name: 'Fire Bolt', description: 'Sears the target with fire, leaving it burning.',
+    icon: '/game/skills/skill_fireball.png', cat: 'instant', kind: 'magical', damageElement: 'fire',
+    manaCost: 0, castMs: 0, cooldownMs: 4000, weaponScaled: true, isBlocking: false,
+    range: 14, levelRequired: 1, requiresTarget: true,
     effects: [{ type: 'damage', value: 1 }, { type: 'burn', value: 1, durationMs: 4000 }],
-    projectile: { speed: 16, hitRadius: 1.0 },
   },
   mobFrostbolt: {
-    id: 'mobFrostbolt', name: 'Frost Bolt', description: 'Hurls a shard of ice that slows the target.',
-    icon: '/game/skills/skill_icebolt.png', cat: 'projectile', kind: 'magical', damageElement: 'ice',
-    manaCost: 0, castMs: 600, cooldownMs: 4000, weaponScaled: true, isBlocking: true,
-    range: 14, speed: 16, levelRequired: 1, requiresTarget: true,
+    id: 'mobFrostbolt', name: 'Frost Bolt', description: 'Strikes the target with ice, slowing it.',
+    icon: '/game/skills/skill_icebolt.png', cat: 'instant', kind: 'magical', damageElement: 'ice',
+    manaCost: 0, castMs: 0, cooldownMs: 4000, weaponScaled: true, isBlocking: false,
+    range: 14, levelRequired: 1, requiresTarget: true,
     effects: [{ type: 'damage', value: 1 }, { type: 'slow', value: 30, durationMs: 3000 }],
-    projectile: { speed: 16, hitRadius: 1.0 },
   },
 };
 
