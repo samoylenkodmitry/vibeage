@@ -37,6 +37,12 @@ export interface EntityStats {
   healMult?: number;
   pAtk?: number;
   mAtk?: number;
+  /**
+   * Weapon/strike power — the damage base for `weaponScaled` skills (a
+   * mob's basic attack and signature strikes). Set from the entity's
+   * spec; absent on entities that fight only with static-base skills.
+   */
+  attackPower?: number;
   pDef?: number;
   mDef?: number;
   hpRegen?: number;
@@ -86,6 +92,14 @@ export interface Enemy {
    * uniformly with no type-test and no shared code default.
    */
   stats?: EntityStats;
+  /**
+   * The mob's abilities (from EnemyTemplate.skills), in priority order.
+   * The AI casts the first usable one through the same pipeline players
+   * use. `mobStrike` is the universal fallback every mob carries.
+   */
+  skills?: SkillId[];
+  /** Per-skill cooldown end timestamps (mirrors PlayerState). */
+  skillCooldownEndTs?: Record<string, number>;
   attackRange: number;
   baseExperienceValue: number;
   experienceValue: number;

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveCastImpact } from '../server/combat/impactResolver';
 import { CastState, type ServerMessage } from '../packages/protocol/messages';
 import { getDamage } from '../packages/sim/combatMath';
@@ -122,6 +122,12 @@ describe('getDamage — miss roll', () => {
 });
 
 describe('resolveCastImpact — evasion-buff miss in damage path', () => {
+  // Pin the clock so the buff timestamps and the damage-roll seed
+  // (skill:target:now) are deterministic — otherwise the 95%-miss roll
+  // occasionally lands a hit on a real-time seed and flakes CI.
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_700_000_000_000); });
+  afterEach(() => { vi.useRealTimers(); });
+
   it('skips damage entirely when target has a 95%+ evasion buff and the roll lands below it', () => {
     const caster = makeAttacker();
     // 100% miss chance — clamped to 95% by the resolver, but with

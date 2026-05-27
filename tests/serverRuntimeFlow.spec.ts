@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { CastState } from '../packages/protocol/messages';
 import { playerInventorySlots } from './helpers/inventoryView';
-import { advanceEnemyState } from '../server/ai/enemyStateMachine';
+import { updateEnemyAI } from '../server/ai/enemyAI';
 import { createCombatWorld } from '../server/combat/combatWorld';
 import { resolveCastImpact } from '../server/combat/impactResolver';
-import type { Cast } from '../server/combat/skillSystem';
+import { tickCasts, type Cast } from '../server/combat/skillSystem';
 import { handleTargetDeath } from '../server/combat/targetDeath';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { createGameState } from '../server/gameState';
@@ -60,6 +60,7 @@ describe('deterministic server runtime flow', () => {
     enemy.health = 10;
     enemy.maxHealth = 10;
     enemy.attackDamage = 20;
+    enemy.stats = { ...enemy.stats, attackPower: 20 }; // mobStrike scales off attackPower
     enemy.baseExperienceValue = 60;
 
     state.players[player.id] = player;
@@ -78,19 +79,16 @@ describe('deterministic server runtime flow', () => {
     expect(player.position).toMatchObject({ x: 2, z: 0 });
     expect(player.movement?.isMoving).toBe(false);
 
-    const enemyTick = advanceEnemyState(enemy, {
-      players: state.players,
-      spatialGrid: spatial,
-      deltaTime: 1 / 30,
-      now: 3_000,
+    // Enemy attacks the player through the AI (castSkill intent) + the
+    // shared cast pipeline (tickCasts resolves the mobStrike). Mob damage
+    // now rolls variance via getDamage, so assert a band around 20.
+    const attackWorld = createCombatWorld(state, () => undefined);
+    updateEnemyAI(enemy, 1 / 30, {
+      state, outbound, spatial, now: 3_000, world: attackWorld, activeCasts: state.activeCasts,
     });
-    expect(enemyTick.events).toContainEqual(expect.objectContaining({
-      type: 'enemyAttack',
-      enemyId: enemy.id,
-      targetId: player.id,
-      damage: 20,
-    }));
-    expect(player.health).toBe(80);
+    tickCasts(state.activeCasts, 100, outbound, attackWorld, 3_000);
+    expect(player.health).toBeGreaterThanOrEqual(77);
+    expect(player.health).toBeLessThanOrEqual(83);
 
     const world = createCombatWorld(state, (caster, target) => handleTargetDeath(caster, target, {
       state,

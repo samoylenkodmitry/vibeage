@@ -2,7 +2,7 @@ import { SKILLS, SkillId } from '../../packages/content/skills.js';
 import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messages.js';
 import { effectiveCastMs } from '../../packages/sim/combatMath.js';
 import { nanoid } from 'nanoid';
-import { PlayerState as Player } from '../../packages/sim/entities.js';
+import { type Enemy, PlayerState as Player } from '../../packages/sim/entities.js';
 import { emitCastSnapshot, makeCastSnapshot, sendCastSnapshotToClient } from './castSnapshots.js';
 import { resolveCastImpact } from './impactResolver.js';
 import { updateTravelingCast } from './projectileRuntime.js';
@@ -147,6 +147,52 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
   return newCast.castId;
 }
 
+/**
+ * AI-initiated cast: a mob casts one of its spec skills at `target`
+ * through the SAME pipeline players use. No socket, no mana (mob skill
+ * cadence is cooldown-only); the cast lands in `activeCasts` and the
+ * combat phase's `tickCasts` resolves it (cast-time, projectile travel,
+ * `resolveCastImpact`). Sets the mob's per-skill cooldown. Returns
+ * whether a cast was created.
+ */
+export type MobCastEnv = { world: CombatWorld; activeCasts: ActiveCastStore; outbound: OutboundEventSink };
+
+export function castMobSkill(
+  enemy: Enemy,
+  target: Player,
+  skillId: SkillId,
+  now: number,
+  env: MobCastEnv,
+): boolean {
+  const { world, activeCasts, outbound } = env;
+  const skill = SKILLS[skillId];
+  if (!skill) return false;
+
+  const cast: Cast = {
+    castId: nanoid(),
+    casterId: enemy.id,
+    skillId,
+    state: CastStateEnum.Casting,
+    origin: { x: enemy.position.x, z: enemy.position.z },
+    startedAt: now,
+    castTimeMs: skill.castMs || 0,
+    targetId: target.id,
+    pos: { x: enemy.position.x, z: enemy.position.z },
+  };
+
+  if (skill.projectile) {
+    const projectileFailure = configureProjectileCast(cast, undefined, target.id, skill.projectile.speed, world);
+    if (projectileFailure) return false;
+  }
+
+  activeCasts[cast.castId] = cast;
+  emitCastSnapshot(outbound, cast);
+
+  if (!enemy.skillCooldownEndTs) enemy.skillCooldownEndTs = {};
+  enemy.skillCooldownEndTs[skillId] = now + (skill.cooldownMs || 0);
+  return true;
+}
+
 function configureProjectileCast(
   cast: Cast,
   targetPos: VecXZ | undefined,
@@ -192,7 +238,9 @@ function resolveCastTargetPosition(
     return undefined;
   }
 
-  const target = world.getEnemyById(targetId);
+  // Resolve enemy OR player targets — a mob projectile aims at a player,
+  // a player projectile at an enemy (or another player in PvP).
+  const target = world.getEnemyById(targetId) ?? world.getPlayerById(targetId);
   return target ? { x: target.position.x, z: target.position.z } : undefined;
 }
 

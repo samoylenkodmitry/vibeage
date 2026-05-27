@@ -121,12 +121,12 @@ describe('Grakk summonPack — packmate rally', () => {
     const gameState = { players, enemies };
     const start = 5_000_000;
     vi.setSystemTime(start);
-    updateEnemyAI(boss, gameState as never, outbound as never, spatial, 0.05, Date.now());
+    updateEnemyAI(boss, 0.05, { state: gameState as never, outbound: outbound as never, spatial, now: Date.now(), world: {} as never, activeCasts: {} });
     const castStart = (boss.nextSignatureReadyTs ?? start) + 10;
     vi.setSystemTime(castStart);
-    updateEnemyAI(boss, gameState as never, outbound as never, spatial, 0.05, Date.now());
+    updateEnemyAI(boss, 0.05, { state: gameState as never, outbound: outbound as never, spatial, now: Date.now(), world: {} as never, activeCasts: {} });
     vi.setSystemTime(castStart + 1500 + 10);
-    updateEnemyAI(boss, gameState as never, outbound as never, spatial, 0.05, Date.now());
+    updateEnemyAI(boss, 0.05, { state: gameState as never, outbound: outbound as never, spatial, now: Date.now(), world: {} as never, activeCasts: {} });
 
     expect(idle.targetId, 'idle goblin pulled onto Grakk\'s target').toBe('p1');
     expect(idle.aiState).toBe('chasing');

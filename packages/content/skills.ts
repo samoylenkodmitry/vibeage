@@ -25,6 +25,8 @@ export const SKILL_IDS = [
   'passive_warding', 'passive_keen_eye', 'passive_swift_step',
   'passive_armor_training', 'passive_iron_grip', 'passive_holy_aegis',
   'passive_radiant_focus', 'passive_shadow_grace', 'passive_lethal_focus',
+  // Mob abilities (mobSkills.ts) — owned by enemy templates, never learnable.
+  'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt',
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
@@ -140,6 +142,9 @@ export interface SkillDef {
   castMs: number;       // Time to cast in milliseconds
   cooldownMs: number;   // Cooldown time in milliseconds
   dmg?: number;
+  /** Damage base = caster's `stats.attackPower` instead of static `dmg`
+   *  (mob strikes; falls back to `dmg` when the caster has no attackPower). */
+  weaponScaled?: boolean;
   range?: number;       // Maximum range from caster
   speed?: number;       // tiles/sec
   area?: number;        // tile radius
@@ -683,16 +688,11 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
 };
 
 /**
- * Final SKILLS catalog: base skills merged with spec / proficiency
- * skills. The merge is content-only — adding a new skill just means
- * a new entry in BASE_SKILLS or specSkillsData.ts.
- *
- * Cast through unknown to Record<SkillId, SkillDef> because the
- * spread is structurally exhaustive but TypeScript can't prove it
- * (Partial + Partial → Partial). The specSkillGate.spec.ts coverage
- * test asserts every SkillId resolves to a SkillDef at runtime.
+ * Final SKILLS catalog: base + spec/proficiency + passives + mob skills.
+ * Cast via unknown; specSkillGate.spec.ts asserts every SkillId resolves.
  */
 import { PASSIVE_SKILLS } from './classPassives.js';
+import { MOB_SKILLS } from './mobSkills.js';
 
-export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS } as unknown as Record<SkillId, SkillDef>;
+export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS } as unknown as Record<SkillId, SkillDef>;
 export { isPassiveSkill } from './classPassives.js';

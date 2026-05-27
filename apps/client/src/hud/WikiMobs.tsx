@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
+import { ENEMY_BASE_SCALING, resolveEnemyCombat } from '../../../../packages/content/enemies';
+import { SKILLS } from '../../../../packages/content/skills';
 import { getMiniBossesByMobType } from '../../../../packages/content/miniBosses';
 import { LootDropsForTable } from './WikiLoot';
 import { FocusableLi, filterMatch, type WikiNav } from './WikiPanel';
@@ -93,6 +95,7 @@ function MobLi({
       </header>
       <small className="wiki-row-footer">Type id: <code>{tpl.type}</code></small>
       <MobStatsSummary tpl={tpl} zones={zones} />
+      <MobAbilities tpl={tpl} navigate={navigate} />
       {zones.length === 0 && <small className="wiki-row-footer">No known spawn zone.</small>}
       {zones.length > 0 && (
         <small className="wiki-row-footer">
@@ -132,14 +135,46 @@ function MobStatsSummary({
   zones: ReturnType<typeof getMobZones>;
 }) {
   const lvl = zones.length > 0 ? Math.min(...zones.map((z) => z.zone.minLevel)) : 1;
-  const hp = Math.round((100 + lvl * 20) * tpl.stats.health);
-  const dmg = Math.round((10 + lvl * 2) * tpl.stats.damage);
+  // Same spec the engine evaluates (ENEMY_BASE_SCALING × species multipliers),
+  // so the wiki never drifts from the live numbers.
+  const S = ENEMY_BASE_SCALING;
+  const hp = Math.round((S.health.flat + lvl * S.health.perLevel) * tpl.stats.health);
+  const dmg = Math.round((S.damage.flat + lvl * S.damage.perLevel) * tpl.stats.damage);
+  const combat = resolveEnemyCombat(tpl);
   return (
     <small className="wiki-row-footer">
-      Lv {lvl}: <strong>{hp}</strong> HP · <strong>{dmg}</strong> dmg ·
-      {' '}aggro {Math.round(15 * tpl.stats.aggroRadius)}m
+      Lv {lvl}: <strong>{hp}</strong> HP · <strong>{dmg}</strong> atk ·
+      {' '}acc {combat.accuracy} · eva {combat.evasion} · P.Def {combat.pDef} · M.Def {combat.mDef}
+      {combat.hpRegen > 0 && <> · regen {combat.hpRegen}/s</>}
+      {' '}· aggro {Math.round(S.aggroRadius * tpl.stats.aggroRadius)}m
       {tpl.stats.movementSpeed !== 1 && <> · speed ×{tpl.stats.movementSpeed.toFixed(2)}</>}
       {tpl.stats.attackRange !== 1 && <> · reach ×{tpl.stats.attackRange.toFixed(2)}</>}
+    </small>
+  );
+}
+
+function MobAbilities({ tpl, navigate }: {
+  tpl: ReturnType<typeof listMobTemplates>[number];
+  navigate: WikiNav;
+}) {
+  return (
+    <small className="wiki-row-footer">
+      Abilities:{' '}
+      {tpl.skills.map((id, i) => {
+        const skill = SKILLS[id];
+        const label = skill?.name ?? id;
+        const elem = skill?.damageElement ? ` (${skill.damageElement})` : '';
+        return (
+          <span key={id}>
+            {i > 0 && ', '}
+            <button type="button" className="wiki-effect-chip"
+              title={skill?.description ?? id}
+              onClick={() => navigate('skills', id)}>
+              {label}{elem}
+            </button>
+          </span>
+        );
+      })}
     </small>
   );
 }

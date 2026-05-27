@@ -2,7 +2,7 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, LOG_CATEGORIES } from '../logger.js';
 import { spawnLootForEnemyDeath } from '../loot/groundLoot.js';
-import { awardPlayerXP } from '../players/playerLifecycle.js';
+import { awardPlayerXP, killPlayer } from '../players/playerLifecycle.js';
 import { onEnemyKilledForQuests } from '../players/playerQuests.js';
 import { emitStarterProgressUpdate, recordStarterEnemyDefeat } from '../progression/starterPath.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
@@ -17,7 +17,7 @@ export type TargetDeathContext = {
 };
 
 export function handleTargetDeath(
-  caster: PlayerState,
+  caster: PlayerState | Enemy,
   target: Enemy | PlayerState,
   context: TargetDeathContext,
 ): boolean {
@@ -29,9 +29,16 @@ export function handleTargetDeath(
     casterId: caster.id,
     targetType: isEnemy(target) ? 'enemy' : 'player',
   });
-  target.isAlive = false;
-  target.deathTimeTs = context.now;
-  target.health = 0;
+  if (isEnemy(target)) {
+    target.isAlive = false;
+    target.deathTimeTs = context.now;
+    target.health = 0;
+  } else {
+    // Route player deaths through the single killPlayer seam so a kill
+    // by a mob cast clears casting/target intent exactly like a melee
+    // swing used to (and PvP kills now get the same cleanup).
+    killPlayer(target, context.now);
+  }
   context.spatial.remove(target.id, { x: target.position.x, z: target.position.z });
 
   // §11 named encounter tracking — broadcast mini-boss falls so
@@ -48,7 +55,9 @@ export function handleTargetDeath(
     });
   }
 
-  if (caster.isAlive && isEnemy(target)) {
+  // XP / loot / quest credit only when a player kills a mob. (Mobs don't
+  // kill mobs; a mob killing a player takes the no-credit path.)
+  if (caster.isAlive && !isEnemy(caster) && isEnemy(target)) {
     const xpUpdate = awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`);
     const starterProgress = recordStarterEnemyDefeat(caster, target.id);
     emitPlayerUpdated(

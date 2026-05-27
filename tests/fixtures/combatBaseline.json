@@ -3,31 +3,31 @@
     "ttkMs": 800.0000000000002,
     "hits": 2,
     "ttdMs": 48366.666666667326,
-    "dodges": 1
+    "dodges": 2
   },
   "warrior-5": {
     "ttkMs": 1399.9999999999995,
     "hits": 3,
-    "ttdMs": 60366.6666666682,
-    "dodges": 3
+    "ttdMs": 54366.66666666776,
+    "dodges": 0
   },
   "warrior-10": {
     "ttkMs": 1399.9999999999995,
     "hits": 3,
-    "ttdMs": 68433.33333333483,
-    "dodges": 1
+    "ttdMs": 70466.66666666786,
+    "dodges": 2
   },
   "warrior-20": {
     "ttkMs": 1366.6666666666663,
     "hits": 3,
-    "ttdMs": null,
-    "dodges": 20
+    "ttdMs": 113166.66666666165,
+    "dodges": 9
   },
   "warrior-40": {
     "ttkMs": 1366.6666666666663,
     "hits": 3,
     "ttdMs": null,
-    "dodges": 30
+    "dodges": 25
   },
   "mage-1": {
     "ttkMs": 333.3333333333333,
@@ -38,116 +38,116 @@
   "mage-5": {
     "ttkMs": 333.3333333333333,
     "hits": 1,
-    "ttdMs": 46366.66666666718,
-    "dodges": 4
+    "ttdMs": 40366.666666666744,
+    "dodges": 2
   },
   "mage-10": {
     "ttkMs": 300,
     "hits": 1,
-    "ttdMs": 58366.666666668054,
-    "dodges": 5
+    "ttdMs": 54366.66666666776,
+    "dodges": 4
   },
   "mage-20": {
     "ttkMs": 833.3333333333336,
     "hits": 2,
-    "ttdMs": 70466.66666666786,
-    "dodges": 3
+    "ttdMs": 82666.66666666609,
+    "dodges": 9
   },
   "mage-40": {
     "ttkMs": 800.0000000000002,
     "hits": 2,
     "ttdMs": null,
-    "dodges": 15
+    "dodges": 28
   },
   "rogue-1": {
     "ttkMs": 266.6666666666667,
     "hits": 1,
-    "ttdMs": 38366.6666666666,
-    "dodges": 2
+    "ttdMs": 34366.66666666631,
+    "dodges": 0
   },
   "rogue-5": {
     "ttkMs": 233.33333333333337,
     "hits": 1,
-    "ttdMs": 44366.666666667035,
-    "dodges": 2
+    "ttdMs": 46366.66666666718,
+    "dodges": 3
   },
   "rogue-10": {
     "ttkMs": 233.33333333333337,
     "hits": 1,
-    "ttdMs": 60366.6666666682,
-    "dodges": 6
+    "ttdMs": 58366.666666668054,
+    "dodges": 3
   },
   "rogue-20": {
     "ttkMs": 233.33333333333337,
     "hits": 1,
-    "ttdMs": 84699.99999999913,
-    "dodges": 7
+    "ttdMs": 96899.99999999735,
+    "dodges": 12
   },
   "rogue-40": {
     "ttkMs": 200.00000000000003,
     "hits": 1,
     "ttdMs": null,
-    "dodges": 19
+    "dodges": 24
   },
   "ranger-1": {
     "ttkMs": 1133.3333333333335,
     "hits": 2,
-    "ttdMs": 34366.66666666631,
-    "dodges": 0
+    "ttdMs": 38366.6666666666,
+    "dodges": 2
   },
   "ranger-5": {
     "ttkMs": 1733.3333333333321,
     "hits": 3,
-    "ttdMs": 44366.666666667035,
-    "dodges": 2
+    "ttdMs": 46366.66666666718,
+    "dodges": 3
   },
   "ranger-10": {
     "ttkMs": 1599.999999999999,
     "hits": 3,
-    "ttdMs": 50366.66666666747,
-    "dodges": 1
+    "ttdMs": 58366.666666668054,
+    "dodges": 4
   },
   "ranger-20": {
     "ttkMs": 1433.3333333333328,
     "hits": 3,
-    "ttdMs": 84699.99999999913,
-    "dodges": 7
+    "ttdMs": 80633.33333333305,
+    "dodges": 5
   },
   "ranger-40": {
     "ttkMs": 1200,
     "hits": 3,
     "ttdMs": null,
-    "dodges": 23
+    "dodges": 25
   },
   "healer-1": {
     "ttkMs": 666.6666666666667,
     "hits": 1,
-    "ttdMs": 34366.66666666631,
-    "dodges": 0
+    "ttdMs": 36366.66666666645,
+    "dodges": 1
   },
   "healer-5": {
     "ttkMs": 5699.999999999993,
     "hits": 2,
-    "ttdMs": 44366.666666667035,
-    "dodges": 2
+    "ttdMs": 42366.66666666689,
+    "dodges": 1
   },
   "healer-10": {
     "ttkMs": 5666.66666666666,
     "hits": 2,
-    "ttdMs": 60366.6666666682,
-    "dodges": 5
+    "ttdMs": 56366.66666666791,
+    "dodges": 3
   },
   "healer-20": {
     "ttkMs": 5633.333333333327,
     "hits": 2,
-    "ttdMs": 84699.99999999913,
-    "dodges": 7
+    "ttdMs": 78600.00000000001,
+    "dodges": 5
   },
   "healer-40": {
     "ttkMs": 5566.666666666661,
     "hits": 2,
     "ttdMs": null,
-    "dodges": 23
+    "dodges": 27
   },
   "knight-1": {
     "ttkMs": 800.0000000000002,
@@ -159,7 +159,7 @@
     "ttkMs": 1399.9999999999995,
     "hits": 3,
     "ttdMs": 66400.00000000179,
-    "dodges": 3
+    "dodges": 4
   },
   "knight-10": {
     "ttkMs": 2033.3333333333314,
@@ -170,43 +170,43 @@
   "knight-20": {
     "ttkMs": 1366.6666666666663,
     "hits": 3,
-    "ttdMs": 115199.99999999469,
-    "dodges": 5
+    "ttdMs": null,
+    "dodges": 14
   },
   "knight-40": {
     "ttkMs": 1366.6666666666663,
     "hits": 3,
     "ttdMs": null,
-    "dodges": 17
+    "dodges": 20
   },
   "paladin-1": {
     "ttkMs": 666.6666666666667,
     "hits": 1,
-    "ttdMs": 42366.66666666689,
-    "dodges": 0
+    "ttdMs": 44366.666666667035,
+    "dodges": 1
   },
   "paladin-5": {
     "ttkMs": 5699.999999999993,
     "hits": 2,
-    "ttdMs": 62366.666666668345,
-    "dodges": 5
+    "ttdMs": 56366.66666666791,
+    "dodges": 3
   },
   "paladin-10": {
     "ttkMs": 5666.66666666666,
     "hits": 2,
-    "ttdMs": 76566.66666666698,
-    "dodges": 6
+    "ttdMs": 70466.66666666786,
+    "dodges": 5
   },
   "paladin-20": {
     "ttkMs": 600,
     "hits": 1,
-    "ttdMs": 100966.66666666343,
-    "dodges": 6
+    "ttdMs": 105033.3333333295,
+    "dodges": 8
   },
   "paladin-40": {
     "ttkMs": 533.3333333333333,
     "hits": 1,
     "ttdMs": null,
-    "dodges": 16
+    "dodges": 26
   }
 }

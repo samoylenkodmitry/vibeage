@@ -3,7 +3,7 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import type { CombatWorld } from './worldContract.js';
 
-export type TargetDeathHandler = (caster: PlayerState, target: Enemy | PlayerState, now: number) => void;
+export type TargetDeathHandler = (caster: PlayerState | Enemy, target: Enemy | PlayerState, now: number) => void;
 
 export function createCombatWorld(
   state: GameState,

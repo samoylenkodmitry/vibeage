@@ -5,9 +5,10 @@
  *
  * It drives the engine's OWN systems, sim-timed: a player's offence runs
  * through the real cast pipeline (handleCastReq → tickCasts → projectile
- * travel → resolveCastImpact), and a mob's offence runs through the real
- * AI state machine (updateEnemyAI → applyEnemyAttack). Regen is the
- * shared maintenance system. There is no parallel combat model — the
+ * travel → resolveCastImpact), and a mob's offence runs through the same
+ * pipeline too (updateEnemyAI emits a cast intent → castMobSkill →
+ * tickCasts → resolveCastImpact). Regen is the shared maintenance
+ * system. There is no parallel combat model — the
  * numbers are exactly what the live tick produces over the same span,
  * so cast-time, cooldowns, projectile travel, and aggro/attack cadence
  * all count.
@@ -159,21 +160,30 @@ export type SurviveResult = {
 
 /**
  * The enemy attacks the player through the REAL AI state machine
- * (aggro → chase → attack → applyEnemyAttack: shield, mitigation, dodge,
- * P.Def all apply) while the player only regenerates. Returns
- * time-to-die, or null if the player out-regens the mob.
+ * (aggro → chase → attack → cast a mob skill) and the shared cast
+ * pipeline (tickCasts → resolveCastImpact: shield, mitigation, dodge,
+ * P.Def, element, effects all apply) while the player only regenerates.
+ * Returns time-to-die, or null if the player out-regens the mob.
  */
 export function timeToDie(player: PlayerState, enemy: Enemy, timeoutMs = DEFAULT_TIMEOUT_MS): SurviveResult {
   const { state, spatial, outbound, clock, events } = makeArena(player, enemy);
+  const world = createWorldCombatBridge(state, outbound, spatial);
 
   while (player.isAlive && player.health > 0 && clock.now() < timeoutMs) {
     clock.advanceBy(TICK_MS);
-    updateEnemyAI(enemy, state, outbound, spatial, TICK_MS / 1000, clock.now());
+    updateEnemyAI(enemy, TICK_MS / 1000, {
+      state, outbound, spatial, now: clock.now(), world, activeCasts: state.activeCasts,
+    });
+    tickCasts(state.activeCasts, TICK_MS, outbound, world, clock.now());
     handleResourceRegeneration(state, outbound, clock.now());
   }
 
-  const dodges = events.filter(
-    (e) => e.type === 'serverMessage' && e.message.type === 'EnemyAttack' && e.message.damage === 0,
-  ).length;
+  // A dodge = an incoming cast on the player that the CombatLog marked missed.
+  const dodges = events.filter((e) => {
+    if (e.type !== 'serverMessage') return false;
+    const m = e.message;
+    if (m.type !== 'CombatLog') return false;
+    return m.targets.some((id, i) => id === player.id && m.misses[i]);
+  }).length;
   return { ttdMs: player.health <= 0 ? clock.now() : null, dodges };
 }

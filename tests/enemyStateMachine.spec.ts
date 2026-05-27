@@ -48,13 +48,14 @@ describe('enemy state machine', () => {
 
     expect(enemy.targetId).toBe(player.id);
     expect(enemy.aiState).toBe('attacking');
-    expect(player.health).toBeCloseTo(89.2, 5);
+    // The state machine emits a cast INTENT; the hit/damage resolves
+    // later in the combat phase via the shared cast pipeline, not here.
+    expect(player.health).toBe(100);
     expect(result.events).toContainEqual({
-      type: 'enemyAttack',
+      type: 'castSkill',
       enemyId: enemy.id,
       targetId: player.id,
-      damage: enemy.attackDamage,
-      targetHealth: player.health,
+      skillId: 'mobStrike',
     });
     expect(result.enemyUpdate).toEqual({
       id: enemy.id,
@@ -63,13 +64,12 @@ describe('enemy state machine', () => {
     });
   });
 
-  test('emits a player killed event and returns after a lethal attack', () => {
+  test('emits a cast intent while attacking; the hit/kill is deferred to the cast pipeline', () => {
     const enemy = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, 2);
     enemy.spawnPosition = { x: 0, y: 0, z: 0 };
     enemy.aiState = 'attacking';
     enemy.targetId = 'player1';
-    enemy.attackDamage = 120;
-    const player = makePlayer('player1', 6, 0);
+    const player = makePlayer('player1', 6, 0); // 1 unit away — within attack range
     const spatial = new SpatialHashGrid(1);
     spatial.insert(enemy.id, enemy.position);
     spatial.insert(player.id, player.position);
@@ -81,24 +81,19 @@ describe('enemy state machine', () => {
       now: 2_000,
     });
 
-    expect(player.isAlive).toBe(false);
-    expect(player.health).toBe(0);
-    expect(enemy.targetId).toBeNull();
-    expect(enemy.aiState).toBe('returning');
-    expect(result.events).toContainEqual(expect.objectContaining({
-      type: 'playerKilled',
-      update: expect.objectContaining({
-        id: player.id,
-        health: 0,
-        isAlive: false,
-        deathTimeTs: 2_000,
-      }),
-    }));
-    expect(result.enemyUpdate).toEqual({
-      id: enemy.id,
-      targetId: null,
-      aiState: 'returning',
+    // The state machine only intends the cast; no synchronous damage,
+    // death, or disengage — the combat phase resolves it (and the enemy
+    // drops a killed target organically next tick when it's no longer a
+    // valid aggro target).
+    expect(result.events).toContainEqual({
+      type: 'castSkill',
+      enemyId: enemy.id,
+      targetId: player.id,
+      skillId: 'mobStrike',
     });
+    expect(player.isAlive).toBe(true);
+    expect(player.health).toBe(100);
+    expect(enemy.aiState).toBe('attacking');
   });
 
   test('snaps returning enemies back to idle near their spawn point', () => {

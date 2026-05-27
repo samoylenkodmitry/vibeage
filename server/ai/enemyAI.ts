@@ -11,46 +11,59 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { advanceEnemyState, type EnemyAIEvent } from './enemyStateMachine.js';
+import { castMobSkill, type ActiveCastStore } from '../combat/skillSystem.js';
+import type { CombatWorld } from '../combat/worldContract.js';
 
 // §46/slice-3 — pack aggro / disengage now read the source enemy's
 // `packAggroRadius` (set per species via EnemyStatMultipliers).
 // `DEFAULT_PACK_AGGRO_RADIUS_M` is the baseline (60m) when the mob
 // template doesn't carry an override.
 
-export function updateEnemyAI(
-  enemy: Enemy,
-  gameState: EntityState,
-  outbound: OutboundEventSink,
-  spatialGrid: SpatialHashGrid,
-  deltaTime: number,
-  now: number,
-): void {
+/**
+ * Everything the AI phase needs to advance a mob + resolve its events
+ * (including casting through the shared pipeline). Bundled so the AI
+ * functions stay within the maintainability param budget.
+ */
+export type EnemyAiTickContext = {
+  state: EntityState;
+  outbound: OutboundEventSink;
+  spatial: SpatialHashGrid;
+  now: number;
+  world: CombatWorld;
+  activeCasts: ActiveCastStore;
+};
+
+export function updateEnemyAI(enemy: Enemy, deltaTime: number, ctx: EnemyAiTickContext): void {
   const result = advanceEnemyState(enemy, {
-    players: gameState.players,
-    spatialGrid,
+    players: ctx.state.players,
+    spatialGrid: ctx.spatial,
     deltaTime,
-    now,
+    now: ctx.now,
   });
 
   for (const event of result.events) {
-    emitEnemyAIEvent(outbound, event, gameState, spatialGrid, enemy, now);
+    emitEnemyAIEvent(event, enemy, ctx);
   }
 
   if (result.enemyUpdate) {
-    emitEnemyUpdated(outbound, result.enemyUpdate);
+    emitEnemyUpdated(ctx.outbound, result.enemyUpdate);
   }
 }
 
-function emitEnemyAIEvent(
-  outbound: OutboundEventSink,
-  event: EnemyAIEvent,
-  gameState: EntityState,
-  spatialGrid: SpatialHashGrid,
-  source: Enemy,
-  now: number,
-): void {
+function emitEnemyAIEvent(event: EnemyAIEvent, source: Enemy, ctx: EnemyAiTickContext): void {
+  const { state: gameState, outbound, spatial: spatialGrid, now, world, activeCasts } = ctx;
   if (event.type === 'log') {
     debug(LOG_CATEGORIES.ENEMY, event.message);
+    return;
+  }
+
+  if (event.type === 'castSkill') {
+    // Turn the AI's intent into a real cast through the shared pipeline;
+    // tickCasts (combat phase) resolves it. Only cast at a live target.
+    const target = gameState.players[event.targetId];
+    if (target?.isAlive) {
+      castMobSkill(source, target, event.skillId, now, { world, activeCasts, outbound });
+    }
     return;
   }
 
@@ -98,20 +111,7 @@ function emitEnemyAIEvent(
   }
 
   if (event.type === 'bossTelegraph') {
-    emitServerMessage(outbound, {
-      type: 'BossTelegraph',
-      enemyId: event.enemyId,
-      bossName: event.bossName,
-      abilityName: event.abilityName,
-      x: event.x,
-      z: event.z,
-      radius: event.radius,
-      innerRadius: event.innerRadius,
-      directionRad: event.directionRad,
-      halfAngleDeg: event.halfAngleDeg,
-      windUpMs: event.windUpMs,
-      impactAt: event.impactAt,
-    });
+    emitBossTelegraph(outbound, event);
     return;
   }
 
@@ -133,6 +133,26 @@ function emitEnemyAIEvent(
 
   debug(LOG_CATEGORIES.ENEMY, event.message);
   emitPlayerUpdated(outbound, event.update);
+}
+
+function emitBossTelegraph(
+  outbound: OutboundEventSink,
+  event: Extract<EnemyAIEvent, { type: 'bossTelegraph' }>,
+): void {
+  emitServerMessage(outbound, {
+    type: 'BossTelegraph',
+    enemyId: event.enemyId,
+    bossName: event.bossName,
+    abilityName: event.abilityName,
+    x: event.x,
+    z: event.z,
+    radius: event.radius,
+    innerRadius: event.innerRadius,
+    directionRad: event.directionRad,
+    halfAngleDeg: event.halfAngleDeg,
+    windUpMs: event.windUpMs,
+    impactAt: event.impactAt,
+  });
 }
 
 type SummonPackArgs = {
