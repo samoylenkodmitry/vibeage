@@ -71,7 +71,7 @@ describe('enemy taunt', () => {
     const events: OutboundEvent[] = [];
     const outbound: OutboundEventSink = { publish: (e) => { events.push(e); } };
 
-    resolveCastImpact(makeCast(caster.id, enemy.id), outbound, world);
+    resolveCastImpact(makeCast(caster.id, enemy.id), outbound, world, NOW);
 
     expect(enemy.targetId).toBe(caster.id);
     expect(enemy.aiState).toBe('chasing');
@@ -85,7 +85,7 @@ describe('enemy taunt', () => {
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
     // Step 1: taunter taunts → enemy targets taunter
-    resolveCastImpact(makeCast(taunter.id, enemy.id), outbound, world);
+    resolveCastImpact(makeCast(taunter.id, enemy.id), outbound, world, NOW);
     expect(enemy.targetId).toBe(taunter.id);
 
     // Step 2: another caster hits the same enemy with a damaging skill.
@@ -109,7 +109,7 @@ describe('enemy taunt', () => {
       onTargetDied: vi.fn(),
     } satisfies CombatWorld;
 
-    resolveCastImpact(damagingCast, outbound, otherWorld);
+    resolveCastImpact(damagingCast, outbound, otherWorld, NOW);
 
     expect(enemy.targetId).toBe(taunter.id);
   });

@@ -98,7 +98,7 @@ describe('upsertStatusEffect — sourceCasterId capture', () => {
     const target = makeGoblin();
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballCast(caster, target), out, makeWorld(caster, target));
+    resolveCastImpact(fireballCast(caster, target), out, makeWorld(caster, target), Date.now());
 
     // Fireball lands `damage` immediately + a `burn` DoT. The burn
     // should now carry the caster's id so a future DoT-tick kill
@@ -115,7 +115,7 @@ describe('upsertStatusEffect — sourceCasterId capture', () => {
     const target = makeGoblin();
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballCast(caster, target), out, makeWorld(caster, target));
+    resolveCastImpact(fireballCast(caster, target), out, makeWorld(caster, target), Date.now());
 
     const burn = target.statusEffects?.find((e) => e.type === 'burn');
     expect(burn?.sourceSkill).toBe('fireball');

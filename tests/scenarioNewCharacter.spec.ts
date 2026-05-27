@@ -110,7 +110,7 @@ describe('scenario: new orc knight can cast slash on a goblin', () => {
       // resolves (advance fake clock so now-startedAt >= castTimeMs).
       const world = createWorldCombatBridge(state, sink, spatial);
       vi.advanceTimersByTime(300);
-      tickCasts(state.activeCasts, 100, sink, world);
+      tickCasts(state.activeCasts, 100, sink, world, Date.now());
 
       expect(goblin.health).toBeLessThan(goblinHealthBefore);
       const combatLogs = outboundEvents.filter(
@@ -184,7 +184,7 @@ describe('scenario: basic attack universal skill', () => {
 
       const world = createWorldCombatBridge(state, sink, spatial);
       vi.advanceTimersByTime(100);
-      tickCasts(state.activeCasts, 100, sink, world);
+      tickCasts(state.activeCasts, 100, sink, world, Date.now());
 
       expect(goblin.health).toBeLessThan(before);
     } finally {
@@ -228,7 +228,7 @@ describe('scenario: PvP — players can attack other players', () => {
 
       const world = createWorldCombatBridge(state, sink, spatial);
       vi.advanceTimersByTime(100);
-      tickCasts(state.activeCasts, 100, sink, world);
+      tickCasts(state.activeCasts, 100, sink, world, Date.now());
 
       expect(victim.health).toBeLessThan(victimHealthBefore);
     } finally {

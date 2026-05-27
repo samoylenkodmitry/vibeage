@@ -196,7 +196,7 @@ describe('scenario: damage flow — player casts fireball at enemy and kills it'
       // and tick repeatedly so impact resolves.
       for (let i = 0; i < 30; i++) {
         vi.advanceTimersByTime(100);
-        tickCasts(state.activeCasts, 100, sink, world);
+        tickCasts(state.activeCasts, 100, sink, world, Date.now());
       }
 
       expect(goblin.health).toBe(0);

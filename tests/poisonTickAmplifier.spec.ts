@@ -65,8 +65,8 @@ describe('poison tick amplifier', () => {
     };
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(poisonBladeCast(baseline, targetA), out, worldA);
-    resolveCastImpact(poisonBladeCast(plains, targetB), out, worldB);
+    resolveCastImpact(poisonBladeCast(baseline, targetA), out, worldA, Date.now());
+    resolveCastImpact(poisonBladeCast(plains, targetB), out, worldB, Date.now());
 
     const baseTick = poisonValueOn(targetA);
     const ampTick = poisonValueOn(targetB);

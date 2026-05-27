@@ -92,7 +92,7 @@ describe('upsertStatusEffect — stack policy (poison via poisonBlade)', () => {
 
     for (let i = 0; i < 5; i++) {
       target.health = 10_000;
-      resolveCastImpact(castSkill('poisonBlade', caster.id, target.id, `${i}`), out, worldFor(caster, target));
+      resolveCastImpact(castSkill('poisonBlade', caster.id, target.id, `${i}`), out, worldFor(caster, target), Date.now());
     }
 
     const poisons = (target.statusEffects ?? []).filter((e) => e.type === 'poison');
@@ -108,14 +108,14 @@ describe('upsertStatusEffect — refresh policy (bless self-cast)', () => {
     // 100ms later. The second cast should refresh, not replace.
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(castSkill('bless', caster.id, null, '1'), out, worldFor(caster, caster));
+    resolveCastImpact(castSkill('bless', caster.id, null, '1'), out, worldFor(caster, caster), Date.now());
     const first = caster.statusEffects.find((e) => e.type === 'bless')!;
     const firstStart = first.startTimeTs!;
     const firstValue = first.value;
 
     await new Promise((r) => setTimeout(r, 10));
 
-    resolveCastImpact(castSkill('bless', caster.id, null, '2'), out, worldFor(caster, caster));
+    resolveCastImpact(castSkill('bless', caster.id, null, '2'), out, worldFor(caster, caster), Date.now());
     const refreshed = caster.statusEffects.find((e) => e.type === 'bless')!;
 
     expect(caster.statusEffects.filter((e) => e.type === 'bless')).toHaveLength(1);

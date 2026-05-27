@@ -78,7 +78,7 @@ describe('water-weakness damage amplifier', () => {
     const enemy = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
 
     const eBase: OutboundEvent[] = [];
-    resolveCastImpact(cast('waterSplash', caster, enemy), { publish: (e) => eBase.push(e) }, makeWorld(caster, enemy));
+    resolveCastImpact(cast('waterSplash', caster, enemy), { publish: (e) => eBase.push(e) }, makeWorld(caster, enemy), Date.now());
     const base = damageFromCombatLog(eBase);
     expect(base).toBeGreaterThan(0);
 
@@ -86,7 +86,7 @@ describe('water-weakness damage amplifier', () => {
     enemy.health = enemy.maxHealth;
     applyWaterWeakness(enemy, 30, 5_000);
     const eAmp: OutboundEvent[] = [];
-    resolveCastImpact(cast('waterSplash', caster, enemy), { publish: (e) => eAmp.push(e) }, makeWorld(caster, enemy));
+    resolveCastImpact(cast('waterSplash', caster, enemy), { publish: (e) => eAmp.push(e) }, makeWorld(caster, enemy), Date.now());
     const amped = damageFromCombatLog(eAmp);
 
     expect(amped / base).toBeCloseTo(1.3, 4);
@@ -97,13 +97,13 @@ describe('water-weakness damage amplifier', () => {
     const enemy = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
 
     const eBase: OutboundEvent[] = [];
-    resolveCastImpact(cast('fireball', caster, enemy), { publish: (e) => eBase.push(e) }, makeWorld(caster, enemy));
+    resolveCastImpact(cast('fireball', caster, enemy), { publish: (e) => eBase.push(e) }, makeWorld(caster, enemy), Date.now());
     const base = damageFromCombatLog(eBase);
 
     enemy.health = enemy.maxHealth;
     applyWaterWeakness(enemy, 30, 5_000);
     const eWithEffect: OutboundEvent[] = [];
-    resolveCastImpact(cast('fireball', caster, enemy), { publish: (e) => eWithEffect.push(e) }, makeWorld(caster, enemy));
+    resolveCastImpact(cast('fireball', caster, enemy), { publish: (e) => eWithEffect.push(e) }, makeWorld(caster, enemy), Date.now());
     const dmg = damageFromCombatLog(eWithEffect);
 
     expect(dmg).toBe(base);

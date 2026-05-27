@@ -46,7 +46,7 @@ describe('self-cast with targetId === casterId', () => {
       onTargetDied: vi.fn(),
     };
 
-    resolveCastImpact(cast, outbound, world as never);
+    resolveCastImpact(cast, outbound, world as never, Date.now());
 
     // emitServerMessage wraps the payload as { type: 'serverMessage', message }
     const combatLog = events.find(

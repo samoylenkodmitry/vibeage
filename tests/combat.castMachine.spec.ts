@@ -89,7 +89,7 @@ beforeEach(async () => {
 
     expect(typeof castId).toBe('string');
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
-    skillSystem.tickCasts(activeCasts, 100, outbound, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
 
     const cast = skillSystem.getCastById(activeCasts, castId as string);
     expect(cast?.state).toBe(CastState.Traveling);
@@ -118,9 +118,9 @@ beforeEach(async () => {
     }) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
-    skillSystem.tickCasts(activeCasts, 100, outbound, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
     vi.advanceTimersByTime(100);
-    skillSystem.tickCasts(activeCasts, 100, outbound, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
@@ -159,7 +159,7 @@ beforeEach(async () => {
     }) as string;
 
     vi.advanceTimersByTime(SKILLS[skillId].castMs);
-    skillSystem.tickCasts(activeCasts, 100, outbound, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Impact);
@@ -193,7 +193,7 @@ beforeEach(async () => {
     }) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs - 1);
-    skillSystem.tickCasts(activeCasts, 100, outbound, world);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
 
     const cast = skillSystem.getCastById(activeCasts, castId);
     expect(cast?.state).toBe(CastState.Casting);

@@ -64,7 +64,7 @@ describe('PR KK — vanish self-target + aggro reset', () => {
     const events: OutboundEvent[] = [];
     const outbound: OutboundEventSink = { publish: (e) => { events.push(e); } };
 
-    resolveCastImpact(makeCast(caster.id, mob.id), outbound, world);
+    resolveCastImpact(makeCast(caster.id, mob.id), outbound, world, NOW);
 
     // Caster carries the invisible buff; mob does not.
     expect(caster.statusEffects.some((e) => e.type === 'invisible')).toBe(true);
@@ -89,7 +89,7 @@ describe('PR KK — vanish self-target + aggro reset', () => {
     const events: OutboundEvent[] = [];
     const outbound: OutboundEventSink = { publish: (e) => { events.push(e); } };
 
-    resolveCastImpact(makeCast(caster.id, chaser.id), outbound, world);
+    resolveCastImpact(makeCast(caster.id, chaser.id), outbound, world, NOW);
 
     expect(chaser.targetId).toBeNull();
     expect(chaser.aiState).toBe('idle');

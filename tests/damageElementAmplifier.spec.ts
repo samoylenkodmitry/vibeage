@@ -76,9 +76,9 @@ describe('damage-element amplifier from spec passives', () => {
     targetB.health = targetB.maxHealth;
     const e1: OutboundEvent[] = []; const e2: OutboundEvent[] = [];
     // Re-target the same enemy id for both casts so seeds match.
-    resolveCastImpact(cast('fireball', baseline, targetA), { publish: (e) => e1.push(e) }, worldFor(baseline, targetA));
+    resolveCastImpact(cast('fireball', baseline, targetA), { publish: (e) => e1.push(e) }, worldFor(baseline, targetA), Date.now());
     targetA.health = targetA.maxHealth;
-    resolveCastImpact(cast('fireball', pyro, targetA), { publish: (e) => e2.push(e) }, worldFor(pyro, targetA));
+    resolveCastImpact(cast('fireball', pyro, targetA), { publish: (e) => e2.push(e) }, worldFor(pyro, targetA), Date.now());
 
     const baseDmg = damageFromLog(e1);
     const ampDmg = damageFromLog(e2);
@@ -99,9 +99,9 @@ describe('damage-element amplifier from spec passives', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
 
     const e1: OutboundEvent[] = []; const e2: OutboundEvent[] = [];
-    resolveCastImpact(cast('smite', baseline, target), { publish: (e) => e1.push(e) }, worldFor(baseline, target));
+    resolveCastImpact(cast('smite', baseline, target), { publish: (e) => e1.push(e) }, worldFor(baseline, target), Date.now());
     target.health = target.maxHealth;
-    resolveCastImpact(cast('smite', pyro, target), { publish: (e) => e2.push(e) }, worldFor(pyro, target));
+    resolveCastImpact(cast('smite', pyro, target), { publish: (e) => e2.push(e) }, worldFor(pyro, target), Date.now());
 
     expect(damageFromLog(e1)).toBe(damageFromLog(e2));
   });
@@ -112,9 +112,9 @@ describe('damage-element amplifier from spec passives', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
 
     const e1: OutboundEvent[] = []; const e2: OutboundEvent[] = [];
-    resolveCastImpact(cast('fireball', baseline, target), { publish: (e) => e1.push(e) }, worldFor(baseline, target));
+    resolveCastImpact(cast('fireball', baseline, target), { publish: (e) => e1.push(e) }, worldFor(baseline, target), Date.now());
     target.health = target.maxHealth;
-    resolveCastImpact(cast('fireball', pyro, target), { publish: (e) => e2.push(e) }, worldFor(pyro, target));
+    resolveCastImpact(cast('fireball', pyro, target), { publish: (e) => e2.push(e) }, worldFor(pyro, target), Date.now());
 
     // Spec ×1.2 stacked with proficiency ×1.15 = 1.38.
     expect(damageFromLog(e2) / damageFromLog(e1)).toBeCloseTo(1.38, 4);

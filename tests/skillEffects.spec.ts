@@ -63,7 +63,7 @@ describe('skill effect server semantics', () => {
     const { world } = makeWorld([player]);
     const outbound = { publish: vi.fn() };
 
-    resolveCastImpact(makeImpactCast('holyLight', player.id), outbound, world);
+    resolveCastImpact(makeImpactCast('holyLight', player.id), outbound, world, Date.now());
 
     expect(player.health).toBeGreaterThan(50);
     expect(player.health).toBeLessThanOrEqual(player.maxHealth);
@@ -74,7 +74,7 @@ describe('skill effect server semantics', () => {
     const { state, world } = makeWorld([player]);
     const outbound = { publish: vi.fn() };
 
-    resolveCastImpact(makeImpactCast('divineShield', player.id), outbound, world);
+    resolveCastImpact(makeImpactCast('divineShield', player.id), outbound, world, Date.now());
 
     const shield = player.statusEffects.find((effect) => effect.type === 'shield');
     expect(shield).toBeDefined();
@@ -93,7 +93,7 @@ describe('skill effect server semantics', () => {
       state: 1,
       pos: player.position,
       origin: player.position,
-    } as unknown as Cast, outbound, world);
+    } as unknown as Cast, outbound, world, Date.now());
 
     expect(player.health).toBe(100);
   });
@@ -109,7 +109,7 @@ describe('skill effect server semantics', () => {
     const { world } = makeWorld([player]);
     const outbound = { publish: vi.fn() };
 
-    resolveCastImpact(makeImpactCast('dispel', player.id), outbound, world);
+    resolveCastImpact(makeImpactCast('dispel', player.id), outbound, world, Date.now());
 
     expect(player.statusEffects.find((e) => e.type === 'slow')).toBeUndefined();
     expect(player.statusEffects.find((e) => e.type === 'burn')).toBeUndefined();

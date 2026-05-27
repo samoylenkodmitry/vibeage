@@ -72,8 +72,8 @@ describe("Templar Knight Last Stand — 15% damage reduction below half HP", () 
 
     const baseStart = baseline.health;
     const templarStart = templar.health;
-    resolveCastImpact(fireball(caster, baseline), out, worldFor(caster, baseline));
-    resolveCastImpact(fireball(caster, templar), out, worldFor(caster, templar));
+    resolveCastImpact(fireball(caster, baseline), out, worldFor(caster, baseline), Date.now());
+    resolveCastImpact(fireball(caster, templar), out, worldFor(caster, templar), Date.now());
 
     const baseDamage = baseStart - baseline.health;
     const templarDamage = templarStart - templar.health;
@@ -89,8 +89,8 @@ describe("Templar Knight Last Stand — 15% damage reduction below half HP", () 
 
     const baseStart = baseline.health;
     const templarStart = templar.health;
-    resolveCastImpact(fireball(caster, baseline), out, worldFor(caster, baseline));
-    resolveCastImpact(fireball(caster, templar), out, worldFor(caster, templar));
+    resolveCastImpact(fireball(caster, baseline), out, worldFor(caster, baseline), Date.now());
+    resolveCastImpact(fireball(caster, templar), out, worldFor(caster, templar), Date.now());
 
     expect(baseStart - baseline.health).toBe(templarStart - templar.health);
   });

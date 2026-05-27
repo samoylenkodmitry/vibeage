@@ -36,7 +36,7 @@ export type DamageResolveOpts = {
 export function applyResolvedDamageToTarget(
   target: Enemy | PlayerState,
   rawDamage: number,
-  now: number = Date.now(),
+  now: number,
   opts: DamageResolveOpts = {},
 ): number {
   if (rawDamage <= 0) return 0;
@@ -93,7 +93,7 @@ function targetDamageTakenMult(target: PlayerState): number {
 }
 
 // §45.3 — active invuln (Phoenix Knight Resurrection) zeroes incoming damage.
-export function hasActiveInvuln(player: PlayerState, now: number = Date.now()): boolean {
+export function hasActiveInvuln(player: PlayerState, now: number): boolean {
   return (player.statusEffects ?? []).some((e) => {
     if (e.type !== 'invuln') return false;
     return (e.startTimeTs ?? 0) + (e.durationMs ?? 0) > now;
@@ -113,7 +113,7 @@ function resurrectionInvulnMsFor(target: PlayerState): number {
   return Math.max(specMs, profMs);
 }
 
-function upsertInvulnEffect(target: PlayerState, durationMs: number, now: number = Date.now()): void {
+function upsertInvulnEffect(target: PlayerState, durationMs: number, now: number): void {
   target.statusEffects = target.statusEffects ?? [];
   const existingIndex = target.statusEffects.findIndex((e) => e.type === 'invuln');
   const effect = {

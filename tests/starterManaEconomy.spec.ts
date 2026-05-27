@@ -108,7 +108,7 @@ function simulateFirstQuest(className: CharacterClass): QuestSimResult {
       const skillId: SkillId = useStarter ? starter : 'basicAttack';
       const cost = useStarter ? starterCost : 0;
       player.mana = Math.max(0, player.mana - cost);
-      resolveCastImpact(castAt(skillId, player, target.id, casts), out, world);
+      resolveCastImpact(castAt(skillId, player, target.id, casts), out, world, Date.now());
       casts++;
       result.castsTotal++;
       if (useStarter) result.starterUses++; else result.basicUses++;

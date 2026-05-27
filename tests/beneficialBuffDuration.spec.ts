@@ -60,8 +60,8 @@ describe('Theurge Inspiration — +25% beneficial buff duration', () => {
     const theurge = makeHealer('theurge');
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(blessCast(baseline), out, worldFor(baseline));
-    resolveCastImpact(blessCast(theurge), out, worldFor(theurge));
+    resolveCastImpact(blessCast(baseline), out, worldFor(baseline), Date.now());
+    resolveCastImpact(blessCast(theurge), out, worldFor(theurge), Date.now());
 
     const baseDur = blessDuration(baseline);
     const ampDur = blessDuration(theurge);

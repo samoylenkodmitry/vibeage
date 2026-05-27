@@ -56,7 +56,7 @@ describe('beneficial aura targeting (C14)', () => {
     };
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(sacredPulseCast(caster.id), out, world);
+    resolveCastImpact(sacredPulseCast(caster.id), out, world, NOW);
 
     expect(caster.health).toBe(260); // 100 + 160 heal
     expect(ally.health).toBe(260);

@@ -50,7 +50,7 @@ describe('PR WW — Escape teleport flow', () => {
     const before = { ...caster.position };
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id), outbound, makeWorld(caster), NOW);
 
     // Position must have changed away from (500, 500); the nearest
     // village (Talking Island, (0, 0, 0)) is the lvl 1 default.

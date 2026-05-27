@@ -80,7 +80,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
     const healthBefore = target.health;
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target));
+    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target), NOW);
 
     // Shield was big enough to absorb everything → health untouched.
     expect(target.health).toBe(healthBefore);
@@ -95,7 +95,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
     target.statusEffects = [shield('s1', 5)]; // tiny shield
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target));
+    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target), NOW);
 
     // Shield fully depleted → removed from list.
     expect(target.statusEffects.find(e => e.type === 'shield')).toBeUndefined();
@@ -112,7 +112,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
     target.statusEffects = [shield('s1', 3), shield('s2', 5)];
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target));
+    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target), NOW);
 
     // s1 should be fully gone; s2 may still have value if total damage
     // was below 8, otherwise also gone with overflow on health.
@@ -132,7 +132,7 @@ describe('shield absorption (Section 8 L500, L528)', () => {
     target.statusEffects = [shield('s-exact', 1)]; // depletes immediately
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target));
+    resolveCastImpact(fireballCast(caster.id, target.id), outbound, makeWorld(caster, target), NOW);
 
     expect(target.statusEffects.filter(e => e.type === 'shield')).toEqual([]);
   });

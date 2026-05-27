@@ -63,8 +63,8 @@ describe('heal-output multiplier from spec passive', () => {
     });
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(holyLightCast(baseline, woundedA), outbound, world(baseline, woundedA));
-    resolveCastImpact(holyLightCast(cardinal, woundedB), outbound, world(cardinal, woundedB));
+    resolveCastImpact(holyLightCast(baseline, woundedA), outbound, world(baseline, woundedA), Date.now());
+    resolveCastImpact(holyLightCast(cardinal, woundedB), outbound, world(cardinal, woundedB), Date.now());
 
     const baseHeal = woundedA.health - 50;
     const ampHeal = woundedB.health - 50;

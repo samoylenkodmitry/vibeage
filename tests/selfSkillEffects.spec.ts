@@ -40,7 +40,7 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     const healthBefore = caster.health;
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'holyLight'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'holyLight'), outbound, makeWorld(caster), NOW);
 
     expect(caster.health).toBeGreaterThan(healthBefore);
   });
@@ -49,7 +49,7 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     const caster = createTransientPlayer('s', 'p');
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'divineShield'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'divineShield'), outbound, makeWorld(caster), NOW);
 
     const shield = caster.statusEffects.find(e => e.type === 'shield');
     expect(shield, 'divineShield should add a shield status effect').toBeDefined();
@@ -60,7 +60,7 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     const caster = createTransientPlayer('s', 'p');
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'bless'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'bless'), outbound, makeWorld(caster), NOW);
 
     const bless = caster.statusEffects.find(e => e.type === 'bless');
     expect(bless, 'bless should add a bless status effect').toBeDefined();
@@ -70,7 +70,7 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     const caster = createTransientPlayer('s', 'p');
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'evade'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'evade'), outbound, makeWorld(caster), NOW);
 
     const evade = caster.statusEffects.find(e => e.type === 'evasion');
     expect(evade, 'evade should add an evasion status effect').toBeDefined();
@@ -80,7 +80,7 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     const caster = createTransientPlayer('s', 'p');
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'rapidFire'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'rapidFire'), outbound, makeWorld(caster), NOW);
 
     const buff = caster.statusEffects.find(e => e.type === 'attackSpeed');
     expect(buff, 'rapidFire should add an attackSpeed status effect').toBeDefined();
@@ -91,7 +91,7 @@ describe('self-cast skills actually apply effects (user QoL #3)', () => {
     caster.className = 'warrior';
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'shieldWall'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'shieldWall'), outbound, makeWorld(caster), NOW);
 
     expect(caster.statusEffects.length, 'shieldWall should add at least one status effect').toBeGreaterThan(0);
   });
@@ -156,11 +156,11 @@ describe('bless effect is consumed by damage calculation (regression for the new
     }
 
     targetPool[0].health = 1000;
-    resolveCastImpact(fireballCast(unblessed.id), { publish: vi.fn() }, makeWorld(unblessed));
+    resolveCastImpact(fireballCast(unblessed.id), { publish: vi.fn() }, makeWorld(unblessed), NOW);
     const unblessedDamage = 1000 - targetPool[0].health;
 
     targetPool[0].health = 1000;
-    resolveCastImpact(fireballCast(blessed.id), { publish: vi.fn() }, makeWorld(blessed));
+    resolveCastImpact(fireballCast(blessed.id), { publish: vi.fn() }, makeWorld(blessed), NOW);
     const blessedDamage = 1000 - targetPool[0].health;
 
     expect(blessedDamage).toBeGreaterThan(unblessedDamage);
@@ -175,7 +175,7 @@ describe('bless effect is consumed by damage calculation (regression for the new
     ];
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(selfCast(caster.id, 'dispel'), outbound, makeWorld(caster));
+    resolveCastImpact(selfCast(caster.id, 'dispel'), outbound, makeWorld(caster), NOW);
 
     // After dispel, neither burn nor slow should remain.
     expect(caster.statusEffects.find(e => e.type === 'burn')).toBeUndefined();

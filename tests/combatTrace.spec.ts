@@ -50,7 +50,7 @@ describe('combat trace capture', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballAt(caster, target.id), out, makeWorld(caster, target));
+    resolveCastImpact(fireballAt(caster, target.id), out, makeWorld(caster, target), Date.now());
 
     const traces = drainCombatTraces();
     expect(traces).toHaveLength(1);
@@ -69,7 +69,7 @@ describe('combat trace capture', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballAt(caster, target.id, 'c-chain'), out, makeWorld(caster, target));
+    resolveCastImpact(fireballAt(caster, target.id, 'c-chain'), out, makeWorld(caster, target), Date.now());
     const [t] = drainCombatTraces();
 
     expect(t).toBeDefined();
@@ -86,7 +86,7 @@ describe('combat trace capture', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballAt(caster, target.id, 'c-off'), out, makeWorld(caster, target));
+    resolveCastImpact(fireballAt(caster, target.id, 'c-off'), out, makeWorld(caster, target), Date.now());
 
     expect(drainCombatTraces()).toEqual([]);
   });

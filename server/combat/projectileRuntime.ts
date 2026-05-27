@@ -40,7 +40,7 @@ export function updateTravelingCast(
   if (newHits.length > 0 && skill.projectile?.pierce) {
     cast.pierceHits = cast.pierceHits ?? [];
     for (const target of newHits) {
-      applyProjectileHit(cast, target, outbound, world);
+      applyProjectileHit(cast, target, outbound, world, now);
       cast.pierceHits.push(target.id);
     }
   }
@@ -48,7 +48,7 @@ export function updateTravelingCast(
   if (shouldImpact(cast, oldPos, world, newHits)) {
     cast.state = CastState.Impact;
     emitCastSnapshot(outbound, cast);
-    resolveCastImpact(cast, outbound, world);
+    resolveCastImpact(cast, outbound, world, now);
   }
 }
 
