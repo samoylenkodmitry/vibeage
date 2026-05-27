@@ -4,9 +4,11 @@
  *
  * Scans the engine (combat / AI / players / movement / enemies / the
  * sim core) for the anti-patterns the spec-driven rewrite removes, and
- * reports how much "old code" remains. The target is ZERO; while the
- * rewrite is in flight this runs ADVISORY (always exit 0, just print
- * the count). Flip ADVISORY=false in the B5 sweep to make it block CI.
+ * reports how much "old code" remains. The target is ZERO and has been
+ * reached for the enforced rules (B2 sweep), so this now runs ENFORCING:
+ * any reintroduced Date.now()/Math.random()/type-test fails CI. The
+ * `?? <number>` baseline scan stays advisory (enforced:false) — a
+ * directional signal, never a build blocker.
  *
  *   Date.now() / Math.random()  → time & RNG must be injected (Clock/Rng)
  *   ?? <number>                 → a baseline standing in for spec data
@@ -17,7 +19,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ADVISORY = true; // B5 sweep flips this to false (enforcing).
+const ADVISORY = false; // enforcing: enforced rules at 0 must stay at 0.
 
 const ROOTS = [
   'server/combat', 'server/ai', 'server/players', 'server/movement', 'server/enemies', 'server/sim',
