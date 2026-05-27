@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
-import { selectShapeTargets } from './abilityShapes.js';
+import { selectShapeTargets, applyCasterEffects } from './abilityShapes.js';
 import { getMaxStacks, getStackingPolicy } from '../../packages/content/effects.js';
 import { isCombatTraceEnabled, recordCombatTrace } from '../../packages/sim/combatTrace.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
@@ -116,6 +116,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
     damages: results.map((r) => r.damage), crits: results.map((r) => r.crit),
     misses: results.map((r) => r.miss), heals: heals.map((h) => Math.round(h)),
   });
+  applyCasterEffects(caster, cast, skill, world, now);
 }
 
 function isBeneficialOnly(skill: SkillDef): boolean {

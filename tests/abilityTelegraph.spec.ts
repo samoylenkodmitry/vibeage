@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createGameState } from '../server/gameState';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import { createEnemy } from '../server/enemies/enemyLifecycle';

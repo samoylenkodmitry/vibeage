@@ -6,4 +6,6 @@ export interface CombatWorld {
   getPlayerById: (id: string) => PlayerState | null;
   getEntitiesInCircle: (pos: VecXZ, radius: number) => Array<Enemy | PlayerState>;
   onTargetDied: (caster: PlayerState | Enemy, target: Enemy | PlayerState, now: number) => void;
+  /** Spawn a mob (summon ability). Optional — bare worlds (unit tests) omit it. */
+  spawnMinion?: (type: string, level: number, pos: { x: number; y: number; z: number }, now: number) => void;
 }

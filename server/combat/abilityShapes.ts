@@ -78,3 +78,37 @@ export function selectShapeTargets(
   }
   return out;
 }
+
+/**
+ * Caster-side ability effects (docs/ABILITY_SYSTEM.md) resolved once per
+ * cast on impact: blink (teleport behind the target) and summon (spawn
+ * minions around the caster). Generic — a boss or a future summoner /
+ * blink-rogue use the identical data.
+ */
+export function applyCasterEffects(caster: Combatant | null, cast: Cast, skill: SkillDef, world: CombatWorld, now: number): void {
+  if (!caster) return;
+  if (skill.blink) blinkBehindTarget(caster, cast, world, skill.blink.offset);
+  if (skill.summon && world.spawnMinion) {
+    const level = caster.level;
+    for (let i = 0; i < skill.summon.count; i += 1) {
+      const angle = (i / Math.max(1, skill.summon.count)) * Math.PI * 2;
+      world.spawnMinion(skill.summon.type, level, {
+        x: caster.position.x + Math.cos(angle) * skill.summon.radius,
+        y: caster.position.y,
+        z: caster.position.z + Math.sin(angle) * skill.summon.radius,
+      }, now);
+    }
+  }
+}
+
+/** Teleport the caster to `offset` units on the far side of its target. */
+function blinkBehindTarget(caster: Combatant, cast: Cast, world: CombatWorld, offset: number): void {
+  const t = cast.targetId ? (world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId)) : null;
+  if (!t) return;
+  const dx = t.position.x - caster.position.x;
+  const dz = t.position.z - caster.position.z;
+  const dist = Math.hypot(dx, dz);
+  const ux = dist > 0.01 ? dx / dist : 1;
+  const uz = dist > 0.01 ? dz / dist : 0;
+  caster.position = { x: t.position.x + ux * offset, y: caster.position.y, z: t.position.z + uz * offset };
+}
