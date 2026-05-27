@@ -43,16 +43,17 @@ export type RemoveItemsOk = {
 export type InventoryServices = {
   templates?: Record<string, Item>;
   instanceIdFactory: () => string;
-  now?: () => number;
+  // Required: the caller injects the clock (a boundary reads the wall
+  // clock once and passes it down) so item-stamping never touches an
+  // ambient Date.now inside the engine.
+  now: () => number;
 };
-
-const defaultNow = () => Date.now();
 
 function getServices(services: InventoryServices) {
   return {
     templates: services.templates ?? ITEMS,
     instanceIdFactory: services.instanceIdFactory,
-    now: services.now ?? defaultNow,
+    now: services.now,
   };
 }
 

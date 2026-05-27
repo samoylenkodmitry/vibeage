@@ -121,7 +121,7 @@ function createWorldApi(
     },
     
     async addPlayer(socketId: string, name: string, options?: { initialRace?: string; initialClass?: string; accountId?: string }) {
-      return addPlayerSession(state, spatial, socketId, name, options);
+      return addPlayerSession(state, spatial, socketId, name, Date.now(), options);
     },
     
     async removePlayerBySocketId(socketId: string) {

@@ -61,7 +61,7 @@ describe('applyAcceptQuest gates on prerequisites', () => {
     };
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    const ok = applyAcceptQuest(player, 'test_with_prereq', outbound);
+    const ok = applyAcceptQuest(player, 'test_with_prereq', outbound, Date.now());
 
     expect(ok).toBe(false);
     expect(player.questState?.active.test_with_prereq).toBeUndefined();
@@ -81,7 +81,7 @@ describe('applyAcceptQuest gates on prerequisites', () => {
     };
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    const ok = applyAcceptQuest(player, 'test_with_prereq', outbound);
+    const ok = applyAcceptQuest(player, 'test_with_prereq', outbound, Date.now());
 
     expect(ok).toBe(true);
     expect(player.questState?.active.test_with_prereq).toEqual({ stageIndex: 0, progress: 0 });

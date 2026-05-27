@@ -151,6 +151,7 @@ describe('scenario: persistence round-trip', () => {
       { id: original.id, ...row },
       'socketP-reconnect',
       'PersistTester',
+      Date.now(),
     );
 
     expect(hydrated.className).toBe('rogue');

@@ -37,7 +37,7 @@ function freshClaimablePlayer(npcId: string, questId: string): PlayerState {
   const npc = QUEST_NPCS[npcId];
   if (npc) player.position = { ...npc.position };
   const { sink } = captureOutbound();
-  expect(applyAcceptQuest(player, questId, sink)).toBe(true);
+  expect(applyAcceptQuest(player, questId, sink, Date.now())).toBe(true);
   // rats_in_the_cellar — kill 3 goblins then talk back.
   onEnemyKilledForQuests(player, 'goblin', sink);
   onEnemyKilledForQuests(player, 'goblin', sink);
@@ -55,7 +55,7 @@ describe('quest reward overflow (§52/PR-queue-#4)', () => {
     state.players[player.id] = player;
     const { sink } = captureOutbound();
 
-    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, state)).toBe(true);
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, Date.now(), state)).toBe(true);
     // Reward = 2× health potion per content; assert both landed in
     // the bag and no ground loot spawned at the player's position.
     const slots = playerInventorySlots(player);
@@ -79,7 +79,7 @@ describe('quest reward overflow (§52/PR-queue-#4)', () => {
     state.players[player.id] = player;
     const { events, sink } = captureOutbound();
 
-    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, state)).toBe(true);
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, Date.now(), state)).toBe(true);
 
     // The bag is unchanged — nothing fit.
     expect(playerInventorySlots(player)).toMatchObject(beforeSlots);

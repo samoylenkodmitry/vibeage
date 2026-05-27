@@ -67,7 +67,7 @@ export function onQuestVerb(
   // correlation.
   msg: { type: 'AcceptQuest' | 'CancelQuest' | 'AdvanceQuest' | 'ClaimQuestReward'; questId: string; clientSeq?: number },
   outbound: OutboundEventSink,
-  apply: (player: PlayerState, questId: string, outbound: OutboundEventSink) => boolean,
+  apply: (player: PlayerState, questId: string, outbound: OutboundEventSink, now: number) => boolean,
 ): void {
   type QuestRejectReason = CommandRejectionReason<'AcceptQuest'>
     & CommandRejectionReason<'CancelQuest'>
@@ -79,7 +79,7 @@ export function onQuestVerb(
   if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
   if (!player) return reject('playerNotFound');
-  if (!apply(player, msg.questId, outbound)) reject('noEffect');
+  if (!apply(player, msg.questId, outbound, Date.now())) reject('noEffect');
 }
 
 export function onClaimQuestReward(
@@ -95,7 +95,7 @@ export function onClaimQuestReward(
   if (!playerId) return reject('playerNotFound');
   const player = state.players[playerId];
   if (!player) return reject('playerNotFound');
-  const ok = applyClaimQuestReward(player, msg.questId, outbound, state);
+  const ok = applyClaimQuestReward(player, msg.questId, outbound, Date.now(), state);
   if (!ok) reject(claimRejectReason(player, msg.questId));
 }
 

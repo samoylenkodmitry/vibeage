@@ -143,7 +143,7 @@ export class ZoneManager {
 
         const angle = Math.random() * Math.PI * 2;
         const minDistance = zone.spawnExclusionRadius ?? 0;
-        const distance = randomAnnulusDistance(minDistance, zone.radius);
+        const distance = randomAnnulusDistance(minDistance, zone.radius, Math.random());
 
         const x = zone.position.x + Math.cos(angle) * distance;
         const z = zone.position.z + Math.sin(angle) * distance;

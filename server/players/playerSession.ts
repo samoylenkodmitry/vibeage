@@ -128,7 +128,7 @@ export function findPlayerIdBySocket(state: GameState, socketId: string): string
   return Object.keys(state.players).find(id => state.players[id].socketId === socketId);
 }
 
-export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: string): PlayerState {
+export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: string, now: number): PlayerState {
   const level = normalizePlayerLevel(row.level);
   const race = normalizeRace(row.race);
   // Race -> class gate is enforced at hydrate too: a legacy persisted
@@ -174,7 +174,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
     availableSkillPoints: normalizeAvailableSkillPoints(row.available_skill_points),
     starterProgress,
     posHistory: [],
-    lastUpdateTime: Date.now(),
+    lastUpdateTime: now,
     // §45.7 — `characterInventory` is set by
     // `hydratePlayerCharacterInventory` below (real aggregate from
     // `row.character_inventory`, or an empty one for fresh accounts).
@@ -309,6 +309,7 @@ export async function addPlayerSession(
   spatial: SpatialHashGrid,
   socketId: string,
   name: string,
+  now: number,
   options: AddPlayerSessionOptions = {},
 ): Promise<PlayerState> {
   const addTransientPlayer = () => upsertActivePlayerSession(
@@ -336,7 +337,7 @@ export async function addPlayerSession(
     // picks before inserting into the active state. Existing players
     // preserve their persisted identity.
     const isNewCharacter = !row.class_name || row.class_name === '';
-    const hydrated = hydratePersistedPlayer(row, socketId, name);
+    const hydrated = hydratePersistedPlayer(row, socketId, name, now);
     return upsertActivePlayerSession(
       state,
       spatial,

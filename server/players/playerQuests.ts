@@ -41,16 +41,17 @@ export function applyAcceptQuest(
   player: PlayerState,
   questId: QuestId,
   outbound: OutboundEventSink,
+  now: number,
 ): boolean {
   const quest = QUESTS[questId];
   if (!quest) return false;
   if (!isNearNpc(player, quest.npcId)) {
     warn(LOG_CATEGORIES.PLAYER, `AcceptQuest ${questId}: player ${player.id} not near ${quest.npcId}`);
-    emitAcceptFeedback(player, outbound, `You're too far from ${QUEST_NPCS[quest.npcId]?.name ?? 'the quest giver'} to accept this.`);
+    emitAcceptFeedback(player, outbound, `You're too far from ${QUEST_NPCS[quest.npcId]?.name ?? 'the quest giver'} to accept this.`, now);
     return false;
   }
   if (player.level < quest.minLevel) {
-    emitAcceptFeedback(player, outbound, `You need level ${quest.minLevel} to accept "${quest.name}".`);
+    emitAcceptFeedback(player, outbound, `You need level ${quest.minLevel} to accept "${quest.name}".`, now);
     return false;
   }
   const state = ensureQuestState(player);
@@ -58,7 +59,7 @@ export function applyAcceptQuest(
   // §49/M6 PR029 — gate on completed-quest prerequisites.
   if (!meetsQuestPrerequisites(quest, { completedQuests: state.completed })) {
     warn(LOG_CATEGORIES.PLAYER, `AcceptQuest ${questId}: player ${player.id} missing prerequisites`);
-    emitAcceptFeedback(player, outbound, `"${quest.name}" requires you to finish earlier quests first.`);
+    emitAcceptFeedback(player, outbound, `"${quest.name}" requires you to finish earlier quests first.`, now);
     return false;
   }
   state.active[questId] = { stageIndex: 0, progress: 0 };
@@ -73,7 +74,7 @@ export function applyAcceptQuest(
  * 'player X is underleveled') and rides the existing ChatBroadcast
  * channel which the HUD chat panel already renders.
  */
-function emitAcceptFeedback(player: PlayerState, outbound: OutboundEventSink, text: string): void {
+function emitAcceptFeedback(player: PlayerState, outbound: OutboundEventSink, text: string, now: number): void {
   const socketId = player.socketId;
   if (!socketId) return;
   emitServerMessageToClient(outbound, socketId, {
@@ -82,7 +83,7 @@ function emitAcceptFeedback(player: PlayerState, outbound: OutboundEventSink, te
     fromName: 'System',
     text,
     scope: 'near',
-    ts: Date.now(),
+    ts: now,
   });
 }
 
@@ -149,6 +150,7 @@ export function applyClaimQuestReward(
   player: PlayerState,
   questId: QuestId,
   outbound: OutboundEventSink,
+  now: number,
   gameState?: GameState,
 ): boolean {
   const quest = QUESTS[questId];
@@ -210,7 +212,7 @@ export function applyClaimQuestReward(
       fromName: 'Quest',
       text: `✓ ${quest.name} — ${summary}${overflowSuffix}`,
       scope: 'all',
-      ts: Date.now(),
+      ts: now,
     });
   }
   return true;

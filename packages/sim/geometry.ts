@@ -26,7 +26,7 @@ export function rotationYForDirection(direction: VecXZ): number {
   return Math.atan2(direction.x, direction.z);
 }
 
-export function randomAnnulusDistance(minDistance: number, maxDistance: number, sample: number = Math.random()): number {
+export function randomAnnulusDistance(minDistance: number, maxDistance: number, sample: number): number {
   const minArea = Math.min(minDistance, maxDistance) ** 2;
   const maxArea = maxDistance ** 2;
   return Math.sqrt(minArea + clamp01(sample) * (maxArea - minArea));
