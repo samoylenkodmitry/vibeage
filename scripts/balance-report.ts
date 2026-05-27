@@ -23,6 +23,7 @@ import { createTransientPlayer } from '../server/playerFactory.js';
 import { resolveCastImpact } from '../server/combat/impactResolver.js';
 import { recomputePlayerStats } from '../server/players/playerStatsRefresh.js';
 import { STARTER_SKILL_BY_CLASS, starterSkillsFor } from '../server/players/playerProgression.js';
+import { makeSimPlayer, makeSimEnemy, timeToKill, timeToDie, mainAttackFor } from '../server/sim/combatBalance.js';
 import type { Cast } from '../server/combat/skillSystem.js';
 import type { CombatWorld } from '../server/combat/worldContract.js';
 import type { OutboundEventSink } from '../server/transport/outboundEvents.js';
@@ -121,4 +122,23 @@ console.log('|-------|------------|--------|--------|');
 for (const className of classes) {
   const r = simulateTtk(className);
   console.log(`| ${className} | ${r.skill} | ${r.rounds} | ${r.killed ? '✓' : '✗'} |`);
+}
+
+console.log('');
+console.log('## Simulated duels — SimClock (real mitigation / dodge / regen)');
+console.log('');
+console.log('Each fight plays out on the virtual clock with the shipped combat functions.');
+console.log('TTK = player kills a level-matched goblin (its main skill, no gear). TTD = how');
+console.log('long the player survives that goblin attacking back (∞ = out-regens it).');
+console.log('');
+console.log('| Class | Lv | TTK | hits | TTD | dodges |');
+console.log('|-------|----|-----|------|-----|--------|');
+for (const className of classes) {
+  for (const level of LEVEL_CHECKPOINTS) {
+    const k = timeToKill(makeSimPlayer(className, level), makeSimEnemy(TTK_TARGET, level), mainAttackFor(className));
+    const d = timeToDie(makeSimPlayer(className, level), makeSimEnemy(TTK_TARGET, level));
+    const ttk = k.ttkMs === null ? 'no kill' : `${(k.ttkMs / 1000).toFixed(1)}s`;
+    const ttd = d.ttdMs === null ? '∞' : `${(d.ttdMs / 1000).toFixed(1)}s`;
+    console.log(`| ${className} | ${level} | ${ttk} | ${k.hits} | ${ttd} | ${d.dodges} |`);
+  }
 }
