@@ -108,6 +108,8 @@ export interface Enemy {
    * spec `hpRegen` of 0 (the default) simply never change.
    */
   lastRegenTimeMs?: number;
+  /** Last moment this entity took damage; gates in-combat regen suppression. */
+  lastDamagedTs?: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
   dirtySnap?: boolean;
@@ -248,6 +250,8 @@ export interface PlayerState {
    * rate), instead of a fixed per-tick amount.
    */
   lastRegenTimeMs?: number;
+  /** Last moment this player took damage; gates in-combat regen suppression. */
+  lastDamagedTs?: number;
   statusEffects: StatusEffect[];
   level: number;
   experience: number;

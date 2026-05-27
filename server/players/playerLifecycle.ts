@@ -2,6 +2,7 @@ import type { RespawnRequest } from '../../packages/protocol/messages.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { applyResourceRegen } from '../../packages/sim/regen.js';
+import { COMBAT_REGEN_FACTOR, COMBAT_REGEN_WINDOW_MS } from '../../packages/content/stats.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import type { GameState } from '../gameState.js';
 import { error as logError, log, LOG_CATEGORIES, warn } from '../logger.js';
@@ -121,9 +122,11 @@ export function awardPlayerXP(
  * their spec-derived numbers — no class or mob type is special-cased.
  * Rates apply over real elapsed seconds since the entity last regened
  * so the panel's "2.4 hp/s" matches reality regardless of tick rate.
- * Dead entities don't regen; out-of-combat is implicit (regen always
- * runs while alive + below cap). A mob's `hpRegen` defaults to 0, so a
- * mob only regenerates if its template gives it the characteristic.
+ * Dead entities don't regen. Passive regen is suppressed for a window
+ * after taking a hit (see `combatRegenFactor`), so a combatant can't
+ * out-heal sustained incoming damage — out of combat it runs full rate.
+ * A mob's `hpRegen` defaults to 0, so a mob only regenerates if its
+ * template gives it the characteristic.
  */
 export function handleResourceRegeneration(
   state: GameState,
@@ -138,10 +141,11 @@ export function handleResourceRegeneration(
     // a flat HP/sec bonus while a carrier is in range. This is a live,
     // proximity-dependent bonus on top of the static characteristic.
     const auraBonus = partyHpRegenAuraBonusFor(player, alivePlayers);
+    const combat = combatRegenFactor(player, now);
     const deltas = applyResourceRegen(
       player,
-      (player.stats?.hpRegen ?? 0) + auraBonus,
-      player.stats?.mpRegen ?? 0,
+      ((player.stats?.hpRegen ?? 0) + auraBonus) * combat,
+      (player.stats?.mpRegen ?? 0) * combat,
       dtSeconds,
     );
     if (deltas.hp > REGEN_EMIT_THRESHOLD || deltas.mp > REGEN_EMIT_THRESHOLD) {
@@ -158,8 +162,9 @@ export function handleResourceRegeneration(
     const dtSeconds = elapsedRegenSeconds(enemy, now);
     if (dtSeconds <= 0) continue;
     // Mobs carry no mana pool — the core leaves mp untouched. Rate is
-    // the mob's own spec characteristic (0 for everything today).
-    const deltas = applyResourceRegen(enemy, enemy.stats?.hpRegen ?? 0, 0, dtSeconds);
+    // the mob's own spec characteristic (0 for everything today),
+    // suppressed while the mob is itself under fire.
+    const deltas = applyResourceRegen(enemy, (enemy.stats?.hpRegen ?? 0) * combatRegenFactor(enemy, now), 0, dtSeconds);
     if (deltas.hp > REGEN_EMIT_THRESHOLD) {
       emitEnemyUpdated(outbound, { id: enemy.id, health: enemy.health });
     }
@@ -175,6 +180,20 @@ function elapsedRegenSeconds(entity: PlayerState | Enemy, now: number): number {
   const last = entity.lastRegenTimeMs ?? now;
   entity.lastRegenTimeMs = now;
   return Math.max(0, (now - last) / 1000);
+}
+
+/**
+ * Passive-regen multiplier for `entity`: full (1) out of combat, or
+ * `COMBAT_REGEN_FACTOR` for `COMBAT_REGEN_WINDOW_MS` after the last hit
+ * it took. Keeps a combatant from out-healing sustained incoming damage
+ * while letting between-fight recovery run at full rate.
+ */
+function combatRegenFactor(entity: PlayerState | Enemy, now: number): number {
+  const lastHit = entity.lastDamagedTs;
+  if (lastHit !== undefined && now - lastHit < COMBAT_REGEN_WINDOW_MS) {
+    return COMBAT_REGEN_FACTOR;
+  }
+  return 1;
 }
 
 // §45.3 — sum of flat HP/sec from every other-player ally within

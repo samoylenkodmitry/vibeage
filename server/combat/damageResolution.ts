@@ -67,6 +67,10 @@ export function applyResolvedDamageToTarget(
   }
 
   target.health = Math.max(0, target.health - incoming);
+  // Mark the entity as "in combat" so the regen system suppresses
+  // passive recovery for a window — a combatant can't out-heal sustained
+  // incoming damage just by standing there.
+  if (incoming > 0) target.lastDamagedTs = now;
   return incoming;
 }
 
