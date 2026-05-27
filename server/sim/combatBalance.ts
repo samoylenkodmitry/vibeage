@@ -17,6 +17,7 @@ import type { CharacterClass } from '../../packages/content/classes.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { starterSkillsFor } from '../players/playerProgression.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
+import { applyResourceRegen } from '../../packages/sim/regen.js';
 import { SimClock } from '../../packages/sim/simClock.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { createEnemy } from '../enemies/enemyLifecycle.js';
@@ -145,13 +146,16 @@ export function timeToDie(player: PlayerState, enemy: Enemy, timeoutMs = DEFAULT
   return { ttdMs: ttd, dodges };
 }
 
+// Both regen ticks route through the engine's generic regen core (one
+// simulated second per call), so the harness measures the SAME math the
+// live maintenance phase runs — no parallel regen formula.
 function regenMana(player: PlayerState): void {
-  player.mana = Math.min(player.maxMana, player.mana + (player.stats?.mpRegen ?? 0));
+  applyResourceRegen(player, 0, player.stats?.mpRegen ?? 0, 1);
 }
 
 function regenHealth(player: PlayerState): void {
-  if (player.health <= 0) return;
-  player.health = Math.min(player.maxHealth, player.health + (player.stats?.hpRegen ?? 0));
+  if (player.health <= 0) return; // a downed player doesn't heal back mid-fight
+  applyResourceRegen(player, player.stats?.hpRegen ?? 0, 0, 1);
 }
 
 /** Advance the clock in 100ms slices until `done()` or the timeout. */
