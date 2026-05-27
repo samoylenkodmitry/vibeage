@@ -151,6 +151,7 @@ describe('handleCastReq rejects stunned players', () => {
       { direct, outbound },
       makeWorld(player),
       activeCasts,
+      Date.now(),
     );
 
     expect(Object.keys(activeCasts)).toEqual([]);

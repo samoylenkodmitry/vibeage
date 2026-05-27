@@ -36,7 +36,8 @@ export function handleCastReq(
   msg: CastReq,
   transport: CastHandlerTransport,
   world: CombatWorld,
-  activeCasts: ActiveCastStore
+  activeCasts: ActiveCastStore,
+  now: number,
 ): void {
   const playerId = msg.id;
   // §52 #5 — count every CastReq the handler sees. Pair with
@@ -51,8 +52,6 @@ export function handleCastReq(
     runtimeMetrics.increment('castReq.rejected.socketMismatch');
     return;
   }
-
-  const now = Date.now();
 
   // Stun blocks casting entirely. CastFail.reason has no 'stunned'
   // literal so we route through 'invalid' — clients see a generic cast
@@ -109,6 +108,7 @@ export function handleCastReq(
     targetId: msg.targetId,
     outbound: transport.outbound,
     world,
+    now,
   });
   
   const failReason = typeof castResult === 'string' ? toCastRejectionReason(castResult) : null;

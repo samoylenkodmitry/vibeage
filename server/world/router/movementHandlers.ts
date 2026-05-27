@@ -14,7 +14,8 @@ export function onMoveIntent(
   msg: Extract<ClientMessage, { type: 'MoveIntent' }>,
   outbound: OutboundEventSink,
 ): void {
-  const staleReason = sharedMovementFreshness().check(socket.id, msg.clientTs);
+  const now = Date.now();
+  const staleReason = sharedMovementFreshness().check(socket.id, msg.clientTs, now);
   if (staleReason) {
     incrementStaleMovementCounter(staleReason);
     debug(LOG_CATEGORIES.MOVEMENT, `Dropped stale MoveIntent from ${socket.id}: ${staleReason}`);
@@ -33,7 +34,7 @@ export function onMoveIntent(
     }
   }
 
-  const result = applyMoveIntent(state, socket.id, msg, Date.now());
+  const result = applyMoveIntent(state, socket.id, msg, now);
 
   if (result.ok === false) {
     warnRejectedMoveIntent(result.reason, result.playerId, msg.targetPos);

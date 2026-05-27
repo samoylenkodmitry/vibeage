@@ -40,7 +40,7 @@ describe('load-test in-process scaffold (§52 #12)', () => {
     const spatial = new SpatialHashGrid();
     const zoneManager = new ZoneManager();
     initializeServerDrivenZoneRuntime(state, zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
-    const spawnedEnemies = spawnInitialEnemies(state, spatial, zoneManager, {
+    const spawnedEnemies = spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
       activeZoneIds: state.zones.activeZoneIds,
       maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,
       maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,
@@ -102,7 +102,7 @@ describe('load-test in-process scaffold (§52 #12)', () => {
     const spatial = new SpatialHashGrid();
     const zoneManager = new ZoneManager();
     initializeServerDrivenZoneRuntime(state, zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
-    spawnInitialEnemies(state, spatial, zoneManager, {
+    spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
       activeZoneIds: state.zones.activeZoneIds,
       maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,
       maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,

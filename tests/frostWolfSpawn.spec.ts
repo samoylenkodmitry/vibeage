@@ -16,7 +16,7 @@ describe('zone spawn — newly-active zones run their initial population', () =>
     const state = createGameState();
     const spatial = new SpatialHashGrid();
     const zoneManager = new ZoneManager();
-    spawnInitialEnemies(state, spatial, zoneManager, {
+    spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
       activeZoneIds: ['frozen_tundra'],
       maxEnemies: 50,
       maxEnemiesPerZone: 25,
@@ -28,7 +28,7 @@ describe('zone spawn — newly-active zones run their initial population', () =>
     const state = createGameState();
     const spatial = new SpatialHashGrid();
     const zoneManager = new ZoneManager();
-    spawnInitialEnemies(state, spatial, zoneManager, {
+    spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
       activeZoneIds: ['frozen_tundra'],
       maxEnemies: 50,
       maxEnemiesPerZone: 25,
@@ -50,7 +50,7 @@ describe('zone spawn — newly-active zones run their initial population', () =>
     const state = createGameState();
     const spatial = new SpatialHashGrid();
     const zoneManager = new ZoneManager();
-    spawnInitialEnemies(state, spatial, zoneManager, {
+    spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
       activeZoneIds: ['frozen_tundra'],
       maxEnemies: 50, maxEnemiesPerZone: 25,
     });

@@ -389,7 +389,7 @@ function applyCastToTarget(
   const healApplied = applySkillEffects(target, skill, caster, world, now);
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = now;
-    world.onTargetDied(caster, target);
+    world.onTargetDied(caster, target, now);
   }
 
   emitServerMessage(outbound, {

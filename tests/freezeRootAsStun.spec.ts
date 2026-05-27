@@ -103,6 +103,7 @@ describe('frozen player blocks move and cast like stun', () => {
       { direct, outbound },
       world,
       createActiveCastStore(),
+      Date.now(),
     );
 
     // §52 #1 — CastFail retired; check CommandRejected envelope.

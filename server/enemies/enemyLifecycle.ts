@@ -107,6 +107,7 @@ export function spawnInitialEnemies(
   state: GameState,
   spatial: SpatialHashGrid,
   zoneManager: ZoneManager,
+  now: number,
   options: SpawnInitialEnemiesOptions = {},
 ): number {
   const maxEnemies = options.maxEnemies ?? WORLD_SPAWN_BUDGETS.maxInitialEnemySpawns;
@@ -135,7 +136,7 @@ export function spawnInitialEnemies(
         : zoneManager.getRandomPositionInZone(zoneId);
       if (position) {
         const zoneBaseLevel = zoneManager.getMobLevel(zoneId);
-        const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position);
+        const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position, now);
         state.enemies[enemy.id] = enemy;
         state.zones.enemyZoneIds[enemy.id] = zoneId;
         spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
@@ -148,7 +149,7 @@ export function spawnInitialEnemies(
       const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
       const worldBudgetRemaining = maxEnemies - spawned;
       const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
-      const result = spawnMobBatch(state, spatial, zoneManager, zoneId, mobConfig, spawnCount);
+      const result = spawnMobBatch(state, spatial, zoneManager, zoneId, mobConfig, spawnCount, now);
       spawned += result;
       spawnedInZone += result;
 
@@ -171,8 +172,9 @@ function createMiniBoss(
   miniBoss: ZoneMiniBoss,
   zoneBaseLevel: number,
   position: Enemy['position'],
+  now: number,
 ): Enemy {
-  return createEnemy(miniBoss.type, zoneBaseLevel + (miniBoss.levelBonus ?? 2), position, Date.now(), {
+  return createEnemy(miniBoss.type, zoneBaseLevel + (miniBoss.levelBonus ?? 2), position, now, {
     isMiniBoss: true,
     bossId: miniBoss.id,
     nameOverride: miniBoss.name,
@@ -191,9 +193,14 @@ function spawnMobBatch(
   zoneId: string,
   mobConfig: MobSpawnConfig,
   spawnCount: number,
+  now: number,
 ): number {
   let spawned = 0;
   const packSize = mobConfig.packSize ?? 1;
+  // Deterministic spawn-jitter stream, seeded per (zone, type, tick) so
+  // a simulator replay places mobs identically. No wall clock, no
+  // ambient Math.random.
+  const rand = rng(hash(`${zoneId}:${mobConfig.type}:${now}`));
   while (spawned < spawnCount) {
     const remaining = spawnCount - spawned;
     const groupSize = Math.min(packSize, remaining);
@@ -201,15 +208,15 @@ function spawnMobBatch(
     // jitter around that anchor (and for packs, cluster around the
     // jittered point). Otherwise fall back to a random in-zone point.
     const center = mobConfig.position
-      ? jitterAround(mobConfig.position, mobConfig.spawnRadius ?? DEFAULT_MOB_SPAWN_RADIUS)
+      ? jitterAround(mobConfig.position, mobConfig.spawnRadius ?? DEFAULT_MOB_SPAWN_RADIUS, rand)
       : zoneManager.getRandomPositionInZone(zoneId);
     if (!center) {
       break;
     }
-    const packId = groupSize > 1 ? `pack-${zoneId}-${mobConfig.type}-${spawned}-${Date.now()}` : undefined;
+    const packId = groupSize > 1 ? `pack-${zoneId}-${mobConfig.type}-${spawned}-${now}` : undefined;
     for (let i = 0; i < groupSize; i += 1) {
-      const position = packId ? clusterAround(center, i) : center;
-      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position, Date.now(), { packId });
+      const position = packId ? clusterAround(center, i, rand) : center;
+      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position, now, { packId });
       state.enemies[enemy.id] = enemy;
       state.zones.enemyZoneIds[enemy.id] = zoneId;
       spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
@@ -219,20 +226,28 @@ function spawnMobBatch(
   return spawned;
 }
 
-function jitterAround(anchor: { x: number; y: number; z: number }, radius: number): Enemy['position'] {
-  const angle = Math.random() * Math.PI * 2;
-  const dist = Math.sqrt(Math.random()) * radius;
+function jitterAround(
+  anchor: { x: number; y: number; z: number },
+  radius: number,
+  rand: () => number,
+): Enemy['position'] {
+  const angle = rand() * Math.PI * 2;
+  const dist = Math.sqrt(rand()) * radius;
   const x = anchor.x + Math.cos(angle) * dist;
   const z = anchor.z + Math.sin(angle) * dist;
   return { x, y: getTerrainHeight(x, z) + 0.5, z };
 }
 
-function clusterAround(center: Enemy['position'], offsetIndex: number): Enemy['position'] {
+function clusterAround(
+  center: Enemy['position'],
+  offsetIndex: number,
+  rand: () => number,
+): Enemy['position'] {
   if (offsetIndex === 0) {
     return { ...center };
   }
   const angle = (offsetIndex / 6) * Math.PI * 2;
-  const radius = PACK_CLUSTER_RADIUS * (0.4 + Math.random() * 0.6);
+  const radius = PACK_CLUSTER_RADIUS * (0.4 + rand() * 0.6);
   const x = center.x + Math.cos(angle) * radius;
   const z = center.z + Math.sin(angle) * radius;
   return { x, y: getTerrainHeight(x, z) + 0.5, z };

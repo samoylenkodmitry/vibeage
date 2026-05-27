@@ -23,16 +23,17 @@ export function updateEnemyAI(
   outbound: OutboundEventSink,
   spatialGrid: SpatialHashGrid,
   deltaTime: number,
+  now: number,
 ): void {
   const result = advanceEnemyState(enemy, {
     players: gameState.players,
     spatialGrid,
     deltaTime,
-    now: Date.now(),
+    now,
   });
 
   for (const event of result.events) {
-    emitEnemyAIEvent(outbound, event, gameState, spatialGrid, enemy);
+    emitEnemyAIEvent(outbound, event, gameState, spatialGrid, enemy, now);
   }
 
   if (result.enemyUpdate) {
@@ -46,6 +47,7 @@ function emitEnemyAIEvent(
   gameState: EntityState,
   spatialGrid: SpatialHashGrid,
   source: Enemy,
+  now: number,
 ): void {
   if (event.type === 'log') {
     debug(LOG_CATEGORIES.ENEMY, event.message);
@@ -124,6 +126,7 @@ function emitEnemyAIEvent(
       radius: event.radius,
       bossName: event.bossName,
       source,
+      now,
     });
     return;
   }
@@ -142,6 +145,7 @@ type SummonPackArgs = {
   radius: number;
   bossName: string;
   source: Enemy;
+  now: number;
 };
 
 /**
@@ -155,7 +159,7 @@ type SummonPackArgs = {
  * "the warband heard him" signal alongside the visual telegraph.
  */
 function propagateSummonPack({
-  gameState, spatialGrid, outbound, packId, targetId, sourceEnemyId, radius, bossName, source,
+  gameState, spatialGrid, outbound, packId, targetId, sourceEnemyId, radius, bossName, source, now,
 }: SummonPackArgs): void {
   const candidateIds = spatialGrid.queryCircle(
     { x: source.position.x, z: source.position.z },
@@ -169,7 +173,7 @@ function propagateSummonPack({
     }
     enemy.targetId = targetId;
     enemy.aiState = 'chasing';
-    enemy.chaseStartedAt = Date.now();
+    enemy.chaseStartedAt = now;
     enemy.patrolTarget = undefined;
     emitEnemyUpdated(outbound, { id: enemy.id, targetId: enemy.targetId, aiState: enemy.aiState });
     summoned += 1;
@@ -181,7 +185,7 @@ function propagateSummonPack({
       fromName: bossName,
       text: `${bossName} howls — ${summoned} warband${summoned === 1 ? '' : 'mate'} answer${summoned === 1 ? 's' : ''}!`,
       scope: 'all',
-      ts: Date.now(),
+      ts: now,
     });
   }
 }

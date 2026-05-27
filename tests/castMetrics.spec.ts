@@ -83,7 +83,7 @@ describe('cast metrics (§52 #5)', () => {
       clientSeq: 1,
       ...(targetPos ? { targetPos } : {}),
     };
-    handleCastReq(socket, player, msg, { direct, outbound }, makeWorld(), activeCasts);
+    handleCastReq(socket, player, msg, { direct, outbound }, makeWorld(), activeCasts, Date.now());
   }
 
   test('increments castReq.received on every entry to handleCastReq', () => {
@@ -109,7 +109,7 @@ describe('cast metrics (§52 #5)', () => {
       type: 'CastReq', id: player.id, skillId: 'fireball',
       clientTs: Date.now(), clientSeq: 2, targetPos: { x: 10, z: 0 },
     };
-    handleCastReq({ id: 'wrong-socket' }, player, msg, { direct, outbound }, makeWorld(), activeCasts);
+    handleCastReq({ id: 'wrong-socket' }, player, msg, { direct, outbound }, makeWorld(), activeCasts, Date.now());
     expect(runtimeMetrics.snapshot().counters['castReq.rejected.socketMismatch']).toBe(1);
     expect(runtimeMetrics.snapshot().counters['castReq.accepted']).toBeUndefined();
   });

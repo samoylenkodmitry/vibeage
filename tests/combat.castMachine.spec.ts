@@ -85,6 +85,7 @@ beforeEach(async () => {
       targetId: undefined,
       outbound,
       world,
+      now: Date.now(),
     });
 
     expect(typeof castId).toBe('string');
@@ -115,6 +116,7 @@ beforeEach(async () => {
       targetId: enemy.id,
       outbound,
       world,
+      now: Date.now(),
     }) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs);
@@ -156,6 +158,7 @@ beforeEach(async () => {
       targetId: enemy.id,
       outbound,
       world,
+      now: Date.now(),
     }) as string;
 
     vi.advanceTimersByTime(SKILLS[skillId].castMs);
@@ -190,6 +193,7 @@ beforeEach(async () => {
       targetId: undefined,
       outbound,
       world,
+      now: Date.now(),
     }) as string;
 
     vi.advanceTimersByTime(SKILLS.fireball.castMs - 1);

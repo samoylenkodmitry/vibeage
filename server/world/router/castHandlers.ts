@@ -19,7 +19,7 @@ export function createWorldCombatBridge(
 ) {
   return createCombatWorld(
     state,
-    (caster, target) => handleTargetDeath(caster, target, { state, spatial, outbound }),
+    (caster, target, now) => handleTargetDeath(caster, target, { state, spatial, outbound, now }),
     (pos, radius) => queryAliveSpatialEntities(state, spatial, pos, radius),
   );
 }
@@ -60,5 +60,6 @@ export function onCastReq(
     { direct, outbound },
     createWorldCombatBridge(state, outbound, spatial),
     state.activeCasts,
+    Date.now(),
   );
 }

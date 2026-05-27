@@ -57,6 +57,7 @@ export type CastRequestInput = {
   targetId: string | undefined;
   outbound: OutboundEventSink;
   world: CombatWorld;
+  now: number;
 };
 
 export function createActiveCastStore(): ActiveCastStore {
@@ -76,8 +77,8 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
     targetId,
     outbound,
     world,
+    now,
   } = input;
-  const now = Date.now();
   const skill = SKILLS[skillId];
   
   if (!skill) {
