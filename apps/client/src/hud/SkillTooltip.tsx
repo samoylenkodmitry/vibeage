@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getEffectLabel } from '../../../../packages/content/effects';
 import { SKILLS, type SkillId } from '../../../../packages/content/skills';
 import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
+import { describeOffense } from './skillMechanics';
 import { openWikiAt } from './wikiNavBus';
 
 type SkillTooltipProps = {
@@ -109,6 +110,9 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverH
           })}
         </footer>
       ) : null}
+      {describeOffense(skill.offense).map((line) => (
+        <p key={line} className="skill-tooltip-offense">{line}</p>
+      ))}
       <button
         type="button"
         className="tooltip-wiki-link"

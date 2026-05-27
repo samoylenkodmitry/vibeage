@@ -2181,6 +2181,15 @@ input {
   color: #c4b5fd;
   opacity: 0.85;
 }
+
+/* Offense modifiers (execute / crit / lifesteal / armor-pen) in the
+   skill-tree detail + the hover tooltip. */
+.skill-tree-offense,
+.skill-tooltip-offense {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #fca5a5;
+}
 .skill-tree-passive-effects {
   list-style: none;
   margin: 8px 0 0;

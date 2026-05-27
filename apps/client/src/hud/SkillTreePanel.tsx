@@ -8,6 +8,7 @@ import { SKILLS, classifySkill, isPassiveSkill, type SkillDef, type SkillId } fr
 import { PASSIVE_SKILL_CONTRIBUTIONS } from '../../../../packages/content/classPassives';
 import { STATS } from '../../../../packages/content/stats';
 import type { Contribution } from '../../../../packages/sim/statContributions';
+import { describeOffense } from './skillMechanics';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
 import {
@@ -207,6 +208,9 @@ function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: numbe
         <Stat label="Cast" value={skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant'} />
         <Stat label="Cooldown" value={effective.cooldownMs > 0 ? `${(effective.cooldownMs / 1000).toFixed(1)}s` : '-'} />
       </dl>
+      {describeOffense(skill.offense).map((line) => (
+        <p key={line} className="skill-tree-offense">{line}</p>
+      ))}
       {skill.upgrades?.length ? (
         <ul className="skill-tree-upgrade-list">
           {skill.upgrades.map((tier) => {
