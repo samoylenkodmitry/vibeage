@@ -33,7 +33,7 @@ export function onMoveIntent(
     }
   }
 
-  const result = applyMoveIntent(state, socket.id, msg);
+  const result = applyMoveIntent(state, socket.id, msg, Date.now());
 
   if (result.ok === false) {
     warnRejectedMoveIntent(result.reason, result.playerId, msg.targetPos);

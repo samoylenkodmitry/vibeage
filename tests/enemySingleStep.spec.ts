@@ -27,7 +27,7 @@ describe('enemy movement is single-step (§10:577 regression)', () => {
     const spatial = new SpatialHashGrid(1);
     spatial.insert(enemy.id, enemy.position);
 
-    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 0.5);
+    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 0.5, Date.now());
     // AI phase only sets velocity — position should not have moved.
     expect(enemy.position.x).toBe(0);
     expect(enemy.velocity).toEqual({ x: 5, z: 0 });
@@ -44,9 +44,9 @@ describe('enemy movement is single-step (§10:577 regression)', () => {
     const spatial = new SpatialHashGrid(1);
     spatial.insert(enemy.id, enemy.position);
 
-    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 1);
-    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 1);
-    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 1);
+    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 1, Date.now());
+    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 1, Date.now());
+    moveEnemyToward(enemy, { x: 100, z: 0 }, spatial, 1, Date.now());
 
     // Without a movement-phase pass between calls, the enemy never
     // actually moves — only the latest velocity stands.

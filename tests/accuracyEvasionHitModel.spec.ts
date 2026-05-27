@@ -39,8 +39,8 @@ describe('computeMissChance — accuracy vs evasion', () => {
   });
 
   it('treats a missing accuracy stat as the baseline (neutral attacker)', () => {
-    expect(incomingMissChance(undefined, makeTarget(EVASION_BASELINE))).toBe(0);
-    expect(incomingMissChance(undefined, makeTarget(EVASION_BASELINE + 30))).toBeCloseTo(0.30, 5);
+    expect(incomingMissChance(undefined, makeTarget(EVASION_BASELINE), Date.now())).toBe(0);
+    expect(incomingMissChance(undefined, makeTarget(EVASION_BASELINE + 30), Date.now())).toBeCloseTo(0.30, 5);
   });
 });
 

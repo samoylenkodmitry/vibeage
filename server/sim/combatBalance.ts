@@ -94,7 +94,7 @@ export function timeToKill(
     const seed = `ttk:${player.id}:${enemy.id}:${castSeq++}`;
     const roll = getDamage({
       caster: player.stats ?? {}, skill: { base: baseDmg, variance: 0.1 }, seed,
-      targetMissChance: incomingMissChance(player.stats?.accuracy, enemy),
+      targetMissChance: incomingMissChance(player.stats?.accuracy, enemy, clock.now()),
     });
     if (roll.miss) return;
     hits += 1;

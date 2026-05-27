@@ -55,7 +55,7 @@ type PlayerUpdatePayload = {
  * teleport them away from the corpse and the spatial grid stays
  * consistent across the respawn.
  */
-export function killPlayer(player: PlayerState, now: number = Date.now()): boolean {
+export function killPlayer(player: PlayerState, now: number): boolean {
   if (!player.isAlive) return false;
   player.health = 0;
   player.isAlive = false;
@@ -120,7 +120,7 @@ export function awardPlayerXP(
 export function handleResourceRegeneration(
   state: GameState,
   outbound: OutboundEventSink,
-  now: number = Date.now(),
+  now: number,
 ): void {
   const alivePlayers = Object.values(state.players).filter((p) => p.isAlive);
   for (const player of alivePlayers) {

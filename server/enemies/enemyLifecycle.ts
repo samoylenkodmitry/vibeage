@@ -47,7 +47,7 @@ export function createEnemy(
   type: string,
   level: number,
   position: Enemy['position'],
-  now: number = Date.now(),
+  now: number,
   options: CreateEnemyOptions = {},
 ): Enemy {
   const template = getEnemyTemplate(type);
@@ -242,7 +242,7 @@ export function respawnDeadEnemies(
   state: GameState,
   spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
-  now: number = Date.now(),
+  now: number,
 ): number {
   let respawned = 0;
   const activeZoneIds = new Set(state.zones.activeZoneIds);

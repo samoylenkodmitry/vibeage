@@ -177,7 +177,7 @@ function calculateDamage(
     seed: `${castId || nanoid()}:${targetId || nanoid()}`,
     // Dodge = the accuracy-vs-evasion stat differential plus any flat
     // evasion-buff dodge (Evade / Mist Step), clamped to the cap.
-    targetMissChance: incomingMissChance(caster?.stats?.accuracy, target),
+    targetMissChance: incomingMissChance(caster?.stats?.accuracy, target, now),
   });
   if (result.miss) return { damage: 0, crit: false, miss: true };
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target, now);

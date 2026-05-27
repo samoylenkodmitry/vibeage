@@ -234,7 +234,7 @@ describe('tickDamageOverTimeEffects: non-DoT and edge cases', () => {
     const realNow = Date.now();
     vi.spyOn(Date, 'now').mockReturnValue(realNow);
 
-    expect(() => tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink)).not.toThrow();
+    expect(() => tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, Date.now())).not.toThrow();
     vi.restoreAllMocks();
   });
 });

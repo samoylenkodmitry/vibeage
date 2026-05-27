@@ -23,7 +23,7 @@ export function findAggroTargetId(
   enemy: Enemy,
   players: Record<string, PlayerState>,
   candidateIds: string[],
-  now: number = Date.now(),
+  now: number,
 ): string | null {
   for (const playerId of candidateIds) {
     const player = players[playerId];
@@ -47,7 +47,7 @@ export function findAggroTargetId(
  * True when the player carries an active invisibility effect (Vanish).
  * Used by enemy AI to skip aggro and to drop existing target locks.
  */
-export function isPlayerInvisible(player: PlayerState, now: number = Date.now()): boolean {
+export function isPlayerInvisible(player: PlayerState, now: number): boolean {
   return (player.statusEffects ?? []).some((effect) => {
     if (effect.type !== 'invisible') return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
@@ -61,7 +61,7 @@ export function isPlayerInvisible(player: PlayerState, now: number = Date.now())
  * convention in `worldMovement.getPlayerSpeed` (multiplicative, fixed
  * factors per effect type — `effect.value` is ignored).
  */
-export function getEnemyMovementSpeed(enemy: Enemy, now: number = Date.now()): number {
+export function getEnemyMovementSpeed(enemy: Enemy, now: number): number {
   let speed = enemy.movementSpeed;
   for (const effect of enemy.statusEffects) {
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
@@ -92,7 +92,7 @@ export function moveEnemyToward(
   targetPosition: VecXZ,
   _spatialGrid: SpatialHashGrid,
   _deltaTime: number,
-  now: number = Date.now(),
+  now: number,
 ): void {
   const direction = directionXZ(enemy.position, targetPosition);
   const speed = getEnemyMovementSpeed(enemy, now);
