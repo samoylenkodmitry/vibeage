@@ -34,14 +34,48 @@ type EnemyStatMultipliers = {
   packAggroRadius: number;
 };
 
+/**
+ * Per-species combat characteristics, authored in content (not a
+ * combat-code default). The damage/dodge systems read these off the
+ * mob's derived `stats` block exactly as they read a player's. Omit
+ * any field to take the content-level default below — that default
+ * lives here in the spec layer, never as a `?? <n>` in the engine.
+ */
+export type EnemyCombatSpec = {
+  /** Hit rating, opposed by the target's Evasion. */
+  accuracy: number;
+  /** Dodge rating, opposed by the attacker's Accuracy. */
+  evasion: number;
+  /** Physical / magical mitigation (mitigatedDamage curve). */
+  pDef: number;
+  mDef: number;
+  /** HP restored per second (0 = doesn't regenerate). */
+  hpRegen: number;
+};
+
+const DEFAULT_ENEMY_COMBAT: EnemyCombatSpec = {
+  accuracy: 90, // matches the old ACCURACY_BASELINE the damage path used to assume
+  evasion: 0,
+  pDef: 0,
+  mDef: 0,
+  hpRegen: 0,
+};
+
 export type EnemyTemplate = {
   type: string;
   displayName: string;
   family: EnemyFamily;
   visual: EnemyVisualSpec;
   stats: EnemyStatMultipliers;
+  /** Per-species combat characteristics; missing fields take DEFAULT_ENEMY_COMBAT. */
+  combat?: Partial<EnemyCombatSpec>;
   lootTableId?: string;
 };
+
+/** The fully-resolved combat characteristics for a template (spec + defaults). */
+export function resolveEnemyCombat(template: EnemyTemplate): EnemyCombatSpec {
+  return { ...DEFAULT_ENEMY_COMBAT, ...template.combat };
+}
 
 const DEFAULT_ENEMY_STATS: EnemyStatMultipliers = {
   health: 1,

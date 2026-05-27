@@ -65,7 +65,7 @@ describe('base evasion stat dodges mob swings', () => {
     enemy.attackDamage = 100;
     enemy.attackCooldownMs = 1_000;
     enemy.lastAttackTime = 0;
-    if (accuracy !== undefined) enemy.accuracy = accuracy;
+    if (accuracy !== undefined) enemy.stats = { ...enemy.stats, accuracy };
     return enemy;
   }
 

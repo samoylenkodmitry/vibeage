@@ -1,4 +1,4 @@
-import { DEFAULT_PACK_AGGRO_RADIUS_M, getEnemyTemplate } from '../../packages/content/enemies.js';
+import { DEFAULT_PACK_AGGRO_RADIUS_M, getEnemyTemplate, resolveEnemyCombat } from '../../packages/content/enemies.js';
 import { getTerrainHeight } from '../../packages/content/terrain.js';
 import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
@@ -74,6 +74,9 @@ export function createEnemy(
     maxHealth: baseHealth,
     isAlive: true,
     attackDamage,
+    // Spec-derived combat characteristics — the same `stats` shape a
+    // player carries, so the damage/dodge systems read them uniformly.
+    stats: { ...resolveEnemyCombat(template) },
     attackRange: 2 * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,

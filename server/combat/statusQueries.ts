@@ -96,8 +96,9 @@ export function incomingMissChance(
   now: number = Date.now(),
 ): number {
   if (!target) return 0;
-  // Enemies carry no `stats` block → 0 evasion (they don't dodge today).
-  const targetEvasion = 'stats' in target ? (target.stats?.evasion ?? 0) : 0;
+  // Every combatant carries a `stats` block (players + mobs), so the
+  // target's evasion reads uniformly — no type-test, no shared default.
+  const targetEvasion = target.stats?.evasion ?? 0;
   const statDodge = computeMissChance(attackerAccuracy ?? ACCURACY_BASELINE, targetEvasion);
   return Math.min(MAX_DODGE_CHANCE, evasionMissChanceFor(target, now) + statDodge);
 }

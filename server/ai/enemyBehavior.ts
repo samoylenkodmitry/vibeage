@@ -139,8 +139,8 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
   // Evasion now dodges mob swings too (it used to only roll in the
   // player-cast path): the accuracy-vs-evasion stat differential plus
   // any flat evasion-buff dodge. Seeded per (enemy, player, tick) so
-  // it's deterministic. Enemy accuracy defaults to the baseline.
-  const missChance = incomingMissChance(enemy.accuracy, targetPlayer, now);
+  // it's deterministic. Enemy accuracy comes from its spec stats.
+  const missChance = incomingMissChance(enemy.stats?.accuracy, targetPlayer, now);
   if (rollMiss(`${enemy.id}:${targetPlayer.id}:${now}`, missChance)) {
     return { damage: 0, killed: false, miss: true };
   }

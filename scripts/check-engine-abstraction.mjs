@@ -31,7 +31,10 @@ const ROOTS = [
 const RULES = [
   { id: 'wall-clock', enforced: true, re: /\bDate\.now\s*\(/g, msg: 'Date.now() — inject a Clock' },
   { id: 'rng', enforced: true, re: /\bMath\.random\s*\(/g, msg: 'Math.random() — inject an Rng' },
-  { id: 'type-cast', enforced: true, re: /\bas\s+(PlayerState|Enemy)\b/g, msg: 'as PlayerState/Enemy — read a characteristic, don\'t type-test' },
+  // The type-test smell is `(x as PlayerState).field` — a cast-then-access to
+  // branch on entity kind. Construction casts (`as unknown as PlayerState[...]`)
+  // in persistence/hydration are legitimate and not matched.
+  { id: 'type-cast', enforced: true, re: /\bas\s+(PlayerState|Enemy)\s*\)/g, msg: 'as PlayerState/Enemy — read a characteristic, don\'t type-test' },
   { id: 'baseline-default', enforced: false, re: /\?\?\s*-?\d/g, msg: '?? <number> — characteristic should come from the spec (advisory)' },
 ];
 

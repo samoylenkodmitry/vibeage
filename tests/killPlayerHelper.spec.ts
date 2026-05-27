@@ -87,7 +87,7 @@ describe('applyEnemyAttack (normal enemy → player) routes through killPlayer',
     // Guarantee the swing lands — this test pins the death-state shape,
     // not the dodge roll. A real (full-stat) player has a few % base
     // evasion vs a baseline-accuracy mob, which would otherwise flake.
-    enemy.accuracy = 10_000;
+    enemy.stats = { ...enemy.stats, accuracy: 10_000 };
 
     const result = applyEnemyAttack(enemy, player, NOW);
 
