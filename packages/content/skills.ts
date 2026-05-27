@@ -30,12 +30,8 @@ export const SKILL_IDS = [
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
-/**
- * Skills every player has from birth, regardless of class. Used to make
- * sure normalizeUnlockedSkills + ensureClassStarterUnlocked don't strip
- * the universal Basic Attack on class change or hydrate. Keep this in
- * sync with the SKILLS catalog.
- */
+/** Skills every player has from birth (normalizeUnlockedSkills /
+ *  ensureClassStarterUnlocked keep these on class change / hydrate). */
 export const UNIVERSAL_SKILLS: readonly SkillId[] = ['basicAttack', 'escape'];
 export type SkillCategory = 'projectile'|'instant'|'beam'|'aura';
 
@@ -60,14 +56,9 @@ export type SkillEffectType =
   | 'aggroReset' // PR KK — wipe attackers' threat on the caster
   | 'teleport'; // recall to nearest village (Escape)
 
-/**
- * PR X — friendly-fire gate classification. Used to decide whether
- * a skill targeting an enemy / friendly player is sensible by
- * default. Derived from the skill's own effects (no per-skill
- * hardcoding): if any effect is in HARMFUL_EFFECTS the skill is
- * harmful; else if any is in BENEFICIAL_EFFECTS it's beneficial;
- * else neutral (no gate). Force-cast with Ctrl bypasses the gate.
- */
+/** Friendly-fire gate classification, derived from a skill's effects
+ *  (harmful if any HARMFUL_EFFECTS, else beneficial if any BENEFICIAL,
+ *  else neutral). Ctrl force-cast bypasses it. */
 const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
   'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
 ]);
@@ -92,11 +83,7 @@ export interface SkillEffect {
   dispelCategory?: DispelCategory; // §52 #10 — only when type==='dispel'.
 }
 
-/**
- * Damage flavour. Drives client UX (auto-attack after a physical
- * weapon swing) and could later affect mitigation, resistances, and
- * VFX. 'utility' covers buffs/heals/etc. with no damage flavour.
- */
+/** Damage flavour; drives client UX + mitigation kind. 'utility' = no damage. */
 export type SkillKind = 'physical' | 'magical' | 'utility';
 
 // §45.4 — optional element flavour. Drives `*Weakness` status
@@ -114,6 +101,7 @@ import type {
   SkillPveUse,
   SkillOffense,
 } from './skillTags.js';
+import type { AbilityShape, AbilityAffects, AbilityTelegraph, SummonSpec, BlinkSpec } from './abilitySchema.js';
 export type {
   SkillRole,
   SkillSchool,
@@ -162,11 +150,8 @@ export interface SkillDef {
     hitRadius?: number;  // Explicit hit detection radius
     maxPierceHits?: number; // Maximum number of targets that can be hit with pierce
   };
-  /**
-   * When true, the client keeps re-casting this skill at the same
-   * target on each cooldown tick until the player gives a new order.
-   * Today only Basic Attack opts in so it behaves like an auto-swing.
-   */
+  /** Client re-casts at the same target each cooldown until a new order
+   *  (Basic Attack opts in for auto-swing behaviour). */
   autoRepeat?: boolean;
   /** Per-level upgrades; modifier values applied during cast resolution. */
   upgrades?: SkillUpgrade[];
@@ -176,6 +161,20 @@ export interface SkillDef {
   isInterruptable?: boolean;
   /** §SKILL-ENGINE B9–B12 — execute / crit / lifesteal / armor-pen modifiers. */
   offense?: SkillOffense;
+  // Ability schema (docs/ABILITY_SYSTEM.md) — data-driven geometry,
+  // delivery, and caster mechanics; one generic resolver per axis.
+  /** AOE geometry; absent = single-target / legacy `area` circle. */
+  shape?: AbilityShape;
+  /** Allegiance filter for the shape's hits; absent = inferred from skill. */
+  affects?: AbilityAffects;
+  /** Telegraphed delivery: lock origin/dir, show telegraph, resolve after wind-up. */
+  telegraph?: AbilityTelegraph;
+  /** Caster spawns mobs on resolution. */
+  summon?: SummonSpec;
+  /** Caster teleports behind the target on resolution. */
+  blink?: BlinkSpec;
+  /** Registered custom resolver (CUSTOM_SKILL_BEHAVIORS) when data can't express it. */
+  customBehavior?: string;
 }
 
 /**
