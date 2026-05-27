@@ -41,8 +41,11 @@ export class SimClock {
     return this.heap.length;
   }
 
-  /** Run `fn` at absolute virtual time `timeMs` (must be ≥ now). */
+  /** Run `fn` at absolute virtual time `timeMs` (must be a finite time ≥ now). */
   at(timeMs: number, fn: () => void): void {
+    if (!Number.isFinite(timeMs)) {
+      throw new Error(`SimClock.at: time must be finite (got ${timeMs})`);
+    }
     if (timeMs < this.t) {
       throw new Error(`SimClock.at: cannot schedule in the past (${timeMs} < ${this.t})`);
     }
@@ -60,16 +63,20 @@ export class SimClock {
    * (a tick already in-flight for the current timestamp still runs).
    */
   every(intervalMs: number, fn: () => void): CancelHandle {
-    if (intervalMs <= 0) {
-      throw new Error(`SimClock.every: interval must be > 0 (got ${intervalMs})`);
+    if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
+      throw new Error(`SimClock.every: interval must be a finite value > 0 (got ${intervalMs})`);
     }
     let active = true;
-    const tick = () => {
-      if (!active) return;
-      fn();
-      if (active) this.at(this.t + intervalMs, tick);
+    // Schedule each tick relative to its own slot time, not `this.t`, so
+    // the cadence can't drift regardless of how the clock is advanced.
+    const schedule = (slot: number) => {
+      this.at(slot, () => {
+        if (!active) return;
+        fn();
+        if (active) schedule(slot + intervalMs);
+      });
     };
-    this.at(this.t + intervalMs, tick);
+    schedule(this.t + intervalMs);
     return () => { active = false; };
   }
 
@@ -84,6 +91,9 @@ export class SimClock {
    * events within the same window. Time never moves backward.
    */
   advanceTo(target: number): void {
+    if (!Number.isFinite(target)) {
+      throw new Error(`SimClock.advanceTo: target must be finite (got ${target})`);
+    }
     while (this.heap.length > 0 && this.heap[0].at <= target) {
       const ev = this.heapPop();
       this.t = ev.at;
@@ -122,7 +132,7 @@ export class SimClock {
     while (i > 0) {
       const parent = (i - 1) >> 1;
       if (this.less(h[i], h[parent])) {
-        [h[i], h[parent]] = [h[parent], h[i]];
+        const tmp = h[i]; h[i] = h[parent]; h[parent] = tmp;
         i = parent;
       } else break;
     }
@@ -142,7 +152,7 @@ export class SimClock {
         if (l < h.length && this.less(h[l], h[smallest])) smallest = l;
         if (r < h.length && this.less(h[r], h[smallest])) smallest = r;
         if (smallest === i) break;
-        [h[i], h[smallest]] = [h[smallest], h[i]];
+        const tmp = h[i]; h[i] = h[smallest]; h[smallest] = tmp;
         i = smallest;
       }
     }
