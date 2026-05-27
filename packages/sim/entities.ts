@@ -92,6 +92,14 @@ export interface Enemy {
    * uniformly with no type-test and no shared code default.
    */
   stats?: EntityStats;
+  /**
+   * The mob's abilities (from EnemyTemplate.skills), in priority order.
+   * The AI casts the first usable one through the same pipeline players
+   * use. `mobStrike` is the universal fallback every mob carries.
+   */
+  skills?: SkillId[];
+  /** Per-skill cooldown end timestamps (mirrors PlayerState). */
+  skillCooldownEndTs?: Record<string, number>;
   attackRange: number;
   baseExperienceValue: number;
   experienceValue: number;

@@ -21,7 +21,10 @@ import { dispelTargetSet, incomingMissChance } from './statusQueries.js';
 import { applyResolvedDamageToTarget } from './damageResolution.js';
 
 type ImpactContext = {
-  caster: PlayerState | null;
+  // The real caster — a player OR a mob. Player-only legs (lifesteal,
+  // spec passives) narrow it via asPlayerCaster; the death trigger and
+  // aggro need the real one.
+  caster: PlayerState | Enemy | null;
   skill: SkillDef;
   outbound: OutboundEventSink;
   world: CombatWorld;
@@ -52,6 +55,17 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
  * the Impact state transition; this is the per-hit path used by
  * `updateTravelingCast` while the projectile is still moving.
  */
+/** The caster of a cast is a player OR a mob; resolve either. */
+function resolveCaster(world: CombatWorld, casterId: string): PlayerState | Enemy | null {
+  return world.getPlayerById(casterId) ?? world.getEnemyById(casterId);
+}
+
+/** The caster narrowed to a player, or null if it's a mob — for the
+ *  player-only legs (skill upgrades, spec passives) of resolution. */
+function asPlayerCaster(caster: PlayerState | Enemy | null): PlayerState | null {
+  return caster && !isEnemy(caster) ? caster : null;
+}
+
 export function applyProjectileHit(
   cast: Cast,
   target: Enemy | PlayerState,
@@ -60,9 +74,10 @@ export function applyProjectileHit(
   now: number,
 ): void {
   const skill = SKILLS[cast.skillId];
-  const caster = world.getPlayerById(cast.casterId);
+  const caster = resolveCaster(world, cast.casterId);
+  const playerCaster = asPlayerCaster(caster);
   const context: ImpactContext = { caster, skill, outbound, world };
-  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
+  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id)).dmgMultiplier;
   const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world, now });
   const heal = applyCastToTarget(target, result.damage, context, result.miss, now);
   emitServerMessage(outbound, {
@@ -82,14 +97,15 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   if (skill.projectile?.pierce && cast.pierceHits && cast.pierceHits.length > 0) {
     return;
   }
-  const caster = world.getPlayerById(cast.casterId);
+  const caster = resolveCaster(world, cast.casterId);
+  const playerCaster = asPlayerCaster(caster);
   const context = { caster, skill, outbound, world };
 
-  const targets = resolveCastTargets(cast, world, skill, caster);
+  const targets = resolveCastTargets(cast, world, skill, playerCaster);
   // §45.3 — Bless's damage multiplier is folded into `caster.stats.dmgMult`
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
-  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
+  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id)).dmgMultiplier;
   const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world, now }));
 
   const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss, now));
@@ -156,11 +172,17 @@ type DamageContext = {
 
 function calculateDamage(
   skill: SkillDef,
-  caster: PlayerState | null | undefined,
+  caster: PlayerState | Enemy | null | undefined,
   upgradeDmgMult: number,
   ctx: DamageContext,
 ): { damage: number; crit: boolean; miss: boolean } {
-  if (!skill?.dmg) return { damage: 0, crit: false, miss: false };
+  // `weaponScaled` skills (mob strikes) take their base from the caster's
+  // attackPower characteristic; everything else uses the static `dmg`.
+  const base = skill.weaponScaled ? (caster?.stats?.attackPower ?? skill.dmg ?? 0) : (skill.dmg ?? 0);
+  if (base <= 0) return { damage: 0, crit: false, miss: false };
+  // Player-only multipliers (spec passives, party auras) no-op for mob
+  // casters — pass the caster on only when it's a player.
+  const playerCaster = caster && !isEnemy(caster) ? caster : null;
   const { targetId, target, world, now } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
   const casterDmgMult = baseStats.dmgMult ?? 1;
@@ -173,7 +195,7 @@ function calculateDamage(
       critChance: (baseStats.critChance ?? 0) + (off?.bonusCritChance ?? 0),
       critMult: (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0),
     },
-    skill: { base: skill.dmg, variance: 0.1 },
+    skill: { base, variance: 0.1 },
     // Deterministic per-cast variance roll: keyed on skill + target +
     // impact instant — never a random id — so the same fight replays
     // identically on a SimClock while distinct skills/targets/cast-times
@@ -186,18 +208,18 @@ function calculateDamage(
   });
   if (result.miss) return { damage: 0, crit: false, miss: true };
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target, now);
-  const casterElementMult = casterDamageElementMultiplier(skill, caster);
-  const partyAuraMult = partyDamageAuraMultFor(caster, world);
+  const casterElementMult = casterDamageElementMultiplier(skill, playerCaster);
+  const partyAuraMult = partyDamageAuraMultFor(playerCaster, world);
   // B9 — Execute scales up as the target's HP drops.
   const executeMult = executeMultiplier(off?.executeBonus, target);
   const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult * executeMult;
   // §49/M4 PR016 — combat trace. crit factored out of varianceRoll.
   if (isCombatTraceEnabled()) {
     const critMult = (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0);
-    const expanded = skill.dmg * casterDmgMult * upgradeDmgMult * (result.crit ? critMult : 1);
+    const expanded = base * casterDmgMult * upgradeDmgMult * (result.crit ? critMult : 1);
     recordCombatTrace({
       skillId: skill.id, casterId: caster?.id ?? null, targetId: targetId ?? null,
-      baseDamage: skill.dmg, varianceRoll: expanded > 0 ? result.dmg / expanded : 1,
+      baseDamage: base, varianceRoll: expanded > 0 ? result.dmg / expanded : 1,
       casterDmgMult, upgradeDmgMult, isCrit: result.crit, critMult,
       elementVulnMult, casterElementMult, partyAuraMult, final,
     });
@@ -359,6 +381,9 @@ function applyCastToTarget(
   now: number,
 ): number {
   const { caster, skill, outbound, world } = context;
+  // Lifesteal + skill-effect scaling are player-spec passives; a mob
+  // caster narrows to null so they no-op. Death + aggro use the real one.
+  const playerCaster = asPlayerCaster(caster);
   if (miss) return 0; // §52 #6 — dodged; CombatLog at call site carries miss=true.
   // Shared defensive pipeline — invuln, below-half-HP mitigation,
   // shield absorb, and the Resurrection 1-HP save all live in
@@ -374,12 +399,12 @@ function applyCastToTarget(
   // B11 per-skill lifesteal (Soul Eater): restore a fraction of the
   // post-mitigation damage as caster HP. Applied per cast hit (AoE
   // heals once per target). No over-heal from misses (incoming > 0).
-  if (caster && incoming > 0 && caster.isAlive) {
-    const pct = casterLifestealPercent(caster) + (skill.offense?.lifestealPct ?? 0);
+  if (playerCaster && incoming > 0 && playerCaster.isAlive) {
+    const pct = casterLifestealPercent(playerCaster) + (skill.offense?.lifestealPct ?? 0);
     if (pct > 0) {
       // Health is kept fractional engine-wide (heals aren't rounded either);
       // the wire/CombatLog rounds at the boundary. Keep parity with that.
-      caster.health = Math.min(caster.maxHealth, caster.health + incoming * pct);
+      playerCaster.health = Math.min(playerCaster.maxHealth, playerCaster.health + incoming * pct);
     }
   }
 
@@ -391,7 +416,7 @@ function applyCastToTarget(
     target.aiState = 'chasing';
   }
 
-  const healApplied = applySkillEffects(target, skill, caster, world, now);
+  const healApplied = applySkillEffects(target, skill, playerCaster, world, now);
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = now;
     world.onTargetDied(caster, target, now);

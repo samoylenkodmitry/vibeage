@@ -79,6 +79,10 @@ export function createEnemy(
     // skills (mobStrike et al.) deal, so a goblin and a wyrm share one
     // skill but hit for their own spec power.
     stats: { ...resolveEnemyCombat(template), attackPower: attackDamage },
+    // The mob's abilities + per-skill cooldown tracking — the AI casts
+    // these through the shared pipeline (priority order; mobStrike fallback).
+    skills: [...template.skills],
+    skillCooldownEndTs: {},
     attackRange: S.attackRange * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,
