@@ -101,6 +101,13 @@ export interface Enemy {
   aggroRadius: number;
   attackCooldownMs: number;
   lastAttackTime: number;
+  /**
+   * Last moment the generic regen system topped this mob up. Mirrors
+   * `PlayerState.lastRegenTimeMs` so the SAME regen core advances HP
+   * over real elapsed seconds for mobs and players alike. Mobs with a
+   * spec `hpRegen` of 0 (the default) simply never change.
+   */
+  lastRegenTimeMs?: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
   dirtySnap?: boolean;
