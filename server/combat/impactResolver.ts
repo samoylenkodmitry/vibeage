@@ -161,7 +161,7 @@ function calculateDamage(
   ctx: DamageContext,
 ): { damage: number; crit: boolean; miss: boolean } {
   if (!skill?.dmg) return { damage: 0, crit: false, miss: false };
-  const { castId, targetId, target, world, now } = ctx;
+  const { targetId, target, world, now } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
   const casterDmgMult = baseStats.dmgMult ?? 1;
   const off = skill.offense;
@@ -174,7 +174,12 @@ function calculateDamage(
       critMult: (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0),
     },
     skill: { base: skill.dmg, variance: 0.1 },
-    seed: `${castId || nanoid()}:${targetId || nanoid()}`,
+    // Deterministic per-cast variance roll: keyed on skill + target +
+    // impact instant — never a random id — so the same fight replays
+    // identically on a SimClock while distinct skills/targets/cast-times
+    // still diverge (variance preserved). (`castId` stays an opaque
+    // nanoid for client correlation; it must not seed behaviour.)
+    seed: `${skill.id}:${targetId ?? 'none'}:${now}`,
     // Dodge = the accuracy-vs-evasion stat differential plus any flat
     // evasion-buff dodge (Evade / Mist Step), clamped to the cap.
     targetMissChance: incomingMissChance(caster?.stats?.accuracy, target, now),

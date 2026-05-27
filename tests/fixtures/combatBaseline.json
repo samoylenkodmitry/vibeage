@@ -1,212 +1,212 @@
 {
   "warrior-1": {
-    "ttkMs": 600,
+    "ttkMs": 800.0000000000002,
     "hits": 2,
-    "ttdMs": 120000,
-    "dodges": 2
+    "ttdMs": null,
+    "dodges": 6
   },
   "warrior-5": {
-    "ttkMs": 600,
-    "hits": 2,
+    "ttkMs": 1399.9999999999995,
+    "hits": 3,
     "ttdMs": null,
     "dodges": 5
   },
   "warrior-10": {
-    "ttkMs": 1200,
+    "ttkMs": 1399.9999999999995,
     "hits": 3,
     "ttdMs": null,
-    "dodges": 13
+    "dodges": 5
   },
   "warrior-20": {
-    "ttkMs": 1200,
+    "ttkMs": 1366.6666666666663,
     "hits": 3,
     "ttdMs": null,
-    "dodges": 10
+    "dodges": 20
   },
   "warrior-40": {
-    "ttkMs": 1200,
+    "ttkMs": 1366.6666666666663,
     "hits": 3,
     "ttdMs": null,
-    "dodges": 24
+    "dodges": 30
   },
   "mage-1": {
-    "ttkMs": 0,
+    "ttkMs": 333.3333333333333,
     "hits": 1,
-    "ttdMs": 92000,
-    "dodges": 4
+    "ttdMs": 92833.33333333128,
+    "dodges": 3
   },
   "mage-5": {
-    "ttkMs": 0,
+    "ttkMs": 333.3333333333333,
     "hits": 1,
-    "ttdMs": 102000,
-    "dodges": 1
+    "ttdMs": null,
+    "dodges": 5
   },
   "mage-10": {
-    "ttkMs": 0,
+    "ttkMs": 300,
     "hits": 1,
     "ttdMs": null,
-    "dodges": 6
+    "dodges": 7
   },
   "mage-20": {
-    "ttkMs": 500,
+    "ttkMs": 833.3333333333336,
     "hits": 2,
     "ttdMs": null,
-    "dodges": 11
+    "dodges": 7
   },
   "mage-40": {
-    "ttkMs": 500,
+    "ttkMs": 800.0000000000002,
     "hits": 2,
     "ttdMs": null,
-    "dodges": 23
+    "dodges": 15
   },
   "rogue-1": {
-    "ttkMs": 0,
+    "ttkMs": 266.6666666666667,
     "hits": 1,
-    "ttdMs": 90000,
+    "ttdMs": 94866.66666666431,
     "dodges": 2
   },
   "rogue-5": {
-    "ttkMs": 0,
+    "ttkMs": 233.33333333333337,
     "hits": 1,
     "ttdMs": null,
     "dodges": 7
   },
   "rogue-10": {
-    "ttkMs": 0,
+    "ttkMs": 233.33333333333337,
     "hits": 1,
     "ttdMs": null,
-    "dodges": 9
+    "dodges": 10
   },
   "rogue-20": {
-    "ttkMs": 0,
+    "ttkMs": 233.33333333333337,
     "hits": 1,
     "ttdMs": null,
     "dodges": 10
   },
   "rogue-40": {
-    "ttkMs": 0,
+    "ttkMs": 200.00000000000003,
     "hits": 1,
     "ttdMs": null,
-    "dodges": 25
+    "dodges": 19
   },
   "ranger-1": {
-    "ttkMs": 800,
+    "ttkMs": 1133.3333333333335,
     "hits": 2,
-    "ttdMs": 94000,
-    "dodges": 3
+    "ttdMs": 94866.66666666431,
+    "dodges": 2
   },
   "ranger-5": {
-    "ttkMs": 800,
+    "ttkMs": 1733.3333333333321,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 7
+  },
+  "ranger-10": {
+    "ttkMs": 1599.999999999999,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 8
+  },
+  "ranger-20": {
+    "ttkMs": 1433.3333333333328,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 8
+  },
+  "ranger-40": {
+    "ttkMs": 1200,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 23
+  },
+  "healer-1": {
+    "ttkMs": 666.6666666666667,
+    "hits": 1,
+    "ttdMs": 94866.66666666431,
+    "dodges": 2
+  },
+  "healer-5": {
+    "ttkMs": 5699.999999999993,
     "hits": 2,
     "ttdMs": null,
     "dodges": 4
   },
-  "ranger-10": {
-    "ttkMs": 1600,
-    "hits": 3,
-    "ttdMs": null,
-    "dodges": 6
-  },
-  "ranger-20": {
-    "ttkMs": 2400,
-    "hits": 4,
-    "ttdMs": null,
-    "dodges": 13
-  },
-  "ranger-40": {
-    "ttkMs": 1600,
-    "hits": 3,
-    "ttdMs": null,
-    "dodges": 27
-  },
-  "healer-1": {
-    "ttkMs": 0,
-    "hits": 1,
-    "ttdMs": 84000,
-    "dodges": 1
-  },
-  "healer-5": {
-    "ttkMs": 5000,
-    "hits": 2,
-    "ttdMs": null,
-    "dodges": 7
-  },
   "healer-10": {
-    "ttkMs": 5000,
-    "hits": 2,
-    "ttdMs": null,
-    "dodges": 15
-  },
-  "healer-20": {
-    "ttkMs": 5000,
-    "hits": 2,
-    "ttdMs": null,
-    "dodges": 11
-  },
-  "healer-40": {
-    "ttkMs": 10000,
-    "hits": 3,
-    "ttdMs": null,
-    "dodges": 20
-  },
-  "knight-1": {
-    "ttkMs": 600,
-    "hits": 2,
-    "ttdMs": null,
-    "dodges": 6
-  },
-  "knight-5": {
-    "ttkMs": 1200,
-    "hits": 3,
-    "ttdMs": null,
-    "dodges": 6
-  },
-  "knight-10": {
-    "ttkMs": 1200,
-    "hits": 3,
-    "ttdMs": null,
-    "dodges": 5
-  },
-  "knight-20": {
-    "ttkMs": 1200,
-    "hits": 3,
-    "ttdMs": null,
-    "dodges": 13
-  },
-  "knight-40": {
-    "ttkMs": 2400,
-    "hits": 5,
-    "ttdMs": null,
-    "dodges": 27
-  },
-  "paladin-1": {
-    "ttkMs": 0,
-    "hits": 1,
-    "ttdMs": 118000,
-    "dodges": 3
-  },
-  "paladin-5": {
-    "ttkMs": 0,
-    "hits": 1,
-    "ttdMs": null,
-    "dodges": 3
-  },
-  "paladin-10": {
-    "ttkMs": 5000,
+    "ttkMs": 5666.66666666666,
     "hits": 2,
     "ttdMs": null,
     "dodges": 9
   },
-  "paladin-20": {
-    "ttkMs": 5000,
+  "healer-20": {
+    "ttkMs": 5633.333333333327,
     "hits": 2,
     "ttdMs": null,
     "dodges": 14
   },
-  "paladin-40": {
-    "ttkMs": 5000,
+  "healer-40": {
+    "ttkMs": 5566.666666666661,
     "hits": 2,
     "ttdMs": null,
-    "dodges": 25
+    "dodges": 23
+  },
+  "knight-1": {
+    "ttkMs": 800.0000000000002,
+    "hits": 2,
+    "ttdMs": null,
+    "dodges": 3
+  },
+  "knight-5": {
+    "ttkMs": 1399.9999999999995,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 5
+  },
+  "knight-10": {
+    "ttkMs": 2033.3333333333314,
+    "hits": 4,
+    "ttdMs": null,
+    "dodges": 6
+  },
+  "knight-20": {
+    "ttkMs": 1366.6666666666663,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 6
+  },
+  "knight-40": {
+    "ttkMs": 1366.6666666666663,
+    "hits": 3,
+    "ttdMs": null,
+    "dodges": 17
+  },
+  "paladin-1": {
+    "ttkMs": 666.6666666666667,
+    "hits": 1,
+    "ttdMs": null,
+    "dodges": 3
+  },
+  "paladin-5": {
+    "ttkMs": 5699.999999999993,
+    "hits": 2,
+    "ttdMs": null,
+    "dodges": 7
+  },
+  "paladin-10": {
+    "ttkMs": 5666.66666666666,
+    "hits": 2,
+    "ttdMs": null,
+    "dodges": 7
+  },
+  "paladin-20": {
+    "ttkMs": 600,
+    "hits": 1,
+    "ttdMs": null,
+    "dodges": 8
+  },
+  "paladin-40": {
+    "ttkMs": 533.3333333333333,
+    "hits": 1,
+    "ttdMs": null,
+    "dodges": 16
   }
 }

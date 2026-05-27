@@ -79,12 +79,12 @@ describe('Theurge Patron Saint — +5% party damage aura', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
 
     const eBase: OutboundEvent[] = [];
-    resolveCastImpact(fireball(teammate, target), { publish: (e) => eBase.push(e) }, worldOf([teammate], target), Date.now());
+    resolveCastImpact(fireball(teammate, target), { publish: (e) => eBase.push(e) }, worldOf([teammate], target), 1_000);
     const baseDmg = damageFromLog(eBase);
 
     target.health = target.maxHealth;
     const eAura: OutboundEvent[] = [];
-    resolveCastImpact(fireball(teammate, target), { publish: (e) => eAura.push(e) }, worldOf([teammate, theurge], target), Date.now());
+    resolveCastImpact(fireball(teammate, target), { publish: (e) => eAura.push(e) }, worldOf([teammate, theurge], target), 1_000);
     const auraDmg = damageFromLog(eAura);
 
     expect(baseDmg).toBeGreaterThan(0);
@@ -97,10 +97,10 @@ describe('Theurge Patron Saint — +5% party damage aura', () => {
     const target = createEnemy('goblin', 1, { x: 5, y: 0, z: 0 }, Date.now());
 
     const e: OutboundEvent[] = [];
-    resolveCastImpact(fireball(teammate, target), { publish: (e0) => e.push(e0) }, worldOf([teammate, farTheurge], target), Date.now());
+    resolveCastImpact(fireball(teammate, target), { publish: (e0) => e.push(e0) }, worldOf([teammate, farTheurge], target), 1_000);
     target.health = target.maxHealth;
     const eBase: OutboundEvent[] = [];
-    resolveCastImpact(fireball(teammate, target), { publish: (e0) => eBase.push(e0) }, worldOf([teammate], target), Date.now());
+    resolveCastImpact(fireball(teammate, target), { publish: (e0) => eBase.push(e0) }, worldOf([teammate], target), 1_000);
 
     expect(damageFromLog(e)).toBe(damageFromLog(eBase));
   });

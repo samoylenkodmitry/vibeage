@@ -1,41 +1,48 @@
 /**
  * Combat-balance harness — plays out real 1v1 fights on a virtual
- * clock (SimClock) so time-to-kill / time-to-die can be measured in
- * microseconds, deterministically, without a GPU client or wall-clock
- * waiting. There is no parallel combat *model* here: it imports and
- * runs the engine's OWN functions — getDamage, applyResolvedDamageToTarget,
- * applyEnemyAttack, applyResourceRegen, the stat pipeline — so the numbers
- * reflect exactly what ships. Only the *driver* is harness-specific (it
- * schedules those real functions on a SimClock rather than going through
- * the message router / AI state machine).
+ * clock (SimClock) so time-to-kill / time-to-die can be measured
+ * deterministically, without a GPU client or wall-clock waiting.
  *
- * Simplifications (documented so the read is honest): the sim player
- * has no equipment (offense = class passives + attribute scaling +
- * the chosen skill's base), casts a single skill on cooldown gated by
- * mana, and the damage roll covers variance + crit + dmgMult +
- * defense mitigation but not element / execute / party-aura bonuses.
- * It's a baseline floor, not a geared-endgame model. (Driving the FULL
- * cast/AI pipeline — cast-time, projectile travel, aggro-chase — would
- * re-baseline the TTK/TTD numbers; deferred as a deliberate, balance-
- * affecting step rather than folded into the engine rewrite.)
+ * It drives the engine's OWN systems, sim-timed: a player's offence runs
+ * through the real cast pipeline (handleCastReq → tickCasts → projectile
+ * travel → resolveCastImpact), and a mob's offence runs through the real
+ * AI state machine (updateEnemyAI → applyEnemyAttack). Regen is the
+ * shared maintenance system. There is no parallel combat model — the
+ * numbers are exactly what the live tick produces over the same span,
+ * so cast-time, cooldowns, projectile travel, and aggro/attack cadence
+ * all count.
+ *
+ * Scope (so the read is honest): a gear-less sim player (offence = class
+ * passives + attribute scaling + the chosen skill), casting its main
+ * attack on cooldown against a stationary same-level goblin (timeToKill),
+ * or standing in a same-level goblin's reach while it attacks (timeToDie).
+ * A baseline floor, not a geared-endgame model.
  */
 import type { CharacterClass } from '../../packages/content/classes.js';
-import { SKILLS, type SkillId } from '../../packages/content/skills.js';
-import { starterSkillsFor } from '../players/playerProgression.js';
-import { getDamage } from '../../packages/sim/combatMath.js';
-import { applyResourceRegen } from '../../packages/sim/regen.js';
+import type { SkillId } from '../../packages/content/skills.js';
+import type { CastReq } from '../../packages/protocol/messages.js';
 import { SimClock } from '../../packages/sim/simClock.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { createEnemy } from '../enemies/enemyLifecycle.js';
 import { createTransientPlayer } from '../playerFactory.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
-import { applyResolvedDamageToTarget } from '../combat/damageResolution.js';
-import { incomingMissChance } from '../combat/statusQueries.js';
-import { applyEnemyAttack } from '../ai/enemyBehavior.js';
+import { starterSkillsFor } from '../players/playerProgression.js';
+import { handleCastReq } from '../combat/castHandler.js';
+import { tickCasts } from '../combat/skillSystem.js';
+import { updateEnemyAI } from '../ai/enemyAI.js';
+import { handleResourceRegeneration } from '../players/playerLifecycle.js';
+import { createGameState, type GameState } from '../gameState.js';
+import { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
+import { createWorldCombatBridge } from '../world/router/castHandlers.js';
+import type { DirectMessageSink, OutboundEvent, OutboundEventSink } from '../transport/outboundEvents.js';
 
 const ORIGIN = { x: 0, y: 0, z: 0 };
 /** A fight that runs past this (virtual) is reported as "no kill". */
 const DEFAULT_TIMEOUT_MS = 120_000;
+/** Tick cadence — matches the live server loop (30 Hz). */
+const TICK_MS = 1000 / 30;
+/** Combatant separation: within every main-attack's range (min is backstab @3). */
+const ENGAGE_DISTANCE = 1.5;
 
 /** Build a gear-less player of `className` at `level` with full HP/MP. */
 export function makeSimPlayer(className: CharacterClass, level: number): PlayerState {
@@ -68,17 +75,47 @@ export function mainAttackFor(className: CharacterClass): SkillId {
   return MAIN_ATTACK[className] ?? 'basicAttack';
 }
 
+type Arena = {
+  state: GameState;
+  spatial: SpatialHashGrid;
+  events: OutboundEvent[];
+  outbound: OutboundEventSink;
+  clock: SimClock;
+};
+
+/**
+ * A bare world holding just the two combatants. The drivers below call
+ * the real engine systems against it on the SimClock — no zone/region
+ * machinery, since a 1v1 measure doesn't need it.
+ */
+function makeArena(player: PlayerState, enemy: Enemy): Arena {
+  const state = createGameState();
+  const spatial = new SpatialHashGrid();
+  const events: OutboundEvent[] = [];
+  const outbound: OutboundEventSink = { publish: (event) => events.push(event) };
+
+  player.position = { x: 0, y: 0.5, z: 0 };
+  enemy.position = { x: ENGAGE_DISTANCE, y: 0.5, z: 0 };
+  state.players[player.id] = player;
+  state.enemies[enemy.id] = enemy;
+  spatial.insert(player.id, { x: player.position.x, z: player.position.z });
+  spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
+
+  return { state, spatial, events, outbound, clock: new SimClock() };
+}
+
 export type KillResult = {
   /** ms of virtual time to bring the target to 0 HP, or null if it survived the timeout. */
   ttkMs: number | null;
-  /** Number of skill casts that landed (non-miss, mana-affordable). */
+  /** Number of casts that landed damage on the enemy. */
   hits: number;
 };
 
 /**
- * Player repeatedly casts `skillId` at the enemy on its cooldown
- * (mana-gated, MP regen between casts) until the enemy dies or the
- * timeout elapses. Returns time-to-kill.
+ * Player repeatedly casts `skillId` at a stationary enemy via the REAL
+ * cast pipeline (cooldown / mana / range all enforced by handleCastReq;
+ * cast-time + projectile travel resolved by tickCasts). MP regenerates
+ * between casts through the shared maintenance system.
  */
 export function timeToKill(
   player: PlayerState,
@@ -86,88 +123,57 @@ export function timeToKill(
   skillId: SkillId,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): KillResult {
-  const skill = SKILLS[skillId];
-  const clock = new SimClock();
-  const cooldown = Math.max(1, skill.cooldownMs || 500);
-  const baseDmg = skill.dmg ?? 0;
+  if (!player.unlockedSkills.includes(skillId)) {
+    player.unlockedSkills = [...player.unlockedSkills, skillId];
+  }
+  const { state, spatial, outbound, clock } = makeArena(player, enemy);
+  const world = createWorldCombatBridge(state, outbound, spatial);
+  const socket = { id: player.socketId };
+  // Cast-rejected / -fail direct messages are irrelevant to the measure.
+  const direct: DirectMessageSink = { send: () => undefined };
+  const castReq = (now: number): CastReq =>
+    ({ type: 'CastReq', id: player.id, skillId, targetId: enemy.id, clientTs: now } as CastReq);
+
   let hits = 0;
-  let ttk: number | null = null;
-  let castSeq = 0;
-
-  const doCast = () => {
-    if (ttk !== null || !enemy.isAlive) return;
-    if (player.mana < (skill.manaCost ?? 0)) return; // skip this swing; MP regen fills back
-    player.mana -= skill.manaCost ?? 0;
-    const seed = `ttk:${player.id}:${enemy.id}:${castSeq++}`;
-    const roll = getDamage({
-      caster: player.stats ?? {}, skill: { base: baseDmg, variance: 0.1 }, seed,
-      targetMissChance: incomingMissChance(player.stats?.accuracy, enemy, clock.now()),
-    });
-    if (roll.miss) return;
-    hits += 1;
-    applyResolvedDamageToTarget(enemy, roll.dmg, clock.now(), { kind: skill.kind === 'magical' ? 'magical' : 'physical' });
-    if (enemy.health <= 0) { enemy.isAlive = false; ttk = clock.now(); }
-  };
-
-  doCast(); // first swing lands immediately (t=0), not a cooldown late
-  clock.every(cooldown, doCast);
-  clock.every(1000, () => regenMana(player));
-
-  stepUntil(clock, () => ttk !== null, timeoutMs);
-  return { ttkMs: ttk, hits };
+  while (enemy.isAlive && enemy.health > 0 && clock.now() < timeoutMs) {
+    // Issue a fresh cast only while idle; the real rules (cooldown,
+    // mana, range) decide whether it's accepted.
+    if (!player.castingSkill) {
+      handleCastReq(socket, player, castReq(clock.now()), { direct, outbound }, world, state.activeCasts, clock.now());
+    }
+    const before = enemy.health;
+    clock.advanceBy(TICK_MS);
+    tickCasts(state.activeCasts, TICK_MS, outbound, world, clock.now());
+    handleResourceRegeneration(state, outbound, clock.now());
+    if (enemy.health < before) hits += 1;
+  }
+  return { ttkMs: enemy.health <= 0 ? clock.now() : null, hits };
 }
 
 export type SurviveResult = {
   /** ms of virtual time until the player dies, or null if it out-regened (unkillable). */
   ttdMs: number | null;
-  /** Dodges the player got from the incoming swings. */
+  /** Number of incoming swings the player dodged. */
   dodges: number;
 };
 
 /**
- * The enemy attacks the player (real `applyEnemyAttack` — shield,
- * mitigation, dodge, P.Def all apply) while the player only regens.
- * Returns time-to-die, or null if the player out-regens the mob.
+ * The enemy attacks the player through the REAL AI state machine
+ * (aggro → chase → attack → applyEnemyAttack: shield, mitigation, dodge,
+ * P.Def all apply) while the player only regenerates. Returns
+ * time-to-die, or null if the player out-regens the mob.
  */
 export function timeToDie(player: PlayerState, enemy: Enemy, timeoutMs = DEFAULT_TIMEOUT_MS): SurviveResult {
-  const clock = new SimClock();
-  // Let the first swing land at t=0 (applyEnemyAttack gates on
-  // now − lastAttackTime ≥ cooldown).
-  enemy.lastAttackTime = -enemy.attackCooldownMs;
-  let ttd: number | null = null;
-  let dodges = 0;
+  const { state, spatial, outbound, clock, events } = makeArena(player, enemy);
 
-  const doAttack = () => {
-    if (ttd !== null || !player.isAlive) return;
-    const res = applyEnemyAttack(enemy, player, clock.now());
-    if (res?.miss) dodges += 1;
-    if (player.health <= 0) { player.isAlive = false; ttd = clock.now(); }
-  };
-
-  doAttack(); // first swing at t=0
-  clock.every(Math.max(1, enemy.attackCooldownMs), doAttack);
-  clock.every(1000, () => regenHealth(player));
-
-  stepUntil(clock, () => ttd !== null, timeoutMs);
-  return { ttdMs: ttd, dodges };
-}
-
-// Both regen ticks route through the engine's generic regen core (one
-// simulated second per call), so the harness measures the SAME math the
-// live maintenance phase runs — no parallel regen formula.
-function regenMana(player: PlayerState): void {
-  applyResourceRegen(player, 0, player.stats?.mpRegen ?? 0, 1);
-}
-
-function regenHealth(player: PlayerState): void {
-  if (player.health <= 0) return; // a downed player doesn't heal back mid-fight
-  applyResourceRegen(player, player.stats?.hpRegen ?? 0, 0, 1);
-}
-
-/** Advance the clock in 100ms slices until `done()` or the timeout. */
-function stepUntil(clock: SimClock, done: () => boolean, timeoutMs: number): void {
-  const step = 100;
-  while (!done() && clock.now() < timeoutMs) {
-    clock.advanceBy(step);
+  while (player.isAlive && player.health > 0 && clock.now() < timeoutMs) {
+    clock.advanceBy(TICK_MS);
+    updateEnemyAI(enemy, state, outbound, spatial, TICK_MS / 1000, clock.now());
+    handleResourceRegeneration(state, outbound, clock.now());
   }
+
+  const dodges = events.filter(
+    (e) => e.type === 'serverMessage' && e.message.type === 'EnemyAttack' && e.message.damage === 0,
+  ).length;
+  return { ttdMs: player.health <= 0 ? clock.now() : null, dodges };
 }
