@@ -152,7 +152,7 @@ export function spawnInitialEnemies(
       const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
       const worldBudgetRemaining = maxEnemies - spawned;
       const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
-      const result = spawnMobBatch(state, spatial, zoneManager, zoneId, mobConfig, spawnCount, now);
+      const result = spawnMobBatch({ state, spatial, zoneManager }, zoneId, mobConfig, spawnCount, now);
       spawned += result;
       spawnedInZone += result;
 
@@ -190,14 +190,13 @@ function createMiniBoss(
 const DEFAULT_MOB_SPAWN_RADIUS = 8;
 
 function spawnMobBatch(
-  state: GameState,
-  spatial: SpatialHashGrid,
-  zoneManager: ZoneManager,
+  world: { state: GameState; spatial: SpatialHashGrid; zoneManager: ZoneManager },
   zoneId: string,
   mobConfig: MobSpawnConfig,
   spawnCount: number,
   now: number,
 ): number {
+  const { state, spatial, zoneManager } = world;
   let spawned = 0;
   const packSize = mobConfig.packSize ?? 1;
   // Deterministic spawn-jitter stream, seeded per (zone, type, tick) so

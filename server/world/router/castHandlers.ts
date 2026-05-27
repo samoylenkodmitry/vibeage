@@ -59,7 +59,6 @@ export function onCastReq(
     msg,
     { direct, outbound },
     createWorldCombatBridge(state, outbound, spatial),
-    state.activeCasts,
-    Date.now(),
+    { activeCasts: state.activeCasts, now: Date.now() },
   );
 }

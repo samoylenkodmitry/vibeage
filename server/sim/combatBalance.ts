@@ -139,7 +139,7 @@ export function timeToKill(
     // Issue a fresh cast only while idle; the real rules (cooldown,
     // mana, range) decide whether it's accepted.
     if (!player.castingSkill) {
-      handleCastReq(socket, player, castReq(clock.now()), { direct, outbound }, world, state.activeCasts, clock.now());
+      handleCastReq(socket, player, castReq(clock.now()), { direct, outbound }, world, { activeCasts: state.activeCasts, now: clock.now() });
     }
     const before = enemy.health;
     clock.advanceBy(TICK_MS);
