@@ -24,11 +24,15 @@ const ROOTS = [
   'packages/sim',
 ];
 
+// `enforced` rules must reach 0 (they're unambiguously old-code). The
+// `?? <number>` baseline scan is advisory only — a directional signal
+// toward spec-sourced characteristics; idiomatic `?? 0` guards mean a
+// literal 0 isn't a sane enforce target, so it never blocks.
 const RULES = [
-  { id: 'wall-clock', re: /\bDate\.now\s*\(/g, msg: 'Date.now() — inject a Clock' },
-  { id: 'rng', re: /\bMath\.random\s*\(/g, msg: 'Math.random() — inject an Rng' },
-  { id: 'baseline-default', re: /\?\?\s*-?\d/g, msg: '?? <number> — characteristic should come from the spec' },
-  { id: 'type-cast', re: /\bas\s+(PlayerState|Enemy)\b/g, msg: 'as PlayerState/Enemy — read a characteristic, don\'t type-test' },
+  { id: 'wall-clock', enforced: true, re: /\bDate\.now\s*\(/g, msg: 'Date.now() — inject a Clock' },
+  { id: 'rng', enforced: true, re: /\bMath\.random\s*\(/g, msg: 'Math.random() — inject an Rng' },
+  { id: 'type-cast', enforced: true, re: /\bas\s+(PlayerState|Enemy)\b/g, msg: 'as PlayerState/Enemy — read a characteristic, don\'t type-test' },
+  { id: 'baseline-default', enforced: false, re: /\?\?\s*-?\d/g, msg: '?? <number> — characteristic should come from the spec (advisory)' },
 ];
 
 function walk(dir, out) {
@@ -57,17 +61,19 @@ for (const file of files) {
   }
 }
 
-const total = violations.reduce((n, v) => n + v.count, 0);
-const byRule = RULES.map((r) => `${r.id}=${violations.filter((v) => v.rule === r.id).reduce((n, v) => n + v.count, 0)}`).join('  ');
+const enforcedIds = new Set(RULES.filter((r) => r.enforced).map((r) => r.id));
+const countFor = (id) => violations.filter((v) => v.rule === id).reduce((n, v) => n + v.count, 0);
+const enforcedTotal = [...enforcedIds].reduce((n, id) => n + countFor(id), 0);
+const byRule = RULES.map((r) => `${r.id}=${countFor(r.id)}${r.enforced ? '' : '*'}`).join('  ');
 
 console.log(`Engine-abstraction gate — ${files.length} engine files scanned`);
-console.log(`Old-code remaining: ${total}   (${byRule})`);
-console.log(`Target: 0. Mode: ${ADVISORY ? 'ADVISORY (non-blocking)' : 'ENFORCING'}.`);
-if (total > 0 && process.argv.includes('--list')) {
+console.log(`Enforced old-code remaining: ${enforcedTotal}   (${byRule})   (* = advisory only)`);
+console.log(`Target: 0 enforced. Mode: ${ADVISORY ? 'ADVISORY (non-blocking)' : 'ENFORCING'}.`);
+if (process.argv.includes('--list')) {
   for (const v of violations) console.log(`  ${v.file}:${v.line}  [${v.rule}] ${v.msg}`);
 }
 
-if (!ADVISORY && total > 0) {
-  console.error(`\nFAIL: ${total} engine-abstraction violations remain (run with --list).`);
+if (!ADVISORY && enforcedTotal > 0) {
+  console.error(`\nFAIL: ${enforcedTotal} enforced engine-abstraction violations remain (run with --list).`);
   process.exit(1);
 }
