@@ -175,6 +175,8 @@ export interface SkillDef {
   blink?: BlinkSpec;
   /** Registered custom resolver (CUSTOM_SKILL_BEHAVIORS) when data can't express it. */
   customBehavior?: string;
+  /** Flat multiplier on the damage base (e.g. a boss signature hitting 2.4×). */
+  damageMult?: number;
 }
 
 /**

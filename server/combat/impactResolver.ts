@@ -192,7 +192,8 @@ function calculateDamage(
 ): { damage: number; crit: boolean; miss: boolean } {
   // `weaponScaled` skills (mob strikes) take their base from the caster's
   // attackPower characteristic; everything else uses the static `dmg`.
-  const base = skill.weaponScaled ? (caster?.stats?.attackPower ?? skill.dmg ?? 0) : (skill.dmg ?? 0);
+  const rawBase = skill.weaponScaled ? (caster?.stats?.attackPower ?? skill.dmg ?? 0) : (skill.dmg ?? 0);
+  const base = rawBase * (skill.damageMult ?? 1);
   if (base <= 0) return { damage: 0, crit: false, miss: false };
   // Player-only multipliers (spec passives, party auras) no-op for mob
   // casters — pass the caster on only when it's a player.
