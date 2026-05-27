@@ -61,7 +61,7 @@ describe('SimClock', () => {
   it('does not move time backward and refuses past scheduling', () => {
     const clock = new SimClock();
     clock.advanceTo(500);
-    expect(() => clock.at(400, () => {})).toThrow(/past/);
+    expect(() => clock.at(400, () => undefined)).toThrow(/past/);
     clock.advanceTo(300); // earlier target is a no-op for `now`
     expect(clock.now()).toBe(500);
   });
@@ -82,6 +82,6 @@ describe('SimClock', () => {
 
   it('every() rejects a non-positive interval', () => {
     const clock = new SimClock();
-    expect(() => clock.every(0, () => {})).toThrow();
+    expect(() => clock.every(0, () => undefined)).toThrow();
   });
 });
