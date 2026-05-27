@@ -1,4 +1,4 @@
-import { SKILLS, SkillId } from '../../packages/content/skills.js';
+import { SKILLS, type SkillDef, SkillId } from '../../packages/content/skills.js';
 import { CastState as CastStateEnum, VecXZ } from '../../packages/protocol/messages.js';
 import { effectiveCastMs } from '../../packages/sim/combatMath.js';
 import { nanoid } from 'nanoid';
@@ -8,6 +8,7 @@ import { resolveCastImpact } from './impactResolver.js';
 import { updateTravelingCast } from './projectileRuntime.js';
 import {
   emitPlayerUpdated,
+  emitServerMessage,
   type DirectMessageSink,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
@@ -189,13 +190,50 @@ export function castMobSkill(
     const projectileFailure = configureProjectileCast(cast, undefined, target.id, skill.projectile.speed, world);
     if (projectileFailure) return false;
   }
+  lockTelegraph(cast, skill, enemy.position, target.position);
 
   activeCasts[cast.castId] = cast;
   emitCastSnapshot(outbound, cast);
+  emitCastTelegraph(outbound, cast, skill, enemy.name, now);
 
   if (!enemy.skillCooldownEndTs) enemy.skillCooldownEndTs = {};
   enemy.skillCooldownEndTs[skillId] = now + (skill.cooldownMs || 0);
   return true;
+}
+
+/**
+ * Telegraphed delivery (docs/ABILITY_SYSTEM.md): lock the AOE origin (and
+ * cone direction) at cast START and make the cast bar the wind-up, so the
+ * shape resolves where the telegraph was drawn even if the caster moves.
+ */
+function lockTelegraph(cast: Cast, skill: SkillDef, casterPos: VecXZ, targetPos: VecXZ): void {
+  if (!skill.telegraph) return;
+  cast.castTimeMs = skill.telegraph.windUpMs;
+  cast.shapeOrigin = { x: casterPos.x, z: casterPos.z };
+  if (skill.shape?.kind === 'cone') {
+    cast.shapeDirRad = Math.atan2(targetPos.z - casterPos.z, targetPos.x - casterPos.x);
+  }
+}
+
+/** Emit the ground-telegraph warning for a telegraphed shaped cast. */
+function emitCastTelegraph(outbound: OutboundEventSink, cast: Cast, skill: SkillDef, casterName: string, now: number): void {
+  const shape = skill.shape;
+  if (!skill.telegraph || !shape || shape.kind === 'single') return;
+  const o = cast.shapeOrigin ?? cast.pos ?? cast.origin;
+  emitServerMessage(outbound, {
+    type: 'BossTelegraph',
+    enemyId: cast.casterId,
+    bossName: casterName,
+    abilityName: skill.name,
+    x: o.x,
+    z: o.z,
+    radius: shape.kind === 'circle' ? shape.radius : shape.kind === 'donut' ? shape.outerRadius : shape.length,
+    innerRadius: shape.kind === 'donut' ? shape.innerRadius : 0,
+    directionRad: shape.kind === 'cone' ? cast.shapeDirRad : undefined,
+    halfAngleDeg: shape.kind === 'cone' ? shape.halfAngleDeg : undefined,
+    windUpMs: skill.telegraph.windUpMs,
+    impactAt: now + skill.telegraph.windUpMs,
+  });
 }
 
 function configureProjectileCast(

@@ -20,6 +20,7 @@ _None._
 
 Declared in `SKILLS` but not in any class skill tree, spec/proficiency skill list, or `UNIVERSAL_SKILLS`.
 
+- [ ] `mobBreath` — Fire Breath
 - [ ] `mobFirebolt` — Fire Bolt
 - [ ] `mobFrostbolt` — Frost Bolt
 - [ ] `mobPoisonBite` — Venomous Bite

@@ -26,7 +26,7 @@ export const SKILL_IDS = [
   'passive_armor_training', 'passive_iron_grip', 'passive_holy_aegis',
   'passive_radiant_focus', 'passive_shadow_grace', 'passive_lethal_focus',
   // Mob abilities (mobSkills.ts) — owned by enemy templates, never learnable.
-  'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt',
+  'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt', 'mobBreath',
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
