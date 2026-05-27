@@ -73,3 +73,14 @@ The branch may not merge until ALL pass:
 - **B3 — Generic systems** (Damage, Regen, Cadence, DoT, StatusEffect, AI, Movement, Loot, Spawn) as `(world, clock, rng) => events` keyed on characteristics, not types. One attack-resolution path.
 - **B4 — Two drivers, one engine.** Live colyseus room + world simulator both call the same systems; the parallel `combatBalance.ts` model is deleted.
 - **B5 — Delete + verify.** Remove all old paths; flip the gate to enforcing; parity + gates green → land.
+
+## 6. Status (2026-05-27)
+
+Branch `feat/engine-abstraction`. Full suite (1815+) + lint + golden parity (`tests/combatBaseline.spec.ts`) green; gate **ENFORCING at 0**.
+
+- **B0 ✅** Golden parity baseline + static gate, wired into `pnpm run check` + CI.
+- **B1 ✅** One `EntityStats` block on players + mobs. The combat systems read `entity.stats.{accuracy,evasion,pDef,mDef,hpRegen,…}` uniformly — no type-test, no shared default. The mob's auto-attack damage/interval/speed/aggro stay as per-entity Enemy fields (spec-derived via `ENEMY_BASE_SCALING × template multipliers`); they have no player counterpart in the shared read path, so relocating them into `stats` is cosmetic and was intentionally **not** done (it would trade clean required fields for fallback-laden optional access — the very `?? <n>` smell the gate flags — and risk boss enrage/phase mutation). Routing mobs through `computeAllStats` is also not behavior-preserving (player-only clamps like `hpRegen → max(1,n)`), so left out of the parity-preserving rewrite.
+- **B2 ✅** Clock + RNG fully injected. `Date.now()`/`Math.random()` (incl. bare-reference fallbacks) gone from every scanned engine root; gate rule tightened to catch references.
+- **B3 ✅ (core)** Regen is a generic system (`packages/sim/regen.ts`) over every entity's `hpRegen`/`mpRegen`. Damage resolution is **one** path — `applyResolvedDamageToTarget` + `getDamage` — used by player casts, enemy melee, and boss signatures alike. (Attack *initiation* differs by design: skills have cast-time + cooldown, mobs auto-attack on an interval — distinct mechanics, not duplicated code.)
+- **B4 ✅ (foundation)** `server/sim/simWorld.ts` advances the real `createWorldTickRunner` on a `SimClock` — provably deterministic, including full seeded zone spawn. `combatBalance.ts` is a measurement harness over the engine's own functions (no parallel combat *model*); regen routes through the shared core. **Deferred:** driving the harness through the FULL cast/AI pipeline (cast-time, projectiles, aggro-chase) would re-baseline TTK/TTD — a deliberate balance-affecting step, not folded into the behavior-preserving rewrite.
+- **B5 ✅ (production engine)** No old/parallel combat implementation remains in the runtime; gate enforcing at 0; ready to squash-merge. The one explicitly-deferred item (harness full-pipeline migration + balance re-baseline) is balance-affecting and awaits an explicit go-ahead.

@@ -2,16 +2,22 @@
  * Combat-balance harness — plays out real 1v1 fights on a virtual
  * clock (SimClock) so time-to-kill / time-to-die can be measured in
  * microseconds, deterministically, without a GPU client or wall-clock
- * waiting. It drives the *real* combat functions (getDamage,
- * applyResolvedDamageToTarget, applyEnemyAttack, the stat pipeline) so
- * the numbers reflect what actually ships.
+ * waiting. There is no parallel combat *model* here: it imports and
+ * runs the engine's OWN functions — getDamage, applyResolvedDamageToTarget,
+ * applyEnemyAttack, applyResourceRegen, the stat pipeline — so the numbers
+ * reflect exactly what ships. Only the *driver* is harness-specific (it
+ * schedules those real functions on a SimClock rather than going through
+ * the message router / AI state machine).
  *
  * Simplifications (documented so the read is honest): the sim player
  * has no equipment (offense = class passives + attribute scaling +
  * the chosen skill's base), casts a single skill on cooldown gated by
  * mana, and the damage roll covers variance + crit + dmgMult +
  * defense mitigation but not element / execute / party-aura bonuses.
- * It's a baseline floor, not a geared-endgame model.
+ * It's a baseline floor, not a geared-endgame model. (Driving the FULL
+ * cast/AI pipeline — cast-time, projectile travel, aggro-chase — would
+ * re-baseline the TTK/TTD numbers; deferred as a deliberate, balance-
+ * affecting step rather than folded into the engine rewrite.)
  */
 import type { CharacterClass } from '../../packages/content/classes.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
