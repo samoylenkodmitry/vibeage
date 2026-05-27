@@ -94,7 +94,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   // Custom-behavior escape hatch (docs/ABILITY_SYSTEM.md §2b): a registered
   // bespoke resolver owns the whole impact; declarative resolution is skipped.
   if (skill.customBehavior) {
-    CUSTOM_SKILL_BEHAVIORS[skill.customBehavior]?.(cast, world, now);
+    CUSTOM_SKILL_BEHAVIORS[skill.customBehavior]?.(cast, world, now, outbound);
     return;
   }
   // §45.5 — for piercing projectiles, damage was applied per-hit

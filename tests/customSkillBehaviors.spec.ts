@@ -53,5 +53,9 @@ describe('custom skill behaviors', () => {
 
     expect(mate.targetId).toBe(target.id);
     expect(mate.aiState).toBe('chasing');
+    // The rally happens outside the AI tick, so it must broadcast the
+    // packmate's new state itself.
+    const update = events.find((e) => e.type === 'enemyUpdated' && (e as { update?: { id?: string } }).update?.id === mate.id);
+    expect(update, 'rallied packmate state is broadcast immediately').toBeDefined();
   });
 });

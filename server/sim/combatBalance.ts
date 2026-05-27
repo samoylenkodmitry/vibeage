@@ -74,7 +74,7 @@ export function makeSimEnemy(type: string, level: number): Enemy {
  */
 export function makeSimMiniBoss(bossId: string, level: number): Enemy {
   const spec = MINI_BOSSES[bossId];
-  return createEnemy(spec.mobType, level, { ...ORIGIN }, 0, {
+  return createEnemy(spec.mobType, level, { ...ORIGIN }, 0 /* spawnTimestampMs, not an id */, {
     isMiniBoss: true, bossId, healthMultiplier: 3, damageMultiplier: 1.5,
   });
 }
