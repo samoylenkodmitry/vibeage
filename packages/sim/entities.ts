@@ -37,6 +37,12 @@ export interface EntityStats {
   healMult?: number;
   pAtk?: number;
   mAtk?: number;
+  /**
+   * Weapon/strike power — the damage base for `weaponScaled` skills (a
+   * mob's basic attack and signature strikes). Set from the entity's
+   * spec; absent on entities that fight only with static-base skills.
+   */
+  attackPower?: number;
   pDef?: number;
   mDef?: number;
   hpRegen?: number;

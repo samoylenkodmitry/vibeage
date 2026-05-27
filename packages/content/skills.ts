@@ -25,6 +25,11 @@ export const SKILL_IDS = [
   'passive_warding', 'passive_keen_eye', 'passive_swift_step',
   'passive_armor_training', 'passive_iron_grip', 'passive_holy_aegis',
   'passive_radiant_focus', 'passive_shadow_grace', 'passive_lethal_focus',
+  // Mob abilities — owned by enemy templates (EnemyTemplate.skills), never
+  // by a class/tree, so players can't learn them. Cast through the SAME
+  // pipeline players use. `mobStrike` is the universal weapon-scaled basic
+  // attack; the rest give some species a signature.
+  'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt',
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
@@ -140,6 +145,14 @@ export interface SkillDef {
   castMs: number;       // Time to cast in milliseconds
   cooldownMs: number;   // Cooldown time in milliseconds
   dmg?: number;
+  /**
+   * When true, the damage base is the caster's `stats.attackPower`
+   * characteristic instead of the static `dmg` — a weapon/strike that
+   * scales with the wielder's power. Mob basic attacks use this so a
+   * goblin and a wyrm share one skill but hit for their own spec power;
+   * `dmg` is still the fallback when the caster has no attackPower.
+   */
+  weaponScaled?: boolean;
   range?: number;       // Maximum range from caster
   speed?: number;       // tiles/sec
   area?: number;        // tile radius
@@ -683,6 +696,48 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
 };
 
 /**
+ * Mob abilities. Owned only by enemy templates (EnemyTemplate.skills) —
+ * never in a class/tree, so players can't learn them — but cast through
+ * the SAME pipeline players use. All weapon-scaled, so a mob's output
+ * stays its spec'd `attackPower`; the skill adds element / effects /
+ * cadence for flavour. `mobStrike` is the universal basic attack.
+ */
+const MOB_SKILLS: Record<string, SkillDef> = {
+  mobStrike: {
+    id: 'mobStrike', name: 'Strike', description: 'A basic melee strike scaled by the attacker\'s power.',
+    icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'physical',
+    manaCost: 0, castMs: 0, cooldownMs: 0, weaponScaled: true,
+    range: 2, levelRequired: 1, requiresTarget: true, autoRepeat: true, isBlocking: false,
+    // Damage comes from `weaponScaled` (caster.attackPower); the effect
+    // row marks it a damage skill (value is illustrative, not the source).
+    effects: [{ type: 'damage', value: 1 }],
+  },
+  mobPoisonBite: {
+    id: 'mobPoisonBite', name: 'Venomous Bite', description: 'A bite that leaves the target poisoned.',
+    icon: '/game/skills/skill_stealth.svg', cat: 'instant', kind: 'physical', damageElement: 'poison',
+    manaCost: 0, castMs: 0, cooldownMs: 6000, weaponScaled: true, isBlocking: false,
+    range: 2, levelRequired: 1, requiresTarget: true,
+    effects: [{ type: 'damage', value: 1 }, { type: 'poison', value: 4, durationMs: 8000 }],
+  },
+  mobFirebolt: {
+    id: 'mobFirebolt', name: 'Fire Bolt', description: 'Hurls a bolt of fire that burns on impact.',
+    icon: '/game/skills/skill_fireball.png', cat: 'projectile', kind: 'magical', damageElement: 'fire',
+    manaCost: 0, castMs: 600, cooldownMs: 4000, weaponScaled: true, isBlocking: true,
+    range: 14, speed: 16, levelRequired: 1, requiresTarget: true,
+    effects: [{ type: 'damage', value: 1 }, { type: 'burn', value: 1, durationMs: 4000 }],
+    projectile: { speed: 16, hitRadius: 1.0 },
+  },
+  mobFrostbolt: {
+    id: 'mobFrostbolt', name: 'Frost Bolt', description: 'Hurls a shard of ice that slows the target.',
+    icon: '/game/skills/skill_icebolt.png', cat: 'projectile', kind: 'magical', damageElement: 'ice',
+    manaCost: 0, castMs: 600, cooldownMs: 4000, weaponScaled: true, isBlocking: true,
+    range: 14, speed: 16, levelRequired: 1, requiresTarget: true,
+    effects: [{ type: 'damage', value: 1 }, { type: 'slow', value: 30, durationMs: 3000 }],
+    projectile: { speed: 16, hitRadius: 1.0 },
+  },
+};
+
+/**
  * Final SKILLS catalog: base skills merged with spec / proficiency
  * skills. The merge is content-only — adding a new skill just means
  * a new entry in BASE_SKILLS or specSkillsData.ts.
@@ -694,5 +749,5 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
  */
 import { PASSIVE_SKILLS } from './classPassives.js';
 
-export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS } as unknown as Record<SkillId, SkillDef>;
+export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS } as unknown as Record<SkillId, SkillDef>;
 export { isPassiveSkill } from './classPassives.js';

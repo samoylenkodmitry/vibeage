@@ -75,7 +75,10 @@ export function createEnemy(
     attackDamage,
     // Spec-derived combat characteristics — the same `stats` shape a
     // player carries, so the damage/dodge systems read them uniformly.
-    stats: { ...resolveEnemyCombat(template) },
+    // `attackPower` is the weapon-strike base the mob's `weaponScaled`
+    // skills (mobStrike et al.) deal, so a goblin and a wyrm share one
+    // skill but hit for their own spec power.
+    stats: { ...resolveEnemyCombat(template), attackPower: attackDamage },
     attackRange: S.attackRange * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,
