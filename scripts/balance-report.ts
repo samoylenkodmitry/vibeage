@@ -23,7 +23,8 @@ import { createTransientPlayer } from '../server/playerFactory.js';
 import { resolveCastImpact } from '../server/combat/impactResolver.js';
 import { recomputePlayerStats } from '../server/players/playerStatsRefresh.js';
 import { STARTER_SKILL_BY_CLASS, starterSkillsFor } from '../server/players/playerProgression.js';
-import { makeSimPlayer, makeSimEnemy, timeToKill, timeToDie, mainAttackFor } from '../server/sim/combatBalance.js';
+import { makeSimPlayer, makeSimEnemy, makeSimMiniBoss, timeToKill, timeToDie, mainAttackFor } from '../server/sim/combatBalance.js';
+import { MINI_BOSSES } from '../packages/content/miniBosses.js';
 import type { Cast } from '../server/combat/skillSystem.js';
 import type { CombatWorld } from '../server/combat/worldContract.js';
 import type { OutboundEventSink } from '../server/transport/outboundEvents.js';
@@ -141,4 +142,23 @@ for (const className of classes) {
     const ttd = d.ttdMs === null ? '∞' : `${(d.ttdMs / 1000).toFixed(1)}s`;
     console.log(`| ${className} | ${level} | ${ttk} | ${k.hits} | ${ttd} | ${d.dodges} |`);
   }
+}
+
+console.log('');
+console.log('## Mini-boss encounters (telegraphed signatures, real pipeline)');
+console.log('');
+console.log('A mage casts its main attack at a level-matched mini-boss (TTK), and a knight');
+console.log('tanks the boss while only regenerating (TTD). Bosses cast their generated');
+console.log('signature skill on the shared cast path — telegraph + AOE/blink resolve in-sim.');
+console.log('');
+console.log('| Boss | Lv | Signature | Mage TTK | Knight TTD |');
+console.log('|------|----|-----------|----------|------------|');
+const BOSS_LEVEL = 20;
+for (const boss of Object.values(MINI_BOSSES)) {
+  const sig = boss.signatureAbility.mechanic.kind;
+  const k = timeToKill(makeSimPlayer('mage', BOSS_LEVEL), makeSimMiniBoss(boss.id, BOSS_LEVEL), mainAttackFor('mage'), 60_000);
+  const d = timeToDie(makeSimPlayer('knight', BOSS_LEVEL), makeSimMiniBoss(boss.id, BOSS_LEVEL), 60_000);
+  const ttk = k.ttkMs === null ? 'no kill' : `${(k.ttkMs / 1000).toFixed(1)}s`;
+  const ttd = d.ttdMs === null ? '∞' : `${(d.ttdMs / 1000).toFixed(1)}s`;
+  console.log(`| ${boss.name} | ${BOSS_LEVEL} | ${sig} | ${ttk} | ${ttd} |`);
 }

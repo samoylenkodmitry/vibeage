@@ -196,10 +196,10 @@ describe('content integrity: stat sanity', () => {
       expect(skill.levelRequired, `${id} levelRequired`).toBeGreaterThanOrEqual(1);
       expect(skill.name.length, `${id} name`).toBeGreaterThan(0);
       expect(skill.description.length, `${id} description`).toBeGreaterThan(0);
-      // PR PP — passive skills carry no SkillEffect[] rows; their
-      // gameplay impact is the Contribution registry. Non-passive
-      // skills still need at least one effect entry.
-      if (!id.startsWith('passive_')) {
+      // Passives carry no SkillEffect[] (Contribution registry); custom-
+      // behavior skills express their effect via the registered resolver.
+      // Every other skill needs at least one effect entry.
+      if (!id.startsWith('passive_') && !skill.customBehavior) {
         expect(skill.effects.length, `${id} effects[]`).toBeGreaterThan(0);
       }
     }
@@ -298,9 +298,10 @@ describe('content integrity: dead-leftover survey', () => {
     // Spec-tier skill ids follow `<word>_<word>` (underscored). Base
     // class skills are camelCase. Anything underscored that no spec
     // grants is dead weight — *except* class passives (`passive_*`),
-    // which are auto-granted by class or learned from the class tree.
+    // auto-granted/learned from the tree, and boss signatures (`boss_*`),
+    // owned by enemy templates (never learnable by players).
     const orphanSpecSkills = Object.keys(SKILLS)
-      .filter((id) => id.includes('_') && !id.startsWith('passive_') && !granted.has(id));
+      .filter((id) => id.includes('_') && !id.startsWith('passive_') && !id.startsWith('boss_') && !granted.has(id));
     expect(orphanSpecSkills, `spec-style skills not granted by any spec: ${orphanSpecSkills.join(', ')}`).toEqual([]);
   });
 });

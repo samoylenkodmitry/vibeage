@@ -1,6 +1,8 @@
 import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
+import { selectShapeTargets, applyCasterEffects } from './abilityShapes.js';
+import { CUSTOM_SKILL_BEHAVIORS } from './customSkillBehaviors.js';
 import { getMaxStacks, getStackingPolicy } from '../../packages/content/effects.js';
 import { isCombatTraceEnabled, recordCombatTrace } from '../../packages/sim/combatTrace.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
@@ -89,6 +91,12 @@ export function applyProjectileHit(
 
 export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld, now: number): void {
   const skill = SKILLS[cast.skillId];
+  // Custom-behavior escape hatch (docs/ABILITY_SYSTEM.md §2b): a registered
+  // bespoke resolver owns the whole impact; declarative resolution is skipped.
+  if (skill.customBehavior) {
+    CUSTOM_SKILL_BEHAVIORS[skill.customBehavior]?.(cast, world, now, outbound);
+    return;
+  }
   // §45.5 — for piercing projectiles, damage was applied per-hit
   // in `applyProjectileHit` while the projectile was traveling.
   // The Impact transition is purely cosmetic here; skip the area
@@ -115,6 +123,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
     damages: results.map((r) => r.damage), crits: results.map((r) => r.crit),
     misses: results.map((r) => r.miss), heals: heals.map((h) => Math.round(h)),
   });
+  applyCasterEffects(caster, cast, skill, world, now);
 }
 
 function isBeneficialOnly(skill: SkillDef): boolean {
@@ -136,6 +145,11 @@ function resolveCastTargets(
   // effects to the mob and the player kept getting hit.
   if (caster && skill.selfTarget) {
     return [caster];
+  }
+  // Data-driven AOE shape (cone/donut/circle) — one resolver for every
+  // caster; supersedes the legacy `area` circle when a shape is declared.
+  if (skill.shape && skill.shape.kind !== 'single') {
+    return selectShapeTargets(cast, skill.shape, skill, world, resolveCaster(world, cast.casterId));
   }
   if (caster && !cast.targetId && (!skill.area || skill.area <= 0) && isBeneficialOnly(skill)) {
     return [caster];
@@ -178,7 +192,8 @@ function calculateDamage(
 ): { damage: number; crit: boolean; miss: boolean } {
   // `weaponScaled` skills (mob strikes) take their base from the caster's
   // attackPower characteristic; everything else uses the static `dmg`.
-  const base = skill.weaponScaled ? (caster?.stats?.attackPower ?? skill.dmg ?? 0) : (skill.dmg ?? 0);
+  const rawBase = skill.weaponScaled ? (caster?.stats?.attackPower ?? skill.dmg ?? 0) : (skill.dmg ?? 0);
+  const base = rawBase * (skill.damageMult ?? 1);
   if (base <= 0) return { damage: 0, crit: false, miss: false };
   // Player-only multipliers (spec passives, party auras) no-op for mob
   // casters — pass the caster on only when it's a player.
@@ -332,6 +347,7 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
 
   return targets;
 }
+
 
 // §45.3 follow-up — spec + proficiency tier multiplier on beneficial-buff durations.
 function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): number {

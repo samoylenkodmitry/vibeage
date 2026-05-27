@@ -3,6 +3,7 @@ import type { Enemy, PlayerState } from '../../../packages/sim/entities.js';
 import { handleCastReq } from '../../combat/castHandler.js';
 import { createCombatWorld } from '../../combat/combatWorld.js';
 import { handleTargetDeath } from '../../combat/targetDeath.js';
+import { createEnemy } from '../../enemies/enemyLifecycle.js';
 import { runtimeMetrics } from '../../observability/runtimeMetrics.js';
 import type { SpatialHashGrid } from '../../spatial/SpatialHashGrid.js';
 import type {
@@ -21,6 +22,11 @@ export function createWorldCombatBridge(
     state,
     (caster, target, now) => handleTargetDeath(caster, target, { state, spatial, outbound, now }),
     (pos, radius) => queryAliveSpatialEntities(state, spatial, pos, radius),
+    (type, level, pos, now) => {
+      const minion = createEnemy(type, level, pos, now);
+      state.enemies[minion.id] = minion;
+      spatial.insert(minion.id, { x: pos.x, z: pos.z });
+    },
   );
 }
 

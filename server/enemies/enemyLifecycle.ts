@@ -25,6 +25,7 @@ function respawnDelayFor(enemy: { isMiniBoss?: boolean }): number {
 
 export { DEFAULT_BOSS_CONFIG } from '../../packages/content/miniBosses.js';
 import { DEFAULT_BOSS_CONFIG, getMiniBossById } from '../../packages/content/miniBosses.js';
+import { bossSignatureSkillId } from '../../packages/content/bossSkills.js';
 
 export type SpawnInitialEnemiesOptions = {
   activeZoneIds?: readonly string[];
@@ -81,7 +82,11 @@ export function createEnemy(
     stats: { ...resolveEnemyCombat(template), attackPower: attackDamage },
     // The mob's abilities + per-skill cooldown tracking — the AI casts
     // these through the shared pipeline (priority order; mobStrike fallback).
-    skills: [...template.skills],
+    // A mini-boss leads with its signature skill (generated from the boss
+    // spec); the basic strikes from the template fill the gaps.
+    skills: options.bossId
+      ? [bossSignatureSkillId(options.bossId), ...template.skills]
+      : [...template.skills],
     skillCooldownEndTs: {},
     attackRange: S.attackRange * template.stats.attackRange,
     baseExperienceValue: baseExp,
@@ -362,22 +367,19 @@ function resetEnemyForRespawn(enemy: Enemy): void {
   enemy.patrolWaitUntilTs = undefined;
   enemy.combatStartedTs = undefined;
 
-  // Mini-boss lifecycle: enrage / phase / signature all clear, and
-  // attackDamage / movementSpeed restore to the values captured at
-  // spawn so the next life starts clean. baseAttackDamage /
-  // baseMovementSpeed are only populated for mini-bosses; the
-  // optional-chain falls through to a no-op for normal mobs.
+  // Mini-boss lifecycle: enrage / phase clear, and attackDamage /
+  // attackPower / movementSpeed restore to the values captured at spawn
+  // so the next life starts clean. baseAttackDamage / baseMovementSpeed
+  // are only populated for mini-bosses; the optional-chain falls through
+  // to a no-op for normal mobs.
   if (enemy.baseAttackDamage !== undefined) {
     enemy.attackDamage = enemy.baseAttackDamage;
+    if (enemy.stats) enemy.stats.attackPower = enemy.baseAttackDamage;
   }
   if (enemy.baseMovementSpeed !== undefined) {
     enemy.movementSpeed = enemy.baseMovementSpeed;
   }
   enemy.enraged = undefined;
   enemy.phaseShifted = undefined;
-  enemy.signatureCastingUntilTs = undefined;
-  enemy.signatureCastTargetX = undefined;
-  enemy.signatureCastTargetZ = undefined;
-  enemy.signatureCastRadius = undefined;
-  enemy.nextSignatureReadyTs = undefined;
+  enemy.skillCooldownEndTs = {};
 }

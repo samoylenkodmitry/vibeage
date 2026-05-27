@@ -9,12 +9,14 @@ export function createCombatWorld(
   state: GameState,
   onTargetDied: TargetDeathHandler,
   getEntitiesInCircleImpl?: (pos: VecXZ, radius: number) => Array<Enemy | PlayerState>,
+  spawnMinion?: CombatWorld['spawnMinion'],
 ): CombatWorld {
   return {
     getEnemyById: (id: string) => state.enemies[id] || null,
     getPlayerById: (id: string) => state.players[id] || null,
     getEntitiesInCircle: getEntitiesInCircleImpl ?? ((pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)),
     onTargetDied,
+    spawnMinion,
   };
 }
 

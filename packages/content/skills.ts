@@ -1,5 +1,6 @@
 // PR UU — `SKILL_IDS` is the canonical list; `SkillId` + the Zod
 // schema in `protocol/common.ts` both derive from it.
+import { BOSS_SIGNATURE_SKILL_IDS } from './bossSkills.js';
 export const SKILL_IDS = [
   'basicAttack', 'escape',
   'fireball', 'iceBolt', 'waterSplash', 'petrify',
@@ -26,16 +27,14 @@ export const SKILL_IDS = [
   'passive_armor_training', 'passive_iron_grip', 'passive_holy_aegis',
   'passive_radiant_focus', 'passive_shadow_grace', 'passive_lethal_focus',
   // Mob abilities (mobSkills.ts) — owned by enemy templates, never learnable.
-  'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt',
+  'mobStrike', 'mobPoisonBite', 'mobFirebolt', 'mobFrostbolt', 'mobBreath', 'mobWarbandHowl',
+  // Boss signatures (generated defs in bossSkills.ts).
+  ...BOSS_SIGNATURE_SKILL_IDS,
 ] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
 
-/**
- * Skills every player has from birth, regardless of class. Used to make
- * sure normalizeUnlockedSkills + ensureClassStarterUnlocked don't strip
- * the universal Basic Attack on class change or hydrate. Keep this in
- * sync with the SKILLS catalog.
- */
+/** Skills every player has from birth (normalizeUnlockedSkills /
+ *  ensureClassStarterUnlocked keep these on class change / hydrate). */
 export const UNIVERSAL_SKILLS: readonly SkillId[] = ['basicAttack', 'escape'];
 export type SkillCategory = 'projectile'|'instant'|'beam'|'aura';
 
@@ -60,14 +59,9 @@ export type SkillEffectType =
   | 'aggroReset' // PR KK — wipe attackers' threat on the caster
   | 'teleport'; // recall to nearest village (Escape)
 
-/**
- * PR X — friendly-fire gate classification. Used to decide whether
- * a skill targeting an enemy / friendly player is sensible by
- * default. Derived from the skill's own effects (no per-skill
- * hardcoding): if any effect is in HARMFUL_EFFECTS the skill is
- * harmful; else if any is in BENEFICIAL_EFFECTS it's beneficial;
- * else neutral (no gate). Force-cast with Ctrl bypasses the gate.
- */
+/** Friendly-fire gate classification, derived from a skill's effects
+ *  (harmful if any HARMFUL_EFFECTS, else beneficial if any BENEFICIAL,
+ *  else neutral). Ctrl force-cast bypasses it. */
 const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
   'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
 ]);
@@ -92,11 +86,7 @@ export interface SkillEffect {
   dispelCategory?: DispelCategory; // §52 #10 — only when type==='dispel'.
 }
 
-/**
- * Damage flavour. Drives client UX (auto-attack after a physical
- * weapon swing) and could later affect mitigation, resistances, and
- * VFX. 'utility' covers buffs/heals/etc. with no damage flavour.
- */
+/** Damage flavour; drives client UX + mitigation kind. 'utility' = no damage. */
 export type SkillKind = 'physical' | 'magical' | 'utility';
 
 // §45.4 — optional element flavour. Drives `*Weakness` status
@@ -114,6 +104,7 @@ import type {
   SkillPveUse,
   SkillOffense,
 } from './skillTags.js';
+import type { AbilityShape, AbilityAffects, AbilityTelegraph, SummonSpec, BlinkSpec } from './abilitySchema.js';
 export type {
   SkillRole,
   SkillSchool,
@@ -162,11 +153,8 @@ export interface SkillDef {
     hitRadius?: number;  // Explicit hit detection radius
     maxPierceHits?: number; // Maximum number of targets that can be hit with pierce
   };
-  /**
-   * When true, the client keeps re-casting this skill at the same
-   * target on each cooldown tick until the player gives a new order.
-   * Today only Basic Attack opts in so it behaves like an auto-swing.
-   */
+  /** Client re-casts at the same target each cooldown until a new order
+   *  (Basic Attack opts in for auto-swing behaviour). */
   autoRepeat?: boolean;
   /** Per-level upgrades; modifier values applied during cast resolution. */
   upgrades?: SkillUpgrade[];
@@ -176,6 +164,15 @@ export interface SkillDef {
   isInterruptable?: boolean;
   /** §SKILL-ENGINE B9–B12 — execute / crit / lifesteal / armor-pen modifiers. */
   offense?: SkillOffense;
+  // Ability schema (docs/ABILITY_SYSTEM.md) — data-driven geometry,
+  // delivery, and caster mechanics; one generic resolver per axis.
+  shape?: AbilityShape;          // AOE geometry; absent = single-target
+  affects?: AbilityAffects;      // allegiance filter; absent = inferred
+  telegraph?: AbilityTelegraph;  // lock origin/dir, resolve after wind-up
+  summon?: SummonSpec;           // caster spawns mobs on resolution
+  blink?: BlinkSpec;             // caster teleports behind target on resolution
+  customBehavior?: string;       // CUSTOM_SKILL_BEHAVIORS resolver (escape hatch)
+  damageMult?: number;           // flat multiplier on the damage base (e.g. 2.4×)
 }
 
 /**
@@ -693,6 +690,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
  */
 import { PASSIVE_SKILLS } from './classPassives.js';
 import { MOB_SKILLS } from './mobSkills.js';
+import { BOSS_SIGNATURE_SKILLS } from './bossSkills.js';
 
-export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS } as unknown as Record<SkillId, SkillDef>;
+export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>;
 export { isPassiveSkill } from './classPassives.js';

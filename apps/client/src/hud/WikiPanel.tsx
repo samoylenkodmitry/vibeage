@@ -17,6 +17,7 @@ import { WikiFilters, type WikiFilterChip } from './WikiFilters';
 import { MobsTab } from './WikiMobs';
 import { RACE_PROFILES, type CharacterRace } from '../../../../packages/content/races';
 import { SKILLS, type SkillDef } from '../../../../packages/content/skills';
+import { abilityDeliveryLabel, SkillUsedBy } from './skillWikiBits';
 import {
   SPECIALIZATIONS,
   type Specialization,
@@ -264,8 +265,10 @@ function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isF
       <header>
         <strong>{skill.name}</strong>
         <span className="wiki-row-tag">{skill.kind ?? 'magical'}</span>
+        {skill.customBehavior && <span className="wiki-row-tag" title="Custom-coded behavior (see docs)">★ custom</span>}
       </header>
       <p>{skill.description}</p>
+      {abilityDeliveryLabel(skill) && <p className="wiki-row-delivery">{abilityDeliveryLabel(skill)}</p>}
       <dl>
         {skill.dmg !== undefined && <Pair k="Damage" v={String(skill.dmg)} />}
         {skill.range !== undefined && <Pair k="Range" v={String(skill.range)} />}
@@ -308,6 +311,7 @@ function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isF
           Upgrades: {skill.upgrades.map((u) => `Lv${u.level}: ${u.description}`).join(' · ')}
         </small>
       ) : null}
+      <SkillUsedBy skill={skill} navigate={navigate} />
     </FocusableLi>
   );
 }

@@ -101,8 +101,8 @@ describe('respawnDeadEnemies — mini-boss reset', () => {
       isMiniBoss: true,
       bossId: 'vorthax',
     });
-    // Simulate a mini-boss killed mid-enrage, mid-phase-shift,
-    // mid-signature — every dial flipped.
+    // Simulate a mini-boss killed mid-enrage, mid-phase-shift, with a
+    // signature on cooldown — every dial flipped.
     enemy.isAlive = false;
     enemy.health = 0;
     // §11 — mini-boss respawn delay is much longer; use the boss-
@@ -111,11 +111,7 @@ describe('respawnDeadEnemies — mini-boss reset', () => {
     enemy.deathTimeTs = NOW - MINI_BOSS_RESPAWN_DELAY_MS;
     enemy.enraged = true;
     enemy.phaseShifted = true;
-    enemy.signatureCastingUntilTs = NOW - 200;
-    enemy.signatureCastTargetX = 95;
-    enemy.signatureCastTargetZ = 95;
-    enemy.signatureCastRadius = 12;
-    enemy.nextSignatureReadyTs = NOW + 10_000;
+    enemy.skillCooldownEndTs = { mobStrike: NOW + 10_000 };
     // Enrage + phase doubled the attackDamage / movementSpeed; the
     // base values captured at spawn should restore them.
     enemy.attackDamage = (enemy.baseAttackDamage ?? 100) * 2;
@@ -124,17 +120,13 @@ describe('respawnDeadEnemies — mini-boss reset', () => {
     return { state, spatial, enemy };
   }
 
-  test('mini-boss respawn clears enrage / phase / signature state', () => {
+  test('mini-boss respawn clears enrage / phase / skill cooldowns', () => {
     const { state, spatial, enemy } = makeDeadMiniBoss();
     respawnDeadEnemies(state, spatial, { publish: vi.fn() }, NOW);
 
     expect(enemy.enraged).toBeUndefined();
     expect(enemy.phaseShifted).toBeUndefined();
-    expect(enemy.signatureCastingUntilTs).toBeUndefined();
-    expect(enemy.signatureCastTargetX).toBeUndefined();
-    expect(enemy.signatureCastTargetZ).toBeUndefined();
-    expect(enemy.signatureCastRadius).toBeUndefined();
-    expect(enemy.nextSignatureReadyTs).toBeUndefined();
+    expect(enemy.skillCooldownEndTs).toEqual({});
   });
 
   test('mini-boss respawn restores attackDamage and movementSpeed from base values', () => {

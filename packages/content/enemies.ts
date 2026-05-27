@@ -138,7 +138,7 @@ const TEMPLATES: EnemyTemplate[] = [
 
   // Dark forest / misty / rocky
   template('troll', 'Cave Troll', 'humanoid', { color: '#5b6b4a', height: 1.6, shape: 'box', glow: false }, { health: 1.8, damage: 1.4, movementSpeed: 0.85, attackRange: 1.2 }),
-  template('orc', 'Orc Raider', 'humanoid', { color: '#6f8a3a', height: 1.3, shape: 'box', glow: false }, { health: 1.3, damage: 1.2 }),
+  template('orc', 'Orc Raider', 'humanoid', { color: '#6f8a3a', height: 1.3, shape: 'box', glow: false }, { health: 1.3, damage: 1.2 }, ['mobWarbandHowl', 'mobStrike']),
 
   // Cursed ruins
   template('wraith', 'Wraith', 'spirit', { color: '#a8b3d6', height: 1.3, shape: 'sphere', glow: true }, { health: 0.9, damage: 1.3, movementSpeed: 1.1, aggroRadius: 1.2 }),
@@ -147,7 +147,7 @@ const TEMPLATES: EnemyTemplate[] = [
   // Dragon peaks
   template('wyvern', 'Wyvern', 'dragon', { color: '#7a5b3a', height: 1.5, shape: 'box', glow: false }, { health: 1.5, damage: 1.4, movementSpeed: 1.15 }),
   template('drake', 'Drake', 'dragon', { color: '#bf5a3a', height: 1.6, shape: 'box', glow: true }, { health: 1.7, damage: 1.5, attackRange: 1.3 }, ['mobFirebolt', 'mobStrike']),
-  template('dragon', 'Wyrm', 'dragon', { color: '#8b1a1a', height: 2.0, shape: 'box', glow: true }, { health: 2.5, damage: 2.0, attackRange: 1.6, aggroRadius: 1.4 }),
+  template('dragon', 'Wyrm', 'dragon', { color: '#8b1a1a', height: 2.0, shape: 'box', glow: true }, { health: 2.5, damage: 2.0, attackRange: 1.6, aggroRadius: 1.4 }, ['mobBreath', 'mobStrike']),
 
   // Shadow valley
   template('shadowbeast', 'Shadowbeast', 'aberration', { color: '#1f1f3a', height: 1.2, shape: 'box', glow: true }, { health: 1.2, damage: 1.4, movementSpeed: 1.15 }),

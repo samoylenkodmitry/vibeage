@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { killPlayer } from '../server/players/playerLifecycle';
-import { applyEnemyAttack } from '../server/ai/enemyBehavior';
-import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { createGameState } from '../server/gameState';
 import { createTransientPlayer } from '../server/playerFactory';
 import {
@@ -16,10 +14,9 @@ import type { StatusEffect } from '../packages/protocol/messages';
  * Archwork item #2 sub-work 1 — unified `killPlayer` helper.
  *
  * Before this rework the death-state mutations were duplicated
- * across enemyBehavior.applyEnemyAttack, enemyStateMachine boss
- * signature damage, and dotTicker (no cleanup at all for player
- * DoT deaths). One central helper means the shape stays identical
- * for every kill path.
+ * across the mob-attack path, boss damage, and dotTicker (no
+ * cleanup at all for player DoT deaths). One central helper means
+ * the shape stays identical for every kill path.
  *
  * Pin both the helper itself AND each call site so a future
  * refactor of cast bookkeeping can't silently lose cleanup at one
@@ -74,30 +71,9 @@ describe('killPlayer helper', () => {
   });
 });
 
-describe('applyEnemyAttack (normal enemy → player) routes through killPlayer', () => {
-  it('killed player ends up in the canonical death-state shape', () => {
-    const player = createTransientPlayer('s1', 'victim');
-    player.health = 5;
-    player.targetId = 'mob-1';
-    player.castingSkill = 'fireball';
-    player.castingProgressMs = 80;
-    const enemy = createEnemy('goblin', 1, { x: 0, y: 0.5, z: 0 }, 1);
-    enemy.attackDamage = 50;
-    enemy.lastAttackTime = 0;
-    // Guarantee the swing lands — this test pins the death-state shape,
-    // not the dodge roll. A real (full-stat) player has a few % base
-    // evasion vs a baseline-accuracy mob, which would otherwise flake.
-    enemy.stats = { ...enemy.stats, accuracy: 10_000 };
-
-    const result = applyEnemyAttack(enemy, player, NOW);
-
-    expect(result?.killed).toBe(true);
-    expect(player.isAlive).toBe(false);
-    expect(player.targetId).toBeNull();
-    expect(player.castingSkill).toBeNull();
-    expect(player.castingProgressMs).toBe(0);
-  });
-});
+// A mob swing that kills routes through killPlayer too — covered on the
+// live cast path in mobAttackDefensivePipeline.spec.ts ("a lethal mob
+// swing kills the player (canonical death state)").
 
 describe('dotTicker (player DoT death) routes through killPlayer', () => {
   it('player killed by a DoT tick has cleared cast / target state', () => {
