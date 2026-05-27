@@ -44,6 +44,11 @@ export interface Cast {
    * projectiles never populate this field.
    */
   pierceHits?: string[];
+  /** Locked AOE-shape origin (telegraphed casts lock it at cast start so
+   *  the impact lands where the telegraph was drawn). */
+  shapeOrigin?: VecXZ;
+  /** Locked cone direction (radians) for shaped casts. */
+  shapeDirRad?: number;
 }
 
 export type ActiveCastStore = Record<string, Cast>;

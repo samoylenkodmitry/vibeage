@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
+import { selectShapeTargets } from './abilityShapes.js';
 import { getMaxStacks, getStackingPolicy } from '../../packages/content/effects.js';
 import { isCombatTraceEnabled, recordCombatTrace } from '../../packages/sim/combatTrace.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
@@ -136,6 +137,11 @@ function resolveCastTargets(
   // effects to the mob and the player kept getting hit.
   if (caster && skill.selfTarget) {
     return [caster];
+  }
+  // Data-driven AOE shape (cone/donut/circle) — one resolver for every
+  // caster; supersedes the legacy `area` circle when a shape is declared.
+  if (skill.shape && skill.shape.kind !== 'single') {
+    return selectShapeTargets(cast, skill.shape, skill, world, resolveCaster(world, cast.casterId));
   }
   if (caster && !cast.targetId && (!skill.area || skill.area <= 0) && isBeneficialOnly(skill)) {
     return [caster];
@@ -332,6 +338,7 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
 
   return targets;
 }
+
 
 // §45.3 follow-up — spec + proficiency tier multiplier on beneficial-buff durations.
 function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): number {
