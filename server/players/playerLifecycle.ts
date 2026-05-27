@@ -40,10 +40,9 @@ type PlayerUpdatePayload = {
 /**
  * Archwork item #2 sub-work 1 — unified player-death helper.
  *
- * Pre-rework the death state mutations were duplicated across
- * `enemyBehavior.applyEnemyAttack` (normal enemy hits player),
- * `enemyStateMachine` (boss signature damage), and `dotTicker`
- * (player DoT ticks). Each site flipped `isAlive=false` and
+ * Pre-rework the death state mutations were duplicated across the
+ * mob-attack path, boss signature damage, and `dotTicker` (player
+ * DoT ticks). Each site flipped `isAlive=false` and
  * partially cleared cast / target state — slightly differently
  * depending on which path. A future cast-pipeline tweak that
  * forgot to update one site would leave a "dead player with a

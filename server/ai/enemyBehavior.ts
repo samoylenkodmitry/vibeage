@@ -5,19 +5,7 @@ import {
   rotationYForDirection,
 } from '../../packages/sim/geometry.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
-import { killPlayer } from '../players/playerLifecycle.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
-import { applyResolvedDamageToTarget } from '../combat/damageResolution.js';
-import { incomingMissChance } from '../combat/statusQueries.js';
-import { rollMiss } from '../../packages/sim/combatMath.js';
-
-export type EnemyAttackResult = {
-  /** Damage actually applied to the player's HP (post shield / mitigation). 0 on a dodge. */
-  damage: number;
-  killed: boolean;
-  /** True when the player dodged the swing (active evasion buff). */
-  miss: boolean;
-};
 
 export function findAggroTargetId(
   enemy: Enemy,
@@ -130,36 +118,11 @@ export function snapEnemyToSpawn(enemy: Enemy, spatialGrid: SpatialHashGrid): vo
   markEnemyDirty(enemy);
 }
 
-export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: number): EnemyAttackResult | null {
-  if (now - enemy.lastAttackTime < enemy.attackCooldownMs) {
-    return null;
-  }
-  enemy.lastAttackTime = now;
-
-  // Evasion now dodges mob swings too (it used to only roll in the
-  // player-cast path): the accuracy-vs-evasion stat differential plus
-  // any flat evasion-buff dodge. Seeded per (enemy, player, tick) so
-  // it's deterministic. Enemy accuracy comes from its spec stats.
-  const missChance = incomingMissChance(enemy.stats?.accuracy, targetPlayer, now);
-  if (rollMiss(`${enemy.id}:${targetPlayer.id}:${now}`, missChance)) {
-    return { damage: 0, killed: false, miss: true };
-  }
-
-  // Route through the shared defensive pipeline so shield absorb,
-  // below-half-HP mitigation, and P.Def apply to mob damage, not just
-  // PvP casts. Mob swings are physical.
-  const damage = applyResolvedDamageToTarget(targetPlayer, enemy.attackDamage, now, { kind: 'physical' });
-
-  let killed = false;
-  if (targetPlayer.health <= 0) {
-    // Archwork item #2 sub-work 1 — unified killPlayer keeps the
-    // death-state shape identical across normal-enemy hits, boss
-    // signatures, and DoT ticks.
-    killed = killPlayer(targetPlayer, now);
-  }
-
-  return { damage, killed, miss: false };
-}
+// Mob attacks run through the shared cast pipeline now (the AI emits a
+// `castSkill` intent → castMobSkill → tickCasts → damageResolution), so
+// the bespoke applyEnemyAttack swing-resolver was deleted. Accuracy /
+// evasion / shield / mitigation / killPlayer all apply there, the same
+// path players use.
 
 export function makeEnemyUpdate(enemy: Enemy): Pick<Enemy, 'id' | 'targetId' | 'aiState'> {
   return {

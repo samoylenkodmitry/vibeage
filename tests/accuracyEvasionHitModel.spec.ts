@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { computeMissChance } from '../packages/sim/combatMath';
 import { ACCURACY_BASELINE, EVASION_BASELINE, MAX_DODGE_CHANCE } from '../packages/content/stats';
 import { incomingMissChance } from '../server/combat/statusQueries';
-import { applyEnemyAttack } from '../server/ai/enemyBehavior';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
+import { createGameState } from '../server/gameState';
+import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
+import { castMobSkill, tickCasts } from '../server/combat/skillSystem';
+import { createWorldCombatBridge } from '../server/world/router/castHandlers';
+import type { OutboundEventSink } from '../server/transport/outboundEvents';
 import type { PlayerState } from '../packages/sim/entities';
 
 /**
@@ -57,32 +61,35 @@ function makeTarget(evasion: number): PlayerState {
   };
 }
 
-describe('base evasion stat dodges mob swings', () => {
-  const SPAWN_TS = 1_700_000_000_000; // createEnemy's 4th arg is spawnTimeTs, not an id.
-  function readyEnemy(accuracy?: number) {
+describe('base evasion stat dodges mob swings (through the cast path)', () => {
+  const SPAWN_TS = 1_700_000_000_000;
+  // Count mob mobStrike swings that the target dodges (HP unchanged), over
+  // `ticks` deterministic timestamps. Drives the live cast pipeline so the
+  // stat-based dodge is exercised exactly where mobs deal damage.
+  function dodges(target: PlayerState, ticks: number): number {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
     const enemy = createEnemy('goblin', 1, { x: 1, y: 0, z: 0 }, SPAWN_TS);
     enemy.id = 'goblin-test';
-    enemy.attackDamage = 100;
-    enemy.attackCooldownMs = 1_000;
-    enemy.lastAttackTime = 0;
-    if (accuracy !== undefined) enemy.stats = { ...enemy.stats, accuracy };
-    return enemy;
+    enemy.stats = { ...enemy.stats, attackPower: 100 };
+    state.enemies[enemy.id] = enemy; spatial.insert(enemy.id, { x: 1, z: 0 });
+    target.health = target.maxHealth = 1_000_000; // survive every hit so we can count all misses
+    state.players[target.id] = target; spatial.insert(target.id, { x: 0, z: 0 });
+    const outbound: OutboundEventSink = { publish: () => undefined };
+    const world = createWorldCombatBridge(state, outbound, spatial);
+    let misses = 0;
+    for (let i = 0; i < ticks; i += 1) {
+      const now = SPAWN_TS + i * 2_000;
+      const hp = target.health;
+      castMobSkill(enemy, target, 'mobStrike', now, { world, activeCasts: state.activeCasts, outbound });
+      tickCasts(state.activeCasts, 50, outbound, world, now);
+      if (target.health === hp) misses += 1;
+    }
+    return misses;
   }
 
   it('a high evasion stat produces dodges; baseline evasion never does', () => {
-    const NOW = 1_700_000_000_000;
-    // ~40% dodge from the stat (evasion 45 vs enemy accuracy 90).
-    const evasive = makeTarget(EVASION_BASELINE + 40);
-    const baseline = makeTarget(EVASION_BASELINE);
-
-    let evasiveMisses = 0;
-    let baselineMisses = 0;
-    for (let i = 0; i < 30; i += 1) {
-      const t = NOW + i * 2_000;
-      if (applyEnemyAttack(readyEnemy(), evasive, t)?.miss) evasiveMisses += 1;
-      if (applyEnemyAttack(readyEnemy(), baseline, t)?.miss) baselineMisses += 1;
-    }
-    expect(evasiveMisses).toBeGreaterThan(0);
-    expect(baselineMisses).toBe(0); // baseline = no balance shift
+    expect(dodges(makeTarget(EVASION_BASELINE + 40), 30)).toBeGreaterThan(0);
+    expect(dodges(makeTarget(EVASION_BASELINE), 30)).toBe(0); // baseline = no balance shift
   });
 });

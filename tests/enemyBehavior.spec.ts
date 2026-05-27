@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { applyEnemyAttack, findAggroTargetId, moveEnemyToward } from '../server/ai/enemyBehavior';
+import { findAggroTargetId, moveEnemyToward } from '../server/ai/enemyBehavior';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { PlayerState } from '../packages/sim/entities';
@@ -60,29 +60,6 @@ describe('enemy behavior helpers', () => {
     expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(true);
   });
 
-  test('applies enemy attacks with cooldowns and death state updates', () => {
-    const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 3);
-    const player = makePlayer('target', 1, 0);
-    enemy.attackDamage = 80;
-    enemy.attackCooldownMs = 2_000;
-    enemy.lastAttackTime = 5_000;
-
-    expect(applyEnemyAttack(enemy, player, 6_000)).toBeNull();
-
-    const firstAttack = applyEnemyAttack(enemy, player, 7_000);
-    expect(firstAttack).toEqual({ damage: 80, killed: false, miss: false });
-    expect(player.health).toBe(20);
-    expect(enemy.lastAttackTime).toBe(7_000);
-
-    const lethalAttack = applyEnemyAttack(enemy, player, 9_000);
-    expect(lethalAttack).toEqual({ damage: 80, killed: true, miss: false });
-    expect(player).toMatchObject({
-      health: 0,
-      isAlive: false,
-      deathTimeTs: 9_000,
-      targetId: null,
-      castingSkill: null,
-      castingProgressMs: 0,
-    });
-  });
+  // Mob attacks (cooldown gating + damage + death) run through the shared
+  // cast path now — see mobAttackDefensivePipeline.spec.ts.
 });
