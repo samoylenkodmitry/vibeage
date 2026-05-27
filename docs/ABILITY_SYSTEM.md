@@ -69,23 +69,27 @@ skill with **zero** users anywhere.
 
 ## 4. Build phases (each verified; parity preserved until a deliberate boss re-baseline)
 
-- **A1 — Schema + generic resolvers.** Extend `SkillDef` with `shape` (cone/donut/line),
-  `telegraphed` delivery, `affects`, `blink` + `summon` caster-effects. Add the generic
-  resolvers (`selectTargetsInShape`, telegraphed-cast phase, summon/blink effects),
-  reusing the existing circle-AOE, cast state machine, and telegraph machinery. New
-  capabilities are inert until content uses them — existing skills unchanged.
-- **A2 — Custom-behavior registry.** `SkillDef.customBehavior` + `CUSTOM_SKILL_BEHAVIORS`;
-  content audit for resolvable id + required description.
-- **A3 — Migrate bosses to skills.** Each mini-boss signature (cone/donut/circle/blink/
-  summonPack) becomes a `SkillDef` on the boss template (declarative where it fits, a
-  registered custom behavior where it doesn't). Generalize `BossTelegraph` → a generic
-  telegraph message any telegraphed skill emits. Delete `server/ai/bossSignature.ts`
-  and the dead `applyEnemyAttack` (+ migrate its 5 tests onto the cast path).
-- **A4 — Wiki.** Render the full ability (shape/delivery/effects + custom badge) and the
-  "used by" reverse index; test that every skill has ≥1 user or is flagged.
-- **A5 — Simulator + balance.** Drive boss encounters through the unified pipeline on
-  SimWorld; re-baseline; extend the balance target for telegraphed/AOE abilities.
-- **A6 — Land.** Gate 0 + full `pnpm run check` + PR → CI → merge → deploy.
+- **A1 — Schema + generic resolvers. ✅** `abilitySchema.ts` (shape circle/donut/cone +
+  `anchor`, `affects`, `telegraph`, `summon`, `blink`) composed on `SkillDef`. Generic
+  resolvers: `selectShapeTargets` (one resolver, all shapes + allegiance), telegraphed
+  delivery (`lockTelegraph` + wind-up = cast time, resolve at impact), `applyCasterEffects`
+  (blink/summon). Inert until content uses them — existing skills unchanged.
+- **A2 — Custom-behavior registry. ✅** `SkillDef.customBehavior` + `CUSTOM_SKILL_BEHAVIORS`
+  (resolveCastImpact runs the registered fn); audit pins every id resolves + is described.
+- **A3 — Migrate bosses to skills. ✅** Each mini-boss signature is generated from its
+  `MiniBossMechanic` into a real `SkillDef` (`bossSkills.ts`): circle/donut/cone →
+  telegraphed shaped blast, blink → `BlinkSpec`, summonPack → the `warbandHowl` custom.
+  The AI casts it on cooldown via the shared path; the telegraph is emitted by
+  `castMobSkill`. Deleted `server/ai/bossSignature.ts` (enrage/phase → enemyStateMachine,
+  now scaling `attackPower`) and the dead `applyEnemyAttack` (its coverage migrated onto
+  the live cast path).
+- **A4 — Wiki. ✅** Skills tab renders shape/delivery/telegraph/blink/summon/damageMult +
+  a ★custom badge; `skillUsers(skillId)` reverse index → class/spec/mob/boss chips; a test
+  pins every skill has ≥1 user (subsumes UNLINKED).
+- **A5 — Simulator + balance. ✅** `makeSimMiniBoss` drives boss encounters (telegraphed
+  signatures) through the real pipeline on SimClock; balance report gains a boss table;
+  a test pins the signatures resolve in-sim and bosses stay killable.
+- **A6 — Land. ✅** Gate 0 + full `pnpm run check` + PR → CI → merge → deploy.
 
 ## 5. Landing gate — "no parallel ability system"
 

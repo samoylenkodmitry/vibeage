@@ -20,6 +20,20 @@ _None._
 
 Declared in `SKILLS` but not in any class skill tree, spec/proficiency skill list, or `UNIVERSAL_SKILLS`.
 
+- [ ] `boss_aethariel_sig` — Hourglass Reversal
+- [ ] `boss_auriel_sig` — Solar Verdict
+- [ ] `boss_cthulun_sig` — Drowning Grasp
+- [ ] `boss_elder_vinebrook_sig` — Rootbind
+- [ ] `boss_grakk_sig` — Warband Howl
+- [ ] `boss_hammerback_sig` — Stone Slam
+- [ ] `boss_magmaheart_sig` — Forge Pulse
+- [ ] `boss_mistwalker_sig` — Veil Step
+- [ ] `boss_nyaraal_sig` — Hollow Echo
+- [ ] `boss_old_greyfang_sig` — Hamstring Lunge
+- [ ] `boss_prism_warden_sig` — Refraction Bloom
+- [ ] `boss_skadrun_sig` — Blizzard Crown
+- [ ] `boss_vereth_bone_lord_sig` — Marrow Tithe
+- [ ] `boss_vorthax_ember_wyrm_sig` — Cinder Breath
 - [ ] `mobBreath` — Fire Breath
 - [ ] `mobFirebolt` — Fire Bolt
 - [ ] `mobFrostbolt` — Frost Bolt
