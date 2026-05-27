@@ -1,4 +1,5 @@
 import type { ClientMessage } from '../../../packages/protocol/messages.js';
+import { hash, rng as makeRng } from '../../../packages/sim/combatMath.js';
 import { tryInterruptForNewAction } from '../../combat/castInterrupt.js';
 import { debug, LOG_CATEGORIES, warn } from '../../logger.js';
 import { applyMoveIntent } from '../../movement/moveIntent.js';
@@ -27,7 +28,10 @@ export function onMoveIntent(
   // See server/combat/castInterrupt.ts.
   const player = state.players[msg.id];
   if (player && player.castingSkill) {
-    const verdict = tryInterruptForNewAction(player, state.activeCasts, outbound, 'movement');
+    const verdict = tryInterruptForNewAction(
+      player, state.activeCasts, outbound, 'movement',
+      makeRng(hash(`interrupt:${player.id}:${now}`)),
+    );
     if (verdict === 'block') {
       debug(LOG_CATEGORIES.MOVEMENT, `MoveIntent rejected: player ${msg.id} is in a non-interruptable cast`);
       return;

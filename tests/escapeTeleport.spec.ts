@@ -72,7 +72,7 @@ describe('PR WW — Escape teleport flow', () => {
     };
     const activeCasts = { [activeCast.castId]: activeCast };
     const outbound: OutboundEventSink = { publish: vi.fn() };
-    const verdict = tryInterruptForNewAction(caster, activeCasts, outbound, 'movement');
+    const verdict = tryInterruptForNewAction(caster, activeCasts, outbound, 'movement', () => 0);
     // Locked recall channels block conflicting actions outright.
     expect(verdict).toBe('block');
     // Caster still casting; the cast wasn't dropped.

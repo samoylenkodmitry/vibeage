@@ -32,7 +32,9 @@ const ROOTS = [
 // literal 0 isn't a sane enforce target, so it never blocks.
 const RULES = [
   { id: 'wall-clock', enforced: true, re: /\bDate\.now\s*\(/g, msg: 'Date.now() — inject a Clock' },
-  { id: 'rng', enforced: true, re: /\bMath\.random\s*\(/g, msg: 'Math.random() — inject an Rng' },
+  // Match the bare reference too (`?? Math.random`, `: Math.random`), not just
+  // the call — passing Math.random as a fallback fn smuggles ambient RNG in.
+  { id: 'rng', enforced: true, re: /\bMath\.random\b/g, msg: 'Math.random — inject an Rng' },
   // The type-test smell is `(x as PlayerState).field` — a cast-then-access to
   // branch on entity kind. Construction casts (`as unknown as PlayerState[...]`)
   // in persistence/hydration are legitimate and not matched.

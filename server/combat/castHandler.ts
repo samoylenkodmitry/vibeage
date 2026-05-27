@@ -1,5 +1,6 @@
 import { classifySkill, SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { CastReq } from '../../packages/protocol/messages.js';
+import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
 import { PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
@@ -66,7 +67,10 @@ export function handleCastReq(
   // Cast-blocking gate: a different active cast belonging to this
   // player either gets interrupted (refund + clear) or blocks this
   // new cast outright. See castInterrupt.ts for the rules.
-  const interrupt = tryInterruptForNewAction(player, activeCasts, transport.outbound, 'newCast');
+  const interrupt = tryInterruptForNewAction(
+    player, activeCasts, transport.outbound, 'newCast',
+    makeRng(hash(`interrupt:${player.id}:${now}`)),
+  );
   if (interrupt === 'block') {
     runtimeMetrics.increment('cast.rejectedBlocked');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is in a blocking cast`);
