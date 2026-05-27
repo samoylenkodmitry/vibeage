@@ -33,6 +33,9 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 /** Build a gear-less player of `className` at `level` with full HP/MP. */
 export function makeSimPlayer(className: CharacterClass, level: number): PlayerState {
   const player = createTransientPlayer(`sim-${className}-${level}`, `${className}-${level}`);
+  // createTransientPlayer hashes Date.now() into the id; pin a stable
+  // one so the seeded damage rolls (keyed on player.id) are reproducible.
+  player.id = `sim-${className}-${level}`;
   player.className = className;
   player.level = level;
   player.unlockedSkills = starterSkillsFor(className);
@@ -44,7 +47,8 @@ export function makeSimPlayer(className: CharacterClass, level: number): PlayerS
 
 /** Build an enemy of `type` at `level` at the origin. */
 export function makeSimEnemy(type: string, level: number): Enemy {
-  return createEnemy(type, level, { ...ORIGIN }, 0);
+  const spawnTimestampMs = 0; // createEnemy's 4th arg is a spawn time, not an id; fixed for reproducibility.
+  return createEnemy(type, level, { ...ORIGIN }, spawnTimestampMs);
 }
 
 /** The class's default single-target damage skill for the matrix. */
