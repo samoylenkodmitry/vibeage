@@ -25,6 +25,7 @@ import type { CastReq } from '../../packages/protocol/messages.js';
 import { SimClock } from '../../packages/sim/simClock.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { createEnemy } from '../enemies/enemyLifecycle.js';
+import { MINI_BOSSES } from '../../packages/content/miniBosses.js';
 import { createTransientPlayer } from '../playerFactory.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 import { starterSkillsFor } from '../players/playerProgression.js';
@@ -64,6 +65,18 @@ export function makeSimPlayer(className: CharacterClass, level: number): PlayerS
 export function makeSimEnemy(type: string, level: number): Enemy {
   const spawnTimestampMs = 0; // createEnemy's 4th arg is a spawn time, not an id; fixed for reproducibility.
   return createEnemy(type, level, { ...ORIGIN }, spawnTimestampMs);
+}
+
+/**
+ * Build a mini-boss at `level` — same flags createMiniBoss applies, so it
+ * carries its generated signature skill + bossConfig and casts the
+ * telegraphed signature through the real pipeline when simulated.
+ */
+export function makeSimMiniBoss(bossId: string, level: number): Enemy {
+  const spec = MINI_BOSSES[bossId];
+  return createEnemy(spec.mobType, level, { ...ORIGIN }, 0, {
+    isMiniBoss: true, bossId, healthMultiplier: 3, damageMultiplier: 1.5,
+  });
 }
 
 /** The class's default single-target damage skill for the matrix. */
