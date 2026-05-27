@@ -25,6 +25,7 @@ Declared in `SKILLS` but not in any class skill tree, spec/proficiency skill lis
 - [ ] `mobFrostbolt` — Frost Bolt
 - [ ] `mobPoisonBite` — Venomous Bite
 - [ ] `mobStrike` — Strike
+- [ ] `mobWarbandHowl` — Warband Howl
 
 ## Mini-bosses with no quest target
 

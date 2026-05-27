@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { selectShapeTargets, applyCasterEffects } from './abilityShapes.js';
+import { CUSTOM_SKILL_BEHAVIORS } from './customSkillBehaviors.js';
 import { getMaxStacks, getStackingPolicy } from '../../packages/content/effects.js';
 import { isCombatTraceEnabled, recordCombatTrace } from '../../packages/sim/combatTrace.js';
 import { getNearestVillage } from '../../packages/content/villages.js';
@@ -90,6 +91,12 @@ export function applyProjectileHit(
 
 export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld, now: number): void {
   const skill = SKILLS[cast.skillId];
+  // Custom-behavior escape hatch (docs/ABILITY_SYSTEM.md §2b): a registered
+  // bespoke resolver owns the whole impact; declarative resolution is skipped.
+  if (skill.customBehavior) {
+    CUSTOM_SKILL_BEHAVIORS[skill.customBehavior]?.(cast, world, now);
+    return;
+  }
   // §45.5 — for piercing projectiles, damage was applied per-hit
   // in `applyProjectileHit` while the projectile was traveling.
   // The Impact transition is purely cosmetic here; skip the area

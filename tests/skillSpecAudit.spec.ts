@@ -75,7 +75,8 @@ describe('skill spec audit', () => {
       const isPassive = id.startsWith(PASSIVE_PREFIX);
       if (isPassive) {
         expect(skill.effects.length, `${id} is passive but has effects[]`).toBe(0);
-      } else {
+      } else if (!skill.customBehavior) {
+        // Custom-behavior skills express their effect via the registered resolver.
         expect(skill.effects.length, `${id} active skill has no effects[]`).toBeGreaterThan(0);
       }
     }

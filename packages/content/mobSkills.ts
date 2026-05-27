@@ -38,6 +38,15 @@ export const MOB_SKILLS: Record<string, SkillDef> = {
     range: 14, levelRequired: 1, requiresTarget: true,
     effects: [{ type: 'damage', value: 1 }, { type: 'slow', value: 30, durationMs: 3000 }],
   },
+  mobWarbandHowl: {
+    id: 'mobWarbandHowl', name: 'Warband Howl',
+    description: 'Rally every packmate in range onto the caster\'s target. (Custom behavior.)',
+    icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'utility',
+    manaCost: 0, castMs: 0, cooldownMs: 12000, isBlocking: false,
+    range: 60, levelRequired: 1, requiresTarget: true,
+    customBehavior: 'warbandHowl',
+    effects: [], // behavior lives in the registered custom resolver
+  },
   mobBreath: {
     id: 'mobBreath', name: 'Fire Breath',
     description: 'A telegraphed cone of fire — sweeps everyone in front of the caster after a wind-up.',
