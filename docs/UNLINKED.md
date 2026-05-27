@@ -20,7 +20,10 @@ _None._
 
 Declared in `SKILLS` but not in any class skill tree, spec/proficiency skill list, or `UNIVERSAL_SKILLS`.
 
-_None._
+- [ ] `mobFirebolt` — Fire Bolt
+- [ ] `mobFrostbolt` — Frost Bolt
+- [ ] `mobPoisonBite` — Venomous Bite
+- [ ] `mobStrike` — Strike
 
 ## Mini-bosses with no quest target
 

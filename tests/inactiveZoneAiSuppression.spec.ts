@@ -91,7 +91,7 @@ describe('updateEnemyAI invocation gate', () => {
     state.zones.enemyZoneIds[enemy.id] = 'inactive-zone';
 
     if (state.enemies[enemy.id].isAlive && isEnemyInActiveRegion(state, enemy.id)) {
-      updateEnemyAI(state.enemies[enemy.id], state, outbound, spatial, 1 / 30, Date.now(), {} as never, state.activeCasts);
+      updateEnemyAI(state.enemies[enemy.id], 1 / 30, { state, outbound, spatial, now: Date.now(), world: {} as never, activeCasts: state.activeCasts });
     }
 
     // updateEnemyAI was never called — no aiState change, no outbound publish.

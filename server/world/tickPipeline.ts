@@ -155,7 +155,10 @@ function runEnemyAiPhase(input: WorldTickRunnerOptions & { now: number }): void 
 
     const enemy = input.state.enemies[enemyId];
     if (enemy.isAlive && isEnemyInActiveRegion(input.state, enemyId)) {
-      updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000, input.now, world, input.state.activeCasts);
+      updateEnemyAI(enemy, input.tickMs / 1000, {
+        state: input.state, outbound: input.outbound, spatial: input.spatial,
+        now: input.now, world, activeCasts: input.state.activeCasts,
+      });
     }
   }
 }

@@ -171,7 +171,9 @@ export function timeToDie(player: PlayerState, enemy: Enemy, timeoutMs = DEFAULT
 
   while (player.isAlive && player.health > 0 && clock.now() < timeoutMs) {
     clock.advanceBy(TICK_MS);
-    updateEnemyAI(enemy, state, outbound, spatial, TICK_MS / 1000, clock.now(), world, state.activeCasts);
+    updateEnemyAI(enemy, TICK_MS / 1000, {
+      state, outbound, spatial, now: clock.now(), world, activeCasts: state.activeCasts,
+    });
     tickCasts(state.activeCasts, TICK_MS, outbound, world, clock.now());
     handleResourceRegeneration(state, outbound, clock.now());
   }

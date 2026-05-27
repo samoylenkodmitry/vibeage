@@ -155,15 +155,16 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
  * `resolveCastImpact`). Sets the mob's per-skill cooldown. Returns
  * whether a cast was created.
  */
+export type MobCastEnv = { world: CombatWorld; activeCasts: ActiveCastStore; outbound: OutboundEventSink };
+
 export function castMobSkill(
   enemy: Enemy,
   target: Player,
   skillId: SkillId,
   now: number,
-  world: CombatWorld,
-  activeCasts: ActiveCastStore,
-  outbound: OutboundEventSink,
+  env: MobCastEnv,
 ): boolean {
+  const { world, activeCasts, outbound } = env;
   const skill = SKILLS[skillId];
   if (!skill) return false;
 

@@ -83,7 +83,9 @@ describe('deterministic server runtime flow', () => {
     // shared cast pipeline (tickCasts resolves the mobStrike). Mob damage
     // now rolls variance via getDamage, so assert a band around 20.
     const attackWorld = createCombatWorld(state, () => undefined);
-    updateEnemyAI(enemy, state, outbound, spatial, 1 / 30, 3_000, attackWorld, state.activeCasts);
+    updateEnemyAI(enemy, 1 / 30, {
+      state, outbound, spatial, now: 3_000, world: attackWorld, activeCasts: state.activeCasts,
+    });
     tickCasts(state.activeCasts, 100, outbound, attackWorld, 3_000);
     expect(player.health).toBeGreaterThanOrEqual(77);
     expect(player.health).toBeLessThanOrEqual(83);
