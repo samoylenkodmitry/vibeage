@@ -57,6 +57,7 @@ export type CastRequestInput = {
   targetId: string | undefined;
   outbound: OutboundEventSink;
   world: CombatWorld;
+  now: number;
 };
 
 export function createActiveCastStore(): ActiveCastStore {
@@ -76,8 +77,8 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
     targetId,
     outbound,
     world,
+    now,
   } = input;
-  const now = Date.now();
   const skill = SKILLS[skillId];
   
   if (!skill) {
@@ -206,8 +207,7 @@ export function getCastById(activeCasts: ActiveCastStore, castId: string): Cast 
  * Updates and progresses active casts, transitions them between states
  * Fully implemented server-authoritative state machine
  */
-export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: OutboundEventSink, world: CombatWorld): void {
-  const now = Date.now();
+export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: OutboundEventSink, world: CombatWorld, now: number): void {
 
   for (const castId of Object.keys(activeCasts)) {
     const cast = activeCasts[castId];
@@ -259,7 +259,7 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
         debug(LOG_CATEGORIES.COMBAT, `Resolving instant impact for cast ${cast.castId}`, {
           skillId: cast.skillId,
         });
-        resolveCastImpact(cast, outbound, world);
+        resolveCastImpact(cast, outbound, world, now);
       }
       continue;
     } else if (cast.state === CastStateEnum.Casting) {

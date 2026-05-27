@@ -54,7 +54,7 @@ describe('knockback effect', () => {
     const before = { x: enemy.position.x, z: enemy.position.z };
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(powerStrikeCast(caster, enemy), outbound, makeWorld(caster, enemy));
+    resolveCastImpact(powerStrikeCast(caster, enemy), outbound, makeWorld(caster, enemy), Date.now());
 
     // Vector from caster (0,0) to enemy (3,4) has length 5. After a
     // 6-unit push the enemy should sit on the same ray, 5+6=11 units
@@ -70,7 +70,7 @@ describe('knockback effect', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, Date.now());
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(powerStrikeCast(caster, enemy), outbound, makeWorld(caster, enemy));
+    resolveCastImpact(powerStrikeCast(caster, enemy), outbound, makeWorld(caster, enemy), Date.now());
 
     expect(enemy.position.x).toBe(0);
     expect(enemy.position.z).toBe(0);

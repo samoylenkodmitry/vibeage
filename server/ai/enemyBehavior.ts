@@ -23,7 +23,7 @@ export function findAggroTargetId(
   enemy: Enemy,
   players: Record<string, PlayerState>,
   candidateIds: string[],
-  now: number = Date.now(),
+  now: number,
 ): string | null {
   for (const playerId of candidateIds) {
     const player = players[playerId];
@@ -47,7 +47,7 @@ export function findAggroTargetId(
  * True when the player carries an active invisibility effect (Vanish).
  * Used by enemy AI to skip aggro and to drop existing target locks.
  */
-export function isPlayerInvisible(player: PlayerState, now: number = Date.now()): boolean {
+export function isPlayerInvisible(player: PlayerState, now: number): boolean {
   return (player.statusEffects ?? []).some((effect) => {
     if (effect.type !== 'invisible') return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
@@ -61,7 +61,7 @@ export function isPlayerInvisible(player: PlayerState, now: number = Date.now())
  * convention in `worldMovement.getPlayerSpeed` (multiplicative, fixed
  * factors per effect type — `effect.value` is ignored).
  */
-export function getEnemyMovementSpeed(enemy: Enemy, now: number = Date.now()): number {
+export function getEnemyMovementSpeed(enemy: Enemy, now: number): number {
   let speed = enemy.movementSpeed;
   for (const effect of enemy.statusEffects) {
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
@@ -92,7 +92,7 @@ export function moveEnemyToward(
   targetPosition: VecXZ,
   _spatialGrid: SpatialHashGrid,
   _deltaTime: number,
-  now: number = Date.now(),
+  now: number,
 ): void {
   const direction = directionXZ(enemy.position, targetPosition);
   const speed = getEnemyMovementSpeed(enemy, now);
@@ -139,8 +139,8 @@ export function applyEnemyAttack(enemy: Enemy, targetPlayer: PlayerState, now: n
   // Evasion now dodges mob swings too (it used to only roll in the
   // player-cast path): the accuracy-vs-evasion stat differential plus
   // any flat evasion-buff dodge. Seeded per (enemy, player, tick) so
-  // it's deterministic. Enemy accuracy defaults to the baseline.
-  const missChance = incomingMissChance(enemy.accuracy, targetPlayer, now);
+  // it's deterministic. Enemy accuracy comes from its spec stats.
+  const missChance = incomingMissChance(enemy.stats?.accuracy, targetPlayer, now);
   if (rollMiss(`${enemy.id}:${targetPlayer.id}:${now}`, missChance)) {
     return { damage: 0, killed: false, miss: true };
   }

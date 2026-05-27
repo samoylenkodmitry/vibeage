@@ -67,7 +67,7 @@ describe('Phoenix Knight Resurrection — once-per-life killing-hit save', () =>
     const phoenix = makeKnight('phoenix_knight');
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireball(caster, phoenix), out, worldFor(caster, phoenix));
+    resolveCastImpact(fireball(caster, phoenix), out, worldFor(caster, phoenix), Date.now());
 
     expect(phoenix.health).toBe(1);
     expect(phoenix.isAlive).toBe(true);
@@ -81,7 +81,7 @@ describe('Phoenix Knight Resurrection — once-per-life killing-hit save', () =>
     phoenix.usedResurrectionThisLife = true; // pretend a prior save burned it
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireball(caster, phoenix), out, worldFor(caster, phoenix));
+    resolveCastImpact(fireball(caster, phoenix), out, worldFor(caster, phoenix), Date.now());
 
     expect(phoenix.health).toBe(0);
   });
@@ -91,7 +91,7 @@ describe('Phoenix Knight Resurrection — once-per-life killing-hit save', () =>
     const baseline = makeKnight(null);
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireball(caster, baseline), out, worldFor(caster, baseline));
+    resolveCastImpact(fireball(caster, baseline), out, worldFor(caster, baseline), Date.now());
 
     expect(baseline.health).toBe(0);
   });

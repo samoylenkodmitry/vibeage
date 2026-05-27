@@ -76,7 +76,7 @@ describe('AoE target dedup (Section 8 L536)', () => {
     const world = makeWorld({ caster, primary, nearby: [sibling] });
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(makeWaterSplashCast(caster.id, primary.id), outbound, world);
+    resolveCastImpact(makeWaterSplashCast(caster.id, primary.id), outbound, world, NOW);
 
     // Both enemies took damage exactly once.
     expect(primary.health).toBeLessThan(primaryHealthBefore);
@@ -109,7 +109,7 @@ describe('AoE target dedup (Section 8 L536)', () => {
     };
     const outbound: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(makeWaterSplashCast(caster.id, primary.id), outbound, world);
+    resolveCastImpact(makeWaterSplashCast(caster.id, primary.id), outbound, world, NOW);
 
     expect(caster.health).toBe(casterBefore);
   });

@@ -78,7 +78,7 @@ export function advanceAll(
   state: GameState,
   spatial: SpatialHashGrid,
   deltaTimeMs: number,
-  now: number = Date.now(),
+  now: number,
   outbound?: OutboundEventSink,
 ): void {
   for (const player of Object.values(state.players)) {

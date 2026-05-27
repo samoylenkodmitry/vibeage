@@ -88,7 +88,7 @@ describe('player session hydration', () => {
         rewardGranted: false,
       },
       character_inventory: aggregateWith('db-player-id', 'health_potion', 1),
-    }, 'socket1', 'PersistedMage');
+    }, 'socket1', 'PersistedMage', Date.now());
 
     expect(player).toMatchObject({
       id: 'db-player-id',
@@ -132,7 +132,7 @@ describe('player session hydration', () => {
       xp: '80',
       is_alive: false,
       skills: ['fireball'],
-    }, 'socket1', 'LegacyMage');
+    }, 'socket1', 'LegacyMage', Date.now());
 
     expect(player).toMatchObject({
       health: 0,
@@ -262,7 +262,7 @@ describe('player session relog persistence', () => {
       available_skill_points: stable.available_skill_points,
       starter_progress: stable.starter_progress,
       character_inventory: stable.character_inventory,
-    }, 'new-socket', beforeRelog.name);
+    }, 'new-socket', beforeRelog.name, Date.now());
 
     expect(afterRelog).toMatchObject({
       id: beforeRelog.id,

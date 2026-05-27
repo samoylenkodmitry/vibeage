@@ -54,7 +54,7 @@ describe('Sanguine Blade lifesteal', () => {
 
     const enemyHpBefore = target.health;
     const casterHpBefore = caster.health;
-    resolveCastImpact(slashCast(caster, target), out, world);
+    resolveCastImpact(slashCast(caster, target), out, world, Date.now());
 
     const damageDealt = enemyHpBefore - target.health;
     const hpRestored = caster.health - casterHpBefore;
@@ -74,7 +74,7 @@ describe('Sanguine Blade lifesteal', () => {
     const out: OutboundEventSink = { publish: vi.fn() };
 
     const before = caster.health;
-    resolveCastImpact(slashCast(caster, target), out, world);
+    resolveCastImpact(slashCast(caster, target), out, world, Date.now());
     expect(caster.health).toBe(before);
   });
 });

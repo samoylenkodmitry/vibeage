@@ -11,7 +11,7 @@ export function applyMoveIntent(
   state: GameState,
   socketId: string,
   msg: MoveIntent,
-  now: number = Date.now(),
+  now: number,
 ): MoveIntentResult {
   const playerId = msg.id;
   const player = state.players[playerId];

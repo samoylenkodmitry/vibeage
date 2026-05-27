@@ -76,7 +76,7 @@ describe('cast handler resources', () => {
         outbound,
       },
       makeWorld(),
-      activeCasts,
+      { activeCasts, now: Date.now() },
     );
   }
 
@@ -158,7 +158,7 @@ describe('cast handler CommandRejected envelope (§4/§52)', () => {
       type: 'CastReq', id: player.id, skillId: 'fireball',
       clientTs: Date.now(), targetPos: { x: 10, z: 0 },
     };
-    handleCastReq(socket, player, msg, { direct, outbound }, makeWorld(), activeCasts);
+    handleCastReq(socket, player, msg, { direct, outbound }, makeWorld(), { activeCasts, now: Date.now() });
     expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
       type: 'CommandRejected', commandType: 'CastReq', reason: 'invalid',
     }));
@@ -174,7 +174,7 @@ describe('cast handler CommandRejected envelope (§4/§52)', () => {
     handleCastReq(socket, player, {
       type: 'CastReq', id: player.id, skillId: 'fireball',
       clientTs: 100, clientSeq: 77, targetPos: { x: 10, z: 0 },
-    }, { direct, outbound }, makeWorld(), activeCasts);
+    }, { direct, outbound }, makeWorld(), { activeCasts, now: Date.now() });
     expect(directSend).toHaveBeenCalledWith(expect.objectContaining({
       type: 'CommandRejected', commandType: 'CastReq', requestId: 77,
     }));
@@ -186,7 +186,7 @@ describe('cast handler CommandRejected envelope (§4/§52)', () => {
     handleCastReq(socket, player, {
       type: 'CastReq', id: player.id, skillId: 'fireball',
       clientTs: 200, targetPos: { x: 10, z: 0 },
-    }, { direct, outbound }, makeWorld(), activeCasts);
+    }, { direct, outbound }, makeWorld(), { activeCasts, now: Date.now() });
     const rejections = directSend.mock.calls.map((c) => c[0]).filter((m) => m.type === 'CommandRejected');
     expect(rejections).toHaveLength(1);
     expect(rejections[0].requestId).toBe(200);

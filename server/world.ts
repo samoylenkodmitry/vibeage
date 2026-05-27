@@ -37,7 +37,7 @@ export function initWorld(outbound: OutboundEventSink, zoneManager: ZoneManager)
   const spatial = new SpatialHashGrid();
   const regions = createServerOwnedRegions(zoneManager, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
   initializeServerDrivenZoneRuntime(state, regions, DEFAULT_WORLD_ZONE_SPAWN_POLICY);
-  spawnInitialEnemies(state, spatial, zoneManager, {
+  spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
     activeZoneIds: state.zones.activeZoneIds,
     maxEnemies: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxActiveEnemies,
     maxEnemiesPerZone: DEFAULT_WORLD_ZONE_SPAWN_POLICY.maxEnemiesPerZone,
@@ -93,8 +93,8 @@ function createWorldApi(
     handleMessage(socket: WorldClient, msg: ClientMessage) {
       return handleClientMessage(socket, state, msg, outbound, spatial);
     },
-    onTargetDied(caster: PlayerState, target: Enemy | PlayerState) {
-      return handleTargetDeath(caster, target, { state, spatial, outbound });
+    onTargetDied(caster: PlayerState, target: Enemy | PlayerState, now: number) {
+      return handleTargetDeath(caster, target, { state, spatial, outbound, now });
     },
     getGameState() {
       return state;
@@ -121,7 +121,7 @@ function createWorldApi(
     },
     
     async addPlayer(socketId: string, name: string, options?: { initialRace?: string; initialClass?: string; accountId?: string }) {
-      return addPlayerSession(state, spatial, socketId, name, options);
+      return addPlayerSession(state, spatial, socketId, name, Date.now(), options);
     },
     
     async removePlayerBySocketId(socketId: string) {

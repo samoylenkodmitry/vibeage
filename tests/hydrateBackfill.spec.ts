@@ -21,6 +21,7 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
       },
       'socket1',
       'LegacyWarrior',
+      Date.now(),
     );
 
     expect(player.className).toBe('warrior');
@@ -46,6 +47,7 @@ describe('hydratePersistedPlayer backfills the class starter skill', () => {
       },
       'socket2',
       'LegacyRogue',
+      Date.now(),
     );
 
     expect(player.unlockedSkills).toContain('evade');
@@ -76,6 +78,7 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
       },
       'socketWX',
       'CrossClassWarrior',
+      Date.now(),
     );
 
     // waterSplash is NOT in warrior's tree. fireball IS (level 6).
@@ -103,6 +106,7 @@ describe('hydratePersistedPlayer drops wrong-class skills', () => {
       },
       'socket3',
       'WarriorWithSlash',
+      Date.now(),
     );
 
     const slashCount = player.unlockedSkills.filter(s => s === 'slash').length;

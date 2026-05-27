@@ -45,7 +45,7 @@ describe('dead player cannot continue moving (advanceAll)', () => {
   test('advanceAll skips a dead player whose movement.isMoving was true at death', () => {
     const { state, spatial, player } = makeDeadRunner();
 
-    advanceAll(state, spatial, 500); // half a second of physics
+    advanceAll(state, spatial, 500, Date.now()); // half a second of physics
 
     // Position must NOT have changed. The corpse stays where it died.
     expect(player.position.x).toBe(0);
@@ -85,7 +85,7 @@ describe('alive player still moves (regression net for over-correction)', () => 
     state.players[player.id] = player;
     spatial.insert(player.id, { x: 0, z: 0 });
 
-    advanceAll(state, spatial, 500);
+    advanceAll(state, spatial, 500, Date.now());
 
     // 500ms * 10units/s = 5 units traveled.
     expect(player.position.x).toBeCloseTo(5, 1);

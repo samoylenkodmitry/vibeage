@@ -12,7 +12,7 @@ export type TargetDeathContext = {
   state: GameState;
   spatial: SpatialHashGrid;
   outbound: OutboundEventSink;
-  now?: number;
+  now: number;
   spawnLoot?: (state: GameState, outbound: OutboundEventSink, enemy: Enemy, killer?: PlayerState | null) => void;
 };
 
@@ -30,7 +30,7 @@ export function handleTargetDeath(
     targetType: isEnemy(target) ? 'enemy' : 'player',
   });
   target.isAlive = false;
-  target.deathTimeTs = context.now ?? Date.now();
+  target.deathTimeTs = context.now;
   target.health = 0;
   context.spatial.remove(target.id, { x: target.position.x, z: target.position.z });
 

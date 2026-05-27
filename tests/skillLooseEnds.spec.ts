@@ -38,7 +38,7 @@ describe('C15 harmful self-auras sweep nearby enemies', () => {
       state: CastState.Impact, origin: { x: 0, z: 0 }, pos: { x: 0, z: 0 },
       startedAt: NOW, castTimeMs: 0,
     };
-    resolveCastImpact(cast, { publish: vi.fn() } as OutboundEventSink, world);
+    resolveCastImpact(cast, { publish: vi.fn() } as OutboundEventSink, world, NOW);
     expect(enemy.statusEffects.some((e) => e.type === 'burn')).toBe(true);
   });
 });

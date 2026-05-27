@@ -35,11 +35,10 @@ export function buildInventoryFromSlots(options: {
   characterId: CharacterId;
   slots: readonly InventorySlot[];
   limits: InventoryLimits;
-  now?: number;
+  now: number;
   instanceIdFactory: () => string;
 }): CharacterInventory {
-  const { characterId, slots, limits, instanceIdFactory } = options;
-  const now = options.now ?? Date.now();
+  const { characterId, slots, limits, instanceIdFactory, now } = options;
   const aggregate = createEmptyInventory(characterId, limits);
 
   slots.forEach((slot, slotIndex) => {

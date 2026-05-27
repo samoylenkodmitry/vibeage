@@ -88,7 +88,7 @@ describe('resolveCastImpact — heals[] in CombatLog', () => {
     const events: OutboundEvent[] = [];
     const out: OutboundEventSink = { publish: (e: OutboundEvent) => events.push(e) };
 
-    resolveCastImpact(holyLightCast(healer, wounded), out, worldFor(healer, wounded));
+    resolveCastImpact(holyLightCast(healer, wounded), out, worldFor(healer, wounded), Date.now());
 
     const logs = captureCombatLogs(events);
     expect(logs).toHaveLength(1);
@@ -106,7 +106,7 @@ describe('resolveCastImpact — heals[] in CombatLog', () => {
     const events: OutboundEvent[] = [];
     const out: OutboundEventSink = { publish: (e: OutboundEvent) => events.push(e) };
 
-    resolveCastImpact(holyLightCast(healer, nearlyFull), out, worldFor(healer, nearlyFull));
+    resolveCastImpact(holyLightCast(healer, nearlyFull), out, worldFor(healer, nearlyFull), Date.now());
 
     const logs = captureCombatLogs(events);
     expect(logs).toHaveLength(1);
@@ -121,7 +121,7 @@ describe('resolveCastImpact — heals[] in CombatLog', () => {
     const events: OutboundEvent[] = [];
     const out: OutboundEventSink = { publish: (e: OutboundEvent) => events.push(e) };
 
-    resolveCastImpact(holyLightCast(healer, full), out, worldFor(healer, full));
+    resolveCastImpact(holyLightCast(healer, full), out, worldFor(healer, full), Date.now());
 
     const logs = captureCombatLogs(events);
     expect(logs[0].heals![0]).toBe(0);
@@ -141,7 +141,7 @@ describe('resolveCastImpact — heals[] in CombatLog', () => {
       origin: { x: 0, z: 0 }, pos: { x: 1, z: 0 },
       startedAt: Date.now(), castTimeMs: 0, targetId: wounded.id,
     };
-    resolveCastImpact(fireball, out, worldFor(healer, wounded));
+    resolveCastImpact(fireball, out, worldFor(healer, wounded), Date.now());
 
     const logs = captureCombatLogs(events);
     expect(logs[0].heals).toEqual([0]);

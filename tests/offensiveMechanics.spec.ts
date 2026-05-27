@@ -58,7 +58,7 @@ function damageDealt(skillId: SkillId, enemyHpFraction: number): number {
   enemy.health = Math.round(1_000_000 * enemyHpFraction);
   const before = enemy.health;
   const out: OutboundEventSink = { publish: vi.fn() };
-  resolveCastImpact(cast(skillId, atk.id, enemy.id), out, worldFor(atk, enemy));
+  resolveCastImpact(cast(skillId, atk.id, enemy.id), out, worldFor(atk, enemy), NOW);
   return before - enemy.health;
 }
 
@@ -77,7 +77,7 @@ describe('B11 soul_eater drains life to the caster', () => {
     const enemy = createEnemy('goblin', 40, { x: 1, y: 0, z: 0 }, NOW);
     enemy.maxHealth = 10_000; enemy.health = 10_000;
     const out: OutboundEventSink = { publish: vi.fn() };
-    resolveCastImpact(cast('soul_eater', atk.id, enemy.id), out, worldFor(atk, enemy));
+    resolveCastImpact(cast('soul_eater', atk.id, enemy.id), out, worldFor(atk, enemy), NOW);
     const dealt = 10_000 - enemy.health;
     expect(atk.health).toBeCloseTo(100 + dealt * 0.5, 5);
   });
@@ -99,7 +99,7 @@ describe('B12 shadow_strike pierces armor (cast path)', () => {
       onTargetDied: vi.fn(),
     };
     const out: OutboundEventSink = { publish: vi.fn() };
-    resolveCastImpact(cast('shadow_strike', atk.id, defender.id), out, world);
+    resolveCastImpact(cast('shadow_strike', atk.id, defender.id), out, world, NOW);
     const dealt = 100_000 - defender.health;
     // Without pen a 240 hit vs pDef 500 mitigates to ~69; with full pen
     // it lands near 240 (±variance), well above the mitigated value.

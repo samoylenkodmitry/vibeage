@@ -52,7 +52,7 @@ describe('updateEnemyAI pack aggro propagation', () => {
     spatial.insert(otherPack.id, otherPack.position);
 
     const outbound = { publish: vi.fn() };
-    updateEnemyAI(sourceEnemy, state, outbound, spatial, 1 / 30);
+    updateEnemyAI(sourceEnemy, state, outbound, spatial, 1 / 30, Date.now());
 
     expect(packmate.targetId).toBe(player.id);
     expect(packmate.aiState).toBe('chasing');

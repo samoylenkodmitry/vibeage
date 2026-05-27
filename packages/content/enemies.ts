@@ -34,14 +34,70 @@ type EnemyStatMultipliers = {
   packAggroRadius: number;
 };
 
+/**
+ * Per-species combat characteristics, authored in content (not a
+ * combat-code default). The damage/dodge systems read these off the
+ * mob's derived `stats` block exactly as they read a player's. Omit
+ * any field to take the content-level default below — that default
+ * lives here in the spec layer, never as a `?? <n>` in the engine.
+ */
+export type EnemyCombatSpec = {
+  /** Hit rating, opposed by the target's Evasion. */
+  accuracy: number;
+  /** Dodge rating, opposed by the attacker's Accuracy. */
+  evasion: number;
+  /** Physical / magical mitigation (mitigatedDamage curve). */
+  pDef: number;
+  mDef: number;
+  /** HP restored per second (0 = doesn't regenerate). */
+  hpRegen: number;
+};
+
+const DEFAULT_ENEMY_COMBAT: EnemyCombatSpec = {
+  accuracy: 90, // matches the old ACCURACY_BASELINE the damage path used to assume
+  evasion: 0,
+  pDef: 0,
+  mDef: 0,
+  hpRegen: 0,
+};
+
+/**
+ * The shared mob power curve: how a level-N mob's raw combat values
+ * scale before its per-species `stats` multipliers apply. These are the
+ * baseline the engine combines with each mob's spec — `createEnemy` owns
+ * no magic numbers, it just evaluates `(flat + level*perLevel) * mult`.
+ * Tuning the global mob progression happens here in the spec layer, not
+ * in engine code.
+ */
+export const ENEMY_BASE_SCALING = {
+  /** Max HP = (flat + level*perLevel) × stats.health. */
+  health: { flat: 100, perLevel: 20 },
+  /** XP award = (flat + level*perLevel) × stats.experience. */
+  experience: { flat: 50, perLevel: 10 },
+  /** Attack damage = (flat + level*perLevel) × stats.damage. */
+  damage: { flat: 10, perLevel: 2 },
+  /** Flat baselines (level-independent) × the matching stats multiplier. */
+  movementSpeed: 12, // doubled in PR #324 when the AI double-step was removed
+  attackRange: 2,
+  aggroRadius: 15,
+  attackCooldownMs: 2000,
+} as const;
+
 export type EnemyTemplate = {
   type: string;
   displayName: string;
   family: EnemyFamily;
   visual: EnemyVisualSpec;
   stats: EnemyStatMultipliers;
+  /** Per-species combat characteristics; missing fields take DEFAULT_ENEMY_COMBAT. */
+  combat?: Partial<EnemyCombatSpec>;
   lootTableId?: string;
 };
+
+/** The fully-resolved combat characteristics for a template (spec + defaults). */
+export function resolveEnemyCombat(template: EnemyTemplate): EnemyCombatSpec {
+  return { ...DEFAULT_ENEMY_COMBAT, ...template.combat };
+}
 
 const DEFAULT_ENEMY_STATS: EnemyStatMultipliers = {
   health: 1,

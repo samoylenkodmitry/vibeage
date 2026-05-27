@@ -5,5 +5,5 @@ export interface CombatWorld {
   getEnemyById: (id: string) => Enemy | null;
   getPlayerById: (id: string) => PlayerState | null;
   getEntitiesInCircle: (pos: VecXZ, radius: number) => Array<Enemy | PlayerState>;
-  onTargetDied: (caster: PlayerState, target: Enemy | PlayerState) => void;
+  onTargetDied: (caster: PlayerState, target: Enemy | PlayerState, now: number) => void;
 }

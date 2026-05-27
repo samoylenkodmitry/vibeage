@@ -132,7 +132,7 @@ describe('resolveCastImpact — evasion-buff miss in damage path', () => {
     const startHp = target.health;
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target));
+    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target), Date.now());
 
     expect(target.health).toBe(startHp);
   });
@@ -145,7 +145,7 @@ describe('resolveCastImpact — evasion-buff miss in damage path', () => {
 
     // Fireball carries a burn DOT (per packages/content/skills). A
     // missed cast shouldn't leave the burn on the target.
-    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target));
+    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target), Date.now());
 
     expect(target.statusEffects.length).toBe(beforeEffectCount);
   });
@@ -156,7 +156,7 @@ describe('resolveCastImpact — evasion-buff miss in damage path', () => {
     const events: OutboundEvent[] = [];
     const out: OutboundEventSink = { publish: (event: OutboundEvent) => events.push(event) };
 
-    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target));
+    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target), Date.now());
 
     const combatLogs = events
       .filter((e): e is Extract<OutboundEvent, { type: 'serverMessage' }> => e.type === 'serverMessage')
@@ -173,7 +173,7 @@ describe('resolveCastImpact — evasion-buff miss in damage path', () => {
     const startHp = target.health;
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target));
+    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target), Date.now());
 
     expect(target.health).toBeLessThan(startHp);
   });
@@ -187,7 +187,7 @@ describe('resolveCastImpact — evasion-buff miss in damage path', () => {
     const startHp = target.health;
     const out: OutboundEventSink = { publish: vi.fn() };
 
-    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target));
+    resolveCastImpact(fireballAt(caster, target), out, worldFor(caster, target), Date.now());
 
     expect(target.health).toBeLessThan(startHp);
   });

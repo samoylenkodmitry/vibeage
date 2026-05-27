@@ -56,7 +56,7 @@ export function tryInterruptForNewAction(
   activeCasts: ActiveCastStore,
   outbound: OutboundEventSink,
   reason: 'newCast' | 'movement' | 'other',
-  rng: () => number = Math.random,
+  rng: () => number,
 ): InterruptResult {
   const cast = Object.values(activeCasts).find(
     (c) => c.casterId === player.id && c.state === CastStateEnum.Casting,

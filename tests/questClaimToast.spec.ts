@@ -27,7 +27,7 @@ describe('applyClaimQuestReward emits a system ChatBroadcast', () => {
     const events: OutboundEvent[] = [];
     const outbound: OutboundEventSink = { publish: (e) => events.push(e) };
 
-    const ok = applyClaimQuestReward(player, 'rats_in_the_cellar', outbound);
+    const ok = applyClaimQuestReward(player, 'rats_in_the_cellar', outbound, Date.now());
 
     expect(ok).toBe(true);
     const chat = events.find((e) => e.type === 'serverMessage' && (e.message as { type?: string }).type === 'ChatBroadcast') as
@@ -47,7 +47,7 @@ describe('applyClaimQuestReward emits a system ChatBroadcast', () => {
     const events: OutboundEvent[] = [];
     const outbound: OutboundEventSink = { publish: (e) => events.push(e) };
 
-    const ok = applyClaimQuestReward(player, 'rats_in_the_cellar', outbound);
+    const ok = applyClaimQuestReward(player, 'rats_in_the_cellar', outbound, Date.now());
 
     expect(ok).toBe(false);
     const chat = events.find((e) => e.type === 'serverMessage' && (e.message as { type?: string }).type === 'ChatBroadcast');

@@ -130,7 +130,7 @@ function runInputAndMovementPhase(input: WorldTickRunnerOptions & { now: number 
  * starting mob population. Tracked in `state.zones.spawnedZoneIds`
  * so re-activations don't double-spawn.
  */
-function spawnNewlyActivatedZones(input: WorldTickRunnerOptions): void {
+function spawnNewlyActivatedZones(input: WorldTickRunnerOptions & { now: number }): void {
   if (!input.zoneManager) return;
   // PR WW perf — bot review: this runs every tick. Active-zone
   // budget is small (8), so `.includes()` on the array beats a
@@ -139,12 +139,12 @@ function spawnNewlyActivatedZones(input: WorldTickRunnerOptions): void {
   const spawnedIds = input.state.zones.spawnedZoneIds;
   const newlyActive = input.state.zones.activeZoneIds.filter((id) => !spawnedIds.includes(id));
   if (newlyActive.length === 0) return;
-  spawnInitialEnemies(input.state, input.spatial, input.zoneManager, {
+  spawnInitialEnemies(input.state, input.spatial, input.zoneManager, input.now, {
     activeZoneIds: newlyActive,
   });
 }
 
-function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
+function runEnemyAiPhase(input: WorldTickRunnerOptions & { now: number }): void {
   for (const enemyId in input.state.enemies) {
     if (!hasRecordKey(input.state.enemies, enemyId)) {
       continue;
@@ -152,7 +152,7 @@ function runEnemyAiPhase(input: WorldTickRunnerOptions): void {
 
     const enemy = input.state.enemies[enemyId];
     if (enemy.isAlive && isEnemyInActiveRegion(input.state, enemyId)) {
-      updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000);
+      updateEnemyAI(enemy, input.state, input.outbound, input.spatial, input.tickMs / 1000, input.now);
     }
   }
 }
@@ -163,6 +163,7 @@ function runCombatPhase(input: WorldTickRunnerOptions & { now: number }): void {
     input.tickMs,
     input.outbound,
     createWorldCombatBridge(input.state, input.outbound, input.spatial),
+    input.now,
   );
   tickDamageOverTimeEffects(input.state, input.spatial, input.outbound, input.now);
 }

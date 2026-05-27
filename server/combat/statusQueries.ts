@@ -20,7 +20,7 @@ import { ACCURACY_BASELINE, MAX_DODGE_CHANCE } from '../../packages/content/stat
  */
 const ACTION_BLOCKING_EFFECT_TYPES: ReadonlySet<string> = new Set(['stun', 'freeze', 'root']);
 
-export function isEntityStunned(entity: PlayerState | Enemy, now: number = Date.now()): boolean {
+export function isEntityStunned(entity: PlayerState | Enemy, now: number): boolean {
   return (entity.statusEffects ?? []).some((effect) => {
     if (!ACTION_BLOCKING_EFFECT_TYPES.has(effect.type)) return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
@@ -67,7 +67,7 @@ export function dispelTargetSet(category: DispelCategory): ReadonlySet<string> {
  */
 export function evasionMissChanceFor(
   target: PlayerState | Enemy | null | undefined,
-  now: number = Date.now(),
+  now: number,
 ): number {
   if (!target?.statusEffects?.length) return 0;
   let totalPct = 0;
@@ -93,11 +93,12 @@ export function evasionMissChanceFor(
 export function incomingMissChance(
   attackerAccuracy: number | undefined,
   target: PlayerState | Enemy | null | undefined,
-  now: number = Date.now(),
+  now: number,
 ): number {
   if (!target) return 0;
-  // Enemies carry no `stats` block → 0 evasion (they don't dodge today).
-  const targetEvasion = 'stats' in target ? (target.stats?.evasion ?? 0) : 0;
+  // Every combatant carries a `stats` block (players + mobs), so the
+  // target's evasion reads uniformly — no type-test, no shared default.
+  const targetEvasion = target.stats?.evasion ?? 0;
   const statDodge = computeMissChance(attackerAccuracy ?? ACCURACY_BASELINE, targetEvasion);
   return Math.min(MAX_DODGE_CHANCE, evasionMissChanceFor(target, now) + statDodge);
 }

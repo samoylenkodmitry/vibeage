@@ -39,7 +39,7 @@ describe('enemy behavior helpers', () => {
     const far = makePlayer('far', 20, 0);
     const near = makePlayer('near', 3, 4);
 
-    expect(findAggroTargetId(enemy, { dead, far, near }, ['dead', 'far', 'near'])).toBe('near');
+    expect(findAggroTargetId(enemy, { dead, far, near }, ['dead', 'far', 'near'], Date.now())).toBe('near');
   });
 
   test('sets velocity + facing toward a target and marks the enemy dirty', () => {
@@ -51,7 +51,7 @@ describe('enemy behavior helpers', () => {
     // PR #324 — `moveEnemyToward` no longer integrates position; that
     // job belongs to `worldMovement.advanceEnemyPosition` in the
     // input/movement phase. The AI phase only sets velocity + facing.
-    moveEnemyToward(enemy, { x: 10, z: 0 }, spatial, 1);
+    moveEnemyToward(enemy, { x: 10, z: 0 }, spatial, 1, Date.now());
 
     expect(enemy.position.x).toBe(0);
     expect(enemy.position.z).toBe(0);

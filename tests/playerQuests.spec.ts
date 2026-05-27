@@ -64,7 +64,7 @@ describe('quest flow: kill -> talk -> claim', () => {
     const player = freshPlayerAt('warden_galen');
     const { sink } = captureOutbound();
 
-    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now())).toBe(true);
     const entry = () => player.questState!.active['rats_in_the_cellar'];
     expect(entry().stageIndex).toBe(0);
 
@@ -83,7 +83,7 @@ describe('quest flow: kill -> talk -> claim', () => {
 
     // Claim grants xp and moves quest to completed.
     const xpBefore = player.experience;
-    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, Date.now())).toBe(true);
     expect(player.questState!.active['rats_in_the_cellar']).toBeUndefined();
     expect(player.questState!.completed).toContain('rats_in_the_cellar');
     expect(player.experience).toBeGreaterThan(xpBefore);
@@ -96,7 +96,7 @@ describe('quest flow: kill -> talk -> claim', () => {
     // for the same quest must not re-grant XP or items.
     const player = freshPlayerAt('warden_galen');
     const { sink } = captureOutbound();
-    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now());
     onEnemyKilledForQuests(player, 'goblin', sink);
     onEnemyKilledForQuests(player, 'goblin', sink);
     onEnemyKilledForQuests(player, 'goblin', sink);
@@ -105,14 +105,14 @@ describe('quest flow: kill -> talk -> claim', () => {
     applyAdvanceQuest(player, 'rats_in_the_cellar', sink);
 
     // First claim succeeds + records XP.
-    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink)).toBe(true);
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, Date.now())).toBe(true);
     const xpAfterFirst = player.experience;
     const goldAfterFirst = player.gold ?? 0;
 
     // Second claim returns false (no active entry) AND no further
     // mutation to xp / gold. The quest is in completed[], not active{},
     // so the readyToClaim gate fails fast.
-    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink)).toBe(false);
+    expect(applyClaimQuestReward(player, 'rats_in_the_cellar', sink, Date.now())).toBe(false);
     expect(player.experience).toBe(xpAfterFirst);
     expect(player.gold ?? 0).toBe(goldAfterFirst);
     expect(player.questState!.completed).toContain('rats_in_the_cellar');
@@ -123,13 +123,13 @@ describe('quest flow: kill -> talk -> claim', () => {
     player.level = 20;
     player.position = { x: 9999, y: 0, z: 9999 };
     const { sink } = captureOutbound();
-    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink)).toBe(false);
+    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now())).toBe(false);
   });
 
   it('cancel removes the quest from active', () => {
     const player = freshPlayerAt('warden_galen');
     const { sink } = captureOutbound();
-    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now());
     expect(applyCancelQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
     expect(player.questState!.active['rats_in_the_cellar']).toBeUndefined();
   });
@@ -137,7 +137,7 @@ describe('quest flow: kill -> talk -> claim', () => {
   it('advance is a no-op when the objective is not yet met', () => {
     const player = freshPlayerAt('warden_galen');
     const { sink } = captureOutbound();
-    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now());
     // No goblin kills yet — advance must refuse.
     expect(applyAdvanceQuest(player, 'rats_in_the_cellar', sink)).toBe(false);
   });
@@ -145,7 +145,7 @@ describe('quest flow: kill -> talk -> claim', () => {
   it('kill hook ignores non-matching enemy types', () => {
     const player = freshPlayerAt('warden_galen');
     const { sink } = captureOutbound();
-    applyAcceptQuest(player, 'rats_in_the_cellar', sink);
+    applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now());
     onEnemyKilledForQuests(player, 'dragon', sink);
     expect(player.questState!.active['rats_in_the_cellar'].progress).toBe(0);
   });
@@ -155,7 +155,7 @@ describe('boss-hunt quest objective', () => {
   it('kill_boss ticks only when bossId matches', () => {
     const player = freshPlayerAt('bounty_broker_mira');
     const { sink } = captureOutbound();
-    applyAcceptQuest(player, 'bounty_grakk', sink);
+    applyAcceptQuest(player, 'bounty_grakk', sink, Date.now());
     const entry = () => player.questState!.active['bounty_grakk'];
 
     // A goblin (not the boss) doesn't progress the stage.
@@ -199,7 +199,7 @@ describe('AcceptQuest rejection feedback (§49/M2)', () => {
     // Move 1000 metres away so the interaction check fails.
     player.position = { x: player.position.x + 1000, y: 0.5, z: player.position.z };
     const { events, sink } = captureOutbound();
-    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink)).toBe(false);
+    expect(applyAcceptQuest(player, 'rats_in_the_cellar', sink, Date.now())).toBe(false);
     expect(feedbackText(events)).toMatch(/too far/i);
   });
 
@@ -207,7 +207,7 @@ describe('AcceptQuest rejection feedback (§49/M2)', () => {
     const player = freshPlayerAt('bounty_broker_mira');
     player.level = 1;
     const { events, sink } = captureOutbound();
-    expect(applyAcceptQuest(player, 'bounty_grakk', sink)).toBe(false);
+    expect(applyAcceptQuest(player, 'bounty_grakk', sink, Date.now())).toBe(false);
     expect(feedbackText(events)).toMatch(/level/i);
   });
 });

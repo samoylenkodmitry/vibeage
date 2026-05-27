@@ -72,6 +72,9 @@ jobs:
       - name: Maintainability gate
         run: pnpm run check:maintainability
 
+      - name: Engine-abstraction gate
+        run: pnpm run check:engine-abstraction
+
       - name: Content validation
         run: pnpm run content:check
 

@@ -1,6 +1,7 @@
 import { classifySkill, SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { CastReq } from '../../packages/protocol/messages.js';
-import { PlayerState } from '../../packages/sim/entities.js';
+import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
+import { type Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
 import { tryInterruptForNewAction } from './castInterrupt.js';
@@ -30,14 +31,19 @@ type CastHandlerTransport = {
  * Handles a cast request from the client
  * Integration point between the world.ts and the new skillSystem.ts
  */
+/** The cast store + the server clock for this request — bundled to keep
+ *  the handler's surface within the maintainability param budget. */
+export type CastRuntime = { activeCasts: ActiveCastStore; now: number };
+
 export function handleCastReq(
   socket: CastRequestClient,
   player: PlayerState,
   msg: CastReq,
   transport: CastHandlerTransport,
   world: CombatWorld,
-  activeCasts: ActiveCastStore
+  runtime: CastRuntime,
 ): void {
+  const { activeCasts, now } = runtime;
   const playerId = msg.id;
   // §52 #5 — count every CastReq the handler sees. Pair with
   // `castReq.accepted` below so the accept-rate (accepted/received)
@@ -52,8 +58,6 @@ export function handleCastReq(
     return;
   }
 
-  const now = Date.now();
-
   // Stun blocks casting entirely. CastFail.reason has no 'stunned'
   // literal so we route through 'invalid' — clients see a generic cast
   // failure; the metric distinguishes the cause for operators.
@@ -67,7 +71,10 @@ export function handleCastReq(
   // Cast-blocking gate: a different active cast belonging to this
   // player either gets interrupted (refund + clear) or blocks this
   // new cast outright. See castInterrupt.ts for the rules.
-  const interrupt = tryInterruptForNewAction(player, activeCasts, transport.outbound, 'newCast');
+  const interrupt = tryInterruptForNewAction(
+    player, activeCasts, transport.outbound, 'newCast',
+    makeRng(hash(`interrupt:${player.id}:${now}`)),
+  );
   if (interrupt === 'block') {
     runtimeMetrics.increment('cast.rejectedBlocked');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is in a blocking cast`);
@@ -75,18 +82,7 @@ export function handleCastReq(
     return;
   }
 
-  // Resolve target: enemies first, then other players (PvP). Casting
-  // at yourself is rejected here — beneficial self-cast skills take
-  // the no-target branch instead (impactResolver auto-targets caster).
-  let target: ReturnType<typeof world.getEnemyById> | ReturnType<typeof world.getPlayerById> = null;
-  if (msg.targetId) {
-    target = world.getEnemyById(msg.targetId);
-    if (!target) {
-      const otherPlayer = world.getPlayerById(msg.targetId);
-      target = otherPlayer && otherPlayer.id !== player.id ? otherPlayer : null;
-    }
-  }
-
+  const target = resolveCastTarget(player, msg, world);
   const castCheck = validateCastRequest(player, msg.skillId, target, msg.targetPos, now);
   if (castCheck.ok === false) {
     debug(LOG_CATEGORIES.COMBAT, `Cast failed for player ${playerId}`, {
@@ -109,6 +105,7 @@ export function handleCastReq(
     targetId: msg.targetId,
     outbound: transport.outbound,
     world,
+    now,
   });
   
   const failReason = typeof castResult === 'string' ? toCastRejectionReason(castResult) : null;
@@ -129,6 +126,23 @@ export function handleCastReq(
     ...resourceUpdate,
   });
   runtimeMetrics.increment('castReq.accepted');
+}
+
+/**
+ * Resolve a CastReq's target: enemies first, then other players (PvP).
+ * Casting at yourself returns null — beneficial self-cast skills take
+ * the no-target branch (impactResolver auto-targets the caster).
+ */
+function resolveCastTarget(
+  player: PlayerState,
+  msg: CastReq,
+  world: CombatWorld,
+): Enemy | PlayerState | null {
+  if (!msg.targetId) return null;
+  const enemy = world.getEnemyById(msg.targetId);
+  if (enemy) return enemy;
+  const otherPlayer = world.getPlayerById(msg.targetId);
+  return otherPlayer && otherPlayer.id !== player.id ? otherPlayer : null;
 }
 
 function sendCastRejected(direct: DirectMessageSink, msg: CastReq, reason: CastRejectionReason): void {

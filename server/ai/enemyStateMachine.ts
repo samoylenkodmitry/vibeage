@@ -1,5 +1,6 @@
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
+import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
@@ -69,12 +70,23 @@ export type EnemyAIContext = {
   deltaTime: number;
   now: number;
   /**
-   * Returns a uniform value in [0, 1). Defaults to Math.random in
-   * production; tests pass a seeded fn so patrol target picks +
-   * patrol-wait jitter become reproducible.
+   * Returns a uniform value in [0, 1) for patrol-target picks +
+   * patrol-wait jitter. When omitted, the state machine derives a
+   * DETERMINISTIC stream seeded on (enemy.id, now) — never ambient
+   * Math.random — so the same world replays identically on a SimClock.
+   * Tests/the live loop may still inject a specific stream.
    */
   rng?: () => number;
 };
+
+/**
+ * The patrol RNG: the injected stream if the caller provided one, else
+ * a stream seeded on this enemy + this instant. Deterministic either
+ * way — a given (enemy, tick) always picks the same patrol point.
+ */
+function patrolRng(enemy: Enemy, context: EnemyAIContext): () => number {
+  return context.rng ?? makeRng(hash(`patrol:${enemy.id}:${context.now}`));
+}
 
 export type EnemyAIProgress = {
   events: EnemyAIEvent[];
@@ -222,7 +234,7 @@ function advanceIdleEnemy(enemy: Enemy, context: EnemyAIContext, progress: Enemy
     return;
   }
   if (!enemy.patrolTarget) {
-    const rng = context.rng ?? Math.random;
+    const rng = patrolRng(enemy, context);
     const angle = rng() * Math.PI * 2;
     const radius = rng() * patrolRadiusFor(enemy);
     enemy.patrolTarget = {
@@ -257,7 +269,7 @@ function advancePatrollingEnemy(enemy: Enemy, context: EnemyAIContext, progress:
   if (dist <= PATROL_ARRIVAL_DISTANCE) {
     stopEnemy(enemy);
     enemy.patrolTarget = undefined;
-    const rng = context.rng ?? Math.random;
+    const rng = patrolRng(enemy, context);
     enemy.patrolWaitUntilTs = context.now + PATROL_WAIT_MIN_MS + rng() * (PATROL_WAIT_MAX_MS - PATROL_WAIT_MIN_MS);
     enemy.aiState = 'idle';
     progress.shouldBroadcastEnemyUpdate = true;

@@ -74,6 +74,7 @@ describe('self-cast targeting', () => {
       targetId: undefined,
       outbound,
       world,
+      now: Date.now(),
     });
 
     expect(result).not.toBe('missingTarget');
@@ -94,6 +95,7 @@ describe('self-cast targeting', () => {
       targetId: undefined,
       outbound,
       world,
+      now: Date.now(),
     });
 
     expect(result).not.toBe('missingTarget');
@@ -112,6 +114,7 @@ describe('self-cast targeting', () => {
       targetId: undefined,
       outbound,
       world,
+      now: Date.now(),
     });
 
     expect(result).toBe('missingTarget');

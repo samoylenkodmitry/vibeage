@@ -23,7 +23,7 @@ export function validateCastRequest(
   requestedSkillId: string,
   target: Enemy | PlayerState | null,
   targetPos: VecXZ | undefined,
-  timestamp: number = Date.now(),
+  timestamp: number,
 ): CastRuleResult {
   const skillId = requestedSkillId as SkillId;
   const skill = SKILLS[skillId];
@@ -43,9 +43,9 @@ export function validateCastRequest(
 export function canCast(
   caster: PlayerState,
   skill: { id: SkillId; range: number },
-  target?: Enemy | PlayerState | null,
-  targetPos?: VecXZ,
-  timestamp: number = Date.now(),
+  target: Enemy | PlayerState | null,
+  targetPos: VecXZ | undefined,
+  timestamp: number,
 ): { canCast: boolean; reason?: CastRuleFailReason } {
   const skillDef = SKILLS[skill.id];
   if (!skillDef || !caster.isAlive) {

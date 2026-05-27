@@ -102,7 +102,7 @@ describe('deterministic server runtime flow', () => {
       },
     }));
 
-    resolveCastImpact(makeFireballImpactCast(player.id, enemy.id, player.position), outbound, world);
+    resolveCastImpact(makeFireballImpactCast(player.id, enemy.id, player.position), outbound, world, Date.now());
 
     expect(enemy.isAlive).toBe(false);
     expect(enemy.health).toBe(0);

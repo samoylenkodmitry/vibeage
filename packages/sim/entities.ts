@@ -20,6 +20,40 @@ export type {
   VecXZ,
 };
 
+/**
+ * Derived characteristic block shared by every combatant — player,
+ * mob, boss. One shape, built by one pipeline from the entity's spec
+ * (race/class/level/equip/passives for players; template/level for
+ * mobs). The combat systems read these uniformly (`entity.stats.X`),
+ * never type-testing the entity. Attributes (str/dex/…) are only
+ * meaningful for spec-derived players; mobs carry the derived combat
+ * fields their template authors.
+ */
+export interface EntityStats {
+  dmgMult?: number;
+  critChance?: number;
+  critMult?: number;
+  /** §45.3 follow-up — heal-output multiplier from spec passives. */
+  healMult?: number;
+  pAtk?: number;
+  mAtk?: number;
+  pDef?: number;
+  mDef?: number;
+  hpRegen?: number;
+  mpRegen?: number;
+  accuracy?: number;
+  evasion?: number;
+  attackSpeed?: number;
+  castSpeed?: number;
+  runSpeed?: number;
+  str?: number;
+  dex?: number;
+  con?: number;
+  int?: number;
+  wit?: number;
+  men?: number;
+}
+
 export interface PlayerActiveQuestProgress {
   stageIndex: number;
   progress: number;
@@ -46,13 +80,12 @@ export interface Enemy {
   isAlive: boolean;
   attackDamage: number;
   /**
-   * Hit rating opposed by the target's Evasion (see stats.ts HIT
-   * model). Optional + defaulted to `ACCURACY_BASELINE` in the
-   * damage path, so a mob with no authored accuracy lands every hit
-   * on an unbuffed player and only an evasion build / Evade buff
-   * makes it miss. Authorable per template for evasion-heavy fights.
+   * Derived combat characteristics (accuracy, evasion, pDef, mDef,
+   * hpRegen, …) built from this mob's template+level — the SAME shape
+   * players carry, so the combat systems read `entity.stats.X`
+   * uniformly with no type-test and no shared code default.
    */
-  accuracy?: number;
+  stats?: EntityStats;
   attackRange: number;
   baseExperienceValue: number;
   experienceValue: number;
@@ -68,6 +101,15 @@ export interface Enemy {
   aggroRadius: number;
   attackCooldownMs: number;
   lastAttackTime: number;
+  /**
+   * Last moment the generic regen system topped this mob up. Mirrors
+   * `PlayerState.lastRegenTimeMs` so the SAME regen core advances HP
+   * over real elapsed seconds for mobs and players alike. Mobs with a
+   * spec `hpRegen` of 0 (the default) simply never change.
+   */
+  lastRegenTimeMs?: number;
+  /** Last moment this entity took damage; gates in-combat regen suppression. */
+  lastDamagedTs?: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
   dirtySnap?: boolean;
@@ -208,6 +250,8 @@ export interface PlayerState {
    * rate), instead of a fixed per-tick amount.
    */
   lastRegenTimeMs?: number;
+  /** Last moment this player took damage; gates in-combat regen suppression. */
+  lastDamagedTs?: number;
   statusEffects: StatusEffect[];
   level: number;
   experience: number;
@@ -231,30 +275,7 @@ export interface PlayerState {
    * tracks within-life intent.
    */
   usedResurrectionThisLife?: boolean;
-  stats?: {
-    dmgMult?: number;
-    critChance?: number;
-    critMult?: number;
-    /** §45.3 follow-up — heal-output multiplier from spec passives. */
-    healMult?: number;
-    pAtk?: number;
-    mAtk?: number;
-    pDef?: number;
-    mDef?: number;
-    hpRegen?: number;
-    mpRegen?: number;
-    accuracy?: number;
-    evasion?: number;
-    attackSpeed?: number;
-    castSpeed?: number;
-    runSpeed?: number;
-    str?: number;
-    dex?: number;
-    con?: number;
-    int?: number;
-    wit?: number;
-    men?: number;
-  };
+  stats?: EntityStats;
   // §52 #2 — `inventory` field retired. Production reads + writes
   // route through `characterInventory`; the wire shape is computed
   // by `flattenInventoryToSlots` only at the snapshot boundary.

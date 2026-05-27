@@ -22,7 +22,7 @@ export function onDevTeleport(
     return;
   }
 
-  const result = applyDevTeleport(state, socket.id, msg);
+  const result = applyDevTeleport(state, socket.id, msg, Date.now());
 
   if (result.ok === false) {
     warn(LOG_CATEGORIES.MOVEMENT, `DevTeleport rejected: ${result.reason}`, {

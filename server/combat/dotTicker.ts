@@ -58,7 +58,7 @@ export function tickDamageOverTimeEffects(
   state: GameState,
   spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
-  now: number = Date.now(),
+  now: number,
 ): void {
   for (const playerId in state.players) {
     if (!hasRecordKey(state.players, playerId)) continue;

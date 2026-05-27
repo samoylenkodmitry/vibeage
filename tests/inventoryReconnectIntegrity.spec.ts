@@ -72,6 +72,7 @@ function roundtrip(player: ReturnType<typeof makePlayerWithBag>) {
     { id: player.id, ...row },
     's-reconnect',
     player.name,
+    Date.now(),
   );
 }
 

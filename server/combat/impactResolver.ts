@@ -57,13 +57,14 @@ export function applyProjectileHit(
   target: Enemy | PlayerState,
   outbound: OutboundEventSink,
   world: CombatWorld,
+  now: number,
 ): void {
   const skill = SKILLS[cast.skillId];
   const caster = world.getPlayerById(cast.casterId);
   const context: ImpactContext = { caster, skill, outbound, world };
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world });
-  const heal = applyCastToTarget(target, result.damage, context, result.miss);
+  const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world, now });
+  const heal = applyCastToTarget(target, result.damage, context, result.miss, now);
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: [target.id], damages: [result.damage], crits: [result.crit], misses: [result.miss],
@@ -71,7 +72,7 @@ export function applyProjectileHit(
   });
 }
 
-export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld): void {
+export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world: CombatWorld, now: number): void {
   const skill = SKILLS[cast.skillId];
   // §45.5 — for piercing projectiles, damage was applied per-hit
   // in `applyProjectileHit` while the projectile was traveling.
@@ -89,9 +90,9 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
   const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(caster?.skillLevels, skill.id)).dmgMultiplier;
-  const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world }));
+  const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world, now }));
 
-  const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss));
+  const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss, now));
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: targets.map((target) => target.id),
@@ -149,16 +150,18 @@ type DamageContext = {
   targetId?: string;
   target?: Enemy | PlayerState | null;
   world?: CombatWorld;
+  /** Tick time (injected); used for time-gated multipliers like element vulnerability. */
+  now: number;
 };
 
 function calculateDamage(
   skill: SkillDef,
   caster: PlayerState | null | undefined,
   upgradeDmgMult: number,
-  ctx: DamageContext = {},
+  ctx: DamageContext,
 ): { damage: number; crit: boolean; miss: boolean } {
   if (!skill?.dmg) return { damage: 0, crit: false, miss: false };
-  const { castId, targetId, target, world } = ctx;
+  const { targetId, target, world, now } = ctx;
   const baseStats = caster?.stats || { dmgMult: 1, critChance: 0, critMult: 2 };
   const casterDmgMult = baseStats.dmgMult ?? 1;
   const off = skill.offense;
@@ -171,13 +174,18 @@ function calculateDamage(
       critMult: (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0),
     },
     skill: { base: skill.dmg, variance: 0.1 },
-    seed: `${castId || nanoid()}:${targetId || nanoid()}`,
+    // Deterministic per-cast variance roll: keyed on skill + target +
+    // impact instant — never a random id — so the same fight replays
+    // identically on a SimClock while distinct skills/targets/cast-times
+    // still diverge (variance preserved). (`castId` stays an opaque
+    // nanoid for client correlation; it must not seed behaviour.)
+    seed: `${skill.id}:${targetId ?? 'none'}:${now}`,
     // Dodge = the accuracy-vs-evasion stat differential plus any flat
     // evasion-buff dodge (Evade / Mist Step), clamped to the cap.
-    targetMissChance: incomingMissChance(caster?.stats?.accuracy, target),
+    targetMissChance: incomingMissChance(caster?.stats?.accuracy, target, now),
   });
   if (result.miss) return { damage: 0, crit: false, miss: true };
-  const elementVulnMult = elementVulnerabilityMultiplier(skill, target);
+  const elementVulnMult = elementVulnerabilityMultiplier(skill, target, now);
   const casterElementMult = casterDamageElementMultiplier(skill, caster);
   const partyAuraMult = partyDamageAuraMultFor(caster, world);
   // B9 — Execute scales up as the target's HP drops.
@@ -252,11 +260,10 @@ const ELEMENT_TO_WEAKNESS_TYPE: Readonly<Record<string, string>> = {
   // IMPLEMENTED_EFFECT_TYPES) at the same time.
 };
 
-function elementVulnerabilityMultiplier(skill: SkillDef, target?: Enemy | PlayerState | null): number {
+function elementVulnerabilityMultiplier(skill: SkillDef, target: Enemy | PlayerState | null | undefined, now: number): number {
   if (!skill.damageElement || !target?.statusEffects?.length) return 1;
   const weaknessType = ELEMENT_TO_WEAKNESS_TYPE[skill.damageElement];
   if (!weaknessType) return 1;
-  const now = Date.now();
   let bonusPct = 0;
   for (const effect of target.statusEffects) {
     if (effect.type !== weaknessType) continue;
@@ -348,7 +355,8 @@ function applyCastToTarget(
   target: Enemy | PlayerState,
   damage: number,
   context: ImpactContext,
-  miss: boolean = false,
+  miss: boolean,
+  now: number,
 ): number {
   const { caster, skill, outbound, world } = context;
   if (miss) return 0; // §52 #6 — dodged; CombatLog at call site carries miss=true.
@@ -360,7 +368,7 @@ function applyCastToTarget(
   // with a damage component are rare and read as physical).
   const damageKind = skill.kind === 'magical' ? 'magical' : 'physical';
   // B12 — armor-pen skills (Shadow Strike / Shadow Arrow) ignore part of the target's defense.
-  const incoming = applyResolvedDamageToTarget(target, damage, Date.now(), { kind: damageKind, penetration: skill.offense?.armorPen ?? 0 });
+  const incoming = applyResolvedDamageToTarget(target, damage, now, { kind: damageKind, penetration: skill.offense?.armorPen ?? 0 });
 
   // §45.3 follow-up — Dark Avenger Sanguine Blade lifesteal, plus
   // B11 per-skill lifesteal (Soul Eater): restore a fraction of the
@@ -378,15 +386,15 @@ function applyCastToTarget(
   // Damage-based aggro: don't retarget while a taunt is active — that
   // would let any other attacker break the taunt by hitting the mob,
   // defeating the whole point of the skill.
-  if (isEnemy(target) && incoming > 0 && caster && target.isAlive && !isEntityTaunted(target)) {
+  if (isEnemy(target) && incoming > 0 && caster && target.isAlive && !isEntityTaunted(target, now)) {
     target.targetId = caster.id;
     target.aiState = 'chasing';
   }
 
-  const healApplied = applySkillEffects(target, skill, caster, world);
+  const healApplied = applySkillEffects(target, skill, caster, world, now);
   if (target.health <= 0 && target.isAlive && caster) {
-    target.deathTimeTs = Date.now();
-    world.onTargetDied(caster, target);
+    target.deathTimeTs = now;
+    world.onTargetDied(caster, target, now);
   }
 
   emitServerMessage(outbound, {
@@ -421,6 +429,7 @@ function applySkillEffects(
   skill: SkillDef,
   caster: PlayerState | null,
   world: CombatWorld,
+  now: number,
 ): number {
   target.statusEffects = target.statusEffects ?? [];
 
@@ -456,7 +465,7 @@ function applySkillEffects(
         target.velocity = { x: 0, z: 0 };
         target.movement = {
           isMoving: false,
-          lastUpdateTime: Date.now(),
+          lastUpdateTime: now,
           speed: target.movement?.speed ?? 0,
         };
         target.dirtySnap = true;
@@ -469,10 +478,10 @@ function applySkillEffects(
       // world units. No-op for self-targets (vector is zero) and for
       // immovable bosses; otherwise the target snaps back and the
       // dirty-snap flag broadcasts the new position on the next tick.
-      applyKnockback(target, caster, effect.value);
+      applyKnockback(target, caster, effect.value, now);
       continue;
     }
-    upsertStatusEffect(target, effect, skill.id, caster);
+    upsertStatusEffect(target, effect, skill.id, caster, now);
     // Taunt: force the enemy to focus the caster for the duration of
     // the effect. Damage-based aggro (above) is suppressed while
     // isEntityTaunted is true, so the caster keeps the lock.
@@ -484,7 +493,7 @@ function applySkillEffects(
   return healApplied;
 }
 
-function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null, distance: number): void {
+function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null, distance: number, now: number): void {
   if (!caster || distance <= 0) return;
   if (target.id === caster.id) return;
   const dx = target.position.x - caster.position.x;
@@ -504,7 +513,7 @@ function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null,
   if (!isEnemy(target)) {
     target.movement = {
       isMoving: false,
-      lastUpdateTime: Date.now(),
+      lastUpdateTime: now,
       speed: target.movement?.speed ?? 0,
     };
   }
@@ -516,7 +525,7 @@ function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null,
  * to suppress damage-based retargeting in applyCastToTarget so a
  * taunted enemy stays glued to its taunter for the effect duration.
  */
-export function isEntityTaunted(entity: Enemy | PlayerState, now: number = Date.now()): boolean {
+export function isEntityTaunted(entity: Enemy | PlayerState, now: number): boolean {
   return (entity.statusEffects ?? []).some((effect) => {
     if (effect.type !== 'taunt') return false;
     const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
@@ -554,7 +563,7 @@ function applyAggroResetAround(target: Enemy | PlayerState, world: CombatWorld):
   }
 }
 
-function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, skillId: string, caster: PlayerState | null): void {
+function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, skillId: string, caster: PlayerState | null, now: number): void {
   const baseDuration = effect.durationMs ?? 0;
   if (!baseDuration) {
     return;
@@ -580,7 +589,7 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
     type: effect.type,
     value,
     durationMs,
-    startTimeTs: Date.now(),
+    startTimeTs: now,
     sourceSkill: skillId,
     // Archwork #2 sub-work 2 — capture the applying entity so a
     // future DoT-kill credit path can read it. Optional because

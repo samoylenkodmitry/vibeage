@@ -60,6 +60,20 @@ export const DEFENSE_HALF_REDUCTION = 200;
  */
 export const ATTACK_SPEED_BASELINE = 300;
 
+/**
+ * In-combat regeneration model — single source for "you can't passively
+ * out-heal sustained damage". For `COMBAT_REGEN_WINDOW_MS` after taking
+ * a hit, an entity's passive HP/MP regen is scaled by
+ * `COMBAT_REGEN_FACTOR` (0 = fully suppressed while under fire). Out of
+ * combat (no hit within the window) regen runs at full rate, so
+ * recovery between fights stays brisk. Tuning levers: raise the factor
+ * to let sustain matter more under fire; shorten the window to recover
+ * sooner after the last hit. This is what stops a level-matched mob
+ * from being out-regened by a player who just stands in its reach.
+ */
+export const COMBAT_REGEN_WINDOW_MS = 5_000;
+export const COMBAT_REGEN_FACTOR = 0;
+
 export const STATS: Record<string, StatDef> = {
   str: {
     id: 'str', short: 'STR', name: 'Strength',

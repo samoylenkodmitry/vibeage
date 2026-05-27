@@ -180,6 +180,7 @@ describe('inventory wire adapter', () => {
         { itemId: 'health_potion', quantity: 2 },
       ],
       limits,
+      now: 1_000,
       instanceIdFactory: () => `id-${i++}`,
     });
 

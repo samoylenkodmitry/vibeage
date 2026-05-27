@@ -55,7 +55,7 @@ describe('P.Def reduces incoming mob damage', () => {
     enemy.attackDamage = 200;
     enemy.attackCooldownMs = 1_000;
     enemy.lastAttackTime = 0;
-    enemy.accuracy = 10_000; // never dodged — isolate mitigation
+    enemy.stats = { ...enemy.stats, accuracy: 10_000 }; // never dodged — isolate mitigation
     return enemy;
   }
 

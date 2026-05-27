@@ -67,18 +67,18 @@ describe('combat cooldown resources', () => {
   test('validates skill existence, ownership, and target range in one cast rule pass', () => {
     const player = makePlayer({ unlockedSkills: [] });
 
-    expect(validateCastRequest(player, 'fireball', null, { x: 1, z: 0 })).toEqual({
+    expect(validateCastRequest(player, 'fireball', null, { x: 1, z: 0 }, Date.now())).toEqual({
       ok: false,
       reason: 'invalid',
     });
 
     player.unlockedSkills = ['fireball'];
-    expect(validateCastRequest(player, 'fireball', null, { x: SKILLS.fireball.range + 1, z: 0 })).toEqual({
+    expect(validateCastRequest(player, 'fireball', null, { x: SKILLS.fireball.range + 1, z: 0 }, Date.now())).toEqual({
       ok: false,
       reason: 'outofrange',
     });
 
-    const valid = validateCastRequest(player, 'fireball', null, { x: 1, z: 0 });
+    const valid = validateCastRequest(player, 'fireball', null, { x: 1, z: 0 }, Date.now());
     expect(valid).toEqual({
       ok: true,
       skillId: 'fireball',

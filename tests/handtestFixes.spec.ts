@@ -229,6 +229,7 @@ describe('Fix #3: equipment persists across hydrate round-trip', () => {
       { id: original.id, ...row },
       's2',
       'tester',
+      Date.now(),
     );
 
     expect(hydrated.characterInventory?.equipment.MAIN_HAND).toBe('inst-1');

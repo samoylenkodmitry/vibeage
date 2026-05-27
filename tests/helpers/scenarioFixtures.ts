@@ -177,7 +177,7 @@ export function createPersistedPlayerReconnectScenario(): {
     available_skill_points: stable.available_skill_points,
     starter_progress: stable.starter_progress,
     character_inventory: stable.character_inventory,
-  }, 'new-socket', beforeRelog.name);
+  }, 'new-socket', beforeRelog.name, Date.now());
 
   return { beforeRelog, afterRelog };
 }

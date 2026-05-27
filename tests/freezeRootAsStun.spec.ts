@@ -102,7 +102,7 @@ describe('frozen player blocks move and cast like stun', () => {
       { type: 'CastReq', id: player.id, skillId: 'fireball', clientTs: NOW },
       { direct, outbound },
       world,
-      createActiveCastStore(),
+      { activeCasts: createActiveCastStore(), now: Date.now() },
     );
 
     // §52 #1 — CastFail retired; check CommandRejected envelope.

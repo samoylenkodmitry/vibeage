@@ -96,7 +96,7 @@ function roundsToKillStarterGoblin(className: CharacterClass): { rounds: number;
   const out: OutboundEventSink = { publish: vi.fn() };
 
   for (let i = 0; i < MAX_ROUNDS; i++) {
-    resolveCastImpact(castAt(skillId, player, target.id, i), out, world);
+    resolveCastImpact(castAt(skillId, player, target.id, i), out, world, Date.now());
     if (target.health <= 0 || !target.isAlive) {
       return { rounds: i + 1, killed: true, skillUsed: skillId };
     }

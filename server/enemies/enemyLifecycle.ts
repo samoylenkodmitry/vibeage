@@ -1,4 +1,4 @@
-import { DEFAULT_PACK_AGGRO_RADIUS_M, getEnemyTemplate } from '../../packages/content/enemies.js';
+import { DEFAULT_PACK_AGGRO_RADIUS_M, ENEMY_BASE_SCALING, getEnemyTemplate, resolveEnemyCombat } from '../../packages/content/enemies.js';
 import { getTerrainHeight } from '../../packages/content/terrain.js';
 import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
@@ -47,21 +47,20 @@ export function createEnemy(
   type: string,
   level: number,
   position: Enemy['position'],
-  now: number = Date.now(),
+  now: number,
   options: CreateEnemyOptions = {},
 ): Enemy {
   const template = getEnemyTemplate(type);
   const healthMult = options.healthMultiplier ?? 1;
   const damageMult = options.damageMultiplier ?? 1;
   const expMult = options.experienceMultiplier ?? (options.isMiniBoss ? 4 : 1);
-  const baseHealth = (100 + level * 20) * template.stats.health * healthMult;
-  const baseExp = (50 + level * 10) * template.stats.experience * expMult;
-  const attackDamage = (10 + level * 2) * template.stats.damage * damageMult;
-  // PR #324 — base multiplier was 6 when enemies were double-stepped
-  // (AI phase added velocity*dt AND the movement phase added it again).
-  // Removing the double-step required doubling this baseline to keep
-  // the same on-screen movement speed.
-  const movementSpeed = 12 * template.stats.movementSpeed;
+  // The mob power curve lives in content (ENEMY_BASE_SCALING); this just
+  // evaluates `(flat + level*perLevel) × species-multiplier × option-mult`.
+  const S = ENEMY_BASE_SCALING;
+  const baseHealth = (S.health.flat + level * S.health.perLevel) * template.stats.health * healthMult;
+  const baseExp = (S.experience.flat + level * S.experience.perLevel) * template.stats.experience * expMult;
+  const attackDamage = (S.damage.flat + level * S.damage.perLevel) * template.stats.damage * damageMult;
+  const movementSpeed = S.movementSpeed * template.stats.movementSpeed;
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
@@ -74,14 +73,17 @@ export function createEnemy(
     maxHealth: baseHealth,
     isAlive: true,
     attackDamage,
-    attackRange: 2 * template.stats.attackRange,
+    // Spec-derived combat characteristics — the same `stats` shape a
+    // player carries, so the damage/dodge systems read them uniformly.
+    stats: { ...resolveEnemyCombat(template) },
+    attackRange: S.attackRange * template.stats.attackRange,
     baseExperienceValue: baseExp,
     experienceValue: baseExp,
     statusEffects: [],
     targetId: null,
     aiState: 'idle',
-    aggroRadius: 15 * template.stats.aggroRadius,
-    attackCooldownMs: 2000 * template.stats.attackCooldownMs,
+    aggroRadius: S.aggroRadius * template.stats.aggroRadius,
+    attackCooldownMs: S.attackCooldownMs * template.stats.attackCooldownMs,
     lastAttackTime: 0,
     movementSpeed,
     velocity: { x: 0, z: 0 },
@@ -104,6 +106,7 @@ export function spawnInitialEnemies(
   state: GameState,
   spatial: SpatialHashGrid,
   zoneManager: ZoneManager,
+  now: number,
   options: SpawnInitialEnemiesOptions = {},
 ): number {
   const maxEnemies = options.maxEnemies ?? WORLD_SPAWN_BUDGETS.maxInitialEnemySpawns;
@@ -121,18 +124,22 @@ export function spawnInitialEnemies(
   for (const zoneId of activeZoneIds) {
     let spawnedInZone = 0;
     spawnedSet.add(zoneId);
+    // Deterministic per-zone spawn stream (count, level, miniboss
+    // placement), seeded on the injected spawn tick — so a simulator
+    // replay populates each zone identically with no ambient RNG.
+    const zoneRng = rng(hash(`spawn:${zoneId}:${now}`));
 
-    const miniBoss = zoneManager.getMiniBoss(zoneId);
+    const miniBoss = zoneManager.getMiniBoss(zoneId, now);
     if (miniBoss && spawned < maxEnemies && spawnedInZone < maxEnemiesPerZone) {
       // PR V — honour an explicit `position` on the miniBoss spec
       // (so Vorthax always spawns on the caldera, not a random rock
       // in the peaks). Falls back to a random in-zone point.
       const position = miniBoss.position
         ? { ...miniBoss.position }
-        : zoneManager.getRandomPositionInZone(zoneId);
+        : zoneManager.getRandomPositionInZone(zoneId, zoneRng);
       if (position) {
-        const zoneBaseLevel = zoneManager.getMobLevel(zoneId);
-        const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position);
+        const zoneBaseLevel = zoneManager.getMobLevel(zoneId, zoneRng);
+        const enemy = createMiniBoss(miniBoss, zoneBaseLevel, position, now);
         state.enemies[enemy.id] = enemy;
         state.zones.enemyZoneIds[enemy.id] = zoneId;
         spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
@@ -141,11 +148,11 @@ export function spawnInitialEnemies(
       }
     }
 
-    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId)) {
+    for (const mobConfig of zoneManager.getMobsToSpawn(zoneId, now, zoneRng)) {
       const zoneBudgetRemaining = maxEnemiesPerZone - spawnedInZone;
       const worldBudgetRemaining = maxEnemies - spawned;
       const spawnCount = Math.min(mobConfig.count, zoneBudgetRemaining, worldBudgetRemaining);
-      const result = spawnMobBatch(state, spatial, zoneManager, zoneId, mobConfig, spawnCount);
+      const result = spawnMobBatch({ state, spatial, zoneManager }, zoneId, mobConfig, spawnCount, now);
       spawned += result;
       spawnedInZone += result;
 
@@ -168,8 +175,9 @@ function createMiniBoss(
   miniBoss: ZoneMiniBoss,
   zoneBaseLevel: number,
   position: Enemy['position'],
+  now: number,
 ): Enemy {
-  return createEnemy(miniBoss.type, zoneBaseLevel + (miniBoss.levelBonus ?? 2), position, Date.now(), {
+  return createEnemy(miniBoss.type, zoneBaseLevel + (miniBoss.levelBonus ?? 2), position, now, {
     isMiniBoss: true,
     bossId: miniBoss.id,
     nameOverride: miniBoss.name,
@@ -182,15 +190,19 @@ function createMiniBoss(
 const DEFAULT_MOB_SPAWN_RADIUS = 8;
 
 function spawnMobBatch(
-  state: GameState,
-  spatial: SpatialHashGrid,
-  zoneManager: ZoneManager,
+  world: { state: GameState; spatial: SpatialHashGrid; zoneManager: ZoneManager },
   zoneId: string,
   mobConfig: MobSpawnConfig,
   spawnCount: number,
+  now: number,
 ): number {
+  const { state, spatial, zoneManager } = world;
   let spawned = 0;
   const packSize = mobConfig.packSize ?? 1;
+  // Deterministic spawn-jitter stream, seeded per (zone, type, tick) so
+  // a simulator replay places mobs identically. No wall clock, no
+  // ambient Math.random.
+  const rand = rng(hash(`${zoneId}:${mobConfig.type}:${now}`));
   while (spawned < spawnCount) {
     const remaining = spawnCount - spawned;
     const groupSize = Math.min(packSize, remaining);
@@ -198,15 +210,15 @@ function spawnMobBatch(
     // jitter around that anchor (and for packs, cluster around the
     // jittered point). Otherwise fall back to a random in-zone point.
     const center = mobConfig.position
-      ? jitterAround(mobConfig.position, mobConfig.spawnRadius ?? DEFAULT_MOB_SPAWN_RADIUS)
-      : zoneManager.getRandomPositionInZone(zoneId);
+      ? jitterAround(mobConfig.position, mobConfig.spawnRadius ?? DEFAULT_MOB_SPAWN_RADIUS, rand)
+      : zoneManager.getRandomPositionInZone(zoneId, rand);
     if (!center) {
       break;
     }
-    const packId = groupSize > 1 ? `pack-${zoneId}-${mobConfig.type}-${spawned}-${Date.now()}` : undefined;
+    const packId = groupSize > 1 ? `pack-${zoneId}-${mobConfig.type}-${spawned}-${now}` : undefined;
     for (let i = 0; i < groupSize; i += 1) {
-      const position = packId ? clusterAround(center, i) : center;
-      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId), position, Date.now(), { packId });
+      const position = packId ? clusterAround(center, i, rand) : center;
+      const enemy = createEnemy(mobConfig.type, zoneManager.getMobLevel(zoneId, rand), position, now, { packId });
       state.enemies[enemy.id] = enemy;
       state.zones.enemyZoneIds[enemy.id] = zoneId;
       spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
@@ -216,20 +228,28 @@ function spawnMobBatch(
   return spawned;
 }
 
-function jitterAround(anchor: { x: number; y: number; z: number }, radius: number): Enemy['position'] {
-  const angle = Math.random() * Math.PI * 2;
-  const dist = Math.sqrt(Math.random()) * radius;
+function jitterAround(
+  anchor: { x: number; y: number; z: number },
+  radius: number,
+  rand: () => number,
+): Enemy['position'] {
+  const angle = rand() * Math.PI * 2;
+  const dist = Math.sqrt(rand()) * radius;
   const x = anchor.x + Math.cos(angle) * dist;
   const z = anchor.z + Math.sin(angle) * dist;
   return { x, y: getTerrainHeight(x, z) + 0.5, z };
 }
 
-function clusterAround(center: Enemy['position'], offsetIndex: number): Enemy['position'] {
+function clusterAround(
+  center: Enemy['position'],
+  offsetIndex: number,
+  rand: () => number,
+): Enemy['position'] {
   if (offsetIndex === 0) {
     return { ...center };
   }
   const angle = (offsetIndex / 6) * Math.PI * 2;
-  const radius = PACK_CLUSTER_RADIUS * (0.4 + Math.random() * 0.6);
+  const radius = PACK_CLUSTER_RADIUS * (0.4 + rand() * 0.6);
   const x = center.x + Math.cos(angle) * radius;
   const z = center.z + Math.sin(angle) * radius;
   return { x, y: getTerrainHeight(x, z) + 0.5, z };
@@ -239,7 +259,7 @@ export function respawnDeadEnemies(
   state: GameState,
   spatial: SpatialHashGrid,
   outbound: OutboundEventSink,
-  now: number = Date.now(),
+  now: number,
 ): number {
   let respawned = 0;
   const activeZoneIds = new Set(state.zones.activeZoneIds);

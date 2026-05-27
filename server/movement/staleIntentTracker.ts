@@ -30,7 +30,7 @@ export class MovementIntentFreshness {
   check(
     socketId: string,
     clientTs: number,
-    nowMs: number = Date.now(),
+    nowMs: number,
   ): StaleIntentReason | null {
     if (Math.abs(clientTs - nowMs) > MAX_CLIENT_CLOCK_SKEW_MS) {
       return 'clockSkew';

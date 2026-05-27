@@ -20,7 +20,7 @@ describe('enemy spawning', () => {
       getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager);
+    const spawned = spawnInitialEnemies(state, spatial, zoneManager, Date.now());
     const enemyIds = Object.keys(state.enemies);
 
     expect(spawned).toBe(2);
@@ -44,7 +44,7 @@ describe('enemy spawning', () => {
       getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager, { maxEnemies: 3 });
+    const spawned = spawnInitialEnemies(state, spatial, zoneManager, Date.now(), { maxEnemies: 3 });
 
     expect(spawned).toBe(3);
     expect(Object.keys(state.enemies)).toHaveLength(3);
@@ -66,7 +66,7 @@ describe('enemy spawning', () => {
       getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager);
+    const spawned = spawnInitialEnemies(state, spatial, zoneManager, Date.now());
     const enemies = Object.values(state.enemies);
 
     expect(spawned).toBe(2);
@@ -91,7 +91,7 @@ describe('enemy spawning', () => {
       getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
-    const spawned = spawnInitialEnemies(state, spatial, zoneManager, {
+    const spawned = spawnInitialEnemies(state, spatial, zoneManager, Date.now(), {
       activeZoneIds: ['zone-a', 'zone-b'],
       maxEnemies: 10,
       maxEnemiesPerZone: 3,
@@ -125,7 +125,7 @@ describe('enemy spawning packs and bosses', () => {
       }),
     } as unknown as ZoneManager;
 
-    spawnInitialEnemies(state, spatial, zoneManager, { activeZoneIds: ['zone-a'] });
+    spawnInitialEnemies(state, spatial, zoneManager, Date.now(), { activeZoneIds: ['zone-a'] });
     const enemies = Object.values(state.enemies);
     const boss = enemies.find((enemy) => enemy.isMiniBoss);
 
@@ -149,7 +149,7 @@ describe('enemy spawning packs and bosses', () => {
       getMiniBoss: () => null,
     } as unknown as ZoneManager;
 
-    spawnInitialEnemies(state, spatial, zoneManager, { activeZoneIds: ['zone-a'] });
+    spawnInitialEnemies(state, spatial, zoneManager, Date.now(), { activeZoneIds: ['zone-a'] });
     const enemies = Object.values(state.enemies);
     const packIds = new Set(enemies.map((enemy) => enemy.packId));
 

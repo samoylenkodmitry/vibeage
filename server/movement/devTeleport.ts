@@ -18,7 +18,7 @@ export function applyDevTeleport(
   state: GameState,
   socketId: string,
   msg: DevTeleport,
-  now: number = Date.now(),
+  now: number,
   env: NodeJS.ProcessEnv = process.env,
 ): DevTeleportResult {
   const playerId = msg.id;

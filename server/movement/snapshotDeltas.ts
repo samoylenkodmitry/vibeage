@@ -151,8 +151,18 @@ function clearDirtySnap(entity: PlayerState | Enemy): void {
   }
 }
 
+// Log every Nth keyframe batch rather than a 1%-random sample: the
+// engine carries no ambient RNG, and a fixed stride is just as good a
+// spam-limiter for a dev-only diagnostic (and reproducible).
+let predictionLogStride = 0;
+const PREDICTION_LOG_EVERY = 100;
+
 function debugPrediction(id: string, predictions: PredictionKeyframe[]): void {
-  if (predictions.length === 0 || Math.random() >= 0.01) {
+  if (predictions.length === 0) {
+    return;
+  }
+  predictionLogStride = (predictionLogStride + 1) % PREDICTION_LOG_EVERY;
+  if (predictionLogStride !== 0) {
     return;
   }
 

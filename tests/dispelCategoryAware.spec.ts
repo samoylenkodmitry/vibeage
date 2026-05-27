@@ -120,7 +120,7 @@ function runDispelWith(
   const restore = category ? withDispelCategory(category) : noop;
   try {
     const out: OutboundEventSink = { publish: vi.fn() };
-    resolveCastImpact(dispelCast(caster, target), out, worldFor(caster, target));
+    resolveCastImpact(dispelCast(caster, target), out, worldFor(caster, target), Date.now());
   } finally {
     restore();
   }

@@ -28,7 +28,7 @@ describe('tryInterruptForNewAction', () => {
     const player = createTransientPlayer('s1', 't1');
     player.castingSkill = null;
     const { sink } = captureOutbound();
-    expect(tryInterruptForNewAction(player, {} as ActiveCastStore, sink, 'newCast')).toBe('allow');
+    expect(tryInterruptForNewAction(player, {} as ActiveCastStore, sink, 'newCast', () => 0)).toBe('allow');
   });
 
   it('interrupts an active blocking + interruptable cast (fireball) and clears cooldown + refunds mana', () => {

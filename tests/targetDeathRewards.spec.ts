@@ -50,7 +50,7 @@ describe('handleTargetDeath — enemy kill rewards', () => {
     const { events, sink } = captureOutbound();
 
     const result = handleTargetDeath(caster, enemy, {
-      state, spatial, outbound: sink,
+      state, spatial, outbound: sink, now: 1_000,
       // Stub spawnLoot to keep this case focused on the XP leg.
       spawnLoot: vi.fn(),
     });
@@ -76,7 +76,7 @@ describe('handleTargetDeath — enemy kill rewards', () => {
     const spawnLoot = vi.fn();
     const { sink } = captureOutbound();
 
-    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot });
+    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot, now: 1_000 });
 
     expect(spawnLoot).toHaveBeenCalledTimes(1);
     const [stateArg, outboundArg, enemyArg, killerArg] = spawnLoot.mock.calls[0];
@@ -97,7 +97,7 @@ describe('handleTargetDeath — enemy kill rewards', () => {
     const spawnLoot = vi.fn();
     const { sink } = captureOutbound();
 
-    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot });
+    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot, now: 1_000 });
 
     expect(spawnLoot).not.toHaveBeenCalled();
     // XP still awarded — loot and XP are independent paths.
@@ -114,7 +114,7 @@ describe('handleTargetDeath — non-kill cases', () => {
     const spawnLoot = vi.fn();
     const { sink } = captureOutbound();
 
-    const result = handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot });
+    const result = handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot, now: 1_000 });
 
     expect(result).toBe(false);
     expect(spawnLoot).not.toHaveBeenCalled();
@@ -130,7 +130,7 @@ describe('handleTargetDeath — non-kill cases', () => {
     const spawnLoot = vi.fn();
     const { sink } = captureOutbound();
 
-    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot });
+    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot, now: 1_000 });
 
     expect(caster.experience).toBe(0);
     expect(spawnLoot).not.toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe('handleTargetDeath — non-kill cases', () => {
     const spawnLoot = vi.fn();
     const { sink } = captureOutbound();
 
-    handleTargetDeath(caster, victim, { state, spatial, outbound: sink, spawnLoot });
+    handleTargetDeath(caster, victim, { state, spatial, outbound: sink, spawnLoot, now: 1_000 });
 
     expect(victim.isAlive).toBe(false);
     expect(caster.experience).toBe(0);
