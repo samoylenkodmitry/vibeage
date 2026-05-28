@@ -5101,3 +5101,28 @@ button.character-option {
     0 2px 8px rgba(0, 0, 0, 0.45);
 }
 .wiki-row-body { min-width: 0; }
+
+/* Zone-entry banner with the generated 16:9 landscape painted behind
+   the text — `--zone-banner-bg` is set on the element style, so a
+   single rule handles all 20 zones. `isolation` ensures the overlay
+   gradient never bleeds outside the banner. */
+.zone-banner--with-art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image:
+    linear-gradient(180deg, rgba(5, 14, 18, 0.42) 0%, rgba(5, 14, 18, 0.68) 100%),
+    var(--zone-banner-bg);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+
+/* Tiny landscape thumb on the always-visible current-zone chip. */
+.current-zone-chip__thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}

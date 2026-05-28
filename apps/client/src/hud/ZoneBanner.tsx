@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ZoneManager } from '../../../../packages/content/zones';
+import { zoneIconPath } from '../../../../packages/content/zoneIcons';
 import type { PlayerEntity } from '../gameTypes';
 
 type ZoneBannerProps = {
@@ -21,6 +22,7 @@ export type ZoneDifficulty = 'low' | 'fair' | 'high';
 
 type Banner = {
   key: number;
+  id: string;
   name: string;
   minLevel: number;
   maxLevel: number;
@@ -71,6 +73,7 @@ export function ZoneBanner({ player }: ZoneBannerProps) {
     seqRef.current += 1;
     setBanner({
       key: seqRef.current,
+      id: zone.id,
       name: zone.name,
       minLevel: zone.minLevel,
       maxLevel: zone.maxLevel,
@@ -93,13 +96,18 @@ export function ZoneBanner({ player }: ZoneBannerProps) {
   const levelText = banner.minLevel === banner.maxLevel
     ? `Lv ${banner.minLevel}`
     : `Lv ${banner.minLevel}–${banner.maxLevel}`;
+  // Layer the zone's painterly thumbnail behind the banner copy via a
+  // CSS variable — keeps the existing layout untouched and lets per-
+  // difficulty colour rules tint over it.
+  const style = { '--zone-banner-bg': `url('${zoneIconPath(banner.id)}')` } as CSSProperties;
   return (
     <div
-      className={`zone-banner zone-banner--difficulty-${banner.difficulty}`}
+      className={`zone-banner zone-banner--difficulty-${banner.difficulty} zone-banner--with-art`}
       key={banner.key}
       aria-live="polite"
       data-testid="zone-banner"
       data-difficulty={banner.difficulty}
+      style={style}
     >
       <span className="zone-banner__eyebrow">You enter</span>
       <strong className="zone-banner__name">{banner.name}</strong>
