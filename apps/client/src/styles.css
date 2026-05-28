@@ -4849,3 +4849,36 @@ button.character-option {
     inset 3px 0 0 var(--slot-grade-color),
     0 0 10px color-mix(in srgb, var(--slot-grade-color) 35%, transparent);
 }
+
+/* Race portraits (generated 256×256 head-and-shoulders busts) sit
+   in a taller column layout — bust above the name — so the art
+   actually reads. The class picker uses the compact horizontal
+   `.character-option` form (small icon next to the label). */
+.character-grid--portraits {
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 8px;
+}
+
+.character-option--race {
+  flex-direction: column;
+  gap: 6px;
+  min-height: 124px;
+  padding: 8px 6px 6px;
+}
+
+.character-option-portrait {
+  width: 80px;
+  height: 80px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.character-option--race.character-option--active .character-option-portrait {
+  box-shadow:
+    inset 0 0 0 1px rgba(250, 204, 21, 0.55),
+    0 4px 14px rgba(250, 204, 21, 0.25);
+}
