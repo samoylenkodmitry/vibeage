@@ -1454,14 +1454,18 @@ input {
   padding: 8px 12px;
   border: 1px solid rgba(141, 233, 215, 0.22);
   border-radius: 8px;
-  /* Painterly dark-wood + filigree-corner skin (generated) under a light
-     dark tint, so the panel stays semi-transparent — the world reads
-     through it while the texture + frame still carry the look. The
-     texture sits on a ::before so its opacity is independent of the
-     panel content; overflow:hidden clips the pseudo to the rounded edge. */
-  background-color: rgba(5, 14, 18, 0.32);
+  /* Frosted dark-wood frame: the world is blurred behind the panel
+     (backdrop-filter) for legibility without losing the see-through
+     feel, then a light dark tint + the texture skin lay on top, and
+     the panel's text wears a heavy shadow so labels pop over any
+     scene. Texture lives on ::before so its opacity is independent of
+     the content; overflow:hidden clips the pseudo to the rounded edge. */
+  background-color: rgba(5, 14, 18, 0.38);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   overflow: hidden;
   font-size: 11px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .vitals-strip::before {
@@ -1471,7 +1475,7 @@ input {
   background-image: url('/game/ui/panel-vitals.png');
   background-size: 100% 100%;
   background-position: center;
-  opacity: 0.55;
+  opacity: 0.48;
   pointer-events: none;
 }
 
