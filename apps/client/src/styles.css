@@ -396,11 +396,8 @@ input {
   position: absolute;
   left: 50%;
   bottom: 18px;
-  /* PR VV — sit above .combat-log (which is bottom-left, full
-     `pointer-events: auto`, and renders later in the React tree).
-     Without this z-index, the centered skill bar's leftmost slots
-     overlap the chat box at ≥1024px viewports and Playwright reports
-     "Cast Fireball intercepted by .combat-log-scroll". */
+  /* Sit above the chat surfaces so skill slots remain clickable
+     where the lower HUD overlaps at wide viewports. */
   z-index: 5;
   display: grid;
   /* 10 columns (number row 1..0). Mobile shrinks below. */
@@ -2033,7 +2030,7 @@ input {
   right: 18px;
   z-index: 7;
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   width: min(320px, calc(100vw - 36px));
   height: min(360px, calc(100vh - 240px));
   gap: 6px;
@@ -2045,29 +2042,93 @@ input {
   font-size: 12px;
 }
 
+.chat-panel--detached {
+  right: auto;
+  bottom: auto;
+  top: 118px;
+  left: 18px;
+  z-index: 8;
+}
+
+.chat-panel--all {
+  top: 154px;
+  left: 54px;
+}
+
+.chat-panel--near {
+  top: 190px;
+  left: 90px;
+}
+
+.chat-titlebar {
+  min-height: 26px;
+}
+
 .chat-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
   gap: 6px;
 }
 
-.chat-tab {
-  flex: 1;
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 11px;
+.chat-tab-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid rgba(141, 233, 215, 0.3);
   border-radius: 6px;
   background: rgba(141, 233, 215, 0.18);
   color: #c4f1e2;
 }
 
-.chat-tab--active {
+.chat-tab-control--active {
   background: #facc15;
   color: #04100d;
   border-color: #facc15;
 }
 
+.chat-tab,
+.chat-tab-detach {
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.chat-tab {
+  min-width: 0;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-tab-detach {
+  border-left: 1px solid rgba(4, 16, 13, 0.22);
+  padding: 0;
+  font-size: 12px;
+}
+
+.chat-tab-control:not(.chat-tab-control--active) .chat-tab-detach {
+  border-left-color: rgba(141, 233, 215, 0.22);
+  color: rgba(196, 241, 226, 0.72);
+}
+
+.chat-pane {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.chat-pane--system {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .chat-list {
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2075,6 +2136,21 @@ input {
   padding: 4px;
   border-radius: 6px;
   background: rgba(2, 6, 12, 0.6);
+}
+
+.chat-list--system {
+  color: #fef3c7;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(250, 204, 21, 0.35) transparent;
+}
+
+.chat-list--system::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-list--system::-webkit-scrollbar-thumb {
+  background: rgba(250, 204, 21, 0.32);
+  border-radius: 999px;
 }
 
 .chat-empty {
@@ -2103,6 +2179,31 @@ input {
 
 .chat-line--self strong {
   color: #75f5c8;
+}
+
+.chat-system-line {
+  display: block;
+  color: #fef3c7;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.chat-system-line:last-child {
+  color: #fff7ad;
+  text-shadow: 0 0 14px rgba(250, 204, 21, 0.36);
+}
+
+.chat-system-time {
+  display: inline-block;
+  margin-right: 6px;
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-system-line:last-child .chat-system-time {
+  color: rgba(250, 204, 21, 0.6);
 }
 
 .chat-form {
@@ -3370,92 +3471,6 @@ input {
   .panel-toggle--badged { animation: none; }
 }
 
-.combat-log {
-  position: absolute;
-  left: 18px;
-  bottom: 18px;
-  width: min(360px, calc(100vw - 36px));
-  max-height: 220px;
-  border-radius: 6px;
-  color: #fef3c7;
-  font-size: 13px;
-  background: rgba(3, 10, 13, 0.48);
-  border: 1px solid rgba(141, 233, 215, 0.16);
-  padding: 6px 8px;
-  pointer-events: auto;
-  /* PR MM — scrollable system chat. The inner `.combat-log-scroll`
-     does the actual scrolling; the parent provides background + jump
-     button positioning. */
-}
-
-.combat-log-titlebar {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(141, 233, 215, 0.45);
-  padding-bottom: 4px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid rgba(141, 233, 215, 0.1);
-  user-select: none;
-}
-
-.combat-log-scroll {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 208px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(250, 204, 21, 0.35) transparent;
-}
-
-.combat-log-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.combat-log-scroll::-webkit-scrollbar-thumb {
-  background: rgba(250, 204, 21, 0.32);
-  border-radius: 999px;
-}
-
-/* Newest line (last child after reverse) sits at the bottom and
-   gets the warm yellow highlight from the old static-strip style. */
-.combat-log-scroll span:last-child {
-  color: #fff7ad;
-  text-shadow: 0 0 14px rgba(250, 204, 21, 0.36);
-}
-.combat-log-time {
-  display: inline-block;
-  margin-right: 6px;
-  font-variant-numeric: tabular-nums;
-  color: rgba(148, 163, 184, 0.7);
-  font-size: 10px;
-}
-.combat-log-scroll span:last-child .combat-log-time {
-  color: rgba(250, 204, 21, 0.6);
-}
-
-.combat-log-jump {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(250, 204, 21, 0.4);
-  background: rgba(3, 10, 13, 0.85);
-  color: #fde68a;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.combat-log-jump:hover {
-  background: rgba(250, 204, 21, 0.18);
-}
-
 .joining-overlay {
   position: absolute;
   inset: 0;
@@ -3499,28 +3514,30 @@ input {
     display: none;
   }
 
-  /* §52 follow-up — combat log was display:none on mobile, so the
-     player couldn't read "your bag is full / item retired / pickup
-     too far" responses to their actions. Anchor a slim version to
-     the right side under vitals so it sits clear of the bag panel
-     (bottom-anchored, full width) and the action panel (bottom-
-     right, 240px). Two lines of recent text is enough signal for
-     the typical reject; the dedicated chat panel still works for
-     long history. */
-  .combat-log {
-    top: 50px;
+  .chat-panel {
     right: 8px;
-    bottom: auto;
-    left: auto;
-    width: min(54vw, 240px);
-    max-height: 88px;
-    font-size: 11px;
-    padding: 4px 6px;
-    background: rgba(3, 10, 13, 0.6);
+    bottom: 96px;
+    left: 8px;
+    width: auto;
+    height: min(280px, calc(100vh - 220px));
   }
-  .combat-log-scroll {
-    max-height: 78px;
-    gap: 2px;
+
+  .chat-panel--detached {
+    right: auto;
+    bottom: auto;
+    top: 96px;
+    left: 8px;
+    width: min(320px, calc(100vw - 16px));
+  }
+
+  .chat-panel--all {
+    top: 122px;
+    left: 20px;
+  }
+
+  .chat-panel--near {
+    top: 148px;
+    left: 32px;
   }
 
   .starter-progress {

@@ -32,7 +32,7 @@ export function findProductionEnvViolations(
   if (env.VIBEAGE_ENABLE_DEV_COMMANDS === '1') {
     violations.push({
       variable: 'VIBEAGE_ENABLE_DEV_COMMANDS',
-      message: 'VIBEAGE_ENABLE_DEV_COMMANDS=1 is forbidden in production — it enables /teleport and other debug commands for every connected client. For per-account GM access in prod, set VIBEAGE_GM_ACCOUNTS=alice,bob instead.',
+      message: 'VIBEAGE_ENABLE_DEV_COMMANDS=1 is forbidden in production — it enables /teleport and other debug commands for every connected client. Use authenticated account GM access or VIBEAGE_GM_ACCOUNTS for GM tools instead.',
     });
   }
 

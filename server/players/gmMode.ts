@@ -1,26 +1,20 @@
 /**
- * GM (Game Master) gate. Two paths to GM:
+ * GM (Game Master) gate. Current test policy has three paths to GM:
  *
  *   1. Dev mode: `VIBEAGE_ENABLE_DEV_COMMANDS=1` (forbidden in
  *      production by productionEnvAssertions) — everybody is GM.
  *      Used in local dev + the playwright e2e harness.
  *
- *   2. Production-safe path: `VIBEAGE_GM_ACCOUNTS=alice,bob`
+ *   2. Authenticated account: while the project is in active testing,
+ *      every logged-in account can use GM tools.
+ *
+ *   3. Legacy allowlist: `VIBEAGE_GM_ACCOUNTS=alice,bob`
  *      enables GM for the listed account logins. Account ids and
  *      character names are also accepted as fallbacks for legacy
- *      sessions/tests, but login is the intended production key.
+ *      sessions/tests, but login is the intended key.
  *
  * Pre-fix only path 1 existed, so GM was unreachable in production
  * (the prod assertions would refuse to start with the dev flag on).
- */
-export function isGmModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  if (env.VIBEAGE_ENABLE_DEV_COMMANDS === '1') return true;
-  return parseGmAccounts(env).length > 0;
-}
-
-/**
- * True if the caller's account login/id or character name is on
- * the GM allowlist, OR dev-commands mode is on (everyone is GM).
  */
 type GmPrincipal =
   | string
@@ -30,11 +24,16 @@ type GmPrincipal =
     name?: string | null;
   };
 
+/**
+ * True if dev mode is enabled, the caller is attached to an account,
+ * or their legacy identifier is allowlisted.
+ */
 export function isGmAccount(
   caller: GmPrincipal | null | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   if (env.VIBEAGE_ENABLE_DEV_COMMANDS === '1') return true;
+  if (hasAuthenticatedAccount(caller)) return true;
   const allow = parseGmAccounts(env);
   if (allow.length === 0) return false;
   const candidates = gmPrincipalCandidates(caller);
@@ -66,4 +65,13 @@ function gmPrincipalCandidates(caller: GmPrincipal | null | undefined): string[]
     .filter((value): value is string => typeof value === 'string')
     .map((value) => value.trim().toLowerCase())
     .filter((value) => value.length > 0);
+}
+
+function hasAuthenticatedAccount(caller: GmPrincipal | null | undefined): boolean {
+  if (!caller || typeof caller === 'string') return false;
+  return Boolean(normalized(caller.accountLogin) || normalized(caller.accountId));
+}
+
+function normalized(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.trim() : '';
 }

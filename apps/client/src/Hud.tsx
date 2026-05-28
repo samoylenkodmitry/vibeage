@@ -7,7 +7,6 @@ import { HudPanels } from './hud/HudPanels';
 import { CurrentZoneChip } from './hud/CurrentZoneChip';
 import { hasSpendableSkillPoints } from './hud/SkillTreePanel';
 import { TimeOfDayChip } from './hud/TimeOfDayChip';
-import { CombatLogPanel } from './hud/CombatLogPanel';
 import { LootPickupHint } from './hud/LootPickupHint';
 import { NpcDialog } from './hud/NpcDialog';
 import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
@@ -195,8 +194,7 @@ export function GameHud(props: GameHudProps) {
         builtinActions={buildBuiltinBarActions(Boolean(player?.isAlive), targetIsAlive, Boolean(navigationMarker), Object.keys(state.groundLoot).length, onMove, onPickupNearest)}
         locked={locked} onToggleLock={toggleLocked}
       />
-      <PanelToggleStrip panels={panels} unspentSkillPoints={hasSpendableSkillPoints(player) ? (player?.availableSkillPoints ?? 0) : 0} />
-      {state.combatLog.length > 0 && <CombatLogPanel lines={state.combatLog} />}
+      <PanelToggleStrip panels={panels} unspentSkillPoints={hasSpendableSkillPoints(player) ? (player?.availableSkillPoints ?? 0) : 0} isGm={Boolean(player?.isGm)} />
       {player && !player.isAlive && <DeathOverlay onRespawn={onRespawn} />}
     </ActionBarDragProvider>
   );
@@ -336,7 +334,15 @@ function HudWorldStatsStrip({
 }
 
 
-function PanelToggleStrip({ panels, unspentSkillPoints }: { panels: PanelState; unspentSkillPoints: number }) {
+function PanelToggleStrip({
+  panels,
+  unspentSkillPoints,
+  isGm,
+}: {
+  panels: PanelState;
+  unspentSkillPoints: number;
+  isGm: boolean;
+}) {
   const spBadge = unspentSkillPoints > 0 ? unspentSkillPoints : null;
   return (
     <aside className="panel-toggles" aria-label="Panel toggles">
@@ -347,9 +353,8 @@ function PanelToggleStrip({ panels, unspentSkillPoints }: { panels: PanelState; 
       <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
       <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
       <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
-      <PanelToggleButton open={panels.chatOpen} label="Chat" onClick={panels.toggleChat} />
       <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
-      <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />
+      {isGm && <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />}
     </aside>
   );
 }
@@ -371,7 +376,6 @@ function usePanelState() {
   // Actions defaults open: it's the home of the new Attack + Pickup
   // buttons so players see them immediately on join.
   const [actionsOpen, , toggleActions] = usePersistedToggle('actions', true);
-  const [chatOpen, , toggleChat] = usePersistedToggle('chat', false);
   const [wikiOpen, setWikiOpen, toggleWiki] = usePersistedToggle('wiki', false);
   const [gmOpen, , toggleGm] = usePersistedToggle('gm', false);
   // PR AA — the craft panel opens when the player taps a recipe in
@@ -386,7 +390,6 @@ function usePanelState() {
     mapOpen,
     treeOpen,
     actionsOpen,
-    chatOpen,
     wikiOpen,
     gmOpen,
     craftRecipeSlot,
@@ -398,7 +401,6 @@ function usePanelState() {
     toggleMap,
     toggleTree,
     toggleActions,
-    toggleChat,
     toggleWiki,
     openWiki: () => setWikiOpen(true),
     toggleGm,

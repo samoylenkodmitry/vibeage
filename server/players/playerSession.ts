@@ -28,6 +28,7 @@ import { forgetSocketRateLimits } from '../world/rateLimiter.js';
 import { forgetMovementFreshness } from '../movement/staleIntentTracker.js';
 import { starterSkillsFor } from './playerProgression.js';
 import { CLASS_AUTO_PASSIVE_SKILL } from '../../packages/content/classPassives.js';
+import { isGmAccount } from './gmMode.js';
 
 type PlayerRow = {
   id: string;
@@ -117,6 +118,9 @@ export function upsertActivePlayerSession(state: GameState, spatial: SpatialHash
   if (existing) {
     existing.socketId = player.socketId;
     existing.name = player.name;
+    existing.accountId = player.accountId;
+    existing.accountLogin = player.accountLogin;
+    existing.isGm = player.isGm;
     return existing;
   }
 
@@ -311,6 +315,7 @@ function applyInitialIdentity(
 function applySessionAccount(player: PlayerState, options: AddPlayerSessionOptions): PlayerState {
   if (options.accountId) player.accountId = options.accountId;
   if (options.accountLogin) player.accountLogin = options.accountLogin;
+  player.isGm = isGmAccount(player);
   return player;
 }
 

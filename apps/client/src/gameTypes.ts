@@ -19,6 +19,7 @@ export type Vec3 = {
 export type PlayerEntity = {
   id: string;
   socketId?: string;
+  isGm?: boolean;
   name: string;
   position: Vec3;
   rotation: Vec3;
@@ -219,8 +220,7 @@ export type GameClientState = {
   /**
    * §52 polish — last `CommandRejected` for a ChatRequest. Renders
    * inline in the ChatPanel under the input. Cleared when the next
-   * chat message broadcasts back (success) or the player closes
-   * + reopens the panel.
+   * chat message broadcasts back (success).
    */
   lastChatError: { reason: string; at: number } | null;
   starterProgress: StarterProgress;

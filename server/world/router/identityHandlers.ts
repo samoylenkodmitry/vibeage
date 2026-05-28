@@ -1,7 +1,7 @@
 import type { ClientMessage } from '../../../packages/protocol/messages.js';
 import type { CommandRejectionReason } from '../../../packages/protocol/commandRejections.js';
 import { LOG_CATEGORIES, warn } from '../../logger.js';
-import { isGmModeEnabled } from '../../players/gmMode.js';
+import { isGmAccount } from '../../players/gmMode.js';
 import { findPlayerIdBySocket } from '../../players/playerSession.js';
 import {
   applyClassChange,
@@ -27,11 +27,6 @@ export function onSelectClass(
 ): void {
   const reject = (reason: CommandRejectionReason<'SelectClass'>) =>
     sendCommandRejected(direct, 'SelectClass', reason, msg.clientSeq);
-  if (!isGmModeEnabled()) {
-    warn(LOG_CATEGORIES.PLAYER, `SelectClass rejected (not GM) for ${socket.id}`);
-    reject('notGm');
-    return;
-  }
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
@@ -40,6 +35,11 @@ export function onSelectClass(
   const player = state.players[playerId];
   if (!player) {
     reject('playerNotFound');
+    return;
+  }
+  if (!isGmAccount(player)) {
+    warn(LOG_CATEGORIES.PLAYER, `SelectClass rejected (not GM) for ${socket.id}`);
+    reject('notGm');
     return;
   }
   applyClassChange(player, msg.className, outbound);
@@ -54,11 +54,6 @@ export function onSelectRace(
 ): void {
   const reject = (reason: CommandRejectionReason<'SelectRace'>) =>
     sendCommandRejected(direct, 'SelectRace', reason, msg.clientSeq);
-  if (!isGmModeEnabled()) {
-    warn(LOG_CATEGORIES.PLAYER, `SelectRace rejected (not GM) for ${socket.id}`);
-    reject('notGm');
-    return;
-  }
   const playerId = findPlayerIdBySocket(state, socket.id);
   if (!playerId) {
     reject('playerNotFound');
@@ -67,6 +62,11 @@ export function onSelectRace(
   const player = state.players[playerId];
   if (!player) {
     reject('playerNotFound');
+    return;
+  }
+  if (!isGmAccount(player)) {
+    warn(LOG_CATEGORIES.PLAYER, `SelectRace rejected (not GM) for ${socket.id}`);
+    reject('notGm');
     return;
   }
   applyRaceChange(player, msg.race, outbound);

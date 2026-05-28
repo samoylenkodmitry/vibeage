@@ -71,6 +71,9 @@ type PublicPlayerField = typeof PUBLIC_PLAYER_FIELDS[number];
 // is sanitised separately by the public/owner sanitisers.
 export const PRIVATE_PLAYER_STATE_FIELDS = [
   'socketId',
+  'accountId',
+  'accountLogin',
+  'isGm',
   'unlockedSkills',
   'availableSkillPoints',
   'skillLevels',
@@ -127,6 +130,7 @@ export const OWNER_PLAYER_FIELDS = [
   'skillCooldownEndTs',
   'stats',
   'gold',
+  'isGm',
   'maxInventorySlots',
 ] as const satisfies ReadonlyArray<keyof PlayerState>;
 type OwnerPlayerField = typeof OWNER_PLAYER_FIELDS[number];

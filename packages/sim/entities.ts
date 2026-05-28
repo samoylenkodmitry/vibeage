@@ -204,6 +204,7 @@ export interface PlayerState {
   socketId: string;
   accountId?: string;
   accountLogin?: string;
+  isGm?: boolean;
   name: string;
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };
