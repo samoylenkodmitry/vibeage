@@ -77,6 +77,15 @@ export async function loginAccount(login: string, password: string): Promise<{ o
   return { ok: true, account: { id: row.id, login: row.login } };
 }
 
+export async function getAccountSummaryById(accountId: string): Promise<AccountSummary | null> {
+  const row = await database
+    .selectFrom('accounts')
+    .where('id', '=', accountId)
+    .select(['id', 'login'])
+    .executeTakeFirst();
+  return row ? { id: row.id, login: row.login } : null;
+}
+
 /**
  * Single-button auth entry point: registers when the login is new,
  * logs in otherwise. Removes the user-facing "did I already register?"

@@ -18,6 +18,7 @@ import {
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { verifySessionToken } from '../auth/sessionTokens.js';
+import { getAccountSummaryById } from '../auth/accountRepository.js';
 import { recordAuthAuditEvent } from '../auth/authAudit.js';
 import {
   createSocketPlayerLookup,
@@ -89,12 +90,20 @@ export class ColyseusAuthoritativeRoomAdapter {
       });
       throw new Error('Rejected join: missing or invalid session token');
     }
+    let accountLogin: string | undefined;
+    try {
+      const account = await getAccountSummaryById(session.accountId);
+      accountLogin = account?.login;
+    } catch (error) {
+      console.error('Failed to fetch account login for GM allowlist:', error);
+      accountLogin = undefined;
+    }
     try {
       const result = await this.port.joinClient(
         client.sessionId,
         playerName,
         makeColyseusClient(client),
-        { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId },
+        { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId, accountLogin },
       );
       runtimeMetrics.increment('room.joins');
       void recordAuthAuditEvent({

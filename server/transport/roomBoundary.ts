@@ -104,7 +104,7 @@ export interface AuthoritativeRoomPort {
     socketId: string,
     playerName: string,
     client?: AuthoritativeRoomClient,
-    options?: { initialRace?: string; initialClass?: string; accountId?: string },
+    options?: { initialRace?: string; initialClass?: string; accountId?: string; accountLogin?: string },
   ): Promise<{ playerId: string }>;
   leaveClient(socketId: string): Promise<string | undefined>;
   dispatchCommand(

@@ -1,4 +1,5 @@
 import type { GmCommand } from '../../packages/protocol/messages.js';
+import type { CommandRejectionReason } from '../../packages/protocol/commandRejections.js';
 import type { CharacterClass } from '../../packages/content/classes.js';
 import { CHARACTER_RACES, type CharacterRace } from '../../packages/content/races.js';
 import { CLASS_SKILL_TREES } from '../../packages/content/classes.js';
@@ -37,24 +38,31 @@ export function applyGmCommand(
   resolveTarget: (id: string) => PlayerState | undefined,
   outbound: OutboundEventSink,
 ): boolean {
-  if (!isGmModeEnabled()) {
-    warn(LOG_CATEGORIES.PLAYER, `GmCommand rejected (GM mode off) caller=${caller.id} verb=${msg.verb}`);
-    return false;
-  }
-  // In production-safe mode (VIBEAGE_GM_ACCOUNTS set, dev-commands
-  // flag off), only allowlisted account names can issue GM verbs.
-  if (!isGmAccount(caller.name)) {
-    warn(LOG_CATEGORIES.PLAYER, `GmCommand rejected (caller not in GM allowlist) caller=${caller.id} name=${caller.name} verb=${msg.verb}`);
+  const rejection = getGmCommandRejectionReason(caller, msg, resolveTarget);
+  if (rejection) {
     return false;
   }
   const target = msg.targetId ? resolveTarget(msg.targetId) ?? null : caller;
-  if (!target) {
-    warn(LOG_CATEGORIES.PLAYER, `GmCommand target not found: ${msg.targetId}`);
-    return false;
-  }
+  if (!target) return false;
   const ok = dispatch(target, msg, outbound);
   log(LOG_CATEGORIES.PLAYER, `[GM] ${caller.id} → ${target.id} ${msg.verb}=${JSON.stringify(msg.value)}${msg.quantity ? ` x${msg.quantity}` : ''} ok=${ok}`);
   return ok;
+}
+
+export function getGmCommandRejectionReason(
+  caller: PlayerState,
+  msg: GmCommand,
+  resolveTarget: (id: string) => PlayerState | undefined,
+): CommandRejectionReason<'GmCommand'> | null {
+  if (!isGmModeEnabled() || !isGmAccount(caller)) {
+    warn(LOG_CATEGORIES.PLAYER, `GmCommand rejected (caller not GM) caller=${caller.id} name=${caller.name} verb=${msg.verb}`);
+    return 'notGm';
+  }
+  if (msg.targetId && !resolveTarget(msg.targetId)) {
+    warn(LOG_CATEGORIES.PLAYER, `GmCommand target not found: ${msg.targetId}`);
+    return 'playerNotFound';
+  }
+  return null;
 }
 
 function dispatch(target: PlayerState, msg: GmCommand, outbound: OutboundEventSink): boolean {

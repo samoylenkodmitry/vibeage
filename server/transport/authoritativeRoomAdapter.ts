@@ -13,6 +13,8 @@ type JoinClientOptions = {
   initialClass?: string;
   /** Authenticated account id (PR I); required for the world join. */
   accountId?: string;
+  /** Authenticated account login; server-only, used for GM allowlist checks. */
+  accountLogin?: string;
 };
 
 export type SocketBackedWorldApi = {

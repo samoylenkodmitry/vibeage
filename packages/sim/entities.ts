@@ -202,6 +202,8 @@ export interface Enemy {
 export interface PlayerState {
   id: string;
   socketId: string;
+  accountId?: string;
+  accountLogin?: string;
   name: string;
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };

@@ -226,7 +226,7 @@ export const sellToVendorSchema = z.object({
   clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
-// ---- GM commands. Server gates by VIBEAGE_ENABLE_DEV_COMMANDS. -----
+// ---- GM commands. Server gates by VIBEAGE_ENABLE_DEV_COMMANDS or VIBEAGE_GM_ACCOUNTS. -----
 // targetId omitted = the caller (most common: a GM modifying their
 // own test character). Each verb is a flat shape so the audit log
 // can capture verb + value cleanly.

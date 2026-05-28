@@ -2,7 +2,7 @@ import type { ClientMessage } from '../../../packages/protocol/messages.js';
 import type { CommandRejectionReason } from '../../../packages/protocol/commandRejections.js';
 import { debug, LOG_CATEGORIES, warn } from '../../logger.js';
 import { applyDevTeleport, isDevCommandsEnabled } from '../../movement/devTeleport.js';
-import { applyGmCommand } from '../../players/gmCommand.js';
+import { applyGmCommand, getGmCommandRejectionReason } from '../../players/gmCommand.js';
 import { findPlayerIdBySocket } from '../../players/playerSession.js';
 import { sendCommandRejected } from '../../transport/commandRejected.js';
 import type {
@@ -54,5 +54,13 @@ export function onGmCommand(
     reject('playerNotFound');
     return;
   }
-  applyGmCommand(caller, msg, (id) => state.players[id], outbound);
+  const resolveTarget = (id: string) => state.players[id];
+  const accessRejection = getGmCommandRejectionReason(caller, msg, resolveTarget);
+  if (accessRejection) {
+    reject(accessRejection);
+    return;
+  }
+  if (!applyGmCommand(caller, msg, resolveTarget, outbound)) {
+    reject('invalid');
+  }
 }

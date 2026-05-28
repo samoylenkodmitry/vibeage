@@ -10,7 +10,10 @@ function captureOutbound(): { events: OutboundEvent[]; sink: OutboundEventSink }
 
 describe('applyGmCommand', () => {
   beforeEach(() => { process.env.VIBEAGE_ENABLE_DEV_COMMANDS = '1'; });
-  afterEach(() => { delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS; });
+  afterEach(() => {
+    delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS;
+    delete process.env.VIBEAGE_GM_ACCOUNTS;
+  });
 
   it('is rejected when GM mode is off', () => {
     delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS;
@@ -27,6 +30,25 @@ describe('applyGmCommand', () => {
     expect(applyGmCommand(caller, { type: 'GmCommand', verb: 'grantXp', value: 50 }, () => undefined, sink)).toBe(true);
     expect(caller.level).toBe(1);
     expect(caller.experience).toBe(50);
+  });
+
+  it('allows production-safe GM access by account login', () => {
+    delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS;
+    process.env.VIBEAGE_GM_ACCOUNTS = 'admin';
+    const caller = createTransientPlayer('s-login', 'not-admin-character');
+    caller.accountLogin = 'admin';
+    const { sink } = captureOutbound();
+    expect(applyGmCommand(caller, { type: 'GmCommand', verb: 'grantSp', value: 2 }, () => undefined, sink)).toBe(true);
+    expect(caller.availableSkillPoints).toBeGreaterThanOrEqual(2);
+  });
+
+  it('rejects production-safe GM access when the account is not allowlisted', () => {
+    delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS;
+    process.env.VIBEAGE_GM_ACCOUNTS = 'admin';
+    const caller = createTransientPlayer('s-login-denied', 'not-admin-character');
+    caller.accountLogin = 'other';
+    const { sink } = captureOutbound();
+    expect(applyGmCommand(caller, { type: 'GmCommand', verb: 'grantSp', value: 2 }, () => undefined, sink)).toBe(false);
   });
 
   it('grants SP and bumps availableSkillPoints', () => {
@@ -86,7 +108,10 @@ describe('applyGmCommand', () => {
 
 describe('applyGmCommand — grants emit + level-up behaviour', () => {
   beforeEach(() => { process.env.VIBEAGE_ENABLE_DEV_COMMANDS = '1'; });
-  afterEach(() => { delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS; });
+  afterEach(() => {
+    delete process.env.VIBEAGE_ENABLE_DEV_COMMANDS;
+    delete process.env.VIBEAGE_GM_ACCOUNTS;
+  });
 
   it('grantXp big enough to level up multiple times bumps level + SP', () => {
     const caller = createTransientPlayer('s9', 'gm');

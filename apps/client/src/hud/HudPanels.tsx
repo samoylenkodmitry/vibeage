@@ -56,6 +56,7 @@ export type HudPanelsProps = {
   onAdvanceQuest: (questId: string) => void;
   onClaimQuestReward: (questId: string) => void;
   onSetTrackedQuest?: (questId: string | null) => void;
+  selectedPlayerTargetId: string | null;
   onGmCommand: (cmd: {
     verb:
       | 'grantXp' | 'grantGold' | 'grantSp' | 'grantItem' | 'grantSkill'
@@ -78,7 +79,7 @@ export function HudPanels({
   cameraAngleRef, navigationMarker, onSetNavigationMarker,
   onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onMoveItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
-  onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, onGmCommand,
+  onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, selectedPlayerTargetId, onGmCommand,
   onPickupNearest, onMove, onSendChat, onBindItem,
 }: HudPanelsProps) {
   return (
@@ -159,7 +160,7 @@ export function HudPanels({
       )}
       {panels.wikiOpen && <WikiPanel onShowMarker={(pos) => onSetNavigationMarker?.(pos)} />}
       {panels.gmOpen && (
-        <GmPanel player={player} selectedTargetId={state.selectedTargetId} onGmCommand={onGmCommand} />
+        <GmPanel player={player} selectedPlayerId={selectedPlayerTargetId} onGmCommand={onGmCommand} />
       )}
     </>
   );

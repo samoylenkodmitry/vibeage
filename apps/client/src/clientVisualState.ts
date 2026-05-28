@@ -72,19 +72,13 @@ function castFailCopy(reason: string): string {
   }
 }
 
-/**
- * §52 polish — surface CommandRejecteds from inventory / vendor /
- * craft / item-use / drop / destroy / GM commands in the combat
- * log. Pre-§52 these silently dropped on the client, so a vendor
- * "not enough gold" or a craft "missing reagents" looked like the
- * button was broken. Each commandType + reason pair gets friendly
- * copy via `inventoryActionFailCopy`; unknown pairs fall through
- * to the raw text so future server reasons still surface.
- */
+/** Surface rejected inventory/vendor/GM actions in the combat log
+ * with friendly copy; unknown pairs fall through to raw text. */
 export const INVENTORY_VERB_COMMANDS: ReadonlySet<string> = new Set([
   'BuyFromVendor', 'SellToVendor',
   'UseItem', 'DropItem', 'DestroyItem', 'CraftItem',
   'LootPickup',
+  'GmCommand',
 ]);
 
 export function applyInventoryRejectedVisualState(
@@ -140,6 +134,13 @@ function inventoryActionFailCopy(commandType: string, reason: string): string {
     if (reason === 'itemNotFound') return "This loot contains an item that's no longer in the game — skipping the pickup. Drop a ticket and we'll clean it up.";
     if (reason === 'invariantViolation') return 'Your bag has a corrupted item blocking pickups. Open the bag and Destroy the slot showing a raw id (e.g. ethereal_elixir).';
     return `Pickup failed: ${reason}`;
+  }
+  if (commandType === 'GmCommand') {
+    if (reason === 'notGm') return 'GM command rejected: this account is not allowed to use GM tools.';
+    if (reason === 'playerNotFound') return 'GM command failed: target player not found.';
+    if (reason === 'invalid') return 'GM command failed: invalid value for that action.';
+    if (reason === 'rateLimited') return 'GM command failed: slow down.';
+    return `GM command failed: ${reason}`;
   }
   return `${commandType} failed: ${reason}`;
 }
