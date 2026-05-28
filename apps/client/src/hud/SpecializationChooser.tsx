@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { SKILLS } from '../../../../packages/content/skills';
 import {
   getSpecializationsForClass,
@@ -26,7 +27,7 @@ export type SpecializationChoice = {
 };
 
 export function SpecializationChooser({ player, onSelectSpecialization }: SpecializationChooserProps) {
-  const choices = buildSpecializationChoices(player);
+  const choices = useMemo(() => buildSpecializationChoices(player), [player?.className]);
   if (!canChooseSpecialization(player) || choices.length === 0) return null;
   return (
     <section className="spec-chooser" aria-label="Choose specialization">
