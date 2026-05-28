@@ -139,7 +139,7 @@ const EFFECT_SPEC_DEFS: Record<EffectType, EffectSpecInput> = {
   burn: {
     type: 'burn',
     label: 'Burn',
-    description: 'Fire damage tick — fire-weak enemies take extra.',
+    description: 'Fire damage tick over time.',
     category: 'debuff',
     valueUnit: 'hp/s',
     stacking: 'stack',
@@ -180,7 +180,7 @@ const EFFECT_SPEC_DEFS: Record<EffectType, EffectSpecInput> = {
   bless: {
     type: 'bless',
     label: 'Bless',
-    description: "Increases the caster's outgoing damage by the listed percent.",
+    description: "Increases the caster's outgoing damage by the listed percent and adds the same value as accuracy.",
     category: 'buff',
     valueUnit: '%',
     stacking: 'refresh',

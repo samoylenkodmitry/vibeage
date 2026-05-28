@@ -89,6 +89,17 @@ describe('tickDamageOverTimeEffects', () => {
     }));
   });
 
+  it('multiplies tick damage by the stored stack count', () => {
+    const state = createGameState();
+    const player = makePlayer('p', [burnEffect('b1', 5, { stacks: 3 })]);
+    state.players[player.id] = player;
+    const { sink } = captureOutbound();
+
+    tickDamageOverTimeEffects(state, new SpatialHashGrid(), sink, NOW + DOT_TICK_INTERVAL_MS);
+
+    expect(player.health).toBe(85);
+  });
+
   it('catches up on missed ticks when called late (e.g. tick stall)', () => {
     const state = createGameState();
     const player = makePlayer('p', [burnEffect('b1', 5)]);

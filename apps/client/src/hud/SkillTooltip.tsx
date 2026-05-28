@@ -5,6 +5,7 @@ import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/conten
 import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
 import { describeOffense } from './skillMechanics';
 import { openWikiAt } from './wikiNavBus';
+import type { PlayerEntity } from '../gameTypes';
 
 type SkillTooltipProps = {
   skillId: SkillId;
@@ -12,6 +13,7 @@ type SkillTooltipProps = {
   clientY: number;
   /** Player's current upgrade tier for this skill (defaults to 1). */
   skillLevel?: number;
+  player?: PlayerEntity | null;
   /**
    * PR JJ — pointer-enter/leave handlers from the parent's
    * useTooltipTrigger.hoverHandlers. Keeps the tooltip open while the
@@ -26,7 +28,7 @@ type SkillTooltipProps = {
 type TooltipRow = [string, string];
 type EffectiveSkillStats = ReturnType<typeof getEffectiveSkillStats>;
 
-export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverHandlers }: SkillTooltipProps) {
+export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, player, hoverHandlers }: SkillTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -60,7 +62,7 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverH
   // but possible with future modifiers) still renders. Nullish-
   // coalesce numeric properties so a partial SkillDef (older
   // saved content) doesn't render NaN.
-  const effective = getEffectiveSkillStats(skillId, skillLevel);
+  const effective = getEffectiveSkillStats(skillId, skillLevel, player ?? undefined);
   const rows = buildTooltipRows(skill, effective, skillLevel);
 
   // Render via a portal anchored to document.body so the tooltip's
@@ -89,7 +91,7 @@ function buildTooltipRows(skill: SkillDef, effective: EffectiveSkillStats, skill
   const rows: TooltipRow[] = [];
   if (effective.dmg !== undefined) rows.push([`Damage${lvSuffix}`, String(effective.dmg)]);
   if (effective.range !== undefined) rows.push([`Range${lvSuffix}`, String(effective.range)]);
-  if (skill.area !== undefined) rows.push(['Area', String(skill.area)]);
+  if (effective.area !== undefined) rows.push([`Area${lvSuffix}`, String(effective.area)]);
   rows.push([`Mana${lvSuffix}`, effective.manaCost > 0 ? String(effective.manaCost) : 'free']);
   rows.push(['Cast', castMs > 0 ? `${(castMs / 1000).toFixed(1)}s` : 'instant']);
   if (effective.cooldownMs > 0) rows.push([`Cooldown${lvSuffix}`, `${(effective.cooldownMs / 1000).toFixed(1)}s`]);

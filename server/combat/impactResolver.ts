@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import type { SkillDef, SkillEffect } from '../../packages/content/skills.js';
+import type { SkillDef, SkillEffect, SkillUpgradeModifiers } from '../../packages/content/skills.js';
 import { SKILLS } from '../../packages/content/skills.js';
 import { selectShapeTargets, applyCasterEffects } from './abilityShapes.js';
 import { CUSTOM_SKILL_BEHAVIORS } from './customSkillBehaviors.js';
@@ -9,7 +9,7 @@ import { getNearestVillage } from '../../packages/content/villages.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
-import { getSkillLevel, getSkillUpgradeModifiers } from '../../packages/sim/skillUpgrades.js';
+import { getSkillLevel, getSkillUpgradeModifiers, scaleSkillEffectForUpgrade } from '../../packages/sim/skillUpgrades.js';
 import {
   emitEnemyUpdated,
   emitPlayerUpdated,
@@ -28,6 +28,7 @@ type ImpactContext = {
   // aggro need the real one.
   caster: PlayerState | Enemy | null;
   skill: SkillDef;
+  upgradeMods: Required<SkillUpgradeModifiers>;
   outbound: OutboundEventSink;
   world: CombatWorld;
 };
@@ -78,9 +79,9 @@ export function applyProjectileHit(
   const skill = SKILLS[cast.skillId];
   const caster = resolveCaster(world, cast.casterId);
   const playerCaster = asPlayerCaster(caster);
-  const context: ImpactContext = { caster, skill, outbound, world };
-  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id)).dmgMultiplier;
-  const result = calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world, now });
+  const upgradeMods = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id));
+  const context: ImpactContext = { caster, skill, upgradeMods, outbound, world };
+  const result = calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now });
   const heal = applyCastToTarget(target, result.damage, context, result.miss, now);
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
@@ -107,14 +108,14 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   }
   const caster = resolveCaster(world, cast.casterId);
   const playerCaster = asPlayerCaster(caster);
-  const context = { caster, skill, outbound, world };
+  const upgradeMods = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id));
+  const context = { caster, skill, upgradeMods, outbound, world };
 
-  const targets = resolveCastTargets(cast, world, skill, playerCaster);
+  const targets = resolveCastTargets(cast, world, skill, playerCaster, upgradeMods);
   // §45.3 — Bless's damage multiplier is folded into `caster.stats.dmgMult`
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
-  const upgradeDmgMult = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id)).dmgMultiplier;
-  const results = targets.map((target) => calculateDamage(skill, caster, upgradeDmgMult, { castId: cast.castId, targetId: target.id, target, world, now }));
+  const results = targets.map((target) => calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now }));
 
   const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss, now));
   emitServerMessage(outbound, {
@@ -138,6 +139,7 @@ function resolveCastTargets(
   world: CombatWorld,
   skill: SkillDef,
   caster: PlayerState | null,
+  upgradeMods: Required<SkillUpgradeModifiers>,
 ): Array<Enemy | PlayerState> {
   // PR KK — selfTarget skills always land on the caster, even when
   // the player has another entity selected. Without this, casting
@@ -151,7 +153,8 @@ function resolveCastTargets(
   if (skill.shape && skill.shape.kind !== 'single') {
     return selectShapeTargets(cast, skill.shape, skill, world, resolveCaster(world, cast.casterId));
   }
-  if (caster && !cast.targetId && (!skill.area || skill.area <= 0) && isBeneficialOnly(skill)) {
+  const effectiveArea = Math.max(0, (skill.area ?? 0) + upgradeMods.areaBonus);
+  if (caster && !cast.targetId && effectiveArea <= 0 && isBeneficialOnly(skill)) {
     return [caster];
   }
   // Beneficial AOE (Sacred Pulse, Mass Heal, Sacred Aura, Group Bless):
@@ -159,10 +162,10 @@ function resolveCastTargets(
   // `getTargetsInArea` excludes the caster and collects enemies, so
   // without this branch these skills healed/buffed nearby mobs and
   // skipped the caster entirely.
-  if (caster && isBeneficialOnly(skill) && skill.area && skill.area > 0) {
-    return beneficialAreaTargets(caster, skill.area, world);
+  if (caster && isBeneficialOnly(skill) && effectiveArea > 0) {
+    return beneficialAreaTargets(caster, effectiveArea, world);
   }
-  return getTargetsInArea(cast, world);
+  return getTargetsInArea(cast, world, effectiveArea);
 }
 
 /** Caster + alive allied players within `radius`. Never enemies. */
@@ -317,8 +320,7 @@ function elementVulnerabilityMultiplier(skill: SkillDef, target: Enemy | PlayerS
 // pipeline just reads `caster.stats.dmgMult` once; no per-cast
 // bless math.
 
-function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerState> {
-  const skill = SKILLS[cast.skillId];
+function getTargetsInArea(cast: Cast, world: CombatWorld, effectiveArea: number): Array<Enemy | PlayerState> {
   const targets: Array<Enemy | PlayerState> = [];
   const pos = cast.pos || cast.origin;
 
@@ -337,8 +339,8 @@ function getTargetsInArea(cast: Cast, world: CombatWorld): Array<Enemy | PlayerS
     }
   }
 
-  if (skill.area && skill.area > 0) {
-    for (const entity of world.getEntitiesInCircle(pos, skill.area)) {
+  if (effectiveArea > 0) {
+    for (const entity of world.getEntitiesInCircle(pos, effectiveArea)) {
       if (entity.id !== cast.casterId && entity.isAlive && !targets.some((target) => target.id === entity.id)) {
         targets.push(entity);
       }
@@ -432,7 +434,7 @@ function applyCastToTarget(
     target.aiState = 'chasing';
   }
 
-  const healApplied = applySkillEffects(target, skill, playerCaster, world, now);
+  const healApplied = applySkillEffects(target, skill, context.upgradeMods, playerCaster, world, now);
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = now;
     world.onTargetDied(caster, target, now);
@@ -456,9 +458,7 @@ function applyCastToTarget(
       isAlive: target.isAlive,
       deathTimeTs: target.deathTimeTs,
       statusEffects: target.statusEffects,
-      // Includes position so the Escape teleport reaches the client
-      // without waiting for the next periodic PosSnap (which would
-      // smooth-interp through the world from the cast spot).
+      stats: target.stats, maxHealth: target.maxHealth, maxMana: target.maxMana,
       position: target.position,
     });
   }
@@ -468,6 +468,7 @@ function applyCastToTarget(
 function applySkillEffects(
   target: Enemy | PlayerState,
   skill: SkillDef,
+  upgradeMods: Required<SkillUpgradeModifiers>,
   caster: PlayerState | null,
   world: CombatWorld,
   now: number,
@@ -475,14 +476,17 @@ function applySkillEffects(
   target.statusEffects = target.statusEffects ?? [];
 
   let healApplied = 0;
-  for (const effect of skill.effects ?? []) {
+  for (const baseEffect of skill.effects ?? []) {
+    const effect = scaleSkillEffectForUpgrade(baseEffect, upgradeMods);
     if (effect.type === 'heal') {
       healApplied += applyHealEffect(target, effect, caster);
       continue;
     }
     if (effect.type === 'dispel') {
       const stripSet = dispelTargetSet(effect.dispelCategory ?? 'negative');
+      const before = target.statusEffects.length;
       target.statusEffects = target.statusEffects.filter((existing) => !stripSet.has(existing.type));
+      if (!isEnemy(target) && target.statusEffects.length !== before) recomputePlayerStats(target);
       continue;
     }
     if (effect.type === 'aggroReset') {

@@ -61,7 +61,19 @@ describe('skill tag resolution', () => {
   it('volley is pack-clear AoE damage', () => {
     const t = getSkillTags(SKILLS.volley);
     expect(t.role).toBe('damage');
+    expect(t.targetMode).toBe('enemy');
     expect(t.pveUse).toContain('pack');
+  });
+
+  it('self-buffs do not present as enemy-targeted skills', () => {
+    const rapidFire = getSkillTags(SKILLS.rapidFire);
+    expect(rapidFire.role).toBe('utility');
+    expect(rapidFire.targetMode).toBe('self');
+  });
+
+  it('target-required splash skills still present as enemy-targeted', () => {
+    expect(getSkillTags(SKILLS.arrowShot).targetMode).toBe('enemy');
+    expect(getSkillTags(SKILLS.volley).targetMode).toBe('enemy');
   });
 
   it('every damage skill resolves to a scaling stat', () => {

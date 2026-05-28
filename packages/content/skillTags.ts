@@ -62,8 +62,8 @@ export interface SkillOffense {
  * scaling, escapes that look like teleports, etc.).
  */
 const SKILL_TAG_OVERRIDES: Partial<Record<SkillId, Partial<ResolvedSkillTags>>> = {
-  // Petrify deals a token amount of damage but is fundamentally a CC.
-  petrify: { role: 'control', pveUse: ['single-target', 'boss'] },
+  // Petrify deals small damage but is fundamentally a CC.
+  petrify: { role: 'control', targetMode: 'enemy', pveUse: ['single-target', 'boss'] },
   // Taunt has no damage; it's tank-role aggro.
   taunt: { role: 'tank', school: 'physical', scalingStat: 'str', targetMode: 'enemy', pveUse: ['pack', 'single-target'] },
   // Escape: utility recall, no damage, no target.
@@ -82,10 +82,10 @@ const SKILL_TAG_OVERRIDES: Partial<Record<SkillId, Partial<ResolvedSkillTags>>> 
   shieldWall: { role: 'tank', school: 'physical', scalingStat: 'con', targetMode: 'self', pveUse: ['sustain'] },
   // Evade: rogue mobility/evasion buff.
   evade: { role: 'mobility', school: 'physical', scalingStat: 'dex', targetMode: 'self', pveUse: ['escape'] },
-  // RapidFire: multi-hit ranger DPS.
-  rapidFire: { role: 'damage', school: 'physical', scalingStat: 'dex', targetMode: 'enemy', pveUse: ['single-target', 'finisher'] },
-  // Volley: ranger pack-clear AoE.
-  volley: { role: 'damage', school: 'physical', scalingStat: 'dex', targetMode: 'area-self', pveUse: ['pack'] },
+  // RapidFire: self-buff that accelerates weapon attacks.
+  rapidFire: { role: 'utility', school: 'physical', scalingStat: 'dex', targetMode: 'self', pveUse: ['single-target', 'finisher'] },
+  // Volley: target-required ranger pack-clear projectile.
+  volley: { role: 'damage', school: 'physical', scalingStat: 'dex', targetMode: 'enemy', pveUse: ['pack'] },
   // Backstab: rogue burst opener.
   backstab: { role: 'damage', school: 'physical', scalingStat: 'dex', targetMode: 'enemy', pveUse: ['opener', 'finisher'] },
   // PoisonBlade: rogue DoT.
@@ -131,9 +131,9 @@ function inferScalingStat(skill: SkillDef): SkillScalingStat {
 function inferTargetMode(skill: SkillDef): SkillTargetMode {
   if (skill.id.startsWith('passive_')) return 'passive';
   if (skill.selfTarget) return 'self';
-  if (skill.cat === 'aura') return 'self';
-  if (skill.area && skill.area > 0) return 'area-self';
   if (skill.requiresTarget) return 'enemy';
+  if (skill.cat === 'aura') return skill.area && skill.area > 0 ? 'area-self' : 'self';
+  if (skill.area && skill.area > 0) return 'area-self';
   // Projectile skills implicitly target an enemy even when
   // `requiresTarget` is omitted — the runtime resolves the target
   // from `cast.targetId` or the projectile path.

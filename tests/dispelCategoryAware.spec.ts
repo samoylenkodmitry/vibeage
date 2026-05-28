@@ -33,9 +33,9 @@ describe('dispelTargetSet — static category → effect-type map', () => {
     expect(set.has('heal')).toBe(false);
     expect(set.has('shield')).toBe(false);
   });
-  it('positive covers buffs (heal, shield, bless, evasion, invisible)', () => {
+  it('positive covers every purgeable buff', () => {
     const set = dispelTargetSet('positive');
-    for (const type of ['heal', 'shield', 'bless', 'evasion', 'invisible']) {
+    for (const type of ['heal', 'shield', 'bless', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']) {
       expect(set.has(type)).toBe(true);
     }
     expect(set.has('stun')).toBe(false);
@@ -132,7 +132,7 @@ describe('resolveCastImpact — category-aware dispel end-to-end', () => {
     expect(runDispelWith(undefined, ['slow', 'stun', 'burn', 'bless', 'heal'])).toEqual(['bless', 'heal']);
   });
   it("'positive' strips only buffs (anti-buff purge)", () => {
-    expect(runDispelWith('positive', ['slow', 'bless', 'shield', 'evasion'])).toEqual(['slow']);
+    expect(runDispelWith('positive', ['slow', 'bless', 'shield', 'evasion', 'attackSpeed'])).toEqual(['slow']);
   });
   it("'poison' strips only poison + dot — leaves burn + stun in place", () => {
     expect(runDispelWith('poison', ['poison', 'dot', 'burn', 'stun'])).toEqual(['burn', 'stun']);

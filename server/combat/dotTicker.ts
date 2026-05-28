@@ -131,7 +131,7 @@ function applyDueDotTicks(entity: PlayerState | Enemy, now: number): DotApplyRes
     const tickCeiling = Math.min(now, expiresAt);
     let nextDue = due;
     while (nextDue <= tickCeiling) {
-      const damage = Math.max(0, effect.value);
+      const damage = Math.max(0, effect.value) * Math.max(1, effect.stacks ?? 1);
       entity.health = Math.max(0, entity.health - damage);
       damaged = damaged || damage > 0;
       nextDue += DOT_TICK_INTERVAL_MS;

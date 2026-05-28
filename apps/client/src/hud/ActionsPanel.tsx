@@ -101,6 +101,7 @@ export function ActionsPanel({
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
           skillLevel={player?.skillLevels?.[tooltip.info.payload] ?? 1}
+          player={player}
           hoverHandlers={tooltip.hoverHandlers}
         />
       )}

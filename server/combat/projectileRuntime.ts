@@ -2,6 +2,7 @@ import { SKILLS } from '../../packages/content/skills.js';
 import { CastState, type VecXZ } from '../../packages/protocol/messages.js';
 import { sweptCircleHit } from '../../packages/sim/collision.js';
 import type { Enemy } from '../../packages/sim/entities.js';
+import { getEffectiveSkillRange } from '../../packages/sim/skillUpgrades.js';
 import type { OutboundEventSink } from '../transport/outboundEvents.js';
 import type { Cast } from './skillSystem.js';
 import { emitCastSnapshot } from './castSnapshots.js';
@@ -68,7 +69,8 @@ function updateTrackedTarget(cast: Cast, world: CombatWorld): void {
 
 function shouldImpact(cast: Cast, oldPos: VecXZ, world: CombatWorld, newHits: ReadonlyArray<Enemy>): boolean {
   const skill = SKILLS[cast.skillId];
-  const maxRange = skill.range || 50;
+  const caster = world.getPlayerById(cast.casterId);
+  const maxRange = skill.projectile?.maxRange ?? getEffectiveSkillRange(cast.skillId, caster ?? undefined) ?? 50;
   const outOfRange = distance(cast.origin, cast.pos ?? cast.origin) > maxRange;
   if (reachedTarget(cast) || outOfRange) return true;
 
