@@ -81,7 +81,24 @@ export function isUsableConsumable(item: Item | null | undefined): item is Item 
   return item?.type === 'consumable' && Boolean((item.healAmount ?? 0) > 0 || (item.manaAmount ?? 0) > 0);
 }
 
-export const ITEMS: Record<ItemId, Item> = {
+export function itemIconSlug(itemId: ItemId): string {
+  return itemId.replace(/_/g, '-');
+}
+
+export function itemIconPath(itemId: ItemId): string {
+  return `/game/items/item-icon-${itemIconSlug(itemId)}.png`;
+}
+
+function withGeneratedItemIcons(items: Record<ItemId, Item>): Record<ItemId, Item> {
+  return Object.fromEntries(
+    Object.entries(items).map(([id, item]) => [
+      id,
+      { ...item, icon: itemIconPath(id) },
+    ]),
+  ) as Record<ItemId, Item>;
+}
+
+const ITEM_DEFS: Record<ItemId, Item> = {
   'gold_coin': {
     id: 'gold_coin',
     name: 'Gold Coin',
@@ -554,3 +571,5 @@ export const ITEMS: Record<ItemId, Item> = {
   ...BOSS_GEAR_ITEMS,
   ...MEADOW_TROPHY_RECIPE_ITEMS,
 };
+
+export const ITEMS: Record<ItemId, Item> = withGeneratedItemIcons(ITEM_DEFS);

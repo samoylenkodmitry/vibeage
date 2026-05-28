@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EFFECT_SPECS } from '../packages/content/effects';
 import { SKILLS } from '../packages/content/skills';
@@ -21,6 +23,15 @@ describe('effect specs coverage', () => {
       expect(spec.label.length, `${type}.label`).toBeGreaterThan(0);
       expect(spec.description.length, `${type}.description`).toBeGreaterThan(0);
       expect(['buff', 'debuff', 'damage', 'heal', 'utility']).toContain(spec.category);
+      expect(spec.icon.startsWith('/game/effects/'), `${type}.icon`).toBe(true);
+      expect(
+        existsSync(join(process.cwd(), 'public', spec.icon)),
+        `${type} icon file missing: ${spec.icon}`,
+      ).toBe(true);
     }
+  });
+
+  it('includes runtime-only status effects surfaced by defensive mechanics', () => {
+    expect(EFFECT_SPECS.invuln?.label).toBe('Invulnerable');
   });
 });

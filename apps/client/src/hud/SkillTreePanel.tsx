@@ -147,6 +147,7 @@ function SkillRow({
         }}
         title={canDragToBar ? 'Drag to the action bar' : undefined}
       >
+        <img className="skill-tree-row-icon" src={skill.icon} alt="" aria-hidden="true" />
         <strong>
           {row.name}
           {isPassive && <span className="skill-tag-kind skill-tag-kind--passive">Passive</span>}

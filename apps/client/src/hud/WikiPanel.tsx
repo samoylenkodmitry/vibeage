@@ -263,7 +263,10 @@ function SkillRow({ skill, isFocus, focusKey, navigate }: { skill: SkillDef; isF
   return (
     <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
-        <strong>{skill.name}</strong>
+        <span className="wiki-row-heading">
+          <img className="wiki-row-icon" src={skill.icon} alt="" aria-hidden="true" />
+          <strong>{skill.name}</strong>
+        </span>
         <span className="wiki-row-tag">{skill.kind ?? 'magical'}</span>
         {skill.customBehavior && <span className="wiki-row-tag" title="Custom-coded behavior (see docs)">★ custom</span>}
       </header>
@@ -347,21 +350,27 @@ function RaceTreeRow({ race, query, navigate }: { race: CharacterRace; query: st
 
 function ClassTreeRow({ cls, navigate }: { cls: CharacterClass; navigate: WikiNav }) {
   const passive = CLASS_PASSIVES[cls];
+  const passiveIcon = passive ? SKILLS[passive.id]?.icon : undefined;
   const specs = Object.values(SPECIALIZATIONS).filter((s) => s.baseClass === cls);
   return (
     <li className="wiki-tree-node">
       <button type="button" className="wiki-tree-link" onClick={() => navigate('classes', cls)}>
+        <img className="wiki-tree-icon" src={CLASS_SKILL_TREES[cls].icon} alt="" aria-hidden="true" />
         {capitalize(cls)}
       </button>
       <ul className="wiki-tree-children">
         {passive && (
           <li className="wiki-tree-node wiki-tree-node--leaf">
-            <span className="wiki-tree-label" title={passive.description}>Passive: {passive.name}</span>
+            <span className="wiki-tree-label wiki-tree-label--icon" title={passive.description}>
+              {passiveIcon && <img className="wiki-tree-icon" src={passiveIcon} alt="" aria-hidden="true" />}
+              Passive: {passive.name}
+            </span>
           </li>
         )}
         {specs.map((spec) => (
           <li key={spec.id} className="wiki-tree-node">
             <button type="button" className="wiki-tree-link" onClick={() => navigate('specs', spec.id)}>
+              <img className="wiki-tree-icon" src={spec.icon} alt="" aria-hidden="true" />
               Spec: {spec.name}
             </button>
           </li>
@@ -397,7 +406,10 @@ function ClassRow({ cls, isFocus, focusKey, navigate }: { cls: CharacterClass; i
   return (
     <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
-        <strong>{capitalize(cls)}</strong>
+        <span className="wiki-row-heading">
+          <img className="wiki-row-icon" src={tree.icon} alt="" aria-hidden="true" />
+          <strong>{capitalize(cls)}</strong>
+        </span>
         <span className="wiki-row-tag">{skillIds.length} skills</span>
       </header>
       <p>{tree?.description ?? ''}</p>
@@ -478,7 +490,10 @@ function SpecRow({ spec, isFocus, focusKey, navigate }: { spec: Specialization; 
   return (
     <FocusableLi isFocus={isFocus} focusKey={focusKey}>
       <header>
-        <strong>{spec.name}</strong>
+        <span className="wiki-row-heading">
+          <img className="wiki-row-icon" src={spec.icon} alt="" aria-hidden="true" />
+          <strong>{spec.name}</strong>
+        </span>
         <button type="button" className="wiki-effect-chip" onClick={() => navigate('classes', spec.baseClass)}>
           {capitalize(spec.baseClass)}
         </button>
@@ -608,7 +623,10 @@ function EffectsTab({ query, focusId, focusKey }: { query: string; focusId: stri
       {rows.map((effect) => (
         <FocusableLi key={effect.type} isFocus={effect.type === focusId} focusKey={focusKey}>
           <header>
-            <strong>{effect.label}</strong>
+            <span className="wiki-row-heading">
+              <img className="wiki-row-icon" src={effect.icon} alt="" aria-hidden="true" />
+              <strong>{effect.label}</strong>
+            </span>
             <span className="wiki-row-tag">{effect.category}</span>
           </header>
           <p>{effect.description}</p>

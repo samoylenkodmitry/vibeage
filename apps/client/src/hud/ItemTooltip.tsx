@@ -152,7 +152,12 @@ export function ItemTooltip({ itemId, clientX, clientY, anchorRect, hoverHandler
       onPointerEnter={hoverHandlers?.onPointerEnter}
       onPointerLeave={hoverHandlers?.onPointerLeave}
     >
-      <TooltipHeader name={item.name} grade={grade} onClose={sticky && bagActions ? bagActions.onClose : undefined} />
+      <TooltipHeader
+        name={item.name}
+        grade={grade}
+        icon={item.icon}
+        onClose={sticky && bagActions ? bagActions.onClose : undefined}
+      />
       <p>{item.description}</p>
       {item.equip && (
         <small className="item-tooltip-slot">
@@ -245,16 +250,20 @@ function OrphanItemTooltip({
 }
 
 function TooltipHeader({
-  name, grade, onClose,
+  name, grade, icon, onClose,
 }: {
   name: string;
   grade: ReturnType<typeof getItemGrade>;
+  icon?: string;
   onClose?: () => void;
 }) {
   const spec = getGradeSpec(grade);
   return (
     <header>
-      <strong>{name}</strong>
+      <span className="item-tooltip-title">
+        {icon && <img className="item-tooltip-icon" src={icon} alt="" aria-hidden="true" />}
+        <strong>{name}</strong>
+      </span>
       {grade !== 'none' && (
         <span
           className="item-tooltip-grade"

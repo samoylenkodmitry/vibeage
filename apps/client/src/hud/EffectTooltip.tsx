@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { StatusEffect } from '../../../../packages/protocol/messages';
-import { EFFECT_DESCRIPTION, EFFECT_LABEL } from './effectMeta';
+import { EFFECT_DESCRIPTION, EFFECT_LABEL, effectIcon } from './effectMeta';
 
 type EffectTooltipProps = {
   effect: StatusEffect;
@@ -38,6 +38,7 @@ export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) 
 
   const label = EFFECT_LABEL[effect.type] ?? effect.type;
   const description = EFFECT_DESCRIPTION[effect.type] ?? '';
+  const icon = effectIcon(effect.type);
   // Only compute a remaining count when we actually have both a start
   // timestamp and a duration; otherwise the previous code printed
   // 'Remaining: 0.0s' for any non-timed effect because startTimeTs
@@ -55,7 +56,10 @@ export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) 
       style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
     >
       <header>
-        <strong>{label}</strong>
+        <span className="skill-tooltip-title">
+          {icon && <img className="skill-tooltip-icon" src={icon} alt="" aria-hidden="true" />}
+          <strong>{label}</strong>
+        </span>
         {effect.stacks && effect.stacks > 1 ? <span className="skill-tooltip-flag">×{effect.stacks}</span> : null}
       </header>
       {description && <p>{description}</p>}

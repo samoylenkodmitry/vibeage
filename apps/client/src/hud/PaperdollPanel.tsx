@@ -60,7 +60,8 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
                 }}
                 {...(triggerProps ?? {})}
               >
-                {itemName}
+                {item?.icon && <img className="paperdoll-slot-icon" src={item.icon} alt="" aria-hidden="true" />}
+                <span>{itemName}</span>
               </button>
             </li>
           );

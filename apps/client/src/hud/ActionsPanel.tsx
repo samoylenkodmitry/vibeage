@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+import { GAME_ACTIONS, type GameActionId } from '../../../../packages/content/actions';
 import type { SkillId } from '../../../../packages/content/skills';
 import { SKILLS } from '../../../../packages/content/skills';
 import type { PlayerEntity } from '../gameTypes';
@@ -48,7 +50,7 @@ export function ActionsPanel({
       </div>
       <div className="actions-panel-grid">
         <ActionButton
-          label="Attack"
+          label={GAME_ACTIONS.attack.label}
           hotkey={BASIC_ATTACK_HOTKEY}
           disabled={attackDisabled}
           subtitle={
@@ -63,10 +65,11 @@ export function ActionsPanel({
           onClick={() => onCastSkill(BASIC_ATTACK_SKILL_ID)}
           extraHandlers={tooltip.triggerProps(BASIC_ATTACK_SKILL_ID)}
           dragSkillId={BASIC_ATTACK_SKILL_ID}
+          iconSrc={GAME_ACTIONS.attack.icon}
         />
         <ActionButton
-          label="Move"
-          hotkey="M"
+          label={GAME_ACTIONS.move.label}
+          hotkey={GAME_ACTIONS.move.hotkey}
           disabled={!player?.isAlive || (!hasSelectedTarget && !hasNavigationMarker)}
           subtitle={
             !player?.isAlive
@@ -79,14 +82,16 @@ export function ActionsPanel({
           }
           onClick={onMove}
           dragActionId="move"
+          iconSrc={GAME_ACTIONS.move.icon}
         />
         <ActionButton
-          label="Pickup"
-          hotkey="F"
+          label={GAME_ACTIONS.pickup.label}
+          hotkey={GAME_ACTIONS.pickup.hotkey}
           disabled={!player?.isAlive || !hasLootNearby}
           subtitle={!player?.isAlive ? 'Dead' : hasLootNearby ? 'Walk to nearest' : 'No loot'}
           onClick={onPickupNearest}
           dragActionId="pickup"
+          iconSrc={GAME_ACTIONS.pickup.icon}
         />
         <EscapeButton player={player} now={now} onCastSkill={onCastSkill} tooltip={tooltip} />
       </div>
@@ -131,7 +136,7 @@ function EscapeButton({
   return (
     <ActionButton
       label="Escape"
-      hotkey="Z"
+      hotkey={GAME_ACTIONS.escape.hotkey}
       disabled={disabled}
       subtitle={
         !player?.isAlive
@@ -145,6 +150,7 @@ function EscapeButton({
       onClick={() => onCastSkill('escape')}
       extraHandlers={tooltip.triggerProps('escape' as SkillId)}
       dragSkillId={'escape' as SkillId}
+      iconSrc={GAME_ACTIONS.escape.icon}
     />
   );
 }
@@ -158,6 +164,7 @@ function ActionButton({
   extraHandlers,
   dragSkillId,
   dragActionId,
+  iconSrc,
 }: {
   label: string;
   hotkey: string;
@@ -168,7 +175,8 @@ function ActionButton({
   /** Bind this skill onto the action bar when dragged (Attack/Escape). */
   dragSkillId?: SkillId;
   /** Bind this built-in action onto the action bar when dragged (Move/Pickup). */
-  dragActionId?: string;
+  dragActionId?: GameActionId;
+  iconSrc?: string;
 }) {
   const { beginDrag, consumeDragClick } = useActionBarDrag();
   const hasMouse = useHasMousePointer();
@@ -188,6 +196,7 @@ function ActionButton({
       aria-disabled={disabled}
       aria-label={`${label} (${hotkey})`}
       aria-keyshortcuts={hotkey}
+      style={iconSrc ? ({ '--action-icon': `url("${iconSrc}")` } as CSSProperties) : undefined}
       draggable={isDragSource && hasMouse}
       onDragStart={payload ? (e) => {
         e.dataTransfer.effectAllowed = 'copy';

@@ -392,12 +392,16 @@ function CreateCharacterForm({
         <fieldset className="character-fieldset">
           <legend>Class</legend>
           <div className="character-grid">
-            {allowed.map((option) => (
-              <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
-                <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
-                <span>{option}</span>
-              </label>
-            ))}
+            {allowed.map((option) => {
+              const classIcon = CLASS_SKILL_TREES[option]?.icon;
+              return (
+                <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
+                  <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
+                  {classIcon && <img className="character-option-icon" src={classIcon} alt="" aria-hidden="true" />}
+                  <span>{option}</span>
+                </label>
+              );
+            })}
           </div>
           <small className="character-blurb">{CLASS_SKILL_TREES[className]?.description ?? ''}</small>
           <ClassDetail classKey={className} />

@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { getEffectLabel } from '../../../../packages/content/effects';
-import { SKILLS, type SkillId } from '../../../../packages/content/skills';
+import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/content/skills';
 import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
 import { describeOffense } from './skillMechanics';
 import { openWikiAt } from './wikiNavBus';
@@ -22,6 +22,9 @@ type SkillTooltipProps = {
     onPointerLeave: () => void;
   };
 };
+
+type TooltipRow = [string, string];
+type EffectiveSkillStats = ReturnType<typeof getEffectiveSkillStats>;
 
 export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverHandlers }: SkillTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -58,16 +61,7 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverH
   // coalesce numeric properties so a partial SkillDef (older
   // saved content) doesn't render NaN.
   const effective = getEffectiveSkillStats(skillId, skillLevel);
-  const lvSuffix = skillLevel > 1 ? ` (Lv ${skillLevel})` : '';
-  const castMs = skill.castMs ?? 0;
-  const rows: Array<[string, string]> = [];
-  if (effective.dmg !== undefined) rows.push([`Damage${lvSuffix}`, String(effective.dmg)]);
-  if (effective.range !== undefined) rows.push([`Range${lvSuffix}`, String(effective.range)]);
-  if (skill.area !== undefined) rows.push(['Area', String(skill.area)]);
-  rows.push([`Mana${lvSuffix}`, effective.manaCost > 0 ? String(effective.manaCost) : 'free']);
-  rows.push(['Cast', castMs > 0 ? `${(castMs / 1000).toFixed(1)}s` : 'instant']);
-  if (effective.cooldownMs > 0) rows.push([`Cooldown${lvSuffix}`, `${(effective.cooldownMs / 1000).toFixed(1)}s`]);
-  if (skill.autoRepeat) rows.push(['Auto-repeat', 'on']);
+  const rows = buildTooltipRows(skill, effective, skillLevel);
 
   // Render via a portal anchored to document.body so the tooltip's
   // position: fixed is relative to the viewport — NOT to a transformed
@@ -77,8 +71,50 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverH
     return null;
   }
   return createPortal(
+    <SkillTooltipPanel
+      tooltipRef={ref}
+      skill={skill}
+      rows={rows}
+      effective={effective}
+      pos={pos}
+      hoverHandlers={hoverHandlers}
+    />,
+    document.body,
+  );
+}
+
+function buildTooltipRows(skill: SkillDef, effective: EffectiveSkillStats, skillLevel: number): TooltipRow[] {
+  const lvSuffix = skillLevel > 1 ? ` (Lv ${skillLevel})` : '';
+  const castMs = skill.castMs ?? 0;
+  const rows: TooltipRow[] = [];
+  if (effective.dmg !== undefined) rows.push([`Damage${lvSuffix}`, String(effective.dmg)]);
+  if (effective.range !== undefined) rows.push([`Range${lvSuffix}`, String(effective.range)]);
+  if (skill.area !== undefined) rows.push(['Area', String(skill.area)]);
+  rows.push([`Mana${lvSuffix}`, effective.manaCost > 0 ? String(effective.manaCost) : 'free']);
+  rows.push(['Cast', castMs > 0 ? `${(castMs / 1000).toFixed(1)}s` : 'instant']);
+  if (effective.cooldownMs > 0) rows.push([`Cooldown${lvSuffix}`, `${(effective.cooldownMs / 1000).toFixed(1)}s`]);
+  if (skill.autoRepeat) rows.push(['Auto-repeat', 'on']);
+  return rows;
+}
+
+function SkillTooltipPanel({
+  tooltipRef,
+  skill,
+  rows,
+  effective,
+  pos,
+  hoverHandlers,
+}: {
+  tooltipRef: RefObject<HTMLDivElement | null>;
+  skill: SkillDef;
+  rows: TooltipRow[];
+  effective: EffectiveSkillStats;
+  pos: { left: number; top: number };
+  hoverHandlers: SkillTooltipProps['hoverHandlers'];
+}) {
+  return (
     <div
-      ref={ref}
+      ref={tooltipRef}
       className="skill-tooltip"
       role="tooltip"
       style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }}
@@ -86,7 +122,10 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverH
       onPointerLeave={hoverHandlers?.onPointerLeave}
     >
       <header>
-        <strong>{skill.name}</strong>
+        <span className="skill-tooltip-title">
+          <img className="skill-tooltip-icon" src={skill.icon} alt="" aria-hidden="true" />
+          <strong>{skill.name}</strong>
+        </span>
         {skill.requiresTarget ? <span className="skill-tooltip-flag">target</span> : <span className="skill-tooltip-flag skill-tooltip-flag--self">self</span>}
       </header>
       <p>{skill.description}</p>
@@ -119,7 +158,6 @@ export function SkillTooltip({ skillId, clientX, clientY, skillLevel = 1, hoverH
         onClick={(e) => { e.stopPropagation(); openWikiAt('skills', skill.id); }}
         title="Open in Wiki"
       >Open in Wiki →</button>
-    </div>,
-    document.body,
+    </div>
   );
 }

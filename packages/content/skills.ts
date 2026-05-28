@@ -202,6 +202,8 @@ export interface SkillUpgradeModifiers {
 }
 
 import { SPEC_AND_PROFICIENCY_SKILLS } from './specSkillsData.js';
+import { withGeneratedSkillIcons } from './skillIcons.js';
+export { skillIconPath } from './skillIcons.js';
 
 // Define the base SKILLS catalog. Spec / proficiency skill entries
 // live in specSkillsData.ts (kept separate to stay under the
@@ -691,6 +693,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
 import { PASSIVE_SKILLS } from './classPassives.js';
 import { MOB_SKILLS } from './mobSkills.js';
 import { BOSS_SIGNATURE_SKILLS } from './bossSkills.js';
-
-export const SKILLS = { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>;
+export const SKILLS = withGeneratedSkillIcons(
+  { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>,
+);
 export { isPassiveSkill } from './classPassives.js';

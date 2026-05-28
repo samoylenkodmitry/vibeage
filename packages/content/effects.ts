@@ -14,7 +14,8 @@ import type { SkillEffectType } from './skills.js';
  * on themselves) from debuffs (player wants on the enemy) — useful
  * for tooltip coloring and future buff-stacking policy work.
  */
-type EffectCategory = 'buff' | 'debuff' | 'damage' | 'heal' | 'utility';
+export type EffectCategory = 'buff' | 'debuff' | 'damage' | 'heal' | 'utility';
+export type EffectType = SkillEffectType | 'invuln';
 
 /**
  * §46/slice-2 — explicit per-effect stacking policy. Was implicit
@@ -41,10 +42,11 @@ type EffectCategory = 'buff' | 'debuff' | 'damage' | 'heal' | 'utility';
 export type StackingPolicy = 'replace' | 'refresh' | 'stack' | 'reject';
 
 export interface EffectSpec {
-  type: SkillEffectType;
+  type: EffectType;
   label: string;
   description: string;
   category: EffectCategory;
+  icon: string;
   /** Human-readable unit hint for SkillEffect.value, e.g. 'hp', '%', 'm'. */
   valueUnit?: string;
   /** §46/slice-2 — how `upsertStatusEffect` reconciles same-type re-applications. */
@@ -53,7 +55,47 @@ export interface EffectSpec {
   maxStacks?: number;
 }
 
-export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
+const EFFECT_ICON_SLUGS: Record<EffectType, string> = {
+  damage: 'damage',
+  heal: 'heal',
+  stun: 'stun',
+  slow: 'slow',
+  dot: 'dot',
+  burn: 'burn',
+  poison: 'poison',
+  waterWeakness: 'water-weakness',
+  freeze: 'freeze',
+  shield: 'shield',
+  bless: 'bless',
+  dispel: 'dispel',
+  taunt: 'taunt',
+  knockback: 'knockback',
+  evasion: 'evasion',
+  invisible: 'invisible',
+  speed_boost: 'haste',
+  attackSpeed: 'attack-speed',
+  reveal_loot: 'treasure-sense',
+  aggroReset: 'aggro-reset',
+  teleport: 'teleport',
+  invuln: 'invulnerable',
+};
+
+export function effectIconPath(effectType: EffectType): string {
+  return `/game/effects/effect-icon-${EFFECT_ICON_SLUGS[effectType]}.png`;
+}
+
+type EffectSpecInput = Omit<EffectSpec, 'icon'>;
+
+function withGeneratedEffectIcons(specs: Record<EffectType, EffectSpecInput>): Record<EffectType, EffectSpec> {
+  return Object.fromEntries(
+    Object.entries(specs).map(([type, spec]) => [
+      type,
+      { ...spec, icon: effectIconPath(type as EffectType) },
+    ]),
+  ) as Record<EffectType, EffectSpec>;
+}
+
+const EFFECT_SPEC_DEFS: Record<EffectType, EffectSpecInput> = {
   damage: {
     type: 'damage',
     label: 'Damage',
@@ -217,7 +259,16 @@ export const EFFECT_SPECS: Record<SkillEffectType, EffectSpec> = {
     category: 'utility',
     stacking: 'replace',
   },
+  invuln: {
+    type: 'invuln',
+    label: 'Invulnerable',
+    description: 'Negates incoming damage for the duration.',
+    category: 'buff',
+    stacking: 'refresh',
+  },
 };
+
+export const EFFECT_SPECS = withGeneratedEffectIcons(EFFECT_SPEC_DEFS);
 
 /**
  * §46/slice-2 — default policy when a spec doesn't declare one.
@@ -235,6 +286,10 @@ export function getMaxStacks(type: SkillEffectType): number {
   return EFFECT_SPECS[type]?.maxStacks ?? 1;
 }
 
-export function getEffectLabel(type: SkillEffectType): string {
-  return EFFECT_SPECS[type]?.label ?? type;
+export function getEffectSpec(type: string): EffectSpec | null {
+  return EFFECT_SPECS[type as EffectType] ?? null;
+}
+
+export function getEffectLabel(type: string): string {
+  return getEffectSpec(type)?.label ?? type;
 }

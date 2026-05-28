@@ -13,6 +13,7 @@ import { SkillTooltip } from './SkillTooltip';
 import { useTooltipTrigger } from './useTooltipTrigger';
 import { openWikiAt } from './wikiNavBus';
 import { ITEMS } from '../../../../packages/content/items';
+import { getGameActionSpec } from '../../../../packages/content/actions';
 import { INVENTORY_DRAG_MIME } from './InventorySlotButton';
 import { ItemShortcutButton } from './ItemShortcutButton';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -28,7 +29,7 @@ import {
 
 /** A built-in UI action (Move/Pickup) bound to a bar slot. Skills and items
  *  resolve themselves; these need their label/hotkey/handler from GameHud. */
-export type BuiltinBarAction = { label: string; hotkey: string; disabled: boolean; onInvoke: () => void };
+export type BuiltinBarAction = { label: string; hotkey: string; icon?: string; disabled: boolean; onInvoke: () => void };
 
 type SkillBarProps = {
   player: PlayerEntity | null;
@@ -260,7 +261,7 @@ function slotDragLabel(
 ): string {
   if (!slot) return `Slot ${slotIndex + 1}`;
   if (slot.kind === 'item') return ITEMS[slot.id]?.name ?? slot.id;
-  if (slot.kind === 'action') return builtinActions[slot.id]?.label ?? slot.id;
+  if (slot.kind === 'action') return builtinActions[slot.id]?.label ?? getGameActionSpec(slot.id)?.label ?? slot.id;
   return SKILLS[slot.id]?.name ?? `Slot ${slotIndex + 1}`;
 }
 
@@ -291,6 +292,10 @@ function BarActionButton({
       aria-disabled={action.disabled}
       aria-label={`${action.label} action`}
       aria-keyshortcuts={ariaHotkeys}
+      style={{
+        '--cooldown-progress': 0,
+        '--skill-icon': action.icon ? `url("${action.icon}")` : 'none',
+      } as CSSProperties}
       onClick={() => { if (!action.disabled) action.onInvoke(); }}
     >
       <span className="skill-button__hotkey">{hotkey}</span>
@@ -341,7 +346,10 @@ function SkillButton({
       disabled={disabled}
       aria-label={skill ? `Cast ${skill.name}` : 'Empty skill slot'}
       aria-keyshortcuts={ariaHotkeys}
-      style={{ '--cooldown-progress': cooldownProgress } as CSSProperties}
+      style={{
+        '--cooldown-progress': cooldownProgress,
+        '--skill-icon': skill ? `url("${skill.icon}")` : 'none',
+      } as CSSProperties}
       onClick={() => skill && onCastSkill(skill.id)}
       onContextMenu={(e) => {
         if (!skill) return;

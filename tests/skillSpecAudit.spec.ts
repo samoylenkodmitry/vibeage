@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EFFECT_SPECS } from '../packages/content/effects';
 import { CLASS_LEARNABLE_PASSIVE_SKILLS, CLASS_AUTO_PASSIVE_SKILL, PASSIVE_SKILL_CONTRIBUTIONS } from '../packages/content/classPassives';
@@ -16,6 +18,7 @@ import type { StatId } from '../packages/sim/statContributions';
 
 const PASSIVE_PREFIX = 'passive_';
 const passiveIds = new Set<SkillId>(Object.keys(PASSIVE_SKILL_CONTRIBUTIONS) as SkillId[]);
+const RUNTIME_ONLY_EFFECT_TYPES = new Set<string>(['invuln']);
 
 /**
  * Effect types the engine actually consumes today. Extend when
@@ -57,8 +60,16 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
 const UNIMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffectType>([]);
 
 describe('skill spec audit', () => {
+  registerEffectTypeAuditTests();
+  registerSkillShapeAuditTests();
+  registerPassiveContributionAuditTests();
+  registerSkillCatalogAuditTests();
+});
+
+function registerEffectTypeAuditTests() {
   it('every SkillEffectType is either implemented or explicitly unimplemented', () => {
-    const allTypes = Object.keys(EFFECT_SPECS) as SkillEffectType[];
+    const allTypes = Object.keys(EFFECT_SPECS)
+      .filter((t) => !RUNTIME_ONLY_EFFECT_TYPES.has(t)) as SkillEffectType[];
     const orphans = allTypes.filter((t) => !IMPLEMENTED_EFFECT_TYPES.has(t) && !UNIMPLEMENTED_EFFECT_TYPES.has(t));
     expect(orphans, `effect types missing from both sets: ${orphans.join(', ')}`).toEqual([]);
   });
@@ -66,10 +77,12 @@ describe('skill spec audit', () => {
   it('IMPLEMENTED + UNIMPLEMENTED sets are disjoint', () => {
     for (const t of IMPLEMENTED_EFFECT_TYPES) {
       expect(UNIMPLEMENTED_EFFECT_TYPES.has(t),
-        `${t} listed in both IMPLEMENTED and UNIMPLEMENTED`).toBe(false);
+      `${t} listed in both IMPLEMENTED and UNIMPLEMENTED`).toBe(false);
     }
   });
+}
 
+function registerSkillShapeAuditTests() {
   it('every active skill has at least one effect; every passive has zero effects', () => {
     for (const [id, skill] of Object.entries(SKILLS)) {
       const isPassive = id.startsWith(PASSIVE_PREFIX);
@@ -81,7 +94,9 @@ describe('skill spec audit', () => {
       }
     }
   });
+}
 
+function registerPassiveContributionAuditTests() {
   it('every passive skill has a contribution row', () => {
     for (const [id, skill] of Object.entries(SKILLS)) {
       if (!id.startsWith(PASSIVE_PREFIX)) continue;
@@ -126,7 +141,9 @@ describe('skill spec audit', () => {
       }
     }
   });
+}
 
+function registerSkillCatalogAuditTests() {
   it('every active-skill effect type is in IMPLEMENTED_EFFECT_TYPES (no silent claims)', () => {
     const skillsWithUnimplementedEffects: string[] = [];
     for (const [id, skill] of Object.entries(SKILLS)) {
@@ -146,8 +163,18 @@ describe('skill spec audit', () => {
     }
   });
 
+  it('every skill icon resolves to a shipped public asset', () => {
+    for (const [id, skill] of Object.entries(SKILLS)) {
+      expect(skill.icon.startsWith('/game/skills/'), `${id} icon should be public skill asset`).toBe(true);
+      expect(
+        existsSync(join(process.cwd(), 'public', skill.icon)),
+        `${id} icon file missing: ${skill.icon}`,
+      ).toBe(true);
+    }
+  });
+
   it('sanity touchpoint: spec catalog stays in sync with races / classes', () => {
     expect(CHARACTER_RACES.length).toBeGreaterThan(0);
     expect(Object.keys(CLASS_SKILL_TREES).length).toBeGreaterThan(0);
   });
-});
+}
