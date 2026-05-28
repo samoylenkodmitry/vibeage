@@ -25,30 +25,31 @@ type SkillExpectation = {
   area?: boolean;
   selfTarget?: boolean;
   offenseKeys?: string[];
+  reactionIds?: string[];
 };
 
 const PLAYER_SKILL_EXPECTATIONS: Record<string, SkillExpectation> = {
   basicAttack: { effects: ['damage'], targetMode: 'enemy' },
   escape: { effects: ['teleport'], targetMode: 'self' },
-  fireball: { effects: ['damage', 'burn'], targetMode: 'enemy' },
-  iceBolt: { effects: ['damage', 'poison', 'slow'], targetMode: 'enemy' },
+  fireball: { effects: ['damage', 'burn'], targetMode: 'enemy', reactionIds: ['detonate_burn'] },
+  iceBolt: { effects: ['damage', 'poison', 'slow'], targetMode: 'enemy', reactionIds: ['flash_freeze'] },
   waterSplash: { effects: ['damage', 'waterWeakness'], targetMode: 'area-self', area: true },
   petrify: { effects: ['damage', 'stun'], targetMode: 'enemy' },
   slash: { effects: ['damage', 'dot'], targetMode: 'enemy' },
   powerStrike: { effects: ['damage', 'knockback'], targetMode: 'enemy' },
   shieldWall: { effects: ['shield'], targetMode: 'self' },
   taunt: { effects: ['taunt'], targetMode: 'enemy' },
-  bash: { effects: ['damage', 'stun'], targetMode: 'enemy' },
+  bash: { effects: ['damage', 'stun'], targetMode: 'enemy', reactionIds: ['crack_bleed'] },
   holyLight: { effects: ['heal'], targetMode: 'self' },
   bless: { effects: ['bless'], targetMode: 'self' },
   dispel: { effects: ['dispel'], targetMode: 'self' },
-  smite: { effects: ['damage', 'stun'], targetMode: 'enemy' },
+  smite: { effects: ['damage', 'stun'], targetMode: 'enemy', reactionIds: ['judgment_on_taunt'] },
   divineShield: { effects: ['shield'], targetMode: 'self' },
-  arrowShot: { effects: ['damage'], targetMode: 'enemy', area: true },
+  arrowShot: { effects: ['damage'], targetMode: 'enemy', area: true, reactionIds: ['pick_slow_target'] },
   volley: { effects: ['damage'], targetMode: 'enemy' },
   rapidFire: { effects: ['attackSpeed'], targetMode: 'self' },
   evade: { effects: ['evasion'], targetMode: 'self' },
-  backstab: { effects: ['damage'], targetMode: 'enemy' },
+  backstab: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['stealth_opener', 'poison_cashout'] },
   poisonBlade: { effects: ['damage', 'poison'], targetMode: 'enemy' },
   vanish: { effects: ['invisible', 'aggroReset'], targetMode: 'self', selfTarget: true },
   arcane_blast: { effects: ['damage'], targetMode: 'enemy' },
@@ -95,6 +96,7 @@ describe('individual player skill mechanics audit', () => {
       expect(getSkillTags(skill).targetMode, `${id} targetMode`).toBe(expected.targetMode);
       if (expected.area !== undefined) expect((skill.area ?? 0) > 0, `${id} area`).toBe(expected.area);
       if (expected.selfTarget) expect(skill.selfTarget, `${id} selfTarget`).toBe(true);
+      expect(skill.reactions?.map((reaction) => reaction.id) ?? [], `${id} reaction ids`).toEqual(expected.reactionIds ?? []);
       for (const key of expected.offenseKeys ?? []) {
         expect(skill.offense?.[key as keyof NonNullable<typeof skill.offense>], `${id} offense.${key}`).toBeDefined();
       }

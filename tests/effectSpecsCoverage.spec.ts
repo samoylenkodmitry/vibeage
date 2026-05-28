@@ -11,6 +11,11 @@ describe('effect specs coverage', () => {
       for (const effect of skill.effects ?? []) {
         referenced.add(effect.type);
       }
+      for (const reaction of skill.reactions ?? []) {
+        for (const effect of [...(reaction.effects ?? []), ...(reaction.casterEffects ?? [])]) {
+          referenced.add(effect.type);
+        }
+      }
     }
     for (const type of referenced) {
       expect(EFFECT_SPECS, `effect type "${type}" used in SKILLS catalog but missing from EFFECT_SPECS`).toHaveProperty(type);

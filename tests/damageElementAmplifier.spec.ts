@@ -78,6 +78,7 @@ describe('damage-element amplifier from spec passives', () => {
     // Re-target the same enemy id for both casts so seeds match.
     resolveCastImpact(cast('fireball', baseline, targetA), { publish: (e) => e1.push(e) }, worldFor(baseline, targetA), 1_000);
     targetA.health = targetA.maxHealth;
+    targetA.statusEffects = [];
     resolveCastImpact(cast('fireball', pyro, targetA), { publish: (e) => e2.push(e) }, worldFor(pyro, targetA), 1_000);
 
     const baseDmg = damageFromLog(e1);
@@ -114,6 +115,7 @@ describe('damage-element amplifier from spec passives', () => {
     const e1: OutboundEvent[] = []; const e2: OutboundEvent[] = [];
     resolveCastImpact(cast('fireball', baseline, target), { publish: (e) => e1.push(e) }, worldFor(baseline, target), 1_000);
     target.health = target.maxHealth;
+    target.statusEffects = [];
     resolveCastImpact(cast('fireball', pyro, target), { publish: (e) => e2.push(e) }, worldFor(pyro, target), 1_000);
 
     // Spec ×1.2 stacked with proficiency ×1.15 = 1.38.

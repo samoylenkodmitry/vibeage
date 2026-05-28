@@ -1,0 +1,140 @@
+import type { SkillDef, SkillEffect, SkillEffectType } from '../../packages/content/skills.js';
+import type { Enemy, PlayerState, StatusEffect } from '../../packages/sim/entities.js';
+import {
+  emitPlayerUpdated,
+  emitServerMessage,
+  type OutboundEventSink,
+} from '../transport/outboundEvents.js';
+import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
+
+type Combatant = Enemy | PlayerState;
+
+export type PreparedSkillReaction = {
+  reactionId: string;
+  damageMultiplier: number;
+  consumeTargetEffect?: SkillEffectType;
+  consumeCasterEffect?: SkillEffectType;
+  effects: readonly SkillEffect[];
+  casterEffects: readonly SkillEffect[];
+};
+
+export function prepareSkillReactions(
+  skill: SkillDef,
+  target: Combatant,
+  caster: Combatant | null,
+  now: number,
+): PreparedSkillReaction[] {
+  const prepared: PreparedSkillReaction[] = [];
+  for (const reaction of skill.reactions ?? []) {
+    if (reaction.condition.targetHasEffect && !hasActiveEffect(target, reaction.condition.targetHasEffect, now)) {
+      continue;
+    }
+    if (reaction.condition.casterHasEffect && (!caster || !hasActiveEffect(caster, reaction.condition.casterHasEffect, now))) {
+      continue;
+    }
+    const consumedTargetStacks = reaction.consumeTargetEffect
+      ? activeEffectStacks(target, reaction.consumeTargetEffect, now)
+      : 0;
+    const consumedCasterStacks = reaction.consumeCasterEffect && caster
+      ? activeEffectStacks(caster, reaction.consumeCasterEffect, now)
+      : 0;
+    if (reaction.consumeTargetEffect && consumedTargetStacks <= 0) continue;
+    if (reaction.consumeCasterEffect && consumedCasterStacks <= 0) continue;
+
+    const consumedStacks = consumedTargetStacks + consumedCasterStacks;
+    const stackMultiplier = reaction.damageMultiplierPerConsumedStack
+      ? 1 + reaction.damageMultiplierPerConsumedStack * Math.max(1, consumedStacks)
+      : 1;
+
+    prepared.push({
+      reactionId: reaction.id,
+      damageMultiplier: (reaction.damageMultiplier ?? 1) * stackMultiplier,
+      consumeTargetEffect: reaction.consumeTargetEffect,
+      consumeCasterEffect: reaction.consumeCasterEffect,
+      effects: reaction.effects ?? [],
+      casterEffects: reaction.casterEffects ?? [],
+    });
+  }
+  return prepared;
+}
+
+export function reactionDamageMultiplier(reactions: readonly PreparedSkillReaction[]): number {
+  return reactions.reduce((multiplier, reaction) => multiplier * reaction.damageMultiplier, 1);
+}
+
+export function applyPreparedSkillReactions(input: {
+  target: Combatant;
+  caster: Combatant | null;
+  reactions: readonly PreparedSkillReaction[];
+  outbound: OutboundEventSink;
+  applyEffects: (target: Combatant, effects: readonly SkillEffect[]) => number;
+}): number {
+  const { target, caster, reactions, outbound, applyEffects } = input;
+  if (reactions.length === 0) return 0;
+
+  let healApplied = 0;
+  let casterStatusChanged = false;
+
+  for (const reaction of reactions) {
+    if (reaction.consumeTargetEffect) removeStatusEffectType(target, reaction.consumeTargetEffect);
+    if (reaction.consumeCasterEffect && caster) {
+      casterStatusChanged = removeStatusEffectType(caster, reaction.consumeCasterEffect) || casterStatusChanged;
+    }
+    if (reaction.effects.length > 0) {
+      healApplied += applyEffects(target, reaction.effects);
+    }
+    if (reaction.casterEffects.length > 0 && caster) {
+      healApplied += applyEffects(caster, reaction.casterEffects);
+      casterStatusChanged = true;
+    }
+  }
+
+  if (casterStatusChanged && caster && !isEnemy(caster) && caster.id !== target.id) {
+    emitServerMessage(outbound, {
+      type: 'EffectSnapshot',
+      targetId: caster.id,
+      effects: caster.statusEffects,
+    });
+    emitPlayerUpdated(outbound, {
+      id: caster.id,
+      health: caster.health,
+      isAlive: caster.isAlive,
+      deathTimeTs: caster.deathTimeTs,
+      statusEffects: caster.statusEffects,
+      stats: caster.stats, maxHealth: caster.maxHealth, maxMana: caster.maxMana,
+      position: caster.position,
+    });
+  }
+
+  return healApplied;
+}
+
+function hasActiveEffect(entity: Combatant, type: SkillEffectType, now: number): boolean {
+  return activeEffectStacks(entity, type, now) > 0;
+}
+
+function activeEffectStacks(entity: Combatant, type: SkillEffectType, now: number): number {
+  let stacks = 0;
+  for (const effect of entity.statusEffects ?? []) {
+    if (effect.type !== type || !isActiveStatusEffect(effect, now)) continue;
+    stacks += effect.stacks ?? 1;
+  }
+  return stacks;
+}
+
+function isActiveStatusEffect(effect: StatusEffect, now: number): boolean {
+  return effect.durationMs <= 0 || effect.startTimeTs + effect.durationMs > now;
+}
+
+function removeStatusEffectType(target: Combatant, effectType: string): boolean {
+  const before = target.statusEffects?.length ?? 0;
+  if (before === 0) return false;
+  target.statusEffects = target.statusEffects.filter((effect) => effect.type !== effectType);
+  const changed = target.statusEffects.length !== before;
+  if (changed && !isEnemy(target)) recomputePlayerStats(target);
+  return changed;
+}
+
+function isEnemy(target: Combatant): target is Enemy {
+  return 'type' in target;
+}
