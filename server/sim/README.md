@@ -19,6 +19,9 @@ The first balance layer is split into:
   helpers for simulated players.
 - `scenarioCatalog.ts`: reusable PvE, PvP, quest-reward, loot-gold, and gear-set
   scenario catalogs.
+- `playerFeel.ts`: player-feel cadence estimates over hour/day/week/month
+  horizons, including meaningful progression beats, empty windows, dry gaps,
+  and mitigation hints.
 - `scripts/balance-sim.ts`: Markdown report over those catalogs. Run it with
   `pnpm run balance:sim`.
 

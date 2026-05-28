@@ -18,6 +18,11 @@ import {
   runPvpScenario,
   expectedGoldForLootTable,
 } from '../server/sim/scenarioCatalog.js';
+import {
+  estimateFeelForClasses,
+  estimateFeelForSpecializations,
+  type PlayerFeelSummary,
+} from '../server/sim/playerFeel.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
@@ -28,6 +33,7 @@ printPveClassMatrix();
 printSpecializationMatrix();
 printPvpClassMatrix();
 printProgressionRewards();
+printPlayerFeelCadence();
 printGearMilestones();
 printLootGold();
 
@@ -84,6 +90,39 @@ function printProgressionRewards(): void {
   console.log('');
 }
 
+function printPlayerFeelCadence(): void {
+  console.log('## Player feel cadence');
+  console.log('');
+  console.log('Meaningful beats are level-ups, skill/passive unlocks, quest unlocks, specialization choices, and proficiency unlocks. Base rows show no chosen spec; spec rows assume that spec is picked at level 20. The target window defaults to one hour; empty windows and long dry gaps are balance risks.');
+  console.log('');
+  console.log('| Path | Horizon | End Lv | Kills/hr | Score | Beats/window | Empty windows | Max gap | Risk | First mitigation |');
+  console.log('|------|---------|--------|----------|-------|--------------|---------------|---------|------|------------------|');
+  const summaries = [
+    ...estimateFeelForClasses([1, 24, 168, 720]),
+    ...estimateFeelForSpecializations([24, 168, 720]),
+  ];
+  for (const summary of summaries) {
+    console.log(playerFeelRow(summary));
+  }
+  console.log('');
+}
+
+function playerFeelRow(summary: PlayerFeelSummary): string {
+  const cells = [
+    summary.specializationId ?? `${summary.className} base`,
+    hours(summary.horizonHours),
+    String(summary.endingLevel),
+    summary.killsPerHour.toFixed(1),
+    String(summary.feelScore),
+    summary.meaningfulBeatsPerWindow.toFixed(1),
+    `${summary.emptyWindowCount}/${summary.windowCount}`,
+    hours(summary.maxMeaningfulGapHours),
+    summary.emptyRisk,
+    summary.mitigationHints[0] ?? '-',
+  ];
+  return `| ${cells.join(' | ')} |`;
+}
+
 function printGearMilestones(): void {
   console.log('## Gear set checkpoints');
   console.log('');
@@ -116,6 +155,12 @@ function winner(winnerTeamId: string | null, timedOut: boolean): string {
 
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function hours(value: number): string {
+  if (value < 24) return `${value.toFixed(value < 10 && value % 1 !== 0 ? 1 : 0)}h`;
+  if (value < 24 * 14) return `${(value / 24).toFixed(1)}d`;
+  return `${(value / (24 * 30)).toFixed(1)}mo`;
 }
 
 function healthPct(entity: { health: number; maxHealth: number }): string {
