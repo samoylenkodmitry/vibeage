@@ -198,14 +198,9 @@ function useCastActions(
       type: 'setPendingCast',
       pendingCast: { skillId, targetId: targetEnemy.id, expiresAtTs: Date.now() + PENDING_CAST_TTL_MS },
     });
-    // Arm auto-attack at the same target for any physical skill (or
-    // explicit autoRepeat — basicAttack itself) so the player keeps
-    // swinging once they arrive in range.
-    const skillDef = SKILLS[skillId];
-    if (targetEnemy.isAlive && skillDef && (skillDef.autoRepeat || skillDef.kind === 'physical')) {
-      armAutoAttack(BASIC_ATTACK_SKILL_ID, targetEnemy.id);
-    }
-  }, [dispatch, sendApproachIntent, armAutoAttack]);
+    // Don't arm auto-attack here — it made the player swing Basic Attack on
+    // arrival before the skill they pressed. tryFirePendingCast arms it after.
+  }, [dispatch, sendApproachIntent]);
 
   const castSkill = useCallback((skillId: SkillId) => {
     const current = stateRef.current;
@@ -235,7 +230,7 @@ function useCastActions(
     armAutoAttackAfterCast(skillId, targetId, current, armAutoAttack);
   }, [roomRef, stateRef, dispatch, queueApproachCast, fireCastReq, armAutoAttack]);
 
-  const tryFirePendingCast = useTryFirePendingCast(stateRef, dispatch, fireCastReq);
+  const tryFirePendingCast = useTryFirePendingCast(stateRef, dispatch, fireCastReq, armAutoAttack);
   const tryAdvanceAutoAttack = useTryAdvanceAutoAttack(stateRef, dispatch, castSkill);
 
   const attackTarget = useCallback((targetId: string) => {
@@ -281,6 +276,7 @@ function useTryFirePendingCast(
   stateRef: RefObject<GameClientState>,
   dispatch: Dispatch<GameClientAction>,
   fireCastReq: (player: PlayerEntity, skillId: SkillId, targetId: string | null) => void,
+  armAutoAttack: (skillId: SkillId, targetId: string) => void,
 ) {
   return useCallback(() => {
     const current = stateRef.current;
@@ -308,7 +304,11 @@ function useTryFirePendingCast(
     }
     dispatch({ type: 'clearPendingCast' });
     fireCastReq(player, pending.skillId as SkillId, pending.targetId);
-  }, [stateRef, dispatch, fireCastReq]);
+    // Now that the pressed skill has fired, latch auto-attack the same way
+    // a direct in-range cast does (physical skills keep swinging Basic
+    // Attack between cooldowns; magical/utility arm nothing).
+    armAutoAttackAfterCast(pending.skillId as SkillId, pending.targetId, current, armAutoAttack);
+  }, [stateRef, dispatch, fireCastReq, armAutoAttack]);
 }
 
 const PENDING_CAST_RANGE_MARGIN = 1.5;
