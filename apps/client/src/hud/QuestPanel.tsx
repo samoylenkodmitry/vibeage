@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
+import { npcIconPath } from '../../../../packages/content/npcIcons';
 import { formatRewardSummary, QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import type { PlayerEntity } from '../gameTypes';
 import { resolveStageMarker } from './questMarkers';
@@ -135,7 +136,12 @@ function QuestDetail({
       </div>
       <header><strong>{quest.name}</strong></header>
       <p>{quest.description}</p>
-      {giver && <small>From: {giver.name}</small>}
+      {giver && (
+        <div className="quest-detail-giver">
+          <img className="quest-detail-giver-portrait" src={npcIconPath(quest.npcId)} alt="" aria-hidden="true" />
+          <small>From: <strong>{giver.name}</strong></small>
+        </div>
+      )}
       <div className="quest-detail-stage">
         <strong>Stage {entry.stageIndex + 1}/{quest.stages.length}: {stage?.description}</strong>
         <small>{objectiveLabel}</small>
