@@ -3301,10 +3301,13 @@ input {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: url('/game/ui/panel-vitals.png');
+  /* Pill-shaped wood texture (generated). The bevel is baked in and the
+     corners are transparent, so it reads as a wood inset on the frosted-
+     glass button — no stretched filigree. */
+  background-image: url('/game/ui/button-wood.png');
   background-size: 100% 100%;
   background-position: center;
-  opacity: 0.36;
+  opacity: 0.62;
   pointer-events: none;
 }
 
