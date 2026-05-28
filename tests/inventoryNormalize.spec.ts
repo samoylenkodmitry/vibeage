@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { createEmptyInventory, listInventoryItems, validateInvariants } from '../packages/sim/characterInventory';
 import { normalizeInventory } from '../packages/sim/inventoryTransactions';
 import { inventoryLocation, type ItemInstance } from '../packages/sim/itemInstance';
+import { MATERIAL_MAX_STACK } from '../packages/content/items';
 
 const limits = { baseSlots: 20, bonusSlots: 0, maxWeight: 100_000 };
 
@@ -39,8 +40,8 @@ describe('bag invariants (validateInvariants)', () => {
 
   test('two full stacks of the same kind are allowed', () => {
     const inv = inventoryWith([
-      bagInstance({ instanceId: 'a', count: 25, slotIndex: 0 }),
-      bagInstance({ instanceId: 'b', count: 25, slotIndex: 1 }),
+      bagInstance({ instanceId: 'a', count: MATERIAL_MAX_STACK, slotIndex: 0 }),
+      bagInstance({ instanceId: 'b', count: MATERIAL_MAX_STACK, slotIndex: 1 }),
     ]);
     expect(validateInvariants(inv)).toEqual([]);
   });
@@ -60,14 +61,26 @@ describe('bag invariants (validateInvariants)', () => {
 });
 
 describe('normalizeInventory — persistence boundary repair', () => {
-  test('merges two partial stacks into max + remainder (the firegem 15+15 bug)', () => {
+  test('merges two partial stacks of the same material into one slot', () => {
     const inv = inventoryWith([
       bagInstance({ instanceId: 'a', count: 15, slotIndex: 0 }),
       bagInstance({ instanceId: 'b', count: 15, slotIndex: 1 }),
     ]);
     normalizeInventory(inv, services());
     const counts = listInventoryItems(inv).map((i) => i.count).sort((x, y) => y - x);
-    expect(counts).toEqual([25, 5]); // fire_gem maxStack is 25
+    expect(counts).toEqual([30]); // materials stack to MATERIAL_MAX_STACK (one slot)
+    expect(validateInvariants(inv)).toEqual([]);
+  });
+
+  test('two Fire Gem stacks (the a-a [16,26] report) consolidate to a single 42 slot', () => {
+    const inv = inventoryWith([
+      bagInstance({ instanceId: 'a', count: 16, slotIndex: 0 }),
+      bagInstance({ instanceId: 'b', count: 26, slotIndex: 3 }),
+    ]);
+    normalizeInventory(inv, services());
+    const stacks = listInventoryItems(inv).filter((i) => i.templateId === 'fire_gem');
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].count).toBe(42);
     expect(validateInvariants(inv)).toEqual([]);
   });
 
@@ -87,10 +100,12 @@ describe('normalizeInventory — persistence boundary repair', () => {
   });
 
   test('splits a stack left over maxStack by a content rebalance', () => {
-    const inv = inventoryWith([bagInstance({ instanceId: 'a', count: 40, slotIndex: 0 })]);
+    // fire_gem maxStack is MATERIAL_MAX_STACK (999); a stack above it
+    // (legacy / lowered cap) splits into max + remainder.
+    const inv = inventoryWith([bagInstance({ instanceId: 'a', count: 1100, slotIndex: 0 })]);
     normalizeInventory(inv, services());
     const counts = listInventoryItems(inv).map((i) => i.count).sort((x, y) => y - x);
-    expect(counts).toEqual([25, 15]);
+    expect(counts).toEqual([999, 101]);
     expect(validateInvariants(inv)).toEqual([]);
   });
 
