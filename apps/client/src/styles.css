@@ -76,8 +76,13 @@ input {
   width: 100vw;
   min-height: 100vh;
   place-items: center;
+  /* Painterly meadow-at-dawn landscape (generated). A vignette wash
+     darkens the edges so the centred login card reads cleanly on top
+     of the art; the fallback solid colour stays in case the asset
+     fails to load. */
   background:
-    radial-gradient(circle at 50% 40%, rgba(141, 233, 215, 0.12), transparent 34%),
+    radial-gradient(ellipse at 50% 45%, rgba(7, 16, 21, 0) 30%, rgba(7, 16, 21, 0.55) 90%),
+    url('/game/ui/lobby-bg.png') center/cover no-repeat,
     #071015;
 }
 
