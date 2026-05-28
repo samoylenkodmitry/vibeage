@@ -6,7 +6,7 @@ import {
   type ItemDrop,
   type ServerMessage,
 } from '../../../packages/protocol/messages';
-import { addCombatDamageVisualEvents } from './combatFeedback';
+import { addCombatDamageVisualEvents, combatLogTone, type CombatLogLineParts } from './combatFeedback';
 import type { CombatLine, GameClientState, Vec3 } from './gameTypes';
 import { normalizeVec3 } from './vec3';
 import { addVisualEvent, pruneVisualEvents } from './visualEventState';
@@ -24,18 +24,21 @@ export function applyCombatLogVisualState(
 ): GameClientState {
   const withDamageFeedback = addCombatDamageVisualEvents(state, message, now);
 
+  const parts = {
+    skillId: message.skillId,
+    targets: message.targets,
+    damages: message.damages,
+    crits: message.crits,
+    misses: message.misses,
+    heals: message.heals,
+  };
   return addCombatLine(withDamageFeedback, {
     id: makeCombatLineId(message.castId, state.combatLog.length, now),
-    text: formatCombatLogLine(state, {
-      skillId: message.skillId,
-      targets: message.targets,
-      damages: message.damages,
-      crits: message.crits,
-      misses: message.misses,
-      heals: message.heals,
-    }),
+    text: formatCombatLogLine(state, parts),
+    tone: combatLogTone(parts),
   });
 }
+
 
 /**
  * §52 #1 follow-up — the legacy `CastFail` server message has been
@@ -56,7 +59,7 @@ export function applyCastRejected(
   const text = castFailCopy(message.reason);
   return addCombatLine(
     state,
-    { id: makeCombatLineId(`fail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now), text },
+    { id: makeCombatLineId(`fail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now), text, tone: 'fail' },
   );
 }
 
@@ -89,6 +92,7 @@ export function applyInventoryRejectedVisualState(
   return addCombatLine(state, {
     id: makeCombatLineId(`invreject-${message.commandType}-${message.reason}-${message.requestId ?? 'n'}`, state.combatLog.length, now),
     text: inventoryActionFailCopy(message.commandType, message.reason),
+    tone: 'fail',
   });
 }
 
@@ -153,6 +157,7 @@ export function applyEnemyAttackVisualState(
   return addCombatLine(state, {
     id: makeCombatLineId(`${message.enemyId}-${message.targetId}`, state.combatLog.length, now),
     text: formatEnemyAttackLine(state, message.enemyId, message.targetId, message.damage),
+    tone: message.damage > 0 ? 'incoming' : 'miss',
   });
 }
 
@@ -179,6 +184,7 @@ export function applyLootAcquiredVisualState(
     next = addCombatLine(next, {
       id: makeCombatLineId(`loot-${now}-${text.slice(0, 8)}`, next.combatLog.length, now),
       text,
+      tone: 'loot',
     });
   }
   return next;
@@ -208,6 +214,7 @@ export function applyQuestRejectedVisualState(
   return addCombatLine(state, {
     id: makeCombatLineId(`questreject-${message.commandType}-${message.reason}`, state.combatLog.length, now),
     text: questRejectCopy(message.commandType, message.reason),
+    tone: 'fail',
   });
 }
 
@@ -250,6 +257,7 @@ export function applyEquipRejected(
   return addCombatLine(state, {
     id: makeCombatLineId(`equipfail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now),
     text: `Couldn't equip: ${equipReasonCopy(message.reason)}`,
+    tone: 'fail',
   });
 }
 
@@ -279,6 +287,7 @@ export function applyEquipmentChangeFeedback(
     next = addCombatLine(next, {
       id: makeCombatLineId(`equip-${entry.slot}-${entry.itemId}`, next.combatLog.length, now),
       text: `Equipped ${itemName}`,
+      tone: 'loot',
     });
   }
   return next;
@@ -317,6 +326,7 @@ export function applyBossTelegraphFeedback(
   return addCombatLine(state, {
     id: makeCombatLineId(`boss-telegraph-${message.enemyId}-${message.impactAt}`, state.combatLog.length, now),
     text: `${message.bossName} channels ${message.abilityName}!`,
+    tone: 'incoming',
   });
 }
 
@@ -329,6 +339,7 @@ export function applyOtherPlayerLootPickupVisualState(
   return addCombatLine(state, {
     id: makeCombatLineId(`pickup-${lootId}`, state.combatLog.length, now),
     text: `${playerName} picked up loot`,
+    tone: 'loot',
   });
 }
 
@@ -375,6 +386,7 @@ export function applyItemUsedVisualState(
   return addCombatLine(nextState, {
     id: makeCombatLineId(`item-${itemUse.slotIndex}`, state.combatLog.length, now),
     text: `Used ${getItemName(itemUse.itemId)}${usageDetails ? ` (${usageDetails})` : ''}`,
+    tone: 'loot',
   });
 }
 
@@ -495,6 +507,7 @@ export function applyEnemyDeathFeedback(
   return addCombatLine(state, {
     id: makeCombatLineId(`death-enemy-${enemyId}`, state.combatLog.length, now),
     text: `${label} has fallen.`,
+    tone: 'kill',
   });
 }
 
@@ -518,6 +531,7 @@ export function applyPlayerDeathFeedback(
   return addCombatLine(state, {
     id: makeCombatLineId(`death-player-${playerId}`, state.combatLog.length, now),
     text: `${label} was defeated.`,
+    tone: 'kill',
   });
 }
 
@@ -542,6 +556,7 @@ export function applySkillLearnedFeedback(
   return addCombatLine(state, {
     id: makeCombatLineId(`learn-${skillId}`, state.combatLog.length, now),
     text: `You learned ${label}.`,
+    tone: 'buff',
   });
 }
 
@@ -594,54 +609,38 @@ export function applyPlayerLevelUpFeedback(
   return addCombatLine(state, {
     id: makeCombatLineId(`level-up-${nextLevel}`, state.combatLog.length, now),
     text: `You reached level ${nextLevel}!`,
+    tone: 'buff',
   });
 }
 
-export type CombatLogLineParts = {
-  skillId: string;
-  targets: string[];
-  damages: number[];
-  crits?: boolean[];
-  misses?: boolean[];
-  heals?: number[];
-};
+export type { CombatLogLineParts } from './combatFeedback';
 
 export function formatCombatLogLine(state: GameClientState, parts: CombatLogLineParts): string {
   const { skillId, targets: targetIds, damages, crits, misses, heals } = parts;
   const skillName = getSkillName(skillId);
   const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
   const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
-  // §52 #6 — every target dodged. Surface the miss directly instead
-  // of saying "hit for 0 damage" which used to print as a no-op
-  // line when invuln/shield ate the hit.
+  // §52 #6 — every target dodged: surface the miss, not "hit for 0".
   const allMissed = !!misses && misses.length > 0 && misses.every(Boolean);
   if (allMissed) {
     return `${skillName} missed${targetText}`;
   }
   const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
   const totalHeal = heals?.reduce((sum, h) => sum + h, 0) ?? 0;
-  // §52 #6 — pure heal: no damage in the message, at least one
-  // positive heal. Render "X heals Y for N" so cardinal-style
-  // restores don't look like a 0-damage hit.
+  // Pure heal: no damage, positive heal → name the restore.
   if (totalDamage <= 0 && totalHeal > 0) {
     return `${skillName} healed${targetText} for ${Math.round(totalHeal)}`;
   }
-  // A non-damaging skill that landed is a buff / utility (Shield
-  // Wall, Bless, Evade, Dispel, Vanish…). Don't render it as a "0
-  // damage" hit — name what was applied. (A *damage* skill that
-  // happens to report 0 — e.g. invuln ate it — keeps the hit line.)
+  // A non-damaging skill that landed is a buff / utility — name what
+  // was applied rather than printing it as a "0 damage" hit.
   const skillDef = getSkillDef(skillId);
   if (totalDamage <= 0 && !(skillDef?.dmg && skillDef.dmg > 0)) {
     const beneficial = classifySkill(skillDef?.effects ?? []) === 'beneficial';
     return beneficial ? `${skillName} applied` : `${skillName} cast${targetText}`;
   }
-  // §49/M2 — append "(crit!)" when any hit in this CombatLog was a
-  // crit. Aggregate behavior so an AOE doesn't print 'crit' three
-  // times — one suffix is enough to tell the player something
-  // bigger happened.
+  // One "(crit!)" suffix per cast (aggregate, so AOE doesn't repeat it).
   const critSuffix = crits?.some(Boolean) ? ' (crit!)' : '';
-  // §52 #6 — AOE with partial dodges: keep the hit line but tell
-  // the player some targets got away.
+  // AOE with partial dodges: keep the hit line, note who got away.
   const missedCount = misses?.filter(Boolean).length ?? 0;
   const missSuffix = missedCount > 0 ? ` (${missedCount} dodged)` : '';
   // §52 #6 — mixed-effect skill (rare; e.g. a vampiric strike that

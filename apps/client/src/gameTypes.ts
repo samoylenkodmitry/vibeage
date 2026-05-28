@@ -153,9 +153,29 @@ export type VisibleCast = {
   seenAt: number;
 };
 
+/**
+ * Visual category for a combat-log line. Drives the colour + icon the
+ * renderer applies so a player can scan the log at a glance instead of
+ * reading a wall of identical grey text. Set at the producer (where the
+ * crit / miss / heal / incoming semantics are known), not guessed from
+ * the text. Absent = neutral system grey.
+ */
+export type CombatLineTone =
+  | 'offense'  // your cast landed damage
+  | 'crit'     // your cast critically hit
+  | 'incoming' // an enemy hit you / an ally
+  | 'miss'     // a dodge / full miss
+  | 'heal'     // HP restored
+  | 'buff'     // a non-damaging utility / buff landed
+  | 'kill'     // an enemy fell / a player was defeated
+  | 'loot'     // picked up items / gold
+  | 'fail';    // a command was rejected
+
 export type CombatLine = {
   id: string;
   text: string;
+  /** Visual category — see CombatLineTone. Absent = neutral. */
+  tone?: CombatLineTone;
   /**
    * §52 polish — consecutive-duplicate collapse counter. When the
    * same text would be prepended back-to-back (e.g. spamming a
