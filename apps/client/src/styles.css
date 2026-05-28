@@ -539,13 +539,18 @@ input {
   transform-origin: bottom;
 }
 
+/* The icon is opaque now, so background-color changes don't read on a
+   bound slot — brighten/dim the whole tile for hover + press feedback
+   (background-color still covers empty slots, which have no icon). */
 .skill-button:hover {
   background-color: rgba(44, 52, 55, 0.92);
+  filter: brightness(1.18);
 }
 
 .skill-button:not(:disabled):active {
   transform: scale(0.96);
   background-color: rgba(60, 80, 70, 0.92);
+  filter: brightness(0.9);
 }
 
 .skill-button--needs-target:not(:disabled) {
@@ -594,7 +599,7 @@ input {
   margin: -1px;
   padding: 0;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
 
