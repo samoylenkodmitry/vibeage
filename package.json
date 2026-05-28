@@ -15,7 +15,7 @@
     "typecheck:client": "tsc -p tsconfig.json --noEmit",
     "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "typecheck:packages": "tsc -p tsconfig.packages.strict.json --noEmit",
-    "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/pull-postgres-backup-local.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/health-production.sh && bash -n scripts/diagnose-production.sh",
+    "check:scripts": "bash -n scripts/setup-server.sh && bash -n scripts/setup-client.sh && bash -n scripts/auto-migrate.sh && bash -n scripts/deploy-production.sh && bash -n scripts/deploy-from-local.sh && bash -n scripts/rollback-production.sh && bash -n scripts/backup-postgres.sh && bash -n scripts/pull-postgres-backup-local.sh && bash -n scripts/test-postgres-restore.sh && bash -n scripts/health-production.sh && bash -n scripts/diagnose-production.sh && bash -n scripts/codex-imagegen-subagent.sh",
     "content:check": "NODE_OPTIONS=--no-deprecation tsx scripts/check-content.ts",
     "content:graph": "NODE_OPTIONS=--no-deprecation tsx scripts/content-graph.ts",
     "content:audit": "NODE_OPTIONS=--no-deprecation tsx scripts/content-audit.ts",
@@ -56,7 +56,8 @@
     "load:baseline": "LOAD_PLAYERS=50 LOAD_TICKS=600 LOAD_COMBAT=1 tsx scripts/load-test-inprocess.ts",
     "test:watch": "vitest",
     "bench": "vitest bench",
-    "generate-docs": "tsx generate-project-doc.ts"
+    "generate-docs": "tsx generate-project-doc.ts",
+    "agent:icons:codex": "scripts/codex-imagegen-subagent.sh"
   },
   "dependencies": {
     "@colyseus/core": "0.17.43",
