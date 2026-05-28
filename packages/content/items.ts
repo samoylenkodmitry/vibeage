@@ -98,6 +98,24 @@ function withGeneratedItemIcons(items: Record<ItemId, Item>): Record<ItemId, Ite
   ) as Record<ItemId, Item>;
 }
 
+/**
+ * Crafting materials stack to a single generous cap. The old per-item caps
+ * (5–50) sprawled a player's mats across many slots — e.g. >25 Fire Gems
+ * became two slots that read as "duplicate" stacks. Widen only
+ * `type: 'material'`; coins (currency) and consumables keep their own caps.
+ * Existing bags re-consolidate to the new cap on the next normalize (login).
+ */
+export const MATERIAL_MAX_STACK = 999;
+
+function withMaterialStackSize(items: Record<ItemId, Item>): Record<ItemId, Item> {
+  return Object.fromEntries(
+    Object.entries(items).map(([id, item]) => [
+      id,
+      item.type === 'material' && item.stackable ? { ...item, maxStack: MATERIAL_MAX_STACK } : item,
+    ]),
+  ) as Record<ItemId, Item>;
+}
+
 const ITEM_DEFS: Record<ItemId, Item> = {
   'gold_coin': {
     id: 'gold_coin',
@@ -572,4 +590,4 @@ const ITEM_DEFS: Record<ItemId, Item> = {
   ...MEADOW_TROPHY_RECIPE_ITEMS,
 };
 
-export const ITEMS: Record<ItemId, Item> = withGeneratedItemIcons(ITEM_DEFS);
+export const ITEMS: Record<ItemId, Item> = withMaterialStackSize(withGeneratedItemIcons(ITEM_DEFS));
