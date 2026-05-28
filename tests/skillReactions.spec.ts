@@ -3,6 +3,7 @@ import { SKILLS, type SkillEffectType, type SkillId } from '../packages/content/
 import { CastState } from '../packages/protocol/messages';
 import type { PlayerState, StatusEffect } from '../packages/sim/entities';
 import { resolveCastImpact } from '../server/combat/impactResolver';
+import { applyPreparedSkillReactions, prepareSkillReactions } from '../server/combat/skillReactions';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
@@ -86,6 +87,58 @@ describe('skill reactions', () => {
     expect(SKILLS.fireball.reactions?.map((reaction) => reaction.description)).toContain(
       'Consumes existing Burn for +35% damage per stack.',
     );
+  });
+});
+
+describe('skill reaction runtime helpers', () => {
+  it('does not grant per-stack reaction damage without a consumed effect', () => {
+    const caster = makeCaster('fireball');
+    const target = createEnemy('goblin', 20, { x: 3, y: 0, z: 0 }, NOW);
+    target.statusEffects = [effect('slow')];
+
+    const reactions = prepareSkillReactions({
+      ...SKILLS.fireball,
+      reactions: [{
+        id: 'mark_only',
+        description: 'No consumed stacks.',
+        condition: { targetHasEffect: 'slow' },
+        damageMultiplierPerConsumedStack: 0.5,
+      }],
+    }, target, caster, NOW);
+
+    expect(reactions).toHaveLength(1);
+    expect(reactions[0]?.damageMultiplier).toBe(1);
+  });
+
+  it('does not report caster reaction heals as target heals', () => {
+    const caster = makeCaster('fireball');
+    caster.health = 50;
+    const target = createEnemy('goblin', 20, { x: 3, y: 0, z: 0 }, NOW);
+
+    const healApplied = applyPreparedSkillReactions({
+      target,
+      caster,
+      reactions: [{
+        reactionId: 'caster_heal',
+        damageMultiplier: 1,
+        effects: [],
+        casterEffects: [{ type: 'heal', value: 25 }],
+      }],
+      outbound: { publish: vi.fn() },
+      applyEffects: (recipient, effects) => {
+        let healed = 0;
+        for (const reactionEffect of effects) {
+          if (reactionEffect.type !== 'heal') continue;
+          const before = recipient.health;
+          recipient.health = Math.min(recipient.maxHealth, recipient.health + reactionEffect.value);
+          healed += recipient.health - before;
+        }
+        return healed;
+      },
+    });
+
+    expect(caster.health).toBe(75);
+    expect(healApplied).toBe(0);
   });
 });
 

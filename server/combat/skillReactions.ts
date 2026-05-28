@@ -43,7 +43,7 @@ export function prepareSkillReactions(
 
     const consumedStacks = consumedTargetStacks + consumedCasterStacks;
     const stackMultiplier = reaction.damageMultiplierPerConsumedStack
-      ? 1 + reaction.damageMultiplierPerConsumedStack * Math.max(1, consumedStacks)
+      ? 1 + reaction.damageMultiplierPerConsumedStack * consumedStacks
       : 1;
 
     prepared.push({
@@ -84,7 +84,7 @@ export function applyPreparedSkillReactions(input: {
       healApplied += applyEffects(target, reaction.effects);
     }
     if (reaction.casterEffects.length > 0 && caster) {
-      healApplied += applyEffects(caster, reaction.casterEffects);
+      applyEffects(caster, reaction.casterEffects);
       casterStatusChanged = true;
     }
   }
