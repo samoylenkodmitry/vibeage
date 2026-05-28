@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import type { ChatLine, ChatScopeView, CombatLine } from '../gameTypes';
+import type { ChatLine, ChatScopeView, CombatLine, CombatLineTone } from '../gameTypes';
 import { useDraggablePanel } from './useDraggablePanel';
 
 type ChatPanelProps = {
@@ -256,6 +256,20 @@ function ChatMessageList({
   );
 }
 
+/** Tiny leading glyph per tone — a visual anchor so the eye can skim
+ *  the log by category before reading any words. */
+const TONE_ICON: Record<CombatLineTone, string> = {
+  offense: '⚔',
+  crit: '✦',
+  incoming: '🛡',
+  miss: '↯',
+  heal: '✚',
+  buff: '⤴',
+  kill: '☠',
+  loot: '◆',
+  fail: '⃠',
+};
+
 function SystemLogList({ lines }: { lines: readonly CombatLine[] }) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const ordered = useMemo(() => [...lines].reverse(), [lines]);
@@ -268,8 +282,9 @@ function SystemLogList({ lines }: { lines: readonly CombatLine[] }) {
         {ordered.length === 0 ? (
           <p className="chat-empty">No system messages yet.</p>
         ) : ordered.map((line) => (
-          <span key={line.id} className="chat-system-line">
+          <span key={line.id} className={`chat-system-line${line.tone ? ` chat-system-line--${line.tone}` : ''}`}>
             <span className="chat-system-time">{formatLineTime(line.id)}</span>
+            {line.tone && <span className="chat-system-icon" aria-hidden="true">{TONE_ICON[line.tone]}</span>}
             {line.text}
             {line.count && line.count > 1 ? ` (×${line.count})` : ''}
           </span>

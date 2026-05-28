@@ -1,6 +1,35 @@
+import { SKILLS } from '../../../packages/content/skills';
 import type { ServerMessage } from '../../../packages/protocol/messages';
-import type { GameClientState, Vec3 } from './gameTypes';
+import type { CombatLineTone, GameClientState, Vec3 } from './gameTypes';
 import { addVisualEvent } from './visualEventState';
+
+/** Shape of a CombatLog message's outcome arrays — shared by the text
+ *  formatter and the tone classifier so the colour matches the words. */
+export type CombatLogLineParts = {
+  skillId: string;
+  targets: string[];
+  damages: number[];
+  crits?: boolean[];
+  misses?: boolean[];
+  heals?: number[];
+};
+
+/**
+ * Visual tone for a CombatLog line, derived from the same parts the
+ * text formatter uses. Crit beats plain hit; a full miss reads muted;
+ * a pure heal / buff gets its own hue.
+ */
+export function combatLogTone(parts: CombatLogLineParts): CombatLineTone {
+  const { skillId, damages, crits, misses, heals } = parts;
+  if (misses && misses.length > 0 && misses.every(Boolean)) return 'miss';
+  const totalDamage = damages.reduce((sum, d) => sum + d, 0);
+  const totalHeal = heals?.reduce((sum, h) => sum + h, 0) ?? 0;
+  if (totalDamage <= 0 && totalHeal > 0) return 'heal';
+  const skillDef = Object.prototype.hasOwnProperty.call(SKILLS, skillId)
+    ? SKILLS[skillId as keyof typeof SKILLS] : null;
+  if (totalDamage <= 0 && !(skillDef?.dmg && skillDef.dmg > 0)) return 'buff';
+  return crits?.some(Boolean) ? 'crit' : 'offense';
+}
 
 export function addCombatDamageVisualEvents(
   state: GameClientState,

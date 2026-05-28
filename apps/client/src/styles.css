@@ -2183,28 +2183,48 @@ input {
 
 .chat-system-line {
   display: block;
-  color: #fef3c7;
+  /* Neutral default; tone classes below recolour by category so the
+     log is scannable instead of a wall of one colour. */
+  color: #c7d2da;
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.4;
   word-break: break-word;
 }
 
+/* Newest line gets a subtle lift (brightness, not a colour override)
+   so the tone colour still reads on the freshest entry. */
 .chat-system-line:last-child {
-  color: #fff7ad;
-  text-shadow: 0 0 14px rgba(250, 204, 21, 0.36);
+  filter: brightness(1.18);
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.14);
 }
 
 .chat-system-time {
   display: inline-block;
-  margin-right: 6px;
-  color: rgba(148, 163, 184, 0.7);
+  margin-right: 5px;
+  color: rgba(148, 163, 184, 0.6);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
-.chat-system-line:last-child .chat-system-time {
-  color: rgba(250, 204, 21, 0.6);
+/* Small leading category glyph, tinted by inheriting the line colour. */
+.chat-system-icon {
+  display: inline-block;
+  width: 1.1em;
+  margin-right: 4px;
+  text-align: center;
+  opacity: 0.9;
 }
+
+/* ---- Combat-log tone palette ---- */
+.chat-system-line--offense  { color: #cfe8ff; }                                   /* your hit — cool white-blue */
+.chat-system-line--crit     { color: #ffd24a; font-weight: 700; text-shadow: 0 0 10px rgba(250, 204, 21, 0.4); } /* crit — gold pop */
+.chat-system-line--incoming { color: #ff9a9a; }                                   /* enemy hit you — rose */
+.chat-system-line--miss     { color: #8b97a3; font-style: italic; }               /* miss / dodge — muted */
+.chat-system-line--heal     { color: #86efac; }                                   /* heal — green */
+.chat-system-line--buff     { color: #c4b5fd; }                                   /* buff / level — lavender */
+.chat-system-line--kill     { color: #fcd34d; font-weight: 600; }                 /* kill — amber */
+.chat-system-line--loot     { color: #fbbf77; }                                   /* loot — warm tan */
+.chat-system-line--fail     { color: #d98a8a; font-style: italic; }               /* rejected — dim red */
 
 .chat-form {
   display: grid;
