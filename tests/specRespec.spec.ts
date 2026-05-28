@@ -48,6 +48,25 @@ describe('§9 spec respec — applySpecializationRespec', () => {
     expect(playerUpdate, 'expected a playerUpdated broadcast').toBeDefined();
   });
 
+  it('emits recomputed stat fields when a specialization is chosen', () => {
+    const player = createTransientPlayer('s1', 'TestPlayer');
+    player.id = 'p1';
+    player.level = 25;
+    player.className = 'mage';
+    const events: OutboundEvent[] = [];
+
+    expect(applySpecializationChange(player, 'arcanist', { publish: (e) => events.push(e) })).toBe(true);
+    const update = events.find((e) => e.type === 'playerUpdated');
+
+    expect(update).toBeDefined();
+    if (update?.type === 'playerUpdated') {
+      expect(update.update.specializationId).toBe('arcanist');
+      expect(update.update.stats).toBeDefined();
+      expect(update.update.maxHealth).toBe(player.maxHealth);
+      expect(update.update.maxMana).toBe(player.maxMana);
+    }
+  });
+
   it('refuses with notSpecced when the player has no spec', () => {
     const player = createTransientPlayer('s1', 'TestPlayer');
     player.id = 'p1';

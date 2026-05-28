@@ -54,6 +54,13 @@ describe('SkillTreePanel buildSkillRows — lock reasons (§49/M3 PR015)', () =>
     expect(specLocked, 'expected at least one spec-locked row mentioning the L20 spec gate').toBeDefined();
   });
 
+  it('spec-locked rows point level 20 players to the chooser in the same panel', () => {
+    const player = makePlayer({ className: 'mage', level: 20, specializationId: null });
+    const rows = buildSkillRows(player);
+    const specLocked = rows.find((r) => r.status === 'locked' && r.detail.includes('choose Arcanist above'));
+    expect(specLocked, 'expected spec rows to reference the visible chooser').toBeDefined();
+  });
+
   it('available rows still surface the required level without scolding', () => {
     const player = makePlayer({ className: 'mage', level: 10, availableSkillPoints: 1, unlockedSkills: ['fireball', 'waterSplash', 'iceBolt'] });
     const rows = buildSkillRows(player);

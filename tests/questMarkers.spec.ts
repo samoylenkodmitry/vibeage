@@ -72,6 +72,13 @@ describe('questMarkers.resolveStageMarker', () => {
     );
     expect(marker).toEqual({ x: 9, z: 9 });
   });
+  it('does not create a map marker for specialization-choice objectives', () => {
+    const marker = resolveStageMarker(
+      { id: 's6', description: '', objective: { kind: 'specialize' } },
+      { x: 1, y: 0, z: 2 },
+    );
+    expect(marker).toBeNull();
+  });
 });
 
 describe('questMarkers.listActiveQuestMarkers — readyToClaim path', () => {

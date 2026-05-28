@@ -62,7 +62,11 @@ export function applyAcceptQuest(
     emitAcceptFeedback(player, outbound, `"${quest.name}" requires you to finish earlier quests first.`, now);
     return false;
   }
-  state.active[questId] = { stageIndex: 0, progress: 0 };
+  const firstStage = quest.stages[0];
+  state.active[questId] = {
+    stageIndex: 0,
+    progress: firstStage ? currentObjectiveProgress(player, firstStage.objective) : 0,
+  };
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} accepted quest ${questId}`);
   emitPlayerUpdated(outbound, { id: player.id, questState: state });
   return true;
@@ -283,6 +287,26 @@ export function onTalkedToNpcForQuests(
   }
 }
 
+/** Specialization-objective progress: called when the player picks a spec. */
+export function onSpecializationChosenForQuests(
+  player: PlayerState,
+  outbound: OutboundEventSink,
+): void {
+  if (!player.questState || !player.specializationId) return;
+  let changed = false;
+  for (const [questId, entry] of Object.entries(player.questState.active)) {
+    const quest = QUESTS[questId];
+    const stage = quest?.stages[entry.stageIndex];
+    if (stage?.objective.kind === 'specialize' && entry.progress === 0) {
+      entry.progress = 1;
+      changed = true;
+    }
+  }
+  if (changed) {
+    emitPlayerUpdated(outbound, { id: player.id, questState: player.questState });
+  }
+}
+
 function isStageComplete(quest: QuestDef, entry: PlayerActiveQuestProgress): boolean {
   const stage = quest.stages[entry.stageIndex];
   if (!stage) return false;
@@ -291,6 +315,7 @@ function isStageComplete(quest: QuestDef, entry: PlayerActiveQuestProgress): boo
     case 'kill_boss': return entry.progress >= 1;
     case 'reach': return entry.progress >= 1;
     case 'talk': return entry.progress >= 1;
+    case 'specialize': return entry.progress >= 1;
     case 'manual': return true;
   }
 }
@@ -316,4 +341,11 @@ function maybeFulfillReachOnAdvance(player: PlayerState): void {
       }
     }
   }
+}
+
+function currentObjectiveProgress(
+  player: PlayerState,
+  objective: QuestDef['stages'][number]['objective'],
+): number {
+  return objective.kind === 'specialize' && player.specializationId ? 1 : 0;
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
-import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
+import { formatRewardSummary, QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import type { PlayerEntity } from '../gameTypes';
 import { resolveStageMarker } from './questMarkers';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -112,6 +112,7 @@ function QuestDetail({
   const markerPos = stage ? resolveStageMarker(stage, giver?.position ?? null, entry.readyToClaim ?? false) : null;
   const objectiveLabel = stage ? describeObjective(stage.objective, entry.progress) : '';
   const isLastStage = entry.stageIndex === quest.stages.length - 1;
+  const rewardSummary = formatRewardSummary(quest.reward) || 'None';
   return (
     <div className="quest-detail">
       {/* §52 playtest — actions row first so it's the first thing the
@@ -140,12 +141,7 @@ function QuestDetail({
         <small>{objectiveLabel}</small>
       </div>
       <div className="quest-detail-rewards">
-        <small>
-          Reward:
-          {quest.reward.xp ? ` ${quest.reward.xp} XP` : ''}
-          {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
-          {quest.reward.items?.length ? ` · ${quest.reward.items.length} item(s)` : ''}
-        </small>
+        <small>Reward: {rewardSummary}</small>
       </div>
     </div>
   );
@@ -168,10 +164,11 @@ function describeObjective(
       return progress >= 1 ? 'At waypoint — press Next' : 'Travel to the marker';
     case 'talk':
       return progress >= 1 ? 'Spoke to NPC — press Next' : `Return to ${objective.npcId}`;
+    case 'specialize':
+      return progress >= 1 ? 'Specialization chosen — press Next' : 'Open Skills and choose a specialization';
     case 'manual':
       return 'Manual step — press Next when ready';
     default:
       return '';
   }
 }
-
