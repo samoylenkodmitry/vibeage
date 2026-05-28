@@ -82,6 +82,7 @@ input {
 }
 
 .start-panel {
+  position: relative; /* anchors the shared `::before` wood-texture overlay */
   display: grid;
   width: min(420px, calc(100vw - 32px));
   gap: 14px;
@@ -4785,7 +4786,8 @@ button.character-option {
 .vendor-panel,
 .gm-panel,
 .character-panel,
-.casting-panel {
+.casting-panel,
+.start-panel {
   isolation: isolate;
   overflow: hidden;
   background-color: rgba(5, 14, 18, 0.46);
@@ -4805,7 +4807,8 @@ button.character-option {
 .vendor-panel::before,
 .gm-panel::before,
 .character-panel::before,
-.casting-panel::before {
+.casting-panel::before,
+.start-panel::before {
   content: "";
   position: absolute;
   inset: 0;
