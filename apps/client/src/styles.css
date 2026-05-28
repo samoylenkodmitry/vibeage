@@ -1454,7 +1454,13 @@ input {
   padding: 8px 12px;
   border: 1px solid rgba(141, 233, 215, 0.22);
   border-radius: 8px;
-  background: rgba(5, 14, 18, 0.78);
+  /* Painterly dark-wood + filigree-corner skin (generated). The texture
+     carries the look; the colour tint sits over it for legibility of the
+     meter labels at any panel height. */
+  background-color: rgba(5, 14, 18, 0.42);
+  background-image: url('/game/ui/panel-vitals.png');
+  background-size: 100% 100%;
+  background-position: center;
   font-size: 11px;
 }
 
