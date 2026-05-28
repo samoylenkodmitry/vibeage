@@ -350,6 +350,7 @@ function RaceTreeRow({ race, query, navigate }: { race: CharacterRace; query: st
 
 function ClassTreeRow({ cls, navigate }: { cls: CharacterClass; navigate: WikiNav }) {
   const passive = CLASS_PASSIVES[cls];
+  const passiveIcon = passive ? SKILLS[passive.id]?.icon : undefined;
   const specs = Object.values(SPECIALIZATIONS).filter((s) => s.baseClass === cls);
   return (
     <li className="wiki-tree-node">
@@ -361,7 +362,7 @@ function ClassTreeRow({ cls, navigate }: { cls: CharacterClass; navigate: WikiNa
         {passive && (
           <li className="wiki-tree-node wiki-tree-node--leaf">
             <span className="wiki-tree-label wiki-tree-label--icon" title={passive.description}>
-              <img className="wiki-tree-icon" src={SKILLS[passive.id]?.icon} alt="" aria-hidden="true" />
+              {passiveIcon && <img className="wiki-tree-icon" src={passiveIcon} alt="" aria-hidden="true" />}
               Passive: {passive.name}
             </span>
           </li>
