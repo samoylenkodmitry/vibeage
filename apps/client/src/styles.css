@@ -5143,3 +5143,110 @@ button.character-option {
   object-fit: cover;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
+
+/* ============================================================
+   Mobile sweep — make every floating panel + the side rail fit
+   inside a phone viewport (≤ 680px). Open windows used to keep
+   their desktop widths (320–520 px) and slide off the screen on
+   a 390px phone; the side rail's 10× 64×44 pills stacked nearly
+   half the column height. Normalize here, in one place.
+   ============================================================ */
+@media (max-width: 680px) {
+  /* Every floating window pins to the viewport edges with a small
+     gutter, so two panels can never both be on screen at full width
+     — desktop layered HUD becomes a phone modal stack. */
+  .inventory-panel,
+  .quest-panel,
+  .chat-panel,
+  .map-panel,
+  .skill-tree-panel,
+  .paperdoll-panel,
+  .actions-panel,
+  .wiki-panel,
+  .vendor-panel,
+  .gm-panel,
+  .character-panel,
+  .casting-panel,
+  .craft-panel,
+  .player-panel {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: calc(100vw - 16px);
+    transform: none; /* override desktop translateX(-50%) on centred panels */
+  }
+
+  /* Stacking-friendly bottoms — keep panels above the action bar +
+     the side rail's two-column row (added below). */
+  .inventory-panel,
+  .paperdoll-panel,
+  .vendor-panel,
+  .craft-panel,
+  .skill-tree-panel,
+  .wiki-panel,
+  .actions-panel,
+  .gm-panel {
+    bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+    top: auto;
+    max-height: calc(100vh - 280px - env(safe-area-inset-bottom, 0px));
+    overflow: auto;
+  }
+
+  .quest-panel,
+  .map-panel,
+  .character-panel,
+  .player-panel {
+    top: 60px;
+    bottom: auto;
+    max-height: calc(100vh - 280px - env(safe-area-inset-bottom, 0px));
+    overflow: auto;
+  }
+
+  /* Side rail — the 10 panel toggles stay a column on phones but
+     each pill shrinks to 56×38, with the wood-pill texture still
+     reading at the smaller size. */
+  .panel-toggles {
+    right: 8px;
+    bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+    gap: 4px;
+  }
+  .panel-toggle {
+    min-width: 56px;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+
+  /* NPC dialog + vendor panel sit at the bottom of the phone instead
+     of overlapping the right side. The vendor panel uses the same
+     centred-bottom modal slot the bag panel does. */
+  .npc-dialog {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  }
+  .vendor-panel-body {
+    grid-template-columns: 1fr; /* already at 600px; ensure it still holds at 680px */
+  }
+
+  /* Quest "From" portrait shrinks slightly to share the row with
+     the wrapping NPC name. */
+  .quest-detail-giver-portrait { width: 24px; height: 24px; }
+
+  /* Top header compresses — the long "Peaceful Meadows Lv 1-3" chip
+     hides its level on phones since the level info is also in the
+     vitals strip. */
+  .current-zone-chip__level { display: none; }
+  .current-zone-chip__name { font-size: 11px; }
+
+  /* Wiki rows with NPC portraits keep the bust but shrink the gap. */
+  .wiki-row--with-portrait { grid-template-columns: 48px 1fr; gap: 8px; }
+  .wiki-row-portrait { width: 48px; height: 48px; }
+
+  /* Race-portrait grid in the lobby fits 2 across on phones. */
+  .character-grid--portraits {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
