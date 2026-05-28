@@ -38,12 +38,25 @@ export function DamageNumber({
   const matRef = useRef<THREE.SpriteMaterial>(null);
   const startedAtRef = useRef<number | null>(null);
 
+  // Bigger hits get bigger numbers — clamps so a 1-damage tick
+  // doesn't vanish and a 200-damage crit doesn't fill the screen.
+  // Crits get an extra 1.45x bump so they pop on top of the
+  // size-by-amount scaling.
+  const baseHeight = THREE.MathUtils.clamp(0.45 + amount * 0.012, 0.45, 1.1);
+  const height = isCrit ? baseHeight * 1.45 : baseHeight;
+
   useFrame(({ clock }) => {
     if (startedAtRef.current === null) startedAtRef.current = clock.elapsedTime;
     const age = clock.elapsedTime - startedAtRef.current;
     const t = Math.min(1, age / duration);
     if (spriteRef.current) {
       spriteRef.current.position.y = baseY + t * rise;
+      // Spawn punch: overshoot the scale then settle back over the
+      // first ~18% of the lifetime. Crits punch harder so a big hit
+      // visibly "hits". Steady at 1× after the settle.
+      const punchAmt = isCrit ? 0.6 : 0.28;
+      const punch = t < 0.18 ? 1 + punchAmt * (1 - t / 0.18) : 1;
+      spriteRef.current.scale.set(height * aspect * punch, height * punch, 1);
     }
     if (matRef.current) {
       // Pop in fast, fade out slower.
@@ -51,12 +64,6 @@ export function DamageNumber({
     }
   });
 
-  // Bigger hits get bigger numbers — clamps so a 1-damage tick
-  // doesn't vanish and a 200-damage crit doesn't fill the screen.
-  // Crits get an extra 1.45x bump so they pop on top of the
-  // size-by-amount scaling.
-  const baseHeight = THREE.MathUtils.clamp(0.45 + amount * 0.012, 0.45, 1.1);
-  const height = isCrit ? baseHeight * 1.45 : baseHeight;
   return (
     <sprite ref={spriteRef} position={[0, baseY, 0]} scale={[height * aspect, height, 1]}>
       <spriteMaterial ref={matRef} map={texture} transparent depthTest={false} depthWrite={false} sizeAttenuation />
@@ -90,11 +97,20 @@ function buildLabelTexture(text: string, color: string, isCrit: boolean): THREE.
   canvas.height = height;
   // No pill background — damage numbers should pop, not sit in a chip.
   ctx.font = font;
-  ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  // Soft glow underneath (warm for crits) so the number reads as "hot".
   ctx.shadowColor = isCrit ? 'rgba(120, 53, 15, 0.95)' : 'rgba(0, 0, 0, 0.95)';
-  ctx.shadowBlur = isCrit ? 14 : 9;
+  ctx.shadowBlur = isCrit ? 16 : 10;
+  // Crisp dark outline so the colour stays legible over bright terrain
+  // (a blurred shadow alone washes out on a sunny meadow). Drawn first
+  // with the shadow, then the fill on top without re-applying shadow.
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = isCrit ? 9 : 6;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.92)';
+  ctx.strokeText(text, width / 2, height / 2);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = color;
   ctx.fillText(text, width / 2, height / 2);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
