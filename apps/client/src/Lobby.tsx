@@ -6,6 +6,7 @@ import {
   type CharacterClass,
 } from '../../../packages/content/classes';
 import { CHARACTER_RACES, getRaceStatTendency, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
+import { raceIconPath } from '../../../packages/content/raceIcons';
 import { SKILLS } from '../../../packages/content/skills';
 
 /**
@@ -378,10 +379,11 @@ function CreateCharacterForm({
         {conflict && <small className="lobby-error">Name already taken locally.</small>}
         <fieldset className="character-fieldset">
           <legend>Race</legend>
-          <div className="character-grid">
+          <div className="character-grid character-grid--portraits">
             {CHARACTER_RACES.map((option) => (
-              <label key={option} className={`character-option${race === option ? ' character-option--active' : ''}`}>
+              <label key={option} className={`character-option character-option--race${race === option ? ' character-option--active' : ''}`}>
                 <input type="radio" name="race" value={option} checked={race === option} onChange={() => setRace(option)} />
+                <img className="character-option-portrait" src={raceIconPath(option)} alt="" aria-hidden="true" />
                 <span>{RACE_PROFILES[option].name}</span>
               </label>
             ))}
