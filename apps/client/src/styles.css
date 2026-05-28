@@ -125,6 +125,7 @@ input {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   overflow: hidden;
+  isolation: isolate;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
@@ -139,8 +140,6 @@ input {
   opacity: 0.42;
   pointer-events: none;
 }
-
-.hud > * { position: relative; z-index: 1; }
 
 .hud-top {
   top: 18px;
@@ -1476,16 +1475,15 @@ input {
   padding: 8px 12px;
   border: 1px solid rgba(141, 233, 215, 0.22);
   border-radius: 8px;
-  /* Frosted dark-wood frame: the world is blurred behind the panel
-     (backdrop-filter) for legibility without losing the see-through
-     feel, then a light dark tint + the texture skin lay on top, and
-     the panel's text wears a heavy shadow so labels pop over any
-     scene. Texture lives on ::before so its opacity is independent of
-     the content; overflow:hidden clips the pseudo to the rounded edge. */
-  background-color: rgba(5, 14, 18, 0.38);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* Frosted dark-wood frame: same values as .hud so the vitals strip
+     reads identically to the top header / target plate. isolation:isolate
+     makes the texture ::before stack cleanly below children without
+     needing per-child position/z-index overrides. */
+  background-color: rgba(5, 14, 18, 0.46);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   overflow: hidden;
+  isolation: isolate;
   font-size: 11px;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
@@ -1497,7 +1495,7 @@ input {
   background-image: url('/game/ui/panel-vitals.png');
   background-size: 100% 100%;
   background-position: center;
-  opacity: 0.48;
+  opacity: 0.42;
   pointer-events: none;
 }
 
@@ -3277,6 +3275,7 @@ input {
 .panel-toggle {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
   min-width: 64px;
   min-height: 44px;
   padding: 0 12px;
@@ -3308,8 +3307,6 @@ input {
   opacity: 0.36;
   pointer-events: none;
 }
-
-.panel-toggle > * { position: relative; z-index: 1; }
 
 .panel-toggle:hover {
   background: rgba(30, 41, 59, 0.62);
@@ -4716,4 +4713,53 @@ button.character-option {
   10%  { transform: translate(-50%, 0);    opacity: 1; }
   85%  { transform: translate(-50%, 0);    opacity: 1; }
   100% { transform: translate(-50%, -8px); opacity: 0; }
+}
+
+/* ============================================================
+   Frosted dark-wood skin for floating panels that don't extend
+   `.hud`. Added at the bottom so source order beats each panel's
+   own `background:` declaration without needing !important.
+   Same numbers as `.hud` so the whole HUD reads as one set.
+   ============================================================ */
+.inventory-panel,
+.quest-panel,
+.chat-panel,
+.map-panel,
+.skill-tree-panel,
+.paperdoll-panel,
+.actions-panel,
+.wiki-panel,
+.vendor-panel,
+.gm-panel,
+.character-panel,
+.casting-panel {
+  isolation: isolate;
+  overflow: hidden;
+  background-color: rgba(5, 14, 18, 0.46);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.inventory-panel::before,
+.quest-panel::before,
+.chat-panel::before,
+.map-panel::before,
+.skill-tree-panel::before,
+.paperdoll-panel::before,
+.actions-panel::before,
+.wiki-panel::before,
+.vendor-panel::before,
+.gm-panel::before,
+.character-panel::before,
+.casting-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url('/game/ui/panel-vitals.png');
+  background-size: 100% 100%;
+  background-position: center;
+  opacity: 0.42;
+  pointer-events: none;
 }
