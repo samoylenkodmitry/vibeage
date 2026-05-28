@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { listMiniBosses, type MiniBossSpec } from '../../../../packages/content/miniBosses';
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
+import { zoneIconPath } from '../../../../packages/content/zoneIcons';
 import { WORLD_LANDMARKS, type WorldLandmark } from '../../../../packages/content/worldFeatures';
 import type { EnemyEntity, PlayerEntity } from '../gameTypes';
 import { listActiveQuestMarkers } from './questMarkers';
@@ -370,13 +371,35 @@ function ZoneShape({ zone, viewWidth, worldPerPx }: { zone: Zone; viewWidth: num
   const labelSize = worldPerPx * 13;
   const minViewportRatio = 0.06;
   const zoneFitsLabel = zone.radius * 2 > viewWidth * minViewportRatio;
+  // Paint the zone's painterly landscape inside the circle (16:9 PNG
+  // clipped to a circular mask + dimmed via opacity), then keep the
+  // existing cyan ring on top so the map reads consistently.
+  const clipId = `zone-clip-${zone.id}`;
+  const imgSize = zone.radius * 2;
+  const imgX = zone.position.x - zone.radius;
+  const imgY = zone.position.z - zone.radius;
   return (
     <g>
+      <defs>
+        <clipPath id={clipId}>
+          <circle cx={zone.position.x} cy={zone.position.z} r={zone.radius} />
+        </clipPath>
+      </defs>
+      <image
+        href={zoneIconPath(zone.id)}
+        x={imgX}
+        y={imgY}
+        width={imgSize}
+        height={imgSize}
+        preserveAspectRatio="xMidYMid slice"
+        opacity={0.42}
+        clipPath={`url(#${clipId})`}
+      />
       <circle
         cx={zone.position.x}
         cy={zone.position.z}
         r={zone.radius}
-        fill="rgba(141,233,215,0.08)"
+        fill="rgba(141,233,215,0.04)"
         stroke="rgba(141,233,215,0.55)"
         strokeWidth={worldPerPx}
       />
@@ -387,6 +410,7 @@ function ZoneShape({ zone, viewWidth, worldPerPx }: { zone: Zone; viewWidth: num
           fontSize={labelSize}
           textAnchor="middle"
           fill="#c4f1e2"
+          style={{ paintOrder: 'stroke', stroke: 'rgba(2, 6, 12, 0.75)', strokeWidth: worldPerPx * 0.6, strokeLinejoin: 'round' }}
         >
           {zone.name}
         </text>

@@ -5126,3 +5126,20 @@ button.character-option {
   object-fit: cover;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
+
+/* Quest-detail "From: <NPC>" line — the giver's portrait sits beside
+   the name so a player browsing the active quest always sees whose
+   line it is, not just text. */
+.quest-detail-giver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.quest-detail-giver-portrait {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
