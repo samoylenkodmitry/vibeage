@@ -67,13 +67,14 @@ export function createSimReportContext(options: { commitSha?: string } = {}): Si
 
 function createContentSnapshot(commitSha: string): SimContentSnapshot {
   const skills = Object.values(SKILLS);
+  const passiveSkillsCount = skills.filter((skill) => isPassiveSkill(skill.id)).length;
   return {
     commitSha,
     classes: Object.keys(CLASS_SKILL_TREES).length,
     specializations: Object.keys(SPECIALIZATIONS).length,
     skills: skills.length,
-    activeSkills: skills.filter((skill) => !isPassiveSkill(skill.id)).length,
-    passiveSkills: skills.filter((skill) => isPassiveSkill(skill.id)).length,
+    activeSkills: skills.length - passiveSkillsCount,
+    passiveSkills: passiveSkillsCount,
     effects: Object.keys(EFFECT_SPECS).length,
     actions: Object.keys(GAME_ACTIONS).length,
     items: Object.keys(ITEMS).length,

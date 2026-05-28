@@ -216,7 +216,11 @@ function healthPct(entity: { health: number; maxHealth: number }): string {
 function gitCommitSha(): string {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 12);
   try {
-    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim();
+    const sha = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
+    return sha || 'unknown';
   } catch {
     return 'unknown';
   }
