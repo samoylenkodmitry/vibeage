@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { INTERACTION_RANGE, QUEST_NPCS, type QuestNpcDef } from '../../../../packages/content/npcs';
+import { npcIconPath } from '../../../../packages/content/npcIcons';
 import { formatRewardSummary, getQuestsOfferedBy, type QuestDef } from '../../../../packages/content/quests';
 import { getVendorByNpcId } from '../../../../packages/content/vendors';
 import type { PlayerEntity } from '../gameTypes';
@@ -66,8 +67,11 @@ export function NpcDialog({ player, onTalkNpc, onAcceptQuest, onBrowseVendor }: 
       aria-label={`Dialog with ${nearbyNpc.name}`}
     >
       <header>
-        <strong>{nearbyNpc.name}</strong>
-        <small>{nearbyNpc.title}</small>
+        <img className="npc-dialog-portrait" src={npcIconPath(nearbyNpc.id)} alt="" aria-hidden="true" />
+        <div className="npc-dialog-name">
+          <strong>{nearbyNpc.name}</strong>
+          <small>{nearbyNpc.title}</small>
+        </div>
         <button
           type="button"
           className="npc-dialog-close"
