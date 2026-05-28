@@ -7,6 +7,7 @@
  *
  * Run: `pnpm run balance:sim`.
  */
+import { execFileSync } from 'node:child_process';
 import { ENEMY_TEMPLATES } from '../packages/content/enemies.js';
 import {
   gearSetMilestones,
@@ -23,12 +24,20 @@ import {
   estimateFeelForSpecializations,
   type PlayerFeelSummary,
 } from '../server/sim/playerFeel.js';
+import {
+  createSimReportContext,
+  type SimContentSnapshot,
+  type SimCoverageWarning,
+  type SimReportContext,
+} from '../server/sim/reportContext.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
 console.log(`Generated ${new Date().toISOString().slice(0, 10)} with the server game simulator.`);
 console.log('');
 
+const reportContext = createSimReportContext({ commitSha: gitCommitSha() });
+printReportScope(reportContext);
 printPveClassMatrix();
 printSpecializationMatrix();
 printPvpClassMatrix();
@@ -36,6 +45,42 @@ printProgressionRewards();
 printPlayerFeelCadence();
 printGearMilestones();
 printLootGold();
+
+function printReportScope(context: SimReportContext): void {
+  console.log('## Report scope');
+  console.log('');
+  console.log(`Status: **${context.status} / advisory**.`);
+  for (const assumption of context.assumptions) {
+    console.log(`- ${assumption}`);
+  }
+  console.log('');
+  printContentSnapshot(context.snapshot);
+  printCoverageWarnings(context.warnings);
+}
+
+function printContentSnapshot(snapshot: SimContentSnapshot): void {
+  console.log('### Content snapshot');
+  console.log('');
+  console.log(`Commit: \`${snapshot.commitSha}\``);
+  console.log('');
+  console.log('| Catalog | Count |');
+  console.log('|---------|-------|');
+  for (const [label, value] of contentSnapshotRows(snapshot)) {
+    console.log(`| ${label} | ${value} |`);
+  }
+  console.log('');
+}
+
+function printCoverageWarnings(warnings: readonly SimCoverageWarning[]): void {
+  console.log('### Advisory coverage warnings');
+  console.log('');
+  console.log('| Severity | Warning |');
+  console.log('|----------|---------|');
+  for (const warning of warnings) {
+    console.log(`| ${warning.severity} | ${warning.message} |`);
+  }
+  console.log('');
+}
 
 function printPveClassMatrix(): void {
   console.log('## PvE class matrix');
@@ -166,4 +211,36 @@ function hours(value: number): string {
 function healthPct(entity: { health: number; maxHealth: number }): string {
   if (entity.maxHealth <= 0) return '0%';
   return `${Math.max(0, (entity.health / entity.maxHealth) * 100).toFixed(0)}%`;
+}
+
+function gitCommitSha(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 12);
+  try {
+    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+function contentSnapshotRows(snapshot: SimContentSnapshot): Array<[string, number]> {
+  return [
+    ['Classes', snapshot.classes],
+    ['Specializations', snapshot.specializations],
+    ['Skills', snapshot.skills],
+    ['Active skills', snapshot.activeSkills],
+    ['Passive skills', snapshot.passiveSkills],
+    ['Effects', snapshot.effects],
+    ['Actions', snapshot.actions],
+    ['Items', snapshot.items],
+    ['Quests', snapshot.quests],
+    ['Enemies', snapshot.enemies],
+    ['Zones', snapshot.zones],
+    ['NPCs', snapshot.npcs],
+    ['Vendors', snapshot.vendors],
+    ['Loot tables', snapshot.lootTables],
+    ['Gear sets', snapshot.gearSets],
+    ['Mini-bosses', snapshot.miniBosses],
+    ['Races', snapshot.races],
+    ['Sim policy profiles', snapshot.simPolicyProfiles],
+  ];
 }

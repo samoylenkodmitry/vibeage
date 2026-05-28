@@ -22,8 +22,15 @@ The first balance layer is split into:
 - `playerFeel.ts`: player-feel cadence estimates over hour/day/week/month
   horizons, including meaningful progression beats, empty windows, dry gaps,
   and mitigation hints.
+- `reportContext.ts`: advisory report metadata, current content counts, and
+  simulator coverage warnings so balance output is not mistaken for final
+  tuning while class/skill/item/quest content is still moving.
 - `scripts/balance-sim.ts`: Markdown report over those catalogs. Run it with
   `pnpm run balance:sim`.
+
+The report is provisional by design. Treat mechanics failures and impossible
+scenarios as actionable, but treat score/ranking output as a drift-aware signal
+until the class, skill, item, quest, and route catalogs settle.
 
 Typical scenario:
 
