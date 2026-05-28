@@ -360,8 +360,8 @@ function applyServerMessage(
  *    by `targetId` (the skill id)
  *  - 'chatInline' — `state.lastChatError`, rendered inline under the
  *    chat input
- *  - 'silent' — no client-side UX (the rejection is server-internal,
- *    e.g. SelectClass/SelectRace which only fire from the GM panel)
+ *  - 'silent' — no client-side UX (server-internal or duplicate
+ *    failures that have a domain-specific surface elsewhere)
  */
 type CommandRejectedSink = 'combatLog' | 'skillTreeChip' | 'chatInline' | 'silent';
 
@@ -390,7 +390,7 @@ const COMMAND_REJECTED_ROUTE: { [C in RejectableCommand]: CommandRejectedSink } 
   // reply). Combat log matches the BuyFromVendor / SellToVendor
   // sink choice.
   RespecSpecialization: 'combatLog',
-  GmCommand: 'silent',
+  GmCommand: 'combatLog',
 };
 
 function applySystemMessage(

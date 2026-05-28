@@ -51,6 +51,7 @@ type PlayerRow = {
   specialization_id?: unknown;
   skill_levels?: unknown;
   quest_state?: unknown;
+  account_id?: unknown;
 };
 
 function normalizeSpecializationId(value: unknown): string | null {
@@ -145,6 +146,7 @@ export function hydratePersistedPlayer(row: PlayerRow, socketId: string, name: s
   const player: PlayerState = {
     id: row.id,
     socketId,
+    accountId: typeof row.account_id === 'string' ? row.account_id : undefined,
     name,
     position: {
       x: numberOrFallback(row.position_x, 0),
@@ -271,6 +273,8 @@ export type AddPlayerSessionOptions = {
   initialClass?: string;
   /** Authenticated account id (PR I); scopes the player lookup. */
   accountId?: string;
+  /** Authenticated account login; server-only, used for GM allowlist checks. */
+  accountLogin?: string;
 };
 
 class CharacterNotFoundError extends Error {
@@ -304,6 +308,12 @@ function applyInitialIdentity(
   return player;
 }
 
+function applySessionAccount(player: PlayerState, options: AddPlayerSessionOptions): PlayerState {
+  if (options.accountId) player.accountId = options.accountId;
+  if (options.accountLogin) player.accountLogin = options.accountLogin;
+  return player;
+}
+
 export async function addPlayerSession(
   state: GameState,
   spatial: SpatialHashGrid,
@@ -315,7 +325,7 @@ export async function addPlayerSession(
   const addTransientPlayer = () => upsertActivePlayerSession(
     state,
     spatial,
-    applyInitialIdentity(createTransientPlayer(socketId, name), options),
+    applySessionAccount(applyInitialIdentity(createTransientPlayer(socketId, name), options), options),
   );
 
   if (isPersistenceDisabled()) {
@@ -337,7 +347,7 @@ export async function addPlayerSession(
     // picks before inserting into the active state. Existing players
     // preserve their persisted identity.
     const isNewCharacter = !row.class_name || row.class_name === '';
-    const hydrated = hydratePersistedPlayer(row, socketId, name, now);
+    const hydrated = applySessionAccount(hydratePersistedPlayer(row, socketId, name, now), options);
     return upsertActivePlayerSession(
       state,
       spatial,

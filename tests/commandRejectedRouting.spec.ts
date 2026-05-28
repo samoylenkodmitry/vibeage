@@ -70,6 +70,15 @@ describe('routeCommandRejected — behaviour per sink', () => {
     expect(next.combatLog.length).toBeGreaterThan(0);
   });
 
+  it("combatLog: GmCommand rejection prepends a combat-log line", () => {
+    const next = gameClientReducer(baseState, {
+      type: 'serverMessage', now: 100,
+      message: { type: 'CommandRejected', commandType: 'GmCommand', reason: 'notGm' },
+    });
+    expect(next.combatLog.length).toBeGreaterThan(0);
+    expect(next.combatLog[0].text).toMatch(/GM command rejected/i);
+  });
+
   it("skillTreeChip: LearnSkill rejection writes to state.learnSkillRejections keyed by targetId", () => {
     const next = gameClientReducer(baseState, {
       type: 'serverMessage', now: 100,

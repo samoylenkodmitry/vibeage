@@ -20,24 +20,25 @@ type GmCmd = {
 
 type GmPanelProps = {
   player: PlayerEntity | null;
-  selectedTargetId: string | null;
+  selectedPlayerId: string | null;
   onGmCommand: (cmd: GmCmd) => void;
 };
 
 /**
  * GM panel. Lets the operator grant resources / items / skills and
  * set identity (level, race, class, spec) on themselves or the
- * currently selected target. The server enforces VIBEAGE_ENABLE_DEV_COMMANDS
- * — UI shows the panel unconditionally; if GM mode is off, server
- * silently drops every GmCommand.
+ * currently selected player. The server enforces GM access with
+ * VIBEAGE_ENABLE_DEV_COMMANDS or VIBEAGE_GM_ACCOUNTS and reports
+ * rejected commands through CommandRejected.
  *
  * Pure data-driven UI: race / class / spec dropdowns iterate the
  * content catalogs so adding content lands here automatically.
  */
-export function GmPanel({ player, selectedTargetId, onGmCommand }: GmPanelProps) {
+export function GmPanel({ player, selectedPlayerId, onGmCommand }: GmPanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('gm');
   const [useSelected, setUseSelected] = useState(false);
-  const targetId = useSelected && selectedTargetId ? selectedTargetId : undefined;
+  const canTargetSelected = Boolean(selectedPlayerId);
+  const targetId = useSelected && selectedPlayerId ? selectedPlayerId : undefined;
   const targetLabel = targetId ?? (player ? `${player.name} (self)` : 'self');
   const send = (verb: GmVerb, value: number | string, quantity?: number) =>
     onGmCommand({ verb, value, targetId, quantity });
@@ -48,7 +49,12 @@ export function GmPanel({ player, selectedTargetId, onGmCommand }: GmPanelProps)
         <span>{targetLabel}</span>
       </div>
       <label className="gm-row">
-        <input type="checkbox" checked={useSelected} onChange={(e) => setUseSelected(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={useSelected && canTargetSelected}
+          disabled={!canTargetSelected}
+          onChange={(e) => setUseSelected(e.target.checked)}
+        />
         Target selected player
       </label>
       <NumberVerb label="Grant XP" verb="grantXp" defaultValue={100} send={send} />

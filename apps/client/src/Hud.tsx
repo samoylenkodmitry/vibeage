@@ -163,7 +163,7 @@ export function GameHud(props: GameHudProps) {
         onCancelQuest={onCancelQuest}
         onAdvanceQuest={onAdvanceQuest}
         onClaimQuestReward={onClaimQuestReward}
-        onSetTrackedQuest={onSetTrackedQuest}
+        onSetTrackedQuest={onSetTrackedQuest} selectedPlayerTargetId={selectedOtherPlayer?.id ?? null}
         onGmCommand={onGmCommand} onPickupNearest={onPickupNearest} onMove={onMove} onSendChat={onSendChat}
         onBindItem={bindItemToSlot}
       />
