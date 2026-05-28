@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { vendorSellPriceFor, type VendorDef } from '../../../../packages/content/vendors';
+import { npcIconPath } from '../../../../packages/content/npcIcons';
 import type { PlayerEntity } from '../gameTypes';
 import { ItemCell } from './ItemCell';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -42,7 +43,8 @@ export function VendorPanel({ vendor, player, onClose, onBuy, onSell }: VendorPa
   return (
     <section ref={panelRef} className="vendor-panel" aria-label={`Browse ${vendor.name}`}>
       <header className="vendor-panel-header panel-title">
-        <div>
+        <img className="vendor-panel-portrait" src={npcIconPath(vendor.npcId)} alt="" aria-hidden="true" />
+        <div className="vendor-panel-name">
           <strong>{vendor.name}</strong>
           <small>{vendor.title}</small>
         </div>
