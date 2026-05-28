@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { getMiniBossById } from '../../../../packages/content/miniBosses';
 import { QUEST_NPCS } from '../../../../packages/content/npcs';
 import { npcIconPath } from '../../../../packages/content/npcIcons';
+import { questBannerPath } from '../../../../packages/content/questBanners';
 import { formatRewardSummary, QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import type { PlayerEntity } from '../gameTypes';
 import { resolveStageMarker } from './questMarkers';
@@ -134,7 +135,10 @@ function QuestDetail({
         )}
         <button type="button" onClick={onCancel}>Cancel</button>
       </div>
-      <header><strong>{quest.name}</strong></header>
+      <div className="quest-detail-banner">
+        <img src={questBannerPath(quest)} alt="" aria-hidden="true" />
+        <strong>{quest.name}</strong>
+      </div>
       <p>{quest.description}</p>
       {giver && (
         <div className="quest-detail-giver">
