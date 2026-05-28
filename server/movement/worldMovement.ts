@@ -8,6 +8,7 @@ import {
   emitPlayerUpdated,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
+import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 
 const MAX_HISTORY_AGE_MS = 500;
 const DEFAULT_PLAYER_SPEED = 20;
@@ -89,11 +90,14 @@ export function advanceAll(
     if (player.isAlive && player.movement?.isMoving && player.movement?.targetPos) {
       advancePlayerPosition(player, spatial, deltaTimeMs, now);
     }
-    // PR LL — emit when the prune actually changed the list, so the
-    // client side drops the chip immediately instead of carrying a
-    // stale invisible / dot / slow icon until the next snapshot.
-    if (pruneExpiredStatusEffects(player, now) && outbound) {
-      emitPlayerUpdated(outbound, { id: player.id, statusEffects: player.statusEffects });
+    if (pruneExpiredStatusEffects(player, now)) {
+      recomputePlayerStats(player);
+      if (outbound) {
+        emitPlayerUpdated(outbound, {
+          id: player.id, statusEffects: player.statusEffects, stats: player.stats,
+          health: player.health, maxHealth: player.maxHealth, mana: player.mana, maxMana: player.maxMana,
+        });
+      }
     }
   }
 

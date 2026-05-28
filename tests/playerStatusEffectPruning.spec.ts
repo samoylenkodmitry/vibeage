@@ -4,6 +4,7 @@ import { advanceAll } from '../server/movement/worldMovement';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { PlayerState } from '../packages/sim/entities';
 import type { StatusEffect } from '../packages/protocol/messages';
+import { recomputePlayerStats } from '../server/players/playerStatsRefresh';
 
 const NOW = 1_700_000_000_000;
 
@@ -60,6 +61,20 @@ describe('player status effect pruning', () => {
     advanceAll(state, new SpatialHashGrid(), 100, NOW);
 
     expect(state.players[player.id].statusEffects.map(e => e.id)).toEqual(['still-active']);
+  });
+
+  it('recomputes player stats after a stat-affecting effect expires', () => {
+    const state = createGameState();
+    const player = makePlayer();
+    player.statusEffects = [makeEffect({ id: 'haste', type: 'speed_boost', value: 50, durationMs: 1_000, startTimeTs: NOW - 2_000 })];
+    state.players[player.id] = player;
+    recomputePlayerStats(player);
+    const boostedSpeed = player.stats?.runSpeed ?? 0;
+
+    advanceAll(state, new SpatialHashGrid(), 100, NOW);
+
+    expect(player.statusEffects).toEqual([]);
+    expect(player.stats?.runSpeed ?? 0).toBeLessThan(boostedSpeed);
   });
 
   it('leaves status effects untouched and skips reallocation if none are expired', () => {

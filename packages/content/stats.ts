@@ -140,7 +140,7 @@ export const STATS: Record<string, StatDef> = {
   },
   hpRegen: {
     id: 'hpRegen', short: 'HP/s', name: 'HP Regen',
-    description: 'Health restored per second while alive. CON, gear, and bless effects scale it.',
+    description: 'Health restored per second while alive. CON and gear scale it.',
     tags: ['derived', 'defensive'],
   },
   mpRegen: {
@@ -189,4 +189,3 @@ export const STATS: Record<string, StatDef> = {
     tags: ['derived', 'offensive'],
   },
 };
-

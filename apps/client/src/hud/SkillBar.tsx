@@ -108,7 +108,7 @@ export function SkillBar(props: SkillBarProps) {
       {tooltip.info && (
         <SkillTooltip
           skillId={tooltip.info.payload} clientX={tooltip.info.clientX} clientY={tooltip.info.clientY}
-          skillLevel={player?.skillLevels?.[tooltip.info.payload] ?? 1} hoverHandlers={tooltip.hoverHandlers}
+          skillLevel={player?.skillLevels?.[tooltip.info.payload] ?? 1} player={player} hoverHandlers={tooltip.hoverHandlers}
         />
       )}
     </section>

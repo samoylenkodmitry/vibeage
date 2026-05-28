@@ -81,6 +81,7 @@ export function SkillTreePanel({ player, onLearnSkill, onUpgradeSkill, rejection
             onToggleExpand={() => setExpandedId((prev) => (prev === row.skillId ? null : row.skillId))}
             onLearnSkill={onLearnSkill}
             onUpgradeSkill={onUpgradeSkill}
+            player={player}
           />
         ))}
       </ul>
@@ -97,6 +98,7 @@ function SkillRow({
   onToggleExpand,
   onLearnSkill,
   onUpgradeSkill,
+  player,
 }: {
   row: Row;
   expanded: boolean;
@@ -106,6 +108,7 @@ function SkillRow({
   onToggleExpand: () => void;
   onLearnSkill: (skillId: SkillId) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
+  player: PlayerEntity | null;
 }) {
   const skill = SKILLS[row.skillId];
   const { beginDrag, consumeDragClick } = useActionBarDrag();
@@ -182,12 +185,12 @@ function SkillRow({
         {row.status === 'unlocked' && !skill?.upgrades?.length && <span className="skill-tree-tag">Owned</span>}
         {row.status === 'locked' && <span className="skill-tree-tag skill-tree-tag--locked">Locked</span>}
       </div>
-      {expanded && skill && <SkillDetail skill={skill} skillLevel={skillLevel} />}
+      {expanded && skill && <SkillDetail skill={skill} skillLevel={skillLevel} player={player} />}
     </li>
   );
 }
 
-function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: number }) {
+function SkillDetail({ skill, skillLevel, player }: { skill: SkillDef; skillLevel: number; player: PlayerEntity | null }) {
   // Passives are never cast — the damage/range/mana/cast/cooldown grid
   // is all blank for them, which read as a broken skill. Show what the
   // passive actually does instead.
@@ -197,14 +200,14 @@ function SkillDetail({ skill, skillLevel }: { skill: SkillDef; skillLevel: numbe
   // Show the *effective* numbers the engine will apply at this tier.
   // Headline values reflect the player's actual leveled skill, not
   // the base; the upgrade list below shows the per-tier deltas.
-  const effective = getEffectiveSkillStats(skill.id, skillLevel);
+  const effective = getEffectiveSkillStats(skill.id, skillLevel, player ?? undefined);
   return (
     <div className="skill-tree-detail">
       <p className="skill-tree-detail-desc">{skill.description}</p>
       <dl className="skill-tree-detail-stats">
         {effective.dmg !== undefined && <Stat label="Damage" value={String(effective.dmg)} />}
         {effective.range !== undefined && <Stat label="Range" value={String(effective.range)} />}
-        {skill.area !== undefined && <Stat label="Area" value={String(skill.area)} />}
+        {effective.area !== undefined && <Stat label="Area" value={String(effective.area)} />}
         <Stat label="Mana" value={effective.manaCost > 0 ? String(effective.manaCost) : 'free'} />
         <Stat label="Cast" value={skill.castMs > 0 ? `${(skill.castMs / 1000).toFixed(1)}s` : 'instant'} />
         <Stat label="Cooldown" value={effective.cooldownMs > 0 ? `${(effective.cooldownMs / 1000).toFixed(1)}s` : '-'} />

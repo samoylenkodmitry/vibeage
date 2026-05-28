@@ -3,6 +3,7 @@ import type { Room } from '@colyseus/sdk';
 import { classifySkill, SKILLS, type SkillId } from '../../../packages/content/skills';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
+import { getEffectiveSkillRange } from '../../../packages/sim/skillUpgrades';
 import type { GameClientAction } from './gameReducer';
 import {
   getNearestAliveEnemyId,
@@ -615,13 +616,6 @@ function isSkillKnown(player: PlayerEntity, skillId: SkillId): boolean {
   return player.unlockedSkills?.includes(skillId) ?? false;
 }
 
-/**
- * A skill is "self-castable" when the server's beneficial-only branch
- * in resolveCastTargets would auto-target the caster: no enemy target
- * is required AND the effects are all beneficial. Today this maps to
- * effects-only skills with no .dmg field — Holy Light, Bless, Divine
- * Shield, Rapid Fire, Shield Wall, Dispel, Evade.
- */
 function isSelfCastable(skillId: SkillId): boolean {
   const skill = SKILLS[skillId];
   if (!skill || skill.requiresTarget) return false;
@@ -629,8 +623,12 @@ function isSelfCastable(skillId: SkillId): boolean {
   return Boolean(skill.effects?.length);
 }
 
+function effectiveCastRange(player: PlayerEntity, skillId: SkillId): number {
+  return getEffectiveSkillRange(skillId, player) ?? 0;
+}
+
 function isOutOfCastRange(player: PlayerEntity, target: EnemyEntity, skillId: SkillId, margin = 0): boolean {
-  const range = SKILLS[skillId]?.range ?? 0;
+  const range = effectiveCastRange(player, skillId);
   if (range <= 0) return false;
   const dx = player.position.x - target.position.x;
   const dz = player.position.z - target.position.z;
@@ -638,7 +636,7 @@ function isOutOfCastRange(player: PlayerEntity, target: EnemyEntity, skillId: Sk
 }
 
 function approachPointToward(player: PlayerEntity, target: EnemyEntity, skillId: SkillId): VecXZ {
-  const range = SKILLS[skillId]?.range ?? 0;
+  const range = effectiveCastRange(player, skillId);
   // Stop just inside range so server-side distance check doesn't kick
   // back to outofrange. For melee (range ≤ 1) walk all the way in.
   const stopAt = Math.max(0, range - APPROACH_RANGE_PADDING);

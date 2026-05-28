@@ -189,12 +189,12 @@ export interface SkillUpgrade {
 }
 
 export interface SkillUpgradeModifiers {
-  /** Multiply skill.dmg (and every 'damage' effect). e.g. 1.2 = +20% dmg. */
+  /** Multiply skill.dmg plus damage/heal/shield/DoT effect values. e.g. 1.2 = +20%. */
   dmgMultiplier?: number;
   /** Multiply cooldownMs. e.g. 0.8 = 20% faster cooldown. */
   cooldownMultiplier?: number;
-  /** Add to skill.range. */
   rangeBonus?: number;
+  areaBonus?: number;
   /** Multiply manaCost. e.g. 0.8 = 20% less mana. */
   manaCostMultiplier?: number;
   /** Multiply every effect's durationMs (DoT length, slow length, etc.). */
@@ -313,7 +313,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   waterSplash: {
     id: 'waterSplash',
     name: 'Water Splash',
-    description: 'Creates a splash of water that damages enemies and slows them down',
+    description: 'Creates a splash of water that damages enemies and leaves them vulnerable to follow-up water magic',
     icon: '/game/skills/skill_water.png',
     cat: 'projectile',
     kind: 'magical',
@@ -468,14 +468,14 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     ],
     upgrades: [
       { level: 2, description: '+30% heal', modifiers: { dmgMultiplier: 1.3 } },
-      { level: 3, description: '30% faster cast', modifiers: { cooldownMultiplier: 0.7 } },
+      { level: 3, description: '30% faster cooldown', modifiers: { cooldownMultiplier: 0.7 } },
       { level: 4, description: 'Costs 25% less mana', modifiers: { manaCostMultiplier: 0.75 } },
     ],
   },
   bless: {
     id: 'bless',
     name: 'Bless',
-    description: 'Boost your damage and hit chance for a short time',
+    description: 'Boost your outgoing damage and accuracy for a short time',
     icon: '/game/skills/skill_holy.svg',
     cat: 'aura',
     kind: 'utility',
@@ -566,7 +566,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
     upgrades: [
       { level: 2, description: '+20% damage', modifiers: { dmgMultiplier: 1.2 } },
-      { level: 3, description: 'Wider splash (+1m)', modifiers: { rangeBonus: 1 } },
+      { level: 3, description: '+1m range and wider splash', modifiers: { rangeBonus: 1, areaBonus: 1 } },
       { level: 4, description: '20% faster cooldown', modifiers: { cooldownMultiplier: 0.8 } },
     ],
   },
