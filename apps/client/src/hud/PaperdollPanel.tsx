@@ -1,5 +1,6 @@
-import { EQUIP_SLOTS, type EquipSlot } from '../../../../packages/content/equipmentTypes';
-import { ITEMS } from '../../../../packages/content/items';
+import { type CSSProperties } from 'react';
+import { EQUIP_SLOTS, GRADE_SPECS, type EquipSlot } from '../../../../packages/content/equipmentTypes';
+import { ITEMS, getItemGrade } from '../../../../packages/content/items';
 import { ItemTooltip } from './ItemTooltip';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useTooltipTrigger } from './useTooltipTrigger';
@@ -37,8 +38,16 @@ export function PaperdollPanel({ equipment, onUnequip }: PaperdollPanelProps) {
           const itemName = item?.name ?? '—';
           const canUnequip = Boolean(item);
           const triggerProps = itemId ? tooltip.triggerProps({ itemId, slot }) : undefined;
+          // Tint the equipped row by item grade so a Lv-52 A-grade chest
+          // visibly outranks a D-grade fallback at a glance (same colour
+          // semantics + CSS var the bag uses — see InventorySlotButton).
+          const grade = item ? getItemGrade(item) : 'none';
+          const slotStyle: CSSProperties | undefined = item && grade !== 'none'
+            ? ({ ['--slot-grade-color' as string]: GRADE_SPECS[grade].color } as CSSProperties)
+            : undefined;
+          const gradeClass = item && grade !== 'none' ? ` paperdoll-row--grade-${grade}` : '';
           return (
-            <li key={slot} className={`paperdoll-row${canUnequip ? ' paperdoll-row--filled' : ''}`}>
+            <li key={slot} className={`paperdoll-row${canUnequip ? ' paperdoll-row--filled' : ''}${gradeClass}`} style={slotStyle}>
               <span className="paperdoll-slot-label">{SLOT_LABELS[slot]}</span>
               <button
                 type="button"
