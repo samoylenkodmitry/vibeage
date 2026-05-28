@@ -1454,14 +1454,25 @@ input {
   padding: 8px 12px;
   border: 1px solid rgba(141, 233, 215, 0.22);
   border-radius: 8px;
-  /* Painterly dark-wood + filigree-corner skin (generated). The texture
-     carries the look; the colour tint sits over it for legibility of the
-     meter labels at any panel height. */
-  background-color: rgba(5, 14, 18, 0.42);
+  /* Painterly dark-wood + filigree-corner skin (generated) under a light
+     dark tint, so the panel stays semi-transparent — the world reads
+     through it while the texture + frame still carry the look. The
+     texture sits on a ::before so its opacity is independent of the
+     panel content; overflow:hidden clips the pseudo to the rounded edge. */
+  background-color: rgba(5, 14, 18, 0.32);
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.vitals-strip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background-image: url('/game/ui/panel-vitals.png');
   background-size: 100% 100%;
   background-position: center;
-  font-size: 11px;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .vitals-header {
