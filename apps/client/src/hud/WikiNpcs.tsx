@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { QUEST_NPCS, type QuestNpcDef } from '../../../../packages/content/npcs';
+import { npcIconPath } from '../../../../packages/content/npcIcons';
 import { QUESTS, type QuestDef } from '../../../../packages/content/quests';
 import type { WikiNav } from './WikiBosses';
 
@@ -53,12 +54,14 @@ function NpcLi({
     }
   }, [isFocus, focusKey]);
   return (
-    <li ref={ref} className={`wiki-row${isFocus ? ' wiki-row--focus' : ''}`}>
-      <header>
-        <strong>{npc.name}</strong>
-        <span className="wiki-row-tag">{npc.title}</span>
-      </header>
-      {npc.description && <p>{npc.description}</p>}
+    <li ref={ref} className={`wiki-row wiki-row--with-portrait${isFocus ? ' wiki-row--focus' : ''}`}>
+      <img className="wiki-row-portrait" src={npcIconPath(npc.id)} alt="" aria-hidden="true" />
+      <div className="wiki-row-body">
+        <header>
+          <strong>{npc.name}</strong>
+          <span className="wiki-row-tag">{npc.title}</span>
+        </header>
+        {npc.description && <p>{npc.description}</p>}
       <small className="wiki-row-footer">
         At{' '}
         <button
@@ -84,6 +87,7 @@ function NpcLi({
           ))}
         </small>
       )}
+      </div>
     </li>
   );
 }
