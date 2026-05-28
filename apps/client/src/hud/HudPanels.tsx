@@ -21,7 +21,6 @@ type HudPanelToggleState = {
   mapOpen: boolean;
   treeOpen: boolean;
   actionsOpen: boolean;
-  chatOpen: boolean;
   wikiOpen: boolean;
   gmOpen: boolean;
   /** PR AA — slot index of the recipe whose CraftPanel is open; null when none. */
@@ -150,16 +149,17 @@ export function HudPanels({
           onMove={onMove ?? (() => undefined)}
         />
       )}
-      {panels.chatOpen && onSendChat && (
+      {onSendChat && (
         <ChatPanel
           lines={state.chatLines}
+          systemLines={state.combatLog}
           myPlayerId={state.myPlayerId}
           onSendChat={onSendChat}
           lastError={state.lastChatError}
         />
       )}
       {panels.wikiOpen && <WikiPanel onShowMarker={(pos) => onSetNavigationMarker?.(pos)} />}
-      {panels.gmOpen && (
+      {panels.gmOpen && player?.isGm && (
         <GmPanel player={player} selectedPlayerId={selectedPlayerTargetId} onGmCommand={onGmCommand} />
       )}
     </>

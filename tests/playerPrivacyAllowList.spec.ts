@@ -30,6 +30,9 @@ function makePlayer(id: string, socketId: string): PlayerState {
   const player: PlayerState = {
     id,
     socketId,
+    accountId: `acct-${id}`,
+    accountLogin: `${id}-login`,
+    isGm: id === 'own',
     name: id,
     position: { x: 0, y: 0.5, z: 0 },
     rotation: { x: 0, y: 0, z: 0 },
@@ -104,8 +107,11 @@ describe('owner snapshot allow-list', () => {
     state.players.own = makePlayer('own', 'own-socket');
     const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
     expect(snapshot.players.own).not.toHaveProperty('socketId');
+    expect(snapshot.players.own).not.toHaveProperty('accountId');
+    expect(snapshot.players.own).not.toHaveProperty('accountLogin');
     expect(snapshot.players.own).not.toHaveProperty('characterInventory');
     expect(snapshot.players.own).not.toHaveProperty('posHistory');
+    expect(snapshot.players.own).toHaveProperty('isGm', true);
   });
 });
 
@@ -128,6 +134,9 @@ describe('public snapshot allow-list', () => {
       id: 'p1',
       health: 50,
       socketId: 'leak',
+      accountId: 'leak-account',
+      accountLogin: 'leak-login',
+      isGm: true,
       starterProgress: createStarterProgressState({ defeatedEnemies: 1, collectedDrops: 0 }),
       inventory: [{ itemId: 'leak', quantity: 1 }],
       maxInventorySlots: 99,
@@ -155,6 +164,9 @@ describe('broadcast paths never include owner-only state', () => {
         id: 'p1',
         health: 75,
         socketId: 'should-not-leak',
+        accountId: 'leak-account',
+        accountLogin: 'leak-login',
+        isGm: true,
         starterProgress: createStarterProgressState({ defeatedEnemies: 1, collectedDrops: 0 }),
         inventory: [{ itemId: 'leak', quantity: 1 }],
         maxInventorySlots: 99,

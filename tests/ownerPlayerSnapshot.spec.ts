@@ -19,6 +19,8 @@ import type { EquipmentUpdateMsg, InventoryUpdateMsg } from '../packages/protoco
 
 const PERSISTENCE_INTERNAL_FIELDS = new Set([
   'socketId',
+  'accountId',
+  'accountLogin',
   'lastUpdateTime',
   'lastSnapTime',
   'lastRegenTimeMs',
@@ -30,6 +32,9 @@ const PERSISTENCE_INTERNAL_FIELDS = new Set([
 
 function freshOwner(): PlayerState {
   const player = createTransientPlayer('s-owner', 'OwnerTester');
+  player.accountId = 'acct-owner';
+  player.accountLogin = 'owner-login';
+  player.isGm = true;
   addItemsToPlayer(player, 'health_potion', 3);
   player.gold = 42;
   return player;
@@ -96,6 +101,7 @@ describe('sanitizePlayerForOwner (§52 #3)', () => {
     expect(snapshot.availableSkillPoints).toBe(2);
     expect(snapshot.skillLevels).toEqual({ fireball: 2 });
     expect(snapshot.gold).toBe(42);
+    expect(snapshot.isGm).toBe(true);
   });
 
   it('sanitizePlayerForPublic stays narrower than sanitizePlayerForOwner', () => {

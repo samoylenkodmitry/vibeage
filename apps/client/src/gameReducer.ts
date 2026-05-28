@@ -401,9 +401,9 @@ function applySystemMessage(
   return {
     ...state,
     combatLog: [
-      ...state.combatLog,
       { id: `sys-${state.combatLog.length}-${now}`, text: message.text },
-    ].slice(-200),
+      ...state.combatLog,
+    ].slice(0, 200),
   };
 }
 

@@ -27,8 +27,8 @@ type GmPanelProps = {
 /**
  * GM panel. Lets the operator grant resources / items / skills and
  * set identity (level, race, class, spec) on themselves or the
- * currently selected player. The server enforces GM access with
- * VIBEAGE_ENABLE_DEV_COMMANDS or VIBEAGE_GM_ACCOUNTS and reports
+ * currently selected player. The server enforces GM access through
+ * the owner-only account GM flag or dev commands and reports
  * rejected commands through CommandRejected.
  *
  * Pure data-driven UI: race / class / spec dropdowns iterate the

@@ -10,7 +10,7 @@ import { flattenInventoryToSlots } from '../../packages/sim/inventoryWireAdapter
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { applyClassChange, applyRaceChange, applySpecializationChange } from './playerIdentity.js';
-import { isGmAccount, isGmModeEnabled } from './gmMode.js';
+import { isGmAccount } from './gmMode.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 
@@ -54,7 +54,7 @@ export function getGmCommandRejectionReason(
   msg: GmCommand,
   resolveTarget: (id: string) => PlayerState | undefined,
 ): CommandRejectionReason<'GmCommand'> | null {
-  if (!isGmModeEnabled() || !isGmAccount(caller)) {
+  if (!isGmAccount(caller)) {
     warn(LOG_CATEGORIES.PLAYER, `GmCommand rejected (caller not GM) caller=${caller.id} name=${caller.name} verb=${msg.verb}`);
     return 'notGm';
   }
