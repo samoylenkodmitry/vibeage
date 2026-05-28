@@ -21,6 +21,10 @@ export default defineConfig({
         target: process.env.GAME_SERVER_PROXY_TARGET ?? 'http://127.0.0.1:3001',
         changeOrigin: true,
       },
+      '/api': {
+        target: process.env.GAME_SERVER_PROXY_TARGET ?? 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
     },
   },
   build: {

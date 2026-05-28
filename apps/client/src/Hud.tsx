@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { SKILLS, type SkillId } from '../../../packages/content/skills';
+import { GAME_ACTIONS } from '../../../packages/content/actions';
 import type { EnemyEntity, GameClientState, PlayerEntity } from './gameTypes';
 import { HudOverlays } from './hud/HudOverlays';
 import { HudPanels } from './hud/HudPanels';
@@ -88,12 +89,12 @@ function buildBuiltinBarActions(
   const noop = () => undefined;
   return {
     move: {
-      label: 'Move', hotkey: 'M',
+      label: GAME_ACTIONS.move.label, hotkey: GAME_ACTIONS.move.hotkey, icon: GAME_ACTIONS.move.icon,
       disabled: !alive || (!hasSelectedTarget && !hasNavMarker),
       onInvoke: onMove ?? noop,
     },
     pickup: {
-      label: 'Pickup', hotkey: 'F',
+      label: GAME_ACTIONS.pickup.label, hotkey: GAME_ACTIONS.pickup.hotkey, icon: GAME_ACTIONS.pickup.icon,
       disabled: !alive || lootCount === 0,
       onInvoke: onPickupNearest ?? noop,
     },

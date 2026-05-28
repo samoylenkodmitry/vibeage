@@ -510,7 +510,12 @@ input {
   align-items: center;
   border-color: rgba(250, 204, 21, 0.38);
   color: #f9fafb;
-  background: rgba(18, 24, 27, 0.82);
+  background-color: rgba(18, 24, 27, 0.82);
+  background-image:
+    linear-gradient(90deg, rgba(18, 24, 27, 0.96) 0%, rgba(18, 24, 27, 0.78) 46%, rgba(18, 24, 27, 0.58) 100%),
+    var(--skill-icon, none);
+  background-position: center;
+  background-size: cover;
   text-align: left;
   transition: transform 80ms ease-out, background-color 120ms ease-out;
 }
@@ -526,12 +531,12 @@ input {
 }
 
 .skill-button:hover {
-  background: rgba(44, 52, 55, 0.92);
+  background-color: rgba(44, 52, 55, 0.92);
 }
 
 .skill-button:not(:disabled):active {
   transform: scale(0.96);
-  background: rgba(60, 80, 70, 0.92);
+  background-color: rgba(60, 80, 70, 0.92);
 }
 
 .skill-button--needs-target:not(:disabled) {
@@ -716,10 +721,13 @@ input {
   gap: 4px;
 }
 
-.status-pills button, .status-pills span {
+.status-pills > button, .status-pills > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid rgba(141, 233, 215, 0.24);
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 2px 7px 2px 3px;
   color: #d9fff4;
   background: rgba(141, 233, 215, 0.1);
   font-size: 11px;
@@ -728,9 +736,17 @@ input {
   font-size: 11px;
 }
 
-.status-pills button, .status-pills span:hover {
+.status-pills > button:hover, .status-pills > span:hover {
   border-color: rgba(141, 233, 215, 0.55);
   background: rgba(141, 233, 215, 0.18);
+}
+
+.status-pill-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  object-fit: cover;
 }
 
 /* Active Effects panel — buffs/debuffs on the player with live timers. */
@@ -757,8 +773,8 @@ input {
 }
 .active-effect-button {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  grid-template-areas: 'name value remaining' 'bar bar bar';
+  grid-template-columns: 24px 1fr auto auto;
+  grid-template-areas: 'icon name value remaining' 'bar bar bar bar';
   align-items: center;
   gap: 2px 8px;
   width: 100%;
@@ -782,6 +798,13 @@ input {
   background: rgba(248, 113, 113, 0.1);
 }
 .active-effect-button:hover { border-color: rgba(141, 233, 215, 0.55); }
+.active-effect-icon {
+  grid-area: icon;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  object-fit: cover;
+}
 .active-effect-name { grid-area: name; font-weight: 600; }
 .active-effect-value { grid-area: value; color: #cbd5e1; }
 .active-effect-remaining { grid-area: remaining; color: #94a3b8; font-variant-numeric: tabular-nums; }
@@ -948,6 +971,14 @@ input {
 .inventory-slot:not(:disabled):active {
   transform: scale(0.92);
   background: rgba(56, 189, 248, 0.32);
+}
+
+.inventory-slot-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .inventory-slot span {
@@ -1461,12 +1492,17 @@ input {
   border-radius: 6px;
   border-color: rgba(141, 233, 215, 0.45);
   color: #f9fafb;
-  background: rgba(18, 24, 27, 0.82);
+  background-color: rgba(18, 24, 27, 0.82);
+  background-image:
+    linear-gradient(90deg, rgba(18, 24, 27, 0.95) 0%, rgba(18, 24, 27, 0.74) 54%, rgba(18, 24, 27, 0.58) 100%),
+    var(--action-icon, none);
+  background-position: center;
+  background-size: cover;
   text-align: left;
 }
 
 .action-button:hover:not([aria-disabled='true']) {
-  background: rgba(44, 52, 55, 0.92);
+  background-color: rgba(44, 52, 55, 0.92);
 }
 
 /* Cast-disabled actions/slots stay draggable (aria-disabled, not the native
@@ -1656,12 +1692,29 @@ input {
 
 .wiki-row header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
+.wiki-row-heading {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.wiki-row-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 .wiki-row header strong {
+  min-width: 0;
   color: #fef3c7;
   font-size: 13px;
 }
@@ -2110,7 +2163,7 @@ input {
 
 .skill-tree-row-head {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 34px 1fr auto;
   align-items: center;
   gap: 2px 6px;
   margin: 0;
@@ -2122,13 +2175,22 @@ input {
   cursor: pointer;
 }
 
+.skill-tree-row-icon {
+  grid-row: 1 / 3;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 .skill-tree-row-head:hover strong,
 .skill-tree-row-head:focus-visible strong {
   color: #facc15;
 }
 
 .skill-tree-row-head small {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
 }
 
 .skill-tree-row-head strong {
@@ -2323,6 +2385,22 @@ input {
 
 .wiki-tree-label {
   display: inline-block;
+}
+
+.wiki-tree-label--icon,
+.wiki-tree-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wiki-tree-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .wiki-tree-link {
@@ -2880,6 +2958,13 @@ input {
   min-width: 0;
 }
 .item-cell:hover { background: rgba(148, 163, 184, 0.16); border-color: rgba(141, 233, 215, 0.45); }
+.item-cell-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  object-fit: cover;
+}
 .item-cell-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3099,7 +3184,7 @@ input {
   position: absolute;
   right: 18px;
   bottom: 110px;
-  z-index: 5;
+  z-index: 9;
   display: grid;
   gap: 8px;
 }
@@ -3665,10 +3750,28 @@ input {
 }
 
 .paperdoll-slot-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.paperdoll-slot-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.paperdoll-slot-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .paperdoll-unequip {
@@ -3715,6 +3818,28 @@ input {
 .item-tooltip header strong {
   font-size: 13px;
   color: #fde68a;
+}
+
+.item-tooltip-title {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.item-tooltip-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-tooltip-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .item-tooltip-grade {
@@ -3893,6 +4018,21 @@ input {
   gap: 8px;
 }
 
+.skill-tooltip-title {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.skill-tooltip-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
 .skill-tooltip header strong {
   font-size: 13px;
   color: #fde68a;
@@ -3984,6 +4124,9 @@ input {
 }
 
 button.paperdoll-slot-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font: inherit;
   text-align: left;
   background: transparent;
@@ -4035,8 +4178,10 @@ button.paperdoll-slot-item:focus-visible {
 }
 
 .character-option {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 34px;
   padding: 6px 8px;
   border: 1px solid rgba(141, 233, 215, 0.2);
@@ -4046,6 +4191,15 @@ button.paperdoll-slot-item:focus-visible {
   font-size: 12px;
   cursor: pointer;
   text-transform: capitalize;
+}
+
+.character-option-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 button.character-option {

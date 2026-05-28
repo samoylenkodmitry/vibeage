@@ -17,8 +17,7 @@ import { openWikiAt } from './wikiNavBus';
  * Wherever the game lists items (vendor browse, paperdoll, future
  * mailbox / trade window / quest reward preview / boss loot popup),
  * one `<ItemCell>` keeps the affordances identical. The look-and-
- * feel and the wiki-link path are owned in one place — when we add
- * item icons later, only this file changes.
+ * feel and the wiki-link path are owned in one place.
  */
 export function ItemCell({
   itemId, label, extra, className, onClickAction,
@@ -69,6 +68,7 @@ export function ItemCell({
         onContextMenu={(e) => { e.preventDefault(); openWikiAt('items', itemId); }}
         {...triggerProps}
       >
+        {item?.icon && <img className="item-cell-icon" src={item.icon} alt="" aria-hidden="true" />}
         <span className="item-cell-name">{label ?? item?.name ?? itemId}</span>
         {grade !== 'none' && (
           <span

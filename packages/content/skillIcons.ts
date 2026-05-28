@@ -1,0 +1,98 @@
+import type { SkillDef, SkillId } from './skills.js';
+
+const SKILL_ICON_SLUGS = {
+  basicAttack: 'basic-attack',
+  escape: 'escape',
+  fireball: 'fireball',
+  iceBolt: 'ice-bolt',
+  waterSplash: 'water-splash',
+  petrify: 'petrify',
+  slash: 'slash',
+  powerStrike: 'power-strike',
+  shieldWall: 'shield-wall',
+  taunt: 'taunt',
+  bash: 'bash',
+  holyLight: 'holy-light',
+  bless: 'bless',
+  dispel: 'dispel',
+  smite: 'smite',
+  divineShield: 'divine-shield',
+  arrowShot: 'arrow-shot',
+  volley: 'volley',
+  rapidFire: 'rapid-fire',
+  evade: 'evade',
+  backstab: 'backstab',
+  poisonBlade: 'poison-blade',
+  vanish: 'vanish',
+  arcane_blast: 'arcane-blast',
+  meteor: 'meteor',
+  rage: 'rage',
+  execute: 'execute',
+  greater_heal: 'greater-heal',
+  empower: 'empower',
+  snipe: 'snipe',
+  silent_step: 'silent-step',
+  holy_shield: 'holy-shield',
+  shadow_strike: 'shadow-strike',
+  phoenix_ward: 'phoenix-ward',
+  sacred_pulse: 'sacred-pulse',
+  lucky_strike: 'lucky-strike',
+  wind_dash: 'wind-dash',
+  arcane_supremacy: 'arcane-supremacy',
+  inferno_aura: 'inferno-aura',
+  blood_frenzy: 'blood-frenzy',
+  killing_strike: 'killing-strike',
+  mass_heal: 'mass-heal',
+  group_bless: 'group-bless',
+  aimed_volley: 'aimed-volley',
+  shadow_arrow: 'shadow-arrow',
+  divine_taunt: 'divine-taunt',
+  soul_eater: 'soul-eater',
+  rebirth: 'rebirth',
+  sacred_aura: 'sacred-aura',
+  treasure_sense: 'treasure-sense',
+  stalking_arrow: 'stalking-arrow',
+  passive_arcane_focus: 'passive-arcane-focus',
+  passive_battle_hardened: 'passive-battle-hardened',
+  passive_serenity: 'passive-serenity',
+  passive_woodland_step: 'passive-woodland-step',
+  passive_iron_discipline: 'passive-iron-discipline',
+  passive_oath_of_light: 'passive-oath-of-light',
+  passive_shadow_strike: 'passive-shadow-strike',
+  passive_toughness: 'passive-toughness',
+  passive_brutality: 'passive-brutality',
+  passive_focus_mind: 'passive-focus-mind',
+  passive_arcane_potency: 'passive-arcane-potency',
+  passive_serene_mind: 'passive-serene-mind',
+  passive_warding: 'passive-warding',
+  passive_keen_eye: 'passive-keen-eye',
+  passive_swift_step: 'passive-swift-step',
+  passive_armor_training: 'passive-armor-training',
+  passive_iron_grip: 'passive-iron-grip',
+  passive_holy_aegis: 'passive-holy-aegis',
+  passive_radiant_focus: 'passive-radiant-focus',
+  passive_shadow_grace: 'passive-shadow-grace',
+  passive_lethal_focus: 'passive-lethal-focus',
+} as const satisfies Partial<Record<SkillId, string>>;
+
+type GeneratedSkillIconId = keyof typeof SKILL_ICON_SLUGS & SkillId;
+
+export function skillIconPath(skillId: GeneratedSkillIconId): string {
+  return `/game/skills/skill-icon-${SKILL_ICON_SLUGS[skillId]}.png`;
+}
+
+function generatedSkillIconPath(skillId: SkillId): string | null {
+  return skillId in SKILL_ICON_SLUGS ? skillIconPath(skillId as GeneratedSkillIconId) : null;
+}
+
+export function withGeneratedSkillIcons(skills: Record<SkillId, SkillDef>): Record<SkillId, SkillDef> {
+  return Object.fromEntries(
+    Object.entries(skills).map(([id, skill]) => {
+      const generatedIcon = generatedSkillIconPath(id as SkillId);
+      return [
+        id,
+        generatedIcon ? { ...skill, icon: generatedIcon } : skill,
+      ];
+    }),
+  ) as Record<SkillId, SkillDef>;
+}

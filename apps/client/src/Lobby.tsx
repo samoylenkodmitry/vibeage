@@ -395,6 +395,7 @@ function CreateCharacterForm({
             {allowed.map((option) => (
               <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
                 <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
+                <img className="character-option-icon" src={CLASS_SKILL_TREES[option]?.icon} alt="" aria-hidden="true" />
                 <span>{option}</span>
               </label>
             ))}

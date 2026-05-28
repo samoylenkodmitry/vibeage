@@ -157,6 +157,7 @@ export interface Specialization {
   id: SpecializationId;
   baseClass: CharacterClass;
   name: string;
+  icon: string;
   description: string;
   /** Level at which the player can pick this spec. */
   unlockLevel: number;
@@ -179,7 +180,41 @@ export interface Specialization {
   proficiencySkills?: SkillId[];
 }
 
-export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
+export const SPECIALIZATION_ICON_SLUGS: Record<SpecializationId, string> = {
+  arcanist: 'arcanist',
+  pyromancer: 'pyromancer',
+  berserker: 'berserker',
+  slayer: 'slayer',
+  cardinal: 'cardinal',
+  theurge: 'theurge',
+  hawkeye: 'hawkeye',
+  phantom_ranger: 'phantom-ranger',
+  templar_knight: 'templar-knight',
+  dark_avenger: 'dark-avenger',
+  phoenix_knight: 'phoenix-knight',
+  evas_templar: 'evas-templar',
+  treasure_hunter: 'treasure-hunter',
+  plains_walker: 'plains-walker',
+};
+
+export function specializationIconPath(specId: SpecializationId): string {
+  return `/game/specs/spec-icon-${SPECIALIZATION_ICON_SLUGS[specId]}.png`;
+}
+
+type SpecializationDef = Omit<Specialization, 'icon'>;
+
+function withGeneratedSpecializationIcons(
+  specs: Record<SpecializationId, SpecializationDef>,
+): Record<SpecializationId, Specialization> {
+  return Object.fromEntries(
+    (Object.entries(specs) as Array<[SpecializationId, SpecializationDef]>).map(([specId, spec]) => [
+      specId,
+      { ...spec, icon: specializationIconPath(specId) },
+    ]),
+  ) as Record<SpecializationId, Specialization>;
+}
+
+const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
   // ---- MAGE ----
   arcanist: {
     id: 'arcanist',
@@ -468,6 +503,8 @@ export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = {
     proficiencySkills: ['stalking_arrow'],
   },
 };
+
+export const SPECIALIZATIONS: Record<SpecializationId, Specialization> = withGeneratedSpecializationIcons(SPECIALIZATION_DEFS);
 
 /**
  * Lookup helpers used by the engine to gate spec / proficiency

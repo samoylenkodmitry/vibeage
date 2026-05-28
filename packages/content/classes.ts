@@ -10,11 +10,37 @@ export interface SkillRequirement {
 
 export interface ClassSkillTree {
   className: CharacterClass;
+  icon: string;
   description: string;
   skillProgression: Partial<Record<SkillId, SkillRequirement>>;
 }
 
-export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
+export const CLASS_ICON_SLUGS: Record<CharacterClass, string> = {
+  mage: 'mage',
+  warrior: 'warrior',
+  healer: 'healer',
+  ranger: 'ranger',
+  knight: 'knight',
+  paladin: 'paladin',
+  rogue: 'rogue',
+};
+
+export function classIconPath(className: CharacterClass): string {
+  return `/game/classes/class-icon-${CLASS_ICON_SLUGS[className]}.png`;
+}
+
+type ClassSkillTreeDef = Omit<ClassSkillTree, 'icon'>;
+
+function withGeneratedClassIcons(trees: Record<CharacterClass, ClassSkillTreeDef>): Record<CharacterClass, ClassSkillTree> {
+  return Object.fromEntries(
+    (Object.entries(trees) as Array<[CharacterClass, ClassSkillTreeDef]>).map(([className, tree]) => [
+      className,
+      { ...tree, icon: classIconPath(className) },
+    ]),
+  ) as Record<CharacterClass, ClassSkillTree>;
+}
+
+const CLASS_SKILL_TREE_DEFS: Record<CharacterClass, ClassSkillTreeDef> = {
   mage: {
     className: 'mage',
     description: 'Masters of elemental magic with high damage output but lower health',
@@ -126,6 +152,8 @@ export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = {
     },
   },
 };
+
+export const CLASS_SKILL_TREES: Record<CharacterClass, ClassSkillTree> = withGeneratedClassIcons(CLASS_SKILL_TREE_DEFS);
 
 export function canLearnSkill(
   skillId: SkillId,

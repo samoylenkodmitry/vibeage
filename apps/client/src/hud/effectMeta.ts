@@ -1,65 +1,29 @@
 import type { StatusEffect } from '../../../../packages/protocol/messages';
+import { EFFECT_SPECS, getEffectSpec } from '../../../../packages/content/effects';
 
 /**
  * Single source of player-facing status-effect copy + helpers, shared
  * by the effect tooltip, the status pills, and the Active Effects
  * panel so a label/description is written once.
  */
-export const EFFECT_LABEL: Record<string, string> = {
-  damage: 'Damage',
-  heal: 'Heal over time',
-  stun: 'Stun',
-  slow: 'Slow',
-  dot: 'Bleed',
-  burn: 'Burn',
-  poison: 'Poison',
-  waterWeakness: 'Water weakness',
-  freeze: 'Freeze',
-  shield: 'Shield',
-  bless: 'Bless',
-  dispel: 'Dispel',
-  taunt: 'Taunt',
-  knockback: 'Knockback',
-  evasion: 'Evasion',
-  invisible: 'Invisible',
-  invuln: 'Invulnerable',
-  speed_boost: 'Haste',
-  attackSpeed: 'Attack Speed',
-  reveal_loot: 'Treasure Sense',
-  transform: 'Transform',
-};
+export const EFFECT_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(EFFECT_SPECS).map(([type, spec]) => [type, spec.label]),
+);
 
-export const EFFECT_DESCRIPTION: Record<string, string> = {
-  damage: 'Inflicts a flat amount of damage on application.',
-  heal: 'Restores health.',
-  stun: 'Locks movement, casting, and attacks for the duration.',
-  slow: 'Reduces movement speed by the listed percentage.',
-  dot: 'Ticks damage every second over the duration.',
-  burn: 'Fire damage tick — fire-weak enemies take more.',
-  poison: 'Poison damage tick — ignores armor.',
-  waterWeakness: 'Target takes the listed % more damage from water attacks.',
-  freeze: 'Target is locked solid; cannot act.',
-  shield: 'Absorbs incoming damage up to the listed amount, then breaks.',
-  bless: 'Increases the caster’s outgoing damage by the listed percent.',
-  dispel: 'Strips a negative status effect (handled on apply, no duration).',
-  taunt: 'Forces the target enemy to attack the caster for the duration.',
-  knockback: 'Pushes the target back the listed distance.',
-  evasion: 'Increases dodge chance by the listed percent.',
-  invisible: 'Breaks enemy aggro and hides the player from their searches.',
-  invuln: 'Negates all incoming damage for the duration.',
-  speed_boost: 'Increases movement speed by the listed percent.',
-  attackSpeed: 'Increases attack speed — shorter auto-attack interval — by the listed percent.',
-  reveal_loot: 'Reveals nearby ground loot — item names show at a glance.',
-  transform: 'Converts the target into stone (or equivalent) for the duration.',
-};
+export const EFFECT_DESCRIPTION: Record<string, string> = Object.fromEntries(
+  Object.entries(EFFECT_SPECS).map(([type, spec]) => [type, spec.description]),
+);
 
 /**
  * Effects that help the bearer. Used to colour buffs vs debuffs and
- * to split the Active Effects panel. Mirrors the server's beneficial
- * set (impactResolver BENEFICIAL_EFFECT_TYPES) plus speed_boost / invuln.
+ * to split the Active Effects panel. Derived from the canonical specs;
+ * teleport is instant utility, but it still reads as positive in the UI.
  */
 const BENEFICIAL_EFFECTS: ReadonlySet<string> = new Set([
-  'heal', 'shield', 'bless', 'evasion', 'invisible', 'invuln', 'speed_boost', 'attackSpeed', 'reveal_loot', 'teleport',
+  ...Object.values(EFFECT_SPECS)
+    .filter((spec) => spec.category === 'buff' || spec.category === 'heal')
+    .map((spec) => spec.type),
+  'teleport',
 ]);
 
 export function isBeneficialEffect(type: string): boolean {
@@ -77,7 +41,11 @@ export function hasActiveEffect(
 }
 
 export function effectLabel(type: string): string {
-  return EFFECT_LABEL[type] ?? type;
+  return getEffectSpec(type)?.label ?? type;
+}
+
+export function effectIcon(type: string): string | null {
+  return getEffectSpec(type)?.icon ?? null;
 }
 
 /** True when the effect carries both a start time and a duration. */

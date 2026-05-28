@@ -117,7 +117,10 @@ function ItemLi({
   return (
     <li ref={ref} className={`wiki-row${isFocus ? ' wiki-row--focus' : ''}`}>
       <header>
-        <strong>{item.name}</strong>
+        <span className="wiki-row-heading">
+          <img className="wiki-row-icon" src={item.icon} alt="" aria-hidden="true" />
+          <strong>{item.name}</strong>
+        </span>
         <span className="wiki-row-tag">{item.kind ?? item.type}</span>
       </header>
       <p>{item.description}</p>

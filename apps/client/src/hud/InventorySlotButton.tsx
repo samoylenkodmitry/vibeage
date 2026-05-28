@@ -144,7 +144,7 @@ export function InventorySlotButton({
       }}
       {...(triggerProps ?? {})}
     >
-      <span>{slot ? itemName.trim().charAt(0).toUpperCase() : ''}</span>
+      {slot && item?.icon && <img className="inventory-slot-icon" src={item.icon} alt="" aria-hidden="true" />}
       {slot && slot.quantity > 1 && <strong>{slot.quantity}</strong>}
     </button>
   );

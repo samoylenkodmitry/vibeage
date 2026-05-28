@@ -31,7 +31,10 @@ export function ItemShortcutButton({
       disabled={disabled}
       aria-label={`Use ${itemName} (${count} in bag)`}
       aria-keyshortcuts={ariaHotkeys}
-      style={{ '--cooldown-progress': 0 } as CSSProperties}
+      style={{
+        '--cooldown-progress': 0,
+        '--skill-icon': item ? `url("${item.icon}")` : 'none',
+      } as CSSProperties}
       onClick={onUse}
       onContextMenu={(e) => { e.preventDefault(); onClear(); }}
       title={`${itemName} (${count}) — right-click to unbind`}

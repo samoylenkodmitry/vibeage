@@ -5,6 +5,7 @@ import { useTooltipTrigger } from './useTooltipTrigger';
 import { openWikiAt } from './wikiNavBus';
 import {
   effectLabel,
+  effectIcon,
   effectRemainingFraction,
   effectRemainingMs,
   isBeneficialEffect,
@@ -76,6 +77,7 @@ function EffectRow({
 }) {
   const remainingMs = effectRemainingMs(effect, now);
   const fraction = effectRemainingFraction(effect, now);
+  const icon = effectIcon(effect.type);
   return (
     <li className={`active-effect-row active-effect-row--${tone}`}>
       <button
@@ -85,6 +87,7 @@ function EffectRow({
         title="Open in Wiki"
         {...tooltip.triggerProps(effect)}
       >
+        {icon && <img className="active-effect-icon" src={icon} alt="" aria-hidden="true" />}
         <span className="active-effect-name">{effectLabel(effect.type)}</span>
         <span className="active-effect-value">{formatEffectValue(effect)}</span>
         {remainingMs !== null && (
