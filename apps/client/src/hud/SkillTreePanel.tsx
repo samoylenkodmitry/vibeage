@@ -20,11 +20,13 @@ import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
 import type { PlayerEntity } from '../gameTypes';
 import { capitalize, DEFAULT_CLASS_NAME } from './textUtils';
 import { useDraggablePanel } from './useDraggablePanel';
+import { SpecializationChooser } from './SpecializationChooser';
 
 type SkillTreePanelProps = {
   player: PlayerEntity | null;
   onLearnSkill: (skillId: SkillId) => void;
   onUpgradeSkill: (skillId: SkillId) => void;
+  onSelectSpecialization: (specializationId: string) => void;
   rejections?: Record<string, string>;
 };
 
@@ -55,7 +57,13 @@ const REJECTION_LABEL: Record<string, string> = {
   playerNotFound: "Session error — rejoin",
 };
 
-export function SkillTreePanel({ player, onLearnSkill, onUpgradeSkill, rejections }: SkillTreePanelProps) {
+export function SkillTreePanel({
+  player,
+  onLearnSkill,
+  onUpgradeSkill,
+  onSelectSpecialization,
+  rejections,
+}: SkillTreePanelProps) {
   const panelRef = useDraggablePanel<HTMLElement>('skill-tree');
   const rows = useMemo(() => buildSkillRows(player), [player]);
   const className = player?.className ?? DEFAULT_CLASS_NAME;
@@ -69,6 +77,7 @@ export function SkillTreePanel({ player, onLearnSkill, onUpgradeSkill, rejection
         <strong>{capitalize(className)} Skills</strong>
         <span>{skillPoints} SP</span>
       </div>
+      <SpecializationChooser player={player} onSelectSpecialization={onSelectSpecialization} />
       <ul className="skill-tree-list">
         {rows.map((row) => (
           <SkillRow
@@ -331,7 +340,7 @@ export function buildSkillRows(player: PlayerEntity | null): Row[] {
       if (!onThisSpec) {
         const needLevel = level < SPECIALIZATION_UNLOCK_LEVEL
           ? `Lv ${SPECIALIZATION_UNLOCK_LEVEL} then pick ${spec.name}`
-          : `pick ${spec.name} at the spec terminal`;
+          : `choose ${spec.name} above`;
         return { skillId, name: skill?.name ?? skillId, status: 'locked', detail: needLevel };
       }
       if (level < requiredLevel) {

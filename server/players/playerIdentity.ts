@@ -12,6 +12,7 @@ import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { log, LOG_CATEGORIES, warn } from '../logger.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { starterSkillsFor } from './playerProgression.js';
+import { onSpecializationChosenForQuests } from './playerQuests.js';
 
 const VALID_CLASSES: ReadonlySet<CharacterClass> = new Set(
   Object.keys(CLASS_SKILL_TREES) as CharacterClass[],
@@ -199,10 +200,14 @@ export function applySpecializationChange(
   // contribution is enough to surface the choice in the breakdown
   // popup; numeric tuning is content-only.
   recomputePlayerStats(player);
+  onSpecializationChosenForQuests(player, outbound);
   log(LOG_CATEGORIES.PLAYER, `Player ${player.id} spec -> ${spec.id}`);
   emitPlayerUpdated(outbound, {
     id: player.id,
     specializationId: spec.id,
+    stats: player.stats,
+    maxHealth: player.maxHealth,
+    maxMana: player.maxMana,
   });
   return true;
 }

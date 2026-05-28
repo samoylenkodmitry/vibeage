@@ -74,6 +74,7 @@ export default function App() {
         onDisconnect={client.disconnect}
         onCastSkill={client.castSkill}
         onLearnSkill={client.learnSkill}
+        onSelectSpecialization={client.selectSpecialization}
         onUseItem={client.useItem}
         onDropItem={client.dropItem}
         onDestroyItem={client.destroyItem}

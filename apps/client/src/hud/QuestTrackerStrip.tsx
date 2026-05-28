@@ -224,6 +224,7 @@ export function isObjectiveMet(
     case 'kill_boss':
     case 'reach':
     case 'talk':
+    case 'specialize':
       return progress >= 1;
     case 'manual':
       return true;
@@ -251,10 +252,11 @@ function describeObjective(
       const npc = QUEST_NPCS[objective.npcId];
       return progress >= 1 ? 'spoke — press Next' : `return to ${npc?.name ?? objective.npcId}`;
     }
+    case 'specialize':
+      return progress >= 1 ? 'specialization chosen — press Next' : 'choose a specialization in Skills';
     case 'manual':
       return 'press Next when ready';
     default:
       return '';
   }
 }
-

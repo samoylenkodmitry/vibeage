@@ -21,6 +21,7 @@ export function QuestsTab({ query, navigate }: { query: string; navigate: WikiNa
 
 function QuestRow({ quest, navigate }: { quest: QuestDef; navigate: WikiNav }) {
   const giver = QUEST_NPCS[quest.npcId];
+  const hasReward = Boolean(quest.reward.xp || quest.reward.gold || quest.reward.items?.length);
   type QuestTarget = { kind: 'boss' | 'mob'; id: string };
   const targets: QuestTarget[] = [];
   for (const s of quest.stages) {
@@ -61,23 +62,27 @@ function QuestRow({ quest, navigate }: { quest: QuestDef; navigate: WikiNav }) {
       )}
       <small className="wiki-row-footer">
         Reward:
-        {quest.reward.xp ? ` ${quest.reward.xp} XP` : ''}
-        {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
-        {quest.reward.items && quest.reward.items.length > 0 && (
+        {hasReward ? (
           <>
-            {' · '}
-            {quest.reward.items.map((it, i) => (
-              <span key={`${it.itemId}-${i}`}>
-                {i > 0 && ', '}
-                <button
-                  type="button"
-                  className="wiki-effect-chip"
-                  onClick={() => navigate('items', it.itemId)}
-                >{it.itemId}×{it.quantity ?? 1}</button>
-              </span>
-            ))}
+            {quest.reward.xp ? ` ${quest.reward.xp} XP` : ''}
+            {quest.reward.gold ? ` · ${quest.reward.gold} gold` : ''}
+            {quest.reward.items && quest.reward.items.length > 0 && (
+              <>
+                {' · '}
+                {quest.reward.items.map((it, i) => (
+                  <span key={`${it.itemId}-${i}`}>
+                    {i > 0 && ', '}
+                    <button
+                      type="button"
+                      className="wiki-effect-chip"
+                      onClick={() => navigate('items', it.itemId)}
+                    >{it.itemId}×{it.quantity ?? 1}</button>
+                  </span>
+                ))}
+              </>
+            )}
           </>
-        )}
+        ) : ' None'}
       </small>
     </li>
   );

@@ -13,6 +13,7 @@ import { QuestTrackerStrip } from './hud/QuestTrackerStrip';
 import { useDraggablePanel } from './hud/useDraggablePanel';
 import { ReturnToNpcHint } from './hud/ReturnToNpcHint';
 import { SkillUseHint } from './hud/SkillUseHint';
+import { SpecializationHint } from './hud/SpecializationHint';
 import { TargetingHint } from './hud/TargetingHint';
 import { ZoneBanner } from './hud/ZoneBanner';
 import { usePersistedToggle } from './hud/usePersistedToggle';
@@ -41,6 +42,7 @@ type GameHudProps = {
   onDisconnect: () => void;
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
+  onSelectSpecialization: (specializationId: string) => void;
   onUseItem: (slotIndex: number) => void;
   /** §46/slice-new — drop an inventory stack to ground loot. */
   onDropItem: (slotIndex: number, count?: number) => void;
@@ -103,7 +105,7 @@ function buildBuiltinBarActions(
 export function GameHud(props: GameHudProps) {
   const {
     state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onDisconnect,
-    onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onMoveItem, onCraftItem, onEquipItem, onUnequipItem,
+    onCastSkill, onLearnSkill, onSelectSpecialization, onUseItem, onDropItem, onDestroyItem, onMoveItem, onCraftItem, onEquipItem, onUnequipItem,
     onUpgradeSkill, onTalkNpc, onAcceptQuest, onCancelQuest, onAdvanceQuest,
     onClaimQuestReward, onSetTrackedQuest, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
     onSelectTarget, onCycleTarget, onPickupNearest, onMove, onSendChat,
@@ -155,6 +157,7 @@ export function GameHud(props: GameHudProps) {
         onSetNavigationMarker={onSetNavigationMarker}
         onCastSkill={onCastSkill}
         onLearnSkill={onLearnSkill}
+        onSelectSpecialization={onSelectSpecialization}
         onUseItem={onUseItem} onDropItem={onDropItem} onDestroyItem={onDestroyItem} onMoveItem={onMoveItem} onCraftItem={onCraftItem}
         onEquipItem={onEquipItem}
         onUnequipItem={onUnequipItem}
@@ -173,7 +176,7 @@ export function GameHud(props: GameHudProps) {
       <WelcomeOverlay player={player} /><ZoneBanner player={player} />
       <TargetingHint state={state} />
       <ReturnToNpcHint state={state} />
-      <SkillUseHint state={state} />
+      <SkillUseHint state={state} /><SpecializationHint player={player} onOpenSkills={panels.openTree} />
       <LootPickupHint state={state} />
       <NpcInteraction
         player={player}
@@ -372,7 +375,7 @@ function usePanelState() {
   const [bagOpen, , toggleBag] = usePersistedToggle('bag', false);
   const [gearOpen, , toggleGear] = usePersistedToggle('gear', false);
   const [mapOpen, , toggleMap] = usePersistedToggle('map', false);
-  const [treeOpen, , toggleTree] = usePersistedToggle('tree', false);
+  const [treeOpen, setTreeOpen, toggleTree] = usePersistedToggle('tree', false);
   // Actions defaults open: it's the home of the new Attack + Pickup
   // buttons so players see them immediately on join.
   const [actionsOpen, , toggleActions] = usePersistedToggle('actions', true);
@@ -400,6 +403,7 @@ function usePanelState() {
     toggleGear,
     toggleMap,
     toggleTree,
+    openTree: () => setTreeOpen(true),
     toggleActions,
     toggleWiki,
     openWiki: () => setWikiOpen(true),

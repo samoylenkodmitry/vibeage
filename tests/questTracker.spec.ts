@@ -104,11 +104,13 @@ describe('QuestTrackerStrip.isObjectiveMet', () => {
     expect(isObjectiveMet({ kind: 'kill', enemyType: 'goblin', count: 3 }, 3)).toBe(true);
     expect(isObjectiveMet({ kind: 'kill', enemyType: 'goblin', count: 3 }, 2)).toBe(false);
   });
-  it('returns true for kill_boss / reach / talk when progress >= 1', () => {
+  it('returns true for one-step objectives when progress >= 1', () => {
     expect(isObjectiveMet({ kind: 'kill_boss', bossId: 'skadrun' }, 1)).toBe(true);
     expect(isObjectiveMet({ kind: 'kill_boss', bossId: 'skadrun' }, 0)).toBe(false);
     expect(isObjectiveMet({ kind: 'reach', position: { x: 0, y: 0, z: 0 }, radius: 4 }, 1)).toBe(true);
     expect(isObjectiveMet({ kind: 'talk', npcId: 'warden_galen' }, 1)).toBe(true);
+    expect(isObjectiveMet({ kind: 'specialize' }, 1)).toBe(true);
+    expect(isObjectiveMet({ kind: 'specialize' }, 0)).toBe(false);
   });
   it('returns true for manual objectives unconditionally', () => {
     expect(isObjectiveMet({ kind: 'manual', description: 'whenever' }, 0)).toBe(true);

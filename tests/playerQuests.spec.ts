@@ -7,6 +7,7 @@ import {
   applyCancelQuest,
   applyClaimQuestReward,
   onEnemyKilledForQuests,
+  onSpecializationChosenForQuests,
   onTalkedToNpcForQuests,
 } from '../server/players/playerQuests';
 import { createTransientPlayer } from '../server/playerFactory';
@@ -133,7 +134,45 @@ describe('quest flow: kill -> talk -> claim', () => {
     expect(applyCancelQuest(player, 'rats_in_the_cellar', sink)).toBe(true);
     expect(player.questState!.active['rats_in_the_cellar']).toBeUndefined();
   });
+});
 
+describe('specialization guide quest', () => {
+  it('tracks the level 20 specialization guide only after a spec is chosen', () => {
+    const player = freshPlayerAt('captain_vorr');
+    player.className = 'mage';
+    player.specializationId = null;
+    const { sink } = captureOutbound();
+
+    expect(applyAcceptQuest(player, 'choose_your_path', sink, Date.now())).toBe(true);
+    const entry = () => player.questState!.active.choose_your_path;
+    expect(entry().stageIndex).toBe(0);
+    expect(entry().progress).toBe(0);
+    expect(applyAdvanceQuest(player, 'choose_your_path', sink)).toBe(false);
+
+    player.specializationId = 'arcanist';
+    onSpecializationChosenForQuests(player, sink);
+    expect(entry().progress).toBe(1);
+    expect(applyAdvanceQuest(player, 'choose_your_path', sink)).toBe(true);
+    expect(entry().stageIndex).toBe(1);
+
+    onTalkedToNpcForQuests(player, 'captain_vorr', sink);
+    expect(applyAdvanceQuest(player, 'choose_your_path', sink)).toBe(true);
+    expect(entry().readyToClaim).toBe(true);
+    expect(applyClaimQuestReward(player, 'choose_your_path', sink, Date.now())).toBe(true);
+    expect(player.questState!.completed).toContain('choose_your_path');
+  });
+
+  it('starts the specialization guide as complete if the player already has a spec', () => {
+    const player = freshPlayerAt('captain_vorr');
+    player.specializationId = 'arcanist';
+    const { sink } = captureOutbound();
+
+    expect(applyAcceptQuest(player, 'choose_your_path', sink, Date.now())).toBe(true);
+    expect(player.questState!.active.choose_your_path.progress).toBe(1);
+  });
+});
+
+describe('quest flow guardrails', () => {
   it('advance is a no-op when the objective is not yet met', () => {
     const player = freshPlayerAt('warden_galen');
     const { sink } = captureOutbound();

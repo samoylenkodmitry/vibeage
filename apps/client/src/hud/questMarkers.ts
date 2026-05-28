@@ -18,6 +18,7 @@ import type { PlayerEntity } from '../gameTypes';
  *  - talk → that NPC's position
  *  - kill_boss → the boss's spawn coord (PR V)
  *  - kill → the first zone the mob spawns in (zone center)
+ *  - specialize → no marker; the Skills panel is the destination
  *  - manual / fallback → the quest giver
  *
  * §52 playtest follow-up — when a quest is `readyToClaim`, the
@@ -52,6 +53,7 @@ export function resolveStageMarker(
     const zones = getMobZones(obj.enemyType);
     if (zones.length > 0) return { x: zones[0].position.x, z: zones[0].position.z };
   }
+  if (obj.kind === 'specialize') return null;
   return giverPos ? { x: giverPos.x, z: giverPos.z } : null;
 }
 

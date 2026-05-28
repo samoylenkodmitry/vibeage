@@ -1,4 +1,5 @@
 import { ITEMS } from './items.js';
+import { SPECIALIZATION_UNLOCK_LEVEL } from './specializations.js';
 
 export type QuestVec3 = { x: number; y: number; z: number };
 
@@ -28,6 +29,7 @@ type QuestStageObjective =
   | { kind: 'kill_boss'; bossId: string }
   | { kind: 'reach'; position: QuestVec3; radius: number }
   | { kind: 'talk'; npcId: string }
+  | { kind: 'specialize' }
   | { kind: 'manual'; description: string };
 
 interface QuestStage {
@@ -224,6 +226,26 @@ export const QUESTS: Record<QuestId, QuestDef> = {
       },
     ],
     reward: { xp: 2400, gold: 800, items: [{ itemId: 'vorthax_ember_scale', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 5 }] },
+  },
+  choose_your_path: {
+    id: 'choose_your_path',
+    name: 'Choose Your Path',
+    description: 'Captain Vorr points level 20 adventurers toward the specialization choice that unlocks their next branch of skills.',
+    npcId: 'captain_vorr',
+    minLevel: SPECIALIZATION_UNLOCK_LEVEL,
+    stages: [
+      {
+        id: 'pick_specialization',
+        description: 'Open Skills and choose one specialization for your class.',
+        objective: { kind: 'specialize' },
+      },
+      {
+        id: 'report_choice',
+        description: 'Return to Captain Vorr after choosing your path.',
+        objective: { kind: 'talk', npcId: 'captain_vorr' },
+      },
+    ],
+    reward: {},
   },
   bounty_mistwalker: {
     id: 'bounty_mistwalker',

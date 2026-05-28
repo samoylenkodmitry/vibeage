@@ -40,6 +40,7 @@ export type HudPanelsProps = {
   onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
+  onSelectSpecialization: (specializationId: string) => void;
   onUseItem: (slotIndex: number) => void;
   /** §46/slice-new — drop a bag slot to ground loot. */
   onDropItem: (slotIndex: number, count?: number) => void;
@@ -76,7 +77,7 @@ export type HudPanelsProps = {
 export function HudPanels({
   panels, state, player, hasSelectedTarget, hasLootNearby,
   cameraAngleRef, navigationMarker, onSetNavigationMarker,
-  onCastSkill, onLearnSkill, onUseItem, onDropItem, onDestroyItem, onMoveItem,
+  onCastSkill, onLearnSkill, onSelectSpecialization, onUseItem, onDropItem, onDestroyItem, onMoveItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
   onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, selectedPlayerTargetId, onGmCommand,
   onPickupNearest, onMove, onSendChat, onBindItem,
@@ -135,6 +136,7 @@ export function HudPanels({
           player={player}
           onLearnSkill={onLearnSkill}
           onUpgradeSkill={onUpgradeSkill}
+          onSelectSpecialization={onSelectSpecialization}
           rejections={state.learnSkillRejections}
         />
       )}
