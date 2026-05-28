@@ -360,14 +360,19 @@ function SkillButton({
     >
       <span className="skill-button__hotkey">{hotkey}</span>
       <strong className="skill-button__name">{skill?.name ?? 'Empty'}</strong>
-      <small className="skill-button__footer">{formatSkillFooter(skill?.manaCost, remainingMs)}</small>
+      {/* While a target is needed the corner MP chip is suppressed and a
+          full-width "target" ribbon takes the bottom edge, so the two
+          never collide on a narrow tile. */}
+      {!needsTarget && (
+        <small className="skill-button__footer">{formatSkillFooter(skill?.manaCost, remainingMs)}</small>
+      )}
       {remainingMs > 0 && (
         <span className="skill-button__cooldown" aria-hidden="true">
           {formatCooldown(remainingMs)}
         </span>
       )}
       {needsTarget && skill && (
-        <span className="skill-button__hint" aria-hidden="true">Pick target</span>
+        <span className="skill-button__hint" aria-hidden="true">◎ target</span>
       )}
       {readyPulseKey > 0 && (
         <span
