@@ -4621,10 +4621,60 @@ button.character-option {
   100% { transform: scale(1.6); opacity: 0; }
 }
 
-/* Grade-tinted border on inventory slots so rare drops pop. */
+/* Rarity ladder — each grade reads stronger than the last, so an S
+   drop in the bag visibly screams. Border colour comes from the per-
+   item `--slot-grade-color` CSS variable (set on the slot's inline
+   style by InventorySlotButton). Inset shadow gives the slot an inner
+   halo at higher grades; the outer glow grows with rank. */
 .inventory-slot[style*="--slot-grade-color"] {
   border-color: var(--slot-grade-color);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--slot-grade-color) 45%, transparent);
+}
+
+.inventory-slot--grade-d {
+  box-shadow: 0 0 5px color-mix(in srgb, var(--slot-grade-color) 35%, transparent);
+}
+
+.inventory-slot--grade-c {
+  border-width: 1.5px;
+  box-shadow:
+    0 0 9px color-mix(in srgb, var(--slot-grade-color) 48%, transparent),
+    inset 0 0 7px color-mix(in srgb, var(--slot-grade-color) 18%, transparent);
+}
+
+.inventory-slot--grade-b {
+  border-width: 1.5px;
+  box-shadow:
+    0 0 13px color-mix(in srgb, var(--slot-grade-color) 58%, transparent),
+    inset 0 0 9px color-mix(in srgb, var(--slot-grade-color) 24%, transparent);
+}
+
+.inventory-slot--grade-a {
+  border-width: 2px;
+  box-shadow:
+    0 0 17px color-mix(in srgb, var(--slot-grade-color) 68%, transparent),
+    inset 0 0 11px color-mix(in srgb, var(--slot-grade-color) 30%, transparent);
+}
+
+.inventory-slot--grade-s {
+  border-width: 2px;
+  animation: legendary-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 22px color-mix(in srgb, var(--slot-grade-color) 80%, transparent),
+      inset 0 0 14px color-mix(in srgb, var(--slot-grade-color) 38%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 30px color-mix(in srgb, var(--slot-grade-color) 95%, transparent),
+      inset 0 0 18px color-mix(in srgb, var(--slot-grade-color) 52%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-slot--grade-s { animation: none; box-shadow: 0 0 22px color-mix(in srgb, var(--slot-grade-color) 80%, transparent), inset 0 0 14px color-mix(in srgb, var(--slot-grade-color) 38%, transparent); }
 }
 
 /* SFX controls — mute toggle + volume slider, top-right */
@@ -4762,4 +4812,29 @@ button.character-option {
   background-position: center;
   opacity: 0.42;
   pointer-events: none;
+}
+
+/* Equipped gear in the paperdoll wears the same rarity colours as the
+   bag, but settled (no animation): an inset stripe on the row's left
+   edge tints the slot, the item name takes the grade colour from C up,
+   and the icon picks up a soft glow. */
+.paperdoll-row[style*="--slot-grade-color"] {
+  box-shadow: inset 3px 0 0 var(--slot-grade-color);
+}
+.paperdoll-row--grade-c .paperdoll-slot-item span,
+.paperdoll-row--grade-b .paperdoll-slot-item span,
+.paperdoll-row--grade-a .paperdoll-slot-item span,
+.paperdoll-row--grade-s .paperdoll-slot-item span {
+  color: var(--slot-grade-color);
+}
+.paperdoll-row--grade-c .paperdoll-slot-icon,
+.paperdoll-row--grade-b .paperdoll-slot-icon,
+.paperdoll-row--grade-a .paperdoll-slot-icon,
+.paperdoll-row--grade-s .paperdoll-slot-icon {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--slot-grade-color) 55%, transparent);
+}
+.paperdoll-row--grade-s {
+  box-shadow:
+    inset 3px 0 0 var(--slot-grade-color),
+    0 0 10px color-mix(in srgb, var(--slot-grade-color) 35%, transparent);
 }
