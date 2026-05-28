@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULT_CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+DEFAULT_CODEX_HOME="${CODEX_HOME:-${HOME:-}/.codex}"
 VIBEAGE_SKILL_PATH="${CODEX_IMAGEGEN_VIBEAGE_SKILL_PATH:-$DEFAULT_CODEX_HOME/skills/generate-vibeage-icons}"
 SANDBOX="${CODEX_IMAGEGEN_SANDBOX:-workspace-write}"
 APPROVAL="${CODEX_IMAGEGEN_APPROVAL:-never}"
