@@ -9,7 +9,7 @@
  *
  * Trace fields mirror the multiplier chain in `calculateDamage`:
  * base × variance × dmgMult × upgradeDmgMult × elementVuln ×
- * casterElement × partyAura. The `final` field is what
+ * casterElement × partyAura × reactionDmg. The `final` field is what
  * `calculateDamage` returns; `expectedFinal` is the trace's own
  * recomputation as a sanity check (tests pin them equal).
  */
@@ -33,6 +33,8 @@ export interface CombatTrace {
   casterElementMult: number;
   /** Party damage aura multiplier (Theurge Patron Saint, etc.). */
   partyAuraMult: number;
+  /** Conditional skill-reaction multiplier (burn detonation, stealth opener, etc.). */
+  reactionDmgMult: number;
   /** True when this hit rolled a critical strike. */
   isCrit: boolean;
   /** Caster's crit multiplier (typically 2.0); applied only when `isCrit`. */
@@ -56,6 +58,7 @@ export function expectedTraceFinal(trace: Omit<CombatTrace, 'final'>): number {
     * trace.elementVulnMult
     * trace.casterElementMult
     * trace.partyAuraMult
+    * trace.reactionDmgMult
   );
 }
 

@@ -1,4 +1,5 @@
 import type { SkillOffense } from '../../../../packages/content/skillTags';
+import type { SkillReaction } from '../../../../packages/content/skillReactions';
 
 /**
  * Human-readable lines for a skill's offensive modifiers (roadmap
@@ -25,4 +26,8 @@ export function describeOffense(offense: SkillOffense | undefined): string[] {
     out.push(`Ignores ${Math.round(offense.armorPen)} of the target's defense`);
   }
   return out;
+}
+
+export function describeReactions(reactions: readonly SkillReaction[] | undefined): string[] {
+  return reactions?.map((reaction) => reaction.description) ?? [];
 }

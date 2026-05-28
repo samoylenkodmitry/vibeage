@@ -8,7 +8,7 @@ import { SKILLS, classifySkill, isPassiveSkill, type SkillDef, type SkillId } fr
 import { PASSIVE_SKILL_CONTRIBUTIONS } from '../../../../packages/content/classPassives';
 import { STATS } from '../../../../packages/content/stats';
 import type { Contribution } from '../../../../packages/sim/statContributions';
-import { describeOffense } from './skillMechanics';
+import { describeOffense, describeReactions } from './skillMechanics';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
 import {
@@ -222,6 +222,9 @@ function SkillDetail({ skill, skillLevel, player }: { skill: SkillDef; skillLeve
         <Stat label="Cooldown" value={effective.cooldownMs > 0 ? `${(effective.cooldownMs / 1000).toFixed(1)}s` : '-'} />
       </dl>
       {describeOffense(skill.offense).map((line) => (
+        <p key={line} className="skill-tree-offense">{line}</p>
+      ))}
+      {describeReactions(skill.reactions).map((line) => (
         <p key={line} className="skill-tree-offense">{line}</p>
       ))}
       {skill.upgrades?.length ? (

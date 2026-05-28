@@ -84,6 +84,7 @@ export interface SkillEffect {
   value: number; // damage amount, stun duration, slow percentage, etc.
   durationMs?: number;
   dispelCategory?: DispelCategory; // §52 #10 — only when type==='dispel'.
+  healPerRemoved?: number; // §SKILL-REACTIONS — only when type==='dispel'.
 }
 
 /** Damage flavour; drives client UX + mitigation kind. 'utility' = no damage. */
@@ -105,6 +106,7 @@ import type {
   SkillOffense,
 } from './skillTags.js';
 import type { AbilityShape, AbilityAffects, AbilityTelegraph, SummonSpec, BlinkSpec } from './abilitySchema.js';
+import { SKILL_REACTIONS, type SkillReaction } from './skillReactions.js';
 export type {
   SkillRole,
   SkillSchool,
@@ -173,6 +175,7 @@ export interface SkillDef {
   blink?: BlinkSpec;             // caster teleports behind target on resolution
   customBehavior?: string;       // CUSTOM_SKILL_BEHAVIORS resolver (escape hatch)
   damageMult?: number;           // flat multiplier on the damage base (e.g. 2.4×)
+  reactions?: SkillReaction[];   // conditional combo hooks driven by live status effects
 }
 
 /**
@@ -257,7 +260,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   fireball: {
     id: 'fireball',
     name: 'Fireball',
-    description: 'Launches a ball of fire that deals damage and applies a burn effect',
+    description: 'Launches a ball of fire that burns the target. Existing Burn detonates for extra burst before a new Burn is applied.',
     icon: '/game/skills/skill_fireball.png',
     cat: 'projectile',
     kind: 'magical',
@@ -269,10 +272,8 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     range: 1800,
     speed: 22,
     levelRequired: 1,
-    effects: [
-      { type: 'damage', value: 150 },
-      { type: 'burn', value: 1, durationMs: 5000 } // 5 seconds
-    ],
+    effects: [{ type: 'damage', value: 150 }, { type: 'burn', value: 1, durationMs: 5000 }],
+    reactions: SKILL_REACTIONS.fireball,
     projectile: {
       speed: 22,
       pierce: false,
@@ -287,7 +288,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   iceBolt: {
     id: 'iceBolt',
     name: 'Ice Bolt',
-    description: 'Fires a bolt of ice that poisons enemies and slows their movement',
+    description: 'Fires a bolt of ice that poisons and slows. Water-vulnerable targets are flash-frozen.',
     icon: '/game/skills/skill_icebolt.png',
     cat: 'projectile',
     kind: 'magical',
@@ -300,9 +301,10 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 3,
     effects: [
       { type: 'damage', value: 30 },
-      { type: 'poison', value: 3, durationMs: 10000 }, // D18 — flat 3 dmg/tick (DoT ticks are flat; 0.5 was a no-op)
-      { type: 'slow', value: 50, durationMs: 10000 } // Slows enemy by 50% for 10 seconds
+      { type: 'poison', value: 3, durationMs: 10000 },
+      { type: 'slow', value: 50, durationMs: 10000 },
     ],
+    reactions: SKILL_REACTIONS.iceBolt,
     projectile: {
       speed: 26,
       pierce: true,
@@ -328,10 +330,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     speed: 20,
     area: 3,
     levelRequired: 2,
-    effects: [
-      { type: 'damage', value: 20 },
-      { type: 'waterWeakness', value: 30, durationMs: 5000 } // Makes enemy take 30% more damage from water attacks
-    ],
+    effects: [{ type: 'damage', value: 20 }, { type: 'waterWeakness', value: 30, durationMs: 5000 }],
     projectile: {
       speed: 20,
       pierce: false,
@@ -436,7 +435,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   bash: {
     id: 'bash',
     name: 'Bash',
-    description: 'Slam the target with your shield, stunning them briefly',
+    description: 'Slam the target with your shield, stunning them briefly. Bleeding targets are cracked harder.',
     icon: '/game/skills/skill_melee.svg',
     cat: 'instant',
     kind: 'physical',
@@ -451,6 +450,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
       { type: 'damage', value: 90 },
       { type: 'stun', value: 1, durationMs: 1500 },
     ],
+    reactions: SKILL_REACTIONS.bash,
   },
   holyLight: {
     id: 'holyLight',
@@ -490,7 +490,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   dispel: {
     id: 'dispel',
     name: 'Dispel',
-    description: 'Remove negative status effects from yourself',
+    description: 'Remove negative status effects from yourself and recover health for each effect stripped.',
     icon: '/game/skills/skill_holy.svg',
     cat: 'instant',
     kind: 'utility',
@@ -498,14 +498,12 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     castMs: 600,
     cooldownMs: 25000,
     levelRequired: 6,
-    effects: [
-      { type: 'dispel', value: 1 },
-    ],
+    effects: [{ type: 'dispel', value: 1, healPerRemoved: 60 }],
   },
   smite: {
     id: 'smite',
     name: 'Smite',
-    description: 'Hammer of holy energy that damages and briefly stuns the target',
+    description: 'Hammer of holy energy that damages and briefly stuns the target. Taunted enemies take a punishing judgment.',
     icon: '/game/skills/skill_holy.svg',
     cat: 'instant',
     kind: 'magical',
@@ -521,6 +519,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
       { type: 'damage', value: 140 },
       { type: 'stun', value: 1, durationMs: 1000 },
     ],
+    reactions: SKILL_REACTIONS.smite,
   },
   divineShield: {
     id: 'divineShield',
@@ -541,7 +540,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   arrowShot: {
     id: 'arrowShot',
     name: 'Arrow Shot',
-    description: 'A swift arrow with a wide impact that pierces lightly armored foes',
+    description: 'A swift arrow with a wide impact. Slowed targets are easier to line up and take extra damage.',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'projectile',
     kind: 'physical',
@@ -560,9 +559,8 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     autoRepeat: true,
     levelRequired: 1,
     requiresTarget: true,
-    effects: [
-      { type: 'damage', value: 60 },
-    ],
+    effects: [{ type: 'damage', value: 60 }],
+    reactions: SKILL_REACTIONS.arrowShot,
     projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
     upgrades: [
       { level: 2, description: '+20% damage', modifiers: { dmgMultiplier: 1.2 } },
@@ -625,7 +623,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   backstab: {
     id: 'backstab',
     name: 'Backstab',
-    description: 'A deadly strike from behind for massive damage',
+    description: 'A deadly strike from behind. Stealth turns it into an opener, and poison can be cashed out for burst.',
     icon: '/game/skills/skill_stealth.svg',
     cat: 'instant',
     kind: 'physical',
@@ -636,9 +634,8 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     range: 3,
     levelRequired: 3,
     requiresTarget: true,
-    effects: [
-      { type: 'damage', value: 320 },
-    ],
+    effects: [{ type: 'damage', value: 320 }],
+    reactions: SKILL_REACTIONS.backstab,
   },
   poisonBlade: {
     id: 'poisonBlade',

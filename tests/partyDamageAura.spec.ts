@@ -83,6 +83,7 @@ describe('Theurge Patron Saint — +5% party damage aura', () => {
     const baseDmg = damageFromLog(eBase);
 
     target.health = target.maxHealth;
+    target.statusEffects = [];
     const eAura: OutboundEvent[] = [];
     resolveCastImpact(fireball(teammate, target), { publish: (e) => eAura.push(e) }, worldOf([teammate, theurge], target), 1_000);
     const auraDmg = damageFromLog(eAura);
@@ -99,6 +100,7 @@ describe('Theurge Patron Saint — +5% party damage aura', () => {
     const e: OutboundEvent[] = [];
     resolveCastImpact(fireball(teammate, target), { publish: (e0) => e.push(e0) }, worldOf([teammate, farTheurge], target), 1_000);
     target.health = target.maxHealth;
+    target.statusEffects = [];
     const eBase: OutboundEvent[] = [];
     resolveCastImpact(fireball(teammate, target), { publish: (e0) => eBase.push(e0) }, worldOf([teammate], target), 1_000);
 

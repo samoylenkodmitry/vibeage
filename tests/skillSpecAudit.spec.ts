@@ -148,7 +148,13 @@ function registerSkillCatalogAuditTests() {
     const skillsWithUnimplementedEffects: string[] = [];
     for (const [id, skill] of Object.entries(SKILLS)) {
       if (id.startsWith(PASSIVE_PREFIX)) continue;
-      for (const effect of skill.effects) {
+      for (const effect of [
+        ...skill.effects,
+        ...(skill.reactions ?? []).flatMap((reaction) => [
+          ...(reaction.effects ?? []),
+          ...(reaction.casterEffects ?? []),
+        ]),
+      ]) {
         if (!IMPLEMENTED_EFFECT_TYPES.has(effect.type) && !UNIMPLEMENTED_EFFECT_TYPES.has(effect.type)) {
           skillsWithUnimplementedEffects.push(`${id} → ${effect.type}`);
         }

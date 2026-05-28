@@ -11,6 +11,12 @@ import { getDamage } from '../../packages/sim/combatMath.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { getSkillLevel, getSkillUpgradeModifiers, scaleSkillEffectForUpgrade } from '../../packages/sim/skillUpgrades.js';
 import {
+  applyPreparedSkillReactions,
+  prepareSkillReactions,
+  reactionDamageMultiplier,
+  type PreparedSkillReaction,
+} from './skillReactions.js';
+import {
   emitEnemyUpdated,
   emitPlayerUpdated,
   emitServerMessage,
@@ -81,8 +87,9 @@ export function applyProjectileHit(
   const playerCaster = asPlayerCaster(caster);
   const upgradeMods = getSkillUpgradeModifiers(skill.id, getSkillLevel(playerCaster?.skillLevels, skill.id));
   const context: ImpactContext = { caster, skill, upgradeMods, outbound, world };
-  const result = calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now });
-  const heal = applyCastToTarget(target, result.damage, context, result.miss, now);
+  const reactions = prepareSkillReactions(skill, target, caster, now);
+  const result = calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now }, reactions);
+  const heal = applyCastToTarget(target, result.damage, context, result.miss, reactions, now);
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: [target.id], damages: [result.damage], crits: [result.crit], misses: [result.miss],
@@ -115,9 +122,10 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   // §45.3 — Bless's damage multiplier is folded into `caster.stats.dmgMult`
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
-  const results = targets.map((target) => calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now }));
+  const reactions = targets.map((target) => prepareSkillReactions(skill, target, caster, now));
+  const results = targets.map((target, i) => calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now }, reactions[i]));
 
-  const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss, now));
+  const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss, reactions[i], now));
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
     targets: targets.map((target) => target.id),
@@ -192,6 +200,7 @@ function calculateDamage(
   caster: PlayerState | Enemy | null | undefined,
   upgradeDmgMult: number,
   ctx: DamageContext,
+  reactions: readonly PreparedSkillReaction[] = [],
 ): { damage: number; crit: boolean; miss: boolean } {
   // `weaponScaled` skills (mob strikes) take their base from the caster's
   // attackPower characteristic; everything else uses the static `dmg`.
@@ -228,9 +237,10 @@ function calculateDamage(
   const elementVulnMult = elementVulnerabilityMultiplier(skill, target, now);
   const casterElementMult = casterDamageElementMultiplier(skill, playerCaster);
   const partyAuraMult = partyDamageAuraMultFor(playerCaster, world);
+  const reactionDmgMult = reactionDamageMultiplier(reactions);
   // B9 — Execute scales up as the target's HP drops.
   const executeMult = executeMultiplier(off?.executeBonus, target);
-  const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult * executeMult;
+  const final = result.dmg * elementVulnMult * casterElementMult * partyAuraMult * executeMult * reactionDmgMult;
   // §49/M4 PR016 — combat trace. crit factored out of varianceRoll.
   if (isCombatTraceEnabled()) {
     const critMult = (baseStats.critMult ?? 2) + (off?.bonusCritMult ?? 0);
@@ -239,7 +249,7 @@ function calculateDamage(
       skillId: skill.id, casterId: caster?.id ?? null, targetId: targetId ?? null,
       baseDamage: base, varianceRoll: expanded > 0 ? result.dmg / expanded : 1,
       casterDmgMult, upgradeDmgMult, isCrit: result.crit, critMult,
-      elementVulnMult, casterElementMult, partyAuraMult, final,
+      elementVulnMult, casterElementMult, partyAuraMult, reactionDmgMult, final,
     });
   }
   return { damage: final, crit: result.crit, miss: false };
@@ -396,6 +406,7 @@ function applyCastToTarget(
   damage: number,
   context: ImpactContext,
   miss: boolean,
+  reactions: readonly PreparedSkillReaction[],
   now: number,
 ): number {
   const { caster, skill, outbound, world } = context;
@@ -434,7 +445,11 @@ function applyCastToTarget(
     target.aiState = 'chasing';
   }
 
-  const healApplied = applySkillEffects(target, skill, context.upgradeMods, playerCaster, world, now);
+  const applyReactionEffects = (reactionTarget: Enemy | PlayerState, effects: readonly SkillEffect[]) => (
+    applySkillEffects(reactionTarget, { ...skill, effects: [...effects] }, context.upgradeMods, playerCaster, world, now)
+  );
+  const reactionHealApplied = applyPreparedSkillReactions({ target, caster, reactions, outbound, applyEffects: applyReactionEffects });
+  const healApplied = reactionHealApplied + applySkillEffects(target, skill, context.upgradeMods, playerCaster, world, now);
   if (target.health <= 0 && target.isAlive && caster) {
     target.deathTimeTs = now;
     world.onTargetDied(caster, target, now);
@@ -486,24 +501,18 @@ function applySkillEffects(
       const stripSet = dispelTargetSet(effect.dispelCategory ?? 'negative');
       const before = target.statusEffects.length;
       target.statusEffects = target.statusEffects.filter((existing) => !stripSet.has(existing.type));
-      if (!isEnemy(target) && target.statusEffects.length !== before) recomputePlayerStats(target);
+      const removed = before - target.statusEffects.length;
+      if (!isEnemy(target) && removed > 0) recomputePlayerStats(target);
+      if (effect.healPerRemoved && removed > 0) {
+        healApplied += applyHealEffect(target, { ...effect, type: 'heal', value: effect.healPerRemoved * removed }, caster);
+      }
       continue;
     }
     if (effect.type === 'aggroReset') {
-      // PR KK — Vanish & friends. Scan a generous radius around the
-      // target (= caster for selfTarget casts) and drop any enemy
-      // that was chasing them. AGGRO_RESET_RADIUS easily covers a
-      // mob's aggro range (default 15m) so we don't miss chasers
-      // that haven't finished closing yet.
       applyAggroResetAround(target, world);
       continue;
     }
     if (effect.type === 'teleport') {
-      // Engine-driven recall: any beneficial-only self-cast skill
-      // with a 'teleport' effect routes the target (= caster) to the
-      // nearest village that matches their level. No per-name check
-      // — adding another recall skill is content-only. Same dirty-
-      // snap pattern as devTeleport so the next PosSnap broadcasts.
       if (!isEnemy(target)) {
         const village = getNearestVillage(target.position, target.level);
         target.position = { ...village.position };
@@ -518,18 +527,10 @@ function applySkillEffects(
       continue;
     }
     if (effect.type === 'knockback') {
-      // §45.4 — physical push along the caster→target vector. Bash /
-      // powerStrike emit knockback with value = displacement in
-      // world units. No-op for self-targets (vector is zero) and for
-      // immovable bosses; otherwise the target snaps back and the
-      // dirty-snap flag broadcasts the new position on the next tick.
       applyKnockback(target, caster, effect.value, now);
       continue;
     }
     upsertStatusEffect(target, effect, skill.id, caster, now);
-    // Taunt: force the enemy to focus the caster for the duration of
-    // the effect. Damage-based aggro (above) is suppressed while
-    // isEntityTaunted is true, so the caster keeps the lock.
     if (effect.type === 'taunt' && isEnemy(target) && caster) {
       target.targetId = caster.id;
       target.aiState = 'chasing';
@@ -552,8 +553,6 @@ function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null,
     y: target.position.y,
     z: target.position.z + nz * distance,
   };
-  // Cancel any in-flight movement so the AI doesn't try to walk back
-  // through the displacement vector on the same tick.
   target.velocity = { x: 0, z: 0 };
   if (!isEnemy(target)) {
     target.movement = {
@@ -579,9 +578,6 @@ export function isEntityTaunted(entity: Enemy | PlayerState, now: number): boole
 }
 
 function applyHealEffect(target: Enemy | PlayerState, effect: SkillEffect, caster: PlayerState | null): number {
-  // §45.3 — caster healMult (Cardinal etc) amplifies the skill value.
-  // §52 #6 — return the applied delta (post-maxHealth cap) so the
-  // CombatLog emit site can ship heals[] for client rendering.
   const amount = effect.value * (caster?.stats?.healMult ?? 1);
   const before = target.health;
   target.health = Math.min(target.maxHealth, target.health + amount);
