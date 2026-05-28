@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ZoneManager } from '../../../../packages/content/zones';
+import { zoneIconPath } from '../../../../packages/content/zoneIcons';
 import type { PlayerEntity } from '../gameTypes';
 import { difficultyFor, type ZoneDifficulty } from './ZoneBanner';
 
@@ -53,6 +54,7 @@ export function CurrentZoneChip({ player }: CurrentZoneChipProps) {
       data-difficulty={difficulty}
       title={`${zone.name} (recommended ${levelText})`}
     >
+      <img className="current-zone-chip__thumb" src={zoneIconPath(zoneId)} alt="" aria-hidden="true" />
       <span className="current-zone-chip__name">{zone.name}</span>
       <span className="current-zone-chip__level">{levelText}</span>
     </span>
