@@ -97,16 +97,26 @@ export function BossTelegraphRing({
     const flash = meshRef.current;
     if (!ring || !flash) return;
     const now = Date.now();
+    const ringMat = ring.material as THREE.MeshBasicMaterial;
+    const flashMat = flash.material as THREE.MeshBasicMaterial;
     if (now < impactAt) {
       const progress = Math.min(1, (now - startedAt) / totalMs);
-      ring.scale.setScalar(0.2 + progress * 0.8);
-      (ring.material as THREE.MeshBasicMaterial).opacity = 0.4 + progress * 0.5;
-      (flash.material as THREE.MeshBasicMaterial).opacity = 0;
-    } else {
-      const sincePost = now - impactAt;
+      // The danger footprint is full-size from the start (so the player
+      // reads the real area immediately); the rim brightens as impact
+      // nears and a quickening pulse signals urgency.
       ring.scale.setScalar(1);
-      (ring.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 - sincePost / 600);
-      (flash.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.6 - sincePost / 600);
+      const pulseHz = 3 + progress * 7; // 3→10 Hz as it winds up
+      const pulse = (Math.sin((now / 1000) * pulseHz * Math.PI * 2) + 1) / 2;
+      ringMat.opacity = 0.45 + progress * 0.4 + pulse * 0.12;
+      // Danger fill ramps in over the wind-up ("get out of the red")
+      // instead of only flashing at the end.
+      flashMat.opacity = 0.08 + progress * progress * 0.34 + pulse * 0.05 * progress;
+    } else {
+      // Impact: a brief bright bloom, then fade.
+      const sincePost = now - impactAt;
+      ring.scale.setScalar(1 + Math.min(0.12, sincePost / 1200));
+      ringMat.opacity = Math.max(0, 0.9 - sincePost / 550);
+      flashMat.opacity = Math.max(0, 0.7 - sincePost / 480);
     }
   });
 
