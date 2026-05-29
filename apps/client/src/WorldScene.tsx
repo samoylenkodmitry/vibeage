@@ -23,6 +23,7 @@ import {
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
+import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
 import { getTerrainY } from './worldSceneConfig';
 import { DynamicLightPool } from './dynamicLights';
@@ -69,11 +70,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
-      {/* Stylized water always renders (anchored to the starter
-          coast's waterline), so the sea stays visible from far
-          inland sectors instead of vanishing the moment the player
-          steps outside the cozy scene radius. The rest of the cozy
-          art (foam, shells, driftwood) stays scene-bound below. */}
+      {/* Stylized water always renders (anchored to the starter coast's
+          waterline) so the sea stays visible from inland sectors; the
+          rest of the cozy art (foam, shells, driftwood) is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
       {mountedScene && <CozyWorldArt scene={mountedScene} quality={worldArtQuality} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" palette={activeCozyScene ? 'sand' : 'grass'} />
@@ -136,6 +135,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         cameraControlsRef={cameraControlsRef}
         touchClaimRef={touchClaimRef}
       />
+      <ScenePostFX quality={worldArtQuality} />
     </Canvas>
   );
 }
