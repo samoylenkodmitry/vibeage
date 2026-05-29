@@ -22,6 +22,35 @@ export type FoliageInstance = {
 };
 
 export const FOLIAGE_CELL_SIZE = 32; // world metres per scatter cell
+// Foliage streams on its OWN chunk grid (decoupled from the 256 m terrain
+// chunk). A larger foliage chunk lets the SAME chunk/draw-call count reach
+// farther out — so the streaming frontier lands inside the fog band (~fogFar)
+// where mounting/unmounting a frontier chunk is invisible, instead of popping
+// against a clear distance. MUST be a whole multiple of FOLIAGE_CELL_SIZE
+// (320 = 10×32): otherwise floor()/ceil() in scatterChunkFoliage makes adjacent
+// chunks share a boundary cell → duplicated trees + z-fighting at every seam.
+// 320 × radius 3 = 960 m, just under the terrain view edge (radius 4 = 1024 m)
+// so trees always sit on detailed terrain, never the flat backdrop plane.
+export const FOLIAGE_CHUNK_SIZE = 320;
+
+/** The foliage chunk index containing a world position. */
+export function foliageChunkOf(focusX: number, focusZ: number): { cx: number; cz: number } {
+  return {
+    cx: Math.floor(focusX / FOLIAGE_CHUNK_SIZE),
+    cz: Math.floor(focusZ / FOLIAGE_CHUNK_SIZE),
+  };
+}
+
+/** World origins of every foliage chunk within `radius` of a centre chunk. */
+export function visibleFoliageChunks(centerCx: number, centerCz: number, radius: number): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = [];
+  for (let dz = -radius; dz <= radius; dz += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      out.push({ x: (centerCx + dx) * FOLIAGE_CHUNK_SIZE, z: (centerCz + dz) * FOLIAGE_CHUNK_SIZE });
+    }
+  }
+  return out;
+}
 // Trim raw biome densities so a uniform (no-falloff) field doesn't over-
 // populate vs the old falloff-thinned window. Tune here if too sparse/dense.
 const TREE_DENSITY_SCALE = 0.7;

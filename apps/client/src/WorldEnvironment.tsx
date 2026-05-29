@@ -16,6 +16,15 @@ type WorldEnvironmentProps = {
 // keyframe-interpolation passes per second.
 const PALETTE_REFRESH_S = 0.2;
 
+// Atmospheric scene fog. Without it scene.fog is null — the streaming foliage
+// frontier (~960 m, see WorldFoliage) and the terrain view edge (1024 m) pop
+// against a perfectly clear 9 km camera as the player crosses chunk lines.
+// `far` sits just past the foliage frontier so chunks mount/unmount fully
+// inside the mist; mega landmarks render fog={false} (WorldFeatures) and still
+// pierce it as horizon beacons. Distinct from WORLD_SETTINGS.fogFar (5400),
+// which is only a landmark-visibility cull distance, not real fog.
+const SCENE_FOG = { near: 450, far: 1120 } as const;
+
 type DayCycleRefs = {
   hemisphere: React.MutableRefObject<THREE.HemisphereLight | null>;
   directional: React.MutableRefObject<THREE.DirectionalLight | null>;
@@ -65,6 +74,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   const paletteRef = useRef(computeDayPhase(Date.now()));
   const paletteAccumRef = useRef(0);
   useInitSceneBackground(scene, paletteRef.current.backgroundColor);
+  useInitSceneFog(scene, paletteRef.current.fogColor);
 
   useFrame((_, delta) => {
     paletteAccumRef.current += delta;
@@ -142,6 +152,26 @@ function useInitSceneBackground(scene: THREE.Scene, initialColor: string): void 
       scene.background = previous;
     };
   }, [scene, initialColor]);
+}
+
+/**
+ * Seed scene.fog with a THREE.Fog on mount. Like the background it defaults to
+ * null, and applyDayPhaseToScene only *recolours* fog when it already exists —
+ * so without this there is no fog at all and the streaming frontier pops. Owns
+ * the fog; restores the previous value on unmount.
+ */
+function useInitSceneFog(scene: THREE.Scene, initialColor: string): void {
+  // Capture the colour once on mount. applyDayPhaseToScene recolours the fog
+  // every frame, so re-running this effect on each palette tick would needlessly
+  // recreate the THREE.Fog (object churn / uniform updates) for no visual gain.
+  const initialColorRef = useRef(initialColor);
+  useLayoutEffect(() => {
+    const previous = scene.fog;
+    scene.fog = new THREE.Fog(initialColorRef.current, SCENE_FOG.near, SCENE_FOG.far);
+    return () => {
+      scene.fog = previous;
+    };
+  }, [scene]);
 }
 
 function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
