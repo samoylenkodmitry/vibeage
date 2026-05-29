@@ -1,0 +1,173 @@
+import * as THREE from 'three';
+import { sampleTerrain, type TerrainBiome } from '../../../../packages/content/terrain';
+
+/**
+ * Position-stable foliage scatter. Every tree / rock / grass tuft is a
+ * pure function of its own world cell — `seededRandom(absCellX, absCellZ)`
+ * with NO dependency on the player's position and NO distance-from-centre
+ * falloff. That is the whole point of the rewrite: the old field centred a
+ * window on a quantised, jumping point and scaled density by distance to
+ * that centre, so crossing a 128 m line re-shuffled the entire view. Here a
+ * cell's contents never change, so chunks stream in/out at the frontier
+ * without anything already on screen moving.
+ */
+
+export type FoliageInstance = {
+  x: number;
+  y: number;
+  z: number;
+  scale: number;
+  rotation: number;
+  color: string;
+};
+
+export const FOLIAGE_CELL_SIZE = 32; // world metres per scatter cell
+// Trim raw biome densities so a uniform (no-falloff) field doesn't over-
+// populate vs the old falloff-thinned window. Tune here if too sparse/dense.
+const TREE_DENSITY_SCALE = 0.7;
+const GRASS_DENSITY_SCALE = 0.8;
+const ROCK_DENSITY_SCALE = 0.08;
+
+export const BROADLEAF_GLB = '/models/trees/pine_b.glb';
+export const CONIFER_GLB = '/models/trees/pine_a.glb';
+export const TREE_GLB_ALT = '/models/trees/pine_c.glb';
+export const ACCENT_GLB_SMALL = '/models/rocks/rock_round_small.glb';
+export const ACCENT_GLB_MEDIUM = '/models/rocks/rock_medium_a.glb';
+export const TREE_WIND = { amplitude: 0.14, speed: 0.85 } as const;
+
+export type ChunkFoliage = {
+  trees: FoliageInstance[];
+  conifers: FoliageInstance[];
+  grass: FoliageInstance[];
+  accents: FoliageInstance[];
+};
+
+/**
+ * Scatter foliage for one square chunk `[originX, originX+size) ×
+ * [originZ, originZ+size)`. Deterministic by absolute cell, so the same
+ * chunk always yields the identical set. `grassOn` lets low quality skip
+ * the dense grass layer.
+ */
+export function scatterChunkFoliage(originX: number, originZ: number, size: number, grassOn: boolean): ChunkFoliage {
+  const trees: FoliageInstance[] = [];
+  const conifers: FoliageInstance[] = [];
+  const grass: FoliageInstance[] = [];
+  const accents: FoliageInstance[] = [];
+  const cell = FOLIAGE_CELL_SIZE;
+  const cell0X = Math.floor(originX / cell);
+  const cell0Z = Math.floor(originZ / cell);
+  const cells = Math.ceil(size / cell);
+
+  for (let iz = 0; iz < cells; iz += 1) {
+    for (let ix = 0; ix < cells; ix += 1) {
+      const cellX = cell0X + ix;
+      const cellZ = cell0Z + iz;
+      const random = seededRandom(cellX, cellZ);
+      const x = (cellX + random()) * cell;
+      const z = (cellZ + random()) * cell;
+      const sample = sampleTerrain(x, z);
+      const coniferShare = getConiferShare(sample.biome);
+
+      if (random() < sample.treeDensity * TREE_DENSITY_SCALE) {
+        const isConifer = random() < coniferShare;
+        (isConifer ? conifers : trees).push({
+          x, y: sample.height, z,
+          scale: isConifer ? 0.78 + random() * 0.78 : 0.72 + random() * 0.92,
+          rotation: random() * Math.PI * 2,
+          color: isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor,
+        });
+      }
+      if (grassOn && random() < sample.grassDensity * GRASS_DENSITY_SCALE) {
+        grass.push({
+          x: x + (random() - 0.5) * cell * 0.5, y: sample.height, z: z + (random() - 0.5) * cell * 0.5,
+          scale: 0.7 + random() * 0.8, rotation: random() * Math.PI * 2, color: sample.foliageColor,
+        });
+      }
+      if (random() < sample.roughness * ROCK_DENSITY_SCALE) {
+        accents.push({
+          x: x + (random() - 0.5) * cell * 0.34, y: sample.height, z: z + (random() - 0.5) * cell * 0.34,
+          scale: 0.45 + random() * 0.9, rotation: random() * Math.PI * 2, color: sample.accentColor,
+        });
+      }
+    }
+  }
+  return { trees, conifers, grass, accents };
+}
+
+/** Split instances into two GLB pools by a POSITION-stable parity bit so a
+ *  given tree always renders as the same model (never morphs as you move). */
+export function splitByParity(insts: FoliageInstance[]): {
+  evenMatrices: THREE.Matrix4[]; oddMatrices: THREE.Matrix4[]; evenColors: THREE.Color[]; oddColors: THREE.Color[];
+} {
+  const evenMatrices: THREE.Matrix4[] = [];
+  const oddMatrices: THREE.Matrix4[] = [];
+  const evenColors: THREE.Color[] = [];
+  const oddColors: THREE.Color[] = [];
+  for (const inst of insts) {
+    const m = instanceMatrix(inst);
+    const c = instanceColor(inst);
+    if (hashPositionToBit(inst.x, inst.z) === 0) { evenMatrices.push(m); evenColors.push(c); }
+    else { oddMatrices.push(m); oddColors.push(c); }
+  }
+  return { evenMatrices, oddMatrices, evenColors, oddColors };
+}
+
+export function hashPositionToBit(x: number, z: number): 0 | 1 {
+  const ix = Math.round(x * 13);
+  const iz = Math.round(z * 13);
+  let h = Math.imul(ix, 374_761_393) ^ Math.imul(iz, 668_265_263);
+  h = Math.imul(h ^ (h >>> 13), 1_274_126_177);
+  return ((h >>> 16) & 1) as 0 | 1;
+}
+
+export function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3(instance.x, instance.y, instance.z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, instance.rotation, 0)),
+    new THREE.Vector3(instance.scale, instance.scale, instance.scale),
+  );
+}
+
+const FOLIAGE_COLOR_CACHE = new Map<string, THREE.Color>();
+export function instanceColor(instance: FoliageInstance): THREE.Color {
+  let cached = FOLIAGE_COLOR_CACHE.get(instance.color);
+  if (!cached) {
+    cached = new THREE.Color(instance.color);
+    FOLIAGE_COLOR_CACHE.set(instance.color, cached);
+  }
+  return cached;
+}
+
+export function getConiferShare(biome: TerrainBiome): number {
+  switch (biome) {
+    case 'forest': case 'highland': case 'tundra': return 0.78;
+    case 'wetland': case 'ethereal': return 0.34;
+    case 'celestial': case 'temporal': return 0.4;
+    case 'meadow': case 'ruins': return 0.18;
+    case 'volcanic': case 'abyssal': return 0;
+  }
+}
+
+const coniferColorCache = new Map<string, string>();
+function darkenForConifer(hex: string): string {
+  const cached = coniferColorCache.get(hex);
+  if (cached !== undefined) return cached;
+  const value = parseInt(hex.startsWith('#') ? hex.slice(1) : hex, 16);
+  const r = Math.max(0, ((value >> 16) & 0xff) - 56);
+  const g = Math.max(0, ((value >> 8) & 0xff) - 28);
+  const b = Math.max(0, (value & 0xff) - 56);
+  const result = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  coniferColorCache.set(hex, result);
+  return result;
+}
+
+/** Position-seeded PRNG; same cell → same sequence forever. */
+export function seededRandom(cellX: number, cellZ: number): () => number {
+  let seed = Math.imul(cellX, 374_761_393) ^ Math.imul(cellZ, 668_265_263);
+  seed = (seed ^ (seed >>> 13)) >>> 0;
+  return () => {
+    seed = Math.imul(seed ^ (seed >>> 15), 2_246_822_519) >>> 0;
+    seed = Math.imul(seed ^ (seed >>> 13), 3_266_489_917) >>> 0;
+    return ((seed ^= seed >>> 16) >>> 0) / 4_294_967_295;
+  };
+}
