@@ -93,7 +93,7 @@ function Instanced({
     m.count = matrices.length;
   };
   return (
-    <instancedMesh ref={setRef} args={[undefined, undefined, matrices.length]} castShadow={false} receiveShadow={false}>
+    <instancedMesh frustumCulled={false} ref={setRef} args={[undefined, undefined, matrices.length]} castShadow={false} receiveShadow={false}>
       {geometry === 'rock'
         ? <dodecahedronGeometry args={[1, 0]} />
         : <coneGeometry args={[0.35, 0.6, 5]} />}

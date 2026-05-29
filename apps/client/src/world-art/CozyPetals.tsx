@@ -64,7 +64,7 @@ export function CozyPetals({ scene }: { scene: WorldArtScene }) {
   });
 
   return (
-    <points raycast={() => null}>
+    <points frustumCulled={false} raycast={() => null}>
       <bufferGeometry ref={geometryRef}>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         <bufferAttribute attach="attributes-size" args={[sizes, 1]} />

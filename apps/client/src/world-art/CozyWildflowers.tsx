@@ -46,7 +46,7 @@ function Patch({ placements, color }: { placements: Placement[]; color: string }
     m.count = placements.length;
   };
   return (
-    <instancedMesh ref={setRef} args={[undefined, undefined, placements.length]} castShadow={false} receiveShadow={false}>
+    <instancedMesh frustumCulled={false} ref={setRef} args={[undefined, undefined, placements.length]} castShadow={false} receiveShadow={false}>
       <sphereGeometry args={[0.07, 6, 4]} />
       <meshBasicMaterial color={color} fog={false} />
     </instancedMesh>

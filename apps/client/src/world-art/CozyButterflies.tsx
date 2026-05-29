@@ -112,7 +112,7 @@ function BatchSlice({
     }
   });
   return (
-    <points raycast={() => null}>
+    <points frustumCulled={false} raycast={() => null}>
       <bufferGeometry ref={geomRef}>
         <bufferAttribute attach="attributes-position" args={[slicePositions, 3]} />
         <bufferAttribute attach="attributes-opacity" args={[sliceOpacities, 1]} />
