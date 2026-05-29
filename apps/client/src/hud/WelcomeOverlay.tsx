@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { npcIconPath } from '../../../../packages/content/npcIcons';
 import type { PlayerEntity } from '../gameTypes';
 
 /**
@@ -49,10 +50,13 @@ export function WelcomeOverlay({ player }: WelcomeOverlayProps) {
       <header>
         <strong>Welcome to VibeAge</strong>
       </header>
-      <p>
-        <strong>{isTouch ? 'Tap' : 'Click'} the ground</strong> to walk. Walk to the <strong>yellow cone</strong> ahead —
-        that's <strong>Warden Galen</strong>, and he has your first job.
-      </p>
+      <div className="welcome-overlay-intro">
+        <img className="welcome-overlay-npc" src={npcIconPath('warden_galen')} alt="" aria-hidden="true" />
+        <p>
+          <strong>{isTouch ? 'Tap' : 'Click'} the ground</strong> to walk. Walk to the <strong>yellow cone</strong> ahead —
+          that's <strong>Warden Galen</strong> (shown here), and he has your first job.
+        </p>
+      </div>
       {isTouch ? (
         <small>Use the on-screen buttons to attack, pick up loot, and open panels.</small>
       ) : (
