@@ -399,7 +399,8 @@ function TexturedTerrainMaterial({ palette }: { palette: TerrainPalette }) {
   );
 }
 
-function getTerrainChunk(focusX: number, focusZ: number): { x: number; z: number } {
+// Exported so WorldFoliage can stream foliage on the same chunk grid.
+export function getTerrainChunk(focusX: number, focusZ: number): { x: number; z: number } {
   const chunkSize = WORLD_SETTINGS.terrainChunkSize;
   return {
     x: Math.floor(focusX / chunkSize),
@@ -407,9 +408,13 @@ function getTerrainChunk(focusX: number, focusZ: number): { x: number; z: number
   };
 }
 
-function getVisibleTerrainChunks(centerChunkX: number, centerChunkZ: number): Array<{ x: number; z: number }> {
+export function getVisibleTerrainChunks(
+  centerChunkX: number,
+  centerChunkZ: number,
+  radiusOverride?: number,
+): Array<{ x: number; z: number }> {
   const chunkSize = WORLD_SETTINGS.terrainChunkSize;
-  const radius = WORLD_SETTINGS.visibleTerrainChunkRadius;
+  const radius = radiusOverride ?? WORLD_SETTINGS.visibleTerrainChunkRadius;
   const chunks: Array<{ x: number; z: number }> = [];
 
   for (let dz = -radius; dz <= radius; dz += 1) {

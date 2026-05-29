@@ -31,6 +31,7 @@ import {
   PlayerMarker,
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
+import { WorldFoliage } from './WorldFoliage';
 import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
 import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
@@ -79,6 +80,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
+      <WorldFoliage focus={focus} quality={worldArtQuality} />
       {/* Stylized water always renders (anchored to the starter coast's
           waterline) so the sea stays visible from inland sectors; the
           rest of the cozy art (foam, shells, driftwood) is scene-bound. */}
