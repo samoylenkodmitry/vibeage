@@ -5,7 +5,6 @@ import { CozyBuoys } from './CozyBuoys';
 import { CozyButterflies } from './CozyButterflies';
 import { CozyBonfireGlow } from './CozyBonfireGlow';
 import { CozyBonfireSmoke } from './CozyBonfireSmoke';
-import { CozyDistantMountains } from './CozyDistantMountains';
 import { CozyDriftwood } from './CozyDriftwood';
 import { CozyFireflies } from './CozyFireflies';
 import { CozyFireStones } from './CozyFireStones';
@@ -16,7 +15,6 @@ import { CozyLogBench } from './CozyLogBench';
 import { CozyMushrooms } from './CozyMushrooms';
 import { CozyPetals } from './CozyPetals';
 import { CozyPineCones } from './CozyPineCones';
-import { CozyPineForest } from './CozyPineForest';
 import { CozySeagulls } from './CozySeagulls';
 import { CozyShells } from './CozyShells';
 import { CozyShoreBand } from './CozyShoreBand';
@@ -25,7 +23,6 @@ import { CozyWaterLilies } from './CozyWaterLilies';
 import { CozyWaterRipples } from './CozyWaterRipples';
 import { CozyWaterSparkles } from './CozyWaterSparkles';
 import { CozyWildflowers } from './CozyWildflowers';
-import type { WorldArtQuality } from './quality';
 import type { WorldArtScene } from './worldArtScenes';
 
 /**
@@ -40,7 +37,6 @@ import type { WorldArtScene } from './worldArtScenes';
  * only contributes anchored geometry on top of that.
  *
  * Stack:
- *   DistantMountains — low-poly silhouette ring on the horizon
  *   Water            — stylized procedural plane, raycast-disabled
  *   Shore            — pale sand band along the waterline
  *   ShoreFoam        — animated foam crests at the water edge
@@ -48,18 +44,17 @@ import type { WorldArtScene } from './worldArtScenes';
  *   BonfireGlow      — warm flickering pointLight at each bonfire
  *   BonfireSmoke     — drifting smoke column above each bonfire
  *   Lanterns         — small flickering pointLight at each lantern
- *   Foliage          — GLB pines/rocks/grass with procedural fallback
+ *
+ * The distant-mountain horizon ring and the GLB pine forest used to live here
+ * too; both were lifted out — the horizon ring is now WorldHorizonMountains
+ * (follows focus, world-wide) and the trees are now the global WorldFoliage,
+ * so there's no duplicate foliage layer and no tree/horizon boundary at the
+ * cozy-coast radius.
  */
 
-export function CozyWorldArt({
-  scene, quality,
-}: {
-  scene: WorldArtScene;
-  quality: WorldArtQuality;
-}) {
+export function CozyWorldArt({ scene }: { scene: WorldArtScene }) {
   return (
     <>
-      <CozyDistantMountains scene={scene} />
       {/* Water plane was here; hoisted to WorldScene so the sea
           stays visible from anywhere inland. */}
       <CozyWaterLilies scene={scene} />
@@ -87,7 +82,6 @@ export function CozyWorldArt({
       <CozyWildflowers scene={scene} />
       <CozySeagulls scene={scene} />
       <CozyPetals scene={scene} />
-      <CozyPineForest scene={scene} quality={quality} />
     </>
   );
 }

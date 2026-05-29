@@ -32,6 +32,7 @@ import {
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
+import { WorldHorizonMountains } from './WorldHorizonMountains';
 import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
 import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
@@ -80,12 +81,12 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
+      <WorldHorizonMountains focus={focus} />
       <WorldFoliage focus={focus} quality={worldArtQuality} />
-      {/* Stylized water always renders (anchored to the starter coast's
-          waterline) so the sea stays visible from inland sectors; the
-          rest of the cozy art (foam, shells, driftwood) is scene-bound. */}
+      {/* Water is anchored to the starter coast waterline (visible from inland);
+          the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
-      {mountedScene && <CozyWorldArt scene={mountedScene} quality={worldArtQuality} />}
+      {mountedScene && <CozyWorldArt scene={mountedScene} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" sandRegion={STARTER_COAST_SAND} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
