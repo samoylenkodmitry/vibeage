@@ -112,8 +112,9 @@ describe('foliage chunk streaming window', () => {
       .toEqual(scatterChunkFoliage(px, pz, FOLIAGE_CHUNK_SIZE, true));
   });
 
-  it('the streaming frontier reaches the fog band (≥ ~1 km) so swaps hide in mist', () => {
-    // radius × chunk is the nearest-edge distance; the far corner is farther.
-    expect(R * FOLIAGE_CHUNK_SIZE).toBeGreaterThanOrEqual(1000);
+  it('the streaming frontier reaches the fog band (≥ 960 m) so swaps hide in mist', () => {
+    // radius × chunk is the nearest-edge distance (3 × 320 = 960); the far
+    // corner is farther. Sits just under the terrain view edge (1024 m).
+    expect(R * FOLIAGE_CHUNK_SIZE).toBeGreaterThanOrEqual(960);
   });
 });

@@ -27,7 +27,7 @@ function foliageRadius(quality: WorldArtQuality): number {
   // Frontier MUST land in the fog band, else crossing a chunk line pops a
   // whole row of trees in plain view. Retina Macs report quality 'medium'
   // (devicePixelRatio > 1.5), so medium gets the same far frontier as high
-  // (3 × 340 ≈ 1020 m, fogged). Low still reaches 680 m (2 × 340) — partly
+  // (3 × 320 = 960 m, fogged). Low still reaches 640 m (2 × 320) — partly
   // fogged — rather than the old 1-ring 256 m that toggled in your face.
   return quality === 'low' ? 2 : 3;
 }
@@ -93,6 +93,11 @@ function GrassClumps({ instances }: { instances: FoliageInstance[] }) {
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.count = instances.length;
+    // Same origin-anchored-bounding-sphere trap as InstancedGltf: recompute
+    // over the real instances or the whole grass mesh is frustum-culled the
+    // instant world-origin leaves the view.
+    mesh.computeBoundingSphere();
   }, [instances]);
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, Math.max(1, instances.length)]} castShadow receiveShadow>

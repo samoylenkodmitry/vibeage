@@ -142,6 +142,13 @@ function InstancedSub({
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
     mesh.count = matrices.length;
+    // CRITICAL: our instances carry ABSOLUTE world matrices while the mesh
+    // object sits at the origin, so its default bounding sphere is the base
+    // geometry's (centred on 0,0,0). Three.js then frustum-culls the ENTIRE
+    // InstancedMesh the moment the origin leaves view — i.e. "all trees vanish
+    // when I walk away from spawn". Recompute the sphere over the real
+    // instance matrices so culling tracks where the trees actually are.
+    mesh.computeBoundingSphere();
   }, [matrices, colors, baseScale, sub.localMatrix]);
 
   return (

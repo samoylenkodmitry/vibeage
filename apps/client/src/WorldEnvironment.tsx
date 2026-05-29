@@ -17,7 +17,7 @@ type WorldEnvironmentProps = {
 const PALETTE_REFRESH_S = 0.2;
 
 // Atmospheric scene fog. Without it scene.fog is null — the streaming foliage
-// frontier (~1020 m, see WorldFoliage) and the terrain view edge (1024 m) pop
+// frontier (~960 m, see WorldFoliage) and the terrain view edge (1024 m) pop
 // against a perfectly clear 9 km camera as the player crosses chunk lines.
 // `far` sits just past the foliage frontier so chunks mount/unmount fully
 // inside the mist; mega landmarks render fog={false} (WorldFeatures) and still
@@ -161,13 +161,17 @@ function useInitSceneBackground(scene: THREE.Scene, initialColor: string): void 
  * the fog; restores the previous value on unmount.
  */
 function useInitSceneFog(scene: THREE.Scene, initialColor: string): void {
+  // Capture the colour once on mount. applyDayPhaseToScene recolours the fog
+  // every frame, so re-running this effect on each palette tick would needlessly
+  // recreate the THREE.Fog (object churn / uniform updates) for no visual gain.
+  const initialColorRef = useRef(initialColor);
   useLayoutEffect(() => {
     const previous = scene.fog;
-    scene.fog = new THREE.Fog(initialColor, SCENE_FOG.near, SCENE_FOG.far);
+    scene.fog = new THREE.Fog(initialColorRef.current, SCENE_FOG.near, SCENE_FOG.far);
     return () => {
       scene.fog = previous;
     };
-  }, [scene, initialColor]);
+  }, [scene]);
 }
 
 function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
