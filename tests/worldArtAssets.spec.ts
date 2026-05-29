@@ -9,7 +9,7 @@ import {
 } from '../apps/client/src/world-art/assetRegistry';
 
 /**
- * Pins the asset-registry contract that `CozyPineForest` and the
+ * Pins the asset-registry contract that the GLB foliage layers and the
  * `ASSET_MANIFEST.md` both rely on. The registry is the single
  * source of truth: if these tests pass, a GLB that ships in
  * `public/` will actually load at runtime with the right path,

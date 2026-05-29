@@ -7,8 +7,8 @@ import { getAssetForPropAnchor, type WorldArtAsset } from './assetRegistry';
 import type { WorldArtScene } from './worldArtScenes';
 
 /**
- * Hand-placed props for the cozy hero scene. Where `CozyPineForest`
- * scatters foliage procedurally, this component reads each scene's
+ * Hand-placed props for the cozy hero scene. Where the global `WorldFoliage`
+ * scatters trees procedurally, this component reads each scene's
  * `props` array and clones GLBs at the exact authored positions —
  * the dock juts straight into the water, the rowboat floats beside
  * it, the bonfire sits on dry sand. The result reads as a composed
@@ -18,9 +18,9 @@ import type { WorldArtScene } from './worldArtScenes';
  * scene's `props: [{ id: 'dock', position: ... }]` resolves to a
  * concrete GLB without leaking paths into the scene description.
  *
- * Error and loading handling mirrors `CozyPineForest`: Suspense
- * fallback to nothing (the scatter foliage already paints the
- * scene), and an `AssetErrorBoundary` swallows runtime errors so
+ * Error and loading handling: Suspense fallback to nothing (the
+ * global foliage already paints the scene), and an
+ * `AssetErrorBoundary` swallows runtime errors so
  * the rest of the cozy layer keeps rendering.
  */
 export function CozyAuthoredCoast({ scene }: { scene: WorldArtScene }) {
