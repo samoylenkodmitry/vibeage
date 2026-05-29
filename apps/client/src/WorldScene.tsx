@@ -14,6 +14,15 @@ import { CozyWorldArt } from './world-art/CozyWorldArt';
 import { chooseWorldArtQuality } from './world-art/quality';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
+
+// Sand only hugs the coast waterline; the meadow inland stays grass. A
+// chunk-local region (not a global flip) so the ground texture is fixed
+// by location and never snaps when the player crosses the coast edge.
+const STARTER_COAST_SAND = {
+  x: STARTER_COZY_COAST.waterline.x + 70,
+  z: STARTER_COZY_COAST.waterline.z,
+  radius: 150,
+} as const;
 import {
   CastMarker,
   EnemyMarker,
@@ -75,7 +84,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           rest of the cozy art (foam, shells, driftwood) is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
       {mountedScene && <CozyWorldArt scene={mountedScene} quality={worldArtQuality} />}
-      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" palette={activeCozyScene ? 'sand' : 'grass'} />
+      <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" sandRegion={STARTER_COAST_SAND} />
       <WorldFeatures focus={focus} />
       <ZoneLandmarks focus={focus} />
       <TargetDestinationMarker target={state.targetWorldPos} />

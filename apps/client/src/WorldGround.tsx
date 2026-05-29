@@ -37,6 +37,12 @@ type WorldGroundProps = {
   visualMode?: TerrainVisualMode;
   /** Texture pair used when visualMode === 'textured'. Default 'grass'. */
   palette?: TerrainPalette;
+  /** Sand region (the cozy coast). When set, each chunk picks sand vs
+   *  grass by ITS OWN distance to this centre — so the ground texture is
+   *  fixed by location, not by where the player is. Without this a single
+   *  global palette flipped every chunk sand↔grass the instant the player
+   *  crossed the coast radius (the whole world's ground snapped). */
+  sandRegion?: { x: number; z: number; radius: number };
 };
 
 type DragMoveState = {
@@ -58,8 +64,19 @@ type TouchPendingState = {
 
 const TOUCH_DRAG_THRESHOLD_PX = 6;
 
-export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, visualMode = 'textured', palette = 'grass' }: WorldGroundProps) {
+export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, visualMode = 'textured', palette = 'grass', sandRegion }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
+  // A chunk is sand if its OWN centre sits inside the sand region — fixed
+  // by location, never by the player's position. The chunk size (256u)
+  // makes the sand/grass edge a coastal ring near spawn instead of a
+  // world-wide flip. Falls back to the flat `palette` when no region set.
+  const paletteForChunk = (cx: number, cz: number): TerrainPalette => {
+    if (!sandRegion) return palette;
+    const halfChunk = WORLD_SETTINGS.terrainChunkSize / 2;
+    return Math.hypot(cx + halfChunk - sandRegion.x, cz + halfChunk - sandRegion.z) <= sandRegion.radius
+      ? 'sand'
+      : 'grass';
+  };
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
     [focusChunk.x, focusChunk.z],
@@ -111,7 +128,7 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, v
           originX={chunk.x}
           originZ={chunk.z}
           visualMode={visualMode}
-          palette={palette}
+          palette={paletteForChunk(chunk.x, chunk.z)}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
