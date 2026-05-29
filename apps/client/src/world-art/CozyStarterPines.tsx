@@ -74,7 +74,7 @@ function Instanced({
     m.count = matrices.length;
   };
   return (
-    <instancedMesh ref={setRef} args={[undefined, undefined, matrices.length]} castShadow={false} receiveShadow={false}>
+    <instancedMesh frustumCulled={false} ref={setRef} args={[undefined, undefined, matrices.length]} castShadow={false} receiveShadow={false}>
       {children}
       <meshStandardMaterial color={color} roughness={1} metalness={0} />
     </instancedMesh>

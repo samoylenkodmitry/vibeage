@@ -29,14 +29,16 @@ type Butterfly = {
 
 export function CozyButterflies({ scene }: { scene: WorldArtScene }) {
   const butterflies = useMemo<Butterfly[]>(() => makeButterflies(scene), [scene]);
-  const positions = useMemo(() => new Float32Array(COUNT * 3), []);
-  const opacities = useMemo(() => new Float32Array(COUNT), []);
-  const geometryRef = useRef<THREE.BufferGeometry>(null);
   const rand = useMemo(() => mulberry32(scene.id.length * 4441 + 2), [scene]);
+  // The parent owns the SIMULATION only: it mutates the shared Butterfly
+  // objects in place (the slices render from those by reference) and tracks
+  // dayness in a ref so each slice can fade out at night without recomputing
+  // the palette. No geometry of its own — slices do the drawing.
+  const daynessRef = useRef(1);
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
     const palette = computeDayPhase(Date.now());
-    const dayness = clamp(smoothstep(-0.05, 0.20, palette.sunDir.y), 0, 1);
+    daynessRef.current = clamp(smoothstep(-0.05, 0.20, palette.sunDir.y), 0, 1);
     for (let i = 0; i < butterflies.length; i += 1) {
       const b = butterflies[i];
       b.x += b.vx * dt;
@@ -55,16 +57,6 @@ export function CozyButterflies({ scene }: { scene: WorldArtScene }) {
       if (b.z > scene.origin.z + 220) b.vz = -Math.abs(b.vz);
       if (b.y < HEIGHT_BAND.min) b.vy = Math.abs(b.vy);
       if (b.y > HEIGHT_BAND.max) b.vy = -Math.abs(b.vy);
-      positions[i * 3] = b.x;
-      positions[i * 3 + 1] = b.y;
-      positions[i * 3 + 2] = b.z;
-      const flap = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 80 + b.flapPhase));
-      opacities[i] = dayness * flap;
-    }
-    const g = geometryRef.current;
-    if (g) {
-      g.attributes.position.needsUpdate = true;
-      g.attributes.opacity.needsUpdate = true;
     }
   });
   return (
@@ -72,10 +64,8 @@ export function CozyButterflies({ scene }: { scene: WorldArtScene }) {
       {COLORS.map((color, ci) => (
         <BatchSlice key={`${scene.id}-bf-${ci}`}
           butterflies={butterflies.filter((b) => b.colorIndex === ci)}
-          positions={positions}
-          opacities={opacities}
           color={color}
-          allButterflies={butterflies}
+          daynessRef={daynessRef}
         />
       ))}
     </>
@@ -83,27 +73,27 @@ export function CozyButterflies({ scene }: { scene: WorldArtScene }) {
 }
 
 function BatchSlice({
-  butterflies, color, allButterflies,
+  butterflies, color, daynessRef,
 }: {
   butterflies: Butterfly[];
-  positions: Float32Array;
-  opacities: Float32Array;
   color: string;
-  allButterflies: Butterfly[];
+  daynessRef: React.MutableRefObject<number>;
 }) {
   const slicePositions = useMemo(() => new Float32Array(butterflies.length * 3), [butterflies.length]);
   const sliceOpacities = useMemo(() => new Float32Array(butterflies.length), [butterflies.length]);
   const geomRef = useRef<THREE.BufferGeometry>(null);
+  // Render this colour's slice from the shared (parent-simulated) butterflies,
+  // applying the real day/night fade + per-wing flap the parent used to compute
+  // and throw away. Runs after the parent's sim useFrame (registration order).
   useFrame(() => {
-    let k = 0;
-    for (let i = 0; i < allButterflies.length; i += 1) {
-      const b = allButterflies[i];
-      if (!butterflies.includes(b)) continue;
+    const dayness = daynessRef.current;
+    for (let k = 0; k < butterflies.length; k += 1) {
+      const b = butterflies[k];
       slicePositions[k * 3] = b.x;
       slicePositions[k * 3 + 1] = b.y;
       slicePositions[k * 3 + 2] = b.z;
-      sliceOpacities[k] = 0.85;
-      k += 1;
+      const flap = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 80 + b.flapPhase));
+      sliceOpacities[k] = dayness * flap;
     }
     const g = geomRef.current;
     if (g) {
@@ -112,7 +102,7 @@ function BatchSlice({
     }
   });
   return (
-    <points raycast={() => null}>
+    <points frustumCulled={false} raycast={() => null}>
       <bufferGeometry ref={geomRef}>
         <bufferAttribute attach="attributes-position" args={[slicePositions, 3]} />
         <bufferAttribute attach="attributes-opacity" args={[sliceOpacities, 1]} />

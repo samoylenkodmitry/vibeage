@@ -44,7 +44,7 @@ function Cluster({ mushrooms, kind }: { mushrooms: Mushroom[]; kind: 'stem' | 'c
     m.count = mushrooms.length;
   };
   return (
-    <instancedMesh ref={setRef} args={[undefined, undefined, mushrooms.length]} castShadow={false} receiveShadow={false}>
+    <instancedMesh frustumCulled={false} ref={setRef} args={[undefined, undefined, mushrooms.length]} castShadow={false} receiveShadow={false}>
       {kind === 'stem'
         ? <cylinderGeometry args={[0.05, 0.07, 0.3, 6]} />
         : <sphereGeometry args={[0.14, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2]} />}

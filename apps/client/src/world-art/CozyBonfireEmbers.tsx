@@ -81,7 +81,7 @@ function EmberColumn({ originX, originY, originZ, seed }: { originX: number; ori
   });
 
   return (
-    <points raycast={() => null}>
+    <points frustumCulled={false} raycast={() => null}>
       <bufferGeometry ref={geometryRef}>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         <bufferAttribute attach="attributes-opacity" args={[opacities, 1]} />

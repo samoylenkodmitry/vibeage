@@ -33,7 +33,7 @@ export function CozyFireStones({ scene }: { scene: WorldArtScene }) {
     m.count = placements.length;
   };
   return (
-    <instancedMesh ref={setRef} args={[undefined, undefined, placements.length]} castShadow={false} receiveShadow={false} raycast={() => null}>
+    <instancedMesh frustumCulled={false} ref={setRef} args={[undefined, undefined, placements.length]} castShadow={false} receiveShadow={false} raycast={() => null}>
       <dodecahedronGeometry args={[0.28, 0]} />
       <meshStandardMaterial color={STONE_COLOR} roughness={0.95} metalness={0} />
     </instancedMesh>

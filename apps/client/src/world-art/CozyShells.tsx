@@ -54,7 +54,7 @@ function Cluster({
     m.count = placements.length;
   };
   return (
-    <instancedMesh ref={setRef} args={[undefined, undefined, placements.length]} castShadow={false} receiveShadow={false}>
+    <instancedMesh frustumCulled={false} ref={setRef} args={[undefined, undefined, placements.length]} castShadow={false} receiveShadow={false}>
       {kind === 'shell'
         ? <sphereGeometry args={[0.12, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2]} />
         : <dodecahedronGeometry args={[0.09, 0]} />}
