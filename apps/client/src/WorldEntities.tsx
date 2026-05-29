@@ -20,6 +20,7 @@ import {
 } from './SceneVfx';
 import { NameLabel } from './NameLabel';
 import { PlayerFigure } from './PlayerFigure';
+import { GroundBlobShadow } from './GroundShadow';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
 import { getTerrainY } from './worldSceneConfig';
@@ -78,6 +79,7 @@ function PlayerMarkerImpl({
       presentationRef={presentationRef}
       groundedOffset={0}
     >
+      {player.isAlive && <GroundBlobShadow y={0} radius={0.6} opacity={0.8} />}
       {isSelected && !isSelf && <SelectedEnemyRing />}
       <PlayerFigure
         height={height}
@@ -154,6 +156,7 @@ function EnemyMarkerImpl({
       response={9}
       groundedOffset={groundedYOffset}
     >
+      {enemy.isAlive && <GroundBlobShadow y={-groundedYOffset} radius={Math.max(0.55, visual.height * 0.42)} opacity={enemy.isMiniBoss ? 0.95 : 0.8} />}
       {isSelected && <SelectedEnemyRing />}
       {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
       {enemy.isAlive && enemy.aiState && enemy.aiState !== 'idle' && <EnemyThreatRing state={enemy.aiState} />}
