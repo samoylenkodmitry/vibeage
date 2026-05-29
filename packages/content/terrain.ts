@@ -1,3 +1,5 @@
+import { biomeAtZone } from './zoneBiomes.js';
+
 export type TerrainBiome =
   | 'meadow'
   | 'forest'
@@ -46,8 +48,8 @@ const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
     groundColor: '#66715a',
     foliageColor: '#8fb56b',
     accentColor: '#d6d3d1',
-    grassDensity: 0.38,
-    treeDensity: 0.2,
+    grassDensity: 0.52,
+    treeDensity: 0.34,
     roughness: 0.86,
   },
   wetland: {
@@ -62,8 +64,8 @@ const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
     groundColor: '#4b4a3f',
     foliageColor: '#5f8f62',
     accentColor: '#c4b5fd',
-    grassDensity: 0.42,
-    treeDensity: 0.14,
+    grassDensity: 0.52,
+    treeDensity: 0.24,
     roughness: 0.62,
   },
   volcanic: {
@@ -78,8 +80,8 @@ const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
     groundColor: '#8fb2bc',
     foliageColor: '#c7d2fe',
     accentColor: '#e0f2fe',
-    grassDensity: 0.22,
-    treeDensity: 0.12,
+    grassDensity: 0.42,
+    treeDensity: 0.3,
     roughness: 0.58,
   },
   ethereal: {
@@ -94,16 +96,16 @@ const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
     groundColor: '#253044',
     foliageColor: '#38bdf8',
     accentColor: '#818cf8',
-    grassDensity: 0.2,
-    treeDensity: 0.08,
+    grassDensity: 0.42,
+    treeDensity: 0.2,
     roughness: 0.72,
   },
   celestial: {
     groundColor: '#7c7590',
     foliageColor: '#fde68a',
     accentColor: '#fef3c7',
-    grassDensity: 0.34,
-    treeDensity: 0.16,
+    grassDensity: 0.48,
+    treeDensity: 0.28,
     roughness: 0.66,
   },
   temporal: {
@@ -135,6 +137,14 @@ export function getTerrainHeight(x: number, z: number): number {
 }
 
 export function getTerrainBiome(x: number, z: number): TerrainBiome {
+  // The named zones (Volcanic Wastes, Frozen Tundra, …) sit within ±700
+  // of spawn; map the terrain there to each zone's theme so a sector
+  // looks like its name. Beyond the zones, fall back to the large-scale
+  // climate field below. (The old thresholds were ~1000× the content
+  // scale, so the whole playable area read as meadow + a ruins ring.)
+  const zoneBiome = biomeAtZone(x, z);
+  if (zoneBiome) return zoneBiome;
+
   const distance = Math.hypot(x, z);
   if (distance < 420) {
     return 'meadow';
