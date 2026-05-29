@@ -40,14 +40,33 @@ const CLIP: Record<CharacterAnim, string> = {
 export function AnimatedCharacter({
   state,
   targetHeight = 1.8,
+  tint,
 }: {
   state: CharacterAnim;
   /** Desired rendered height in world units; the model auto-scales to it. */
   targetHeight?: number;
+  /** Optional per-instance colour multiply (e.g. green goblin, olive orc). */
+  tint?: string;
 }) {
   const { scene, animations } = useGLTF(MODEL);
   // Per-instance skeleton clone so each character plays its own clip.
-  const model = useMemo(() => cloneSkeleton(scene), [scene]);
+  // When a tint is set, clone the materials too (SkeletonUtils shares
+  // them by default) and multiply the base colour so instances differ.
+  const model = useMemo(() => {
+    const c = cloneSkeleton(scene);
+    if (tint) {
+      const col = new THREE.Color(tint);
+      c.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        const cloned = mat.clone();
+        cloned.color = col;
+        mesh.material = cloned;
+      });
+    }
+    return c;
+  }, [scene, tint]);
   const { actions } = useAnimations(animations, model);
   const currentClip = useRef<string | null>(null);
 

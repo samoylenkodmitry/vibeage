@@ -25,6 +25,8 @@ import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
+import { getEnemyTemplate } from '../../../packages/content/enemies';
+import { chooseWorldArtQuality } from './world-art/quality';
 import { getTerrainY } from './worldSceneConfig';
 import { advanceSmoothedGroup } from './entitySmoothing';
 import { GlowEmitter } from './dynamicLights';
@@ -154,6 +156,22 @@ function AnimatedPlayerBody({
   );
 }
 
+// Mob families that get the rigged humanoid model; everything else
+// (beasts, dragons, elementals, constructs, aberrations, spirits, fey,
+// plant) keeps its distinct primitive silhouette.
+const ANIMATED_ENEMY_FAMILIES: ReadonlySet<string> = new Set(['humanoid', 'undead']);
+// Resolve the device quality once (SSR-safe); low-end devices keep
+// primitives for enemies to protect the frame budget.
+const ENTITY_QUALITY = chooseWorldArtQuality();
+
+function enemyAnim(enemy: EnemyEntity, speedSq: number): CharacterAnim {
+  if (!enemy.isAlive) return 'death';
+  if (enemy.aiState === 'attacking') return 'attack';
+  if (speedSq > 16) return 'run';
+  if (speedSq > 0.5) return 'walk';
+  return 'idle';
+}
+
 function EnemyMarkerImpl({
   enemy,
   isSelected,
@@ -190,17 +208,26 @@ function EnemyMarkerImpl({
     }
   }
 
-  const speedSq = (enemy.velocity?.x ?? 0) ** 2 + (enemy.velocity?.z ?? 0) ** 2;
+  const vx = enemy.velocity?.x ?? 0;
+  const vz = enemy.velocity?.z ?? 0;
+  const speedSq = vx * vx + vz * vz;
   const isMoving = enemy.isAlive && speedSq > 0.5;
 
   const groundedYOffset = enemy.isAlive ? 0.55 : 0.1;
   const [isHovered, setIsHovered] = useState(false);
 
+  // Rigged humanoid for humanoid/undead families (quality-gated); face
+  // the movement heading (held when idle) so the body never moonwalks.
+  const animated = ENTITY_QUALITY !== 'low' && ANIMATED_ENEMY_FAMILIES.has(getEnemyTemplate(enemy.type).family);
+  const lastFacingRef = useRef(enemy.rotation?.y ?? 0);
+  if (isMoving) lastFacingRef.current = Math.atan2(vx, vz);
+  const facingY = animated ? lastFacingRef.current : (enemy.rotation?.y ?? 0);
+
   return (
     <SmoothedEntityGroup
       position={{ x: enemy.position.x, y, z: enemy.position.z }}
       velocity={enemy.velocity}
-      rotationY={enemy.rotation?.y ?? 0}
+      rotationY={facingY}
       response={9}
       groundedOffset={groundedYOffset}
     >
@@ -214,15 +241,10 @@ function EnemyMarkerImpl({
           <meshBasicMaterial color="#cffafe" transparent opacity={0.45} depthWrite={false} />
         </mesh>
       )}
-      <EnemyBody
-        shape={visual.shape}
-        color={color}
-        height={enemy.isAlive ? visual.height : 0.25}
-        isMoving={isMoving}
-        isAlive={enemy.isAlive}
-        onPointerDown={handlePointerDown}
-        onPointerOver={() => setIsHovered(true)}
-        onPointerOut={() => setIsHovered(false)}
+      <AnimatedEnemyBody
+        animated={animated} anim={enemyAnim(enemy, speedSq)} shape={visual.shape} color={color}
+        height={enemy.isAlive ? visual.height : 0.25} targetHeight={visual.height} isMoving={isMoving}
+        isAlive={enemy.isAlive} groundedYOffset={groundedYOffset} onPointerDown={handlePointerDown} onHover={setIsHovered}
       />
       {enemy.isAlive && visual.glow && (
         <GlowEmitter color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} priority={enemy.isMiniBoss ? 3 : 1} />
@@ -253,6 +275,45 @@ function EnemyMarkerImpl({
 
 // Memoized — idle enemies keep their ref; skip reconciliation.
 export const EnemyMarker = memo(EnemyMarkerImpl);
+
+/** Rigged humanoid body for a humanoid/undead mob, or the primitive
+ *  silhouette for everything else (and as the load/error fallback).
+ *  The model is offset down by the group's grounded offset so its feet
+ *  land on the terrain. */
+function AnimatedEnemyBody({
+  animated, anim, shape, color, height, targetHeight, isMoving, isAlive, groundedYOffset, onPointerDown, onHover,
+}: {
+  animated: boolean;
+  anim: CharacterAnim;
+  shape: 'box' | 'sphere';
+  color: string;
+  height: number;
+  targetHeight: number;
+  isMoving: boolean;
+  isAlive: boolean;
+  groundedYOffset: number;
+  onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
+  onHover: (hovered: boolean) => void;
+}) {
+  const primitive = (
+    <EnemyBody
+      shape={shape} color={color} height={height} isMoving={isMoving} isAlive={isAlive}
+      onPointerDown={onPointerDown}
+      onPointerOver={() => onHover(true)}
+      onPointerOut={() => onHover(false)}
+    />
+  );
+  if (!animated) return primitive;
+  return (
+    <AssetErrorBoundary fallback={primitive}>
+      <Suspense fallback={primitive}>
+        <group position={[0, -groundedYOffset, 0]} onPointerDown={onPointerDown}>
+          <AnimatedCharacter state={anim} targetHeight={targetHeight} tint={color} />
+        </group>
+      </Suspense>
+    </AssetErrorBoundary>
+  );
+}
 
 function MiniBossCrown({ color, height }: { color: string; height: number }) {
   return (
