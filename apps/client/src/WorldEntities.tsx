@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { memo, Suspense, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { QUEST_NPCS } from '../../../packages/content/npcs';
@@ -21,6 +21,8 @@ import {
 import { NameLabel } from './NameLabel';
 import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
+import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
+import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
 import { getTerrainY } from './worldSceneConfig';
@@ -57,6 +59,17 @@ function PlayerMarkerImpl({
   const speedSq = vx * vx + vz * vz;
   const isMoving = player.isAlive && speedSq > 0.5;
   const facingY = isMoving ? Math.atan2(vx, vz) : (player.rotation?.y ?? 0);
+  // Drive the rigged character's clip from live state: dead → death,
+  // mid-cast → attack, fast → run, moving → walk, else idle.
+  const anim: CharacterAnim = !player.isAlive
+    ? 'death'
+    : player.castingSkill
+      ? 'attack'
+      : speedSq > 16
+        ? 'run'
+        : isMoving
+          ? 'walk'
+          : 'idle';
 
   // Only other players are clickable in-world (the local player's own
   // hero plate already handles self-targeting via the HUD click).
@@ -81,16 +94,10 @@ function PlayerMarkerImpl({
     >
       {player.isAlive && <GroundBlobShadow y={0} radius={0.6} opacity={0.8} />}
       {isSelected && !isSelf && <SelectedEnemyRing />}
-      <PlayerFigure
-        height={height}
-        torsoHeight={torsoHeight}
-        headRadius={headRadius}
-        color={color}
-        isSelf={isSelf}
-        isAlive={player.isAlive}
-        isMoving={isMoving}
-        equipment={equipment}
-        onPointerDown={!isSelf ? handlePointerDown : undefined}
+      <AnimatedPlayerBody
+        anim={anim} height={height} torsoHeight={torsoHeight} headRadius={headRadius}
+        color={color} isSelf={isSelf} isAlive={player.isAlive} isMoving={isMoving}
+        equipment={equipment} onPointerDown={!isSelf ? handlePointerDown : undefined}
       />
       {player.isAlive && player.name && (
         <NameLabel
@@ -105,6 +112,42 @@ function PlayerMarkerImpl({
 }
 
 export const PlayerMarker = memo(PlayerMarkerImpl);
+
+/** Rigged animated body for a player, falling back to the primitive
+ *  PlayerFigure while the GLB streams in (Suspense) or if it fails to
+ *  load (AssetErrorBoundary). The wrapper group carries the
+ *  click-to-target handler for other players. */
+function AnimatedPlayerBody({
+  anim, height, torsoHeight, headRadius, color, isSelf, isAlive, isMoving, equipment, onPointerDown,
+}: {
+  anim: CharacterAnim;
+  height: number;
+  torsoHeight: number;
+  headRadius: number;
+  color: string;
+  isSelf: boolean;
+  isAlive: boolean;
+  isMoving: boolean;
+  equipment?: Record<string, string>;
+  onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
+}) {
+  const fallbackFigure = (
+    <PlayerFigure
+      height={height} torsoHeight={torsoHeight} headRadius={headRadius} color={color}
+      isSelf={isSelf} isAlive={isAlive} isMoving={isMoving} equipment={equipment}
+      onPointerDown={onPointerDown}
+    />
+  );
+  return (
+    <AssetErrorBoundary fallback={fallbackFigure}>
+      <Suspense fallback={fallbackFigure}>
+        <group onPointerDown={onPointerDown}>
+          <AnimatedCharacter state={anim} scale={height / 1.8} />
+        </group>
+      </Suspense>
+    </AssetErrorBoundary>
+  );
+}
 
 function EnemyMarkerImpl({
   enemy,
