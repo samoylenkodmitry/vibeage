@@ -65,11 +65,12 @@ export function AnimatedCharacter({
     currentClip.current = clipName;
   }, [state, actions]);
 
-  // Death has no clip — synthesize it: the body tips forward onto the
-  // ground (rotateX), reading as "fallen".
+  // Yaw +180°: the model's authored forward is -Z, but the entity group
+  // faces +Z (atan2(vx,vz)), so without this the character walks backward.
+  // Death has no clip — synthesize it: tip forward onto the ground (X).
   const dead = state === 'death';
   return (
-    <group rotation={dead ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} position={[0, dead ? 0.1 : 0, 0]}>
+    <group rotation={[dead ? -Math.PI / 2 : 0, Math.PI, 0]} position={[0, dead ? 0.1 : 0, 0]}>
       <primitive object={model} scale={fitScale} />
     </group>
   );
