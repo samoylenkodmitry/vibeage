@@ -7,9 +7,9 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
  * asset, GPU upload throw) skips Suspense and would otherwise
  * crash the whole `Canvas` subtree.
  *
- * Wrap `CozyPineForest`'s GLB layer with this and pass the
+ * Wrap a GLB layer (e.g. CozyAuthoredCoast) with this and pass a
  * procedural fallback as `fallback`. If anything in the GLB
- * pipeline blows up at runtime, the cozy scene still paints
+ * pipeline blows up at runtime, the scene still paints
  * intentional geometry instead of going blank.
  *
  * Errors are logged to `console.error` so that telemetry/log
