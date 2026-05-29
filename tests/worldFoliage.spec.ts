@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { scatterChunkFoliage } from '../apps/client/src/world-art/foliageScatter';
+import {
+  scatterChunkFoliage,
+  foliageChunkOf,
+  visibleFoliageChunks,
+  FOLIAGE_CHUNK_SIZE,
+} from '../apps/client/src/world-art/foliageScatter';
 import { WORLD_SETTINGS } from '../packages/content/world';
+
+const key = (c: { x: number; z: number }) => `${c.x}:${c.z}`;
+const windowAt = (x: number, z: number, r: number) => {
+  const c = foliageChunkOf(x, z);
+  return new Set(visibleFoliageChunks(c.cx, c.cz, r).map(key));
+};
 
 /**
  * The whole point of the rewrite: foliage is POSITION-STABLE. A chunk's
@@ -53,5 +64,56 @@ describe('chunk foliage scatter', () => {
     expect(noGrass.grass.length).toBe(0);
     expect(noGrass.trees).toEqual(withGrass.trees);
     expect(totalCount(withGrass)).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Streaming stability — the property the user's "trees disappear when I cross"
+ * complaint is really about. Walking must NOT change the set of chunks already
+ * on screen near the player; only a far frontier row may swap (and that row is
+ * deep in fog). This is what makes the architecture solid rather than poppy.
+ */
+describe('foliage chunk streaming window', () => {
+  const R = 3; // high/medium radius
+
+  it('moving within a chunk leaves the visible set completely unchanged', () => {
+    // Two points inside the same foliage chunk (≈1 m apart, and well within 340 m).
+    const a = windowAt(10, 10, R);
+    const b = windowAt(11, 12, R);
+    expect(b).toEqual(a);
+  });
+
+  it('crossing ONE chunk boundary keeps every near chunk and swaps only a frontier row', () => {
+    // Step from just inside chunk 0 to just inside chunk 1 along +x.
+    const before = windowAt(FOLIAGE_CHUNK_SIZE - 1, 0, R);
+    const after = windowAt(FOLIAGE_CHUNK_SIZE + 1, 0, R);
+
+    const persisted = [...before].filter((k) => after.has(k));
+    const dropped = [...before].filter((k) => !after.has(k));
+    const added = [...after].filter((k) => !before.has(k));
+
+    const rowCount = 2 * R + 1; // 7 chunks per row
+    // Of a (2R+1)² window, exactly the trailing column drops and a leading
+    // column is added — everything else (the near field) stays mounted.
+    expect(before.size).toBe(rowCount * rowCount);
+    expect(dropped.length).toBe(rowCount);
+    expect(added.length).toBe(rowCount);
+    expect(persisted.length).toBe(rowCount * (rowCount - 1));
+  });
+
+  it('a persisted chunk yields byte-identical foliage before and after the crossing', () => {
+    const before = windowAt(FOLIAGE_CHUNK_SIZE - 1, 0, R);
+    const after = windowAt(FOLIAGE_CHUNK_SIZE + 1, 0, R);
+    const persistedKey = [...before].find((k) => after.has(k));
+    expect(persistedKey).toBeDefined();
+    const [px, pz] = persistedKey!.split(':').map(Number);
+    // Same origin → same scatter, so on-screen trees never twitch when crossing.
+    expect(scatterChunkFoliage(px, pz, FOLIAGE_CHUNK_SIZE, true))
+      .toEqual(scatterChunkFoliage(px, pz, FOLIAGE_CHUNK_SIZE, true));
+  });
+
+  it('the streaming frontier reaches the fog band (≥ ~1 km) so swaps hide in mist', () => {
+    // radius × chunk is the nearest-edge distance; the far corner is farther.
+    expect(R * FOLIAGE_CHUNK_SIZE).toBeGreaterThanOrEqual(1000);
   });
 });

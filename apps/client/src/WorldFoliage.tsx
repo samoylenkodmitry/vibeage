@@ -2,35 +2,36 @@ import { Suspense, memo, useMemo } from 'react';
 import { useRef, useLayoutEffect } from 'react';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { InstancedGltf } from './world-art/InstancedGltf';
-import { getTerrainChunk, getVisibleTerrainChunks } from './WorldGround';
 import type { WorldArtQuality } from './world-art/quality';
 import {
-  scatterChunkFoliage, splitByParity,
+  scatterChunkFoliage, splitByParity, foliageChunkOf, visibleFoliageChunks, FOLIAGE_CHUNK_SIZE,
   BROADLEAF_GLB, CONIFER_GLB, TREE_GLB_ALT, ACCENT_GLB_SMALL, ACCENT_GLB_MEDIUM, TREE_WIND,
   type FoliageInstance,
 } from './world-art/foliageScatter';
 
 /**
- * Position-stable foliage, streamed on the SAME chunk grid as the terrain
- * (WorldGround). Each chunk's trees/rocks/grass are a pure function of its
- * origin (see foliageScatter), built once + memoised + React-keyed by
- * origin — so stable chunks never re-render and only frontier chunks
- * mount/unmount as the player moves. This replaces the old FoliageField,
- * whose quantised jumping window + distance falloff re-shuffled the whole
- * view whenever the player crossed a cell line.
+ * Position-stable foliage, streamed on its OWN chunk grid (foliageScatter,
+ * larger than the terrain chunk so the same draw budget reaches the fog band).
+ * Each chunk's trees/rocks/grass are a pure function of its origin, built once
+ * + memoised + React-keyed by origin — so stable chunks never re-render and
+ * only frontier chunks mount/unmount as the player moves. The frontier sits
+ * deep in scene fog (WorldEnvironment), so those mounts/unmounts are invisible.
+ * This replaces the old FoliageField, whose quantised jumping window +
+ * distance falloff re-shuffled the whole view whenever the player crossed a
+ * cell line.
  */
-const CHUNK = WORLD_SETTINGS.terrainChunkSize;
+const CHUNK = FOLIAGE_CHUNK_SIZE;
 
 function foliageRadius(quality: WorldArtQuality): number {
-  return quality === 'high' ? 3 : quality === 'medium' ? 2 : 1;
+  // high/medium reach the fog band (3 × 340 ≈ 1020 m); low trades view for draws.
+  return quality === 'low' ? 1 : 3;
 }
 
 export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {
-  const c = getTerrainChunk(focus.x, focus.z);
+  const c = foliageChunkOf(focus.x, focus.z);
   const radius = foliageRadius(quality);
-  const chunks = useMemo(() => getVisibleTerrainChunks(c.x, c.z, radius), [c.x, c.z, radius]);
+  const chunks = useMemo(() => visibleFoliageChunks(c.cx, c.cz, radius), [c.cx, c.cz, radius]);
   const grassOn = quality !== 'low';
   return (
     <group>
@@ -52,14 +53,14 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ, grassOn }: {
   return (
     <>
       <Suspense fallback={null}>
-        <InstancedGltf src={BROADLEAF_GLB} matrices={t.evenMatrices} colors={t.evenColors} baseScale={1.4} wind={TREE_WIND} />
-        <InstancedGltf src={TREE_GLB_ALT} matrices={t.oddMatrices} colors={t.oddColors} baseScale={1.4} wind={TREE_WIND} />
-        <InstancedGltf src={CONIFER_GLB} matrices={co.evenMatrices} colors={co.evenColors} baseScale={1.6} wind={TREE_WIND} />
-        <InstancedGltf src={TREE_GLB_ALT} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.6} wind={TREE_WIND} />
-        <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />
-        <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={ac.oddMatrices} colors={ac.oddColors} baseScale={0.6} />
+        {t.evenMatrices.length > 0 && <InstancedGltf src={BROADLEAF_GLB} matrices={t.evenMatrices} colors={t.evenColors} baseScale={1.4} wind={TREE_WIND} />}
+        {t.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={t.oddMatrices} colors={t.oddColors} baseScale={1.4} wind={TREE_WIND} />}
+        {co.evenMatrices.length > 0 && <InstancedGltf src={CONIFER_GLB} matrices={co.evenMatrices} colors={co.evenColors} baseScale={1.6} wind={TREE_WIND} />}
+        {co.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.6} wind={TREE_WIND} />}
+        {ac.evenMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />}
+        {ac.oddMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={ac.oddMatrices} colors={ac.oddColors} baseScale={0.6} />}
       </Suspense>
-      {grassOn && <GrassClumps instances={grass} />}
+      {grassOn && grass.length > 0 && <GrassClumps instances={grass} />}
     </>
   );
 });
