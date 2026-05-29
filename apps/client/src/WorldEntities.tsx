@@ -58,7 +58,12 @@ function PlayerMarkerImpl({
   const vz = player.velocity?.z ?? 0;
   const speedSq = vx * vx + vz * vz;
   const isMoving = player.isAlive && speedSq > 0.5;
-  const facingY = isMoving ? Math.atan2(vx, vz) : (player.rotation?.y ?? 0);
+  // Keep the last movement heading so an idle / attacking character holds
+  // the direction it was last facing instead of snapping to rotation.y=0
+  // (which read as "always facing the camera" when standing still).
+  const lastFacingRef = useRef(player.rotation?.y ?? 0);
+  if (isMoving) lastFacingRef.current = Math.atan2(vx, vz);
+  const facingY = lastFacingRef.current;
   // Drive the rigged character's clip from live state: dead → death,
   // mid-cast → attack, fast → run, moving → walk, else idle.
   const anim: CharacterAnim = !player.isAlive
@@ -142,7 +147,7 @@ function AnimatedPlayerBody({
     <AssetErrorBoundary fallback={fallbackFigure}>
       <Suspense fallback={fallbackFigure}>
         <group onPointerDown={onPointerDown}>
-          <AnimatedCharacter state={anim} scale={height / 1.8} />
+          <AnimatedCharacter state={anim} targetHeight={height} />
         </group>
       </Suspense>
     </AssetErrorBoundary>

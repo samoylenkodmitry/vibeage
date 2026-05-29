@@ -5,39 +5,43 @@ import * as THREE from 'three';
 
 /**
  * A real rigged, skinned, animated character — replaces the old
- * box/cone primitives with an articulated body that idles, walks,
- * runs, attacks, and dies. The mesh is a CC0 model (see
- * public/models/ASSET_MANIFEST.md); the system is model-agnostic —
- * swapping in a different rigged GLB only needs the CLIP map below to
- * point at that model's clip names.
+ * box/cone primitives with an articulated humanoid that idles, walks,
+ * runs, and dies. The mesh is a CC0 model (see ASSET_MANIFEST.md); the
+ * system is model-agnostic — swapping a different rigged GLB only needs
+ * the CLIP map updated to that model's clip names (and any missing
+ * states fall back gracefully).
+ *
+ * Scale is AUTO-FIT: we measure the model's real bounding box at load
+ * and scale it to `targetHeight`, so any model (whatever its native
+ * units) renders at the right size with its feet on the ground — no
+ * per-model magic-number guessing.
  *
  * Each instance gets its own skeleton (SkeletonUtils.clone) so two
  * characters animate independently off the one cached download.
  */
-const MODEL = '/models/characters/robot-expressive.glb';
+const MODEL = '/models/characters/soldier.glb';
 useGLTF.preload(MODEL);
 
 export type CharacterAnim = 'idle' | 'walk' | 'run' | 'attack' | 'death';
 
-/** Our abstract states → the model's actual clip names. */
+/** Abstract states → this model's actual clip names. Soldier ships
+ *  Idle / Walk / Run; attack reuses idle (no punch clip — better than a
+ *  bad one) and death is synthesized procedurally below. */
 const CLIP: Record<CharacterAnim, string> = {
   idle: 'Idle',
-  walk: 'Walking',
-  run: 'Running',
-  attack: 'Punch',
-  death: 'Death',
+  walk: 'Walk',
+  run: 'Run',
+  attack: 'Idle',
+  death: 'Idle',
 };
-
-const ONCE: ReadonlySet<CharacterAnim> = new Set(['attack', 'death']);
 
 export function AnimatedCharacter({
   state,
-  scale = 0.5,
-  yOffset = 0,
+  targetHeight = 1.8,
 }: {
   state: CharacterAnim;
-  scale?: number;
-  yOffset?: number;
+  /** Desired rendered height in world units; the model auto-scales to it. */
+  targetHeight?: number;
 }) {
   const { scene, animations } = useGLTF(MODEL);
   // Per-instance skeleton clone so each character plays its own clip.
@@ -45,19 +49,34 @@ export function AnimatedCharacter({
   const { actions } = useAnimations(animations, model);
   const currentClip = useRef<string | null>(null);
 
+  // Auto-fit: measure the rendered bounding box (rest pose) and derive
+  // the scale + a feet-on-ground offset. Removes all per-model scale
+  // guessing — any rigged GLB lands at targetHeight.
+  const { fitScale, yOffset } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(model);
+    const h = box.max.y - box.min.y;
+    const s = h > 0.001 ? targetHeight / h : 1;
+    return { fitScale: s, yOffset: -box.min.y * s };
+  }, [model, targetHeight]);
+
   useEffect(() => {
     const clipName = CLIP[state];
     const next = actions[clipName];
     if (!next || currentClip.current === clipName) return;
     const prev = currentClip.current ? actions[currentClip.current] : null;
-    const playOnce = ONCE.has(state);
     next.reset();
-    next.setLoop(playOnce ? THREE.LoopOnce : THREE.LoopRepeat, playOnce ? 1 : Infinity);
-    next.clampWhenFinished = state === 'death';
+    next.setLoop(THREE.LoopRepeat, Infinity);
     next.fadeIn(0.2).play();
     prev?.fadeOut(0.2);
     currentClip.current = clipName;
   }, [state, actions]);
 
-  return <primitive object={model} scale={scale} position={[0, yOffset, 0]} />;
+  // Death has no clip — synthesize it: the body tips forward onto the
+  // ground (rotateX) and sinks slightly, reading as "fallen".
+  const dead = state === 'death';
+  return (
+    <group rotation={dead ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} position={[0, dead ? 0.1 : yOffset, 0]}>
+      <primitive object={model} scale={fitScale} position={dead ? [0, yOffset, 0] : [0, 0, 0]} />
+    </group>
+  );
 }
