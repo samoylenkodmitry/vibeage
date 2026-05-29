@@ -61,6 +61,14 @@ is never blank.
 
 | File | Source | License | Page |
 |---|---|---|---|
+| `characters/soldier.glb` | three.js examples | CC0 | <https://github.com/mrdoob/three.js/tree/master/examples/models/gltf> |
 | `characters/robot-expressive.glb` | Tomás Laulhé / Don McCurdy | CC0 | <https://github.com/mrdoob/three.js/tree/master/examples/models/gltf/RobotExpressive> |
 
-Clips used by `AnimatedCharacter.tsx`: `Idle`, `Walking`, `Running`, `Punch` (attack), `Death`. The character system is model-agnostic — swapping a different rigged GLB only needs the `CLIP` map updated to that model's clip names.
+`AnimatedCharacter.tsx` currently uses `soldier.glb` (realistic humanoid; clips
+`Idle` / `Walk` / `Run`, death synthesized procedurally, attack reuses idle).
+`robot-expressive.glb` is kept as an alternate (full `Idle`/`Walking`/`Running`/`Punch`/`Death`).
+
+The character system is **model-agnostic + auto-scaling**: point `MODEL` at a
+different rigged GLB + update the `CLIP` map — scale auto-fits to the target
+height at load, so any model renders correctly sized. Drop a fantasy-themed
+rigged GLB (L2-style) here to swap the look.
