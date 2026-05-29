@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -13,7 +13,10 @@ import type { Vec3D } from '../../../packages/protocol/messages';
  *
  * Sits just past the foliage frontier (~960 m) and inside the scene fog band,
  * so it reads as a hazy distant range. fog stays enabled (default) on purpose.
- * 20 cones ≈ 20 draws — comfortably under budget.
+ * One InstancedMesh (1 draw) built once — instances are RELATIVE to the group,
+ * so computeBoundingSphere gives a correct local sphere that follows focus via
+ * the group transform (no origin-anchored frustum-cull trap), and re-rendering
+ * on each focus tick reconciles nothing.
  */
 const RING_RADIUS = 780;
 const BASE_Y = -8;
@@ -44,24 +47,41 @@ function makeRing(): Mountain[] {
 export function WorldHorizonMountains({ focus }: { focus: Vec3D }) {
   const mountains = useMemo(makeRing, []);
   const groupRef = useRef<THREE.Group>(null);
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
   useFrame(() => {
     const g = groupRef.current;
     if (g) g.position.set(focus.x, 0, focus.z);
   });
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    const rotation = new THREE.Euler();
+    const matrix = new THREE.Matrix4();
+    mountains.forEach((m, i) => {
+      // Unit cone scaled per instance: base radius on XZ, height on Y.
+      position.set(m.x, BASE_Y + m.height / 2, m.z);
+      rotation.set(0, m.rotationY, 0);
+      quaternion.setFromEuler(rotation);
+      scale.set(m.baseRadius, m.height, m.baseRadius);
+      matrix.compose(position, quaternion, scale);
+      mesh.setMatrixAt(i, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.count = mountains.length;
+    mesh.computeBoundingSphere();
+  }, [mountains]);
+
   return (
     <group ref={groupRef} raycast={() => null}>
-      {mountains.map((m, i) => (
-        <mesh
-          key={i}
-          position={[m.x, BASE_Y + m.height / 2, m.z]}
-          rotation={[0, m.rotationY, 0]}
-          castShadow={false}
-          receiveShadow={false}
-        >
-          <coneGeometry args={[m.baseRadius, m.height, 6, 1]} />
-          <meshStandardMaterial color={COLOR} roughness={1} metalness={0} />
-        </mesh>
-      ))}
+      <instancedMesh ref={meshRef} args={[undefined, undefined, COUNT]} castShadow={false} receiveShadow={false}>
+        <coneGeometry args={[1, 1, 6, 1]} />
+        <meshStandardMaterial color={COLOR} roughness={1} metalness={0} />
+      </instancedMesh>
     </group>
   );
 }
