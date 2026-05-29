@@ -56,3 +56,11 @@ Every asset declares a procedural fallback in the registry
 scene still renders intentional geometry — pine silhouettes from
 PR 1, plus colored primitives for rocks and grass — so the scene
 is never blank.
+
+## Characters
+
+| File | Source | License | Page |
+|---|---|---|---|
+| `characters/robot-expressive.glb` | Tomás Laulhé / Don McCurdy | CC0 | <https://github.com/mrdoob/three.js/tree/master/examples/models/gltf/RobotExpressive> |
+
+Clips used by `AnimatedCharacter.tsx`: `Idle`, `Walking`, `Running`, `Punch` (attack), `Death`. The character system is model-agnostic — swapping a different rigged GLB only needs the `CLIP` map updated to that model's clip names.
