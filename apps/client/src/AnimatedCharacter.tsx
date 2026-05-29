@@ -11,15 +11,17 @@ import * as THREE from 'three';
  * the CLIP map updated to that model's clip names (and any missing
  * states fall back gracefully).
  *
- * Scale is AUTO-FIT: we measure the model's real bounding box at load
- * and scale it to `targetHeight`, so any model (whatever its native
- * units) renders at the right size with its feet on the ground — no
- * per-model magic-number guessing.
- *
  * Each instance gets its own skeleton (SkeletonUtils.clone) so two
  * characters animate independently off the one cached download.
+ *
+ * Scale: the model already renders ~human-sized at scale 1 (its root
+ * node bakes a unit conversion), so we scale by `targetHeight / NATIVE`.
+ * NOTE: Box3 auto-fit does NOT work here — a skinned mesh reports its
+ * tiny bind-pose bounds, not the rendered size, which blows the scale up.
  */
 const MODEL = '/models/characters/soldier.glb';
+/** soldier.glb renders ~1.8 world units tall at scale 1. */
+const NATIVE_HEIGHT = 1.8;
 useGLTF.preload(MODEL);
 
 export type CharacterAnim = 'idle' | 'walk' | 'run' | 'attack' | 'death';
@@ -49,15 +51,7 @@ export function AnimatedCharacter({
   const { actions } = useAnimations(animations, model);
   const currentClip = useRef<string | null>(null);
 
-  // Auto-fit: measure the rendered bounding box (rest pose) and derive
-  // the scale + a feet-on-ground offset. Removes all per-model scale
-  // guessing — any rigged GLB lands at targetHeight.
-  const { fitScale, yOffset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(model);
-    const h = box.max.y - box.min.y;
-    const s = h > 0.001 ? targetHeight / h : 1;
-    return { fitScale: s, yOffset: -box.min.y * s };
-  }, [model, targetHeight]);
+  const fitScale = targetHeight / NATIVE_HEIGHT;
 
   useEffect(() => {
     const clipName = CLIP[state];
@@ -72,11 +66,11 @@ export function AnimatedCharacter({
   }, [state, actions]);
 
   // Death has no clip — synthesize it: the body tips forward onto the
-  // ground (rotateX) and sinks slightly, reading as "fallen".
+  // ground (rotateX), reading as "fallen".
   const dead = state === 'death';
   return (
-    <group rotation={dead ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} position={[0, dead ? 0.1 : yOffset, 0]}>
-      <primitive object={model} scale={fitScale} position={dead ? [0, yOffset, 0] : [0, 0, 0]} />
+    <group rotation={dead ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} position={[0, dead ? 0.1 : 0, 0]}>
+      <primitive object={model} scale={fitScale} />
     </group>
   );
 }
