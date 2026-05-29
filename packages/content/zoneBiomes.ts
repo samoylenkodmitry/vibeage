@@ -52,3 +52,35 @@ export function biomeAtZone(x: number, z: number): TerrainBiome | null {
   }
   return best ? best.biome : null;
 }
+
+/** Baseline meadow weight so gaps between zones (and zone edges) blend
+ *  into meadow instead of cutting a hard seam. */
+const MEADOW_BASELINE = 0.22;
+
+function smooth(edge0: number, edge1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Soft biome weights at `(x, z)` — each zone contributes a weight that
+ * is 1 well inside its radius and fades to 0 by `radius × reach`, plus a
+ * meadow baseline. Normalized. terrain.ts blends the biome colours +
+ * densities by these so adjacent biomes transition smoothly instead of
+ * snapping at a hard Voronoi edge.
+ */
+export function biomeWeights(x: number, z: number): Map<TerrainBiome, number> {
+  const weights = new Map<TerrainBiome, number>();
+  let total = MEADOW_BASELINE;
+  weights.set('meadow', MEADOW_BASELINE);
+  for (const zone of ZONE_BIOMES) {
+    const dist = Math.hypot(x - zone.x, z - zone.z);
+    // 1 inside 0.6r, fading to 0 by reach·r.
+    const w = 1 - smooth(zone.radius * 0.6, zone.radius * ZONE_REACH, dist);
+    if (w <= 0) continue;
+    weights.set(zone.biome, (weights.get(zone.biome) ?? 0) + w);
+    total += w;
+  }
+  for (const [b, w] of weights) weights.set(b, w / total);
+  return weights;
+}

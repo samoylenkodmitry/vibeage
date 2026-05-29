@@ -1,4 +1,4 @@
-import { biomeAtZone } from './zoneBiomes.js';
+import { biomeAtZone, biomeWeights } from './zoneBiomes.js';
 
 export type TerrainBiome =
   | 'meadow'
@@ -120,11 +120,41 @@ const TERRAIN_BIOME_VISUALS: Record<TerrainBiome, TerrainVisual> = {
 
 export function sampleTerrain(x: number, z: number): TerrainSample {
   const biome = getTerrainBiome(x, z);
+  // Blend the neighbouring zone biomes' colours + densities by soft
+  // distance weights so sectors transition smoothly instead of snapping
+  // at a hard Voronoi edge (which read as an ugly seam on the ground).
+  // `biome` stays the dominant one for discrete logic (conifer share).
+  const weights = biomeWeights(x, z);
+  let gr = 0, gg = 0, gb = 0, fr = 0, fg = 0, fb = 0, ar = 0, ag = 0, ab = 0;
+  let grass = 0, tree = 0, rough = 0;
+  for (const [b, w] of weights) {
+    const v = TERRAIN_BIOME_VISUALS[b];
+    const g = hexRgb(v.groundColor), f = hexRgb(v.foliageColor), a = hexRgb(v.accentColor);
+    gr += g.r * w; gg += g.g * w; gb += g.b * w;
+    fr += f.r * w; fg += f.g * w; fb += f.b * w;
+    ar += a.r * w; ag += a.g * w; ab += a.b * w;
+    grass += v.grassDensity * w; tree += v.treeDensity * w; rough += v.roughness * w;
+  }
   return {
-    ...TERRAIN_BIOME_VISUALS[biome],
+    groundColor: rgbHex(gr, gg, gb),
+    foliageColor: rgbHex(fr, fg, fb),
+    accentColor: rgbHex(ar, ag, ab),
+    grassDensity: grass,
+    treeDensity: tree,
+    roughness: rough,
     biome,
     height: getTerrainHeight(x, z),
   };
+}
+
+function hexRgb(hex: string): { r: number; g: number; b: number } {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgbHex(r: number, g: number, b: number): string {
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return `#${c(r)}${c(g)}${c(b)}`;
 }
 
 export function getTerrainHeight(x: number, z: number): number {
