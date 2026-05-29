@@ -24,8 +24,12 @@ import {
 const CHUNK = FOLIAGE_CHUNK_SIZE;
 
 function foliageRadius(quality: WorldArtQuality): number {
-  // high/medium reach the fog band (3 × 340 ≈ 1020 m); low trades view for draws.
-  return quality === 'low' ? 1 : 3;
+  // Frontier MUST land in the fog band, else crossing a chunk line pops a
+  // whole row of trees in plain view. Retina Macs report quality 'medium'
+  // (devicePixelRatio > 1.5), so medium gets the same far frontier as high
+  // (3 × 340 ≈ 1020 m, fogged). Low still reaches 680 m (2 × 340) — partly
+  // fogged — rather than the old 1-ring 256 m that toggled in your face.
+  return quality === 'low' ? 2 : 3;
 }
 
 export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {

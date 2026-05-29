@@ -23,7 +23,7 @@ const PALETTE_REFRESH_S = 0.2;
 // inside the mist; mega landmarks render fog={false} (WorldFeatures) and still
 // pierce it as horizon beacons. Distinct from WORLD_SETTINGS.fogFar (5400),
 // which is only a landmark-visibility cull distance, not real fog.
-const SCENE_FOG = { near: 520, far: 1120 } as const;
+const SCENE_FOG = { near: 450, far: 1120 } as const;
 
 type DayCycleRefs = {
   hemisphere: React.MutableRefObject<THREE.HemisphereLight | null>;
