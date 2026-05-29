@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { playCue } from '../sfx';
 
 type LowHealthHeartbeatProps = {
@@ -31,5 +31,17 @@ export function LowHealthHeartbeat({ health, maxHealth, isAlive }: LowHealthHear
     return () => window.clearInterval(id);
   }, [isLow]);
 
-  return null;
+  // Visual partner to the heartbeat audio: a pulsing red screen-edge
+  // vignette that deepens the closer HP is to zero. `--low-health` (0→1)
+  // scales the opacity in CSS; the keyframe pulse runs only while low.
+  if (!isLow) return null;
+  const ratio = maxHealth > 0 ? health / maxHealth : 1;
+  const severity = Math.max(0, Math.min(1, 1 - ratio / LOW_HEALTH_THRESHOLD));
+  return (
+    <div
+      className="low-health-vignette"
+      aria-hidden="true"
+      style={{ ['--low-health' as string]: severity.toFixed(3) } as CSSProperties}
+    />
+  );
 }
