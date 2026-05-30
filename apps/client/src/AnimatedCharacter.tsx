@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as THREE from 'three';
@@ -6,6 +6,7 @@ import {
   CHARACTER_MODELS, DEFAULT_CHARACTER_MODEL,
   type CharacterAnim, type CharacterModelId,
 } from './characterModels';
+import { WEAPON_SOCKET, weaponModelPath } from './weaponModels';
 
 /**
  * A real rigged, skinned, animated character. Model-agnostic: all model
@@ -30,6 +31,7 @@ export function AnimatedCharacter({
   modelId = DEFAULT_CHARACTER_MODEL,
   targetHeight = 1.8,
   tint,
+  weaponType,
 }: {
   state: CharacterAnim;
   /** Which registry model to render. */
@@ -38,6 +40,8 @@ export function AnimatedCharacter({
   targetHeight?: number;
   /** Optional per-instance colour multiply (e.g. green goblin, olive orc). */
   tint?: string;
+  /** Content weaponType (sword/staff/…); mounts the matching GLB in the hand. */
+  weaponType?: string;
 }) {
   const def = CHARACTER_MODELS[modelId];
   const { scene, animations } = useGLTF(def.path);
@@ -59,6 +63,10 @@ export function AnimatedCharacter({
     }
     return c;
   }, [scene, tint]);
+  // The hand socket KayKit authored for held weapons (part of the clone, so
+  // per-instance). A weapon parented here follows the hand through every clip.
+  const socket = useMemo(() => model.getObjectByName(WEAPON_SOCKET) ?? null, [model]);
+  const weaponPath = weaponModelPath(weaponType);
   const { actions } = useAnimations(animations, model);
   const currentClip = useRef<string | null>(null);
   // When the model/tint changes, useAnimations returns a NEW actions object
@@ -98,6 +106,25 @@ export function AnimatedCharacter({
   return (
     <group rotation={[0, def.forwardYaw, 0]}>
       <primitive object={model} scale={fitScale} />
+      {weaponPath && socket && (
+        // Own Suspense so streaming a weapon never blanks the whole character.
+        <Suspense fallback={null}>
+          <WeaponOnBone path={weaponPath} bone={socket} />
+        </Suspense>
+      )}
     </group>
   );
+}
+
+/** Parents a (non-skinned) weapon GLB onto a skeleton bone imperatively — R3F
+ *  can't target an arbitrary bone declaratively. Identity transform: KayKit's
+ *  handslot is authored so the grip lands correctly. */
+function WeaponOnBone({ path, bone }: { path: string; bone: THREE.Object3D }) {
+  const { scene } = useGLTF(path);
+  const weapon = useMemo(() => scene.clone(true), [scene]);
+  useLayoutEffect(() => {
+    bone.add(weapon);
+    return () => { bone.remove(weapon); };
+  }, [bone, weapon]);
+  return null;
 }

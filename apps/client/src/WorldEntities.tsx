@@ -23,6 +23,7 @@ import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
 import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
 import { pickPlayerModel, enemyModel, type CharacterModelId } from './characterModels';
+import { equippedWeaponType } from './weaponModels';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
@@ -152,7 +153,7 @@ function AnimatedPlayerBody({
     <AssetErrorBoundary fallback={fallbackFigure}>
       <Suspense fallback={fallbackFigure}>
         <group onPointerDown={onPointerDown}>
-          <AnimatedCharacter state={anim} targetHeight={height} modelId={modelId} />
+          <AnimatedCharacter state={anim} targetHeight={height} modelId={modelId} weaponType={equippedWeaponType(equipment)} />
         </group>
       </Suspense>
     </AssetErrorBoundary>
