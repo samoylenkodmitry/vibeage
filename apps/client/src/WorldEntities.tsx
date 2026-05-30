@@ -22,7 +22,7 @@ import { NameLabel } from './NameLabel';
 import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
 import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
-import { pickPlayerModel, enemyModel, enemyWeaponType, type CharacterModelId } from './characterModels';
+import { playerModel, pickPlayerModel, enemyModel, enemyWeaponType, type CharacterModelId } from './characterModels';
 import { equippedWeaponType } from './weaponModels';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
@@ -106,7 +106,7 @@ function PlayerMarkerImpl({
       <AnimatedPlayerBody
         anim={anim} height={height} torsoHeight={torsoHeight} headRadius={headRadius}
         color={color} isSelf={isSelf} isAlive={player.isAlive} isMoving={isMoving}
-        modelId={pickPlayerModel(player.id)}
+        modelId={playerModel(player.id, player.specializationId)}
         equipment={equipment} onPointerDown={!isSelf ? handlePointerDown : undefined}
       />
       {player.isAlive && player.name && (
