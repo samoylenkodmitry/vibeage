@@ -7,6 +7,7 @@ import {
   type CharacterAnim, type CharacterModelId,
 } from './characterModels';
 import { WEAPON_SOCKET, weaponModelPath } from './weaponModels';
+import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 
 /**
  * A real rigged, skinned, animated character. Model-agnostic: all model
@@ -107,10 +108,13 @@ export function AnimatedCharacter({
     <group rotation={[0, def.forwardYaw, 0]}>
       <primitive object={model} scale={fitScale} />
       {weaponPath && socket && (
-        // Own Suspense so streaming a weapon never blanks the whole character.
-        <Suspense fallback={null}>
-          <WeaponOnBone path={weaponPath} bone={socket} />
-        </Suspense>
+        // Own Suspense + error boundary so streaming OR a load failure of a
+        // weapon only omits the weapon, never blanks/breaks the whole character.
+        <AssetErrorBoundary fallback={null}>
+          <Suspense fallback={null}>
+            <WeaponOnBone path={weaponPath} bone={socket} />
+          </Suspense>
+        </AssetErrorBoundary>
       )}
     </group>
   );
