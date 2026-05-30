@@ -107,7 +107,7 @@ export function EnergyOrb({ core, glow, radius = 0.4, spin = 2.5 }: { core: stri
 
 // ---- Element-specific cores ----------------------------------------------
 
-export type SpellElement = 'fire' | 'ice' | 'arcane';
+export type SpellElement = 'fire' | 'ice' | 'holy' | 'poison' | 'arcane';
 
 /** Compact 3D value-noise + fbm (shared GLSL prepended to fire shaders). */
 const NOISE_GLSL = /* glsl */ `
@@ -161,6 +161,82 @@ const ICE_FRAG = /* glsl */ `
   }
 `;
 
+const HOLY_FRAG = /* glsl */ `
+  uniform float uTime;
+  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
+  void main() {
+    float ang = atan(vPos.y, vPos.x + 1e-6); // epsilon avoids atan(0,0) NaN at the poles
+    float rays = pow(abs(sin(ang * 8.0 + uTime * 1.1)), 6.0);   // 8 rotating god-rays
+    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.5);
+    float pulse = 0.85 + 0.15 * sin(uTime * 6.0);
+    float b = ((1.0 - fres) * 0.8 + rays * 0.7 * fres + 0.2) * pulse;
+    vec3 col = mix(vec3(1.0, 0.86, 0.40), vec3(1.0, 1.0, 0.92), clamp(b, 0.0, 1.0)); // gold→white
+    gl_FragColor = vec4(col * b, clamp(b, 0.0, 1.0));
+  }
+`;
+
+const POISON_FRAG = NOISE_GLSL + /* glsl */ `
+  uniform float uTime;
+  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
+  void main() {
+    vec3 p = vPos * 3.0 + vec3(0.0, -uTime * 0.5, uTime * 0.3);
+    float n = fbm(p);
+    float bubble = smoothstep(0.55, 0.75, n);
+    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.6);
+    vec3 col = mix(vec3(0.05, 0.22, 0.04), vec3(0.40, 0.95, 0.20), smoothstep(0.30, 0.70, n)); // murk→toxic
+    col = mix(col, vec3(0.80, 1.0, 0.40), bubble * 0.6);                                        // bubble glints
+    float a = smoothstep(0.15, 0.5, n + fres * 0.3);
+    gl_FragColor = vec4(col, a);
+  }
+`;
+
+const ARCANE_FRAG = /* glsl */ `
+  uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow;
+  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
+  void main() {
+    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.4);
+    float bands = sin(atan(vPos.z, vPos.x + 1e-6) * 6.0 + uTime * 2.0 + vPos.y * 8.0); // swirling bands (epsilon avoids pole NaN)
+    float runes = smoothstep(0.7, 1.0, abs(bands));
+    vec3 col = mix(uCore, uGlow, fres) + runes * 0.5;
+    float a = clamp(0.4 + fres * 0.7 + runes * 0.4, 0.0, 1.0);
+    gl_FragColor = vec4(col, a);
+  }
+`;
+
+function makeTimeMaterial(frag: string, additive: boolean): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: CORE_VERT, fragmentShader: frag,
+    transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+  });
+}
+
+export function HolyCore({ radius = 0.42 }: { radius?: number }) {
+  const mat = useMemo(() => makeTimeMaterial(HOLY_FRAG, true), []);
+  useEffect(() => () => mat.dispose(), [mat]);
+  useFrame((_, dt) => { mat.uniforms.uTime.value += dt; });
+  return <mesh material={mat}><icosahedronGeometry args={[radius, 3]} /></mesh>;
+}
+
+export function PoisonCore({ radius = 0.4 }: { radius?: number }) {
+  const mat = useMemo(() => makeTimeMaterial(POISON_FRAG, false), []);
+  useEffect(() => () => mat.dispose(), [mat]);
+  useFrame((_, dt) => { mat.uniforms.uTime.value += dt; });
+  return <mesh material={mat}><icosahedronGeometry args={[radius, 4]} /></mesh>;
+}
+
+export function ArcaneCore({ core, glow, radius = 0.4, spin = 1.4 }: { core: string; glow: string; radius?: number; spin?: number }) {
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uCore: { value: new THREE.Color('#ffffff') }, uGlow: { value: new THREE.Color('#ffffff') } },
+    vertexShader: CORE_VERT, fragmentShader: ARCANE_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }), []);
+  useEffect(() => { mat.uniforms.uCore.value.set(core); mat.uniforms.uGlow.value.set(glow); }, [core, glow, mat]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((_, dt) => { mat.uniforms.uTime.value += dt; if (meshRef.current) meshRef.current.rotation.y += dt * spin; });
+  return <mesh ref={meshRef} material={mat}><icosahedronGeometry args={[radius, 2]} /></mesh>;
+}
+
 export function FireCore({ radius = 0.4 }: { radius?: number }) {
   const mat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 } },
@@ -199,6 +275,9 @@ export function SpellCore({ element, core, glow, radius, spin }: {
 }) {
   if (element === 'fire') return <FireCore radius={radius} />;
   if (element === 'ice') return <IceCore core={core} glow={glow} radius={radius} />;
+  if (element === 'holy') return <HolyCore radius={radius} />;
+  if (element === 'poison') return <PoisonCore radius={radius} />;
+  if (element === 'arcane') return <ArcaneCore core={core} glow={glow} radius={radius} spin={spin} />;
   return <EnergyOrb core={core} glow={glow} radius={radius} spin={spin} />;
 }
 
