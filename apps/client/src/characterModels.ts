@@ -8,6 +8,7 @@
  * Current set: KayKit Adventurers (CC0, see ASSET_MANIFEST.md). All five share
  * one 76-clip rig, so they reuse a single clip map; only the height differs.
  */
+import type { CharacterClass } from '../../../packages/content/classes';
 import { getSpecializationById } from '../../../packages/content/specializations';
 
 export type CharacterAnim = 'idle' | 'walk' | 'run' | 'attack' | 'death';
@@ -68,8 +69,9 @@ export function pickPlayerModel(playerId: string): CharacterModelId {
   return PLAYER_MODEL_POOL[h % PLAYER_MODEL_POOL.length];
 }
 
-/** A spec's base class → the KayKit body that reads as it. */
-const BASECLASS_MODEL: Record<string, CharacterModelId> = {
+/** A class → the KayKit body that reads as it. Exhaustive over CharacterClass
+ *  so a newly-added class must be mapped (no silent fallback). */
+const BASECLASS_MODEL: Record<CharacterClass, CharacterModelId> = {
   mage: 'kaykit-mage',
   healer: 'kaykit-mage',
   knight: 'kaykit-knight',
@@ -84,7 +86,7 @@ const BASECLASS_MODEL: Record<string, CharacterModelId> = {
 export function playerModel(playerId: string, specializationId?: string | null): CharacterModelId {
   if (specializationId) {
     const base = getSpecializationById(specializationId)?.baseClass;
-    if (base && BASECLASS_MODEL[base]) return BASECLASS_MODEL[base];
+    if (base) return BASECLASS_MODEL[base];
   }
   return pickPlayerModel(playerId);
 }
