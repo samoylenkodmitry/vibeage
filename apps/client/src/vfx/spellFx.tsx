@@ -114,9 +114,9 @@ export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y
     mat.uniforms.uAccent.value.set(accent);
   }, [color, accent, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
-  const start = useRef(0);
+  const start = useRef<number | null>(null);
   useFrame(({ clock }) => {
-    if (!start.current) start.current = clock.elapsedTime;
+    if (start.current === null) start.current = clock.elapsedTime;
     mat.uniforms.uProgress.value = Math.min(1, ((clock.elapsedTime - start.current) * 1000) / durationMs);
   });
   return (
