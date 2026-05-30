@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'rea
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../packages/content/terrain';
+import { biomeAtZone } from '../../../packages/content/zoneBiomes';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type Vec3D, type VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
@@ -66,16 +67,22 @@ const TOUCH_DRAG_THRESHOLD_PX = 6;
 
 export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, visualMode = 'textured', palette = 'grass', sandRegion }: WorldGroundProps) {
   const focusChunk = getTerrainChunk(focus.x, focus.z);
-  // A chunk is sand if its OWN centre sits inside the sand region — fixed
-  // by location, never by the player's position. The chunk size (256u)
-  // makes the sand/grass edge a coastal ring near spawn instead of a
-  // world-wide flip. Falls back to the flat `palette` when no region set.
+  // Ground texture is fixed by a chunk's OWN centre (never the player's
+  // position) so the surface is stable per location. Sand wins at the coast
+  // ring; ashen/scorched biomes (volcanic, abyssal) get the bare dusty texture
+  // instead of meadow grass so each region reads differently underfoot; else
+  // the flat `palette` default. (Distinct per-biome textures await the imagegen
+  // pipeline; for now it's a sand/grass split driven by the biome map.)
   const paletteForChunk = (cx: number, cz: number): TerrainPalette => {
-    if (!sandRegion) return palette;
     const halfChunk = WORLD_SETTINGS.terrainChunkSize / 2;
-    return Math.hypot(cx + halfChunk - sandRegion.x, cz + halfChunk - sandRegion.z) <= sandRegion.radius
-      ? 'sand'
-      : 'grass';
+    const centerX = cx + halfChunk;
+    const centerZ = cz + halfChunk;
+    if (sandRegion && Math.hypot(centerX - sandRegion.x, centerZ - sandRegion.z) <= sandRegion.radius) {
+      return 'sand';
+    }
+    const biome = biomeAtZone(centerX, centerZ);
+    if (biome === 'volcanic' || biome === 'abyssal') return 'sand';
+    return palette;
   };
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
