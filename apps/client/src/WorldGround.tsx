@@ -1,8 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { sampleTerrain } from '../../../packages/content/terrain';
-import { biomeAtZone } from '../../../packages/content/zoneBiomes';
+import { getTerrainBiome, sampleTerrain } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type Vec3D, type VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
@@ -80,7 +79,9 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, v
     if (sandRegion && Math.hypot(centerX - sandRegion.x, centerZ - sandRegion.z) <= sandRegion.radius) {
       return 'sand';
     }
-    const biome = biomeAtZone(centerX, centerZ);
+    // getTerrainBiome covers both named zones and the large-scale climate
+    // field, so ashen regions outside a named zone also get the dusty texture.
+    const biome = getTerrainBiome(centerX, centerZ);
     if (biome === 'volcanic' || biome === 'abyssal') return 'sand';
     return palette;
   };
