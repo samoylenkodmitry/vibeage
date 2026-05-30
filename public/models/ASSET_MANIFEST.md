@@ -61,14 +61,21 @@ is never blank.
 
 | File | Source | License | Page |
 |---|---|---|---|
+| `characters/kaykit/Knight.glb` | KayKit Adventurers (Kay Lousberg) | CC0 | <https://kaylousberg.itch.io/kaykit-adventurers> |
+| `characters/kaykit/Mage.glb` | KayKit Adventurers (Kay Lousberg) | CC0 | <https://kaylousberg.itch.io/kaykit-adventurers> |
+| `characters/kaykit/Rogue.glb` | KayKit Adventurers (Kay Lousberg) | CC0 | <https://kaylousberg.itch.io/kaykit-adventurers> |
+| `characters/kaykit/Rogue_Hooded.glb` | KayKit Adventurers (Kay Lousberg) | CC0 | <https://kaylousberg.itch.io/kaykit-adventurers> |
+| `characters/kaykit/Barbarian.glb` | KayKit Adventurers (Kay Lousberg) | CC0 | <https://kaylousberg.itch.io/kaykit-adventurers> |
 | `characters/soldier.glb` | three.js examples | CC0 | <https://github.com/mrdoob/three.js/tree/master/examples/models/gltf> |
 | `characters/robot-expressive.glb` | Tomás Laulhé / Don McCurdy | CC0 | <https://github.com/mrdoob/three.js/tree/master/examples/models/gltf/RobotExpressive> |
 
-`AnimatedCharacter.tsx` currently uses `soldier.glb` (realistic humanoid; clips
-`Idle` / `Walk` / `Run`, death synthesized procedurally, attack reuses idle).
-`robot-expressive.glb` is kept as an alternate (full `Idle`/`Walking`/`Running`/`Punch`/`Death`).
+`AnimatedCharacter.tsx` renders the **KayKit Adventurers** (CC0) — five fantasy
+classes sharing one 76-clip rig (`Idle` / `Walking_A` / `Running_A` /
+`1H_Melee_Attack_Slice_Horizontal` / `Death_A`, real death + attack). Players get
+a per-id class look; humanoid/undead mobs reuse the rig tinted. `soldier.glb` and
+`robot-expressive.glb` are kept as alternates.
 
-The character system is **model-agnostic + auto-scaling**: point `MODEL` at a
-different rigged GLB + update the `CLIP` map — scale auto-fits to the target
-height at load, so any model renders correctly sized. Drop a fantasy-themed
-rigged GLB (L2-style) here to swap the look.
+The character system is **model-agnostic** via `characterModels.ts`: each model's
+GLB path, native height, forward axis, and abstract-state→clip-name map live in
+the registry. Swapping in a paid/custom (L2-style) model is a registry edit —
+add an entry + point the picker at it; nothing in the renderer changes.

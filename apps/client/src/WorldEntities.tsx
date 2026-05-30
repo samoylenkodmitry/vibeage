@@ -22,6 +22,7 @@ import { NameLabel } from './NameLabel';
 import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
 import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
+import { pickPlayerModel, enemyModel, type CharacterModelId } from './characterModels';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
@@ -104,6 +105,7 @@ function PlayerMarkerImpl({
       <AnimatedPlayerBody
         anim={anim} height={height} torsoHeight={torsoHeight} headRadius={headRadius}
         color={color} isSelf={isSelf} isAlive={player.isAlive} isMoving={isMoving}
+        modelId={pickPlayerModel(player.id)}
         equipment={equipment} onPointerDown={!isSelf ? handlePointerDown : undefined}
       />
       {player.isAlive && player.name && (
@@ -125,7 +127,7 @@ export const PlayerMarker = memo(PlayerMarkerImpl);
  *  load (AssetErrorBoundary). The wrapper group carries the
  *  click-to-target handler for other players. */
 function AnimatedPlayerBody({
-  anim, height, torsoHeight, headRadius, color, isSelf, isAlive, isMoving, equipment, onPointerDown,
+  anim, height, torsoHeight, headRadius, color, isSelf, isAlive, isMoving, modelId, equipment, onPointerDown,
 }: {
   anim: CharacterAnim;
   height: number;
@@ -135,6 +137,7 @@ function AnimatedPlayerBody({
   isSelf: boolean;
   isAlive: boolean;
   isMoving: boolean;
+  modelId: CharacterModelId;
   equipment?: Record<string, string>;
   onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
 }) {
@@ -149,7 +152,7 @@ function AnimatedPlayerBody({
     <AssetErrorBoundary fallback={fallbackFigure}>
       <Suspense fallback={fallbackFigure}>
         <group onPointerDown={onPointerDown}>
-          <AnimatedCharacter state={anim} targetHeight={height} />
+          <AnimatedCharacter state={anim} targetHeight={height} modelId={modelId} />
         </group>
       </Suspense>
     </AssetErrorBoundary>
@@ -216,9 +219,9 @@ function EnemyMarkerImpl({
   const groundedYOffset = enemy.isAlive ? 0.55 : 0.1;
   const [isHovered, setIsHovered] = useState(false);
 
-  // Rigged humanoid for humanoid/undead families (quality-gated); face
-  // the movement heading (held when idle) so the body never moonwalks.
-  const animated = ENTITY_QUALITY !== 'low' && ANIMATED_ENEMY_FAMILIES.has(getEnemyTemplate(enemy.type).family);
+  // Rigged humanoid for humanoid/undead families (quality-gated); faces the held movement heading so it never moonwalks.
+  const enemyFamily = getEnemyTemplate(enemy.type).family;
+  const animated = ENTITY_QUALITY !== 'low' && ANIMATED_ENEMY_FAMILIES.has(enemyFamily);
   const lastFacingRef = useRef(enemy.rotation?.y ?? 0);
   if (isMoving) lastFacingRef.current = Math.atan2(vx, vz);
   const facingY = animated ? lastFacingRef.current : (enemy.rotation?.y ?? 0);
@@ -244,7 +247,7 @@ function EnemyMarkerImpl({
       <AnimatedEnemyBody
         animated={animated} anim={enemyAnim(enemy, speedSq)} shape={visual.shape} color={color}
         height={enemy.isAlive ? visual.height : 0.25} targetHeight={visual.height} isMoving={isMoving}
-        isAlive={enemy.isAlive} groundedYOffset={groundedYOffset} onPointerDown={handlePointerDown} onHover={setIsHovered}
+        modelId={enemyModel(enemyFamily)} isAlive={enemy.isAlive} groundedYOffset={groundedYOffset} onPointerDown={handlePointerDown} onHover={setIsHovered}
       />
       {enemy.isAlive && visual.glow && (
         <GlowEmitter color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} priority={enemy.isMiniBoss ? 3 : 1} />
@@ -281,7 +284,7 @@ export const EnemyMarker = memo(EnemyMarkerImpl);
  *  The model is offset down by the group's grounded offset so its feet
  *  land on the terrain. */
 function AnimatedEnemyBody({
-  animated, anim, shape, color, height, targetHeight, isMoving, isAlive, groundedYOffset, onPointerDown, onHover,
+  animated, anim, shape, color, height, targetHeight, isMoving, isAlive, modelId, groundedYOffset, onPointerDown, onHover,
 }: {
   animated: boolean;
   anim: CharacterAnim;
@@ -291,6 +294,7 @@ function AnimatedEnemyBody({
   targetHeight: number;
   isMoving: boolean;
   isAlive: boolean;
+  modelId: CharacterModelId;
   groundedYOffset: number;
   onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
   onHover: (hovered: boolean) => void;
@@ -308,7 +312,7 @@ function AnimatedEnemyBody({
     <AssetErrorBoundary fallback={primitive}>
       <Suspense fallback={primitive}>
         <group position={[0, -groundedYOffset, 0]} onPointerDown={onPointerDown}>
-          <AnimatedCharacter state={anim} targetHeight={targetHeight} tint={color} />
+          <AnimatedCharacter state={anim} targetHeight={targetHeight} modelId={modelId} tint={color} />
         </group>
       </Suspense>
     </AssetErrorBoundary>
