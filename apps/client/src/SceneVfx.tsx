@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
@@ -23,6 +23,7 @@ import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
+import { EnergyOrb, GroundShockwave } from './vfx/spellFx';
 
 type SkillTheme = {
   core: string;
@@ -227,7 +228,7 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
 
 function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillTheme }) {
   const ringRef = useRef<THREE.Mesh>(null);
-  const coreRef = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }, delta) => {
     const pulse = (Math.sin(clock.elapsedTime * 9) + 1) / 2;
@@ -236,10 +237,8 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
       ringRef.current.scale.setScalar(0.7 + progress * 0.65 + pulse * 0.05);
       (ringRef.current.material as THREE.MeshBasicMaterial).opacity = 0.42 + progress * 0.36;
     }
-
-    if (coreRef.current) {
-      coreRef.current.scale.setScalar(0.32 + progress * 0.44 + pulse * 0.05);
-    }
+    // Charge grows as the cast fills (the orb spins/pulses on its own shader).
+    coreRef.current?.scale.setScalar(0.32 + progress * 0.44 + pulse * 0.05);
   });
 
   return (
@@ -248,27 +247,21 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
         <ringGeometry args={[0.72, 0.94, 44]} />
         <meshBasicMaterial color={theme.accent} transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <mesh ref={coreRef}>
-        <icosahedronGeometry args={[0.44, 1]} />
-        <meshStandardMaterial color={theme.core} emissive={theme.glow} emissiveIntensity={0.7} roughness={0.35} />
-      </mesh>
+      <group ref={coreRef}>
+        <EnergyOrb core={theme.core} glow={theme.glow} radius={0.46} spin={1.6} />
+      </group>
     </group>
   );
 }
 
 function ProjectileVfx({ dir, theme }: { dir: CastSnapshot['dir']; theme: SkillTheme }) {
-  const coreRef = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Group>(null);
   const haloRef = useRef<THREE.Mesh>(null);
   const yaw = Math.atan2(dir?.x ?? 0, dir?.z ?? 1);
 
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock }) => {
     const pulse = 1 + Math.sin(clock.elapsedTime * 14) * 0.08;
-    if (coreRef.current) {
-      coreRef.current.rotation.x += delta * 3;
-      coreRef.current.rotation.z += delta * 4;
-      coreRef.current.scale.setScalar(pulse);
-    }
-
+    coreRef.current?.scale.setScalar(pulse);
     if (haloRef.current) {
       (haloRef.current.material as THREE.MeshBasicMaterial).opacity = 0.28 + (pulse - 0.92) * 0.8;
     }
@@ -276,7 +269,9 @@ function ProjectileVfx({ dir, theme }: { dir: CastSnapshot['dir']; theme: SkillT
 
   return (
     <group rotation={[0, yaw, 0]}>
-      {renderProjectileCore(theme, coreRef)}
+      <group ref={coreRef}>
+        <EnergyOrb core={theme.core} glow={theme.glow} radius={0.36} spin={3.2} />
+      </group>
       <mesh ref={haloRef}>
         <sphereGeometry args={[0.58, 18, 18]} />
         <meshBasicMaterial color={theme.glow} transparent opacity={0.34} depthWrite={false} />
@@ -339,6 +334,8 @@ function ImpactVfx({ theme }: { theme: SkillTheme }) {
 
   return (
     <group>
+      {/* Shader shockwave races out across the ground on impact. */}
+      <GroundShockwave color={theme.glow} accent={theme.accent} />
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.92, 0]}>
         <ringGeometry args={[0.4, 0.88, 48]} />
         <meshBasicMaterial color={theme.accent} transparent opacity={0.64} side={THREE.DoubleSide} depthWrite={false} />
@@ -351,36 +348,6 @@ function ImpactVfx({ theme }: { theme: SkillTheme }) {
   );
 }
 
-function renderProjectileCore(theme: SkillTheme, ref: RefObject<THREE.Mesh | null>): ReactNode {
-  const material = (
-    <meshStandardMaterial color={theme.core} emissive={theme.glow} emissiveIntensity={0.72} roughness={0.28} metalness={0.12} />
-  );
-
-  if (theme.shape === 'crystal') {
-    return (
-      <mesh ref={ref}>
-        <icosahedronGeometry args={[0.34, 1]} />
-        {material}
-      </mesh>
-    );
-  }
-
-  if (theme.shape === 'stone') {
-    return (
-      <mesh ref={ref}>
-        <dodecahedronGeometry args={[0.36, 0]} />
-        {material}
-      </mesh>
-    );
-  }
-
-  return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[0.36, 18, 18]} />
-      {material}
-    </mesh>
-  );
-}
 
 function LootMarkerImpl({
   loot,
