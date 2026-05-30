@@ -51,11 +51,11 @@ const SHOCK_FRAG = /* glsl */ `
   varying vec2 vUv;
   void main() {
     float d = length(vUv - 0.5) * 2.0; // 0 centre .. 1 edge
-    if (d > 1.0) discard;
     float ring = smoothstep(0.11, 0.0, abs(d - uProgress));   // bright expanding rim
     float core = smoothstep(0.45, 0.0, d) * (1.0 - smoothstep(0.0, 0.4, uProgress)); // early flash
     float fade = 1.0 - smoothstep(0.55, 1.0, uProgress);
-    float a = (ring + core * 0.5) * fade;
+    // step(d,1.0) clips to the disc without discard (keeps early-Z on tiled GPUs).
+    float a = (ring + core * 0.5) * fade * step(d, 1.0);
     vec3 col = mix(uColor, uAccent, ring);
     gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
   }
@@ -78,13 +78,19 @@ function makeShockMaterial(color: string, accent: string): THREE.ShaderMaterial 
     fragmentShader: SHOCK_FRAG,
     transparent: true,
     depthWrite: false,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide, // ground plane is only seen from above
     blending: THREE.AdditiveBlending,
   });
 }
 
 export function EnergyOrb({ core, glow, radius = 0.4, spin = 2.5 }: { core: string; glow: string; radius?: number; spin?: number }) {
-  const mat = useMemo(() => makeOrbMaterial(core, glow), [core, glow]);
+  // Build the material once; update colour uniforms in place so a theme change
+  // never recreates/recompiles the material.
+  const mat = useMemo(() => makeOrbMaterial('#ffffff', '#ffffff'), []);
+  useEffect(() => {
+    mat.uniforms.uCore.value.set(core);
+    mat.uniforms.uGlow.value.set(glow);
+  }, [core, glow, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => {
@@ -102,7 +108,11 @@ export function EnergyOrb({ core, glow, radius = 0.4, spin = 2.5 }: { core: stri
 export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y = -0.9 }: {
   color: string; accent: string; size?: number; durationMs?: number; y?: number;
 }) {
-  const mat = useMemo(() => makeShockMaterial(color, accent), [color, accent]);
+  const mat = useMemo(() => makeShockMaterial('#ffffff', '#ffffff'), []);
+  useEffect(() => {
+    mat.uniforms.uColor.value.set(color);
+    mat.uniforms.uAccent.value.set(accent);
+  }, [color, accent, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
   const start = useRef(0);
   useFrame(({ clock }) => {
