@@ -91,7 +91,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     <>
       <hemisphereLight ref={refs.hemisphere} args={['#ccecff', '#21402d', 0.82]} />
       {/* Phase-driven fill (set in applyDayPhaseToScene) keeps the foreground readable when the sun is low/absent. */}
-      <ambientLight ref={refs.ambient} />
+      <ambientLight ref={refs.ambient} intensity={0.35} />
       <directionalLight
         ref={refs.directional}
         position={[focus.x + 240, 420, focus.z + 180]}
