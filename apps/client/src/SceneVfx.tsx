@@ -23,36 +23,38 @@ import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
-import { SpellCore, GroundShockwave, type SpellElement } from './vfx/spellFx';
+import { SpellCore, SpellProjectile, GroundShockwave, type SpellElement, type SpellForm } from './vfx/spellFx';
 
 type SkillTheme = {
   core: string;
   glow: string;
   accent: string;
   shape: 'sphere' | 'crystal' | 'stone';
-  /** Selects an element-specific shader core; omit for the generic energy orb. */
+  /** Selects an element-specific shader surface; omit for the generic energy orb. */
   element?: SpellElement;
+  /** Projectile silhouette; omit for the orb. */
+  form?: SpellForm;
 };
 
 const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
-  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire' },
-  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice' },
-  waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere' },
+  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
+  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
+  waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere', element: 'ice', form: 'orb' },
   petrify: { core: '#d6d3d1', glow: '#a8a29e', accent: '#facc15', shape: 'stone' },
-  smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy' },
-  arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal' },
-  volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal' },
-  poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison' },
-  holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy' },
-  arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane' },
-  meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire' },
-  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire' },
-  greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy' },
-  mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy' },
-  sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy' },
-  mobFirebolt: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire' },
-  mobFrostbolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice' },
-  mobPoisonBite: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison' },
+  smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy', form: 'bolt' },
+  arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal', form: 'arrow' },
+  volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal', form: 'arrow' },
+  poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb' },
+  holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
+  arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt' },
+  meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
+  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
+  greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
+  mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
+  sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
+  mobFirebolt: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
+  mobFrostbolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
+  mobPoisonBite: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb' },
 };
 
 const DEFAULT_SKILL_THEME: SkillTheme = {
@@ -61,6 +63,7 @@ const DEFAULT_SKILL_THEME: SkillTheme = {
   accent: '#a78bfa',
   shape: 'sphere',
   element: 'arcane',
+  form: 'bolt',
 };
 
 const LOOT_SPARKS = [
@@ -268,30 +271,23 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
 
 function ProjectileVfx({ dir, theme }: { dir: CastSnapshot['dir']; theme: SkillTheme }) {
   const coreRef = useRef<THREE.Group>(null);
-  const haloRef = useRef<THREE.Mesh>(null);
   const yaw = Math.atan2(dir?.x ?? 0, dir?.z ?? 1);
 
   useFrame(({ clock }) => {
-    const pulse = 1 + Math.sin(clock.elapsedTime * 14) * 0.08;
-    coreRef.current?.scale.setScalar(pulse);
-    if (haloRef.current) {
-      (haloRef.current.material as THREE.MeshBasicMaterial).opacity = 0.28 + (pulse - 0.92) * 0.8;
-    }
+    coreRef.current?.scale.setScalar(1 + Math.sin(clock.elapsedTime * 14) * 0.08);
   });
 
   return (
     <group rotation={[0, yaw, 0]}>
       <group ref={coreRef}>
-        <SpellCore element={theme.element} core={theme.core} glow={theme.glow} radius={0.36} spin={3.2} />
+        {/* Silhouette varies by skill form (shard/arrow/comet/bolt/orb). */}
+        <SpellProjectile form={theme.form} element={theme.element} core={theme.core} glow={theme.glow} />
       </group>
-      <mesh ref={haloRef}>
-        <sphereGeometry args={[0.58, 18, 18]} />
-        <meshBasicMaterial color={theme.glow} transparent opacity={0.34} depthWrite={false} />
-      </mesh>
-      {[0.52, 0.92, 1.28].map((offset, index) => (
-        <mesh key={offset} position={[0, 0, -offset]} scale={1 - index * 0.2}>
-          <sphereGeometry args={[0.2, 10, 10]} />
-          <meshBasicMaterial color={theme.accent} transparent opacity={0.36 - index * 0.08} depthWrite={false} />
+      {/* Directional motion trail behind the head (local -Z). */}
+      {[0.5, 0.86, 1.2].map((offset, index) => (
+        <mesh key={offset} position={[0, 0, -offset]} scale={1 - index * 0.22}>
+          <sphereGeometry args={[0.17, 10, 10]} />
+          <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
         </mesh>
       ))}
       <ProjectileTrail theme={theme} />
