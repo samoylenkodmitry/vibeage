@@ -23,18 +23,20 @@ import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
-import { EnergyOrb, GroundShockwave } from './vfx/spellFx';
+import { SpellCore, GroundShockwave, type SpellElement } from './vfx/spellFx';
 
 type SkillTheme = {
   core: string;
   glow: string;
   accent: string;
   shape: 'sphere' | 'crystal' | 'stone';
+  /** Selects an element-specific shader core; omit for the generic energy orb. */
+  element?: SpellElement;
 };
 
 const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
-  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere' },
-  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal' },
+  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire' },
+  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice' },
   waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere' },
   petrify: { core: '#d6d3d1', glow: '#a8a29e', accent: '#facc15', shape: 'stone' },
   smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere' },
@@ -248,7 +250,7 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
         <meshBasicMaterial color={theme.accent} transparent opacity={0.58} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <group ref={coreRef}>
-        <EnergyOrb core={theme.core} glow={theme.glow} radius={0.46} spin={1.6} />
+        <SpellCore element={theme.element} core={theme.core} glow={theme.glow} radius={0.46} spin={1.6} />
       </group>
     </group>
   );
@@ -270,7 +272,7 @@ function ProjectileVfx({ dir, theme }: { dir: CastSnapshot['dir']; theme: SkillT
   return (
     <group rotation={[0, yaw, 0]}>
       <group ref={coreRef}>
-        <EnergyOrb core={theme.core} glow={theme.glow} radius={0.36} spin={3.2} />
+        <SpellCore element={theme.element} core={theme.core} glow={theme.glow} radius={0.36} spin={3.2} />
       </group>
       <mesh ref={haloRef}>
         <sphereGeometry args={[0.58, 18, 18]} />
