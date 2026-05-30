@@ -71,3 +71,9 @@ export function pickPlayerModel(playerId: string): CharacterModelId {
 export function enemyModel(family: string): CharacterModelId {
   return family === 'undead' ? 'kaykit-rogue-hooded' : 'kaykit-barbarian';
 }
+
+/** A default in-hand weapon so armed mobs don't fight bare-handed. Undead
+ *  wraiths carry a sword; humanoid brutes an axe. */
+export function enemyWeaponType(family: string): string {
+  return family === 'undead' ? 'sword' : 'mace';
+}
