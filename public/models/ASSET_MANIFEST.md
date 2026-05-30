@@ -75,6 +75,21 @@ classes sharing one 76-clip rig (`Idle` / `Walking_A` / `Running_A` /
 a per-id class look; humanoid/undead mobs reuse the rig tinted. `soldier.glb` and
 `robot-expressive.glb` are kept as alternates.
 
+### Weapons (held in `handslot.r`)
+
+| File | Source | License |
+|---|---|---|
+| `weapons/kaykit/sword_1handed.glb` | KayKit Adventurers (Kay Lousberg) | CC0 |
+| `weapons/kaykit/dagger.glb` | KayKit Adventurers (Kay Lousberg) | CC0 |
+| `weapons/kaykit/staff.glb` | KayKit Adventurers (Kay Lousberg) | CC0 |
+| `weapons/kaykit/axe_1handed.glb` | KayKit Adventurers (Kay Lousberg) | CC0 |
+| `weapons/kaykit/wand.glb` | KayKit Adventurers (Kay Lousberg) | CC0 |
+| `weapons/kaykit/crossbow_1handed.glb` | KayKit Adventurers (Kay Lousberg) | CC0 |
+
+Converted from the pack's `.gltf` to self-contained `.glb` (gltf-transform).
+`weaponModels.ts` maps content `weaponType` → GLB; `AnimatedCharacter` parents it
+to the `handslot.r` bone so it tracks the hand through every animation.
+
 The character system is **model-agnostic** via `characterModels.ts`: each model's
 GLB path, native height, forward axis, and abstract-state→clip-name map live in
 the registry. Swapping in a paid/custom (L2-style) model is a registry edit —
