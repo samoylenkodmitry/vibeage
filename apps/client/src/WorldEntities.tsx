@@ -415,36 +415,57 @@ function EnemyBody({
 /**
  * Static markers for quest-giving NPCs. Read straight from QUEST_NPCS
  * content (no live entity in GameState — NPCs are content, not state).
- * Visuals: a tall yellow cylinder with a glowing "!" sphere above to
- * read as "questionable / interactable" without an icon system.
+ * Each NPC is a rigged humanoid (idle), with a floating glow + name so
+ * players read it as an interactable quest-giver from across the square.
  */
 // Memoized — NpcMarkers takes no props and renders from the static
 // QUEST_NPCS constant, so with empty props memo bails on every
 // re-render after the first. NPCs are stationary, so this removes
 // their entire subtree from per-snapshot reconciliation.
+const NPC_HEIGHT = 1.85;
 function NpcMarkersImpl() {
   return (
     <>
-      {Object.values(QUEST_NPCS).map((npc) => {
-        const groundY = getTerrainY(npc.position.x, npc.position.z);
-        return (
-          <group key={npc.id} position={[npc.position.x, groundY, npc.position.z]}>
-            <mesh position={[0, 0.9, 0]} castShadow>
-              <cylinderGeometry args={[0.35, 0.45, 1.8, 12]} />
-              <meshStandardMaterial color="#facc15" roughness={0.55} metalness={0.15} />
-            </mesh>
-            <mesh position={[0, 2.4, 0]}>
-              <sphereGeometry args={[0.2, 16, 16]} />
-              <meshStandardMaterial color="#fde68a" emissive="#facc15" emissiveIntensity={0.9} />
-            </mesh>
-            {/* PR KK — floating name label so players can identify
-                NPCs from across the square instead of having to walk
-                up to every yellow cone to find Thala vs Drev. */}
-            <NameLabel text={npc.name} color="#facc15" yOffset={2.95} height={0.4} />
-          </group>
-        );
-      })}
+      {Object.values(QUEST_NPCS).map((npc) => (
+        <NpcBody key={npc.id} id={npc.id} name={npc.name} x={npc.position.x} z={npc.position.z} />
+      ))}
     </>
+  );
+}
+
+/** Stable per-id yaw so NPCs don't all face the same way. */
+function npcYaw(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
+  return (h % 360) * (Math.PI / 180);
+}
+
+function NpcBody({ id, name, x, z }: { id: string; name: string; x: number; z: number }) {
+  const groundY = getTerrainY(x, z);
+  // Cylinder fallback (matches the old look) while the GLB streams or if it fails.
+  const fallback = (
+    <mesh position={[0, 0.9, 0]} castShadow>
+      <cylinderGeometry args={[0.35, 0.45, 1.8, 12]} />
+      <meshStandardMaterial color="#facc15" roughness={0.55} metalness={0.15} />
+    </mesh>
+  );
+  return (
+    <group position={[x, groundY, z]}>
+      <AssetErrorBoundary fallback={fallback}>
+        <Suspense fallback={fallback}>
+          <group rotation={[0, npcYaw(id), 0]}>
+            <AnimatedCharacter state="idle" modelId={pickPlayerModel(id)} targetHeight={NPC_HEIGHT} />
+          </group>
+        </Suspense>
+      </AssetErrorBoundary>
+      <GroundBlobShadow y={0} radius={0.55} opacity={0.7} />
+      {/* Floating glow marks the NPC as interactable (quest-giver). */}
+      <mesh position={[0, NPC_HEIGHT + 0.6, 0]}>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial color="#fde68a" emissive="#facc15" emissiveIntensity={0.9} fog={false} />
+      </mesh>
+      <NameLabel text={name} color="#facc15" yOffset={NPC_HEIGHT + 1.1} height={0.4} />
+    </group>
   );
 }
 
