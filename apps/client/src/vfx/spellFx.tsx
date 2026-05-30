@@ -165,7 +165,7 @@ const HOLY_FRAG = /* glsl */ `
   uniform float uTime;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    float ang = atan(vPos.y, vPos.x);
+    float ang = atan(vPos.y, vPos.x + 1e-6); // epsilon avoids atan(0,0) NaN at the poles
     float rays = pow(abs(sin(ang * 8.0 + uTime * 1.1)), 6.0);   // 8 rotating god-rays
     float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.5);
     float pulse = 0.85 + 0.15 * sin(uTime * 6.0);
@@ -195,7 +195,7 @@ const ARCANE_FRAG = /* glsl */ `
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
     float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.4);
-    float bands = sin(atan(vPos.z, vPos.x) * 6.0 + uTime * 2.0 + vPos.y * 8.0); // swirling runic bands
+    float bands = sin(atan(vPos.z, vPos.x + 1e-6) * 6.0 + uTime * 2.0 + vPos.y * 8.0); // swirling bands (epsilon avoids pole NaN)
     float runes = smoothstep(0.7, 1.0, abs(bands));
     vec3 col = mix(uCore, uGlow, fres) + runes * 0.5;
     float a = clamp(0.4 + fres * 0.7 + runes * 0.4, 0.0, 1.0);
