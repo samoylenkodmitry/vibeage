@@ -402,3 +402,77 @@ export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y
     </mesh>
   );
 }
+
+// ---- Delivery mechanics (alternatives to "a projectile flies A→B") ---------
+// Rendered during the Impact state, anchored at the target; the flying
+// projectile is suppressed for these so the spell reads as a distinct mechanic.
+
+export type SpellMechanic = 'projectile' | 'strike' | 'erupt';
+
+/** Holy strike — a column of light slams down from the sky onto the target. */
+export function StrikeImpact({ color, accent }: { color: string; accent: string }) {
+  const pillar = useRef<THREE.Mesh>(null);
+  const flash = useRef<THREE.Mesh>(null);
+  const start = useRef<number | null>(null);
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    const t = Math.min(1, (clock.elapsedTime - start.current) / 0.55);
+    if (pillar.current) {
+      (pillar.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.85;
+      const s = 1 - t * 0.45; pillar.current.scale.set(s, 1, s);
+    }
+    if (flash.current) {
+      (flash.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.7;
+      flash.current.scale.setScalar(0.6 + t * 1.6);
+    }
+  });
+  return (
+    <group>
+      <GroundShockwave color={color} accent={accent} size={4.5} durationMs={550} />
+      <mesh ref={pillar} position={[0, 3.5, 0]}>
+        <cylinderGeometry args={[0.5, 0.85, 9, 18, 1, true]} />
+        <meshBasicMaterial color={accent} transparent opacity={0.85} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={flash} position={[0, -0.7, 0]}>
+        <sphereGeometry args={[0.7, 18, 18]} />
+        <meshBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
+// Spike geometry: base translated to y=0 so scaling Y grows it up from the ground.
+const SPIKE_GEOMETRY = (() => { const g = new THREE.ConeGeometry(0.16, 1.3, 6); g.translate(0, 0.65, 0); return g; })();
+const ERUPT_SPIKES = [
+  { a: 0.3, r: 0.0, s: 1.1, tilt: 0.0 }, { a: 1.4, r: 0.55, s: 0.8, tilt: 0.18 },
+  { a: 2.7, r: 0.62, s: 0.9, tilt: -0.2 }, { a: 4.0, r: 0.5, s: 0.7, tilt: 0.15 },
+  { a: 5.3, r: 0.58, s: 0.85, tilt: -0.12 },
+];
+
+/** Erupt — jagged spikes burst up out of the ground at the target. */
+export function EruptImpact({ color, accent }: { color: string; accent: string }) {
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(accent), emissiveIntensity: 0.35, roughness: 0.85, transparent: true }), [color, accent]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  const groupRef = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    const rise = Math.min(1, age / 0.16);
+    mat.opacity = Math.max(0, 1 - Math.max(0, age - 0.35) / 0.6);
+    const g = groupRef.current;
+    if (g) g.children.forEach((c, i) => { const s = ERUPT_SPIKES[i]?.s ?? 1; c.scale.set(s, s * rise, s); });
+  });
+  return (
+    <group>
+      <GroundShockwave color={accent} accent={color} size={3.4} durationMs={520} />
+      <group ref={groupRef}>
+        {ERUPT_SPIKES.map((sp, i) => (
+          <mesh key={i} geometry={SPIKE_GEOMETRY} material={mat}
+            position={[Math.cos(sp.a) * sp.r, -1, Math.sin(sp.a) * sp.r]}
+            rotation={[sp.tilt, sp.a, sp.tilt]} scale={[sp.s, 0, sp.s]} />
+        ))}
+      </group>
+    </group>
+  );
+}

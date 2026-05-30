@@ -23,7 +23,10 @@ import { Billboard } from './SceneEventVfx';
 import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
-import { SpellCore, SpellProjectile, GroundShockwave, type SpellElement, type SpellForm } from './vfx/spellFx';
+import {
+  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact,
+  type SpellElement, type SpellForm, type SpellMechanic,
+} from './vfx/spellFx';
 
 type SkillTheme = {
   core: string;
@@ -34,24 +37,27 @@ type SkillTheme = {
   element?: SpellElement;
   /** Projectile silhouette; omit for the orb. */
   form?: SpellForm;
+  /** Delivery mechanic. 'projectile' (default) flies A→B; 'strike' slams down
+   *  from the sky and 'erupt' bursts from the ground at the target (no flight). */
+  mechanic?: SpellMechanic;
 };
 
 const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
   fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
   iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
   waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere', element: 'ice', form: 'orb' },
-  petrify: { core: '#d6d3d1', glow: '#a8a29e', accent: '#facc15', shape: 'stone' },
-  smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy', form: 'bolt' },
+  petrify: { core: '#a8a29e', glow: '#d6d3d1', accent: '#facc15', shape: 'stone', mechanic: 'erupt' },
+  smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal', form: 'arrow' },
   volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal', form: 'arrow' },
   poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb' },
-  holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
+  holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt' },
-  meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
+  meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', mechanic: 'strike' },
   inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
-  greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
-  mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
-  sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy', form: 'bolt' },
+  greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
+  mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
+  sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   mobFirebolt: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
   mobFrostbolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
   mobPoisonBite: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb' },
@@ -231,6 +237,8 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
   if (snapshot.state === CastState.Impact) {
+    if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
+    if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
     return <ImpactVfx theme={theme} />;
   }
 
@@ -238,6 +246,8 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
     return <CastingChargeVfx progress={progress} theme={theme} />;
   }
 
+  // Strike/erupt are delivered at the target on impact — no flying projectile.
+  if (theme.mechanic === 'strike' || theme.mechanic === 'erupt') return null;
   return <ProjectileVfx dir={snapshot.dir} theme={theme} />;
 }
 
