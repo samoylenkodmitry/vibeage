@@ -61,14 +61,23 @@ export function AnimatedCharacter({
   }, [scene, tint]);
   const { actions } = useAnimations(animations, model);
   const currentClip = useRef<string | null>(null);
+  // When the model/tint changes, useAnimations returns a NEW actions object
+  // (a fresh mixer on the new clone). currentClip still names the old clip, so
+  // the early-return guard would skip playback and freeze the new model in its
+  // bind pose. Track the actions identity and bypass the guard when it changes.
+  const lastActions = useRef<typeof actions | null>(null);
 
   const fitScale = targetHeight / def.nativeHeight;
 
   useEffect(() => {
     const clipName = def.clips[state];
     const next = actions[clipName];
-    if (!next || currentClip.current === clipName) return;
-    const prev = currentClip.current ? actions[currentClip.current] : null;
+    if (!next) return;
+    const actionsChanged = lastActions.current !== actions;
+    lastActions.current = actions;
+    if (currentClip.current === clipName && !actionsChanged) return;
+    // Only crossfade from the previous clip on the SAME mixer.
+    const prev = (!actionsChanged && currentClip.current) ? actions[currentClip.current] : null;
     next.reset();
     if (def.clampOnce.has(state)) {
       next.setLoop(THREE.LoopOnce, 1);
@@ -77,8 +86,12 @@ export function AnimatedCharacter({
       next.setLoop(THREE.LoopRepeat, Infinity);
       next.clampWhenFinished = false;
     }
-    next.fadeIn(0.18).play();
-    prev?.fadeOut(0.18);
+    if (actionsChanged) {
+      next.play();
+    } else {
+      next.fadeIn(0.18).play();
+      prev?.fadeOut(0.18);
+    }
     currentClip.current = clipName;
   }, [state, actions, def]);
 
