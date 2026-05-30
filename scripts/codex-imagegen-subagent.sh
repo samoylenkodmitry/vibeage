@@ -214,7 +214,7 @@ CODEX_ARGS=(exec -C "$ROOT" --sandbox "$SANDBOX")
 # `--ask-for-approval <policy>` on `exec`; codex-cli >=0.13x dropped that flag
 # (exec is non-interactive) and the policy is now a config override. Pick the
 # form the installed CLI actually supports so the wrapper isn't version-locked.
-if codex exec --help 2>/dev/null | grep -q -- '--ask-for-approval'; then
+if codex exec --help 2>/dev/null | grep -- '--ask-for-approval' >/dev/null; then
   CODEX_ARGS+=(--ask-for-approval "$APPROVAL")
 else
   CODEX_ARGS+=(-c "approval_policy=$APPROVAL")
