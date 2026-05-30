@@ -8,6 +8,9 @@
  * Current set: KayKit Adventurers (CC0, see ASSET_MANIFEST.md). All five share
  * one 76-clip rig, so they reuse a single clip map; only the height differs.
  */
+import type { CharacterClass } from '../../../packages/content/classes';
+import { getSpecializationById } from '../../../packages/content/specializations';
+
 export type CharacterAnim = 'idle' | 'walk' | 'run' | 'attack' | 'death';
 
 export type CharacterModelDef = {
@@ -64,6 +67,28 @@ export function pickPlayerModel(playerId: string): CharacterModelId {
   let h = 0;
   for (let i = 0; i < playerId.length; i += 1) h = (Math.imul(h, 31) + playerId.charCodeAt(i)) >>> 0;
   return PLAYER_MODEL_POOL[h % PLAYER_MODEL_POOL.length];
+}
+
+/** A class → the KayKit body that reads as it. Exhaustive over CharacterClass
+ *  so a newly-added class must be mapped (no silent fallback). */
+const BASECLASS_MODEL: Record<CharacterClass, CharacterModelId> = {
+  mage: 'kaykit-mage',
+  healer: 'kaykit-mage',
+  knight: 'kaykit-knight',
+  paladin: 'kaykit-knight',
+  warrior: 'kaykit-barbarian',
+  rogue: 'kaykit-rogue',
+  ranger: 'kaykit-rogue-hooded',
+};
+
+/** Pick a player's model from their specialization's base class so a mage looks
+ *  like a mage; unspecialized players fall back to a stable per-id variety. */
+export function playerModel(playerId: string, specializationId?: string | null): CharacterModelId {
+  if (specializationId) {
+    const base = getSpecializationById(specializationId)?.baseClass;
+    if (base) return BASECLASS_MODEL[base];
+  }
+  return pickPlayerModel(playerId);
 }
 
 /** Humanoid/undead enemies reuse the rig (tinted by the caller): hooded rogue
