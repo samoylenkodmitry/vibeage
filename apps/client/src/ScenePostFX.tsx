@@ -27,7 +27,7 @@ export function ScenePostFX({ quality }: { quality: WorldArtQuality }) {
         mipmapBlur
       />
       {high ? (
-        <Vignette offset={0.3} darkness={0.42} eskil={false} />
+        <Vignette offset={0.55} darkness={0.26} eskil={false} />
       ) : (
         <></>
       )}

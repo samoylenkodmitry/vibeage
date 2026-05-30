@@ -27,6 +27,7 @@ const SCENE_FOG = { near: 450, far: 1120 } as const;
 
 type DayCycleRefs = {
   hemisphere: React.MutableRefObject<THREE.HemisphereLight | null>;
+  ambient: React.MutableRefObject<THREE.AmbientLight | null>;
   directional: React.MutableRefObject<THREE.DirectionalLight | null>;
   sunGroup: React.MutableRefObject<THREE.Group | null>;
   sunPointLight: React.MutableRefObject<THREE.PointLight | null>;
@@ -38,6 +39,7 @@ type DayCycleRefs = {
 export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   const refs: DayCycleRefs = {
     hemisphere: useRef<THREE.HemisphereLight>(null),
+    ambient: useRef<THREE.AmbientLight>(null),
     directional: useRef<THREE.DirectionalLight>(null),
     sunGroup: useRef<THREE.Group>(null),
     sunPointLight: useRef<THREE.PointLight>(null),
@@ -88,6 +90,8 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   return (
     <>
       <hemisphereLight ref={refs.hemisphere} args={['#ccecff', '#21402d', 0.82]} />
+      {/* Phase-driven fill (set in applyDayPhaseToScene) keeps the foreground readable when the sun is low/absent. */}
+      <ambientLight ref={refs.ambient} />
       <directionalLight
         ref={refs.directional}
         position={[focus.x + 240, 420, focus.z + 180]}
@@ -108,13 +112,10 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
       </group>
       <group ref={refs.moonGroup}>
         <mesh material={moonMaterial}>
-          {/* Bigger again per playtester feedback — the moon should
-             feel like a major sky landmark, not a hint. */}
+          {/* Big disc so the moon reads as a major sky landmark, not a hint. */}
           <sphereGeometry args={[72, 28, 18]} />
         </mesh>
-        {/* Soft bluish halo: a slightly larger transparent sphere
-           sitting behind the moon disc gives a "moonlit haze" ring
-           without needing postprocessing bloom. */}
+        {/* Soft bluish "moonlit haze" halo behind the disc (no postprocessing). */}
         <mesh>
           <sphereGeometry args={[96, 18, 12]} />
           <meshBasicMaterial color="#cfd9ff" transparent opacity={0.16} depthWrite={false} fog={false} />
@@ -194,6 +195,12 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
     refs.hemisphere.current.color.set(palette.hemisphereSky);
     refs.hemisphere.current.groundColor.set(palette.hemisphereGround);
     refs.hemisphere.current.intensity = palette.hemisphereIntensity;
+  }
+  if (refs.ambient.current) {
+    // Tint the fill with the sky colour so it matches the phase mood instead
+    // of washing it to flat grey.
+    refs.ambient.current.color.set(palette.hemisphereSky);
+    refs.ambient.current.intensity = palette.ambientIntensity;
   }
   if (refs.directional.current) {
     refs.directional.current.position.set(sunX, sunY, sunZ);
