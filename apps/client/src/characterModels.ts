@@ -17,7 +17,7 @@ export type CharacterModelDef = {
    *  unreliable on skinned meshes (bind-pose bounds), hence a fixed value. */
   nativeHeight: number;
   /** Yaw applied so the model's authored forward aligns with the entity group's
-   *  +Z movement facing (atan2(vx, vz)). KayKit faces -Z, so Math.PI. */
+   *  +Z movement facing (atan2(vx, vz)). KayKit is authored facing +Z, so 0. */
   forwardYaw: number;
   clips: Record<CharacterAnim, string>;
   /** States that play once and hold the final frame (death lies down + stays). */
@@ -37,7 +37,7 @@ function kaykit(file: string, nativeHeight: number): CharacterModelDef {
   return {
     path: `/models/characters/kaykit/${file}.glb`,
     nativeHeight,
-    forwardYaw: Math.PI,
+    forwardYaw: 0,
     clips: KAYKIT_CLIPS,
     clampOnce: KAYKIT_CLAMP_ONCE,
   };
