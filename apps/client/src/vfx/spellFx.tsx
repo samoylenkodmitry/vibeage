@@ -411,31 +411,33 @@ export type SpellMechanic = 'projectile' | 'strike' | 'erupt';
 
 /** Holy strike — a column of light slams down from the sky onto the target. */
 export function StrikeImpact({ color, accent }: { color: string; accent: string }) {
+  // Own the materials (not inline JSX props): CastVfx re-renders on snapshot
+  // updates, which would reset inline opacity/colour and flicker the strike.
+  const pillarMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  useEffect(() => { pillarMat.color.set(accent); }, [accent, pillarMat]);
+  useEffect(() => { flashMat.color.set(color); }, [color, flashMat]);
+  useEffect(() => () => pillarMat.dispose(), [pillarMat]);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
   const pillar = useRef<THREE.Mesh>(null);
   const flash = useRef<THREE.Mesh>(null);
   const start = useRef<number | null>(null);
   useFrame(({ clock }) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const t = Math.min(1, (clock.elapsedTime - start.current) / 0.55);
-    if (pillar.current) {
-      (pillar.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.85;
-      const s = 1 - t * 0.45; pillar.current.scale.set(s, 1, s);
-    }
-    if (flash.current) {
-      (flash.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.7;
-      flash.current.scale.setScalar(0.6 + t * 1.6);
-    }
+    pillarMat.opacity = (1 - t) * 0.85;
+    flashMat.opacity = (1 - t) * 0.7;
+    if (pillar.current) { const s = 1 - t * 0.45; pillar.current.scale.set(s, 1, s); }
+    flash.current?.scale.setScalar(0.6 + t * 1.6);
   });
   return (
     <group>
       <GroundShockwave color={color} accent={accent} size={4.5} durationMs={550} />
-      <mesh ref={pillar} position={[0, 3.5, 0]}>
+      <mesh ref={pillar} position={[0, 3.5, 0]} material={pillarMat}>
         <cylinderGeometry args={[0.5, 0.85, 9, 18, 1, true]} />
-        <meshBasicMaterial color={accent} transparent opacity={0.85} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      <mesh ref={flash} position={[0, -0.7, 0]}>
+      <mesh ref={flash} position={[0, -0.7, 0]} material={flashMat}>
         <sphereGeometry args={[0.7, 18, 18]} />
-        <meshBasicMaterial color={color} transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
   );
