@@ -184,7 +184,10 @@ export function IceCore({ core, glow, radius = 0.36 }: { core: string; glow: str
     vertexShader: CORE_VERT, fragmentShader: ICE_FRAG, transparent: true, depthWrite: false,
   }), []);
   useEffect(() => { mat.uniforms.uCore.value.set(core); mat.uniforms.uGlow.value.set(glow); }, [core, glow, mat]);
-  useEffect(() => () => { mat.dispose(); geom.dispose(); }, [mat, geom]);
+  // Separate cleanups: recreating geom (radius change) must not dispose the
+  // still-live material, and vice-versa.
+  useEffect(() => () => mat.dispose(), [mat]);
+  useEffect(() => () => geom.dispose(), [geom]);
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => { mat.uniforms.uTime.value += dt; if (meshRef.current) meshRef.current.rotation.y += dt * 0.9; });
   return <mesh ref={meshRef} geometry={geom} material={mat} />;
