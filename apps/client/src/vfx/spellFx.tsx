@@ -309,36 +309,29 @@ function useElementMaterial(element: SpellElement | undefined, core: string, glo
   return mat;
 }
 
-function useDisposableGeometry(build: () => THREE.BufferGeometry): THREE.BufferGeometry {
-  const geom = useMemo(build, []);
-  useEffect(() => () => geom.dispose(), [geom]);
-  return geom;
-}
+// Static form geometries — projectiles spawn/despawn constantly, so build the
+// shapes once at module scope and share them across every cast (no GC churn).
+const SHARD_GEOMETRY = (() => { const g = new THREE.OctahedronGeometry(0.3, 0).toNonIndexed(); g.scale(0.5, 0.5, 2.3); g.computeVertexNormals(); return g; })();
+const BOLT_GEOMETRY = (() => { const g = new THREE.IcosahedronGeometry(0.22, 2); g.scale(0.72, 0.72, 2.7); return g; })();
+const COMET_GEOMETRY = (() => { const g = new THREE.IcosahedronGeometry(0.32, 4); g.scale(0.82, 0.82, 1.5); return g; })();
 
 /** Elongated crystalline spindle (ice spear), drilling forward. */
 function ShardForm({ mat }: { mat: THREE.ShaderMaterial }) {
-  const geom = useDisposableGeometry(() => {
-    const g = new THREE.OctahedronGeometry(0.3, 0).toNonIndexed();
-    g.scale(0.5, 0.5, 2.3); g.computeVertexNormals();
-    return g;
-  });
   const ref = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => { if (ref.current) ref.current.rotation.z += dt * 5; });
-  return <mesh ref={ref} geometry={geom} material={mat} />;
+  return <mesh ref={ref} geometry={SHARD_GEOMETRY} material={mat} />;
 }
 
 /** Stretched glowing lance (arcane / holy bolt). */
 function BoltForm({ mat }: { mat: THREE.ShaderMaterial }) {
-  const geom = useDisposableGeometry(() => { const g = new THREE.IcosahedronGeometry(0.22, 2); g.scale(0.72, 0.72, 2.7); return g; });
   const ref = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => { if (ref.current) ref.current.rotation.z += dt * 3; });
-  return <mesh ref={ref} geometry={geom} material={mat} />;
+  return <mesh ref={ref} geometry={BOLT_GEOMETRY} material={mat} />;
 }
 
 /** Teardrop flame head (fire comet — the directional trail is the tail). */
 function CometForm({ mat }: { mat: THREE.ShaderMaterial }) {
-  const geom = useDisposableGeometry(() => { const g = new THREE.IcosahedronGeometry(0.32, 4); g.scale(0.82, 0.82, 1.5); return g; });
-  return <mesh geometry={geom} material={mat} />;
+  return <mesh geometry={COMET_GEOMETRY} material={mat} />;
 }
 
 /** A real arrow (wooden shaft + steel head + fletching) — no shader. */
@@ -369,16 +362,24 @@ function OrbForm({ mat }: { mat: THREE.ShaderMaterial }) {
   return <mesh ref={ref} material={mat}><icosahedronGeometry args={[0.34, 3]} /></mesh>;
 }
 
-/** The flying projectile silhouette, by skill form, wrapped in the element shader. */
-export function SpellProjectile({ form, element, core, glow }: {
+/** Shader-surfaced forms (orb/shard/bolt/comet). Split out so the physical
+ *  arrow never builds/animates an element material it doesn't use. */
+function ShaderProjectileForm({ form, element, core, glow }: {
   form?: SpellForm; element?: SpellElement; core: string; glow: string;
 }) {
   const mat = useElementMaterial(element, core, glow);
-  if (form === 'arrow') return <ArrowForm />;
   if (form === 'shard') return <ShardForm mat={mat} />;
   if (form === 'bolt') return <BoltForm mat={mat} />;
   if (form === 'comet') return <CometForm mat={mat} />;
   return <OrbForm mat={mat} />;
+}
+
+/** The flying projectile silhouette, by skill form, wrapped in the element shader. */
+export function SpellProjectile({ form, element, core, glow }: {
+  form?: SpellForm; element?: SpellElement; core: string; glow: string;
+}) {
+  if (form === 'arrow') return <ArrowForm />;
+  return <ShaderProjectileForm form={form} element={element} core={core} glow={glow} />;
 }
 
 export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y = -0.9 }: {
