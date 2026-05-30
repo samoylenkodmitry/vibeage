@@ -2,56 +2,48 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as THREE from 'three';
+import {
+  CHARACTER_MODELS, DEFAULT_CHARACTER_MODEL,
+  type CharacterAnim, type CharacterModelId,
+} from './characterModels';
 
 /**
- * A real rigged, skinned, animated character — replaces the old
- * box/cone primitives with an articulated humanoid that idles, walks,
- * runs, and dies. The mesh is a CC0 model (see ASSET_MANIFEST.md); the
- * system is model-agnostic — swapping a different rigged GLB only needs
- * the CLIP map updated to that model's clip names (and any missing
- * states fall back gracefully).
+ * A real rigged, skinned, animated character. Model-agnostic: all model
+ * specifics (GLB path, height, forward axis, clip names) come from the
+ * characterModels registry keyed by `modelId`, so swapping in a paid/custom
+ * model later is a registry edit, not a change here.
  *
- * Each instance gets its own skeleton (SkeletonUtils.clone) so two
- * characters animate independently off the one cached download.
- *
- * Scale: the model already renders ~human-sized at scale 1 (its root
- * node bakes a unit conversion), so we scale by `targetHeight / NATIVE`.
- * NOTE: Box3 auto-fit does NOT work here — a skinned mesh reports its
- * tiny bind-pose bounds, not the rendered size, which blows the scale up.
+ * Each instance gets its own skeleton (SkeletonUtils.clone) so characters
+ * animate independently off the one cached download. Looping states (idle/walk/
+ * run/attack) crossfade; clamp-once states (death) play through and hold the
+ * final pose.
  */
-const MODEL = '/models/characters/soldier.glb';
-/** soldier.glb renders ~1.8 world units tall at scale 1. */
-const NATIVE_HEIGHT = 1.8;
-useGLTF.preload(MODEL);
+export type { CharacterAnim };
 
-export type CharacterAnim = 'idle' | 'walk' | 'run' | 'attack' | 'death';
-
-/** Abstract states → this model's actual clip names. Soldier ships
- *  Idle / Walk / Run; attack reuses idle (no punch clip — better than a
- *  bad one) and death is synthesized procedurally below. */
-const CLIP: Record<CharacterAnim, string> = {
-  idle: 'Idle',
-  walk: 'Walk',
-  run: 'Run',
-  attack: 'Idle',
-  death: 'Idle',
-};
+// Preload the common models so they don't pop in on first sighting.
+useGLTF.preload(CHARACTER_MODELS['kaykit-knight'].path);
+useGLTF.preload(CHARACTER_MODELS['kaykit-barbarian'].path);
+useGLTF.preload(CHARACTER_MODELS['kaykit-rogue-hooded'].path);
 
 export function AnimatedCharacter({
   state,
+  modelId = DEFAULT_CHARACTER_MODEL,
   targetHeight = 1.8,
   tint,
 }: {
   state: CharacterAnim;
+  /** Which registry model to render. */
+  modelId?: CharacterModelId;
   /** Desired rendered height in world units; the model auto-scales to it. */
   targetHeight?: number;
   /** Optional per-instance colour multiply (e.g. green goblin, olive orc). */
   tint?: string;
 }) {
-  const { scene, animations } = useGLTF(MODEL);
+  const def = CHARACTER_MODELS[modelId];
+  const { scene, animations } = useGLTF(def.path);
   // Per-instance skeleton clone so each character plays its own clip.
-  // When a tint is set, clone the materials too (SkeletonUtils shares
-  // them by default) and multiply the base colour so instances differ.
+  // When a tint is set, clone the materials too (SkeletonUtils shares them by
+  // default) and multiply the base colour so instances differ.
   const model = useMemo(() => {
     const c = cloneSkeleton(scene);
     if (tint) {
@@ -70,26 +62,28 @@ export function AnimatedCharacter({
   const { actions } = useAnimations(animations, model);
   const currentClip = useRef<string | null>(null);
 
-  const fitScale = targetHeight / NATIVE_HEIGHT;
+  const fitScale = targetHeight / def.nativeHeight;
 
   useEffect(() => {
-    const clipName = CLIP[state];
+    const clipName = def.clips[state];
     const next = actions[clipName];
     if (!next || currentClip.current === clipName) return;
     const prev = currentClip.current ? actions[currentClip.current] : null;
     next.reset();
-    next.setLoop(THREE.LoopRepeat, Infinity);
-    next.fadeIn(0.2).play();
-    prev?.fadeOut(0.2);
+    if (def.clampOnce.has(state)) {
+      next.setLoop(THREE.LoopOnce, 1);
+      next.clampWhenFinished = true;
+    } else {
+      next.setLoop(THREE.LoopRepeat, Infinity);
+      next.clampWhenFinished = false;
+    }
+    next.fadeIn(0.18).play();
+    prev?.fadeOut(0.18);
     currentClip.current = clipName;
-  }, [state, actions]);
+  }, [state, actions, def]);
 
-  // Yaw +180°: the model's authored forward is -Z, but the entity group
-  // faces +Z (atan2(vx,vz)), so without this the character walks backward.
-  // Death has no clip — synthesize it: tip forward onto the ground (X).
-  const dead = state === 'death';
   return (
-    <group rotation={[dead ? -Math.PI / 2 : 0, Math.PI, 0]} position={[0, dead ? 0.1 : 0, 0]}>
+    <group rotation={[0, def.forwardYaw, 0]}>
       <primitive object={model} scale={fitScale} />
     </group>
   );
