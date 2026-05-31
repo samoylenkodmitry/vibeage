@@ -14,6 +14,7 @@ export function makeCastSnapshot(cast: Cast): CastSnapshot {
     origin: cast.origin,
     pos: cast.pos,
     target: cast.target,
+    targetId: cast.targetId,
     dir: cast.dir,
   };
 }

@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, StatsGl } from '@react-three/drei';
 import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
-import { type VecXZ } from '../../../packages/protocol/messages';
+import { type VecXZ, type CastSnapshot } from '../../../packages/protocol/messages';
 import type { GameClientState } from './gameTypes';
 import { WorldEventVfx } from './SceneEventVfx';
 import { WorldEnvironment } from './WorldEnvironment';
@@ -33,11 +33,23 @@ import {
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
 import { WorldHorizonMountains } from './WorldHorizonMountains';
-import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
+import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from './SceneVfx';
 import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
 import { getTerrainY } from './worldSceneConfig';
 import { DynamicLightPool } from './dynamicLights';
+
+/** Anchor for a target-delivered cast (deluge): the targeted entity's LIVE
+ *  position (so the effect tracks a moving target), else the server's resolved
+ *  target point. Undefined for normal casts → they anchor at the snapshot pos. */
+function resolveCastAnchor(state: GameClientState, snapshot: CastSnapshot): { x: number; z: number } | undefined {
+  if (!castAnchorsAtTarget(snapshot.skillId)) return undefined;
+  if (snapshot.targetId) {
+    const entity = state.enemies[snapshot.targetId] ?? state.players[snapshot.targetId];
+    if (entity) return { x: entity.position.x, z: entity.position.z };
+  }
+  return snapshot.target;
+}
 
 type WorldSceneProps = {
   state: GameClientState;
@@ -135,7 +147,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} />
       ))}
       {Object.values(state.casts).map((cast) => (
-        <CastMarker key={cast.snapshot.castId} cast={cast} />
+        <CastMarker key={cast.snapshot.castId} cast={cast} anchorPos={resolveCastAnchor(state, cast.snapshot)} />
       ))}
       {Object.values(state.visualEvents).map((event) => (
         <WorldEventVfx key={event.id} event={event} />
