@@ -22,6 +22,10 @@ const PILLAR_GEO = new THREE.CylinderGeometry(0.16, 0.42, 3.4, 12, 1, true);
 const GAS_GEO = new THREE.CircleGeometry(1, 24);
 const RING_GEO = new THREE.RingGeometry(0.5, 0.7, 32);
 const GENERIC_RING_GEO = new THREE.RingGeometry(0.4, 0.88, 48);
+// Nova: a thin unit ring (scaled to the skill's area) + flame tongues around it.
+const NOVA_RING_GEO = new THREE.RingGeometry(0.78, 1.0, 48);
+const FLAME_GEO = (() => { const g = new THREE.ConeGeometry(0.34, 1.5, 5); g.translate(0, 0.75, 0); return g; })();
+const NOVA_FLAMES = Array.from({ length: 14 }, (_, i) => ({ a: (i / 14) * Math.PI * 2, ph: (i % 5) * 0.7 }));
 
 // Deterministic spread: azimuth by golden angle, per-particle speed/rise jitter.
 const IMPACT_DIRS = Array.from({ length: 18 }, (_, i) => ({
@@ -137,6 +141,58 @@ export function GenericImpact({ glow, accent }: { glow: string; accent: string }
       <mesh ref={flashRef} geometry={FLASH_GEO}>
         <meshBasicMaterial color={glow} transparent opacity={0.5} depthWrite={false} />
       </mesh>
+    </group>
+  );
+}
+
+/** Self-centered nova — an expanding ground ring + a ring of rising flame tongues
+ *  sized to the skill's area. For auras like Inferno Aura that surround the caster
+ *  (no projectile, no single-target burst). */
+export function NovaImpact({ glow, accent, radius }: { glow: string; accent: string; radius: number }) {
+  const ring = useRef<THREE.Mesh>(null);
+  const flames = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+  const r = Math.max(1.5, radius);
+
+  const flameMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }), []);
+  useEffect(() => { flameMat.color.set(glow); ringMat.color.set(accent); }, [glow, accent, flameMat, ringMat]);
+  useEffect(() => () => flameMat.dispose(), [flameMat]);
+  useEffect(() => () => ringMat.dispose(), [ringMat]);
+
+  const DUR = 0.9;
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    // Animation is over but the visual event lingers until pruned — cull the
+    // meshes and skip the per-flame work instead of churning every frame.
+    if (age >= DUR) {
+      if (ring.current) ring.current.visible = false;
+      if (flames.current) flames.current.visible = false;
+      return;
+    }
+    const t = age / DUR;
+    const ease = 1 - (1 - t) * (1 - t);
+    if (ring.current) ring.current.scale.setScalar(r * (0.2 + ease * 0.8));
+    ringMat.opacity = (1 - t) * 0.8;
+    flameMat.opacity = (1 - t) * 0.85;
+    if (flames.current) {
+      flames.current.children.forEach((c, i) => {
+        const f = NOVA_FLAMES[i]; if (!f) return;
+        const rad = r * (0.25 + ease * 0.7);
+        c.position.set(Math.cos(f.a) * rad, 0, Math.sin(f.a) * rad);
+        const flick = 0.7 + Math.sin(age * 14 + f.ph) * 0.25;
+        c.scale.set(0.8, flick * (1.4 - t), 0.8);
+      });
+    }
+  });
+
+  return (
+    <group position={[0, -0.88, 0]}>
+      <mesh ref={ring} geometry={NOVA_RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} />
+      <group ref={flames}>
+        {NOVA_FLAMES.map((_, i) => (<mesh key={i} geometry={FLAME_GEO} material={flameMat} />))}
+      </group>
     </group>
   );
 }
