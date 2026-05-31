@@ -232,6 +232,13 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
   );
 }
 
+/** True when a skill's effect should anchor at the TARGET for the whole cast
+ *  (e.g. deluge gathers its cloud above the target during the windup), rather
+ *  than at the caster where the cast snapshot's pos sits while charging. */
+export function castAnchorsAtTarget(skillId: CastSnapshot['skillId']): boolean {
+  return (SKILL_THEMES[skillId] ?? DEFAULT_SKILL_THEME).mechanic === 'deluge';
+}
+
 export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));

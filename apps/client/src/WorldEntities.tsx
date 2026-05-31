@@ -473,12 +473,16 @@ function NpcBody({ id, name, x, z }: { id: string; name: string; x: number; z: n
 
 export const NpcMarkers = memo(NpcMarkersImpl);
 
-export function CastMarker({ cast }: { cast: VisibleCast }) {
+export function CastMarker({ cast, anchorPos }: { cast: VisibleCast; anchorPos?: { x: number; z: number } }) {
   const snapshot = cast.snapshot;
-  const groundY = getTerrainY(snapshot.pos.x, snapshot.pos.z);
+  // Target-anchored mechanics (deluge) render at the target throughout; the cast
+  // snapshot's own pos is the caster while charging, so it would otherwise gather
+  // above the caster instead of the target.
+  const p = anchorPos ?? snapshot.pos;
+  const groundY = getTerrainY(p.x, p.z);
 
   return (
-    <SmoothedEntityGroup position={{ x: snapshot.pos.x, y: groundY + 1, z: snapshot.pos.z }} response={18}>
+    <SmoothedEntityGroup position={{ x: p.x, y: groundY + 1, z: p.z }} response={18}>
       <CastVfx snapshot={snapshot} />
     </SmoothedEntityGroup>
   );

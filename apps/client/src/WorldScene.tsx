@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, StatsGl } from '@react-three/drei';
 import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
-import { type VecXZ } from '../../../packages/protocol/messages';
+import { type VecXZ, type CastSnapshot } from '../../../packages/protocol/messages';
 import type { GameClientState } from './gameTypes';
 import { WorldEventVfx } from './SceneEventVfx';
 import { WorldEnvironment } from './WorldEnvironment';
@@ -33,7 +33,16 @@ import {
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
 import { WorldHorizonMountains } from './WorldHorizonMountains';
-import { BossTelegraphRing, TargetDestinationMarker } from './SceneVfx';
+import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from './SceneVfx';
+
+/** Target position for a target-anchored cast (deluge) by the local player, so
+ *  its effect gathers above the selected target rather than the caster. */
+function resolveCastAnchor(state: GameClientState, snapshot: CastSnapshot): { x: number; z: number } | undefined {
+  if (!castAnchorsAtTarget(snapshot.skillId)) return undefined;
+  if (snapshot.casterId !== state.myPlayerId || !state.selectedTargetId) return undefined;
+  const target = state.enemies[state.selectedTargetId] ?? state.players[state.selectedTargetId];
+  return target ? { x: target.position.x, z: target.position.z } : undefined;
+}
 import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
 import { getTerrainY } from './worldSceneConfig';
@@ -135,7 +144,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} />
       ))}
       {Object.values(state.casts).map((cast) => (
-        <CastMarker key={cast.snapshot.castId} cast={cast} />
+        <CastMarker key={cast.snapshot.castId} cast={cast} anchorPos={resolveCastAnchor(state, cast.snapshot)} />
       ))}
       {Object.values(state.visualEvents).map((event) => (
         <WorldEventVfx key={event.id} event={event} />
