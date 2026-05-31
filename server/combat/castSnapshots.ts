@@ -13,6 +13,7 @@ export function makeCastSnapshot(cast: Cast): CastSnapshot {
     progressMs: cast.progressMs || 0,
     origin: cast.origin,
     pos: cast.pos,
+    target: cast.target,
     dir: cast.dir,
   };
 }

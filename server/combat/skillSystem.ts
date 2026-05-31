@@ -71,6 +71,20 @@ export function createActiveCastStore(): ActiveCastStore {
 }
 
 /**
+ * The cast's resolved target/impact point: the target entity's CURRENT position
+ * (so it tracks a moving target), else a ground-aim point. Undefined for self /
+ * no-target casts (the client anchors those at the caster). Refreshed each tick.
+ */
+function resolveCastTargetPos(cast: Cast, world: CombatWorld): VecXZ | undefined {
+  if (cast.targetId) {
+    const entity = world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId);
+    if (entity) return { x: entity.position.x, z: entity.position.z };
+  }
+  if (cast.targetPos) return { x: cast.targetPos.x, z: cast.targetPos.z };
+  return undefined;
+}
+
+/**
  * Handle a new cast request from a player
  */
 export function handleCastRequest(input: CastRequestInput): string | Cast['castId'] {
@@ -124,7 +138,11 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
       return projectileFailure;
     }
   }
-  
+
+  // Resolve the impact point up front so clients can anchor target-delivered
+  // effects (e.g. a gathering cloud) above the target during the whole cast.
+  newCast.target = resolveCastTargetPos(newCast, world);
+
   // Add to active casts
   activeCasts[newCast.castId] = newCast;
   debug(LOG_CATEGORIES.COMBAT, `Added cast ${newCast.castId}`, {
@@ -190,6 +208,7 @@ export function castMobSkill(
     const projectileFailure = configureProjectileCast(cast, undefined, target.id, skill.projectile.speed, world);
     if (projectileFailure) return false;
   }
+  cast.target = { x: target.position.x, z: target.position.z };
   lockTelegraph(cast, skill, enemy.position, target.position);
 
   activeCasts[cast.castId] = cast;
@@ -313,6 +332,10 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
       delete activeCasts[castId];
       continue;
     }
+
+    // Keep the resolved impact point tracking a moving target through the cast.
+    const trackedTarget = resolveCastTargetPos(cast, world);
+    if (trackedTarget) cast.target = trackedTarget;
 
     // Check if cast time is complete for casts in Casting state
     if (cast.state === CastStateEnum.Casting && now - cast.startedAt >= cast.castTimeMs) {
