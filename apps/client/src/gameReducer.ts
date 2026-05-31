@@ -40,6 +40,7 @@ import {
   applySkillLearnedFeedback,
   pruneClientVisualState,
 } from './clientVisualState';
+import { applyReactionTriggeredVisualState } from './reactionVfxState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
 import { mergeVec3, normalizeVec3 } from './vec3';
 import { logBagDiag } from './bagDiag';
@@ -273,6 +274,10 @@ function applyServerMessage(
 
   if (message.type === 'InstantHit') {
     return applyInstantHitVisualState(state, message, now);
+  }
+
+  if (message.type === 'ReactionTriggered') {
+    return applyReactionTriggeredVisualState(state, message, now);
   }
 
   if (message.type === 'CombatLog') {

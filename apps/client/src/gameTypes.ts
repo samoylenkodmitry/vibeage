@@ -192,7 +192,7 @@ export type GroundLootStack = {
   items: ItemDrop[];
 };
 
-type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage' | 'miss';
+type VisualEventKind = 'healing' | 'mana' | 'splash' | 'petrify' | 'damage' | 'miss' | 'reaction';
 
 export type VisualEvent = {
   id: string;
@@ -202,6 +202,9 @@ export type VisualEvent = {
   radius?: number;
   /** §49/M2 — set on 'damage' events when the hit was a crit. Drives the bigger orange damage-number variant in DamageNumber. */
   isCrit?: boolean;
+  /** Combo-reaction burst colours (kind 'reaction'), from the reaction's flavor palette. */
+  color?: string;
+  accent?: string;
   createdAt: number;
 };
 

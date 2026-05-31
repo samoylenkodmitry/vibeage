@@ -42,6 +42,15 @@ export const instantHitSchema = z.object({
   dmg: z.array(z.number()).optional(),
 }).strict();
 
+export const reactionTriggeredSchema = z.object({
+  type: z.literal('ReactionTriggered'),
+  reactionId: z.string(),
+  /** Burst colour flavor (ReactionVfxFlavor) so the client renders the right combo VFX. */
+  flavor: z.string(),
+  position: vec3DSchema,
+  targetId: z.string().optional(),
+}).strict();
+
 export const skillLearnedSchema = z.object({
   type: z.literal('SkillLearned'),
   skillId: skillIdSchema,
@@ -275,6 +284,7 @@ export const systemMessageSchema = z.object({
 export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   posSnapSchema,
   instantHitSchema,
+  reactionTriggeredSchema,
   skillLearnedSchema,
   classSelectedSchema,
   castSnapshotMsgSchema,
@@ -317,6 +327,15 @@ export type InstantHit = {
   targetPos: Vec3D;
   hitIds: string[];
   dmg?: number[];
+};
+
+export type ReactionTriggered = {
+  type: 'ReactionTriggered';
+  reactionId: string;
+  /** ReactionVfxFlavor — picks the combo burst colour on the client. */
+  flavor: string;
+  position: Vec3D;
+  targetId?: string;
 };
 
 export type SkillLearned = {
@@ -479,6 +498,7 @@ export type SystemMessage = {
 export type ServerMessage =
   | PosSnap
   | InstantHit
+  | ReactionTriggered
   | SkillLearned
   | ClassSelected
   | CastSnapshotMsg

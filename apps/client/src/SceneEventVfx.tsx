@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DamageNumber } from './DamageNumber';
@@ -32,7 +32,85 @@ export function WorldEventVfx({ event }: { event: VisualEvent }) {
     return <MissVfx event={event} />;
   }
 
+  if (event.kind === 'reaction') {
+    return <ReactionBurstVfx event={event} />;
+  }
+
   return <SplashImpactVfx event={event} />;
+}
+
+// Shared geometries for the combo-reaction burst (scaled/animated per instance).
+const REACTION_RING_GEO = new THREE.RingGeometry(0.5, 0.66, 28);
+const REACTION_CORE_GEO = new THREE.SphereGeometry(0.5, 16, 16);
+const REACTION_SPIKE_GEO = (() => { const g = new THREE.ConeGeometry(0.09, 0.6, 5); g.translate(0, 0.3, 0); return g; })();
+const REACTION_SPARK_GEO = new THREE.SphereGeometry(0.06, 6, 6);
+const REACTION_SPIKES = Array.from({ length: 8 }, (_, i) => ({ a: (i / 8) * Math.PI * 2 }));
+const REACTION_SPARKS = Array.from({ length: 10 }, (_, i) => ({ a: (i / 10) * Math.PI * 2 + 0.3, speed: 0.8 + (i % 3) * 0.3, up: 1.5 + (i % 4) * 0.4 }));
+
+/** Combo-reaction payoff — a flavored burst (shockwave ring + bright core flash +
+ *  radial spikes + rising sparks) at the target when a skill reaction fires. */
+function ReactionBurstVfx({ event }: { event: VisualEvent }) {
+  const color = event.color ?? '#fde68a';
+  const accent = event.accent ?? '#ffffff';
+  const baseY = getTerrainY(event.position.x, event.position.z) + 1.0;
+  const ring = useRef<THREE.Mesh>(null);
+  const core = useRef<THREE.Mesh>(null);
+  const spikeGroup = useRef<THREE.Group>(null);
+  const sparkGroup = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+
+  // One material per role, shared across the spike/spark instances; coloured once.
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), []);
+  const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const spikeMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  useEffect(() => {
+    ringMat.color.set(accent); coreMat.color.set(accent); spikeMat.color.set(color); sparkMat.color.set(color);
+  }, [color, accent, ringMat, coreMat, spikeMat, sparkMat]);
+  useEffect(() => () => ringMat.dispose(), [ringMat]);
+  useEffect(() => () => coreMat.dispose(), [coreMat]);
+  useEffect(() => () => spikeMat.dispose(), [spikeMat]);
+  useEffect(() => () => sparkMat.dispose(), [sparkMat]);
+
+  const DUR = 0.6;
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    const t = Math.min(1, age / DUR);
+    const ease = 1 - (1 - t) * (1 - t);   // ease-out expansion
+    if (ring.current) ring.current.scale.setScalar(0.4 + ease * 2.6);
+    ringMat.opacity = (1 - t) * 0.8;
+    const pop = Math.sin(Math.min(1, age / 0.1) * Math.PI * 0.5); // fast core flash
+    if (core.current) core.current.scale.setScalar(0.2 + pop * 0.7 * (1 - t * 0.5));
+    coreMat.opacity = (1 - t) * 0.9;
+    if (spikeGroup.current) spikeGroup.current.scale.setScalar(0.3 + ease * 1.5);
+    spikeMat.opacity = (1 - t) * 0.85;
+    if (sparkGroup.current) {
+      sparkGroup.current.children.forEach((c, i) => {
+        const sp = REACTION_SPARKS[i]; if (!sp) return;
+        c.position.set(Math.cos(sp.a) * sp.speed * age * 3, sp.up * age * 3 - age * age * 9, Math.sin(sp.a) * sp.speed * age * 3);
+      });
+    }
+    sparkMat.opacity = 1 - t;
+  });
+
+  return (
+    <group position={[event.position.x, baseY, event.position.z]}>
+      <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} geometry={REACTION_RING_GEO} material={ringMat} />
+      <mesh ref={core} geometry={REACTION_CORE_GEO} material={coreMat} />
+      <group ref={spikeGroup}>
+        {REACTION_SPIKES.map((s, i) => (
+          <mesh key={i} geometry={REACTION_SPIKE_GEO} material={spikeMat}
+            position={[Math.cos(s.a) * 0.5, 0, Math.sin(s.a) * 0.5]} rotation={[0, -s.a, -Math.PI / 2]} />
+        ))}
+      </group>
+      <group ref={sparkGroup}>
+        {REACTION_SPARKS.map((_, i) => (
+          <mesh key={i} geometry={REACTION_SPARK_GEO} material={sparkMat} />
+        ))}
+      </group>
+    </group>
+  );
 }
 
 function MissVfx({ event }: { event: VisualEvent }) {

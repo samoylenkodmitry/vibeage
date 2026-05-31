@@ -66,6 +66,7 @@ const CLIENT_MESSAGE_TYPE_LITERALS = Object.keys(CLIENT_MESSAGE_TYPES) as Client
 const SERVER_MESSAGE_TYPES: Record<ServerMessage['type'], true> = {
   PosSnap: true,
   InstantHit: true,
+  ReactionTriggered: true,
   SkillLearned: true,
   ClassSelected: true,
   CastSnapshot: true,
@@ -132,6 +133,7 @@ describe('protocol type ↔ schema drift', () => {
     const minimal: Record<string, Record<string, unknown>> = {
       PosSnap: { id: 'x', pos: { x: 0, z: 0 }, vel: { x: 0, z: 0 }, snapTs: 1 },
       InstantHit: { skillId: 'fireball', origin: { x: 0, y: 0, z: 0 }, targetPos: { x: 0, y: 0, z: 0 }, hitIds: [] },
+      ReactionTriggered: { reactionId: 'detonate_burn', flavor: 'fire', position: { x: 0, y: 0, z: 0 } },
       SkillLearned: { skillId: 'fireball', remainingPoints: 0 },
       ClassSelected: { className: 'mage' },
       CastFail: { clientSeq: 0, reason: 'cooldown' },
