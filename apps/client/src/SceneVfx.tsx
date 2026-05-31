@@ -24,7 +24,7 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact, DelugeImpact,
+  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact, DelugeImpact, DelugeCast,
   type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
 
@@ -244,10 +244,14 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   }
 
   if (snapshot.state === CastState.Casting) {
+    // Deluge gathers its water cloud above the target DURING the cast windup.
+    if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} />;
     return <CastingChargeVfx progress={progress} theme={theme} />;
   }
 
-  // These mechanics are delivered at the target on impact — no flying projectile.
+  // Traveling phase: deluge holds the gathered cloud until impact; the other
+  // non-projectile mechanics show nothing (they're delivered at impact).
+  if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} />;
   if (theme.mechanic && theme.mechanic !== 'projectile') return null;
   return <ProjectileVfx dir={snapshot.dir} theme={theme} />;
 }

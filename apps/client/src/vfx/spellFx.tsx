@@ -489,12 +489,41 @@ const WATER_BLOBS = [
   { x: -0.3, y: -0.04, z: 0.28, r: 0.28 },
 ];
 const SPLASH_DROPS = Array.from({ length: 9 }, (_, i) => ({ a: (i / 9) * Math.PI * 2, speed: 0.7 + (i % 3) * 0.18 }));
+const DELUGE_HEIGHT = 2.5;   // gather height above the target — deliberately not too high
+const DELUGE_FULL = 1.2;     // cloud size once fully gathered
 
-/** Deluge — a water cloud gathers just above the target, then crashes down and
- *  splashes (no flying projectile). */
+function makeWaterMaterial(): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0, emissiveIntensity: 0.12 });
+}
+
+/** Cast windup for deluge — the water cloud GATHERS above the target, growing
+ *  with cast progress and drifting, before it falls on impact. */
+export function DelugeCast({ progress, color, accent }: { progress: number; color: string; accent: string }) {
+  const mat = useMemo(makeWaterMaterial, []);
+  useEffect(() => { mat.color.set(color); mat.emissive.set(accent); }, [color, accent, mat]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  const cloud = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    const c = cloud.current; if (!c) return;
+    const grow = (0.2 + progress * 1.0) * DELUGE_FULL; // swells as the cast fills
+    c.scale.setScalar(grow);
+    c.position.y = DELUGE_HEIGHT + Math.sin(clock.elapsedTime * 2.2) * 0.07; // gentle bob
+    c.rotation.y += 0.005;
+    mat.opacity = 0.45 + progress * 0.33;
+  });
+  return (
+    <group ref={cloud} position={[0, DELUGE_HEIGHT, 0]}>
+      {WATER_BLOBS.map((b, i) => (
+        <mesh key={i} geometry={BLOB_GEOMETRY} material={mat} position={[b.x, b.y, b.z]} scale={b.r} />
+      ))}
+    </group>
+  );
+}
+
+/** Deluge impact — the already-gathered cloud crashes straight DOWN and splashes. */
 export function DelugeImpact({ color, accent }: { color: string; accent: string }) {
   // Materials built once; colours updated in place (no recreation on theme change).
-  const cloudMat = useMemo(() => new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0, emissiveIntensity: 0.12 }), []);
+  const cloudMat = useMemo(makeWaterMaterial, []);
   const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), []);
   useEffect(() => { cloudMat.color.set(color); cloudMat.emissive.set(accent); }, [color, accent, cloudMat]);
   useEffect(() => { ringMat.color.set(accent); }, [accent, ringMat]);
@@ -504,21 +533,18 @@ export function DelugeImpact({ color, accent }: { color: string; accent: string 
   const ring = useRef<THREE.Mesh>(null);
   const drops = useRef<THREE.Group>(null);
   const start = useRef<number | null>(null);
-  const H = 2.5; // gather height above the target — deliberately not too high
-  const LAND = 0.58; // cloud touches down here (0.32 + 0.26); splash keys off it
+  const LAND = 0.24; // cloud (already formed during the cast) drops and lands here
   useFrame(({ clock }) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
-    const form = Math.min(1, age / 0.3);                       // cloud grows
-    const fall = Math.max(0, Math.min(1, (age - 0.32) / 0.26)); // then drops
+    const fall = Math.min(1, age / LAND); // falls immediately — it gathered during the cast
     const easeFall = fall * fall;
     if (cloud.current) {
-      cloud.current.position.y = H * (1 - easeFall) + (-0.55) * easeFall;
-      const grow = 0.35 + form * 0.85;
-      cloud.current.scale.set(grow, grow * (1 - fall * 0.55), grow); // squashes as it lands
+      cloud.current.position.y = DELUGE_HEIGHT * (1 - easeFall) + (-0.55) * easeFall;
+      cloud.current.scale.set(DELUGE_FULL, DELUGE_FULL * (1 - fall * 0.55), DELUGE_FULL); // squashes on landing
     }
     cloudMat.opacity = age < LAND ? 0.78 : Math.max(0, 0.78 - (age - LAND) / 0.37);
-    const splash = Math.max(0, Math.min(1, (age - LAND) / 0.42));   // ring kicks off on landing
+    const splash = Math.max(0, Math.min(1, (age - LAND) / 0.42)); // ring kicks off on landing
     if (ring.current) ring.current.scale.setScalar(0.4 + splash * 2.7);
     ringMat.opacity = (1 - splash) * 0.7;
     if (drops.current) {
@@ -532,7 +558,7 @@ export function DelugeImpact({ color, accent }: { color: string; accent: string 
   });
   return (
     <group>
-      <group ref={cloud} position={[0, H, 0]}>
+      <group ref={cloud} position={[0, DELUGE_HEIGHT, 0]}>
         {WATER_BLOBS.map((b, i) => (
           <mesh key={i} geometry={BLOB_GEOMETRY} material={cloudMat} position={[b.x, b.y, b.z]} scale={b.r} />
         ))}
