@@ -11,7 +11,6 @@ import type {
 import {
   BossBeacon,
   CastVfx,
-  castAnchorsAtTarget,
   EnemyHealthBar,
   EnemyHitFlash,
   EnemyThreatRing,
@@ -474,17 +473,16 @@ function NpcBody({ id, name, x, z }: { id: string; name: string; x: number; z: n
 
 export const NpcMarkers = memo(NpcMarkersImpl);
 
-export function CastMarker({ cast }: { cast: VisibleCast }) {
+export function CastMarker({ cast, anchorPos }: { cast: VisibleCast; anchorPos?: { x: number; z: number } }) {
   const snapshot = cast.snapshot;
-  // Target-anchored mechanics (deluge) render at the server-resolved target for
-  // the whole cast — the snapshot's own pos is the caster while charging, so it
-  // would otherwise gather above the caster. Works for every caster (the target
-  // comes from the server, not a client-side guess).
-  const anchor = (castAnchorsAtTarget(snapshot.skillId) && snapshot.target) ? snapshot.target : snapshot.pos;
-  const groundY = getTerrainY(anchor.x, anchor.z);
+  // anchorPos (resolved in WorldScene) is the live target position for
+  // target-anchored mechanics (deluge) — so the effect tracks a moving target.
+  // Undefined for normal casts → the snapshot's own pos.
+  const p = anchorPos ?? snapshot.pos;
+  const groundY = getTerrainY(p.x, p.z);
 
   return (
-    <SmoothedEntityGroup position={{ x: anchor.x, y: groundY + 1, z: anchor.z }} response={18}>
+    <SmoothedEntityGroup position={{ x: p.x, y: groundY + 1, z: p.z }} response={18}>
       <CastVfx snapshot={snapshot} />
     </SmoothedEntityGroup>
   );

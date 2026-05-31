@@ -99,6 +99,9 @@ export const castSnapshotSchema = z.object({
    *  clients can anchor target-delivered effects there during the whole cast.
    *  Absent for self/no-target casts (anchor at the caster). */
   target: vecXZSchema.optional(),
+  /** The targeted entity, when the cast has one — lets clients anchor effects to
+   *  that entity's live (smoothed) position so they track it tightly. */
+  targetId: z.string().optional(),
   dir: vecXZSchema.optional(),
   startedAt: z.number(),
   castTimeMs: z.number(),
@@ -171,6 +174,8 @@ export type CastSnapshot = {
   /** Resolved target/impact point (entity pos or aim) — present from cast start
    *  so clients anchor target-delivered effects there. Absent = self/no-target. */
   target?: VecXZ;
+  /** Targeted entity id (when any), so clients anchor to its live position. */
+  targetId?: string;
   dir?: VecXZ;
   startedAt: number;
   castTimeMs: number;

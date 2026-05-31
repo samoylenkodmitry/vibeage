@@ -106,6 +106,31 @@ beforeEach(async () => {
     }));
   });
 
+  it('cast.target tracks a moving target during the windup (and broadcasts it)', () => {
+    const castId = skillSystem.handleCastRequest({
+      activeCasts, player, casterId: player.id, skillId: 'waterSplash',
+      targetPos: undefined, targetId: enemy.id, outbound, world, now: Date.now(),
+    }) as string;
+
+    // Initial target = the enemy's start position.
+    expect(skillSystem.getCastById(activeCasts, castId)?.target).toEqual({ x: 1, z: 0 });
+
+    // The enemy moves mid-cast; the cast's target should follow it.
+    enemy.position = { x: 5, y: 0, z: 2 };
+    vi.advanceTimersByTime(100); // still well within waterSplash's 1500ms cast
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
+
+    const cast = skillSystem.getCastById(activeCasts, castId);
+    expect(cast?.state).toBe(CastState.Casting);
+    expect(cast?.target).toEqual({ x: 5, z: 2 });
+
+    // ...and the broadcast snapshot carries the updated target.
+    const lastCast = [...outboundEvents].reverse().find(
+      (e) => e.type === 'serverMessage' && (e as { message: { type: string } }).message.type === 'CastSnapshot',
+    ) as { message: { data: { target?: { x: number; z: number } } } } | undefined;
+    expect(lastCast?.message.data.target).toEqual({ x: 5, z: 2 });
+  });
+
   it('resolves projectile impact through v2 snapshots and combat log messages', () => {
     const castId = skillSystem.handleCastRequest({
       activeCasts,
