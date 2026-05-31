@@ -29,9 +29,9 @@ const CLASS_POLICY_OPTIONS: Record<CharacterClass, ClassCombatPolicyOptions> = {
   rogue: { primarySkillId: 'backstab' },
 };
 
-type SkillUseTarget = 'enemy' | 'self';
+export type SkillUseTarget = 'enemy' | 'self';
 
-type SkillUseCondition = {
+export type SkillUseCondition = {
   targetHasEffect?: SkillEffectType;
   targetMissingEffect?: SkillEffectType;
   casterHasEffect?: SkillEffectType;
@@ -42,7 +42,7 @@ type SkillUseCondition = {
   casterHealthAbovePct?: number;
 };
 
-type SkillUseRule = {
+export type SkillUseRule = {
   skillId: SkillId;
   target: SkillUseTarget;
   when?: SkillUseCondition;
