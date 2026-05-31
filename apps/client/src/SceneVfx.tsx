@@ -3,6 +3,13 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
 import { ITEMS, getItemGrade } from '../../../packages/content/items';
+import { SKILLS } from '../../../packages/content/skills';
+
+/** Approx world-space radius a skill's impact affects — used to size AoE VFX. */
+function skillImpactRadius(skillId: CastSnapshot['skillId']): number {
+  const s = SKILLS[skillId];
+  return s?.projectile?.splashRadius ?? s?.area ?? 1.4;
+}
 import { getGradeSpec } from '../../../packages/content/equipmentTypes';
 function pickBestGradeColor(items: readonly { itemId: string }[]): string {
   let bestRank = -1;
@@ -243,22 +250,24 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
+  const radius = skillImpactRadius(snapshot.skillId);
+
   if (snapshot.state === CastState.Impact) {
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
-    if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} />;
+    if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} radius={radius} />;
     return <ImpactVfx theme={theme} />;
   }
 
   if (snapshot.state === CastState.Casting) {
     // Deluge gathers its water cloud above the target DURING the cast windup.
-    if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} />;
+    if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} radius={radius} />;
     return <CastingChargeVfx progress={progress} theme={theme} />;
   }
 
   // Traveling phase: deluge holds the gathered cloud until impact; the other
   // non-projectile mechanics show nothing (they're delivered at impact).
-  if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} />;
+  if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} radius={radius} />;
   if (theme.mechanic && theme.mechanic !== 'projectile') return null;
   return <ProjectileVfx dir={snapshot.dir} theme={theme} />;
 }
