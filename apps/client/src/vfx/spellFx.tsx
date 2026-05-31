@@ -37,7 +37,7 @@ const ORB_FRAG = /* glsl */ `
   }
 `;
 
-const SHOCK_VERT = /* glsl */ `
+export const SHOCK_VERT = /* glsl */ `
   varying vec2 vUv;
   void main() {
     vUv = uv;
@@ -110,7 +110,7 @@ export function EnergyOrb({ core, glow, radius = 0.4, spin = 2.5 }: { core: stri
 export type SpellElement = 'fire' | 'ice' | 'holy' | 'poison' | 'arcane';
 
 /** Compact 3D value-noise + fbm (shared GLSL prepended to fire shaders). */
-const NOISE_GLSL = /* glsl */ `
+export const NOISE_GLSL = /* glsl */ `
   float vhash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
   float vnoise(vec3 x){
     vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -479,178 +479,3 @@ export function EruptImpact({ color, accent }: { color: string; accent: string }
   );
 }
 
-// Shared unit sphere for water blobs/droplets (scaled per instance). Enough
-// segments that the vertex displacement reads as a roiling surface.
-const BLOB_GEOMETRY = new THREE.SphereGeometry(1, 24, 18);
-const DROP_GEOMETRY = new THREE.SphereGeometry(1, 8, 6);
-// A full, puffy cloud of overlapping blobs that spans ~1 unit radius (scaled to
-// the impact radius at use). More blobs = a denser, fuller water mass.
-const WATER_BLOBS = [
-  { x: 0, y: 0, z: 0, r: 0.55 }, { x: 0.5, y: 0.05, z: 0.12, r: 0.4 },
-  { x: -0.48, y: 0.02, z: -0.1, r: 0.42 }, { x: 0.18, y: 0.12, z: 0.5, r: 0.36 },
-  { x: -0.24, y: 0.1, z: -0.46, r: 0.38 }, { x: 0.32, y: -0.06, z: -0.32, r: 0.34 },
-  { x: -0.36, y: -0.04, z: 0.34, r: 0.34 }, { x: 0.62, y: -0.02, z: -0.4, r: 0.28 },
-  { x: -0.6, y: 0.04, z: 0.42, r: 0.3 }, { x: 0.05, y: -0.1, z: -0.6, r: 0.3 },
-  { x: -0.05, y: 0.14, z: 0.0, r: 0.4 }, { x: 0.4, y: 0.08, z: -0.05, r: 0.3 },
-];
-const SPLASH_DROPS = Array.from({ length: 16 }, (_, i) => ({ a: (i / 16) * Math.PI * 2, speed: 0.65 + (i % 4) * 0.16 }));
-const DELUGE_HEIGHT = 2.5;   // gather height above the target — deliberately not too high
-
-// Roiling water surface: vertices are pushed along their normal by drifting fbm
-// so the blob actually undulates like a churning water mass.
-const WATER_VERT = NOISE_GLSL + /* glsl */ `
-  uniform float uTime;
-  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir; varying float vCrest;
-  void main() {
-    vPos = position;
-    float d = fbm(position * 2.3 + vec3(0.0, uTime * 0.9, uTime * 0.25));
-    vCrest = d;
-    vec3 displaced = position + normal * ((d - 0.5) * 0.36); // surface roil
-    vec4 mv = modelViewMatrix * vec4(displaced, 1.0);
-    vNormal = normalize(normalMatrix * normal);
-    vViewDir = normalize(-mv.xyz);
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-// Translucent magical water: fresnel rim + churn + caustic glints riding the crests.
-const WATER_FRAG = NOISE_GLSL + /* glsl */ `
-  uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow; uniform float uOpacity;
-  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir; varying float vCrest;
-  void main() {
-    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.0);
-    vec3 p = vPos * 3.5 + vec3(0.0, uTime * 0.8, uTime * 0.4);
-    float churn = fbm(p);
-    float glint = pow(max(churn, 0.0), 4.0) + pow(max(vCrest, 0.0), 3.0) * 0.5; // caustic sparkles + crest highlights
-    vec3 col = mix(uCore, uGlow, clamp(fres * 0.8 + churn * 0.35 + vCrest * 0.2, 0.0, 1.0));
-    col += fres * 0.4 + glint * 0.7;
-    float a = clamp(0.32 + fres * 0.6 + glint * 0.3, 0.0, 1.0) * uOpacity;
-    gl_FragColor = vec4(col, a);
-  }
-`;
-
-function makeWaterMaterial(): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uCore: { value: new THREE.Color('#ffffff') }, uGlow: { value: new THREE.Color('#ffffff') }, uOpacity: { value: 1 } },
-    vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, depthWrite: false,
-  });
-}
-
-// Ground ripple — an expanding wavefront fills a disc to the full impact radius,
-// with concentric ripples, a bright leading rim, and a caustic shimmer.
-const RIPPLE_FRAG = /* glsl */ `
-  uniform float uTime; uniform vec3 uColor; uniform vec3 uAccent; uniform float uProgress; uniform float uOpacity;
-  varying vec2 vUv;
-  void main() {
-    float d = length(vUv - 0.5) * 2.0; // 0 centre .. 1 disc edge (= impact radius)
-    float inDisc = step(d, 1.0);
-    float front = smoothstep(uProgress, uProgress - 0.22, d);            // filled up to the wavefront
-    float rim = smoothstep(0.09, 0.0, abs(d - uProgress));               // bright leading edge
-    float ripple = sin(d * 30.0 - uTime * 10.0) * 0.5 + 0.5;             // concentric ripples
-    float caustic = pow(ripple, 3.0);
-    vec3 col = mix(uColor, uAccent, clamp(caustic * 0.6 + rim, 0.0, 1.0));
-    float a = (front * (0.22 + caustic * 0.4) + rim * 0.55) * inDisc * uOpacity;
-    gl_FragColor = vec4(col, a);
-  }
-`;
-
-function RippleDisc({ color, accent, radius, durationMs = 700, y = -0.92 }: {
-  color: string; accent: string; radius: number; durationMs?: number; y?: number;
-}) {
-  const mat = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#ffffff') }, uAccent: { value: new THREE.Color('#ffffff') }, uProgress: { value: 0 }, uOpacity: { value: 1 } },
-    vertexShader: SHOCK_VERT, fragmentShader: RIPPLE_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-  }), []);
-  useEffect(() => { mat.uniforms.uColor.value.set(color); mat.uniforms.uAccent.value.set(accent); }, [color, accent, mat]);
-  useEffect(() => () => mat.dispose(), [mat]);
-  const start = useRef<number | null>(null);
-  useFrame(({ clock }, delta) => {
-    mat.uniforms.uTime.value += delta;
-    if (start.current === null) start.current = clock.elapsedTime;
-    const t = Math.min(1, ((clock.elapsedTime - start.current) * 1000) / durationMs);
-    mat.uniforms.uProgress.value = t;
-    mat.uniforms.uOpacity.value = 1 - smootherFade(t);
-  });
-  // Unit plane scaled to the radius (UVs are 0..1 so the shader is unaffected) —
-  // avoids rebuilding geometry when radius changes.
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} scale={radius * 2} material={mat}>
-      <planeGeometry />
-    </mesh>
-  );
-}
-
-function smootherFade(t: number): number { return t < 0.7 ? 0 : (t - 0.7) / 0.3; }
-
-/** Cast windup for deluge — the water cloud GATHERS above the target, growing
- *  with cast progress and drifting, before it falls on impact. */
-export function DelugeCast({ progress, color, accent, radius = 2 }: { progress: number; color: string; accent: string; radius?: number }) {
-  const mat = useMemo(makeWaterMaterial, []);
-  useEffect(() => { mat.uniforms.uCore.value.set(color); mat.uniforms.uGlow.value.set(accent); }, [color, accent, mat]);
-  useEffect(() => () => mat.dispose(), [mat]);
-  const cloud = useRef<THREE.Group>(null);
-  const full = radius * 0.85; // the cloud spans ~the impact radius
-  useFrame(({ clock }, delta) => {
-    mat.uniforms.uTime.value += delta;
-    const c = cloud.current; if (!c) return;
-    c.scale.setScalar((0.25 + progress * 0.75) * full); // swells as the cast fills
-    c.position.y = DELUGE_HEIGHT + Math.sin(clock.elapsedTime * 2.2) * 0.07; // gentle bob
-    c.rotation.y += delta * 0.3; // frame-rate independent
-    mat.uniforms.uOpacity.value = 0.6 + progress * 0.35;
-  });
-  return (
-    <group ref={cloud} position={[0, DELUGE_HEIGHT, 0]}>
-      {WATER_BLOBS.map((b, i) => (
-        <mesh key={i} geometry={BLOB_GEOMETRY} material={mat} position={[b.x, b.y, b.z]} scale={b.r} />
-      ))}
-    </group>
-  );
-}
-
-/** Deluge impact — the gathered cloud crashes DOWN, splats and spreads across
- *  the impact radius, and rings out (shader ripple disc + droplet crown). */
-export function DelugeImpact({ color, accent, radius = 2 }: { color: string; accent: string; radius?: number }) {
-  const cloudMat = useMemo(makeWaterMaterial, []);
-  useEffect(() => { cloudMat.uniforms.uCore.value.set(color); cloudMat.uniforms.uGlow.value.set(accent); }, [color, accent, cloudMat]);
-  useEffect(() => () => cloudMat.dispose(), [cloudMat]);
-  const cloud = useRef<THREE.Group>(null);
-  const drops = useRef<THREE.Group>(null);
-  const start = useRef<number | null>(null);
-  const LAND = 0.24;              // the cloud (formed during the cast) drops and lands here
-  const full = radius * 0.85;     // gathered cloud spans ~the impact radius
-  const dropSpread = radius;      // droplet crown reaches the radius
-  const dropScale = 0.08 * radius;
-  useFrame(({ clock }, delta) => {
-    cloudMat.uniforms.uTime.value += delta;
-    if (start.current === null) start.current = clock.elapsedTime;
-    const age = clock.elapsedTime - start.current;
-    const fall = Math.min(1, age / LAND);
-    const easeFall = fall * fall;
-    if (cloud.current) {
-      cloud.current.position.y = DELUGE_HEIGHT * (1 - easeFall) + (-0.4) * easeFall;
-      // On landing the mass flattens (Y) and SPREADS (XZ) across the area.
-      cloud.current.scale.set(full * (1 + fall * 0.6), full * (1 - fall * 0.7), full * (1 + fall * 0.6));
-    }
-    cloudMat.uniforms.uOpacity.value = age < LAND ? 1 : Math.max(0, 1 - (age - LAND) / 0.4);
-    if (drops.current) {
-      drops.current.visible = age > LAND;
-      const dt2 = Math.max(0, age - LAND);
-      drops.current.children.forEach((c, i) => {
-        const sp = SPLASH_DROPS[i]; if (!sp) return;
-        c.position.set(Math.cos(sp.a) * sp.speed * dt2 * 2 * dropSpread, -0.7 + sp.speed * dt2 * 4 - dt2 * dt2 * 9, Math.sin(sp.a) * sp.speed * dt2 * 2 * dropSpread);
-      });
-    }
-  });
-  return (
-    <group>
-      <RippleDisc color={color} accent={accent} radius={radius} />
-      <group ref={cloud} position={[0, DELUGE_HEIGHT, 0]}>
-        {WATER_BLOBS.map((b, i) => (
-          <mesh key={i} geometry={BLOB_GEOMETRY} material={cloudMat} position={[b.x, b.y, b.z]} scale={b.r} />
-        ))}
-      </group>
-      <group ref={drops}>
-        {SPLASH_DROPS.map((_, i) => (<mesh key={i} geometry={DROP_GEOMETRY} material={cloudMat} scale={dropScale} />))}
-      </group>
-    </group>
-  );
-}
