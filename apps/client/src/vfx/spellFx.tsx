@@ -497,7 +497,8 @@ const WATER_FRAG = NOISE_GLSL + /* glsl */ `
   uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow; uniform float uOpacity;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 2.0);
+    // Re-normalize: interpolated varyings lose unit length across the polygon.
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.0);
     vec3 p = vPos * 3.0 + vec3(0.0, uTime * 0.7, uTime * 0.35);
     float churn = fbm(p);                          // water rolling inside the blob
     float glint = pow(max(churn, 0.0), 3.0);       // bright caustic sparkles
@@ -569,7 +570,10 @@ export function DelugeImpact({ color, accent, radius = 2 }: { color: string; acc
     }
     cloudMat.uniforms.uOpacity.value = age < LAND ? 1 : Math.max(0, 1 - (age - LAND) / 0.37);
     const splash = Math.max(0, Math.min(1, (age - LAND) / 0.42)); // ring kicks off on landing
-    if (ring.current) ring.current.scale.setScalar(splash * ringMax);
+    if (ring.current) {
+      ring.current.visible = age > LAND; // no ring before the cloud lands
+      ring.current.scale.setScalar(splash * ringMax);
+    }
     ringMat.opacity = (1 - splash) * 0.7;
     if (drops.current) {
       drops.current.visible = age > LAND;

@@ -4,12 +4,6 @@ import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
 import { ITEMS, getItemGrade } from '../../../packages/content/items';
 import { SKILLS } from '../../../packages/content/skills';
-
-/** Approx world-space radius a skill's impact affects — used to size AoE VFX. */
-function skillImpactRadius(skillId: CastSnapshot['skillId']): number {
-  const s = SKILLS[skillId];
-  return s?.projectile?.splashRadius ?? s?.area ?? 1.4;
-}
 import { getGradeSpec } from '../../../packages/content/equipmentTypes';
 function pickBestGradeColor(items: readonly { itemId: string }[]): string {
   let bestRank = -1;
@@ -250,7 +244,9 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
-  const radius = skillImpactRadius(snapshot.skillId);
+  // Approx world-space radius the skill affects — sizes the AoE VFX.
+  const skill = SKILLS[snapshot.skillId];
+  const radius = skill?.projectile?.splashRadius ?? skill?.area ?? 1.4;
 
   if (snapshot.state === CastState.Impact) {
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
