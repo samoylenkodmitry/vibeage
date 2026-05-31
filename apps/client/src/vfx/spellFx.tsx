@@ -407,7 +407,28 @@ export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y
 // Rendered during the Impact state, anchored at the target; the flying
 // projectile is suppressed for these so the spell reads as a distinct mechanic.
 
-export type SpellMechanic = 'projectile' | 'strike' | 'erupt' | 'deluge';
+// 'projectile' flies straight A→B. 'arc' lobs in a parabola, 'spiral' corkscrews
+// around the travel axis, 'lance' is a fast elongated bolt — all still travel
+// (rendered while Traveling), unlike strike/erupt/deluge which deliver at impact.
+export type SpellMechanic = 'projectile' | 'arc' | 'spiral' | 'lance' | 'strike' | 'erupt' | 'deluge';
+
+/** Mechanics whose projectile flies and is drawn during the Traveling phase. */
+export const FLYING_MECHANICS: ReadonlySet<SpellMechanic> = new Set(['projectile', 'arc', 'spiral', 'lance']);
+
+/** Parabolic lob height at travel progress p∈[0,1]. Zero at both ends so the
+ *  projectile rejoins the straight server path exactly where the impact lands. */
+export function arcLift(p: number, height = 2.4): number {
+  return 4 * p * (1 - p) * height;
+}
+
+/** Corkscrew offset (perpendicular to the travel axis) at progress p. A sin(πp)
+ *  envelope tapers the radius to 0 at both ends so the weave rejoins the straight
+ *  path at the caster and the impact point. */
+export function spiralOffset(p: number, amp = 0.55, turns = 8): { x: number; y: number } {
+  const a = p * Math.PI * turns;
+  const env = Math.sin(p * Math.PI);
+  return { x: Math.sin(a) * amp * env, y: Math.cos(a) * amp * env };
+}
 
 /** Holy strike — a column of light slams down from the sky onto the target. */
 export function StrikeImpact({ color, accent }: { color: string; accent: string }) {

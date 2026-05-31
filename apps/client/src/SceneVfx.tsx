@@ -25,7 +25,7 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact,
+  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset,
   type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
@@ -45,24 +45,24 @@ type SkillTheme = {
 };
 
 const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
-  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
-  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
+  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'arc' },
+  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard', mechanic: 'spiral' },
   waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere', mechanic: 'deluge' },
   petrify: { core: '#a8a29e', glow: '#d6d3d1', accent: '#facc15', shape: 'stone', mechanic: 'erupt' },
   smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal', form: 'arrow' },
-  volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal', form: 'arrow' },
-  poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb' },
+  arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal', form: 'arrow', mechanic: 'lance' },
+  volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal', form: 'arrow', mechanic: 'lance' },
+  poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb', mechanic: 'arc' },
   holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt' },
+  arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt', mechanic: 'spiral' },
   meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', mechanic: 'strike' },
-  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
+  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'arc' },
   greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  mobFirebolt: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
-  mobFrostbolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
-  mobPoisonBite: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb' },
+  mobFirebolt: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'arc' },
+  mobFrostbolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard', mechanic: 'spiral' },
+  mobPoisonBite: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb', mechanic: 'arc' },
 };
 
 const DEFAULT_SKILL_THEME: SkillTheme = {
@@ -265,8 +265,8 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   // Traveling phase: deluge holds the gathered cloud until impact; the other
   // non-projectile mechanics show nothing (they're delivered at impact).
   if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} radius={radius} />;
-  if (theme.mechanic && theme.mechanic !== 'projectile') return null;
-  return <ProjectileVfx dir={snapshot.dir} theme={theme} />;
+  if (theme.mechanic && !FLYING_MECHANICS.has(theme.mechanic)) return null;
+  return <ProjectileVfx snapshot={snapshot} theme={theme} />;
 }
 
 function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillTheme }) {
@@ -297,28 +297,64 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
   );
 }
 
-function ProjectileVfx({ dir, theme }: { dir: CastSnapshot['dir']; theme: SkillTheme }) {
-  const coreRef = useRef<THREE.Group>(null);
+const PROJECTILE_WORLD = new THREE.Vector3(); // scratch for the live world position
+
+function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: SkillTheme }) {
+  const dir = snapshot.dir;
   const yaw = Math.atan2(dir?.x ?? 0, dir?.z ?? 1);
+  const mechanic = theme.mechanic ?? 'projectile';
+  const pathRef = useRef<THREE.Group>(null);   // arc lift (world-Y under Y-only yaw)
+  const weaveRef = useRef<THREE.Group>(null);   // spiral corkscrew
+  const coreRef = useRef<THREE.Group>(null);
+
+  // Horizontal origin→target span, to recover travel progress p from the live pos.
+  const ox = snapshot.origin.x;
+  const oz = snapshot.origin.z;
+  const total = snapshot.target ? Math.hypot(snapshot.target.x - ox, snapshot.target.z - oz) : 0;
+  const longZ = mechanic === 'lance' ? 2.4 : 1; // elongated fast bolt
 
   useFrame(({ clock }) => {
     coreRef.current?.scale.setScalar(1 + Math.sin(clock.elapsedTime * 14) * 0.08);
+    // Travel progress from the smoothed parent group's live world position.
+    let p = 0;
+    const parent = pathRef.current?.parent;
+    if (parent && total > 0.5) {
+      parent.getWorldPosition(PROJECTILE_WORLD);
+      p = Math.min(1, Math.max(0, Math.hypot(PROJECTILE_WORLD.x - ox, PROJECTILE_WORLD.z - oz) / total));
+    }
+    // Arc: lob in a parabola that peaks mid-flight (0 lift at both ends).
+    if (pathRef.current) pathRef.current.position.y = mechanic === 'arc' ? arcLift(p) : 0;
+    // Spiral: corkscrew around the travel axis (local X horiz-perp, local Y vertical).
+    if (weaveRef.current) {
+      if (mechanic === 'spiral') {
+        const offset = spiralOffset(p);
+        weaveRef.current.position.set(offset.x, offset.y, 0);
+      } else {
+        weaveRef.current.position.set(0, 0, 0);
+      }
+    }
   });
 
   return (
-    <group rotation={[0, yaw, 0]}>
-      <group ref={coreRef}>
-        {/* Silhouette varies by skill form (shard/arrow/comet/bolt/orb). */}
-        <SpellProjectile form={theme.form} element={theme.element} core={theme.core} glow={theme.glow} />
+    <group ref={pathRef}>
+      <group rotation={[0, yaw, 0]}>
+        <group ref={weaveRef}>
+          <group ref={coreRef}>
+            {/* form silhouette; inner group elongates it for the lance mechanic. */}
+            <group scale={[1, 1, longZ]}>
+              <SpellProjectile form={theme.form} element={theme.element} core={theme.core} glow={theme.glow} />
+            </group>
+          </group>
+          {/* Directional motion trail behind the head (local -Z). */}
+          {[0.5, 0.86, 1.2].map((offset, index) => (
+            <mesh key={offset} position={[0, 0, -offset * longZ]} scale={1 - index * 0.22}>
+              <sphereGeometry args={[0.17, 10, 10]} />
+              <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
+            </mesh>
+          ))}
+          <ProjectileTrail theme={theme} />
+        </group>
       </group>
-      {/* Directional motion trail behind the head (local -Z). */}
-      {[0.5, 0.86, 1.2].map((offset, index) => (
-        <mesh key={offset} position={[0, 0, -offset]} scale={1 - index * 0.22}>
-          <sphereGeometry args={[0.17, 10, 10]} />
-          <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
-        </mesh>
-      ))}
-      <ProjectileTrail theme={theme} />
     </group>
   );
 }
