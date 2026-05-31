@@ -106,7 +106,7 @@ import type {
   SkillOffense,
 } from './skillTags.js';
 import type { AbilityShape, AbilityAffects, AbilityTelegraph, SummonSpec, BlinkSpec } from './abilitySchema.js';
-import { SKILL_REACTIONS, type SkillReaction } from './skillReactions.js';
+import { withSkillReactions, type SkillReaction } from './skillReactions.js';
 export type {
   SkillRole,
   SkillSchool,
@@ -273,7 +273,6 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     speed: 22,
     levelRequired: 1,
     effects: [{ type: 'damage', value: 150 }, { type: 'burn', value: 1, durationMs: 5000 }],
-    reactions: SKILL_REACTIONS.fireball,
     projectile: {
       speed: 22,
       pierce: false,
@@ -304,7 +303,6 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
       { type: 'poison', value: 3, durationMs: 10000 },
       { type: 'slow', value: 50, durationMs: 10000 },
     ],
-    reactions: SKILL_REACTIONS.iceBolt,
     projectile: {
       speed: 26,
       pierce: true,
@@ -450,7 +448,6 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
       { type: 'damage', value: 90 },
       { type: 'stun', value: 1, durationMs: 1500 },
     ],
-    reactions: SKILL_REACTIONS.bash,
   },
   holyLight: {
     id: 'holyLight',
@@ -519,7 +516,6 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
       { type: 'damage', value: 140 },
       { type: 'stun', value: 1, durationMs: 1000 },
     ],
-    reactions: SKILL_REACTIONS.smite,
   },
   divineShield: {
     id: 'divineShield',
@@ -560,7 +556,6 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 1,
     requiresTarget: true,
     effects: [{ type: 'damage', value: 60 }],
-    reactions: SKILL_REACTIONS.arrowShot,
     projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
     upgrades: [
       { level: 2, description: '+20% damage', modifiers: { dmgMultiplier: 1.2 } },
@@ -635,7 +630,6 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 3,
     requiresTarget: true,
     effects: [{ type: 'damage', value: 320 }],
-    reactions: SKILL_REACTIONS.backstab,
   },
   poisonBlade: {
     id: 'poisonBlade',
@@ -691,6 +685,8 @@ import { PASSIVE_SKILLS } from './classPassives.js';
 import { MOB_SKILLS } from './mobSkills.js';
 import { BOSS_SIGNATURE_SKILLS } from './bossSkills.js';
 export const SKILLS = withGeneratedSkillIcons(
-  { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>,
+  withSkillReactions(
+    { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>,
+  ),
 );
 export { isPassiveSkill } from './classPassives.js';

@@ -1,4 +1,5 @@
 import type { SkillDef, SkillEffect, SkillEffectType } from '../../packages/content/skills.js';
+import type { SkillReactionCondition } from '../../packages/content/skillReactions.js';
 import type { Enemy, PlayerState, StatusEffect } from '../../packages/sim/entities.js';
 import {
   emitPlayerUpdated,
@@ -26,12 +27,7 @@ export function prepareSkillReactions(
 ): PreparedSkillReaction[] {
   const prepared: PreparedSkillReaction[] = [];
   for (const reaction of skill.reactions ?? []) {
-    if (reaction.condition.targetHasEffect && !hasActiveEffect(target, reaction.condition.targetHasEffect, now)) {
-      continue;
-    }
-    if (reaction.condition.casterHasEffect && (!caster || !hasActiveEffect(caster, reaction.condition.casterHasEffect, now))) {
-      continue;
-    }
+    if (!conditionMatches(reaction.condition, target, caster, now)) continue;
     const consumedTargetStacks = reaction.consumeTargetEffect
       ? activeEffectStacks(target, reaction.consumeTargetEffect, now)
       : 0;
@@ -109,6 +105,21 @@ export function applyPreparedSkillReactions(input: {
   return healApplied;
 }
 
+function conditionMatches(
+  condition: SkillReactionCondition,
+  target: Combatant,
+  caster: Combatant | null,
+  now: number,
+): boolean {
+  if (condition.targetHasEffect && !hasActiveEffect(target, condition.targetHasEffect, now)) return false;
+  if (condition.casterHasEffect && (!caster || !hasActiveEffect(caster, condition.casterHasEffect, now))) return false;
+  if (condition.targetHealthBelowPct !== undefined && healthFraction(target) >= condition.targetHealthBelowPct) return false;
+  if (condition.targetHealthAbovePct !== undefined && healthFraction(target) <= condition.targetHealthAbovePct) return false;
+  if (condition.casterHealthBelowPct !== undefined && (!caster || healthFraction(caster) >= condition.casterHealthBelowPct)) return false;
+  if (condition.casterHealthAbovePct !== undefined && (!caster || healthFraction(caster) <= condition.casterHealthAbovePct)) return false;
+  return true;
+}
+
 function hasActiveEffect(entity: Combatant, type: SkillEffectType, now: number): boolean {
   return activeEffectStacks(entity, type, now) > 0;
 }
@@ -124,6 +135,11 @@ function activeEffectStacks(entity: Combatant, type: SkillEffectType, now: numbe
 
 function isActiveStatusEffect(effect: StatusEffect, now: number): boolean {
   return effect.durationMs <= 0 || effect.startTimeTs + effect.durationMs > now;
+}
+
+function healthFraction(entity: Combatant): number {
+  if (entity.maxHealth <= 0) return 0;
+  return Math.max(0, entity.health / entity.maxHealth);
 }
 
 function removeStatusEffectType(target: Combatant, effectType: string): boolean {
