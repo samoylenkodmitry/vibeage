@@ -25,10 +25,11 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset,
+  SpellCore, SpellProjectile, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset,
   type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
+import { ElementImpact, GenericImpact } from './vfx/impactFx';
 
 type SkillTheme = {
   core: string;
@@ -253,7 +254,8 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
     if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} radius={radius} />;
-    return <ImpactVfx theme={theme} />;
+    if (theme.element) return <ElementImpact element={theme.element} core={theme.core} glow={theme.glow} accent={theme.accent} />;
+    return <GenericImpact glow={theme.glow} accent={theme.accent} />;
   }
 
   if (snapshot.state === CastState.Casting) {
@@ -380,47 +382,6 @@ function ProjectileTrail({ theme, longZ = 1 }: { theme: SkillTheme; longZ?: numb
     </group>
   );
 }
-
-function ImpactVfx({ theme }: { theme: SkillTheme }) {
-  const ringRef = useRef<THREE.Mesh>(null);
-  const flashRef = useRef<THREE.Mesh>(null);
-  const startedAtRef = useRef(0);
-
-  useFrame(({ clock }) => {
-    if (!startedAtRef.current) {
-      startedAtRef.current = clock.elapsedTime;
-    }
-
-    const age = Math.min(1.8, clock.elapsedTime - startedAtRef.current);
-    const fade = Math.max(0, 1 - age / 1.8);
-
-    if (ringRef.current) {
-      ringRef.current.scale.setScalar(0.85 + age * 1.35);
-      (ringRef.current.material as THREE.MeshBasicMaterial).opacity = 0.64 * fade;
-    }
-
-    if (flashRef.current) {
-      flashRef.current.scale.setScalar(1.1 + age * 0.32);
-      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5 * fade;
-    }
-  });
-
-  return (
-    <group>
-      {/* Shader shockwave races out across the ground on impact. */}
-      <GroundShockwave color={theme.glow} accent={theme.accent} />
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.92, 0]}>
-        <ringGeometry args={[0.4, 0.88, 48]} />
-        <meshBasicMaterial color={theme.accent} transparent opacity={0.64} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh ref={flashRef}>
-        <sphereGeometry args={[0.78, 18, 18]} />
-        <meshBasicMaterial color={theme.glow} transparent opacity={0.5} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
 
 function LootMarkerImpl({
   loot,
