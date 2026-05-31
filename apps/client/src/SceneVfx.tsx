@@ -298,6 +298,7 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
 }
 
 const PROJECTILE_WORLD = new THREE.Vector3(); // scratch for the live world position
+const TRAIL_GEOMETRY = new THREE.SphereGeometry(1, 10, 10); // unit sphere, scaled per trail bead
 
 function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: SkillTheme }) {
   const dir = snapshot.dir;
@@ -319,6 +320,7 @@ function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: Ski
     let p = 0;
     const parent = pathRef.current?.parent;
     if (parent && total > 0.5) {
+      parent.updateWorldMatrix(true, false); // ensure this frame's smoothed transform
       parent.getWorldPosition(PROJECTILE_WORLD);
       p = Math.min(1, Math.max(0, Math.hypot(PROJECTILE_WORLD.x - ox, PROJECTILE_WORLD.z - oz) / total));
     }
@@ -345,21 +347,19 @@ function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: Ski
               <SpellProjectile form={theme.form} element={theme.element} core={theme.core} glow={theme.glow} />
             </group>
           </group>
-          {/* Directional motion trail behind the head (local -Z). */}
           {[0.5, 0.86, 1.2].map((offset, index) => (
-            <mesh key={offset} position={[0, 0, -offset * longZ]} scale={1 - index * 0.22}>
-              <sphereGeometry args={[0.17, 10, 10]} />
+            <mesh key={offset} geometry={TRAIL_GEOMETRY} position={[0, 0, -offset * longZ]} scale={(1 - index * 0.22) * 0.17}>
               <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
             </mesh>
           ))}
-          <ProjectileTrail theme={theme} />
+          <ProjectileTrail theme={theme} longZ={longZ} />
         </group>
       </group>
     </group>
   );
 }
 
-function ProjectileTrail({ theme }: { theme: SkillTheme }) {
+function ProjectileTrail({ theme, longZ = 1 }: { theme: SkillTheme; longZ?: number }) {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
@@ -368,8 +368,9 @@ function ProjectileTrail({ theme }: { theme: SkillTheme }) {
     }
   });
 
+  // longZ stretches the trail lengthwise so its beads trail the elongated lance.
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} scale={[1, 1, longZ]}>
       {PROJECTILE_TRAIL_POINTS.map((point, index) => (
         <mesh key={point.offset} position={[point.drift, Math.sin(index) * 0.05, -point.offset]}>
           <sphereGeometry args={[point.radius, 8, 8]} />
