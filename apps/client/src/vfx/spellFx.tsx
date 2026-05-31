@@ -570,9 +570,11 @@ function RippleDisc({ color, accent, radius, durationMs = 700, y = -0.92 }: {
     mat.uniforms.uProgress.value = t;
     mat.uniforms.uOpacity.value = 1 - smootherFade(t);
   });
+  // Unit plane scaled to the radius (UVs are 0..1 so the shader is unaffected) —
+  // avoids rebuilding geometry when radius changes.
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} material={mat}>
-      <planeGeometry args={[radius * 2, radius * 2]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} scale={radius * 2} material={mat}>
+      <planeGeometry />
     </mesh>
   );
 }
