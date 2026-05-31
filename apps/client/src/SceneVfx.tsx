@@ -24,7 +24,7 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact,
+  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact, DelugeImpact,
   type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
 
@@ -45,7 +45,7 @@ type SkillTheme = {
 const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
   fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet' },
   iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard' },
-  waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere', element: 'ice', form: 'orb' },
+  waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere', mechanic: 'deluge' },
   petrify: { core: '#a8a29e', glow: '#d6d3d1', accent: '#facc15', shape: 'stone', mechanic: 'erupt' },
   smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal', form: 'arrow' },
@@ -239,6 +239,7 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   if (snapshot.state === CastState.Impact) {
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
+    if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} />;
     return <ImpactVfx theme={theme} />;
   }
 
@@ -246,8 +247,8 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
     return <CastingChargeVfx progress={progress} theme={theme} />;
   }
 
-  // Strike/erupt are delivered at the target on impact — no flying projectile.
-  if (theme.mechanic === 'strike' || theme.mechanic === 'erupt') return null;
+  // These mechanics are delivered at the target on impact — no flying projectile.
+  if (theme.mechanic && theme.mechanic !== 'projectile') return null;
   return <ProjectileVfx dir={snapshot.dir} theme={theme} />;
 }
 

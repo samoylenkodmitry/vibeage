@@ -407,7 +407,7 @@ export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y
 // Rendered during the Impact state, anchored at the target; the flying
 // projectile is suppressed for these so the spell reads as a distinct mechanic.
 
-export type SpellMechanic = 'projectile' | 'strike' | 'erupt';
+export type SpellMechanic = 'projectile' | 'strike' | 'erupt' | 'deluge';
 
 /** Holy strike — a column of light slams down from the sky onto the target. */
 export function StrikeImpact({ color, accent }: { color: string; accent: string }) {
@@ -474,6 +474,70 @@ export function EruptImpact({ color, accent }: { color: string; accent: string }
             position={[Math.cos(sp.a) * sp.r, -1, Math.sin(sp.a) * sp.r]}
             rotation={[sp.tilt, sp.a, sp.tilt]} scale={[sp.s, 0, sp.s]} />
         ))}
+      </group>
+    </group>
+  );
+}
+
+// Shared unit sphere for water blobs/droplets (scaled per instance).
+const BLOB_GEOMETRY = new THREE.SphereGeometry(1, 14, 12);
+// A puffy cloud of overlapping blobs.
+const WATER_BLOBS = [
+  { x: 0, y: 0, z: 0, r: 0.5 }, { x: 0.42, y: 0.05, z: 0.1, r: 0.34 },
+  { x: -0.4, y: 0.02, z: -0.08, r: 0.36 }, { x: 0.15, y: 0.1, z: 0.4, r: 0.3 },
+  { x: -0.2, y: 0.08, z: -0.38, r: 0.32 }, { x: 0.25, y: -0.06, z: -0.25, r: 0.28 },
+  { x: -0.3, y: -0.04, z: 0.28, r: 0.28 },
+];
+const SPLASH_DROPS = Array.from({ length: 9 }, (_, i) => ({ a: (i / 9) * Math.PI * 2, speed: 0.7 + (i % 3) * 0.18 }));
+
+/** Deluge — a water cloud gathers just above the target, then crashes down and
+ *  splashes (no flying projectile). */
+export function DelugeImpact({ color, accent }: { color: string; accent: string }) {
+  const cloudMat = useMemo(() => new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0, emissive: new THREE.Color(accent), emissiveIntensity: 0.12 }), [color, accent]);
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), [accent]);
+  useEffect(() => () => cloudMat.dispose(), [cloudMat]);
+  useEffect(() => () => ringMat.dispose(), [ringMat]);
+  const cloud = useRef<THREE.Group>(null);
+  const ring = useRef<THREE.Mesh>(null);
+  const drops = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+  const H = 2.5; // gather height above the target — deliberately not too high
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    const form = Math.min(1, age / 0.3);                       // cloud grows
+    const fall = Math.max(0, Math.min(1, (age - 0.32) / 0.26)); // then drops
+    const easeFall = fall * fall;
+    if (cloud.current) {
+      cloud.current.position.y = H * (1 - easeFall) + (-0.55) * easeFall;
+      const grow = 0.35 + form * 0.85;
+      cloud.current.scale.set(grow, grow * (1 - fall * 0.55), grow); // squashes as it lands
+    }
+    cloudMat.opacity = age < 0.55 ? 0.78 : Math.max(0, 0.78 - (age - 0.55) / 0.4);
+    const splash = Math.max(0, Math.min(1, (age - 0.5) / 0.5));     // ring after landing
+    if (ring.current) ring.current.scale.setScalar(0.4 + splash * 2.7);
+    ringMat.opacity = (1 - splash) * 0.7;
+    if (drops.current) {
+      drops.current.visible = age > 0.48;
+      const dt2 = Math.max(0, age - 0.5);
+      drops.current.children.forEach((c, i) => {
+        const sp = SPLASH_DROPS[i]; if (!sp) return;
+        c.position.set(Math.cos(sp.a) * sp.speed * dt2 * 3, -0.8 + sp.speed * dt2 * 4 - dt2 * dt2 * 9, Math.sin(sp.a) * sp.speed * dt2 * 3);
+      });
+    }
+  });
+  return (
+    <group>
+      <group ref={cloud} position={[0, H, 0]}>
+        {WATER_BLOBS.map((b, i) => (
+          <mesh key={i} geometry={BLOB_GEOMETRY} material={cloudMat} position={[b.x, b.y, b.z]} scale={b.r} />
+        ))}
+      </group>
+      <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.92, 0]} material={ringMat}>
+        <ringGeometry args={[0.5, 0.78, 32]} />
+      </mesh>
+      <group ref={drops}>
+        {SPLASH_DROPS.map((_, i) => (<mesh key={i} geometry={BLOB_GEOMETRY} material={cloudMat} scale={0.09} />))}
       </group>
     </group>
   );
