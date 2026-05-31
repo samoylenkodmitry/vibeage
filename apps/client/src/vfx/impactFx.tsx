@@ -14,8 +14,9 @@ import { GroundShockwave, type SpellElement } from './spellFx';
  */
 
 const SPARK_GEO = new THREE.SphereGeometry(1, 6, 6);
-// Elongated shard for ice (base at origin so it points outward when oriented).
-const SHARD_GEO = (() => { const g = new THREE.ConeGeometry(0.4, 2.2, 4); g.rotateX(Math.PI / 2); return g; })();
+// Elongated shard for ice. Translate so the base sits at the origin, then lay it
+// along +Z so a Y-rotation aims it outward along the shard's flight direction.
+const SHARD_GEO = (() => { const g = new THREE.ConeGeometry(0.4, 2.2, 4); g.translate(0, 1.1, 0); g.rotateX(Math.PI / 2); return g; })();
 const FLASH_GEO = new THREE.SphereGeometry(0.78, 18, 18);
 const PILLAR_GEO = new THREE.CylinderGeometry(0.16, 0.42, 3.4, 12, 1, true);
 const GAS_GEO = new THREE.CircleGeometry(1, 24);
@@ -48,15 +49,16 @@ export function ElementImpact({ element, core, glow, accent }: { element: SpellE
   const extra = useRef<THREE.Mesh>(null);
   const start = useRef<number | null>(null);
 
-  const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false, blending: cfg.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-  }), [cfg.additive]);
+  // Materials built once (empty deps) — blending + colour are set in an effect so
+  // an aborted concurrent render can't orphan a material before its dispose runs.
+  const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }), []);
   const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
-  const extraMat = useMemo(() => new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    blending: element === 'poison' ? THREE.NormalBlending : THREE.AdditiveBlending,
-  }), [element]);
-  useEffect(() => { sparkMat.color.set(glow); flashMat.color.set(core); extraMat.color.set(element === 'poison' ? glow : accent); }, [glow, core, accent, element, sparkMat, flashMat, extraMat]);
+  const extraMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }), []);
+  useEffect(() => {
+    sparkMat.blending = cfg.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
+    extraMat.blending = element === 'poison' ? THREE.NormalBlending : THREE.AdditiveBlending;
+    sparkMat.color.set(glow); flashMat.color.set(core); extraMat.color.set(element === 'poison' ? glow : accent);
+  }, [glow, core, accent, element, cfg.additive, sparkMat, flashMat, extraMat]);
   useEffect(() => () => sparkMat.dispose(), [sparkMat]);
   useEffect(() => () => flashMat.dispose(), [flashMat]);
   useEffect(() => () => extraMat.dispose(), [extraMat]);
@@ -99,7 +101,7 @@ export function ElementImpact({ element, core, glow, accent }: { element: SpellE
       <group ref={sparks}>
         {IMPACT_DIRS.slice(0, cfg.count).map((d, i) => (
           <mesh key={i} geometry={cfg.elongate ? SHARD_GEO : SPARK_GEO} material={sparkMat}
-            scale={cfg.elongate ? [cfg.scale, cfg.scale, cfg.scale * 2.4] : cfg.scale} rotation={[0, -d.az, 0]} />
+            scale={cfg.elongate ? [cfg.scale, cfg.scale, cfg.scale * 2.4] : cfg.scale} rotation={[0, Math.PI / 2 - d.az, 0]} />
         ))}
       </group>
       <ElementExtra element={element} meshRef={extra} material={extraMat} />
