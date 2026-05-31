@@ -5,14 +5,18 @@ import {
   SPECIALIZATIONS,
   type SpecializationId,
 } from '../../packages/content/specializations.js';
-import { classifySkill, SKILLS, type SkillId } from '../../packages/content/skills.js';
+import { SKILLS, type SkillEffectType, type SkillId } from '../../packages/content/skills.js';
+import { distanceXZ } from '../../packages/sim/geometry.js';
 import { starterSkillsFor } from '../players/playerProgression.js';
 import {
   createClassCombatPolicy,
   createSimulatedPlayer,
   type ClassCombatPolicyOptions,
   type PlayerAiPolicy,
+  type PlayerAiContext,
+  type SimEntity,
   type SimulatedPlayerOptions,
+  type SimulationAction,
 } from './gameSimulator.js';
 
 const CLASS_POLICY_OPTIONS: Record<CharacterClass, ClassCombatPolicyOptions> = {
@@ -25,21 +29,144 @@ const CLASS_POLICY_OPTIONS: Record<CharacterClass, ClassCombatPolicyOptions> = {
   rogue: { primarySkillId: 'backstab' },
 };
 
-const SPEC_PRIMARY_SKILL: Partial<Record<SpecializationId, SkillId>> = {
-  arcanist: 'arcane_blast',
-  pyromancer: 'meteor',
-  berserker: 'rage',
-  slayer: 'execute',
-  cardinal: 'smite',
-  theurge: 'smite',
-  hawkeye: 'snipe',
-  phantom_ranger: 'shadow_arrow',
-  templar_knight: 'holy_shield',
-  dark_avenger: 'shadow_strike',
-  phoenix_knight: 'phoenix_ward',
-  evas_templar: 'smite',
-  treasure_hunter: 'lucky_strike',
-  plains_walker: 'stalking_arrow',
+type SkillUseTarget = 'enemy' | 'self';
+
+type SkillUseCondition = {
+  targetHasEffect?: SkillEffectType;
+  targetMissingEffect?: SkillEffectType;
+  casterHasEffect?: SkillEffectType;
+  casterMissingEffect?: SkillEffectType;
+  targetHealthBelowPct?: number;
+  targetHealthAbovePct?: number;
+  casterHealthBelowPct?: number;
+  casterHealthAbovePct?: number;
+};
+
+type SkillUseRule = {
+  skillId: SkillId;
+  target: SkillUseTarget;
+  when?: SkillUseCondition;
+  desiredRangeFraction?: number;
+};
+
+export type SpecializationAiProfile = {
+  specializationId: SpecializationId;
+  baseClass: CharacterClass;
+  role: 'burst' | 'sustain' | 'support' | 'tank' | 'skirmish';
+  rules: readonly SkillUseRule[];
+};
+
+export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, SpecializationAiProfile> = {
+  arcanist: profile('arcanist', 'burst', [
+    enemy('arcane_supremacy'),
+    enemy('arcane_blast', { targetHasEffect: 'freeze' }),
+    enemy('iceBolt', { targetHasEffect: 'waterWeakness' }),
+    enemy('waterSplash', { targetMissingEffect: 'waterWeakness' }),
+    enemy('arcane_blast'),
+    enemy('fireball'),
+  ]),
+  pyromancer: profile('pyromancer', 'burst', [
+    enemy('meteor', { targetHasEffect: 'burn' }),
+    enemy('inferno_aura', { targetMissingEffect: 'burn' }),
+    enemy('fireball', { targetMissingEffect: 'burn' }),
+    enemy('meteor'),
+    enemy('fireball'),
+  ]),
+  berserker: profile('berserker', 'sustain', [
+    self('blood_frenzy', { casterMissingEffect: 'bless' }),
+    self('rage', { casterMissingEffect: 'bless' }),
+    enemy('powerStrike', { targetHasEffect: 'stun' }),
+    enemy('bash', { targetHasEffect: 'dot' }),
+    enemy('slash', { targetMissingEffect: 'dot' }),
+    enemy('powerStrike'),
+  ]),
+  slayer: profile('slayer', 'burst', [
+    enemy('killing_strike', { targetHealthBelowPct: 0.35 }),
+    enemy('execute', { targetHealthBelowPct: 0.4 }),
+    enemy('powerStrike', { targetHasEffect: 'stun' }),
+    enemy('bash', { targetHasEffect: 'dot' }),
+    enemy('slash', { targetMissingEffect: 'dot' }),
+    enemy('execute'),
+  ]),
+  cardinal: profile('cardinal', 'support', [
+    self('mass_heal', { casterHealthBelowPct: 0.75 }),
+    self('greater_heal', { casterHealthBelowPct: 0.82 }),
+    self('holyLight', { casterHealthBelowPct: 0.9 }),
+    self('bless', { casterMissingEffect: 'bless' }),
+    enemy('smite'),
+  ]),
+  theurge: profile('theurge', 'support', [
+    self('group_bless', { casterMissingEffect: 'bless' }),
+    self('empower', { casterMissingEffect: 'bless' }),
+    self('bless', { casterMissingEffect: 'bless' }),
+    self('holyLight', { casterHealthBelowPct: 0.65 }),
+    enemy('smite'),
+  ]),
+  hawkeye: profile('hawkeye', 'burst', [
+    enemy('snipe', { targetHasEffect: 'slow' }),
+    enemy('aimed_volley'),
+    self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
+    enemy('snipe'),
+    enemy('volley'),
+    enemy('arrowShot'),
+  ]),
+  phantom_ranger: profile('phantom_ranger', 'skirmish', [
+    self('silent_step', { casterMissingEffect: 'invisible' }),
+    enemy('shadow_arrow'),
+    self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
+    self('evade', { casterHealthBelowPct: 0.7, casterMissingEffect: 'evasion' }),
+    enemy('volley'),
+    enemy('arrowShot'),
+  ]),
+  templar_knight: profile('templar_knight', 'tank', [
+    self('holy_shield', { casterMissingEffect: 'shield' }),
+    enemy('divine_taunt'),
+    enemy('taunt'),
+    self('shieldWall', { casterHealthBelowPct: 0.75, casterMissingEffect: 'shield' }),
+    enemy('powerStrike', { targetHasEffect: 'stun' }),
+    enemy('bash', { targetHasEffect: 'dot' }),
+    enemy('slash'),
+  ]),
+  dark_avenger: profile('dark_avenger', 'sustain', [
+    enemy('soul_eater', { targetHealthBelowPct: 0.5 }),
+    enemy('shadow_strike'),
+    self('shieldWall', { casterHealthBelowPct: 0.7, casterMissingEffect: 'shield' }),
+    enemy('powerStrike', { targetHasEffect: 'stun' }),
+    enemy('bash', { targetHasEffect: 'dot' }),
+    enemy('slash'),
+  ]),
+  phoenix_knight: profile('phoenix_knight', 'tank', [
+    self('rebirth', { casterHealthBelowPct: 0.35, casterMissingEffect: 'shield' }),
+    self('phoenix_ward', { casterHealthBelowPct: 0.85, casterMissingEffect: 'shield' }),
+    self('divineShield', { casterHealthBelowPct: 0.65, casterMissingEffect: 'shield' }),
+    self('holyLight', { casterHealthBelowPct: 0.7 }),
+    enemy('smite'),
+  ]),
+  evas_templar: profile('evas_templar', 'support', [
+    self('sacred_aura', { casterHealthBelowPct: 0.8 }),
+    self('sacred_pulse', { casterHealthBelowPct: 0.85 }),
+    self('holyLight', { casterHealthBelowPct: 0.72 }),
+    self('divineShield', { casterHealthBelowPct: 0.55, casterMissingEffect: 'shield' }),
+    enemy('smite'),
+  ]),
+  treasure_hunter: profile('treasure_hunter', 'skirmish', [
+    self('treasure_sense', { casterMissingEffect: 'reveal_loot' }),
+    enemy('lucky_strike', { targetHealthBelowPct: 0.5 }),
+    enemy('backstab', { casterHasEffect: 'invisible' }),
+    self('vanish', { casterMissingEffect: 'invisible' }),
+    enemy('poisonBlade', { targetMissingEffect: 'poison' }),
+    enemy('backstab'),
+    enemy('lucky_strike'),
+  ]),
+  plains_walker: profile('plains_walker', 'skirmish', [
+    self('wind_dash', { casterHealthBelowPct: 0.7, casterMissingEffect: 'speed_boost' }),
+    enemy('stalking_arrow', { targetHasEffect: 'poison' }),
+    enemy('backstab', { casterHasEffect: 'invisible' }),
+    self('vanish', { casterMissingEffect: 'invisible' }),
+    enemy('poisonBlade', { targetMissingEffect: 'poison' }),
+    enemy('backstab'),
+    enemy('stalking_arrow'),
+  ]),
 };
 
 export type SimPolicyProfile = {
@@ -51,12 +178,23 @@ export function createClassAiPolicy(
   className: CharacterClass,
   specializationId?: SpecializationId,
 ): PlayerAiPolicy {
+  if (specializationId) return createSpecializationAiPolicy(specializationId);
   const options = { ...CLASS_POLICY_OPTIONS[className] };
-  const specPrimary = specializationId ? SPEC_PRIMARY_SKILL[specializationId] : undefined;
-  if (specPrimary && isHarmfulSkill(specPrimary)) {
-    options.primarySkillId = specPrimary;
-  }
   return createClassCombatPolicy(options);
+}
+
+export function createSpecializationAiPolicy(specializationId: SpecializationId): PlayerAiPolicy {
+  const profile = SPECIALIZATION_AI_PROFILES[specializationId];
+  const fallback = createClassCombatPolicy(CLASS_POLICY_OPTIONS[profile.baseClass]);
+  return (context) => {
+    if (context.player.castingSkill) return [];
+    const target = nearestEntity(context.player, context.hostiles);
+    for (const rule of profile.rules) {
+      const action = actionForRule(context, rule, target);
+      if (action.length > 0) return action;
+    }
+    return fallback(context);
+  };
 }
 
 export function createSimProfilePlayer(options: SimulatedPlayerOptions & SimPolicyProfile) {
@@ -121,7 +259,123 @@ function hasPrerequisites(requiredSkills: readonly SkillId[] | undefined, unlock
   return requiredSkills?.every((skillId) => unlocked.has(skillId)) ?? true;
 }
 
-function isHarmfulSkill(skillId: SkillId): boolean {
+function profile(
+  specializationId: SpecializationId,
+  role: SpecializationAiProfile['role'],
+  rules: readonly SkillUseRule[],
+): SpecializationAiProfile {
+  return { specializationId, baseClass: SPECIALIZATIONS[specializationId].baseClass, role, rules };
+}
+
+function enemy(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number): SkillUseRule {
+  return { skillId, target: 'enemy', when, desiredRangeFraction };
+}
+
+function self(skillId: SkillId, when?: SkillUseCondition): SkillUseRule {
+  return { skillId, target: 'self', when };
+}
+
+function actionForRule(
+  context: PlayerAiContext,
+  rule: SkillUseRule,
+  target: SimEntity | null,
+): SimulationAction[] {
+  if (!canAttemptSkill(context, rule.skillId)) return [];
+  if (!conditionMatches(rule.when, context, target)) return [];
+  if (rule.target === 'self') {
+    if (context.player.movement?.isMoving) return [{ type: 'stopMoving' }, { type: 'castSkill', skillId: rule.skillId }];
+    return [{ type: 'castSkill', skillId: rule.skillId }];
+  }
+  if (!target) return [];
+  return engageTarget(context, target, rule.skillId, rule.desiredRangeFraction);
+}
+
+function conditionMatches(
+  condition: SkillUseCondition | undefined,
+  context: PlayerAiContext,
+  target: SimEntity | null,
+): boolean {
+  if (!condition) return true;
+  if (condition.targetHasEffect && (!target || !hasActiveEffect(target, condition.targetHasEffect, context.now))) return false;
+  if (condition.targetMissingEffect && target && hasActiveEffect(target, condition.targetMissingEffect, context.now)) return false;
+  if (condition.casterHasEffect && !hasActiveEffect(context.player, condition.casterHasEffect, context.now)) return false;
+  if (condition.casterMissingEffect && hasActiveEffect(context.player, condition.casterMissingEffect, context.now)) return false;
+  if (condition.targetHealthBelowPct !== undefined && (!target || healthFraction(target) >= condition.targetHealthBelowPct)) return false;
+  if (condition.targetHealthAbovePct !== undefined && (!target || healthFraction(target) <= condition.targetHealthAbovePct)) return false;
+  if (condition.casterHealthBelowPct !== undefined && healthFraction(context.player) >= condition.casterHealthBelowPct) return false;
+  if (condition.casterHealthAbovePct !== undefined && healthFraction(context.player) <= condition.casterHealthAbovePct) return false;
+  return true;
+}
+
+function engageTarget(
+  context: PlayerAiContext,
+  target: SimEntity,
+  skillId: SkillId,
+  desiredRangeFraction = 0.8,
+): SimulationAction[] {
+  const range = skillRange(skillId);
+  if (context.distanceTo(target) > range) {
+    return [{ type: 'moveTo', targetPos: approachPoint(context.player.position, target.position, range, desiredRangeFraction) }];
+  }
+  const actions: SimulationAction[] = [];
+  if (context.player.movement?.isMoving) actions.push({ type: 'stopMoving' });
+  actions.push({ type: 'setTarget', targetId: target.id });
+  actions.push({ type: 'castSkill', skillId, targetId: target.id, force: !isEnemy(target) });
+  return actions;
+}
+
+function canAttemptSkill(context: PlayerAiContext, skillId: SkillId): boolean {
   const skill = SKILLS[skillId];
-  return Boolean(skill && classifySkill(skill.effects) === 'harmful');
+  if (!skill || !context.player.unlockedSkills.includes(skillId)) return false;
+  if ((context.player.skillCooldownEndTs[skillId] ?? 0) > context.now) return false;
+  return context.player.mana >= skill.manaCost;
+}
+
+function skillRange(skillId: SkillId): number {
+  const skill = SKILLS[skillId];
+  return Math.max(1, skill?.range ?? skill?.projectile?.maxRange ?? 1);
+}
+
+function hasActiveEffect(entity: SimEntity, type: SkillEffectType, now: number): boolean {
+  return (entity.statusEffects ?? []).some((effect) => (
+    effect.type === type && (effect.durationMs <= 0 || effect.startTimeTs + effect.durationMs > now)
+  ));
+}
+
+function healthFraction(entity: SimEntity): number {
+  if (entity.maxHealth <= 0) return 0;
+  return Math.max(0, entity.health / entity.maxHealth);
+}
+
+function nearestEntity(origin: SimEntity, candidates: readonly SimEntity[]): SimEntity | null {
+  let nearest: SimEntity | null = null;
+  let bestDistance = Infinity;
+  for (const candidate of candidates) {
+    const distance = distanceXZ(origin.position, candidate.position);
+    if (distance < bestDistance) {
+      nearest = candidate;
+      bestDistance = distance;
+    }
+  }
+  return nearest;
+}
+
+function approachPoint(
+  from: { x: number; z: number },
+  target: { x: number; z: number },
+  range: number,
+  desiredRangeFraction: number,
+) {
+  const distance = distanceXZ(from, target);
+  if (distance <= 0.001) return { x: target.x, z: target.z };
+  const desired = Math.max(0.5, range * desiredRangeFraction);
+  const keep = Math.min(distance, desired);
+  return {
+    x: target.x + ((from.x - target.x) / distance) * keep,
+    z: target.z + ((from.z - target.z) / distance) * keep,
+  };
+}
+
+function isEnemy(target: SimEntity): boolean {
+  return 'type' in target;
 }
