@@ -25,9 +25,10 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact, DelugeImpact, DelugeCast,
+  SpellCore, SpellProjectile, GroundShockwave, StrikeImpact, EruptImpact,
   type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
+import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 
 type SkillTheme = {
   core: string;
