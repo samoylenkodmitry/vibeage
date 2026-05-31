@@ -1,4 +1,5 @@
 import { classifySkill, SKILLS, type SkillEffectType, type SkillId } from '../../packages/content/skills.js';
+import type { SkillReactionCondition } from '../../packages/content/skillReactions.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import type { PlayerAiContext, PlayerAiPolicy, SimEntity, SimulationAction } from './gameSimulator.js';
 
@@ -24,9 +25,11 @@ function chooseComboSkill(
   options: ReactionComboPolicyOptions,
 ): SkillId | null {
   const primary = options.primarySkillId;
-  const setup = setupSkillForMissingReaction(context, target, primary);
-  if (setup) return setup;
-  if (canAttemptSkill(context, primary)) return primary;
+  if (canAttemptSkill(context, primary)) {
+    const setup = setupSkillForMissingReaction(context, target, primary);
+    if (setup) return setup;
+    return primary;
+  }
   for (const fallback of options.fallbackSkillIds ?? []) {
     if (canAttemptSkill(context, fallback)) return fallback;
   }
@@ -36,14 +39,17 @@ function chooseComboSkill(
 function setupSkillForMissingReaction(context: PlayerAiContext, target: SimEntity, payoffSkillId: SkillId): SkillId | null {
   const payoff = SKILLS[payoffSkillId];
   if (!payoff?.reactions?.length) return null;
+  if (payoff.reactions.some((reaction) => reactionConditionSatisfied(reaction.condition, target, context.player, context.now))) {
+    return null;
+  }
+
   for (const reaction of payoff.reactions) {
     const targetEffect = reaction.condition.targetHasEffect;
     if (targetEffect && !hasActiveEffect(target, targetEffect, context.now)) {
       const setup = findReadySkillApplying(context, targetEffect, 'target');
       if (setup && setup !== payoffSkillId) return setup;
     }
-  }
-  for (const reaction of payoff.reactions) {
+
     const casterEffect = reaction.condition.casterHasEffect;
     if (casterEffect && !hasActiveEffect(context.player, casterEffect, context.now)) {
       const setup = findReadySkillApplying(context, casterEffect, 'caster');
@@ -51,6 +57,21 @@ function setupSkillForMissingReaction(context: PlayerAiContext, target: SimEntit
     }
   }
   return null;
+}
+
+function reactionConditionSatisfied(
+  condition: SkillReactionCondition,
+  target: SimEntity,
+  caster: SimEntity,
+  now: number,
+): boolean {
+  if (condition.targetHasEffect && !hasActiveEffect(target, condition.targetHasEffect, now)) return false;
+  if (condition.casterHasEffect && !hasActiveEffect(caster, condition.casterHasEffect, now)) return false;
+  if (condition.targetHealthBelowPct !== undefined && healthFraction(target) >= condition.targetHealthBelowPct) return false;
+  if (condition.targetHealthAbovePct !== undefined && healthFraction(target) <= condition.targetHealthAbovePct) return false;
+  if (condition.casterHealthBelowPct !== undefined && healthFraction(caster) >= condition.casterHealthBelowPct) return false;
+  if (condition.casterHealthAbovePct !== undefined && healthFraction(caster) <= condition.casterHealthAbovePct) return false;
+  return true;
 }
 
 function findReadySkillApplying(
@@ -110,6 +131,11 @@ function hasActiveEffect(entity: SimEntity, type: SkillEffectType, now: number):
   return (entity.statusEffects ?? []).some((effect) => (
     effect.type === type && (effect.durationMs <= 0 || effect.startTimeTs + effect.durationMs > now)
   ));
+}
+
+function healthFraction(entity: SimEntity): number {
+  if (entity.maxHealth <= 0) return 0;
+  return Math.max(0, entity.health / entity.maxHealth);
 }
 
 function nearestEntity(origin: SimEntity, candidates: readonly SimEntity[]): SimEntity | null {

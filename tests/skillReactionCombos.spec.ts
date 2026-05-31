@@ -78,8 +78,67 @@ describe('simulated reaction combo rotations', () => {
     expect(result.summary.castsBySkill.powerStrike).toBeGreaterThan(0);
     expect(result.summary.damageDoneById[warrior.id]).toBeGreaterThan(0);
   });
+});
 
-  it('drives a rogue poison and vanish setup into backstab payoff', () => {
+describe('simulated reaction combo policy safeguards', () => {
+  it('does not spend a setup skill while the payoff is still cooling down', () => {
+    const sim = createGameSimulator({ startMs: NOW });
+    const warrior = createSimulatedPlayer({
+      id: 'cooldown-warrior',
+      className: 'warrior',
+      level: 20,
+      position: { x: 0, z: 0 },
+      unlockedSkills: ['slash', 'bash', 'powerStrike'],
+    });
+    warrior.skillCooldownEndTs.powerStrike = NOW + 10_000;
+    const target = createSimulatedEnemy('goblin', 20, { id: 'cooldown-target', position: { x: 2, z: 0 }, healthMultiplier: 5 });
+
+    sim.addPlayer(warrior, {
+      policy: createReactionComboPolicy({ primarySkillId: 'powerStrike', fallbackSkillIds: ['slash'] }),
+    });
+    sim.addEnemy(target);
+
+    const result = sim.runUntil((state) => {
+      const casts = state.summary().castsBySkill;
+      return ((casts.slash ?? 0) + (casts.bash ?? 0) + (casts.powerStrike ?? 0)) > 0;
+    }, { timeoutMs: 5_000 });
+
+    expect(result.reason).toBe('condition');
+    expect(result.summary.castsBySkill.slash).toBeGreaterThan(0);
+    expect(result.summary.castsBySkill.bash ?? 0).toBe(0);
+    expect(result.summary.castsBySkill.powerStrike ?? 0).toBe(0);
+  });
+
+  it('casts the payoff when one reaction is already satisfied', () => {
+    const sim = createGameSimulator({ startMs: NOW });
+    const rogue = createSimulatedPlayer({
+      id: 'stealthed-rogue',
+      className: 'rogue',
+      level: 20,
+      position: { x: 0, z: 0 },
+      unlockedSkills: ['poisonBlade', 'vanish', 'backstab'],
+    });
+    rogue.statusEffects = [effect('invisible')];
+    const target = createSimulatedEnemy('goblin', 20, { id: 'stealth-target', position: { x: 2, z: 0 }, healthMultiplier: 8 });
+
+    sim.addPlayer(rogue, {
+      policy: createReactionComboPolicy({ primarySkillId: 'backstab', fallbackSkillIds: ['poisonBlade'] }),
+    });
+    sim.addEnemy(target);
+
+    const result = sim.runUntil((state) => {
+      const casts = state.summary().castsBySkill;
+      return ((casts.backstab ?? 0) + (casts.poisonBlade ?? 0)) > 0;
+    }, { timeoutMs: 10_000 });
+
+    expect(result.reason).toBe('condition');
+    expect(result.summary.castsBySkill.backstab).toBeGreaterThan(0);
+    expect(result.summary.castsBySkill.poisonBlade ?? 0).toBe(0);
+  });
+});
+
+describe('simulated reaction combo payoff setup', () => {
+  it('drives a rogue vanish setup into backstab payoff', () => {
     const sim = createGameSimulator({ startMs: NOW });
     const rogue = createSimulatedPlayer({
       id: 'combo-rogue',
@@ -97,11 +156,10 @@ describe('simulated reaction combo rotations', () => {
 
     const result = sim.runUntil((state) => {
       const casts = state.summary().castsBySkill;
-      return (casts.poisonBlade ?? 0) > 0 && (casts.vanish ?? 0) > 0 && (casts.backstab ?? 0) > 0;
+      return (casts.vanish ?? 0) > 0 && (casts.backstab ?? 0) > 0;
     }, { timeoutMs: 35_000 });
 
     expect(result.reason).toBe('condition');
-    expect(result.summary.castsBySkill.poisonBlade).toBeGreaterThan(0);
     expect(result.summary.castsBySkill.vanish).toBeGreaterThan(0);
     expect(result.summary.castsBySkill.backstab).toBeGreaterThan(0);
   });
