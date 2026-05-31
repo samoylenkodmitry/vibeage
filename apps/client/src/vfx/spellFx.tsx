@@ -503,12 +503,12 @@ export function DelugeCast({ progress, color, accent }: { progress: number; colo
   useEffect(() => { mat.color.set(color); mat.emissive.set(accent); }, [color, accent, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
   const cloud = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const c = cloud.current; if (!c) return;
     const grow = (0.2 + progress * 1.0) * DELUGE_FULL; // swells as the cast fills
     c.scale.setScalar(grow);
     c.position.y = DELUGE_HEIGHT + Math.sin(clock.elapsedTime * 2.2) * 0.07; // gentle bob
-    c.rotation.y += 0.005;
+    c.rotation.y += delta * 0.3; // frame-rate independent
     mat.opacity = 0.45 + progress * 0.33;
   });
   return (
