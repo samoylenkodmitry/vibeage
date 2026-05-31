@@ -218,6 +218,6 @@ function increment<K extends string>(counts: CountMap<K>, key: K, amount: number
   counts[key] = (counts[key] ?? 0) + amount;
 }
 
-function sum(values: readonly number[]): number {
-  return values.reduce((total, value) => total + value, 0);
+function sum(values: readonly (number | undefined)[]): number {
+  return values.reduce((total, value) => total + (value ?? 0), 0);
 }
