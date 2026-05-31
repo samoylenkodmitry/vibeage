@@ -1,5 +1,5 @@
 import type { SkillDef, SkillEffect, SkillEffectType } from '../../packages/content/skills.js';
-import type { SkillReactionCondition } from '../../packages/content/skillReactions.js';
+import type { ReactionVfxFlavor, SkillReactionCondition } from '../../packages/content/skillReactions.js';
 import type { Enemy, PlayerState, StatusEffect } from '../../packages/sim/entities.js';
 import {
   emitPlayerUpdated,
@@ -12,6 +12,7 @@ type Combatant = Enemy | PlayerState;
 
 export type PreparedSkillReaction = {
   reactionId: string;
+  flavor: ReactionVfxFlavor;
   damageMultiplier: number;
   consumeTargetEffect?: SkillEffectType;
   consumeCasterEffect?: SkillEffectType;
@@ -44,6 +45,7 @@ export function prepareSkillReactions(
 
     prepared.push({
       reactionId: reaction.id,
+      flavor: reaction.flavor,
       damageMultiplier: (reaction.damageMultiplier ?? 1) * stackMultiplier,
       consumeTargetEffect: reaction.consumeTargetEffect,
       consumeCasterEffect: reaction.consumeCasterEffect,
@@ -72,6 +74,15 @@ export function applyPreparedSkillReactions(input: {
   let casterStatusChanged = false;
 
   for (const reaction of reactions) {
+    // Tell clients a combo reaction fired here so they can play the flavored
+    // burst — server-authoritative (the server decides when a reaction triggers).
+    emitServerMessage(outbound, {
+      type: 'ReactionTriggered',
+      reactionId: reaction.reactionId,
+      flavor: reaction.flavor,
+      position: { x: target.position.x, y: target.position.y, z: target.position.z },
+      targetId: target.id,
+    });
     if (reaction.consumeTargetEffect) removeStatusEffectType(target, reaction.consumeTargetEffect);
     if (reaction.consumeCasterEffect && caster) {
       casterStatusChanged = removeStatusEffectType(caster, reaction.consumeCasterEffect) || casterStatusChanged;

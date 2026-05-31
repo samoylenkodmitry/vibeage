@@ -101,6 +101,7 @@ describe('skill reaction runtime helpers', () => {
       reactions: [{
         id: 'mark_only',
         description: 'No consumed stacks.',
+        flavor: 'impact',
         condition: { targetHasEffect: 'slow' },
         damageMultiplierPerConsumedStack: 0.5,
       }],
@@ -120,6 +121,7 @@ describe('skill reaction runtime helpers', () => {
       caster,
       reactions: [{
         reactionId: 'caster_heal',
+        flavor: 'impact',
         damageMultiplier: 1,
         effects: [],
         casterEffects: [{ type: 'heal', value: 25 }],
@@ -139,6 +141,39 @@ describe('skill reaction runtime helpers', () => {
 
     expect(caster.health).toBe(75);
     expect(healApplied).toBe(0);
+  });
+
+  it('emits a ReactionTriggered VFX message with the flavor + target position', () => {
+    const caster = makeCaster('fireball');
+    const target = createEnemy('goblin', 20, { x: 7, y: 0, z: -2 }, NOW);
+    target.id = 'target';
+    const publish = vi.fn();
+
+    applyPreparedSkillReactions({
+      target,
+      caster,
+      reactions: [{
+        reactionId: 'detonate_burn',
+        flavor: 'fire',
+        damageMultiplier: 1.7,
+        effects: [],
+        casterEffects: [],
+      }],
+      outbound: { publish },
+      applyEffects: () => 0,
+    });
+
+    const reaction = publish.mock.calls
+      .map((call) => call[0])
+      .find((payload) => payload?.type === 'serverMessage' && payload.message?.type === 'ReactionTriggered')
+      ?.message;
+    expect(reaction).toMatchObject({
+      type: 'ReactionTriggered',
+      reactionId: 'detonate_burn',
+      flavor: 'fire',
+      targetId: 'target',
+      position: { x: 7, z: -2 },
+    });
   });
 });
 

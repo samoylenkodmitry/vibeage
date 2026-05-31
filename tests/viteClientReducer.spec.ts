@@ -286,6 +286,33 @@ describe('Vite game client reducer cast visual events', () => {
     expect(Object.keys(pruned.visualEvents)).toHaveLength(0);
   });
 
+  it('adds a flavored reaction burst visual event when a combo reaction fires', () => {
+    const onlineState = {
+      ...initialGameClientState,
+      connectionState: 'online' as const,
+      message: 'Online',
+    };
+    const withBurst = gameClientReducer(onlineState, {
+      type: 'serverMessage',
+      now: 100,
+      message: {
+        type: 'ReactionTriggered',
+        reactionId: 'detonate_burn',
+        flavor: 'fire',
+        position: { x: 5, y: 1, z: -3 },
+        targetId: 'enemy-1',
+      },
+    });
+
+    expect(Object.values(withBurst.visualEvents)).toContainEqual(expect.objectContaining({
+      kind: 'reaction',
+      color: '#ff6a1a',   // REACTION_VFX.fire.color
+      accent: '#facc15',  // REACTION_VFX.fire.accent
+      position: { x: 5, y: 1, z: -3 },
+    }));
+    expect(withBurst.message).toBe('Online');
+  });
+
   it('keeps cast failures out of connection status text', () => {
     const onlineState = {
       ...initialGameClientState,
