@@ -29,7 +29,7 @@ import {
   type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
-import { ElementImpact, GenericImpact } from './vfx/impactFx';
+import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 
 type SkillTheme = {
   core: string;
@@ -57,7 +57,7 @@ const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
   holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt', mechanic: 'spiral' },
   meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', mechanic: 'strike' },
-  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'arc' },
+  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'nova' },
   greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
@@ -254,6 +254,7 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
     if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} radius={radius} />;
+    if (theme.mechanic === 'nova') return <NovaImpact glow={theme.glow} accent={theme.accent} radius={radius} />;
     if (theme.element) return <ElementImpact element={theme.element} core={theme.core} glow={theme.glow} accent={theme.accent} />;
     return <GenericImpact glow={theme.glow} accent={theme.accent} />;
   }
