@@ -200,6 +200,7 @@ export function DelugeImpact({ color, accent, radius = 2 }: { color: string; acc
   useEffect(() => () => pourMat.dispose(), [pourMat]);
   const cloud = useRef<THREE.Group>(null);
   const drops = useRef<THREE.Group>(null);
+  const pourMesh = useRef<THREE.Mesh>(null);
   const start = useRef<number | null>(null);
   const POUR_END = 0.22;          // the falling water front reaches the ground here
   const full = radius * 0.85;     // cloud spans ~the impact radius
@@ -212,22 +213,31 @@ export function DelugeImpact({ color, accent, radius = 2 }: { color: string; acc
     const age = clock.elapsedTime - start.current;
     const pourT = Math.min(1, age / POUR_END);     // water front descends 0..1
     const afterLand = Math.max(0, age - POUR_END);
-    // Cloud holds aloft (flattened raincloud), shrinks + fades as it empties.
+    // Cloud holds aloft (flattened raincloud), shrinks + fades as it empties;
+    // cull it once fully faded so it stops costing draw calls before unmount.
     if (cloud.current) {
-      const s = full * (1 - pourT * 0.25);
-      cloud.current.scale.set(s, s * 0.62, s);
+      const cloudVisible = age < 0.6;
+      cloud.current.visible = cloudVisible;
+      if (cloudVisible) {
+        const s = full * (1 - pourT * 0.25);
+        cloud.current.scale.set(s, s * 0.62, s);
+      }
     }
     cloudMat.uniforms.uOpacity.value = Math.max(0, 1 - age / 0.6);
     // Pouring curtain: front descends, then the column drains and fades.
     pourMat.uniforms.uFront.value = pourT;
     pourMat.uniforms.uOpacity.value = age < 0.4 ? 1 : Math.max(0, 1 - (age - 0.4) / 0.35);
-    // Splash crown bursts up + out once the water lands.
+    if (pourMesh.current) pourMesh.current.visible = age < 0.75;
+    // Splash crown bursts up + out once the water lands (culled after it fades).
     if (drops.current) {
-      drops.current.visible = age > POUR_END;
-      drops.current.children.forEach((c, i) => {
-        const sp = SPLASH_DROPS[i]; if (!sp) return;
-        c.position.set(Math.cos(sp.a) * sp.speed * afterLand * 2 * dropSpread, -0.7 + sp.speed * afterLand * 5 - afterLand * afterLand * 11, Math.sin(sp.a) * sp.speed * afterLand * 2 * dropSpread);
-      });
+      const dropsVisible = age > POUR_END && age < 0.6;
+      drops.current.visible = dropsVisible;
+      if (dropsVisible) {
+        drops.current.children.forEach((c, i) => {
+          const sp = SPLASH_DROPS[i]; if (!sp) return;
+          c.position.set(Math.cos(sp.a) * sp.speed * afterLand * 2 * dropSpread, -0.7 + sp.speed * afterLand * 5 - afterLand * afterLand * 11, Math.sin(sp.a) * sp.speed * afterLand * 2 * dropSpread);
+        });
+      }
     }
   });
   return (
@@ -238,7 +248,7 @@ export function DelugeImpact({ color, accent, radius = 2 }: { color: string; acc
           <mesh key={i} geometry={BLOB_GEOMETRY} material={cloudMat} position={[b.x, b.y, b.z]} scale={b.r} />
         ))}
       </group>
-      <mesh geometry={POUR_GEOMETRY} material={pourMat}
+      <mesh ref={pourMesh} geometry={POUR_GEOMETRY} material={pourMat}
         position={[0, (POUR_TOP + POUR_BOTTOM) / 2, 0]}
         scale={[full * 0.6, POUR_TOP - POUR_BOTTOM, full * 0.6]} />
       <group ref={drops}>
