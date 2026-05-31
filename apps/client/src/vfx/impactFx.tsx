@@ -164,7 +164,14 @@ export function NovaImpact({ glow, accent, radius }: { glow: string; accent: str
   useFrame(({ clock }) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
-    const t = Math.min(1, age / DUR);
+    // Animation is over but the visual event lingers until pruned — cull the
+    // meshes and skip the per-flame work instead of churning every frame.
+    if (age >= DUR) {
+      if (ring.current) ring.current.visible = false;
+      if (flames.current) flames.current.visible = false;
+      return;
+    }
+    const t = age / DUR;
     const ease = 1 - (1 - t) * (1 - t);
     if (ring.current) ring.current.scale.setScalar(r * (0.2 + ease * 0.8));
     ringMat.opacity = (1 - t) * 0.8;
