@@ -101,7 +101,7 @@ function coverageWarnings(): SimCoverageWarning[] {
     {
       id: 'feel-beat-scope',
       severity: 'warning',
-      message: 'Player-feel cadence counts unlocks and availability, but not quest completion, item upgrades, gold milestones, crafting progress, exploration, reputation, rare drops, or social goals yet.',
+      message: 'Player-feel cadence is split between coarse unlock estimates and journey routes; treat both as advisory until quests, items, and player route choice settle.',
     },
     {
       id: 'ai-policy-scope',
@@ -111,7 +111,7 @@ function coverageWarnings(): SimCoverageWarning[] {
     {
       id: 'progression-route-scope',
       severity: 'info',
-      message: 'Progression time currently uses same-level kill loops plus fixed overhead, not a full quest route with travel, vendor, inventory, death, and mob-mix decisions.',
+      message: 'Journey routes model quest order, travel, expected-value loot, and vendor gear purchases; rare-drop variance, crafting choice, market play, and player error are not modeled yet.',
     },
     {
       id: 'group-scope',
