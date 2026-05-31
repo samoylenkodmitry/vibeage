@@ -493,8 +493,11 @@ const SPLASH_DROPS = Array.from({ length: 9 }, (_, i) => ({ a: (i / 9) * Math.PI
 /** Deluge — a water cloud gathers just above the target, then crashes down and
  *  splashes (no flying projectile). */
 export function DelugeImpact({ color, accent }: { color: string; accent: string }) {
-  const cloudMat = useMemo(() => new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0, emissive: new THREE.Color(accent), emissiveIntensity: 0.12 }), [color, accent]);
-  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), [accent]);
+  // Materials built once; colours updated in place (no recreation on theme change).
+  const cloudMat = useMemo(() => new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0, emissiveIntensity: 0.12 }), []);
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), []);
+  useEffect(() => { cloudMat.color.set(color); cloudMat.emissive.set(accent); }, [color, accent, cloudMat]);
+  useEffect(() => { ringMat.color.set(accent); }, [accent, ringMat]);
   useEffect(() => () => cloudMat.dispose(), [cloudMat]);
   useEffect(() => () => ringMat.dispose(), [ringMat]);
   const cloud = useRef<THREE.Group>(null);
@@ -502,6 +505,7 @@ export function DelugeImpact({ color, accent }: { color: string; accent: string 
   const drops = useRef<THREE.Group>(null);
   const start = useRef<number | null>(null);
   const H = 2.5; // gather height above the target — deliberately not too high
+  const LAND = 0.58; // cloud touches down here (0.32 + 0.26); splash keys off it
   useFrame(({ clock }) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
@@ -513,13 +517,13 @@ export function DelugeImpact({ color, accent }: { color: string; accent: string 
       const grow = 0.35 + form * 0.85;
       cloud.current.scale.set(grow, grow * (1 - fall * 0.55), grow); // squashes as it lands
     }
-    cloudMat.opacity = age < 0.55 ? 0.78 : Math.max(0, 0.78 - (age - 0.55) / 0.4);
-    const splash = Math.max(0, Math.min(1, (age - 0.5) / 0.5));     // ring after landing
+    cloudMat.opacity = age < LAND ? 0.78 : Math.max(0, 0.78 - (age - LAND) / 0.37);
+    const splash = Math.max(0, Math.min(1, (age - LAND) / 0.42));   // ring kicks off on landing
     if (ring.current) ring.current.scale.setScalar(0.4 + splash * 2.7);
     ringMat.opacity = (1 - splash) * 0.7;
     if (drops.current) {
-      drops.current.visible = age > 0.48;
-      const dt2 = Math.max(0, age - 0.5);
+      drops.current.visible = age > LAND;
+      const dt2 = Math.max(0, age - LAND);
       drops.current.children.forEach((c, i) => {
         const sp = SPLASH_DROPS[i]; if (!sp) return;
         c.position.set(Math.cos(sp.a) * sp.speed * dt2 * 3, -0.8 + sp.speed * dt2 * 4 - dt2 * dt2 * 9, Math.sin(sp.a) * sp.speed * dt2 * 3);
