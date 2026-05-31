@@ -24,6 +24,7 @@ import {
   estimateFeelForSpecializations,
   type PlayerFeelSummary,
 } from '../server/sim/playerFeel.js';
+import { journeyReportRows, type PlayerJourneySummary } from '../server/sim/playerJourney.js';
 import {
   createSimReportContext,
   type SimContentSnapshot,
@@ -44,6 +45,7 @@ printSpecializationMatrix();
 printSpecializationAiAudit();
 printPvpClassMatrix();
 printProgressionRewards();
+printPlayerJourneyRoutes();
 printPlayerFeelCadence();
 printGearMilestones();
 printLootGold();
@@ -149,6 +151,45 @@ function printProgressionRewards(): void {
     console.log(`| ${milestone.level} | ${milestone.questCount} | ${milestone.totalXp} | ${milestone.totalGold} | ${milestone.rewardItems.join(', ') || '-'} |`);
   }
   console.log('');
+}
+
+function printPlayerJourneyRoutes(): void {
+  console.log('## Player journey routes');
+  console.log('');
+  console.log('Deterministic route simulation using quest order, travel distance, current class/spec AI combat timing, expected-value loot, vendor gear purchases, and hourly beat windows. This is a regression instrument; rare-drop variance, crafting route choice, party play, deaths from player error, and market behavior are still out of scope.');
+  console.log('');
+  console.log('| Path | Horizon | End Lv | Quests | Kills | Bosses | Gold | Gear | Purchases | Empty windows | Max gap | Travel | Combat | Deaths | Skipped quests |');
+  console.log('|------|---------|--------|--------|-------|--------|------|------|-----------|---------------|---------|--------|--------|--------|----------------|');
+  for (const row of journeyReportRows()) {
+    console.log(playerJourneyRow(row));
+  }
+  console.log('');
+}
+
+function playerJourneyRow(row: PlayerJourneySummary): string {
+  const cells = [
+    journeyPathLabel(row),
+    hours(row.horizonHours),
+    String(row.endingLevel),
+    String(row.questsCompleted),
+    String(row.kills),
+    String(row.bossKills),
+    String(row.gold),
+    String(row.gearScore),
+    String(row.vendorPurchases.length),
+    `${row.emptyWindowCount}/${row.windows.length}`,
+    hours(row.maxMeaningfulGapHours),
+    hours(row.time.travelMs / (60 * 60 * 1000)),
+    hours(row.time.combatMs / (60 * 60 * 1000)),
+    String(row.deaths),
+    listCell(row.skippedQuestIds),
+  ];
+  return `| ${cells.join(' | ')} |`;
+}
+
+function journeyPathLabel(row: PlayerJourneySummary): string {
+  if (row.requestedSpecializationId) return row.requestedSpecializationId;
+  return row.chosenSpecializationId ? `${row.className} route (${row.chosenSpecializationId})` : `${row.className} route`;
 }
 
 function printPlayerFeelCadence(): void {
