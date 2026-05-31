@@ -95,6 +95,10 @@ export const castSnapshotSchema = z.object({
   state: z.nativeEnum(CastState),
   origin: vecXZSchema,
   pos: vecXZSchema,
+  /** Resolved target/impact point (entity pos or aim), known from cast start so
+   *  clients can anchor target-delivered effects there during the whole cast.
+   *  Absent for self/no-target casts (anchor at the caster). */
+  target: vecXZSchema.optional(),
   dir: vecXZSchema.optional(),
   startedAt: z.number(),
   castTimeMs: z.number(),
@@ -164,6 +168,9 @@ export type CastSnapshot = {
   state: CastState;
   origin: VecXZ;
   pos: VecXZ;
+  /** Resolved target/impact point (entity pos or aim) — present from cast start
+   *  so clients anchor target-delivered effects there. Absent = self/no-target. */
+  target?: VecXZ;
   dir?: VecXZ;
   startedAt: number;
   castTimeMs: number;

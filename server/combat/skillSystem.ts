@@ -71,6 +71,21 @@ export function createActiveCastStore(): ActiveCastStore {
 }
 
 /**
+ * The cast's resolved target/impact point. A live targetId entity wins (so it
+ * tracks a moving target), else a ground-aim point; undefined for self/no-target
+ * casts. Used both to aim projectiles at cast start and to keep cast.target
+ * tracking the target during the windup.
+ */
+function resolveCastTargetPos(targetPos: VecXZ | undefined, targetId: string | undefined, world: CombatWorld): VecXZ | undefined {
+  if (targetId) {
+    const entity = world.getEnemyById(targetId) ?? world.getPlayerById(targetId);
+    if (entity) return { x: entity.position.x, z: entity.position.z };
+  }
+  if (targetPos) return { x: targetPos.x, z: targetPos.z };
+  return undefined;
+}
+
+/**
  * Handle a new cast request from a player
  */
 export function handleCastRequest(input: CastRequestInput): string | Cast['castId'] {
@@ -124,7 +139,11 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
       return projectileFailure;
     }
   }
-  
+
+  // Resolve the impact point up front so clients can anchor target-delivered
+  // effects (e.g. a gathering cloud) above the target during the whole cast.
+  newCast.target = resolveCastTargetPos(newCast.targetPos, newCast.targetId, world);
+
   // Add to active casts
   activeCasts[newCast.castId] = newCast;
   debug(LOG_CATEGORIES.COMBAT, `Added cast ${newCast.castId}`, {
@@ -190,6 +209,7 @@ export function castMobSkill(
     const projectileFailure = configureProjectileCast(cast, undefined, target.id, skill.projectile.speed, world);
     if (projectileFailure) return false;
   }
+  cast.target = { x: target.position.x, z: target.position.z };
   lockTelegraph(cast, skill, enemy.position, target.position);
 
   activeCasts[cast.castId] = cast;
@@ -246,7 +266,7 @@ function configureProjectileCast(
   speed: number,
   world: CombatWorld,
 ): 'targetNotFound' | null {
-  const targetPosVec = resolveCastTargetPosition(targetPos, targetId, world);
+  const targetPosVec = resolveCastTargetPos(targetPos, targetId, world);
   if (!targetPosVec) {
     warn(LOG_CATEGORIES.COMBAT, `Target ID ${targetId} not found for cast: ${cast.castId}`);
     return 'targetNotFound';
@@ -271,24 +291,6 @@ function configureProjectileCast(
   return null;
 }
 
-function resolveCastTargetPosition(
-  targetPos: VecXZ | undefined,
-  targetId: string | undefined,
-  world: CombatWorld,
-): VecXZ | undefined {
-  if (targetPos) {
-    return targetPos;
-  }
-
-  if (!targetId) {
-    return undefined;
-  }
-
-  // Resolve enemy OR player targets — a mob projectile aims at a player,
-  // a player projectile at an enemy (or another player in PvP).
-  const target = world.getEnemyById(targetId) ?? world.getPlayerById(targetId);
-  return target ? { x: target.position.x, z: target.position.z } : undefined;
-}
 
 /**
  * Get an existing cast by ID
@@ -312,6 +314,13 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
       debug(LOG_CATEGORIES.COMBAT, `Removing completed cast ${cast.castId}`, { skillId: cast.skillId });
       delete activeCasts[castId];
       continue;
+    }
+
+    // Keep the impact point tracking a moving target during the windup. Once a
+    // projectile is Traveling, projectileRuntime already homes via targetPos.
+    if (cast.state === CastStateEnum.Casting) {
+      const trackedTarget = resolveCastTargetPos(cast.targetPos, cast.targetId, world);
+      if (trackedTarget) cast.target = trackedTarget;
     }
 
     // Check if cast time is complete for casts in Casting state
