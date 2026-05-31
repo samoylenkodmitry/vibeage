@@ -34,6 +34,10 @@ import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
 import { WorldHorizonMountains } from './WorldHorizonMountains';
 import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from './SceneVfx';
+import { ScenePostFX } from './ScenePostFX';
+import { hasActiveEffect } from './hud/effectMeta';
+import { getTerrainY } from './worldSceneConfig';
+import { DynamicLightPool } from './dynamicLights';
 
 /** Anchor for a target-delivered cast (deluge): the targeted entity's LIVE
  *  position (so the effect tracks a moving target), else the server's resolved
@@ -46,10 +50,6 @@ function resolveCastAnchor(state: GameClientState, snapshot: CastSnapshot): { x:
   }
   return snapshot.target;
 }
-import { ScenePostFX } from './ScenePostFX';
-import { hasActiveEffect } from './hud/effectMeta';
-import { getTerrainY } from './worldSceneConfig';
-import { DynamicLightPool } from './dynamicLights';
 
 type WorldSceneProps = {
   state: GameClientState;
