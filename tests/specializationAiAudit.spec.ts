@@ -3,24 +3,41 @@ import { SPECIALIZATIONS } from '../packages/content/specializations';
 import { buildSpecializationAiAudit, runSpecializationAiAuditScenario } from '../server/sim/specializationAiAudit';
 
 describe('specialization AI audit', () => {
-  it('audits every specialization at spec and proficiency levels', () => {
+  it('audits every specialization with coverage-driven exercises', () => {
     const audit = buildSpecializationAiAudit();
 
-    expect(audit.rows).toHaveLength(Object.keys(SPECIALIZATIONS).length * 2);
+    expect(audit.rows.length).toBeGreaterThan(Object.keys(SPECIALIZATIONS).length * 2);
+    expect(audit.coverageRows).toHaveLength(Object.keys(SPECIALIZATIONS).length * 2);
     expect(audit.totals.scenarios).toBe(audit.rows.length);
-    expect(audit.totals.playerWins).toBe(audit.rows.length);
+    expect(audit.totals.completed).toBe(audit.rows.length);
     expect(audit.totals.timedOut).toBe(0);
     expect(audit.totals.blockedCasts).toBe(0);
+    expect(audit.totals.uncoveredSkillSlots).toBe(0);
+    expect(audit.totals.untriggeredReactionSlots).toBe(0);
     expect(audit.totals.triggeredReactions).toBeGreaterThan(0);
   });
 
-  it('records cast attempts separately from combat-log impacts', () => {
+  it('aggregates skill attempts separately from per-exercise misses', () => {
     const audit = buildSpecializationAiAudit();
 
-    for (const row of audit.rows) {
+    for (const row of audit.coverageRows) {
+      expect(row.completed, row.id).toBe(row.exerciseCount);
       expect(row.expectedSkillIds.length, row.id).toBeGreaterThan(0);
-      expect(countTotal(row.castAttemptsBySkill), row.id).toBeGreaterThan(0);
-      expect(row.deadSkillIds.every((skillId) => row.expectedSkillIds.includes(skillId)), row.id).toBe(true);
+      expect(row.coveredSkillIds.sort(), row.id).toEqual(row.expectedSkillIds.sort());
+      expect(row.uncoveredSkillIds, row.id).toEqual([]);
+      expect(row.untriggeredReactionIds, row.id).toEqual([]);
+    }
+  });
+
+  it('uses skill-focus exercises to make every profile rule selectable', () => {
+    const audit = buildSpecializationAiAudit();
+    const focusRows = audit.rows.filter((row) => row.exerciseKind === 'skill_focus');
+
+    expect(focusRows.length).toBeGreaterThan(Object.keys(SPECIALIZATIONS).length * 2);
+    for (const row of focusRows) {
+      expect(row.focusSkillId, row.id).toBeDefined();
+      expect(row.castAttemptsBySkill[row.focusSkillId!], row.id).toBeGreaterThan(0);
+      expect(row.blockedCastCount, row.id).toBe(0);
     }
   });
 
@@ -40,7 +57,3 @@ describe('specialization AI audit', () => {
     expect(pyromancer.blockedCastCount).toBe(0);
   });
 });
-
-function countTotal(counts: Partial<Record<string, number>>): number {
-  return Object.values(counts).reduce((total, value) => total + (value ?? 0), 0);
-}

@@ -30,7 +30,7 @@ import {
   type SimCoverageWarning,
   type SimReportContext,
 } from '../server/sim/reportContext.js';
-import { buildSpecializationAiAudit, type SpecializationAiAuditRow } from '../server/sim/specializationAiAudit.js';
+import { buildSpecializationAiAudit, type SpecializationAiCoverageRow } from '../server/sim/specializationAiAudit.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
@@ -118,12 +118,12 @@ function printSpecializationAiAudit(): void {
   const audit = buildSpecializationAiAudit();
   console.log('## Specialization AI audit');
   console.log('');
-  console.log(`Exercise target: 4x-health, 0.75x-damage PvE training mob. Player wins: ${audit.totals.playerWins}/${audit.totals.scenarios}. Blocked casts: ${audit.totals.blockedCasts}. Reaction triggers: ${audit.totals.triggeredReactions}.`);
+  console.log(`Exercise rows: ${audit.totals.scenarios}. Completed: ${audit.totals.completed}/${audit.totals.scenarios}. Coverage rows: ${audit.totals.coverageRows}. Blocked casts: ${audit.totals.blockedCasts}. Reaction triggers: ${audit.totals.triggeredReactions}. Uncovered skills: ${audit.totals.uncoveredSkillSlots}. Untriggered reactions: ${audit.totals.untriggeredReactionSlots}.`);
   console.log('');
-  console.log('| Spec | Lv | Role | Duration | Attempts | Reactions | Dead profile skills | Blocked casts |');
-  console.log('|------|----|------|----------|----------|-----------|---------------------|---------------|');
-  for (const row of audit.rows) {
-    console.log(`| ${row.specializationId} | ${row.level} | ${row.role} | ${seconds(row.durationMs)} | ${countTotal(row.castAttemptsBySkill)} | ${reactionCell(row)} | ${listCell(row.deadSkillIds)} | ${row.blockedCastCount} |`);
+  console.log('| Spec | Lv | Role | Exercises | Skill coverage | Reactions | Uncovered skills | Untriggered reactions | Blocked casts |');
+  console.log('|------|----|------|-----------|----------------|-----------|------------------|-----------------------|---------------|');
+  for (const row of audit.coverageRows) {
+    console.log(`| ${row.specializationId} | ${row.level} | ${row.role} | ${row.completed}/${row.exerciseCount} | ${row.coveredSkillIds.length}/${row.expectedSkillIds.length} | ${reactionCell(row)} | ${listCell(row.uncoveredSkillIds)} | ${listCell(row.untriggeredReactionIds)} | ${row.blockedCastCount} |`);
   }
   console.log('');
 }
@@ -224,16 +224,12 @@ function hours(value: number): string {
   return `${(value / (24 * 30)).toFixed(1)}mo`;
 }
 
-function reactionCell(row: SpecializationAiAuditRow): string {
-  return row.triggeredReactionIds.map((reactionId) => `${reactionId} x${row.reactionCounts[reactionId] ?? 0}`).join(', ') || '-';
+function reactionCell(row: SpecializationAiCoverageRow): string {
+  return row.triggeredReactionIds.join(', ') || '-';
 }
 
 function listCell(values: readonly string[]): string {
   return values.length > 0 ? values.join(', ') : '-';
-}
-
-function countTotal(counts: Partial<Record<string, number>>): number {
-  return Object.values(counts).reduce((total, value) => total + (value ?? 0), 0);
 }
 
 function healthPct(entity: { health: number; maxHealth: number }): string {
