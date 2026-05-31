@@ -492,24 +492,45 @@ const SPLASH_DROPS = Array.from({ length: 9 }, (_, i) => ({ a: (i / 9) * Math.PI
 const DELUGE_HEIGHT = 2.5;   // gather height above the target — deliberately not too high
 const DELUGE_FULL = 1.2;     // cloud size once fully gathered
 
-function makeWaterMaterial(): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0, emissiveIntensity: 0.12 });
+// Translucent magical water: fresnel rim + drifting fbm churn + caustic glints.
+const WATER_FRAG = NOISE_GLSL + /* glsl */ `
+  uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow; uniform float uOpacity;
+  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
+  void main() {
+    // Re-normalize: interpolated varyings lose unit length across the polygon.
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.0);
+    vec3 p = vPos * 3.0 + vec3(0.0, uTime * 0.7, uTime * 0.35);
+    float churn = fbm(p);                          // water rolling inside the blob
+    float glint = pow(max(churn, 0.0), 3.0);       // bright caustic sparkles
+    vec3 col = mix(uCore, uGlow, clamp(fres * 0.85 + churn * 0.3, 0.0, 1.0));
+    col += fres * 0.35 + glint * 0.5;              // bright rim + glints
+    float a = clamp(0.3 + fres * 0.6 + glint * 0.25, 0.0, 1.0) * uOpacity;
+    gl_FragColor = vec4(col, a);
+  }
+`;
+
+function makeWaterMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uCore: { value: new THREE.Color('#ffffff') }, uGlow: { value: new THREE.Color('#ffffff') }, uOpacity: { value: 1 } },
+    vertexShader: CORE_VERT, fragmentShader: WATER_FRAG, transparent: true, depthWrite: false,
+  });
 }
 
 /** Cast windup for deluge — the water cloud GATHERS above the target, growing
  *  with cast progress and drifting, before it falls on impact. */
-export function DelugeCast({ progress, color, accent }: { progress: number; color: string; accent: string }) {
+export function DelugeCast({ progress, color, accent, radius = 2 }: { progress: number; color: string; accent: string; radius?: number }) {
   const mat = useMemo(makeWaterMaterial, []);
-  useEffect(() => { mat.color.set(color); mat.emissive.set(accent); }, [color, accent, mat]);
+  useEffect(() => { mat.uniforms.uCore.value.set(color); mat.uniforms.uGlow.value.set(accent); }, [color, accent, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
   const cloud = useRef<THREE.Group>(null);
+  const full = DELUGE_FULL * (radius / 2); // cloud spans roughly the impact radius
   useFrame(({ clock }, delta) => {
+    mat.uniforms.uTime.value += delta;
     const c = cloud.current; if (!c) return;
-    const grow = (0.2 + progress * 1.0) * DELUGE_FULL; // swells as the cast fills
-    c.scale.setScalar(grow);
+    c.scale.setScalar((0.2 + progress) * full); // swells as the cast fills
     c.position.y = DELUGE_HEIGHT + Math.sin(clock.elapsedTime * 2.2) * 0.07; // gentle bob
     c.rotation.y += delta * 0.3; // frame-rate independent
-    mat.opacity = 0.45 + progress * 0.33;
+    mat.uniforms.uOpacity.value = 0.6 + progress * 0.35;
   });
   return (
     <group ref={cloud} position={[0, DELUGE_HEIGHT, 0]}>
@@ -521,11 +542,11 @@ export function DelugeCast({ progress, color, accent }: { progress: number; colo
 }
 
 /** Deluge impact — the already-gathered cloud crashes straight DOWN and splashes. */
-export function DelugeImpact({ color, accent }: { color: string; accent: string }) {
+export function DelugeImpact({ color, accent, radius = 2 }: { color: string; accent: string; radius?: number }) {
   // Materials built once; colours updated in place (no recreation on theme change).
   const cloudMat = useMemo(makeWaterMaterial, []);
   const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }), []);
-  useEffect(() => { cloudMat.color.set(color); cloudMat.emissive.set(accent); }, [color, accent, cloudMat]);
+  useEffect(() => { cloudMat.uniforms.uCore.value.set(color); cloudMat.uniforms.uGlow.value.set(accent); }, [color, accent, cloudMat]);
   useEffect(() => { ringMat.color.set(accent); }, [accent, ringMat]);
   useEffect(() => () => cloudMat.dispose(), [cloudMat]);
   useEffect(() => () => ringMat.dispose(), [ringMat]);
@@ -534,25 +555,32 @@ export function DelugeImpact({ color, accent }: { color: string; accent: string 
   const drops = useRef<THREE.Group>(null);
   const start = useRef<number | null>(null);
   const LAND = 0.24; // cloud (already formed during the cast) drops and lands here
-  useFrame(({ clock }) => {
+  const full = DELUGE_FULL * (radius / 2);   // cloud spans ~the impact radius
+  const ringMax = radius / 0.78;             // ring outer (geom 0.78) reaches `radius`
+  const dropSpread = radius / 1.5;           // droplets scatter out to ~the radius
+  useFrame(({ clock }, delta) => {
+    cloudMat.uniforms.uTime.value += delta;
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
     const fall = Math.min(1, age / LAND); // falls immediately — it gathered during the cast
     const easeFall = fall * fall;
     if (cloud.current) {
       cloud.current.position.y = DELUGE_HEIGHT * (1 - easeFall) + (-0.55) * easeFall;
-      cloud.current.scale.set(DELUGE_FULL, DELUGE_FULL * (1 - fall * 0.55), DELUGE_FULL); // squashes on landing
+      cloud.current.scale.set(full, full * (1 - fall * 0.55), full); // squashes on landing
     }
-    cloudMat.opacity = age < LAND ? 0.78 : Math.max(0, 0.78 - (age - LAND) / 0.37);
+    cloudMat.uniforms.uOpacity.value = age < LAND ? 1 : Math.max(0, 1 - (age - LAND) / 0.37);
     const splash = Math.max(0, Math.min(1, (age - LAND) / 0.42)); // ring kicks off on landing
-    if (ring.current) ring.current.scale.setScalar(0.4 + splash * 2.7);
+    if (ring.current) {
+      ring.current.visible = age > LAND; // no ring before the cloud lands
+      ring.current.scale.setScalar(splash * ringMax);
+    }
     ringMat.opacity = (1 - splash) * 0.7;
     if (drops.current) {
       drops.current.visible = age > LAND;
       const dt2 = Math.max(0, age - LAND);
       drops.current.children.forEach((c, i) => {
         const sp = SPLASH_DROPS[i]; if (!sp) return;
-        c.position.set(Math.cos(sp.a) * sp.speed * dt2 * 3, -0.8 + sp.speed * dt2 * 4 - dt2 * dt2 * 9, Math.sin(sp.a) * sp.speed * dt2 * 3);
+        c.position.set(Math.cos(sp.a) * sp.speed * dt2 * 2 * dropSpread, -0.8 + sp.speed * dt2 * 4 - dt2 * dt2 * 9, Math.sin(sp.a) * sp.speed * dt2 * 2 * dropSpread);
       });
     }
   });
