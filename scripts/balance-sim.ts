@@ -25,6 +25,7 @@ import {
   type PlayerFeelSummary,
 } from '../server/sim/playerFeel.js';
 import { journeyReportRows, type PlayerJourneySummary } from '../server/sim/playerJourney.js';
+import { journeyGapReportRows, type JourneyGapDiagnostic } from '../server/sim/playerJourneyGaps.js';
 import {
   createSimReportContext,
   type SimContentSnapshot,
@@ -39,13 +40,15 @@ console.log(`Generated ${new Date().toISOString().slice(0, 10)} with the server 
 console.log('');
 
 const reportContext = createSimReportContext({ commitSha: gitCommitSha() });
+const playerJourneyRows = journeyReportRows();
 printReportScope(reportContext);
 printPveClassMatrix();
 printSpecializationMatrix();
 printSpecializationAiAudit();
 printPvpClassMatrix();
 printProgressionRewards();
-printPlayerJourneyRoutes();
+printPlayerJourneyRoutes(playerJourneyRows);
+printPlayerJourneyGapDiagnostics(playerJourneyRows);
 printPlayerFeelCadence();
 printGearMilestones();
 printLootGold();
@@ -153,17 +156,46 @@ function printProgressionRewards(): void {
   console.log('');
 }
 
-function printPlayerJourneyRoutes(): void {
+function printPlayerJourneyRoutes(rows: readonly PlayerJourneySummary[]): void {
   console.log('## Player journey routes');
   console.log('');
   console.log('Deterministic route simulation using quest order, travel distance, current class/spec AI combat timing, expected-value loot, vendor gear purchases, and hourly beat windows. This is a regression instrument; rare-drop variance, crafting route choice, party play, deaths from player error, and market behavior are still out of scope.');
   console.log('');
   console.log('| Path | Horizon | End Lv | Quests | Kills | Bosses | Gold | Gear | Purchases | Empty windows | Max gap | Travel | Combat | Deaths | Skipped quests |');
   console.log('|------|---------|--------|--------|-------|--------|------|------|-----------|---------------|---------|--------|--------|--------|----------------|');
-  for (const row of journeyReportRows()) {
+  for (const row of rows) {
     console.log(playerJourneyRow(row));
   }
   console.log('');
+}
+
+function printPlayerJourneyGapDiagnostics(rows: readonly PlayerJourneySummary[]): void {
+  console.log('## Player journey content-gap diagnostics');
+  console.log('');
+  console.log('Primary advisory gap per deterministic route, prioritizing empty-feeling windows before quest, gear, unlock, and grind-only gaps. These rows explain where the route goes quiet; they are not pass/fail thresholds yet.');
+  console.log('');
+  console.log('| Path | Horizon | Level band | Severity | Gap kind | Window | Duration | Empty windows | Detail | First mitigation |');
+  console.log('|------|---------|------------|----------|----------|--------|----------|---------------|--------|------------------|');
+  for (const row of journeyGapReportRows(rows)) {
+    console.log(playerJourneyGapRow(row));
+  }
+  console.log('');
+}
+
+function playerJourneyGapRow(row: JourneyGapDiagnostic): string {
+  const cells = [
+    row.pathLabel,
+    hours(row.horizonHours),
+    row.levelBand,
+    row.severity,
+    row.kind,
+    `${hours(row.startHour)}-${hours(row.endHour)}`,
+    hours(row.durationHours),
+    `${row.emptyWindows}/${row.windowCount}`,
+    row.detail,
+    row.mitigation,
+  ];
+  return `| ${cells.join(' | ')} |`;
 }
 
 function playerJourneyRow(row: PlayerJourneySummary): string {
