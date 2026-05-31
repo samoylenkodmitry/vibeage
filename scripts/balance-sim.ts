@@ -30,6 +30,7 @@ import {
   type SimCoverageWarning,
   type SimReportContext,
 } from '../server/sim/reportContext.js';
+import { buildSpecializationAiAudit, type SpecializationAiAuditRow } from '../server/sim/specializationAiAudit.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
@@ -40,6 +41,7 @@ const reportContext = createSimReportContext({ commitSha: gitCommitSha() });
 printReportScope(reportContext);
 printPveClassMatrix();
 printSpecializationMatrix();
+printSpecializationAiAudit();
 printPvpClassMatrix();
 printProgressionRewards();
 printPlayerFeelCadence();
@@ -108,6 +110,20 @@ function printSpecializationMatrix(): void {
     console.log(
       `| ${scenario.specializationId} | ${scenario.level} | ${winner(result.summary.winnerTeamId, result.timedOut)} | ${seconds(result.durationMs)} | ${healthPct(player)} |`,
     );
+  }
+  console.log('');
+}
+
+function printSpecializationAiAudit(): void {
+  const audit = buildSpecializationAiAudit();
+  console.log('## Specialization AI audit');
+  console.log('');
+  console.log(`Exercise target: 4x-health, 0.75x-damage PvE training mob. Player wins: ${audit.totals.playerWins}/${audit.totals.scenarios}. Blocked casts: ${audit.totals.blockedCasts}. Reaction triggers: ${audit.totals.triggeredReactions}.`);
+  console.log('');
+  console.log('| Spec | Lv | Role | Duration | Attempts | Reactions | Dead profile skills | Blocked casts |');
+  console.log('|------|----|------|----------|----------|-----------|---------------------|---------------|');
+  for (const row of audit.rows) {
+    console.log(`| ${row.specializationId} | ${row.level} | ${row.role} | ${seconds(row.durationMs)} | ${countTotal(row.castAttemptsBySkill)} | ${reactionCell(row)} | ${listCell(row.deadSkillIds)} | ${row.blockedCastCount} |`);
   }
   console.log('');
 }
@@ -206,6 +222,18 @@ function hours(value: number): string {
   if (value < 24) return `${value.toFixed(value < 10 && value % 1 !== 0 ? 1 : 0)}h`;
   if (value < 24 * 14) return `${(value / 24).toFixed(1)}d`;
   return `${(value / (24 * 30)).toFixed(1)}mo`;
+}
+
+function reactionCell(row: SpecializationAiAuditRow): string {
+  return row.triggeredReactionIds.map((reactionId) => `${reactionId} x${row.reactionCounts[reactionId] ?? 0}`).join(', ') || '-';
+}
+
+function listCell(values: readonly string[]): string {
+  return values.length > 0 ? values.join(', ') : '-';
+}
+
+function countTotal(counts: Partial<Record<string, number>>): number {
+  return Object.values(counts).reduce((total, value) => total + (value ?? 0), 0);
 }
 
 function healthPct(entity: { health: number; maxHealth: number }): string {
