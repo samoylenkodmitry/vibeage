@@ -24,17 +24,17 @@ describe('formatCombatLogLine', () => {
   it('renders a plain hit with no crit suffix', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [12],
-    })).toBe('Fireball hit Goblin for 12 damage');
+    })).toBe('Fireball hit Goblin for 12 damage (applied Burn)');
   });
   it('appends (crit!) when any hit was a crit', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [24], crits: [true],
-    })).toBe('Fireball hit Goblin for 24 damage (crit!)');
+    })).toBe('Fireball hit Goblin for 24 damage (crit!) (applied Burn)');
   });
   it('omits crit suffix when `crits` is undefined (backwards-compat)', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [10],
-    })).toBe('Fireball hit Goblin for 10 damage');
+    })).toBe('Fireball hit Goblin for 10 damage (applied Burn)');
   });
   it('aggregates multi-hit: one crit anywhere flags the line', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
@@ -51,12 +51,12 @@ describe('formatCombatLogLine', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1', 'gob1'], damages: [12, 0],
       crits: [false, false], misses: [false, true],
-    })).toBe('Fireball hit Goblin for 12 damage (1 dodged)');
+    })).toBe('Fireball hit Goblin for 12 damage (1 dodged) (applied Burn)');
   });
   it('omits miss suffix when `misses` is undefined (backwards-compat with pre-§52 server)', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [10],
-    })).toBe('Fireball hit Goblin for 10 damage');
+    })).toBe('Fireball hit Goblin for 10 damage (applied Burn)');
   });
   // §52 #6 — heals
   it('renders "X healed Y for N" for a pure-heal cast (no damage)', () => {
@@ -69,30 +69,66 @@ describe('formatCombatLogLine', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [12],
       crits: [false], misses: [false], heals: [4],
-    })).toBe('Fireball hit Goblin for 12 damage (+4 healed)');
+    })).toBe('Fireball hit Goblin for 12 damage (+4 healed) (applied Burn)');
   });
   it('omits the heal suffix when totalHeal is 0', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [12],
       crits: [false], misses: [false], heals: [0],
-    })).toBe('Fireball hit Goblin for 12 damage');
+    })).toBe('Fireball hit Goblin for 12 damage (applied Burn)');
   });
   it('falls through to damage line when both damage=0 and heal=0 (backwards-compat invuln-ate-it case)', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'fireball', targets: ['gob1'], damages: [0],
       crits: [false], misses: [false], heals: [0],
-    })).toBe('Fireball hit Goblin for 0 damage');
+    })).toBe('Fireball hit Goblin for 0 damage (applied Burn)');
   });
   it('renders a beneficial self-buff cast as "applied", not a 0-damage hit', () => {
     // Shield Wall has no .dmg and a beneficial (shield) effect — the
     // self-cast used to print "Shield Wall hit <you> for 0 damage".
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'shieldWall', targets: ['hero'], damages: [0], heals: [0], misses: [false],
-    })).toBe('Shield Wall applied');
+    })).toBe('Shield Wall applied Shield');
   });
   it('renders a non-damaging non-beneficial utility as "cast <target>"', () => {
     expect(formatCombatLogLine(makeStateWithGoblin(), {
       skillId: 'taunt', targets: ['gob1'], damages: [0], heals: [0], misses: [false],
     })).toBe('Taunt cast Goblin');
+  });
+});
+
+describe('formatCombatLogLine — caster attribution + applied effects', () => {
+  function stateWith(myId: string): GameClientState {
+    const goblin = { id: 'gob1', name: 'Goblin', isAlive: true, position: { x: 0, y: 0, z: 0 } } as unknown as EnemyEntity;
+    return {
+      myPlayerId: myId,
+      enemies: { gob1: goblin },
+      players: { me: { id: 'me', name: 'Hero' }, ally: { id: 'ally', name: 'Aldra' } },
+      combatLog: [],
+    } as unknown as GameClientState;
+  }
+
+  it('prefixes the local player\'s cast with "Your" and names the applied effect', () => {
+    expect(formatCombatLogLine(stateWith('me'), {
+      skillId: 'fireball', casterId: 'me', targets: ['gob1'], damages: [12],
+    })).toBe('Your Fireball hit Goblin for 12 damage (applied Burn)');
+  });
+
+  it("prefixes another caster's cast with their name", () => {
+    expect(formatCombatLogLine(stateWith('me'), {
+      skillId: 'fireball', casterId: 'ally', targets: ['gob1'], damages: [9],
+    })).toBe("Aldra's Fireball hit Goblin for 9 damage (applied Burn)");
+  });
+
+  it('omits the prefix when the caster is unknown (backwards-compat)', () => {
+    expect(formatCombatLogLine(stateWith('me'), {
+      skillId: 'fireball', targets: ['gob1'], damages: [9],
+    })).toBe('Fireball hit Goblin for 9 damage (applied Burn)');
+  });
+
+  it('does not name effects on a full miss', () => {
+    expect(formatCombatLogLine(stateWith('me'), {
+      skillId: 'fireball', casterId: 'me', targets: ['gob1'], damages: [0], misses: [true],
+    })).toBe('Your Fireball missed Goblin');
   });
 });
