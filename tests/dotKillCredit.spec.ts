@@ -140,7 +140,7 @@ describe('tickDamageOverTimeEffects — DoT death broadcast', () => {
     const caster = createTransientPlayer('socket-caster', 'CasterMage');
     state.players[caster.id] = caster;
 
-    const enemy = createEnemy('goblin', 1, { x: 0, y: 0.5, z: 0 }, 1);
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0.5, z: 0 }, NOW);
     enemy.health = 5;
     enemy.statusEffects = [burnEffect(50, { sourceCasterId: caster.id })];
     state.enemies[enemy.id] = enemy;
