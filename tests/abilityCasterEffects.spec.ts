@@ -44,14 +44,32 @@ describe('applyCasterEffects — blink + summon', () => {
 
   it('summon spawns `count` minions of the given type via world.spawnMinion', () => {
     const caster = mob('summoner', 0, 0);
-    const spawned: Array<{ type: string; level: number }> = [];
+    const spawned: Array<{ type: string; level: number; options?: unknown }> = [];
     const world = {
       getEnemyById: () => null, getPlayerById: () => null,
-      spawnMinion: (type: string, level: number) => spawned.push({ type, level }),
+      spawnMinion: (type: string, level: number, _pos: unknown, _now: number, options?: unknown) => spawned.push({ type, level, options }),
     } as unknown as CombatWorld;
-    applyCasterEffects(caster, cast('summoner', ''), { summon: { type: 'wolf', count: 3, radius: 4 } } as unknown as SkillDef, world, 0);
+    applyCasterEffects(caster, cast('summoner', ''), {
+      summon: {
+        type: 'wolf',
+        count: 3,
+        radius: 4,
+        namePrefix: 'Mirror',
+        healthMultiplier: 0.35,
+        damageMultiplier: 0.35,
+        experienceMultiplier: 0,
+        lootTableIdOverride: '',
+      },
+    } as unknown as SkillDef, world, 0);
     expect(spawned).toHaveLength(3);
     expect(spawned.every((s) => s.type === 'wolf' && s.level === 5)).toBe(true);
+    expect(spawned[0].options).toEqual({
+      namePrefix: 'Mirror',
+      healthMultiplier: 0.35,
+      damageMultiplier: 0.35,
+      experienceMultiplier: 0,
+      lootTableIdOverride: '',
+    });
   });
 
   it('is a no-op when the skill has neither blink nor summon', () => {

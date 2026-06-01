@@ -53,13 +53,17 @@ function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   };
 }
 
-describe('isEntityStunned recognises freeze and root', () => {
+describe('isEntityStunned recognises freeze, root, and time stop', () => {
   it('returns true for an active freeze effect', () => {
     expect(isEntityStunned(makePlayer({ statusEffects: [effect('freeze')] }), NOW)).toBe(true);
   });
 
   it('returns true for an active root effect', () => {
     expect(isEntityStunned(makePlayer({ statusEffects: [effect('root')] }), NOW)).toBe(true);
+  });
+
+  it('returns true for an active timeStop effect', () => {
+    expect(isEntityStunned(makePlayer({ statusEffects: [effect('timeStop')] }), NOW)).toBe(true);
   });
 
   it('returns false for an active slow effect (not action-blocking)', () => {

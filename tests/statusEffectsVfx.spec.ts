@@ -13,7 +13,7 @@ function fx(type: string, overrides: Partial<StatusEffect> = {}): StatusEffect {
 
 describe('status-effect VFX selection', () => {
   it('maps debuffs + buffs to their archetype/colour', () => {
-    const auras = selectStatusAuras([fx('burn'), fx('slow'), fx('stun'), fx('shield')], NOW + 100);
+    const auras = selectStatusAuras([fx('burn'), fx('slow'), fx('timeStop'), fx('damageReflect')], NOW + 100);
     expect(auras.map((a) => a.archetype)).toEqual(['rising', 'ring', 'orbit', 'shell']);
     expect(auras[0].color).toBe('#ff6a1a'); // burn
     expect(auras[3].endsAt).toBe(NOW + 5000);

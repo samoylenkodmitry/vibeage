@@ -38,6 +38,7 @@ export type CreateEnemyOptions = {
   isMiniBoss?: boolean;
   bossId?: string;
   nameOverride?: string;
+  namePrefix?: string;
   healthMultiplier?: number;
   damageMultiplier?: number;
   experienceMultiplier?: number;
@@ -62,10 +63,12 @@ export function createEnemy(
   const baseExp = (S.experience.flat + level * S.experience.perLevel) * template.stats.experience * expMult;
   const attackDamage = (S.damage.flat + level * S.damage.perLevel) * template.stats.damage * damageMult;
   const movementSpeed = S.movementSpeed * template.stats.movementSpeed;
+  const displayName = options.nameOverride
+    ?? (options.namePrefix ? `${options.namePrefix} ${template.displayName}` : template.displayName);
   return {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
-    name: options.nameOverride ?? template.displayName,
+    name: displayName,
     level,
     position,
     spawnPosition: { ...position },

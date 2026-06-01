@@ -18,7 +18,7 @@ import { ACCURACY_BASELINE, MAX_DODGE_CHANCE } from '../../packages/content/stat
  * "you can cast but not move" semantics, split root into its own
  * predicate then.
  */
-const ACTION_BLOCKING_EFFECT_TYPES: ReadonlySet<string> = new Set(['stun', 'freeze', 'root']);
+const ACTION_BLOCKING_EFFECT_TYPES: ReadonlySet<string> = new Set(['stun', 'freeze', 'root', 'timeStop']);
 
 export function isEntityStunned(entity: PlayerState | Enemy, now: number): boolean {
   return (entity.statusEffects ?? []).some((effect) => {
@@ -44,10 +44,10 @@ export function isEntityStunned(entity: PlayerState | Enemy, now: number): boole
  * future status types without re-touching this map.
  */
 const DISPEL_CATEGORY_TARGETS: Readonly<Record<DispelCategory, ReadonlySet<string>>> = {
-  negative: new Set(['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'waterWeakness', 'marked']),
-  positive: new Set(['heal', 'shield', 'bless', 'arcaneCharge', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']),
+  negative: new Set(['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'timeStop', 'waterWeakness', 'marked']),
+  positive: new Set(['heal', 'shield', 'damageReflect', 'bless', 'arcaneCharge', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']),
   poison: new Set(['poison', 'dot']),
-  stun: new Set(['stun', 'freeze', 'root']),
+  stun: new Set(['stun', 'freeze', 'root', 'timeStop']),
   shield: new Set(['shield']),
   bleed: new Set<string>(),
   magic: new Set<string>(),

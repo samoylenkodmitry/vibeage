@@ -234,7 +234,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { manaMultiplier: 1.15 },
     },
     specSkills: ['arcane_blast'],
-    proficiencySkills: ['arcane_supremacy'],
+    proficiencySkills: ['arcane_supremacy', 'time_sphere'],
   },
   pyromancer: {
     id: 'pyromancer',
@@ -418,7 +418,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { lifestealPercent: 0.05 },
     },
     specSkills: ['shadow_strike'],
-    proficiencySkills: ['soul_eater'],
+    proficiencySkills: ['soul_eater', 'spectral_guard'],
   },
   // ---- PALADIN ----
   phoenix_knight: {

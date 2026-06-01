@@ -59,6 +59,7 @@ export type SpecializationAiProfile = {
 export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, SpecializationAiProfile> = {
   arcanist: profile('arcanist', 'burst', [
     enemy('arcane_supremacy', { casterHasEffect: 'arcaneCharge' }),
+    enemy('time_sphere', { targetMissingEffect: 'timeStop' }),
     enemy('arcane_blast', { casterHasEffect: 'arcaneCharge' }),
     enemy('arcane_blast', { targetHasEffect: 'freeze' }),
     enemy('iceBolt', { targetHasEffect: 'waterWeakness' }),
@@ -133,6 +134,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('slash'),
   ]),
   dark_avenger: profile('dark_avenger', 'sustain', [
+    self('spectral_guard', { casterMissingEffect: 'damageReflect' }),
     enemy('soul_eater', { targetHealthBelowPct: 0.5 }),
     enemy('shadow_strike'),
     self('shieldWall', { casterHealthBelowPct: 0.7, casterMissingEffect: 'shield' }),

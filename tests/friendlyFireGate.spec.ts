@@ -7,6 +7,7 @@ describe('skill alignment classification', () => {
     expect(classifySkill(SKILLS.fireball.effects)).toBe('harmful');
     expect(classifySkill(SKILLS.iceBolt.effects)).toBe('harmful');
     expect(classifySkill(SKILLS.poisonBlade.effects)).toBe('harmful');
+    expect(classifySkill(SKILLS.time_sphere.effects)).toBe('harmful');
   });
 
   it('heal / shield / bless / evade / dispel are beneficial', () => {
@@ -16,6 +17,7 @@ describe('skill alignment classification', () => {
     expect(classifySkill(SKILLS.evade.effects)).toBe('beneficial');
     expect(classifySkill(SKILLS.dispel.effects)).toBe('beneficial');
     expect(classifySkill(SKILLS.divineShield.effects)).toBe('beneficial');
+    expect(classifySkill(SKILLS.spectral_guard.effects)).toBe('beneficial');
   });
 
   it('escape / teleport-style is neutral', () => {

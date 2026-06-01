@@ -71,7 +71,7 @@ describe('EFFECT_SPECS stacking policy declarations', () => {
   });
 
   it('crowd-control + buffs default to `refresh` (single-instance, re-cast for upkeep)', () => {
-    for (const type of ['stun', 'slow', 'freeze', 'shield', 'bless', 'evasion', 'invisible', 'taunt'] as const) {
+    for (const type of ['stun', 'slow', 'freeze', 'timeStop', 'shield', 'damageReflect', 'bless', 'evasion', 'invisible', 'taunt'] as const) {
       expect(getStackingPolicy(type)).toBe('refresh');
     }
   });
