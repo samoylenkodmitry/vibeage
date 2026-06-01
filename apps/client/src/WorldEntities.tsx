@@ -282,13 +282,12 @@ export const EnemyMarker = memo(EnemyMarkerImpl);
  *  silhouette for everything else (and as the load/error fallback).
  *  The model is offset down by the group's grounded offset so its feet
  *  land on the terrain. */
+// Shared so the hover ring (mounts/unmounts on every hover) doesn't rebuild
+// geometry + material each time.
+const HOVER_RING_GEO = new THREE.RingGeometry(0.95, 1.12, 36);
+const HOVER_RING_MAT = new THREE.MeshBasicMaterial({ color: '#cffafe', transparent: true, opacity: 0.45, depthWrite: false });
 function EnemyHoverRing() {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]} raycast={() => null}>
-      <ringGeometry args={[0.95, 1.12, 36]} />
-      <meshBasicMaterial color="#cffafe" transparent opacity={0.45} depthWrite={false} />
-    </mesh>
-  );
+  return <mesh geometry={HOVER_RING_GEO} material={HOVER_RING_MAT} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]} raycast={() => null} />;
 }
 
 function AnimatedEnemyBody({
