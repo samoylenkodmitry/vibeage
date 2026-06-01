@@ -14,6 +14,7 @@ import {
 } from '../transport/outboundEvents.js';
 import { debug, error, LOG_CATEGORIES, warn } from '../logger.js';
 import type { CombatWorld } from './worldContract.js';
+import { isCastPhysicsFrozen } from '../physics/areaPhysics.js';
 
 // Set of constants for skill system
 export const CAST_BROADCAST_RATE = 50; // ms, how often to send cast snapshots
@@ -316,6 +317,11 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
       continue;
     }
 
+    if (isCastPhysicsFrozen(cast, world, now)) {
+      pauseCastPhysics(cast, dt);
+      continue;
+    }
+
     // Keep the impact point tracking a moving target during the windup. Once a
     // projectile is Traveling, projectileRuntime already homes via targetPos.
     if (cast.state === CastStateEnum.Casting) {
@@ -389,6 +395,13 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
       updateTravelingCast(cast, dt / 1000, now, CAST_BROADCAST_RATE, outbound, world);
     }
   }
+}
+
+function pauseCastPhysics(cast: Cast, dtMs: number): void {
+  if (cast.state !== CastStateEnum.Casting && cast.state !== CastStateEnum.Traveling) {
+    return;
+  }
+  cast.startedAt += dtMs;
 }
 
 /**

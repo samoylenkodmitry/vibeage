@@ -9,7 +9,7 @@ type Combatant = Enemy | PlayerState;
 const isEnemy = (t: Combatant): t is Enemy => 'type' in t;
 
 /** Outer extent of a shape, for the broadphase circle query. */
-function shapeOuterRadius(shape: AbilityShape): number {
+export function shapeOuterRadius(shape: AbilityShape): number {
   switch (shape.kind) {
     case 'single': return 0;
     case 'circle': return shape.radius;
@@ -80,7 +80,7 @@ export function selectShapeTargets(
   return out;
 }
 
-function shapeOrigin(cast: Cast, shape: AbilityShape, world: CombatWorld): VecXZ {
+export function shapeOrigin(cast: Cast, shape: AbilityShape, world: CombatWorld): VecXZ {
   if (cast.shapeOrigin) return cast.shapeOrigin;
   if (shape.kind !== 'single' && shape.anchor === 'target') {
     const target = cast.targetId ? (world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId)) : null;

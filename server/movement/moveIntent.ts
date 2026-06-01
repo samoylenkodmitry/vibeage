@@ -1,6 +1,7 @@
 import type { MoveIntent } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
 import { isEntityStunned } from '../combat/statusQueries.js';
+import { isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import { calculateDir, distance, getPlayerSpeed, isValidPosition } from './worldMovement.js';
 
 export type MoveIntentResult =
@@ -31,7 +32,7 @@ export function applyMoveIntent(
     return { ok: false, reason: 'dead', playerId };
   }
 
-  if (isEntityStunned(player, now)) {
+  if (isEntityStunned(player, now) || isEntityPhysicsFrozen(player, state.activePhysicsFields, now)) {
     // Stop any in-flight movement so the player visibly freezes. Only
     // mark dirty if there's actually something to stop — otherwise a
     // stunned player spamming MoveIntent would flood the snapshot bus

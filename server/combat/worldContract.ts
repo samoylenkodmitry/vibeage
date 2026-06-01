@@ -1,5 +1,6 @@
 import type { VecXZ } from '../../packages/protocol/messages.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import type { AreaPhysicsField } from '../physics/areaPhysics.js';
 
 export type SummonSpawnOptions = {
   namePrefix?: string;
@@ -16,4 +17,7 @@ export interface CombatWorld {
   onTargetDied: (caster: PlayerState | Enemy, target: Enemy | PlayerState, now: number) => void;
   /** Spawn a mob (summon ability). Optional — bare worlds (unit tests) omit it. */
   spawnMinion?: (type: string, level: number, pos: { x: number; y: number; z: number }, now: number, options?: SummonSpawnOptions) => void;
+  /** Area physics fields (time stop / future stasis volumes). Optional for bare test worlds. */
+  addPhysicsField?: (field: AreaPhysicsField) => void;
+  getActivePhysicsFields?: () => AreaPhysicsField[];
 }

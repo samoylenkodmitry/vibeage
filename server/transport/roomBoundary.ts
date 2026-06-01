@@ -6,6 +6,7 @@ export const AUTHORITATIVE_ROOM_STATE_KEYS = [
   'players',
   'enemies',
   'activeCasts',
+  'activePhysicsFields',
   'effectsByTarget',
   'projectiles',
   'groundLoot',

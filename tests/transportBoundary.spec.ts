@@ -13,6 +13,7 @@ describe('transport boundary', () => {
       'players',
       'enemies',
       'activeCasts',
+      'activePhysicsFields',
       'effectsByTarget',
       'projectiles',
       'groundLoot',

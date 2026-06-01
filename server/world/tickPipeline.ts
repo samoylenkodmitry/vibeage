@@ -15,6 +15,7 @@ import { collectDeltas } from '../movement/snapshotDeltas.js';
 import { advanceAll } from '../movement/worldMovement.js';
 import { tickDamageOverTimeEffects } from '../combat/dotTicker.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import { freezeEntityPhysics, isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import {
   isEnemyInActiveRegion,
   refreshWorldRegionRuntime,
@@ -154,6 +155,11 @@ function runEnemyAiPhase(input: WorldTickRunnerOptions & { now: number }): void 
     }
 
     const enemy = input.state.enemies[enemyId];
+    if (enemy.isAlive && isEntityPhysicsFrozen(enemy, input.state.activePhysicsFields, input.now)) {
+      freezeEntityPhysics(enemy, input.now);
+      continue;
+    }
+
     if (enemy.isAlive && isEnemyInActiveRegion(input.state, enemyId)) {
       updateEnemyAI(enemy, input.tickMs / 1000, {
         state: input.state, outbound: input.outbound, spatial: input.spatial,
