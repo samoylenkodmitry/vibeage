@@ -19,6 +19,7 @@ import {
   SelectedEnemyRing,
 } from './SceneVfx';
 import { NameLabel } from './NameLabel';
+import { StatusEffectsVfx } from './vfx/statusFx';
 import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
 import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
@@ -109,6 +110,7 @@ function PlayerMarkerImpl({
         modelId={playerModel(player.id, player.specializationId)}
         equipment={equipment} onPointerDown={!isSelf ? handlePointerDown : undefined}
       />
+      {player.isAlive && <StatusEffectsVfx effects={player.statusEffects} height={height} />}
       {player.isAlive && player.name && (
         <NameLabel
           text={player.level > 0 ? `${player.name}  Lv ${player.level}` : player.name}
@@ -239,12 +241,7 @@ function EnemyMarkerImpl({
       {isSelected && <SelectedEnemyRing />}
       {isSelected && enemy.isAlive && <SelectedEnemyBeacon />}
       {enemy.isAlive && enemy.aiState && enemy.aiState !== 'idle' && <EnemyThreatRing state={enemy.aiState} />}
-      {enemy.isAlive && isHovered && !isSelected && (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]} raycast={() => null}>
-          <ringGeometry args={[0.95, 1.12, 36]} />
-          <meshBasicMaterial color="#cffafe" transparent opacity={0.45} depthWrite={false} />
-        </mesh>
-      )}
+      {enemy.isAlive && isHovered && !isSelected && <EnemyHoverRing />}
       <AnimatedEnemyBody
         animated={animated} anim={enemyAnim(enemy, speedSq)} shape={visual.shape} color={color}
         height={enemy.isAlive ? visual.height : 0.25} targetHeight={visual.height} isMoving={isMoving}
@@ -253,6 +250,7 @@ function EnemyMarkerImpl({
       {enemy.isAlive && visual.glow && (
         <GlowEmitter color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} priority={enemy.isMiniBoss ? 3 : 1} />
       )}
+      {enemy.isAlive && <StatusEffectsVfx effects={enemy.statusEffects} height={visual.height} />}
       {enemy.isAlive && enemy.isMiniBoss && <MiniBossCrown color={visual.color} height={visual.height} />}
       {enemy.isAlive && enemy.isMiniBoss && !isSelected && <BossBeacon color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
@@ -284,6 +282,14 @@ export const EnemyMarker = memo(EnemyMarkerImpl);
  *  silhouette for everything else (and as the load/error fallback).
  *  The model is offset down by the group's grounded offset so its feet
  *  land on the terrain. */
+// Shared so the hover ring (mounts/unmounts on every hover) doesn't rebuild
+// geometry + material each time.
+const HOVER_RING_GEO = new THREE.RingGeometry(0.95, 1.12, 36);
+const HOVER_RING_MAT = new THREE.MeshBasicMaterial({ color: '#cffafe', transparent: true, opacity: 0.45, depthWrite: false });
+function EnemyHoverRing() {
+  return <mesh geometry={HOVER_RING_GEO} material={HOVER_RING_MAT} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]} raycast={() => null} />;
+}
+
 function AnimatedEnemyBody({
   animated, anim, shape, color, height, targetHeight, isMoving, isAlive, modelId, weaponType, groundedYOffset, onPointerDown, onHover,
 }: {
