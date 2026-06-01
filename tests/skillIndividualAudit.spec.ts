@@ -26,6 +26,7 @@ type SkillExpectation = {
   selfTarget?: boolean;
   offenseKeys?: string[];
   reactionIds?: string[];
+  blink?: boolean;
 };
 
 const PLAYER_SKILL_EXPECTATIONS: Record<string, SkillExpectation> = {
@@ -45,14 +46,14 @@ const PLAYER_SKILL_EXPECTATIONS: Record<string, SkillExpectation> = {
   dispel: { effects: ['dispel'], targetMode: 'self' },
   smite: { effects: ['damage', 'stun'], targetMode: 'enemy', reactionIds: ['judgment_on_taunt'] },
   divineShield: { effects: ['shield'], targetMode: 'self' },
-  arrowShot: { effects: ['damage'], targetMode: 'enemy', area: true, reactionIds: ['pick_slow_target'] },
-  volley: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['pinning_fire'] },
+  arrowShot: { effects: ['damage', 'marked'], targetMode: 'enemy', area: true, reactionIds: ['pick_slow_target'] },
+  volley: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['pinning_fire', 'marked_barrage'] },
   rapidFire: { effects: ['attackSpeed'], targetMode: 'self' },
   evade: { effects: ['evasion'], targetMode: 'self' },
   backstab: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['stealth_opener', 'poison_cashout'] },
   poisonBlade: { effects: ['damage', 'poison'], targetMode: 'enemy', reactionIds: ['venom_bleed'] },
   vanish: { effects: ['invisible', 'aggroReset'], targetMode: 'self', selfTarget: true },
-  arcane_blast: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['arcane_shatter'] },
+  arcane_blast: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['arcane_shatter', 'charged_arcana'] },
   meteor: { effects: ['damage', 'burn'], targetMode: 'area-self', area: true, reactionIds: ['conflagration'] },
   rage: { effects: ['bless'], targetMode: 'self' },
   execute: { effects: ['damage'], targetMode: 'enemy', offenseKeys: ['executeBonus'], reactionIds: ['blood_in_water'] },
@@ -61,18 +62,18 @@ const PLAYER_SKILL_EXPECTATIONS: Record<string, SkillExpectation> = {
   snipe: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['steady_target'] },
   silent_step: { effects: ['invisible', 'aggroReset'], targetMode: 'self', selfTarget: true },
   holy_shield: { effects: ['shield'], targetMode: 'self' },
-  shadow_strike: { effects: ['damage'], targetMode: 'enemy', offenseKeys: ['armorPen'], reactionIds: ['umbral_opener'] },
+  shadow_strike: { effects: ['damage'], targetMode: 'enemy', offenseKeys: ['armorPen'], reactionIds: ['umbral_opener'], blink: true },
   phoenix_ward: { effects: ['shield'], targetMode: 'self' },
   sacred_pulse: { effects: ['heal'], targetMode: 'area-self', area: true },
   lucky_strike: { effects: ['damage'], targetMode: 'enemy', offenseKeys: ['bonusCritChance', 'bonusCritMult'], reactionIds: ['loaded_dice'] },
   wind_dash: { effects: ['speed_boost', 'aggroReset'], targetMode: 'self' },
-  arcane_supremacy: { effects: ['damage'], targetMode: 'enemy' },
+  arcane_supremacy: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['arcane_overflow'] },
   inferno_aura: { effects: ['burn'], targetMode: 'area-self', area: true },
   blood_frenzy: { effects: ['bless'], targetMode: 'self' },
   killing_strike: { effects: ['damage'], targetMode: 'enemy', reactionIds: ['execution_window'] },
   mass_heal: { effects: ['heal'], targetMode: 'area-self', area: true },
   group_bless: { effects: ['bless'], targetMode: 'area-self', area: true },
-  aimed_volley: { effects: ['damage'], targetMode: 'area-self', area: true },
+  aimed_volley: { effects: ['damage'], targetMode: 'area-self', area: true, reactionIds: ['kill_zone'] },
   shadow_arrow: { effects: ['damage'], targetMode: 'enemy', offenseKeys: ['armorPen'] },
   divine_taunt: { effects: ['taunt'], targetMode: 'area-self', area: true },
   soul_eater: { effects: ['damage'], targetMode: 'enemy', offenseKeys: ['lifestealPct'], reactionIds: ['dark_feast'] },
@@ -96,6 +97,7 @@ describe('individual player skill mechanics audit', () => {
       expect(getSkillTags(skill).targetMode, `${id} targetMode`).toBe(expected.targetMode);
       if (expected.area !== undefined) expect((skill.area ?? 0) > 0, `${id} area`).toBe(expected.area);
       if (expected.selfTarget) expect(skill.selfTarget, `${id} selfTarget`).toBe(true);
+      if (expected.blink) expect(skill.blink, `${id} blink`).toBeDefined();
       expect(skill.reactions?.map((reaction) => reaction.id) ?? [], `${id} reaction ids`).toEqual(expected.reactionIds ?? []);
       for (const key of expected.offenseKeys ?? []) {
         expect(skill.offense?.[key as keyof NonNullable<typeof skill.offense>], `${id} offense.${key}`).toBeDefined();

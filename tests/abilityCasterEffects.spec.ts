@@ -22,6 +22,24 @@ describe('applyCasterEffects — blink + summon', () => {
     // Far side of the target along the boss→target axis (+X): 5 + 2 = 7.
     expect(caster.position.x).toBeCloseTo(7, 5);
     expect(caster.position.z).toBeCloseTo(0, 5);
+    expect(caster.velocity).toEqual({ x: 0, z: 0 });
+    expect(caster.dirtySnap).toBe(true);
+  });
+
+  it('blink snaps a player caster and cancels stale movement', () => {
+    const caster = player('rogue', 0, 0);
+    caster.velocity = { x: 5, z: 0 };
+    caster.movement = { isMoving: true, targetPos: { x: 20, z: 0 }, lastUpdateTime: 0, speed: 5 };
+    const target = mob('target', 4, 0);
+    const world = { getEnemyById: (id: string) => (id === 'target' ? target : null), getPlayerById: () => null } as unknown as CombatWorld;
+
+    applyCasterEffects(caster, cast('rogue', 'target'), { blink: { offset: 1.5 } } as unknown as SkillDef, world, 0);
+
+    expect(caster.position.x).toBeCloseTo(5.5, 5);
+    expect(caster.position.z).toBeCloseTo(0, 5);
+    expect(caster.velocity).toEqual({ x: 0, z: 0 });
+    expect(caster.movement).toBeUndefined();
+    expect(caster.dirtySnap).toBe(true);
   });
 
   it('summon spawns `count` minions of the given type via world.spawnMinion', () => {

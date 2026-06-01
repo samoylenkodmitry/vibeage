@@ -58,10 +58,12 @@ export type SpecializationAiProfile = {
 
 export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, SpecializationAiProfile> = {
   arcanist: profile('arcanist', 'burst', [
-    enemy('arcane_supremacy'),
+    enemy('arcane_supremacy', { casterHasEffect: 'arcaneCharge' }),
+    enemy('arcane_blast', { casterHasEffect: 'arcaneCharge' }),
     enemy('arcane_blast', { targetHasEffect: 'freeze' }),
     enemy('iceBolt', { targetHasEffect: 'waterWeakness' }),
     enemy('waterSplash', { targetMissingEffect: 'waterWeakness' }),
+    enemy('arcane_supremacy'),
     enemy('arcane_blast'),
     enemy('fireball'),
   ]),
@@ -103,9 +105,12 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('smite'),
   ]),
   hawkeye: profile('hawkeye', 'burst', [
+    enemy('aimed_volley', { targetHasEffect: 'marked' }),
+    enemy('volley', { targetHasEffect: 'marked' }),
     enemy('snipe', { targetHasEffect: 'slow' }),
-    enemy('aimed_volley'),
     self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
+    enemy('arrowShot', { targetMissingEffect: 'marked' }),
+    enemy('aimed_volley'),
     enemy('snipe'),
     enemy('volley'),
     enemy('arrowShot'),

@@ -44,8 +44,8 @@ export function isEntityStunned(entity: PlayerState | Enemy, now: number): boole
  * future status types without re-touching this map.
  */
 const DISPEL_CATEGORY_TARGETS: Readonly<Record<DispelCategory, ReadonlySet<string>>> = {
-  negative: new Set(['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'waterWeakness']),
-  positive: new Set(['heal', 'shield', 'bless', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']),
+  negative: new Set(['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'waterWeakness', 'marked']),
+  positive: new Set(['heal', 'shield', 'bless', 'arcaneCharge', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']),
   poison: new Set(['poison', 'dot']),
   stun: new Set(['stun', 'freeze', 'root']),
   shield: new Set(['shield']),

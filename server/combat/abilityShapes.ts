@@ -111,7 +111,11 @@ function blinkBehindTarget(caster: Combatant, cast: Cast, world: CombatWorld, of
   const ux = dist > 0.01 ? dx / dist : 1;
   const uz = dist > 0.01 ? dz / dist : 0;
   caster.position = { x: t.position.x + ux * offset, y: caster.position.y, z: t.position.z + uz * offset };
+  caster.velocity = { x: 0, z: 0 };
+  if (!isEnemy(caster)) {
+    caster.movement = undefined;
+  }
   // A blink is a teleport — flag the snap so the client jumps the caster
   // there instead of smooth-interpolating across the gap.
-  if ('type' in caster) caster.dirtySnap = true;
+  caster.dirtySnap = true;
 }
