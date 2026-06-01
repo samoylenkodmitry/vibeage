@@ -352,6 +352,96 @@ export const QUESTS: Record<QuestId, QuestDef> = {
     ],
     reward: { xp: 3200, gold: 1100, items: [{ itemId: 'magmaheart_core', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 8 }] },
   },
+  ash_in_the_gears: {
+    id: 'ash_in_the_gears',
+    name: 'Ash in the Gears',
+    description: 'Tinker Drev needs emberproof parts before his repair bench melts down again.',
+    npcId: 'tinker_drev',
+    minLevel: 17,
+    stages: [
+      {
+        id: 'hear_drevs_problem',
+        description: 'Ask Tinker Drev what keeps ruining his gearworks.',
+        objective: { kind: 'talk', npcId: 'tinker_drev' },
+      },
+      {
+        id: 'bind_flame_wraiths',
+        description: 'Disperse 5 flame wraiths in the Volcanic Wastes.',
+        objective: { kind: 'kill', enemyType: 'flame_wraith', count: 5 },
+      },
+      {
+        id: 'return_emberproof_parts',
+        description: 'Return the ash-stained parts to Tinker Drev.',
+        objective: { kind: 'talk', npcId: 'tinker_drev' },
+      },
+    ],
+    reward: { xp: 2800, gold: 900, items: [{ itemId: 'volcanic_rock', quantity: 3 }, { itemId: 'greater_health_potion', quantity: 4 }] },
+  },
+  frostbound_stock: {
+    id: 'frostbound_stock',
+    name: 'Frostbound Stock',
+    description: 'Thala can keep Gludin supplied if someone brings back coldproof reagents before the caravans stall.',
+    npcId: 'general_goods_thala',
+    minLevel: 18,
+    stages: [
+      {
+        id: 'take_thalas_list',
+        description: 'Take Thala\'s list of coldproof reagents.',
+        objective: { kind: 'talk', npcId: 'general_goods_thala' },
+      },
+      {
+        id: 'thin_frost_wolves',
+        description: 'Defeat 6 frost wolves in the Frozen Tundra.',
+        objective: { kind: 'kill', enemyType: 'frost_wolf', count: 6 },
+      },
+      {
+        id: 'crack_ice_elementals',
+        description: 'Crack 4 ice elementals for their clear cores.',
+        objective: { kind: 'kill', enemyType: 'ice_elemental', count: 4 },
+      },
+      {
+        id: 'deliver_coldproof_reagents',
+        description: 'Bring the coldproof reagents back to Thala.',
+        objective: { kind: 'talk', npcId: 'general_goods_thala' },
+      },
+    ],
+    reward: { xp: 3200, gold: 1050, items: [{ itemId: 'ice_essence', quantity: 4 }, { itemId: 'mana_potion', quantity: 5 }] },
+  },
+  quiet_trophies: {
+    id: 'quiet_trophies',
+    name: 'Quiet Trophies',
+    description: 'Oren wants proof from the quiet places: spirit ash, fey glass, and a sealed void knot.',
+    npcId: 'trophy_buyer_oren',
+    minLevel: 19,
+    stages: [
+      {
+        id: 'read_orens_ledger',
+        description: 'Read Oren\'s ledger of quiet trophies.',
+        objective: { kind: 'talk', npcId: 'trophy_buyer_oren' },
+      },
+      {
+        id: 'calm_spirit_guardians',
+        description: 'Defeat 4 spirit guardians in the Ethereal Gardens.',
+        objective: { kind: 'kill', enemyType: 'spirit_guardian', count: 4 },
+      },
+      {
+        id: 'scatter_ethereal_sprites',
+        description: 'Scatter 6 ethereal sprites before they reform.',
+        objective: { kind: 'kill', enemyType: 'ethereal_sprite', count: 6 },
+      },
+      {
+        id: 'seal_void_spawners',
+        description: 'Seal 3 void spawners in the Abyssal Depths.',
+        objective: { kind: 'kill', enemyType: 'void_spawner', count: 3 },
+      },
+      {
+        id: 'close_orens_ledger',
+        description: 'Return the quiet trophies to Oren.',
+        objective: { kind: 'talk', npcId: 'trophy_buyer_oren' },
+      },
+    ],
+    reward: { xp: 3600, gold: 1250, items: [{ itemId: 'ethereal_petal', quantity: 5 }, { itemId: 'abyssal_pearl', quantity: 2 }, { itemId: 'greater_health_potion', quantity: 5 }] },
+  },
   drowned_kingdom: {
     id: 'drowned_kingdom',
     name: 'The Drowned Kingdom',
