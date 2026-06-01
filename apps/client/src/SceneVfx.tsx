@@ -30,6 +30,7 @@ import {
 } from './vfx/spellFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
+import { ElementCharge } from './vfx/castFx';
 
 type SkillTheme = {
   core: string;
@@ -296,6 +297,7 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
       <group ref={coreRef}>
         <SpellCore element={theme.element} core={theme.core} glow={theme.glow} radius={0.46} spin={1.6} />
       </group>
+      {theme.element && <ElementCharge element={theme.element} glow={theme.glow} progress={progress} />}
     </group>
   );
 }
