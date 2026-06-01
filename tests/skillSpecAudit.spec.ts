@@ -46,6 +46,8 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'teleport',   // applySkillEffects → recall to village
   'knockback',     // §45.4 — applyKnockback pushes target along caster→target vector
   'waterWeakness', // §45.4 — elementVulnerabilityMultiplier amplifies water-element casts
+  'marked',        // marker consumed by the reaction layer for ranger payoffs
+  'arcaneCharge',  // marker consumed by the reaction layer for arcane payoffs
 ]);
 
 /**

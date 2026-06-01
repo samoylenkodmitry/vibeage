@@ -97,8 +97,8 @@ function reactionSetupExercise(scenario: PveScenarioDefinition & { specializatio
     enemyHealthFraction: 0.45,
     enemyHealthMultiplier: 26,
     enemyDamageMultiplier: 0.25,
-    targetEffects: ['burn', 'dot', 'freeze', 'poison', 'slow', 'stun', 'taunt', 'waterWeakness'],
-    casterEffects: ['invisible'],
+    targetEffects: ['burn', 'dot', 'freeze', 'marked', 'poison', 'slow', 'stun', 'taunt', 'waterWeakness'],
+    casterEffects: ['arcaneCharge', 'invisible'],
     timeoutMs: DEFAULT_FOCUS_TIMEOUT_MS,
   };
 }

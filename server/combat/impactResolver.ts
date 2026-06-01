@@ -43,6 +43,7 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'heal',
   'shield',
   'bless',
+  'arcaneCharge',
   'dispel',
   'evasion',
   'invisible',

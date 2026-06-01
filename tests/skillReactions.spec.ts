@@ -21,10 +21,11 @@ describe('skill reactions', () => {
   });
 
   it('iceBolt consumes water weakness into a flash freeze', () => {
-    const { target } = hitEnemy('iceBolt', [effect('waterWeakness', { id: 'wet' })]);
+    const { caster, target } = hitEnemy('iceBolt', [effect('waterWeakness', { id: 'wet' })]);
 
     expect(target.statusEffects.find((effect) => effect.type === 'waterWeakness')).toBeUndefined();
     expect(target.statusEffects.find((effect) => effect.type === 'freeze')?.durationMs).toBe(1200);
+    expect(caster.statusEffects.find((effect) => effect.type === 'arcaneCharge')).toBeDefined();
   });
 
   it('bash consumes bleed stacks for a harder longer shield stun', () => {
@@ -51,7 +52,42 @@ describe('skill reactions', () => {
     expect(reacted.damageTaken).toBeGreaterThan(baseline.damageTaken);
     expect(reacted.target.statusEffects.find((effect) => effect.type === 'slow')).toBeDefined();
   });
+});
 
+describe('skill reaction marker payoffs', () => {
+  it('arcane blast spends arcane charges for stack-scaled burst', () => {
+    const baseline = hitEnemy('arcane_blast', []);
+    const reacted = hitEnemy('arcane_blast', [], [
+      effect('arcaneCharge', { id: 'charge', stacks: 2 }),
+    ]);
+
+    expect(reacted.damageTaken).toBeGreaterThan(baseline.damageTaken * 1.45);
+    expect(reacted.caster.statusEffects.find((effect) => effect.type === 'arcaneCharge')).toBeUndefined();
+  });
+
+  it('arcane supremacy spends arcane charges and grants overflow shield', () => {
+    const baseline = hitEnemy('arcane_supremacy', []);
+    const reacted = hitEnemy('arcane_supremacy', [], [
+      effect('arcaneCharge', { id: 'charge', stacks: 3 }),
+    ]);
+
+    expect(reacted.damageTaken).toBeGreaterThan(baseline.damageTaken * 1.9);
+    expect(reacted.caster.statusEffects.find((effect) => effect.type === 'arcaneCharge')).toBeUndefined();
+    expect(reacted.caster.statusEffects.find((effect) => effect.type === 'shield')?.value).toBe(180);
+  });
+
+  it('ranger barrages consume mark into control windows', () => {
+    const volley = hitEnemy('volley', [effect('marked', { id: 'mark' })]);
+    const aimed = hitEnemy('aimed_volley', [effect('marked', { id: 'mark' })]);
+
+    expect(volley.target.statusEffects.find((effect) => effect.type === 'marked')).toBeUndefined();
+    expect(volley.target.statusEffects.find((effect) => effect.type === 'slow')?.durationMs).toBe(4500);
+    expect(aimed.target.statusEffects.find((effect) => effect.type === 'marked')).toBeUndefined();
+    expect(aimed.target.statusEffects.find((effect) => effect.type === 'slow')?.durationMs).toBe(6000);
+  });
+});
+
+describe('skill reactions utility interactions', () => {
   it('backstab consumes stealth and poison for opener burst', () => {
     const baseline = hitEnemy('backstab', []);
     const reacted = hitEnemy(

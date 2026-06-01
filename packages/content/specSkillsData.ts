@@ -88,10 +88,11 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   },
   shadow_strike: {
     id: 'shadow_strike', name: 'Shadow Strike',
-    description: 'A melee strike that bypasses normal defenses.',
+    description: 'Blink through the target and strike from the far side, bypassing normal defenses.',
     icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'physical',
     manaCost: 25, castMs: 500, cooldownMs: 10000, dmg: 240, range: 4,
     levelRequired: 20, requiresTarget: true,
+    blink: { offset: 1.5 },
     // B12 — ignores up to 500 P.Def/M.Def (most armor).
     offense: { armorPen: 500 },
     effects: [{ type: 'damage', value: 240 }],
@@ -132,7 +133,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   // ---- Proficiency skills (Lv 40 unlock) ----
   arcane_supremacy: {
     id: 'arcane_supremacy', name: 'Arcane Supremacy',
-    description: 'Devastating spell only true arcanists can wield.',
+    description: 'Devastating spell that spends banked Arcane Charges for overflow burst.',
     icon: '/game/skills/skill_fireball.png', cat: 'projectile', kind: 'magical',
     manaCost: 80, castMs: 1800, cooldownMs: 25000, dmg: 520, range: 28,
     levelRequired: 40, requiresTarget: true,
@@ -177,7 +178,7 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   },
   aimed_volley: {
     id: 'aimed_volley', name: 'Aimed Volley',
-    description: 'A perfectly placed barrage of arrows.',
+    description: 'A perfectly placed barrage of arrows that cashes out Marked targets.',
     icon: '/game/skills/skill_melee.svg', cat: 'projectile', kind: 'physical',
     manaCost: 55, castMs: 1500, cooldownMs: 25000, dmg: 380, range: 30, area: 4,
     levelRequired: 40, requiresTarget: false,

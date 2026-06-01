@@ -33,6 +33,10 @@ describe('specialization AI policy registry', () => {
   it('uses specialization-specific tactical choices', () => {
     expect(firstCastSkill('arcanist', 20, { targetEffects: [effect('waterWeakness')] })).toBe('iceBolt');
     expect(firstCastSkill('arcanist', 20, { targetEffects: [effect('freeze')] })).toBe('arcane_blast');
+    expect(firstCastSkill('arcanist', 20, { casterEffects: [effect('arcaneCharge')] })).toBe('arcane_blast');
+    expect(firstCastSkill('arcanist', 40, { casterEffects: [effect('arcaneCharge')] })).toBe('arcane_supremacy');
+    expect(firstCastSkill('hawkeye', 20, { targetEffects: [effect('marked')] })).toBe('volley');
+    expect(firstCastSkill('hawkeye', 40, { targetEffects: [effect('marked')] })).toBe('aimed_volley');
     expect(firstCastSkill('pyromancer', 20, { targetEffects: [effect('burn')] })).toBe('meteor');
     expect(firstCastSkill('cardinal', 20, { healthFraction: 0.7 })).toBe('greater_heal');
     expect(firstCastSkill('treasure_hunter', 20, { targetHealthFraction: 0.4 })).toBe('lucky_strike');
@@ -53,7 +57,7 @@ describe('specialization AI simulator coverage', () => {
 function firstCastSkill(
   specializationId: SpecializationId,
   level: number,
-  options: { targetEffects?: StatusEffect[]; targetHealthFraction?: number; healthFraction?: number } = {},
+  options: { targetEffects?: StatusEffect[]; casterEffects?: StatusEffect[]; targetHealthFraction?: number; healthFraction?: number } = {},
 ): SkillId | undefined {
   const spec = SPECIALIZATIONS[specializationId];
   const player = createSimProfilePlayer({
@@ -64,6 +68,7 @@ function firstCastSkill(
     position: { x: 0, z: 0 },
   });
   player.health = Math.floor(player.maxHealth * (options.healthFraction ?? 1));
+  player.statusEffects = options.casterEffects ?? [];
   const target = createSimulatedEnemy('goblin', level, { id: `${specializationId}-target`, position: { x: 3, z: 0 }, healthMultiplier: 8 });
   target.health = Math.floor(target.maxHealth * (options.targetHealthFraction ?? 1));
   target.statusEffects = options.targetEffects ?? [];

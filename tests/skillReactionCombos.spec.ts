@@ -14,7 +14,9 @@ const NOW = 1_700_000_000_000;
 describe('expanded skill reaction combos', () => {
   it('attaches reactions centrally across base and specialization skills', () => {
     expect(SKILLS.powerStrike.reactions?.map((reaction) => reaction.id)).toEqual(['shatter_stun']);
-    expect(SKILLS.arcane_blast.reactions?.map((reaction) => reaction.id)).toEqual(['arcane_shatter']);
+    expect(SKILLS.arcane_blast.reactions?.map((reaction) => reaction.id)).toEqual(['arcane_shatter', 'charged_arcana']);
+    expect(SKILLS.arcane_supremacy.reactions?.map((reaction) => reaction.id)).toEqual(['arcane_overflow']);
+    expect(SKILLS.aimed_volley.reactions?.map((reaction) => reaction.id)).toEqual(['kill_zone']);
     expect(SKILLS.soul_eater.reactions?.map((reaction) => reaction.id)).toEqual(['dark_feast']);
   });
 

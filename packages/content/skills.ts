@@ -47,9 +47,11 @@ export type SkillEffectType =
   | 'burn'   // burn damage over time
   | 'poison' // poison damage over time
   | 'waterWeakness' // increases water damage taken
+  | 'marked' // target marker consumed by precision follow-ups
   | 'freeze'
   | 'shield'   // damage absorption
   | 'bless'    // damage / hit buff
+  | 'arcaneCharge' // caster marker consumed by arcane payoffs
   | 'dispel'   // remove negative effects
   | 'taunt'    // forced aggro
   | 'knockback'
@@ -63,10 +65,10 @@ export type SkillEffectType =
  *  (harmful if any HARMFUL_EFFECTS, else beneficial if any BENEFICIAL,
  *  else neutral). Ctrl force-cast bypasses it. */
 const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness',
+  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness', 'marked',
 ]);
 const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'heal', 'shield', 'bless', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'aggroReset',
+  'heal', 'shield', 'bless', 'arcaneCharge', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'aggroReset',
 ]);
 
 export type SkillAlignment = 'harmful' | 'beneficial' | 'neutral';
@@ -536,7 +538,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   arrowShot: {
     id: 'arrowShot',
     name: 'Arrow Shot',
-    description: 'A swift arrow with a wide impact. Slowed targets are easier to line up and take extra damage.',
+    description: 'A swift arrow with a wide impact. It marks the target so heavier shots can cash in the opening.',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'projectile',
     kind: 'physical',
@@ -555,7 +557,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     autoRepeat: true,
     levelRequired: 1,
     requiresTarget: true,
-    effects: [{ type: 'damage', value: 60 }],
+    effects: [{ type: 'damage', value: 60 }, { type: 'marked', value: 1, durationMs: 8000 }],
     projectile: { speed: 36, hitRadius: 0.9, splashRadius: 2.5 },
     upgrades: [
       { level: 2, description: '+20% damage', modifiers: { dmgMultiplier: 1.2 } },
@@ -566,7 +568,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
   volley: {
     id: 'volley',
     name: 'Volley',
-    description: 'Loose three arrows that pierce through their targets',
+    description: 'Loose three arrows that pierce through their targets. Marked targets are pinned for a snipe window.',
     icon: '/game/skills/skill_ranged.svg',
     cat: 'projectile',
     kind: 'physical',

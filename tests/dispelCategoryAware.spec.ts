@@ -26,7 +26,7 @@ import type { PlayerState } from '../packages/sim/entities';
 describe('dispelTargetSet — static category → effect-type map', () => {
   it('negative covers the pre-§52 fixed set', () => {
     const set = dispelTargetSet('negative');
-    for (const type of ['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'waterWeakness']) {
+    for (const type of ['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'waterWeakness', 'marked']) {
       expect(set.has(type)).toBe(true);
     }
     // Sanity: buffs are not in the negative set.
@@ -35,7 +35,7 @@ describe('dispelTargetSet — static category → effect-type map', () => {
   });
   it('positive covers every purgeable buff', () => {
     const set = dispelTargetSet('positive');
-    for (const type of ['heal', 'shield', 'bless', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']) {
+    for (const type of ['heal', 'shield', 'bless', 'arcaneCharge', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']) {
       expect(set.has(type)).toBe(true);
     }
     expect(set.has('stun')).toBe(false);
@@ -129,10 +129,10 @@ function runDispelWith(
 
 describe('resolveCastImpact — category-aware dispel end-to-end', () => {
   it("default ('negative') strips the same fixed set as pre-§52 (regression net)", () => {
-    expect(runDispelWith(undefined, ['slow', 'stun', 'burn', 'bless', 'heal'])).toEqual(['bless', 'heal']);
+    expect(runDispelWith(undefined, ['slow', 'stun', 'burn', 'marked', 'bless', 'heal'])).toEqual(['bless', 'heal']);
   });
   it("'positive' strips only buffs (anti-buff purge)", () => {
-    expect(runDispelWith('positive', ['slow', 'bless', 'shield', 'evasion', 'attackSpeed'])).toEqual(['slow']);
+    expect(runDispelWith('positive', ['slow', 'bless', 'arcaneCharge', 'shield', 'evasion', 'attackSpeed'])).toEqual(['slow']);
   });
   it("'poison' strips only poison + dot — leaves burn + stun in place", () => {
     expect(runDispelWith('poison', ['poison', 'dot', 'burn', 'stun'])).toEqual(['burn', 'stun']);
