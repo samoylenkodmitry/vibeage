@@ -9,6 +9,12 @@ import {
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
+import {
+  freezeEntityPhysics,
+  isEntityPhysicsFrozen,
+  isPointPhysicsFrozen,
+  pruneExpiredAreaPhysicsFields,
+} from '../physics/areaPhysics.js';
 
 const MAX_HISTORY_AGE_MS = 500;
 const DEFAULT_PLAYER_SPEED = 20;
@@ -82,12 +88,16 @@ export function advanceAll(
   now: number,
   outbound?: OutboundEventSink,
 ): void {
+  pruneExpiredAreaPhysicsFields(state.activePhysicsFields, now);
+
   for (const player of Object.values(state.players)) {
     // Polish bug fix — dead player's in-flight motion freezes at the
     // death position; without this gate a player who died mid-sprint
     // kept gliding toward their old target until they reached it,
     // dirtying snapshot deltas and confusing spatial queries.
-    if (player.isAlive && player.movement?.isMoving && player.movement?.targetPos) {
+    if (player.isAlive && isEntityPhysicsFrozen(player, state.activePhysicsFields, now)) {
+      freezeEntityPhysics(player, now);
+    } else if (player.isAlive && player.movement?.isMoving && player.movement?.targetPos) {
       advancePlayerPosition(player, spatial, deltaTimeMs, now);
     }
     if (pruneExpiredStatusEffects(player, now)) {
@@ -106,7 +116,11 @@ export function advanceAll(
       continue;
     }
 
-    advanceEnemyPosition(enemy, spatial, deltaTimeMs, now);
+    if (isEntityPhysicsFrozen(enemy, state.activePhysicsFields, now)) {
+      freezeEntityPhysics(enemy, now);
+    } else {
+      advanceEnemyPosition(enemy, spatial, deltaTimeMs, now);
+    }
     if (pruneExpiredStatusEffects(enemy, now) && outbound) {
       emitEnemyUpdated(outbound, enemy);
     }
@@ -159,6 +173,15 @@ export function createPredictionKeyframes({
   const predictions: PredictionKeyframe[] = [];
 
   for (const offsetMs of offsetsMs) {
+    if (isPointPhysicsFrozen(currentPos, state.activePhysicsFields, timestamp + offsetMs, entity.id)) {
+      predictions.push({
+        pos: { ...currentPos },
+        rotY: currentRotY,
+        ts: timestamp + offsetMs,
+      });
+      continue;
+    }
+
     const predictedState = predictEntityStateAtOffset(entity, currentPos, currentVel, currentRotY, offsetMs, state);
     const reachedTarget = maybePushReachedTargetPrediction(entity, currentPos, predictedState.rotY, timestamp, offsetMs, predictions);
 

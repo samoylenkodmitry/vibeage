@@ -7,6 +7,7 @@ import type {
 } from '../packages/sim/authoritativeState.js';
 import type { Enemy, PlayerState } from '../packages/sim/entities.js';
 import type { Cast } from './combat/skillSystem.js';
+import type { AreaPhysicsField } from './physics/areaPhysics.js';
 
 export type GroundLootStack = AuthoritativeGroundLootStack<ItemDrop> & {
   position: VecXZ;
@@ -19,7 +20,9 @@ export type GameState = AuthoritativeWorldState<
   Cast,
   PlayerState['statusEffects'][number],
   GroundLootStack
->;
+> & {
+  activePhysicsFields: Record<string, AreaPhysicsField>;
+};
 
 export function createGameState(): GameState {
   return {
@@ -28,6 +31,7 @@ export function createGameState(): GameState {
     activeCasts: {},
     effectsByTarget: {},
     projectiles: [],
+    activePhysicsFields: {},
     lastProjectileId: 0,
     groundLoot: {},
     zones: {

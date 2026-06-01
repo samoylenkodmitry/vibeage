@@ -17,6 +17,10 @@ export function createCombatWorld(
     getEntitiesInCircle: getEntitiesInCircleImpl ?? ((pos: VecXZ, radius: number) => getEntitiesInCircle(state, pos, radius)),
     onTargetDied,
     spawnMinion,
+    addPhysicsField: (field) => {
+      state.activePhysicsFields[field.id] = field;
+    },
+    getActivePhysicsFields: () => Object.values(state.activePhysicsFields),
   };
 }
 

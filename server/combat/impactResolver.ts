@@ -26,6 +26,7 @@ import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 import { dispelTargetSet, incomingMissChance } from './statusQueries.js';
 import { applyResolvedDamageToTarget } from './damageResolution.js';
 import { emitCombatantUpdated } from './combatantUpdateEmitter.js';
+import { addTimeStopFieldFromCast, isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 
 type ImpactContext = {
   // The real caster — a player OR a mob. Player-only legs (lifesteal,
@@ -120,6 +121,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const context = { caster, skill, upgradeMods, outbound, world };
 
   const targets = resolveCastTargets(cast, world, skill, playerCaster, upgradeMods);
+  addTimeStopFieldFromCast(cast, skill, world, now);
   // §45.3 — Bless's damage multiplier is folded into `caster.stats.dmgMult`
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
@@ -529,7 +531,9 @@ function applySkillEffects(
       continue;
     }
     if (effect.type === 'knockback') {
-      applyKnockback(target, caster, effect.value, now);
+      if (!isEntityPhysicsFrozen(target, world.getActivePhysicsFields?.(), now)) {
+        applyKnockback(target, caster, effect.value, now);
+      }
       continue;
     }
     upsertStatusEffect(target, effect, skill.id, caster, now);
