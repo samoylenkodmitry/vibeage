@@ -129,3 +129,29 @@ describe('tickDamageOverTimeEffects — DoT kill credit', () => {
     expect(enemy.isAlive).toBe(false);
   });
 });
+
+describe('tickDamageOverTimeEffects — DoT death broadcast', () => {
+  it('broadcasts the enemy death so clients stop showing a DoT-killed enemy alive', () => {
+    // Regression: handleTargetDeath flips isAlive server-side but does not emit;
+    // the dotTicker must broadcast the death itself or clients keep rendering
+    // the poison-killed enemy as alive.
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const caster = createTransientPlayer('socket-caster', 'CasterMage');
+    state.players[caster.id] = caster;
+
+    const enemy = createEnemy('goblin', 1, { x: 0, y: 0.5, z: 0 }, NOW);
+    enemy.health = 5;
+    enemy.statusEffects = [burnEffect(50, { sourceCasterId: caster.id })];
+    state.enemies[enemy.id] = enemy;
+    spatial.insert(enemy.id, { x: 0, z: 0 });
+
+    const { events, sink } = captureOutbound();
+    tickDamageOverTimeEffects(state, spatial, sink, NOW + DOT_TICK_INTERVAL_MS);
+
+    const deathEvent = events.find(
+      (e) => e.type === 'enemyUpdated' && e.update.id === enemy.id && e.update.isAlive === false,
+    );
+    expect(deathEvent).toBeDefined();
+  });
+});

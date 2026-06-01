@@ -97,6 +97,11 @@ export function tickDamageOverTimeEffects(
         : null;
       if (caster) {
         handleTargetDeath(caster, enemy, { state, spatial, outbound, now });
+        // handleTargetDeath flips the enemy dead + fans out rewards, but does
+        // NOT broadcast the enemy's death — and the `continue` skips the loop's
+        // trailing emit. Without this, a DoT-killed enemy stays shown alive on
+        // every client (direct-damage kills emit via the hit path instead).
+        emitEnemyUpdated(outbound, { id: enemy.id, health: enemy.health, isAlive: enemy.isAlive, deathTimeTs: enemy.deathTimeTs });
         continue;
       }
       // No caster (legacy untracked DoT or caster disconnected
