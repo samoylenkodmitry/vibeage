@@ -6,7 +6,7 @@ import {
   type ItemDrop,
   type ServerMessage,
 } from '../../../packages/protocol/messages';
-import { addCombatDamageVisualEvents, combatLogTone, type CombatLogLineParts } from './combatFeedback';
+import { addCombatDamageVisualEvents, appliedEffectLabels, casterPrefix, combatLogTone, type CombatLogLineParts } from './combatFeedback';
 import type { CombatLine, GameClientState, Vec3 } from './gameTypes';
 import { normalizeVec3 } from './vec3';
 import { addVisualEvent, pruneVisualEvents } from './visualEventState';
@@ -26,6 +26,7 @@ export function applyCombatLogVisualState(
 
   const parts = {
     skillId: message.skillId,
+    casterId: message.casterId,
     targets: message.targets,
     damages: message.damages,
     crits: message.crits,
@@ -616,27 +617,29 @@ export function applyPlayerLevelUpFeedback(
 export type { CombatLogLineParts } from './combatFeedback';
 
 export function formatCombatLogLine(state: GameClientState, parts: CombatLogLineParts): string {
-  const { skillId, targets: targetIds, damages, crits, misses, heals } = parts;
+  const { skillId, casterId, targets: targetIds, damages, crits, misses, heals } = parts;
   const skillName = getSkillName(skillId);
+  const who = casterPrefix(state, casterId);
   const firstTarget = state.enemies[targetIds[0]]?.name ?? state.players[targetIds[0]]?.name;
   const targetText = firstTarget ? ` ${firstTarget}` : ` ${targetIds.length} target(s)`;
-  // §52 #6 — every target dodged: surface the miss, not "hit for 0".
+  // §52 #6 — every target dodged: surface the miss (a whiff applies no effect).
   const allMissed = !!misses && misses.length > 0 && misses.every(Boolean);
   if (allMissed) {
-    return `${skillName} missed${targetText}`;
+    return `${who}${skillName} missed${targetText}`;
   }
   const totalDamage = damages.reduce((sum, damage) => sum + damage, 0);
   const totalHeal = heals?.reduce((sum, h) => sum + h, 0) ?? 0;
   // Pure heal: no damage, positive heal → name the restore.
   if (totalDamage <= 0 && totalHeal > 0) {
-    return `${skillName} healed${targetText} for ${Math.round(totalHeal)}`;
+    return `${who}${skillName} healed${targetText} for ${Math.round(totalHeal)}`;
   }
-  // A non-damaging skill that landed is a buff / utility — name what
-  // was applied rather than printing it as a "0 damage" hit.
+  const labels = appliedEffectLabels(skillId);
+  // A non-damaging skill that landed is a buff / utility — name what was applied.
   const skillDef = getSkillDef(skillId);
   if (totalDamage <= 0 && !(skillDef?.dmg && skillDef.dmg > 0)) {
     const beneficial = classifySkill(skillDef?.effects ?? []) === 'beneficial';
-    return beneficial ? `${skillName} applied` : `${skillName} cast${targetText}`;
+    if (beneficial && labels.length) return `${who}${skillName} applied ${labels.join(', ')}`;
+    return beneficial ? `${who}${skillName} applied` : `${who}${skillName} cast${targetText}`;
   }
   // One "(crit!)" suffix per cast (aggregate, so AOE doesn't repeat it).
   const critSuffix = crits?.some(Boolean) ? ' (crit!)' : '';
@@ -646,7 +649,8 @@ export function formatCombatLogLine(state: GameClientState, parts: CombatLogLine
   // §52 #6 — mixed-effect skill (rare; e.g. a vampiric strike that
   // damages an enemy AND heals the caster on the same cast).
   const healSuffix = totalHeal > 0 ? ` (+${Math.round(totalHeal)} healed)` : '';
-  return `${skillName} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}${missSuffix}${healSuffix}`;
+  const effectSuffix = labels.length ? ` (applied ${labels.join(', ')})` : ''; // "changed what"
+  return `${who}${skillName} hit${targetText} for ${Math.round(totalDamage)} damage${critSuffix}${missSuffix}${healSuffix}${effectSuffix}`;
 }
 
 function formatEnemyAttackLine(
