@@ -28,17 +28,16 @@ const CHARGE_MODE: Record<SpellElement, ChargeMode> = {
 export function ElementCharge({ element, glow, progress }: { element: SpellElement; glow: string; progress: number }) {
   const mode = CHARGE_MODE[element];
   const group = useRef<THREE.Group>(null);
-  const progressRef = useRef(progress);
-  progressRef.current = progress;
 
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
   useEffect(() => { mat.color.set(glow); }, [glow, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
 
+  // useFrame runs the latest render's closure, so `progress` is always current.
   useFrame(({ clock }) => {
     const g = group.current; if (!g) return;
     const time = clock.elapsedTime;
-    const p = progressRef.current;
+    const p = progress;
     g.children.forEach((c, i) => {
       const m = MOTES[i]; if (!m) return;
       if (mode === 'spike') {
