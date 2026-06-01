@@ -22,8 +22,8 @@ export function createWorldCombatBridge(
     state,
     (caster, target, now) => handleTargetDeath(caster, target, { state, spatial, outbound, now }),
     (pos, radius) => queryAliveSpatialEntities(state, spatial, pos, radius),
-    (type, level, pos, now) => {
-      const minion = createEnemy(type, level, pos, now);
+    (type, level, pos, now, options) => {
+      const minion = createEnemy(type, level, pos, now, options);
       state.enemies[minion.id] = minion;
       spatial.insert(minion.id, { x: pos.x, z: pos.z });
     },

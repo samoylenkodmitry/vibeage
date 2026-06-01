@@ -17,8 +17,6 @@ import {
   type PreparedSkillReaction,
 } from './skillReactions.js';
 import {
-  emitEnemyUpdated,
-  emitPlayerUpdated,
   emitServerMessage,
   type OutboundEventSink,
 } from '../transport/outboundEvents.js';
@@ -27,6 +25,7 @@ import type { CombatWorld } from './worldContract.js';
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 import { dispelTargetSet, incomingMissChance } from './statusQueries.js';
 import { applyResolvedDamageToTarget } from './damageResolution.js';
+import { emitCombatantUpdated } from './combatantUpdateEmitter.js';
 
 type ImpactContext = {
   // The real caster — a player OR a mob. Player-only legs (lifesteal,
@@ -49,6 +48,7 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'invisible',
   'speed_boost',
   'attackSpeed',
+  'damageReflect',
   'reveal_loot',
   // Escape: counts as beneficial so the impact resolver self-targets
   // the caster instead of demanding an enemy in range.
@@ -423,7 +423,23 @@ function applyCastToTarget(
   // with a damage component are rare and read as physical).
   const damageKind = skill.kind === 'magical' ? 'magical' : 'physical';
   // B12 — armor-pen skills (Shadow Strike / Shadow Arrow) ignore part of the target's defense.
-  const incoming = applyResolvedDamageToTarget(target, damage, now, { kind: damageKind, penetration: skill.offense?.armorPen ?? 0 });
+  const reflectedTargets: Array<Enemy | PlayerState> = [];
+  const incoming = applyResolvedDamageToTarget(target, damage, now, {
+    kind: damageKind,
+    penetration: skill.offense?.armorPen ?? 0,
+    source: caster,
+    onDamageReflected: ({ reflectedTarget }) => {
+      reflectedTargets.push(reflectedTarget);
+    },
+  });
+
+  for (const reflectedTarget of reflectedTargets) {
+    if (reflectedTarget.health <= 0 && reflectedTarget.isAlive) {
+      reflectedTarget.deathTimeTs = now;
+      world.onTargetDied(target, reflectedTarget, now);
+    }
+    emitCombatantUpdated(outbound, reflectedTarget);
+  }
 
   // §45.3 follow-up — Dark Avenger Sanguine Blade lifesteal, plus
   // B11 per-skill lifesteal (Soul Eater): restore a fraction of the
@@ -441,7 +457,7 @@ function applyCastToTarget(
   // Damage-based aggro: don't retarget while a taunt is active — that
   // would let any other attacker break the taunt by hitting the mob,
   // defeating the whole point of the skill.
-  if (isEnemy(target) && incoming > 0 && caster && target.isAlive && !isEntityTaunted(target, now)) {
+  if (isEnemy(target) && incoming > 0 && caster?.isAlive && target.isAlive && !isEntityTaunted(target, now)) {
     target.targetId = caster.id;
     target.aiState = 'chasing';
   }
@@ -462,22 +478,7 @@ function applyCastToTarget(
     effects: target.statusEffects,
   });
 
-  if (isEnemy(target)) {
-    emitEnemyUpdated(outbound, target);
-  } else {
-    // PvP: broadcast the player's health change immediately so other
-    // clients see the damage right away instead of waiting for the
-    // next tick-pipeline snapshot.
-    emitPlayerUpdated(outbound, {
-      id: target.id,
-      health: target.health,
-      isAlive: target.isAlive,
-      deathTimeTs: target.deathTimeTs,
-      statusEffects: target.statusEffects,
-      stats: target.stats, maxHealth: target.maxHealth, maxMana: target.maxMana,
-      position: target.position,
-    });
-  }
+  emitCombatantUpdated(outbound, target);
   return healApplied;
 }
 

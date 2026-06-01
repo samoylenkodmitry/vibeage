@@ -35,6 +35,14 @@ describe('selectShapeTargets — generic AOE shapes', () => {
     expect(hits.map((h) => h.id)).toEqual(['near']);
   });
 
+  it('target-anchored circles resolve around the target even without a telegraph lock', () => {
+    const mobs = [mob('primary', 20, 0), mob('near-target', 23, 0), mob('near-caster', 3, 0)];
+    const shape = { kind: 'circle', radius: 5, anchor: 'target' } as const;
+    const cast = castAt({ x: 0, z: 0 }, { targetId: 'primary', target: { x: 20, z: 0 } });
+    const hits = selectShapeTargets(cast, shape, shaped(shape), worldOf([caster, ...mobs]), caster);
+    expect(hits.map((h) => h.id)).toEqual(['primary', 'near-target']);
+  });
+
   it('donut excludes the inner hole', () => {
     const mobs = [mob('inside', 2, 0), mob('ring', 6, 0), mob('outside', 12, 0)];
     const shape = { kind: 'donut', innerRadius: 4, outerRadius: 8 } as const;

@@ -139,6 +139,17 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     levelRequired: 40, requiresTarget: true,
     effects: [{ type: 'damage', value: 520 }],
   },
+  time_sphere: {
+    id: 'time_sphere', name: 'Time Sphere',
+    description: 'Collapse time around the target: every combatant caught inside is stopped, except the caster.',
+    icon: '/game/skills/skill-icon-arcane-supremacy.png', cat: 'aura', kind: 'utility',
+    manaCost: 75, castMs: 700, cooldownMs: 45000, range: 20, area: 5,
+    levelRequired: 40, requiresTarget: true,
+    role: 'control', school: 'arcane', scalingStat: 'int', targetMode: 'enemy', pveUse: ['pack', 'opener'],
+    shape: { kind: 'circle', radius: 5, anchor: 'target' },
+    affects: 'all',
+    effects: [{ type: 'timeStop', value: 1, durationMs: 3500 }],
+  },
   inferno_aura: {
     id: 'inferno_aura', name: 'Inferno Aura',
     description: 'A roaring fire surrounds you, burning everything near.',
@@ -210,6 +221,15 @@ export const SPEC_AND_PROFICIENCY_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     // B11 — heals the caster for 50% of the damage dealt.
     offense: { lifestealPct: 0.5 },
     effects: [{ type: 'damage', value: 280 }],
+  },
+  spectral_guard: {
+    id: 'spectral_guard', name: 'Spectral Guard',
+    description: 'Raise a vengeful guard that reflects a share of incoming damage back at attackers.',
+    icon: '/game/skills/skill-icon-holy-shield.png', cat: 'aura', kind: 'utility',
+    manaCost: 45, castMs: 0, cooldownMs: 35000, levelRequired: 40, isBlocking: false,
+    selfTarget: true,
+    role: 'tank', school: 'shadow', scalingStat: 'con', targetMode: 'self', pveUse: ['sustain', 'boss'],
+    effects: [{ type: 'damageReflect', value: 35, durationMs: 8000 }],
   },
   rebirth: {
     id: 'rebirth', name: 'Rebirth',

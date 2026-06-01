@@ -1,6 +1,7 @@
 import type { AbilityShape, AbilityAffects } from '../../packages/content/abilitySchema.js';
 import { classifySkill, type SkillDef } from '../../packages/content/skills.js';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
+import type { VecXZ } from '../../packages/protocol/messages.js';
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
 
@@ -62,7 +63,7 @@ export function selectShapeTargets(
   world: CombatWorld,
   caster: Combatant | null,
 ): Combatant[] {
-  const origin = cast.shapeOrigin ?? cast.pos ?? cast.origin;
+  const origin = shapeOrigin(cast, shape, world);
   const affects = skill.affects ?? inferAffects(skill);
   let dirRad = cast.shapeDirRad;
   if (shape.kind === 'cone' && dirRad === undefined) {
@@ -79,6 +80,17 @@ export function selectShapeTargets(
   return out;
 }
 
+function shapeOrigin(cast: Cast, shape: AbilityShape, world: CombatWorld): VecXZ {
+  if (cast.shapeOrigin) return cast.shapeOrigin;
+  if (shape.kind !== 'single' && shape.anchor === 'target') {
+    const target = cast.targetId ? (world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId)) : null;
+    if (target) return { x: target.position.x, z: target.position.z };
+    if (cast.target) return cast.target;
+    if (cast.targetPos) return cast.targetPos;
+  }
+  return cast.pos ?? cast.origin;
+}
+
 /**
  * Caster-side ability effects (docs/ABILITY_SYSTEM.md) resolved once per
  * cast on impact: blink (teleport behind the target) and summon (spawn
@@ -90,13 +102,14 @@ export function applyCasterEffects(caster: Combatant | null, cast: Cast, skill: 
   if (skill.blink) blinkBehindTarget(caster, cast, world, skill.blink.offset);
   if (skill.summon && world.spawnMinion) {
     const level = caster.level;
+    const { type, count, radius, ...options } = skill.summon;
     for (let i = 0; i < skill.summon.count; i += 1) {
-      const angle = (i / Math.max(1, skill.summon.count)) * Math.PI * 2;
-      world.spawnMinion(skill.summon.type, level, {
-        x: caster.position.x + Math.cos(angle) * skill.summon.radius,
+      const angle = (i / Math.max(1, count)) * Math.PI * 2;
+      world.spawnMinion(type, level, {
+        x: caster.position.x + Math.cos(angle) * radius,
         y: caster.position.y,
-        z: caster.position.z + Math.sin(angle) * skill.summon.radius,
-      }, now);
+        z: caster.position.z + Math.sin(angle) * radius,
+      }, now, options);
     }
   }
 }

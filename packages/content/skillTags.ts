@@ -109,9 +109,9 @@ function inferRole(skill: SkillDef): SkillRole {
   if (skill.id.startsWith('passive_')) return 'passive';
   const hasHeal = skill.effects?.some((e) => e.type === 'heal');
   if (hasHeal) return 'heal';
-  const hasShield = skill.effects?.some((e) => e.type === 'shield');
+  const hasShield = skill.effects?.some((e) => e.type === 'shield' || e.type === 'damageReflect');
   if (hasShield) return 'tank';
-  const hasCc = skill.effects?.some((e) => e.type === 'stun' || e.type === 'freeze' || e.type === 'taunt');
+  const hasCc = skill.effects?.some((e) => e.type === 'stun' || e.type === 'freeze' || e.type === 'timeStop' || e.type === 'taunt');
   if (hasCc && (skill.dmg ?? 0) === 0) return 'control';
   if (skill.dmg && skill.dmg > 0) return 'damage';
   return 'utility';

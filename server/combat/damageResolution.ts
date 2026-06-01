@@ -13,7 +13,21 @@ import { mitigatedDamage } from '../../packages/sim/combatMath.js';
 export type DamageResolveOpts = {
   kind?: 'physical' | 'magical' | 'none';
   penetration?: number;
+  /** Entity that caused this damage. Used by damageReflect buffs. */
+  source?: Enemy | PlayerState | null;
+  /** Internal guard so reflected damage does not recursively reflect. */
+  skipReflection?: boolean;
+  onDamageReflected?: (event: DamageReflectionEvent) => void;
 };
+
+export type DamageReflectionEvent = {
+  reflector: Enemy | PlayerState;
+  reflectedTarget: Enemy | PlayerState;
+  rawDamage: number;
+  appliedDamage: number;
+};
+
+const MAX_DAMAGE_REFLECT_FRACTION = 2;
 
 /**
  * Single defensive pipeline for *all* incoming damage — player casts
@@ -71,7 +85,39 @@ export function applyResolvedDamageToTarget(
   // passive recovery for a window — a combatant can't out-heal sustained
   // incoming damage just by standing there.
   if (incoming > 0) target.lastDamagedTs = now;
+  maybeReflectDamage(target, incoming, now, opts);
   return incoming;
+}
+
+function maybeReflectDamage(
+  reflector: Enemy | PlayerState,
+  incoming: number,
+  now: number,
+  opts: DamageResolveOpts,
+): void {
+  const reflectedTarget = opts.source;
+  if (opts.skipReflection || incoming <= 0 || !reflectedTarget?.isAlive) return;
+  if (reflectedTarget.id === reflector.id) return;
+  const fraction = activeDamageReflectFraction(reflector, now);
+  if (fraction <= 0) return;
+  const rawDamage = incoming * fraction;
+  const appliedDamage = applyResolvedDamageToTarget(reflectedTarget, rawDamage, now, {
+    kind: 'none',
+    skipReflection: true,
+  });
+  if (appliedDamage <= 0) return;
+  opts.onDamageReflected?.({ reflector, reflectedTarget, rawDamage, appliedDamage });
+}
+
+export function activeDamageReflectFraction(target: Enemy | PlayerState, now: number): number {
+  let totalPct = 0;
+  for (const effect of target.statusEffects ?? []) {
+    if (effect.type !== 'damageReflect') continue;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    if (expiresAt <= now) continue;
+    totalPct += Math.max(0, effect.value ?? 0);
+  }
+  return Math.min(MAX_DAMAGE_REFLECT_FRACTION, totalPct / 100);
 }
 
 // Relevant defense for a hit of `kind`. Enemies have no `stats`

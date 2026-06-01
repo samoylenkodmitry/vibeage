@@ -31,8 +31,23 @@ export type AbilityAffects = 'enemies' | 'allies' | 'self' | 'all';
  */
 export type AbilityTelegraph = { readonly windUpMs: number };
 
-/** Spawn `count` mobs of `type` around the caster on resolution. */
-export type SummonSpec = { readonly type: string; readonly count: number; readonly radius: number };
+/**
+ * Spawn `count` mobs of `type` around the caster on resolution.
+ *
+ * The optional multipliers/name fields let designers build illusion or
+ * decoy-style summons as content data: low-health, low-damage, no-XP/no-loot
+ * copies can use the same spawn resolver as ordinary boss minions.
+ */
+export type SummonSpec = {
+  readonly type: string;
+  readonly count: number;
+  readonly radius: number;
+  readonly namePrefix?: string;
+  readonly healthMultiplier?: number;
+  readonly damageMultiplier?: number;
+  readonly experienceMultiplier?: number;
+  readonly lootTableIdOverride?: string;
+};
 
 /** Move the caster to `offset` units behind the (locked) target on resolution. */
 export type BlinkSpec = { readonly offset: number };

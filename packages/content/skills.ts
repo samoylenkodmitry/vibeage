@@ -14,9 +14,9 @@ export const SKILL_IDS = [
   'holy_shield', 'shadow_strike', 'phoenix_ward', 'sacred_pulse',
   'lucky_strike', 'wind_dash',
   // Proficiency skills (PROFICIENCY_LEVEL = Lv 40).
-  'arcane_supremacy', 'inferno_aura', 'blood_frenzy', 'killing_strike',
+  'arcane_supremacy', 'time_sphere', 'inferno_aura', 'blood_frenzy', 'killing_strike',
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
-  'divine_taunt', 'soul_eater', 'rebirth', 'sacred_aura',
+  'divine_taunt', 'soul_eater', 'spectral_guard', 'rebirth', 'sacred_aura',
   'treasure_sense', 'stalking_arrow',
   // PR PP — class passives (auto + learnable).
   'passive_arcane_focus', 'passive_battle_hardened', 'passive_serenity',
@@ -49,7 +49,9 @@ export type SkillEffectType =
   | 'waterWeakness' // increases water damage taken
   | 'marked' // target marker consumed by precision follow-ups
   | 'freeze'
+  | 'timeStop'
   | 'shield'   // damage absorption
+  | 'damageReflect' // reflects a percentage of post-mitigation incoming damage
   | 'bless'    // damage / hit buff
   | 'arcaneCharge' // caster marker consumed by arcane payoffs
   | 'dispel'   // remove negative effects
@@ -65,10 +67,10 @@ export type SkillEffectType =
  *  (harmful if any HARMFUL_EFFECTS, else beneficial if any BENEFICIAL,
  *  else neutral). Ctrl force-cast bypasses it. */
 const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'taunt', 'knockback', 'waterWeakness', 'marked',
+  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'timeStop', 'taunt', 'knockback', 'waterWeakness', 'marked',
 ]);
 const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'heal', 'shield', 'bless', 'arcaneCharge', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'aggroReset',
+  'heal', 'shield', 'damageReflect', 'bless', 'arcaneCharge', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'aggroReset',
 ]);
 
 export type SkillAlignment = 'harmful' | 'beneficial' | 'neutral';
