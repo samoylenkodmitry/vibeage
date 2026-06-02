@@ -123,27 +123,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {navigationMarker && myPlayer && (
         <NavigationArrow marker={navigationMarker} player={myPlayer.position} />
       )}
-      {Object.values(state.players).map((player) => (
-        <PlayerMarker
-          key={player.id}
-          player={player}
-          isSelf={player.id === state.myPlayerId}
-          isSelected={player.id === state.selectedTargetId}
-          presentationRef={player.id === state.myPlayerId ? cameraAnchorRef : undefined}
-          equipment={player.id === state.myPlayerId ? state.equipment : undefined}
-          onSelect={onSelectTarget}
-          onAttack={onAttackTarget}
-        />
-      ))}
-      {Object.values(state.enemies).map((enemy) => (
-        <EnemyMarker
-          key={enemy.id}
-          enemy={enemy}
-          isSelected={enemy.id === state.selectedTargetId}
-          onSelect={onSelectTarget}
-          onAttack={onAttackTarget}
-        />
-      ))}
+      <WorldEntityMarkers state={state} activeTimeFields={activeTimeFields} now={now} cameraAnchorRef={cameraAnchorRef} onSelectTarget={onSelectTarget} onAttackTarget={onAttackTarget} />
       <NpcMarkers />
 
       <WorldLootMarkers state={state} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} activeTimeFields={activeTimeFields} now={now} />
@@ -164,6 +144,52 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
 }
 
 type ActiveTimeFieldMap = GameClientState['activePhysicsFields'];
+
+function WorldEntityMarkers({
+  state,
+  activeTimeFields,
+  now,
+  cameraAnchorRef,
+  onSelectTarget,
+  onAttackTarget,
+}: {
+  state: GameClientState;
+  activeTimeFields: ActiveTimeFieldMap;
+  now: number;
+  cameraAnchorRef: MutableRefObject<THREE.Vector3 | null>;
+  onSelectTarget: (targetId: string | null) => void;
+  onAttackTarget?: (targetId: string) => void;
+}) {
+  return (
+    <>
+      {Object.values(state.players).map((player) => (
+        <PlayerMarker
+          key={player.id}
+          player={player}
+          isSelf={player.id === state.myPlayerId}
+          isSelected={player.id === state.selectedTargetId}
+          presentationRef={player.id === state.myPlayerId ? cameraAnchorRef : undefined}
+          equipment={player.id === state.myPlayerId ? state.equipment : undefined}
+          activeTimeFields={activeTimeFields}
+          now={now}
+          onSelect={onSelectTarget}
+          onAttack={onAttackTarget}
+        />
+      ))}
+      {Object.values(state.enemies).map((enemy) => (
+        <EnemyMarker
+          key={enemy.id}
+          enemy={enemy}
+          isSelected={enemy.id === state.selectedTargetId}
+          activeTimeFields={activeTimeFields}
+          now={now}
+          onSelect={onSelectTarget}
+          onAttack={onAttackTarget}
+        />
+      ))}
+    </>
+  );
+}
 
 function WorldLootMarkers({
   state,

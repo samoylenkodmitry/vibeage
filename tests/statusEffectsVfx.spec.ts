@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectStatusAuras } from '../apps/client/src/vfx/statusFx';
+import { advanceStatusAuraLocalTime, selectStatusAuras } from '../apps/client/src/vfx/statusFx';
 import type { StatusEffect } from '../packages/protocol/messages';
 
 const NOW = 1_700_000_000_000;
@@ -31,8 +31,19 @@ describe('status-effect VFX selection', () => {
     expect(auras.map((a) => a.id)).toEqual(['poison-1']);
   });
 
+  it('can keep server-listed timed auras visible while the target is time-frozen', () => {
+    const aura = fx('timeStop', { startTimeTs: NOW - 9000, durationMs: 5000 });
+    expect(selectStatusAuras([aura], NOW)).toEqual([]);
+    expect(selectStatusAuras([aura], NOW, { includeExpiredTimed: true }).map((a) => a.id)).toEqual(['timeStop-1']);
+  });
+
   it('caps the number of simultaneous auras', () => {
     const many = ['burn', 'poison', 'bless', 'slow', 'stun', 'shield', 'freeze'].map((t) => fx(t, { id: t }));
     expect(selectStatusAuras(many, NOW)).toHaveLength(5);
+  });
+
+  it('does not advance aura animation time while frozen', () => {
+    expect(advanceStatusAuraLocalTime(1.25, 0.5, true)).toBe(1.25);
+    expect(advanceStatusAuraLocalTime(1.25, 0.5, false)).toBe(1.75);
   });
 });
