@@ -2,6 +2,7 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { StatusEffect } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
 import { killPlayer } from '../players/playerLifecycle.js';
+import { isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import { handleTargetDeath } from './targetDeath.js';
@@ -26,13 +27,26 @@ function hasRecordKey<T>(record: Record<string, T>, key: string): boolean {
 export const DOT_TICK_INTERVAL_MS = 1_000;
 const DOT_EFFECT_TYPES: ReadonlySet<string> = new Set(['burn', 'poison', 'dot']);
 
-const nextTickAt = new WeakMap<StatusEffect, number>();
+let nextTickAt = new WeakMap<StatusEffect, number>();
 
 export function resetDotTrackerForTests(): void {
-  // WeakMap has no clear(); reassignment is the established pattern.
-  // Tests that need isolation create fresh StatusEffect objects, so
-  // this is mostly a no-op — kept as an explicit hook in case future
-  // tests want to opt in to a fresh-tracker assertion.
+  nextTickAt = new WeakMap<StatusEffect, number>();
+}
+
+export function pauseDamageOverTimeEffectTracking(
+  effects: readonly StatusEffect[] | undefined,
+  dtMs: number,
+): void {
+  if (dtMs <= 0) {
+    return;
+  }
+  for (const effect of effects ?? []) {
+    if (!DOT_EFFECT_TYPES.has(effect.type)) continue;
+    const due = nextTickAt.get(effect);
+    if (due !== undefined) {
+      nextTickAt.set(effect, due + dtMs);
+    }
+  }
 }
 
 type DotApplyResult = {
@@ -64,6 +78,7 @@ export function tickDamageOverTimeEffects(
     if (!hasRecordKey(state.players, playerId)) continue;
     const player = state.players[playerId];
     if (!player.isAlive) continue;
+    if (isEntityPhysicsFrozen(player, state.activePhysicsFields, now)) continue;
     const result = applyDueDotTicks(player, now);
     if (result.died) {
       // Archwork item #2 sub-work 1 — route player DoT deaths
@@ -86,6 +101,7 @@ export function tickDamageOverTimeEffects(
     if (!hasRecordKey(state.enemies, enemyId)) continue;
     const enemy = state.enemies[enemyId];
     if (!enemy.isAlive) continue;
+    if (isEntityPhysicsFrozen(enemy, state.activePhysicsFields, now)) continue;
     const result = applyDueDotTicks(enemy, now);
     if (result.died) {
       // Roll the kill credit + side effects through the canonical

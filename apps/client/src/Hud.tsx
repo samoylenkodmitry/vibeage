@@ -277,6 +277,7 @@ function HudTopStrips({
         player={player}
         selected={selfSelected}
         onSelectSelf={player ? () => onSelectTarget?.(player.id) : undefined}
+        activePhysicsFields={state.activePhysicsFields}
       />
       <TargetPanel
         player={player}

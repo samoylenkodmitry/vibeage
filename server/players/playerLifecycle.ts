@@ -7,6 +7,7 @@ import { recomputePlayerStats } from './playerStatsRefresh.js';
 import type { GameState } from '../gameState.js';
 import { error as logError, log, LOG_CATEGORIES, warn } from '../logger.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import { isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 
@@ -134,6 +135,10 @@ export function handleResourceRegeneration(
 ): void {
   const alivePlayers = Object.values(state.players).filter((p) => p.isAlive);
   for (const player of alivePlayers) {
+    if (isEntityPhysicsFrozen(player, state.activePhysicsFields, now)) {
+      player.lastRegenTimeMs = now;
+      continue;
+    }
     const dtSeconds = elapsedRegenSeconds(player, now);
     if (dtSeconds <= 0) continue;
     // §45.3 follow-up — Cardinal Sanctity / future regen-aura specs add
@@ -158,6 +163,10 @@ export function handleResourceRegeneration(
 
   for (const enemy of Object.values(state.enemies)) {
     if (!enemy.isAlive) continue;
+    if (isEntityPhysicsFrozen(enemy, state.activePhysicsFields, now)) {
+      enemy.lastRegenTimeMs = now;
+      continue;
+    }
     const dtSeconds = elapsedRegenSeconds(enemy, now);
     if (dtSeconds <= 0) continue;
     // Mobs carry no mana pool — the core leaves mp untouched. Rate is

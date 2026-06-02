@@ -17,6 +17,23 @@ export function isPointInActiveTimeField(
   return false;
 }
 
+export function isEntityInActiveTimeField(
+  fields: Record<string, TimeStopFieldSnapshot>,
+  entityId: string | undefined,
+  point: PointXZ | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!point) return false;
+  for (const field of Object.values(fields)) {
+    if (!isFieldActive(field, now)) continue;
+    if (entityId && field.casterId === entityId) continue;
+    if (isPointInsideField(field, point)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function isCastInActiveTimeField(
   fields: Record<string, TimeStopFieldSnapshot>,
   cast: CastSnapshot,
