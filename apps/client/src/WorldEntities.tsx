@@ -55,7 +55,7 @@ function PlayerMarkerImpl({
   presentationRef,
   equipment,
   activeTimeFields = {},
-  now,
+  now = Date.now(),
   onSelect,
   onAttack,
 }: {
@@ -198,7 +198,7 @@ function EnemyMarkerImpl({
   enemy,
   isSelected,
   activeTimeFields = {},
-  now,
+  now = Date.now(),
   onSelect,
   onAttack,
 }: {

@@ -123,7 +123,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {navigationMarker && myPlayer && (
         <NavigationArrow marker={navigationMarker} player={myPlayer.position} />
       )}
-      <WorldEntityMarkers state={state} activeTimeFields={activeTimeFields} now={now} cameraAnchorRef={cameraAnchorRef} onSelectTarget={onSelectTarget} onAttackTarget={onAttackTarget} />
+      <WorldEntityMarkers state={state} activeTimeFields={activeTimeFields} cameraAnchorRef={cameraAnchorRef} onSelectTarget={onSelectTarget} onAttackTarget={onAttackTarget} />
       <NpcMarkers />
 
       <WorldLootMarkers state={state} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} activeTimeFields={activeTimeFields} now={now} />
@@ -148,14 +148,12 @@ type ActiveTimeFieldMap = GameClientState['activePhysicsFields'];
 function WorldEntityMarkers({
   state,
   activeTimeFields,
-  now,
   cameraAnchorRef,
   onSelectTarget,
   onAttackTarget,
 }: {
   state: GameClientState;
   activeTimeFields: ActiveTimeFieldMap;
-  now: number;
   cameraAnchorRef: MutableRefObject<THREE.Vector3 | null>;
   onSelectTarget: (targetId: string | null) => void;
   onAttackTarget?: (targetId: string) => void;
@@ -171,7 +169,6 @@ function WorldEntityMarkers({
           presentationRef={player.id === state.myPlayerId ? cameraAnchorRef : undefined}
           equipment={player.id === state.myPlayerId ? state.equipment : undefined}
           activeTimeFields={activeTimeFields}
-          now={now}
           onSelect={onSelectTarget}
           onAttack={onAttackTarget}
         />
@@ -182,7 +179,6 @@ function WorldEntityMarkers({
           enemy={enemy}
           isSelected={enemy.id === state.selectedTargetId}
           activeTimeFields={activeTimeFields}
-          now={now}
           onSelect={onSelectTarget}
           onAttack={onAttackTarget}
         />
