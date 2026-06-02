@@ -45,33 +45,70 @@ const ORBIT = Array.from({ length: 4 }, (_, i) => ({ a: (i / 4) * Math.PI * 2 })
 
 export type StatusAura = { id: string; archetype: Archetype; color: string; endsAt?: number };
 
+type SelectStatusAurasOptions = {
+  /** Trust the authoritative effect list even if wall-clock duration has elapsed. */
+  includeExpiredTimed?: boolean;
+};
+
 /** Pick the visualized, still-active effects to render (capped). Pure so the
  *  type→archetype mapping + expiry filter can be unit-tested. */
-export function selectStatusAuras(effects: StatusEffect[] | undefined, now: number = Date.now()): StatusAura[] {
+export function selectStatusAuras(
+  effects: StatusEffect[] | undefined,
+  now: number = Date.now(),
+  options: SelectStatusAurasOptions = {},
+): StatusAura[] {
   const auras: StatusAura[] = [];
   for (const e of effects ?? []) {
     const vfx = EFFECT_VFX[e.type];
-    if (!vfx || (effectRemainingMs(e, now) ?? 1) <= 0) continue;
+    if (!vfx || (!options.includeExpiredTimed && (effectRemainingMs(e, now) ?? 1) <= 0)) continue;
     auras.push({ id: e.id, archetype: vfx.archetype, color: vfx.color, endsAt: e.startTimeTs && e.durationMs ? e.startTimeTs + e.durationMs : undefined });
     if (auras.length >= MAX_AURAS) break;
   }
   return auras;
 }
 
-export function StatusEffectsVfx({ effects, height }: { effects: StatusEffect[] | undefined; height: number }) {
-  const auras = selectStatusAuras(effects);
+export function advanceStatusAuraLocalTime(currentSeconds: number, deltaSeconds: number, frozen: boolean): number {
+  if (frozen) return currentSeconds;
+  return currentSeconds + Math.max(0, deltaSeconds);
+}
+
+export function StatusEffectsVfx({
+  effects,
+  height,
+  frozen = false,
+  now = Date.now(),
+}: {
+  effects: StatusEffect[] | undefined;
+  height: number;
+  frozen?: boolean;
+  now?: number;
+}) {
+  const auras = selectStatusAuras(effects, now, { includeExpiredTimed: frozen });
   if (auras.length === 0) return null;
   return (
     <>
       {auras.map((a) => (
-        <EffectAura key={a.id} archetype={a.archetype} color={a.color} height={height} endsAt={a.endsAt} />
+        <EffectAura key={a.id} archetype={a.archetype} color={a.color} height={height} endsAt={a.endsAt} frozen={frozen} />
       ))}
     </>
   );
 }
 
-function EffectAura({ archetype, color, height, endsAt }: { archetype: Archetype; color: string; height: number; endsAt?: number }) {
+function EffectAura({
+  archetype,
+  color,
+  height,
+  endsAt,
+  frozen,
+}: {
+  archetype: Archetype;
+  color: string;
+  height: number;
+  endsAt?: number;
+  frozen: boolean;
+}) {
   const root = useRef<THREE.Group>(null);
+  const localTimeRef = useRef(0);
   const additive = archetype !== 'shell';
   const mat = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true, depthWrite: false, side: archetype === 'ring' ? THREE.DoubleSide : THREE.FrontSide,
@@ -83,11 +120,12 @@ function EffectAura({ archetype, color, height, endsAt }: { archetype: Archetype
   const bodyMidY = height * 0.5;
   const shellR = Math.max(0.55, height * 0.46);
 
-  useFrame(({ clock }) => {
+  useFrame((_, delta) => {
     const g = root.current; if (!g) return;
-    if (endsAt !== undefined && Date.now() > endsAt) { g.visible = false; return; }
+    if (!frozen && endsAt !== undefined && Date.now() > endsAt) { g.visible = false; return; }
+    localTimeRef.current = advanceStatusAuraLocalTime(localTimeRef.current, delta, frozen);
     g.visible = true;
-    const t = clock.elapsedTime;
+    const t = localTimeRef.current;
     if (archetype === 'shell') {
       const s = shellR * (1 + Math.sin(t * 3) * 0.03);
       g.scale.setScalar(s);

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { QUEST_NPCS } from '../../../packages/content/npcs';
 import type {
   EnemyEntity,
+  GameClientState,
   PlayerEntity,
   Vec3,
   VisibleCast,
@@ -33,8 +34,19 @@ import { chooseWorldArtQuality } from './world-art/quality';
 import { getTerrainY } from './worldSceneConfig';
 import { advanceSmoothedGroup } from './entitySmoothing';
 import { GlowEmitter } from './dynamicLights';
+import { isEntityInActiveTimeField } from './timeFreeze';
 
 export { LootMarker };
+
+type ActiveTimeFieldMap = GameClientState['activePhysicsFields'];
+
+function isStatusVfxFrozen(
+  entity: { id: string; position: { x: number; z: number } },
+  activeTimeFields: ActiveTimeFieldMap,
+  now?: number,
+): boolean {
+  return isEntityInActiveTimeField(activeTimeFields, entity.id, entity.position, now);
+}
 
 function PlayerMarkerImpl({
   player,
@@ -42,6 +54,8 @@ function PlayerMarkerImpl({
   isSelected,
   presentationRef,
   equipment,
+  activeTimeFields = {},
+  now = Date.now(),
   onSelect,
   onAttack,
 }: {
@@ -50,6 +64,8 @@ function PlayerMarkerImpl({
   isSelected?: boolean;
   presentationRef?: MutableRefObject<THREE.Vector3 | null>;
   equipment?: Record<string, string>;
+  activeTimeFields?: ActiveTimeFieldMap;
+  now?: number;
   onSelect?: (targetId: string) => void;
   onAttack?: (targetId: string) => void;
 }) {
@@ -110,7 +126,7 @@ function PlayerMarkerImpl({
         modelId={playerModel(player.id, player.specializationId)}
         equipment={equipment} onPointerDown={!isSelf ? handlePointerDown : undefined}
       />
-      {player.isAlive && <StatusEffectsVfx effects={player.statusEffects} height={height} />}
+      {player.isAlive && <StatusEffectsVfx effects={player.statusEffects} height={height} frozen={isStatusVfxFrozen(player, activeTimeFields, now)} now={now} />}
       {player.isAlive && player.name && (
         <NameLabel
           text={player.level > 0 ? `${player.name}  Lv ${player.level}` : player.name}
@@ -181,11 +197,15 @@ function enemyAnim(enemy: EnemyEntity, speedSq: number): CharacterAnim {
 function EnemyMarkerImpl({
   enemy,
   isSelected,
+  activeTimeFields = {},
+  now = Date.now(),
   onSelect,
   onAttack,
 }: {
   enemy: EnemyEntity;
   isSelected: boolean;
+  activeTimeFields?: ActiveTimeFieldMap;
+  now?: number;
   onSelect: (targetId: string | null) => void;
   onAttack?: (targetId: string) => void;
 }) {
@@ -250,7 +270,7 @@ function EnemyMarkerImpl({
       {enemy.isAlive && visual.glow && (
         <GlowEmitter color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} priority={enemy.isMiniBoss ? 3 : 1} />
       )}
-      {enemy.isAlive && <StatusEffectsVfx effects={enemy.statusEffects} height={visual.height} />}
+      {enemy.isAlive && <StatusEffectsVfx effects={enemy.statusEffects} height={visual.height} frozen={isStatusVfxFrozen(enemy, activeTimeFields, now)} now={now} />}
       {enemy.isAlive && enemy.isMiniBoss && <MiniBossCrown color={visual.color} height={visual.height} />}
       {enemy.isAlive && enemy.isMiniBoss && !isSelected && <BossBeacon color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
