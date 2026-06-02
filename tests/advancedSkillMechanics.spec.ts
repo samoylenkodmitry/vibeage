@@ -15,9 +15,10 @@ describe('advanced skill mechanics primitives', () => {
     const caster = player('caster', 0, 0, ['time_sphere']);
     const primary = enemy('primary', 10, 0);
     const nearbyMob = enemy('nearby', 13, 0);
+    const edgeMob = enemy('edge', 17.5, 0);
     const nearbyPlayer = player('ally-in-sphere', 11, 1);
     const farMob = enemy('far', 20, 0);
-    const world = worldOf([caster, nearbyPlayer], [primary, nearbyMob, farMob]);
+    const world = worldOf([caster, nearbyPlayer], [primary, nearbyMob, edgeMob, farMob]);
 
     resolveCastImpact(
       targetedCast(caster.id, 'time_sphere', primary.id, primary.position),
@@ -28,6 +29,7 @@ describe('advanced skill mechanics primitives', () => {
 
     expect(primary.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(true);
     expect(nearbyMob.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(true);
+    expect(edgeMob.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(true);
     expect(nearbyPlayer.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(true);
     expect(caster.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(false);
     expect(farMob.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(false);

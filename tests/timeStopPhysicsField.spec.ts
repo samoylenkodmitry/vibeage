@@ -40,7 +40,7 @@ describe('time-stop area field movement', () => {
       sourceSkill: 'time_sphere',
       casterId: caster.id,
       origin: { x: 10, z: 0 },
-      radius: 5,
+      radius: 8,
       startTimeTs: NOW,
       durationMs: 3500,
     });
