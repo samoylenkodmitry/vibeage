@@ -76,6 +76,25 @@ describe('time-stop status-effect clocks', () => {
     expect(target.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
     expect(target.statusEffects.some((effect) => effect.type === 'poison')).toBe(true);
   });
+
+  it('does not corrupt untimed or malformed effects while pausing timed effects', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const target = player('target', 0, 0);
+    const untimed = statusEffect('shield') as Partial<StatusEffect> as StatusEffect;
+    delete (untimed as Partial<StatusEffect>).startTimeTs;
+    delete (untimed as Partial<StatusEffect>).durationMs;
+    const timed = statusEffect('slow', { durationMs: 5_000, startTimeTs: NOW });
+    target.statusEffects = [untimed, timed];
+    state.players[target.id] = target;
+    insert(spatial, target);
+    addTimeField(state, { origin: { x: 0, z: 0 }, radius: 5 });
+
+    advanceAll(state, spatial, 1_000, NOW + 1_000);
+
+    expect(untimed.startTimeTs).toBeUndefined();
+    expect(timed.startTimeTs).toBe(NOW + 1_000);
+  });
 });
 
 describe('time-stop ticking resources', () => {
@@ -160,6 +179,22 @@ describe('time-stop reusable local clocks', () => {
     expect(frozenEnemy.aggroSuppressedUntilTs).toBe(NOW + 3_000);
     expect(frozenEnemy.chaseStartedAt).toBe(NOW + 1_000);
     expect(frozenEnemy.combatStartedTs).toBe(NOW + 1_000);
+  });
+
+  it('does not corrupt enemy fixtures with missing last attack time', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const frozenEnemy = enemy('enemy', 0, 1);
+    (frozenEnemy as Partial<Enemy>).lastAttackTime = undefined;
+    frozenEnemy.patrolWaitUntilTs = NOW + 2_000;
+    state.enemies[frozenEnemy.id] = frozenEnemy;
+    insert(spatial, frozenEnemy);
+    addTimeField(state, { origin: { x: 0, z: 0 }, radius: 5 });
+
+    advanceAll(state, spatial, 1_000, NOW + 1_000);
+
+    expect(frozenEnemy.lastAttackTime).toBeUndefined();
+    expect(frozenEnemy.patrolWaitUntilTs).toBe(NOW + 3_000);
   });
 });
 

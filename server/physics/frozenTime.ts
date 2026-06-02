@@ -39,6 +39,9 @@ export function pauseFrozenEntityTimeSystems(
 
 function pauseStatusEffectClocks(effects: readonly StatusEffect[] | undefined, tickStart: number, pauseMs: number): void {
   for (const effect of effects ?? []) {
+    if (effect.startTimeTs === undefined || effect.durationMs === undefined) {
+      continue;
+    }
     const expiresAt = effect.startTimeTs + effect.durationMs;
     if (effect.durationMs <= 0 || expiresAt <= tickStart) {
       continue;
@@ -69,7 +72,9 @@ function pauseEnemyLocalClocks(entity: FrozenTimeEntity, tickStart: number, paus
     return;
   }
 
-  entity.lastAttackTime += pauseMs;
+  if (entity.lastAttackTime !== undefined) {
+    entity.lastAttackTime += pauseMs;
+  }
   pauseOptionalDeadline(entity, 'patrolWaitUntilTs', tickStart, pauseMs);
   pauseOptionalDeadline(entity, 'aggroSuppressedUntilTs', tickStart, pauseMs);
   pauseOptionalElapsedStart(entity, 'chaseStartedAt', pauseMs);

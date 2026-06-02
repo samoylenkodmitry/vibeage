@@ -149,6 +149,6 @@ function useTickingNow(active: boolean, paused: boolean): number {
     setNow(Date.now());
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(id);
-  }, [active]);
+  }, [active, paused]);
   return now;
 }
