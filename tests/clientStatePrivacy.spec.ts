@@ -16,6 +16,17 @@ describe('client state privacy', () => {
     const state = createGameState();
     state.players.own = makePlayer('own', 'own-socket');
     state.players.other = makePlayer('other', 'other-socket');
+    state.activePhysicsFields.field = {
+      id: 'field',
+      kind: 'timeStop',
+      sourceSkill: 'time_sphere',
+      casterId: 'own',
+      origin: { x: 0, z: 0 },
+      radius: 8,
+      startTimeTs: 100,
+      durationMs: 3500,
+      excludedEntityIds: ['own'],
+    };
 
     const snapshot = makeClientGameStateSnapshot(state, 'own-socket');
 
@@ -37,6 +48,7 @@ describe('client state privacy', () => {
     // shouldn't ride along even if the field list is edited carelessly.
     expect(snapshot.players.other).not.toHaveProperty('characterInventory');
     expect(Object.keys(snapshot).sort()).toEqual([...CLIENT_GAME_STATE_FIELDS].sort());
+    expect(snapshot.activePhysicsFields.field).not.toHaveProperty('excludedEntityIds');
     expect(snapshot).not.toHaveProperty('activeCasts');
     expect(snapshot).not.toHaveProperty('projectiles');
     expect(snapshot).not.toHaveProperty('lastProjectileId');

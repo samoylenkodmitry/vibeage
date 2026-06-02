@@ -17,6 +17,7 @@ export function applyGameStateSnapshot(state: GameClientState, serverState: Serv
     ? players[state.myPlayerId]?.maxInventorySlots ?? state.maxInventorySlots
     : state.maxInventorySlots;
   const groundLoot = normalizeGroundLoot(serverState.groundLoot ?? state.groundLoot);
+  const activePhysicsFields = serverState.activePhysicsFields ?? state.activePhysicsFields;
   const myPlayer = state.myPlayerId ? players[state.myPlayerId] : null;
   const starterProgress = myPlayer
     ? normalizeClientStarterProgress(myPlayer.starterProgress ?? state.starterProgress, myPlayer)
@@ -28,6 +29,7 @@ export function applyGameStateSnapshot(state: GameClientState, serverState: Serv
     players,
     enemies,
     groundLoot,
+    activePhysicsFields,
     selectedTargetId,
     inventory,
     maxInventorySlots,

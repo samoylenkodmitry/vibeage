@@ -1,7 +1,8 @@
 import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import type { PlayerUpdate } from './outboundEvents.js';
-import type { EquipmentEntry, InventorySlot } from '../../packages/protocol/messages.js';
+import type { EquipmentEntry, InventorySlot, TimeStopFieldSnapshot } from '../../packages/protocol/messages.js';
+import { toTimeStopFieldSnapshot } from '../physics/areaPhysics.js';
 import {
   getEnemiesInActiveRegions,
   getEntityRegionId,
@@ -54,6 +55,7 @@ export const CLIENT_GAME_STATE_FIELDS = [
   'players',
   'enemies',
   'groundLoot',
+  'activePhysicsFields',
   'zones',
 ] as const satisfies ReadonlyArray<keyof GameState>;
 
@@ -224,6 +226,7 @@ function pickOwnerFields<T extends Partial<PlayerState>>(source: T): Partial<Own
 }
 export type ClientGameStateSnapshot = Pick<GameState, 'enemies' | 'groundLoot' | 'zones'> & {
   players: Record<string, ClientPlayerState>;
+  activePhysicsFields: Record<string, TimeStopFieldSnapshot>;
 };
 
 export function makeClientGameStateSnapshot(
@@ -235,11 +238,13 @@ export function makeClientGameStateSnapshot(
   const players = makeClientPlayersSnapshot(state, socketId, regions, visibleRegionIds);
   const enemies = makeClientEnemiesSnapshot(state, regions, visibleRegionIds);
   const groundLoot = makeClientGroundLootSnapshot(state, regions, visibleRegionIds);
+  const activePhysicsFields = makeClientActivePhysicsFieldsSnapshot(state, regions, visibleRegionIds);
 
   return {
     players,
     enemies,
     groundLoot,
+    activePhysicsFields,
     zones: makeClientZonesSnapshot(state, players, enemies),
   };
 }
@@ -323,6 +328,21 @@ function makeClientGroundLootSnapshot(
       getPositionRegionId(regions, loot.position),
       visibleRegionIds,
     )),
+  );
+}
+
+function makeClientActivePhysicsFieldsSnapshot(
+  state: GameState,
+  regions: readonly ServerWorldRegion[] | undefined,
+  visibleRegionIds: ReadonlySet<string> | null,
+): ClientGameStateSnapshot['activePhysicsFields'] {
+  const entries = Object.entries(state.activePhysicsFields);
+  const visibleEntries = !regions || !visibleRegionIds
+    ? entries
+    : entries.filter(([, field]) => isRegionInScope(getPositionRegionId(regions, field.origin), visibleRegionIds));
+
+  return Object.fromEntries(
+    visibleEntries.map(([fieldId, field]) => [fieldId, toTimeStopFieldSnapshot(field)]),
   );
 }
 

@@ -81,7 +81,9 @@ describe('client initial snapshot transport', () => {
 
     expect(Object.keys(snapshot.enemies)).toEqual([activeEnemy.id]);
   });
+});
 
+describe('client region-scoped snapshot transport', () => {
   test('region-scoped snapshots include only entities and loot in the client stream', () => {
     const state = createGameState();
     const player = createTransientPlayer('socket1', 'Tester');
@@ -99,6 +101,28 @@ describe('client initial snapshot transport', () => {
     state.enemies[farEnemy.id] = farEnemy;
     state.groundLoot.local = { position: { x: 4, z: 0 }, items: [{ itemId: 'gold_coin', quantity: 1 }] };
     state.groundLoot.far = { position: { x: 304, z: 0 }, items: [{ itemId: 'gold_coin', quantity: 1 }] };
+    state.activePhysicsFields.localField = {
+      id: 'localField',
+      kind: 'timeStop',
+      sourceSkill: 'time_sphere',
+      casterId: 'player1',
+      origin: { x: 4, z: 0 },
+      radius: 8,
+      startTimeTs: 100,
+      durationMs: 3500,
+      excludedEntityIds: ['player1'],
+    };
+    state.activePhysicsFields.farField = {
+      id: 'farField',
+      kind: 'timeStop',
+      sourceSkill: 'time_sphere',
+      casterId: 'player2',
+      origin: { x: 304, z: 0 },
+      radius: 8,
+      startTimeTs: 100,
+      durationMs: 3500,
+      excludedEntityIds: ['player2'],
+    };
     state.zones.activeZoneIds = ['zone-a', 'zone-b'];
     state.zones.playerZoneIds = { player1: 'zone-a', player2: 'zone-b' };
     state.zones.enemyZoneIds = { [localEnemy.id]: 'zone-a', [farEnemy.id]: 'zone-b' };
@@ -108,6 +132,8 @@ describe('client initial snapshot transport', () => {
     expect(Object.keys(snapshot.players)).toEqual(['player1']);
     expect(Object.keys(snapshot.enemies)).toEqual([localEnemy.id]);
     expect(Object.keys(snapshot.groundLoot)).toEqual(['local']);
+    expect(Object.keys(snapshot.activePhysicsFields)).toEqual(['localField']);
+    expect(snapshot.activePhysicsFields.localField).not.toHaveProperty('excludedEntityIds');
     expect(snapshot.zones.enemyZoneIds).toEqual({ [localEnemy.id]: 'zone-a' });
   });
 });

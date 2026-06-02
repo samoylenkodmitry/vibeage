@@ -246,7 +246,7 @@ export function castAnchorsAtTarget(skillId: CastSnapshot['skillId']): boolean {
   return (SKILL_THEMES[skillId] ?? DEFAULT_SKILL_THEME).mechanic === 'deluge';
 }
 
-export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
+export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; frozen?: boolean }) {
   const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
@@ -268,21 +268,22 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   if (snapshot.state === CastState.Casting) {
     // Deluge gathers its water cloud above the target DURING the cast windup.
     if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} radius={radius} />;
-    return <CastingChargeVfx progress={progress} theme={theme} />;
+    return <CastingChargeVfx progress={progress} theme={theme} frozen={frozen} />;
   }
 
   // Traveling phase: deluge holds the gathered cloud until impact; the other
   // non-projectile mechanics show nothing (they're delivered at impact).
   if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} radius={radius} />;
   if (theme.mechanic && !FLYING_MECHANICS.has(theme.mechanic)) return null;
-  return <ProjectileVfx snapshot={snapshot} theme={theme} />;
+  return <ProjectileVfx snapshot={snapshot} theme={theme} frozen={frozen} />;
 }
 
-function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillTheme }) {
+function CastingChargeVfx({ progress, theme, frozen = false }: { progress: number; theme: SkillTheme; frozen?: boolean }) {
   const ringRef = useRef<THREE.Mesh>(null);
   const coreRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }, delta) => {
+    if (frozen) return;
     const pulse = (Math.sin(clock.elapsedTime * 9) + 1) / 2;
     if (ringRef.current) {
       ringRef.current.rotation.z += delta * 2.2;
@@ -310,7 +311,7 @@ function CastingChargeVfx({ progress, theme }: { progress: number; theme: SkillT
 const PROJECTILE_WORLD = new THREE.Vector3(); // scratch for the live world position
 const TRAIL_GEOMETRY = new THREE.SphereGeometry(1, 10, 10); // unit sphere, scaled per trail bead
 
-function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: SkillTheme }) {
+function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnapshot; theme: SkillTheme; frozen?: boolean }) {
   const dir = snapshot.dir;
   const yaw = Math.atan2(dir?.x ?? 0, dir?.z ?? 1);
   const mechanic = theme.mechanic ?? 'projectile';
@@ -325,6 +326,7 @@ function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: Ski
   const longZ = mechanic === 'lance' ? 2.4 : 1; // elongated fast bolt
 
   useFrame(({ clock }) => {
+    if (frozen) return;
     coreRef.current?.scale.setScalar(1 + Math.sin(clock.elapsedTime * 14) * 0.08);
     // Travel progress from the smoothed parent group's live world position.
     let p = 0;
@@ -362,17 +364,18 @@ function ProjectileVfx({ snapshot, theme }: { snapshot: CastSnapshot; theme: Ski
               <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
             </mesh>
           ))}
-          <ProjectileTrail theme={theme} longZ={longZ} />
+          <ProjectileTrail theme={theme} longZ={longZ} frozen={frozen} />
         </group>
       </group>
     </group>
   );
 }
 
-function ProjectileTrail({ theme, longZ = 1 }: { theme: SkillTheme; longZ?: number }) {
+function ProjectileTrail({ theme, longZ = 1, frozen = false }: { theme: SkillTheme; longZ?: number; frozen?: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
+    if (frozen) return;
     if (groupRef.current) {
       groupRef.current.rotation.z = Math.sin(clock.elapsedTime * 8) * 0.1;
     }
@@ -395,11 +398,13 @@ function LootMarkerImpl({
   loot,
   onPickUpLoot,
   revealed = false,
+  frozen = false,
 }: {
   loot: GroundLootStack;
   onPickUpLoot: (lootId: string) => void;
   /** Treasure Sense — show the loot's name without hovering. */
   revealed?: boolean;
+  frozen?: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const sparkGroupRef = useRef<THREE.Group>(null);
@@ -420,6 +425,7 @@ function LootMarkerImpl({
   }, [loot.items]);
 
   useFrame(({ clock }, delta) => {
+    if (frozen) return;
     if (meshRef.current) {
       meshRef.current.position.y = Math.sin(clock.elapsedTime * 2.4) * 0.08;
       meshRef.current.rotation.y += delta * 1.4;

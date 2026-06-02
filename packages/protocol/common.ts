@@ -113,6 +113,17 @@ export const itemDropSchema = z.object({
   quantity: z.number(),
 }).passthrough();
 
+export const timeStopFieldSnapshotSchema = z.object({
+  id: z.string(),
+  kind: z.literal('timeStop'),
+  sourceSkill: skillIdSchema,
+  casterId: z.string(),
+  origin: vecXZSchema,
+  radius: z.number(),
+  startTimeTs: z.number(),
+  durationMs: z.number(),
+}).strict();
+
 export type VecXZ = {
   x: number;
   z: number;
@@ -185,4 +196,15 @@ export type CastSnapshot = {
 export type ItemDrop = {
   itemId: string;
   quantity: number;
+};
+
+export type TimeStopFieldSnapshot = {
+  id: string;
+  kind: 'timeStop';
+  sourceSkill: SkillId;
+  casterId: string;
+  origin: VecXZ;
+  radius: number;
+  startTimeTs: number;
+  durationMs: number;
 };

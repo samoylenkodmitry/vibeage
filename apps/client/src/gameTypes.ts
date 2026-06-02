@@ -7,6 +7,7 @@ import type {
   PlayerMovementState,
   StarterProgressState,
   StatusEffect,
+  TimeStopFieldSnapshot,
   VecXZ,
 } from '../../../packages/protocol/messages';
 
@@ -107,6 +108,7 @@ export type ServerGameState = {
     playerZoneIds?: Record<string, string>;
     enemyZoneIds?: Record<string, string>;
   };
+  activePhysicsFields?: Record<string, TimeStopFieldSnapshot>;
 };
 
 export type WorldRegionPublicState = {
@@ -231,6 +233,7 @@ export type GameClientState = {
   selectedTargetId: string | null;
   targetWorldPos: Vec3 | null;
   casts: Record<string, VisibleCast>;
+  activePhysicsFields: Record<string, TimeStopFieldSnapshot>;
   visualEvents: Record<string, VisualEvent>;
   nextVisualEventSeq: number;
   inventory: InventorySlot[];

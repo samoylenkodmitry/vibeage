@@ -44,6 +44,7 @@ import { applyReactionTriggeredVisualState } from './reactionVfxState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
 import { mergeVec3, normalizeVec3 } from './vec3';
 import { logBagDiag } from './bagDiag';
+import { pruneExpiredTimeFields } from './timeFreeze';
 
 export const initialGameClientState: GameClientState = {
   connectionState: 'idle',
@@ -55,6 +56,7 @@ export const initialGameClientState: GameClientState = {
   selectedTargetId: null,
   targetWorldPos: null,
   casts: {},
+  activePhysicsFields: {},
   visualEvents: {},
   nextVisualEventSeq: 0,
   inventory: [],
@@ -132,7 +134,7 @@ export function gameClientReducer(
     case 'serverMessage':
       return applyServerMessage(state, action.message, action.now);
     case 'pruneCasts':
-      return pruneClientVisualState(state, action.now);
+      return pruneClientTimeFreezeState(pruneClientVisualState(state, action.now), action.now);
     case 'setPendingCast':
       return { ...state, pendingCast: action.pendingCast };
     case 'clearPendingCast':
@@ -148,6 +150,11 @@ export function gameClientReducer(
     case 'setTrackedQuest':
       return state.trackedQuestId === action.questId ? state : { ...state, trackedQuestId: action.questId };
   }
+}
+
+function pruneClientTimeFreezeState(state: GameClientState, now: number): GameClientState {
+  const activePhysicsFields = pruneExpiredTimeFields(state.activePhysicsFields, now);
+  return activePhysicsFields === state.activePhysicsFields ? state : { ...state, activePhysicsFields };
 }
 
 function removePlayer(state: GameClientState, playerId: string): GameClientState {
@@ -272,6 +279,10 @@ function applyServerMessage(
     return applyCastSnapshotVisualState(state, message.data, now);
   }
 
+  if (message.type === 'PhysicsFieldSnapshot') {
+    return applyPhysicsFieldSnapshot(state, message, now);
+  }
+
   if (message.type === 'InstantHit') {
     return applyInstantHitVisualState(state, message, now);
   }
@@ -346,6 +357,20 @@ function applyServerMessage(
   }
 
   return state;
+}
+
+function applyPhysicsFieldSnapshot(
+  state: GameClientState,
+  message: ServerMessage & { type: 'PhysicsFieldSnapshot' },
+  now: number,
+): GameClientState {
+  return {
+    ...state,
+    activePhysicsFields: {
+      ...pruneExpiredTimeFields(state.activePhysicsFields, now),
+      [message.field.id]: message.field,
+    },
+  };
 }
 
 /**
