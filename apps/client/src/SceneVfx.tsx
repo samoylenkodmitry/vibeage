@@ -3,7 +3,6 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
 import { ITEMS, getItemGrade } from '../../../packages/content/items';
-import { SKILLS } from '../../../packages/content/skills';
 import { getGradeSpec } from '../../../packages/content/equipmentTypes';
 function pickBestGradeColor(items: readonly { itemId: string }[]): string {
   let bestRank = -1;
@@ -31,6 +30,8 @@ import {
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
+import { getCastEffectRadius, getTimeStopDurationMs } from './vfx/castVfxConfig';
+import { TimeSphereDome } from './vfx/timeSphereFx';
 
 type SkillTheme = {
   core: string;
@@ -57,6 +58,7 @@ const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
   poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb', mechanic: 'arc' },
   holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
   arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt', mechanic: 'spiral' },
+  time_sphere: { core: '#ddd6fe', glow: '#8b5cf6', accent: '#67e8f9', shape: 'sphere', element: 'arcane', form: 'orb' },
   meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', mechanic: 'strike' },
   inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'nova' },
   greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
@@ -240,6 +242,7 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
  *  cast (e.g. deluge gathers its cloud above the target during the windup),
  *  rather than at the caster where the snapshot's pos sits while charging. */
 export function castAnchorsAtTarget(skillId: CastSnapshot['skillId']): boolean {
+  if (skillId === 'time_sphere') return true;
   return (SKILL_THEMES[skillId] ?? DEFAULT_SKILL_THEME).mechanic === 'deluge';
 }
 
@@ -247,11 +250,13 @@ export function CastVfx({ snapshot }: { snapshot: CastSnapshot }) {
   const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
-  // Approx world-space radius the skill affects — sizes the AoE VFX.
-  const skill = SKILLS[snapshot.skillId];
-  const radius = skill?.projectile?.splashRadius ?? skill?.area ?? 1.4;
+  // World-space radius the skill affects — sizes the AoE VFX.
+  const radius = getCastEffectRadius(snapshot.skillId);
 
   if (snapshot.state === CastState.Impact) {
+    if (snapshot.skillId === 'time_sphere') {
+      return <TimeSphereDome radius={radius} durationMs={getTimeStopDurationMs(snapshot.skillId)} />;
+    }
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
     if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} radius={radius} />;

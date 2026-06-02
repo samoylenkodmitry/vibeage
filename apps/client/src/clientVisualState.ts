@@ -10,8 +10,8 @@ import { addCombatDamageVisualEvents, appliedEffectLabels, casterPrefix, combatL
 import type { CombatLine, GameClientState, Vec3 } from './gameTypes';
 import { normalizeVec3 } from './vec3';
 import { addVisualEvent, pruneVisualEvents } from './visualEventState';
+import { getCastVisibleMs } from './vfx/castVfxConfig';
 
-const CAST_VISIBLE_MS = 3_000;
 // PR MM — was 5 to fit the static strip; the scrollable chat panel
 // carries real history now. 200 lines is plenty for a long session
 // without the DOM growing unbounded.
@@ -694,6 +694,6 @@ function makeCombatLineId(castId: string, currentLineCount: number, now: number)
 
 function pruneCasts(casts: GameClientState['casts'], now: number): GameClientState['casts'] {
   return Object.fromEntries(
-    Object.entries(casts).filter(([, cast]) => now - cast.seenAt < CAST_VISIBLE_MS),
+    Object.entries(casts).filter(([, cast]) => now - cast.seenAt < getCastVisibleMs(cast.snapshot.skillId)),
   );
 }
