@@ -11,10 +11,10 @@ import {
 import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 import {
   freezeEntityPhysics,
-  isEntityPhysicsFrozen,
   isPointPhysicsFrozen,
   pruneExpiredAreaPhysicsFields,
 } from '../physics/areaPhysics.js';
+import { pauseFrozenEntityTimeSystems } from '../physics/frozenTime.js';
 
 const MAX_HISTORY_AGE_MS = 500;
 const DEFAULT_PLAYER_SPEED = 20;
@@ -95,7 +95,7 @@ export function advanceAll(
     // death position; without this gate a player who died mid-sprint
     // kept gliding toward their old target until they reached it,
     // dirtying snapshot deltas and confusing spatial queries.
-    if (player.isAlive && isEntityPhysicsFrozen(player, state.activePhysicsFields, now)) {
+    if (pauseFrozenEntityTimeSystems(player, state.activePhysicsFields, now, deltaTimeMs)) {
       freezeEntityPhysics(player, now);
     } else if (player.isAlive && player.movement?.isMoving && player.movement?.targetPos) {
       advancePlayerPosition(player, spatial, deltaTimeMs, now);
@@ -116,7 +116,7 @@ export function advanceAll(
       continue;
     }
 
-    if (isEntityPhysicsFrozen(enemy, state.activePhysicsFields, now)) {
+    if (pauseFrozenEntityTimeSystems(enemy, state.activePhysicsFields, now, deltaTimeMs)) {
       freezeEntityPhysics(enemy, now);
     } else {
       advanceEnemyPosition(enemy, spatial, deltaTimeMs, now);

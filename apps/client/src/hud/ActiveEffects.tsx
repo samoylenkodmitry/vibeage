@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { StatusEffect } from '../../../../packages/protocol/messages';
 import { EffectTooltip } from './EffectTooltip';
 import { useTooltipTrigger } from './useTooltipTrigger';
@@ -18,8 +18,8 @@ import {
  * depleting timer bar with the seconds left, split into buffs vs
  * debuffs so a self-cast Shield / Bless reads at a glance.
  */
-export function ActiveEffects({ effects }: { effects: StatusEffect[] }) {
-  const now = useTickingNow(effects.length > 0);
+export function ActiveEffects({ effects, timePaused = false }: { effects: StatusEffect[]; timePaused?: boolean }) {
+  const now = useTickingNow(effects.length > 0, timePaused);
   const tooltip = useTooltipTrigger<StatusEffect>();
   // The server prunes expired effects, but a client tick can race
   // ahead of the next snapshot — drop anything already at 0.
@@ -42,6 +42,7 @@ export function ActiveEffects({ effects }: { effects: StatusEffect[] }) {
           effect={tooltip.info.payload}
           clientX={tooltip.info.clientX}
           clientY={tooltip.info.clientY}
+          now={now}
         />
       )}
     </div>
@@ -127,10 +128,21 @@ function formatRemaining(ms: number): string {
  * Re-renders ~4×/s so the timer bars deplete smoothly. Only ticks
  * while there are effects to show — idle when the list is empty.
  */
-function useTickingNow(active: boolean): number {
+function useTickingNow(active: boolean, paused: boolean): number {
   const [now, setNow] = useState(() => Date.now());
+  const frozenNowRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      frozenNowRef.current = null;
+      return;
+    }
+    if (paused) {
+      const frozenNow = frozenNowRef.current ?? Date.now();
+      frozenNowRef.current = frozenNow;
+      setNow(frozenNow);
+      return;
+    }
+    frozenNowRef.current = null;
     // Re-sync immediately so the first frame after effects appear uses
     // a fresh clock, not the (possibly long-stale) mount timestamp —
     // otherwise the bars/timers would be wrong until the first tick.

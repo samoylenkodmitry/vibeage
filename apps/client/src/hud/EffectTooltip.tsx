@@ -7,9 +7,10 @@ type EffectTooltipProps = {
   effect: StatusEffect;
   clientX: number;
   clientY: number;
+  now?: number;
 };
 
-export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) {
+export function EffectTooltip({ effect, clientX, clientY, now = Date.now() }: EffectTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>(() => ({
     left: Math.max(8, clientX),
@@ -45,7 +46,7 @@ export function EffectTooltip({ effect, clientX, clientY }: EffectTooltipProps) 
   // defaulted to 0 and that's "expired" by today's clock.
   const hasTimedRemaining = effect.startTimeTs !== undefined && effect.durationMs !== undefined;
   const remainingMs = hasTimedRemaining
-    ? Math.max(0, (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) - Date.now())
+    ? Math.max(0, (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) - now)
     : null;
 
   return createPortal(

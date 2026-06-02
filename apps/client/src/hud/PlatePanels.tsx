@@ -4,6 +4,7 @@ import { totalShield } from './effectMeta';
 import { ActiveEffects } from './ActiveEffects';
 import { useDraggablePanel } from './useDraggablePanel';
 import { openWikiAt } from './wikiNavBus';
+import { isEntityInActiveTimeField } from '../timeFreeze';
 
 export type SelectedTargetView = {
   selfSelected: boolean;
@@ -27,14 +28,17 @@ export function VitalsStrip({
   player,
   selected,
   onSelectSelf,
+  activePhysicsFields = {},
 }: {
   player: PlayerEntity | null;
   selected?: boolean;
   onSelectSelf?: () => void;
+  activePhysicsFields?: GameClientState['activePhysicsFields'];
 }) {
   const xpProgress = getMeterProgress(player?.experience, player?.experienceToNextLevel);
   const clickable = Boolean(player && onSelectSelf);
   const dragRef = useDraggablePanel<HTMLElement>('vitals', { handleSelector: '.drag-grip' });
+  const timePaused = isEntityInActiveTimeField(activePhysicsFields, player?.id, player?.position);
   return (
     <section
       ref={dragRef}
@@ -71,7 +75,7 @@ export function VitalsStrip({
       {/* Stop clicks/keys inside the effects list from bubbling to the
           strip's select-self handler (effect rows deep-link to the Wiki). */}
       <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <ActiveEffects effects={player?.statusEffects ?? []} />
+        <ActiveEffects effects={player?.statusEffects ?? []} timePaused={timePaused} />
       </div>
     </section>
   );
