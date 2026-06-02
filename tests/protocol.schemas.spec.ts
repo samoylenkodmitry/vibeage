@@ -118,6 +118,24 @@ describe('server protocol schemas', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('accepts public physics field snapshots without server-only exclusions', () => {
+    const parsed = safeParseServerMessage({
+      type: 'PhysicsFieldSnapshot',
+      field: {
+        id: 'field-1',
+        kind: 'timeStop',
+        sourceSkill: 'time_sphere',
+        casterId: 'player-1',
+        origin: { x: 0, z: 0 },
+        radius: 8,
+        startTimeTs: 1746316800000,
+        durationMs: 3500,
+      },
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
 });
 
 describe('server protocol rejection schemas', () => {

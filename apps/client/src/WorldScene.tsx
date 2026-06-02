@@ -38,6 +38,7 @@ import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
 import { getTerrainY } from './worldSceneConfig';
 import { DynamicLightPool } from './dynamicLights';
+import { isCastInActiveTimeField, isPointInActiveTimeField } from './timeFreeze';
 
 /** Anchor for a target-delivered cast (deluge): the targeted entity's LIVE
  *  position (so the effect tracks a moving target), else the server's resolved
@@ -67,6 +68,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
   const lootRevealed = hasActiveEffect(myPlayer?.statusEffects, 'reveal_loot'); // Treasure Sense
+  const activeTimeFields = state.activePhysicsFields;
+  const now = Date.now();
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
   // WorldEnvironment owns the sky/sun/moon/clouds/day-night palette
   // everywhere. The cozy hero scene only contributes anchored geometry
@@ -143,12 +146,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       ))}
       <NpcMarkers />
 
-      {Object.values(state.groundLoot).map((loot) => (
-        <LootMarker key={loot.id} loot={loot} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} />
-      ))}
-      {Object.values(state.casts).map((cast) => (
-        <CastMarker key={cast.snapshot.castId} cast={cast} anchorPos={resolveCastAnchor(state, cast.snapshot)} />
-      ))}
+      <WorldLootMarkers state={state} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} activeTimeFields={activeTimeFields} now={now} />
+      <WorldCastMarkers state={state} activeTimeFields={activeTimeFields} now={now} />
       {Object.values(state.visualEvents).map((event) => (
         <WorldEventVfx key={event.id} event={event} />
       ))}
@@ -161,6 +160,63 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       />
       <ScenePostFX quality={worldArtQuality} />
     </Canvas>
+  );
+}
+
+type ActiveTimeFieldMap = GameClientState['activePhysicsFields'];
+
+function WorldLootMarkers({
+  state,
+  onPickUpLoot,
+  revealed,
+  activeTimeFields,
+  now,
+}: {
+  state: GameClientState;
+  onPickUpLoot: (lootId: string) => void;
+  revealed: boolean;
+  activeTimeFields: ActiveTimeFieldMap;
+  now: number;
+}) {
+  return (
+    <>
+      {Object.values(state.groundLoot).map((loot) => (
+        <LootMarker
+          key={loot.id}
+          loot={loot}
+          onPickUpLoot={onPickUpLoot}
+          revealed={revealed}
+          frozen={isPointInActiveTimeField(activeTimeFields, loot.position, now)}
+        />
+      ))}
+    </>
+  );
+}
+
+function WorldCastMarkers({
+  state,
+  activeTimeFields,
+  now,
+}: {
+  state: GameClientState;
+  activeTimeFields: ActiveTimeFieldMap;
+  now: number;
+}) {
+  return (
+    <>
+      {Object.values(state.casts).map((cast) => {
+        const anchorPos = resolveCastAnchor(state, cast.snapshot);
+        const freezePoint = anchorPos ?? cast.snapshot.pos;
+        return (
+          <CastMarker
+            key={cast.snapshot.castId}
+            cast={cast}
+            anchorPos={anchorPos}
+            frozen={cast.snapshot.skillId !== 'time_sphere' && isCastInActiveTimeField(activeTimeFields, cast.snapshot, freezePoint, now)}
+          />
+        );
+      })}
+    </>
   );
 }
 

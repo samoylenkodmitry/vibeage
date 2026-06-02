@@ -45,6 +45,22 @@ describe('time-stop area field movement', () => {
       durationMs: 3500,
     });
     expect(field?.excludedEntityIds).toContain(caster.id);
+    expect(outbound.publish).toHaveBeenCalledWith({
+      type: 'serverMessage',
+      message: {
+        type: 'PhysicsFieldSnapshot',
+        field: expect.objectContaining({
+          id: field?.id,
+          kind: 'timeStop',
+          sourceSkill: 'time_sphere',
+          casterId: caster.id,
+          origin: { x: 10, z: 0 },
+          radius: 8,
+        }),
+      },
+    });
+    const physicsEvent = outbound.publish.mock.calls.find(([event]) => event.message?.type === 'PhysicsFieldSnapshot')?.[0];
+    expect(physicsEvent?.message.field).not.toHaveProperty('excludedEntityIds');
   });
 
   it('freezes player and enemy movement inside the field, then lets player motion resume after expiry', () => {
@@ -103,7 +119,9 @@ describe('time-stop area active systems', () => {
     tickCasts(state.activeCasts, 500, outbound, world, NOW + 4000);
     expect(cast.state).toBe(CastState.Traveling);
   });
+});
 
+describe('time-stop area projectile physics', () => {
   it('pauses projectile travel while the projectile is inside the field', () => {
     const state = createGameState();
     const caster = player('caster', -10, 0);
@@ -128,6 +146,63 @@ describe('time-stop area active systems', () => {
     expect(cast.state).toBe(CastState.Traveling);
   });
 
+  it('freezes the field caster projectile after it separates from the caster', () => {
+    const state = createGameState();
+    const caster = player('caster', 0, 0);
+    state.players[caster.id] = caster;
+    addTimeField(state, {
+      casterId: caster.id,
+      excludedEntityIds: [caster.id],
+      origin: { x: 0, z: 0 },
+      radius: 5,
+    });
+    const cast = fireballCast(caster.id, undefined, CastState.Casting);
+    cast.dir = { x: 1, z: 0 };
+    cast.speed = 10;
+    state.activeCasts[cast.castId] = cast;
+    const world = createCombatWorld(state, vi.fn());
+    const outbound = { publish: vi.fn() };
+
+    tickCasts(state.activeCasts, 1000, outbound, world, NOW + 1000);
+    expect(cast.state).toBe(CastState.Traveling);
+
+    tickCasts(state.activeCasts, 1000, outbound, world, NOW + 2000);
+
+    expect(cast.pos).toEqual({ x: 0, z: 0 });
+    expect(cast.state).toBe(CastState.Traveling);
+  });
+
+  it('stops a projectile at the field boundary when it crosses stopped time in one tick', () => {
+    const state = createGameState();
+    const caster = player('caster', -10, 0);
+    state.players[caster.id] = caster;
+    addTimeField(state, {
+      casterId: caster.id,
+      excludedEntityIds: [caster.id],
+      origin: { x: 0, z: 0 },
+      radius: 5,
+    });
+    const cast = fireballCast(caster.id, undefined, CastState.Traveling);
+    cast.origin = { x: -10, z: 0 };
+    cast.pos = { x: -10, z: 0 };
+    cast.dir = { x: 1, z: 0 };
+    cast.speed = 20;
+    state.activeCasts[cast.castId] = cast;
+    const world = createCombatWorld(state, vi.fn());
+    const outbound = { publish: vi.fn() };
+
+    tickCasts(state.activeCasts, 1000, outbound, world, NOW + 1000);
+
+    expect(cast.pos?.x).toBeCloseTo(-5, 5);
+    expect(cast.pos?.z).toBeCloseTo(0, 5);
+    expect(cast.state).toBe(CastState.Traveling);
+
+    tickCasts(state.activeCasts, 1000, outbound, world, NOW + 2000);
+    expect(cast.pos?.x).toBeCloseTo(-5, 5);
+  });
+});
+
+describe('time-stop area AI suppression', () => {
   it('suppresses enemy AI while the enemy is frozen inside the field', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();

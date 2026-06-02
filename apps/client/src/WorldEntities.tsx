@@ -479,7 +479,7 @@ function NpcBody({ id, name, x, z }: { id: string; name: string; x: number; z: n
 
 export const NpcMarkers = memo(NpcMarkersImpl);
 
-export function CastMarker({ cast, anchorPos }: { cast: VisibleCast; anchorPos?: { x: number; z: number } }) {
+export function CastMarker({ cast, anchorPos, frozen = false }: { cast: VisibleCast; anchorPos?: { x: number; z: number }; frozen?: boolean }) {
   const snapshot = cast.snapshot;
   // anchorPos (resolved in WorldScene) is the live target position for
   // target-anchored mechanics (deluge) — so the effect tracks a moving target.
@@ -489,7 +489,7 @@ export function CastMarker({ cast, anchorPos }: { cast: VisibleCast; anchorPos?:
 
   return (
     <SmoothedEntityGroup position={{ x: p.x, y: groundY + 1, z: p.z }} response={18}>
-      <CastVfx snapshot={snapshot} />
+      <CastVfx snapshot={snapshot} frozen={frozen} />
     </SmoothedEntityGroup>
   );
 }
@@ -581,4 +581,3 @@ function SmoothedEntityGroup({
 
   return <group ref={groupRef}>{children}</group>;
 }
-

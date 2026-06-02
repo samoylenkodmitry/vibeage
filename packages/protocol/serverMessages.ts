@@ -8,6 +8,7 @@ import {
   predictionKeyframeSchema,
   skillIdSchema,
   statusEffectSchema,
+  timeStopFieldSnapshotSchema,
   vec3DSchema,
   vecXZSchema,
   type CastSnapshot,
@@ -15,6 +16,7 @@ import {
   type ItemDrop,
   type PredictionKeyframe,
   type StatusEffect,
+  type TimeStopFieldSnapshot,
   type Vec3D,
   type VecXZ,
 } from './common.js';
@@ -67,6 +69,11 @@ export const classSelectedSchema = z.object({
 export const castSnapshotMsgSchema = z.object({
   type: z.literal('CastSnapshot'),
   data: castSnapshotSchema,
+}).strict();
+
+export const physicsFieldSnapshotMsgSchema = z.object({
+  type: z.literal('PhysicsFieldSnapshot'),
+  field: timeStopFieldSnapshotSchema,
 }).strict();
 
 export const effectSnapshotTargetMsgSchema = z.object({
@@ -288,6 +295,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   skillLearnedSchema,
   classSelectedSchema,
   castSnapshotMsgSchema,
+  physicsFieldSnapshotMsgSchema,
   combatLogMsgSchema,
   enemyAttackSchema,
   bossTelegraphSchema,
@@ -353,6 +361,11 @@ export type ClassSelected = {
 export type CastSnapshotMsg = {
   type: 'CastSnapshot';
   data: CastSnapshot;
+};
+
+export type PhysicsFieldSnapshotMsg = {
+  type: 'PhysicsFieldSnapshot';
+  field: TimeStopFieldSnapshot;
 };
 
 export type EffectSnapshotTargetMsg = {
@@ -502,6 +515,7 @@ export type ServerMessage =
   | SkillLearned
   | ClassSelected
   | CastSnapshotMsg
+  | PhysicsFieldSnapshotMsg
   | EffectSnapshotMsg
   | CombatLogMsg
   | EnemyAttack

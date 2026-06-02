@@ -391,6 +391,8 @@ function getServerMessageRegionId(
       return getFirstEntityRegionId(state, regions, message.hitIds) ?? getPositionRegionId(regions, message.targetPos);
     case 'CastSnapshot':
       return getEntityRegionId(state, regions, message.data.casterId) ?? getPositionRegionId(regions, message.data.pos);
+    case 'PhysicsFieldSnapshot':
+      return getPositionRegionId(regions, message.field.origin);
     case 'EffectSnapshot':
       return getEffectSnapshotRegionId(message, state, regions);
     case 'CombatLog':

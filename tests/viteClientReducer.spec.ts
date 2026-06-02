@@ -90,6 +90,18 @@ describe('Vite game client reducer', () => {
             items: [{ itemId: 'gold_coin', quantity: 3 }],
           },
         },
+        activePhysicsFields: {
+          field1: {
+            id: 'field1',
+            kind: 'timeStop',
+            sourceSkill: 'time_sphere',
+            casterId: 'player-1',
+            origin: { x: 4, z: 6 },
+            radius: 8,
+            startTimeTs: 100,
+            durationMs: 3500,
+          },
+        },
         zones: {
           playerZoneIds: { 'player-1': 'starter-field' },
           enemyZoneIds: { 'enemy-1': 'starter-field' },
@@ -100,7 +112,50 @@ describe('Vite game client reducer', () => {
     expect(state.inventory).toEqual([{ itemId: 'health_potion', quantity: 2 }]);
     expect(state.maxInventorySlots).toBe(20);
     expect(state.groundLoot.loot1.position).toEqual({ x: 4, y: 0.35, z: 6 });
+    expect(state.activePhysicsFields.field1.radius).toBe(8);
     expect(state.streamedRegionIds).toEqual(['starter-field']);
+  });
+});
+
+describe('Vite game client reducer time freeze fields', () => {
+  it('stores physics field snapshots and prunes expired fields on update', () => {
+    const state = gameClientReducer({
+      ...initialGameClientState,
+      activePhysicsFields: {
+        expired: {
+          id: 'expired',
+          kind: 'timeStop',
+          sourceSkill: 'time_sphere',
+          casterId: 'player-2',
+          origin: { x: 0, z: 0 },
+          radius: 8,
+          startTimeTs: 0,
+          durationMs: 100,
+        },
+      },
+    }, {
+      type: 'serverMessage',
+      now: 200,
+      message: {
+        type: 'PhysicsFieldSnapshot',
+        field: {
+          id: 'field1',
+          kind: 'timeStop',
+          sourceSkill: 'time_sphere',
+          casterId: 'player-1',
+          origin: { x: 4, z: 6 },
+          radius: 8,
+          startTimeTs: 200,
+          durationMs: 3500,
+        },
+      },
+    });
+
+    expect(Object.keys(state.activePhysicsFields)).toEqual(['field1']);
+    expect(state.activePhysicsFields.field1.origin).toEqual({ x: 4, z: 6 });
+
+    const pruned = gameClientReducer(state, { type: 'pruneCasts', now: 3_800 });
+    expect(pruned.activePhysicsFields).toEqual({});
   });
 });
 

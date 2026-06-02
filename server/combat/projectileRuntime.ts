@@ -4,6 +4,7 @@ import { sweptCircleHit } from '../../packages/sim/collision.js';
 import type { Enemy } from '../../packages/sim/entities.js';
 import { getEffectiveSkillRange } from '../../packages/sim/skillUpgrades.js';
 import type { OutboundEventSink } from '../transport/outboundEvents.js';
+import { findPhysicsFreezeEntryPoint } from '../physics/areaPhysics.js';
 import type { Cast } from './skillSystem.js';
 import { emitCastSnapshot } from './castSnapshots.js';
 import { applyProjectileHit, resolveCastImpact } from './impactResolver.js';
@@ -24,8 +25,19 @@ export function updateTravelingCast(
   updateTrackedTarget(cast, world);
 
   const oldPos = { ...cast.pos };
-  cast.pos.x += cast.dir.x * cast.speed * dtSeconds;
-  cast.pos.z += cast.dir.z * cast.speed * dtSeconds;
+  const nextPos = {
+    x: cast.pos.x + cast.dir.x * cast.speed * dtSeconds,
+    z: cast.pos.z + cast.dir.z * cast.speed * dtSeconds,
+  };
+  const freezeEntryPoint = findPhysicsFreezeEntryPoint(oldPos, nextPos, world.getActivePhysicsFields?.(), now);
+  if (freezeEntryPoint) {
+    cast.pos = freezeEntryPoint;
+    emitCastSnapshot(outbound, cast);
+    cast.lastBroadcast = now;
+    return;
+  }
+
+  cast.pos = nextPos;
 
   if (!cast.lastBroadcast || now - cast.lastBroadcast > broadcastRateMs) {
     emitCastSnapshot(outbound, cast);
