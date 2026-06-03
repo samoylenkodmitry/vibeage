@@ -29,7 +29,7 @@ import { equippedWeaponType } from './weaponModels';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
-import { getEnemyTemplate } from '../../../packages/content/enemies';
+import { getEnemyTemplate, type EnemyTemplate } from '../../../packages/content/enemies';
 import { chooseWorldArtQuality } from './world-art/quality';
 import { getTerrainY } from './worldSceneConfig';
 import { advanceSmoothedGroup } from './entitySmoothing';
@@ -180,7 +180,7 @@ function AnimatedPlayerBody({
 
 // Every family now has a rigged model (KayKit humanoids + Quaternius monsters),
 // so all of them animate; only the low-quality tier falls back to primitives.
-const ANIMATED_ENEMY_FAMILIES: ReadonlySet<string> = new Set([
+const ANIMATED_ENEMY_FAMILIES: ReadonlySet<EnemyTemplate['family']> = new Set([
   'humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct',
 ]);
 // Resolve the device quality once (SSR-safe); low-end devices keep

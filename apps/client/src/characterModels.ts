@@ -9,6 +9,7 @@
  * one 76-clip rig, so they reuse a single clip map; only the height differs.
  */
 import type { CharacterClass } from '../../../packages/content/classes';
+import type { EnemyTemplate } from '../../../packages/content/enemies';
 import { getSpecializationById } from '../../../packages/content/specializations';
 
 export type CharacterAnim = 'idle' | 'walk' | 'run' | 'attack' | 'death';
@@ -123,7 +124,9 @@ export function playerModel(playerId: string, specializationId?: string | null):
 /** Each enemy family → the body that reads as it. Humanoid/undead reuse the
  *  KayKit rig (tinted by the caller); the rest get a Quaternius monster. Unknown
  *  families fall back to the barbarian brute so nothing renders as a bare box. */
-const ENEMY_FAMILY_MODEL: Record<string, CharacterModelId> = {
+// Exhaustive over EnemyFamily — adding a new family to the content union forces
+// a model mapping here (compile error) rather than silently boxing the new mob.
+const ENEMY_FAMILY_MODEL: Record<EnemyTemplate['family'], CharacterModelId> = {
   humanoid: 'kaykit-barbarian',
   undead: 'kaykit-rogue-hooded',
   beast: 'q-dino',
@@ -137,7 +140,7 @@ const ENEMY_FAMILY_MODEL: Record<string, CharacterModelId> = {
 };
 
 export function enemyModel(family: string): CharacterModelId {
-  return ENEMY_FAMILY_MODEL[family] ?? 'kaykit-barbarian';
+  return ENEMY_FAMILY_MODEL[family as EnemyTemplate['family']] ?? 'kaykit-barbarian';
 }
 
 /** A default in-hand weapon so armed mobs don't fight bare-handed. Explicitly

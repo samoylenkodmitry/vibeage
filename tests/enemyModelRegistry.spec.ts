@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { CHARACTER_MODELS, enemyModel } from '../apps/client/src/characterModels';
+import type { EnemyTemplate } from '../packages/content/enemies';
 
-// Mirrors the EnemyFamily union in packages/content/enemies.ts.
-const FAMILIES = ['humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct'];
+const FAMILIES: EnemyTemplate['family'][] = ['humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct'];
 
 describe('enemy model registry', () => {
   it('maps every enemy family to a model present in the registry', () => {
