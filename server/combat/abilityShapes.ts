@@ -93,12 +93,13 @@ export function shapeOrigin(cast: Cast, shape: AbilityShape, world: CombatWorld)
 
 /**
  * Caster-side ability effects (docs/ABILITY_SYSTEM.md) resolved once per
- * cast on impact: blink (teleport behind the target) and summon (spawn
- * minions around the caster). Generic — a boss or a future summoner /
- * blink-rogue use the identical data.
+ * cast on impact: blink/swap teleports and summon (spawn minions around
+ * the caster). Generic — a boss or a future summoner / blink-rogue use
+ * the identical data.
  */
 export function applyCasterEffects(caster: Combatant | null, cast: Cast, skill: SkillDef, world: CombatWorld, now: number): void {
   if (!caster) return;
+  if (skill.swap) swapWithTarget(caster, cast, world);
   if (skill.blink) blinkBehindTarget(caster, cast, world, skill.blink.offset);
   if (skill.summon && world.spawnMinion) {
     const level = caster.level;
@@ -114,6 +115,18 @@ export function applyCasterEffects(caster: Combatant | null, cast: Cast, skill: 
   }
 }
 
+/** Exchange positions with the locked target and snap both combatants client-side. */
+function swapWithTarget(caster: Combatant, cast: Cast, world: CombatWorld): void {
+  const target = cast.targetId ? (world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId)) : null;
+  if (!target || !target.isAlive || target.id === caster.id) return;
+  const { x: cx, y: cy, z: cz } = caster.position;
+  const { x: tx, y: ty, z: tz } = target.position;
+  caster.position = { x: tx, y: cy, z: tz };
+  target.position = { x: cx, y: ty, z: cz };
+  resetTeleportMovement(caster);
+  resetTeleportMovement(target);
+}
+
 /** Teleport the caster to `offset` units on the far side of its target. */
 function blinkBehindTarget(caster: Combatant, cast: Cast, world: CombatWorld, offset: number): void {
   const t = cast.targetId ? (world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId)) : null;
@@ -124,11 +137,14 @@ function blinkBehindTarget(caster: Combatant, cast: Cast, world: CombatWorld, of
   const ux = dist > 0.01 ? dx / dist : 1;
   const uz = dist > 0.01 ? dz / dist : 0;
   caster.position = { x: t.position.x + ux * offset, y: caster.position.y, z: t.position.z + uz * offset };
-  caster.velocity = { x: 0, z: 0 };
-  if (!isEnemy(caster)) {
-    caster.movement = undefined;
+  resetTeleportMovement(caster);
+}
+
+function resetTeleportMovement(entity: Combatant): void {
+  entity.velocity = { x: 0, z: 0 };
+  if (!isEnemy(entity)) {
+    entity.movement = undefined;
   }
-  // A blink is a teleport — flag the snap so the client jumps the caster
-  // there instead of smooth-interpolating across the gap.
-  caster.dirtySnap = true;
+  // Teleports should jump client-side instead of smooth-interpolating across the gap.
+  entity.dirtySnap = true;
 }

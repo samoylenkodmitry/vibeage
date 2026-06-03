@@ -234,7 +234,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { manaMultiplier: 1.15 },
     },
     specSkills: ['arcane_blast'],
-    proficiencySkills: ['arcane_supremacy', 'time_sphere'],
+    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap'],
   },
   pyromancer: {
     id: 'pyromancer',
@@ -336,7 +336,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { partyDamageAuraMultiplier: 1.05, partyDamageAuraRadiusM: 15 },
     },
     specSkills: ['empower'],
-    proficiencySkills: ['group_bless'],
+    proficiencySkills: ['group_bless', 'waygate'],
   },
   // ---- RANGER ----
   hawkeye: {
@@ -500,7 +500,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { cooldownMultiplierBySkill: { vanish: 0.5 } },
     },
     specSkills: ['wind_dash'],
-    proficiencySkills: ['stalking_arrow'],
+    proficiencySkills: ['stalking_arrow', 'rift_step'],
   },
 };
 

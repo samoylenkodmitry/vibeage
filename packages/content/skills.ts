@@ -17,7 +17,7 @@ export const SKILL_IDS = [
   'arcane_supremacy', 'time_sphere', 'inferno_aura', 'blood_frenzy', 'killing_strike',
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
   'divine_taunt', 'soul_eater', 'spectral_guard', 'rebirth', 'sacred_aura',
-  'treasure_sense', 'stalking_arrow',
+  'treasure_sense', 'stalking_arrow', 'dimensional_swap', 'rift_step', 'waygate',
   // PR PP — class passives (auto + learnable).
   'passive_arcane_focus', 'passive_battle_hardened', 'passive_serenity',
   'passive_woodland_step', 'passive_iron_discipline', 'passive_oath_of_light',
@@ -109,7 +109,7 @@ import type {
   SkillPveUse,
   SkillOffense,
 } from './skillTags.js';
-import type { AbilityShape, AbilityAffects, AbilityTelegraph, SummonSpec, BlinkSpec } from './abilitySchema.js';
+import type { AbilityShape, AbilityAffects, AbilityTelegraph, SummonSpec, BlinkSpec, SwapSpec } from './abilitySchema.js';
 import { withSkillReactions, type SkillReaction } from './skillReactions.js';
 export type {
   SkillRole,
@@ -177,6 +177,7 @@ export interface SkillDef {
   telegraph?: AbilityTelegraph;  // lock origin/dir, resolve after wind-up
   summon?: SummonSpec;           // caster spawns mobs on resolution
   blink?: BlinkSpec;             // caster teleports behind target on resolution
+  swap?: SwapSpec;               // caster and target exchange positions on resolution
   customBehavior?: string;       // CUSTOM_SKILL_BEHAVIORS resolver (escape hatch)
   damageMult?: number;           // flat multiplier on the damage base (e.g. 2.4×)
   reactions?: SkillReaction[];   // conditional combo hooks driven by live status effects

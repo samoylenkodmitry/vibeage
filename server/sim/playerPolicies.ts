@@ -60,6 +60,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   arcanist: profile('arcanist', 'burst', [
     enemy('arcane_supremacy', { casterHasEffect: 'arcaneCharge' }),
     enemy('time_sphere', { targetMissingEffect: 'timeStop' }),
+    enemy('dimensional_swap', { casterHealthBelowPct: 0.5 }),
     enemy('arcane_blast', { casterHasEffect: 'arcaneCharge' }),
     enemy('arcane_blast', { targetHasEffect: 'freeze' }),
     enemy('iceBolt', { targetHasEffect: 'waterWeakness' }),
@@ -100,6 +101,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   theurge: profile('theurge', 'support', [
     self('group_bless', { casterMissingEffect: 'bless' }),
+    self('waygate', { casterMissingEffect: 'speed_boost' }),
     self('empower', { casterMissingEffect: 'bless' }),
     self('bless', { casterMissingEffect: 'bless' }),
     self('holyLight', { casterHealthBelowPct: 0.65 }),
@@ -167,6 +169,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   plains_walker: profile('plains_walker', 'skirmish', [
     self('wind_dash', { casterHealthBelowPct: 0.7, casterMissingEffect: 'speed_boost' }),
+    enemy('rift_step', { casterHasEffect: 'invisible' }),
     enemy('stalking_arrow', { targetHasEffect: 'poison' }),
     enemy('backstab', { casterHasEffect: 'invisible' }),
     self('vanish', { casterMissingEffect: 'invisible' }),

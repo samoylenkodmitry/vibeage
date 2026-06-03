@@ -52,8 +52,8 @@ const BENEFICIAL_EFFECT_TYPES: ReadonlySet<string> = new Set([
   'attackSpeed',
   'damageReflect',
   'reveal_loot',
-  // Escape: counts as beneficial so the impact resolver self-targets
-  // the caster instead of demanding an enemy in range.
+  'aggroReset',
+  // Escape self-targets instead of demanding an enemy in range.
   'teleport',
 ]);
 
