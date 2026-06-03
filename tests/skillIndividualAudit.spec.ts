@@ -34,7 +34,7 @@ const PLAYER_SKILL_EXPECTATIONS: Record<string, SkillExpectation> = {
   escape: { effects: ['teleport'], targetMode: 'self' },
   fireball: { effects: ['damage', 'burn'], targetMode: 'enemy', reactionIds: ['detonate_burn'] },
   iceBolt: { effects: ['damage', 'poison', 'slow'], targetMode: 'enemy', reactionIds: ['flash_freeze'] },
-  waterSplash: { effects: ['damage', 'waterWeakness'], targetMode: 'area-self', area: true },
+  waterSplash: { effects: ['damage', 'waterWeakness'], targetMode: 'enemy', area: true },
   petrify: { effects: ['damage', 'stun'], targetMode: 'enemy' },
   slash: { effects: ['damage', 'dot'], targetMode: 'enemy', reactionIds: ['hamstring_slow'] },
   powerStrike: { effects: ['damage', 'knockback'], targetMode: 'enemy', reactionIds: ['shatter_stun'] },

@@ -27,6 +27,7 @@ import { dispelTargetSet, incomingMissChance } from './statusQueries.js';
 import { applyResolvedDamageToTarget } from './damageResolution.js';
 import { emitCombatantUpdated } from './combatantUpdateEmitter.js';
 import { addTimeStopFieldFromCast, isEntityPhysicsFrozen, toTimeStopFieldSnapshot } from '../physics/areaPhysics.js';
+import { resolveLegacyAreaCenter } from './legacyAreaCenter.js';
 
 type ImpactContext = {
   // The real caster — a player OR a mob. Player-only legs (lifesteal,
@@ -177,7 +178,7 @@ function resolveCastTargets(
   if (caster && isBeneficialOnly(skill) && effectiveArea > 0) {
     return beneficialAreaTargets(caster, effectiveArea, world);
   }
-  return getTargetsInArea(cast, world, effectiveArea);
+  return getTargetsInArea(cast, skill, world, effectiveArea);
 }
 
 /** Caster + alive allied players within `radius`. Never enemies. */
@@ -334,9 +335,9 @@ function elementVulnerabilityMultiplier(skill: SkillDef, target: Enemy | PlayerS
 // pipeline just reads `caster.stats.dmgMult` once; no per-cast
 // bless math.
 
-function getTargetsInArea(cast: Cast, world: CombatWorld, effectiveArea: number): Array<Enemy | PlayerState> {
+function getTargetsInArea(cast: Cast, skill: SkillDef, world: CombatWorld, effectiveArea: number): Array<Enemy | PlayerState> {
   const targets: Array<Enemy | PlayerState> = [];
-  const pos = cast.pos || cast.origin;
+  const pos = resolveLegacyAreaCenter(cast, skill);
 
   if (cast.targetId) {
     const enemy = world.getEnemyById(cast.targetId);
@@ -363,7 +364,6 @@ function getTargetsInArea(cast: Cast, world: CombatWorld, effectiveArea: number)
 
   return targets;
 }
-
 
 // §45.3 follow-up — spec + proficiency tier multiplier on beneficial-buff durations.
 function beneficialBuffDurationMultFor(caster: PlayerState | null | undefined): number {

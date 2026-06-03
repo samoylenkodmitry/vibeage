@@ -106,6 +106,45 @@ beforeEach(async () => {
     }));
   });
 
+  it.each([
+    ['near', 1],
+    ['far', 30],
+  ] as const)('resolves waterSplash at fixed cast time for a %s target without traveling', (_label, targetX) => {
+    enemy.position = { x: targetX, y: 0, z: 0 };
+    const castId = skillSystem.handleCastRequest({
+      activeCasts,
+      player,
+      casterId: player.id,
+      skillId: 'waterSplash',
+      targetPos: undefined,
+      targetId: enemy.id,
+      outbound,
+      world,
+      now: Date.now(),
+    }) as string;
+
+    vi.advanceTimersByTime(SKILLS.waterSplash.castMs);
+    skillSystem.tickCasts(activeCasts, 100, outbound, world, Date.now());
+
+    const cast = skillSystem.getCastById(activeCasts, castId);
+    expect(cast?.state).toBe(CastState.Impact);
+    expect(outboundEvents).not.toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CastSnapshot',
+        data: expect.objectContaining({ castId, state: CastState.Traveling }),
+      }),
+    }));
+    expect(outboundEvents).toContainEqual(expect.objectContaining({
+      type: 'serverMessage',
+      message: expect.objectContaining({
+        type: 'CombatLog',
+        castId,
+        targets: expect.arrayContaining([enemy.id]),
+      }),
+    }));
+  });
+
   it('cast.target tracks a moving target during the windup (and broadcasts it)', () => {
     const castId = skillSystem.handleCastRequest({
       activeCasts, player, casterId: player.id, skillId: 'waterSplash',

@@ -72,6 +72,7 @@ describe('skill tag resolution', () => {
   });
 
   it('target-required splash skills still present as enemy-targeted', () => {
+    expect(getSkillTags(SKILLS.waterSplash).targetMode).toBe('enemy');
     expect(getSkillTags(SKILLS.arrowShot).targetMode).toBe('enemy');
     expect(getSkillTags(SKILLS.volley).targetMode).toBe('enemy');
   });

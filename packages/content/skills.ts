@@ -319,7 +319,7 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     name: 'Water Splash',
     description: 'Creates a splash of water that damages enemies and leaves them vulnerable to follow-up water magic',
     icon: '/game/skills/skill_water.png',
-    cat: 'projectile',
+    cat: 'instant',
     kind: 'magical',
     // §45.4 — water element so the waterWeakness debuff this same
     // skill applies actually amplifies the follow-up cast.
@@ -329,16 +329,10 @@ const BASE_SKILLS: Partial<Record<SkillId, SkillDef>> = {
     cooldownMs: 8000,
     dmg: 20,
     range: 1500,
-    speed: 20,
     area: 3,
     levelRequired: 2,
+    requiresTarget: true,
     effects: [{ type: 'damage', value: 20 }, { type: 'waterWeakness', value: 30, durationMs: 5000 }],
-    projectile: {
-      speed: 20,
-      pierce: false,
-      splashRadius: 3,
-      hitRadius: 1.2
-    }
   },
   petrify: {
     id: 'petrify',

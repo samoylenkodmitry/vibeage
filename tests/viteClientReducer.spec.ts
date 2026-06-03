@@ -334,7 +334,7 @@ describe('Vite game client reducer cast visual events', () => {
 
     expect(Object.values(withImpact.visualEvents)).toContainEqual(expect.objectContaining({
       kind: 'splash',
-      radius: SKILLS.waterSplash.projectile?.splashRadius,
+      radius: SKILLS.waterSplash.area,
       position: { x: 3, y: 0.35, z: 4 },
     }));
     expect(withImpact.message).toBe('Online');
