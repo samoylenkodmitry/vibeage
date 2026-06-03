@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 const clientRoot = fileURLToPath(new URL('.', import.meta.url));
+const indexHtml = fileURLToPath(new URL('./index.html', import.meta.url));
+// Standalone in-engine asset showroom (not linked from the game). Reachable at
+// /showroom.html for reviewing/screenshotting registry models under real lighting.
+const showroomHtml = fileURLToPath(new URL('./showroom.html', import.meta.url));
 
 export default defineConfig({
   root: clientRoot,
@@ -31,6 +35,9 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      input: { main: indexHtml, showroom: showroomHtml },
+    },
   },
   css: {
     postcss: {
