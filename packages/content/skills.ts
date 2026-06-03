@@ -13,12 +13,15 @@ export const SKILL_IDS = [
   'greater_heal', 'empower', 'snipe', 'silent_step',
   'holy_shield', 'shadow_strike', 'phoenix_ward', 'sacred_pulse',
   'lucky_strike', 'wind_dash',
+  'rewind_mark', 'mirror_spell', 'soul_link', 'phase_step',
+  'projectile_capture', 'puppet_mastery', 'momentum_strike',
+  'delayed_fate', 'clone_swap', 'silence_bubble', 'reflection_contract',
   // Proficiency skills (PROFICIENCY_LEVEL = Lv 40).
   'arcane_supremacy', 'time_sphere', 'inferno_aura', 'blood_frenzy', 'killing_strike',
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
   'divine_taunt', 'soul_eater', 'spectral_guard', 'rebirth', 'sacred_aura',
   'treasure_sense', 'stalking_arrow', 'dimensional_swap', 'rift_step', 'waygate',
-  'rewind_mark', 'portal_pair', 'gravity_well', 'mirror_spell', 'soul_link', 'phase_step', 'projectile_capture', 'terrain_sigil', 'puppet_mastery', 'momentum_strike', 'delayed_fate', 'clone_swap', 'silence_bubble', 'reflection_contract', 'cataclysm_rings',
+  'portal_pair', 'gravity_well', 'terrain_sigil', 'cataclysm_rings',
   // PR PP — class passives (auto + learnable).
   'passive_arcane_focus', 'passive_battle_hardened', 'passive_serenity',
   'passive_woodland_step', 'passive_iron_discipline', 'passive_oath_of_light',

@@ -200,6 +200,40 @@ describe('world movement snapshot deltas', () => {
     expect(collectDeltas(state, 1020, new Set())).toHaveLength(1);
   });
 
+  test('normal movement deltas do not request client hard snaps', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const player = makePlayer({
+      movement: { isMoving: true, targetPos: { x: 10, z: 0 }, speed: 10, lastUpdateTime: 1000 },
+      velocity: { x: 10, z: 0 },
+    });
+    state.players[player.id] = player;
+    spatial.insert(player.id, { x: 0, z: 0 });
+    forgetPositionDelta(player.id);
+
+    advanceAll(state, spatial, 100, 1100);
+    const [delta] = collectDeltas(state, 1100, new Set());
+
+    expect(delta).toMatchObject({ type: 'PosSnap', id: player.id, pos: { x: 1, z: 0 } });
+    expect(delta).not.toHaveProperty('snap');
+    expect(player.dirtySnap).toBeUndefined();
+  });
+
+  test('positionDirty force-sends velocity changes without hard snapping', () => {
+    const state = createGameState();
+    const player = makePlayer({ positionDirty: true, velocity: { x: 5, z: 0 } });
+    state.players[player.id] = player;
+    collectDeltas(state, 1000, new Set());
+
+    player.velocity = { x: 0, z: 0 };
+    player.positionDirty = true;
+    const [delta] = collectDeltas(state, 1010, new Set());
+
+    expect(delta).toMatchObject({ type: 'PosSnap', id: player.id, vel: { x: 0, z: 0 } });
+    expect(delta).not.toHaveProperty('snap');
+    expect(player.positionDirty).toBe(false);
+  });
+
   test('does not emit enemy snapshots outside server-active regions', () => {
     const state = createGameState();
     const activeEnemy = makeEnemy({ id: 'enemy-active', position: { x: 20, y: 0.5, z: 20 } });

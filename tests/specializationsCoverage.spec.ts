@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../packages/content/classes';
+import { SKILLS } from '../packages/content/skills';
 import {
   SPECIALIZATIONS,
   SPECIALIZATION_UNLOCK_LEVEL,
@@ -20,6 +21,17 @@ describe('specializations coverage', () => {
     for (const spec of Object.values(SPECIALIZATIONS)) {
       expect(spec.unlockLevel).toBe(SPECIALIZATION_UNLOCK_LEVEL);
       expect(spec.proficiencyLevel).toBe(PROFICIENCY_LEVEL);
+    }
+  });
+
+  it('spec and proficiency skill tiers match their displayed level requirements', () => {
+    for (const spec of Object.values(SPECIALIZATIONS)) {
+      for (const skillId of spec.specSkills ?? []) {
+        expect(SKILLS[skillId].levelRequired, `${spec.id}.${skillId} should unlock at spec level`).toBe(SPECIALIZATION_UNLOCK_LEVEL);
+      }
+      for (const skillId of spec.proficiencySkills ?? []) {
+        expect(SKILLS[skillId].levelRequired, `${spec.id}.${skillId} should unlock at proficiency level`).toBe(PROFICIENCY_LEVEL);
+      }
     }
   });
 

@@ -62,7 +62,7 @@ export function applyMoveIntent(
       speed,
     };
     player.velocity = { x: 0, z: 0 };
-    markPlayerDirty(player);
+    markPlayerPositionDirty(player);
     return { ok: true, kind: 'stop', playerId, speed };
   }
 
@@ -79,11 +79,11 @@ export function applyMoveIntent(
   };
   player.rotation.y = Math.atan2(dir.x, dir.z);
   player.lastUpdateTime = now;
-  markPlayerDirty(player);
+  markPlayerPositionDirty(player);
 
   return { ok: true, kind: 'move', playerId, speed };
 }
 
-function markPlayerDirty(player: GameState['players'][string]): void {
-  player.dirtySnap = true;
+function markPlayerPositionDirty(player: GameState['players'][string]): void {
+  player.positionDirty = true;
 }

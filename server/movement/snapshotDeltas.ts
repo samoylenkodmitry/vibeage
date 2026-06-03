@@ -62,7 +62,7 @@ function collectPlayerDeltas(
       const predictions = playerPredictions(state, player, pos, vel, timestamp);
       debugPrediction(playerId, predictions);
       pushSnap({ messages, id: playerId, pos, vel, timestamp, predictions, snap });
-      clearDirtySnap(player);
+      clearPositionFlags(player);
     }
   }
 }
@@ -93,7 +93,7 @@ function collectEnemyDeltas(state: GameState, timestamp: number, messages: PosSn
         state,
       });
       pushSnap({ messages, id: enemyId, pos, vel, timestamp, predictions, snap });
-      clearDirtySnap(enemy);
+      clearPositionFlags(enemy);
     }
   }
 }
@@ -119,7 +119,7 @@ function playerPredictions(
 function shouldSendSnap(id: string, pos: VecXZ, entity: PlayerState | Enemy): boolean {
   const last = lastSentPos[id];
 
-  if (!last || isDirtySnap(entity)) {
+  if (!last || isPositionDirty(entity) || isDirtySnap(entity)) {
     return true;
   }
 
@@ -149,7 +149,14 @@ function isDirtySnap(entity: PlayerState | Enemy): boolean {
   return Boolean(entity.dirtySnap);
 }
 
-function clearDirtySnap(entity: PlayerState | Enemy): void {
+function isPositionDirty(entity: PlayerState | Enemy): boolean {
+  return Boolean(entity.positionDirty);
+}
+
+function clearPositionFlags(entity: PlayerState | Enemy): void {
+  if (isPositionDirty(entity)) {
+    entity.positionDirty = false;
+  }
   if (isDirtySnap(entity)) {
     entity.dirtySnap = false;
   }

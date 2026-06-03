@@ -3,10 +3,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EFFECT_SPECS } from '../packages/content/effects';
 import { CLASS_LEARNABLE_PASSIVE_SKILLS, CLASS_AUTO_PASSIVE_SKILL, PASSIVE_SKILL_CONTRIBUTIONS } from '../packages/content/classPassives';
-import { SKILLS, type SkillEffectType, type SkillId } from '../packages/content/skills';
+import { SKILLS, UNIVERSAL_SKILLS, type SkillEffectType, type SkillId } from '../packages/content/skills';
 import { STATS } from '../packages/content/stats';
 import { CHARACTER_RACES } from '../packages/content/races';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../packages/content/classes';
+import { SPECIALIZATIONS } from '../packages/content/specializations';
 import type { StatId } from '../packages/sim/statContributions';
 
 /**
@@ -181,6 +182,25 @@ function registerSkillCatalogAuditTests() {
         existsSync(join(process.cwd(), 'public', skill.icon)),
         `${id} icon file missing: ${skill.icon}`,
       ).toBe(true);
+    }
+  });
+
+  it('every player-learnable skill uses its own generated icon', () => {
+    const playableSkillIds = new Set<SkillId>(UNIVERSAL_SKILLS);
+    for (const tree of Object.values(CLASS_SKILL_TREES)) {
+      for (const skillId of Object.keys(tree.skillProgression)) playableSkillIds.add(skillId as SkillId);
+    }
+    for (const spec of Object.values(SPECIALIZATIONS)) {
+      for (const skillId of spec.specSkills ?? []) playableSkillIds.add(skillId);
+      for (const skillId of spec.proficiencySkills ?? []) playableSkillIds.add(skillId);
+    }
+
+    const icons = new Set<string>();
+    for (const skillId of playableSkillIds) {
+      const icon = SKILLS[skillId].icon;
+      expect(icon, `${skillId} should use generated skill icon`).toMatch(/^\/game\/skills\/skill-icon-[a-z0-9-]+\.png$/);
+      expect(icons.has(icon), `${skillId} reuses generated skill icon ${icon}`).toBe(false);
+      icons.add(icon);
     }
   });
 
