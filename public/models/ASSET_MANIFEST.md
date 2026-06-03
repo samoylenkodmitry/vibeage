@@ -111,6 +111,8 @@ the family model above, and the per-type tint still differentiates same-model mo
 | `monsters/Hywirl.glb` | voidwalker | Quaternius (CC0) |
 | `monsters/Glub.glb` | void_spawner | Quaternius (CC0) |
 | `monsters/SpikyBlob.glb` | crystal_elemental | Quaternius (CC0) |
+| `monsters/Wolf.glb` | wolf, frost_wolf | Quaternius (CC0) — Animated Animal Pack |
+| `monsters/Spider.glb` | spider | Quaternius (CC0) |
 
 `characterModels.ts` maps `family → model` (`ENEMY_FAMILY_MODEL`) with per-type
 overrides (`ENEMY_TYPE_MODEL`); `ANIMATED_ENEMY_FAMILIES` (in `WorldEntities.tsx`)

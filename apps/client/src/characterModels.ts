@@ -76,6 +76,16 @@ const Q_SIMPLE_CLIPS: Record<CharacterAnim, string> = {
 const STATIC_CLIPS: Record<CharacterAnim, string> = {
   idle: 'static', walk: 'static', run: 'static', attack: 'static', death: 'static',
 };
+// Quaternius "Animated Animals" rig (quadrupeds — Gallop is the run gait).
+const Q_ANIMAL_CLIPS: Record<CharacterAnim, string> = {
+  idle: 'AnimalArmature|Idle', walk: 'AnimalArmature|Walk', run: 'AnimalArmature|Gallop',
+  attack: 'AnimalArmature|Attack', death: 'AnimalArmature|Death',
+};
+// Quaternius spider rig (its own armature + `Spider_`-prefixed clips, no run).
+const Q_SPIDER_CLIPS: Record<CharacterAnim, string> = {
+  idle: 'SpiderArmature|Spider_Idle', walk: 'SpiderArmature|Spider_Walk', run: 'SpiderArmature|Spider_Walk',
+  attack: 'SpiderArmature|Spider_Attack', death: 'SpiderArmature|Spider_Death',
+};
 
 function quaternius(file: string, nativeHeight: number, clips: Record<CharacterAnim, string>, groundOffset: number): CharacterModelDef {
   return { path: `/models/monsters/${file}.glb`, nativeHeight, forwardYaw: 0, groundOffset, clips, clampOnce: KAYKIT_CLAMP_ONCE };
@@ -110,6 +120,9 @@ export const CHARACTER_MODELS = {
   'q-ghostskull': quaternius('GhostSkull', 3.101, Q_FLYER_CLIPS, -0.337),
   'q-yeti': quaternius('Yeti', 2.437, Q_SIMPLE_CLIPS, 0),
   'q-spikyblob': quaternius('SpikyBlob', 4.142, Q_SIMPLE_CLIPS, 0),
+  // Animals pack (Quaternius CC0) — real beasts instead of the dino stand-in.
+  'q-wolf': quaternius('Wolf', 2.681, Q_ANIMAL_CLIPS, 0),
+  'q-spider': quaternius('Spider', 1.949, Q_SPIDER_CLIPS, 0),
 } as const;
 
 export type CharacterModelId = keyof typeof CHARACTER_MODELS;
@@ -178,6 +191,10 @@ export function enemyModel(family: string): CharacterModelId {
  *  (fire vs ice elemental, wolf vs frost_wolf). (beast wolf/spider have no override
  *  yet — the monster pack has no wolf/spider; that's an animals-pack follow-up.) */
 const ENEMY_TYPE_MODEL: Record<string, CharacterModelId> = {
+  // beast (family default q-dino) — real animals now
+  wolf: 'q-wolf',
+  frost_wolf: 'q-wolf',
+  spider: 'q-spider',
   // humanoid (family default barbarian)
   goblin: 'kaykit-rogue',
   orc: 'q-orc',
