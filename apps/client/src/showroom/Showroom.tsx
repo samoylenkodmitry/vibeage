@@ -30,6 +30,9 @@ const FAMILY_BY_MODEL: Partial<Record<CharacterModelId, string>> = (() => {
 })();
 
 const GROUND_GEO = new THREE.CircleGeometry(1.4, 40);
+const FOCUS_ORIGIN = { x: 0, y: 0, z: 0 };
+const CONTROLS_TARGET: [number, number, number] = [0, 1, 0];
+const SPACING = 3.4;
 
 function Pedestal({ modelId, state, label }: { modelId: CharacterModelId; state: CharacterAnim; label: string }) {
   return (
@@ -54,13 +57,14 @@ export function Showroom() {
   const cols = Math.max(1, Number(params.get('cols') ?? 5));
 
   const models = useMemo(() => (only && CHARACTER_MODELS[only] ? [only] : ALL_MODELS), [only]);
-  const spacing = 3.4;
-  const rows = Math.ceil(models.length / cols);
-  const placed = models.map((id, i) => {
-    const c = i % cols;
-    const r = Math.floor(i / cols);
-    return { id, x: (c - (Math.min(cols, models.length) - 1) / 2) * spacing, z: (r - (rows - 1) / 2) * spacing };
-  });
+  const placed = useMemo(() => {
+    const rows = Math.ceil(models.length / cols);
+    return models.map((id, i) => {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      return { id, x: (c - (Math.min(cols, models.length) - 1) / 2) * SPACING, z: (r - (rows - 1) / 2) * SPACING };
+    });
+  }, [models, cols]);
   const camDist = Math.max(7, cols * 2.4);
 
   return (
@@ -69,7 +73,7 @@ export function Showroom() {
       camera={{ position: [0, camDist * 0.55, camDist], fov: 45, near: 0.1, far: 2000 }}
       onCreated={({ gl }) => gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))}
     >
-      <WorldEnvironment focus={{ x: 0, y: 0, z: 0 }} />
+      <WorldEnvironment focus={FOCUS_ORIGIN} />
       {/* Review fill so models read clearly regardless of the day-night phase. */}
       <hemisphereLight args={['#cfe0ff', '#2a3450', 1.1]} />
       <directionalLight position={[6, 10, 6]} intensity={1.4} />
@@ -83,7 +87,7 @@ export function Showroom() {
           <Pedestal modelId={p.id} state={state} label={FAMILY_BY_MODEL[p.id] ? `${FAMILY_BY_MODEL[p.id]}\n(${p.id})` : p.id} />
         </group>
       ))}
-      <OrbitControls target={[0, 1, 0]} enableDamping />
+      <OrbitControls target={CONTROLS_TARGET} enableDamping />
     </Canvas>
   );
 }
