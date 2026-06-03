@@ -98,9 +98,9 @@ function MobLi({
             <span className="wiki-row-tag">{tpl.family}</span>
           </header>
           <small className="wiki-row-footer">Type id: <code>{tpl.type}</code></small>
-          <MobStatsSummary tpl={tpl} zones={zones} />
         </div>
       </div>
+      <MobStatsSummary tpl={tpl} zones={zones} />
       <MobAbilities tpl={tpl} navigate={navigate} />
       {zones.length === 0 && <small className="wiki-row-footer">No known spawn zone.</small>}
       {zones.length > 0 && (

@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AnimatedCharacter } from '../AnimatedCharacter';
+import { AssetErrorBoundary } from '../world-art/AssetErrorBoundary';
 import { enemyModel } from '../characterModels';
 import { getEnemyVisual } from '../worldVisuals';
 
@@ -40,14 +41,17 @@ export function MobModelViewer({ family, type }: { family: string; type: string 
         >
           <hemisphereLight args={['#cfe0ff', '#2a3450', 1.2]} />
           <directionalLight position={[3, 5, 4]} intensity={1.5} />
-          <Suspense fallback={null}>
-            {/* Lower so the body centres on the camera target. */}
-            <group position={[0, -0.85, 0]}>
-              <Spin>
-                <AnimatedCharacter modelId={enemyModel(family)} state="idle" targetHeight={1.7} tint={tint} />
-              </Spin>
-            </group>
-          </Suspense>
+          {/* A model load failure renders nothing instead of crashing the wiki. */}
+          <AssetErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              {/* Lower so the body centres on the camera target. */}
+              <group position={[0, -0.85, 0]}>
+                <Spin>
+                  <AnimatedCharacter modelId={enemyModel(family)} state="idle" targetHeight={1.7} tint={tint} />
+                </Spin>
+              </group>
+            </Suspense>
+          </AssetErrorBoundary>
         </Canvas>
       )}
     </div>
