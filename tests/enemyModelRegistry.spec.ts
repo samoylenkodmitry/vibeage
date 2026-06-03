@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
-import { CHARACTER_MODELS, enemyModel } from '../apps/client/src/characterModels';
+import { CHARACTER_MODELS, enemyModel, enemyModelForType } from '../apps/client/src/characterModels';
 import type { EnemyTemplate } from '../packages/content/enemies';
 
 const FAMILIES: EnemyTemplate['family'][] = ['humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct'];
@@ -26,5 +26,15 @@ describe('enemy model registry', () => {
   it('monster clips reference the prefixed Quaternius clip names', () => {
     expect(CHARACTER_MODELS['q-dino'].clips.run).toBe('CharacterArmature|Run');
     expect(CHARACTER_MODELS['q-dragon'].clips.idle).toBe('CharacterArmature|Flying_Idle');
+  });
+
+  it('per-type overrides resolve to registered models; unmapped types fall back to family', () => {
+    // A few of the ENEMY_TYPE_MODEL overrides.
+    for (const [type, family] of [['orc', 'humanoid'], ['skeleton', 'undead'], ['slime', 'aberration'], ['drake', 'dragon']] as const) {
+      expect(CHARACTER_MODELS[enemyModelForType(type, family)], `${type}`).toBeDefined();
+    }
+    // Unmapped type uses the family model.
+    expect(enemyModelForType('wolf', 'beast')).toBe(enemyModel('beast'));
+    expect(enemyModelForType('totally_unknown', 'spirit')).toBe(enemyModel('spirit'));
   });
 });

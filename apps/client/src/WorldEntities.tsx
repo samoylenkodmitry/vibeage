@@ -24,7 +24,7 @@ import { StatusEffectsVfx } from './vfx/statusFx';
 import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
 import { AnimatedCharacter, type CharacterAnim } from './AnimatedCharacter';
-import { playerModel, pickPlayerModel, enemyModel, enemyWeaponType, type CharacterModelId } from './characterModels';
+import { playerModel, pickPlayerModel, enemyModelForType, enemyWeaponType, type CharacterModelId } from './characterModels';
 import { equippedWeaponType } from './weaponModels';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
@@ -271,7 +271,7 @@ function EnemyMarkerImpl({
       <AnimatedEnemyBody
         animated={animated} anim={enemyAnim(enemy, speedSq)} shape={visual.shape} color={color}
         height={enemy.isAlive ? visual.height : 0.25} targetHeight={visual.height} isMoving={isMoving}
-        modelId={enemyModel(enemyFamily)} weaponType={animated ? enemyWeaponType(enemyFamily) : undefined} isAlive={enemy.isAlive} groundedYOffset={groundedYOffset} onPointerDown={handlePointerDown} onHover={setIsHovered}
+        modelId={enemyModelForType(enemy.type, enemyFamily)} weaponType={animated ? enemyWeaponType(enemyFamily) : undefined} isAlive={enemy.isAlive} groundedYOffset={groundedYOffset} onPointerDown={handlePointerDown} onHover={setIsHovered}
       />
       {enemy.isAlive && visual.glow && (
         <GlowEmitter color={visual.color} intensity={enemy.isMiniBoss ? 1.6 : 0.9} distance={enemy.isMiniBoss ? 7 : 4} priority={enemy.isMiniBoss ? 3 : 1} />

@@ -94,6 +94,19 @@ export const CHARACTER_MODELS = {
   'q-armabee': quaternius('Armabee', 1.886, Q_FLYER_CLIPS, 0.341),
   'q-ghost': quaternius('Ghost', 3.101, Q_FLYER_CLIPS, -0.34),
   'q-stonegolem': quaternius('StoneGolem', 2.064, STATIC_CLIPS, -1.1715),
+  // Extra creatures for per-mob-type variety (Quaternius CC0). nativeHeight =
+  // visible bbox height; groundOffset seats walkers / hovers flyers.
+  'q-pinkslime': quaternius('PinkSlime', 2.009, Q_BLOB_CLIPS, 0),
+  'q-demon': quaternius('Demon', 3.120, Q_GROUND_CLIPS, 0),
+  'q-bluedemon': quaternius('BlueDemon', 2.840, Q_GROUND_CLIPS, 0),
+  'q-dragon-evolved': quaternius('DragonEvolved', 2.858, Q_FLYER_CLIPS, -0.27),
+  'q-glub': quaternius('Glub', 2.351, Q_FLYER_CLIPS, 0.907),
+  'q-hywirl': quaternius('Hywirl', 2.745, Q_FLYER_CLIPS, -0.522),
+  'q-orc': quaternius('Orc', 3.209, Q_GROUND_CLIPS, 0),
+  'q-wizard': quaternius('Wizard', 2.601, Q_BLOB_CLIPS, 0),
+  'q-ghostskull': quaternius('GhostSkull', 3.101, Q_FLYER_CLIPS, -0.337),
+  'q-yeti': quaternius('Yeti', 2.437, Q_BLOB_CLIPS, 0),
+  'q-spikyblob': quaternius('SpikyBlob', 4.142, Q_BLOB_CLIPS, 0),
 } as const;
 
 export type CharacterModelId = keyof typeof CHARACTER_MODELS;
@@ -153,6 +166,38 @@ const ENEMY_FAMILY_MODEL: Record<EnemyTemplate['family'], CharacterModelId> = {
 
 export function enemyModel(family: string): CharacterModelId {
   return ENEMY_FAMILY_MODEL[family as EnemyTemplate['family']] ?? 'kaykit-barbarian';
+}
+
+/** Per-mob-type model overrides for variety within a family — a wolf and a spider
+ *  shouldn't share one body. Types not listed fall back to the family model, and
+ *  the per-type tint (getEnemyVisual.color) still differentiates same-model mobs
+ *  (e.g. fire vs ice elemental, wolf vs frost_wolf). */
+const ENEMY_TYPE_MODEL: Record<string, CharacterModelId> = {
+  // humanoid
+  goblin: 'kaykit-rogue',
+  orc: 'q-orc',
+  troll: 'q-yeti',
+  necromancer: 'q-wizard',
+  // undead
+  skeleton: 'q-ghostskull',
+  // dragon
+  drake: 'q-dragon-evolved',
+  // elemental
+  crystal_elemental: 'q-spikyblob',
+  // aberration
+  slime: 'q-pinkslime',
+  shadowbeast: 'q-demon',
+  chrono_stalker: 'q-demon',
+  darkstalker: 'q-bluedemon',
+  temporal_overlord: 'q-bluedemon',
+  voidwalker: 'q-hywirl',
+  tentacle_horror: 'q-squidle',
+  deep_leviathan: 'q-squidle',
+  void_spawner: 'q-glub',
+};
+
+export function enemyModelForType(type: string, family: string): CharacterModelId {
+  return ENEMY_TYPE_MODEL[type] ?? enemyModel(family);
 }
 
 /** A default in-hand weapon so armed mobs don't fight bare-handed. Explicitly
