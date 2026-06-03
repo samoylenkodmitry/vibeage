@@ -42,7 +42,7 @@ describe('enemy behavior helpers', () => {
     expect(findAggroTargetId(enemy, { dead, far, near }, ['dead', 'far', 'near'], Date.now())).toBe('near');
   });
 
-  test('sets velocity + facing toward a target and marks the enemy dirty', () => {
+  test('sets velocity + facing toward a target and marks a non-snapping position update', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 2);
     enemy.movementSpeed = 2;
     const spatial = new SpatialHashGrid(1);
@@ -57,7 +57,8 @@ describe('enemy behavior helpers', () => {
     expect(enemy.position.z).toBe(0);
     expect(enemy.velocity).toEqual({ x: 2, z: 0 });
     expect(enemy.rotation.y).toBeCloseTo(Math.PI / 2);
-    expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(true);
+    expect(enemy.positionDirty).toBe(true);
+    expect(enemy.dirtySnap).toBeUndefined();
   });
 
   // Mob attacks (cooldown gating + damage + death) run through the shared

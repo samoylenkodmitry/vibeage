@@ -9,7 +9,7 @@ import {
   findAggroTargetId,
   isPlayerInvisible,
   makeEnemyUpdate,
-  markEnemyDirty,
+  markEnemyPositionDirty,
   moveEnemyToward,
   snapEnemyToSpawn,
   stopEnemy,
@@ -502,12 +502,16 @@ function markDirtyIfMotionChanged(
   previousState: Enemy['aiState'],
   previousVelocity: { x: number; z: number },
 ): void {
+  if (enemy.dirtySnap) {
+    return;
+  }
+
   const newVelocity = enemy.velocity || { x: 0, z: 0 };
   if (
     previousState !== enemy.aiState
     || Math.abs(previousVelocity.x - newVelocity.x) > 0.01
     || Math.abs(previousVelocity.z - newVelocity.z) > 0.01
   ) {
-    markEnemyDirty(enemy);
+    markEnemyPositionDirty(enemy);
   }
 }

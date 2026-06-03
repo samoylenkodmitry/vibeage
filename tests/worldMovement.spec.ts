@@ -219,6 +219,29 @@ describe('world movement snapshot deltas', () => {
     expect(player.dirtySnap).toBeUndefined();
   });
 
+  test('normal enemy movement deltas do not request client hard snaps', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const enemy = makeEnemy({
+      position: { x: 20, y: 0.5, z: 20 },
+      velocity: { x: 6, z: 0 },
+      positionDirty: true,
+    });
+    state.enemies[enemy.id] = enemy;
+    spatial.insert(enemy.id, { x: 20, z: 20 });
+    state.zones.activeZoneIds = ['zone-a'];
+    state.zones.enemyZoneIds[enemy.id] = 'zone-a';
+    forgetPositionDelta(enemy.id);
+
+    advanceAll(state, spatial, 100, 1100);
+    const [delta] = collectDeltas(state, 1100, new Set());
+
+    expect(delta).toMatchObject({ type: 'PosSnap', id: enemy.id, pos: { x: 20.6, z: 20 } });
+    expect(delta).not.toHaveProperty('snap');
+    expect(enemy.positionDirty).toBe(false);
+    expect(enemy.dirtySnap).toBeUndefined();
+  });
+
   test('positionDirty force-sends velocity changes without hard snapping', () => {
     const state = createGameState();
     const player = makePlayer({ positionDirty: true, velocity: { x: 5, z: 0 } });

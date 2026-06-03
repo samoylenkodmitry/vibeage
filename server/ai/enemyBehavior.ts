@@ -90,7 +90,7 @@ export function moveEnemyToward(
     z: direction.z * speed,
   };
   enemy.rotation.y = rotationYForDirection(direction);
-  markEnemyDirty(enemy);
+  markEnemyPositionDirty(enemy);
 }
 
 export function stopEnemy(enemy: Enemy): void {
@@ -134,4 +134,8 @@ export function makeEnemyUpdate(enemy: Enemy): Pick<Enemy, 'id' | 'targetId' | '
 
 export function markEnemyDirty(enemy: Enemy): void {
   enemy.dirtySnap = true;
+}
+
+export function markEnemyPositionDirty(enemy: Enemy): void {
+  enemy.positionDirty = true;
 }
