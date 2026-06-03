@@ -68,6 +68,11 @@ const Q_BLOB_CLIPS: Record<CharacterAnim, string> = {
   idle: 'CharacterArmature|Idle', walk: 'CharacterArmature|Walk', run: 'CharacterArmature|Walk',
   attack: 'CharacterArmature|Bite_Front', death: 'CharacterArmature|Death',
 };
+// joney_lol's golem (CC-BY) is a static mesh — no animation clips; it renders in
+// its standing pose (golems read fine stiff). Placeholder names resolve to no action.
+const STATIC_CLIPS: Record<CharacterAnim, string> = {
+  idle: 'static', walk: 'static', run: 'static', attack: 'static', death: 'static',
+};
 
 function quaternius(file: string, nativeHeight: number, clips: Record<CharacterAnim, string>, groundOffset: number): CharacterModelDef {
   return { path: `/models/monsters/${file}.glb`, nativeHeight, forwardYaw: 0, groundOffset, clips, clampOnce: KAYKIT_CLAMP_ONCE };
@@ -88,7 +93,7 @@ export const CHARACTER_MODELS = {
   'q-squidle': quaternius('Squidle', 1.987, Q_FLYER_CLIPS, 0.597),
   'q-armabee': quaternius('Armabee', 1.886, Q_FLYER_CLIPS, 0.341),
   'q-ghost': quaternius('Ghost', 3.101, Q_FLYER_CLIPS, -0.34),
-  'q-goleling': quaternius('Goleling', 1.552, Q_FLYER_CLIPS, 1.101),
+  'q-stonegolem': quaternius('StoneGolem', 2.064, STATIC_CLIPS, -1.1715),
 } as const;
 
 export type CharacterModelId = keyof typeof CHARACTER_MODELS;
@@ -143,7 +148,7 @@ const ENEMY_FAMILY_MODEL: Record<EnemyTemplate['family'], CharacterModelId> = {
   fey: 'q-armabee',
   spirit: 'q-ghost',
   plant: 'q-mushroomking',
-  construct: 'q-goleling',
+  construct: 'q-stonegolem',
 };
 
 export function enemyModel(family: string): CharacterModelId {
