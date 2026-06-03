@@ -89,6 +89,19 @@ describe('server protocol schemas', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('accepts hard-snap position snapshots for teleports', () => {
+    const parsed = safeParseServerMessage({
+      type: 'PosSnap',
+      id: 'player-1',
+      pos: { x: 8, z: 0 },
+      vel: { x: 0, z: 0 },
+      snapTs: 1746316800000,
+      snap: true,
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
   it('accepts inventory updates with the current playerId extension', () => {
     const parsed = safeParseServerMessage({
       type: 'InventoryUpdate',

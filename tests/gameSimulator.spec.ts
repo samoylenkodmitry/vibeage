@@ -88,6 +88,38 @@ describe('game simulator combat scenarios', () => {
   });
 });
 
+describe('game simulator teleport mechanics', () => {
+  it('resolves Dimensional Swap through the real cast simulator and refreshes spatial cells', () => {
+    const sim = createGameSimulator({ startMs: 1_000 });
+    const caster = createSimulatedPlayer({
+      id: 'swapper',
+      className: 'mage',
+      level: 40,
+      specializationId: 'arcanist',
+      unlockedSkills: ['dimensional_swap'],
+      position: { x: 0, z: 0 },
+    });
+    const target = createSimulatedEnemy('goblin', 40, { id: 'target', position: { x: 8, z: 0 } });
+    target.health = 10_000;
+    target.maxHealth = 10_000;
+    sim.addPlayer(caster);
+    sim.addEnemy(target);
+
+    sim.castSkill(caster.id, 'dimensional_swap', target.id);
+    sim.step();
+
+    expect(caster.position.x).toBeCloseTo(8, 4);
+    expect(caster.position.z).toBeCloseTo(0, 4);
+    expect(target.position.x).toBeCloseTo(0, 4);
+    expect(target.position.z).toBeCloseTo(0, 4);
+    expect(sim.spatial.queryCircle({ x: 8, z: 0 }, 0)).toContain(caster.id);
+    expect(sim.spatial.queryCircle({ x: 8, z: 0 }, 0)).not.toContain(target.id);
+    expect(sim.spatial.queryCircle({ x: 0, z: 0 }, 0)).toContain(target.id);
+    expect(sim.spatial.queryCircle({ x: 0, z: 0 }, 0)).not.toContain(caster.id);
+    expect(target.statusEffects.some((effect) => effect.type === 'stun')).toBe(true);
+  });
+});
+
 describe('game simulator progression and PvP scenarios', () => {
   it('tracks XP and level gains across multi-kill leveling scenarios', () => {
     const sim = createGameSimulator();

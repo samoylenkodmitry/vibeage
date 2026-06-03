@@ -35,6 +35,15 @@ describe('advanceSmoothedGroup', () => {
     expect(group.position.x).toBe(far);
   });
 
+  it('snaps instantly when a server snapshot marks a short teleport', () => {
+    const group = makeGroup(0, 0, 0);
+    advanceSmoothedGroup(group, scratch(), {
+      targetX: 4, targetZ: 0, posY: 0, rotationY: 0, alpha: 0.5, snap: true,
+    });
+
+    expect(group.position.x).toBe(4);
+  });
+
   it('keeps lerping every frame toward an unchanged target (no freeze)', () => {
     const group = makeGroup(0, 0, 0);
     advanceSmoothedGroup(group, scratch(), { targetX: 3, targetZ: 0, posY: 0, rotationY: 0, alpha: 0.5 });

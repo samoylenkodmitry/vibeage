@@ -17,14 +17,14 @@ export function advanceSmoothedGroup(
   scratch: THREE.Vector3,
   p: {
     targetX: number; targetZ: number; posY: number; rotationY: number;
-    alpha: number; groundedOffset?: number;
+    alpha: number; groundedOffset?: number; snap?: boolean;
   },
 ): void {
   scratch.set(p.targetX, p.posY, p.targetZ);
   // Teleports (Escape, GM setPosition) push the target past SNAP_THRESHOLD,
   // so snap instead of drifting across the world for many frames.
   const gap = group.position.distanceTo(scratch);
-  if (gap > SNAP_THRESHOLD) {
+  if (p.snap || gap > SNAP_THRESHOLD) {
     group.position.copy(scratch);
   } else {
     group.position.lerp(scratch, p.alpha);

@@ -11,12 +11,13 @@ import type { CombatWorld } from '../server/combat/worldContract';
 const NOW = 1_700_000_000_000;
 
 describe('advanced skill mechanics primitives', () => {
-  registerTeleportationTests();
+  registerSwapTests();
+  registerMobilityTests();
   registerTemporalTests();
   registerReflectionTests();
 });
 
-function registerTeleportationTests() {
+function registerSwapTests() {
   it('Dimensional Swap exchanges caster and target positions and snaps both combatants', () => {
     const caster = player('caster', 0, 0, ['dimensional_swap']);
     const target = enemy('target', 8, 0);
@@ -60,6 +61,26 @@ function registerTeleportationTests() {
     expect(target.dirtySnap).toBeUndefined();
   });
 
+  it('Dimensional Swap still swaps when its damage kills a living target', () => {
+    const caster = player('caster', 0, 0, ['dimensional_swap']);
+    const target = enemy('target', 8, 0);
+    target.health = 1;
+    const world = worldOf([caster], [target]);
+
+    resolveCastImpact(
+      targetedCast(caster.id, 'dimensional_swap', target.id, target.position),
+      { publish: vi.fn() },
+      world,
+      NOW,
+    );
+
+    expect(caster.position.x).toBe(8);
+    expect(target.position.x).toBe(0);
+    expect(target.health).toBeLessThanOrEqual(0);
+  });
+}
+
+function registerMobilityTests() {
   it('Rift Step damages enemies in the target rift and blinks the caster through the target', () => {
     const caster = player('caster', 0, 0, ['rift_step']);
     const primary = enemy('primary', 8, 0);

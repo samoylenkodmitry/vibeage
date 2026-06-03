@@ -573,12 +573,14 @@ function applySkillLearned(
 
 function applyPositionSnapshot(state: GameClientState, message: ServerMessage & { type: 'PosSnap' }, now: number) {
   const asPosition = { x: message.pos.x, z: message.pos.z };
+  const snapSeq = message.snap ? message.seq ?? message.snapTs : undefined;
   if (state.players[message.id]) {
     return updatePlayer(state, {
       id: message.id,
       position: { ...state.players[message.id].position, ...asPosition },
       rotation: { ...state.players[message.id].rotation, y: message.rotY ?? 0 },
       velocity: message.vel,
+      ...(snapSeq !== undefined ? { snapSeq } : {}),
     }, now);
   }
 
@@ -588,6 +590,7 @@ function applyPositionSnapshot(state: GameClientState, message: ServerMessage & 
       position: { ...state.enemies[message.id].position, ...asPosition },
       rotation: { ...state.enemies[message.id].rotation, y: message.rotY ?? 0 },
       velocity: message.vel,
+      ...(snapSeq !== undefined ? { snapSeq } : {}),
     }, now);
   }
 

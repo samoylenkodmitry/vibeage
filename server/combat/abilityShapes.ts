@@ -121,8 +121,10 @@ function swapWithTarget(caster: Combatant, cast: Cast, world: CombatWorld): void
   if (!target || !target.isAlive || target.id === caster.id) return;
   const { x: cx, y: cy, z: cz } = caster.position;
   const { x: tx, y: ty, z: tz } = target.position;
-  caster.position = { x: tx, y: cy, z: tz };
-  target.position = { x: cx, y: ty, z: cz };
+  const casterDest = cast.target ?? { x: tx, z: tz };
+  const targetDest = cast.origin ?? { x: cx, z: cz };
+  moveCombatant(caster, { x: casterDest.x, y: cy, z: casterDest.z }, world);
+  moveCombatant(target, { x: targetDest.x, y: ty, z: targetDest.z }, world);
   resetTeleportMovement(caster);
   resetTeleportMovement(target);
 }
@@ -136,8 +138,14 @@ function blinkBehindTarget(caster: Combatant, cast: Cast, world: CombatWorld, of
   const dist = Math.hypot(dx, dz);
   const ux = dist > 0.01 ? dx / dist : 1;
   const uz = dist > 0.01 ? dz / dist : 0;
-  caster.position = { x: t.position.x + ux * offset, y: caster.position.y, z: t.position.z + uz * offset };
+  moveCombatant(caster, { x: t.position.x + ux * offset, y: caster.position.y, z: t.position.z + uz * offset }, world);
   resetTeleportMovement(caster);
+}
+
+function moveCombatant(entity: Combatant, nextPos: Combatant['position'], world: CombatWorld): void {
+  const oldPos = { x: entity.position.x, z: entity.position.z };
+  entity.position = nextPos;
+  world.moveEntity?.(entity.id, oldPos, { x: nextPos.x, z: nextPos.z });
 }
 
 function resetTeleportMovement(entity: Combatant): void {

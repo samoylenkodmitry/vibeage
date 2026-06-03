@@ -124,12 +124,12 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
   const targets = resolveCastTargets(cast, world, skill, playerCaster, upgradeMods);
   const physicsField = addTimeStopFieldFromCast(cast, skill, world, now);
   if (physicsField) emitServerMessage(outbound, { type: 'PhysicsFieldSnapshot', field: toTimeStopFieldSnapshot(physicsField) });
+  if (skill.swap) applyCasterEffects(caster, cast, skill, world, now);
   // §45.3 — Bless's damage multiplier is folded into `caster.stats.dmgMult`
   // by the Contribution registry (status-effect contribution). The cast
   // pipeline just reads dmgMult directly; no per-cast bless math.
   const reactions = targets.map((target) => prepareSkillReactions(skill, target, caster, now));
   const results = targets.map((target, i) => calculateDamage(skill, caster, upgradeMods.dmgMultiplier, { castId: cast.castId, targetId: target.id, target, world, now }, reactions[i]));
-
   const heals = targets.map((target, i) => applyCastToTarget(target, results[i].damage, context, results[i].miss, reactions[i], now));
   emitServerMessage(outbound, {
     type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId,
@@ -137,7 +137,7 @@ export function resolveCastImpact(cast: Cast, outbound: OutboundEventSink, world
     damages: results.map((r) => r.damage), crits: results.map((r) => r.crit),
     misses: results.map((r) => r.miss), heals: heals.map((h) => Math.round(h)),
   });
-  applyCasterEffects(caster, cast, skill, world, now);
+  if (!skill.swap) applyCasterEffects(caster, cast, skill, world, now);
 }
 
 function isBeneficialOnly(skill: SkillDef): boolean {
