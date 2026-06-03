@@ -188,8 +188,7 @@ export function enemyModel(family: string): CharacterModelId {
  *  tentacle-horror shouldn't share one body. Only types that need a DIFFERENT model
  *  than their family default are listed; everything else uses the family model, and
  *  the per-type tint (getEnemyVisual.color) still differentiates same-model mobs
- *  (fire vs ice elemental, wolf vs frost_wolf). (beast wolf/spider have no override
- *  yet — the monster pack has no wolf/spider; that's an animals-pack follow-up.) */
+ *  (fire vs ice elemental, wolf vs frost_wolf — both q-wolf, distinct colours). */
 const ENEMY_TYPE_MODEL: Record<string, CharacterModelId> = {
   // beast (family default q-dino) — real animals now
   wolf: 'q-wolf',
