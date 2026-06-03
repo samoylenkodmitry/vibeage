@@ -1,7 +1,8 @@
 # Cozy-coast Asset Manifest
 
-All models are CC0 / public domain. The renderer reads from
-`apps/client/src/world-art/assetRegistry.ts`; this manifest is the
+All models are CC0 / public domain **except** `monsters/StoneGolem.glb`
+(joney_lol, CC-BY 3.0 — attribution required, credited below). The renderer
+reads from `apps/client/src/world-art/assetRegistry.ts`; this manifest is the
 human-readable mirror of that registry.
 
 Optimization pass deferred to a later PR (see roadmap §"Cozy Coast
@@ -91,7 +92,7 @@ hovering flyers (`Flying_Idle`/`Fast_Flying`/`Punch`/`Death`).
 | `monsters/Armabee.glb` | fey | Quaternius (CC0) | <https://poly.pizza/m/de63aaf6> |
 | `monsters/Ghost.glb` | spirit | Quaternius (CC0) | <https://poly.pizza/m/810f60a2> |
 | `monsters/MushroomKing.glb` | plant | Quaternius (CC0) | <https://poly.pizza/m/798301fb> |
-| `monsters/Goleling.glb` | construct | Quaternius (CC0) | <https://poly.pizza/m/51bf31d7> |
+| `monsters/StoneGolem.glb` | construct | joney_lol (**CC-BY 3.0**, attribution required) — static mesh | <https://poly.pizza/m/aqrX9Hly1W> |
 
 `characterModels.ts` maps `family → model`; `ANIMATED_ENEMY_FAMILIES` (in
 `WorldEntities.tsx`) now covers every family, so only the low-quality tier still
