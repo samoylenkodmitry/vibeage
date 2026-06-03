@@ -94,7 +94,7 @@ describe('stunned enemies skip all AI actions', () => {
     });
 
     expect(enemy.positionDirty).toBe(true);
-    expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(false);
+    expect(enemy.dirtySnap).toBe(false);
   });
 
   it('stunned attacking enemy does not damage the player', () => {
