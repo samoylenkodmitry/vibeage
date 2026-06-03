@@ -30,11 +30,11 @@ describe('enemy model registry', () => {
 
   it('per-type overrides resolve to registered models; unmapped types fall back to family', () => {
     // A few of the ENEMY_TYPE_MODEL overrides.
-    for (const [type, family] of [['orc', 'humanoid'], ['skeleton', 'undead'], ['slime', 'aberration'], ['drake', 'dragon']] as const) {
+    for (const [type, family] of [['orc', 'humanoid'], ['skeleton', 'undead'], ['slime', 'aberration'], ['drake', 'dragon'], ['wolf', 'beast'], ['spider', 'beast']] as const) {
       expect(CHARACTER_MODELS[enemyModelForType(type, family)], `${type}`).toBeDefined();
     }
     // Unmapped type uses the family model.
-    expect(enemyModelForType('wolf', 'beast')).toBe(enemyModel('beast'));
+    expect(enemyModelForType('meadow_sprite', 'fey')).toBe(enemyModel('fey'));
     expect(enemyModelForType('totally_unknown', 'spirit')).toBe(enemyModel('spirit'));
   });
 });
