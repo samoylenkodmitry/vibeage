@@ -234,7 +234,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { manaMultiplier: 1.15 },
     },
     specSkills: ['arcane_blast'],
-    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap'],
+    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap', 'rewind_mark', 'gravity_well'],
   },
   pyromancer: {
     id: 'pyromancer',
@@ -254,7 +254,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { damageMultiplier: 1.1, damageElementMultiplier: { fire: 1.15 } },
     },
     specSkills: ['meteor'],
-    proficiencySkills: ['inferno_aura'],
+    proficiencySkills: ['inferno_aura', 'cataclysm_rings'],
   },
   // ---- WARRIOR ----
   berserker: {
@@ -275,7 +275,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { critMultBonus: 0.5 },
     },
     specSkills: ['rage'],
-    proficiencySkills: ['blood_frenzy'],
+    proficiencySkills: ['blood_frenzy', 'momentum_strike'],
   },
   slayer: {
     id: 'slayer',
@@ -295,7 +295,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { critMultBonus: 0.5 },
     },
     specSkills: ['execute'],
-    proficiencySkills: ['killing_strike'],
+    proficiencySkills: ['killing_strike', 'delayed_fate'],
   },
   // ---- HEALER ----
   cardinal: {
@@ -316,7 +316,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { healthMultiplier: 1.05, partyHpRegenAuraBonus: 2, partyHpRegenAuraRadiusM: 12 },
     },
     specSkills: ['greater_heal'],
-    proficiencySkills: ['mass_heal'],
+    proficiencySkills: ['mass_heal', 'soul_link'],
   },
   theurge: {
     id: 'theurge',
@@ -336,7 +336,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { partyDamageAuraMultiplier: 1.05, partyDamageAuraRadiusM: 15 },
     },
     specSkills: ['empower'],
-    proficiencySkills: ['group_bless', 'waygate'],
+    proficiencySkills: ['group_bless', 'waygate', 'portal_pair', 'mirror_spell'],
   },
   // ---- RANGER ----
   hawkeye: {
@@ -357,7 +357,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { critMultBonus: 0.5 },
     },
     specSkills: ['snipe'],
-    proficiencySkills: ['aimed_volley'],
+    proficiencySkills: ['aimed_volley', 'projectile_capture', 'terrain_sigil'],
   },
   phantom_ranger: {
     id: 'phantom_ranger',
@@ -377,7 +377,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { speedMultiplier: 1.1, evasionBonus: 5 },
     },
     specSkills: ['silent_step'],
-    proficiencySkills: ['shadow_arrow'],
+    proficiencySkills: ['shadow_arrow', 'phase_step'],
   },
   // ---- KNIGHT ----
   templar_knight: {
@@ -398,7 +398,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { belowHalfHpDamageTakenMultiplier: 0.85 },
     },
     specSkills: ['holy_shield'],
-    proficiencySkills: ['divine_taunt'],
+    proficiencySkills: ['divine_taunt', 'silence_bubble'],
   },
   dark_avenger: {
     id: 'dark_avenger',
@@ -418,7 +418,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { lifestealPercent: 0.05 },
     },
     specSkills: ['shadow_strike'],
-    proficiencySkills: ['soul_eater', 'spectral_guard'],
+    proficiencySkills: ['soul_eater', 'spectral_guard', 'reflection_contract'],
   },
   // ---- PALADIN ----
   phoenix_knight: {
@@ -480,7 +480,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { lootRateMultiplier: 1.5 },
     },
     specSkills: ['lucky_strike'],
-    proficiencySkills: ['treasure_sense'],
+    proficiencySkills: ['treasure_sense', 'puppet_mastery'],
   },
   plains_walker: {
     id: 'plains_walker',
@@ -500,7 +500,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { cooldownMultiplierBySkill: { vanish: 0.5 } },
     },
     specSkills: ['wind_dash'],
-    proficiencySkills: ['stalking_arrow', 'rift_step'],
+    proficiencySkills: ['stalking_arrow', 'rift_step', 'clone_swap'],
   },
 };
 

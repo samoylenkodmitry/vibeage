@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { getSpecializationById, PROFICIENCY_LEVEL } from '../../packages/content/specializations.js';
 import { mitigatedDamage } from '../../packages/sim/combatMath.js';
+import type { CombatWorld } from './worldContract.js';
 
 /**
  * How an incoming hit interacts with the target's defense:
@@ -17,6 +18,8 @@ export type DamageResolveOpts = {
   source?: Enemy | PlayerState | null;
   /** Internal guard so reflected damage does not recursively reflect. */
   skipReflection?: boolean;
+  skipSoulLink?: boolean;
+  world?: CombatWorld;
   onDamageReflected?: (event: DamageReflectionEvent) => void;
 };
 
@@ -86,6 +89,8 @@ export function applyResolvedDamageToTarget(
   // incoming damage just by standing there.
   if (incoming > 0) target.lastDamagedTs = now;
   maybeReflectDamage(target, incoming, now, opts);
+  maybeMirrorSpell(target, incoming, now, opts);
+  maybeTransferSoulLinkDamage(target, incoming, now, opts);
   return incoming;
 }
 
@@ -107,6 +112,56 @@ function maybeReflectDamage(
   });
   if (appliedDamage <= 0) return;
   opts.onDamageReflected?.({ reflector, reflectedTarget, rawDamage, appliedDamage });
+}
+
+function maybeMirrorSpell(
+  mirror: Enemy | PlayerState,
+  incoming: number,
+  now: number,
+  opts: DamageResolveOpts,
+): void {
+  const reflectedTarget = opts.source;
+  if (opts.skipReflection || opts.kind !== 'magical' || incoming <= 0 || !reflectedTarget?.isAlive) return;
+  const effect = firstActiveEffect(mirror, 'mirrorSpell', now);
+  if (!effect) return;
+  removeEffectById(mirror, effect.id);
+  applyResolvedDamageToTarget(reflectedTarget, incoming * Math.max(0, effect.value) / 100, now, {
+    kind: 'none',
+    skipReflection: true,
+    skipSoulLink: true,
+  });
+}
+
+function maybeTransferSoulLinkDamage(
+  source: Enemy | PlayerState,
+  incoming: number,
+  now: number,
+  opts: DamageResolveOpts,
+): void {
+  if (opts.skipSoulLink || incoming <= 0 || !opts.world) return;
+  const effect = firstActiveEffect(source, 'soulLink', now) as (ReturnType<typeof firstActiveEffect> & { linkedTargetId?: string }) | null;
+  if (!effect?.linkedTargetId) return;
+  const linked = opts.world.getEnemyById(effect.linkedTargetId) ?? opts.world.getPlayerById(effect.linkedTargetId);
+  if (!linked?.isAlive || linked.id === source.id) return;
+  applyResolvedDamageToTarget(linked, incoming * Math.max(0, effect.value) / 100, now, {
+    kind: 'none',
+    source: opts.source,
+    skipReflection: true,
+    skipSoulLink: true,
+  });
+  if (linked.health <= 0 && linked.isAlive && opts.source) {
+    opts.world.onTargetDied(opts.source, linked, now);
+  }
+}
+
+function firstActiveEffect(target: Enemy | PlayerState, type: string, now: number) {
+  return (target.statusEffects ?? []).find((effect) => (
+    effect.type === type && (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0) > now
+  )) ?? null;
+}
+
+function removeEffectById(target: Enemy | PlayerState, effectId: string): void {
+  target.statusEffects = (target.statusEffects ?? []).filter((effect) => effect.id !== effectId);
 }
 
 export function activeDamageReflectFraction(target: Enemy | PlayerState, now: number): number {

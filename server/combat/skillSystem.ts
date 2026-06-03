@@ -144,6 +144,7 @@ export function handleCastRequest(input: CastRequestInput): string | Cast['castI
   // Resolve the impact point up front so clients can anchor target-delivered
   // effects (e.g. a gathering cloud) above the target during the whole cast.
   newCast.target = resolveCastTargetPos(newCast.targetPos, newCast.targetId, world);
+  if (newCast.target) lockTelegraph(newCast, skill, player.position, { x: newCast.target.x, z: newCast.target.z });
 
   // Add to active casts
   activeCasts[newCast.castId] = newCast;

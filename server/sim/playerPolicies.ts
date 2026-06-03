@@ -60,7 +60,9 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   arcanist: profile('arcanist', 'burst', [
     enemy('arcane_supremacy', { casterHasEffect: 'arcaneCharge' }),
     enemy('time_sphere', { targetMissingEffect: 'timeStop' }),
+    enemy('gravity_well'),
     enemy('dimensional_swap', { casterHealthBelowPct: 0.5 }),
+    self('rewind_mark', { casterHealthBelowPct: 0.45 }),
     enemy('arcane_blast', { casterHasEffect: 'arcaneCharge' }),
     enemy('arcane_blast', { targetHasEffect: 'freeze' }),
     enemy('iceBolt', { targetHasEffect: 'waterWeakness' }),
@@ -71,6 +73,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   pyromancer: profile('pyromancer', 'burst', [
     enemy('meteor', { targetHasEffect: 'burn' }),
+    enemy('cataclysm_rings'),
     enemy('inferno_aura', { targetMissingEffect: 'burn' }),
     enemy('fireball', { targetMissingEffect: 'burn' }),
     enemy('meteor'),
@@ -79,6 +82,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   berserker: profile('berserker', 'sustain', [
     self('blood_frenzy', { casterMissingEffect: 'bless' }),
     self('rage', { casterMissingEffect: 'bless' }),
+    enemy('momentum_strike'),
     enemy('powerStrike', { targetHasEffect: 'stun' }),
     enemy('bash', { targetHasEffect: 'dot' }),
     enemy('slash', { targetMissingEffect: 'dot' }),
@@ -86,6 +90,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   slayer: profile('slayer', 'burst', [
     enemy('killing_strike', { targetHealthBelowPct: 0.35 }),
+    enemy('delayed_fate', { targetHealthAbovePct: 0.45 }),
     enemy('execute', { targetHealthBelowPct: 0.4 }),
     enemy('powerStrike', { targetHasEffect: 'stun' }),
     enemy('bash', { targetHasEffect: 'dot' }),
@@ -94,6 +99,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   cardinal: profile('cardinal', 'support', [
     self('mass_heal', { casterHealthBelowPct: 0.75 }),
+    enemy('soul_link'),
     self('greater_heal', { casterHealthBelowPct: 0.82 }),
     self('holyLight', { casterHealthBelowPct: 0.9 }),
     self('bless', { casterMissingEffect: 'bless' }),
@@ -101,7 +107,9 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   theurge: profile('theurge', 'support', [
     self('group_bless', { casterMissingEffect: 'bless' }),
+    self('mirror_spell'),
     self('waygate', { casterMissingEffect: 'speed_boost' }),
+    enemy('portal_pair'),
     self('empower', { casterMissingEffect: 'bless' }),
     self('bless', { casterMissingEffect: 'bless' }),
     self('holyLight', { casterHealthBelowPct: 0.65 }),
@@ -109,6 +117,8 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   hawkeye: profile('hawkeye', 'burst', [
     enemy('aimed_volley', { targetHasEffect: 'marked' }),
+    self('projectile_capture'),
+    enemy('terrain_sigil'),
     enemy('volley', { targetHasEffect: 'marked' }),
     enemy('snipe', { targetHasEffect: 'slow' }),
     self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
@@ -120,6 +130,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   phantom_ranger: profile('phantom_ranger', 'skirmish', [
     self('silent_step', { casterMissingEffect: 'invisible' }),
+    enemy('phase_step'),
     enemy('shadow_arrow'),
     self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
     self('evade', { casterHealthBelowPct: 0.7, casterMissingEffect: 'evasion' }),
@@ -128,6 +139,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   templar_knight: profile('templar_knight', 'tank', [
     self('holy_shield', { casterMissingEffect: 'shield' }),
+    enemy('silence_bubble'),
     enemy('divine_taunt'),
     enemy('taunt'),
     self('shieldWall', { casterHealthBelowPct: 0.75, casterMissingEffect: 'shield' }),
@@ -137,6 +149,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   dark_avenger: profile('dark_avenger', 'sustain', [
     self('spectral_guard', { casterMissingEffect: 'damageReflect' }),
+    self('reflection_contract'),
     enemy('soul_eater', { targetHealthBelowPct: 0.5 }),
     enemy('shadow_strike'),
     self('shieldWall', { casterHealthBelowPct: 0.7, casterMissingEffect: 'shield' }),
@@ -160,6 +173,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   treasure_hunter: profile('treasure_hunter', 'skirmish', [
     self('treasure_sense', { casterMissingEffect: 'reveal_loot' }),
+    enemy('puppet_mastery'),
     enemy('lucky_strike', { targetHealthBelowPct: 0.5 }),
     enemy('backstab', { casterHasEffect: 'invisible' }),
     self('vanish', { casterMissingEffect: 'invisible' }),
@@ -169,6 +183,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   plains_walker: profile('plains_walker', 'skirmish', [
     self('wind_dash', { casterHealthBelowPct: 0.7, casterMissingEffect: 'speed_boost' }),
+    enemy('clone_swap'),
     enemy('rift_step', { casterHasEffect: 'invisible' }),
     enemy('stalking_arrow', { targetHasEffect: 'poison' }),
     enemy('backstab', { casterHasEffect: 'invisible' }),

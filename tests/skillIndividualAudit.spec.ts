@@ -87,6 +87,21 @@ const PLAYER_SKILL_EXPECTATIONS: Record<string, SkillExpectation> = {
   treasure_sense: { effects: ['reveal_loot'], targetMode: 'self' },
   stalking_arrow: { effects: ['damage', 'slow'], targetMode: 'enemy', reactionIds: ['venom_tracking'] },
   rift_step: { effects: ['damage', 'slow'], targetMode: 'enemy', area: true, reactionIds: ['vanishing_cut'], blink: true },
+  rewind_mark: { effects: [], targetMode: 'self', selfTarget: true },
+  portal_pair: { effects: [], targetMode: 'ground', area: true },
+  gravity_well: { effects: [], targetMode: 'enemy', area: true },
+  mirror_spell: { effects: [], targetMode: 'self', selfTarget: true },
+  soul_link: { effects: [], targetMode: 'enemy' },
+  phase_step: { effects: [], targetMode: 'enemy' },
+  projectile_capture: { effects: [], targetMode: 'self', selfTarget: true },
+  terrain_sigil: { effects: [], targetMode: 'enemy', area: true },
+  puppet_mastery: { effects: [], targetMode: 'enemy' },
+  momentum_strike: { effects: [], targetMode: 'enemy' },
+  delayed_fate: { effects: [], targetMode: 'enemy' },
+  clone_swap: { effects: [], targetMode: 'enemy' },
+  silence_bubble: { effects: ['silence'], targetMode: 'enemy', area: true },
+  reflection_contract: { effects: ['damageReflect'], targetMode: 'self', selfTarget: true },
+  cataclysm_rings: { effects: ['damage', 'burn'], targetMode: 'enemy', area: true },
 };
 
 describe('individual player skill mechanics audit', () => {

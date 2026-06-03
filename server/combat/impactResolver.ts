@@ -26,6 +26,7 @@ import { recomputePlayerStats } from '../players/playerStatsRefresh.js';
 import { dispelTargetSet, incomingMissChance } from './statusQueries.js';
 import { applyResolvedDamageToTarget } from './damageResolution.js';
 import { emitCombatantUpdated } from './combatantUpdateEmitter.js';
+import { tryProjectileCapture } from './advancedHitMechanics.js';
 import { addTimeStopFieldFromCast, isEntityPhysicsFrozen, toTimeStopFieldSnapshot } from '../physics/areaPhysics.js';
 import { resolveLegacyAreaCenter } from './legacyAreaCenter.js';
 
@@ -425,12 +426,14 @@ function applyCastToTarget(
   // Magical skills test M.Def, everything else P.Def (utility skills
   // with a damage component are rare and read as physical).
   const damageKind = skill.kind === 'magical' ? 'magical' : 'physical';
+  if (tryProjectileCapture({ target, caster, skill, damage, world, outbound, now })) return 0;
   // B12 — armor-pen skills (Shadow Strike / Shadow Arrow) ignore part of the target's defense.
   const reflectedTargets: Array<Enemy | PlayerState> = [];
   const incoming = applyResolvedDamageToTarget(target, damage, now, {
     kind: damageKind,
     penetration: skill.offense?.armorPen ?? 0,
     source: caster,
+    world,
     onDamageReflected: ({ reflectedTarget }) => {
       reflectedTargets.push(reflectedTarget);
     },
@@ -667,9 +670,7 @@ function upsertStatusEffect(target: Enemy | PlayerState, effect: SkillEffect, sk
   }
 }
 
-const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set([
-  'bless', 'slow', 'speed_boost', 'attackSpeed',
-]);
+const STAT_AFFECTING_EFFECTS: ReadonlySet<string> = new Set(['bless', 'slow', 'speed_boost', 'attackSpeed']);
 
 // §46/slice-2 — applies the four stacking policies. Returns the
 // existing entry unchanged for `reject` so the caller can detect it.
@@ -694,6 +695,4 @@ function isEnemyEntity(target: Enemy | PlayerState): target is Enemy {
   return 'type' in target && 'spawnPosition' in target;
 }
 
-function isEnemy(target: Enemy | PlayerState): target is Enemy {
-  return 'type' in target;
-}
+function isEnemy(target: Enemy | PlayerState): target is Enemy { return 'type' in target; }

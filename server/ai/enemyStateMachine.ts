@@ -2,7 +2,7 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { SkillId } from '../../packages/content/skills.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
-import { isEntityStunned } from '../combat/statusQueries.js';
+import { isEntitySilenced, isEntityStunned } from '../combat/statusQueries.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   faceEnemyToward,
@@ -415,7 +415,9 @@ function applyAttackIfReady(
  * is the always-ready fallback at the end.
  */
 function selectMobSkill(enemy: Enemy, now: number): SkillId | null {
+  const silenced = isEntitySilenced(enemy, now);
   for (const id of enemy.skills ?? []) {
+    if (silenced && id !== 'mobStrike') continue;
     if ((enemy.skillCooldownEndTs?.[id] ?? 0) <= now) return id;
   }
   return null;
