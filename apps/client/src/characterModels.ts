@@ -46,12 +46,41 @@ function kaykit(file: string, nativeHeight: number): CharacterModelDef {
   };
 }
 
+// Quaternius "Ultimate Monsters" (CC0, see ASSET_MANIFEST.md) — gives the
+// non-humanoid enemy families a real animated body instead of a primitive box.
+// Two rigs: ground walkers (Idle/Walk/Run/Punch) and hovering flyers
+// (Flying_Idle/Fast_Flying/Punch). All clips are prefixed `CharacterArmature|`.
+const Q_GROUND_CLIPS: Record<CharacterAnim, string> = {
+  idle: 'CharacterArmature|Idle', walk: 'CharacterArmature|Walk', run: 'CharacterArmature|Run',
+  attack: 'CharacterArmature|Punch', death: 'CharacterArmature|Death',
+};
+const Q_FLYER_CLIPS: Record<CharacterAnim, string> = {
+  idle: 'CharacterArmature|Flying_Idle', walk: 'CharacterArmature|Fast_Flying', run: 'CharacterArmature|Fast_Flying',
+  attack: 'CharacterArmature|Punch', death: 'CharacterArmature|Death',
+};
+const Q_BLOB_CLIPS: Record<CharacterAnim, string> = {
+  idle: 'CharacterArmature|Idle', walk: 'CharacterArmature|Walk', run: 'CharacterArmature|Walk',
+  attack: 'CharacterArmature|Bite_Front', death: 'CharacterArmature|Death',
+};
+
+function quaternius(file: string, nativeHeight: number, clips: Record<CharacterAnim, string>): CharacterModelDef {
+  return { path: `/models/monsters/${file}.glb`, nativeHeight, forwardYaw: 0, clips, clampOnce: KAYKIT_CLAMP_ONCE };
+}
+
 export const CHARACTER_MODELS = {
   'kaykit-knight': kaykit('Knight', 3.436),
   'kaykit-mage': kaykit('Mage', 3.363),
   'kaykit-rogue': kaykit('Rogue', 3.309),
   'kaykit-rogue-hooded': kaykit('Rogue_Hooded', 3.373),
   'kaykit-barbarian': kaykit('Barbarian', 3.311),
+  'q-dino': quaternius('Dino', 3.223, Q_GROUND_CLIPS),
+  'q-mushroomking': quaternius('MushroomKing', 3.598, Q_GROUND_CLIPS),
+  'q-greenblob': quaternius('GreenBlob', 1.841, Q_BLOB_CLIPS),
+  'q-dragon': quaternius('Dragon', 3.140, Q_FLYER_CLIPS),
+  'q-squidle': quaternius('Squidle', 2.981, Q_FLYER_CLIPS),
+  'q-armabee': quaternius('Armabee', 3.076, Q_FLYER_CLIPS),
+  'q-ghost': quaternius('Ghost', 3.381, Q_FLYER_CLIPS),
+  'q-goleling': quaternius('Goleling', 3.041, Q_FLYER_CLIPS),
 } as const;
 
 export type CharacterModelId = keyof typeof CHARACTER_MODELS;
@@ -91,10 +120,24 @@ export function playerModel(playerId: string, specializationId?: string | null):
   return pickPlayerModel(playerId);
 }
 
-/** Humanoid/undead enemies reuse the rig (tinted by the caller): hooded rogue
- *  reads as a wraith for undead, barbarian as a brute for humanoid raiders. */
+/** Each enemy family → the body that reads as it. Humanoid/undead reuse the
+ *  KayKit rig (tinted by the caller); the rest get a Quaternius monster. Unknown
+ *  families fall back to the barbarian brute so nothing renders as a bare box. */
+const ENEMY_FAMILY_MODEL: Record<string, CharacterModelId> = {
+  humanoid: 'kaykit-barbarian',
+  undead: 'kaykit-rogue-hooded',
+  beast: 'q-dino',
+  elemental: 'q-greenblob',
+  dragon: 'q-dragon',
+  aberration: 'q-squidle',
+  fey: 'q-armabee',
+  spirit: 'q-ghost',
+  plant: 'q-mushroomking',
+  construct: 'q-goleling',
+};
+
 export function enemyModel(family: string): CharacterModelId {
-  return family === 'undead' ? 'kaykit-rogue-hooded' : 'kaykit-barbarian';
+  return ENEMY_FAMILY_MODEL[family] ?? 'kaykit-barbarian';
 }
 
 /** A default in-hand weapon so armed mobs don't fight bare-handed. Explicitly

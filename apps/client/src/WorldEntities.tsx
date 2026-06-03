@@ -178,10 +178,11 @@ function AnimatedPlayerBody({
   );
 }
 
-// Mob families that get the rigged humanoid model; everything else
-// (beasts, dragons, elementals, constructs, aberrations, spirits, fey,
-// plant) keeps its distinct primitive silhouette.
-const ANIMATED_ENEMY_FAMILIES: ReadonlySet<string> = new Set(['humanoid', 'undead']);
+// Every family now has a rigged model (KayKit humanoids + Quaternius monsters),
+// so all of them animate; only the low-quality tier falls back to primitives.
+const ANIMATED_ENEMY_FAMILIES: ReadonlySet<string> = new Set([
+  'humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct',
+]);
 // Resolve the device quality once (SSR-safe); low-end devices keep
 // primitives for enemies to protect the frame budget.
 const ENTITY_QUALITY = chooseWorldArtQuality();
