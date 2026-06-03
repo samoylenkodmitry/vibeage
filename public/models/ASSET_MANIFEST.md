@@ -75,6 +75,28 @@ classes sharing one 76-clip rig (`Idle` / `Walking_A` / `Running_A` /
 a per-id class look; humanoid/undead mobs reuse the rig tinted. `soldier.glb` and
 `robot-expressive.glb` are kept as alternates.
 
+### Monsters (non-humanoid enemy families)
+
+Quaternius "Ultimate Monsters" (CC0) — each non-humanoid enemy family renders one
+of these instead of a primitive box. Two rig variants share one clip convention
+(`CharacterArmature|…`): ground walkers (`Idle`/`Walk`/`Run`/`Punch`/`Death`) and
+hovering flyers (`Flying_Idle`/`Fast_Flying`/`Punch`/`Death`).
+
+| File | Family | Source | Page |
+|---|---|---|---|
+| `monsters/Dino.glb` | beast | Quaternius (CC0) | <https://poly.pizza/m/1c1ae302> |
+| `monsters/GreenBlob.glb` | elemental | Quaternius (CC0) | <https://poly.pizza/m/64ab590e> |
+| `monsters/Dragon.glb` | dragon | Quaternius (CC0) | <https://poly.pizza/m/ae5b8510> |
+| `monsters/Squidle.glb` | aberration | Quaternius (CC0) | <https://poly.pizza/m/cbe8419d> |
+| `monsters/Armabee.glb` | fey | Quaternius (CC0) | <https://poly.pizza/m/de63aaf6> |
+| `monsters/Ghost.glb` | spirit | Quaternius (CC0) | <https://poly.pizza/m/810f60a2> |
+| `monsters/MushroomKing.glb` | plant | Quaternius (CC0) | <https://poly.pizza/m/798301fb> |
+| `monsters/Goleling.glb` | construct | Quaternius (CC0) | <https://poly.pizza/m/51bf31d7> |
+
+`characterModels.ts` maps `family → model`; `ANIMATED_ENEMY_FAMILIES` (in
+`WorldEntities.tsx`) now covers every family, so only the low-quality tier still
+falls back to primitives.
+
 ### Weapons (held in `handslot.r`)
 
 | File | Source | License |

@@ -29,7 +29,7 @@ import { equippedWeaponType } from './weaponModels';
 import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
-import { getEnemyTemplate } from '../../../packages/content/enemies';
+import { getEnemyTemplate, type EnemyTemplate } from '../../../packages/content/enemies';
 import { chooseWorldArtQuality } from './world-art/quality';
 import { getTerrainY } from './worldSceneConfig';
 import { advanceSmoothedGroup } from './entitySmoothing';
@@ -178,10 +178,11 @@ function AnimatedPlayerBody({
   );
 }
 
-// Mob families that get the rigged humanoid model; everything else
-// (beasts, dragons, elementals, constructs, aberrations, spirits, fey,
-// plant) keeps its distinct primitive silhouette.
-const ANIMATED_ENEMY_FAMILIES: ReadonlySet<string> = new Set(['humanoid', 'undead']);
+// Every family now has a rigged model (KayKit humanoids + Quaternius monsters),
+// so all of them animate; only the low-quality tier falls back to primitives.
+const ANIMATED_ENEMY_FAMILIES: ReadonlySet<EnemyTemplate['family']> = new Set([
+  'humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct',
+]);
 // Resolve the device quality once (SSR-safe); low-end devices keep
 // primitives for enemies to protect the frame budget.
 const ENTITY_QUALITY = chooseWorldArtQuality();
