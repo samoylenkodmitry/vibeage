@@ -72,7 +72,7 @@ describe('stunned enemies skip all AI actions', () => {
     expect(enemy.targetId).toBe('p1');
   });
 
-  it('marks the enemy dirty when stun zeros a non-zero velocity (so the snapshot reaches the client)', () => {
+  it('marks a non-snapping position update when stun zeros velocity (so the snapshot reaches the client)', () => {
     const enemy = createEnemy('goblin', 1, { x: 0, y: 0, z: 0 }, 5);
     enemy.position = { x: 5, y: 0, z: 0 };
     enemy.aiState = 'chasing';
@@ -80,6 +80,7 @@ describe('stunned enemies skip all AI actions', () => {
     enemy.velocity = { x: 4, z: 0 };
     enemy.statusEffects = [stunEffect()];
     (enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap = false;
+    enemy.positionDirty = false;
     const player = makePlayer('p1', 10, 0);
     const spatial = new SpatialHashGrid(1);
     spatial.insert(enemy.id, enemy.position);
@@ -92,7 +93,8 @@ describe('stunned enemies skip all AI actions', () => {
       now: NOW,
     });
 
-    expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(true);
+    expect(enemy.positionDirty).toBe(true);
+    expect(enemy.dirtySnap).toBe(false);
   });
 
   it('stunned attacking enemy does not damage the player', () => {

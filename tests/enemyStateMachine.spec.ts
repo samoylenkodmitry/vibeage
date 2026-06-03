@@ -115,6 +115,7 @@ describe('enemy state machine', () => {
     expect(enemy.position).toEqual(enemy.spawnPosition);
     expect(enemy.velocity).toEqual({ x: 0, z: 0 });
     expect((enemy as typeof enemy & { dirtySnap?: boolean }).dirtySnap).toBe(true);
+    expect(enemy.positionDirty).toBeUndefined();
     expect(result.enemyUpdate).toEqual({
       id: enemy.id,
       targetId: null,
