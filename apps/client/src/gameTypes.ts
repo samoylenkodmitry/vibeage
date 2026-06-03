@@ -49,6 +49,8 @@ export type PlayerEntity = {
   statusEffects: StatusEffect[];
   movement?: PlayerMovementState;
   velocity?: VecXZ;
+  /** Transient token from PosSnap.snap; renderer uses it to hard-snap teleports. */
+  snapSeq?: number;
   inventory?: InventorySlot[];
   maxInventorySlots?: number;
   /** PR GG — spendable gold; owner-only (server scrubs for other players). */
@@ -90,6 +92,8 @@ export type EnemyEntity = {
   isAlive: boolean;
   statusEffects?: StatusEffect[];
   velocity?: VecXZ;
+  /** Transient token from PosSnap.snap; renderer uses it to hard-snap teleports. */
+  snapSeq?: number;
   aiState?: string;
   packId?: string;
   isMiniBoss?: boolean;

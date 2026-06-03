@@ -325,8 +325,11 @@ export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: Ou
     // Keep the impact point tracking a moving target during the windup. Once a
     // projectile is Traveling, projectileRuntime already homes via targetPos.
     if (cast.state === CastStateEnum.Casting) {
-      const trackedTarget = resolveCastTargetPos(cast.targetPos, cast.targetId, world);
-      if (trackedTarget) cast.target = trackedTarget;
+      const skill = SKILLS[cast.skillId];
+      if (!skill.swap) {
+        const trackedTarget = resolveCastTargetPos(cast.targetPos, cast.targetId, world);
+        if (trackedTarget) cast.target = trackedTarget;
+      }
     }
 
     // Check if cast time is complete for casts in Casting state

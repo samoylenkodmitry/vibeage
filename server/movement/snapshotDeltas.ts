@@ -20,6 +20,7 @@ type SnapInput = {
   vel: VecXZ;
   timestamp: number;
   predictions: PredictionKeyframe[];
+  snap: boolean;
 };
 
 export function collectDeltas(
@@ -56,10 +57,11 @@ function collectPlayerDeltas(
     // for every player every tick, then discarded for any player
     // that hadn't moved (the common case once a group is standing
     // around). The allocation scales with idle entity count.
+    const snap = isDirtySnap(player);
     if (playersToForceInclude.has(playerId) || shouldSendSnap(playerId, pos, player)) {
       const predictions = playerPredictions(state, player, pos, vel, timestamp);
       debugPrediction(playerId, predictions);
-      pushSnap({ messages, id: playerId, pos, vel, timestamp, predictions });
+      pushSnap({ messages, id: playerId, pos, vel, timestamp, predictions, snap });
       clearDirtySnap(player);
     }
   }
@@ -79,6 +81,7 @@ function collectEnemyDeltas(state: GameState, timestamp: number, messages: PosSn
     // player path above). Most enemies idle/patrol slowly, so the
     // majority of ticks skip the snap — no reason to allocate the
     // prediction array for them.
+    const snap = isDirtySnap(enemy);
     if (shouldSendSnap(enemyId, pos, enemy)) {
       const predictions = createPredictionKeyframes({
         entity: enemy,
@@ -89,7 +92,7 @@ function collectEnemyDeltas(state: GameState, timestamp: number, messages: PosSn
         offsetsMs: PREDICTION_TICK_OFFSETS,
         state,
       });
-      pushSnap({ messages, id: enemyId, pos, vel, timestamp, predictions });
+      pushSnap({ messages, id: enemyId, pos, vel, timestamp, predictions, snap });
       clearDirtySnap(enemy);
     }
   }
@@ -123,13 +126,14 @@ function shouldSendSnap(id: string, pos: VecXZ, entity: PlayerState | Enemy): bo
   return hasCentimeterDelta(pos, last);
 }
 
-function pushSnap({ messages, id, pos, vel, timestamp, predictions }: SnapInput): void {
+function pushSnap({ messages, id, pos, vel, timestamp, predictions, snap }: SnapInput): void {
   messages.push({
     type: 'PosSnap',
     id,
     pos,
     vel,
     snapTs: timestamp,
+    ...(snap ? { snap: true } : {}),
     predictions: predictions.length > 0 ? predictions : undefined,
   });
   lastSentPos[id] = { ...pos };

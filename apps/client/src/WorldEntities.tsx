@@ -115,6 +115,7 @@ function PlayerMarkerImpl({
       velocity={player.velocity}
       rotationY={facingY}
       response={isSelf ? 16 : 10}
+      snapToken={player.snapSeq}
       presentationRef={presentationRef}
       groundedOffset={0}
     >
@@ -187,6 +188,10 @@ const ANIMATED_ENEMY_FAMILIES: ReadonlySet<EnemyTemplate['family']> = new Set([
 // primitives for enemies to protect the frame budget.
 const ENTITY_QUALITY = chooseWorldArtQuality();
 
+function usesAnimatedEnemyModel(family: EnemyTemplate['family']): boolean {
+  return ENTITY_QUALITY !== 'low' && ANIMATED_ENEMY_FAMILIES.has(family);
+}
+
 function enemyAnim(enemy: EnemyEntity, speedSq: number): CharacterAnim {
   if (!enemy.isAlive) return 'death';
   if (enemy.aiState === 'attacking') return 'attack';
@@ -243,9 +248,8 @@ function EnemyMarkerImpl({
   const groundedYOffset = enemy.isAlive ? 0.55 : 0.1;
   const [isHovered, setIsHovered] = useState(false);
 
-  // Rigged humanoid for humanoid/undead families (quality-gated); faces the held movement heading so it never moonwalks.
   const enemyFamily = getEnemyTemplate(enemy.type).family;
-  const animated = ENTITY_QUALITY !== 'low' && ANIMATED_ENEMY_FAMILIES.has(enemyFamily);
+  const animated = usesAnimatedEnemyModel(enemyFamily);
   const lastFacingRef = useRef(enemy.rotation?.y ?? 0);
   if (isMoving) lastFacingRef.current = Math.atan2(vx, vz);
   const facingY = animated ? lastFacingRef.current : (enemy.rotation?.y ?? 0);
@@ -256,6 +260,7 @@ function EnemyMarkerImpl({
       velocity={enemy.velocity}
       rotationY={facingY}
       response={9}
+      snapToken={enemy.snapSeq}
       groundedOffset={groundedYOffset}
     >
       {enemy.isAlive && <GroundBlobShadow y={-groundedYOffset} radius={Math.max(0.55, visual.height * 0.42)} opacity={enemy.isMiniBoss ? 0.95 : 0.8} />}
@@ -522,6 +527,7 @@ function SmoothedEntityGroup({
   velocity,
   rotationY = 0,
   response,
+  snapToken,
   children,
   presentationRef,
   groundedOffset,
@@ -530,6 +536,7 @@ function SmoothedEntityGroup({
   velocity?: { x: number; z: number };
   rotationY?: number;
   response: number;
+  snapToken?: number;
   children: ReactNode;
   presentationRef?: MutableRefObject<THREE.Vector3 | null>;
   /** When set, the group's y is derived from getTerrainY(lerped x, z) + this offset each frame. */
@@ -541,6 +548,7 @@ function SmoothedEntityGroup({
   const lastPosRef = useRef({ x: position.x, y: position.y, z: position.z });
   const lastVelRef = useRef({ x: velocity?.x ?? 0, z: velocity?.z ?? 0 });
   const lastSnapTimeRef = useRef(performance.now());
+  const lastHardSnapTokenRef = useRef<number | undefined>(undefined);
 
   const vxNow = velocity?.x ?? 0;
   const vzNow = velocity?.z ?? 0;
@@ -596,8 +604,12 @@ function SmoothedEntityGroup({
     advanceSmoothedGroup(group, targetRef.current, {
       targetX, targetZ, posY: position.y, rotationY,
       alpha: smoothingAlpha(response, delta),
+      snap: snapToken !== undefined && snapToken !== lastHardSnapTokenRef.current,
       groundedOffset,
     });
+    if (snapToken !== undefined) {
+      lastHardSnapTokenRef.current = snapToken;
+    }
   });
 
   return <group ref={groupRef}>{children}</group>;

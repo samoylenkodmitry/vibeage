@@ -27,6 +27,7 @@ export function createWorldCombatBridge(
       state.enemies[minion.id] = minion;
       spatial.insert(minion.id, { x: pos.x, z: pos.z });
     },
+    (id, oldPos, newPos) => spatial.move(id, oldPos, newPos),
   );
 }
 

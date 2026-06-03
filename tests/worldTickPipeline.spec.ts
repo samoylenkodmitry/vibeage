@@ -4,6 +4,10 @@ import { createGameState } from '../server/gameState';
 import { createTransientPlayer } from '../server/playerFactory';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import { createWorldTickRunner } from '../server/world/tickPipeline';
+import { handleCastReq } from '../server/combat/castHandler';
+import { createWorldCombatBridge } from '../server/world/clientMessageRouter';
+import { createSimulatedPlayer } from '../server/sim/gameSimulator';
+import type { OutboundEvent } from '../server/transport/outboundEvents';
 
 describe('world tick pipeline maintenance scheduling', () => {
   test('runs mana regeneration and enemy respawn when snapshots run every tick', () => {
@@ -74,6 +78,55 @@ describe('world tick pipeline maintenance scheduling', () => {
 
     runner.tick(now + 1000 / 30);
     expect(enemy.isAlive).toBe(true);
+  });
+});
+
+describe('world tick pipeline teleport snapshots', () => {
+  test('Dimensional Swap emits hard-snap PosSnap updates through the production tick', () => {
+    const state = createGameState();
+    const spatial = new SpatialHashGrid();
+    const events: OutboundEvent[] = [];
+    const outbound = { publish: (event: OutboundEvent) => events.push(event) };
+    const direct = { send: vi.fn() };
+    const now = 100_000;
+    const player = createSimulatedPlayer({
+      id: 'swapper',
+      socketId: 'socket-1',
+      className: 'mage',
+      level: 40,
+      specializationId: 'arcanist',
+      unlockedSkills: ['dimensional_swap'],
+      position: { x: 0, z: 0 },
+    });
+    const enemy = createEnemy('goblin', 40, { x: 8, y: 0.5, z: 0 }, now);
+    enemy.id = 'target';
+    enemy.health = 10_000;
+    enemy.maxHealth = 10_000;
+    state.players[player.id] = player;
+    state.enemies[enemy.id] = enemy;
+    spatial.insert(player.id, { x: player.position.x, z: player.position.z });
+    spatial.insert(enemy.id, { x: enemy.position.x, z: enemy.position.z });
+
+    handleCastReq(
+      { id: player.socketId },
+      player,
+      { type: 'CastReq', id: player.id, skillId: 'dimensional_swap', targetId: enemy.id, clientTs: now },
+      { direct, outbound },
+      createWorldCombatBridge(state, outbound, spatial),
+      { activeCasts: state.activeCasts, now },
+    );
+    createWorldTickRunner({ state, spatial, outbound, tickMs: 1000 / 30, snapHz: 30 }).tick(now + 1000 / 30);
+
+    const posSnaps = events
+      .filter((event) => event.type === 'serverMessage' && event.message.type === 'BatchUpdate')
+      .flatMap((event) => event.type === 'serverMessage' && event.message.type === 'BatchUpdate' ? event.message.updates : [])
+      .filter((message) => message.type === 'PosSnap');
+    const playerSnap = posSnaps.find((message) => message.id === player.id);
+    const enemySnap = posSnaps.find((message) => message.id === enemy.id);
+    expect(player.position.x).toBeCloseTo(8, 4);
+    expect(enemy.position.x).toBeCloseTo(0, 4);
+    expect(playerSnap).toMatchObject({ id: player.id, pos: { x: 8, z: 0 }, snap: true });
+    expect(enemySnap).toMatchObject({ id: enemy.id, pos: { x: 0, z: 0 }, snap: true });
   });
 });
 

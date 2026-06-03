@@ -32,6 +32,7 @@ export const posSnapSchema = z.object({
   rotY: z.number().optional(),
   snapTs: z.number(),
   seq: z.number().optional(),
+  snap: z.boolean().optional(),
   predictions: z.array(predictionKeyframeSchema).optional(),
 }).strict();
 
@@ -325,6 +326,7 @@ export type PosSnap = {
   rotY?: number;
   snapTs: number;
   seq?: number;
+  snap?: boolean;
   predictions?: PredictionKeyframe[];
 };
 
