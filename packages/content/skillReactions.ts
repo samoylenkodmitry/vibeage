@@ -208,6 +208,15 @@ export const SKILL_REACTIONS: Partial<Record<SkillId, SkillReaction[]>> = {
     damageMultiplierPerConsumedStack: 0.35,
     casterEffects: [{ type: 'shield', value: 180, durationMs: 5000 }],
   }],
+  dimensional_swap: [{
+    id: 'charged_dislocation',
+    description: 'Consumes Arcane Charge for +20% damage per stack and leaves the target slowed after the swap.',
+    flavor: 'arcane',
+    condition: { casterHasEffect: 'arcaneCharge' },
+    consumeCasterEffect: 'arcaneCharge',
+    damageMultiplierPerConsumedStack: 0.2,
+    effects: [{ type: 'slow', value: 45, durationMs: 4500 }],
+  }],
   killing_strike: [{
     id: 'execution_window',
     description: 'Targets below 35% health take +75% damage.',
@@ -239,6 +248,15 @@ export const SKILL_REACTIONS: Partial<Record<SkillId, SkillReaction[]>> = {
     condition: { targetHasEffect: 'poison' },
     damageMultiplier: 1.35,
     effects: [{ type: 'slow', value: 55, durationMs: 7000 }],
+  }],
+  rift_step: [{
+    id: 'vanishing_cut',
+    description: 'Consumes Invisibility for +70% rift damage and poisons enemies caught in the tear.',
+    flavor: 'shadow',
+    condition: { casterHasEffect: 'invisible' },
+    consumeCasterEffect: 'invisible',
+    damageMultiplier: 1.7,
+    effects: [{ type: 'poison', value: 8, durationMs: 8000 }],
   }],
 };
 

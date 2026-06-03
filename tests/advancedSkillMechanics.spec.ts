@@ -11,6 +11,104 @@ import type { CombatWorld } from '../server/combat/worldContract';
 const NOW = 1_700_000_000_000;
 
 describe('advanced skill mechanics primitives', () => {
+  registerTeleportationTests();
+  registerTemporalTests();
+  registerReflectionTests();
+});
+
+function registerTeleportationTests() {
+  it('Dimensional Swap exchanges caster and target positions and snaps both combatants', () => {
+    const caster = player('caster', 0, 0, ['dimensional_swap']);
+    const target = enemy('target', 8, 0);
+    const world = worldOf([caster], [target]);
+
+    resolveCastImpact(
+      targetedCast(caster.id, 'dimensional_swap', target.id, target.position),
+      { publish: vi.fn() },
+      world,
+      NOW,
+    );
+
+    expect(caster.position.x).toBe(8);
+    expect(caster.position.z).toBe(0);
+    expect(target.position.x).toBe(0);
+    expect(target.position.z).toBe(0);
+    expect(caster.velocity).toEqual({ x: 0, z: 0 });
+    expect(target.velocity).toEqual({ x: 0, z: 0 });
+    expect(caster.dirtySnap).toBe(true);
+    expect(target.dirtySnap).toBe(true);
+    expect(target.statusEffects.some((effect) => effect.type === 'stun')).toBe(true);
+  });
+
+  it('Dimensional Swap does not move the caster when the target is already dead', () => {
+    const caster = player('caster', 0, 0, ['dimensional_swap']);
+    const target = enemy('target', 8, 0);
+    target.isAlive = false;
+    target.health = 0;
+    const world = worldOf([caster], [target]);
+
+    resolveCastImpact(
+      targetedCast(caster.id, 'dimensional_swap', target.id, target.position),
+      { publish: vi.fn() },
+      world,
+      NOW,
+    );
+
+    expect(caster.position.x).toBe(0);
+    expect(target.position.x).toBe(8);
+    expect(caster.dirtySnap).toBeUndefined();
+    expect(target.dirtySnap).toBeUndefined();
+  });
+
+  it('Rift Step damages enemies in the target rift and blinks the caster through the target', () => {
+    const caster = player('caster', 0, 0, ['rift_step']);
+    const primary = enemy('primary', 8, 0);
+    const nearby = enemy('nearby', 10, 0);
+    const far = enemy('far', 12, 0);
+    const world = worldOf([caster], [primary, nearby, far]);
+
+    resolveCastImpact(
+      targetedCast(caster.id, 'rift_step', primary.id, primary.position),
+      { publish: vi.fn() },
+      world,
+      NOW,
+    );
+
+    expect(primary.health).toBeLessThan(primary.maxHealth);
+    expect(nearby.health).toBeLessThan(nearby.maxHealth);
+    expect(far.health).toBe(far.maxHealth);
+    expect(primary.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+    expect(nearby.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+    expect(caster.position.x).toBeCloseTo(9.4, 5);
+    expect(caster.position.z).toBeCloseTo(0, 5);
+    expect(caster.dirtySnap).toBe(true);
+  });
+
+  it('Waygate hastes nearby allies and drops pursuit targeting them', () => {
+    const caster = player('caster', 0, 0, ['waygate']);
+    const ally = player('ally', 2, 0);
+    const farAlly = player('far-ally', 20, 0);
+    const chaser = enemy('chaser', 3, 0);
+    chaser.targetId = ally.id;
+    chaser.aiState = 'chasing';
+    const world = worldOf([caster, ally, farAlly], [chaser]);
+
+    resolveCastImpact(
+      selfCast(caster.id, 'waygate'),
+      { publish: vi.fn() },
+      world,
+      NOW,
+    );
+
+    expect(caster.statusEffects.some((effect) => effect.type === 'speed_boost')).toBe(true);
+    expect(ally.statusEffects.some((effect) => effect.type === 'speed_boost')).toBe(true);
+    expect(farAlly.statusEffects.some((effect) => effect.type === 'speed_boost')).toBe(false);
+    expect(chaser.targetId).toBeNull();
+    expect(chaser.aiState).toBe('idle');
+  });
+}
+
+function registerTemporalTests() {
   it('Time Sphere stops every combatant in the target-anchored sphere except the caster', () => {
     const caster = player('caster', 0, 0, ['time_sphere']);
     const primary = enemy('primary', 10, 0);
@@ -35,7 +133,9 @@ describe('advanced skill mechanics primitives', () => {
     expect(farMob.statusEffects.some((effect) => effect.type === 'timeStop')).toBe(false);
     expect(isEntityStunned(primary, NOW)).toBe(true);
   });
+}
 
+function registerReflectionTests() {
   it('Spectral Guard applies a reflection buff that returns post-mitigation damage to the attacker', () => {
     const defender = player('defender', 0, 0, ['spectral_guard']);
     const attacker = enemy('attacker', 1, 0);
@@ -59,7 +159,7 @@ describe('advanced skill mechanics primitives', () => {
     expect(defender.health).toBe(900);
     expect(attacker.health).toBe(465);
   });
-});
+}
 
 function player(id: string, x: number, z: number, unlockedSkills: PlayerState['unlockedSkills'] = []): PlayerState {
   return {

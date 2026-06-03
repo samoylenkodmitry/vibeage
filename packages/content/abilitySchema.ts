@@ -51,3 +51,6 @@ export type SummonSpec = {
 
 /** Move the caster to `offset` units behind the (locked) target on resolution. */
 export type BlinkSpec = { readonly offset: number };
+
+/** Exchange caster and target positions on resolution. */
+export type SwapSpec = Record<string, never>;
