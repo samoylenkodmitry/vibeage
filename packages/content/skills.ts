@@ -18,6 +18,7 @@ export const SKILL_IDS = [
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
   'divine_taunt', 'soul_eater', 'spectral_guard', 'rebirth', 'sacred_aura',
   'treasure_sense', 'stalking_arrow', 'dimensional_swap', 'rift_step', 'waygate',
+  'rewind_mark', 'portal_pair', 'gravity_well', 'mirror_spell', 'soul_link', 'phase_step', 'projectile_capture', 'terrain_sigil', 'puppet_mastery', 'momentum_strike', 'delayed_fate', 'clone_swap', 'silence_bubble', 'reflection_contract', 'cataclysm_rings',
   // PR PP — class passives (auto + learnable).
   'passive_arcane_focus', 'passive_battle_hardened', 'passive_serenity',
   'passive_woodland_step', 'passive_iron_discipline', 'passive_oath_of_light',
@@ -55,7 +56,7 @@ export type SkillEffectType =
   | 'bless'    // damage / hit buff
   | 'arcaneCharge' // caster marker consumed by arcane payoffs
   | 'dispel'   // remove negative effects
-  | 'taunt'    // forced aggro
+  | 'taunt' | 'silence' // forced aggro / cast lockout
   | 'knockback'
   | 'evasion'  // dodge buff
   | 'invisible'
@@ -67,7 +68,7 @@ export type SkillEffectType =
  *  (harmful if any HARMFUL_EFFECTS, else beneficial if any BENEFICIAL,
  *  else neutral). Ctrl force-cast bypasses it. */
 const HARMFUL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
-  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'timeStop', 'taunt', 'knockback', 'waterWeakness', 'marked',
+  'damage', 'dot', 'burn', 'poison', 'stun', 'slow', 'freeze', 'timeStop', 'taunt', 'silence', 'knockback', 'waterWeakness', 'marked',
 ]);
 const BENEFICIAL_EFFECTS: ReadonlySet<SkillEffectType> = new Set([
   'heal', 'shield', 'damageReflect', 'bless', 'arcaneCharge', 'dispel', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'aggroReset',

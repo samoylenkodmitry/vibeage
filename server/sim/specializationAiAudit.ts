@@ -262,6 +262,7 @@ function focusObjectiveSatisfied(
 ): boolean {
   const reactionIds = SKILL_REACTIONS[focusSkillId]?.map((reaction) => reaction.id) ?? [];
   if (reactionIds.length > 0) return reactionIds.every((reactionId) => observed.reactionCounts[reactionId]);
+  if (SKILLS[focusSkillId]?.customBehavior) return Boolean(observed.castAttemptsBySkill[focusSkillId]);
   if (SKILLS[focusSkillId]?.kind === 'utility') return Boolean(observed.castAttemptsBySkill[focusSkillId]);
   return Boolean(observed.castsBySkill[focusSkillId]);
 }

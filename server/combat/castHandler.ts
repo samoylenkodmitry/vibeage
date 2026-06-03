@@ -5,7 +5,7 @@ import { type Enemy, PlayerState } from '../../packages/sim/entities.js';
 import { debug, LOG_CATEGORIES, warn } from '../logger.js';
 import { handleCastRequest } from './skillSystem.js';
 import { tryInterruptForNewAction } from './castInterrupt.js';
-import { isEntityStunned } from './statusQueries.js';
+import { isEntitySilenced, isEntityStunned } from './statusQueries.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import type { ActiveCastStore } from './skillSystem.js';
 import { applyCastResources, validateCastRequest } from './castRules.js';
@@ -64,6 +64,12 @@ export function handleCastReq(
   if (isEntityStunned(player, now)) {
     runtimeMetrics.increment('cast.rejectedStunned');
     debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is stunned`);
+    sendCastRejected(transport.direct, msg, 'invalid');
+    return;
+  }
+  if (isEntitySilenced(player, now)) {
+    runtimeMetrics.increment('cast.rejectedSilenced');
+    debug(LOG_CATEGORIES.COMBAT, `Cast rejected: player ${playerId} is silenced`);
     sendCastRejected(transport.direct, msg, 'invalid');
     return;
   }

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { SkillId } from '../packages/content/skills';
+import type { Enemy, PlayerState } from '../packages/sim/entities';
 import { getPlayerSpeed } from '../server/movement/worldMovement';
 import {
   createClassCombatPolicy,
@@ -118,6 +120,71 @@ describe('game simulator teleport mechanics', () => {
     expect(sim.spatial.queryCircle({ x: 0, z: 0 }, 0)).not.toContain(caster.id);
     expect(target.statusEffects.some((effect) => effect.type === 'stun')).toBe(true);
   });
+
+  it('resolves advanced custom mechanics through the real cast simulator', () => {
+    const sim = createGameSimulator({ startMs: 2_000 });
+    const caster = advancedPlayer('advanced', ['gravity_well', 'soul_link', 'delayed_fate', 'phase_step']);
+    const linkedA = durableEnemy('linked-a', { x: 10, z: 0 });
+    const linkedB = durableEnemy('linked-b', { x: 14, z: 0 });
+    sim.addPlayer(caster);
+    sim.addEnemy(linkedA);
+    sim.addEnemy(linkedB);
+
+    sim.castSkill(caster.id, 'gravity_well', linkedA.id);
+    sim.advance(850);
+    expect(linkedB.position.x).toBeLessThan(14);
+    expect(linkedB.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+
+    ready(caster, 'soul_link');
+    sim.castSkill(caster.id, 'soul_link', linkedA.id);
+    sim.advance(550);
+    expect(linkedA.statusEffects.some((effect) => effect.type === 'soulLink')).toBe(true);
+    expect(linkedB.statusEffects.some((effect) => effect.type === 'soulLink')).toBe(true);
+
+    ready(caster, 'delayed_fate');
+    sim.castSkill(caster.id, 'delayed_fate', linkedA.id);
+    sim.advance(450);
+    const markedHealth = linkedA.health;
+    expect(linkedA.statusEffects.some((effect) => effect.type === 'fateDebt')).toBe(true);
+    sim.advance(2_500);
+    expect(linkedA.health).toBeLessThan(markedHealth);
+
+    ready(caster, 'phase_step');
+    sim.castSkill(caster.id, 'phase_step', linkedA.id);
+    sim.step();
+    expect(caster.position.x).toBeGreaterThan(linkedA.position.x);
+    expect(caster.statusEffects.some((effect) => effect.type === 'afterimage')).toBe(true);
+  });
+
+  it('moves portal groups and resolves telegraphed rings through simulator ticks', () => {
+    const portalSim = createGameSimulator({ startMs: 6_000 });
+    const portalCaster = advancedPlayer('portal-caster', ['portal_pair']);
+    const ally = createSimulatedPlayer({ id: 'portal-ally', className: 'mage', level: 40, position: { x: 2, z: 0 } });
+    portalSim.addPlayer(portalCaster);
+    portalSim.addPlayer(ally);
+
+    portalSim.castSkill(portalCaster.id, 'portal_pair', undefined, { x: 18, z: 5 });
+    portalSim.advance(450);
+    expect(portalCaster.position.x).toBeCloseTo(18, 4);
+    expect(ally.position.x).toBeCloseTo(20, 4);
+    expect(portalSim.spatial.queryCircle({ x: 20, z: 5 }, 0)).toContain(ally.id);
+
+    const ringSim = createGameSimulator({ startMs: 9_000 });
+    const ringCaster = advancedPlayer('ring-caster', ['cataclysm_rings']);
+    const center = durableEnemy('ring-center', { x: 8, z: 0 });
+    const outer = durableEnemy('ring-outer', { x: 13, z: 0 });
+    rootInPlace(center, ringSim.now());
+    rootInPlace(outer, ringSim.now());
+    ringSim.addPlayer(ringCaster);
+    ringSim.addEnemy(center);
+    ringSim.addEnemy(outer);
+
+    ringSim.castSkill(ringCaster.id, 'cataclysm_rings', center.id);
+    ringSim.advance(1_700);
+    expect(center.health).toBe(center.maxHealth);
+    expect(outer.health).toBeLessThan(outer.maxHealth);
+    expect(outer.statusEffects.some((effect) => effect.type === 'burn')).toBe(true);
+  });
 });
 
 describe('game simulator progression and PvP scenarios', () => {
@@ -150,3 +217,36 @@ describe('game simulator progression and PvP scenarios', () => {
     expect(result.summary.damageTakenById[blue.id]).toBeGreaterThan(0);
   });
 });
+
+function advancedPlayer(id: string, unlockedSkills: SkillId[]): PlayerState {
+  const player = createSimulatedPlayer({
+    id,
+    className: 'mage',
+    level: 40,
+    specializationId: 'arcanist',
+    unlockedSkills,
+    mana: 10_000,
+    position: { x: 0, z: 0 },
+  });
+  player.maxMana = 10_000;
+  player.mana = 10_000;
+  return player;
+}
+
+function durableEnemy(id: string, position: { x: number; z: number }): Enemy {
+  const enemy = createSimulatedEnemy('goblin', 40, { id, position });
+  enemy.health = 10_000;
+  enemy.maxHealth = 10_000;
+  return enemy;
+}
+
+function ready(player: PlayerState, skillId: SkillId): void {
+  player.castingSkill = null;
+  player.castingProgressMs = 0;
+  player.skillCooldownEndTs[skillId] = 0;
+  player.mana = player.maxMana;
+}
+
+function rootInPlace(enemy: Enemy, now: number): void {
+  enemy.statusEffects.push({ id: `root-${enemy.id}`, type: 'root', value: 1, durationMs: 3_000, startTimeTs: now, sourceSkill: 'test' });
+}

@@ -39,6 +39,7 @@ const IMPLEMENTED_EFFECT_TYPES: ReadonlySet<SkillEffectType> = new Set<SkillEffe
   'bless',      // STATUS_EFFECT_STAT_CONTRIBUTIONS (dmgMult mul)
   'dispel',     // applySkillEffects → filter negative effects
   'taunt',      // applySkillEffects → set targetId
+  'silence',    // statusQueries → cast handler / enemy special-skill gate
   'evasion',    // evasionMissChanceFor → flat dodge in the damage path
   'invisible',  // enemy AI ignores invisible targets + status display
   'speed_boost', // STATUS_EFFECT_STAT_CONTRIBUTIONS (runSpeed mul) → movement

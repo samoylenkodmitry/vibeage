@@ -3,10 +3,13 @@ import { CastState } from '../packages/protocol/messages';
 import type { PlayerState, Enemy } from '../packages/sim/entities';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { resolveCastImpact } from '../server/combat/impactResolver';
-import { isEntityStunned } from '../server/combat/statusQueries';
+import { isEntitySilenced, isEntityStunned } from '../server/combat/statusQueries';
 import { applyResolvedDamageToTarget } from '../server/combat/damageResolution';
+import { tickDamageOverTimeEffects } from '../server/combat/dotTicker';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
+import { createGameState } from '../server/gameState';
+import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 
 const NOW = 1_700_000_000_000;
 
@@ -15,6 +18,10 @@ describe('advanced skill mechanics primitives', () => {
   registerMobilityTests();
   registerTemporalTests();
   registerReflectionTests();
+  registerRewindPortalTests();
+  registerControlBatchTests();
+  registerRedirectBatchTests();
+  registerMovementBatchTests();
 });
 
 function registerSwapTests() {
@@ -182,6 +189,118 @@ function registerReflectionTests() {
   });
 }
 
+function registerRewindPortalTests() {
+  it('Rewind Mark and Portal Pair relocate players with hard snaps', () => {
+    const caster = player('caster', 10, 0, ['rewind_mark', 'portal_pair']);
+    const ally = player('ally', 3, 0);
+    caster.health = 400;
+    caster.mana = 100;
+    caster.posHistory = [{ ts: NOW - 5000, x: 1, z: 2 }];
+    const world = worldOf([caster, ally], []);
+
+    resolveCastImpact(selfCast(caster.id, 'rewind_mark'), { publish: vi.fn() }, world, NOW);
+    expect(caster.position.x).toBe(1);
+    expect(caster.position.z).toBe(2);
+    expect(caster.health).toBe(610);
+    expect(caster.dirtySnap).toBe(true);
+
+    resolveCastImpact(groundCast(caster.id, 'portal_pair', { x: 30, z: 10 }), { publish: vi.fn() }, world, NOW + 1);
+    expect(caster.position.x).toBe(30);
+    expect(ally.position.x).toBe(32);
+    expect(ally.dirtySnap).toBe(true);
+  });
+}
+
+function registerControlBatchTests() {
+  it('Gravity Well, Terrain Sigil, Puppet Mastery, and Silence Bubble control enemies differently', () => {
+    const caster = player('caster', 0, 0, ['gravity_well', 'terrain_sigil', 'puppet_mastery', 'silence_bubble']);
+    const primary = enemy('primary', 10, 0);
+    const nearby = enemy('nearby', 15, 0);
+    const silenced = enemy('silenced', 24, 0);
+    primary.targetId = caster.id;
+    primary.aiState = 'chasing';
+    const world = worldOf([caster], [primary, nearby, silenced]);
+
+    resolveCastImpact(targetedCast(caster.id, 'gravity_well', primary.id, primary.position), { publish: vi.fn() }, world, NOW);
+    expect(nearby.position.x).toBeLessThan(15);
+    expect(nearby.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'terrain_sigil', primary.id, primary.position), { publish: vi.fn() }, world, NOW + 10);
+    expect(primary.statusEffects.some((effect) => effect.type === 'root')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'puppet_mastery', primary.id, primary.position), { publish: vi.fn() }, world, NOW + 20);
+    expect(primary.targetId).toBeNull();
+    expect(primary.aggroSuppressedUntilTs).toBe(NOW + 20 + 3500);
+
+    resolveCastImpact(targetedCast(caster.id, 'silence_bubble', silenced.id, silenced.position), { publish: vi.fn() }, world, NOW + 30);
+    expect(silenced.statusEffects.some((effect) => effect.type === 'silence')).toBe(true);
+    expect(isEntitySilenced(silenced, NOW + 30)).toBe(true);
+    expect(isEntityStunned(silenced, NOW + 30)).toBe(false);
+  });
+}
+
+function registerRedirectBatchTests() {
+  it('Soul Link, Mirror Spell, Reflection Contract, and Projectile Capture redirect damage', () => {
+    const caster = player('caster', 0, 0, ['soul_link', 'mirror_spell', 'reflection_contract']);
+    const linkedA = enemy('linked-a', 6, 0);
+    const linkedB = enemy('linked-b', 8, 0);
+    const attacker = enemy('attacker', 2, 0);
+    const world = worldOf([caster], [linkedA, linkedB, attacker]);
+
+    resolveCastImpact(targetedCast(caster.id, 'soul_link', linkedA.id, linkedA.position), { publish: vi.fn() }, world, NOW);
+    applyResolvedDamageToTarget(linkedA, 100, NOW + 100, { source: caster, world });
+    expect(linkedB.health).toBe(965);
+
+    resolveCastImpact(selfCast(caster.id, 'mirror_spell'), { publish: vi.fn() }, world, NOW + 200);
+    applyResolvedDamageToTarget(caster, 100, NOW + 300, { kind: 'magical', source: attacker, world });
+    expect(attacker.health).toBe(930);
+
+    resolveCastImpact(selfCast(caster.id, 'reflection_contract'), { publish: vi.fn() }, world, NOW + 400);
+    applyResolvedDamageToTarget(caster, 100, NOW + 500, { source: attacker, world });
+    expect(attacker.health).toBe(860);
+
+    resolveCastImpact(selfCast(caster.id, 'projectile_capture'), { publish: vi.fn() }, world, NOW + 600);
+    const defenderBefore = caster.health;
+    const attackerBefore = attacker.health;
+    resolveCastImpact(targetedCast(attacker.id, 'fireball', caster.id, caster.position), { publish: vi.fn() }, world, NOW + 700);
+    expect(caster.health).toBe(defenderBefore);
+    expect(attacker.health).toBeLessThan(attackerBefore);
+    expect(caster.statusEffects.some((effect) => effect.type === 'projectileCapture')).toBe(false);
+  });
+}
+
+function registerMovementBatchTests() {
+  it('Phase Step, Momentum Strike, Clone Swap, Delayed Fate, and Cataclysm Rings resolve their movement/damage hooks', () => {
+    const caster = player('caster', 0, 0, ['phase_step', 'momentum_strike', 'clone_swap', 'delayed_fate', 'cataclysm_rings']);
+    const target = enemy('target', 8, 0);
+    const ringCenterSafe = enemy('safe', 8, 0);
+    const ringOuter = enemy('outer', 13, 0);
+    const spawned: Enemy[] = [];
+    const world = worldOf([caster], [target, ringCenterSafe, ringOuter], spawned);
+
+    resolveCastImpact(targetedCast(caster.id, 'phase_step', target.id, target.position), { publish: vi.fn() }, world, NOW);
+    expect(caster.position.x).toBeGreaterThan(8);
+    expect(caster.statusEffects.some((effect) => effect.type === 'afterimage')).toBe(true);
+
+    caster.velocity = { x: 8, z: 0 };
+    resolveCastImpact(targetedCast(caster.id, 'momentum_strike', target.id, target.position), { publish: vi.fn() }, world, NOW + 100);
+    expect(target.position.x).toBeLessThan(8);
+
+    resolveCastImpact(targetedCast(caster.id, 'clone_swap', target.id, target.position), { publish: vi.fn() }, world, NOW + 200);
+    expect(spawned).toHaveLength(1);
+    expect(spawned[0].name).toContain('Illusion');
+
+    resolveCastImpact(targetedCast(caster.id, 'delayed_fate', target.id, target.position), { publish: vi.fn() }, world, NOW + 300);
+    expect(target.statusEffects.some((effect) => effect.type === 'fateDebt')).toBe(true);
+    tickFateDebt(target, caster, NOW + 2800);
+    expect(target.health).toBeLessThan(target.maxHealth);
+
+    resolveCastImpact(targetedCast(caster.id, 'cataclysm_rings', ringCenterSafe.id, ringCenterSafe.position), { publish: vi.fn() }, world, NOW + 400);
+    expect(ringCenterSafe.health).toBe(ringCenterSafe.maxHealth);
+    expect(ringOuter.health).toBeLessThan(ringOuter.maxHealth);
+  });
+}
+
 function player(id: string, x: number, z: number, unlockedSkills: PlayerState['unlockedSkills'] = []): PlayerState {
   return {
     id,
@@ -245,17 +364,44 @@ function selfCast(casterId: string, skillId: Cast['skillId']): Cast {
   };
 }
 
-function worldOf(players: PlayerState[], enemies: Enemy[]): CombatWorld {
+function worldOf(players: PlayerState[], enemies: Enemy[], spawned: Enemy[] = []): CombatWorld {
   return {
     getEnemyById: (id) => enemies.find((entity) => entity.id === id) ?? null,
     getPlayerById: (id) => players.find((entity) => entity.id === id) ?? null,
     getEntitiesInCircle: (pos, radius) => (
-      [...players, ...enemies].filter((entity) => {
+      [...players, ...enemies, ...spawned].filter((entity) => {
         const dx = entity.position.x - pos.x;
         const dz = entity.position.z - pos.z;
         return dx * dx + dz * dz <= radius * radius;
       })
     ),
     onTargetDied: vi.fn(),
+    spawnMinion: (type, level, pos, now, options) => {
+      spawned.push(createEnemy(type, level, pos, now, options));
+    },
   };
+}
+
+function groundCast(casterId: string, skillId: Cast['skillId'], pos: { x: number; z: number }): Cast {
+  return {
+    castId: `${skillId}-ground-cast`,
+    casterId,
+    skillId,
+    targetPos: pos,
+    target: pos,
+    state: CastState.Impact,
+    origin: { x: 0, z: 0 },
+    pos: { x: 0, z: 0 },
+    startedAt: NOW,
+    castTimeMs: 0,
+  };
+}
+
+function tickFateDebt(target: Enemy, caster: PlayerState, now: number): void {
+  const state = createGameState();
+  const spatial = new SpatialHashGrid();
+  state.players[caster.id] = caster;
+  state.enemies[target.id] = target;
+  spatial.insert(target.id, target.position);
+  tickDamageOverTimeEffects(state, spatial, { publish: vi.fn() }, now);
 }

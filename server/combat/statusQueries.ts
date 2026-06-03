@@ -28,6 +28,14 @@ export function isEntityStunned(entity: PlayerState | Enemy, now: number): boole
   });
 }
 
+export function isEntitySilenced(entity: PlayerState | Enemy, now: number): boolean {
+  return (entity.statusEffects ?? []).some((effect) => {
+    if (effect.type !== 'silence') return false;
+    const expiresAt = (effect.startTimeTs ?? 0) + (effect.durationMs ?? 0);
+    return expiresAt > now;
+  });
+}
+
 /**
  * §52 #10 — which effect types each dispel category strips.
  *
@@ -44,10 +52,10 @@ export function isEntityStunned(entity: PlayerState | Enemy, now: number): boole
  * future status types without re-touching this map.
  */
 const DISPEL_CATEGORY_TARGETS: Readonly<Record<DispelCategory, ReadonlySet<string>>> = {
-  negative: new Set(['slow', 'stun', 'burn', 'poison', 'dot', 'freeze', 'timeStop', 'waterWeakness', 'marked']),
+  negative: new Set(['slow', 'stun', 'silence', 'burn', 'poison', 'dot', 'freeze', 'timeStop', 'waterWeakness', 'marked']),
   positive: new Set(['heal', 'shield', 'damageReflect', 'bless', 'arcaneCharge', 'evasion', 'invisible', 'speed_boost', 'attackSpeed', 'reveal_loot', 'invuln']),
   poison: new Set(['poison', 'dot']),
-  stun: new Set(['stun', 'freeze', 'root', 'timeStop']),
+  stun: new Set(['stun', 'silence', 'freeze', 'root', 'timeStop']),
   shield: new Set(['shield']),
   bleed: new Set<string>(),
   magic: new Set<string>(),

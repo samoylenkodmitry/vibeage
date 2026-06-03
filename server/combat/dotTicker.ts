@@ -26,6 +26,7 @@ function hasRecordKey<T>(record: Record<string, T>, key: string): boolean {
 
 export const DOT_TICK_INTERVAL_MS = 1_000;
 const DOT_EFFECT_TYPES: ReadonlySet<string> = new Set(['burn', 'poison', 'dot']);
+const DETONATE_ON_EXPIRY_EFFECT_TYPES: ReadonlySet<string> = new Set(['fateDebt']);
 
 let nextTickAt = new WeakMap<StatusEffect, number>();
 
@@ -41,7 +42,7 @@ export function pauseDamageOverTimeEffectTracking(
     return;
   }
   for (const effect of effects ?? []) {
-    if (!DOT_EFFECT_TYPES.has(effect.type)) continue;
+    if (!DOT_EFFECT_TYPES.has(effect.type) && !DETONATE_ON_EXPIRY_EFFECT_TYPES.has(effect.type)) continue;
     const due = nextTickAt.get(effect);
     if (due !== undefined) {
       nextTickAt.set(effect, due + dtMs);
@@ -135,6 +136,21 @@ export function tickDamageOverTimeEffects(
 function applyDueDotTicks(entity: PlayerState | Enemy, now: number): DotApplyResult {
   let damaged = false;
   for (const effect of entity.statusEffects ?? []) {
+    if (DETONATE_ON_EXPIRY_EFFECT_TYPES.has(effect.type)) {
+      const detonatesAt = nextTickAt.get(effect) ?? Math.max(effect.startTimeTs, effect.startTimeTs + effect.durationMs - 50);
+      if (detonatesAt > now) {
+        nextTickAt.set(effect, detonatesAt);
+        continue;
+      }
+      entity.health = Math.max(0, entity.health - Math.max(0, effect.value));
+      entity.statusEffects = (entity.statusEffects ?? []).filter((candidate) => candidate.id !== effect.id);
+      nextTickAt.delete(effect);
+      damaged = damaged || effect.value > 0;
+      if (entity.health <= 0) {
+        return { damaged: true, died: true, ...(effect.sourceCasterId ? { killerCasterId: effect.sourceCasterId } : {}) };
+      }
+      continue;
+    }
     if (!DOT_EFFECT_TYPES.has(effect.type)) continue;
     const startedAt = effect.startTimeTs ?? 0;
     const expiresAt = startedAt + (effect.durationMs ?? 0);
