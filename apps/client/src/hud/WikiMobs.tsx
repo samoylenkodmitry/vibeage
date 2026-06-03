@@ -4,6 +4,7 @@ import { ENEMY_BASE_SCALING, resolveEnemyCombat } from '../../../../packages/con
 import { SKILLS } from '../../../../packages/content/skills';
 import { getMiniBossesByMobType } from '../../../../packages/content/miniBosses';
 import { LootDropsForTable } from './WikiLoot';
+import { MobModelViewer } from './MobModelViewer';
 import { FocusableLi, filterMatch, type WikiNav } from './WikiPanel';
 import { WikiFilters, type WikiFilterChip } from './WikiFilters';
 
@@ -89,12 +90,17 @@ function MobLi({
   const bosses = getMiniBossesByMobType(tpl.type);
   return (
     <FocusableLi isFocus={tpl.type === focusId} focusKey={focusKey}>
-      <header>
-        <strong>{tpl.displayName}</strong>
-        <span className="wiki-row-tag">{tpl.family}</span>
-      </header>
-      <small className="wiki-row-footer">Type id: <code>{tpl.type}</code></small>
-      <MobStatsSummary tpl={tpl} zones={zones} />
+      <div className="wiki-mob-head">
+        <MobModelViewer family={tpl.family} type={tpl.type} />
+        <div className="wiki-mob-head-text">
+          <header>
+            <strong>{tpl.displayName}</strong>
+            <span className="wiki-row-tag">{tpl.family}</span>
+          </header>
+          <small className="wiki-row-footer">Type id: <code>{tpl.type}</code></small>
+          <MobStatsSummary tpl={tpl} zones={zones} />
+        </div>
+      </div>
       <MobAbilities tpl={tpl} navigate={navigate} />
       {zones.length === 0 && <small className="wiki-row-footer">No known spawn zone.</small>}
       {zones.length > 0 && (
