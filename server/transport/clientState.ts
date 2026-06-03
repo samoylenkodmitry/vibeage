@@ -87,6 +87,7 @@ export const PRIVATE_PLAYER_STATE_FIELDS = [
   'experienceToNextLevel',
   'lastUpdateTime',
   'lastSnapTime',
+  'positionDirty',
   'posHistory',
   'usedResurrectionThisLife',
   'stats',

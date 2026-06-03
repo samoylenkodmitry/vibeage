@@ -23,6 +23,7 @@ const PERSISTENCE_INTERNAL_FIELDS = new Set([
   'accountLogin',
   'lastUpdateTime',
   'lastSnapTime',
+  'positionDirty',
   'lastRegenTimeMs',
   'posHistory',
   'usedResurrectionThisLife',
@@ -80,6 +81,7 @@ describe('sanitizePlayerForOwner (§52 #3)', () => {
     const player = freshOwner();
     player.lastUpdateTime = 12345;
     player.lastSnapTime = 6789;
+    player.positionDirty = true;
     player.lastRegenTimeMs = 4242;
     player.posHistory = [{ ts: 0, x: 0, z: 0 }];
     player.usedResurrectionThisLife = true;

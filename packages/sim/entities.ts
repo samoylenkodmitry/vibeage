@@ -126,6 +126,9 @@ export interface Enemy {
   lastDamagedTs?: number;
   movementSpeed: number;
   velocity?: { x: number; z: number };
+  /** Transient: force a position delta without asking clients to hard-snap. */
+  positionDirty?: boolean;
+  /** Transient: force a position delta and ask clients to hard-snap. */
   dirtySnap?: boolean;
   patrolTarget?: { x: number; z: number };
   patrolWaitUntilTs?: number;
@@ -262,6 +265,9 @@ export interface PlayerState {
   lastSnapTime?: number;
   movement?: PlayerMovementState;
   velocity?: { x: number; z: number };
+  /** Transient: force a position delta without asking clients to hard-snap. */
+  positionDirty?: boolean;
+  /** Transient: force a position delta and ask clients to hard-snap. */
   dirtySnap?: boolean;
   posHistory?: { ts: number; x: number; z: number }[];
   /**

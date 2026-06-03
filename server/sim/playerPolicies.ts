@@ -99,10 +99,10 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   cardinal: profile('cardinal', 'support', [
     self('mass_heal', { casterHealthBelowPct: 0.75 }),
-    enemy('soul_link'),
     self('greater_heal', { casterHealthBelowPct: 0.82 }),
     self('holyLight', { casterHealthBelowPct: 0.9 }),
     self('bless', { casterMissingEffect: 'bless' }),
+    enemy('soul_link'),
     enemy('smite'),
   ]),
   theurge: profile('theurge', 'support', [
@@ -117,9 +117,9 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   hawkeye: profile('hawkeye', 'burst', [
     enemy('aimed_volley', { targetHasEffect: 'marked' }),
-    self('projectile_capture'),
     enemy('terrain_sigil'),
     enemy('volley', { targetHasEffect: 'marked' }),
+    self('projectile_capture', { casterHealthBelowPct: 0.8 }),
     enemy('snipe', { targetHasEffect: 'slow' }),
     self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
     enemy('arrowShot', { targetMissingEffect: 'marked' }),
@@ -173,8 +173,8 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   treasure_hunter: profile('treasure_hunter', 'skirmish', [
     self('treasure_sense', { casterMissingEffect: 'reveal_loot' }),
-    enemy('puppet_mastery'),
     enemy('lucky_strike', { targetHealthBelowPct: 0.5 }),
+    enemy('puppet_mastery', { targetHealthAbovePct: 0.5 }),
     enemy('backstab', { casterHasEffect: 'invisible' }),
     self('vanish', { casterMissingEffect: 'invisible' }),
     enemy('poisonBlade', { targetMissingEffect: 'poison' }),

@@ -233,8 +233,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'An additional +15% max mana on top of the spec passive.',
       modifiers: { manaMultiplier: 1.15 },
     },
-    specSkills: ['arcane_blast'],
-    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap', 'rewind_mark', 'gravity_well'],
+    specSkills: ['arcane_blast', 'rewind_mark'],
+    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap', 'gravity_well'],
   },
   pyromancer: {
     id: 'pyromancer',
@@ -274,8 +274,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Higher crit multiplier when below half health (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['rage'],
-    proficiencySkills: ['blood_frenzy', 'momentum_strike'],
+    specSkills: ['rage', 'momentum_strike'],
+    proficiencySkills: ['blood_frenzy'],
   },
   slayer: {
     id: 'slayer',
@@ -294,8 +294,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+0.5× crit multiplier (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['execute'],
-    proficiencySkills: ['killing_strike', 'delayed_fate'],
+    specSkills: ['execute', 'delayed_fate'],
+    proficiencySkills: ['killing_strike'],
   },
   // ---- HEALER ----
   cardinal: {
@@ -315,8 +315,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+5% max HP; nearby allies (within 12m) regen +2 HP/sec.',
       modifiers: { healthMultiplier: 1.05, partyHpRegenAuraBonus: 2, partyHpRegenAuraRadiusM: 12 },
     },
-    specSkills: ['greater_heal'],
-    proficiencySkills: ['mass_heal', 'soul_link'],
+    specSkills: ['greater_heal', 'soul_link'],
+    proficiencySkills: ['mass_heal'],
   },
   theurge: {
     id: 'theurge',
@@ -335,8 +335,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Nearby allies (within 15m) deal +5% damage.',
       modifiers: { partyDamageAuraMultiplier: 1.05, partyDamageAuraRadiusM: 15 },
     },
-    specSkills: ['empower'],
-    proficiencySkills: ['group_bless', 'waygate', 'portal_pair', 'mirror_spell'],
+    specSkills: ['empower', 'mirror_spell'],
+    proficiencySkills: ['group_bless', 'waygate', 'portal_pair'],
   },
   // ---- RANGER ----
   hawkeye: {
@@ -356,8 +356,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Crit multiplier +0.5× on ranged attacks (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['snipe'],
-    proficiencySkills: ['aimed_volley', 'projectile_capture', 'terrain_sigil'],
+    specSkills: ['snipe', 'projectile_capture'],
+    proficiencySkills: ['aimed_volley', 'terrain_sigil'],
   },
   phantom_ranger: {
     id: 'phantom_ranger',
@@ -376,8 +376,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+10% movement speed, +5 evasion.',
       modifiers: { speedMultiplier: 1.1, evasionBonus: 5 },
     },
-    specSkills: ['silent_step'],
-    proficiencySkills: ['shadow_arrow', 'phase_step'],
+    specSkills: ['silent_step', 'phase_step'],
+    proficiencySkills: ['shadow_arrow'],
   },
   // ---- KNIGHT ----
   templar_knight: {
@@ -397,8 +397,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '15% damage reduction while below half HP.',
       modifiers: { belowHalfHpDamageTakenMultiplier: 0.85 },
     },
-    specSkills: ['holy_shield'],
-    proficiencySkills: ['divine_taunt', 'silence_bubble'],
+    specSkills: ['holy_shield', 'silence_bubble'],
+    proficiencySkills: ['divine_taunt'],
   },
   dark_avenger: {
     id: 'dark_avenger',
@@ -417,8 +417,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Each hit restores 5% of the damage dealt as HP.',
       modifiers: { lifestealPercent: 0.05 },
     },
-    specSkills: ['shadow_strike'],
-    proficiencySkills: ['soul_eater', 'spectral_guard', 'reflection_contract'],
+    specSkills: ['shadow_strike', 'reflection_contract'],
+    proficiencySkills: ['soul_eater', 'spectral_guard'],
   },
   // ---- PALADIN ----
   phoenix_knight: {
@@ -479,8 +479,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Loot drop chances boosted by 50% (clamped at 100%).',
       modifiers: { lootRateMultiplier: 1.5 },
     },
-    specSkills: ['lucky_strike'],
-    proficiencySkills: ['treasure_sense', 'puppet_mastery'],
+    specSkills: ['lucky_strike', 'puppet_mastery'],
+    proficiencySkills: ['treasure_sense'],
   },
   plains_walker: {
     id: 'plains_walker',
@@ -499,8 +499,8 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Vanish cooldown halved.',
       modifiers: { cooldownMultiplierBySkill: { vanish: 0.5 } },
     },
-    specSkills: ['wind_dash'],
-    proficiencySkills: ['stalking_arrow', 'rift_step', 'clone_swap'],
+    specSkills: ['wind_dash', 'clone_swap'],
+    proficiencySkills: ['stalking_arrow', 'rift_step'],
   },
 };
 
