@@ -64,7 +64,10 @@ const Q_FLYER_CLIPS: Record<CharacterAnim, string> = {
   idle: 'CharacterArmature|Flying_Idle', walk: 'CharacterArmature|Fast_Flying', run: 'CharacterArmature|Fast_Flying',
   attack: 'CharacterArmature|Punch', death: 'CharacterArmature|Death',
 };
-const Q_BLOB_CLIPS: Record<CharacterAnim, string> = {
+// Quaternius's simpler rig (Idle/Walk + Bite_Front for the attack — no Run/Punch).
+// Shared by blobs AND some bipeds (Wizard, Yeti); `Bite_Front` is the only attack
+// clip these GLBs ship, so it's the right (and only) choice for them.
+const Q_SIMPLE_CLIPS: Record<CharacterAnim, string> = {
   idle: 'CharacterArmature|Idle', walk: 'CharacterArmature|Walk', run: 'CharacterArmature|Walk',
   attack: 'CharacterArmature|Bite_Front', death: 'CharacterArmature|Death',
 };
@@ -88,12 +91,25 @@ export const CHARACTER_MODELS = {
   // at the feet (≈minY for walkers; lifted for flying-posed models to hover).
   'q-dino': quaternius('Dino', 3.226, Q_GROUND_CLIPS, 0),
   'q-mushroomking': quaternius('MushroomKing', 3.609, Q_GROUND_CLIPS, 0),
-  'q-greenblob': quaternius('GreenBlob', 1.853, Q_BLOB_CLIPS, 0),
+  'q-greenblob': quaternius('GreenBlob', 1.853, Q_SIMPLE_CLIPS, 0),
   'q-dragon': quaternius('Dragon', 1.541, Q_FLYER_CLIPS, 1.215),
   'q-squidle': quaternius('Squidle', 1.987, Q_FLYER_CLIPS, 0.597),
   'q-armabee': quaternius('Armabee', 1.886, Q_FLYER_CLIPS, 0.341),
   'q-ghost': quaternius('Ghost', 3.101, Q_FLYER_CLIPS, -0.34),
   'q-stonegolem': quaternius('StoneGolem', 2.064, STATIC_CLIPS, -1.1715),
+  // Extra creatures for per-mob-type variety (Quaternius CC0). nativeHeight =
+  // visible bbox height; groundOffset seats walkers / hovers flyers.
+  'q-pinkslime': quaternius('PinkSlime', 2.009, Q_SIMPLE_CLIPS, 0),
+  'q-demon': quaternius('Demon', 3.120, Q_GROUND_CLIPS, 0),
+  'q-bluedemon': quaternius('BlueDemon', 2.840, Q_GROUND_CLIPS, 0),
+  'q-dragon-evolved': quaternius('DragonEvolved', 2.858, Q_FLYER_CLIPS, -0.27),
+  'q-glub': quaternius('Glub', 2.351, Q_FLYER_CLIPS, 0.907),
+  'q-hywirl': quaternius('Hywirl', 2.745, Q_FLYER_CLIPS, -0.522),
+  'q-orc': quaternius('Orc', 3.209, Q_GROUND_CLIPS, 0),
+  'q-wizard': quaternius('Wizard', 2.601, Q_SIMPLE_CLIPS, 0),
+  'q-ghostskull': quaternius('GhostSkull', 3.101, Q_FLYER_CLIPS, -0.337),
+  'q-yeti': quaternius('Yeti', 2.437, Q_SIMPLE_CLIPS, 0),
+  'q-spikyblob': quaternius('SpikyBlob', 4.142, Q_SIMPLE_CLIPS, 0),
 } as const;
 
 export type CharacterModelId = keyof typeof CHARACTER_MODELS;
@@ -153,6 +169,38 @@ const ENEMY_FAMILY_MODEL: Record<EnemyTemplate['family'], CharacterModelId> = {
 
 export function enemyModel(family: string): CharacterModelId {
   return ENEMY_FAMILY_MODEL[family as EnemyTemplate['family']] ?? 'kaykit-barbarian';
+}
+
+/** Per-mob-type model overrides for variety within a family — e.g. a slime and a
+ *  tentacle-horror shouldn't share one body. Only types that need a DIFFERENT model
+ *  than their family default are listed; everything else uses the family model, and
+ *  the per-type tint (getEnemyVisual.color) still differentiates same-model mobs
+ *  (fire vs ice elemental, wolf vs frost_wolf). (beast wolf/spider have no override
+ *  yet — the monster pack has no wolf/spider; that's an animals-pack follow-up.) */
+const ENEMY_TYPE_MODEL: Record<string, CharacterModelId> = {
+  // humanoid (family default barbarian)
+  goblin: 'kaykit-rogue',
+  orc: 'q-orc',
+  troll: 'q-yeti',
+  necromancer: 'q-wizard',
+  // undead (family default rogue-hooded)
+  skeleton: 'q-ghostskull',
+  // dragon (family default q-dragon)
+  drake: 'q-dragon-evolved',
+  // elemental (family default q-greenblob)
+  crystal_elemental: 'q-spikyblob',
+  // aberration (family default q-squidle — so squid types need no entry)
+  slime: 'q-pinkslime',
+  shadowbeast: 'q-demon',
+  chrono_stalker: 'q-demon',
+  darkstalker: 'q-bluedemon',
+  temporal_overlord: 'q-bluedemon',
+  voidwalker: 'q-hywirl',
+  void_spawner: 'q-glub',
+};
+
+export function enemyModelForType(type: string, family: string): CharacterModelId {
+  return ENEMY_TYPE_MODEL[type] ?? enemyModel(family);
 }
 
 /** A default in-hand weapon so armed mobs don't fight bare-handed. Explicitly

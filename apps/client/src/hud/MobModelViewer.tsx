@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AnimatedCharacter } from '../AnimatedCharacter';
 import { AssetErrorBoundary } from '../world-art/AssetErrorBoundary';
-import { enemyModel } from '../characterModels';
+import { enemyModelForType } from '../characterModels';
 import { getEnemyVisual } from '../worldVisuals';
 
 /**
@@ -47,7 +47,7 @@ export function MobModelViewer({ family, type }: { family: string; type: string 
               {/* Lower so the body centres on the camera target. */}
               <group position={[0, -0.85, 0]}>
                 <Spin>
-                  <AnimatedCharacter modelId={enemyModel(family)} state="idle" targetHeight={1.7} tint={tint} />
+                  <AnimatedCharacter modelId={enemyModelForType(type, family)} state="idle" targetHeight={1.7} tint={tint} />
                 </Spin>
               </group>
             </Suspense>

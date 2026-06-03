@@ -94,9 +94,27 @@ hovering flyers (`Flying_Idle`/`Fast_Flying`/`Punch`/`Death`).
 | `monsters/MushroomKing.glb` | plant | Quaternius (CC0) | <https://poly.pizza/m/798301fb> |
 | `monsters/StoneGolem.glb` | construct | joney_lol (**CC-BY 3.0**, attribution required) — static mesh | <https://poly.pizza/m/aqrX9Hly1W> |
 
-`characterModels.ts` maps `family → model`; `ANIMATED_ENEMY_FAMILIES` (in
-`WorldEntities.tsx`) now covers every family, so only the low-quality tier still
-falls back to primitives.
+Plus per-mob-type variety models (Quaternius CC0) so a family isn't all clones —
+mapped to specific enemy types in `ENEMY_TYPE_MODEL`; types without an override use
+the family model above, and the per-type tint still differentiates same-model mobs:
+
+| File | Used for (type) | Source |
+|---|---|---|
+| `monsters/Orc.glb` | orc | Quaternius (CC0) |
+| `monsters/Wizard.glb` | necromancer | Quaternius (CC0) |
+| `monsters/Yeti.glb` | troll | Quaternius (CC0) |
+| `monsters/GhostSkull.glb` | skeleton | Quaternius (CC0) |
+| `monsters/DragonEvolved.glb` | drake | Quaternius (CC0) |
+| `monsters/PinkSlime.glb` | slime | Quaternius (CC0) |
+| `monsters/Demon.glb` | shadowbeast, chrono_stalker | Quaternius (CC0) |
+| `monsters/BlueDemon.glb` | darkstalker, temporal_overlord | Quaternius (CC0) |
+| `monsters/Hywirl.glb` | voidwalker | Quaternius (CC0) |
+| `monsters/Glub.glb` | void_spawner | Quaternius (CC0) |
+| `monsters/SpikyBlob.glb` | crystal_elemental | Quaternius (CC0) |
+
+`characterModels.ts` maps `family → model` (`ENEMY_FAMILY_MODEL`) with per-type
+overrides (`ENEMY_TYPE_MODEL`); `ANIMATED_ENEMY_FAMILIES` (in `WorldEntities.tsx`)
+covers every family, so only the low-quality tier falls back to primitives.
 
 ### Weapons (held in `handslot.r`)
 
