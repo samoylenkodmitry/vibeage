@@ -23,6 +23,10 @@ export type CharacterModelDef = {
   /** Yaw applied so the model's authored forward aligns with the entity group's
    *  +Z movement facing (atan2(vx, vz)). KayKit is authored facing +Z, so 0. */
   forwardYaw: number;
+  /** Model-space Y that should sit at the entity's feet (ground). Seats walkers
+   *  on the ground and gives flying-posed models a hover; 0 for feet-at-origin
+   *  rigs (KayKit). Applied as a -groundOffset*fitScale shift. */
+  groundOffset: number;
   clips: Record<CharacterAnim, string>;
   /** States that play once and hold the final frame (death lies down + stays). */
   clampOnce: ReadonlySet<CharacterAnim>;
@@ -42,6 +46,7 @@ function kaykit(file: string, nativeHeight: number): CharacterModelDef {
     path: `/models/characters/kaykit/${file}.glb`,
     nativeHeight,
     forwardYaw: 0,
+    groundOffset: 0,
     clips: KAYKIT_CLIPS,
     clampOnce: KAYKIT_CLAMP_ONCE,
   };
@@ -64,8 +69,8 @@ const Q_BLOB_CLIPS: Record<CharacterAnim, string> = {
   attack: 'CharacterArmature|Bite_Front', death: 'CharacterArmature|Death',
 };
 
-function quaternius(file: string, nativeHeight: number, clips: Record<CharacterAnim, string>): CharacterModelDef {
-  return { path: `/models/monsters/${file}.glb`, nativeHeight, forwardYaw: 0, clips, clampOnce: KAYKIT_CLAMP_ONCE };
+function quaternius(file: string, nativeHeight: number, clips: Record<CharacterAnim, string>, groundOffset: number): CharacterModelDef {
+  return { path: `/models/monsters/${file}.glb`, nativeHeight, forwardYaw: 0, groundOffset, clips, clampOnce: KAYKIT_CLAMP_ONCE };
 }
 
 export const CHARACTER_MODELS = {
@@ -74,14 +79,16 @@ export const CHARACTER_MODELS = {
   'kaykit-rogue': kaykit('Rogue', 3.309),
   'kaykit-rogue-hooded': kaykit('Rogue_Hooded', 3.373),
   'kaykit-barbarian': kaykit('Barbarian', 3.311),
-  'q-dino': quaternius('Dino', 3.223, Q_GROUND_CLIPS),
-  'q-mushroomking': quaternius('MushroomKing', 3.598, Q_GROUND_CLIPS),
-  'q-greenblob': quaternius('GreenBlob', 1.841, Q_BLOB_CLIPS),
-  'q-dragon': quaternius('Dragon', 3.140, Q_FLYER_CLIPS),
-  'q-squidle': quaternius('Squidle', 2.981, Q_FLYER_CLIPS),
-  'q-armabee': quaternius('Armabee', 3.076, Q_FLYER_CLIPS),
-  'q-ghost': quaternius('Ghost', 3.381, Q_FLYER_CLIPS),
-  'q-goleling': quaternius('Goleling', 3.041, Q_FLYER_CLIPS),
+  // nativeHeight = visible height (bbox maxY-minY); groundOffset = model-space Y
+  // at the feet (≈minY for walkers; lifted for flying-posed models to hover).
+  'q-dino': quaternius('Dino', 3.226, Q_GROUND_CLIPS, 0),
+  'q-mushroomking': quaternius('MushroomKing', 3.609, Q_GROUND_CLIPS, 0),
+  'q-greenblob': quaternius('GreenBlob', 1.853, Q_BLOB_CLIPS, 0),
+  'q-dragon': quaternius('Dragon', 1.541, Q_FLYER_CLIPS, 1.215),
+  'q-squidle': quaternius('Squidle', 1.987, Q_FLYER_CLIPS, 0.597),
+  'q-armabee': quaternius('Armabee', 1.886, Q_FLYER_CLIPS, 0.341),
+  'q-ghost': quaternius('Ghost', 3.101, Q_FLYER_CLIPS, -0.34),
+  'q-goleling': quaternius('Goleling', 1.552, Q_FLYER_CLIPS, 1.101),
 } as const;
 
 export type CharacterModelId = keyof typeof CHARACTER_MODELS;

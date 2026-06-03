@@ -105,7 +105,7 @@ export function AnimatedCharacter({
   }, [state, actions, def]);
 
   return (
-    <group rotation={[0, def.forwardYaw, 0]}>
+    <group rotation={[0, def.forwardYaw, 0]} position={[0, -def.groundOffset * fitScale, 0]}>
       <primitive object={model} scale={fitScale} />
       {weaponPath && socket && (
         // Own Suspense + error boundary so streaming OR a load failure of a
