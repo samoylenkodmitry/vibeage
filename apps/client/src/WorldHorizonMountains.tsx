@@ -25,13 +25,17 @@ type RingSpec = {
   colorBottom: string; colorTop: string;
 };
 
+// Scene fog is near 450 / far 1120 (WorldEnvironment): geometry past ~1000 m is
+// almost pure fog colour (invisible), and the fog already hazes distant things
+// toward the sky — so the rings must sit WELL inside the fog and start DARKER, so
+// the haze lifts them to a readable mid-tone instead of dissolving them into the
+// sky. (Lighter/farther rings vanished.)
 const RINGS: RingSpec[] = [
-  // Far range first (drawn behind): hazier, lighter, nearly sky-toned so it
-  // recedes into the atmosphere.
-  { radius: 1050, minH: 150, maxH: 380, seed: 1337, colorBottom: '#5b6e84', colorTop: '#7a8ca0' },
-  // Near range: taller so the peaks rise well above the treeline, and a touch
-  // darker/bluer so it reads in front of the far one. Still hazy (atmospheric).
-  { radius: 760, minH: 240, maxH: 560, seed: 7919, colorBottom: '#3f5167', colorTop: '#5a6e85' },
+  // Far range first (drawn behind): more fog-hazed (recedes), medium blue.
+  { radius: 820, minH: 170, maxH: 400, seed: 1337, colorBottom: '#3c4f66', colorTop: '#566b84' },
+  // Near range: closer (~75% visible through fog) + taller so peaks clear the
+  // treeline; deeper blue so the haze lands it at a crisp readable value.
+  { radius: 600, minH: 240, maxH: 580, seed: 7919, colorBottom: '#2c3d52', colorTop: '#42566d' },
 ];
 
 /** A closed cylindrical curtain whose top edge is a periodic ridgeline. */
