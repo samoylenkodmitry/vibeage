@@ -201,11 +201,13 @@ export function consumeStatus(target: Combatant, type: string, now: number): Lin
 
 export function removeStatusTypes(target: Combatant, types: readonly string[], now: number): number {
   const removable = new Set(types);
-  const before = target.statusEffects?.length ?? 0;
-  target.statusEffects = (target.statusEffects ?? []).filter((effect) => (
-    !removable.has(effect.type) || !isStatusActive(effect, now)
-  ));
-  return before - target.statusEffects.length;
+  let activeRemovedCount = 0;
+  target.statusEffects = (target.statusEffects ?? []).filter((effect) => {
+    if (!removable.has(effect.type)) return true;
+    if (isStatusActive(effect, now)) activeRemovedCount += 1;
+    return false;
+  });
+  return activeRemovedCount;
 }
 
 export function healthFraction(entity: Combatant): number {

@@ -95,7 +95,9 @@ function registerPrimitiveContractTests() {
 
     addStatus({ target: ally, type: 'poison', value: 5, durationMs: 1000, sourceSkill: 'test', now: NOW });
     addStatus({ target: ally, type: 'slow', value: 30, durationMs: 1000, sourceSkill: 'test', now: NOW });
+    ally.statusEffects.push({ id: 'expired-poison', type: 'poison', value: 1, durationMs: 1000, startTimeTs: NOW - 2000, sourceSkill: 'test' });
     expect(removeStatusTypes(ally, ['poison', 'slow'], NOW + 2)).toBe(2);
+    expect(ally.statusEffects.some((effect) => effect.type === 'poison' || effect.type === 'slow')).toBe(false);
 
     target.health = target.maxHealth;
     damageHostilesInRadius({
@@ -512,7 +514,10 @@ function registerIdentitySkillBatchTests() {
     expect(caster.statusEffects.some((effect) => effect.type === 'attackSpeed')).toBe(true);
     expect(caster.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
 
+    caster.health = 900;
+    caster.statusEffects = caster.statusEffects.filter((effect) => effect.type !== 'bless');
     resolveCastImpact(selfCast(caster.id, 'echoing_benediction'), { publish: vi.fn() }, world, NOW + 200);
+    expect(caster.statusEffects.some((effect) => effect.type === 'bless')).toBe(true);
     expect(ally.health).toBeGreaterThan(500);
     expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
 
@@ -533,7 +538,9 @@ function registerIdentitySkillBatchTests() {
     const snareNearby = enemy('snare-nearby', 16, 0);
     const razorTarget = enemy('razor-target', 18, 0);
     const razorNearby = enemy('razor-nearby', 20, 0);
+    const razorFragile = enemy('razor-fragile', 21, 0);
     ally.health = 700;
+    razorFragile.health = 1;
     addStatus({ target: ally, type: 'poison', value: 5, durationMs: 5000, sourceSkill: 'test', now: NOW });
     addStatus({ target: razorTarget, type: 'poison', value: 5, durationMs: 5000, sourceSkill: 'test', now: NOW });
     const world = worldOf([caster, ally], [
@@ -544,6 +551,7 @@ function registerIdentitySkillBatchTests() {
       snareNearby,
       razorTarget,
       razorNearby,
+      razorFragile,
     ]);
 
     resolveCastImpact(targetedCast(caster.id, 'vengeance_tether', tetherTarget.id, tetherTarget.position), { publish: vi.fn() }, world, NOW);
@@ -575,6 +583,7 @@ function registerIdentitySkillBatchTests() {
     expect(caster.statusEffects.some((effect) => effect.type === 'speed_boost')).toBe(true);
     expect(razorTarget.health).toBeLessThan(razorTarget.maxHealth);
     expect(razorNearby.statusEffects.some((effect) => effect.type === 'poison')).toBe(true);
+    expect(razorFragile.statusEffects.some((effect) => effect.type === 'dot' || effect.type === 'poison')).toBe(false);
   });
 }
 

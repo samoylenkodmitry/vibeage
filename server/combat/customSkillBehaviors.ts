@@ -328,9 +328,11 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     const caster = world.getPlayerById(cast.casterId);
     if (!caster) return;
     const center = { x: caster.position.x, z: caster.position.z };
-    const chain = injuredAllies(world, center, 9, 4);
-    if (!chain.some((ally) => ally.id === caster.id)) chain.unshift(caster);
-    chain.slice(0, 4).forEach((ally, index) => {
+    const allies = injuredAllies(world, center, 9)
+      .filter((ally) => ally.id !== caster.id)
+      .slice(0, 3);
+    const chain = [caster, ...allies];
+    chain.forEach((ally, index) => {
       healCombatant(ally, 145 - index * 22);
       addStatus({ target: ally, type: 'shield', value: 120 - index * 18, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
       if (index === 0) addStatus({ target: ally, type: 'bless', value: 12, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
@@ -427,6 +429,7 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
       outbound,
       rawDamage: (enemy) => enemy.id === target.id ? 125 + (poisoned ? 95 : 0) : 70 + (poisoned ? 35 : 0),
     }).forEach((enemy) => {
+      if (!enemy.isAlive || enemy.health <= 0) return;
       addStatus({ target: enemy, type: 'dot', value: 4, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
       if (poisoned) addStatus({ target: enemy, type: 'poison', value: 3, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
       emitMaybe(outbound, enemy);
