@@ -32,6 +32,7 @@ import {
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
+import { WorldGrassField } from './WorldGrassField';
 import { WorldHorizonMountains } from './WorldHorizonMountains';
 import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from './SceneVfx';
 import { ScenePostFX } from './ScenePostFX';
@@ -98,6 +99,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <WorldEnvironment focus={focus} />
       <WorldHorizonMountains focus={focus} />
       <WorldFoliage focus={focus} quality={worldArtQuality} />
+      <WorldGrassField focus={focus} quality={worldArtQuality} />
       {/* Water is anchored to the starter coast waterline (visible from inland);
           the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
