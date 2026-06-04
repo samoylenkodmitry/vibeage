@@ -87,7 +87,10 @@ const GRASS_WIND = { uTime: { value: 0 }, uAmp: { value: 0.16 }, uSpeed: { value
 /** A clustered grass tuft: several tapered, slightly-curved blades fanned around
  *  the root. Built once and instanced per clump. Blades carry a root→tip
  *  brightness gradient in vertex color (multiplied by each clump's instance
- *  tint); normals point up for soft, even stylized lighting (no dark edges). */
+ *  tint); normals point up for soft, even stylized lighting (no dark edges).
+ *  Each blade quad is indexed twice — once per winding — so both sides render as
+ *  front faces with the up normals intact (FrontSide material), avoiding the
+ *  flipped-normal black backfaces that DoubleSide would give. */
 function buildGrassTuftGeometry(): THREE.BufferGeometry {
   const BLADES = 5;
   const SEG = 4;
@@ -116,7 +119,8 @@ function buildGrassTuftGeometry(): THREE.BufferGeometry {
     }
     for (let s = 0; s < SEG; s += 1) {
       const a = vbase + s * 2;
-      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); // front
+      idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); // back (reversed winding)
     }
     vbase += (SEG + 1) * 2;
   }
@@ -131,7 +135,10 @@ function buildGrassTuftGeometry(): THREE.BufferGeometry {
 const GRASS_GEOMETRY = buildGrassTuftGeometry();
 
 const GRASS_MATERIAL = (() => {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
+  // FrontSide, not DoubleSide: the geometry already bakes reversed-winding back
+  // faces, so both sides render with their up-facing (0,1,0) normals intact.
+  // DoubleSide would flip backface normals downward → unlit/black blades.
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = GRASS_WIND.uTime;
     shader.uniforms.uAmp = GRASS_WIND.uAmp;
@@ -142,7 +149,11 @@ const GRASS_MATERIAL = (() => {
         `#include <begin_vertex>
          // Per-clump phase from its world origin so blades don't sway in lockstep;
          // displacement scales with local height so roots stay planted, tips bend.
+         #ifdef USE_INSTANCING
          vec3 gOrigin = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+         #else
+         vec3 gOrigin = vec3(0.0);
+         #endif
          float gPhase = gOrigin.x * 0.21 + gOrigin.z * 0.17;
          float gSway = sin(uTime * uSpeed + gPhase) + 0.4 * sin(uTime * uSpeed * 1.9 + gPhase * 0.5);
          transformed.x += gSway * uAmp * transformed.y;
