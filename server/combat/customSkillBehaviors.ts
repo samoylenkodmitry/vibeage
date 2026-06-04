@@ -1,38 +1,33 @@
 import { SKILLS } from '../../packages/content/skills.js';
-import { nanoid } from 'nanoid';
-import type { Enemy, PlayerState, StatusEffect } from '../../packages/sim/entities.js';
-import type { VecXZ } from '../../packages/protocol/messages.js';
 import type { Cast } from './skillSystem.js';
 import type { CombatWorld } from './worldContract.js';
-import { applyResolvedDamageToTarget } from './damageResolution.js';
-import { emitCombatantUpdated } from './combatantUpdateEmitter.js';
-import { emitEnemyUpdated, emitServerMessage, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { emitEnemyUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import {
+  addStatus,
+  alliedPlayers,
+  applyCustomDamage,
+  blinkPast,
+  emitMaybe,
+  forceEnemyChase,
+  healCombatant,
+  hostileEntities,
+  impactCenter,
+  isEnemy,
+  knockAway,
+  moveCombatant,
+  nearestHostile,
+  pullIntoRange,
+  pullToward,
+  resolveCaster,
+  suppressEnemyAggro,
+  swapCombatants,
+  targetOf,
+} from './skillMechanicPrimitives.js';
 
 export type CustomSkillBehavior = (cast: Cast, world: CombatWorld, now: number, outbound?: OutboundEventSink) => void;
 
 /** Fallback rally radius when the skill / mob carries no explicit range. */
 const WARBAND_HOWL_RADIUS = 60;
-type Combatant = Enemy | PlayerState;
-type LinkedStatusEffect = StatusEffect & { linkedTargetId?: string };
-type StatusInput = {
-  target: Combatant;
-  type: string;
-  value: number;
-  durationMs: number;
-  sourceSkill: string;
-  now: number;
-  sourceCasterId?: string;
-  linkedTargetId?: string;
-};
-type CustomDamageInput = {
-  caster: Combatant;
-  target: Combatant;
-  rawDamage: number;
-  cast: Cast;
-  world: CombatWorld;
-  now: number;
-  outbound?: OutboundEventSink;
-};
 
 /**
  * Registered custom ability behaviors — the sanctioned escape hatch
@@ -54,7 +49,7 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     if (!caster?.packId || !targetId) return;
     const radius = SKILLS[cast.skillId]?.range ?? caster.packAggroRadius ?? WARBAND_HOWL_RADIUS;
     for (const entity of world.getEntitiesInCircle(caster.position, radius)) {
-      if ('type' in entity && entity.id !== caster.id && entity.packId === caster.packId && entity.isAlive) {
+      if (isEnemy(entity) && entity.id !== caster.id && entity.packId === caster.packId && entity.isAlive) {
         entity.targetId = targetId;
         entity.aiState = 'chasing';
         entity.chaseStartedAt = now;
@@ -156,9 +151,7 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     const caster = resolveCaster(cast, world);
     const target = cast.targetId ? world.getEnemyById(cast.targetId) : null;
     if (!caster || !target?.isAlive) return;
-    target.targetId = null;
-    target.aiState = 'idle';
-    target.aggroSuppressedUntilTs = now + 3500;
+    suppressEnemyAggro(target, now, 3500);
     addStatus({ target, type: 'puppet', value: 1, durationMs: 3500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
     applyCustomDamage({ caster, target, rawDamage: 120, cast, world, now, outbound });
   },
@@ -226,13 +219,68 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     const caster = world.getPlayerById(cast.casterId);
     if (!caster) return;
     for (const ally of alliedPlayers(world, { x: caster.position.x, z: caster.position.z }, 7)) {
-      ally.health = Math.min(ally.maxHealth, ally.health + 90);
+      healCombatant(ally, 90);
       addStatus({ target: ally, type: 'shield', value: 160, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
       if (ally.id !== caster.id) {
         pullIntoRange(ally, caster.position, 1.5, 3.5, world);
       }
       emitMaybe(outbound, ally);
     }
+  },
+  phasePrison: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    const center = impactCenter(cast, world);
+    if (!caster || !target || !center) return;
+    addStatus({ target: caster, type: 'arcaneCharge', value: 1, durationMs: 9000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+    for (const enemy of hostileEntities(caster, world, center, 4.75)) {
+      pullIntoRange(enemy, center, 0.75, 5, world);
+      addStatus({ target: enemy, type: 'root', value: 1, durationMs: 2200, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      addStatus({ target: enemy, type: 'silence', value: 1, durationMs: 2200, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 120 : 70, cast, world, now, outbound });
+    }
+  },
+  tripwireVolley: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const center = { x: target.position.x, z: target.position.z };
+    for (const enemy of hostileEntities(caster, world, center, 4.5)) {
+      if (enemy.id === target.id) {
+        addStatus({ target: enemy, type: 'marked', value: 1, durationMs: 5000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+        addStatus({ target: enemy, type: 'root', value: 1, durationMs: 1800, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+        applyCustomDamage({ caster, target: enemy, rawDamage: 190, cast, world, now, outbound });
+      } else {
+        knockAway(enemy, center, 2.5, world);
+        addStatus({ target: enemy, type: 'slow', value: 35, durationMs: 2800, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+        applyCustomDamage({ caster, target: enemy, rawDamage: 80, cast, world, now, outbound });
+      }
+    }
+  },
+  guardianHook: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    pullIntoRange(target, caster.position, 1.8, 10, world);
+    addStatus({ target: caster, type: 'shield', value: 220, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+    for (const enemy of hostileEntities(caster, world, { x: caster.position.x, z: caster.position.z }, 5.5)) {
+      forceEnemyChase(enemy, caster, now);
+      addStatus({ target: enemy, type: 'taunt', value: 1, durationMs: 3500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 130 : 60, cast, world, now, outbound });
+    }
+  },
+  lifelineSwap: (cast, world, now, outbound) => {
+    const caster = world.getPlayerById(cast.casterId);
+    const ally = targetOf(cast, world);
+    if (!caster || !ally || isEnemy(ally) || ally.id === caster.id || !ally.isAlive) return;
+    swapCombatants(caster, ally, world);
+    healCombatant(ally, 210);
+    addStatus({ target: ally, type: 'shield', value: 180, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    addStatus({ target: caster, type: 'shield', value: 120, durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, ally);
+    emitMaybe(outbound, caster);
   },
   projectileCapture: (cast, world, now, outbound) => {
     const caster = world.getPlayerById(cast.casterId);
@@ -241,125 +289,3 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     emitMaybe(outbound, caster);
   },
 };
-
-function resolveCaster(cast: Cast, world: CombatWorld): Combatant | null {
-  return world.getPlayerById(cast.casterId) ?? world.getEnemyById(cast.casterId);
-}
-
-function targetOf(cast: Cast, world: CombatWorld): Combatant | null {
-  return cast.targetId ? (world.getEnemyById(cast.targetId) ?? world.getPlayerById(cast.targetId)) : null;
-}
-
-function impactCenter(cast: Cast, world: CombatWorld): VecXZ | null {
-  const target = targetOf(cast, world);
-  if (cast.target) return cast.target;
-  if (cast.targetPos) return cast.targetPos;
-  if (target) return { x: target.position.x, z: target.position.z };
-  return cast.pos ?? cast.origin ?? null;
-}
-
-function hostileEntities(caster: Combatant, world: CombatWorld, center: VecXZ, radius: number): Combatant[] {
-  const casterIsEnemy = isEnemy(caster);
-  return world.getEntitiesInCircle(center, radius).filter((entity) => (
-    entity.id !== caster.id && entity.isAlive && isEnemy(entity) !== casterIsEnemy
-  ));
-}
-
-function alliedPlayers(world: CombatWorld, center: VecXZ, radius: number): PlayerState[] {
-  return world.getEntitiesInCircle(center, radius)
-    .filter((entity): entity is PlayerState => !isEnemy(entity) && entity.isAlive);
-}
-
-function nearestHostile(
-  caster: Combatant,
-  world: CombatWorld,
-  center: VecXZ,
-  radius: number,
-  excludeId: string,
-): Combatant | null {
-  let nearest: Combatant | null = null;
-  let bestDistSq = Infinity;
-  for (const entity of hostileEntities(caster, world, center, radius)) {
-    if (entity.id === excludeId) continue;
-    const dx = entity.position.x - center.x;
-    const dz = entity.position.z - center.z;
-    const distSq = dx * dx + dz * dz;
-    if (distSq < bestDistSq) {
-      nearest = entity;
-      bestDistSq = distSq;
-    }
-  }
-  return nearest;
-}
-
-function addStatus(input: StatusInput): void {
-  const { target, type, value, durationMs, sourceSkill, now, sourceCasterId, linkedTargetId } = input;
-  const fresh: LinkedStatusEffect = { id: nanoid(), type, value, durationMs, startTimeTs: now, sourceSkill };
-  if (sourceCasterId) fresh.sourceCasterId = sourceCasterId;
-  if (linkedTargetId) fresh.linkedTargetId = linkedTargetId;
-  target.statusEffects = [...(target.statusEffects ?? []).filter((effect) => effect.type !== type), fresh];
-}
-
-function moveCombatant(entity: Combatant, nextPos: Combatant['position'], world: CombatWorld): void {
-  const oldPos = { x: entity.position.x, z: entity.position.z };
-  entity.position = nextPos;
-  entity.velocity = { x: 0, z: 0 };
-  if (!isEnemy(entity)) entity.movement = undefined;
-  entity.dirtySnap = true;
-  world.moveEntity?.(entity.id, oldPos, { x: nextPos.x, z: nextPos.z });
-}
-
-function pullToward(entity: Combatant, center: VecXZ, maxDistance: number, world: CombatWorld): void {
-  const dx = center.x - entity.position.x;
-  const dz = center.z - entity.position.z;
-  const dist = Math.hypot(dx, dz);
-  if (dist <= 0.01) return;
-  const amount = Math.min(maxDistance, dist * 0.65);
-  moveCombatant(entity, { x: entity.position.x + (dx / dist) * amount, y: entity.position.y, z: entity.position.z + (dz / dist) * amount }, world);
-}
-
-function pullIntoRange(entity: Combatant, center: VecXZ, keepDistance: number, maxDistance: number, world: CombatWorld): void {
-  const dx = entity.position.x - center.x;
-  const dz = entity.position.z - center.z;
-  const dist = Math.hypot(dx, dz);
-  if (dist <= keepDistance || dist <= 0.01) return;
-  const nextDist = Math.max(keepDistance, dist - maxDistance);
-  moveCombatant(entity, {
-    x: center.x + (dx / dist) * nextDist,
-    y: entity.position.y,
-    z: center.z + (dz / dist) * nextDist,
-  }, world);
-}
-
-function knockAway(entity: Combatant, origin: VecXZ, distance: number, world: CombatWorld): void {
-  const dx = entity.position.x - origin.x;
-  const dz = entity.position.z - origin.z;
-  const len = Math.hypot(dx, dz);
-  if (len <= 0.01) return;
-  moveCombatant(entity, { x: entity.position.x + (dx / len) * distance, y: entity.position.y, z: entity.position.z + (dz / len) * distance }, world);
-}
-
-function blinkPast(caster: Combatant, target: Combatant, offset: number, world: CombatWorld): void {
-  const dx = target.position.x - caster.position.x;
-  const dz = target.position.z - caster.position.z;
-  const dist = Math.hypot(dx, dz) || 1;
-  moveCombatant(caster, { x: target.position.x + (dx / dist) * offset, y: caster.position.y, z: target.position.z + (dz / dist) * offset }, world);
-}
-
-function applyCustomDamage(input: CustomDamageInput): void {
-  const { caster, target, rawDamage, cast, world, now, outbound } = input;
-  const applied = applyResolvedDamageToTarget(target, rawDamage, now, { kind: 'none', source: caster, world });
-  if (target.health <= 0 && target.isAlive) world.onTargetDied(caster, target, now);
-  if (outbound) {
-    emitServerMessage(outbound, { type: 'CombatLog', castId: cast.castId, skillId: cast.skillId, casterId: cast.casterId, targets: [target.id], damages: [applied], crits: [false], misses: [false], heals: [0] });
-    emitCombatantUpdated(outbound, target);
-  }
-}
-
-function emitMaybe(outbound: OutboundEventSink | undefined, entity: Combatant): void {
-  if (outbound) emitCombatantUpdated(outbound, entity);
-}
-
-function isEnemy(entity: Combatant): entity is Enemy {
-  return 'type' in entity;
-}

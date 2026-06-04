@@ -34,10 +34,14 @@ describe('specialization AI policy registry', () => {
     expect(firstCastSkill('arcanist', 20, { targetEffects: [effect('waterWeakness')] })).toBe('iceBolt');
     expect(firstCastSkill('arcanist', 20, { targetEffects: [effect('freeze')] })).toBe('arcane_blast');
     expect(firstCastSkill('arcanist', 20, { casterEffects: [effect('arcaneCharge')] })).toBe('arcane_blast');
+    expect(firstCastSkill('arcanist', 20)).toBe('phase_prison');
     expect(firstCastSkill('arcanist', 40, { casterEffects: [effect('arcaneCharge')] })).toBe('arcane_supremacy');
     expect(firstCastSkill('hawkeye', 20, { targetEffects: [effect('marked')] })).toBe('volley');
+    expect(firstCastSkill('hawkeye', 20)).toBe('tripwire_volley');
     expect(firstCastSkill('hawkeye', 40, { targetEffects: [effect('marked')] })).toBe('aimed_volley');
     expect(firstCastSkill('pyromancer', 20, { targetEffects: [effect('burn')] })).toBe('meteor');
+    expect(firstCastSkill('templar_knight', 20)).toBe('guardian_hook');
+    expect(firstCastSkill('cardinal', 20, { allyHealthFraction: 0.4 })).toBe('lifeline_swap');
     expect(firstCastSkill('cardinal', 20, { healthFraction: 0.7 })).toBe('greater_heal');
     expect(firstCastSkill('treasure_hunter', 20, { targetHealthFraction: 0.4 })).toBe('lucky_strike');
   });
@@ -57,7 +61,13 @@ describe('specialization AI simulator coverage', () => {
 function firstCastSkill(
   specializationId: SpecializationId,
   level: number,
-  options: { targetEffects?: StatusEffect[]; casterEffects?: StatusEffect[]; targetHealthFraction?: number; healthFraction?: number } = {},
+  options: {
+    targetEffects?: StatusEffect[];
+    casterEffects?: StatusEffect[];
+    targetHealthFraction?: number;
+    healthFraction?: number;
+    allyHealthFraction?: number;
+  } = {},
 ): SkillId | undefined {
   const spec = SPECIALIZATIONS[specializationId];
   const player = createSimProfilePlayer({
@@ -72,11 +82,27 @@ function firstCastSkill(
   const target = createSimulatedEnemy('goblin', level, { id: `${specializationId}-target`, position: { x: 3, z: 0 }, healthMultiplier: 8 });
   target.health = Math.floor(target.maxHealth * (options.targetHealthFraction ?? 1));
   target.statusEffects = options.targetEffects ?? [];
-  const actions = createClassAiPolicy(spec.baseClass, specializationId)(contextFor(player, target));
+  const allies = [player];
+  if (options.allyHealthFraction !== undefined) {
+    const ally = createSimProfilePlayer({
+      id: `${specializationId}-ally`,
+      className: spec.baseClass,
+      specializationId,
+      level,
+      position: { x: 2, z: 0 },
+    });
+    ally.health = Math.floor(ally.maxHealth * options.allyHealthFraction);
+    allies.push(ally);
+  }
+  const actions = createClassAiPolicy(spec.baseClass, specializationId)(contextFor(player, target, allies));
   return actions.find((action) => action.type === 'castSkill')?.skillId;
 }
 
-function contextFor(player: ReturnType<typeof createSimProfilePlayer>, target: ReturnType<typeof createSimulatedEnemy>): PlayerAiContext {
+function contextFor(
+  player: ReturnType<typeof createSimProfilePlayer>,
+  target: ReturnType<typeof createSimulatedEnemy>,
+  allies: ReturnType<typeof createSimProfilePlayer>[] = [player],
+): PlayerAiContext {
   return {
     state: {} as PlayerAiContext['state'],
     player,
@@ -84,7 +110,7 @@ function contextFor(player: ReturnType<typeof createSimProfilePlayer>, target: R
     deltaMs: 1000 / 30,
     teamId: 'players',
     hostiles: [target],
-    allies: [player],
+    allies,
     distanceTo: (entity) => distanceXZ(player.position, entity.position),
     teamFor: (entityId) => entityId === player.id ? 'players' : entityId === target.id ? 'enemies' : null,
   };

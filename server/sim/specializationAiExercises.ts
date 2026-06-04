@@ -23,6 +23,7 @@ export type SpecializationAiExerciseDefinition = PveScenarioDefinition & {
   purpose: string;
   focusSkillId?: SkillId;
   playerHealthFraction?: number;
+  allyHealthFraction?: number;
   enemyHealthFraction?: number;
   enemyHealthMultiplier?: number;
   enemyDamageMultiplier?: number;
@@ -137,6 +138,7 @@ function skillFocusExercise(
     purpose: `Forces higher-priority rules onto cooldown so ${rule.skillId} must be selected when its preconditions are true.`,
     focusSkillId: rule.skillId,
     playerHealthFraction: focusHealthFraction(mergedConditions, 'caster'),
+    allyHealthFraction: rule.target === 'ally' ? focusHealthFraction(mergedConditions, 'target') ?? 0.42 : undefined,
     enemyHealthFraction: focusHealthFraction(mergedConditions, 'target'),
     enemyHealthMultiplier: focusEnemyHealthMultiplier(rule.skillId),
     enemyDamageMultiplier: 0.15,

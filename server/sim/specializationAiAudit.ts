@@ -28,6 +28,7 @@ export type SpecializationAiAuditScenario = PveScenarioDefinition & {
   purpose?: string;
   focusSkillId?: SkillId;
   playerHealthFraction?: number;
+  allyHealthFraction?: number;
   enemyHealthFraction?: number;
   enemyHealthMultiplier?: number;
   enemyDamageMultiplier?: number;
@@ -171,6 +172,13 @@ export function runSpecializationAiAuditScenario(
     level: scenario.level,
     position: { x: 0, z: 0 },
   });
+  const ally = scenario.allyHealthFraction === undefined ? null : createSimProfilePlayer({
+    id: `${scenario.id}-ally`,
+    className: scenario.className,
+    specializationId: scenario.specializationId,
+    level: scenario.level,
+    position: { x: 2, z: 0 },
+  });
   const enemy = createSimulatedEnemy(scenario.enemyType, scenario.enemyLevel, {
     id: enemyId,
     position: { x: 10, z: 0 },
@@ -178,6 +186,7 @@ export function runSpecializationAiAuditScenario(
     damageMultiplier: options.enemyDamageMultiplier ?? scenario.enemyDamageMultiplier ?? 0.75,
   });
   applyHealthFraction(player, scenario.playerHealthFraction);
+  if (ally) applyHealthFraction(ally, scenario.allyHealthFraction);
   applyHealthFraction(enemy, scenario.enemyHealthFraction);
   applyStatusEffects(player.statusEffects, scenario.casterEffects, sim.now());
   applyStatusEffects(enemy.statusEffects, scenario.targetEffects, sim.now());
@@ -189,6 +198,7 @@ export function runSpecializationAiAuditScenario(
   const expectedReactionIds = expectedSkillIds.flatMap((skillId) => SKILL_REACTIONS[skillId]?.map((reaction) => reaction.id) ?? []);
 
   sim.addPlayer(player, { policy: createClassAiPolicy(scenario.className, scenario.specializationId) });
+  if (ally) sim.addPlayer(ally);
   sim.addEnemy(enemy);
 
   const result = sim.runUntil(

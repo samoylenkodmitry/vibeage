@@ -9,6 +9,7 @@ import { PASSIVE_SKILL_CONTRIBUTIONS } from '../../../../packages/content/classP
 import { STATS } from '../../../../packages/content/stats';
 import type { Contribution } from '../../../../packages/sim/statContributions';
 import { describeOffense, describeReactions } from './skillMechanics';
+import { skillMechanicLabels } from '../../../../packages/content/skillMechanics';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
 import {
@@ -210,9 +211,15 @@ function SkillDetail({ skill, skillLevel, player }: { skill: SkillDef; skillLeve
   // Headline values reflect the player's actual leveled skill, not
   // the base; the upgrade list below shows the per-tier deltas.
   const effective = getEffectiveSkillStats(skill.id, skillLevel, player ?? undefined);
+  const mechanicLabels = skillMechanicLabels(skill);
   return (
     <div className="skill-tree-detail">
       <p className="skill-tree-detail-desc">{skill.description}</p>
+      {mechanicLabels.length > 0 && (
+        <ul className="skill-mechanic-chip-list" aria-label="Skill mechanics">
+          {mechanicLabels.map((label) => <li key={label}>{label}</li>)}
+        </ul>
+      )}
       <dl className="skill-tree-detail-stats">
         {effective.dmg !== undefined && <Stat label="Damage" value={String(effective.dmg)} />}
         {effective.range !== undefined && <Stat label="Range" value={String(effective.range)} />}

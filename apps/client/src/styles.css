@@ -2482,6 +2482,29 @@ input {
   line-height: 1.35;
 }
 
+.skill-mechanic-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill-mechanic-chip-list li {
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 7px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.42);
+  color: #bae6fd;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 .skill-tree-detail-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
