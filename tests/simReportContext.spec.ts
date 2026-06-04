@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_ACTIONS } from '../packages/content/actions';
-import { BOSS_GEAR_SETS } from '../packages/content/bossGear';
 import { CLASS_SKILL_TREES } from '../packages/content/classes';
+import { EQUIPMENT_SETS } from '../packages/content/equipmentSets';
 import { EFFECT_SPECS } from '../packages/content/effects';
 import { ENEMY_TEMPLATES } from '../packages/content/enemies';
 import { ITEMS } from '../packages/content/items';
@@ -38,7 +38,7 @@ describe('sim report context', () => {
     expect(snapshot.npcs).toBe(Object.keys(QUEST_NPCS).length);
     expect(snapshot.vendors).toBe(Object.keys(VENDORS).length);
     expect(snapshot.lootTables).toBe(Object.keys(LOOT_TABLES).length);
-    expect(snapshot.gearSets).toBe(Object.keys(BOSS_GEAR_SETS).length);
+    expect(snapshot.gearSets).toBe(Object.keys(EQUIPMENT_SETS).length);
     expect(snapshot.miniBosses).toBe(Object.keys(MINI_BOSSES).length);
     expect(snapshot.races).toBe(CHARACTER_RACES.length);
     expect(snapshot.simPolicyProfiles).toBe(simPolicyProfiles().length);

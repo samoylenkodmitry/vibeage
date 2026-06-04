@@ -1,6 +1,7 @@
 import { BOSS_GEAR_SETS } from './bossGear.js';
 import { ITEMS, type ItemId } from './items.js';
 import { occupiedSlotsForSpec, type EquipSlot, type ItemStatBlock } from './equipmentTypes.js';
+import { PROGRESSION_GEAR_SETS } from './progressionGear.js';
 
 export type EquipmentSetId = string;
 
@@ -34,6 +35,7 @@ export const EQUIPMENT_SETS: Record<EquipmentSetId, EquipmentSet> = {
     ],
   },
   ...BOSS_GEAR_SETS,
+  ...PROGRESSION_GEAR_SETS,
 };
 
 /**

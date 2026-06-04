@@ -2,6 +2,7 @@ import { EQUIPMENT_STARTER_ITEMS } from './equipmentItems.js';
 import { BOSS_GEAR_ITEMS } from './bossGear.js';
 import { MEADOW_TROPHY_RECIPE_ITEMS } from './meadowTrophies.js';
 import { BOSS_TROPHY_ITEMS } from './miniBosses.js';
+import { PROGRESSION_GEAR_ITEMS } from './progressionGear.js';
 import type {
   EquipSpec,
   ItemFlag,
@@ -587,6 +588,7 @@ const ITEM_DEFS: Record<ItemId, Item> = {
   ...EQUIPMENT_STARTER_ITEMS,
   ...BOSS_TROPHY_ITEMS,
   ...BOSS_GEAR_ITEMS,
+  ...PROGRESSION_GEAR_ITEMS,
   ...MEADOW_TROPHY_RECIPE_ITEMS,
 };
 

@@ -5,6 +5,7 @@ import {
   activeStatus,
   addStatus,
   alliedPlayers,
+  applyHostileAreaRecipe,
   applyCustomDamage,
   applyReflectWard,
   applyStatusField,
@@ -51,12 +52,21 @@ export const ROTATION_SKILL_BEHAVIORS: Record<string, (cast: Cast, world: Combat
     if (!caster || !target) return;
     const opened = Boolean(activeStatus(target, 'dot', now) || activeStatus(target, 'stun', now));
     const center = { x: target.position.x, z: target.position.z };
-    for (const enemy of hostileEntities(caster, world, center, 5.25)) {
-      pullToward(enemy, center, 3.5, world);
-      addStatus({ target: enemy, type: 'dot', value: 5, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
-      if (opened) addStatus({ target: enemy, type: 'stun', value: 1, durationMs: enemy.id === target.id ? 1600 : 900, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
-      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 170 : 95, cast, world, now, outbound });
-    }
+    applyHostileAreaRecipe({
+      caster,
+      world,
+      center,
+      radius: 5.25,
+      cast,
+      now,
+      outbound,
+      motion: (enemy) => pullToward(enemy, center, 3.5, world),
+      statuses: [
+        { type: 'dot', value: 5, durationMs: 6500 },
+        (enemy) => opened ? { type: 'stun', value: 1, durationMs: enemy.id === target.id ? 1600 : 900 } : null,
+      ],
+      rawDamage: (enemy) => (enemy.id === target.id ? 170 : 95),
+    });
   },
   harmonicSeal: (cast, world, now, outbound) => {
     const caster = resolveCaster(cast, world);
@@ -97,12 +107,25 @@ export const ROTATION_SKILL_BEHAVIORS: Record<string, (cast: Cast, world: Combat
     const primed = Boolean(activeStatus(target, 'marked', now) || activeStatus(target, 'poison', now));
     const center = { x: target.position.x, z: target.position.z };
     spawnIllusionsAround({ caster, world, now, center, count: 1, radius: 2.5, namePrefix: 'Nightfall Decoy' });
-    for (const enemy of hostileEntities(caster, world, center, 4.5)) {
-      addStatus({ target: enemy, type: enemy.id === target.id || primed ? 'root' : 'slow', value: enemy.id === target.id || primed ? 1 : 35, durationMs: primed ? 2600 : 1700, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
-      addStatus({ target: enemy, type: 'poison', value: enemy.id === target.id ? 6 : 3, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
-      addStatus({ target: enemy, type: 'marked', value: 1, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
-      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id && primed ? 185 : 105, cast, world, now, outbound });
-    }
+    applyHostileAreaRecipe({
+      caster,
+      world,
+      center,
+      radius: 4.5,
+      cast,
+      now,
+      outbound,
+      statuses: [
+        (enemy) => ({
+          type: enemy.id === target.id || primed ? 'root' : 'slow',
+          value: enemy.id === target.id || primed ? 1 : 35,
+          durationMs: primed ? 2600 : 1700,
+        }),
+        (enemy) => ({ type: 'poison', value: enemy.id === target.id ? 6 : 3, durationMs: 6500 }),
+        { type: 'marked', value: 1, durationMs: 6000 },
+      ],
+      rawDamage: (enemy) => (enemy.id === target.id && primed ? 185 : 105),
+    });
   },
   painDividend: (cast, world, now, outbound) => {
     const caster = resolveCaster(cast, world);

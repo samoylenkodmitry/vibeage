@@ -96,6 +96,20 @@ export const VENDORS: Record<string, VendorDef> = {
     stock: [],
     buyRate: 1.5,
   },
+  frontier_quartermaster: {
+    id: 'frontier_quartermaster',
+    npcId: 'frontier_quartermaster_vane',
+    name: 'Vane',
+    title: 'Frontier Quartermaster',
+    description: 'Stocks practical patrol gear for roadwardens, marsh scouts, and rift teams working beyond the starter towns.',
+    stock: [
+      { itemId: 'moonfall_cloak', price: 2_600 },
+      { itemId: 'riftcall_gloves', price: 4_800 },
+      { itemId: 'greater_health_potion', price: 80 },
+      { itemId: 'mana_potion', price: 35 },
+    ],
+    buyRate: 0.75,
+  },
 };
 
 const GRADE_BASE_PRICE: Record<NonNullable<Item['grade']>, number> = {
@@ -140,4 +154,3 @@ export function getVendorByNpcId(npcId: string): VendorDef | null {
   }
   return null;
 }
-

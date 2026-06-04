@@ -6,6 +6,7 @@ import {
   getTimeStopDurationMs,
   TIME_FIELD_FADE_MS,
 } from '../apps/client/src/vfx/castVfxConfig';
+import { skillThemeFor } from '../apps/client/src/vfx/skillThemeConfig';
 
 describe('cast VFX config', () => {
   it('uses Time Sphere content radius for dome size', () => {
@@ -23,5 +24,20 @@ describe('cast VFX config', () => {
 
     expect(durationMs).toBe(3500);
     expect(getCastVisibleMs('time_sphere')).toBe(durationMs + TIME_FIELD_FADE_MS);
+  });
+
+  it('derives non-default themes for newer custom mechanics', () => {
+    expect(skillThemeFor('nightfall_net')).toMatchObject({
+      glow: '#6d28d9',
+      mechanic: 'nova',
+    });
+    expect(skillThemeFor('sunbreak_charge')).toMatchObject({
+      element: 'holy',
+      mechanic: 'spiral',
+    });
+    expect(skillThemeFor('seismic_rend')).toMatchObject({
+      form: 'shard',
+      mechanic: 'nova',
+    });
   });
 });
