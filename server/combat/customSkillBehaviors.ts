@@ -103,6 +103,19 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
       applyCustomDamage({ caster, target, rawDamage: 90, cast, world, now, outbound });
     }
   },
+  magmaChain: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    pullIntoRange(target, caster.position, 2.2, 9, world);
+    addStatus({ target, type: 'burn', value: 5, durationMs: 5000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    if (isEnemy(target) && !isEnemy(caster)) {
+      target.targetId = caster.id;
+      target.aiState = 'chasing';
+      target.chaseStartedAt = now;
+    }
+    applyCustomDamage({ caster, target, rawDamage: 150, cast, world, now, outbound });
+  },
   mirrorSpell: (cast, world, now, outbound) => {
     const caster = world.getPlayerById(cast.casterId);
     if (!caster) return;
@@ -158,6 +171,21 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     knockAway(target, caster.position, Math.min(6, 2 + speed * 0.35), world);
     applyCustomDamage({ caster, target, rawDamage: damage, cast, world, now, outbound });
   },
+  duelistLunge: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const impact = { x: target.position.x, z: target.position.z };
+    blinkPast(caster, target, 1.1, world);
+    addStatus({ target, type: 'marked', value: 1, durationMs: 4000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    applyCustomDamage({ caster, target, rawDamage: 210, cast, world, now, outbound });
+    const secondary = nearestHostile(caster, world, impact, 4.25, target.id);
+    if (secondary) {
+      addStatus({ target: secondary, type: 'slow', value: 35, durationMs: 2500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: secondary, rawDamage: 90, cast, world, now, outbound });
+    }
+    emitMaybe(outbound, caster);
+  },
   delayedFate: (cast, world, now, outbound) => {
     const caster = resolveCaster(cast, world);
     const target = targetOf(cast, world);
@@ -181,6 +209,30 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     addStatus({ target: caster, type: 'evasion', value: 65, durationMs: 2000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
     applyCustomDamage({ caster, target, rawDamage: 100, cast, world, now, outbound });
     emitMaybe(outbound, caster);
+  },
+  phoenixLeap: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    blinkPast(caster, target, 1.25, world);
+    addStatus({ target: caster, type: 'shield', value: 180, durationMs: 5000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    for (const enemy of hostileEntities(caster, world, { x: target.position.x, z: target.position.z }, 3.5)) {
+      addStatus({ target: enemy, type: 'burn', value: 4, durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 180 : 90, cast, world, now, outbound });
+    }
+    emitMaybe(outbound, caster);
+  },
+  aegisRelay: (cast, world, now, outbound) => {
+    const caster = world.getPlayerById(cast.casterId);
+    if (!caster) return;
+    for (const ally of alliedPlayers(world, { x: caster.position.x, z: caster.position.z }, 7)) {
+      ally.health = Math.min(ally.maxHealth, ally.health + 90);
+      addStatus({ target: ally, type: 'shield', value: 160, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      if (ally.id !== caster.id) {
+        pullIntoRange(ally, caster.position, 1.5, 3.5, world);
+      }
+      emitMaybe(outbound, ally);
+    }
   },
   projectileCapture: (cast, world, now, outbound) => {
     const caster = world.getPlayerById(cast.casterId);
@@ -213,6 +265,33 @@ function hostileEntities(caster: Combatant, world: CombatWorld, center: VecXZ, r
   ));
 }
 
+function alliedPlayers(world: CombatWorld, center: VecXZ, radius: number): PlayerState[] {
+  return world.getEntitiesInCircle(center, radius)
+    .filter((entity): entity is PlayerState => !isEnemy(entity) && entity.isAlive);
+}
+
+function nearestHostile(
+  caster: Combatant,
+  world: CombatWorld,
+  center: VecXZ,
+  radius: number,
+  excludeId: string,
+): Combatant | null {
+  let nearest: Combatant | null = null;
+  let bestDistSq = Infinity;
+  for (const entity of hostileEntities(caster, world, center, radius)) {
+    if (entity.id === excludeId) continue;
+    const dx = entity.position.x - center.x;
+    const dz = entity.position.z - center.z;
+    const distSq = dx * dx + dz * dz;
+    if (distSq < bestDistSq) {
+      nearest = entity;
+      bestDistSq = distSq;
+    }
+  }
+  return nearest;
+}
+
 function addStatus(input: StatusInput): void {
   const { target, type, value, durationMs, sourceSkill, now, sourceCasterId, linkedTargetId } = input;
   const fresh: LinkedStatusEffect = { id: nanoid(), type, value, durationMs, startTimeTs: now, sourceSkill };
@@ -237,6 +316,19 @@ function pullToward(entity: Combatant, center: VecXZ, maxDistance: number, world
   if (dist <= 0.01) return;
   const amount = Math.min(maxDistance, dist * 0.65);
   moveCombatant(entity, { x: entity.position.x + (dx / dist) * amount, y: entity.position.y, z: entity.position.z + (dz / dist) * amount }, world);
+}
+
+function pullIntoRange(entity: Combatant, center: VecXZ, keepDistance: number, maxDistance: number, world: CombatWorld): void {
+  const dx = entity.position.x - center.x;
+  const dz = entity.position.z - center.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist <= keepDistance || dist <= 0.01) return;
+  const nextDist = Math.max(keepDistance, dist - maxDistance);
+  moveCombatant(entity, {
+    x: center.x + (dx / dist) * nextDist,
+    y: entity.position.y,
+    z: center.z + (dz / dist) * nextDist,
+  }, world);
 }
 
 function knockAway(entity: Combatant, origin: VecXZ, distance: number, world: CombatWorld): void {

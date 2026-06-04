@@ -22,6 +22,7 @@ describe('advanced skill mechanics primitives', () => {
   registerControlBatchTests();
   registerRedirectBatchTests();
   registerMovementBatchTests();
+  registerMultiSpecBatchTests();
 });
 
 function registerSwapTests() {
@@ -298,6 +299,50 @@ function registerMovementBatchTests() {
     resolveCastImpact(targetedCast(caster.id, 'cataclysm_rings', ringCenterSafe.id, ringCenterSafe.position), { publish: vi.fn() }, world, NOW + 400);
     expect(ringCenterSafe.health).toBe(ringCenterSafe.maxHealth);
     expect(ringOuter.health).toBeLessThan(ringOuter.maxHealth);
+  });
+}
+
+function registerMultiSpecBatchTests() {
+  it('Magma Chain, Duelist Lunge, Phoenix Leap, and Aegis Relay resolve distinct multi-spec mechanics', () => {
+    const caster = player('caster', 0, 0, ['magma_chain', 'duelist_lunge', 'phoenix_leap', 'aegis_relay']);
+    const ally = player('ally', 5, 0);
+    const chainTarget = enemy('chain-target', 12, 0);
+    const lungeTarget = enemy('lunge-target', 8, 0);
+    const lungeSecondary = enemy('lunge-secondary', 10, 0);
+    const leapTarget = enemy('leap-target', 16, 0);
+    const leapNearby = enemy('leap-nearby', 18, 0);
+    const leapFar = enemy('leap-far', 24, 0);
+    caster.health = 600;
+    ally.health = 400;
+    const world = worldOf([caster, ally], [chainTarget, lungeTarget, lungeSecondary, leapTarget, leapNearby, leapFar]);
+
+    resolveCastImpact(targetedCast(caster.id, 'magma_chain', chainTarget.id, chainTarget.position), { publish: vi.fn() }, world, NOW);
+    expect(chainTarget.position.x).toBeCloseTo(3, 5);
+    expect(chainTarget.dirtySnap).toBe(true);
+    expect(chainTarget.statusEffects.some((effect) => effect.type === 'burn')).toBe(true);
+    expect(chainTarget.aiState).toBe('chasing');
+    expect(chainTarget.targetId).toBe(caster.id);
+
+    resolveCastImpact(targetedCast(caster.id, 'duelist_lunge', lungeTarget.id, lungeTarget.position), { publish: vi.fn() }, world, NOW + 100);
+    expect(caster.position.x).toBeGreaterThan(lungeTarget.position.x);
+    expect(lungeTarget.statusEffects.some((effect) => effect.type === 'marked')).toBe(true);
+    expect(lungeSecondary.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+    expect(lungeSecondary.health).toBeLessThan(lungeSecondary.maxHealth);
+
+    resolveCastImpact(targetedCast(caster.id, 'phoenix_leap', leapTarget.id, leapTarget.position), { publish: vi.fn() }, world, NOW + 200);
+    expect(caster.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+    expect(leapTarget.statusEffects.some((effect) => effect.type === 'burn')).toBe(true);
+    expect(leapNearby.statusEffects.some((effect) => effect.type === 'burn')).toBe(true);
+    expect(leapFar.health).toBe(leapFar.maxHealth);
+
+    ally.position = { x: caster.position.x - 5, y: ally.position.y, z: caster.position.z };
+    ally.health = 400;
+    resolveCastImpact(selfCast(caster.id, 'aegis_relay'), { publish: vi.fn() }, world, NOW + 300);
+    expect(caster.health).toBe(690);
+    expect(ally.health).toBe(490);
+    expect(ally.position.x).toBeCloseTo(caster.position.x - 1.5, 5);
+    expect(ally.dirtySnap).toBe(true);
+    expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
   });
 }
 

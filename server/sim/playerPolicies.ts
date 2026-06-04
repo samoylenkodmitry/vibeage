@@ -75,8 +75,10 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('meteor', { targetHasEffect: 'burn' }),
     enemy('cataclysm_rings'),
     enemy('inferno_aura', { targetMissingEffect: 'burn' }),
+    enemy('magma_chain', { targetMissingEffect: 'burn' }),
     enemy('fireball', { targetMissingEffect: 'burn' }),
     enemy('meteor'),
+    enemy('magma_chain'),
     enemy('fireball'),
   ]),
   berserker: profile('berserker', 'sustain', [
@@ -91,10 +93,12 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   slayer: profile('slayer', 'burst', [
     enemy('killing_strike', { targetHealthBelowPct: 0.35 }),
     enemy('delayed_fate', { targetHealthAbovePct: 0.45 }),
+    enemy('duelist_lunge', { targetMissingEffect: 'marked' }),
     enemy('execute', { targetHealthBelowPct: 0.4 }),
     enemy('powerStrike', { targetHasEffect: 'stun' }),
     enemy('bash', { targetHasEffect: 'dot' }),
     enemy('slash', { targetMissingEffect: 'dot' }),
+    enemy('duelist_lunge'),
     enemy('execute'),
   ]),
   cardinal: profile('cardinal', 'support', [
@@ -160,15 +164,19 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   phoenix_knight: profile('phoenix_knight', 'tank', [
     self('rebirth', { casterHealthBelowPct: 0.35, casterMissingEffect: 'shield' }),
     self('phoenix_ward', { casterHealthBelowPct: 0.85, casterMissingEffect: 'shield' }),
+    enemy('phoenix_leap', { casterMissingEffect: 'shield' }),
     self('divineShield', { casterHealthBelowPct: 0.65, casterMissingEffect: 'shield' }),
     self('holyLight', { casterHealthBelowPct: 0.7 }),
+    enemy('phoenix_leap'),
     enemy('smite'),
   ]),
   evas_templar: profile('evas_templar', 'support', [
+    self('aegis_relay', { casterMissingEffect: 'shield' }),
     self('sacred_aura', { casterHealthBelowPct: 0.8 }),
     self('sacred_pulse', { casterHealthBelowPct: 0.85 }),
     self('holyLight', { casterHealthBelowPct: 0.72 }),
     self('divineShield', { casterHealthBelowPct: 0.55, casterMissingEffect: 'shield' }),
+    self('aegis_relay'),
     enemy('smite'),
   ]),
   treasure_hunter: profile('treasure_hunter', 'skirmish', [

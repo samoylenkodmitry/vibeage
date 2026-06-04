@@ -253,7 +253,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+10% damage; fire-flavour casts gain another +15%.',
       modifiers: { damageMultiplier: 1.1, damageElementMultiplier: { fire: 1.15 } },
     },
-    specSkills: ['meteor'],
+    specSkills: ['meteor', 'magma_chain'],
     proficiencySkills: ['inferno_aura', 'cataclysm_rings'],
   },
   // ---- WARRIOR ----
@@ -294,7 +294,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+0.5× crit multiplier (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['execute', 'delayed_fate'],
+    specSkills: ['execute', 'delayed_fate', 'duelist_lunge'],
     proficiencySkills: ['killing_strike'],
   },
   // ---- HEALER ----
@@ -438,7 +438,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'The first killing hit each life leaves you at 1 HP with 2.5s of invulnerability.',
       modifiers: { resurrectionInvulnMs: 2500 },
     },
-    specSkills: ['phoenix_ward'],
+    specSkills: ['phoenix_ward', 'phoenix_leap'],
     proficiencySkills: ['rebirth'],
   },
   evas_templar: {
@@ -458,7 +458,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Divine Shield cooldown halved.',
       modifiers: { cooldownMultiplierBySkill: { divineShield: 0.5 } },
     },
-    specSkills: ['sacred_pulse'],
+    specSkills: ['sacred_pulse', 'aegis_relay'],
     proficiencySkills: ['sacred_aura'],
   },
   // ---- ROGUE ----
