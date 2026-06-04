@@ -34,12 +34,6 @@ Declared in `SKILLS` but not in any class skill tree, spec/proficiency skill lis
 - [ ] `boss_skadrun_sig` — Blizzard Crown
 - [ ] `boss_vereth_bone_lord_sig` — Marrow Tithe
 - [ ] `boss_vorthax_ember_wyrm_sig` — Cinder Breath
-- [ ] `mobBreath` — Fire Breath
-- [ ] `mobFirebolt` — Fire Bolt
-- [ ] `mobFrostbolt` — Frost Bolt
-- [ ] `mobPoisonBite` — Venomous Bite
-- [ ] `mobStrike` — Strike
-- [ ] `mobWarbandHowl` — Warband Howl
 
 ## Mini-bosses with no quest target
 

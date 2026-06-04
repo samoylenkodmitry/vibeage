@@ -4,6 +4,7 @@ import { learnNewSkill, onLearnSkill } from '../server/players/playerSkills';
 import type { PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
 import {
+  getExperienceToNextLevel,
   normalizeAvailableSkillPoints,
   normalizeUnlockedSkills,
 } from '../server/players/playerProgression';
@@ -18,6 +19,16 @@ type TestPlayer = {
 };
 
 describe('player progression hydration', () => {
+  test('keeps the level curve within the one-week level-40 simulator target band', () => {
+    const totalXpToLevel40 = Array.from({ length: 39 }, (_, index) => getExperienceToNextLevel(index + 1))
+      .reduce((total, xp) => total + xp, 0);
+
+    expect(getExperienceToNextLevel(1)).toBe(100);
+    expect(getExperienceToNextLevel(2)).toBe(125);
+    expect(totalXpToLevel40).toBeGreaterThanOrEqual(2_700_000);
+    expect(totalXpToLevel40).toBeLessThanOrEqual(2_800_000);
+  });
+
   test('gives a persisted player the starter skill when the database has an empty skills array', () => {
     const unlockedSkills = normalizeUnlockedSkills([]);
 

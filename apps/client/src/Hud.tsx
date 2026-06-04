@@ -14,6 +14,7 @@ import { useDraggablePanel } from './hud/useDraggablePanel';
 import { ReturnToNpcHint } from './hud/ReturnToNpcHint';
 import { SkillUseHint } from './hud/SkillUseHint';
 import { SpecializationHint } from './hud/SpecializationHint';
+import { FrontierGuideHint } from './hud/FrontierGuideHint';
 import { TargetingHint } from './hud/TargetingHint';
 import { ZoneBanner } from './hud/ZoneBanner';
 import { usePersistedToggle } from './hud/usePersistedToggle';
@@ -176,7 +177,7 @@ export function GameHud(props: GameHudProps) {
       <WelcomeOverlay player={player} /><ZoneBanner player={player} />
       <TargetingHint state={state} />
       <ReturnToNpcHint state={state} />
-      <SkillUseHint state={state} /><SpecializationHint player={player} onOpenSkills={panels.openTree} />
+      <SkillUseHint state={state} /><SpecializationHint player={player} onOpenSkills={panels.openTree} /><FrontierGuideHint player={player} onOpenQuestPanel={panels.openQuest} />
       <LootPickupHint state={state} />
       <NpcInteraction
         player={player}

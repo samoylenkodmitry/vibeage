@@ -50,8 +50,11 @@ export function normalizePlayerLevel(value: unknown): number {
   return Math.max(1, Math.floor(numberOrFallback(value, 1)));
 }
 
+export const BASE_XP_TO_NEXT_LEVEL = 100;
+export const XP_TO_NEXT_LEVEL_EXPONENT = 1.255;
+
 export function getExperienceToNextLevel(level: number): number {
-  return Math.floor(100 * Math.pow(1.5, level - 1));
+  return Math.floor(BASE_XP_TO_NEXT_LEVEL * Math.pow(XP_TO_NEXT_LEVEL_EXPONENT, level - 1));
 }
 
 function isSkillId(value: unknown): value is SkillId {

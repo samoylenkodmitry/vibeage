@@ -14,7 +14,7 @@ const CLASS_NAMES = Object.keys(CLASS_SKILL_TREES) as CharacterClass[];
 describe('player journey content-gap diagnostics', () => {
   const reportRows = journeyReportRows();
 
-  it('finds route gaps without changing journey simulation output', () => {
+  it('keeps route gap diagnostics advisory after bridge content and progress beats', () => {
     const summary = reportRows.find((row) => row.requestedSpecializationId === 'arcanist');
 
     expect(summary).toBeDefined();
@@ -23,9 +23,10 @@ describe('player journey content-gap diagnostics', () => {
     const diagnostics = diagnoseJourneyGaps(summary);
 
     expect(diagnostics.length).toBeGreaterThan(0);
-    expect(diagnostics[0]?.severity).toBe('high');
-    expect(diagnostics.some((row) => row.kind === 'empty_windows')).toBe(true);
+    expect(diagnostics.some((row) => row.kind === 'empty_windows')).toBe(false);
     expect(diagnostics.some((row) => row.kind === 'quest_gap')).toBe(true);
+    expect(diagnostics.some((row) => row.kind === 'gear_gap')).toBe(true);
+    expect(diagnostics.every((row) => row.emptyWindows === 0)).toBe(true);
     expect(diagnostics.every((row) => row.pathLabel === 'arcanist')).toBe(true);
     expect(diagnostics.every((row) => row.levelBand.startsWith('L'))).toBe(true);
   });

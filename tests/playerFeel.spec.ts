@@ -22,7 +22,7 @@ describe('player feel cadence metrics', () => {
     expect(summary.lowSignalWindowCount).toBeGreaterThanOrEqual(summary.emptyWindowCount);
   });
 
-  it('flags long stretches without progression beats as empty', () => {
+  it('flags too-slow hunting cadence even when progress beats keep windows non-empty', () => {
     const summary = estimatePlayerFeel({
       className: 'warrior',
       horizonHours: 4,
@@ -31,11 +31,10 @@ describe('player feel cadence metrics', () => {
     });
 
     expect(summary.emptyRisk).toBe('high');
-    expect(summary.emptyWindowCount).toBeGreaterThan(0);
-    expect(summary.longestEmptyWindowStreak).toBeGreaterThan(0);
-    expect(summary.nextBeatRecommendations.length).toBeGreaterThan(0);
-    expect(summary.nextBeatRecommendations[0]?.suggestedBeatKinds).toContain('quest');
-    expect(summary.mitigationHints.join(' ')).toContain('Fill empty windows');
+    expect(summary.emptyWindowCount).toBe(0);
+    expect(summary.longestEmptyWindowStreak).toBe(0);
+    expect(summary.beatCounts.grind).toBeGreaterThan(0);
+    expect(summary.mitigationHints.join(' ')).toContain('Shorten travel/search downtime');
   });
 
   it('flags below-target windows even when they are not empty', () => {

@@ -6,6 +6,7 @@ import {
   onRespawnRequest,
   respawnPlayer,
 } from '../server/players/playerLifecycle';
+import { getExperienceToNextLevel } from '../server/players/playerProgression';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { PlayerState } from '../packages/sim/entities';
 
@@ -44,7 +45,7 @@ describe('player lifecycle', () => {
     expect(player).toMatchObject({
       level: 2,
       experience: 15,
-      experienceToNextLevel: 150,
+      experienceToNextLevel: getExperienceToNextLevel(2),
       availableSkillPoints: 2,
     });
     expect(player.health).toBe(player.maxHealth);
@@ -55,7 +56,7 @@ describe('player lifecycle', () => {
       id: 'player1',
       level: 2,
       experience: 15,
-      experienceToNextLevel: 150,
+      experienceToNextLevel: getExperienceToNextLevel(2),
       maxHealth: player.maxHealth,
       maxMana: player.maxMana,
       availableSkillPoints: 2,

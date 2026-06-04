@@ -195,6 +195,16 @@ const TEMPLATES: EnemyTemplate[] = [
   template('glass_harrier', 'Glass Harrier', 'aberration', { color: '#fde68a', height: 1.15, shape: 'sphere', glow: true }, { health: 1.05, damage: 1.5, movementSpeed: 1.45, aggroRadius: 1.2 }),
   template('rift_mender', 'Rift Mender', 'construct', { color: '#facc15', height: 1.45, shape: 'box', glow: true }, { health: 1.75, damage: 1.5, attackRange: 1.45, movementSpeed: 0.95 }, ['mobFrostbolt', 'mobStrike']),
 
+  // Lv 24-31 bridge route mobs
+  template('road_thornback', 'Road Thornback', 'plant', { color: '#84cc16', height: 1.2, shape: 'box', glow: false }, { health: 1.55, damage: 1.25, movementSpeed: 0.85, attackRange: 1.25 }, ['mobBrambleSnare', 'mobStrike']),
+  template('ash_dust_runner', 'Ash-Dust Runner', 'elemental', { color: '#fb923c', height: 1.05, shape: 'sphere', glow: true }, { health: 1.0, damage: 1.35, movementSpeed: 1.35, aggroRadius: 1.15 }, ['mobFirebolt', 'mobStrike']),
+  template('brightglass_mote', 'Brightglass Mote', 'fey', { color: '#a5f3fc', height: 1.0, shape: 'sphere', glow: true }, { health: 0.9, damage: 1.35, attackRange: 1.55, movementSpeed: 1.25 }, ['mobLatticeMark', 'mobStrike']),
+  template('surveybreaker_golem', 'Surveybreaker Golem', 'construct', { color: '#93c5fd', height: 1.6, shape: 'box', glow: true }, { health: 1.9, damage: 1.35, movementSpeed: 0.75, attackRange: 1.3 }, ['mobSeismicSlam', 'mobStrike']),
+  template('moonroad_prowler', 'Moonroad Prowler', 'beast', { color: '#dbeafe', height: 1.05, shape: 'box', glow: false }, { health: 1.15, damage: 1.35, movementSpeed: 1.35, packAggroRadius: 1.1 }, ['mobFrostbolt', 'mobStrike']),
+  template('coldstar_acolyte', 'Coldstar Acolyte', 'humanoid', { color: '#c4b5fd', height: 1.2, shape: 'box', glow: true }, { health: 1.1, damage: 1.45, attackRange: 1.6, movementSpeed: 1.0 }, ['mobLatticeMark', 'mobStrike']),
+  template('horizon_jackal', 'Horizon Jackal', 'beast', { color: '#fcd34d', height: 1.0, shape: 'box', glow: false }, { health: 1.1, damage: 1.4, movementSpeed: 1.4, packAggroRadius: 1.2 }, ['mobWarbandHowl', 'mobStrike']),
+  template('rift_surveyor', 'Rift Surveyor', 'construct', { color: '#fef08a', height: 1.35, shape: 'box', glow: true }, { health: 1.45, damage: 1.45, attackRange: 1.55, movementSpeed: 1.0 }, ['mobTimeSnare', 'mobStrike']),
+
   // Bonus tier
   template('radiant_seraph', 'Radiant Seraph', 'spirit', { color: '#fef08a', height: 1.7, shape: 'sphere', glow: true }, { health: 1.8, damage: 1.7, attackRange: 1.5 }),
   template('celestial_guardian', 'Celestial Guardian', 'construct', { color: '#fef9c3', height: 2.0, shape: 'box', glow: true }, { health: 2.5, damage: 1.9, attackRange: 1.5 }),

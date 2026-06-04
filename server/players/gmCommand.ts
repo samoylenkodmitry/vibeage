@@ -13,6 +13,7 @@ import { applyClassChange, applyRaceChange, applySpecializationChange } from './
 import { isGmAccount } from './gmMode.js';
 import { emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
+import { getExperienceToNextLevel } from './playerProgression.js';
 
 /**
  * GM verb dispatcher. Single read-site for every grant/set verb so
@@ -100,7 +101,7 @@ function grantXp(target: PlayerState, value: number | string, outbound: Outbound
   while (target.experience >= target.experienceToNextLevel) {
     target.level += 1;
     target.experience -= target.experienceToNextLevel;
-    target.experienceToNextLevel = Math.floor(target.experienceToNextLevel * 1.5);
+    target.experienceToNextLevel = getExperienceToNextLevel(target.level);
     target.availableSkillPoints += 1;
     leveled = true;
   }

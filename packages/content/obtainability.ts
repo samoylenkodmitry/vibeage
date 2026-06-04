@@ -260,6 +260,9 @@ export async function findUnreachableSkills(): Promise<string[]> {
     for (const id of spec.specSkills ?? []) reachable.add(id);
     for (const id of spec.proficiencySkills ?? []) reachable.add(id);
   }
+  for (const template of Object.values(ENEMY_TEMPLATES)) {
+    for (const id of template.skills) reachable.add(id);
+  }
   return Object.keys(SKILLS).filter((id) => !reachable.has(id)).sort();
 }
 
@@ -564,4 +567,3 @@ export function formatContentGraphIssues(issues: readonly ContentGraphIssue[]): 
     }
   }).join('\n');
 }
-

@@ -36,8 +36,11 @@ const GOLD_VALUE_BY_CURRENCY: Record<string, number> = {
 const JOURNEY_ENEMY_BY_LEVEL: Array<{ minLevel: number; enemyType: string }> = [
   { minLevel: 40, enemyType: 'time_wraith' },
   { minLevel: 35, enemyType: 'radiant_seraph' },
+  { minLevel: 30, enemyType: 'rift_surveyor' },
   { minLevel: 28, enemyType: 'frost_wolf' },
-  { minLevel: 22, enemyType: 'tentacle_horror' },
+  { minLevel: 26, enemyType: 'brightglass_mote' },
+  { minLevel: 24, enemyType: 'road_thornback' },
+  { minLevel: 22, enemyType: 'ash_dust_runner' },
   { minLevel: 16, enemyType: 'fire_elemental' },
   { minLevel: 12, enemyType: 'shadowbeast' },
   { minLevel: 9, enemyType: 'skeleton' },
@@ -56,6 +59,8 @@ export type JourneyBeatKind =
   | 'proficiency'
   | 'item_upgrade'
   | 'vendor_purchase'
+  | 'travel_progress'
+  | 'hunt_progress'
   | 'death';
 
 export type JourneyBeat = {
@@ -165,6 +170,7 @@ type JourneyState = {
   equippedItems: Partial<Record<EquipSlot, ItemId>>;
   vendorPurchases: JourneyVendorPurchase[];
   beats: JourneyBeat[];
+  progressBeatKeys: Set<string>;
   time: JourneyTimeBreakdown;
 };
 
@@ -234,6 +240,7 @@ function createJourneyState(options: PlayerJourneyOptions): JourneyState {
     equippedItems: {},
     vendorPurchases: [],
     beats,
+    progressBeatKeys: new Set(),
     time: { travelMs: 0, combatMs: 0, questMs: 0, lootMs: 0, downtimeMs: 0, vendorMs: 0 },
   };
 }
@@ -531,9 +538,40 @@ function advanceTime(state: JourneyState, ms: number, bucket: keyof JourneyTimeB
   if (ms <= 0) return true;
   const remainingMs = state.horizonMs - state.elapsedMs;
   const usedMs = Math.min(ms, Math.max(0, remainingMs));
+  const startMs = state.elapsedMs;
   state.elapsedMs += usedMs;
   state.time[bucket] += usedMs;
+  addProgressBeatsForSegment(state, startMs, state.elapsedMs, bucket);
   return usedMs >= ms;
+}
+
+function addProgressBeatsForSegment(
+  state: JourneyState,
+  startMs: number,
+  endMs: number,
+  bucket: keyof JourneyTimeBreakdown,
+): void {
+  if (endMs <= startMs) return;
+  const kind = bucket === 'travelMs' ? 'travel_progress'
+    : bucket === 'combatMs' || bucket === 'downtimeMs' || bucket === 'lootMs' ? 'hunt_progress' : null;
+  if (!kind) return;
+  const firstWindowIndex = Math.floor(startMs / state.windowMs);
+  const lastWindowIndex = Math.floor(Math.max(startMs, endMs - 1) / state.windowMs);
+
+  for (let index = firstWindowIndex; index <= lastWindowIndex; index += 1) {
+    const key = `${kind}:${index}`;
+    if (state.progressBeatKeys.has(key)) continue;
+    const atMs = Math.max(startMs, index * state.windowMs) + 1;
+    if (atMs >= state.horizonMs || atMs >= endMs) continue;
+    state.progressBeatKeys.add(key);
+    pushBeat(
+      state.beats,
+      atMs,
+      kind,
+      kind === 'travel_progress' ? 'Route progress' : 'Sustained hunt progress',
+      1,
+    );
+  }
 }
 
 function hasTimeRemaining(state: JourneyState): boolean {
