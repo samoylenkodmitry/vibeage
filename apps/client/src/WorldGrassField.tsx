@@ -21,8 +21,8 @@ import { GRASS_GEOMETRY, GRASS_MATERIAL, GRASS_WIND } from './world-art/grassBla
  * One instanced draw per chunk, all sharing the blade geometry + wind material.
  */
 export const GRASS_CHUNK = 24; // metres per grass chunk
-const CELLS = 30;                       // fine blade slots per chunk axis
-const BLADE_CELL = GRASS_CHUNK / CELLS; // 0.8 m — divides the chunk EXACTLY, so the
+const CELLS = 32;                       // fine blade slots per chunk axis
+const BLADE_CELL = GRASS_CHUNK / CELLS; // 0.75 m — divides the chunk EXACTLY, so the
                                         // fine grid tiles seamlessly across chunk
                                         // seams (a non-integer ratio leaves a ~1-cell
                                         // gap/overlap stripe at every boundary)
@@ -72,8 +72,15 @@ export function WorldGrassField({ focus, quality }: { focus: Vec3D; quality: Wor
     }
     return out;
   }, [cx, cz, radius]);
-  // One clock advances the shared tip sway for every chunk.
-  useFrame((_, delta) => { GRASS_WIND.uTime.value += delta; });
+  // Feed the shared shader: a fade band keyed to the field radius (blades shrink
+  // into the ground past the frontier — no hard ring, no pop) and the live player
+  // position it fades around.
+  GRASS_WIND.uFadeNear.value = (radius - 0.5) * GRASS_CHUNK;
+  GRASS_WIND.uFadeFar.value = (radius + 0.5) * GRASS_CHUNK;
+  useFrame((_, delta) => {
+    GRASS_WIND.uTime.value += delta;
+    GRASS_WIND.uPlayer.value.set(focus.x, focus.z);
+  });
   return (
     <group>
       {chunks.map((c) => <GrassChunk key={`${c.x}:${c.z}`} originX={c.x} originZ={c.z} />)}
