@@ -7,6 +7,7 @@ import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
 import type { InventorySlot } from '../../../../packages/protocol/messages';
 import { useHasMousePointer } from './useHasMousePointer';
+import { useActionBarDrag } from './actionBarDrag';
 
 /**
  * Single bag slot. Click opens the ItemTooltip in sticky mode
@@ -65,6 +66,25 @@ function handleBagDrop(
   } catch { /* malformed payload */ }
 }
 
+/** Pure display state for a bag slot: which inline action label to show, the
+ *  item's grade tint, and the resolved name. Kept out of the component so the
+ *  render stays within the maintainability line budget. */
+function deriveSlotView(slot: InventorySlot | null, playerLevel: number) {
+  const item = slot ? ITEMS[slot.itemId] : null;
+  const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
+  const isEquippable = Boolean(slot && item?.equip);
+  const isRecipe = Boolean(slot && item?.recipe);
+  const equipMinLevel = item?.equip
+    ? getEffectiveMinLevel(getItemGrade(item), item.equip.requirements?.minLevel)
+    : 0;
+  const locked = isEquippable && playerLevel < equipMinLevel;
+  const canEquip = isEquippable && !locked;
+  const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
+  const action = canUse ? 'Use' : isRecipe ? 'Recipe' : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
+  const grade = slot && item ? getItemGrade(item) : 'none';
+  return { item, itemName, action, grade, gradeColor: getGradeSpec(grade).color };
+}
+
 export function InventorySlotButton({
   slot,
   index,
@@ -76,30 +96,17 @@ export function InventorySlotButton({
   playerLevel: number;
   callbacks: InventorySlotCallbacks;
 }) {
-  const item = slot ? ITEMS[slot.itemId] : null;
-  const canUse = Boolean(slot && slot.quantity > 0 && isUsableConsumable(item));
-  const isEquippable = Boolean(slot && item?.equip);
-  const isRecipe = Boolean(slot && item?.recipe);
-  const equipMinLevel = item?.equip
-    ? getEffectiveMinLevel(getItemGrade(item), item.equip.requirements?.minLevel)
-    : 0;
-  const locked = isEquippable && playerLevel < equipMinLevel;
-  const canEquip = isEquippable && !locked;
-  const itemName = item?.name ?? slot?.itemId ?? 'Empty slot';
-  const action = canUse
-    ? 'Use'
-    : isRecipe
-      ? 'Recipe'
-      : canEquip ? 'Equip' : locked ? `Lv ${equipMinLevel}` : '';
+  const { item, itemName, action, grade, gradeColor } = deriveSlotView(slot, playerLevel);
   const hasMouse = useHasMousePointer();
+  // Touch has no HTML5 drag, so a bag item can't reach the action bar that way.
+  // Mirror the skill bar: a long-press picks the item up and drops it on a bar
+  // slot via the shared pointer drag controller (mouse self-noops in beginDrag,
+  // keeping native DnD for the ground-drop path).
+  const { beginDrag, consumeDragClick } = useActionBarDrag();
   const title = slot
-    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ''}`
+    ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ' · hold to add to bar'}`
     : 'Empty slot';
   const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
-  // Tint the slot border by item grade so rare drops jump out of
-  // the bag at a glance.
-  const grade = slot && item ? getItemGrade(item) : 'none';
-  const gradeColor = getGradeSpec(grade).color;
   const slotStyle = slot && grade !== 'none'
     ? { ['--slot-grade-color' as string]: gradeColor } as CSSProperties
     : undefined;
@@ -114,6 +121,12 @@ export function InventorySlotButton({
       draggable={Boolean(slot) && hasMouse}
       onDragOver={handleBagDragOver}
       onDrop={(event) => handleBagDrop(event, index, callbacks.onMoveItem)}
+      onPointerDown={(event) => {
+        // Touch long-press → pick the item up for the action bar. No-op for
+        // mouse (beginDrag bails on pointerType 'mouse'), empty slots, or a
+        // locked bar.
+        if (slot) beginDrag({ kind: 'item', id: slot.itemId }, event, itemName);
+      }}
       onDragStart={(event) => {
         if (!slot) return;
         event.dataTransfer.effectAllowed = 'move';
@@ -126,6 +139,13 @@ export function InventorySlotButton({
         event.dataTransfer.setData('text/plain', `bag-slot:${index}`);
       }}
       onClick={(event) => {
+        // A touch drag ends in a click on this button; swallow it so dropping the
+        // item on a bar slot doesn't also open the sticky action tooltip.
+        if (consumeDragClick()) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         if (callbacks.consumePendingClick()) {
           event.stopPropagation();
           return;
