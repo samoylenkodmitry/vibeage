@@ -112,7 +112,7 @@ function contextFor(
     hostiles: [target],
     allies,
     distanceTo: (entity) => distanceXZ(player.position, entity.position),
-    teamFor: (entityId) => entityId === player.id ? 'players' : entityId === target.id ? 'enemies' : null,
+    teamFor: (entityId) => allies.some((ally) => ally.id === entityId) ? 'players' : entityId === target.id ? 'enemies' : null,
   };
 }
 

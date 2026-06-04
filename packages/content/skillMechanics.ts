@@ -1,6 +1,6 @@
 import type { SkillDef, SkillEffectType } from './skills.js';
 
-const EFFECT_MECHANICS: Partial<Record<SkillEffectType, string>> = {
+const EFFECT_MECHANICS: Record<SkillEffectType, string> = {
   damage: 'Damage',
   heal: 'Heal',
   stun: 'Stun',
