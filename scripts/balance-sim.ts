@@ -141,8 +141,8 @@ function printSkillBalanceInstrumentation(): void {
   console.log('');
   console.log('Per-spec advisory metrics from AI exercise scenarios. These are regression signals, not tuning approval: they expose burst window, control estimate, rotation variety, filler pressure, and dead AI skills while the skill catalog keeps changing.');
   console.log('');
-  console.log('| Spec | Lv | Exercises | Win | Duration | HP | Burst 10s | Control est | Actions/min | Unique skills | Filler | Tactics | Risks |');
-  console.log('|------|----|-----------|-----|----------|----|-----------|-------------|-------------|---------------|--------|---------|-------|');
+  console.log('| Spec | Lv | Exercises | Rotation sample | Win | Duration | HP | Burst 10s | Control est | Actions/min | Unique skills | Filler | Tactics | Risks |');
+  console.log('|------|----|-----------|-----------------|-----|----------|----|-----------|-------------|-------------|---------------|--------|---------|-------|');
   for (const row of rows) console.log(skillBalanceInstrumentationRow(row));
   console.log('');
 }
@@ -152,6 +152,7 @@ function skillBalanceInstrumentationRow(row: SkillBalanceInstrumentationRow): st
     row.specializationId,
     String(row.level),
     String(row.exerciseCount),
+    `${row.rotationEligibleExerciseCount}/${row.exerciseCount}`,
     `${Math.round(row.winRate * 100)}%`,
     seconds(row.meanDurationMs),
     `${Math.round(row.meanSurvivalPct * 100)}%`,

@@ -418,9 +418,9 @@ function skillControlDurationMs(skillId: SkillId): number {
     .map((effect) => effect.durationMs ?? 0));
   if (effectDuration > 0) return effectDuration;
   if (!skill.customBehavior) return 0;
-  if (['phasePrison', 'stasisLattice', 'gravityWell', 'tripwireVolley', 'bulwarkZone'].includes(skill.customBehavior)) return 3000;
-  if (['magmaChain', 'guardianHook', 'vengeanceTether', 'jackpotSnare', 'ricochetPrism'].includes(skill.customBehavior)) return 2200;
-  if (['terrainSigil', 'umbraMine', 'puppetMastery', 'tidalBarrier', 'sanctuaryGate', 'purifyingMirror'].includes(skill.customBehavior)) return 1800;
+  if (['phasePrison', 'stasisLattice', 'gravityWell', 'tripwireVolley', 'bulwarkZone', 'seismicRend'].includes(skill.customBehavior)) return 3000;
+  if (['magmaChain', 'guardianHook', 'vengeanceTether', 'jackpotSnare', 'ricochetPrism', 'harmonicSeal', 'nightfallNet', 'painDividend', 'loadedMirage'].includes(skill.customBehavior)) return 2200;
+  if (['terrainSigil', 'umbraMine', 'puppetMastery', 'tidalBarrier', 'sanctuaryGate', 'purifyingMirror', 'cinderHalo'].includes(skill.customBehavior)) return 1800;
   return 0;
 }
 
