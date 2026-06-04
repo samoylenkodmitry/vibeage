@@ -66,6 +66,13 @@ const CUSTOM_MECHANICS: Record<string, readonly string[]> = {
   bulwarkZone: ['Shield Zone', 'Taunt', 'Pull'],
   purifyingMirror: ['Cleanse', 'Mirror Ward', 'Holy Lash'],
   phantomSplit: ['Illusion', 'Blink', 'Poison Spread'],
+  emberRelay: ['Burn Relay', 'Chain Damage', 'Haste'],
+  seismicRend: ['Ground Split', 'Pull', 'Stun'],
+  harmonicSeal: ['Seal Zone', 'Soul Link', 'Shield'],
+  nightfallNet: ['Trap', 'Decoy', 'Poison'],
+  painDividend: ['Taunt Cashout', 'Reflect', 'Drain'],
+  cinderHalo: ['Halo', 'Shield', 'Burn'],
+  loadedMirage: ['Illusion', 'Root', 'Loot Sense'],
   warbandHowl: ['Pack Rally'],
 };
 

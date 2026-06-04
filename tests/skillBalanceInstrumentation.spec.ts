@@ -17,6 +17,8 @@ describe('skill balance instrumentation', () => {
       expect(row.meanUniqueSkillCount, row.id).toBeGreaterThan(0);
       expect(row.meanFillerCastRatio, row.id).toBeGreaterThanOrEqual(0);
       expect(row.meanFillerCastRatio, row.id).toBeLessThanOrEqual(1);
+      expect(row.rotationEligibleExerciseCount, row.id).toBeGreaterThanOrEqual(0);
+      expect(row.shortFightExerciseCount + row.rotationEligibleExerciseCount, row.id).toBe(row.exerciseCount);
       expect(Object.values(row.tacticCounts).reduce((total, count) => total + count, 0), row.id).toBeGreaterThan(0);
       expect(row.deadSkillIds, row.id).toEqual([]);
     }

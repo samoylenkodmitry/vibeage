@@ -253,7 +253,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+10% damage; fire-flavour casts gain another +15%.',
       modifiers: { damageMultiplier: 1.1, damageElementMultiplier: { fire: 1.15 } },
     },
-    specSkills: ['meteor', 'magma_chain', 'combustion_bloom'],
+    specSkills: ['meteor', 'magma_chain', 'combustion_bloom', 'ember_relay'],
     proficiencySkills: ['inferno_aura', 'cataclysm_rings'],
   },
   // ---- WARRIOR ----
@@ -274,7 +274,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Higher crit multiplier when below half health (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['rage', 'momentum_strike', 'blood_magnet'],
+    specSkills: ['rage', 'momentum_strike', 'blood_magnet', 'seismic_rend'],
     proficiencySkills: ['blood_frenzy'],
   },
   slayer: {
@@ -335,7 +335,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Nearby allies (within 15m) deal +5% damage.',
       modifiers: { partyDamageAuraMultiplier: 1.05, partyDamageAuraRadiusM: 15 },
     },
-    specSkills: ['empower', 'mirror_spell', 'echoing_benediction'],
+    specSkills: ['empower', 'mirror_spell', 'echoing_benediction', 'harmonic_seal'],
     proficiencySkills: ['group_bless', 'waygate', 'portal_pair'],
   },
   // ---- RANGER ----
@@ -376,7 +376,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+10% movement speed, +5 evasion.',
       modifiers: { speedMultiplier: 1.1, evasionBonus: 5 },
     },
-    specSkills: ['silent_step', 'phase_step', 'umbra_mine'],
+    specSkills: ['silent_step', 'phase_step', 'umbra_mine', 'nightfall_net'],
     proficiencySkills: ['shadow_arrow'],
   },
   // ---- KNIGHT ----
@@ -417,7 +417,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Each hit restores 5% of the damage dealt as HP.',
       modifiers: { lifestealPercent: 0.05 },
     },
-    specSkills: ['shadow_strike', 'reflection_contract', 'vengeance_tether'],
+    specSkills: ['shadow_strike', 'reflection_contract', 'vengeance_tether', 'pain_dividend'],
     proficiencySkills: ['soul_eater', 'spectral_guard'],
   },
   // ---- PALADIN ----
@@ -438,7 +438,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'The first killing hit each life leaves you at 1 HP with 2.5s of invulnerability.',
       modifiers: { resurrectionInvulnMs: 2500 },
     },
-    specSkills: ['phoenix_ward', 'phoenix_leap', 'sunbreak_charge'],
+    specSkills: ['phoenix_ward', 'phoenix_leap', 'sunbreak_charge', 'cinder_halo'],
     proficiencySkills: ['rebirth'],
   },
   evas_templar: {
@@ -479,7 +479,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Loot drop chances boosted by 50% (clamped at 100%).',
       modifiers: { lootRateMultiplier: 1.5 },
     },
-    specSkills: ['lucky_strike', 'puppet_mastery', 'jackpot_snare'],
+    specSkills: ['lucky_strike', 'puppet_mastery', 'jackpot_snare', 'loaded_mirage'],
     proficiencySkills: ['treasure_sense'],
   },
   plains_walker: {

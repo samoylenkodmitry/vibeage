@@ -124,5 +124,28 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     description: 'Quiet old man with a ledger of trophies and a strict policy: he never asks who you took them from. Pays well for proof of work.',
     greet: "Show me what you brought. I pay fair — never ask questions.",
   },
+  lenskeeper_savra: {
+    id: 'lenskeeper_savra',
+    name: 'Lenskeeper Savra',
+    title: 'Crystal Surveyor',
+    position: { x: -286, y: 0.5, z: -412 },
+    description: 'Carries a satchel of cracked lenses and draws maps in reflected light. Needs fresh readings from the crystal caverns.',
+    greet: "Mind the lattice. It grows into yesterday's footprints first.",
+  },
+  shade_reeve_marn: {
+    id: 'shade_reeve_marn',
+    name: 'Marn',
+    title: 'Shade-Reeve',
+    position: { x: 326, y: 0.5, z: 392 },
+    description: 'Keeps a stern ledger at the valley edge. Treats monsters, debts, and adventurers as different columns of the same account.',
+    greet: "Every shadow here owes something. I pay when the balance closes.",
+  },
+  hourglass_scribe_pelin: {
+    id: 'hourglass_scribe_pelin',
+    name: 'Pelin',
+    title: 'Hourglass Scribe',
+    position: { x: -690, y: 0.5, z: 704 },
+    description: 'Records rift timings in narrow notebooks, then crosses them out when time changes its mind.',
+    greet: "If the same minute greets you twice, write down what changed.",
+  },
 };
-

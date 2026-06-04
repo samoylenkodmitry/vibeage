@@ -52,13 +52,36 @@ export type SkillUseRule = {
 
 export type SkillUseTactic = 'opener' | 'combo' | 'defensive' | 'control' | 'mobility' | 'sustain' | 'filler';
 export type SpecializationAiTactics = Record<SkillUseTactic, SkillId[]>;
+export type SpecializationAiIdentity = {
+  plan: string;
+  desiredRangeFraction: number;
+  priorityTactics: readonly SkillUseTactic[];
+};
 
 export type SpecializationAiProfile = {
   specializationId: SpecializationId;
   baseClass: CharacterClass;
   role: 'burst' | 'sustain' | 'support' | 'tank' | 'skirmish';
+  identity: SpecializationAiIdentity;
   rules: readonly SkillUseRule[];
   tactics: SpecializationAiTactics;
+};
+
+const SPECIALIZATION_AI_IDENTITIES: Record<SpecializationId, SpecializationAiIdentity> = {
+  arcanist: { plan: 'Lock enemies in place, bank Arcane Charge, then spend it on high-impact arcane casts.', desiredRangeFraction: 0.82, priorityTactics: ['control', 'combo', 'defensive', 'filler'] },
+  pyromancer: { plan: 'Maintain Burn, relay it through packs, then detonate the hottest target.', desiredRangeFraction: 0.75, priorityTactics: ['opener', 'combo', 'control', 'filler'] },
+  berserker: { plan: 'Pull enemies into melee, open bleeds, and cash wounds into seismic control.', desiredRangeFraction: 0.28, priorityTactics: ['opener', 'combo', 'sustain', 'filler'] },
+  slayer: { plan: 'Mark a priority target, blink through it, and execute during health windows.', desiredRangeFraction: 0.22, priorityTactics: ['opener', 'combo', 'defensive', 'filler'] },
+  cardinal: { plan: 'Keep allies alive first, then link and punish enemies during stable windows.', desiredRangeFraction: 0.72, priorityTactics: ['defensive', 'sustain', 'control', 'filler'] },
+  theurge: { plan: 'Maintain buffs, seal packs, and convert positioning into shields and links.', desiredRangeFraction: 0.68, priorityTactics: ['sustain', 'control', 'mobility', 'filler'] },
+  hawkeye: { plan: 'Mark from range, control the lane, then spend the mark on precision shots.', desiredRangeFraction: 0.9, priorityTactics: ['opener', 'combo', 'control', 'filler'] },
+  phantom_ranger: { plan: 'Set shadow traps, hide or reposition, then poison marked targets.', desiredRangeFraction: 0.86, priorityTactics: ['opener', 'control', 'mobility', 'combo'] },
+  templar_knight: { plan: 'Hook enemies into guard range, keep shields active, and hold aggro.', desiredRangeFraction: 0.32, priorityTactics: ['defensive', 'control', 'sustain', 'filler'] },
+  dark_avenger: { plan: 'Force enemies to focus you, reflect damage, then drain value from taunts.', desiredRangeFraction: 0.3, priorityTactics: ['sustain', 'control', 'combo', 'filler'] },
+  phoenix_knight: { plan: 'Enter with shields, burn the melee pocket, and recover through holy pressure.', desiredRangeFraction: 0.34, priorityTactics: ['defensive', 'opener', 'sustain', 'filler'] },
+  evas_templar: { plan: 'Cleanse first, layer shields, and keep holy pressure while allies stabilize.', desiredRangeFraction: 0.62, priorityTactics: ['defensive', 'sustain', 'control', 'filler'] },
+  treasure_hunter: { plan: 'Reveal loot, create false openings, then cash marked targets with lucky strikes.', desiredRangeFraction: 0.38, priorityTactics: ['opener', 'combo', 'control', 'sustain'] },
+  plains_walker: { plan: 'Dash through poison windows, split phantoms, and keep speed advantage.', desiredRangeFraction: 0.34, priorityTactics: ['mobility', 'combo', 'defensive', 'filler'] },
 };
 
 export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, SpecializationAiProfile> = {
@@ -80,11 +103,13 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   pyromancer: profile('pyromancer', 'burst', [
     enemy('combustion_bloom', { targetHasEffect: 'burn' }),
+    enemy('ember_relay', { targetHasEffect: 'burn' }, undefined, 'combo'),
     enemy('meteor', { targetHasEffect: 'burn' }),
     enemy('cataclysm_rings'),
     enemy('inferno_aura', { targetMissingEffect: 'burn' }),
     enemy('magma_chain', { targetMissingEffect: 'burn' }),
     enemy('fireball', { targetMissingEffect: 'burn' }),
+    enemy('ember_relay'),
     enemy('combustion_bloom'),
     enemy('meteor'),
     enemy('magma_chain'),
@@ -94,6 +119,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     self('blood_magnet', { casterMissingEffect: 'attackSpeed' }),
     self('blood_frenzy', { casterMissingEffect: 'bless' }),
     self('rage', { casterMissingEffect: 'bless' }),
+    enemy('seismic_rend', { targetHasEffect: 'dot' }, undefined, 'combo'),
     enemy('momentum_strike'),
     enemy('powerStrike', { targetHasEffect: 'stun' }),
     enemy('bash', { targetHasEffect: 'dot' }),
@@ -127,6 +153,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     self('mirror_spell'),
     self('waygate', { casterMissingEffect: 'speed_boost' }),
     self('echoing_benediction'),
+    enemy('harmonic_seal', { targetMissingEffect: 'silence' }, undefined, 'control'),
     enemy('portal_pair'),
     self('empower', { casterMissingEffect: 'bless' }),
     self('bless', { casterMissingEffect: 'bless' }),
@@ -151,6 +178,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   phantom_ranger: profile('phantom_ranger', 'skirmish', [
     self('silent_step', { casterMissingEffect: 'invisible' }),
     enemy('umbra_mine', { targetMissingEffect: 'marked' }),
+    enemy('nightfall_net', { targetHasEffect: 'marked' }, undefined, 'combo'),
     enemy('phase_step'),
     enemy('shadow_arrow'),
     self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
@@ -173,6 +201,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   dark_avenger: profile('dark_avenger', 'sustain', [
     self('spectral_guard', { casterMissingEffect: 'damageReflect' }),
     self('reflection_contract'),
+    enemy('pain_dividend', { targetHasEffect: 'taunt' }, undefined, 'sustain'),
     enemy('vengeance_tether', { targetMissingEffect: 'taunt' }),
     enemy('soul_eater', { targetHealthBelowPct: 0.5 }),
     enemy('shadow_strike'),
@@ -184,6 +213,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   phoenix_knight: profile('phoenix_knight', 'tank', [
     self('rebirth', { casterHealthBelowPct: 0.35, casterMissingEffect: 'shield' }),
     self('phoenix_ward', { casterHealthBelowPct: 0.85, casterMissingEffect: 'shield' }),
+    self('cinder_halo', { casterMissingEffect: 'shield' }),
     enemy('sunbreak_charge', { casterMissingEffect: 'shield' }),
     enemy('phoenix_leap', { casterMissingEffect: 'shield' }),
     self('divineShield', { casterHealthBelowPct: 0.65, casterMissingEffect: 'shield' }),
@@ -205,6 +235,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   treasure_hunter: profile('treasure_hunter', 'skirmish', [
     self('treasure_sense', { casterMissingEffect: 'reveal_loot' }),
     enemy('lucky_strike', { targetHealthBelowPct: 0.5 }),
+    enemy('loaded_mirage', { targetHasEffect: 'marked' }, undefined, 'combo'),
     enemy('jackpot_snare', { targetMissingEffect: 'marked' }),
     enemy('puppet_mastery', { targetHealthAbovePct: 0.5 }),
     enemy('backstab', { casterHasEffect: 'invisible' }),
@@ -249,7 +280,7 @@ export function createSpecializationAiPolicy(specializationId: SpecializationId)
     if (context.player.castingSkill) return [];
     const target = nearestEntity(context.player, context.hostiles);
     for (const rule of profile.rules) {
-      const action = actionForRule(context, rule, target);
+      const action = actionForRule(context, profile, rule, target);
       if (action.length > 0) return action;
     }
     return fallback(context);
@@ -323,7 +354,14 @@ function profile(
   role: SpecializationAiProfile['role'],
   rules: readonly SkillUseRule[],
 ): SpecializationAiProfile {
-  return { specializationId, baseClass: SPECIALIZATIONS[specializationId].baseClass, role, rules, tactics: buildTactics(rules) };
+  return {
+    specializationId,
+    baseClass: SPECIALIZATIONS[specializationId].baseClass,
+    role,
+    identity: SPECIALIZATION_AI_IDENTITIES[specializationId],
+    rules,
+    tactics: buildTactics(rules),
+  };
 }
 
 function buildTactics(rules: readonly SkillUseRule[]): SpecializationAiTactics {
@@ -353,20 +391,21 @@ function inferTactic(rule: SkillUseRule, index: number): SkillUseTactic {
   return index < 3 ? 'opener' : 'filler';
 }
 
-function enemy(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number): SkillUseRule {
-  return { skillId, target: 'enemy', when, desiredRangeFraction };
+function enemy(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number, tactic?: SkillUseTactic): SkillUseRule {
+  return { skillId, target: 'enemy', when, desiredRangeFraction, tactic };
 }
 
-function self(skillId: SkillId, when?: SkillUseCondition): SkillUseRule {
-  return { skillId, target: 'self', when };
+function self(skillId: SkillId, when?: SkillUseCondition, tactic?: SkillUseTactic): SkillUseRule {
+  return { skillId, target: 'self', when, tactic };
 }
 
-function ally(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number): SkillUseRule {
-  return { skillId, target: 'ally', when, desiredRangeFraction };
+function ally(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number, tactic?: SkillUseTactic): SkillUseRule {
+  return { skillId, target: 'ally', when, desiredRangeFraction, tactic };
 }
 
 function actionForRule(
   context: PlayerAiContext,
+  profile: SpecializationAiProfile,
   rule: SkillUseRule,
   target: SimEntity | null,
 ): SimulationAction[] {
@@ -379,11 +418,11 @@ function actionForRule(
   if (rule.target === 'ally') {
     const allyTarget = mostInjuredAlly(context);
     if (!allyTarget || !conditionMatches(rule.when, context, allyTarget)) return [];
-    return engageTarget(context, allyTarget, rule.skillId, rule.desiredRangeFraction);
+    return engageTarget(context, profile, allyTarget, rule.skillId, rule.desiredRangeFraction);
   }
   if (!conditionMatches(rule.when, context, target)) return [];
   if (!target) return [];
-  return engageTarget(context, target, rule.skillId, rule.desiredRangeFraction);
+  return engageTarget(context, profile, target, rule.skillId, rule.desiredRangeFraction);
 }
 
 function conditionMatches(
@@ -405,13 +444,15 @@ function conditionMatches(
 
 function engageTarget(
   context: PlayerAiContext,
+  profile: SpecializationAiProfile,
   target: SimEntity,
   skillId: SkillId,
-  desiredRangeFraction = 0.8,
+  desiredRangeFraction?: number,
 ): SimulationAction[] {
   const range = skillRange(skillId);
   if (context.distanceTo(target) > range) {
-    return [{ type: 'moveTo', targetPos: approachPoint(context.player.position, target.position, range, desiredRangeFraction) }];
+    const desired = desiredRangeFraction ?? profile.identity.desiredRangeFraction;
+    return [{ type: 'moveTo', targetPos: approachPoint(context.player.position, target.position, range, desired) }];
   }
   const actions: SimulationAction[] = [];
   if (context.player.movement?.isMoving) actions.push({ type: 'stopMoving' });

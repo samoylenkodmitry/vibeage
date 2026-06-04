@@ -1,5 +1,4 @@
-// PR UU — `SKILL_IDS` is the canonical list; `SkillId` + the Zod
-// schema in `protocol/common.ts` both derive from it.
+// PR UU — `SKILL_IDS`, `SkillId`, and the Zod schema in `protocol/common.ts` derive from the same list.
 import { BOSS_SIGNATURE_SKILL_IDS } from './bossSkills.js';
 export const SKILL_IDS = [
   'basicAttack', 'escape',
@@ -19,7 +18,7 @@ export const SKILL_IDS = [
   'magma_chain', 'duelist_lunge', 'phoenix_leap', 'aegis_relay',
   'phase_prison', 'tripwire_volley', 'guardian_hook', 'lifeline_swap',
   'combustion_bloom', 'blood_magnet', 'echoing_benediction', 'umbra_mine',
-  'vengeance_tether', 'sunbreak_charge', 'tidal_barrier', 'jackpot_snare', 'razorwind_step', 'stasis_lattice', 'blade_reversal', 'sanctuary_gate', 'ricochet_prism', 'bulwark_zone', 'purifying_mirror', 'phantom_split',
+  'vengeance_tether', 'sunbreak_charge', 'tidal_barrier', 'jackpot_snare', 'razorwind_step', 'stasis_lattice', 'blade_reversal', 'sanctuary_gate', 'ricochet_prism', 'bulwark_zone', 'purifying_mirror', 'phantom_split', 'ember_relay', 'seismic_rend', 'harmonic_seal', 'nightfall_net', 'pain_dividend', 'cinder_halo', 'loaded_mirage',
   // Proficiency skills (PROFICIENCY_LEVEL = Lv 40).
   'arcane_supremacy', 'time_sphere', 'inferno_aura', 'blood_frenzy', 'killing_strike',
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
@@ -218,6 +217,7 @@ export interface SkillUpgradeModifiers {
 }
 
 import { SPEC_AND_PROFICIENCY_SKILLS } from './specSkillsData.js';
+import { ROTATION_BATCH_SKILLS } from './rotationSkillsData.js';
 import { withGeneratedSkillIcons } from './skillIcons.js';
 export { skillIconPath } from './skillIcons.js';
 
@@ -693,7 +693,7 @@ import { MOB_SKILLS } from './mobSkills.js';
 import { BOSS_SIGNATURE_SKILLS } from './bossSkills.js';
 export const SKILLS = withGeneratedSkillIcons(
   withSkillReactions(
-    { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>,
+    { ...BASE_SKILLS, ...SPEC_AND_PROFICIENCY_SKILLS, ...ROTATION_BATCH_SKILLS, ...PASSIVE_SKILLS, ...MOB_SKILLS, ...BOSS_SIGNATURE_SKILLS } as unknown as Record<SkillId, SkillDef>,
   ),
 );
 export { isPassiveSkill } from './classPassives.js';

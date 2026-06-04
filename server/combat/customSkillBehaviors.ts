@@ -36,6 +36,7 @@ import {
   tauntHostilesInRadius,
   targetOf,
 } from './skillMechanicPrimitives.js';
+import { ROTATION_SKILL_BEHAVIORS } from './rotationSkillBehaviors.js';
 
 export type CustomSkillBehavior = (cast: Cast, world: CombatWorld, now: number, outbound?: OutboundEventSink) => void;
 
@@ -52,6 +53,7 @@ const SUPPORT_CLEANSE_TYPES = ['burn', 'poison', 'dot', 'slow', 'freeze', 'stun'
  * data; this map is the documented exception, not a parallel system.
  */
 export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
+  ...ROTATION_SKILL_BEHAVIORS,
   /**
    * Warband Howl — rally every alive packmate in range onto the caster's
    * current target, regardless of their AI state. Bespoke because it
