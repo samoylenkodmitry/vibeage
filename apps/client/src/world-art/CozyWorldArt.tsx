@@ -46,10 +46,9 @@ import type { WorldArtScene } from './worldArtScenes';
  *   Lanterns         — small flickering pointLight at each lantern
  *
  * The distant-mountain horizon ring and the GLB pine forest used to live here
- * too; both were lifted out — the horizon ring is now WorldHorizonMountains
- * (follows focus, world-wide) and the trees are now the global WorldFoliage,
- * so there's no duplicate foliage layer and no tree/horizon boundary at the
- * cozy-coast radius.
+ * too; both were lifted out — the mountain ring was later removed entirely, and
+ * the trees are now the global WorldFoliage, so there's no duplicate foliage
+ * layer and no tree/horizon boundary at the cozy-coast radius.
  */
 
 export function CozyWorldArt({ scene }: { scene: WorldArtScene }) {

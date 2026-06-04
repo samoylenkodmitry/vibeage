@@ -32,7 +32,6 @@ import {
 } from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
-import { WorldHorizonMountains } from './WorldHorizonMountains';
 import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from './SceneVfx';
 import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
@@ -96,7 +95,6 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
       <WorldEnvironment focus={focus} />
-      <WorldHorizonMountains focus={focus} />
       <WorldFoliage focus={focus} quality={worldArtQuality} />
       {/* Water is anchored to the starter coast waterline (visible from inland);
           the rest of the cozy art is scene-bound. */}
