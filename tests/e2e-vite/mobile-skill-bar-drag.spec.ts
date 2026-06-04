@@ -14,7 +14,6 @@ test.setTimeout(120_000);
 test('touch: dragging a skill onto an empty bar slot binds it', async ({ page }) => {
   await enterWorld(page, `MobBarDrag${Date.now()}`);
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 5_000 }); } catch { /* no welcome */ }
-  await page.waitForTimeout(1_000);
 
   const source = page.locator('.actions-panel .action-button').first();
   await expect(source).toBeVisible();
@@ -27,13 +26,8 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
   });
   expect(onTop, 'skill source must be on top, not under the chat panel').toBe(true);
 
-  const slots = page.locator('.skill-bar-slot');
-  let idx = -1;
-  for (let i = 0; i < (await slots.count()); i += 1) {
-    if (/empty/i.test((await slots.nth(i).textContent()) ?? '')) { idx = i; break; }
-  }
-  expect(idx, 'need an empty bar slot to drop onto').toBeGreaterThanOrEqual(0);
-  const slot = slots.nth(idx);
+  const slot = page.locator('.skill-bar-slot').filter({ hasText: /empty/i }).first();
+  await expect(slot, 'need an empty bar slot to drop onto').toBeVisible();
 
   const sb = (await source.boundingBox())!;
   const tb = (await slot.boundingBox())!;

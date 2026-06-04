@@ -1008,6 +1008,9 @@ input {
 
 .inventory-panel {
   position: absolute;
+  /* Above the passive chat log (z4) so its bottom slots stay touch-droppable
+     where the chat box overlaps them on mobile (chat bottom:96 vs this bottom:18). */
+  z-index: 7;
   right: 18px;
   bottom: 18px;
   display: grid;
@@ -4061,6 +4064,8 @@ input {
 
 .paperdoll-panel {
   position: absolute;
+  /* Openable panel layer — above the passive chat log (z4). */
+  z-index: 7;
   right: 18px;
   top: 96px;
   display: grid;
@@ -4272,6 +4277,8 @@ input {
    composes with everything else. */
 .craft-panel {
   position: absolute;
+  /* Openable panel layer — above the passive chat log (z4). */
+  z-index: 7;
   right: 18px;
   top: 80px;
   display: grid;
@@ -4588,6 +4595,8 @@ button.character-option {
 
 .character-panel {
   position: absolute;
+  /* Openable panel layer — above the passive chat log (z4). */
+  z-index: 7;
   left: 18px;
   top: 240px;
   display: grid;
