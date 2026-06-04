@@ -36,13 +36,13 @@ try {
   }, undefined, { timeout: 30_000 });
   log('online');
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 4000 }); } catch { /* no welcome */ }
-  // The smoke account may be dead — respawn to a safe spawn point.
-  for (let i = 0; i < 3; i += 1) {
-    try {
-      await page.getByRole('button', { name: /^Respawn$/i }).click({ timeout: 3000 });
-      log('respawned');
-      await page.waitForTimeout(2500);
-    } catch { break; }
+  // The smoke account may be dead — respawn to a safe spawn point. Only act if
+  // the button is actually present (no fixed wait when already alive).
+  const respawn = page.getByRole('button', { name: /^Respawn$/i });
+  for (let i = 0; i < 3 && await respawn.isVisible().catch(() => false); i += 1) {
+    await respawn.click();
+    log('respawned');
+    await page.waitForTimeout(2500);
   }
   // Close any open HUD panels (account state may have Stats/Actions/Bag open) so
   // the 3D world is unobstructed.
