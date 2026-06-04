@@ -21,9 +21,12 @@ import { GRASS_GEOMETRY, GRASS_MATERIAL, GRASS_WIND } from './world-art/grassBla
  * One instanced draw per chunk, all sharing the blade geometry + wind material.
  */
 export const GRASS_CHUNK = 24; // metres per grass chunk
-const BLADE_CELL = 0.85;      // metres per candidate blade slot (fine grid)
-const CELLS = Math.round(GRASS_CHUNK / BLADE_CELL);
-const DENSITY_BOOST = 0.9;    // grassDensity → fill probability; <1 leaves natural
+const CELLS = 30;                       // fine blade slots per chunk axis
+const BLADE_CELL = GRASS_CHUNK / CELLS; // 0.8 m — divides the chunk EXACTLY, so the
+                                        // fine grid tiles seamlessly across chunk
+                                        // seams (a non-integer ratio leaves a ~1-cell
+                                        // gap/overlap stripe at every boundary)
+const DENSITY_BOOST = 0.85;   // grassDensity → fill probability; <1 leaves natural
                               // patchiness instead of a saturated flat sheet
 
 type Blade = { x: number; y: number; z: number; scale: number; rot: number; r: number; g: number; b: number };
@@ -71,7 +74,6 @@ export function WorldGrassField({ focus, quality }: { focus: Vec3D; quality: Wor
   }, [cx, cz, radius]);
   // One clock advances the shared tip sway for every chunk.
   useFrame((_, delta) => { GRASS_WIND.uTime.value += delta; });
-  if (quality === 'low') return null;
   return (
     <group>
       {chunks.map((c) => <GrassChunk key={`${c.x}:${c.z}`} originX={c.x} originZ={c.z} />)}
