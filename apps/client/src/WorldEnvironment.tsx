@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -31,7 +31,6 @@ type DayCycleRefs = {
   directional: React.MutableRefObject<THREE.DirectionalLight | null>;
   sunGroup: React.MutableRefObject<THREE.Group | null>;
   sunPointLight: React.MutableRefObject<THREE.PointLight | null>;
-  cloudGroup: React.MutableRefObject<THREE.Group | null>;
   moonGroup: React.MutableRefObject<THREE.Group | null>;
   moonLight: React.MutableRefObject<THREE.PointLight | null>;
 };
@@ -43,36 +42,31 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     directional: useRef<THREE.DirectionalLight>(null),
     sunGroup: useRef<THREE.Group>(null),
     sunPointLight: useRef<THREE.PointLight>(null),
-    cloudGroup: useRef<THREE.Group>(null),
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
   };
-  const moonMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#dde6ff' }), []);
-  const sunMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#fff1a6' }), []);
-  const cloudMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#dff8ff'),
-      transparent: true,
-      opacity: 0.32,
-      depthWrite: false,
-    }),
-    [],
-  );
+  // Lazy useRef (not useMemo) for the disposable materials: useMemo can be evicted
+  // under memory pressure, which would orphan the GPU resource without dispose().
+  const moonMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#dde6ff' });
+  const moonMaterial = moonMaterialRef.current;
+  const sunMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  if (!sunMaterialRef.current) sunMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#fff1a6' });
+  const sunMaterial = sunMaterialRef.current;
   const { scene } = useThree();
 
   useEffect(() => {
     return () => {
-      sunMaterial.dispose();
-      cloudMaterial.dispose();
-      moonMaterial.dispose();
+      sunMaterialRef.current?.dispose();
+      moonMaterialRef.current?.dispose();
     };
-  }, [sunMaterial, cloudMaterial, moonMaterial]);
+  }, []);
 
   // Day-phase palette changes over minutes, so recomputing the
   // keyframe interpolation every frame (60fps) is wasted work.
   // Cache it and refresh at ~5Hz; the per-frame applyDayPhaseToScene
   // still runs every frame for the cheap bits that DO need it
-  // (sun/moon/cloud following the player's focus + cloud rotation).
+  // (sun/moon following the player's focus).
   const paletteRef = useRef(computeDayPhase(Date.now()));
   const paletteAccumRef = useRef(0);
   useInitSceneBackground(scene, paletteRef.current.backgroundColor);
@@ -84,7 +78,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
       paletteAccumRef.current = 0;
       paletteRef.current = computeDayPhase(Date.now());
     }
-    applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette: paletteRef.current, delta });
+    applyDayPhaseToScene({ refs, sunMaterial, scene, focus, palette: paletteRef.current });
   });
 
   return (
@@ -121,13 +115,6 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
           <meshBasicMaterial color="#cfd9ff" transparent opacity={0.16} depthWrite={false} fog={false} />
         </mesh>
         <pointLight ref={refs.moonLight} color="#bcd0ff" intensity={0.0} distance={2_200} />
-      </group>
-      <group ref={refs.cloudGroup}>
-        {CLOUDS.map((cloud) => (
-          <mesh key={cloud.id} position={cloud.position} scale={cloud.scale} material={cloudMaterial}>
-            <sphereGeometry args={[1, 12, 8]} />
-          </mesh>
-        ))}
       </group>
       <NightStars />
       <ShootingStars />
@@ -175,14 +162,12 @@ function useInitSceneFog(scene: THREE.Scene, initialColor: string): void {
   }, [scene]);
 }
 
-function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, palette, delta }: {
+function applyDayPhaseToScene({ refs, sunMaterial, scene, focus, palette }: {
   refs: DayCycleRefs;
   sunMaterial: THREE.MeshBasicMaterial;
-  cloudMaterial: THREE.MeshStandardMaterial;
   scene: THREE.Scene;
   focus: Vec3D;
   palette: ReturnType<typeof computeDayPhase>;
-  delta: number;
 }): void {
   const sunX = focus.x + palette.sunDir.x * SUN_DISTANCE;
   const sunY = palette.sunDir.y * SUN_DISTANCE;
@@ -226,12 +211,6 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
     refs.moonLight.current.intensity = Math.max(0, palette.moonDir.y) * 4.5;
   }
   sunMaterial.color.set(palette.sunColor);
-  cloudMaterial.color.set(palette.cloudColor);
-  cloudMaterial.opacity = palette.cloudOpacity;
-  if (refs.cloudGroup.current) {
-    refs.cloudGroup.current.rotation.y += delta * 0.012;
-    refs.cloudGroup.current.position.set(focus.x, 180, focus.z);
-  }
   if (scene.background instanceof THREE.Color) {
     scene.background.set(palette.backgroundColor);
   }
@@ -241,10 +220,3 @@ function applyDayPhaseToScene({ refs, sunMaterial, cloudMaterial, scene, focus, 
 }
 
 
-const CLOUDS = [
-  { id: 'north-1', position: [-260, 0, -180] as [number, number, number], scale: [34, 8, 12] as [number, number, number] },
-  { id: 'north-2', position: [-220, 12, -160] as [number, number, number], scale: [22, 7, 10] as [number, number, number] },
-  { id: 'east-1', position: [180, 10, -250] as [number, number, number], scale: [42, 8, 14] as [number, number, number] },
-  { id: 'east-2', position: [230, 2, -220] as [number, number, number], scale: [26, 7, 12] as [number, number, number] },
-  { id: 'west-1', position: [-340, -6, 210] as [number, number, number], scale: [38, 7, 13] as [number, number, number] },
-] as const;
