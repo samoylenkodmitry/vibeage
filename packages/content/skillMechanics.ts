@@ -50,6 +50,15 @@ const CUSTOM_MECHANICS: Record<string, readonly string[]> = {
   tripwireVolley: ['Trap', 'Root', 'Knockback'],
   guardianHook: ['Hook', 'Taunt', 'Shield'],
   lifelineSwap: ['Ally Swap', 'Heal', 'Shield'],
+  combustionBloom: ['Burn Detonate', 'Zone', 'Knockback'],
+  bloodMagnet: ['Pull', 'Bleed', 'Attack Speed'],
+  echoingBenediction: ['Chain Heal', 'Shield', 'Buff'],
+  umbraMine: ['Trap', 'Decoy', 'Poison'],
+  vengeanceTether: ['Tether', 'Taunt', 'Reflect'],
+  sunbreakCharge: ['Charge', 'Burn', 'Ally Heal'],
+  tidalBarrier: ['Cleanse', 'Knockback', 'Shield'],
+  jackpotSnare: ['Trap', 'Mark', 'Loot Sense'],
+  razorwindStep: ['Blink', 'Bleed', 'Poison Spread'],
   warbandHowl: ['Pack Rally'],
 };
 

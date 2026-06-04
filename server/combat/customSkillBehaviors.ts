@@ -6,11 +6,16 @@ import {
   addStatus,
   alliedPlayers,
   applyCustomDamage,
+  activeStatus,
   blinkPast,
+  consumeStatus,
+  damageHostilesInRadius,
   emitMaybe,
   forceEnemyChase,
+  healAlliesInRadius,
   healCombatant,
   hostileEntities,
+  injuredAllies,
   impactCenter,
   isEnemy,
   knockAway,
@@ -18,7 +23,9 @@ import {
   nearestHostile,
   pullIntoRange,
   pullToward,
+  removeStatusTypes,
   resolveCaster,
+  spawnDecoy,
   suppressEnemyAggro,
   swapCombatants,
   targetOf,
@@ -28,6 +35,7 @@ export type CustomSkillBehavior = (cast: Cast, world: CombatWorld, now: number, 
 
 /** Fallback rally radius when the skill / mob carries no explicit range. */
 const WARBAND_HOWL_RADIUS = 60;
+const SUPPORT_CLEANSE_TYPES = ['burn', 'poison', 'dot', 'slow', 'freeze', 'stun', 'root', 'silence', 'waterWeakness', 'marked'];
 
 /**
  * Registered custom ability behaviors — the sanctioned escape hatch
@@ -281,6 +289,148 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
     addStatus({ target: caster, type: 'shield', value: 120, durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
     emitMaybe(outbound, ally);
     emitMaybe(outbound, caster);
+  },
+  combustionBloom: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const center = { x: target.position.x, z: target.position.z };
+    const consumedBurn = consumeStatus(target, 'burn', now);
+    const bloomBonus = consumedBurn ? 110 + consumedBurn.value * 18 : 0;
+    for (const enemy of hostileEntities(caster, world, center, 5)) {
+      addStatus({ target: enemy, type: 'burn', value: enemy.id === target.id ? 7 : 4, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      knockAway(enemy, center, consumedBurn ? 1.8 : 0.8, world);
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 175 + bloomBonus : 95 + bloomBonus * 0.45, cast, world, now, outbound });
+    }
+    if (consumedBurn) {
+      addStatus({ target: caster, type: 'bless', value: 16, durationMs: 5000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, caster);
+    }
+  },
+  bloodMagnet: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    if (!caster) return;
+    const center = { x: caster.position.x, z: caster.position.z };
+    const enemies = hostileEntities(caster, world, center, 7);
+    for (const enemy of enemies) {
+      pullIntoRange(enemy, center, 1.6, 6, world);
+      forceEnemyChase(enemy, caster, now);
+      addStatus({ target: enemy, type: 'dot', value: 5, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: 85, cast, world, now, outbound });
+    }
+    if (enemies.length > 0) {
+      addStatus({ target: caster, type: 'attackSpeed', value: 18 + enemies.length * 4, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      addStatus({ target: caster, type: 'shield', value: Math.min(260, 55 * enemies.length), durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, caster);
+    }
+  },
+  echoingBenediction: (cast, world, now, outbound) => {
+    const caster = world.getPlayerById(cast.casterId);
+    if (!caster) return;
+    const center = { x: caster.position.x, z: caster.position.z };
+    const chain = injuredAllies(world, center, 9, 4);
+    if (!chain.some((ally) => ally.id === caster.id)) chain.unshift(caster);
+    chain.slice(0, 4).forEach((ally, index) => {
+      healCombatant(ally, 145 - index * 22);
+      addStatus({ target: ally, type: 'shield', value: 120 - index * 18, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      if (index === 0) addStatus({ target: ally, type: 'bless', value: 12, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, ally);
+    });
+  },
+  umbraMine: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const center = { x: target.position.x, z: target.position.z };
+    spawnDecoy(caster, world, now, { position: { ...target.position }, namePrefix: 'Umbra Decoy', healthMultiplier: 0.14 });
+    for (const enemy of hostileEntities(caster, world, center, 4.25)) {
+      addStatus({ target: enemy, type: 'root', value: 1, durationMs: 1800, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      addStatus({ target: enemy, type: 'poison', value: enemy.id === target.id ? 6 : 3, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      addStatus({ target: enemy, type: 'marked', value: 1, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 115 : 65, cast, world, now, outbound });
+    }
+    addStatus({ target: caster, type: 'invisible', value: 1, durationMs: 2200, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+  },
+  vengeanceTether: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    pullIntoRange(target, caster.position, 3.2, 8, world);
+    forceEnemyChase(target, caster, now);
+    addStatus({ target: caster, type: 'damageReflect', value: 45, durationMs: 7000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id, linkedTargetId: target.id });
+    addStatus({ target, type: 'taunt', value: 1, durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id, linkedTargetId: caster.id });
+    addStatus({ target, type: 'slow', value: 45, durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id, linkedTargetId: caster.id });
+    addStatus({ target, type: 'vengeanceTether', value: 1, durationMs: 7000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id, linkedTargetId: caster.id });
+    applyCustomDamage({ caster, target, rawDamage: 150, cast, world, now, outbound });
+    emitMaybe(outbound, caster);
+  },
+  sunbreakCharge: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    blinkPast(caster, target, 1.6, world);
+    addStatus({ target: caster, type: 'shield', value: 170, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+    const center = { x: caster.position.x, z: caster.position.z };
+    for (const enemy of hostileEntities(caster, world, center, 4.5)) {
+      addStatus({ target: enemy, type: 'burn', value: enemy.id === target.id ? 5 : 3, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 170 : 85, cast, world, now, outbound });
+    }
+    healAlliesInRadius({ world, center, radius: 4.5, amount: 70, outbound });
+  },
+  tidalBarrier: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    if (!caster) return;
+    const center = { x: caster.position.x, z: caster.position.z };
+    for (const enemy of hostileEntities(caster, world, center, 5.75)) {
+      knockAway(enemy, center, 4.5, world);
+      addStatus({ target: enemy, type: 'slow', value: 35, durationMs: 3000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: 70, cast, world, now, outbound });
+    }
+    for (const ally of alliedPlayers(world, center, 6)) {
+      const cleansed = removeStatusTypes(ally, SUPPORT_CLEANSE_TYPES, now);
+      healCombatant(ally, cleansed > 0 ? 95 : 55);
+      addStatus({ target: ally, type: 'shield', value: 155, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, ally);
+    }
+  },
+  jackpotSnare: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const center = { x: target.position.x, z: target.position.z };
+    addStatus({ target: caster, type: 'reveal_loot', value: 1, durationMs: 12000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+    for (const enemy of hostileEntities(caster, world, center, 3.75)) {
+      addStatus({ target: enemy, type: enemy.id === target.id ? 'root' : 'slow', value: enemy.id === target.id ? 1 : 40, durationMs: 2600, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      addStatus({ target: enemy, type: 'marked', value: 1, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 145 : 75, cast, world, now, outbound });
+    }
+  },
+  razorwindStep: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const poisoned = activeStatus(target, 'poison', now);
+    blinkPast(caster, target, 1.9, world);
+    addStatus({ target: caster, type: 'speed_boost', value: 35, durationMs: 3500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+    const center = { x: target.position.x, z: target.position.z };
+    damageHostilesInRadius({
+      caster,
+      world,
+      center,
+      radius: 3.75,
+      cast,
+      now,
+      outbound,
+      rawDamage: (enemy) => enemy.id === target.id ? 125 + (poisoned ? 95 : 0) : 70 + (poisoned ? 35 : 0),
+    }).forEach((enemy) => {
+      addStatus({ target: enemy, type: 'dot', value: 4, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      if (poisoned) addStatus({ target: enemy, type: 'poison', value: 3, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, enemy);
+    });
   },
   projectileCapture: (cast, world, now, outbound) => {
     const caster = world.getPlayerById(cast.casterId);

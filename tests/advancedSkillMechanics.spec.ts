@@ -8,10 +8,15 @@ import { applyResolvedDamageToTarget } from '../server/combat/damageResolution';
 import { tickDamageOverTimeEffects } from '../server/combat/dotTicker';
 import {
   addStatus,
+  activeStatus,
+  consumeStatus,
+  damageHostilesInRadius,
   forceEnemyChase,
+  healAlliesInRadius,
   healCombatant,
   moveCombatant,
   pullIntoRange,
+  removeStatusTypes,
   suppressEnemyAggro,
   swapCombatants,
 } from '../server/combat/skillMechanicPrimitives';
@@ -34,6 +39,7 @@ describe('advanced skill mechanics primitives', () => {
   registerMovementBatchTests();
   registerMultiSpecBatchTests();
   registerDistributedSkillBatchTests();
+  registerIdentitySkillBatchTests();
 });
 
 function registerPrimitiveContractTests() {
@@ -83,6 +89,29 @@ function registerPrimitiveContractTests() {
     addStatus({ target: ally, type: 'shield', value: 20, durationMs: 1000, sourceSkill: 'test', now: NOW + 1 });
     expect(ally.statusEffects.filter((effect) => effect.type === 'shield')).toHaveLength(1);
     expect(ally.statusEffects.find((effect) => effect.type === 'shield')?.value).toBe(20);
+    expect(activeStatus(ally, 'shield', NOW + 2)?.value).toBe(20);
+    expect(consumeStatus(ally, 'shield', NOW + 2)?.value).toBe(20);
+    expect(activeStatus(ally, 'shield', NOW + 2)).toBeNull();
+
+    addStatus({ target: ally, type: 'poison', value: 5, durationMs: 1000, sourceSkill: 'test', now: NOW });
+    addStatus({ target: ally, type: 'slow', value: 30, durationMs: 1000, sourceSkill: 'test', now: NOW });
+    expect(removeStatusTypes(ally, ['poison', 'slow'], NOW + 2)).toBe(2);
+
+    target.health = target.maxHealth;
+    damageHostilesInRadius({
+      caster,
+      world,
+      center: { x: caster.position.x, z: caster.position.z },
+      radius: 20,
+      rawDamage: 50,
+      cast: targetedCast(caster.id, 'basicAttack', target.id, target.position),
+      now: NOW,
+    });
+    expect(target.health).toBeLessThan(target.maxHealth);
+
+    ally.health = 500;
+    healAlliesInRadius({ world, center: { x: caster.position.x, z: caster.position.z }, radius: 20, amount: 40 });
+    expect(ally.health).toBe(540);
   });
 }
 
@@ -455,6 +484,97 @@ function registerDistributedSkillBatchTests() {
     expect(ally.dirtySnap).toBe(true);
     expect(ally.health).toBe(510);
     expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+  });
+}
+
+function registerIdentitySkillBatchTests() {
+  it('Combustion Bloom, Blood Magnet, Echoing Benediction, and Umbra Mine resolve identity mechanics', () => {
+    const spawned: Enemy[] = [];
+    const caster = player('caster', 0, 0, ['combustion_bloom', 'blood_magnet', 'echoing_benediction', 'umbra_mine']);
+    const ally = player('ally', 2, 0);
+    const burnTarget = enemy('burn-target', 8, 0);
+    const burnNearby = enemy('burn-nearby', 10, 0);
+    const magnetTarget = enemy('magnet-target', 6, 1);
+    const mineTarget = enemy('mine-target', 14, 0);
+    const mineNearby = enemy('mine-nearby', 16, 0);
+    ally.health = 500;
+    addStatus({ target: burnTarget, type: 'burn', value: 5, durationMs: 5000, sourceSkill: 'fireball', now: NOW });
+    const world = worldOf([caster, ally], [burnTarget, burnNearby, magnetTarget, mineTarget, mineNearby], spawned);
+
+    resolveCastImpact(targetedCast(caster.id, 'combustion_bloom', burnTarget.id, burnTarget.position), { publish: vi.fn() }, world, NOW);
+    expect(caster.statusEffects.some((effect) => effect.type === 'bless')).toBe(true);
+    expect(burnTarget.health).toBeLessThan(burnTarget.maxHealth);
+    expect(burnNearby.statusEffects.some((effect) => effect.type === 'burn')).toBe(true);
+
+    resolveCastImpact(selfCast(caster.id, 'blood_magnet'), { publish: vi.fn() }, world, NOW + 100);
+    expect(magnetTarget.position.x).toBeLessThan(6);
+    expect(magnetTarget.statusEffects.some((effect) => effect.type === 'dot')).toBe(true);
+    expect(caster.statusEffects.some((effect) => effect.type === 'attackSpeed')).toBe(true);
+    expect(caster.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+
+    resolveCastImpact(selfCast(caster.id, 'echoing_benediction'), { publish: vi.fn() }, world, NOW + 200);
+    expect(ally.health).toBeGreaterThan(500);
+    expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'umbra_mine', mineTarget.id, mineTarget.position), { publish: vi.fn() }, world, NOW + 300);
+    expect(spawned).toHaveLength(1);
+    expect(mineTarget.statusEffects.some((effect) => effect.type === 'root')).toBe(true);
+    expect(mineNearby.statusEffects.some((effect) => effect.type === 'poison')).toBe(true);
+    expect(caster.statusEffects.some((effect) => effect.type === 'invisible')).toBe(true);
+  });
+
+  it('Vengeance Tether, Sunbreak Charge, Tidal Barrier, Jackpot Snare, and Razorwind Step resolve identity mechanics', () => {
+    const caster = player('caster', 0, 0, ['vengeance_tether', 'sunbreak_charge', 'tidal_barrier', 'jackpot_snare', 'razorwind_step']);
+    const ally = player('ally', 10, 0);
+    const tetherTarget = enemy('tether-target', 10, 0);
+    const sunbreakTarget = enemy('sunbreak-target', 8, 0);
+    const barrierEnemy = enemy('barrier-enemy', 3, 0);
+    const snareTarget = enemy('snare-target', 14, 0);
+    const snareNearby = enemy('snare-nearby', 16, 0);
+    const razorTarget = enemy('razor-target', 18, 0);
+    const razorNearby = enemy('razor-nearby', 20, 0);
+    ally.health = 700;
+    addStatus({ target: ally, type: 'poison', value: 5, durationMs: 5000, sourceSkill: 'test', now: NOW });
+    addStatus({ target: razorTarget, type: 'poison', value: 5, durationMs: 5000, sourceSkill: 'test', now: NOW });
+    const world = worldOf([caster, ally], [
+      tetherTarget,
+      sunbreakTarget,
+      barrierEnemy,
+      snareTarget,
+      snareNearby,
+      razorTarget,
+      razorNearby,
+    ]);
+
+    resolveCastImpact(targetedCast(caster.id, 'vengeance_tether', tetherTarget.id, tetherTarget.position), { publish: vi.fn() }, world, NOW);
+    expect(tetherTarget.position.x).toBeCloseTo(3.2, 5);
+    expect(tetherTarget.targetId).toBe(caster.id);
+    expect(tetherTarget.statusEffects.some((effect) => effect.type === 'vengeanceTether')).toBe(true);
+    expect(caster.statusEffects.some((effect) => effect.type === 'damageReflect')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'sunbreak_charge', sunbreakTarget.id, sunbreakTarget.position), { publish: vi.fn() }, world, NOW + 100);
+    expect(caster.position.x).toBeGreaterThan(sunbreakTarget.position.x);
+    expect(sunbreakTarget.statusEffects.some((effect) => effect.type === 'burn')).toBe(true);
+    expect(ally.health).toBeGreaterThan(700);
+
+    caster.position = { x: 0, y: caster.position.y, z: 0 };
+    ally.position = { x: 2, y: ally.position.y, z: 0 };
+    resolveCastImpact(selfCast(caster.id, 'tidal_barrier'), { publish: vi.fn() }, world, NOW + 200);
+    expect(barrierEnemy.position.x).toBeGreaterThan(3);
+    expect(barrierEnemy.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+    expect(ally.statusEffects.some((effect) => effect.type === 'poison')).toBe(false);
+    expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'jackpot_snare', snareTarget.id, snareTarget.position), { publish: vi.fn() }, world, NOW + 300);
+    expect(caster.statusEffects.some((effect) => effect.type === 'reveal_loot')).toBe(true);
+    expect(snareTarget.statusEffects.some((effect) => effect.type === 'root')).toBe(true);
+    expect(snareNearby.statusEffects.some((effect) => effect.type === 'marked')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'razorwind_step', razorTarget.id, razorTarget.position), { publish: vi.fn() }, world, NOW + 400);
+    expect(caster.position.x).toBeGreaterThan(razorTarget.position.x);
+    expect(caster.statusEffects.some((effect) => effect.type === 'speed_boost')).toBe(true);
+    expect(razorTarget.health).toBeLessThan(razorTarget.maxHealth);
+    expect(razorNearby.statusEffects.some((effect) => effect.type === 'poison')).toBe(true);
   });
 }
 
