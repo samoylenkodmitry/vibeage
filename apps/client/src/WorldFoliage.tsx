@@ -1,5 +1,6 @@
 import { Suspense, memo, useMemo } from 'react';
 import { useRef, useLayoutEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { InstancedGltf } from './world-art/InstancedGltf';
@@ -37,6 +38,9 @@ export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldA
   const radius = foliageRadius(quality);
   const chunks = useMemo(() => visibleFoliageChunks(c.cx, c.cz, radius), [c.cx, c.cz, radius]);
   const grassOn = quality !== 'low';
+  // One shared clock advances every grass chunk's tip sway (all chunks share the
+  // grass material + wind uniform), so the meadow ripples together cheaply.
+  useFrame((_, delta) => { GRASS_WIND.uTime.value += delta; });
   return (
     <group>
       {chunks.map((chunk) => (
@@ -76,17 +80,100 @@ const tmpScale = new THREE.Vector3();
 const tmpRot = new THREE.Euler();
 const tmpColor = new THREE.Color();
 
-/** Cheap procedural grass cones for one chunk (one instanced draw). */
+// Shared grass wind state: one uniform set, advanced by WorldFoliage's frame
+// clock, drives every chunk's tip sway (they share GRASS_MATERIAL).
+const GRASS_WIND = { uTime: { value: 0 }, uAmp: { value: 0.16 }, uSpeed: { value: 1.5 } };
+
+/** A clustered grass tuft: several tapered, slightly-curved blades fanned around
+ *  the root. Built once and instanced per clump. Blades carry a root→tip
+ *  brightness gradient in vertex color (multiplied by each clump's instance
+ *  tint); normals point up for soft, even stylized lighting (no dark edges).
+ *  Each blade quad is indexed twice — once per winding — so both sides render as
+ *  front faces with the up normals intact (FrontSide material), avoiding the
+ *  flipped-normal black backfaces that DoubleSide would give. */
+function buildGrassTuftGeometry(): THREE.BufferGeometry {
+  const BLADES = 5;
+  const SEG = 4;
+  const pos: number[] = [];
+  const col: number[] = [];
+  const nor: number[] = [];
+  const idx: number[] = [];
+  let vbase = 0;
+  for (let b = 0; b < BLADES; b += 1) {
+    const ang = (b / BLADES) * Math.PI * 2 + b * 1.7;
+    const dirX = Math.cos(ang), dirZ = Math.sin(ang);
+    const perpX = -dirZ, perpZ = dirX;
+    const height = 0.62 + (b % 4) * 0.1;
+    const lean = 0.14 + (b % 3) * 0.06;
+    const baseW = 0.05;
+    for (let s = 0; s <= SEG; s += 1) {
+      const t = s / SEG;
+      const w = baseW * (1 - t);
+      const y = height * t;
+      const bend = lean * t * t;
+      const cx = dirX * bend, cz = dirZ * bend;
+      const shade = 0.45 + 0.55 * t; // darker at the root, bright at the tip
+      pos.push(cx + perpX * w, y, cz + perpZ * w, cx - perpX * w, y, cz - perpZ * w);
+      col.push(shade, shade, shade, shade, shade, shade);
+      nor.push(0, 1, 0, 0, 1, 0);
+    }
+    for (let s = 0; s < SEG; s += 1) {
+      const a = vbase + s * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); // front
+      idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); // back (reversed winding)
+    }
+    vbase += (SEG + 1) * 2;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return g;
+}
+
+const GRASS_GEOMETRY = buildGrassTuftGeometry();
+
+const GRASS_MATERIAL = (() => {
+  // FrontSide, not DoubleSide: the geometry already bakes reversed-winding back
+  // faces, so both sides render with their up-facing (0,1,0) normals intact.
+  // DoubleSide would flip backface normals downward → unlit/black blades.
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = GRASS_WIND.uTime;
+    shader.uniforms.uAmp = GRASS_WIND.uAmp;
+    shader.uniforms.uSpeed = GRASS_WIND.uSpeed;
+    shader.vertexShader = 'uniform float uTime;\nuniform float uAmp;\nuniform float uSpeed;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         // Per-clump phase from its world origin so blades don't sway in lockstep;
+         // displacement scales with local height so roots stay planted, tips bend.
+         #ifdef USE_INSTANCING
+         vec3 gOrigin = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+         #else
+         vec3 gOrigin = vec3(0.0);
+         #endif
+         float gPhase = gOrigin.x * 0.21 + gOrigin.z * 0.17;
+         float gSway = sin(uTime * uSpeed + gPhase) + 0.4 * sin(uTime * uSpeed * 1.9 + gPhase * 0.5);
+         transformed.x += gSway * uAmp * transformed.y;
+         transformed.z += cos(uTime * uSpeed * 0.8 + gPhase) * uAmp * 0.5 * transformed.y;`,
+      );
+  };
+  return m;
+})();
+
+/** Procedural grass tufts for one chunk (one instanced draw, shared geo+material). */
 function GrassClumps({ instances }: { instances: FoliageInstance[] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
     instances.forEach((inst, i) => {
-      tmpPos.set(inst.x, inst.y + 0.45 * inst.scale, inst.z);
+      tmpPos.set(inst.x, inst.y, inst.z);
       tmpRot.set(0, inst.rotation, 0);
       tmpQuat.setFromEuler(tmpRot);
-      tmpScale.set(inst.scale, inst.scale, inst.scale);
+      tmpScale.set(inst.scale, inst.scale * 1.15, inst.scale);
       tmpMatrix.compose(tmpPos, tmpQuat, tmpScale);
       mesh.setMatrixAt(i, tmpMatrix);
       mesh.setColorAt(i, tmpColor.set(inst.color));
@@ -100,9 +187,6 @@ function GrassClumps({ instances }: { instances: FoliageInstance[] }) {
     mesh.computeBoundingSphere();
   }, [instances]);
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, Math.max(1, instances.length)]} castShadow receiveShadow>
-      <coneGeometry args={[0.22, 0.9, 6]} />
-      <meshStandardMaterial roughness={0.88} vertexColors />
-    </instancedMesh>
+    <instancedMesh ref={ref} args={[GRASS_GEOMETRY, GRASS_MATERIAL, Math.max(1, instances.length)]} receiveShadow />
   );
 }
