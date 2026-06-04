@@ -1008,6 +1008,9 @@ input {
 
 .inventory-panel {
   position: absolute;
+  /* Above the passive chat log (z4) so its bottom slots stay touch-droppable
+     where the chat box overlaps them on mobile (chat bottom:96 vs this bottom:18). */
+  z-index: 7;
   right: 18px;
   bottom: 18px;
   display: grid;
@@ -2055,7 +2058,10 @@ input {
   position: absolute;
   bottom: 130px;
   right: 18px;
-  z-index: 7;
+  /* Below the interactive bars (skill-bar z5, actions-panel z6): the chat is a
+     passive log and must not capture touches on the skills/slots it overlaps on
+     mobile (where it's a full-width bottom box). Fixes drag-to-bar on touch. */
+  z-index: 4;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   width: min(320px, calc(100vw - 36px));
@@ -4058,6 +4064,8 @@ input {
 
 .paperdoll-panel {
   position: absolute;
+  /* Openable panel layer — above the passive chat log (z4). */
+  z-index: 7;
   right: 18px;
   top: 96px;
   display: grid;
@@ -4269,6 +4277,8 @@ input {
    composes with everything else. */
 .craft-panel {
   position: absolute;
+  /* Openable panel layer — above the passive chat log (z4). */
+  z-index: 7;
   right: 18px;
   top: 80px;
   display: grid;
@@ -4585,6 +4595,8 @@ button.character-option {
 
 .character-panel {
   position: absolute;
+  /* Openable panel layer — above the passive chat log (z4). */
+  z-index: 7;
   left: 18px;
   top: 240px;
   display: grid;
