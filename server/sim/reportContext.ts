@@ -1,6 +1,6 @@
 import { GAME_ACTIONS } from '../../packages/content/actions.js';
-import { BOSS_GEAR_SETS } from '../../packages/content/bossGear.js';
 import { CLASS_SKILL_TREES } from '../../packages/content/classes.js';
+import { EQUIPMENT_SETS } from '../../packages/content/equipmentSets.js';
 import { EFFECT_SPECS } from '../../packages/content/effects.js';
 import { ENEMY_TEMPLATES } from '../../packages/content/enemies.js';
 import { ITEMS } from '../../packages/content/items.js';
@@ -84,7 +84,7 @@ function createContentSnapshot(commitSha: string): SimContentSnapshot {
     npcs: Object.keys(QUEST_NPCS).length,
     vendors: Object.keys(VENDORS).length,
     lootTables: Object.keys(LOOT_TABLES).length,
-    gearSets: Object.keys(BOSS_GEAR_SETS).length,
+    gearSets: Object.keys(EQUIPMENT_SETS).length,
     miniBosses: Object.keys(MINI_BOSSES).length,
     races: CHARACTER_RACES.length,
     simPolicyProfiles: simPolicyProfiles().length,

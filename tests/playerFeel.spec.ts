@@ -68,6 +68,20 @@ describe('player feel cadence metrics', () => {
     expect(summary.beatCounts.quest).toBeGreaterThan(0);
   });
 
+  it('surfaces high-progression gear, economy, and objective beats', () => {
+    const summary = estimatePlayerFeel({
+      className: 'warrior',
+      startingLevel: 40,
+      horizonHours: 1,
+    });
+
+    expect(summary.beatCounts.gear).toBeGreaterThan(0);
+    expect(summary.beatCounts.economy).toBeGreaterThan(0);
+    expect(summary.beatCounts.objective).toBeGreaterThan(0);
+    expect(summary.beats.some((beat) => beat.label.includes('Zero-Hour Loop'))).toBe(true);
+    expect(summary.beats.some((beat) => beat.label.includes('Riftcall Gloves'))).toBe(true);
+  });
+
   it('builds cadence rows for every class at requested horizons', () => {
     const rows = estimateFeelForClasses([1, 24]);
 

@@ -25,58 +25,13 @@ import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
   SpellCore, SpellProjectile, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset,
-  type SpellElement, type SpellForm, type SpellMechanic,
 } from './vfx/spellFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
 import { getCastEffectRadius, getTimeStopDurationMs } from './vfx/castVfxConfig';
+import { skillThemeFor, type SkillTheme } from './vfx/skillThemeConfig';
 import { TimeSphereDome } from './vfx/timeSphereFx';
-
-type SkillTheme = {
-  core: string;
-  glow: string;
-  accent: string;
-  shape: 'sphere' | 'crystal' | 'stone';
-  /** Selects an element-specific shader surface; omit for the generic energy orb. */
-  element?: SpellElement;
-  /** Projectile silhouette; omit for the orb. */
-  form?: SpellForm;
-  /** Delivery mechanic. 'projectile' (default) flies A→B; 'strike' slams down
-   *  from the sky and 'erupt' bursts from the ground at the target (no flight). */
-  mechanic?: SpellMechanic;
-};
-
-const SKILL_THEMES: Partial<Record<CastSnapshot['skillId'], SkillTheme>> = {
-  fireball: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'arc' },
-  iceBolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard', mechanic: 'spiral' },
-  waterSplash: { core: '#7dd3fc', glow: '#38bdf8', accent: '#8de9d7', shape: 'sphere', mechanic: 'deluge' },
-  petrify: { core: '#a8a29e', glow: '#d6d3d1', accent: '#facc15', shape: 'stone', mechanic: 'erupt' },
-  smite: { core: '#fef9c3', glow: '#facc15', accent: '#fde68a', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  arrowShot: { core: '#bbf7d0', glow: '#22c55e', accent: '#86efac', shape: 'crystal', form: 'arrow', mechanic: 'lance' },
-  volley: { core: '#bbf7d0', glow: '#16a34a', accent: '#86efac', shape: 'crystal', form: 'arrow', mechanic: 'lance' },
-  poisonBlade: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb', mechanic: 'arc' },
-  holyLight: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  arcane_blast: { core: '#c4b5fd', glow: '#8b5cf6', accent: '#a78bfa', shape: 'sphere', element: 'arcane', form: 'bolt', mechanic: 'spiral' },
-  time_sphere: { core: '#ddd6fe', glow: '#8b5cf6', accent: '#67e8f9', shape: 'sphere', element: 'arcane', form: 'orb' },
-  meteor: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', mechanic: 'strike' },
-  inferno_aura: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'nova' },
-  greater_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  mass_heal: { core: '#fef9c3', glow: '#fef08a', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  sacred_pulse: { core: '#fef9c3', glow: '#fde047', accent: '#fff7ad', shape: 'sphere', element: 'holy', mechanic: 'strike' },
-  mobFirebolt: { core: '#ff6a1a', glow: '#f97316', accent: '#facc15', shape: 'sphere', element: 'fire', form: 'comet', mechanic: 'arc' },
-  mobFrostbolt: { core: '#bfdbfe', glow: '#60a5fa', accent: '#67e8f9', shape: 'crystal', element: 'ice', form: 'shard', mechanic: 'spiral' },
-  mobPoisonBite: { core: '#a7f3d0', glow: '#10b981', accent: '#86efac', shape: 'crystal', element: 'poison', form: 'orb', mechanic: 'arc' },
-};
-
-const DEFAULT_SKILL_THEME: SkillTheme = {
-  core: '#c4b5fd',
-  glow: '#8b5cf6',
-  accent: '#a78bfa',
-  shape: 'sphere',
-  element: 'arcane',
-  form: 'bolt',
-};
 
 const LOOT_SPARKS = [
   { angle: 0.2, height: 0.28, radius: 0.72 },
@@ -243,11 +198,11 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
  *  rather than at the caster where the snapshot's pos sits while charging. */
 export function castAnchorsAtTarget(skillId: CastSnapshot['skillId']): boolean {
   if (skillId === 'time_sphere') return true;
-  return (SKILL_THEMES[skillId] ?? DEFAULT_SKILL_THEME).mechanic === 'deluge';
+  return skillThemeFor(skillId).mechanic === 'deluge';
 }
 
 export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; frozen?: boolean }) {
-  const theme = SKILL_THEMES[snapshot.skillId] ?? DEFAULT_SKILL_THEME;
+  const theme = skillThemeFor(snapshot.skillId);
   const progress = Math.min(1, snapshot.progressMs / Math.max(1, snapshot.castTimeMs));
 
   // World-space radius the skill affects — sizes the AoE VFX.

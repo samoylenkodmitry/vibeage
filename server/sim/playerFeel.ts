@@ -1,5 +1,7 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
-import { QUESTS } from '../../packages/content/quests.js';
+import { GRADE_MIN_LEVEL } from '../../packages/content/equipmentTypes.js';
+import { ITEMS } from '../../packages/content/items.js';
+import { QUESTS, type QuestDef } from '../../packages/content/quests.js';
 import {
   PROFICIENCY_LEVEL,
   SPECIALIZATION_UNLOCK_LEVEL,
@@ -7,6 +9,7 @@ import {
   type SpecializationId,
 } from '../../packages/content/specializations.js';
 import { type SkillId } from '../../packages/content/skills.js';
+import { VENDORS } from '../../packages/content/vendors.js';
 import { getExperienceToNextLevel } from '../players/playerProgression.js';
 import { createSimulatedEnemy } from './gameSimulator.js';
 import { runPveScenario, type PveScenarioDefinition } from './scenarioCatalog.js';
@@ -191,7 +194,9 @@ function addLevelBeats(progress: FeelProgress, className: CharacterClass, specia
   }
   for (const quest of Object.values(QUESTS).filter((q) => q.minLevel === progress.level)) {
     pushBeat(progress.beats, progress.elapsedMs, 'quest', `Quest available: ${quest.name}`, 1.5);
+    pushQuestRewardAndObjectiveBeats(progress.beats, progress.elapsedMs, quest, 1.2);
   }
+  pushVendorGearBeats(progress.beats, progress.elapsedMs, progress.level);
   if (progress.level === SPECIALIZATION_UNLOCK_LEVEL) {
     const spec = specializationForClass(className, specializationId);
     const label = spec ? `Specialization active: ${spec.name}` : 'Specialization choice available';
@@ -231,6 +236,10 @@ function startingBeats(
   }
   for (const quest of Object.values(QUESTS).filter((q) => q.minLevel <= level)) {
     pushBeat(beats, 0, 'quest', `Quest available: ${quest.name}`, 1);
+    pushQuestRewardAndObjectiveBeats(beats, 0, quest, 0.8);
+  }
+  for (let currentLevel = 1; currentLevel <= level; currentLevel += 1) {
+    pushVendorGearBeats(beats, 0, currentLevel, 0.8);
   }
   const spec = specializationForClass(className, specializationId);
   if (level >= SPECIALIZATION_UNLOCK_LEVEL && spec) {
@@ -249,6 +258,37 @@ function startingBeats(
     }
   }
   return beats;
+}
+
+function pushQuestRewardAndObjectiveBeats(
+  beats: FeelBeat[],
+  atMs: number,
+  quest: QuestDef,
+  weight: number,
+): void {
+  for (const grant of quest.reward.items ?? []) {
+    const item = ITEMS[grant.itemId];
+    if (item?.equip) pushBeat(beats, atMs, 'gear', `Quest gear: ${item.name}`, weight);
+  }
+  if (quest.stages.some((stage) => stage.objective.kind === 'reach')) {
+    pushBeat(beats, atMs, 'objective', `Map objective: ${quest.name}`, Math.max(0.7, weight - 0.2));
+  }
+}
+
+function pushVendorGearBeats(beats: FeelBeat[], atMs: number, level: number, weight = 1): void {
+  for (const vendor of Object.values(VENDORS)) {
+    for (const stock of vendor.stock) {
+      const item = ITEMS[stock.itemId];
+      if (!item?.equip) continue;
+      if (effectiveGearLevel(item) !== level) continue;
+      pushBeat(beats, atMs, 'gear', `Vendor gear: ${item.name}`, weight);
+      pushBeat(beats, atMs, 'economy', `${vendor.name} sells ${item.name} for ${stock.price}g`, Math.max(0.5, weight - 0.3));
+    }
+  }
+}
+
+function effectiveGearLevel(item: (typeof ITEMS)[keyof typeof ITEMS]): number {
+  return Math.max(GRADE_MIN_LEVEL[item.grade ?? 'none'] ?? 1, item.equip?.requirements?.minLevel ?? 1);
 }
 
 function specializationForClass(className: CharacterClass, specializationId?: SpecializationId) {

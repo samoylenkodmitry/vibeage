@@ -1,5 +1,5 @@
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
-import { BOSS_GEAR_SETS } from '../../packages/content/bossGear.js';
+import { EQUIPMENT_SETS } from '../../packages/content/equipmentSets.js';
 import { ITEMS } from '../../packages/content/items.js';
 import { LOOT_TABLES } from '../../packages/content/lootTables.js';
 import { QUESTS } from '../../packages/content/quests.js';
@@ -143,7 +143,7 @@ export function questRewardMilestones(levels: readonly number[] = SIM_LEVEL_CHEC
 }
 
 export function gearSetMilestones(): GearSetMilestone[] {
-  return Object.values(BOSS_GEAR_SETS).map((set) => {
+  return Object.values(EQUIPMENT_SETS).map((set) => {
     const pieces = [...set.requiredPieces];
     const grades = [...new Set(pieces.map((id) => ITEMS[id]?.grade ?? 'none'))];
     return {

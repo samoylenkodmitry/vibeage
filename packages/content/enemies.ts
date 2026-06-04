@@ -185,6 +185,16 @@ const TEMPLATES: EnemyTemplate[] = [
   template('chrono_stalker', 'Chrono Stalker', 'aberration', { color: '#facc15', height: 1.3, shape: 'box', glow: true }, { health: 1.2, damage: 1.4, movementSpeed: 1.3, aggroRadius: 1.3 }),
   template('temporal_overlord', 'Temporal Overlord', 'aberration', { color: '#eab308', height: 2.0, shape: 'box', glow: true }, { health: 2.4, damage: 2.0, attackRange: 1.5 }),
 
+  // High progression route mobs
+  template('cinder_sentinel', 'Cinder Sentinel', 'construct', { color: '#f97316', height: 1.55, shape: 'box', glow: true }, { health: 1.8, damage: 1.45, movementSpeed: 0.9 }, ['mobFirebolt', 'mobStrike']),
+  template('sunscale_drake', 'Sunscale Drake', 'dragon', { color: '#fbbf24', height: 1.45, shape: 'box', glow: true }, { health: 1.5, damage: 1.55, movementSpeed: 1.15, attackRange: 1.25 }, ['mobFirebolt', 'mobStrike']),
+  template('starglass_weaver', 'Starglass Weaver', 'fey', { color: '#c4b5fd', height: 1.2, shape: 'sphere', glow: true }, { health: 1.15, damage: 1.45, attackRange: 1.65, movementSpeed: 1.12 }, ['mobFrostbolt', 'mobStrike']),
+  template('lumen_warden', 'Lumen Warden', 'construct', { color: '#fef3c7', height: 1.75, shape: 'box', glow: true }, { health: 2.0, damage: 1.55, attackRange: 1.35, movementSpeed: 0.9 }),
+  template('bog_reaver', 'Bog Reaver', 'humanoid', { color: '#14532d', height: 1.35, shape: 'box', glow: false }, { health: 1.55, damage: 1.45, movementSpeed: 1.0, packAggroRadius: 1.15 }, ['mobPoisonBite', 'mobStrike']),
+  template('lantern_wraith', 'Lantern Wraith', 'spirit', { color: '#22d3ee', height: 1.3, shape: 'sphere', glow: true }, { health: 1.1, damage: 1.6, movementSpeed: 1.22, aggroRadius: 1.25 }, ['mobPoisonBite', 'mobStrike']),
+  template('glass_harrier', 'Glass Harrier', 'aberration', { color: '#fde68a', height: 1.15, shape: 'sphere', glow: true }, { health: 1.05, damage: 1.5, movementSpeed: 1.45, aggroRadius: 1.2 }),
+  template('rift_mender', 'Rift Mender', 'construct', { color: '#facc15', height: 1.45, shape: 'box', glow: true }, { health: 1.75, damage: 1.5, attackRange: 1.45, movementSpeed: 0.95 }, ['mobFrostbolt', 'mobStrike']),
+
   // Bonus tier
   template('radiant_seraph', 'Radiant Seraph', 'spirit', { color: '#fef08a', height: 1.7, shape: 'sphere', glow: true }, { health: 1.8, damage: 1.7, attackRange: 1.5 }),
   template('celestial_guardian', 'Celestial Guardian', 'construct', { color: '#fef9c3', height: 2.0, shape: 'box', glow: true }, { health: 2.5, damage: 1.9, attackRange: 1.5 }),
