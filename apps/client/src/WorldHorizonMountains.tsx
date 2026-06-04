@@ -33,7 +33,7 @@ type RingSpec = {
 //    band of sky (~5–20° above the true horizon) is on screen. Tall, close peaks
 //    tower to ~40°+ and shoot off the top of the frame — invisible. So the range
 //    must be SHORT enough that its silhouette lands in that band, just clearing
-//    the treeline. At ~700 m, peak heights of ~80–230 read as ~6–18° — a proper
+//    the treeline. At ~700 m, peak heights of ~95–245 read as ~8–20° — a proper
 //    horizon range, not an off-screen wall.
 const RINGS: RingSpec[] = [
   // Far range (drawn behind): a touch farther + lower, more fog-hazed → recedes.
