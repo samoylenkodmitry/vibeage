@@ -25,17 +25,21 @@ type RingSpec = {
   colorBottom: string; colorTop: string;
 };
 
-// Scene fog is near 450 / far 1120 (WorldEnvironment): geometry past ~1000 m is
-// almost pure fog colour (invisible), and the fog already hazes distant things
-// toward the sky — so the rings must sit WELL inside the fog and start DARKER, so
-// the haze lifts them to a readable mid-tone instead of dissolving them into the
-// sky. (Lighter/farther rings vanished.)
+// Placement is constrained on TWO axes:
+//  - Fog (near 450 / far 1120): past ~1000 m the rings are pure fog colour, so
+//    they must sit well inside it and start DARK so the haze lifts them to a
+//    readable mid-tone (lighter/farther rings dissolved into the sky).
+//  - Camera pitch: the 3rd-person camera looks slightly DOWN, so only a narrow
+//    band of sky (~5–20° above the true horizon) is on screen. Tall, close peaks
+//    tower to ~40°+ and shoot off the top of the frame — invisible. So the range
+//    must be SHORT enough that its silhouette lands in that band, just clearing
+//    the treeline. At ~700 m, peak heights of ~95–245 read as ~8–20° — a proper
+//    horizon range, not an off-screen wall.
 const RINGS: RingSpec[] = [
-  // Far range first (drawn behind): more fog-hazed (recedes), medium blue.
-  { radius: 820, minH: 170, maxH: 400, seed: 1337, colorBottom: '#3c4f66', colorTop: '#566b84' },
-  // Near range: closer (~75% visible through fog) + taller so peaks clear the
-  // treeline; deeper blue so the haze lands it at a crisp readable value.
-  { radius: 600, minH: 240, maxH: 580, seed: 7919, colorBottom: '#2c3d52', colorTop: '#42566d' },
+  // Far range (drawn behind): a touch farther + lower, more fog-hazed → recedes.
+  { radius: 840, minH: 70, maxH: 175, seed: 1337, colorBottom: '#3c4f66', colorTop: '#586d86' },
+  // Near range: the readable silhouette just above the treeline.
+  { radius: 700, minH: 95, maxH: 245, seed: 7919, colorBottom: '#2c3d52', colorTop: '#46596f' },
 ];
 
 /** A closed cylindrical curtain whose top edge is a periodic ridgeline. */
