@@ -115,7 +115,6 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
       target.chaseStartedAt = now;
     }
     applyCustomDamage({ caster, target, rawDamage: 150, cast, world, now, outbound });
-    emitMaybe(outbound, target);
   },
   mirrorSpell: (cast, world, now, outbound) => {
     const caster = world.getPlayerById(cast.casterId);
@@ -268,8 +267,7 @@ function hostileEntities(caster: Combatant, world: CombatWorld, center: VecXZ, r
 
 function alliedPlayers(world: CombatWorld, center: VecXZ, radius: number): PlayerState[] {
   return world.getEntitiesInCircle(center, radius)
-    .map((entity) => world.getPlayerById(entity.id))
-    .filter((entity): entity is PlayerState => Boolean(entity?.isAlive));
+    .filter((entity): entity is PlayerState => !isEnemy(entity) && entity.isAlive);
 }
 
 function nearestHostile(
