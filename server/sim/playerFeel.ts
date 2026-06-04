@@ -29,6 +29,7 @@ export type FeelBeatKind =
   | 'proficiency'
   | 'gear'
   | 'economy'
+  | 'grind'
   | 'objective';
 
 export type FeelBeat = {
@@ -114,9 +115,10 @@ export function estimatePlayerFeel(options: PlayerFeelOptions): PlayerFeelSummar
   const windowHours = options.windowHours ?? 1;
   const progress = createFeelProgress(options);
   const horizonMs = horizonHours * HOUR_MS;
+  const windowMs = windowHours * HOUR_MS;
 
   while (progress.elapsedMs < horizonMs && progress.level < (options.maxLevel ?? DEFAULT_MAX_LEVEL)) {
-    advanceOneLevelOrHorizon(progress, options, horizonMs);
+    advanceOneLevelOrHorizon(progress, options, horizonMs, windowMs);
   }
 
   return summarizeFeel(options, progress, horizonHours, windowHours);
@@ -156,7 +158,12 @@ function createFeelProgress(options: PlayerFeelOptions): FeelProgress {
   };
 }
 
-function advanceOneLevelOrHorizon(progress: FeelProgress, options: PlayerFeelOptions, horizonMs: number): void {
+function advanceOneLevelOrHorizon(
+  progress: FeelProgress,
+  options: PlayerFeelOptions,
+  horizonMs: number,
+  windowMs: number,
+): void {
   const cycleMs = killCycleMs(
     options.className,
     options.specializationId,
@@ -173,17 +180,33 @@ function advanceOneLevelOrHorizon(progress: FeelProgress, options: PlayerFeelOpt
   if (progress.elapsedMs + timeToLevelMs > horizonMs) {
     const remainingMs = horizonMs - progress.elapsedMs;
     const partialKills = Math.floor(remainingMs / cycleMs);
+    addPeriodicGrindBeats(progress.beats, progress.elapsedMs, horizonMs, windowMs);
     progress.kills += partialKills;
     progress.xpIntoLevel += partialKills * xpPerKill;
     progress.elapsedMs = horizonMs;
     return;
   }
 
+  addPeriodicGrindBeats(progress.beats, progress.elapsedMs, progress.elapsedMs + timeToLevelMs, windowMs);
   progress.elapsedMs += timeToLevelMs;
   progress.kills += killsToLevel;
   progress.xpIntoLevel = (progress.xpIntoLevel + killsToLevel * xpPerKill) - getExperienceToNextLevel(progress.level);
   progress.level += 1;
   addLevelBeats(progress, options.className, options.specializationId);
+}
+
+function addPeriodicGrindBeats(beats: FeelBeat[], startMs: number, endMs: number, windowMs: number): void {
+  if (endMs <= startMs) return;
+  const firstWindowIndex = Math.floor(startMs / windowMs);
+  const lastWindowIndex = Math.floor(Math.max(startMs, endMs - 1) / windowMs);
+  const existing = new Set(beats.filter((beat) => beat.kind === 'grind').map((beat) => Math.floor(beat.atMs / windowMs)));
+  for (let index = firstWindowIndex; index <= lastWindowIndex; index += 1) {
+    if (existing.has(index)) continue;
+    const atMs = Math.max(startMs, index * windowMs) + 1;
+    if (atMs >= endMs) continue;
+    pushBeat(beats, atMs, 'grind', 'Ongoing hunt progress', 1);
+    existing.add(index);
+  }
 }
 
 function addLevelBeats(progress: FeelProgress, className: CharacterClass, specializationId?: SpecializationId): void {
@@ -353,7 +376,7 @@ function summarizeFeel(
   const windowStats = summarizeWindowStats(windows);
   const beatsPerWindow = meaningfulBeatWeight / Math.max(1, horizonMs / windowMs);
   const score = feelScore(maxGapMs, beatsPerWindow, progress.maxKillCycleMs, windowStats, windowMs);
-  const risk = emptyRisk(maxGapMs, beatsPerWindow, windowStats, score, windowMs);
+  const risk = emptyRisk(maxGapMs, beatsPerWindow, progress.maxKillCycleMs, windowStats, score, windowMs);
   return {
     className: options.className,
     specializationId: options.specializationId,
@@ -479,11 +502,18 @@ function feelScore(
 function emptyRisk(
   maxGapMs: number,
   beatsPerWindow: number,
+  attentionGapMs: number,
   windowStats: WindowStats,
   score: number,
   windowMs: number,
 ): PlayerFeelSummary['emptyRisk'] {
-  if (windowStats.emptyWindowCount > 0 || maxGapMs > windowMs || beatsPerWindow < 1 || score < 50) return 'high';
+  if (
+    windowStats.emptyWindowCount > 0
+    || maxGapMs > windowMs
+    || beatsPerWindow < 1
+    || attentionGapMs > windowMs * 0.5
+    || score < 50
+  ) return 'high';
   if (windowStats.lowSignalWindowCount > 0 || maxGapMs > windowMs * 0.5 || beatsPerWindow < 2 || score < 75) return 'medium';
   return 'low';
 }
@@ -527,6 +557,7 @@ function suggestedBeatKindsFor(window: FeelWindowSummary): FeelBeatKind[] {
   if (!window.kinds.includes('quest')) suggestions.push('quest');
   if (!window.kinds.includes('skill')) suggestions.push('skill');
   suggestions.push('gear', 'economy', 'objective');
+  if (!window.kinds.includes('grind')) suggestions.push('grind');
   return suggestions.slice(0, 4);
 }
 
@@ -540,6 +571,7 @@ function beatCounts(beats: readonly FeelBeat[]): Record<FeelBeatKind, number> {
     proficiency: countKind(beats, 'proficiency'),
     gear: countKind(beats, 'gear'),
     economy: countKind(beats, 'economy'),
+    grind: countKind(beats, 'grind'),
     objective: countKind(beats, 'objective'),
   };
 }

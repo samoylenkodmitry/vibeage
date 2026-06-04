@@ -10,6 +10,7 @@ import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
+import { getExperienceToNextLevel } from './playerProgression.js';
 
 // Emit a resource update only once the accumulated regen is visible at
 // the wire's integer resolution, so a 1 hp/s trickle doesn't spam a
@@ -85,17 +86,18 @@ export function awardPlayerXP(
 
   if (player.experience >= player.experienceToNextLevel) {
     const oldSkillPoints = player.availableSkillPoints;
-    const oldMaxExp = player.experienceToNextLevel;
-
-    player.level += 1;
-    player.experience -= oldMaxExp;
-    player.experienceToNextLevel = Math.floor(oldMaxExp * 1.5);
+    while (player.experience >= player.experienceToNextLevel) {
+      const oldMaxExp = player.experienceToNextLevel;
+      player.level += 1;
+      player.experience -= oldMaxExp;
+      player.experienceToNextLevel = getExperienceToNextLevel(player.level);
+      player.availableSkillPoints += 1;
+    }
     // §45.3 — level-up bumps every level-scaling contribution; one
     // recompute updates pAtk / maxHealth / regen / etc. simultaneously.
     recomputePlayerStats(player);
     player.health = player.maxHealth;
     player.mana = player.maxMana;
-    player.availableSkillPoints += 1;
 
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints} (before: ${oldSkillPoints})`);

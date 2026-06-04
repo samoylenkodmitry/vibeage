@@ -1,5 +1,6 @@
 import { ITEMS } from './items.js';
 import { MIDGAME_BEAT_QUESTS } from './midgameQuests.js';
+import { PROGRESSION_BRIDGE_QUESTS } from './progressionBridgeQuests.js';
 import { HIGH_PROGRESSION_QUESTS } from './progressionQuests.js';
 import { SPECIALIZATION_UNLOCK_LEVEL } from './specializations.js';
 
@@ -609,6 +610,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
     reward: { xp: 12_000, gold: 4_000, items: [{ itemId: 'aethariel_hourglass_sand', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 8 }] },
   },
   ...MIDGAME_BEAT_QUESTS,
+  ...PROGRESSION_BRIDGE_QUESTS,
   ...HIGH_PROGRESSION_QUESTS,
 };
 

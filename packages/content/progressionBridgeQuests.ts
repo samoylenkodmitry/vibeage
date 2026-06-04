@@ -1,0 +1,78 @@
+import type { QuestDef } from './quests.js';
+
+export const PROGRESSION_BRIDGE_QUESTS: Record<string, QuestDef> = {
+  frontier_orders: {
+    id: 'frontier_orders',
+    name: 'Frontier Orders',
+    description: 'Roadwarden Saila catches newly specialized adventurers before the old routes run dry and points them toward frontier work.',
+    npcId: 'roadwarden_saila',
+    minLevel: 20,
+    prerequisites: { completedQuests: ['choose_your_path'] },
+    stages: [
+      { id: 'hear_frontier_route', description: 'Speak with Roadwarden Saila near Gludin.', objective: { kind: 'talk', npcId: 'roadwarden_saila' } },
+      { id: 'mark_first_mile', description: 'Walk the first frontier mile marker so Saila can register your route.', objective: { kind: 'reach', position: { x: 186, y: 0.5, z: 116 }, radius: 8 }, marker: { x: 186, y: 0.5, z: 116 } },
+      { id: 'take_the_orders', description: 'Confirm the Lv 24, 26, 28, and 30 roadwarden postings.', objective: { kind: 'manual', description: 'Press Next to take the frontier postings.' } },
+    ],
+    reward: { xp: 20_000, gold: 1_200, items: [{ itemId: 'greater_health_potion', quantity: 4 }, { itemId: 'mana_potion', quantity: 4 }] },
+  },
+  thornroad_pickets: {
+    id: 'thornroad_pickets',
+    name: 'Thornroad Pickets',
+    description: 'Saila needs the first road cleared before the thornbacks learn to root under the mile stones.',
+    npcId: 'roadwarden_saila',
+    minLevel: 24,
+    prerequisites: { completedQuests: ['frontier_orders'] },
+    stages: [
+      { id: 'cut_road_thornbacks', description: 'Cut down 5 road thornbacks along the southern picket line.', objective: { kind: 'kill', enemyType: 'road_thornback', count: 5 } },
+      { id: 'scatter_ash_runners', description: 'Scatter 4 ash-dust runners before they carry sparks back to the brush.', objective: { kind: 'kill', enemyType: 'ash_dust_runner', count: 4 } },
+      { id: 'set_picket_stone', description: 'Set Saila\'s picket stone at the road bend.', objective: { kind: 'reach', position: { x: 259_400, y: 0.5, z: -118_600 }, radius: 28 }, marker: { x: 259_400, y: 0.5, z: -118_600 } },
+      { id: 'report_thornroad', description: 'Return the picket reading to Saila.', objective: { kind: 'talk', npcId: 'roadwarden_saila' } },
+    ],
+    reward: { xp: 90_000, gold: 2_800, items: [{ itemId: 'fogbound_cloak', quantity: 1 }, { itemId: 'fire_gem', quantity: 3 }] },
+  },
+  brightglass_detour: {
+    id: 'brightglass_detour',
+    name: 'Brightglass Detour',
+    description: 'The survey lanterns are reflecting the wrong road. Saila wants the brightglass broken before travelers follow it.',
+    npcId: 'roadwarden_saila',
+    minLevel: 26,
+    prerequisites: { completedQuests: ['thornroad_pickets'] },
+    stages: [
+      { id: 'dim_brightglass_motes', description: 'Dim 6 brightglass motes around the false trail.', objective: { kind: 'kill', enemyType: 'brightglass_mote', count: 6 } },
+      { id: 'break_survey_golems', description: 'Break 3 surveybreaker golems guarding the false markers.', objective: { kind: 'kill', enemyType: 'surveybreaker_golem', count: 3 } },
+      { id: 'pin_true_detour', description: 'Pin the true detour on the Moonfall approach.', objective: { kind: 'reach', position: { x: -318_200, y: 0.5, z: -258_300 }, radius: 28 }, marker: { x: -318_200, y: 0.5, z: -258_300 } },
+      { id: 'return_brightglass', description: 'Return Saila\'s clean map to her table.', objective: { kind: 'talk', npcId: 'roadwarden_saila' } },
+    ],
+    reward: { xp: 125_000, gold: 3_200, items: [{ itemId: 'forge_avatar_plate', quantity: 1 }, { itemId: 'crystal_shard', quantity: 5 }] },
+  },
+  moonroad_signal: {
+    id: 'moonroad_signal',
+    name: 'Moonroad Signal',
+    description: 'A cold signal is pulling road crews off the highland path. Saila needs it silenced before the next patrol.',
+    npcId: 'roadwarden_saila',
+    minLevel: 28,
+    prerequisites: { completedQuests: ['brightglass_detour'] },
+    stages: [
+      { id: 'drop_moonroad_prowlers', description: 'Drop 5 moonroad prowlers stalking the ridge lamps.', objective: { kind: 'kill', enemyType: 'moonroad_prowler', count: 5 } },
+      { id: 'scatter_coldstar_acolytes', description: 'Scatter 4 coldstar acolytes singing into the signal.', objective: { kind: 'kill', enemyType: 'coldstar_acolyte', count: 4 } },
+      { id: 'ground_signal_lamp', description: 'Ground the signal lamp on the Moonfall ridge.', objective: { kind: 'reach', position: { x: -319_500, y: 0.5, z: -259_600 }, radius: 28 }, marker: { x: -319_500, y: 0.5, z: -259_600 } },
+      { id: 'report_signal', description: 'Give Saila the grounded lamp wick.', objective: { kind: 'talk', npcId: 'roadwarden_saila' } },
+    ],
+    reward: { xp: 165_000, gold: 3_800, items: [{ itemId: 'tundra_helm', quantity: 1 }, { itemId: 'star_essence', quantity: 3 }] },
+  },
+  frontier_cutover: {
+    id: 'frontier_cutover',
+    name: 'Frontier Cutover',
+    description: 'The last bridge route crosses a rift survey line. Saila wants a clean handoff into the Lv 31 frontier camps.',
+    npcId: 'roadwarden_saila',
+    minLevel: 30,
+    prerequisites: { completedQuests: ['moonroad_signal'] },
+    stages: [
+      { id: 'drive_horizon_jackals', description: 'Drive off 5 horizon jackals from the cutover road.', objective: { kind: 'kill', enemyType: 'horizon_jackal', count: 5 } },
+      { id: 'stop_rift_surveyors', description: 'Stop 4 rift surveyors from folding the route marker.', objective: { kind: 'kill', enemyType: 'rift_surveyor', count: 4 } },
+      { id: 'stake_cutover', description: 'Stake the cutover marker at the Sunspire camp approach.', objective: { kind: 'reach', position: { x: 258_500, y: 0.5, z: -119_800 }, radius: 28 }, marker: { x: 258_500, y: 0.5, z: -119_800 } },
+      { id: 'claim_cutover_orders', description: 'Return to Saila for the high-frontier handoff.', objective: { kind: 'talk', npcId: 'roadwarden_saila' } },
+    ],
+    reward: { xp: 220_000, gold: 4_400, items: [{ itemId: 'refraction_staff', quantity: 1 }, { itemId: 'temporal_fragment', quantity: 4 }] },
+  },
+};

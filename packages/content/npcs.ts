@@ -156,6 +156,14 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     description: 'Supplies roadwardens and horizon scouts with gear built for long routes beyond Gludin.',
     greet: "Road gear, horizon gear, and no parade polish. If it is on this table, it has survived a patrol.",
   },
+  roadwarden_saila: {
+    id: 'roadwarden_saila',
+    name: 'Saila',
+    title: 'Roadwarden Guide',
+    position: { x: 162, y: 0.5, z: 98 },
+    description: 'Keeps a clean chain of frontier postings for adventurers who have chosen a specialization but are not ready for the far camps.',
+    greet: 'If your path is chosen, I can keep your next ten levels from becoming empty road.',
+  },
   firebreak_warden_iyen: {
     id: 'firebreak_warden_iyen',
     name: 'Iyen',

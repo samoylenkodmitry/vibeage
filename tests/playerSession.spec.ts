@@ -11,6 +11,7 @@ import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { CharacterInventory } from '../packages/sim/characterInventory';
 import type { PlayerState } from '../packages/sim/entities';
 import { addItemsToPlayer } from '../server/inventory/aggregateBridge';
+import { getExperienceToNextLevel } from '../server/players/playerProgression';
 import { playerInventorySlots } from './helpers/inventoryView';
 
 // §45.7 — `players.inventory` column was dropped in migration 011;
@@ -98,7 +99,7 @@ describe('player session hydration', () => {
       health: 75,
       level: 3,
       experience: 120,
-      experienceToNextLevel: 225,
+      experienceToNextLevel: getExperienceToNextLevel(3),
       // PR PP — auto-granted class passive (mage → passive_arcane_focus)
       // is included on hydrate so class HP/MP/dmg deltas land via the
       // Contribution registry.
@@ -138,7 +139,7 @@ describe('player session hydration', () => {
       health: 0,
       level: 2,
       experience: 80,
-      experienceToNextLevel: 150,
+      experienceToNextLevel: getExperienceToNextLevel(2),
       isAlive: false,
     });
     expect(player.maxHealth).toBeGreaterThan(100);
