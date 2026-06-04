@@ -22,6 +22,10 @@ describe('specialization AI policy registry', () => {
       const ruleSkills = new Set(profile.rules.map((rule) => rule.skillId));
 
       expect(profile.baseClass).toBe(spec.baseClass);
+      expect(profile.identity.plan.length).toBeGreaterThan(20);
+      expect(profile.identity.desiredRangeFraction).toBeGreaterThan(0);
+      expect(profile.identity.desiredRangeFraction).toBeLessThanOrEqual(1);
+      expect(profile.identity.priorityTactics.length).toBeGreaterThanOrEqual(3);
       expect(profile.rules.length).toBeGreaterThan(0);
       expect(Object.values(profile.tactics).flat().length).toBeGreaterThan(0);
       for (const skillId of profile.rules.map((rule) => rule.skillId)) expect(SKILLS[skillId]).toBeDefined();
@@ -40,7 +44,7 @@ describe('specialization AI policy registry', () => {
     expect(firstCastSkill('pyromancer', 20, { targetEffects: [effect('burn')] })).toBe('combustion_bloom');
     expect(firstCastSkill('berserker', 20)).toBe('blood_magnet');
     expect(firstCastSkill('phantom_ranger', 20, { casterEffects: [effect('invisible')] })).toBe('umbra_mine');
-    expect(firstCastSkill('phoenix_knight', 20)).toBe('sunbreak_charge');
+    expect(firstCastSkill('phoenix_knight', 20)).toBe('cinder_halo');
     expect(firstCastSkill('evas_templar', 20, { casterEffects: [effect('poison')] })).toBe('tidal_barrier');
     expect(firstCastSkill('treasure_hunter', 20, { casterEffects: [effect('reveal_loot')] })).toBe('jackpot_snare');
     expect(firstCastSkill('plains_walker', 20, { targetEffects: [effect('poison')] })).toBe('razorwind_step');

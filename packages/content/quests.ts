@@ -1,4 +1,5 @@
 import { ITEMS } from './items.js';
+import { MIDGAME_BEAT_QUESTS } from './midgameQuests.js';
 import { SPECIALIZATION_UNLOCK_LEVEL } from './specializations.js';
 
 export type QuestVec3 = { x: number; y: number; z: number };
@@ -606,6 +607,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
     ],
     reward: { xp: 12_000, gold: 4_000, items: [{ itemId: 'aethariel_hourglass_sand', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 8 }] },
   },
+  ...MIDGAME_BEAT_QUESTS,
 };
 
 /** All quests offered by an NPC. */
