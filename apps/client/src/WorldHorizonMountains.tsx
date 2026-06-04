@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -69,6 +69,10 @@ function buildRange(spec: RingSpec): THREE.BufferGeometry {
 export function WorldHorizonMountains({ focus }: { focus: Vec3D }) {
   const geometries = useMemo(() => RINGS.map(buildRange), []);
   const groupRef = useRef<THREE.Group>(null);
+
+  // useMemo geometries passed via the `geometry` prop aren't auto-disposed by
+  // R3F on unmount (only JSX-declared ones are) — dispose them ourselves.
+  useEffect(() => () => geometries.forEach((g) => g.dispose()), [geometries]);
 
   useFrame(() => {
     const g = groupRef.current;
