@@ -1,87 +1,87 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
 
 /**
- * A low-poly mountain silhouette ring on the far horizon that FOLLOWS the
- * player — the whole group re-centres on `focus` every frame (like the clouds
- * and sun in WorldEnvironment), so every location gets a mountainous backdrop
- * instead of a flat void edge, and the ring never mounts/unmounts at a scene
- * boundary (the old CozyDistantMountains was anchored to the cozy-coast origin,
- * so it was only a proper ring near spawn).
+ * A jagged mountain-range silhouette on the far horizon that FOLLOWS the player
+ * — the whole group re-centres on `focus` every frame (like the clouds and sun
+ * in WorldEnvironment), so every location gets a mountainous backdrop and the
+ * ring never mounts/unmounts at a scene boundary.
  *
- * Sits just past the foliage frontier (~960 m) and inside the scene fog band,
- * so it reads as a hazy distant range. fog stays enabled (default) on purpose.
- * One InstancedMesh (1 draw) built once — instances are RELATIVE to the group,
- * so computeBoundingSphere gives a correct local sphere that follows focus via
- * the group transform (no origin-anchored frustum-cull trap), and re-rendering
- * on each focus tick reconciles nothing.
+ * Two concentric ridgeline rings (not the old ice-cream cones): each is a
+ * continuous curtain whose top edge is a sum of periodic sines, so it reads as
+ * a real range of overlapping peaks rather than discrete triangles. The near
+ * ring is darker + taller; the far ring is lighter and lower so it recedes into
+ * the haze (atmospheric perspective). A bottom→top vertex gradient and the
+ * scene fog fade the peaks into the sky. Unlit (MeshBasic) on purpose — distant
+ * fogged mountains are a flat silhouette, not a lit surface; fog (driven by the
+ * day phase) does the tinting. One draw per ring, geometry built once.
  */
-const RING_RADIUS = 780;
-const BASE_Y = -8;
-const COUNT = 20;
-const COLOR = '#36475a';
+const BASE_Y = -10;
 
-type Mountain = { x: number; z: number; height: number; baseRadius: number; rotationY: number };
+type RingSpec = {
+  radius: number; minH: number; maxH: number; seed: number;
+  colorBottom: string; colorTop: string;
+};
 
-function makeRing(): Mountain[] {
-  const rand = mulberry32(7919);
-  const out: Mountain[] = [];
-  for (let i = 0; i < COUNT; i += 1) {
-    // Even 360° spread + jitter so the ring surrounds the player from every
-    // angle without reading as a regular comb.
-    const angle = (i / COUNT) * Math.PI * 2 + (rand() - 0.5) * 0.14;
-    const radius = RING_RADIUS + (rand() - 0.5) * 130;
-    out.push({
-      x: Math.cos(angle) * radius,
-      z: Math.sin(angle) * radius,
-      height: 150 + rand() * 120,
-      baseRadius: 70 + rand() * 55,
-      rotationY: rand() * Math.PI * 2,
-    });
+const RINGS: RingSpec[] = [
+  // Far range first (drawn behind), hazier + lower.
+  { radius: 920, minH: 70, maxH: 170, seed: 1337, colorBottom: '#3d4d61', colorTop: '#56697f' },
+  // Near range, darker + taller, partially occludes the far one.
+  { radius: 720, minH: 110, maxH: 280, seed: 7919, colorBottom: '#28333f', colorTop: '#3a4a5d' },
+];
+
+/** A closed cylindrical curtain whose top edge is a periodic ridgeline. */
+function buildRange(spec: RingSpec): THREE.BufferGeometry {
+  const SEG = 200;
+  const rand = mulberry32(spec.seed);
+  const p1 = rand() * 6.28, p2 = rand() * 6.28, p3 = rand() * 6.28, p4 = rand() * 6.28;
+  const cBot = new THREE.Color(spec.colorBottom);
+  const cTop = new THREE.Color(spec.colorTop);
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  for (let i = 0; i <= SEG; i += 1) {
+    const a = (i / SEG) * Math.PI * 2;
+    // Periodic (integer harmonics) so the ridge wraps seamlessly at 2π.
+    const n = 0.5
+      + 0.30 * Math.sin(a * 3 + p1)
+      + 0.18 * Math.sin(a * 7 + p2)
+      + 0.12 * Math.sin(a * 13 + p3)
+      + 0.07 * Math.sin(a * 23 + p4);
+    const h = BASE_Y + spec.minH + (spec.maxH - spec.minH) * Math.min(1, Math.max(0, n));
+    const x = Math.cos(a) * spec.radius, z = Math.sin(a) * spec.radius;
+    pos.push(x, BASE_Y, z, x, h, z);
+    col.push(cBot.r, cBot.g, cBot.b, cTop.r, cTop.g, cTop.b);
   }
-  return out;
+  for (let i = 0; i < SEG; i += 1) {
+    const a = i * 2;
+    idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  return g;
 }
 
 export function WorldHorizonMountains({ focus }: { focus: Vec3D }) {
-  const mountains = useMemo(makeRing, []);
+  const geometries = useMemo(() => RINGS.map(buildRange), []);
   const groupRef = useRef<THREE.Group>(null);
-  const meshRef = useRef<THREE.InstancedMesh>(null);
 
   useFrame(() => {
     const g = groupRef.current;
     if (g) g.position.set(focus.x, 0, focus.z);
   });
 
-  useLayoutEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const position = new THREE.Vector3();
-    const quaternion = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-    const rotation = new THREE.Euler();
-    const matrix = new THREE.Matrix4();
-    mountains.forEach((m, i) => {
-      // Unit cone scaled per instance: base radius on XZ, height on Y.
-      position.set(m.x, BASE_Y + m.height / 2, m.z);
-      rotation.set(0, m.rotationY, 0);
-      quaternion.setFromEuler(rotation);
-      scale.set(m.baseRadius, m.height, m.baseRadius);
-      matrix.compose(position, quaternion, scale);
-      mesh.setMatrixAt(i, matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.count = mountains.length;
-    mesh.computeBoundingSphere();
-  }, [mountains]);
-
   return (
     <group ref={groupRef} raycast={() => null}>
-      <instancedMesh ref={meshRef} args={[undefined, undefined, COUNT]} castShadow={false} receiveShadow={false}>
-        <coneGeometry args={[1, 1, 6, 1]} />
-        <meshStandardMaterial color={COLOR} roughness={1} metalness={0} />
-      </instancedMesh>
+      {geometries.map((geometry, i) => (
+        <mesh key={i} geometry={geometry}>
+          <meshBasicMaterial vertexColors side={THREE.DoubleSide} fog />
+        </mesh>
+      ))}
     </group>
   );
 }
