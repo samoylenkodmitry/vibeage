@@ -30,6 +30,7 @@ describe('SpecializationChooser', () => {
     expect(choices.map((choice) => choice.id)).toEqual(['arcanist', 'pyromancer']);
     expect(choices[0].passiveName.length).toBeGreaterThan(0);
     expect(choices[0].specSkills.length).toBeGreaterThan(0);
+    expect(choices[0].mechanics).toContain('Pull');
   });
 
   it('does not show the chooser before level 20, after picking a spec, or while dead', () => {

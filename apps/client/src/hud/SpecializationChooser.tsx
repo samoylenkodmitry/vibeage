@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { SKILLS } from '../../../../packages/content/skills';
+import { skillMechanicSummary } from '../../../../packages/content/skillMechanics';
 import {
   getSpecializationsForClass,
   PROFICIENCY_LEVEL,
@@ -23,6 +24,7 @@ export type SpecializationChoice = {
   passiveName: string;
   passiveDescription: string;
   specSkills: string;
+  mechanics: string;
   proficiency: string;
 };
 
@@ -75,6 +77,7 @@ function SpecChoice({
       <dl>
         <SpecPair label="Passive" value={`${choice.passiveName}: ${choice.passiveDescription}`} />
         <SpecPair label="Skills" value={choice.specSkills} />
+        {choice.mechanics && <SpecPair label="Mechanics" value={choice.mechanics} />}
         <SpecPair label={`Lv ${PROFICIENCY_LEVEL}`} value={choice.proficiency} />
       </dl>
       <button type="button" className="learn-skill-button spec-choice-button" onClick={() => onSelect(choice.id)}>
@@ -102,6 +105,7 @@ function toChoice(spec: Specialization): SpecializationChoice {
     passiveName: spec.specializationPassive.name,
     passiveDescription: spec.specializationPassive.description,
     specSkills: labelSkills(spec.specSkills),
+    mechanics: labelMechanics([...(spec.specSkills ?? []), ...(spec.proficiencySkills ?? [])]),
     proficiency: `${spec.proficiencyPassive.name}: ${spec.proficiencyPassive.description}`,
   };
 }
@@ -109,4 +113,8 @@ function toChoice(spec: Specialization): SpecializationChoice {
 function labelSkills(skillIds: readonly string[] | undefined): string {
   const names = (skillIds ?? []).map((id) => SKILLS[id]?.name ?? id);
   return names.length > 0 ? names.join(', ') : 'No spec-only skills';
+}
+
+function labelMechanics(skillIds: readonly string[]): string {
+  return skillMechanicSummary(skillIds.flatMap((id) => SKILLS[id] ? [SKILLS[id]] : []));
 }

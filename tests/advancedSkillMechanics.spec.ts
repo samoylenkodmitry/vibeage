@@ -6,6 +6,15 @@ import { resolveCastImpact } from '../server/combat/impactResolver';
 import { isEntitySilenced, isEntityStunned } from '../server/combat/statusQueries';
 import { applyResolvedDamageToTarget } from '../server/combat/damageResolution';
 import { tickDamageOverTimeEffects } from '../server/combat/dotTicker';
+import {
+  addStatus,
+  forceEnemyChase,
+  healCombatant,
+  moveCombatant,
+  pullIntoRange,
+  suppressEnemyAggro,
+  swapCombatants,
+} from '../server/combat/skillMechanicPrimitives';
 import type { Cast } from '../server/combat/skillSystem';
 import type { CombatWorld } from '../server/combat/worldContract';
 import { createGameState } from '../server/gameState';
@@ -14,6 +23,7 @@ import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 const NOW = 1_700_000_000_000;
 
 describe('advanced skill mechanics primitives', () => {
+  registerPrimitiveContractTests();
   registerSwapTests();
   registerMobilityTests();
   registerTemporalTests();
@@ -23,7 +33,58 @@ describe('advanced skill mechanics primitives', () => {
   registerRedirectBatchTests();
   registerMovementBatchTests();
   registerMultiSpecBatchTests();
+  registerDistributedSkillBatchTests();
 });
+
+function registerPrimitiveContractTests() {
+  it('shared mechanic primitives hard-relocate, pull, swap, heal, and retarget deterministically', () => {
+    const caster = player('caster', 0, 0, []);
+    const ally = player('ally', 8, 0, []);
+    const target = enemy('target', 12, 0);
+    caster.velocity = { x: 4, z: 0 };
+    caster.movement = { isMoving: true, targetPos: { x: 10, z: 0 }, lastUpdateTime: NOW, speed: 6 };
+    const moveEntity = vi.fn();
+    const world = { ...worldOf([caster, ally], [target]), moveEntity };
+
+    moveCombatant(caster, { x: 3, y: caster.position.y, z: 1 }, world);
+    expect(caster.position).toMatchObject({ x: 3, z: 1 });
+    expect(caster.velocity).toEqual({ x: 0, z: 0 });
+    expect(caster.movement).toBeUndefined();
+    expect(caster.dirtySnap).toBe(true);
+    expect(moveEntity).toHaveBeenCalledWith(caster.id, { x: 0, z: 0 }, { x: 3, z: 1 });
+
+    target.position = { x: 12, y: target.position.y, z: 1 };
+    pullIntoRange(target, caster.position, 2, 6, world);
+    expect(target.position.x).toBeCloseTo(6, 5);
+    expect(target.position.z).toBeCloseTo(1, 5);
+    expect(target.dirtySnap).toBe(true);
+
+    swapCombatants(caster, ally, world);
+    expect(caster.position.x).toBe(8);
+    expect(ally.position.x).toBe(3);
+    expect(caster.dirtySnap).toBe(true);
+    expect(ally.dirtySnap).toBe(true);
+
+    forceEnemyChase(target, caster, NOW + 1);
+    expect(target.targetId).toBe(caster.id);
+    expect(target.aiState).toBe('chasing');
+    expect(target.chaseStartedAt).toBe(NOW + 1);
+
+    suppressEnemyAggro(target, NOW + 2, 3000);
+    expect(target.targetId).toBeNull();
+    expect(target.aiState).toBe('idle');
+    expect(target.aggroSuppressedUntilTs).toBe(NOW + 3002);
+
+    ally.health = 500;
+    expect(healCombatant(ally, 999)).toBe(500);
+    expect(ally.health).toBe(ally.maxHealth);
+
+    addStatus({ target: ally, type: 'shield', value: 10, durationMs: 1000, sourceSkill: 'test', now: NOW });
+    addStatus({ target: ally, type: 'shield', value: 20, durationMs: 1000, sourceSkill: 'test', now: NOW + 1 });
+    expect(ally.statusEffects.filter((effect) => effect.type === 'shield')).toHaveLength(1);
+    expect(ally.statusEffects.find((effect) => effect.type === 'shield')?.value).toBe(20);
+  });
+}
 
 function registerSwapTests() {
   it('Dimensional Swap exchanges caster and target positions and snaps both combatants', () => {
@@ -342,6 +403,57 @@ function registerMultiSpecBatchTests() {
     expect(ally.health).toBe(490);
     expect(ally.position.x).toBeCloseTo(caster.position.x - 1.5, 5);
     expect(ally.dirtySnap).toBe(true);
+    expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+  });
+}
+
+function registerDistributedSkillBatchTests() {
+  it('Phase Prison, Tripwire Volley, Guardian Hook, and Lifeline Swap resolve distributed spec mechanics', () => {
+    const caster = player('caster', 0, 0, ['phase_prison', 'tripwire_volley', 'guardian_hook', 'lifeline_swap']);
+    const ally = player('ally', 12, 0);
+    const prisonTarget = enemy('prison-target', 9, 0);
+    const prisonNearby = enemy('prison-nearby', 11, 0);
+    const tripwireTarget = enemy('tripwire-target', 30, 0);
+    const tripwireNearby = enemy('tripwire-nearby', 32, 0);
+    const hookTarget = enemy('hook-target', 14, 0);
+    const hookNearby = enemy('hook-nearby', 3, 0);
+    ally.health = 300;
+    const world = worldOf([caster, ally], [
+      prisonTarget,
+      prisonNearby,
+      tripwireTarget,
+      tripwireNearby,
+      hookTarget,
+      hookNearby,
+    ]);
+
+    resolveCastImpact(targetedCast(caster.id, 'phase_prison', prisonTarget.id, prisonTarget.position), { publish: vi.fn() }, world, NOW);
+    expect(caster.statusEffects.some((effect) => effect.type === 'arcaneCharge')).toBe(true);
+    expect(prisonTarget.position.x).toBeCloseTo(9, 5);
+    expect(prisonNearby.position.x).toBeCloseTo(9.75, 5);
+    expect(prisonNearby.statusEffects.some((effect) => effect.type === 'root')).toBe(true);
+    expect(prisonNearby.statusEffects.some((effect) => effect.type === 'silence')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'tripwire_volley', tripwireTarget.id, tripwireTarget.position), { publish: vi.fn() }, world, NOW + 100);
+    expect(tripwireTarget.statusEffects.some((effect) => effect.type === 'marked')).toBe(true);
+    expect(tripwireTarget.statusEffects.some((effect) => effect.type === 'root')).toBe(true);
+    expect(tripwireNearby.position.x).toBeGreaterThan(20);
+    expect(tripwireNearby.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+
+    resolveCastImpact(targetedCast(caster.id, 'guardian_hook', hookTarget.id, hookTarget.position), { publish: vi.fn() }, world, NOW + 200);
+    expect(hookTarget.position.x).toBeCloseTo(4, 5);
+    expect(caster.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
+    expect(hookTarget.statusEffects.some((effect) => effect.type === 'taunt')).toBe(true);
+    expect(hookNearby.statusEffects.some((effect) => effect.type === 'taunt')).toBe(true);
+    expect(hookNearby.targetId).toBe(caster.id);
+    expect(hookNearby.aiState).toBe('chasing');
+
+    resolveCastImpact(targetedCast(caster.id, 'lifeline_swap', ally.id, ally.position), { publish: vi.fn() }, world, NOW + 300);
+    expect(caster.position.x).toBe(12);
+    expect(ally.position.x).toBe(0);
+    expect(caster.dirtySnap).toBe(true);
+    expect(ally.dirtySnap).toBe(true);
+    expect(ally.health).toBe(510);
     expect(ally.statusEffects.some((effect) => effect.type === 'shield')).toBe(true);
   });
 }

@@ -29,7 +29,7 @@ const CLASS_POLICY_OPTIONS: Record<CharacterClass, ClassCombatPolicyOptions> = {
   rogue: { primarySkillId: 'backstab' },
 };
 
-export type SkillUseTarget = 'enemy' | 'self';
+export type SkillUseTarget = 'enemy' | 'self' | 'ally';
 
 export type SkillUseCondition = {
   targetHasEffect?: SkillEffectType;
@@ -66,6 +66,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('arcane_blast', { casterHasEffect: 'arcaneCharge' }),
     enemy('arcane_blast', { targetHasEffect: 'freeze' }),
     enemy('iceBolt', { targetHasEffect: 'waterWeakness' }),
+    enemy('phase_prison', { targetMissingEffect: 'silence' }),
     enemy('waterSplash', { targetMissingEffect: 'waterWeakness' }),
     enemy('arcane_supremacy'),
     enemy('arcane_blast'),
@@ -103,6 +104,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   cardinal: profile('cardinal', 'support', [
     self('mass_heal', { casterHealthBelowPct: 0.75 }),
+    ally('lifeline_swap', { targetHealthBelowPct: 0.55 }),
     self('greater_heal', { casterHealthBelowPct: 0.82 }),
     self('holyLight', { casterHealthBelowPct: 0.9 }),
     self('bless', { casterMissingEffect: 'bless' }),
@@ -121,6 +123,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   hawkeye: profile('hawkeye', 'burst', [
     enemy('aimed_volley', { targetHasEffect: 'marked' }),
+    enemy('tripwire_volley', { targetMissingEffect: 'marked' }),
     enemy('terrain_sigil'),
     enemy('volley', { targetHasEffect: 'marked' }),
     self('projectile_capture', { casterHealthBelowPct: 0.8 }),
@@ -142,6 +145,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('arrowShot'),
   ]),
   templar_knight: profile('templar_knight', 'tank', [
+    enemy('guardian_hook', { casterMissingEffect: 'shield' }),
     self('holy_shield', { casterMissingEffect: 'shield' }),
     enemy('silence_bubble'),
     enemy('divine_taunt'),
@@ -308,17 +312,27 @@ function self(skillId: SkillId, when?: SkillUseCondition): SkillUseRule {
   return { skillId, target: 'self', when };
 }
 
+function ally(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number): SkillUseRule {
+  return { skillId, target: 'ally', when, desiredRangeFraction };
+}
+
 function actionForRule(
   context: PlayerAiContext,
   rule: SkillUseRule,
   target: SimEntity | null,
 ): SimulationAction[] {
   if (!canAttemptSkill(context, rule.skillId)) return [];
-  if (!conditionMatches(rule.when, context, target)) return [];
   if (rule.target === 'self') {
+    if (!conditionMatches(rule.when, context, context.player)) return [];
     if (context.player.movement?.isMoving) return [{ type: 'stopMoving' }, { type: 'castSkill', skillId: rule.skillId }];
     return [{ type: 'castSkill', skillId: rule.skillId }];
   }
+  if (rule.target === 'ally') {
+    const allyTarget = mostInjuredAlly(context);
+    if (!allyTarget || !conditionMatches(rule.when, context, allyTarget)) return [];
+    return engageTarget(context, allyTarget, rule.skillId, rule.desiredRangeFraction);
+  }
+  if (!conditionMatches(rule.when, context, target)) return [];
   if (!target) return [];
   return engageTarget(context, target, rule.skillId, rule.desiredRangeFraction);
 }
@@ -391,6 +405,20 @@ function nearestEntity(origin: SimEntity, candidates: readonly SimEntity[]): Sim
     }
   }
   return nearest;
+}
+
+function mostInjuredAlly(context: PlayerAiContext): SimEntity | null {
+  let best: SimEntity | null = null;
+  let bestHealthFraction = Infinity;
+  for (const ally of context.allies) {
+    if (ally.id === context.player.id || ally.health <= 0) continue;
+    const fraction = healthFraction(ally);
+    if (fraction < bestHealthFraction) {
+      best = ally;
+      bestHealthFraction = fraction;
+    }
+  }
+  return best;
 }
 
 function approachPoint(

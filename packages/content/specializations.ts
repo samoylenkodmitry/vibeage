@@ -233,7 +233,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'An additional +15% max mana on top of the spec passive.',
       modifiers: { manaMultiplier: 1.15 },
     },
-    specSkills: ['arcane_blast', 'rewind_mark'],
+    specSkills: ['arcane_blast', 'rewind_mark', 'phase_prison'],
     proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap', 'gravity_well'],
   },
   pyromancer: {
@@ -315,7 +315,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+5% max HP; nearby allies (within 12m) regen +2 HP/sec.',
       modifiers: { healthMultiplier: 1.05, partyHpRegenAuraBonus: 2, partyHpRegenAuraRadiusM: 12 },
     },
-    specSkills: ['greater_heal', 'soul_link'],
+    specSkills: ['greater_heal', 'soul_link', 'lifeline_swap'],
     proficiencySkills: ['mass_heal'],
   },
   theurge: {
@@ -356,7 +356,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Crit multiplier +0.5× on ranged attacks (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['snipe', 'projectile_capture'],
+    specSkills: ['snipe', 'projectile_capture', 'tripwire_volley'],
     proficiencySkills: ['aimed_volley', 'terrain_sigil'],
   },
   phantom_ranger: {
@@ -397,7 +397,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '15% damage reduction while below half HP.',
       modifiers: { belowHalfHpDamageTakenMultiplier: 0.85 },
     },
-    specSkills: ['holy_shield', 'silence_bubble'],
+    specSkills: ['holy_shield', 'silence_bubble', 'guardian_hook'],
     proficiencySkills: ['divine_taunt'],
   },
   dark_avenger: {
