@@ -25,8 +25,21 @@ const STEM_COLOR = '#efe3c4';
 
 type Prop = { x: number; y: number; z: number; scale: number; rot: number };
 
+const MAX_RADIUS_CELLS = 16;
+// Upper bound on props in one layer = cells in the largest (high) circular window.
+// Fixed so each InstancedMesh allocates its buffer ONCE; we only vary `count`.
+const MAX_COUNT = (() => {
+  let n = 0;
+  for (let dz = -MAX_RADIUS_CELLS; dz <= MAX_RADIUS_CELLS; dz += 1) {
+    for (let dx = -MAX_RADIUS_CELLS; dx <= MAX_RADIUS_CELLS; dx += 1) {
+      if (dx * dx + dz * dz <= MAX_RADIUS_CELLS * MAX_RADIUS_CELLS) n += 1;
+    }
+  }
+  return n;
+})();
+
 function radiusCells(quality: WorldArtQuality): number {
-  return quality === 'high' ? 16 : 11; // ~64 m / ~44 m
+  return quality === 'high' ? MAX_RADIUS_CELLS : 11; // ~64 m / ~44 m
 }
 
 function scatter(centerX: number, centerZ: number, cells: number) {
@@ -77,11 +90,11 @@ function PropLayer({ props, yScale = 1, children }: { props: Prop[]; yScale?: nu
       mesh.setMatrixAt(i, tmpM);
     });
     mesh.instanceMatrix.needsUpdate = true;
-    mesh.count = props.length;
+    mesh.count = props.length; // buffer is fixed at MAX_COUNT; only the draw count varies
     mesh.computeBoundingSphere();
   }, [props, yScale]);
   return (
-    <instancedMesh ref={ref} frustumCulled={false} args={[undefined, undefined, Math.max(1, props.length)]}>
+    <instancedMesh ref={ref} frustumCulled={false} args={[undefined, undefined, MAX_COUNT]}>
       {children}
     </instancedMesh>
   );
