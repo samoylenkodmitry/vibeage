@@ -16,9 +16,8 @@ import {
  * frontier sits deep in scene fog (WorldEnvironment), so those mounts/unmounts
  * are invisible.
  *
- * Ground grass is NOT here — the dense near-field carpet lives in
- * WorldGrassField (a fine sub-metre grid). This layer's `grassOn=false` so the
- * scatter skips the old sparse tree-grid grass entirely.
+ * Ground grass is NOT here — the textured ground covers it. This layer's
+ * `grassOn=false` so the scatter skips the old sparse tree-grid grass entirely.
  */
 const CHUNK = FOLIAGE_CHUNK_SIZE;
 
