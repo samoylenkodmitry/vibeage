@@ -234,7 +234,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       modifiers: { manaMultiplier: 1.15 },
     },
     specSkills: ['arcane_blast', 'rewind_mark', 'phase_prison'],
-    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap', 'gravity_well'],
+    proficiencySkills: ['arcane_supremacy', 'time_sphere', 'dimensional_swap', 'gravity_well', 'stasis_lattice'],
   },
   pyromancer: {
     id: 'pyromancer',
@@ -294,7 +294,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+0.5× crit multiplier (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['execute', 'delayed_fate', 'duelist_lunge'],
+    specSkills: ['execute', 'delayed_fate', 'duelist_lunge', 'blade_reversal'],
     proficiencySkills: ['killing_strike'],
   },
   // ---- HEALER ----
@@ -315,7 +315,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '+5% max HP; nearby allies (within 12m) regen +2 HP/sec.',
       modifiers: { healthMultiplier: 1.05, partyHpRegenAuraBonus: 2, partyHpRegenAuraRadiusM: 12 },
     },
-    specSkills: ['greater_heal', 'soul_link', 'lifeline_swap'],
+    specSkills: ['greater_heal', 'soul_link', 'lifeline_swap', 'sanctuary_gate'],
     proficiencySkills: ['mass_heal'],
   },
   theurge: {
@@ -356,7 +356,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Crit multiplier +0.5× on ranged attacks (proficiency).',
       modifiers: { critMultBonus: 0.5 },
     },
-    specSkills: ['snipe', 'projectile_capture', 'tripwire_volley'],
+    specSkills: ['snipe', 'projectile_capture', 'tripwire_volley', 'ricochet_prism'],
     proficiencySkills: ['aimed_volley', 'terrain_sigil'],
   },
   phantom_ranger: {
@@ -397,7 +397,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: '15% damage reduction while below half HP.',
       modifiers: { belowHalfHpDamageTakenMultiplier: 0.85 },
     },
-    specSkills: ['holy_shield', 'silence_bubble', 'guardian_hook'],
+    specSkills: ['holy_shield', 'silence_bubble', 'guardian_hook', 'bulwark_zone'],
     proficiencySkills: ['divine_taunt'],
   },
   dark_avenger: {
@@ -458,7 +458,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Divine Shield cooldown halved.',
       modifiers: { cooldownMultiplierBySkill: { divineShield: 0.5 } },
     },
-    specSkills: ['sacred_pulse', 'aegis_relay', 'tidal_barrier'],
+    specSkills: ['sacred_pulse', 'aegis_relay', 'tidal_barrier', 'purifying_mirror'],
     proficiencySkills: ['sacred_aura'],
   },
   // ---- ROGUE ----
@@ -499,7 +499,7 @@ const SPECIALIZATION_DEFS: Record<SpecializationId, SpecializationDef> = {
       description: 'Vanish cooldown halved.',
       modifiers: { cooldownMultiplierBySkill: { vanish: 0.5 } },
     },
-    specSkills: ['wind_dash', 'clone_swap', 'razorwind_step'],
+    specSkills: ['wind_dash', 'clone_swap', 'razorwind_step', 'phantom_split'],
     proficiencySkills: ['stalking_arrow', 'rift_step'],
   },
 };

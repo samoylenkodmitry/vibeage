@@ -1,3 +1,5 @@
+import { skillMechanicLabels } from '../../../../packages/content/skillMechanics';
+import type { SkillDef } from '../../../../packages/content/skills';
 import type { SkillOffense } from '../../../../packages/content/skillTags';
 import type { SkillReaction } from '../../../../packages/content/skillReactions';
 
@@ -30,4 +32,13 @@ export function describeOffense(offense: SkillOffense | undefined): string[] {
 
 export function describeReactions(reactions: readonly SkillReaction[] | undefined): string[] {
   return reactions?.map((reaction) => reaction.description) ?? [];
+}
+
+export function describeSkillPlayPattern(skill: SkillDef): string[] {
+  const lines: string[] = [];
+  const labels = skillMechanicLabels(skill, 4);
+  if (labels.length > 0) lines.push(`Mechanics: ${labels.join(' + ')}`);
+  if (skill.pveUse?.length) lines.push(`Best used for: ${skill.pveUse.join(', ')}`);
+  if (skill.role && skill.targetMode) lines.push(`${skill.role} · ${skill.targetMode}`);
+  return lines;
 }

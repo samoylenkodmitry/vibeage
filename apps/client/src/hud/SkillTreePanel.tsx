@@ -8,7 +8,7 @@ import { SKILLS, classifySkill, isPassiveSkill, type SkillDef, type SkillId } fr
 import { PASSIVE_SKILL_CONTRIBUTIONS } from '../../../../packages/content/classPassives';
 import { STATS } from '../../../../packages/content/stats';
 import type { Contribution } from '../../../../packages/sim/statContributions';
-import { describeOffense, describeReactions } from './skillMechanics';
+import { describeOffense, describeReactions, describeSkillPlayPattern } from './skillMechanics';
 import { skillMechanicLabels } from '../../../../packages/content/skillMechanics';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
@@ -232,6 +232,9 @@ function SkillDetail({ skill, skillLevel, player }: { skill: SkillDef; skillLeve
         <p key={line} className="skill-tree-offense">{line}</p>
       ))}
       {describeReactions(skill.reactions).map((line) => (
+        <p key={line} className="skill-tree-offense">{line}</p>
+      ))}
+      {describeSkillPlayPattern(skill).map((line) => (
         <p key={line} className="skill-tree-offense">{line}</p>
       ))}
       {skill.upgrades?.length ? (

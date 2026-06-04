@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { getEffectLabel } from '../../../../packages/content/effects';
 import { SKILLS, type SkillDef, type SkillId } from '../../../../packages/content/skills';
 import { getEffectiveSkillStats } from '../../../../packages/sim/skillUpgrades';
-import { describeOffense, describeReactions } from './skillMechanics';
+import { describeOffense, describeReactions, describeSkillPlayPattern } from './skillMechanics';
 import { openWikiAt } from './wikiNavBus';
 import type { PlayerEntity } from '../gameTypes';
 
@@ -155,6 +155,9 @@ function SkillTooltipPanel({
         <p key={line} className="skill-tooltip-offense">{line}</p>
       ))}
       {describeReactions(skill.reactions).map((line) => (
+        <p key={line} className="skill-tooltip-offense">{line}</p>
+      ))}
+      {describeSkillPlayPattern(skill).map((line) => (
         <p key={line} className="skill-tooltip-offense">{line}</p>
       ))}
       <button

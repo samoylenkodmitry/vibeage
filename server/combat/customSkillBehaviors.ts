@@ -6,8 +6,11 @@ import {
   addStatus,
   alliedPlayers,
   applyCustomDamage,
+  applyReflectWard,
   activeStatus,
+  applyStatusField,
   blinkPast,
+  chainDamage,
   consumeStatus,
   damageHostilesInRadius,
   emitMaybe,
@@ -26,8 +29,11 @@ import {
   removeStatusTypes,
   resolveCaster,
   spawnDecoy,
+  spawnIllusionsAround,
+  shieldAlliesInRadius,
   suppressEnemyAggro,
   swapCombatants,
+  tauntHostilesInRadius,
   targetOf,
 } from './skillMechanicPrimitives.js';
 
@@ -434,6 +440,123 @@ export const CUSTOM_SKILL_BEHAVIORS: Record<string, CustomSkillBehavior> = {
       if (poisoned) addStatus({ target: enemy, type: 'poison', value: 3, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
       emitMaybe(outbound, enemy);
     });
+  },
+  stasisLattice: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const center = impactCenter(cast, world);
+    if (!caster || !center) return;
+    const targets = applyStatusField({
+      caster,
+      world,
+      center,
+      radius: 5.5,
+      statuses: [
+        { type: 'slow', value: 55, durationMs: 3500 },
+        { type: 'root', value: 1, durationMs: 2200 },
+        { type: 'silence', value: 1, durationMs: 2200 },
+      ],
+      cast,
+      now,
+      outbound,
+    });
+    const charged = targets.some((enemy) => activeStatus(enemy, 'freeze', now) || activeStatus(enemy, 'timeStop', now));
+    if (charged) {
+      addStatus({ target: caster, type: 'arcaneCharge', value: 1, durationMs: 9000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, caster);
+    }
+    targets.forEach((enemy) => applyCustomDamage({ caster, target: enemy, rawDamage: charged ? 185 : 135, cast, world, now, outbound }));
+  },
+  bladeReversal: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const marked = activeStatus(target, 'marked', now);
+    blinkPast(caster, target, 1.2, world);
+    applyReflectWard({ target: caster, value: 30, durationMs: 3500, cast, now, outbound, linkedTargetId: target.id });
+    addStatus({ target: caster, type: 'evasion', value: 45, durationMs: 1800, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    addStatus({ target, type: 'marked', value: 1, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    applyCustomDamage({ caster, target, rawDamage: marked ? 220 : 165, cast, world, now, outbound });
+    emitMaybe(outbound, caster);
+  },
+  sanctuaryGate: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    if (!caster) return;
+    const center = { x: caster.position.x, z: caster.position.z };
+    healAlliesInRadius({ world, center, radius: 8, amount: (ally) => ally.health / ally.maxHealth < 0.5 ? 170 : 95, outbound });
+    shieldAlliesInRadius({ caster, world, center, radius: 8, value: 130, durationMs: 6500, cast, now, outbound });
+    for (const ally of alliedPlayers(world, center, 8)) {
+      if (ally.id !== caster.id) pullIntoRange(ally, center, 2, 4, world);
+    }
+    applyStatusField({
+      caster,
+      world,
+      center,
+      radius: 5.5,
+      statuses: [{ type: 'slow', value: 35, durationMs: 3000 }, { type: 'silence', value: 1, durationMs: 1200 }],
+      cast,
+      now,
+      outbound,
+    });
+  },
+  ricochetPrism: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const marked = activeStatus(target, 'marked', now);
+    const chain = chainDamage({ caster, world, start: target, radius: 7, maxTargets: 4, rawDamage: marked ? 210 : 155, falloff: 0.72, cast, now, outbound });
+    for (const enemy of chain) {
+      if (!enemy.isAlive || enemy.health <= 0) continue;
+      addStatus({ target: enemy, type: 'marked', value: 1, durationMs: 5500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      if (marked) addStatus({ target: enemy, type: 'slow', value: 35, durationMs: 2500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, enemy);
+    }
+    if (chain.length >= 3) {
+      addStatus({ target: caster, type: 'attackSpeed', value: 18, durationMs: 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, caster);
+    }
+  },
+  bulwarkZone: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    if (!caster) return;
+    const center = { x: caster.position.x, z: caster.position.z };
+    shieldAlliesInRadius({ caster, world, center, radius: 6.5, value: (ally) => ally.id === caster.id ? 230 : 145, durationMs: 6500, cast, now, outbound });
+    const alreadyTaunted = new Set(hostileEntities(caster, world, center, 6.5).filter((enemy) => activeStatus(enemy, 'taunt', now)).map((enemy) => enemy.id));
+    for (const enemy of tauntHostilesInRadius({ caster, world, center, radius: 6.5, durationMs: 3600, cast, now, outbound })) {
+      pullIntoRange(enemy, center, 2.4, 4.5, world);
+      const rooted = alreadyTaunted.has(enemy.id);
+      addStatus({ target: enemy, type: rooted ? 'root' : 'slow', value: rooted ? 1 : 35, durationMs: 1800, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: 55, cast, world, now, outbound });
+    }
+  },
+  purifyingMirror: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    if (!caster) return;
+    const center = { x: caster.position.x, z: caster.position.z };
+    let cleansedTotal = 0;
+    for (const ally of alliedPlayers(world, center, 7)) {
+      const cleansed = removeStatusTypes(ally, SUPPORT_CLEANSE_TYPES, now);
+      cleansedTotal += cleansed;
+      healCombatant(ally, cleansed > 0 ? 130 : 60);
+      addStatus({ target: ally, type: 'shield', value: 120 + cleansed * 35, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      emitMaybe(outbound, ally);
+    }
+    applyReflectWard({ target: caster, value: 25 + Math.min(30, cleansedTotal * 8), durationMs: 6000, cast, now, outbound });
+    damageHostilesInRadius({ caster, world, center, radius: 5.75, rawDamage: 50 + cleansedTotal * 25, cast, now, outbound });
+  },
+  phantomSplit: (cast, world, now, outbound) => {
+    const caster = resolveCaster(cast, world);
+    const target = targetOf(cast, world);
+    if (!caster || !target) return;
+    const empowered = Boolean(activeStatus(caster, 'invisible', now) || activeStatus(target, 'poison', now));
+    spawnIllusionsAround({ caster, world, now, center: target.position, count: empowered ? 3 : 2, radius: 2.2, namePrefix: 'Phantom' });
+    blinkPast(caster, target, 1.9, world);
+    addStatus({ target: caster, type: 'evasion', value: 55, durationMs: 2200, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+    emitMaybe(outbound, caster);
+    for (const enemy of hostileEntities(caster, world, target.position, 4.25)) {
+      addStatus({ target: enemy, type: 'poison', value: empowered ? 5 : 3, durationMs: 6500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      addStatus({ target: enemy, type: 'marked', value: 1, durationMs: 5000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
+      applyCustomDamage({ caster, target: enemy, rawDamage: enemy.id === target.id ? 130 + (empowered ? 80 : 0) : 70, cast, world, now, outbound });
+    }
   },
   projectileCapture: (cast, world, now, outbound) => {
     const caster = world.getPlayerById(cast.casterId);
