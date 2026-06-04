@@ -51,10 +51,19 @@ export function normalizePlayerLevel(value: unknown): number {
 }
 
 export const BASE_XP_TO_NEXT_LEVEL = 100;
-export const XP_TO_NEXT_LEVEL_EXPONENT = 1.255;
+export const XP_TO_NEXT_LEVEL_LINEAR_STEP = 60;
+export const XP_TO_NEXT_LEVEL_QUADRATIC_START = 10;
+export const XP_TO_NEXT_LEVEL_QUADRATIC_STEP = 15;
 
 export function getExperienceToNextLevel(level: number): number {
-  return Math.floor(BASE_XP_TO_NEXT_LEVEL * Math.pow(XP_TO_NEXT_LEVEL_EXPONENT, level - 1));
+  const normalizedLevel = normalizePlayerLevel(level);
+  const levelOffset = normalizedLevel - 1;
+  const rampOffset = Math.max(0, normalizedLevel - XP_TO_NEXT_LEVEL_QUADRATIC_START);
+  return Math.floor(
+    BASE_XP_TO_NEXT_LEVEL
+    + (levelOffset * XP_TO_NEXT_LEVEL_LINEAR_STEP)
+    + (rampOffset * rampOffset * XP_TO_NEXT_LEVEL_QUADRATIC_STEP),
+  );
 }
 
 function isSkillId(value: unknown): value is SkillId {

@@ -198,13 +198,13 @@ export function runPlayerJourney(options: PlayerJourneyOptions): PlayerJourneySu
 
 export function journeyReportRows(): PlayerJourneySummary[] {
   const classRows = (Object.keys(CLASS_SKILL_TREES) as CharacterClass[]).map((className) => (
-    runPlayerJourney({ className, horizonHours: 24 })
+    runPlayerJourney({ className, horizonHours: DEFAULT_HORIZON_HOURS })
   ));
   const specRows = Object.values(SPECIALIZATIONS).map((spec) => (
     runPlayerJourney({
       className: spec.baseClass,
       specializationId: spec.id,
-      horizonHours: 168,
+      horizonHours: DEFAULT_HORIZON_HOURS,
     })
   ));
   return [...classRows, ...specRows];

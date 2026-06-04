@@ -6,6 +6,7 @@ import {
   onRespawnRequest,
   respawnPlayer,
 } from '../server/players/playerLifecycle';
+import { ENEMY_BASE_SCALING } from '../packages/content/enemies';
 import { getExperienceToNextLevel } from '../server/players/playerProgression';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { PlayerState } from '../packages/sim/entities';
@@ -36,7 +37,7 @@ const makePlayer = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   ...overrides,
 });
 
-describe('player lifecycle', () => {
+describe('player xp lifecycle', () => {
   test('awards xp and applies one level-up worth of progression', () => {
     const player = makePlayer({ experience: 90 });
 
@@ -63,6 +64,25 @@ describe('player lifecycle', () => {
     });
   });
 
+  test('does not skip a level from one ordinary mob kill at the level boundary', () => {
+    for (let level = 1; level < 60; level += 1) {
+      const player = makePlayer({
+        level,
+        experience: getExperienceToNextLevel(level) - 1,
+        experienceToNextLevel: getExperienceToNextLevel(level),
+      });
+      const ordinaryMobXp = ENEMY_BASE_SCALING.experience.flat + (ENEMY_BASE_SCALING.experience.perLevel * level);
+
+      awardPlayerXP(player, ordinaryMobXp, 'ordinary mob test kill');
+
+      expect(player.level, `level ${level} ordinary mob xp ${ordinaryMobXp}`).toBe(level + 1);
+      expect(player.experience).toBe(ordinaryMobXp - 1);
+      expect(player.experience).toBeLessThan(player.experienceToNextLevel);
+    }
+  });
+});
+
+describe('player resource lifecycle', () => {
   test('regenerates HP + mana for alive players over real seconds', () => {
     // PR L: regen is now time-based + scaled from player.stats.{hp,mp}Regen
     // instead of a fixed per-tick increment. Pass an explicit clock so
@@ -86,7 +106,9 @@ describe('player lifecycle', () => {
     expect(state.players.player1.mana).toBeCloseTo(94, 5);
     expect(outbound.publish).toHaveBeenCalled();
   });
+});
 
+describe('player respawn lifecycle', () => {
   test('respawns a dead player at spawn and refreshes spatial membership', () => {
     const state = createGameState();
     const spatial = new SpatialHashGrid();

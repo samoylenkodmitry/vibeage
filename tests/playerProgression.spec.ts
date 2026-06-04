@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import type { SkillId } from '../packages/content/skills';
+import { ENEMY_BASE_SCALING } from '../packages/content/enemies';
 import { learnNewSkill, onLearnSkill } from '../server/players/playerSkills';
 import type { PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
@@ -19,14 +20,21 @@ type TestPlayer = {
 };
 
 describe('player progression hydration', () => {
-  test('keeps the level curve within the one-week level-40 simulator target band', () => {
+  test('keeps the non-exponential curve within the one-day level-40 simulator target band', () => {
     const totalXpToLevel40 = Array.from({ length: 39 }, (_, index) => getExperienceToNextLevel(index + 1))
       .reduce((total, xp) => total + xp, 0);
 
     expect(getExperienceToNextLevel(1)).toBe(100);
-    expect(getExperienceToNextLevel(2)).toBe(125);
-    expect(totalXpToLevel40).toBeGreaterThanOrEqual(2_700_000);
-    expect(totalXpToLevel40).toBeLessThanOrEqual(2_800_000);
+    expect(getExperienceToNextLevel(2)).toBe(160);
+    expect(totalXpToLevel40).toBeGreaterThanOrEqual(170_000);
+    expect(totalXpToLevel40).toBeLessThanOrEqual(185_000);
+  });
+
+  test('prevents one ordinary mob kill from skipping the next level', () => {
+    for (let level = 1; level < 60; level += 1) {
+      const ordinaryMobXp = ENEMY_BASE_SCALING.experience.flat + (ENEMY_BASE_SCALING.experience.perLevel * level);
+      expect(getExperienceToNextLevel(level + 1), `level ${level} ordinary mob xp ${ordinaryMobXp}`).toBeGreaterThan(ordinaryMobXp);
+    }
   });
 
   test('gives a persisted player the starter skill when the database has an empty skills array', () => {
