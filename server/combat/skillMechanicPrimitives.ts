@@ -305,6 +305,137 @@ export function spawnDecoy(
   });
 }
 
+export function spawnIllusionsAround(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  now: number;
+  center: VecXZ;
+  count: number;
+  radius: number;
+  namePrefix?: string;
+}): void {
+  for (let index = 0; index < input.count; index += 1) {
+    const angle = (Math.PI * 2 * index) / Math.max(1, input.count);
+    spawnDecoy(input.caster, input.world, input.now, {
+      position: {
+        x: input.center.x + Math.cos(angle) * input.radius,
+        y: input.caster.position.y,
+        z: input.center.z + Math.sin(angle) * input.radius,
+      },
+      namePrefix: input.namePrefix ?? 'Illusion',
+      healthMultiplier: 0.13,
+    });
+  }
+}
+
+export function applyReflectWard(input: {
+  target: Combatant;
+  value: number;
+  durationMs: number;
+  cast: Cast;
+  now: number;
+  outbound?: OutboundEventSink;
+  linkedTargetId?: string;
+}): void {
+  addStatus({
+    target: input.target,
+    type: 'damageReflect',
+    value: input.value,
+    durationMs: input.durationMs,
+    sourceSkill: input.cast.skillId,
+    now: input.now,
+    sourceCasterId: input.cast.casterId,
+    linkedTargetId: input.linkedTargetId,
+  });
+  emitMaybe(input.outbound, input.target);
+}
+
+export function applyStatusField(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  center: VecXZ;
+  radius: number;
+  statuses: readonly Omit<StatusInput, 'target' | 'sourceCasterId' | 'sourceSkill' | 'now'>[];
+  cast: Cast;
+  now: number;
+  outbound?: OutboundEventSink;
+}): Combatant[] {
+  const targets = hostileEntities(input.caster, input.world, input.center, input.radius);
+  for (const target of targets) {
+    for (const status of input.statuses) {
+      addStatus({ ...status, target, sourceSkill: input.cast.skillId, now: input.now, sourceCasterId: input.caster.id });
+    }
+    emitMaybe(input.outbound, target);
+  }
+  return targets;
+}
+
+export function chainDamage(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  start: Combatant;
+  radius: number;
+  maxTargets: number;
+  rawDamage: number;
+  falloff: number;
+  cast: Cast;
+  now: number;
+  outbound?: OutboundEventSink;
+}): Combatant[] {
+  const candidates = hostileEntities(input.caster, input.world, input.start.position, input.radius)
+    .sort((a, b) => distanceSq(a.position, input.start.position) - distanceSq(b.position, input.start.position))
+    .slice(0, input.maxTargets);
+  candidates.forEach((target, index) => applyCustomDamage({
+    caster: input.caster,
+    target,
+    rawDamage: Math.max(0, input.rawDamage * (input.falloff ** index)),
+    cast: input.cast,
+    world: input.world,
+    now: input.now,
+    outbound: input.outbound,
+  }));
+  return candidates;
+}
+
+export function shieldAlliesInRadius(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  center: VecXZ;
+  radius: number;
+  value: number | ((ally: PlayerState, index: number) => number);
+  durationMs: number;
+  cast: Cast;
+  now: number;
+  outbound?: OutboundEventSink;
+}): PlayerState[] {
+  const allies = alliedPlayers(input.world, input.center, input.radius);
+  allies.forEach((ally, index) => {
+    const value = typeof input.value === 'function' ? input.value(ally, index) : input.value;
+    addStatus({ target: ally, type: 'shield', value, durationMs: input.durationMs, sourceSkill: input.cast.skillId, now: input.now, sourceCasterId: input.caster.id });
+    emitMaybe(input.outbound, ally);
+  });
+  return allies;
+}
+
+export function tauntHostilesInRadius(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  center: VecXZ;
+  radius: number;
+  durationMs: number;
+  cast: Cast;
+  now: number;
+  outbound?: OutboundEventSink;
+}): Combatant[] {
+  const targets = hostileEntities(input.caster, input.world, input.center, input.radius);
+  for (const target of targets) {
+    forceEnemyChase(target, input.caster, input.now);
+    addStatus({ target, type: 'taunt', value: 1, durationMs: input.durationMs, sourceSkill: input.cast.skillId, now: input.now, sourceCasterId: input.caster.id });
+    emitMaybe(input.outbound, target);
+  }
+  return targets;
+}
+
 export function applyCustomDamage(input: CustomDamageInput): void {
   const { caster, target, rawDamage, cast, world, now, outbound } = input;
   const applied = applyResolvedDamageToTarget(target, rawDamage, now, { kind: 'none', source: caster, world });
@@ -331,4 +462,10 @@ export function emitMaybe(outbound: OutboundEventSink | undefined, entity: Comba
 
 export function isEnemy(entity: Combatant): entity is Enemy {
   return 'type' in entity;
+}
+
+function distanceSq(a: VecXZ, b: VecXZ): number {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return dx * dx + dz * dz;
 }

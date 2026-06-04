@@ -5,11 +5,12 @@ import { SKILLS, type SkillEffectType, type SkillId } from '../../packages/conte
 import type { ServerMessage } from '../../packages/protocol/messages.js';
 import type { StatusEffect } from '../../packages/sim/entities.js';
 import type { OutboundEvent } from '../transport/outboundEvents.js';
-import { createGameSimulator, createSimulatedEnemy, type SimulationSummary } from './gameSimulator.js';
+import { createGameSimulator, createSimulatedEnemy, type SimulationSummary, type TimedOutboundEvent } from './gameSimulator.js';
 import {
   createClassAiPolicy,
   createSimProfilePlayer,
   SPECIALIZATION_AI_PROFILES,
+  type SkillUseTactic,
   type SpecializationAiProfile,
   unlockedSkillsForSimProfile,
 } from './playerPolicies.js';
@@ -57,6 +58,15 @@ export type SpecializationAiAuditRow = {
   damageDone: number;
   damageTaken: number;
   healingDone: number;
+  playerEndingHealthPct: number;
+  burstDamageFirst10s: number;
+  healingFirst10s: number;
+  firstCastDelayMs: number | null;
+  controlUptimeEstimateMs: number;
+  interestingActionsPerMinute: number;
+  uniqueSkillCount: number;
+  fillerCastRatio: number;
+  tacticCounts: Record<SkillUseTactic, number>;
   castsBySkill: CountMap<SkillId>;
   castAttemptsBySkill: CountMap<SkillId>;
   expectedSkillIds: SkillId[];
@@ -206,7 +216,10 @@ export function runSpecializationAiAuditScenario(
     { timeoutMs },
   );
   const combat = collectPlayerCombat(result.summary, playerId);
+  const playerSummary = result.summary.players[playerId];
   const events = collectPlayerEvents(sim.events, playerId);
+  const timing = collectTimelineMetrics(sim.timeline, playerId, result.durationMs);
+  const controlUptimeEstimateMs = estimateControlUptimeMs(events.castAttemptsBySkill);
   const rejections = collectCommandRejections(sim.directMessages);
   const triggeredReactionIds = Object.keys(events.reactionCounts).sort();
 
@@ -228,6 +241,15 @@ export function runSpecializationAiAuditScenario(
     damageDone: combat.damageDone,
     damageTaken: combat.damageTaken,
     healingDone: combat.healingDone,
+    playerEndingHealthPct: playerSummary ? healthPct(playerSummary) : 0,
+    burstDamageFirst10s: timing.burstDamageFirst10s,
+    healingFirst10s: timing.healingFirst10s,
+    firstCastDelayMs: timing.firstCastDelayMs,
+    controlUptimeEstimateMs,
+    interestingActionsPerMinute: interestingActionsPerMinute(events.castAttemptsBySkill, result.durationMs),
+    uniqueSkillCount: Object.keys(events.castAttemptsBySkill).length,
+    fillerCastRatio: fillerCastRatio(events.castAttemptsBySkill),
+    tacticCounts: tacticCounts(events.castAttemptsBySkill, profile),
     castsBySkill: events.castsBySkill,
     castAttemptsBySkill: events.castAttemptsBySkill,
     expectedSkillIds,
@@ -357,6 +379,78 @@ function collectPlayerEvents(events: readonly OutboundEvent[], playerId: string)
   return { castsBySkill, castAttemptsBySkill, reactionCounts };
 }
 
+function collectTimelineMetrics(timeline: readonly TimedOutboundEvent[], playerId: string, durationMs: number) {
+  const seenCasts = new Set<string>();
+  let burstDamageFirst10s = 0;
+  let healingFirst10s = 0;
+  let firstCastDelayMs: number | null = null;
+
+  for (const item of timeline) {
+    if (item.event.type !== 'serverMessage') continue;
+    const message = item.event.message;
+    if (message.type === 'CastSnapshot' && message.data.casterId === playerId && !seenCasts.has(message.data.castId)) {
+      seenCasts.add(message.data.castId);
+      firstCastDelayMs ??= Math.max(0, item.now);
+    }
+    if (message.type !== 'CombatLog' || message.casterId !== playerId || item.now > 10_000) continue;
+    burstDamageFirst10s += sum(message.damages);
+    healingFirst10s += sum(message.heals ?? []);
+  }
+
+  return {
+    burstDamageFirst10s,
+    healingFirst10s,
+    firstCastDelayMs: durationMs > 0 ? firstCastDelayMs : null,
+  };
+}
+
+function estimateControlUptimeMs(castsBySkill: CountMap<SkillId>): number {
+  return Object.entries(castsBySkill).reduce((total, [skillId, count]) => (
+    total + (count ?? 0) * skillControlDurationMs(skillId as SkillId)
+  ), 0);
+}
+
+function skillControlDurationMs(skillId: SkillId): number {
+  const skill = SKILLS[skillId];
+  if (!skill) return 0;
+  const effectDuration = Math.max(0, ...skill.effects
+    .filter((effect) => ['stun', 'slow', 'freeze', 'timeStop', 'taunt', 'silence', 'knockback', 'marked', 'waterWeakness'].includes(effect.type))
+    .map((effect) => effect.durationMs ?? 0));
+  if (effectDuration > 0) return effectDuration;
+  if (!skill.customBehavior) return 0;
+  if (['phasePrison', 'stasisLattice', 'gravityWell', 'tripwireVolley', 'bulwarkZone'].includes(skill.customBehavior)) return 3000;
+  if (['magmaChain', 'guardianHook', 'vengeanceTether', 'jackpotSnare', 'ricochetPrism'].includes(skill.customBehavior)) return 2200;
+  if (['terrainSigil', 'umbraMine', 'puppetMastery', 'tidalBarrier', 'sanctuaryGate', 'purifyingMirror'].includes(skill.customBehavior)) return 1800;
+  return 0;
+}
+
+function interestingActionsPerMinute(castsBySkill: CountMap<SkillId>, durationMs: number): number {
+  const interesting = Object.entries(castsBySkill)
+    .filter(([skillId]) => skillId !== 'basicAttack')
+    .reduce((total, [, count]) => total + (count ?? 0), 0);
+  return durationMs > 0 ? interesting / (durationMs / 60_000) : 0;
+}
+
+function fillerCastRatio(castsBySkill: CountMap<SkillId>): number {
+  const total = sum(Object.values(castsBySkill));
+  return total > 0 ? (castsBySkill.basicAttack ?? 0) / total : 0;
+}
+
+function tacticCounts(castsBySkill: CountMap<SkillId>, profile: SpecializationAiProfile): Record<SkillUseTactic, number> {
+  const counts: Record<SkillUseTactic, number> = { opener: 0, combo: 0, defensive: 0, control: 0, mobility: 0, sustain: 0, filler: 0 };
+  for (const [skillId, count] of Object.entries(castsBySkill) as Array<[SkillId, number]>) {
+    counts[tacticForSkill(profile, skillId)] += count ?? 0;
+  }
+  return counts;
+}
+
+function tacticForSkill(profile: SpecializationAiProfile, skillId: SkillId): SkillUseTactic {
+  for (const tactic of Object.keys(profile.tactics) as SkillUseTactic[]) {
+    if (profile.tactics[tactic].includes(skillId)) return tactic;
+  }
+  return 'filler';
+}
+
 function collectCommandRejections(messages: readonly ServerMessage[]) {
   let total = 0;
   let castReqTotal = 0;
@@ -375,6 +469,10 @@ function collectCommandRejections(messages: readonly ServerMessage[]) {
 function applyHealthFraction(entity: { health: number; maxHealth: number }, fraction: number | undefined): void {
   if (fraction === undefined) return;
   entity.health = Math.max(1, Math.floor(entity.maxHealth * fraction));
+}
+
+function healthPct(entity: { health: number; maxHealth: number }): number {
+  return entity.maxHealth > 0 ? Math.max(0, Math.min(1, entity.health / entity.maxHealth)) : 0;
 }
 
 function applyStatusEffects(

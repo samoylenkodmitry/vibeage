@@ -19,7 +19,7 @@ export const SKILL_IDS = [
   'magma_chain', 'duelist_lunge', 'phoenix_leap', 'aegis_relay',
   'phase_prison', 'tripwire_volley', 'guardian_hook', 'lifeline_swap',
   'combustion_bloom', 'blood_magnet', 'echoing_benediction', 'umbra_mine',
-  'vengeance_tether', 'sunbreak_charge', 'tidal_barrier', 'jackpot_snare', 'razorwind_step',
+  'vengeance_tether', 'sunbreak_charge', 'tidal_barrier', 'jackpot_snare', 'razorwind_step', 'stasis_lattice', 'blade_reversal', 'sanctuary_gate', 'ricochet_prism', 'bulwark_zone', 'purifying_mirror', 'phantom_split',
   // Proficiency skills (PROFICIENCY_LEVEL = Lv 40).
   'arcane_supremacy', 'time_sphere', 'inferno_aura', 'blood_frenzy', 'killing_strike',
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',

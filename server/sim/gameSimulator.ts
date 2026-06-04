@@ -118,6 +118,11 @@ export type SimulationSummary = {
   misses: number;
 };
 
+export type TimedOutboundEvent = {
+  now: number;
+  event: OutboundEvent;
+};
+
 export type TeamSummary = {
   initial: number;
   alive: number;
@@ -153,6 +158,7 @@ export class GameSimulator {
   readonly spatial: SpatialHashGrid;
   readonly clock: SimClock;
   readonly events: OutboundEvent[] = [];
+  readonly timeline: TimedOutboundEvent[] = [];
   readonly directMessages: ServerMessage[] = [];
   readonly tickMs: number;
 
@@ -170,7 +176,12 @@ export class GameSimulator {
     this.clock = new SimClock(this.startMs);
     this.state = createGameState();
     this.spatial = new SpatialHashGrid();
-    this.outbound = { publish: (event) => this.events.push(event) };
+    this.outbound = {
+      publish: (event) => {
+        this.events.push(event);
+        this.timeline.push({ now: this.now(), event });
+      },
+    };
     this.direct = { send: (message) => this.directMessages.push(message) };
   }
 

@@ -33,6 +33,7 @@ import {
   type SimReportContext,
 } from '../server/sim/reportContext.js';
 import { buildSpecializationAiAudit, type SpecializationAiCoverageRow } from '../server/sim/specializationAiAudit.js';
+import { buildSkillBalanceInstrumentation, type SkillBalanceInstrumentationRow } from '../server/sim/skillBalanceInstrumentation.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
@@ -45,6 +46,7 @@ printReportScope(reportContext);
 printPveClassMatrix();
 printSpecializationMatrix();
 printSpecializationAiAudit();
+printSkillBalanceInstrumentation();
 printPvpClassMatrix();
 printProgressionRewards();
 printPlayerJourneyRoutes(playerJourneyRows);
@@ -131,6 +133,37 @@ function printSpecializationAiAudit(): void {
     console.log(`| ${row.specializationId} | ${row.level} | ${row.role} | ${row.completed}/${row.exerciseCount} | ${row.coveredSkillIds.length}/${row.expectedSkillIds.length} | ${reactionCell(row)} | ${listCell(row.uncoveredSkillIds)} | ${listCell(row.untriggeredReactionIds)} | ${row.blockedCastCount} |`);
   }
   console.log('');
+}
+
+function printSkillBalanceInstrumentation(): void {
+  const rows = buildSkillBalanceInstrumentation();
+  console.log('## Skill balance instrumentation');
+  console.log('');
+  console.log('Per-spec advisory metrics from AI exercise scenarios. These are regression signals, not tuning approval: they expose burst window, control estimate, rotation variety, filler pressure, and dead AI skills while the skill catalog keeps changing.');
+  console.log('');
+  console.log('| Spec | Lv | Exercises | Win | Duration | HP | Burst 10s | Control est | Actions/min | Unique skills | Filler | Tactics | Risks |');
+  console.log('|------|----|-----------|-----|----------|----|-----------|-------------|-------------|---------------|--------|---------|-------|');
+  for (const row of rows) console.log(skillBalanceInstrumentationRow(row));
+  console.log('');
+}
+
+function skillBalanceInstrumentationRow(row: SkillBalanceInstrumentationRow): string {
+  const cells = [
+    row.specializationId,
+    String(row.level),
+    String(row.exerciseCount),
+    `${Math.round(row.winRate * 100)}%`,
+    seconds(row.meanDurationMs),
+    `${Math.round(row.meanSurvivalPct * 100)}%`,
+    String(Math.round(row.meanBurstDamageFirst10s)),
+    seconds(row.meanControlUptimeMs),
+    row.meanInterestingActionsPerMinute.toFixed(1),
+    row.meanUniqueSkillCount.toFixed(1),
+    `${Math.round(row.meanFillerCastRatio * 100)}%`,
+    tacticCell(row),
+    listCell(row.riskFlags),
+  ];
+  return `| ${cells.join(' | ')} |`;
 }
 
 function printPvpClassMatrix(): void {
@@ -299,6 +332,13 @@ function hours(value: number): string {
 
 function reactionCell(row: SpecializationAiCoverageRow): string {
   return row.triggeredReactionIds.join(', ') || '-';
+}
+
+function tacticCell(row: SkillBalanceInstrumentationRow): string {
+  return Object.entries(row.tacticCounts)
+    .filter(([, count]) => count > 0)
+    .map(([tactic, count]) => `${tactic}:${count}`)
+    .join(', ') || '-';
 }
 
 function listCell(values: readonly string[]): string {

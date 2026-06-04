@@ -23,6 +23,7 @@ describe('specialization AI policy registry', () => {
 
       expect(profile.baseClass).toBe(spec.baseClass);
       expect(profile.rules.length).toBeGreaterThan(0);
+      expect(Object.values(profile.tactics).flat().length).toBeGreaterThan(0);
       for (const skillId of profile.rules.map((rule) => rule.skillId)) expect(SKILLS[skillId]).toBeDefined();
       for (const skillId of [...(spec.specSkills ?? []), ...(spec.proficiencySkills ?? [])]) {
         expect(ruleSkills.has(skillId), `${specId} AI should know ${skillId}`).toBe(true);
@@ -43,7 +44,7 @@ describe('specialization AI policy registry', () => {
     expect(firstCastSkill('evas_templar', 20, { casterEffects: [effect('poison')] })).toBe('tidal_barrier');
     expect(firstCastSkill('treasure_hunter', 20, { casterEffects: [effect('reveal_loot')] })).toBe('jackpot_snare');
     expect(firstCastSkill('plains_walker', 20, { targetEffects: [effect('poison')] })).toBe('razorwind_step');
-    expect(firstCastSkill('hawkeye', 20, { targetEffects: [effect('marked')] })).toBe('volley');
+    expect(firstCastSkill('hawkeye', 20, { targetEffects: [effect('marked')] })).toBe('ricochet_prism');
     expect(firstCastSkill('hawkeye', 20)).toBe('tripwire_volley');
     expect(firstCastSkill('hawkeye', 40, { targetEffects: [effect('marked')] })).toBe('aimed_volley');
     expect(firstCastSkill('templar_knight', 20)).toBe('guardian_hook');

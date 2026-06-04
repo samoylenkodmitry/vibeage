@@ -59,6 +59,13 @@ const CUSTOM_MECHANICS: Record<string, readonly string[]> = {
   tidalBarrier: ['Cleanse', 'Knockback', 'Shield'],
   jackpotSnare: ['Trap', 'Mark', 'Loot Sense'],
   razorwindStep: ['Blink', 'Bleed', 'Poison Spread'],
+  stasisLattice: ['Stasis', 'Root', 'Silence'],
+  bladeReversal: ['Parry', 'Reflect', 'Mark'],
+  sanctuaryGate: ['Ally Pull', 'Heal', 'Pacify'],
+  ricochetPrism: ['Ricochet', 'Mark', 'Chain Damage'],
+  bulwarkZone: ['Shield Zone', 'Taunt', 'Pull'],
+  purifyingMirror: ['Cleanse', 'Mirror Ward', 'Holy Lash'],
+  phantomSplit: ['Illusion', 'Blink', 'Poison Spread'],
   warbandHowl: ['Pack Rally'],
 };
 

@@ -47,13 +47,18 @@ export type SkillUseRule = {
   target: SkillUseTarget;
   when?: SkillUseCondition;
   desiredRangeFraction?: number;
+  tactic?: SkillUseTactic;
 };
+
+export type SkillUseTactic = 'opener' | 'combo' | 'defensive' | 'control' | 'mobility' | 'sustain' | 'filler';
+export type SpecializationAiTactics = Record<SkillUseTactic, SkillId[]>;
 
 export type SpecializationAiProfile = {
   specializationId: SpecializationId;
   baseClass: CharacterClass;
   role: 'burst' | 'sustain' | 'support' | 'tank' | 'skirmish';
   rules: readonly SkillUseRule[];
+  tactics: SpecializationAiTactics;
 };
 
 export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, SpecializationAiProfile> = {
@@ -69,6 +74,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('phase_prison', { targetMissingEffect: 'silence' }),
     enemy('waterSplash', { targetMissingEffect: 'waterWeakness' }),
     enemy('arcane_supremacy'),
+    enemy('stasis_lattice'),
     enemy('arcane_blast'),
     enemy('fireball'),
   ]),
@@ -98,6 +104,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('killing_strike', { targetHealthBelowPct: 0.35 }),
     enemy('delayed_fate', { targetHealthAbovePct: 0.45 }),
     enemy('duelist_lunge', { targetMissingEffect: 'marked' }),
+    enemy('blade_reversal', { casterHealthBelowPct: 0.72 }),
     enemy('execute', { targetHealthBelowPct: 0.4 }),
     enemy('powerStrike', { targetHasEffect: 'stun' }),
     enemy('bash', { targetHasEffect: 'dot' }),
@@ -108,6 +115,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   cardinal: profile('cardinal', 'support', [
     self('mass_heal', { casterHealthBelowPct: 0.75 }),
     ally('lifeline_swap', { targetHealthBelowPct: 0.55 }),
+    self('sanctuary_gate', { casterHealthBelowPct: 0.65 }),
     self('greater_heal', { casterHealthBelowPct: 0.82 }),
     self('holyLight', { casterHealthBelowPct: 0.9 }),
     self('bless', { casterMissingEffect: 'bless' }),
@@ -128,6 +136,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   hawkeye: profile('hawkeye', 'burst', [
     enemy('aimed_volley', { targetHasEffect: 'marked' }),
     enemy('tripwire_volley', { targetMissingEffect: 'marked' }),
+    enemy('ricochet_prism'),
     enemy('terrain_sigil'),
     enemy('volley', { targetHasEffect: 'marked' }),
     self('projectile_capture', { casterHealthBelowPct: 0.8 }),
@@ -151,6 +160,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   templar_knight: profile('templar_knight', 'tank', [
     enemy('guardian_hook', { casterMissingEffect: 'shield' }),
+    self('bulwark_zone', { casterMissingEffect: 'shield' }),
     self('holy_shield', { casterMissingEffect: 'shield' }),
     enemy('silence_bubble'),
     enemy('divine_taunt'),
@@ -184,6 +194,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   evas_templar: profile('evas_templar', 'support', [
     self('tidal_barrier', { casterHasEffect: 'poison' }),
     self('aegis_relay', { casterMissingEffect: 'shield' }),
+    self('purifying_mirror', { casterMissingEffect: 'damageReflect' }),
     self('sacred_aura', { casterHealthBelowPct: 0.8 }),
     self('sacred_pulse', { casterHealthBelowPct: 0.85 }),
     self('holyLight', { casterHealthBelowPct: 0.72 }),
@@ -205,6 +216,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   plains_walker: profile('plains_walker', 'skirmish', [
     self('wind_dash', { casterHealthBelowPct: 0.7, casterMissingEffect: 'speed_boost' }),
     enemy('razorwind_step', { targetHasEffect: 'poison' }),
+    enemy('phantom_split', { casterMissingEffect: 'evasion' }),
     enemy('clone_swap'),
     enemy('rift_step', { casterHasEffect: 'invisible' }),
     enemy('stalking_arrow', { targetHasEffect: 'poison' }),
@@ -311,7 +323,34 @@ function profile(
   role: SpecializationAiProfile['role'],
   rules: readonly SkillUseRule[],
 ): SpecializationAiProfile {
-  return { specializationId, baseClass: SPECIALIZATIONS[specializationId].baseClass, role, rules };
+  return { specializationId, baseClass: SPECIALIZATIONS[specializationId].baseClass, role, rules, tactics: buildTactics(rules) };
+}
+
+function buildTactics(rules: readonly SkillUseRule[]): SpecializationAiTactics {
+  const tactics: SpecializationAiTactics = {
+    opener: [],
+    combo: [],
+    defensive: [],
+    control: [],
+    mobility: [],
+    sustain: [],
+    filler: [],
+  };
+  rules.forEach((rule, index) => tactics[rule.tactic ?? inferTactic(rule, index)].push(rule.skillId));
+  for (const key of Object.keys(tactics) as SkillUseTactic[]) {
+    tactics[key] = [...new Set(tactics[key])];
+  }
+  return tactics;
+}
+
+function inferTactic(rule: SkillUseRule, index: number): SkillUseTactic {
+  const skill = SKILLS[rule.skillId];
+  if (rule.when?.casterHealthBelowPct || rule.when?.casterMissingEffect === 'shield') return 'defensive';
+  if (rule.when?.targetHasEffect || rule.when?.casterHasEffect || rule.when?.targetHealthBelowPct) return 'combo';
+  if (skill?.role === 'mobility' || skill?.targetMode === 'ground') return 'mobility';
+  if (skill?.role === 'heal' || skill?.role === 'tank' || skill?.role === 'utility') return 'sustain';
+  if (skill?.role === 'control' || skill?.effects.some((effect) => ['stun', 'slow', 'freeze', 'timeStop', 'taunt', 'silence', 'knockback', 'marked'].includes(effect.type))) return 'control';
+  return index < 3 ? 'opener' : 'filler';
 }
 
 function enemy(skillId: SkillId, when?: SkillUseCondition, desiredRangeFraction?: number): SkillUseRule {
