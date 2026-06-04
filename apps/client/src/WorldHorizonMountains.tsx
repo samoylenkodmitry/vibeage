@@ -26,10 +26,12 @@ type RingSpec = {
 };
 
 const RINGS: RingSpec[] = [
-  // Far range first (drawn behind), hazier + lower.
-  { radius: 920, minH: 70, maxH: 170, seed: 1337, colorBottom: '#3d4d61', colorTop: '#56697f' },
-  // Near range, darker + taller, partially occludes the far one.
-  { radius: 720, minH: 110, maxH: 280, seed: 7919, colorBottom: '#28333f', colorTop: '#3a4a5d' },
+  // Far range first (drawn behind): hazier, lighter, nearly sky-toned so it
+  // recedes into the atmosphere.
+  { radius: 1050, minH: 150, maxH: 380, seed: 1337, colorBottom: '#5b6e84', colorTop: '#7a8ca0' },
+  // Near range: taller so the peaks rise well above the treeline, and a touch
+  // darker/bluer so it reads in front of the far one. Still hazy (atmospheric).
+  { radius: 760, minH: 240, maxH: 560, seed: 7919, colorBottom: '#3f5167', colorTop: '#5a6e85' },
 ];
 
 /** A closed cylindrical curtain whose top edge is a periodic ridgeline. */
