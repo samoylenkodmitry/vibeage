@@ -29,6 +29,8 @@ describe('SpecializationChooser', () => {
     expect(canChooseSpecialization(player)).toBe(true);
     expect(choices.map((choice) => choice.id)).toEqual(['arcanist', 'pyromancer']);
     expect(choices[0].passiveName.length).toBeGreaterThan(0);
+    expect(choices[0].identity).toBe('Arcane controller');
+    expect(choices[0].loop).toContain('Create charges');
     expect(choices[0].specSkills.length).toBeGreaterThan(0);
     expect(choices[0].mechanics).toContain('Pull');
   });

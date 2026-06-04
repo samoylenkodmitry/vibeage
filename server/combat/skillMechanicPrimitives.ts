@@ -182,6 +182,129 @@ export function suppressEnemyAggro(target: Combatant, now: number, durationMs: n
   target.aggroSuppressedUntilTs = now + durationMs;
 }
 
+export function isStatusActive(effect: StatusEffect, now: number): boolean {
+  return effect.durationMs <= 0 || effect.startTimeTs + effect.durationMs > now;
+}
+
+export function activeStatus(target: Combatant, type: string, now: number): LinkedStatusEffect | null {
+  return (target.statusEffects ?? []).find((effect): effect is LinkedStatusEffect => (
+    effect.type === type && isStatusActive(effect, now)
+  )) ?? null;
+}
+
+export function consumeStatus(target: Combatant, type: string, now: number): LinkedStatusEffect | null {
+  const effect = activeStatus(target, type, now);
+  if (!effect) return null;
+  target.statusEffects = (target.statusEffects ?? []).filter((candidate) => candidate.id !== effect.id);
+  return effect;
+}
+
+export function removeStatusTypes(target: Combatant, types: readonly string[], now: number): number {
+  const removable = new Set(types);
+  let activeRemovedCount = 0;
+  target.statusEffects = (target.statusEffects ?? []).filter((effect) => {
+    if (!removable.has(effect.type)) return true;
+    if (isStatusActive(effect, now)) activeRemovedCount += 1;
+    return false;
+  });
+  return activeRemovedCount;
+}
+
+export function healthFraction(entity: Combatant): number {
+  if (entity.maxHealth <= 0) return 0;
+  return Math.max(0, Math.min(1, entity.health / entity.maxHealth));
+}
+
+export function injuredAllies(
+  world: CombatWorld,
+  center: VecXZ,
+  radius: number,
+  limit = Number.POSITIVE_INFINITY,
+): PlayerState[] {
+  return alliedPlayers(world, center, radius)
+    .filter((ally) => ally.health < ally.maxHealth)
+    .sort((a, b) => healthFraction(a) - healthFraction(b))
+    .slice(0, limit);
+}
+
+export function applyStatusToMany(
+  targets: readonly Combatant[],
+  status: Omit<StatusInput, 'target'>,
+  outbound?: OutboundEventSink,
+): void {
+  for (const target of targets) {
+    addStatus({ ...status, target });
+    emitMaybe(outbound, target);
+  }
+}
+
+export function damageHostilesInRadius(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  center: VecXZ;
+  radius: number;
+  rawDamage: number | ((target: Combatant, index: number) => number);
+  cast: Cast;
+  now: number;
+  outbound?: OutboundEventSink;
+  excludeIds?: readonly string[];
+}): Combatant[] {
+  const exclude = new Set(input.excludeIds ?? []);
+  const targets = hostileEntities(input.caster, input.world, input.center, input.radius)
+    .filter((target) => !exclude.has(target.id));
+  targets.forEach((target, index) => {
+    const rawDamage = typeof input.rawDamage === 'function' ? input.rawDamage(target, index) : input.rawDamage;
+    applyCustomDamage({
+      caster: input.caster,
+      target,
+      rawDamage,
+      cast: input.cast,
+      world: input.world,
+      now: input.now,
+      outbound: input.outbound,
+    });
+  });
+  return targets;
+}
+
+export function healAlliesInRadius(input: {
+  world: CombatWorld;
+  center: VecXZ;
+  radius: number;
+  amount: number | ((target: PlayerState, index: number) => number);
+  outbound?: OutboundEventSink;
+  limit?: number;
+}): PlayerState[] {
+  const allies = alliedPlayers(input.world, input.center, input.radius)
+    .sort((a, b) => healthFraction(a) - healthFraction(b))
+    .slice(0, input.limit ?? Number.POSITIVE_INFINITY);
+  allies.forEach((ally, index) => {
+    const amount = typeof input.amount === 'function' ? input.amount(ally, index) : input.amount;
+    healCombatant(ally, amount);
+    emitMaybe(input.outbound, ally);
+  });
+  return allies;
+}
+
+export function spawnDecoy(
+  caster: Combatant,
+  world: CombatWorld,
+  now: number,
+  options: {
+    position?: Combatant['position'];
+    namePrefix?: string;
+    healthMultiplier?: number;
+  } = {},
+): void {
+  world.spawnMinion?.('goblin', caster.level, options.position ?? caster.position, now, {
+    namePrefix: options.namePrefix ?? 'Decoy',
+    healthMultiplier: options.healthMultiplier ?? 0.16,
+    damageMultiplier: 0,
+    experienceMultiplier: 0,
+    lootTableIdOverride: '',
+  });
+}
+
 export function applyCustomDamage(input: CustomDamageInput): void {
   const { caster, target, rawDamage, cast, world, now, outbound } = input;
   const applied = applyResolvedDamageToTarget(target, rawDamage, now, { kind: 'none', source: caster, world });

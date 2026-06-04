@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { SKILLS } from '../../../../packages/content/skills';
+import { SPECIALIZATION_IDENTITIES } from '../../../../packages/content/specializationIdentity';
 import { skillMechanicSummary } from '../../../../packages/content/skillMechanics';
 import {
   getSpecializationsForClass,
@@ -23,6 +24,8 @@ export type SpecializationChoice = {
   description: string;
   passiveName: string;
   passiveDescription: string;
+  identity: string;
+  loop: string;
   specSkills: string;
   mechanics: string;
   proficiency: string;
@@ -75,6 +78,8 @@ function SpecChoice({
         </div>
       </header>
       <dl>
+        <SpecPair label="Identity" value={choice.identity} />
+        <SpecPair label="Loop" value={choice.loop} />
         <SpecPair label="Passive" value={`${choice.passiveName}: ${choice.passiveDescription}`} />
         <SpecPair label="Skills" value={choice.specSkills} />
         {choice.mechanics && <SpecPair label="Mechanics" value={choice.mechanics} />}
@@ -97,6 +102,7 @@ function SpecPair({ label, value }: { label: string; value: string }) {
 }
 
 function toChoice(spec: Specialization): SpecializationChoice {
+  const identity = SPECIALIZATION_IDENTITIES[spec.id];
   return {
     id: spec.id,
     name: spec.name,
@@ -104,6 +110,8 @@ function toChoice(spec: Specialization): SpecializationChoice {
     description: spec.description,
     passiveName: spec.specializationPassive.name,
     passiveDescription: spec.specializationPassive.description,
+    identity: identity.fantasy,
+    loop: identity.primaryLoop,
     specSkills: labelSkills(spec.specSkills),
     mechanics: labelMechanics([...(spec.specSkills ?? []), ...(spec.proficiencySkills ?? [])]),
     proficiency: `${spec.proficiencyPassive.name}: ${spec.proficiencyPassive.description}`,

@@ -18,6 +18,8 @@ describe('player feel cadence metrics', () => {
     expect(summary.feelScore).toBeLessThanOrEqual(100);
     expect(summary.windows).toHaveLength(1);
     expect(summary.windows[0]?.beatWeight).toBeGreaterThan(0);
+    expect(summary.windows[0]?.targetBeatWeight).toBe(summary.targetBeatWeightPerWindow);
+    expect(summary.lowSignalWindowCount).toBeGreaterThanOrEqual(summary.emptyWindowCount);
   });
 
   it('flags long stretches without progression beats as empty', () => {
@@ -31,7 +33,25 @@ describe('player feel cadence metrics', () => {
     expect(summary.emptyRisk).toBe('high');
     expect(summary.emptyWindowCount).toBeGreaterThan(0);
     expect(summary.longestEmptyWindowStreak).toBeGreaterThan(0);
+    expect(summary.nextBeatRecommendations.length).toBeGreaterThan(0);
+    expect(summary.nextBeatRecommendations[0]?.suggestedBeatKinds).toContain('quest');
     expect(summary.mitigationHints.join(' ')).toContain('Fill empty windows');
+  });
+
+  it('flags below-target windows even when they are not empty', () => {
+    const summary = estimatePlayerFeel({
+      className: 'mage',
+      horizonHours: 1,
+      targetBeatWeightPerWindow: 200,
+    });
+
+    expect(summary.emptyWindowCount).toBe(0);
+    expect(summary.lowSignalWindowCount).toBe(1);
+    expect(summary.nextBeatRecommendations[0]).toMatchObject({
+      windowIndex: 0,
+      reason: 'below-target',
+    });
+    expect(summary.mitigationHints.join(' ')).toContain('low-signal');
   });
 
   it('includes already-earned skills, quests, and specialization when starting midgame', () => {

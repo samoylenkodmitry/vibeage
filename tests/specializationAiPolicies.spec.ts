@@ -36,10 +36,16 @@ describe('specialization AI policy registry', () => {
     expect(firstCastSkill('arcanist', 20, { casterEffects: [effect('arcaneCharge')] })).toBe('arcane_blast');
     expect(firstCastSkill('arcanist', 20)).toBe('phase_prison');
     expect(firstCastSkill('arcanist', 40, { casterEffects: [effect('arcaneCharge')] })).toBe('arcane_supremacy');
+    expect(firstCastSkill('pyromancer', 20, { targetEffects: [effect('burn')] })).toBe('combustion_bloom');
+    expect(firstCastSkill('berserker', 20)).toBe('blood_magnet');
+    expect(firstCastSkill('phantom_ranger', 20, { casterEffects: [effect('invisible')] })).toBe('umbra_mine');
+    expect(firstCastSkill('phoenix_knight', 20)).toBe('sunbreak_charge');
+    expect(firstCastSkill('evas_templar', 20, { casterEffects: [effect('poison')] })).toBe('tidal_barrier');
+    expect(firstCastSkill('treasure_hunter', 20, { casterEffects: [effect('reveal_loot')] })).toBe('jackpot_snare');
+    expect(firstCastSkill('plains_walker', 20, { targetEffects: [effect('poison')] })).toBe('razorwind_step');
     expect(firstCastSkill('hawkeye', 20, { targetEffects: [effect('marked')] })).toBe('volley');
     expect(firstCastSkill('hawkeye', 20)).toBe('tripwire_volley');
     expect(firstCastSkill('hawkeye', 40, { targetEffects: [effect('marked')] })).toBe('aimed_volley');
-    expect(firstCastSkill('pyromancer', 20, { targetEffects: [effect('burn')] })).toBe('meteor');
     expect(firstCastSkill('templar_knight', 20)).toBe('guardian_hook');
     expect(firstCastSkill('cardinal', 20, { allyHealthFraction: 0.4 })).toBe('lifeline_swap');
     expect(firstCastSkill('cardinal', 20, { healthFraction: 0.7 })).toBe('greater_heal');

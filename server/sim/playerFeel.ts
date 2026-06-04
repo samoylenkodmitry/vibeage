@@ -23,7 +23,10 @@ export type FeelBeatKind =
   | 'skill'
   | 'quest'
   | 'specialization'
-  | 'proficiency';
+  | 'proficiency'
+  | 'gear'
+  | 'economy'
+  | 'objective';
 
 export type FeelBeat = {
   atMs: number;
@@ -38,8 +41,19 @@ export type FeelWindowSummary = {
   endHour: number;
   beatCount: number;
   beatWeight: number;
+  targetBeatWeight: number;
   kinds: FeelBeatKind[];
   isEmpty: boolean;
+  isBelowTarget: boolean;
+};
+
+export type FeelGapRecommendation = {
+  windowIndex: number;
+  startHour: number;
+  endHour: number;
+  reason: 'empty' | 'below-target';
+  suggestedBeatKinds: FeelBeatKind[];
+  mitigation: string;
 };
 
 export type PlayerFeelOptions = {
@@ -51,6 +65,7 @@ export type PlayerFeelOptions = {
   enemyType?: string;
   killOverheadMs?: number;
   maxLevel?: number;
+  targetBeatWeightPerWindow?: number;
 };
 
 export type PlayerFeelSummary = {
@@ -69,11 +84,14 @@ export type PlayerFeelSummary = {
   maxMeaningfulGapHours: number;
   windowCount: number;
   emptyWindowCount: number;
+  lowSignalWindowCount: number;
   longestEmptyWindowStreak: number;
   lowestWindowBeatWeight: number;
+  targetBeatWeightPerWindow: number;
   emptyRisk: 'low' | 'medium' | 'high';
   beatCounts: Record<FeelBeatKind, number>;
   mitigationHints: string[];
+  nextBeatRecommendations: FeelGapRecommendation[];
   windows: FeelWindowSummary[];
   beats: FeelBeat[];
 };
@@ -288,9 +306,10 @@ function summarizeFeel(
 ): PlayerFeelSummary {
   const horizonMs = horizonHours * HOUR_MS;
   const windowMs = windowHours * HOUR_MS;
+  const targetBeatWeight = options.targetBeatWeightPerWindow ?? 1;
   const meaningfulBeatWeight = progress.beats.reduce((total, beat) => total + beat.weight, 0);
   const maxGapMs = maxMeaningfulGap(progress.beats, horizonMs);
-  const windows = summarizeWindows(progress.beats, horizonMs, windowMs);
+  const windows = summarizeWindows(progress.beats, horizonMs, windowMs, targetBeatWeight);
   const windowStats = summarizeWindowStats(windows);
   const beatsPerWindow = meaningfulBeatWeight / Math.max(1, horizonMs / windowMs);
   const score = feelScore(maxGapMs, beatsPerWindow, progress.maxKillCycleMs, windowStats, windowMs);
@@ -311,17 +330,25 @@ function summarizeFeel(
     maxMeaningfulGapHours: maxGapMs / HOUR_MS,
     windowCount: windows.length,
     emptyWindowCount: windowStats.emptyWindowCount,
+    lowSignalWindowCount: windowStats.lowSignalWindowCount,
     longestEmptyWindowStreak: windowStats.longestEmptyWindowStreak,
     lowestWindowBeatWeight: windowStats.lowestWindowBeatWeight,
+    targetBeatWeightPerWindow: targetBeatWeight,
     emptyRisk: risk,
     beatCounts: beatCounts(progress.beats),
     mitigationHints: mitigationHints(risk, maxGapMs, beatsPerWindow, progress.maxKillCycleMs, windowStats, windowMs),
+    nextBeatRecommendations: recommendWindowBeats(windows),
     windows,
     beats: progress.beats,
   };
 }
 
-function summarizeWindows(beats: readonly FeelBeat[], horizonMs: number, windowMs: number): FeelWindowSummary[] {
+function summarizeWindows(
+  beats: readonly FeelBeat[],
+  horizonMs: number,
+  windowMs: number,
+  targetBeatWeight: number,
+): FeelWindowSummary[] {
   const windowCount = Math.max(1, Math.ceil(horizonMs / windowMs));
   return Array.from({ length: windowCount }, (_, index) => {
     const startMs = index * windowMs;
@@ -335,8 +362,10 @@ function summarizeWindows(beats: readonly FeelBeat[], horizonMs: number, windowM
       endHour: endMs / HOUR_MS,
       beatCount: windowBeats.length,
       beatWeight,
+      targetBeatWeight,
       kinds,
       isEmpty: beatWeight <= 0,
+      isBelowTarget: beatWeight < targetBeatWeight,
     };
   });
 }
@@ -344,6 +373,7 @@ function summarizeWindows(beats: readonly FeelBeat[], horizonMs: number, windowM
 type WindowStats = {
   windowCount: number;
   emptyWindowCount: number;
+  lowSignalWindowCount: number;
   longestEmptyWindowStreak: number;
   lowestWindowBeatWeight: number;
 };
@@ -353,9 +383,11 @@ function summarizeWindowStats(windows: readonly FeelWindowSummary[]): WindowStat
   let longestEmptyWindowStreak = 0;
   let lowestWindowBeatWeight = Number.POSITIVE_INFINITY;
   let emptyWindowCount = 0;
+  let lowSignalWindowCount = 0;
 
   for (const window of windows) {
     lowestWindowBeatWeight = Math.min(lowestWindowBeatWeight, window.beatWeight);
+    if (window.isBelowTarget) lowSignalWindowCount += 1;
     if (window.isEmpty) {
       emptyWindowCount += 1;
       currentEmptyStreak += 1;
@@ -368,6 +400,7 @@ function summarizeWindowStats(windows: readonly FeelWindowSummary[]): WindowStat
   return {
     windowCount: windows.length,
     emptyWindowCount,
+    lowSignalWindowCount,
     longestEmptyWindowStreak,
     lowestWindowBeatWeight: Number.isFinite(lowestWindowBeatWeight) ? lowestWindowBeatWeight : 0,
   };
@@ -394,11 +427,12 @@ function feelScore(
 ): number {
   const windowCount = Math.max(1, windowStats.windowCount);
   const emptyWindowPenalty = (windowStats.emptyWindowCount / windowCount) * 45;
+  const lowSignalPenalty = (Math.max(0, windowStats.lowSignalWindowCount - windowStats.emptyWindowCount) / windowCount) * 12;
   const streakPenalty = (windowStats.longestEmptyWindowStreak / windowCount) * 20;
   const gapPenalty = Math.min(30, (maxGapMs / windowMs) * 15);
   const densityPenalty = Math.max(0, 2 - beatsPerWindow) * 8;
   const attentionPenalty = Math.min(10, Math.max(0, (attentionGapMs - 2 * 60_000) / (6 * 60_000)) * 10);
-  const score = 100 - emptyWindowPenalty - streakPenalty - gapPenalty - densityPenalty - attentionPenalty;
+  const score = 100 - emptyWindowPenalty - lowSignalPenalty - streakPenalty - gapPenalty - densityPenalty - attentionPenalty;
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
@@ -410,7 +444,7 @@ function emptyRisk(
   windowMs: number,
 ): PlayerFeelSummary['emptyRisk'] {
   if (windowStats.emptyWindowCount > 0 || maxGapMs > windowMs || beatsPerWindow < 1 || score < 50) return 'high';
-  if (maxGapMs > windowMs * 0.5 || beatsPerWindow < 2 || score < 75) return 'medium';
+  if (windowStats.lowSignalWindowCount > 0 || maxGapMs > windowMs * 0.5 || beatsPerWindow < 2 || score < 75) return 'medium';
   return 'low';
 }
 
@@ -425,11 +459,35 @@ function mitigationHints(
   if (risk === 'low') return ['Cadence is within current targets.'];
   const hints: string[] = [];
   if (windowStats.emptyWindowCount > 0) hints.push('Fill empty windows with quest steps, unlock previews, crafting goals, reputation, or set-piece progress.');
+  if (windowStats.lowSignalWindowCount > windowStats.emptyWindowCount) hints.push('Raise low-signal windows with at least one deterministic beat, not only kill repetition.');
   if (maxGapMs > windowMs) hints.push('Add a quest, skill, vendor/crafting goal, or milestone inside the longest dry gap.');
   if (beatsPerWindow < 1) hints.push('Guarantee at least one meaningful progression beat per target window.');
   if (attentionGapMs > 2 * 60_000) hints.push('Shorten travel/search downtime or add ambient encounters between kills.');
   if (hints.length === 0) hints.push('Add optional side goals to raise beat density.');
   return hints;
+}
+
+function recommendWindowBeats(windows: readonly FeelWindowSummary[]): FeelGapRecommendation[] {
+  return windows
+    .filter((window) => window.isBelowTarget)
+    .map((window) => ({
+      windowIndex: window.index,
+      startHour: window.startHour,
+      endHour: window.endHour,
+      reason: window.isEmpty ? 'empty' : 'below-target',
+      suggestedBeatKinds: suggestedBeatKindsFor(window),
+      mitigation: window.isEmpty
+        ? 'Add a guaranteed quest step, skill preview, gear/currency milestone, or set-progress marker in this window.'
+        : 'Add a stronger player-facing beat here, such as a visible item goal, quest turn-in, or unlock preview.',
+    }));
+}
+
+function suggestedBeatKindsFor(window: FeelWindowSummary): FeelBeatKind[] {
+  const suggestions: FeelBeatKind[] = [];
+  if (!window.kinds.includes('quest')) suggestions.push('quest');
+  if (!window.kinds.includes('skill')) suggestions.push('skill');
+  suggestions.push('gear', 'economy', 'objective');
+  return suggestions.slice(0, 4);
 }
 
 function beatCounts(beats: readonly FeelBeat[]): Record<FeelBeatKind, number> {
@@ -440,6 +498,9 @@ function beatCounts(beats: readonly FeelBeat[]): Record<FeelBeatKind, number> {
     quest: countKind(beats, 'quest'),
     specialization: countKind(beats, 'specialization'),
     proficiency: countKind(beats, 'proficiency'),
+    gear: countKind(beats, 'gear'),
+    economy: countKind(beats, 'economy'),
+    objective: countKind(beats, 'objective'),
   };
 }
 

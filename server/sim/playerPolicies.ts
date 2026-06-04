@@ -73,16 +73,19 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('fireball'),
   ]),
   pyromancer: profile('pyromancer', 'burst', [
+    enemy('combustion_bloom', { targetHasEffect: 'burn' }),
     enemy('meteor', { targetHasEffect: 'burn' }),
     enemy('cataclysm_rings'),
     enemy('inferno_aura', { targetMissingEffect: 'burn' }),
     enemy('magma_chain', { targetMissingEffect: 'burn' }),
     enemy('fireball', { targetMissingEffect: 'burn' }),
+    enemy('combustion_bloom'),
     enemy('meteor'),
     enemy('magma_chain'),
     enemy('fireball'),
   ]),
   berserker: profile('berserker', 'sustain', [
+    self('blood_magnet', { casterMissingEffect: 'attackSpeed' }),
     self('blood_frenzy', { casterMissingEffect: 'bless' }),
     self('rage', { casterMissingEffect: 'bless' }),
     enemy('momentum_strike'),
@@ -115,6 +118,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     self('group_bless', { casterMissingEffect: 'bless' }),
     self('mirror_spell'),
     self('waygate', { casterMissingEffect: 'speed_boost' }),
+    self('echoing_benediction'),
     enemy('portal_pair'),
     self('empower', { casterMissingEffect: 'bless' }),
     self('bless', { casterMissingEffect: 'bless' }),
@@ -137,6 +141,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   phantom_ranger: profile('phantom_ranger', 'skirmish', [
     self('silent_step', { casterMissingEffect: 'invisible' }),
+    enemy('umbra_mine', { targetMissingEffect: 'marked' }),
     enemy('phase_step'),
     enemy('shadow_arrow'),
     self('rapidFire', { casterMissingEffect: 'attackSpeed' }),
@@ -158,6 +163,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   dark_avenger: profile('dark_avenger', 'sustain', [
     self('spectral_guard', { casterMissingEffect: 'damageReflect' }),
     self('reflection_contract'),
+    enemy('vengeance_tether', { targetMissingEffect: 'taunt' }),
     enemy('soul_eater', { targetHealthBelowPct: 0.5 }),
     enemy('shadow_strike'),
     self('shieldWall', { casterHealthBelowPct: 0.7, casterMissingEffect: 'shield' }),
@@ -168,6 +174,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   phoenix_knight: profile('phoenix_knight', 'tank', [
     self('rebirth', { casterHealthBelowPct: 0.35, casterMissingEffect: 'shield' }),
     self('phoenix_ward', { casterHealthBelowPct: 0.85, casterMissingEffect: 'shield' }),
+    enemy('sunbreak_charge', { casterMissingEffect: 'shield' }),
     enemy('phoenix_leap', { casterMissingEffect: 'shield' }),
     self('divineShield', { casterHealthBelowPct: 0.65, casterMissingEffect: 'shield' }),
     self('holyLight', { casterHealthBelowPct: 0.7 }),
@@ -175,6 +182,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
     enemy('smite'),
   ]),
   evas_templar: profile('evas_templar', 'support', [
+    self('tidal_barrier', { casterHasEffect: 'poison' }),
     self('aegis_relay', { casterMissingEffect: 'shield' }),
     self('sacred_aura', { casterHealthBelowPct: 0.8 }),
     self('sacred_pulse', { casterHealthBelowPct: 0.85 }),
@@ -186,6 +194,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   treasure_hunter: profile('treasure_hunter', 'skirmish', [
     self('treasure_sense', { casterMissingEffect: 'reveal_loot' }),
     enemy('lucky_strike', { targetHealthBelowPct: 0.5 }),
+    enemy('jackpot_snare', { targetMissingEffect: 'marked' }),
     enemy('puppet_mastery', { targetHealthAbovePct: 0.5 }),
     enemy('backstab', { casterHasEffect: 'invisible' }),
     self('vanish', { casterMissingEffect: 'invisible' }),
@@ -195,6 +204,7 @@ export const SPECIALIZATION_AI_PROFILES: Record<SpecializationId, Specialization
   ]),
   plains_walker: profile('plains_walker', 'skirmish', [
     self('wind_dash', { casterHealthBelowPct: 0.7, casterMissingEffect: 'speed_boost' }),
+    enemy('razorwind_step', { targetHasEffect: 'poison' }),
     enemy('clone_swap'),
     enemy('rift_step', { casterHasEffect: 'invisible' }),
     enemy('stalking_arrow', { targetHasEffect: 'poison' }),
