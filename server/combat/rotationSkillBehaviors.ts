@@ -36,6 +36,7 @@ export const ROTATION_SKILL_BEHAVIORS: Record<string, (cast: Cast, world: Combat
     const burn = consumeStatus(target, 'burn', now);
     const chain = chainDamage({ caster, world, start: target, radius: 6, maxTargets: burn ? 5 : 3, rawDamage: burn ? 205 + burn.value * 14 : 140, falloff: 0.72, cast, now, outbound });
     for (const enemy of chain) {
+      if (!enemy.isAlive || enemy.health <= 0) continue;
       addStatus({ target: enemy, type: 'burn', value: burn ? 6 : 3, durationMs: burn ? 7000 : 4500, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
       emitMaybe(outbound, enemy);
     }
@@ -75,6 +76,7 @@ export const ROTATION_SKILL_BEHAVIORS: Record<string, (cast: Cast, world: Combat
     const anchor = primary ?? targets[0];
     const orderedTargets = anchor
       ? [...targets].sort((a, b) => {
+          if (a.id === b.id) return 0;
           if (a.id === anchor.id) return -1;
           if (b.id === anchor.id) return 1;
           return distanceSq(a, anchor) - distanceSq(b, anchor);
@@ -126,6 +128,7 @@ export const ROTATION_SKILL_BEHAVIORS: Record<string, (cast: Cast, world: Combat
     }
     damageHostilesInRadius({ caster, world, center, radius: 5.75, rawDamage: (enemy) => (warded ? 130 : 85) + (activeStatus(enemy, 'burn', now) ? 45 : 0), cast, now, outbound })
       .forEach((enemy) => {
+        if (!enemy.isAlive || enemy.health <= 0) return;
         addStatus({ target: enemy, type: 'burn', value: warded ? 6 : 3, durationMs: 6000, sourceSkill: cast.skillId, now, sourceCasterId: caster.id });
         emitMaybe(outbound, enemy);
       });
