@@ -2055,7 +2055,10 @@ input {
   position: absolute;
   bottom: 130px;
   right: 18px;
-  z-index: 7;
+  /* Below the interactive bars (skill-bar z5, actions-panel z6): the chat is a
+     passive log and must not capture touches on the skills/slots it overlaps on
+     mobile (where it's a full-width bottom box). Fixes drag-to-bar on touch. */
+  z-index: 4;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   width: min(320px, calc(100vw - 36px));
