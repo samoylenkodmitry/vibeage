@@ -96,6 +96,14 @@ export type JourneyVendorPurchase = {
   scoreGain: number;
 };
 
+type VendorUpgradeCandidate = {
+  vendorId: string;
+  itemId: ItemId;
+  price: number;
+  slot: EquipSlot;
+  scoreGain: number;
+};
+
 export type PlayerJourneyOptions = {
   className: CharacterClass;
   specializationId?: SpecializationId;
@@ -409,17 +417,15 @@ function chooseSpecialization(state: JourneyState): void {
 }
 
 function buyAffordableUpgrades(state: JourneyState): void {
-  const vendor = VENDORS.gludin_tinker;
-  const npc = QUEST_NPCS[vendor.npcId];
-  if (!vendor || !npc) return;
   let bought = true;
   while (bought && hasTimeRemaining(state)) {
     bought = false;
-    const candidate = (vendor.stock ?? [])
-      .map((stock) => upgradeCandidate(state, stock.itemId, stock.price))
-      .filter((value): value is NonNullable<typeof value> => Boolean(value))
-      .sort((a, b) => b.scoreGain - a.scoreGain || a.price - b.price)[0];
+    const candidate = vendorUpgradeCandidates(state)
+      .sort((a, b) => b.scoreGain - a.scoreGain || a.price - b.price || a.itemId.localeCompare(b.itemId))[0];
     if (!candidate) break;
+    const vendor = VENDORS[candidate.vendorId];
+    const npc = vendor ? QUEST_NPCS[vendor.npcId] : undefined;
+    if (!vendor || !npc) break;
     if (!travelTo(state, npc.position)) return;
     if (!advanceTime(state, QUEST_INTERACTION_MS, 'vendorMs')) return;
     state.gold -= candidate.price;
@@ -427,7 +433,7 @@ function buyAffordableUpgrades(state: JourneyState): void {
     addExpectedItem(state, candidate.itemId, 1);
     state.vendorPurchases.push({
       atMs: state.elapsedMs,
-      vendorId: vendor.id,
+      vendorId: candidate.vendorId,
       itemId: candidate.itemId,
       price: candidate.price,
       slot: candidate.slot,
@@ -439,7 +445,15 @@ function buyAffordableUpgrades(state: JourneyState): void {
   }
 }
 
-function upgradeCandidate(state: JourneyState, itemId: string, price: number): { itemId: ItemId; price: number; slot: EquipSlot; scoreGain: number } | null {
+function vendorUpgradeCandidates(state: JourneyState): VendorUpgradeCandidate[] {
+  return Object.values(VENDORS).flatMap((vendor) => (
+    vendor.stock
+      .map((stock) => upgradeCandidate(state, vendor.id, stock.itemId, stock.price))
+      .filter((value): value is VendorUpgradeCandidate => Boolean(value))
+  ));
+}
+
+function upgradeCandidate(state: JourneyState, vendorId: string, itemId: string, price: number): VendorUpgradeCandidate | null {
   if (price > state.gold) return null;
   const item = ITEMS[itemId];
   if (!item?.equip || !item.stats) return null;
@@ -451,13 +465,13 @@ function upgradeCandidate(state: JourneyState, itemId: string, price: number): {
   const currentScore = slots.reduce((total, slot) => total + itemScore(ITEMS[state.equippedItems[slot] ?? '']?.stats), 0);
   const scoreGain = newScore - currentScore;
   if (scoreGain <= 0) return null;
-  return { itemId, price, slot: slots[0]!, scoreGain };
+  return { vendorId, itemId, price, slot: slots[0]!, scoreGain };
 }
 
 function maybeEquipItem(state: JourneyState, itemId: ItemId, source: 'quest' | 'loot'): void {
   const item = ITEMS[itemId];
   if (!item?.equip || !item.stats) return;
-  const candidate = upgradeCandidate(state, itemId, 0);
+  const candidate = upgradeCandidate(state, 'quest', itemId, 0);
   if (!candidate) return;
   state.equippedItems[candidate.slot] = itemId;
   pushBeat(state.beats, state.elapsedMs, 'item_upgrade', `Equipped ${itemId} from ${source}`, 3);

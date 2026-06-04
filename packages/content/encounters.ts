@@ -28,21 +28,29 @@ export const BIOME_ENCOUNTER_TABLES: Record<BiomeEncounterTableId, readonly Enco
     { type: 'fire_elemental', weight: 40, minCount: 3, maxCount: 5 },
     { type: 'lava_golem', weight: 30, minCount: 2, maxCount: 4 },
     { type: 'drake', weight: 30, minCount: 1, maxCount: 2 },
+    { type: 'cinder_sentinel', weight: 18, minCount: 1, maxCount: 3 },
+    { type: 'sunscale_drake', weight: 12, minCount: 1, maxCount: 2 },
   ],
   moonfall_highland: [
     { type: 'frost_wolf', weight: 40, minCount: 3, maxCount: 5 },
     { type: 'ice_giant', weight: 25, minCount: 1, maxCount: 3 },
     { type: 'star_weaver', weight: 35, minCount: 2, maxCount: 4 },
+    { type: 'starglass_weaver', weight: 18, minCount: 1, maxCount: 3 },
+    { type: 'lumen_warden', weight: 12, minCount: 1, maxCount: 2 },
   ],
   abyssal_wetland: [
     { type: 'tentacle_horror', weight: 40, minCount: 2, maxCount: 4 },
     { type: 'void_spawner', weight: 35, minCount: 2, maxCount: 4 },
     { type: 'deep_leviathan', weight: 25, minCount: 1, maxCount: 2 },
+    { type: 'bog_reaver', weight: 18, minCount: 1, maxCount: 3 },
+    { type: 'lantern_wraith', weight: 12, minCount: 1, maxCount: 2 },
   ],
   chronoglass_desert: [
     { type: 'time_wraith', weight: 35, minCount: 2, maxCount: 4 },
     { type: 'chrono_stalker', weight: 40, minCount: 2, maxCount: 5 },
     { type: 'temporal_overlord', weight: 25, minCount: 1, maxCount: 2 },
+    { type: 'glass_harrier', weight: 18, minCount: 1, maxCount: 3 },
+    { type: 'rift_mender', weight: 12, minCount: 1, maxCount: 2 },
   ],
 };
 

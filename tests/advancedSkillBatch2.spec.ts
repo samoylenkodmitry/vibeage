@@ -5,6 +5,7 @@ import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { resolveCastImpact } from '../server/combat/impactResolver';
 import {
   addStatus,
+  applyHostileAreaRecipe,
   applyReflectWard,
   applyStatusField,
   chainDamage,
@@ -48,6 +49,40 @@ describe('advanced skill mechanics batch 2', () => {
     expect(spawned).toHaveLength(3);
   });
 
+  it('shared area recipes apply motion, conditional statuses, damage, and exclusions', () => {
+    const caster = player('caster', 0, 0, ['stasis_lattice']);
+    const target = enemy('target', 4, 0);
+    const chainTarget = enemy('chain-target', 5, 0);
+    const excluded = enemy('excluded', 3, 1);
+    const world = worldOf([caster], [target, chainTarget, excluded]);
+    const cast = targetedCast(caster.id, 'stasis_lattice', target.id, target.position);
+    const beforeRecipeHealth = chainTarget.health;
+
+    const recipeTargets = applyHostileAreaRecipe({
+      caster,
+      world,
+      center: caster.position,
+      radius: 8,
+      cast,
+      now: NOW + 10,
+      statuses: [
+        { type: 'slow', value: 35, durationMs: 1200 },
+        (entity) => entity.id === target.id ? { type: 'marked', value: 1, durationMs: 1400 } : null,
+      ],
+      motion: (entity) => { entity.velocity = { x: 0, z: 0 }; },
+      rawDamage: (entity) => entity.id === target.id ? 30 : 20,
+      excludeIds: ['excluded'],
+    });
+
+    expect(recipeTargets.map((entity) => entity.id).sort()).toEqual(['chain-target', 'target']);
+    expect(target.statusEffects.some((effect) => effect.type === 'marked')).toBe(true);
+    expect(chainTarget.statusEffects.some((effect) => effect.type === 'slow')).toBe(true);
+    expect(chainTarget.health).toBeLessThan(beforeRecipeHealth);
+    expect(excluded.statusEffects).toHaveLength(0);
+  });
+});
+
+describe('advanced skill mechanics batch 2 rotations', () => {
   it('Stasis Lattice, Blade Reversal, Sanctuary Gate, and Ricochet Prism resolve advanced mechanics', () => {
     const caster = player('caster', 0, 0, ['stasis_lattice', 'blade_reversal', 'sanctuary_gate', 'ricochet_prism']);
     const ally = player('ally', 3, 0);

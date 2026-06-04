@@ -69,5 +69,7 @@ describe('sim scenario catalog', () => {
     expect(questMilestones[0].totalGold).toBeGreaterThan(0);
     expect(gearMilestones.length).toBeGreaterThan(0);
     expect(gearMilestones.every((set) => set.pieces.length > 0)).toBe(true);
+    expect(gearMilestones.map((set) => set.setId)).toContain('roadwarden_kit');
+    expect(gearMilestones.map((set) => set.setId)).toContain('horizon_watch');
   });
 });

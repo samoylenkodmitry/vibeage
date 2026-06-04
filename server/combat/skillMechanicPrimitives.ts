@@ -32,6 +32,12 @@ export type CustomDamageInput = {
   outbound?: OutboundEventSink;
 };
 
+type AreaStatusSpec = Omit<StatusInput, 'target' | 'sourceSkill' | 'sourceCasterId' | 'now'>;
+
+type AreaStatusRecipe =
+  | AreaStatusSpec
+  | ((target: Combatant, index: number) => AreaStatusSpec | readonly AreaStatusSpec[] | null | undefined);
+
 export function resolveCaster(cast: Cast, world: CombatWorld): Combatant | null {
   return world.getPlayerById(cast.casterId) ?? world.getEnemyById(cast.casterId);
 }
@@ -267,6 +273,51 @@ export function damageHostilesInRadius(input: {
   return targets;
 }
 
+export function applyHostileAreaRecipe(input: {
+  caster: Combatant;
+  world: CombatWorld;
+  center: VecXZ;
+  radius: number;
+  cast: Cast;
+  now: number;
+  rawDamage?: number | ((target: Combatant, index: number) => number);
+  statuses?: readonly AreaStatusRecipe[];
+  motion?: (target: Combatant, index: number) => void;
+  outbound?: OutboundEventSink;
+  excludeIds?: readonly string[];
+}): Combatant[] {
+  const exclude = new Set(input.excludeIds ?? []);
+  const targets = hostileEntities(input.caster, input.world, input.center, input.radius)
+    .filter((target) => !exclude.has(target.id));
+  targets.forEach((target, index) => {
+    input.motion?.(target, index);
+    for (const status of statusSpecsFor(input.statuses ?? [], target, index)) {
+      addStatus({
+        ...status,
+        target,
+        sourceSkill: input.cast.skillId,
+        now: input.now,
+        sourceCasterId: input.caster.id,
+      });
+    }
+    if (input.rawDamage !== undefined) {
+      const rawDamage = typeof input.rawDamage === 'function' ? input.rawDamage(target, index) : input.rawDamage;
+      applyCustomDamage({
+        caster: input.caster,
+        target,
+        rawDamage,
+        cast: input.cast,
+        world: input.world,
+        now: input.now,
+        outbound: input.outbound,
+      });
+    } else if (input.motion || input.statuses?.length) {
+      emitMaybe(input.outbound, target);
+    }
+  });
+  return targets;
+}
+
 export function healAlliesInRadius(input: {
   world: CombatWorld;
   center: VecXZ;
@@ -468,4 +519,19 @@ function distanceSq(a: VecXZ, b: VecXZ): number {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   return dx * dx + dz * dz;
+}
+
+function statusSpecsFor(
+  recipes: readonly AreaStatusRecipe[],
+  target: Combatant,
+  index: number,
+): AreaStatusSpec[] {
+  const out: AreaStatusSpec[] = [];
+  for (const recipe of recipes) {
+    const resolved = typeof recipe === 'function' ? recipe(target, index) : recipe;
+    if (!resolved) continue;
+    if (Array.isArray(resolved)) out.push(...(resolved as AreaStatusSpec[]));
+    else out.push(resolved as AreaStatusSpec);
+  }
+  return out;
 }
