@@ -72,14 +72,15 @@ export function WorldGrassField({ focus, quality }: { focus: Vec3D; quality: Wor
     }
     return out;
   }, [cx, cz, radius]);
-  // Feed the shared shader: a fade band keyed to the field radius (blades shrink
-  // into the ground past the frontier — no hard ring, no pop) and the live player
-  // position it fades around.
-  GRASS_WIND.uFadeNear.value = (radius - 0.5) * GRASS_CHUNK;
-  GRASS_WIND.uFadeFar.value = (radius + 0.5) * GRASS_CHUNK;
+  // Feed the shared shader each frame: the live player position plus a fade band
+  // keyed to the field radius (blades shrink into the ground past the frontier —
+  // no hard ring, no pop). Done in useFrame, not render, to avoid a render-phase
+  // side effect on the shared uniform.
   useFrame((_, delta) => {
     GRASS_WIND.uTime.value += delta;
     GRASS_WIND.uPlayer.value.set(focus.x, focus.z);
+    GRASS_WIND.uFadeNear.value = (radius - 0.5) * GRASS_CHUNK;
+    GRASS_WIND.uFadeFar.value = (radius + 0.5) * GRASS_CHUNK;
   });
   return (
     <group>

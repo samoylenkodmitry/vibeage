@@ -90,10 +90,11 @@ export const GRASS_MATERIAL = (() => {
        #else
        vec3 gOrigin = vec3(0.0);
        #endif
-       // Shrink blades into the ground toward the field edge — no hard ring, and
-       // frontier chunks grow in smoothly as the player walks instead of popping.
+       // Shrink the whole blade to a point at its root toward the field edge — no
+       // hard ring, and frontier chunks grow in smoothly instead of popping.
+       // (Scaling y alone would flatten blades into 2D shards on the ground.)
        float gFade = 1.0 - smoothstep(uFadeNear, uFadeFar, distance(gOrigin.xz, uPlayer));
-       transformed.y *= gFade;
+       transformed *= gFade;
        // Per-clump phase so blades don't sway in lockstep; tips bend, roots hold.
        float gPhase = gOrigin.x * 0.21 + gOrigin.z * 0.17;
        float gSway = sin(uTime * uSpeed + gPhase) + 0.4 * sin(uTime * uSpeed * 1.9 + gPhase * 0.5);
