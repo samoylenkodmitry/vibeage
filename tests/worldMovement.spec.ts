@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { WORLD_SETTINGS } from '../packages/content/world';
 import type { Enemy, PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
+import { advanceEnemyState } from '../server/ai/enemyStateMachine';
 import {
   advanceAll,
   createPredictionKeyframes,
@@ -274,3 +275,88 @@ describe('world movement snapshot deltas', () => {
     expect(deltas.map((delta) => delta.id)).toEqual(['enemy-active']);
   });
 });
+
+describe('enemy movement smoothing regression', () => {
+  test('enemy patrol, chase, return, stun-stop, and slow deltas stay non-snapping', () => {
+    const patrol = makeEnemy({ id: 'patrol', position: { x: 0, y: 0.5, z: 0 }, spawnPosition: { x: 0, y: 0.5, z: 0 }, aiState: 'patrolling', patrolTarget: { x: 10, z: 0 } });
+    expect(aiMovementDelta(patrol, {}, 10_000)).not.toHaveProperty('snap');
+    expect(patrol.position.x).toBeGreaterThan(0);
+
+    const player = makePlayer({ id: 'target', position: { x: 10, y: 0.5, z: 0 } });
+    const chase = makeEnemy({ id: 'chase', position: { x: 0, y: 0.5, z: 0 }, spawnPosition: { x: 0, y: 0.5, z: 0 }, aiState: 'chasing', targetId: player.id, movementSpeed: 10 });
+    const chaseDelta = aiMovementDelta(chase, { [player.id]: player }, 10_100);
+    expect(chaseDelta).not.toHaveProperty('snap');
+    expect(chase.position.x).toBeCloseTo(1, 5);
+
+    const returning = makeEnemy({ id: 'returning', position: { x: 12, y: 0.5, z: 0 }, spawnPosition: { x: 0, y: 0.5, z: 0 }, aiState: 'returning', movementSpeed: 10 });
+    const returnDelta = aiMovementDelta(returning, {}, 10_200);
+    expect(returnDelta).not.toHaveProperty('snap');
+    expect(returning.position.x).toBeCloseTo(11, 5);
+
+    const stunned = makeEnemy({
+      id: 'stunned',
+      position: { x: 0, y: 0.5, z: 0 },
+      spawnPosition: { x: 0, y: 0.5, z: 0 },
+      aiState: 'chasing',
+      targetId: player.id,
+      velocity: { x: 10, z: 0 },
+      statusEffects: [{ id: 'stun', type: 'stun', value: 1, startTimeTs: 10_000, durationMs: 1000, sourceSkill: 'bash' }],
+    });
+    const stunnedDelta = aiMovementDelta(stunned, { [player.id]: player }, 10_300);
+    expect(stunnedDelta).not.toHaveProperty('snap');
+    expect(stunnedDelta).toMatchObject({ vel: { x: 0, z: 0 } });
+
+    const slowed = makeEnemy({
+      id: 'slowed',
+      position: { x: 0, y: 0.5, z: 0 },
+      spawnPosition: { x: 0, y: 0.5, z: 0 },
+      aiState: 'chasing',
+      targetId: player.id,
+      movementSpeed: 10,
+      statusEffects: [{ id: 'slow', type: 'slow', value: 40, startTimeTs: 10_000, durationMs: 1000, sourceSkill: 'stalking_arrow' }],
+    });
+    const slowDelta = aiMovementDelta(slowed, { [player.id]: player }, 10_400);
+    expect(slowDelta).not.toHaveProperty('snap');
+    expect(slowed.position.x).toBeCloseTo(0.7, 5);
+  });
+
+  test('hard relocation deltas still request client snaps', () => {
+    const state = createGameState();
+    const enemy = makeEnemy({ id: 'teleported', position: { x: 60, y: 0.5, z: 0 }, dirtySnap: true });
+    state.enemies[enemy.id] = enemy;
+    state.zones.activeZoneIds = ['zone-a'];
+    state.zones.enemyZoneIds[enemy.id] = 'zone-a';
+    forgetPositionDelta(enemy.id);
+
+    const [delta] = collectDeltas(state, 12_000, new Set());
+
+    expect(delta).toMatchObject({ type: 'PosSnap', id: enemy.id, snap: true, pos: { x: 60, z: 0 } });
+    expect(enemy.dirtySnap).toBe(false);
+  });
+});
+
+function aiMovementDelta(enemy: Enemy, players: Record<string, PlayerState>, now: number) {
+  const state = createGameState();
+  const spatial = new SpatialHashGrid();
+  state.enemies[enemy.id] = enemy;
+  for (const player of Object.values(players)) {
+    state.players[player.id] = player;
+    spatial.insert(player.id, player.position);
+  }
+  spatial.insert(enemy.id, enemy.position);
+  state.zones.activeZoneIds = ['zone-a'];
+  state.zones.enemyZoneIds[enemy.id] = 'zone-a';
+
+  advanceEnemyState(enemy, {
+    players: state.players,
+    spatialGrid: spatial,
+    deltaTime: 0.1,
+    now,
+    rng: () => 0.25,
+  });
+  advanceAll(state, spatial, 100, now);
+  forgetPositionDelta(enemy.id);
+  const delta = collectDeltas(state, now, new Set()).find((message) => message.id === enemy.id);
+  expect(delta, `${enemy.id} should emit a movement delta`).toBeDefined();
+  return delta!;
+}

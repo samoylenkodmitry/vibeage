@@ -16,6 +16,7 @@ export const SKILL_IDS = [
   'rewind_mark', 'mirror_spell', 'soul_link', 'phase_step',
   'projectile_capture', 'puppet_mastery', 'momentum_strike',
   'delayed_fate', 'clone_swap', 'silence_bubble', 'reflection_contract',
+  'magma_chain', 'duelist_lunge', 'phoenix_leap', 'aegis_relay',
   // Proficiency skills (PROFICIENCY_LEVEL = Lv 40).
   'arcane_supremacy', 'time_sphere', 'inferno_aura', 'blood_frenzy', 'killing_strike',
   'mass_heal', 'group_bless', 'aimed_volley', 'shadow_arrow',
