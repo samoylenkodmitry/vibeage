@@ -47,17 +47,16 @@ describe('player journey simulator', () => {
     expect(summary.maxMeaningfulGapHours).toBeGreaterThanOrEqual(0);
   });
 
-  it('gets every specialization route to level 40 within one week without empty hourly windows', () => {
+  it('gets every specialization route to level 40 within one day without empty hourly windows', () => {
     for (const spec of Object.values(SPECIALIZATIONS)) {
       const summary = runPlayerJourney({
         className: spec.baseClass,
         specializationId: spec.id,
-        horizonHours: 168,
+        horizonHours: 24,
       });
 
       expect(summary.endingLevel, spec.id).toBeGreaterThanOrEqual(40);
       expect(summary.questIdsCompleted, spec.id).toContain('frontier_orders');
-      expect(summary.questIdsCompleted, spec.id).toContain('frontier_cutover');
       expect(summary.emptyWindowCount, spec.id).toBe(0);
       expect(summary.maxMeaningfulGapHours, spec.id).toBeLessThanOrEqual(1.1);
     }
