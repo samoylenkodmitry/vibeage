@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -45,16 +45,22 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
   };
-  const moonMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#dde6ff' }), []);
-  const sunMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#fff1a6' }), []);
+  // Lazy useRef (not useMemo) for the disposable materials: useMemo can be evicted
+  // under memory pressure, which would orphan the GPU resource without dispose().
+  const moonMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#dde6ff' });
+  const moonMaterial = moonMaterialRef.current;
+  const sunMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  if (!sunMaterialRef.current) sunMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#fff1a6' });
+  const sunMaterial = sunMaterialRef.current;
   const { scene } = useThree();
 
   useEffect(() => {
     return () => {
-      sunMaterial.dispose();
-      moonMaterial.dispose();
+      sunMaterialRef.current?.dispose();
+      moonMaterialRef.current?.dispose();
     };
-  }, [sunMaterial, moonMaterial]);
+  }, []);
 
   // Day-phase palette changes over minutes, so recomputing the
   // keyframe interpolation every frame (60fps) is wasted work.
