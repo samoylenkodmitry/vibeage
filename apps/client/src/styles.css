@@ -3805,7 +3805,9 @@ input {
     bottom: 96px;
     left: 8px;
     width: auto;
-    height: min(280px, calc(100vh - 220px));
+    /* Shorter on phones so it doesn't dominate, and so the upper-half panels
+       above it stay clear of it. */
+    height: min(190px, calc(100vh - 320px));
   }
 
   .chat-panel--detached {
@@ -5299,9 +5301,12 @@ button.character-option {
   .wiki-panel,
   .actions-panel,
   .gm-panel {
-    bottom: calc(200px + env(safe-area-inset-bottom, 0px));
-    top: auto;
-    max-height: calc(100vh - 280px - env(safe-area-inset-bottom, 0px));
+    /* Top-anchored upper-half sheet (was a tall bottom panel that buried the
+       chat). Capped so it clears the chat strip + action bar below it — the
+       inner list scrolls. */
+    top: calc(54px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    max-height: min(44vh, calc(100vh - 360px - env(safe-area-inset-bottom, 0px)));
     overflow: auto;
   }
 
