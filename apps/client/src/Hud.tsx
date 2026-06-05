@@ -349,19 +349,47 @@ function PanelToggleStrip({
   isGm: boolean;
 }) {
   const spBadge = unspentSkillPoints > 0 ? unspentSkillPoints : null;
+  // Collapsible rail: one ☰ button shows/hides the stack of panel toggles.
+  // Collapsed by default on phones — the always-on 9-button column otherwise eats
+  // screen space and overlaps the action bar's right edge. Persisted per browser.
+  // Lazy useState so the matchMedia probe runs once, not every render.
+  const [railDefaultOpen] = useState(defaultRailOpen);
+  const [railOpen, , toggleRail] = usePersistedToggle('rail-open', railDefaultOpen);
   return (
-    <aside className="panel-toggles" aria-label="Panel toggles">
-      <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
-      <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} badge={spBadge} />
-      <PanelToggleButton open={panels.actionsOpen} label="Actions" onClick={panels.toggleActions} />
-      <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
-      <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
-      <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
-      <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
-      <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
-      {isGm && <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />}
+    <aside className={`panel-toggles${railOpen ? ' panel-toggles--open' : ''}`} aria-label="Panel toggles">
+      <button
+        type="button"
+        className={`panel-toggle panel-rail-toggle${spBadge && !railOpen ? ' panel-toggle--badged' : ''}`}
+        aria-expanded={railOpen}
+        aria-label={railOpen ? 'Collapse menu' : 'Open menu'}
+        onClick={toggleRail}
+      >
+        {railOpen ? '✕' : '☰'}
+        {spBadge && !railOpen && (
+          <span className="panel-toggle__badge" aria-label={`${spBadge} unspent`}>{spBadge}</span>
+        )}
+      </button>
+      {railOpen && (
+        <>
+          <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
+          <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} badge={spBadge} />
+          <PanelToggleButton open={panels.actionsOpen} label="Actions" onClick={panels.toggleActions} />
+          <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
+          <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
+          <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
+          <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
+          <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
+          {isGm && <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />}
+        </>
+      )}
     </aside>
   );
+}
+
+/** Rail starts collapsed on phones (cramped) and expanded on desktop. */
+function defaultRailOpen(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  try { return !window.matchMedia('(max-width: 680px)').matches; } catch { return true; }
 }
 
 type PanelState = ReturnType<typeof usePanelState>;
