@@ -194,6 +194,7 @@ describe('game simulator progression and PvP scenarios', () => {
     sim.addPlayer(player, { policy: createClassCombatPolicy() });
     sim.addEnemy(createSimulatedEnemy('goblin', 1, { id: 'goblin-a', position: { x: 10, z: 0 } }));
     sim.addEnemy(createSimulatedEnemy('goblin', 1, { id: 'goblin-b', position: { x: 30, z: 0 } }));
+    sim.addEnemy(createSimulatedEnemy('goblin', 1, { id: 'goblin-c', position: { x: 50, z: 0 } }));
 
     const result = sim.runUntil((s) => s.isCombatResolved(), { timeoutMs: 60_000 });
 

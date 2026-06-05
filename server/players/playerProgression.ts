@@ -51,9 +51,9 @@ export function normalizePlayerLevel(value: unknown): number {
 }
 
 export const BASE_XP_TO_NEXT_LEVEL = 100;
-export const XP_TO_NEXT_LEVEL_LINEAR_STEP = 60;
-export const XP_TO_NEXT_LEVEL_QUADRATIC_START = 10;
-export const XP_TO_NEXT_LEVEL_QUADRATIC_STEP = 15;
+export const XP_TO_NEXT_LEVEL_LINEAR_STEP = 34;
+export const XP_TO_NEXT_LEVEL_QUADRATIC_START = 12;
+export const XP_TO_NEXT_LEVEL_QUADRATIC_STEP = 7;
 
 export function getExperienceToNextLevel(level: number): number {
   const normalizedLevel = normalizePlayerLevel(level);
@@ -64,6 +64,22 @@ export function getExperienceToNextLevel(level: number): number {
     + (levelOffset * XP_TO_NEXT_LEVEL_LINEAR_STEP)
     + (rampOffset * rampOffset * XP_TO_NEXT_LEVEL_QUADRATIC_STEP),
   );
+}
+
+export type ExperienceAwardProgress = {
+  level: number;
+  experience: number;
+  experienceToNextLevel?: number;
+};
+
+export function capSingleLevelAwardXP(progress: ExperienceAwardProgress, xpAmount: number): number {
+  if (!Number.isFinite(xpAmount) || xpAmount <= 0) return 0;
+  const currentThreshold = progress.experienceToNextLevel ?? getExperienceToNextLevel(progress.level);
+  if (currentThreshold <= 0) return 0;
+  const nextThreshold = Math.max(1, getExperienceToNextLevel(progress.level + 1));
+  const currentExperience = Math.max(0, progress.experience);
+  const maxAllowedExperience = currentThreshold + nextThreshold - 1;
+  return Math.min(xpAmount, Math.max(0, maxAllowedExperience - currentExperience));
 }
 
 function isSkillId(value: unknown): value is SkillId {

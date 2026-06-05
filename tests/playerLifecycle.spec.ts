@@ -80,6 +80,21 @@ describe('player xp lifecycle', () => {
       expect(player.experience).toBeLessThan(player.experienceToNextLevel);
     }
   });
+
+  test('caps a huge combat XP award before it can skip a second level', () => {
+    const level = 40;
+    const player = makePlayer({
+      level,
+      experience: getExperienceToNextLevel(level) - 1,
+      experienceToNextLevel: getExperienceToNextLevel(level),
+    });
+
+    awardPlayerXP(player, 1_000_000, 'oversized boss test kill');
+
+    expect(player.level).toBe(level + 1);
+    expect(player.experience).toBe(getExperienceToNextLevel(level + 1) - 1);
+    expect(player.experience).toBeLessThan(player.experienceToNextLevel);
+  });
 });
 
 describe('player resource lifecycle', () => {

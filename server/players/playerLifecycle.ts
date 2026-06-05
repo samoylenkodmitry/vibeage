@@ -10,7 +10,7 @@ import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
-import { getExperienceToNextLevel } from './playerProgression.js';
+import { capSingleLevelAwardXP, getExperienceToNextLevel } from './playerProgression.js';
 
 // Emit a resource update only once the accumulated regen is visible at
 // the wire's integer resolution, so a 1 hp/s trickle doesn't spam a
@@ -80,9 +80,19 @@ export function awardPlayerXP(
   xpAmount: number,
   sourceInfo: string,
 ): PlayerUpdatePayload {
+  const cappedXpAmount = capSingleLevelAwardXP(player, xpAmount);
   const oldExp = player.experience;
-  player.experience += xpAmount;
-  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained ${xpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`);
+  player.experience += cappedXpAmount;
+  log(
+    LOG_CATEGORIES.PLAYER,
+    `Player ${player.id} gained ${cappedXpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`,
+  );
+  if (cappedXpAmount !== xpAmount) {
+    warn(
+      LOG_CATEGORIES.PLAYER,
+      `Capped XP award for ${player.id} from ${sourceInfo}: ${xpAmount} -> ${cappedXpAmount}`,
+    );
+  }
 
   if (player.experience >= player.experienceToNextLevel) {
     const oldSkillPoints = player.availableSkillPoints;
