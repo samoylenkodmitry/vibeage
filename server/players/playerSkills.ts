@@ -10,6 +10,7 @@ import type { PlayerState } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
 import { debug, error as logError, LOG_CATEGORIES, warn } from '../logger.js';
 import { findPlayerIdBySocket } from './playerSession.js';
+import { persistPlayer } from '../persistence.js';
 import { recomputePlayerStats } from './playerStatsRefresh.js';
 import { emitStarterProgressUpdate, syncPlayerStarterProgress } from '../progression/starterPath.js';
 import {
@@ -84,6 +85,13 @@ export function onLearnSkill(
     maxMana: player.maxMana,
   });
   emitStarterProgressUpdate(outbound, player, starterProgress.rewardGranted);
+
+  // Persist immediately. Learning spends a skill point — an irreversible
+  // progression action — so it must NOT wait for the 30s periodic save or a
+  // clean disconnect. On mobile the app is often backgrounded/killed (an
+  // unclean disconnect that skips the on-disconnect save) seconds after
+  // learning, which otherwise loses the learn and forces a re-learn next login.
+  void persistPlayer(player);
 }
 
 function classifyLearnRejection(
