@@ -5304,9 +5304,9 @@ button.character-option {
     /* Top-anchored upper-half sheet (was a tall bottom panel that buried the
        chat). Capped so it clears the chat strip + action bar below it — the
        inner list scrolls. */
-    top: calc(54px + env(safe-area-inset-bottom, 0px));
+    top: calc(54px + env(safe-area-inset-top, 0px));
     bottom: auto;
-    max-height: min(44vh, calc(100vh - 340px - env(safe-area-inset-bottom, 0px)));
+    max-height: min(44vh, calc(100vh - 360px - env(safe-area-inset-bottom, 0px)));
     overflow: auto;
   }
 
