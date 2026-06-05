@@ -3649,6 +3649,18 @@ input {
   z-index: 9;
   display: grid;
   gap: 8px;
+  /* Right-align so the collapse button + expanded stack hug the screen edge. */
+  justify-items: end;
+}
+
+/* The single ☰/✕ button that collapses the panel-toggle stack. */
+.panel-rail-toggle {
+  min-width: 44px;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .panel-toggle {
