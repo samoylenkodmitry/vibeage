@@ -14,8 +14,20 @@ import {
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { VENDORS } from '../../packages/content/vendors.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
-import { getExperienceToNextLevel, starterSkillsFor } from '../players/playerProgression.js';
+import { capSingleLevelAwardXP, getExperienceToNextLevel, starterSkillsFor } from '../players/playerProgression.js';
 import { createSimulatedEnemy } from './gameSimulator.js';
+import type {
+  JourneyBeat,
+  JourneyBeatKind,
+  JourneyLevelProgress,
+  JourneyTimeBreakdown,
+  JourneyVendorPurchase,
+  JourneyWindowSummary,
+  JourneyXpBreakdown,
+  JourneyXpSource,
+  PlayerJourneyOptions,
+  PlayerJourneySummary,
+} from './playerJourneyTypes.js';
 import { runPveScenario, type PveScenarioDefinition } from './scenarioCatalog.js';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -49,102 +61,12 @@ const JOURNEY_ENEMY_BY_LEVEL: Array<{ minLevel: number; enemyType: string }> = [
   { minLevel: 1, enemyType: 'goblin' },
 ];
 
-export type JourneyBeatKind =
-  | 'start'
-  | 'level'
-  | 'skill'
-  | 'quest_available'
-  | 'quest_complete'
-  | 'specialization'
-  | 'proficiency'
-  | 'item_upgrade'
-  | 'vendor_purchase'
-  | 'travel_progress'
-  | 'hunt_progress'
-  | 'death';
-
-export type JourneyBeat = {
-  atMs: number;
-  kind: JourneyBeatKind;
-  label: string;
-  weight: number;
-};
-
-export type JourneyWindowSummary = {
-  index: number;
-  startHour: number;
-  endHour: number;
-  beatWeight: number;
-  questCompletions: number;
-  levelUps: number;
-  itemUpgrades: number;
-  vendorPurchases: number;
-  deaths: number;
-  isEmpty: boolean;
-};
-
-export type JourneyTimeBreakdown = {
-  travelMs: number;
-  combatMs: number;
-  questMs: number;
-  lootMs: number;
-  downtimeMs: number;
-  vendorMs: number;
-};
-
-export type JourneyVendorPurchase = {
-  atMs: number;
-  vendorId: string;
-  itemId: ItemId;
-  price: number;
-  slot: EquipSlot;
-  scoreGain: number;
-};
-
 type VendorUpgradeCandidate = {
   vendorId: string;
   itemId: ItemId;
   price: number;
   slot: EquipSlot;
   scoreGain: number;
-};
-
-export type PlayerJourneyOptions = {
-  className: CharacterClass;
-  specializationId?: SpecializationId;
-  horizonHours?: number;
-  windowHours?: number;
-  maxLevel?: number;
-  travelSpeedMps?: number;
-};
-
-export type PlayerJourneySummary = {
-  className: CharacterClass;
-  requestedSpecializationId?: SpecializationId;
-  chosenSpecializationId?: SpecializationId;
-  horizonHours: number;
-  windowHours: number;
-  endingLevel: number;
-  levelsGained: number;
-  experience: number;
-  experienceToNextLevel: number;
-  gold: number;
-  kills: number;
-  bossKills: number;
-  deaths: number;
-  questsCompleted: number;
-  questIdsCompleted: QuestId[];
-  skippedQuestIds: QuestId[];
-  obsoleteQuestIds: QuestId[];
-  inventoryExpected: Record<ItemId, number>;
-  equippedItems: Partial<Record<EquipSlot, ItemId>>;
-  gearScore: number;
-  vendorPurchases: JourneyVendorPurchase[];
-  time: JourneyTimeBreakdown;
-  emptyWindowCount: number;
-  maxMeaningfulGapHours: number;
-  beats: JourneyBeat[];
-  windows: JourneyWindowSummary[];
 };
 
 type JourneyState = {
@@ -158,6 +80,8 @@ type JourneyState = {
   elapsedMs: number;
   level: number;
   experience: number;
+  totalExperienceEarned: number;
+  xpBySource: JourneyXpBreakdown;
   gold: number;
   kills: number;
   bossKills: number;
@@ -169,6 +93,7 @@ type JourneyState = {
   inventoryExpected: Record<ItemId, number>;
   equippedItems: Partial<Record<EquipSlot, ItemId>>;
   vendorPurchases: JourneyVendorPurchase[];
+  levelProgression: JourneyLevelProgress[];
   beats: JourneyBeat[];
   progressBeatKeys: Set<string>;
   time: JourneyTimeBreakdown;
@@ -218,7 +143,7 @@ function createJourneyState(options: PlayerJourneyOptions): JourneyState {
     pushBeat(beats, 0, 'skill', `Starts with ${skillId}`, 1);
   }
 
-  return {
+  const state: JourneyState = {
     className,
     requestedSpecializationId: options.specializationId,
     horizonMs: (options.horizonHours ?? DEFAULT_HORIZON_HOURS) * HOUR_MS,
@@ -228,6 +153,8 @@ function createJourneyState(options: PlayerJourneyOptions): JourneyState {
     elapsedMs: 0,
     level: 1,
     experience: 0,
+    totalExperienceEarned: 0,
+    xpBySource: emptyXpBreakdown(),
     gold: 0,
     kills: 0,
     bossKills: 0,
@@ -239,10 +166,17 @@ function createJourneyState(options: PlayerJourneyOptions): JourneyState {
     inventoryExpected: {},
     equippedItems: {},
     vendorPurchases: [],
+    levelProgression: [],
     beats,
     progressBeatKeys: new Set(),
     time: { travelMs: 0, combatMs: 0, questMs: 0, lootMs: 0, downtimeMs: 0, vendorMs: 0 },
   };
+  state.levelProgression.push(createLevelProgress(state, {
+    source: 'start',
+    xpThreshold: 0,
+    awardLevelIndex: 0,
+  }));
+  return state;
 }
 
 function runQuest(state: JourneyState, quest: QuestDef): boolean {
@@ -288,12 +222,12 @@ function runQuest(state: JourneyState, quest: QuestDef): boolean {
 function completeQuest(state: JourneyState, quest: QuestDef): void {
   state.completedQuestIds.push(quest.id);
   pushBeat(state.beats, state.elapsedMs, 'quest_complete', `Completed ${quest.name}`, 3);
-  addExperience(state, quest.reward.xp ?? 0);
   state.gold += quest.reward.gold ?? 0;
   for (const grant of quest.reward.items ?? []) {
     addExpectedItem(state, grant.itemId, grant.quantity ?? 1);
     maybeEquipItem(state, grant.itemId, 'quest');
   }
+  addExperience(state, quest.reward.xp ?? 0, 'quest');
 }
 
 function killEnemy(state: JourneyState, enemyType: string, enemyLevel: number, isBoss: boolean): boolean {
@@ -310,10 +244,10 @@ function killEnemy(state: JourneyState, enemyType: string, enemyLevel: number, i
   if (!advanceTime(state, KILL_SEARCH_MS, 'downtimeMs')) return false;
   if (!advanceTime(state, LOOT_PICKUP_MS, 'lootMs')) return false;
   const enemy = createSimulatedEnemy(enemyType, enemyLevel, { isMiniBoss: isBoss, experienceMultiplier: isBoss ? 4 : undefined });
-  addExperience(state, enemy.baseExperienceValue);
   addExpectedLoot(state, enemy.lootTableId);
   state.kills += 1;
   if (isBoss) state.bossKills += 1;
+  addExperience(state, enemy.baseExperienceValue, isBoss ? 'boss' : 'mob');
   return true;
 }
 
@@ -379,11 +313,25 @@ function combatOutcome(
   return outcome;
 }
 
-function addExperience(state: JourneyState, amount: number): void {
-  state.experience += amount;
+function addExperience(state: JourneyState, amount: number, source: Exclude<JourneyXpSource, 'start'>): void {
+  const award = source === 'mob' || source === 'boss'
+    ? capSingleLevelAwardXP({ level: state.level, experience: state.experience }, amount)
+    : amount;
+  if (award <= 0) return;
+  state.totalExperienceEarned += award;
+  state.xpBySource[source] += award;
+  state.experience += award;
+  let awardLevelIndex = 0;
   while (state.experience >= getExperienceToNextLevel(state.level) && state.level < state.maxLevel) {
-    state.experience -= getExperienceToNextLevel(state.level);
+    const xpThreshold = getExperienceToNextLevel(state.level);
+    state.experience -= xpThreshold;
     state.level += 1;
+    awardLevelIndex += 1;
+    state.levelProgression.push(createLevelProgress(state, {
+      source,
+      xpThreshold,
+      awardLevelIndex,
+    }));
     pushBeat(state.beats, state.elapsedMs, 'level', `Reached level ${state.level}`, 4);
     addUnlockBeats(state);
     announceAvailableQuests(state);
@@ -593,10 +541,20 @@ function summarizeJourney(state: JourneyState): PlayerJourneySummary {
     levelsGained: state.level - 1,
     experience: Math.floor(state.experience),
     experienceToNextLevel: getExperienceToNextLevel(state.level),
+    totalExperienceEarned: Math.floor(state.totalExperienceEarned),
+    xpBySource: copyXpBreakdown(state.xpBySource),
     gold: Math.floor(state.gold),
     kills: state.kills,
     bossKills: state.bossKills,
     deaths: state.deaths,
+    skippedLevelCount: state.levelProgression.filter((report) => report.skippedBySingleAward).length,
+    levelProgression: state.levelProgression.map((report) => ({
+      ...report,
+      xpBySource: copyXpBreakdown(report.xpBySource),
+      questIdsCompleted: [...report.questIdsCompleted],
+      inventoryExpected: { ...report.inventoryExpected },
+      equippedItems: { ...report.equippedItems },
+    })),
     questsCompleted: state.completedQuestIds.length,
     questIdsCompleted: [...state.completedQuestIds],
     skippedQuestIds,
@@ -680,6 +638,48 @@ function itemScore(stats?: ItemStatBlock): number {
 
 function gearScore(equipped: Partial<Record<EquipSlot, ItemId>>): number {
   return Math.round(Object.values(equipped).reduce((total, itemId) => total + itemScore(ITEMS[itemId]?.stats), 0));
+}
+
+function createLevelProgress(
+  state: JourneyState,
+  input: {
+    source: JourneyXpSource;
+    xpThreshold: number;
+    awardLevelIndex: number;
+  },
+): JourneyLevelProgress {
+  return {
+    level: state.level,
+    reachedAtMs: state.elapsedMs,
+    reachedAtHour: state.elapsedMs / HOUR_MS,
+    source: input.source,
+    xpThreshold: input.xpThreshold,
+    xpIntoLevel: Math.floor(state.experience),
+    totalXpEarned: Math.floor(state.totalExperienceEarned),
+    xpBySource: copyXpBreakdown(state.xpBySource),
+    questsCompleted: state.completedQuestIds.length,
+    questIdsCompleted: [...state.completedQuestIds],
+    kills: state.kills,
+    bossKills: state.bossKills,
+    gold: Math.floor(state.gold),
+    inventoryExpected: roundRecord(state.inventoryExpected),
+    equippedItems: { ...state.equippedItems },
+    gearScore: gearScore(state.equippedItems),
+    awardLevelIndex: input.awardLevelIndex,
+    skippedBySingleAward: input.awardLevelIndex > 1,
+  };
+}
+
+function emptyXpBreakdown(): JourneyXpBreakdown {
+  return { quest: 0, mob: 0, boss: 0 };
+}
+
+function copyXpBreakdown(breakdown: JourneyXpBreakdown): JourneyXpBreakdown {
+  return {
+    quest: Math.floor(breakdown.quest),
+    mob: Math.floor(breakdown.mob),
+    boss: Math.floor(breakdown.boss),
+  };
 }
 
 function roundRecord(record: Record<string, number>): Record<string, number> {

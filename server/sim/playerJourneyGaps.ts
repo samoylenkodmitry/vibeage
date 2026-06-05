@@ -2,9 +2,8 @@ import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/c
 import { SPECIALIZATIONS, type SpecializationId } from '../../packages/content/specializations.js';
 import {
   journeyReportRows,
-  type JourneyBeatKind,
-  type PlayerJourneySummary,
 } from './playerJourney.js';
+import type { JourneyBeatKind, PlayerJourneySummary } from './playerJourneyTypes.js';
 
 const GAP_KIND_PRIORITY: Record<JourneyGapKind, number> = {
   empty_windows: 5,
