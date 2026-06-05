@@ -8,7 +8,9 @@ import { describe, expect, test, vi } from 'vitest';
  * forces the player to re-learn every login. Partial-mock so only persistPlayer
  * is observed (no real DB); everything else in persistence stays real.
  */
-const persistPlayer = vi.fn();
+// vi.hoisted so the spy exists when the hoisted vi.mock factory runs (a plain
+// outer const would be in the temporal dead zone at factory time).
+const { persistPlayer } = vi.hoisted(() => ({ persistPlayer: vi.fn() }));
 vi.mock('../server/persistence', async (importActual) => ({
   ...(await importActual<typeof import('../server/persistence')>()),
   persistPlayer,
