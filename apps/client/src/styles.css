@@ -3653,8 +3653,10 @@ input {
   justify-items: end;
 }
 
-/* The single ☰/✕ button that collapses the panel-toggle stack. */
-.panel-rail-toggle {
+/* The single ☰/✕ button that collapses the panel-toggle stack. Scoped under
+   .panel-toggles so its narrower min-width wins over .panel-toggle (which is
+   defined later in source order at the same specificity). */
+.panel-toggles .panel-rail-toggle {
   min-width: 44px;
   font-size: 18px;
   line-height: 1;

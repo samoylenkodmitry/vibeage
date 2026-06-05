@@ -352,7 +352,9 @@ function PanelToggleStrip({
   // Collapsible rail: one ☰ button shows/hides the stack of panel toggles.
   // Collapsed by default on phones — the always-on 9-button column otherwise eats
   // screen space and overlaps the action bar's right edge. Persisted per browser.
-  const [railOpen, , toggleRail] = usePersistedToggle('rail-open', defaultRailOpen());
+  // Lazy useState so the matchMedia probe runs once, not every render.
+  const [railDefaultOpen] = useState(defaultRailOpen);
+  const [railOpen, , toggleRail] = usePersistedToggle('rail-open', railDefaultOpen);
   return (
     <aside className={`panel-toggles${railOpen ? ' panel-toggles--open' : ''}`} aria-label="Panel toggles">
       <button
