@@ -58,13 +58,21 @@ export function resolveBarDrop(payload: BarDragPayload, toSlot: number | null): 
 const LONG_PRESS_MS = 350;
 const MOVE_CANCEL_PX = 12;
 
-/** The action-bar slot index under a viewport point, or null if none. */
+/** The action-bar slot index under a viewport point, or null if none.
+ *
+ *  Uses elementsFromPoint (the whole hit stack, not just the topmost) so a slot
+ *  is still found when another HUD surface overlaps it at the drop point — on a
+ *  phone the side-rail toggle buttons cover the bar's rightmost column and an
+ *  open ActionsPanel covers its top row, so plain elementFromPoint returns those
+ *  overlays and the drop silently misses the slot beneath them. */
 function slotUnderPoint(x: number, y: number): number | null {
-  const el = document.elementFromPoint(x, y);
-  const slotEl = el?.closest<HTMLElement>('[data-bar-slot]');
-  if (!slotEl) return null;
-  const idx = Number(slotEl.dataset.barSlot);
-  return Number.isInteger(idx) ? idx : null;
+  for (const el of document.elementsFromPoint(x, y)) {
+    const slotEl = (el as HTMLElement).closest?.<HTMLElement>('[data-bar-slot]');
+    if (!slotEl) continue;
+    const idx = Number(slotEl.dataset.barSlot);
+    if (Number.isInteger(idx)) return idx;
+  }
+  return null;
 }
 
 type DragContext = {
