@@ -66,7 +66,12 @@ const MOVE_CANCEL_PX = 12;
  *  open ActionsPanel covers its top row, so plain elementFromPoint returns those
  *  overlays and the drop silently misses the slot beneath them. */
 function slotUnderPoint(x: number, y: number): number | null {
-  for (const el of document.elementsFromPoint(x, y)) {
+  // Fall back to elementFromPoint where elementsFromPoint is unavailable (JSDOM,
+  // very old browsers) so this never throws.
+  const stack: Element[] = typeof document.elementsFromPoint === 'function'
+    ? document.elementsFromPoint(x, y)
+    : [document.elementFromPoint(x, y)].filter((el): el is Element => el !== null);
+  for (const el of stack) {
     const slotEl = (el as HTMLElement).closest?.<HTMLElement>('[data-bar-slot]');
     if (!slotEl) continue;
     const idx = Number(slotEl.dataset.barSlot);
