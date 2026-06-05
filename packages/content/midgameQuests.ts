@@ -14,7 +14,7 @@ export const MIDGAME_BEAT_QUESTS: Record<string, QuestDef> = {
       { id: 'trace_lattice', description: 'Trace the deepest visible lattice vein.', objective: { kind: 'reach', position: { x: -310, y: 0.5, z: -390 }, radius: 18 }, marker: { x: -310, y: 0.5, z: -390 } },
       { id: 'return_lens_notes', description: 'Return the annotated lens to Savra.', objective: { kind: 'talk', npcId: 'lenskeeper_savra' } },
     ],
-    reward: { xp: 6200, gold: 1900, items: [{ itemId: 'crystal_shard', quantity: 8 }, { itemId: 'refraction_staff', quantity: 1 }] },
+    reward: { xp: 5400, gold: 1900, items: [{ itemId: 'crystal_shard', quantity: 8 }, { itemId: 'refraction_staff', quantity: 1 }] },
   },
   shadow_debt_ledger: {
     id: 'shadow_debt_ledger',

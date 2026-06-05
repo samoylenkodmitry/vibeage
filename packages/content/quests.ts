@@ -157,7 +157,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
         objective: { kind: 'talk', npcId: 'bounty_broker_mira' },
       },
     ],
-    reward: { xp: 400, gold: 180, items: [{ itemId: 'grakk_warband_horn', quantity: 1 }, { itemId: 'health_potion', quantity: 3 }] },
+    reward: { xp: 300, gold: 180, items: [{ itemId: 'grakk_warband_horn', quantity: 1 }, { itemId: 'health_potion', quantity: 3 }] },
   },
   bounty_old_greyfang: {
     id: 'bounty_old_greyfang',
@@ -228,7 +228,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
         objective: { kind: 'talk', npcId: 'pyromancer_kael' },
       },
     ],
-    reward: { xp: 2400, gold: 800, items: [{ itemId: 'vorthax_ember_scale', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 5 }] },
+    reward: { xp: 1750, gold: 800, items: [{ itemId: 'vorthax_ember_scale', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 5 }] },
   },
   choose_your_path: {
     id: 'choose_your_path',
@@ -353,7 +353,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
         objective: { kind: 'talk', npcId: 'smith_alric' },
       },
     ],
-    reward: { xp: 3200, gold: 1100, items: [{ itemId: 'magmaheart_core', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 8 }] },
+    reward: { xp: 3000, gold: 1100, items: [{ itemId: 'magmaheart_core', quantity: 1 }, { itemId: 'greater_health_potion', quantity: 8 }] },
   },
   ash_in_the_gears: {
     id: 'ash_in_the_gears',
@@ -498,7 +498,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
         objective: { kind: 'talk', npcId: 'bounty_broker_mira' },
       },
     ],
-    reward: { xp: 800, gold: 240, items: [{ itemId: 'health_potion', quantity: 6 }, { itemId: 'mana_potion', quantity: 4 }] },
+    reward: { xp: 760, gold: 240, items: [{ itemId: 'health_potion', quantity: 6 }, { itemId: 'mana_potion', quantity: 4 }] },
   },
   the_mapping_run: {
     id: 'the_mapping_run',
@@ -536,7 +536,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
         objective: { kind: 'talk', npcId: 'scholar_thessa' },
       },
     ],
-    reward: { xp: 600, gold: 220, items: [{ itemId: 'mana_potion', quantity: 3 }] },
+    reward: { xp: 360, gold: 220, items: [{ itemId: 'mana_potion', quantity: 3 }] },
   },
   the_bone_lord: {
     id: 'the_bone_lord',

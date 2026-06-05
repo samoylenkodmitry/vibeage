@@ -1,10 +1,12 @@
 import { describe, expect, test, vi } from 'vitest';
 import type { SkillId } from '../packages/content/skills';
 import { ENEMY_BASE_SCALING } from '../packages/content/enemies';
+import { QUESTS } from '../packages/content/quests';
 import { learnNewSkill, onLearnSkill } from '../server/players/playerSkills';
 import type { PlayerState } from '../packages/sim/entities';
 import { createGameState } from '../server/gameState';
 import {
+  capSingleLevelAwardXP,
   getExperienceToNextLevel,
   normalizeAvailableSkillPoints,
   normalizeUnlockedSkills,
@@ -25,9 +27,9 @@ describe('player progression hydration', () => {
       .reduce((total, xp) => total + xp, 0);
 
     expect(getExperienceToNextLevel(1)).toBe(100);
-    expect(getExperienceToNextLevel(2)).toBe(160);
-    expect(totalXpToLevel40).toBeGreaterThanOrEqual(170_000);
-    expect(totalXpToLevel40).toBeLessThanOrEqual(185_000);
+    expect(getExperienceToNextLevel(2)).toBe(134);
+    expect(totalXpToLevel40).toBeGreaterThanOrEqual(76_000);
+    expect(totalXpToLevel40).toBeLessThanOrEqual(78_000);
   });
 
   test('prevents one ordinary mob kill from skipping the next level', () => {
@@ -35,6 +37,44 @@ describe('player progression hydration', () => {
       const ordinaryMobXp = ENEMY_BASE_SCALING.experience.flat + (ENEMY_BASE_SCALING.experience.perLevel * level);
       expect(getExperienceToNextLevel(level + 1), `level ${level} ordinary mob xp ${ordinaryMobXp}`).toBeGreaterThan(ordinaryMobXp);
     }
+  });
+
+  test('keeps boss combat XP inside the single-kill level boundary', () => {
+    for (let level = 1; level < 60; level += 1) {
+      const ordinaryMobXp = ENEMY_BASE_SCALING.experience.flat + (ENEMY_BASE_SCALING.experience.perLevel * level);
+      const bossXp = ordinaryMobXp * 4;
+      const singleKillBoundary = getExperienceToNextLevel(level) + getExperienceToNextLevel(level + 1);
+
+      expect(bossXp, `level ${level} boss xp ${bossXp}`).toBeLessThan(singleKillBoundary);
+    }
+  });
+
+  test('caps single-award XP from already-overflowed progress states', () => {
+    const level = 10;
+    const currentThreshold = getExperienceToNextLevel(level);
+    const nextThreshold = getExperienceToNextLevel(level + 1);
+
+    expect(capSingleLevelAwardXP({
+      level,
+      experience: currentThreshold + nextThreshold - 2,
+      experienceToNextLevel: currentThreshold,
+    }, 1_000_000)).toBe(1);
+    expect(capSingleLevelAwardXP({
+      level,
+      experience: currentThreshold + nextThreshold,
+      experienceToNextLevel: currentThreshold,
+    }, 1_000_000)).toBe(0);
+  });
+
+  test('keeps authored quest XP rewards inside the one-day curve spike budget', () => {
+    const totalXpToLevel40 = Array.from({ length: 39 }, (_, index) => getExperienceToNextLevel(index + 1))
+      .reduce((total, xp) => total + xp, 0);
+    const maxQuestRewardXp = Math.floor(totalXpToLevel40 / 5);
+    const oversizedRewards = Object.values(QUESTS)
+      .filter((quest) => (quest.reward.xp ?? 0) > maxQuestRewardXp)
+      .map((quest) => `${quest.id}:${quest.reward.xp ?? 0}`);
+
+    expect(oversizedRewards).toEqual([]);
   });
 
   test('gives a persisted player the starter skill when the database has an empty skills array', () => {

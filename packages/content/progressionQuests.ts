@@ -14,7 +14,7 @@ export const HIGH_PROGRESSION_QUESTS: Record<string, QuestDef> = {
       { id: 'seal_the_cutline', description: 'Stand at the cutline marker and set the final ward.', objective: { kind: 'reach', position: { x: 258_800, y: 0.5, z: -119_200 }, radius: 24 }, marker: { x: 258_800, y: 0.5, z: -119_200 } },
       { id: 'report_firebreak', description: 'Return to Iyen with the heat readings.', objective: { kind: 'talk', npcId: 'firebreak_warden_iyen' } },
     ],
-    reward: { xp: 260_000, gold: 5_200, items: [{ itemId: 'firebreak_sash', quantity: 1 }, { itemId: 'fire_gem', quantity: 5 }] },
+    reward: { xp: 5_200, gold: 5_200, items: [{ itemId: 'firebreak_sash', quantity: 1 }, { itemId: 'fire_gem', quantity: 5 }] },
   },
   moonfall_star_chart: {
     id: 'moonfall_star_chart',
@@ -29,7 +29,7 @@ export const HIGH_PROGRESSION_QUESTS: Record<string, QuestDef> = {
       { id: 'mark_moonfall_arc', description: 'Mark the moonfall arc on the high ridge.', objective: { kind: 'reach', position: { x: -319_000, y: 0.5, z: -258_900 }, radius: 24 }, marker: { x: -319_000, y: 0.5, z: -258_900 } },
       { id: 'return_star_chart', description: 'Return the cold-lens to Luma.', objective: { kind: 'talk', npcId: 'star_chartist_luma' } },
     ],
-    reward: { xp: 340_000, gold: 6_000, items: [{ itemId: 'starward_visor', quantity: 1 }, { itemId: 'star_essence', quantity: 3 }] },
+    reward: { xp: 6_200, gold: 6_000, items: [{ itemId: 'starward_visor', quantity: 1 }, { itemId: 'star_essence', quantity: 3 }] },
   },
   marsh_silence_pact: {
     id: 'marsh_silence_pact',
@@ -44,7 +44,7 @@ export const HIGH_PROGRESSION_QUESTS: Record<string, QuestDef> = {
       { id: 'bind_marsh_silence', description: 'Bind the silence at the drowned marker.', objective: { kind: 'reach', position: { x: 151_200, y: 0.5, z: 388_400 }, radius: 24 }, marker: { x: 151_200, y: 0.5, z: 388_400 } },
       { id: 'close_silence_pact', description: 'Return to Orrin before the marsh answers.', objective: { kind: 'talk', npcId: 'marsh_marshal_orrin' } },
     ],
-    reward: { xp: 450_000, gold: 7_000, items: [{ itemId: 'marshward_boots', quantity: 1 }, { itemId: 'abyssal_pearl', quantity: 2 }] },
+    reward: { xp: 7_200, gold: 7_000, items: [{ itemId: 'marshward_boots', quantity: 1 }, { itemId: 'abyssal_pearl', quantity: 2 }] },
   },
   zero_hour_breach: {
     id: 'zero_hour_breach',
@@ -59,6 +59,6 @@ export const HIGH_PROGRESSION_QUESTS: Record<string, QuestDef> = {
       { id: 'stand_at_zero_hour', description: 'Stand at the zero-hour breach and hold the mark steady.', objective: { kind: 'reach', position: { x: -418_800, y: 0.5, z: 358_900 }, radius: 24 }, marker: { x: -418_800, y: 0.5, z: 358_900 } },
       { id: 'seal_zero_hour', description: 'Return to Nessa with the sealed loop.', objective: { kind: 'talk', npcId: 'riftwright_nessa' } },
     ],
-    reward: { xp: 600_000, gold: 8_500, items: [{ itemId: 'zero_hour_loop', quantity: 1 }, { itemId: 'temporal_shard', quantity: 4 }] },
+    reward: { xp: 7_600, gold: 8_500, items: [{ itemId: 'zero_hour_loop', quantity: 1 }, { itemId: 'temporal_shard', quantity: 4 }] },
   },
 };

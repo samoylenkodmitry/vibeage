@@ -75,7 +75,7 @@ export const ENEMY_BASE_SCALING = {
   /** Max HP = (flat + level*perLevel) × stats.health. */
   health: { flat: 100, perLevel: 20 },
   /** XP award = (flat + level*perLevel) × stats.experience. */
-  experience: { flat: 50, perLevel: 10 },
+  experience: { flat: 40, perLevel: 8 },
   /** Attack damage = (flat + level*perLevel) × stats.damage. */
   damage: { flat: 10, perLevel: 2 },
   /** Flat baselines (level-independent) × the matching stats multiplier. */

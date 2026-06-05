@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../packages/content/classes';
 import { SPECIALIZATIONS } from '../packages/content/specializations';
 import { journeyReportRows, runPlayerJourney } from '../server/sim/playerJourney';
+import type { PlayerJourneySummary } from '../server/sim/playerJourneyTypes';
 
 const CLASS_NAMES = Object.keys(CLASS_SKILL_TREES) as CharacterClass[];
+const XP_SOURCES = ['quest', 'mob', 'boss'] as const;
 
 describe('player journey simulator', () => {
   it('runs deterministic quest-and-grind routes for every base class', () => {
@@ -39,6 +41,10 @@ describe('player journey simulator', () => {
   it('tracks expected-value loot, vendor purchases, gear upgrades, and hourly empty windows', () => {
     const summary = runPlayerJourney({ className: 'warrior', horizonHours: 24 });
 
+    expect(summary.totalExperienceEarned).toBeGreaterThan(0);
+    expect(summary.xpBySource.quest).toBeGreaterThan(0);
+    expect(summary.xpBySource.mob).toBeGreaterThan(0);
+    expect(summary.xpBySource.boss).toBeGreaterThan(0);
     expect(summary.inventoryExpected.health_potion ?? 0).toBeGreaterThan(0);
     expect(summary.vendorPurchases.length).toBeGreaterThan(0);
     expect(summary.gearScore).toBeGreaterThan(0);
@@ -56,7 +62,14 @@ describe('player journey simulator', () => {
       });
 
       expect(summary.endingLevel, spec.id).toBeGreaterThanOrEqual(40);
+      expect(summary.chosenSpecializationId, spec.id).toBe(spec.id);
       expect(summary.questIdsCompleted, spec.id).toContain('frontier_orders');
+      expect(summary.skippedLevelCount, spec.id).toBe(0);
+      assertLevelProgressionReport(summary);
+      for (const skillId of [...(spec.specSkills ?? []), ...(spec.proficiencySkills ?? [])]) {
+        expect(summary.beats.some((beat) => beat.kind === 'skill' && beat.label.includes(skillId)), `${spec.id}:${skillId}`).toBe(true);
+      }
+      expect(summary.beats.some((beat) => beat.kind === 'proficiency' && beat.label.includes(spec.proficiencyPassive.name)), spec.id).toBe(true);
       expect(summary.emptyWindowCount, spec.id).toBe(0);
       expect(summary.maxMeaningfulGapHours, spec.id).toBeLessThanOrEqual(1.1);
     }
@@ -71,3 +84,39 @@ describe('player journey simulator', () => {
     expect(new Set(rows.map((row) => row.className))).toEqual(new Set(CLASS_NAMES));
   });
 });
+
+function assertLevelProgressionReport(summary: PlayerJourneySummary): void {
+  expect(summary.levelProgression).toHaveLength(summary.endingLevel);
+  expect(summary.levelProgression[0]).toMatchObject({
+    level: 1,
+    source: 'start',
+    totalXpEarned: 0,
+    skippedBySingleAward: false,
+  });
+
+  for (let index = 1; index < summary.levelProgression.length; index += 1) {
+    const previous = summary.levelProgression[index - 1]!;
+    const report = summary.levelProgression[index]!;
+    expect(report.level, summary.requestedSpecializationId).toBe(previous.level + 1);
+    expect(report.reachedAtMs, `L${report.level}`).toBeGreaterThan(previous.reachedAtMs);
+    expect(report.awardLevelIndex, `L${report.level}`).toBe(1);
+    expect(report.skippedBySingleAward, `L${report.level}`).toBe(false);
+    expect(XP_SOURCES).toContain(report.source);
+    expect(report.totalXpEarned, `L${report.level}`).toBeGreaterThan(previous.totalXpEarned);
+    expect(report.xpBySource.quest + report.xpBySource.mob + report.xpBySource.boss).toBe(report.totalXpEarned);
+    assertLevelSourceDelta(report, previous);
+  }
+}
+
+function assertLevelSourceDelta(
+  report: PlayerJourneySummary['levelProgression'][number],
+  previous: PlayerJourneySummary['levelProgression'][number],
+): void {
+  if (report.source === 'quest') {
+    expect(report.questsCompleted, `L${report.level}`).toBeGreaterThan(previous.questsCompleted);
+  } else if (report.source === 'mob') {
+    expect(report.kills, `L${report.level}`).toBeGreaterThan(previous.kills);
+  } else {
+    expect(report.bossKills, `L${report.level}`).toBeGreaterThan(previous.bossKills);
+  }
+}
