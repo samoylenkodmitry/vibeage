@@ -7,6 +7,7 @@ import {
   respawnPlayer,
 } from '../server/players/playerLifecycle';
 import { ENEMY_BASE_SCALING } from '../packages/content/enemies';
+import { runtimeMetrics } from '../server/observability/runtimeMetrics';
 import { getExperienceToNextLevel } from '../server/players/playerProgression';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { PlayerState } from '../packages/sim/entities';
@@ -94,6 +95,41 @@ describe('player xp lifecycle', () => {
     expect(player.level).toBe(level + 1);
     expect(player.experience).toBe(getExperienceToNextLevel(level + 1) - 1);
     expect(player.experience).toBeLessThan(player.experienceToNextLevel);
+  });
+
+  test('records XP cap telemetry with enemy level context', () => {
+    runtimeMetrics.resetForTests();
+    const level = 40;
+    const player = makePlayer({
+      level,
+      experience: getExperienceToNextLevel(level) - 1,
+      experienceToNextLevel: getExperienceToNextLevel(level),
+    });
+
+    awardPlayerXP(player, 1_000_000, 'oversized boss test kill', {
+      kind: 'boss',
+      enemy: {
+        id: 'boss-audit',
+        type: 'dragon',
+        name: 'Audit Dragon',
+        level: 95,
+        baseExperienceValue: 1_000_000,
+        experienceValue: 1_000_000,
+        isMiniBoss: true,
+        bossId: 'vorthax_ember_wyrm',
+      },
+    });
+
+    const metrics = runtimeMetrics.snapshot();
+    expect(metrics.counters['xp.award.total']).toBe(1);
+    expect(metrics.counters['xp.award.source.boss']).toBe(1);
+    expect(metrics.counters['xp.award.capped']).toBe(1);
+    expect(metrics.counters['xp.award.capped.boss']).toBe(1);
+    expect(metrics.counters['xp.award.enemyLevelDelta.suspicious']).toBe(1);
+    expect(metrics.histograms['xp.award.raw']?.max).toBe(1_000_000);
+    expect(metrics.histograms['xp.award.capDelta']?.max).toBeGreaterThan(0);
+    expect(metrics.histograms['xp.award.enemyLevel']?.max).toBe(95);
+    expect(metrics.histograms['xp.award.enemyLevelDelta']?.max).toBe(55);
   });
 });
 

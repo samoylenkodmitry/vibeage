@@ -7,6 +7,7 @@ import { recomputePlayerStats } from './playerStatsRefresh.js';
 import type { GameState } from '../gameState.js';
 import { error as logError, log, LOG_CATEGORIES, warn } from '../logger.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
+import { recordPlayerXpAward, type XpAwardAuditContext } from '../observability/xpSafetyAudit.js';
 import { isEntityPhysicsFrozen } from '../physics/areaPhysics.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitPlayerUpdated, type OutboundEventSink } from '../transport/outboundEvents.js';
@@ -79,21 +80,16 @@ export function awardPlayerXP(
   player: PlayerState,
   xpAmount: number,
   sourceInfo: string,
+  auditContext: XpAwardAuditContext = {},
 ): PlayerUpdatePayload {
   const cappedXpAmount = capSingleLevelAwardXP(player, xpAmount);
+  const levelBefore = player.level;
   const oldExp = player.experience;
   player.experience += cappedXpAmount;
   log(
     LOG_CATEGORIES.PLAYER,
     `Player ${player.id} gained ${cappedXpAmount} XP from ${sourceInfo}. XP: ${oldExp} -> ${player.experience}`,
   );
-  if (cappedXpAmount !== xpAmount) {
-    warn(
-      LOG_CATEGORIES.PLAYER,
-      `Capped XP award for ${player.id} from ${sourceInfo}: ${xpAmount} -> ${cappedXpAmount}`,
-    );
-  }
-
   if (player.experience >= player.experienceToNextLevel) {
     const oldSkillPoints = player.availableSkillPoints;
     while (player.experience >= player.experienceToNextLevel) {
@@ -112,6 +108,18 @@ export function awardPlayerXP(
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} leveled up to level ${player.level}! Next level at ${player.experienceToNextLevel} XP`);
     log(LOG_CATEGORIES.PLAYER, `Player ${player.id} gained a skill point. Total: ${player.availableSkillPoints} (before: ${oldSkillPoints})`);
   }
+
+  recordPlayerXpAward({
+    player,
+    sourceInfo,
+    rawXp: xpAmount,
+    appliedXp: cappedXpAmount,
+    levelBefore,
+    levelAfter: player.level,
+    expBefore: oldExp,
+    expAfter: player.experience,
+    context: auditContext,
+  });
 
   return {
     id: player.id,
