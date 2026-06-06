@@ -6,7 +6,7 @@ import { computeDayPhase, SUN_DISTANCE } from './timeOfDay';
 import { BirdFlock } from './BirdFlock';
 import { NightStars } from './NightStars';
 import { ShootingStars } from './ShootingStars';
-import { SkyGradientDome } from './world-art/SkyGradientDome';
+import { SkyAtmosphere } from './world-art/SkyAtmosphere';
 
 type WorldEnvironmentProps = {
   focus: Vec3D;
@@ -84,7 +84,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
 
   return (
     <>
-      <SkyGradientDome focus={focus} palette={paletteRef} />
+      <SkyAtmosphere focus={focus} palette={paletteRef} />
       <hemisphereLight ref={refs.hemisphere} args={['#ccecff', '#21402d', 0.82]} />
       {/* Phase-driven fill (set in applyDayPhaseToScene) keeps the foreground readable when the sun is low/absent. */}
       <ambientLight ref={refs.ambient} intensity={0.35} />
