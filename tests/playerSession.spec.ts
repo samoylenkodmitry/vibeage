@@ -125,6 +125,35 @@ describe('player session hydration', () => {
     expect(player.stats?.dmgMult).toBeGreaterThan(0);
   });
 
+  test('keeps spec + proficiency skills for the player\'s specialization on hydrate (re-learn-every-login regression)', () => {
+    const player = hydratePersistedPlayer({
+      id: 'spec-mage',
+      class_name: 'mage',
+      level: 40,
+      specialization_id: 'arcanist',
+      // base (fireball) + spec Lv20 (arcane_blast) + proficiency Lv40 (time_sphere)
+      skills: ['fireball', 'arcane_blast', 'time_sphere'],
+      available_skill_points: 3,
+    }, 'socket1', 'SpecMage', Date.now());
+
+    expect(player.unlockedSkills).toContain('fireball');
+    expect(player.unlockedSkills).toContain('arcane_blast');   // was being stripped on every login
+    expect(player.unlockedSkills).toContain('time_sphere');    // Lv40 proficiency — was being stripped too
+  });
+
+  test('still drops a spec skill the player has no matching specialization for', () => {
+    const player = hydratePersistedPlayer({
+      id: 'nospec-mage',
+      class_name: 'mage',
+      level: 40,
+      specialization_id: null, // never chose the arcanist spec
+      skills: ['fireball', 'time_sphere'],
+    }, 'socket1', 'NoSpecMage', Date.now());
+
+    expect(player.unlockedSkills).toContain('fireball');
+    expect(player.unlockedSkills).not.toContain('time_sphere'); // invalid without the spec → dropped
+  });
+
   test('hydrates legacy xp and level-derived stats', () => {
     const player = hydratePersistedPlayer({
       id: 'legacy-player-id',

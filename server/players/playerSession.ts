@@ -3,6 +3,7 @@ import type { GameState } from '../gameState.js';
 import type { PlayerState } from '../../packages/sim/entities.js';
 import { CLASS_SKILL_TREES, type CharacterClass } from '../../packages/content/classes.js';
 import { UNIVERSAL_SKILLS } from '../../packages/content/skills.js';
+import { getSpecForSkill } from '../../packages/content/specializations.js';
 import {
   CHARACTER_RACES,
   DEFAULT_RACE,
@@ -258,7 +259,15 @@ function ensureClassStarterUnlocked(player: PlayerState): void {
   // doesn't lose their class HP/MP/dmg/speed deltas.
   const autoPassive = CLASS_AUTO_PASSIVE_SKILL[player.className];
   if (autoPassive) treeSkills.add(autoPassive);
-  player.unlockedSkills = player.unlockedSkills.filter((skill) => treeSkills.has(skill));
+  player.unlockedSkills = player.unlockedSkills.filter((skill) => {
+    if (treeSkills.has(skill)) return true;
+    // Spec / proficiency skills (Lv 20 / Lv 40) live in SPECIALIZATIONS, NOT the
+    // class tree — keep the ones belonging to the player's chosen spec. Without
+    // this, every spec/Lv40 skill is stripped on hydrate (and its skill point
+    // refunded), so the player has to re-learn them on every single login.
+    const specEntry = getSpecForSkill(skill);
+    return specEntry !== null && specEntry.spec.id === player.specializationId;
+  });
   for (const required of starters) {
     if (!player.unlockedSkills.includes(required)) {
       player.unlockedSkills.push(required);
