@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import type { MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -6,38 +7,58 @@ import type { WorldArtQuality } from './world-art/quality';
 import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
 
 /**
- * Shader grass — instanced blades in one custom ShaderMaterial, ported from the
+ * Shader grass — instanced blades in custom ShaderMaterials, ported from the
  * "grass with triangles in GLSL" / "fluffiest grass" / ghibli-grass techniques.
  *
- * CAMERA-ADAPTIVE field (the thing that makes it work at any zoom). A fixed
- * budget of blades is TILED around the player in the vertex shader — each blade
- * holds a NORMALISED cell offset in [0,1)² and is placed at the copy of its cell
- * nearest the player on a grid of spacing `uPatch`. `uPatch` (and the blade
- * size) is driven from the live camera→player distance each frame, so the field
- * always fills the view: zoom in → tight spacing + small blades (fine lawn);
- * zoom out → wide spacing + bigger blades (the carpet still reaches the horizon)
- * — same blade count, constant GPU cost, no player-locked "island" disc and no
- * bald ground far out. Density falls off with ONE smooth dithered band that lands
- * at the fogged horizon (no hard ring, no sharp near/far step). When the camera
- * is still the field is perfectly world-stationary; blades only re-tile while you
- * are actively zooming.
+ * WORLD-FIXED + reaches into the fog. Blades hold a per-instance cell offset and
+ * are TILED around the player in the vertex shader (each renders at the copy of
+ * its cell nearest the player), so a blade's world position is a pure function
+ * of its own cell — it never depends on the camera. That means the field does
+ * NOT move when you zoom, and does not slide when you walk (the re-tile at the
+ * patch edge only ever touches blades that are already culled by the distance
+ * fade, so it's invisible).
  *
- * Each blade is a 3-segment ribbon (7 verts / 5 tris) with a constant forward arc
- * so it curls like grass instead of spiking; wind on the upper half; 3-stop
- * root→tip colour gradient + baked AO. Custom shading (not MeshStandard) avoids
- * the cyan bug (blades drinking blue hemisphere light). Ground height is
- * `getTerrainHeight` ported to GLSL so blades sit on WorldGround; grass is masked
- * off the coast sand (folded into the dither so there's no hard edge there).
+ * A top-down camera sees hundreds of metres of ground, so density MUST fall off
+ * with distance — the art is hiding the falloff. We stack three FIXED scales
+ * (one draw call each): a dense NEAR carpet, a MEDIUM mid band, and a sparse FAR
+ * field of big blades that thins out inside the fog (~600 m) so there is no bald
+ * band in clear view. Mid/far ramp IN past their `innerFade` so they don't crowd
+ * the player's feet; every layer thins with a stable per-cell DITHER (no ring).
+ *
+ * Each blade is a 3-segment ribbon (7 verts / 5 tris) with a forward arc so it
+ * curls like grass; wind on the upper half; 3-stop root→tip gradient + baked AO.
+ * Custom shading (not MeshStandard) avoids the cyan bug. Ground height is
+ * `getTerrainHeight` ported to GLSL so blades sit on WorldGround; the coast sand
+ * mask is folded into the dither so there is no hard edge there either.
  */
 const SAND = { x: STARTER_COZY_COAST.waterline.x + 70, z: STARTER_COZY_COAST.waterline.z, r: 150 };
 
-function grassCount(q: WorldArtQuality): number {
-  if (q === 'high') return 340000;
-  if (q === 'medium') return 150000;
-  return 70000; // 'low' isn't mounted today (WorldScene gates on quality !== 'low')
+type Layer = { patch: number; count: number; hScale: number; wScale: number; innerFade: number };
+
+function grassLayers(q: WorldArtQuality): Layer[] {
+  // patch = how far this scale reaches (~0.47·patch); count/patch² = its density.
+  // near: dense small blades. mid: fills the clear-view middle distance. far:
+  // sparse big blades that dissolve into the fog band (fogNear 600) so the field
+  // never ends at a visible bald line.
+  if (q === 'high') {
+    return [
+      { patch: 130, count: 340000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
+      { patch: 460, count: 520000, hScale: 1.5, wScale: 1.3, innerFade: 40 },
+      { patch: 1300, count: 280000, hScale: 2.8, wScale: 2.2, innerFade: 150 },
+    ];
+  }
+  if (q === 'medium') {
+    return [
+      { patch: 120, count: 150000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
+      { patch: 440, count: 220000, hScale: 1.5, wScale: 1.3, innerFade: 40 },
+      { patch: 1100, count: 110000, hScale: 2.8, wScale: 2.2, innerFade: 150 },
+    ];
+  }
+  // 'low' isn't mounted today (WorldScene gates on quality !== 'low').
+  return [{ patch: 150, count: 70000, hScale: 1.0, wScale: 1.0, innerFade: 0 }];
 }
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+type Env = { dayBright: number; fogColor: THREE.Color; fogNear: number; fogFar: number };
 
 // One blade template: rows at t = 0, 1/3, 2/3 are 2 wide (side ±1), tip is a
 // single point (side 0). position = (side, t, _). Shared by every instance.
@@ -54,10 +75,13 @@ const VERT = /* glsl */`
   uniform vec2  uPlayer;
   uniform float uPatch;
   uniform float uBladeH;
+  uniform float uHScale;
+  uniform float uWScale;
+  uniform float uInnerFade;
   uniform vec2  uSand;
   uniform float uSandR;
   uniform float uDayBright;
-  attribute vec2 aOffset;   // per-instance NORMALISED cell offset, [0,1)
+  attribute vec2 aOffset;   // per-instance cell offset, [-patch/2, patch/2]
   attribute vec4 aRand;     // per-instance (heightScale, yaw, hueRand, leanRand)
   varying vec3 vColor;
   varying float vViewZ;
@@ -79,23 +103,23 @@ const VERT = /* glsl */`
     float side = position.x;
     float t    = position.y;   // 0 root .. 1 tip
 
-    // Place this blade at the copy of its normalised cell nearest the player on
-    // a grid of spacing uPatch → stationary (uPatch fixed) + fills the view as
-    // uPatch tracks the camera distance.
-    vec2 world = uPatch * (aOffset + floor(uPlayer/uPatch - aOffset + 0.5));
+    // Copy of this blade's cell nearest the player → world-fixed (never depends
+    // on the camera) + tiles to fill the field.
+    vec2 world = aOffset + uPatch * floor((uPlayer - aOffset)/uPatch + 0.5);
     float dist = length(world - uPlayer);
 
-    // One smooth dithered falloff: dense out to ~0.30·patch, gone by ~0.47·patch
-    // (before the tile wrap). Fold the coast-sand mask into the same dither so no
-    // edge is ever a hard ring.
+    // One smooth dithered falloff (dense to ~0.30·patch, gone by ~0.47·patch),
+    // with the sand mask + an inner ramp (mid/far layers start past innerFade)
+    // folded into the same dither so no edge is ever a hard ring.
     float fall = 1.0 - smoothstep(uPatch*0.30, uPatch*0.47, dist);
     float sand = smoothstep(uSandR*0.6, uSandR, length(world - uSand)); // 0 on sand
-    float present = step(hash(world*1.7), fall * sand);
+    float inner = mix(1.0, smoothstep(0.0, max(uInnerFade, 1.0), dist), step(0.5, uInnerFade));
+    float present = step(hash(world*1.7), fall * sand * inner);
 
     float clump = 0.6 + 0.4*smoothstep(0.25, 0.70, vnoise(world*0.04 + 7.0));
     float yaw   = aRand.y * 6.2831853;
-    float h     = uBladeH * (0.6 + aRand.x*0.85) * clump;
-    float width = uBladeH * 0.09 * (1.0 - t*t*0.8); // wide base, rounded taper
+    float h     = uBladeH * uHScale * (0.6 + aRand.x*0.85) * clump;
+    float width = uBladeH * uWScale * 0.09 * (1.0 - t*t*0.8); // wide base, rounded taper
     vec2 facing = vec2(cos(yaw), sin(yaw));
     vec2 sideAx = vec2(-facing.y, facing.x);
 
@@ -138,15 +162,15 @@ const FRAG = /* glsl */`
   }
 `;
 
-function buildGeometry(count: number): THREE.InstancedBufferGeometry {
+function buildGeometry(count: number, patch: number): THREE.InstancedBufferGeometry {
   const g = new THREE.InstancedBufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(BLADE_POS, 3));
   g.setIndex(BLADE_INDEX);
   const offset = new Float32Array(count * 2);
   const rand = new Float32Array(count * 4);
   for (let i = 0; i < count; i += 1) {
-    offset[i * 2] = Math.random();       // normalised [0,1) — scaled by uPatch in the shader
-    offset[i * 2 + 1] = Math.random();
+    offset[i * 2] = (Math.random() - 0.5) * patch;
+    offset[i * 2 + 1] = (Math.random() - 0.5) * patch;
     rand[i * 4] = Math.random();
     rand[i * 4 + 1] = Math.random();
     rand[i * 4 + 2] = Math.random();
@@ -159,50 +183,55 @@ function buildGeometry(count: number): THREE.InstancedBufferGeometry {
   return g;
 }
 
-export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {
-  const count = grassCount(quality);
-  const geometry = useMemo(() => buildGeometry(count), [count]);
+function GrassLayer({ layer, focus, env }: { layer: Layer; focus: Vec3D; env: MutableRefObject<Env> }) {
+  const geometry = useMemo(() => buildGeometry(layer.count, layer.patch), [layer.count, layer.patch]);
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide,
     uniforms: {
-      uTime: { value: 0 }, uPlayer: { value: new THREE.Vector2() }, uPatch: { value: 320 },
-      uBladeH: { value: 0.55 }, uSand: { value: new THREE.Vector2(SAND.x, SAND.z) }, uSandR: { value: SAND.r },
+      uTime: { value: 0 }, uPlayer: { value: new THREE.Vector2() }, uPatch: { value: layer.patch },
+      uBladeH: { value: 0.55 }, uHScale: { value: layer.hScale }, uWScale: { value: layer.wScale },
+      uInnerFade: { value: layer.innerFade }, uSand: { value: new THREE.Vector2(SAND.x, SAND.z) }, uSandR: { value: SAND.r },
       uDayBright: { value: 1 }, uFogColor: { value: new THREE.Color('#cdd9e6') },
       uFogNear: { value: 600 }, uFogFar: { value: 5400 },
     },
-  }), []);
-  const sunRef = useRef<THREE.DirectionalLight | null>(null);
-  const camDistRef = useRef(60);
-  const frameRef = useRef(0);
+  }), [layer.patch, layer.hScale, layer.wScale, layer.innerFade]);
 
   // useMemo geometry/material aren't auto-disposed by R3F — release the GPU
   // buffers ourselves on unmount / recreation.
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
 
-  useFrame(({ camera, scene }, dt) => {
+  useFrame((_, dt) => {
     const u = material.uniforms;
     u.uTime.value += dt;
     u.uPlayer.value.set(focus.x, focus.z);
+    const e = env.current;
+    u.uDayBright.value = e.dayBright;
+    u.uFogColor.value.copy(e.fogColor);
+    u.uFogNear.value = e.fogNear;
+    u.uFogFar.value = e.fogFar;
+  });
 
-    // Drive field extent + blade size from the live camera→player distance so
-    // the carpet fills the view at any zoom. Smoothed so it doesn't jitter.
-    const cd = Math.hypot(camera.position.x - focus.x, camera.position.y - focus.y, camera.position.z - focus.z);
-    camDistRef.current += (cd - camDistRef.current) * Math.min(1, dt * 4);
-    const c = camDistRef.current;
-    u.uPatch.value = clamp(c * 5, 220, 2200);
-    u.uBladeH.value = 0.55 * clamp(Math.pow(c / 40, 0.6), 0.85, 3.2);
+  return <mesh geometry={geometry} material={material} frustumCulled={false} />;
+}
 
-    // Fog follows the scene; find the sun once, retrying every ~30 frames until
-    // then (no per-frame full-scene traversal).
+export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {
+  const layers = useMemo(() => grassLayers(quality), [quality]);
+  const env = useRef<Env>({ dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400 });
+  const sunRef = useRef<THREE.DirectionalLight | null>(null);
+  const frameRef = useRef(0);
+
+  // Read the shared environment (fog + day brightness) once per frame for all
+  // layers; find the sun once, retrying every ~30 frames until then.
+  useFrame(({ scene }) => {
     const fog = scene.fog as THREE.Fog | null;
-    if (fog?.color) { u.uFogColor.value.copy(fog.color); u.uFogNear.value = fog.near; u.uFogFar.value = fog.far; }
+    if (fog?.color) { env.current.fogColor.copy(fog.color); env.current.fogNear = fog.near; env.current.fogFar = fog.far; }
     frameRef.current += 1;
     if (!sunRef.current && frameRef.current % 30 === 1) {
       scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
     }
-    if (sunRef.current) u.uDayBright.value = 0.34 + sunRef.current.intensity * 0.5;
+    if (sunRef.current) env.current.dayBright = 0.34 + sunRef.current.intensity * 0.5;
   });
 
-  return <mesh geometry={geometry} material={material} frustumCulled={false} />;
+  return <>{layers.map((layer, i) => <GrassLayer key={i} layer={layer} focus={focus} env={env} />)}</>;
 }
