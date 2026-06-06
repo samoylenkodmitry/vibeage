@@ -5,6 +5,7 @@ import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
 import { hash, rng } from '../../packages/sim/combatMath.js';
 import type { Enemy } from '../../packages/sim/entities.js';
 import type { GameState } from '../gameState.js';
+import { recordEnemyExperienceSpawn } from '../observability/xpSafetyAudit.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import { emitEnemyUpdated, emitServerMessage, type OutboundEventSink } from '../transport/outboundEvents.js';
 
@@ -65,7 +66,7 @@ export function createEnemy(
   const movementSpeed = S.movementSpeed * template.stats.movementSpeed;
   const displayName = options.nameOverride
     ?? (options.namePrefix ? `${options.namePrefix} ${template.displayName}` : template.displayName);
-  return {
+  const enemy: Enemy = {
     id: `${type}-${hash(`${type}-${now}-${position.x}-${position.z}`).toString(36).substring(0, 9)}`,
     type,
     name: displayName,
@@ -115,6 +116,8 @@ export function createEnemy(
         }
       : {}),
   };
+  recordEnemyExperienceSpawn(enemy, expMult);
+  return enemy;
 }
 
 export function spawnInitialEnemies(

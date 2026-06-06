@@ -5,6 +5,7 @@ import {
   ENEMY_RESPAWN_DELAY_MS,
   respawnDeadEnemies,
 } from '../server/enemies/enemyLifecycle';
+import { runtimeMetrics } from '../server/observability/runtimeMetrics';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 
 describe('enemy lifecycle', () => {
@@ -28,6 +29,23 @@ describe('enemy lifecycle', () => {
       velocity: { x: 0, z: 0 },
       lootTableId: 'wolf_loot',
     });
+  });
+
+  test('records enemy spawn XP telemetry and flags suspicious levels', () => {
+    runtimeMetrics.resetForTests();
+
+    const enemy = createEnemy('dragon', 90, { x: 5, y: 0.5, z: -2 }, 12345, {
+      isMiniBoss: true,
+      bossId: 'vorthax_ember_wyrm',
+    });
+
+    const metrics = runtimeMetrics.snapshot();
+    expect(metrics.counters['enemy.spawn.total']).toBe(1);
+    expect(metrics.counters['enemy.spawn.miniBoss']).toBe(1);
+    expect(metrics.counters['enemy.spawn.suspicious']).toBe(1);
+    expect(metrics.histograms['enemy.spawn.level']?.max).toBe(90);
+    expect(metrics.histograms['enemy.spawn.baseExperienceValue']?.max).toBe(enemy.baseExperienceValue);
+    expect(metrics.histograms['enemy.spawn.experienceMultiplier']?.max).toBe(4);
   });
 
   test('respawns dead enemies after the respawn delay', () => {
