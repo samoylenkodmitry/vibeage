@@ -61,8 +61,8 @@ const VERT = /* glsl */`
     float dist = length(world - uPlayer);
     float edge = 1.0 - smoothstep(uPatch*0.34, uPatch*0.48, dist);
     float sand = smoothstep(uSandR*0.55, uSandR, length(world - uSand)); // 0 on sand
-    float patch = smoothstep(0.20, 0.62, vnoise(world*0.035 + 11.0));
-    float present = edge * sand * (0.45 + 0.55*patch);
+    float clump = smoothstep(0.20, 0.62, vnoise(world*0.035 + 11.0));
+    float present = edge * sand * (0.45 + 0.55*clump);
 
     float hf = aCorner.y, side = aCorner.x;
     float yaw = aRand.y * 6.2831853;
