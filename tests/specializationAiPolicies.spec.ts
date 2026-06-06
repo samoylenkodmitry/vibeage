@@ -28,6 +28,9 @@ describe('specialization AI policy registry', () => {
       expect(profile.identity.priorityTactics.length).toBeGreaterThanOrEqual(3);
       expect(profile.rules.length).toBeGreaterThan(0);
       expect(Object.values(profile.tactics).flat().length).toBeGreaterThan(0);
+      for (const tactic of profile.identity.priorityTactics) {
+        expect(profile.tactics[tactic].length, `${specId} priority tactic ${tactic}`).toBeGreaterThan(0);
+      }
       for (const skillId of profile.rules.map((rule) => rule.skillId)) expect(SKILLS[skillId]).toBeDefined();
       for (const skillId of [...(spec.specSkills ?? []), ...(spec.proficiencySkills ?? [])]) {
         expect(ruleSkills.has(skillId), `${specId} AI should know ${skillId}`).toBe(true);
