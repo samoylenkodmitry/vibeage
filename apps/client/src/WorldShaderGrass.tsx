@@ -82,9 +82,8 @@ const VERT = /* glsl */`
     // far. The cull flips only at the far edge (where fall≈0 either side), so a
     // present blade never flickers as the player moves.
     float fall = 1.0 - smoothstep(uPatch*0.16, uPatch*0.50, dist);
-    float keep = step(hash(world*1.7), fall);
     float sand = smoothstep(uSandR*0.6, uSandR, length(world - uSand)); // 0 on sand
-    float present = keep * sand;
+    float present = step(hash(world*1.7), fall * sand); // dither distance + sand together
 
     float clump = 0.6 + 0.4*smoothstep(0.25, 0.70, vnoise(world*0.04 + 7.0));
     float yaw   = aRand.y * 6.2831853;
