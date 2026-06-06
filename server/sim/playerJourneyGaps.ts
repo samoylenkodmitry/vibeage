@@ -66,16 +66,16 @@ const BEAT_GROUPS: BeatGroup[] = [
   },
   {
     kind: 'gear_gap',
-    beatKinds: ['item_upgrade', 'vendor_purchase'],
+    beatKinds: ['item_upgrade', 'vendor_purchase', 'gear_progress'],
     minGapHours: (summary) => Math.max(summary.windowHours * 4, 4),
-    detail: 'No gear purchase or item upgrade beat inside the longest route gap.',
+    detail: 'No gear purchase, item upgrade, or set-piece progress beat inside the longest route gap.',
     mitigation: 'Add vendor stock, deterministic quest gear, crafting goals, or set-piece progress.',
   },
   {
     kind: 'unlock_gap',
-    beatKinds: ['level', 'skill', 'specialization', 'proficiency'],
+    beatKinds: ['level', 'skill', 'specialization', 'proficiency', 'mastery_progress'],
     minGapHours: (summary) => Math.max(summary.windowHours * 3, 3),
-    detail: 'No level, skill, specialization, or proficiency beat inside the longest route gap.',
+    detail: 'No level, skill, specialization, proficiency, or mastery beat inside the longest route gap.',
     mitigation: 'Add previewed unlock goals, mastery ranks, or smaller progression milestones.',
   },
 ];
@@ -178,6 +178,7 @@ function grindOnlyDiagnostic(summary: PlayerJourneySummary): JourneyGapDiagnosti
     'skill',
     'specialization',
     'proficiency',
+    'mastery_progress',
   ]);
   const durationHours = summary.horizonHours - lastDirectedBeatHour;
   if (durationHours < Math.max(summary.windowHours * 6, summary.horizonHours * 0.2)) return null;

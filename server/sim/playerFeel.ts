@@ -16,7 +16,7 @@ import { runPveScenario, type PveScenarioDefinition } from './scenarioCatalog.js
 
 const HOUR_MS = 60 * 60 * 1000;
 const DEFAULT_KILL_OVERHEAD_MS = 30_000;
-const DEFAULT_MAX_LEVEL = 60;
+const DEFAULT_MAX_LEVEL = 40;
 const DEFAULT_ENEMY_TYPE = 'goblin';
 const killCycleCache = new Map<string, number>();
 
@@ -117,8 +117,13 @@ export function estimatePlayerFeel(options: PlayerFeelOptions): PlayerFeelSummar
   const horizonMs = horizonHours * HOUR_MS;
   const windowMs = windowHours * HOUR_MS;
 
-  while (progress.elapsedMs < horizonMs && progress.level < (options.maxLevel ?? DEFAULT_MAX_LEVEL)) {
+  const maxLevel = options.maxLevel ?? DEFAULT_MAX_LEVEL;
+  while (progress.elapsedMs < horizonMs && progress.level < maxLevel) {
     advanceOneLevelOrHorizon(progress, options, horizonMs, windowMs);
+  }
+  if (progress.elapsedMs < horizonMs && progress.level >= maxLevel) {
+    addPeriodicCapstoneBeats(progress.beats, progress.elapsedMs, horizonMs, windowMs);
+    progress.elapsedMs = horizonMs;
   }
 
   return summarizeFeel(options, progress, horizonHours, windowHours);
@@ -205,6 +210,22 @@ function addPeriodicGrindBeats(beats: FeelBeat[], startMs: number, endMs: number
     const atMs = Math.max(startMs, index * windowMs) + 1;
     if (atMs >= endMs) continue;
     pushBeat(beats, atMs, 'grind', 'Ongoing hunt progress', 1);
+    existing.add(index);
+  }
+}
+
+function addPeriodicCapstoneBeats(beats: FeelBeat[], startMs: number, endMs: number, windowMs: number): void {
+  if (endMs <= startMs) return;
+  const firstWindowIndex = Math.floor(startMs / windowMs);
+  const lastWindowIndex = Math.floor(Math.max(startMs, endMs - 1) / windowMs);
+  const existing = new Set(beats.filter((beat) => beat.weight > 0).map((beat) => Math.floor(beat.atMs / windowMs)));
+  for (let index = firstWindowIndex; index <= lastWindowIndex; index += 1) {
+    if (existing.has(index)) continue;
+    const atMs = Math.max(startMs, index * windowMs) + 1;
+    if (atMs >= endMs) continue;
+    pushBeat(beats, atMs, 'objective', 'Mastery route progress', 1);
+    if (index % 3 === 0) pushBeat(beats, atMs, 'gear', 'Set-piece progress', 0.7);
+    else if (index % 3 === 1) pushBeat(beats, atMs, 'economy', 'Currency goal progress', 0.7);
     existing.add(index);
   }
 }

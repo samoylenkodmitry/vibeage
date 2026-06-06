@@ -5,60 +5,37 @@ import { LOOT_TABLES, type LootTable } from '../../packages/content/lootTables.j
 import { MINI_BOSSES } from '../../packages/content/miniBosses.js';
 import { QUEST_NPCS } from '../../packages/content/npcs.js';
 import { meetsQuestPrerequisites, QUESTS, type QuestDef, type QuestId, type QuestVec3 } from '../../packages/content/quests.js';
-import {
-  PROFICIENCY_LEVEL,
-  SPECIALIZATION_UNLOCK_LEVEL,
-  SPECIALIZATIONS,
-  type SpecializationId,
-} from '../../packages/content/specializations.js';
+import { PROFICIENCY_LEVEL, SPECIALIZATION_UNLOCK_LEVEL, SPECIALIZATIONS, type SpecializationId } from '../../packages/content/specializations.js';
 import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { VENDORS } from '../../packages/content/vendors.js';
-import { distanceXZ } from '../../packages/sim/geometry.js';
 import { capSingleLevelAwardXP, getExperienceToNextLevel, starterSkillsFor } from '../players/playerProgression.js';
 import { createSimulatedEnemy } from './gameSimulator.js';
+import { estimateJourneyTravel } from './journeyTravel.js';
 import type {
-  JourneyBeat,
-  JourneyBeatKind,
-  JourneyLevelProgress,
-  JourneyTimeBreakdown,
-  JourneyVendorPurchase,
-  JourneyWindowSummary,
-  JourneyXpBreakdown,
-  JourneyXpSource,
-  PlayerJourneyOptions,
-  PlayerJourneySummary,
+  JourneyBeat, JourneyBeatKind, JourneyLevelProgress, JourneyTimeBreakdown, JourneyVendorPurchase, JourneyWindowSummary,
+  JourneyXpBreakdown, JourneyXpSource, PlayerJourneyOptions, PlayerJourneySummary,
 } from './playerJourneyTypes.js';
 import { runPveScenario, type PveScenarioDefinition } from './scenarioCatalog.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DEFAULT_HORIZON_HOURS = 24;
 const DEFAULT_WINDOW_HOURS = 1;
-const DEFAULT_MAX_LEVEL = 60;
+const DEFAULT_MAX_LEVEL = 40;
 const DEFAULT_TRAVEL_SPEED_MPS = 10;
 const QUEST_INTERACTION_MS = 10_000;
 const KILL_SEARCH_MS = 26_000;
 const LOOT_PICKUP_MS = 4_000;
 const DEATH_RECOVERY_MS = 90_000;
 const BOSS_DURATION_MULTIPLIER = 4;
-const GOLD_VALUE_BY_CURRENCY: Record<string, number> = {
-  gold_coin: 1,
-  platinum_coin: 100,
-};
+const GOLD_VALUE_BY_CURRENCY: Record<string, number> = { gold_coin: 1, platinum_coin: 100 };
 
 const JOURNEY_ENEMY_BY_LEVEL: Array<{ minLevel: number; enemyType: string }> = [
-  { minLevel: 40, enemyType: 'time_wraith' },
-  { minLevel: 35, enemyType: 'radiant_seraph' },
-  { minLevel: 30, enemyType: 'rift_surveyor' },
-  { minLevel: 28, enemyType: 'frost_wolf' },
-  { minLevel: 26, enemyType: 'brightglass_mote' },
-  { minLevel: 24, enemyType: 'road_thornback' },
-  { minLevel: 22, enemyType: 'ash_dust_runner' },
-  { minLevel: 16, enemyType: 'fire_elemental' },
-  { minLevel: 12, enemyType: 'shadowbeast' },
-  { minLevel: 9, enemyType: 'skeleton' },
-  { minLevel: 7, enemyType: 'troll' },
-  { minLevel: 5, enemyType: 'wolf' },
-  { minLevel: 1, enemyType: 'goblin' },
+  { minLevel: 40, enemyType: 'time_wraith' }, { minLevel: 35, enemyType: 'radiant_seraph' },
+  { minLevel: 30, enemyType: 'rift_surveyor' }, { minLevel: 28, enemyType: 'frost_wolf' },
+  { minLevel: 26, enemyType: 'brightglass_mote' }, { minLevel: 24, enemyType: 'road_thornback' },
+  { minLevel: 22, enemyType: 'ash_dust_runner' }, { minLevel: 16, enemyType: 'fire_elemental' },
+  { minLevel: 12, enemyType: 'shadowbeast' }, { minLevel: 9, enemyType: 'skeleton' },
+  { minLevel: 7, enemyType: 'troll' }, { minLevel: 5, enemyType: 'wolf' }, { minLevel: 1, enemyType: 'goblin' },
 ];
 
 type VendorUpgradeCandidate = {
@@ -105,7 +82,7 @@ export function runPlayerJourney(options: PlayerJourneyOptions): PlayerJourneySu
   const state = createJourneyState(options);
   announceAvailableQuests(state);
 
-  while (hasTimeRemaining(state) && state.level < state.maxLevel) {
+  while (hasTimeRemaining(state) && shouldContinueJourney(state)) {
     const quest = nextAvailableQuest(state);
     if (quest) {
       if (!runQuest(state, quest)) break;
@@ -222,6 +199,12 @@ function runQuest(state: JourneyState, quest: QuestDef): boolean {
 function completeQuest(state: JourneyState, quest: QuestDef): void {
   state.completedQuestIds.push(quest.id);
   pushBeat(state.beats, state.elapsedMs, 'quest_complete', `Completed ${quest.name}`, 3);
+  if (state.level >= state.maxLevel && quest.minLevel >= state.maxLevel - 5) {
+    pushBeat(state.beats, state.elapsedMs, 'mastery_progress', `Mastery progress: ${quest.name}`, 2);
+  }
+  if ((quest.reward.items ?? []).length > 0 && quest.minLevel >= state.maxLevel - 10) {
+    pushBeat(state.beats, state.elapsedMs, 'gear_progress', `Gear progress: ${quest.name}`, 1.5);
+  }
   state.gold += quest.reward.gold ?? 0;
   for (const grant of quest.reward.items ?? []) {
     addExpectedItem(state, grant.itemId, grant.quantity ?? 1);
@@ -475,21 +458,25 @@ function availableQuests(state: JourneyState): QuestDef[] {
 }
 
 function travelTo(state: JourneyState, target: QuestVec3): boolean {
-  const distance = distanceXZ(state.position, target);
-  const ms = (distance / Math.max(1, state.travelSpeedMps)) * 1000;
-  const completed = advanceTime(state, ms, 'travelMs');
+  const travel = estimateJourneyTravel(state.position, target, state.travelSpeedMps);
+  const completed = advanceTime(state, travel.durationMs, 'travelMs', travel.label);
   if (completed) state.position = target;
   return completed;
 }
 
-function advanceTime(state: JourneyState, ms: number, bucket: keyof JourneyTimeBreakdown): boolean {
+function advanceTime(
+  state: JourneyState,
+  ms: number,
+  bucket: keyof JourneyTimeBreakdown,
+  progressLabel?: string,
+): boolean {
   if (ms <= 0) return true;
   const remainingMs = state.horizonMs - state.elapsedMs;
   const usedMs = Math.min(ms, Math.max(0, remainingMs));
   const startMs = state.elapsedMs;
   state.elapsedMs += usedMs;
   state.time[bucket] += usedMs;
-  addProgressBeatsForSegment(state, startMs, state.elapsedMs, bucket);
+  addProgressBeatsForSegment(state, startMs, state.elapsedMs, bucket, progressLabel);
   return usedMs >= ms;
 }
 
@@ -498,6 +485,7 @@ function addProgressBeatsForSegment(
   startMs: number,
   endMs: number,
   bucket: keyof JourneyTimeBreakdown,
+  progressLabel?: string,
 ): void {
   if (endMs <= startMs) return;
   const kind = bucket === 'travelMs' ? 'travel_progress'
@@ -516,10 +504,22 @@ function addProgressBeatsForSegment(
       state.beats,
       atMs,
       kind,
-      kind === 'travel_progress' ? 'Route progress' : 'Sustained hunt progress',
+      kind === 'travel_progress' ? (progressLabel ?? 'Route progress') : 'Sustained hunt progress',
       1,
     );
+    if (state.level >= state.maxLevel) {
+      const masteryKey = `mastery_progress:${index}`;
+      if (!state.progressBeatKeys.has(masteryKey)) {
+        state.progressBeatKeys.add(masteryKey);
+        pushBeat(state.beats, atMs, 'mastery_progress', 'Mastery route progress', 1.5);
+      }
+    }
   }
+}
+
+function shouldContinueJourney(state: JourneyState): boolean {
+  if (state.level < state.maxLevel) return true;
+  return nextAvailableQuest(state) !== null;
 }
 
 function hasTimeRemaining(state: JourneyState): boolean {

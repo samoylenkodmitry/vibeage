@@ -25,7 +25,8 @@ describe('player journey content-gap diagnostics', () => {
     expect(diagnostics.length).toBeGreaterThan(0);
     expect(diagnostics.some((row) => row.kind === 'empty_windows')).toBe(false);
     expect(diagnostics.some((row) => row.kind === 'quest_gap')).toBe(true);
-    expect(diagnostics.some((row) => row.kind === 'gear_gap')).toBe(true);
+    expect(diagnostics.some((row) => row.kind === 'gear_gap')).toBe(false);
+    expect(diagnostics.every((row) => row.severity !== 'high')).toBe(true);
     expect(diagnostics.every((row) => row.emptyWindows === 0)).toBe(true);
     expect(diagnostics.every((row) => row.pathLabel === 'arcanist')).toBe(true);
     expect(diagnostics.every((row) => row.levelBand.startsWith('L'))).toBe(true);
