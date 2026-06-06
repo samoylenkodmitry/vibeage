@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import type { WorldArtQuality } from './world-art/quality';
@@ -38,8 +38,6 @@ function grassCount(q: WorldArtQuality): number {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-
-type Env = { dayBright: number; fogColor: THREE.Color; fogNear: number; fogFar: number };
 
 // One blade template: rows at t = 0, 1/3, 2/3 are 2 wide (side ±1), tip is a
 // single point (side 0). position = (side, t, _). Shared by every instance.
@@ -173,8 +171,6 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
       uFogNear: { value: 600 }, uFogFar: { value: 5400 },
     },
   }), []);
-  const { scene, camera } = useThree();
-  const env = useRef<Env>({ dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400 });
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
   const camDistRef = useRef(60);
   const frameRef = useRef(0);
@@ -184,7 +180,7 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
 
-  useFrame((_, dt) => {
+  useFrame(({ camera, scene }, dt) => {
     const u = material.uniforms;
     u.uTime.value += dt;
     u.uPlayer.value.set(focus.x, focus.z);
@@ -197,19 +193,15 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     u.uPatch.value = clamp(c * 5, 220, 2200);
     u.uBladeH.value = 0.55 * clamp(Math.pow(c / 40, 0.6), 0.85, 3.2);
 
-    // Shared environment (fog + day brightness); find the sun once, retrying
-    // every ~30 frames until then (no per-frame full-scene traversal).
+    // Fog follows the scene; find the sun once, retrying every ~30 frames until
+    // then (no per-frame full-scene traversal).
     const fog = scene.fog as THREE.Fog | null;
-    if (fog?.color) { env.current.fogColor.copy(fog.color); env.current.fogNear = fog.near; env.current.fogFar = fog.far; }
+    if (fog?.color) { u.uFogColor.value.copy(fog.color); u.uFogNear.value = fog.near; u.uFogFar.value = fog.far; }
     frameRef.current += 1;
     if (!sunRef.current && frameRef.current % 30 === 1) {
       scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
     }
-    if (sunRef.current) env.current.dayBright = 0.34 + sunRef.current.intensity * 0.5;
-    u.uDayBright.value = env.current.dayBright;
-    u.uFogColor.value.copy(env.current.fogColor);
-    u.uFogNear.value = env.current.fogNear;
-    u.uFogFar.value = env.current.fogFar;
+    if (sunRef.current) u.uDayBright.value = 0.34 + sunRef.current.intensity * 0.5;
   });
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;
