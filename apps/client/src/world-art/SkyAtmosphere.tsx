@@ -41,9 +41,15 @@ function makeSky(): Sky {
   u.mieDirectionalG.value = 0.86; // tight, warm sun glow
   // Self tone-map: scale by exposure then Reinhard-compress so the very bright
   // horizon doesn't blow out (the renderer's tone map is disabled downstream).
+  // Match with a whitespace-flexible regex so a three.js shader reformat doesn't
+  // silently leave the horizon blown.
   u.skyExposure = { value: SKY_EXPOSURE };
+  const target = /gl_FragColor\s*=\s*vec4\(\s*texColor\s*,\s*1\.0\s*\);/;
+  if (!target.test(mat.fragmentShader)) {
+    console.warn('SkyAtmosphere: could not patch the Sky shader for exposure — horizon may blow out.');
+  }
   mat.fragmentShader = 'uniform float skyExposure;\n' + mat.fragmentShader.replace(
-    'gl_FragColor = vec4( texColor, 1.0 );',
+    target,
     'vec3 _sky = texColor * skyExposure; _sky = _sky / ( 1.0 + _sky ); gl_FragColor = vec4( _sky, 1.0 );',
   );
   mat.depthWrite = false;
