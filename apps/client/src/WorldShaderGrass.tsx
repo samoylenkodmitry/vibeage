@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -138,6 +138,12 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
   }), [patch]);
   const { scene } = useThree();
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
+  const frameRef = useRef(0);
+
+  // useMemo geometry/material aren't auto-disposed by R3F — release the GPU
+  // buffers ourselves on unmount / recreation.
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => material.dispose(), [material]);
 
   useFrame((_, dt) => {
     const u = material.uniforms;
@@ -145,7 +151,12 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     u.uPlayer.value.set(focus.x, focus.z);
     const fog = scene.fog as THREE.Fog | null;
     if (fog?.color) { u.uFogColor.value.copy(fog.color); u.uFogNear.value = fog.near; u.uFogFar.value = fog.far; }
-    if (!sunRef.current) scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
+    // Find the sun once; retry only every ~30 frames until then (no per-frame
+    // full-scene traversal if it's not mounted yet).
+    frameRef.current += 1;
+    if (!sunRef.current && frameRef.current % 30 === 1) {
+      scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
+    }
     if (sunRef.current) u.uDayBright.value = 0.34 + sunRef.current.intensity * 0.5;
   });
 
