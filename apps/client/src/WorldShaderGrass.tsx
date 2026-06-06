@@ -37,15 +37,21 @@ type Layer = { patch: number; count: number; hScale: number; wScale: number; inn
 
 function grassLayers(q: WorldArtQuality): Layer[] {
   // near: dense small blades up close. far: sparse BIG blades reaching toward fog.
-  return q === 'high'
-    ? [
-        { patch: 100, count: 320000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
-        { patch: 720, count: 240000, hScale: 2.6, wScale: 2.1, innerFade: 34 },
-      ]
-    : [
-        { patch: 92, count: 130000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
-        { patch: 560, count: 90000, hScale: 2.6, wScale: 2.1, innerFade: 34 },
-      ];
+  if (q === 'high') {
+    return [
+      { patch: 100, count: 320000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
+      { patch: 720, count: 240000, hScale: 2.6, wScale: 2.1, innerFade: 34 },
+    ];
+  }
+  if (q === 'medium') {
+    return [
+      { patch: 92, count: 130000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
+      { patch: 560, count: 90000, hScale: 2.6, wScale: 2.1, innerFade: 34 },
+    ];
+  }
+  // 'low' isn't mounted today (WorldScene gates on quality !== 'low'); kept honest
+  // as a single sparse layer in case that gate ever changes for budget devices.
+  return [{ patch: 120, count: 70000, hScale: 1.0, wScale: 1.0, innerFade: 0 }];
 }
 
 type Env = { dayBright: number; fogColor: THREE.Color; fogNear: number; fogFar: number };
