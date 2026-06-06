@@ -34,7 +34,8 @@ const FRAG = /* glsl */`
     float t = smoothstep(-0.04, 0.62, h);             // horizon -> zenith
     vec3 col = mix(uHorizon, uZenith * 0.82, t);      // deepen the overhead a touch
     // Soft sun bloom, only while the sun is up; widens near the horizon.
-    float sd  = max(dot(dir, normalize(uSunDir)), 0.0);
+    // uSunDir is already unit-length (timeOfDay), so no normalize here.
+    float sd  = max(dot(dir, uSunDir), 0.0);
     float up  = smoothstep(-0.12, 0.18, uSunDir.y);
     col += uSunColor * (pow(sd, 9.0) * 0.55 + pow(sd, 2.2) * 0.10) * up;
     // Gentle brightening right along the horizon band.
@@ -43,7 +44,7 @@ const FRAG = /* glsl */`
   }
 `;
 
-export function SkyGradientDome({ focus, palette }: { focus: { x: number; z: number }; palette: MutableRefObject<DayPhasePalette> }) {
+export function SkyGradientDome({ focus, palette }: { focus: { x: number; y: number; z: number }; palette: MutableRefObject<DayPhasePalette> }) {
   const geometry = useMemo(() => new THREE.SphereGeometry(4000, 32, 16), []);
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, side: THREE.BackSide,
@@ -67,7 +68,7 @@ export function SkyGradientDome({ focus, palette }: { focus: { x: number; z: num
     u.uHorizon.value.set(p.fogColor);
     u.uSunColor.value.set(p.sunColor);
     u.uSunDir.value.set(p.sunDir.x, p.sunDir.y, p.sunDir.z);
-    if (meshRef.current) meshRef.current.position.set(focus.x, 0, focus.z);
+    if (meshRef.current) meshRef.current.position.set(focus.x, focus.y, focus.z);
   });
 
   return <mesh ref={meshRef} geometry={geometry} material={material} renderOrder={-10000} frustumCulled={false} />;
