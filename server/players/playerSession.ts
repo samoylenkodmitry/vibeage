@@ -265,8 +265,13 @@ function ensureClassStarterUnlocked(player: PlayerState): void {
     // class tree — keep the ones belonging to the player's chosen spec. Without
     // this, every spec/Lv40 skill is stripped on hydrate (and its skill point
     // refunded), so the player has to re-learn them on every single login.
+    // Also require the spec to belong to the player's CURRENT class, so a
+    // class-snap that left a stale specializationId can't keep the old class's
+    // spec skills.
     const specEntry = getSpecForSkill(skill);
-    return specEntry !== null && specEntry.spec.id === player.specializationId;
+    return specEntry !== null
+      && specEntry.spec.id === player.specializationId
+      && specEntry.spec.baseClass === player.className;
   });
   for (const required of starters) {
     if (!player.unlockedSkills.includes(required)) {
