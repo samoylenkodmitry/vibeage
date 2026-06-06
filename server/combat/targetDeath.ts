@@ -58,7 +58,10 @@ export function handleTargetDeath(
   // XP / loot / quest credit only when a player kills a mob. (Mobs don't
   // kill mobs; a mob killing a player takes the no-credit path.)
   if (caster.isAlive && !isEnemy(caster) && isEnemy(target)) {
-    const xpUpdate = awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`);
+    const xpUpdate = awardPlayerXP(caster, target.baseExperienceValue, `killing ${target.name}`, {
+      kind: target.isMiniBoss ? 'boss' : 'mob',
+      enemy: target,
+    });
     const starterProgress = recordStarterEnemyDefeat(caster, target.id);
     emitPlayerUpdated(
       context.outbound,

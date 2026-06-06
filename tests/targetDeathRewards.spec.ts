@@ -3,6 +3,8 @@ import { createGameState } from '../server/gameState';
 import { createEnemy } from '../server/enemies/enemyLifecycle';
 import { createTransientPlayer } from '../server/playerFactory';
 import { handleTargetDeath } from '../server/combat/targetDeath';
+import { runtimeMetrics } from '../server/observability/runtimeMetrics';
+import { getExperienceToNextLevel } from '../server/players/playerProgression';
 import { SpatialHashGrid } from '../server/spatial/SpatialHashGrid';
 import type { OutboundEvent, OutboundEventSink } from '../server/transport/outboundEvents';
 
@@ -102,6 +104,31 @@ describe('handleTargetDeath — enemy kill rewards', () => {
     expect(spawnLoot).not.toHaveBeenCalled();
     // XP still awarded — loot and XP are independent paths.
     expect(caster.experience).toBe(enemy.baseExperienceValue);
+  });
+
+  it('threads enemy metadata into capped XP telemetry on boss kills', () => {
+    const { state, spatial, caster } = setup();
+    const enemy = createEnemy('goblin', 95, { x: 0, y: 0.5, z: 0 }, 3, {
+      isMiniBoss: true,
+      bossId: 'grakk',
+    });
+    runtimeMetrics.resetForTests();
+    caster.level = 40;
+    caster.experience = getExperienceToNextLevel(40) - 1;
+    caster.experienceToNextLevel = getExperienceToNextLevel(40);
+    enemy.baseExperienceValue = 1_000_000;
+    enemy.experienceValue = 1_000_000;
+    state.enemies[enemy.id] = enemy;
+    spatial.insert(enemy.id, { x: 0, z: 0 });
+    const { sink } = captureOutbound();
+
+    handleTargetDeath(caster, enemy, { state, spatial, outbound: sink, spawnLoot: vi.fn(), now: 1_000 });
+
+    const metrics = runtimeMetrics.snapshot();
+    expect(metrics.counters['xp.award.capped.boss']).toBe(1);
+    expect(metrics.histograms['xp.award.enemyLevel']?.max).toBe(95);
+    expect(metrics.histograms['xp.award.enemyBaseExperienceValue']?.max).toBe(1_000_000);
+    expect(metrics.histograms['xp.award.enemyLevelDelta']?.max).toBe(55);
   });
 });
 
