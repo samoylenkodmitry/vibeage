@@ -251,9 +251,10 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     const sun = sunRef.current;
     if (sun) {
       env.current.dayBright = 0.34 + sun.intensity * 0.5;
-      // Direction from the player to the sun (WorldEnvironment puts the sun at
-      // focus + sunDir·distance), normalised for the blade lighting.
-      env.current.sunDir.set(sun.position.x - focus.x, sun.position.y - focus.y, sun.position.z - focus.z).normalize();
+      // Direction from the player to the sun. WorldEnvironment offsets the sun's
+      // X/Z by focus but its Y is absolute (sunDir.y·distance), so don't subtract
+      // focus.y from the Y component.
+      env.current.sunDir.set(sun.position.x - focus.x, sun.position.y, sun.position.z - focus.z).normalize();
       env.current.sunColor.copy(sun.color);
     }
   });
