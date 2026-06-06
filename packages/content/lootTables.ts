@@ -670,8 +670,8 @@ export const LOOT_TABLES: Record<string, LootTable> = mergeSupplements({
     drops: [
       {
         itemId: 'platinum_coin',
-        quantity: { min: 25, max: 50 },
-        chance: 1.0,
+        quantity: { min: 8, max: 15 },
+        chance: 0.95,
       },
       {
         itemId: 'temporal_shard',

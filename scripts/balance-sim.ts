@@ -41,6 +41,16 @@ import {
   xpLevelBandSummaries,
   xpOffenderReportRows,
 } from '../server/sim/xpContentBudget.js';
+import {
+  auditEconomyProgressionBudget,
+  buildJourneyEconomyRows,
+  buildJourneyGearCheckpointRows,
+  economyLevelBandSummaries,
+  economyOffenderReportRows,
+  MAX_BOSS_EXPECTED_VALUE_RATIO,
+  MAX_MOB_EXPECTED_VALUE_RATIO,
+  questGoldOffenderReportRows,
+} from '../server/sim/economyProgressionBudget.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
@@ -57,6 +67,7 @@ printSkillBalanceInstrumentation();
 printPvpClassMatrix();
 printProgressionRewards();
 printXpContentBudget();
+printEconomyProgressionBudget(playerJourneyRows);
 printPlayerJourneyRoutes(playerJourneyRows);
 printPlayerJourneyGapDiagnostics(playerJourneyRows);
 printPlayerFeelCadence();
@@ -218,6 +229,56 @@ function printXpContentBudget(): void {
   console.log('|------|--------|----------|----------|-----------|------------|------------|-------------|-------------|----------------|');
   for (const row of xpLevelBandSummaries()) {
     console.log(`| ${row.levelBand} | ${row.questCount} | ${row.questXp} | ${row.mobCount} | ${row.bossCount} | ${row.avgMobXp} | ${row.maxMobXp} | ${row.avgBossXp} | ${row.maxBossXp} | ${row.maxKillRatio.toFixed(2)} |`);
+  }
+  console.log('');
+}
+
+function printEconomyProgressionBudget(playerJourneyRows: readonly PlayerJourneySummary[]): void {
+  const journeyRows = buildJourneyEconomyRows(playerJourneyRows);
+  const gearRows = buildJourneyGearCheckpointRows(playerJourneyRows);
+  const issues = auditEconomyProgressionBudget({ journeyRows, gearRows });
+  const errors = issues.filter((issue) => issue.severity === 'error');
+  console.log('## Economy and gear budget');
+  console.log('');
+  console.log(`Status: **${errors.length === 0 ? 'pass' : 'fail'}**. Normal mobs are capped at ${(MAX_MOB_EXPECTED_VALUE_RATIO * 100).toFixed(0)}% of a level-scaled gold budget by expected sell value, mini-bosses at ${(MAX_BOSS_EXPECTED_VALUE_RATIO * 100).toFixed(0)}%. Journey rows must reach L40 in one day without skipped levels or empty hourly windows.`);
+  console.log('');
+  console.log('| Severity | Category | Ref | Message |');
+  console.log('|----------|----------|-----|---------|');
+  for (const issue of issues.slice(0, 12)) {
+    console.log(`| ${issue.severity} | ${issue.category} | ${issue.refId} | ${issue.message} |`);
+  }
+  if (issues.length === 0) console.log('| - | - | - | No issues |');
+  console.log('');
+  console.log('### Top drop-value ratios');
+  console.log('');
+  console.log('| Kind | Zone | Enemy | Lv | Table | Expected value | Jackpot | Budget | Ratio |');
+  console.log('|------|------|-------|----|-------|----------------|---------|--------|-------|');
+  for (const row of economyOffenderReportRows()) {
+    console.log(`| ${row.kind} | ${row.zoneId} | ${row.bossId ?? row.enemyType} | ${row.level} | ${row.tableId} | ${row.expectedVendorValue.toFixed(1)} | ${row.jackpotVendorValue.toFixed(1)} | ${row.budgetGold} | ${row.expectedValueRatio.toFixed(2)} |`);
+  }
+  console.log('');
+  console.log('### Top quest-gold ratios');
+  console.log('');
+  console.log('| Quest | Lv | Gold | Reward item value | Budget | Ratio |');
+  console.log('|-------|----|------|-------------------|--------|-------|');
+  for (const row of questGoldOffenderReportRows()) {
+    console.log(`| ${row.questId} | ${row.minLevel} | ${row.rewardGold} | ${row.rewardItemValue.toFixed(1)} | ${row.budgetGold} | ${row.goldRatio.toFixed(2)} |`);
+  }
+  console.log('');
+  console.log('### Economy by level band');
+  console.log('');
+  console.log('| Band | Mob rows | Boss rows | Quests | Quest gold | Max expected kill | Max jackpot kill | Max expected ratio |');
+  console.log('|------|----------|-----------|--------|------------|-------------------|------------------|--------------------|');
+  for (const row of economyLevelBandSummaries()) {
+    console.log(`| ${row.levelBand} | ${row.mobRows} | ${row.bossRows} | ${row.questCount} | ${row.questGold} | ${row.maxExpectedKillValue.toFixed(1)} | ${row.maxJackpotKillValue.toFixed(1)} | ${row.maxExpectedRatio.toFixed(2)} |`);
+  }
+  console.log('');
+  console.log('### Journey gear checkpoints');
+  console.log('');
+  console.log('| Path | Checkpoint | Reached | Hour | Gear | Gold | Slots | Purchases |');
+  console.log('|------|------------|---------|------|------|------|-------|-----------|');
+  for (const row of gearRows.slice(0, 30)) {
+    console.log(`| ${row.pathId} | L${row.checkpointLevel} | L${row.reachedLevel} | ${hours(row.reachedAtHour)} | ${row.gearScore} | ${row.gold} | ${row.equippedSlotCount} | ${row.purchaseCount} |`);
   }
   console.log('');
 }
