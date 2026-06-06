@@ -217,7 +217,10 @@ function GrassLayer({ layer, focus, env }: { layer: Layer; focus: Vec3D; env: Mu
 
 export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {
   const layers = useMemo(() => grassLayers(quality), [quality]);
-  const env = useRef<Env>({ dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400 });
+  // Lazy-init: this component re-renders every frame (focus changes), so don't
+  // allocate a throwaway Env + THREE.Color on each render.
+  const env = useRef<Env>(null!);
+  if (!env.current) env.current = { dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400 };
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
   const frameRef = useRef(0);
 
