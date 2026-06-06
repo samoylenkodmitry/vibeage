@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import type { DayPhasePalette } from '../timeOfDay';
 
@@ -32,8 +31,11 @@ export function SkyAtmosphere({ focus, palette }: { focus: { x: number; y: numbe
     return s;
   }, []);
 
-  useEffect(() => () => sky.geometry.dispose(), [sky]);
-  useEffect(() => () => (sky.material as THREE.Material).dispose(), [sky]);
+  useEffect(() => () => {
+    sky.geometry.dispose();
+    if (Array.isArray(sky.material)) sky.material.forEach((m) => m.dispose());
+    else sky.material.dispose();
+  }, [sky]);
 
   useFrame(() => {
     const p = palette.current;
