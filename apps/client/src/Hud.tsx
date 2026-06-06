@@ -400,15 +400,21 @@ function usePanelState() {
   // pre-PR behavior for first-ever joins; returning players see the
   // panel set they left open. Mirrors the existing
   // `useDismissibleHint` pattern + `vibeage.trackedQuest.v1` storage.
-  const [statsOpen, , toggleStats] = usePersistedToggle('stats', true);
+  // Stats + Actions default OPEN on desktop (room for them) but CLOSED on phones,
+  // where two always-open top panels otherwise bury the game view. Computed once
+  // (matchMedia) so it doesn't re-probe every render. Returning players who
+  // toggled keep their stored choice.
+  const [desktopDefault] = useState(defaultRailOpen);
+  const [statsOpen, , toggleStats] = usePersistedToggle('stats', desktopDefault);
   const [questOpen, setQuestOpen, toggleQuest] = usePersistedToggle('quest', false);
   const [bagOpen, , toggleBag] = usePersistedToggle('bag', false);
   const [gearOpen, , toggleGear] = usePersistedToggle('gear', false);
   const [mapOpen, , toggleMap] = usePersistedToggle('map', false);
   const [treeOpen, setTreeOpen, toggleTree] = usePersistedToggle('tree', false);
-  // Actions defaults open: it's the home of the new Attack + Pickup
-  // buttons so players see them immediately on join.
-  const [actionsOpen, , toggleActions] = usePersistedToggle('actions', true);
+  // Actions is the home of the Attack/Move/Pickup/Escape buttons — open on
+  // desktop so players see them, closed on phones (tap-to-move / tap-to-attack
+  // works, and it's a tap on the ☰ rail away).
+  const [actionsOpen, , toggleActions] = usePersistedToggle('actions', desktopDefault);
   const [wikiOpen, setWikiOpen, toggleWiki] = usePersistedToggle('wiki', false);
   const [gmOpen, , toggleGm] = usePersistedToggle('gm', false);
   // PR AA — the craft panel opens when the player taps a recipe in

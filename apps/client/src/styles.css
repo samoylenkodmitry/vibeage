@@ -3802,12 +3802,12 @@ input {
 
   .chat-panel {
     right: 8px;
-    bottom: 96px;
+    /* Docked just above the action bar (its top ≈ 214px up on a phone) so the
+       whole compact log is visible instead of half-hidden behind the bar. */
+    bottom: calc(212px + env(safe-area-inset-bottom, 0px));
     left: 8px;
     width: auto;
-    /* Shorter on phones so it doesn't dominate, and so the upper-half panels
-       above it stay clear of it. */
-    height: min(190px, calc(100vh - 320px));
+    height: min(128px, calc(100vh - 420px));
   }
 
   .chat-panel--detached {
