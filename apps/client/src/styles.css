@@ -3807,7 +3807,9 @@ input {
     bottom: calc(212px + env(safe-area-inset-bottom, 0px));
     left: 8px;
     width: auto;
-    height: min(128px, calc(100vh - 420px));
+    /* clamp keeps the log usable on short/landscape phones where 100vh-420px
+       would otherwise crush (or go negative on) the chat height. */
+    height: clamp(72px, calc(100vh - 420px), 128px);
   }
 
   .chat-panel--detached {
