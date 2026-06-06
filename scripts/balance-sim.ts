@@ -34,6 +34,13 @@ import {
 } from '../server/sim/reportContext.js';
 import { buildSpecializationAiAudit, type SpecializationAiCoverageRow } from '../server/sim/specializationAiAudit.js';
 import { buildSkillBalanceInstrumentation, type SkillBalanceInstrumentationRow } from '../server/sim/skillBalanceInstrumentation.js';
+import {
+  auditXpContentBudget,
+  MAX_BOSS_XP_TO_LEVEL_RATIO,
+  MAX_MOB_XP_TO_LEVEL_RATIO,
+  xpLevelBandSummaries,
+  xpOffenderReportRows,
+} from '../server/sim/xpContentBudget.js';
 
 console.log('# VibeAge simulation balance report');
 console.log('');
@@ -49,6 +56,7 @@ printSpecializationAiAudit();
 printSkillBalanceInstrumentation();
 printPvpClassMatrix();
 printProgressionRewards();
+printXpContentBudget();
 printPlayerJourneyRoutes(playerJourneyRows);
 printPlayerJourneyGapDiagnostics(playerJourneyRows);
 printPlayerFeelCadence();
@@ -186,6 +194,30 @@ function printProgressionRewards(): void {
   console.log('|----------|--------|----------|------------|--------------|');
   for (const milestone of questRewardMilestones()) {
     console.log(`| ${milestone.level} | ${milestone.questCount} | ${milestone.totalXp} | ${milestone.totalGold} | ${milestone.rewardItems.join(', ') || '-'} |`);
+  }
+  console.log('');
+}
+
+function printXpContentBudget(): void {
+  const issues = auditXpContentBudget();
+  console.log('## XP content budget');
+  console.log('');
+  console.log(`Status: **${issues.length === 0 ? 'pass' : 'fail'}**. Normal mobs are capped at ${(MAX_MOB_XP_TO_LEVEL_RATIO * 100).toFixed(0)}% of same-level XP-to-next, mini-bosses at ${(MAX_BOSS_XP_TO_LEVEL_RATIO * 100).toFixed(0)}%, and no authored raw kill can skip a level from a fresh same-level player.`);
+  console.log('');
+  console.log('### Top raw XP ratios');
+  console.log('');
+  console.log('| Kind | Zone | Enemy | Lv | Raw XP | XP-to-next | Ratio | Budget |');
+  console.log('|------|------|-------|----|--------|------------|-------|--------|');
+  for (const row of xpOffenderReportRows()) {
+    console.log(`| ${row.kind} | ${row.zoneId} | ${row.bossId ?? row.enemyType} | ${row.level} | ${Math.round(row.baseXp)} | ${row.xpToNextLevel} | ${row.xpToLevelRatio.toFixed(2)} | ${row.maxAllowedRatio.toFixed(2)} |`);
+  }
+  console.log('');
+  console.log('### Quest + kill XP by level band');
+  console.log('');
+  console.log('| Band | Quests | Quest XP | Mob rows | Boss rows | Avg mob XP | Max mob XP | Avg boss XP | Max boss XP | Max kill ratio |');
+  console.log('|------|--------|----------|----------|-----------|------------|------------|-------------|-------------|----------------|');
+  for (const row of xpLevelBandSummaries()) {
+    console.log(`| ${row.levelBand} | ${row.questCount} | ${row.questXp} | ${row.mobCount} | ${row.bossCount} | ${row.avgMobXp} | ${row.maxMobXp} | ${row.avgBossXp} | ${row.maxBossXp} | ${row.maxKillRatio.toFixed(2)} |`);
   }
   console.log('');
 }
