@@ -420,10 +420,10 @@ function auditJourneyRows(rows: readonly JourneyEconomyRow[]): EconomyProgressio
     }
     if (row.obsoleteQuestCount > 0) {
       issues.push({
-        severity: 'warning',
+        severity: 'error',
         category: 'journey',
         refId: row.pathId,
-        message: `${row.pathId} leaves ${row.obsoleteQuestCount} obsolete quest(s); route still needs quest-priority tuning`,
+        message: `${row.pathId} leaves ${row.obsoleteQuestCount} obsolete quest(s); deterministic route must clear relevant quests before they age out`,
       });
     }
   }

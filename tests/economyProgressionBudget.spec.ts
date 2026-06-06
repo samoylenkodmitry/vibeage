@@ -42,14 +42,15 @@ describe('economy and progression budget', () => {
 
     expect(economyRows.length).toBe(journeyRows.length);
     for (const row of economyRows) {
-      expect(row.endingLevel, row.pathId).toBeGreaterThanOrEqual(ECONOMY_BUDGET_MAX_LEVEL);
+      expect(row.endingLevel, row.pathId).toBe(ECONOMY_BUDGET_MAX_LEVEL);
       expect(row.skippedLevelCount, row.pathId).toBe(0);
+      expect(row.obsoleteQuestCount, row.pathId).toBe(0);
       expect(row.emptyWindowCount, row.pathId).toBe(0);
       expect(row.purchaseCount, row.pathId).toBeGreaterThan(0);
       expect(row.gearScore, row.pathId).toBeGreaterThan(0);
     }
     expect(gearRows.some((row) => row.checkpointLevel === ECONOMY_BUDGET_MAX_LEVEL && row.gearScore >= 250)).toBe(true);
-    expect(issues.filter((issue) => issue.severity === 'error'), issues.map((issue) => issue.message).join('\n')).toEqual([]);
+    expect(issues, issues.map((issue) => issue.message).join('\n')).toEqual([]);
   });
 
   it('exposes deterministic offender and level-band report rows', () => {
@@ -69,5 +70,17 @@ describe('economy and progression budget', () => {
     }
     expect(Object.keys(bestGear).length).toBeGreaterThan(6);
     expect(bands.at(-1)?.levelBand).toBe('L36-40');
+  });
+
+  it('keeps best available gear score non-decreasing through progression checkpoints', () => {
+    const scores = [5, 10, 20, 30, 40].map((level) => ({
+      level,
+      score: Object.values(bestEquipScoreByLevel(level)).reduce((total, slot) => total + (slot?.score ?? 0), 0),
+    }));
+
+    for (let index = 1; index < scores.length; index += 1) {
+      expect(scores[index]!.score, `L${scores[index]!.level}`).toBeGreaterThanOrEqual(scores[index - 1]!.score);
+    }
+    expect(scores.at(-1)!.score).toBeGreaterThan(scores[0]!.score);
   });
 });

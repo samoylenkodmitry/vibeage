@@ -61,9 +61,11 @@ describe('player journey simulator', () => {
         horizonHours: 24,
       });
 
-      expect(summary.endingLevel, spec.id).toBeGreaterThanOrEqual(40);
+      expect(summary.endingLevel, spec.id).toBe(40);
       expect(summary.chosenSpecializationId, spec.id).toBe(spec.id);
       expect(summary.questIdsCompleted, spec.id).toContain('frontier_orders');
+      expect(summary.questIdsCompleted, spec.id).toContain('zero_hour_breach');
+      expect(summary.obsoleteQuestIds, spec.id).toEqual([]);
       expect(summary.skippedLevelCount, spec.id).toBe(0);
       assertLevelProgressionReport(summary);
       for (const skillId of [...(spec.specSkills ?? []), ...(spec.proficiencySkills ?? [])]) {

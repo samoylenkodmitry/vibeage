@@ -12,6 +12,8 @@ export type JourneyBeatKind =
   | 'quest_complete'
   | 'specialization'
   | 'proficiency'
+  | 'mastery_progress'
+  | 'gear_progress'
   | 'item_upgrade'
   | 'vendor_purchase'
   | 'travel_progress'

@@ -26,4 +26,12 @@ describe('describeOffense', () => {
       expect(skillMechanicLabels(skill).length, `${id} needs mechanic labels`).toBeGreaterThan(0);
     }
   });
+  it('surfaces richer proficiency mechanics from schema-native skill data', () => {
+    expect(skillMechanicLabels(SKILLS.arcane_supremacy)).toEqual(expect.arrayContaining(['Damage', 'Mark', 'Pierce']));
+    expect(skillMechanicLabels(SKILLS.inferno_aura)).toEqual(expect.arrayContaining(['Damage', 'Burn', 'Zone']));
+    expect(skillMechanicLabels(SKILLS.mass_heal)).toEqual(expect.arrayContaining(['Heal', 'Shield', 'Cleanse']));
+    expect(skillMechanicLabels(SKILLS.aimed_volley)).toEqual(expect.arrayContaining(['Damage', 'Slow', 'Zone']));
+    expect(skillMechanicLabels(SKILLS.shadow_arrow)).toEqual(expect.arrayContaining(['Damage', 'Poison', 'Pierce']));
+    expect(skillMechanicLabels(SKILLS.treasure_sense)).toEqual(expect.arrayContaining(['Loot Sense', 'Evade', 'Haste']));
+  });
 });

@@ -59,7 +59,8 @@ describe('D18 iceBolt poison is a real (flat) DoT', () => {
 });
 
 describe('B8 treasure_sense reveals loot', () => {
-  it('emits a reveal_loot buff, not the old evasion buff', () => {
-    expect(SKILLS.treasure_sense.effects.map((e) => e.type)).toEqual(['reveal_loot']);
+  it('keeps loot reveal as the lead effect and adds scouting buffs', () => {
+    expect(SKILLS.treasure_sense.effects.map((e) => e.type)).toEqual(['reveal_loot', 'evasion', 'speed_boost']);
+    expect(SKILLS.treasure_sense.effects[0]?.type).toBe('reveal_loot');
   });
 });
