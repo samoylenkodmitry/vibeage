@@ -58,7 +58,7 @@ function grassLayers(q: WorldArtQuality): Layer[] {
   return [{ patch: 150, count: 70000, hScale: 1.0, wScale: 1.0, innerFade: 0 }];
 }
 
-type Env = { dayBright: number; fogColor: THREE.Color; fogNear: number; fogFar: number };
+type Env = { dayBright: number; fogColor: THREE.Color; fogNear: number; fogFar: number; sunDir: THREE.Vector3; sunColor: THREE.Color };
 
 // One blade template: rows at t = 0, 1/3, 2/3 are 2 wide (side ±1), tip is a
 // single point (side 0). position = (side, t, _). Shared by every instance.
@@ -81,6 +81,8 @@ const VERT = /* glsl */`
   uniform vec2  uSand;
   uniform float uSandR;
   uniform float uDayBright;
+  uniform vec3  uSunDir;    // normalised direction to the sun (world)
+  uniform vec3  uSunColor;
   attribute vec2 aOffset;   // per-instance cell offset, [-patch/2, patch/2]
   attribute vec4 aRand;     // per-instance (heightScale, yaw, hueRand, leanRand)
   varying vec3 vColor;
@@ -141,7 +143,17 @@ const VERT = /* glsl */`
     vec3 col = t < 0.5 ? mix(baseCol, midCol, t*2.0) : mix(midCol, tipCol, t*2.0 - 1.0);
     col *= 0.82 + 0.36*aRand.z;        // per-blade hue/value variation
     col *= 0.45 + 0.55*t;              // baked AO — dark at the root
-    col *= clamp(uDayBright, 0.40, 1.10);
+
+    // Sun-direction shading: blades facing the sun catch warm light, those
+    // turned away fall into deeper shade — only while the sun is up, so night is
+    // unchanged. The blade is a near-vertical ribbon, so its broad-face normal is
+    // ~its facing direction tilted up; per-blade yaw gives a dappled meadow.
+    float sunUp = clamp(uSunDir.y * 2.2, 0.0, 1.0);
+    vec3  N     = normalize(vec3(facing.x, 0.55, facing.y));
+    float ndl   = max(dot(N, uSunDir), 0.0);
+    float shade = mix(1.0, 0.72 + 0.46*ndl, sunUp);
+    vec3  sunTint = mix(vec3(1.0), uSunColor*1.4, ndl*0.30*sunUp);
+    col *= clamp(uDayBright, 0.40, 1.10) * shade * sunTint;
     vColor = col;
 
     vec4 mv = viewMatrix * vec4(pos, 1.0);
@@ -193,6 +205,7 @@ function GrassLayer({ layer, focus, env }: { layer: Layer; focus: Vec3D; env: Mu
       uInnerFade: { value: layer.innerFade }, uSand: { value: new THREE.Vector2(SAND.x, SAND.z) }, uSandR: { value: SAND.r },
       uDayBright: { value: 1 }, uFogColor: { value: new THREE.Color('#cdd9e6') },
       uFogNear: { value: 600 }, uFogFar: { value: 5400 },
+      uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color('#fff1d0') },
     },
   }), [layer.patch, layer.hScale, layer.wScale, layer.innerFade]);
 
@@ -210,6 +223,8 @@ function GrassLayer({ layer, focus, env }: { layer: Layer; focus: Vec3D; env: Mu
     u.uFogColor.value.copy(e.fogColor);
     u.uFogNear.value = e.fogNear;
     u.uFogFar.value = e.fogFar;
+    u.uSunDir.value.copy(e.sunDir);
+    u.uSunColor.value.copy(e.sunColor);
   });
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;
@@ -220,7 +235,7 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
   // Lazy-init: this component re-renders every frame (focus changes), so don't
   // allocate a throwaway Env + THREE.Color on each render.
   const env = useRef<Env>(null!);
-  if (!env.current) env.current = { dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400 };
+  if (!env.current) env.current = { dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400, sunDir: new THREE.Vector3(0, 1, 0), sunColor: new THREE.Color('#fff1d0') };
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
   const frameRef = useRef(0);
 
@@ -233,7 +248,14 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     if (!sunRef.current && frameRef.current % 30 === 1) {
       scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
     }
-    if (sunRef.current) env.current.dayBright = 0.34 + sunRef.current.intensity * 0.5;
+    const sun = sunRef.current;
+    if (sun) {
+      env.current.dayBright = 0.34 + sun.intensity * 0.5;
+      // Direction from the player to the sun (WorldEnvironment puts the sun at
+      // focus + sunDir·distance), normalised for the blade lighting.
+      env.current.sunDir.set(sun.position.x - focus.x, sun.position.y - focus.y, sun.position.z - focus.z).normalize();
+      env.current.sunColor.copy(sun.color);
+    }
   });
 
   return <>{layers.map((layer, i) => <GrassLayer key={i} layer={layer} focus={focus} env={env} />)}</>;
