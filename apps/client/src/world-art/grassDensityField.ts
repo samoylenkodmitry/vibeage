@@ -13,10 +13,14 @@ import * as THREE from 'three';
  * triggered when the player drifts past `REBUILD_DIST` from the map centre — fill
  * a few rows per frame to avoid a hitch, and only swap the centre when complete.
  */
-const RES = 96;
-const HALF = 620;          // map covers ±620 m around its centre
-const REBUILD_DIST = 220;  // recentre once the player drifts this far
-const ROWS_PER_FRAME = 10;
+const RES = 128;
+// Must cover the farthest rendered blade from the map centre: the far layer
+// reaches ~611 m (patch 1300 · 0.47) and the player may drift REBUILD_DIST past
+// the centre before a rebuild, so HALF ≥ 611 + REBUILD_DIST or far blades sample
+// the clamped edge and get the wrong biome density.
+const REBUILD_DIST = 200;  // recentre once the player drifts this far
+const HALF = 860;          // map covers ±860 m (> 611 + 200, with margin)
+const ROWS_PER_FRAME = 12;
 
 export class GrassDensityField {
   readonly texture: THREE.DataTexture;

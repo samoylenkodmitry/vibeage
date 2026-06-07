@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -64,8 +63,6 @@ function grassLayers(q: WorldArtQuality): Layer[] {
   // 'low' isn't mounted today (WorldScene gates on quality !== 'low').
   return [{ patch: 150, count: 70000, hScale: 1.0, wScale: 1.0, innerFade: 0 }];
 }
-
-type Env = { dayBright: number; fogColor: THREE.Color; fogNear: number; fogFar: number; sunDir: THREE.Vector3; sunColor: THREE.Color };
 
 // One blade template: rows at t = 0, 1/3, 2/3 are 2 wide (side ±1), tip is a
 // single point (side 0). position = (side, t, _). Shared by every instance.
@@ -205,9 +202,8 @@ function buildGeometry(count: number, patch: number): THREE.InstancedBufferGeome
   return g;
 }
 
-function GrassLayer({ layer, focus, env, field }: { layer: Layer; focus: Vec3D; env: MutableRefObject<Env>; field: GrassDensityField }) {
-  const geometry = useMemo(() => buildGeometry(layer.count, layer.patch), [layer.count, layer.patch]);
-  const material = useMemo(() => new THREE.ShaderMaterial({
+function buildMaterial(layer: Layer, field: GrassDensityField): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide,
     uniforms: {
       uTime: { value: 0 }, uPlayer: { value: new THREE.Vector2() }, uPatch: { value: layer.patch },
@@ -218,43 +214,13 @@ function GrassLayer({ layer, focus, env, field }: { layer: Layer; focus: Vec3D; 
       uFogNear: { value: 600 }, uFogFar: { value: 5400 },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color('#fff1d0') },
     },
-  }), [layer.patch, layer.hScale, layer.wScale, layer.innerFade, field]);
-
-  // useMemo geometry/material aren't auto-disposed by R3F — release the GPU
-  // buffers ourselves on unmount / recreation.
-  useEffect(() => () => geometry.dispose(), [geometry]);
-  useEffect(() => () => material.dispose(), [material]);
-
-  useFrame((_, dt) => {
-    const u = material.uniforms;
-    u.uTime.value += dt;
-    u.uPlayer.value.set(focus.x, focus.z);
-    const e = env.current;
-    u.uDayBright.value = e.dayBright;
-    u.uFogColor.value.copy(e.fogColor);
-    u.uFogNear.value = e.fogNear;
-    u.uFogFar.value = e.fogFar;
-    u.uSunDir.value.copy(e.sunDir);
-    u.uSunColor.value.copy(e.sunColor);
-    // The density map re-centres on the player (NaN only before the first bake).
-    u.uDensityCenter.value.set(
-      Number.isNaN(field.centerX) ? focus.x : field.centerX,
-      Number.isNaN(field.centerZ) ? focus.z : field.centerZ,
-    );
-    u.uDensityHalf.value = field.half;
   });
-
-  return <mesh geometry={geometry} material={material} frustumCulled={false} />;
 }
+
+const TMP_SUNDIR = new THREE.Vector3();
 
 export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {
   const layers = useMemo(() => grassLayers(quality), [quality]);
-  // Lazy-init: this component re-renders every frame (focus changes), so don't
-  // allocate a throwaway Env + THREE.Color on each render.
-  const env = useRef<Env>(null!);
-  if (!env.current) env.current = { dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400, sunDir: new THREE.Vector3(0, 1, 0), sunColor: new THREE.Color('#fff1d0') };
-  const sunRef = useRef<THREE.DirectionalLight | null>(null);
-  const frameRef = useRef(0);
 
   // Biome grass-density map (low over sand/dirt/scorched), with the cozy-coast
   // sand mask baked in so the beach reads as bare sand too.
@@ -264,31 +230,49 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     const coast = smoothstep(SAND.r * 0.6, SAND.r, Math.hypot(x - SAND.x, z - SAND.z)); // 0 on sand
     return sampleGrassDensity(x, z) * coast;
   }, []);
-  useEffect(() => () => field.current.dispose(), []);
 
-  // Read the shared environment (fog + day brightness) once per frame for all
-  // layers; find the sun once, retrying every ~30 frames until then.
-  useFrame(({ scene }) => {
-    const fog = scene.fog as THREE.Fog | null;
-    if (fog?.color) { env.current.fogColor.copy(fog.color); env.current.fogNear = fog.near; env.current.fogFar = fog.far; }
+  // One geometry + material per layer, built once. Everything is mutated in the
+  // SINGLE useFrame below (not in per-layer child components) so the layers and
+  // the density-map swap update in one deterministic pass — no swap-frame flicker.
+  const meshes = useMemo(
+    () => layers.map((layer) => ({ geometry: buildGeometry(layer.count, layer.patch), material: buildMaterial(layer, field.current) })),
+    [layers],
+  );
+  useEffect(() => () => {
+    field.current.dispose();
+    meshes.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
+  }, [meshes]);
+
+  const sunRef = useRef<THREE.DirectionalLight | null>(null);
+  const frameRef = useRef(0);
+
+  useFrame(({ scene }, dt) => {
+    // Find the sun once (retry every ~30 frames), read fog, re-bake the density
+    // map, then push the shared values into every layer's uniforms.
     frameRef.current += 1;
     if (!sunRef.current && frameRef.current % 30 === 1) {
       scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
     }
+    const fog = scene.fog as THREE.Fog | null;
     const sun = sunRef.current;
-    if (sun) {
-      // Night base lowered (was 0.34) so the grass doesn't stay near-daytime
-      // bright after dusk while the rest of the scene goes dark.
-      env.current.dayBright = 0.26 + sun.intensity * 0.53;
-      // Direction from the player to the sun. WorldEnvironment offsets the sun's
-      // X/Z by focus but its Y is absolute (sunDir.y·distance), so don't subtract
-      // focus.y from the Y component.
-      env.current.sunDir.set(sun.position.x - focus.x, sun.position.y, sun.position.z - focus.z).normalize();
-      env.current.sunColor.copy(sun.color);
-    }
-    // Re-bake the biome density map as the player roams (incremental; cheap).
     field.current.update(focus.x, focus.z, densityFn);
+    const cx = Number.isNaN(field.current.centerX) ? focus.x : field.current.centerX;
+    const cz = Number.isNaN(field.current.centerZ) ? focus.z : field.current.centerZ;
+    // Night base lowered (was 0.34) so the grass settles into the night mood.
+    const dayBright = sun ? 0.26 + sun.intensity * 0.53 : 1;
+    // Sun direction: WorldEnvironment offsets the sun's X/Z by focus but its Y is
+    // absolute (sunDir.y·distance), so don't subtract focus.y from Y.
+    if (sun) TMP_SUNDIR.set(sun.position.x - focus.x, sun.position.y, sun.position.z - focus.z).normalize();
+
+    for (const { material } of meshes) {
+      const u = material.uniforms;
+      u.uTime.value += dt;
+      u.uPlayer.value.set(focus.x, focus.z);
+      u.uDensityCenter.value.set(cx, cz);
+      if (fog?.color) { u.uFogColor.value.copy(fog.color); u.uFogNear.value = fog.near; u.uFogFar.value = fog.far; }
+      if (sun) { u.uDayBright.value = dayBright; u.uSunDir.value.copy(TMP_SUNDIR); u.uSunColor.value.copy(sun.color); }
+    }
   });
 
-  return <>{layers.map((layer, i) => <GrassLayer key={i} layer={layer} focus={focus} env={env} field={field.current} />)}</>;
+  return <>{meshes.map((m, i) => <mesh key={i} geometry={m.geometry} material={m.material} frustumCulled={false} />)}</>;
 }
