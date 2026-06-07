@@ -153,7 +153,7 @@ const VERT = /* glsl */`
     float ndl   = max(dot(N, uSunDir), 0.0);
     float shade = mix(1.0, 0.72 + 0.46*ndl, sunUp);
     vec3  sunTint = mix(vec3(1.0), uSunColor*1.4, ndl*0.30*sunUp);
-    col *= clamp(uDayBright, 0.24, 1.10) * shade * sunTint;
+    col *= clamp(uDayBright, 0.05, 1.10) * shade * sunTint; // floor low; the JS night base is the real knob
     vColor = col;
 
     vec4 mv = viewMatrix * vec4(pos, 1.0);
