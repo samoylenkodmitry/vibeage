@@ -3,7 +3,9 @@ import type { MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
+import { sampleGrassDensity } from '../../../packages/content/terrain';
 import type { WorldArtQuality } from './world-art/quality';
+import { GrassDensityField } from './world-art/grassDensityField';
 import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
 
 /**
@@ -32,6 +34,11 @@ import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
  * mask is folded into the dither so there is no hard edge there either.
  */
 const SAND = { x: STARTER_COZY_COAST.waterline.x + 70, z: STARTER_COZY_COAST.waterline.z, r: 150 };
+
+const smoothstep = (e0: number, e1: number, x: number): number => {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+};
 
 type Layer = { patch: number; count: number; hScale: number; wScale: number; innerFade: number };
 
@@ -78,8 +85,9 @@ const VERT = /* glsl */`
   uniform float uHScale;
   uniform float uWScale;
   uniform float uInnerFade;
-  uniform vec2  uSand;
-  uniform float uSandR;
+  uniform sampler2D uDensityMap; // baked biome grass density × coast mask
+  uniform vec2  uDensityCenter;
+  uniform float uDensityHalf;
   uniform float uDayBright;
   uniform vec3  uSunDir;    // normalised direction to the sun (world)
   uniform vec3  uSunColor;
@@ -111,12 +119,14 @@ const VERT = /* glsl */`
     float dist = length(world - uPlayer);
 
     // One smooth dithered falloff (dense to ~0.30·patch, gone by ~0.47·patch),
-    // with the sand mask + an inner ramp (mid/far layers start past innerFade)
-    // folded into the same dither so no edge is ever a hard ring.
+    // with the biome density map (low over sand/dirt/scorched, baked with the
+    // coast mask) + an inner ramp (mid/far layers start past innerFade) folded
+    // into the same dither so no edge is ever a hard ring.
     float fall = 1.0 - smoothstep(uPatch*0.30, uPatch*0.47, dist);
-    float sand = smoothstep(uSandR*0.6, uSandR, length(world - uSand)); // 0 on sand
+    vec2  duv  = (world - uDensityCenter) / (2.0 * uDensityHalf) + 0.5;
+    float biome = texture2D(uDensityMap, duv).r; // 0 bare .. ~0.9 lush meadow
     float inner = mix(1.0, smoothstep(0.0, max(uInnerFade, 1.0), dist), step(0.5, uInnerFade));
-    float present = step(hash(world*1.7), fall * sand * inner);
+    float present = step(hash(world*1.7), fall * inner * biome);
 
     float clump = 0.6 + 0.4*smoothstep(0.25, 0.70, vnoise(world*0.04 + 7.0));
     float yaw   = aRand.y * 6.2831853;
@@ -195,19 +205,20 @@ function buildGeometry(count: number, patch: number): THREE.InstancedBufferGeome
   return g;
 }
 
-function GrassLayer({ layer, focus, env }: { layer: Layer; focus: Vec3D; env: MutableRefObject<Env> }) {
+function GrassLayer({ layer, focus, env, field }: { layer: Layer; focus: Vec3D; env: MutableRefObject<Env>; field: GrassDensityField }) {
   const geometry = useMemo(() => buildGeometry(layer.count, layer.patch), [layer.count, layer.patch]);
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide,
     uniforms: {
       uTime: { value: 0 }, uPlayer: { value: new THREE.Vector2() }, uPatch: { value: layer.patch },
       uBladeH: { value: 0.55 }, uHScale: { value: layer.hScale }, uWScale: { value: layer.wScale },
-      uInnerFade: { value: layer.innerFade }, uSand: { value: new THREE.Vector2(SAND.x, SAND.z) }, uSandR: { value: SAND.r },
+      uInnerFade: { value: layer.innerFade },
+      uDensityMap: { value: field.texture }, uDensityCenter: { value: new THREE.Vector2() }, uDensityHalf: { value: field.half },
       uDayBright: { value: 1 }, uFogColor: { value: new THREE.Color('#cdd9e6') },
       uFogNear: { value: 600 }, uFogFar: { value: 5400 },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color('#fff1d0') },
     },
-  }), [layer.patch, layer.hScale, layer.wScale, layer.innerFade]);
+  }), [layer.patch, layer.hScale, layer.wScale, layer.innerFade, field]);
 
   // useMemo geometry/material aren't auto-disposed by R3F — release the GPU
   // buffers ourselves on unmount / recreation.
@@ -225,6 +236,12 @@ function GrassLayer({ layer, focus, env }: { layer: Layer; focus: Vec3D; env: Mu
     u.uFogFar.value = e.fogFar;
     u.uSunDir.value.copy(e.sunDir);
     u.uSunColor.value.copy(e.sunColor);
+    // The density map re-centres on the player (NaN only before the first bake).
+    u.uDensityCenter.value.set(
+      Number.isNaN(field.centerX) ? focus.x : field.centerX,
+      Number.isNaN(field.centerZ) ? focus.z : field.centerZ,
+    );
+    u.uDensityHalf.value = field.half;
   });
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;
@@ -238,6 +255,16 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
   if (!env.current) env.current = { dayBright: 1, fogColor: new THREE.Color('#cdd9e6'), fogNear: 600, fogFar: 5400, sunDir: new THREE.Vector3(0, 1, 0), sunColor: new THREE.Color('#fff1d0') };
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
   const frameRef = useRef(0);
+
+  // Biome grass-density map (low over sand/dirt/scorched), with the cozy-coast
+  // sand mask baked in so the beach reads as bare sand too.
+  const field = useRef<GrassDensityField>(null!);
+  if (!field.current) field.current = new GrassDensityField();
+  const densityFn = useMemo(() => (x: number, z: number) => {
+    const coast = smoothstep(SAND.r * 0.6, SAND.r, Math.hypot(x - SAND.x, z - SAND.z)); // 0 on sand
+    return sampleGrassDensity(x, z) * coast;
+  }, []);
+  useEffect(() => () => field.current.dispose(), []);
 
   // Read the shared environment (fog + day brightness) once per frame for all
   // layers; find the sun once, retrying every ~30 frames until then.
@@ -259,7 +286,9 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
       env.current.sunDir.set(sun.position.x - focus.x, sun.position.y, sun.position.z - focus.z).normalize();
       env.current.sunColor.copy(sun.color);
     }
+    // Re-bake the biome density map as the player roams (incremental; cheap).
+    field.current.update(focus.x, focus.z, densityFn);
   });
 
-  return <>{layers.map((layer, i) => <GrassLayer key={i} layer={layer} focus={focus} env={env} />)}</>;
+  return <>{layers.map((layer, i) => <GrassLayer key={i} layer={layer} focus={focus} env={env} field={field.current} />)}</>;
 }
