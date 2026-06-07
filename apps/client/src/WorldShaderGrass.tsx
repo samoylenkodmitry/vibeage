@@ -153,7 +153,7 @@ const VERT = /* glsl */`
     float ndl   = max(dot(N, uSunDir), 0.0);
     float shade = mix(1.0, 0.72 + 0.46*ndl, sunUp);
     vec3  sunTint = mix(vec3(1.0), uSunColor*1.4, ndl*0.30*sunUp);
-    col *= clamp(uDayBright, 0.40, 1.10) * shade * sunTint;
+    col *= clamp(uDayBright, 0.24, 1.10) * shade * sunTint;
     vColor = col;
 
     vec4 mv = viewMatrix * vec4(pos, 1.0);
@@ -250,7 +250,9 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     }
     const sun = sunRef.current;
     if (sun) {
-      env.current.dayBright = 0.34 + sun.intensity * 0.5;
+      // Night base lowered (was 0.34) so the grass doesn't stay near-daytime
+      // bright after dusk while the rest of the scene goes dark.
+      env.current.dayBright = 0.26 + sun.intensity * 0.53;
       // Direction from the player to the sun. WorldEnvironment offsets the sun's
       // X/Z by focus but its Y is absolute (sunDir.y·distance), so don't subtract
       // focus.y from the Y component.
