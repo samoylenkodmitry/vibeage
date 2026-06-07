@@ -147,6 +147,18 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
   };
 }
 
+/**
+ * Just the blended per-biome grass density at a point (no colour parsing) — a
+ * lean version of `sampleTerrain` cheap enough to sample on a grid, used to
+ * build the grass-density map so blades thin out / clear over low-grass biomes
+ * (sand, scorched, dirt) instead of rendering patchily over their brown ground.
+ */
+export function sampleGrassDensity(x: number, z: number): number {
+  let grass = 0;
+  for (const [b, w] of biomeWeights(x, z)) grass += TERRAIN_BIOME_VISUALS[b].grassDensity * w;
+  return grass;
+}
+
 function hexRgb(hex: string): { r: number; g: number; b: number } {
   const n = parseInt(hex.slice(1), 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
