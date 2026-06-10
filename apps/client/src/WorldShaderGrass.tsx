@@ -49,9 +49,13 @@ function grassLayers(q: WorldArtQuality): Layer[] {
   // never ends at a visible bald line.
   if (q === 'high') {
     return [
-      { patch: 130, count: 340000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
-      { patch: 460, count: 520000, hScale: 1.5, wScale: 1.3, innerFade: 40 },
-      { patch: 1300, count: 280000, hScale: 2.8, wScale: 2.2, innerFade: 150 },
+      // Counts trimmed ~12% after a user GPU context-loss: terrainH now
+      // carries canyons/lakes/plateaus (~45 transcendentals) per vertex, so
+      // peak vertex cost rose across the overhaul. Visually indistinguishable
+      // (the dither hides density deltas this small).
+      { patch: 130, count: 310000, hScale: 1.0, wScale: 1.0, innerFade: 0 },
+      { patch: 460, count: 460000, hScale: 1.5, wScale: 1.3, innerFade: 40 },
+      { patch: 1300, count: 250000, hScale: 2.8, wScale: 2.2, innerFade: 150 },
     ];
   }
   if (q === 'medium') {
@@ -292,11 +296,18 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     field.current.update(focus.x, focus.z, densityFn);
     const cx = Number.isNaN(field.current.centerX) ? focus.x : field.current.centerX;
     const cz = Number.isNaN(field.current.centerZ) ? focus.z : field.current.centerZ;
-    // Night base lowered (was 0.34) so the grass settles into the night mood.
-    const dayBright = sun ? 0.26 + sun.intensity * 0.53 : 1;
     // Sun direction: WorldEnvironment offsets the sun's X/Z by focus but its Y is
     // absolute (sunDir.y·distance), so don't subtract focus.y from Y.
     if (sun) TMP_SUNDIR.set(sun.position.x - focus.x, sun.position.y, sun.position.z - focus.z).normalize();
+    // The grass is SELF-LIT (custom shader, no scene lights), so its brightness
+    // must track the sun's ELEVATION, not just the keyframe intensity — the
+    // dawn/dusk keyframes keep intensity high (~1.25) while the lit terrain
+    // around goes dark (horizon sun ⇒ tiny diffuse), which made the grass
+    // read as GLOWING (and pushed it over the bloom threshold). Night base
+    // 0.26 (was the floor before too); full brightness only with the sun
+    // well above the horizon.
+    const sunElevation = sun ? smoothstep(0.02, 0.45, TMP_SUNDIR.y) : 1;
+    const dayBright = sun ? 0.26 + sun.intensity * 0.53 * sunElevation : 1;
 
     for (const { material } of meshes) {
       const u = material.uniforms;

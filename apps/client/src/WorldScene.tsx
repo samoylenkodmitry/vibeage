@@ -71,6 +71,15 @@ type WorldSceneProps = {
   navigationMarker?: VecXZ | null;
 };
 
+function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof chooseWorldArtQuality>): void {
+  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : 1.5));
+  // Without preventDefault the browser treats a GPU context loss as permanent
+  // and never fires webglcontextrestored — three.js can recover automatically
+  // once restoration is allowed (ScenePostFX unmounts its composer for the
+  // lost interval).
+  gl.domElement.addEventListener('webglcontextlost', (event) => event.preventDefault());
+}
+
 export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
@@ -101,9 +110,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   return (
     <Canvas
       camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
-      onCreated={({ gl }) => {
-        gl.setPixelRatio(Math.min(window.devicePixelRatio, worldArtQuality === 'high' ? 2 : 1.5));
-      }}
+      onCreated={({ gl }) => setUpRenderer(gl, worldArtQuality)}
     >
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
       <Preload all />
