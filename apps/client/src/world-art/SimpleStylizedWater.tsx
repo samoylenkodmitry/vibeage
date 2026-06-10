@@ -78,11 +78,16 @@ const waterVertexShader = `
     p.z += w1 * 0.10 + w2 * 0.07 + w3 * 0.05;
 
     // Analytic normal from the wave gradient (local plane space, +z up).
+    // To WORLD space (not view) via modelMatrix — the fragment shader's
+    // viewDir is world-space (cameraPosition - vWorld), so the normal must
+    // match or the Fresnel/glints drift as the camera moves. The mesh has
+    // no scale (size lives in the geometry), so mat3(modelMatrix) is a pure
+    // rotation and correct for normals.
     float dx = cos(x * 0.045 + t * 1.10) * 0.045 * 0.10
              + cos((x + y) * 0.035 + t * 1.55) * 0.035 * 0.05;
     float dy = cos(y * 0.060 - t * 0.85) * 0.060 * 0.07
              + cos((x + y) * 0.035 + t * 1.55) * 0.035 * 0.05;
-    vNormal = normalize(normalMatrix * normalize(vec3(-dx, -dy, 1.0)));
+    vNormal = normalize(mat3(modelMatrix) * vec3(-dx, -dy, 1.0));
 
     vec4 worldPos = modelMatrix * vec4(p, 1.0);
     vWorld = worldPos.xyz;
