@@ -110,6 +110,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   return (
     <Canvas
       camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
+      /* PCF-soft shadow mapping — the renderer never enabled shadows before,
+         so every castShadow flag was inert (a big part of the flat toy look). */
+      shadows={worldArtQuality !== 'low' ? 'soft' : false}
       onCreated={({ gl }) => setUpRenderer(gl, worldArtQuality)}
     >
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}

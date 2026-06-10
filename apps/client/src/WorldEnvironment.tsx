@@ -37,6 +37,23 @@ const PALETTE_REFRESH_S = 0.2;
 // landmark-visibility cull distance, not real fog.
 const SCENE_FOG = { near: 450, far: 1120 } as const;
 
+// Shadow camera: a ±130 m orthographic box following the player (the light's
+// target tracks focus in applyDayPhaseToScene — without that the box stays at
+// the world origin and shadows vanish a chunk away). normalBias fights acne on
+// the low-poly terrain. Inert unless the Canvas enables shadow mapping
+// (WorldScene gates that to medium/high).
+const SUN_SHADOW_PROPS = {
+  'shadow-mapSize': [2048, 2048] as [number, number],
+  'shadow-camera-left': -130,
+  'shadow-camera-right': 130,
+  'shadow-camera-top': 130,
+  'shadow-camera-bottom': -130,
+  'shadow-camera-near': 150,
+  'shadow-camera-far': 1100,
+  'shadow-bias': -0.0002,
+  'shadow-normalBias': 1.2,
+} as const;
+
 type DayCycleRefs = {
   hemisphere: React.MutableRefObject<THREE.HemisphereLight | null>;
   ambient: React.MutableRefObject<THREE.AmbientLight | null>;
@@ -106,6 +123,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
         position={[focus.x + 240, 420, focus.z + 180]}
         intensity={1.55}
         castShadow
+        {...SUN_SHADOW_PROPS}
       />
       <group ref={refs.sunGroup}>
         <mesh
@@ -210,9 +228,15 @@ function applyDayPhaseToScene({ refs, sunMaterial, scene, focus, palette }: {
     refs.ambient.current.intensity = palette.ambientIntensity;
   }
   if (refs.directional.current) {
-    refs.directional.current.position.set(sunX, sunY, sunZ);
-    refs.directional.current.color.set(palette.sunColor);
-    refs.directional.current.intensity = palette.sunIntensity;
+    const light = refs.directional.current;
+    light.position.set(sunX, sunY, sunZ);
+    light.color.set(palette.sunColor);
+    light.intensity = palette.sunIntensity;
+    // The shadow camera looks at light.target — keep it on the player or the
+    // shadow box stays parked at the world origin. The target isn't in the
+    // scene graph, so update its matrix manually.
+    light.target.position.set(focus.x, focus.y, focus.z);
+    light.target.updateMatrixWorld();
   }
   if (refs.sunGroup.current) {
     refs.sunGroup.current.position.set(sunX, sunY, sunZ);

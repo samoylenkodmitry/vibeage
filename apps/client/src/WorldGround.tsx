@@ -27,7 +27,7 @@ import { useTerrainTextures } from './world-art/useTerrainTextures';
  */
 export type TerrainVisualMode = 'normal' | 'textured' | 'collider';
 
-export type TerrainPalette = 'grass' | 'sand';
+export type TerrainPalette = 'grass' | 'sand' | 'forest' | 'rock' | 'ash' | 'snow';
 
 type WorldGroundProps = {
   focus: Vec3D;
@@ -68,10 +68,12 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, v
   const focusChunk = getTerrainChunk(focus.x, focus.z);
   // Ground texture is fixed by a chunk's OWN centre (never the player's
   // position) so the surface is stable per location. Sand wins at the coast
-  // ring; ashen/scorched biomes (volcanic, abyssal) get the bare dusty texture
-  // instead of meadow grass so each region reads differently underfoot; else
-  // the flat `palette` default. (Distinct per-biome textures await the imagegen
-  // pipeline; for now it's a sand/grass split driven by the biome map.)
+  // ring; otherwise each biome family gets its own painterly ground (the
+  // procedural set from scripts/generate-world-textures.mjs) — mossy forest
+  // floor, weathered highland rock, ember-cracked volcanic ash, wind-swept
+  // tundra snow — instead of one grass texture planet-wide. Vertex-colour
+  // biome tints still blend on top, so transitions between chunk textures
+  // read as gradients rather than hard seams.
   const paletteForChunk = (cx: number, cz: number): TerrainPalette => {
     const halfChunk = WORLD_SETTINGS.terrainChunkSize / 2;
     const centerX = cx + halfChunk;
@@ -79,11 +81,14 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, v
     if (sandRegion && Math.hypot(centerX - sandRegion.x, centerZ - sandRegion.z) <= sandRegion.radius) {
       return 'sand';
     }
-    // getTerrainBiome covers both named zones and the large-scale climate
-    // field, so ashen regions outside a named zone also get the dusty texture.
-    const biome = getTerrainBiome(centerX, centerZ);
-    if (biome === 'volcanic' || biome === 'abyssal') return 'sand';
-    return palette;
+    // getTerrainBiome covers both named zones and the large-scale climate field.
+    switch (getTerrainBiome(centerX, centerZ)) {
+      case 'volcanic': case 'abyssal': return 'ash';
+      case 'forest': case 'wetland': return 'forest';
+      case 'highland': case 'ruins': return 'rock';
+      case 'tundra': return 'snow';
+      default: return palette;
+    }
   };
   const chunks = useMemo(
     () => getVisibleTerrainChunks(focusChunk.x, focusChunk.z),
@@ -394,8 +399,16 @@ function TexturedTerrainMaterial({ palette }: { palette: TerrainPalette }) {
   const tex = useTerrainTextures();
   // Vertex colors stay on so biome tinting and slope shading
   // still read through the base texture.
-  const map = palette === 'sand' ? tex.sandColor : tex.grassColor;
-  const normalMap = palette === 'sand' ? tex.sandNormal : tex.grassNormal;
+  const map = {
+    sand: tex.sandColor,
+    grass: tex.grassColor,
+    forest: tex.forestColor,
+    rock: tex.rockColor,
+    ash: tex.ashColor,
+    snow: tex.snowColor,
+  }[palette];
+  // Only the PBR pairs ship normal maps; the painterly set is colour-only.
+  const normalMap = palette === 'sand' ? tex.sandNormal : palette === 'grass' ? tex.grassNormal : undefined;
   return (
     <meshStandardMaterial
       map={map}
