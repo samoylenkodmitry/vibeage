@@ -1,5 +1,6 @@
-import { EffectComposer, Bloom, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
+import type * as THREE from 'three';
 import type { WorldArtQuality } from './world-art/quality';
 
 /**
@@ -29,7 +30,7 @@ import type { WorldArtQuality } from './world-art/quality';
  * `luminanceThreshold` is high-ish so only genuinely bright/emissive pixels
  * bloom — lit terrain + props stay crisp, they don't smear.
  */
-export function ScenePostFX({ quality }: { quality: WorldArtQuality }) {
+export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null }) {
   if (quality === 'low') return null;
   const high = quality === 'high';
   return (
@@ -37,6 +38,26 @@ export function ScenePostFX({ quality }: { quality: WorldArtQuality }) {
       {/* Medium has no MSAA — SMAA cleans the silhouettes (grass blades, tree
           edges) for cheap. High already has 4× MSAA, so skip the extra pass. */}
       {high ? <></> : <SMAA />}
+      {/* Crysis-style crepuscular shafts radiating from the sun disc. The mesh
+          arrives via state one frame after WorldEnvironment mounts (the effect
+          needs the real mesh at construction), so the composer rebuilds once.
+          Subtle weight/exposure: shafts read through trees and over ridges at
+          low sun without washing out midday. Below the horizon the disc is
+          fully occluded → the rays vanish on their own at night. */}
+      {sunMesh ? (
+        <GodRays
+          sun={sunMesh}
+          samples={high ? 56 : 32}
+          density={0.92}
+          decay={0.94}
+          weight={0.24}
+          exposure={0.3}
+          clampMax={0.95}
+          blur
+        />
+      ) : (
+        <></>
+      )}
       <Bloom
         intensity={high ? 0.62 : 0.42}
         luminanceThreshold={0.62}

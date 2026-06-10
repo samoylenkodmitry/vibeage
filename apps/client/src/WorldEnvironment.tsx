@@ -14,6 +14,9 @@ type WorldEnvironmentProps = {
    *  WorldScene passes the far vista range when the HorizonTerrainShell is
    *  mounted to carry the distance. Read once on mount (quality is static). */
   fog?: { near: number; far: number };
+  /** Hands the sun disc mesh up so ScenePostFX can anchor GodRays on it
+   *  (the effect needs the actual mesh at construction). */
+  onSunMesh?: (mesh: THREE.Mesh | null) => void;
 };
 
 // Day-phase palette recompute cadence. 0.2s ≈ 5Hz — far below
@@ -44,7 +47,7 @@ type DayCycleRefs = {
   moonLight: React.MutableRefObject<THREE.PointLight | null>;
 };
 
-export function WorldEnvironment({ focus, fog = SCENE_FOG }: WorldEnvironmentProps) {
+export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnvironmentProps) {
   const refs: DayCycleRefs = {
     hemisphere: useRef<THREE.HemisphereLight>(null),
     ambient: useRef<THREE.AmbientLight>(null),
@@ -103,7 +106,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG }: WorldEnvironmentPro
         castShadow
       />
       <group ref={refs.sunGroup}>
-        <mesh material={sunMaterial}>
+        <mesh material={sunMaterial} ref={onSunMesh}>
           <sphereGeometry args={[34, 24, 16]} />
         </mesh>
         {/* Warm halo behind the sun disc — gives golden bloom feel
