@@ -114,14 +114,18 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
       const coniferShare = getConiferShare(sample.biome);
 
       const pushTree = (tx: number, tz: number, height: number) => {
+        // Consume the slot's randoms BEFORE the guard so a skipped (underwater)
+        // slot advances the PRNG identically — neighbouring slots in the cell
+        // keep the exact same values whether or not this one was dropped.
         const isConifer = random() < coniferShare;
-        if (height < DRY_MIN_Y) return; // lakebed — no trees under water
-        (isConifer ? conifers : trees).push({
+        const inst = {
           x: tx, y: height, z: tz,
           scale: isConifer ? 0.72 + random() * 0.95 : 0.65 + random() * 1.1,
           rotation: random() * Math.PI * 2,
           color: jitterFoliageColor(isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor, random),
-        });
+        };
+        if (height < DRY_MIN_Y) return; // lakebed — no trees under water
+        (isConifer ? conifers : trees).push(inst);
       };
       if (random() < sample.treeDensity * TREE_DENSITY_SCALE_A) {
         pushTree(x, z, sample.height);
@@ -138,12 +142,14 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
           const ux = x + (random() - 0.5) * cell * 0.9;
           const uz = z + (random() - 0.5) * cell * 0.9;
           const uy = sampleTerrain(ux, uz).height;
-          if (uy < DRY_MIN_Y) continue;
-          bushes.push({
+          // Consume-then-guard, same PRNG discipline as pushTree.
+          const inst = {
             x: ux, y: uy, z: uz,
             scale: 1.5 + random() * 1.6, rotation: random() * Math.PI * 2,
             color: jitterFoliageColor(darkenForConifer(sample.foliageColor), random),
-          });
+          };
+          if (uy < DRY_MIN_Y) continue;
+          bushes.push(inst);
         }
       }
       if (grassOn && sample.height >= DRY_MIN_Y && random() < sample.grassDensity * GRASS_DENSITY_SCALE) {

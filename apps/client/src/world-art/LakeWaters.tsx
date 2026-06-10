@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { computeNearbyLakes, LAKE_WATER_Y } from '../../../../packages/content/terrain';
@@ -24,16 +24,19 @@ const LAKE_DISC_RADIUS = 540; // > max possible shoreline radius; rim hides unde
 const SNAP = 512;             // re-derive the set on coarse steps, not every frame
 
 export function LakeWaters({ focus }: { focus: { x: number; z: number } }) {
+  // One material + ONE geometry shared by every lake disc; dispose both on
+  // unmount (external objects passed as props are not auto-disposed by R3F).
   const material = useMemo(() => makeLakeMaterial(), []);
-  const materialRef = useRef(material);
-  materialRef.current = material;
+  const geometry = useMemo(() => new THREE.CircleGeometry(LAKE_DISC_RADIUS, 48), []);
+  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   const snapX = Math.round(focus.x / SNAP) * SNAP;
   const snapZ = Math.round(focus.z / SNAP) * SNAP;
   const lakes = useMemo(() => computeNearbyLakes(snapX, snapZ, LAKE_STREAM_RADIUS), [snapX, snapZ]);
 
   useFrame(({ clock }) => {
-    materialRef.current.uniforms.uTime.value = clock.elapsedTime;
+    material.uniforms.uTime.value = clock.elapsedTime;
   });
 
   return (
@@ -43,11 +46,10 @@ export function LakeWaters({ focus }: { focus: { x: number; z: number } }) {
           key={`${lake.x.toFixed(0)}:${lake.z.toFixed(0)}`}
           position={[lake.x, LAKE_WATER_Y, lake.z]}
           rotation={[-Math.PI / 2, 0, 0]}
+          geometry={geometry}
           material={material}
           raycast={() => null}
-        >
-          <circleGeometry args={[LAKE_DISC_RADIUS, 48]} />
-        </mesh>
+        />
       ))}
     </group>
   );
