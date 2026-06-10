@@ -111,7 +111,13 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {/* Medium/high carry the relief to ±4 km with the horizon shell, so fog
           sits far out and mountains read as a hazy vista; low keeps the close
           frontier-hiding fog (no shell → nothing past 1 km to show). */}
-      <WorldEnvironment focus={focus} fog={worldArtQuality === 'low' ? undefined : VISTA_FOG} onSunMesh={handleSunMesh} />
+      {/* onSunMesh only when the composer will mount — low tier has no postFX,
+          so skip the state update (and its full re-render) entirely. */}
+      <WorldEnvironment
+        focus={focus}
+        fog={worldArtQuality === 'low' ? undefined : VISTA_FOG}
+        onSunMesh={worldArtQuality === 'low' ? undefined : handleSunMesh}
+      />
       {worldArtQuality !== 'low' && <HorizonTerrainShell focus={focus} />}
       <WorldFoliage focus={focus} quality={worldArtQuality} />
       {worldArtQuality !== 'low' && <WorldShaderGrass focus={focus} quality={worldArtQuality} />}

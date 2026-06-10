@@ -44,7 +44,7 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
           Subtle weight/exposure: shafts read through trees and over ridges at
           low sun without washing out midday. Below the horizon the disc is
           fully occluded → the rays vanish on their own at night. */}
-      {sunMesh ? (
+      {sunMesh && (
         <GodRays
           sun={sunMesh}
           samples={high ? 56 : 32}
@@ -55,8 +55,6 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
           clampMax={0.95}
           blur
         />
-      ) : (
-        <></>
       )}
       <Bloom
         intensity={high ? 0.62 : 0.42}
