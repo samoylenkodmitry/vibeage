@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldLandmark } from '../../../../packages/content/worldFeatures';
@@ -28,7 +28,7 @@ function useSettlementTextures() {
     '/textures/castle_stone_color.jpg',
     '/textures/dirt_ground_color.jpg',
   ]);
-  return useMemo(() => {
+  const textures = useMemo(() => {
     for (const t of [timber, shingles, stone, dirt]) {
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = THREE.RepeatWrapping;
@@ -42,6 +42,14 @@ function useSettlementTextures() {
     plazaDirt.repeat.set(12, 12);
     return { timber, shingles, stone, castleWall, plazaDirt };
   }, [timber, shingles, stone, dirt]);
+  // The clones are OURS to free (useLoader caches and owns the originals);
+  // settlements mount/unmount as the player walks in and out of landmark
+  // range, so an undisposed clone leaks GPU memory on every visit.
+  useEffect(() => () => {
+    textures.castleWall.dispose();
+    textures.plazaDirt.dispose();
+  }, [textures]);
+  return textures;
 }
 
 /**

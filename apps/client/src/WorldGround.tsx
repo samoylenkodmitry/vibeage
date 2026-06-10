@@ -399,14 +399,15 @@ function TexturedTerrainMaterial({ palette }: { palette: TerrainPalette }) {
   const tex = useTerrainTextures();
   // Vertex colors stay on so biome tinting and slope shading
   // still read through the base texture.
-  const map = {
+  const maps: Record<TerrainPalette, THREE.Texture> = {
     sand: tex.sandColor,
     grass: tex.grassColor,
     forest: tex.forestColor,
     rock: tex.rockColor,
     ash: tex.ashColor,
     snow: tex.snowColor,
-  }[palette];
+  };
+  const map = maps[palette];
   // Only the PBR pairs ship normal maps; the painterly set is colour-only.
   const normalMap = palette === 'sand' ? tex.sandNormal : palette === 'grass' ? tex.grassNormal : undefined;
   return (
