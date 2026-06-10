@@ -431,6 +431,46 @@ const HOUSE_ROOF_COLORS = ['#a0522d', '#8c4a2f', '#7d5a3c', '#9b6b43'];
  * TOWN_PLATEAUS flat disc (terrain.ts) and the grass density bake clears the
  * plaza, so houses stand level on trodden ground.
  */
+type TownHouseSpec = {
+  x: number; z: number; w: number; d: number; h: number;
+  yaw: number; twoStory: boolean; chimneySide: number; wall: string; roof: string;
+};
+
+function TownHouse({ house, fog }: { house: TownHouseSpec; fog: boolean }) {
+  const bodyH = house.twoStory ? house.h * 1.7 : house.h;
+  return (
+    <group position={[house.x, 0, house.z]} rotation={[0, house.yaw, 0]}>
+      {/* walls */}
+      <mesh position={[0, bodyH / 2, 0]} castShadow>
+        <boxGeometry args={[house.w, bodyH, house.d]} />
+        <meshStandardMaterial color={house.wall} roughness={0.85} fog={fog} />
+      </mesh>
+      {/* roof: 4-sided cone rotated 45° = pyramid with a visible overhang */}
+      <mesh position={[0, bodyH + house.h * 0.4, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[Math.hypot(house.w, house.d) * 0.62, house.h * 0.85, 4]} />
+        <meshStandardMaterial color={house.roof} roughness={0.8} fog={fog} />
+      </mesh>
+      {/* door on the square-facing side */}
+      <mesh position={[0, 1.1, house.d / 2 + 0.04]}>
+        <boxGeometry args={[1.3, 2.2, 0.12]} />
+        <meshStandardMaterial color="#4a3622" roughness={0.9} fog={fog} />
+      </mesh>
+      {/* warm windows (emissive, so the town glows at night) */}
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * house.w * 0.28, bodyH * 0.55, house.d / 2 + 0.04]}>
+          <boxGeometry args={[0.9, 0.9, 0.1]} />
+          <meshStandardMaterial color="#ffd98c" emissive="#ffb84d" emissiveIntensity={0.85} roughness={0.4} fog={fog} />
+        </mesh>
+      ))}
+      {/* chimney */}
+      <mesh position={[house.chimneySide * house.w * 0.3, bodyH + house.h * 0.55, -house.d * 0.2]} castShadow>
+        <boxGeometry args={[0.8, house.h * 0.7, 0.8]} />
+        <meshStandardMaterial color="#6f6258" roughness={0.92} fog={fog} />
+      </mesh>
+    </group>
+  );
+}
+
 function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: boolean }) {
   const town = useMemo(() => {
     const random = seededRandom(Math.round(landmark.position.x), Math.round(landmark.position.z));
@@ -475,42 +515,9 @@ function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: boolean
         <circleGeometry args={[landmark.radius * 1.02, 40]} />
         <meshStandardMaterial color="#7c6a50" roughness={0.98} transparent opacity={0.62} depthWrite={false} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} fog={fog} />
       </mesh>
-      {town.houses.map((house, i) => {
-        const bodyH = house.twoStory ? house.h * 1.7 : house.h;
-        return (
-          <group key={i} position={[house.x, 0, house.z]} rotation={[0, house.yaw, 0]}>
-            {/* walls */}
-            <mesh position={[0, bodyH / 2, 0]} castShadow>
-              <boxGeometry args={[house.w, bodyH, house.d]} />
-              <meshStandardMaterial color={house.wall} roughness={0.85} fog={fog} />
-            </mesh>
-            {/* roof: 4-sided cone rotated 45° = pyramid with a visible overhang */}
-            <mesh position={[0, bodyH + house.h * 0.4, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-              <coneGeometry args={[Math.hypot(house.w, house.d) * 0.62, house.h * 0.85, 4]} />
-              <meshStandardMaterial color={house.roof} roughness={0.8} fog={fog} />
-            </mesh>
-            {/* door on the square-facing side */}
-            <mesh position={[0, 1.1, house.d / 2 + 0.04]}>
-              <boxGeometry args={[1.3, 2.2, 0.12]} />
-              <meshStandardMaterial color="#4a3622" roughness={0.9} fog={fog} />
-            </mesh>
-            {/* warm windows (emissive, so the town glows at night) */}
-            <mesh position={[-house.w * 0.28, bodyH * 0.55, house.d / 2 + 0.04]}>
-              <boxGeometry args={[0.9, 0.9, 0.1]} />
-              <meshStandardMaterial color="#ffd98c" emissive="#ffb84d" emissiveIntensity={0.85} roughness={0.4} fog={fog} />
-            </mesh>
-            <mesh position={[house.w * 0.28, bodyH * 0.55, house.d / 2 + 0.04]}>
-              <boxGeometry args={[0.9, 0.9, 0.1]} />
-              <meshStandardMaterial color="#ffd98c" emissive="#ffb84d" emissiveIntensity={0.85} roughness={0.4} fog={fog} />
-            </mesh>
-            {/* chimney */}
-            <mesh position={[house.chimneySide * house.w * 0.3, bodyH + house.h * 0.55, -house.d * 0.2]} castShadow>
-              <boxGeometry args={[0.8, house.h * 0.7, 0.8]} />
-              <meshStandardMaterial color="#6f6258" roughness={0.92} fog={fog} />
-            </mesh>
-          </group>
-        );
-      })}
+      {town.houses.map((house, i) => (
+        <TownHouse key={i} house={house} fog={fog} />
+      ))}
       {/* central well */}
       <mesh position={[0, 0.7, 0]} castShadow>
         <cylinderGeometry args={[1.6, 1.8, 1.4, 10]} />
