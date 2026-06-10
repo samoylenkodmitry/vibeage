@@ -4,7 +4,8 @@ import { InstancedGltf } from './world-art/InstancedGltf';
 import type { WorldArtQuality } from './world-art/quality';
 import {
   scatterChunkFoliage, splitByParity, foliageChunkOf, visibleFoliageChunks, FOLIAGE_CHUNK_SIZE,
-  BROADLEAF_GLB, CONIFER_GLB, TREE_GLB_ALT, ACCENT_GLB_SMALL, ACCENT_GLB_MEDIUM, TREE_WIND,
+  BROADLEAF_GLB, CONIFER_GLB, TREE_GLB_ALT, ACCENT_GLB_SMALL, ACCENT_GLB_MEDIUM, BUSH_GLB, TREE_WIND, BUSH_WIND,
+  instanceMatrix, instanceColor,
 } from './world-art/foliageScatter';
 
 /**
@@ -44,13 +45,18 @@ export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldA
 }
 
 const FoliageChunk = memo(function FoliageChunk({ originX, originZ }: { originX: number; originZ: number }) {
-  const { trees, conifers, accents } = useMemo(
+  const { trees, conifers, accents, bushes } = useMemo(
     () => scatterChunkFoliage(originX, originZ, CHUNK, false),
     [originX, originZ],
   );
   const t = useMemo(() => splitByParity(trees), [trees]);
   const co = useMemo(() => splitByParity(conifers), [conifers]);
   const ac = useMemo(() => splitByParity(accents), [accents]);
+  // Bushes are one model — no parity split, just matrices + tints.
+  const bu = useMemo(() => ({
+    matrices: bushes.map(instanceMatrix),
+    colors: bushes.map(instanceColor),
+  }), [bushes]);
   return (
     <Suspense fallback={null}>
       {t.evenMatrices.length > 0 && <InstancedGltf src={BROADLEAF_GLB} matrices={t.evenMatrices} colors={t.evenColors} baseScale={1.4} wind={TREE_WIND} />}
@@ -59,6 +65,7 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ }: { originX:
       {co.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.6} wind={TREE_WIND} />}
       {ac.evenMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />}
       {ac.oddMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={ac.oddMatrices} colors={ac.oddColors} baseScale={0.6} />}
+      {bu.matrices.length > 0 && <InstancedGltf src={BUSH_GLB} matrices={bu.matrices} colors={bu.colors} baseScale={1.0} wind={BUSH_WIND} />}
     </Suspense>
   );
 });

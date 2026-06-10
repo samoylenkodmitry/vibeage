@@ -53,22 +53,34 @@ export function visibleFoliageChunks(centerCx: number, centerCz: number, radius:
 }
 // Trim raw biome densities so a uniform (no-falloff) field doesn't over-
 // populate vs the old falloff-thinned window. Tune here if too sparse/dense.
-const TREE_DENSITY_SCALE = 0.7;
+// Two tree slots per cell (A slightly likelier than B) ≈ 1.6× the old single
+// roll, and B landing near A reads as natural clustering instead of an even
+// sprinkle — forests become forests, not savanna.
+const TREE_DENSITY_SCALE_A = 0.55;
+const TREE_DENSITY_SCALE_B = 0.45;
 const GRASS_DENSITY_SCALE = 0.8;
 const ROCK_DENSITY_SCALE = 0.08;
+// Understory: bushes fill the gap between blade-grass and trees. Weighted by
+// both tree and grass density so forests get thick undergrowth and meadows
+// get scattered shrubs; bare biomes (volcanic) get none.
+const BUSH_TREE_WEIGHT = 0.55;
+const BUSH_GRASS_WEIGHT = 0.3;
 
 export const BROADLEAF_GLB = '/models/trees/pine_b.glb';
 export const CONIFER_GLB = '/models/trees/pine_a.glb';
 export const TREE_GLB_ALT = '/models/trees/pine_c.glb';
 export const ACCENT_GLB_SMALL = '/models/rocks/rock_round_small.glb';
 export const ACCENT_GLB_MEDIUM = '/models/rocks/rock_medium_a.glb';
+export const BUSH_GLB = '/models/foliage/grass_tuft.glb';
 export const TREE_WIND = { amplitude: 0.14, speed: 0.85 } as const;
+export const BUSH_WIND = { amplitude: 0.08, speed: 1.1 } as const;
 
 export type ChunkFoliage = {
   trees: FoliageInstance[];
   conifers: FoliageInstance[];
   grass: FoliageInstance[];
   accents: FoliageInstance[];
+  bushes: FoliageInstance[];
 };
 
 /**
@@ -82,6 +94,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
   const conifers: FoliageInstance[] = [];
   const grass: FoliageInstance[] = [];
   const accents: FoliageInstance[] = [];
+  const bushes: FoliageInstance[] = [];
   const cell = FOLIAGE_CELL_SIZE;
   const cell0X = Math.floor(originX / cell);
   const cell0Z = Math.floor(originZ / cell);
@@ -97,14 +110,35 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
       const sample = sampleTerrain(x, z);
       const coniferShare = getConiferShare(sample.biome);
 
-      if (random() < sample.treeDensity * TREE_DENSITY_SCALE) {
+      const pushTree = (tx: number, tz: number, height: number) => {
         const isConifer = random() < coniferShare;
         (isConifer ? conifers : trees).push({
-          x, y: sample.height, z,
-          scale: isConifer ? 0.78 + random() * 0.78 : 0.72 + random() * 0.92,
+          x: tx, y: height, z: tz,
+          scale: isConifer ? 0.72 + random() * 0.95 : 0.65 + random() * 1.1,
           rotation: random() * Math.PI * 2,
-          color: isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor,
+          color: jitterFoliageColor(isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor, random),
         });
+      };
+      if (random() < sample.treeDensity * TREE_DENSITY_SCALE_A) {
+        pushTree(x, z, sample.height);
+      }
+      // Second slot lands near the first → pairs/clumps, like real stands.
+      const bx = x + (random() - 0.5) * cell * 0.8;
+      const bz = z + (random() - 0.5) * cell * 0.8;
+      if (random() < sample.treeDensity * TREE_DENSITY_SCALE_B) {
+        pushTree(bx, bz, sampleTerrain(bx, bz).height);
+      }
+      const bushChance = sample.treeDensity * BUSH_TREE_WEIGHT + sample.grassDensity * BUSH_GRASS_WEIGHT;
+      for (let slot = 0; slot < 2; slot += 1) {
+        if (random() < bushChance) {
+          const ux = x + (random() - 0.5) * cell * 0.9;
+          const uz = z + (random() - 0.5) * cell * 0.9;
+          bushes.push({
+            x: ux, y: sampleTerrain(ux, uz).height, z: uz,
+            scale: 1.5 + random() * 1.6, rotation: random() * Math.PI * 2,
+            color: jitterFoliageColor(darkenForConifer(sample.foliageColor), random),
+          });
+        }
       }
       if (grassOn && random() < sample.grassDensity * GRASS_DENSITY_SCALE) {
         grass.push({
@@ -120,7 +154,23 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
       }
     }
   }
-  return { trees, conifers, grass, accents };
+  return { trees, conifers, grass, accents, bushes };
+}
+
+/**
+ * Per-instance tint variation so a forest isn't a wall of one green. The
+ * jitter is QUANTIZED (5 lightness steps × 3 warmth steps) so the resulting
+ * hex strings stay bounded for the instanceColor cache.
+ */
+function jitterFoliageColor(hex: string, random: () => number): string {
+  const value = parseInt(hex.startsWith('#') ? hex.slice(1) : hex, 16);
+  const light = 0.86 + Math.floor(random() * 5) * 0.07;  // 0.86 .. 1.14
+  const warm = (Math.floor(random() * 3) - 1) * 0.06;    // -0.06, 0, +0.06
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  const r = clamp(((value >> 16) & 0xff) * (light + warm));
+  const g = clamp(((value >> 8) & 0xff) * light);
+  const b = clamp((value & 0xff) * (light - warm));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
 /** Split instances into two GLB pools by a POSITION-stable parity bit so a

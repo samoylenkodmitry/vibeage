@@ -118,3 +118,20 @@ describe('foliage chunk streaming window', () => {
     expect(R * FOLIAGE_CHUNK_SIZE).toBeGreaterThanOrEqual(960);
   });
 });
+
+describe('foliage richness (L2/Crysis overhaul)', () => {
+  it('grows a bush understory in vegetated areas', () => {
+    // Bushes fill the layer between blade-grass and trees; a vegetated
+    // region must produce a meaningful number per chunk.
+    const f = scatterChunkFoliage(2048, 2048, FOLIAGE_CHUNK_SIZE, false);
+    expect(f.bushes.length).toBeGreaterThan(10);
+    // Determinism holds for the new layer too.
+    expect(scatterChunkFoliage(2048, 2048, FOLIAGE_CHUNK_SIZE, false).bushes).toEqual(f.bushes);
+  });
+
+  it('varies tree tints (no wall-of-one-green forests)', () => {
+    const f = scatterChunkFoliage(2048, 2048, FOLIAGE_CHUNK_SIZE, false);
+    const colors = new Set([...f.trees, ...f.conifers].map((t) => t.color));
+    expect(colors.size).toBeGreaterThan(1);
+  });
+});
