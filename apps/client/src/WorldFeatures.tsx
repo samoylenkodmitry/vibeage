@@ -1,5 +1,5 @@
-import { Suspense, useMemo } from 'react';
-import { useLoader } from '@react-three/fiber';
+import { Suspense, useEffect, useMemo } from 'react';
+import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js';
 import { sampleTerrain } from '../../../packages/content/terrain';
@@ -24,6 +24,12 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
     lanes: ALL_TRAVEL_LANE_SEGMENTS.filter((segment) => isSegmentNearFocus(segment, focus)),
     landmarks: WORLD_LANDMARKS.filter((landmark) => isLandmarkNearFocus(landmark, focus)),
   }), [focus.x, focus.z]);
+  // One animated material shared by every river slab; ticked once here.
+  const riverMaterial = useMemo(() => makeRiverMaterial(), []);
+  useEffect(() => () => riverMaterial.dispose(), [riverMaterial]);
+  useFrame(({ clock }) => {
+    riverMaterial.uniforms.uTime.value = clock.elapsedTime;
+  });
 
   return (
     <group>
@@ -32,6 +38,7 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
           key={`${segment.lane.id}:${segment.from.x}:${segment.from.z}`}
           segment={segment}
           focus={focus}
+          riverMaterial={riverMaterial}
         />
       ))}
       {visibleFeatures.landmarks.map((landmark) => (
@@ -41,12 +48,13 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
   );
 }
 
-function TravelLaneMesh({ segment, focus }: { segment: TravelLaneSegment; focus: Vec3D }) {
+function TravelLaneMesh({ segment, focus, riverMaterial }: { segment: TravelLaneSegment; focus: Vec3D; riverMaterial: THREE.ShaderMaterial }) {
   const color = getLaneColor(segment.lane);
   const slabs = useMemo(
     () => buildVisibleLaneSlabs(segment, focus),
     [segment, focus.x, focus.z],
   );
+  const river = segment.lane.kind === 'river';
 
   return (
     <group>
@@ -55,24 +63,77 @@ function TravelLaneMesh({ segment, focus }: { segment: TravelLaneSegment; focus:
           key={index}
           position={[slab.x, slab.y, slab.z]}
           rotation={[-Math.PI / 2, 0, slab.rotY]}
-          receiveShadow
+          receiveShadow={!river}
+          material={river ? riverMaterial : undefined}
         >
           <planeGeometry args={[segment.lane.width, slab.length]} />
-          <meshStandardMaterial
-            color={color}
-            roughness={0.96}
-            metalness={0.01}
-            transparent
-            opacity={0.78}
-            polygonOffset
-            polygonOffsetFactor={-2}
-            polygonOffsetUnits={-2}
-            side={THREE.DoubleSide}
-          />
+          {!river && (
+            <meshStandardMaterial
+              color={color}
+              roughness={0.96}
+              metalness={0.01}
+              transparent
+              opacity={0.78}
+              polygonOffset
+              polygonOffsetFactor={-2}
+              polygonOffsetUnits={-2}
+              side={THREE.DoubleSide}
+            />
+          )}
         </mesh>
       ))}
     </group>
   );
+}
+
+/**
+ * Living river water — replaces the flat blue slab the 'river' travel lane
+ * used to render. Shared by all river slabs (one uTime tick in
+ * WorldFeatures): flowing ripple bands drift along the slab's length in
+ * world units (vLocal.y is metres along the lane regardless of slab length),
+ * with a shimmering sparkle and a brighter mid-stream. Depth-tested against
+ * terrain like the lakes; polygon offset keeps it floating over the ground
+ * the way the old slab did.
+ */
+function makeRiverMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+    side: THREE.DoubleSide,
+    uniforms: {
+      uTime: { value: 0 },
+      uDeep: { value: new THREE.Color('#1d5b7c') },
+      uShallow: { value: new THREE.Color('#4fc3e8') },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vLocal;   // x: metres across the lane, y: metres along it
+      void main() {
+        vLocal = position.xy;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec2 vLocal;
+      uniform float uTime;
+      uniform vec3 uDeep;
+      uniform vec3 uShallow;
+      void main() {
+        // Downstream-drifting ripple bands + a cross shimmer.
+        float flow = sin(vLocal.y * 0.55 - uTime * 2.4) * 0.5
+                   + sin(vLocal.y * 1.7 - uTime * 3.6 + vLocal.x * 0.8) * 0.5;
+        vec3 color = mix(uDeep, uShallow, 0.45 + flow * 0.25);
+        // Brighter, more opaque mid-stream; soft edges toward the banks.
+        // 9.0 = half of the Silverwood River's 18 m lane width (the only
+        // river lane); widen if a broader river is ever authored.
+        float edge = smoothstep(1.0, 0.35, abs(vLocal.x) / 9.0);
+        color += vec3(0.06) * edge;
+        gl_FragColor = vec4(color, mix(0.45, 0.82, edge));
+      }
+    `,
+  });
 }
 
 function buildVisibleLaneSlabs(
