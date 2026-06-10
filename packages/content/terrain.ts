@@ -169,13 +169,46 @@ function rgbHex(r: number, g: number, b: number): string {
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 
+/**
+ * World relief. Purely cosmetic — the server never reads height; entities,
+ * camera, VFX, foliage, landmarks and the grass shader all derive their Y
+ * from this one function, so reshaping it reshapes the whole world
+ * consistently. MUST stay in sync with the GLSL port `terrainH()` in
+ * `apps/client/src/WorldShaderGrass.tsx` (the grass evaluates it per blade
+ * on the GPU) — change both together or blades float/sink.
+ *
+ * Composition (everything sin/cos so the GLSL mirror is exact):
+ * - rolling hills: three octaves, ~700 m / ~350 m / ~125 m wavelengths, so
+ *   meadows roll like L2's plains instead of reading as a billiard table;
+ * - mountain ridges: sharpened crests (1-|sin|)² with a slow phase warp so
+ *   ridgelines bend naturally, gated by a ~4 km mask field so distinct
+ *   mountainous belts rise between rolling regions;
+ * - valleys: broad gated dips below the base level for river-valley relief.
+ *
+ * The cozy coast's authored waterline reaches ~410 m from origin (corners of
+ * the water plane), so the spawn flat zone extends past it — relief ramps in
+ * from 430 m and is full strength by 900 m. Slopes peak around 25 % on ridge
+ * flanks: dramatic on screen, still smooth across the 256 m / 24-segment
+ * terrain mesh (~10.7 m per quad).
+ */
 export function getTerrainHeight(x: number, z: number): number {
   const distanceFromSpawn = Math.hypot(x, z);
-  const spawnFade = smoothstep(80, 520, distanceFromSpawn);
-  const broad = Math.sin(x * 0.0017 + z * 0.0009) * 10;
-  const ridges = Math.sin((x - z) * 0.0042) * Math.cos((x + z) * 0.0024) * 5;
+  const spawnFade = smoothstep(430, 900, distanceFromSpawn);
+
+  const hills =
+    Math.sin(x * 0.009 + z * 0.006) * 9 +
+    Math.sin(x * 0.0042 - z * 0.0051 + 1.7) * 14 +
+    Math.sin((x + z) * 0.017 + 0.6) * 2.5;
+
+  const ridgePhase = x * 0.0014 + z * 0.0011 + Math.sin(z * 0.0008 - x * 0.0005) * 1.4;
+  const ridgeShape = 1 - Math.abs(Math.sin(ridgePhase));
+  const mountainMask = smoothstep(0.3, 0.8, Math.sin(x * 0.00093 + 1.3) * Math.cos(z * 0.00078 - 0.7));
+  const mountains = ridgeShape * ridgeShape * 48 * mountainMask;
+
+  const valleys = -smoothstep(0.55, 0.95, Math.sin(x * 0.0011 - 0.4) * Math.sin(z * 0.0013 + 2.0)) * 16;
+
   const farRelief = Math.sin(distanceFromSpawn * 0.00016) * 18 * smoothstep(12_000, 90_000, distanceFromSpawn);
-  return (broad + ridges) * spawnFade + farRelief;
+  return (hills + mountains + valleys) * spawnFade + farRelief;
 }
 
 export function getTerrainBiome(x: number, z: number): TerrainBiome {

@@ -93,13 +93,21 @@ const VERT = /* glsl */`
   varying vec3 vColor;
   varying float vViewZ;
 
+  // EXACT mirror of getTerrainHeight (packages/content/terrain.ts) — change
+  // both together or blades float/sink against the ground mesh.
   float terrainH(vec2 p){
     float d = length(p);
-    float spawnFade = smoothstep(80.0, 520.0, d);
-    float broad  = sin(p.x*0.0017 + p.y*0.0009)*10.0;
-    float ridges = sin((p.x-p.y)*0.0042)*cos((p.x+p.y)*0.0024)*5.0;
-    float far    = sin(d*0.00016)*18.0*smoothstep(12000.0,90000.0,d);
-    return (broad+ridges)*spawnFade + far;
+    float spawnFade = smoothstep(430.0, 900.0, d);
+    float hills = sin(p.x*0.009 + p.y*0.006)*9.0
+                + sin(p.x*0.0042 - p.y*0.0051 + 1.7)*14.0
+                + sin((p.x+p.y)*0.017 + 0.6)*2.5;
+    float ridgePhase = p.x*0.0014 + p.y*0.0011 + sin(p.y*0.0008 - p.x*0.0005)*1.4;
+    float ridgeShape = 1.0 - abs(sin(ridgePhase));
+    float mountainMask = smoothstep(0.3, 0.8, sin(p.x*0.00093 + 1.3)*cos(p.y*0.00078 - 0.7));
+    float mountains = ridgeShape*ridgeShape*48.0*mountainMask;
+    float valleys = -smoothstep(0.55, 0.95, sin(p.x*0.0011 - 0.4)*sin(p.y*0.0013 + 2.0))*16.0;
+    float far = sin(d*0.00016)*18.0*smoothstep(12000.0,90000.0,d);
+    return (hills + mountains + valleys)*spawnFade + far;
   }
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
