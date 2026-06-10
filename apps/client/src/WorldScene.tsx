@@ -13,6 +13,7 @@ import { CameraRig, type CameraControls } from './CameraRig';
 import { CozyWorldArt } from './world-art/CozyWorldArt';
 import { chooseWorldArtQuality } from './world-art/quality';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
+import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 
 // Sand only hugs the coast waterline; the meadow inland stays grass. A
@@ -23,6 +24,11 @@ const STARTER_COAST_SAND = {
   z: STARTER_COZY_COAST.waterline.z,
   radius: 150,
 } as const;
+
+// Fog range when the HorizonTerrainShell carries the ground to ±4 km
+// (medium/high tiers): far enough that mountain ridges read as a vista,
+// near enough that the 960 m foliage frontier still mounts inside haze.
+const VISTA_FOG = { near: 500, far: 2600 } as const;
 import {
   CastMarker,
   EnemyMarker,
@@ -95,7 +101,11 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <Preload all />
       <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
-      <WorldEnvironment focus={focus} />
+      {/* Medium/high carry the relief to ±4 km with the horizon shell, so fog
+          sits far out and mountains read as a hazy vista; low keeps the close
+          frontier-hiding fog (no shell → nothing past 1 km to show). */}
+      <WorldEnvironment focus={focus} fog={worldArtQuality === 'low' ? undefined : VISTA_FOG} />
+      {worldArtQuality !== 'low' && <HorizonTerrainShell focus={focus} />}
       <WorldFoliage focus={focus} quality={worldArtQuality} />
       {worldArtQuality !== 'low' && <WorldShaderGrass focus={focus} quality={worldArtQuality} />}
       {/* Water is anchored to the starter coast waterline (visible from inland);

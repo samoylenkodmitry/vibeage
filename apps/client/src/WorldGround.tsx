@@ -492,6 +492,8 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
   return geometry;
 }
 
-function heightTint(height: number): number {
+// Exported so HorizonTerrainShell tints its far vertices the same way the
+// near chunks do — the shell must read as the same ground, just hazier.
+export function heightTint(height: number): number {
   return Math.max(0, Math.min(0.34, (height + 14) / 120));
 }
