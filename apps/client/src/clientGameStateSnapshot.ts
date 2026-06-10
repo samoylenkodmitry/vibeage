@@ -57,9 +57,24 @@ function healDegradedSelfSnapshot(
   const id = state.myPlayerId;
   if (!id) return players;
   const incoming = players[id];
-  const previous = state.players[id];
-  if (!incoming || !previous || incoming.unlockedSkills !== undefined) return players;
-  return { ...players, [id]: { ...previous, ...incoming } };
+  if (!incoming || incoming.unlockedSkills !== undefined) return players;
+  // Defaults under previous under incoming: the race can hit the very FIRST
+  // gameState after welcome (no previous self), so the required owner-only
+  // fields still get safe values instead of undefined — HUD/XP/skill
+  // consumers can't crash while waiting for the owner-shaped snapshot.
+  const defaults: Pick<
+    PlayerEntity,
+    'unlockedSkills' | 'availableSkillPoints' | 'experience' | 'experienceToNextLevel' | 'skillCooldownEndTs' | 'castingSkill' | 'castingProgressMs'
+  > = {
+    unlockedSkills: [],
+    availableSkillPoints: 0,
+    experience: 0,
+    experienceToNextLevel: 100,
+    skillCooldownEndTs: {},
+    castingSkill: null,
+    castingProgressMs: 0,
+  };
+  return { ...players, [id]: { ...defaults, ...state.players[id], ...incoming } };
 }
 
 function deriveStreamedRegionIds(

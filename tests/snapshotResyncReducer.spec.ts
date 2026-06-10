@@ -234,4 +234,24 @@ describe('gameClientReducer — snapshot resync, region + identity', () => {
     expect(after.players[ME].level).toBe(8); // fresh public field kept
     expect(after.players[ME].skillLevels).toEqual({});
   });
+
+  it('a degraded self snapshot with NO previous self falls back to safe defaults', () => {
+    // The race can hit the very first gameState after welcome — there is no
+    // previous self to heal from, so required owner fields get safe defaults.
+    const before: GameClientState = {
+      ...initialGameClientState,
+      myPlayerId: ME,
+      connectionState: 'online' as const,
+      players: {},
+    };
+    const publicSelf = makePlayer(ME, { level: 5 });
+    delete (publicSelf as Record<string, unknown>).unlockedSkills;
+
+    const after = dispatchSnapshot(before, { players: { [ME]: publicSelf }, enemies: {} });
+
+    expect(after.players[ME].unlockedSkills).toEqual([]);
+    expect(after.players[ME].skillCooldownEndTs).toEqual({});
+    expect(after.players[ME].castingSkill).toBeNull();
+    expect(after.players[ME].level).toBe(5);
+  });
 });
