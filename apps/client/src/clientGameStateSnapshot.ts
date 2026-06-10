@@ -9,7 +9,7 @@ import { normalizeClientStarterProgress } from './starterProgress';
 import { normalizeVec3 } from './vec3';
 
 export function applyGameStateSnapshot(state: GameClientState, serverState: ServerGameState): GameClientState {
-  const players = serverState.players ?? {};
+  const players = healDegradedSelfSnapshot(state, serverState.players ?? {});
   const enemies = serverState.enemies ?? {};
   const selectedTargetId = enemies[state.selectedTargetId ?? ''] ? state.selectedTargetId : null;
   const inventory = state.myPlayerId ? players[state.myPlayerId]?.inventory ?? state.inventory : state.inventory;
@@ -36,6 +36,30 @@ export function applyGameStateSnapshot(state: GameClientState, serverState: Serv
     starterProgress,
     streamedRegionIds,
   };
+}
+
+/**
+ * During a relogin race the server can briefly snapshot YOUR OWN player
+ * through the public-player filter (self is matched by socketId in
+ * makeClientPlayersSnapshot; a lingering zombie session still owns the player
+ * until the takeover lands), so owner-only fields — unlockedSkills,
+ * skillLevels, inventory, questState, … — vanish from one snapshot. That
+ * crashed the whole client (unlockedSkills.length in starterProgress, plus
+ * every HUD panel that reads owner fields). Heal it: keep the incoming public
+ * fields (position/health/etc. are fresh) and fill the missing owner-only
+ * fields from the previous snapshot of self; the next owner-shaped snapshot
+ * overwrites everything anyway.
+ */
+function healDegradedSelfSnapshot(
+  state: GameClientState,
+  players: Record<string, PlayerEntity>,
+): Record<string, PlayerEntity> {
+  const id = state.myPlayerId;
+  if (!id) return players;
+  const incoming = players[id];
+  const previous = state.players[id];
+  if (!incoming || !previous || incoming.unlockedSkills !== undefined) return players;
+  return { ...players, [id]: { ...previous, ...incoming } };
 }
 
 function deriveStreamedRegionIds(
