@@ -65,6 +65,9 @@ const ROCK_DENSITY_SCALE = 0.08;
 // get scattered shrubs; bare biomes (volcanic) get none.
 const BUSH_TREE_WEIGHT = 0.55;
 const BUSH_GRASS_WEIGHT = 0.3;
+// Nothing grows below the lake waterline (LAKE_WATER_Y -4, with a margin):
+// lakebeds stay bare instead of growing drowned pines.
+const DRY_MIN_Y = -3.5;
 
 export const BROADLEAF_GLB = '/models/trees/pine_b.glb';
 export const CONIFER_GLB = '/models/trees/pine_a.glb';
@@ -111,13 +114,18 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
       const coniferShare = getConiferShare(sample.biome);
 
       const pushTree = (tx: number, tz: number, height: number) => {
+        // Consume the slot's randoms BEFORE the guard so a skipped (underwater)
+        // slot advances the PRNG identically — neighbouring slots in the cell
+        // keep the exact same values whether or not this one was dropped.
         const isConifer = random() < coniferShare;
-        (isConifer ? conifers : trees).push({
+        const inst = {
           x: tx, y: height, z: tz,
           scale: isConifer ? 0.72 + random() * 0.95 : 0.65 + random() * 1.1,
           rotation: random() * Math.PI * 2,
           color: jitterFoliageColor(isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor, random),
-        });
+        };
+        if (height < DRY_MIN_Y) return; // lakebed — no trees under water
+        (isConifer ? conifers : trees).push(inst);
       };
       if (random() < sample.treeDensity * TREE_DENSITY_SCALE_A) {
         pushTree(x, z, sample.height);
@@ -133,20 +141,24 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
         if (random() < bushChance) {
           const ux = x + (random() - 0.5) * cell * 0.9;
           const uz = z + (random() - 0.5) * cell * 0.9;
-          bushes.push({
-            x: ux, y: sampleTerrain(ux, uz).height, z: uz,
+          const uy = sampleTerrain(ux, uz).height;
+          // Consume-then-guard, same PRNG discipline as pushTree.
+          const inst = {
+            x: ux, y: uy, z: uz,
             scale: 1.5 + random() * 1.6, rotation: random() * Math.PI * 2,
             color: jitterFoliageColor(darkenForConifer(sample.foliageColor), random),
-          });
+          };
+          if (uy < DRY_MIN_Y) continue;
+          bushes.push(inst);
         }
       }
-      if (grassOn && random() < sample.grassDensity * GRASS_DENSITY_SCALE) {
+      if (grassOn && sample.height >= DRY_MIN_Y && random() < sample.grassDensity * GRASS_DENSITY_SCALE) {
         grass.push({
           x: x + (random() - 0.5) * cell * 0.5, y: sample.height, z: z + (random() - 0.5) * cell * 0.5,
           scale: 0.7 + random() * 0.8, rotation: random() * Math.PI * 2, color: sample.foliageColor,
         });
       }
-      if (random() < sample.roughness * ROCK_DENSITY_SCALE) {
+      if (sample.height >= DRY_MIN_Y && random() < sample.roughness * ROCK_DENSITY_SCALE) {
         accents.push({
           x: x + (random() - 0.5) * cell * 0.34, y: sample.height, z: z + (random() - 0.5) * cell * 0.34,
           scale: 0.45 + random() * 0.9, rotation: random() * Math.PI * 2, color: sample.accentColor,

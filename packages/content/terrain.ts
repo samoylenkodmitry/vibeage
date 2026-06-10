@@ -183,14 +183,34 @@ function rgbHex(r: number, g: number, b: number): string {
  * - mountain ridges: sharpened crests (1-|sin|)² with a slow phase warp so
  *   ridgelines bend naturally, gated by a ~4 km mask field so distinct
  *   mountainous belts rise between rolling regions;
- * - valleys: broad gated dips below the base level for river-valley relief.
+ * - valleys: broad gated dips below the base level for river-valley relief;
+ * - canyons: winding dry gorges (~300 m wide, ~55 m deep) carved where a
+ *   meandering path field crosses zero, gated to canyon regions;
+ * - lakes: terrain eases toward a fixed bed level (LAKE_BED_Y) inside small
+ *   round masks at the peaks of a slow lattice field — the fixed bed makes a
+ *   fixed water level (LAKE_WATER_Y) work everywhere: the shore is wherever
+ *   the blend crosses the waterline, and the oversized water disc hides
+ *   under the terrain beyond it (see computeNearbyLakes + LakeWaters).
  *
  * The cozy coast's authored waterline reaches ~410 m from origin (corners of
  * the water plane), so the spawn flat zone extends past it — relief ramps in
- * from 430 m and is full strength by 900 m. Slopes peak around 25 % on ridge
- * flanks: dramatic on screen, still smooth across the 256 m / 24-segment
- * terrain mesh (~10.7 m per quad).
+ * from 430 m and is full strength by 900 m (lakes start at 900 m so the
+ * authored zones stay dry). Slopes peak around 25 % on ridge flanks:
+ * dramatic on screen, still smooth across the 256 m / 24-segment terrain
+ * mesh (~10.7 m per quad).
  */
+// Lake lattice: sin(x·KX+PX)·sin(z·KZ+PZ) peaks (+1) where both sines are +1
+// or both are −1 — those peak positions are computable analytically, which is
+// what lets LakeWaters place water discs without searching the height field.
+const LAKE_KX = 0.0013;
+const LAKE_KZ = 0.00117;
+const LAKE_PX = 0.9;
+const LAKE_PZ = -1.6;
+const LAKE_MIN_DIST = 900;   // lakes only past the authored zones
+const LAKE_FULL_DIST = 1300;
+export const LAKE_BED_Y = -11;
+export const LAKE_WATER_Y = -4;
+
 export function getTerrainHeight(x: number, z: number): number {
   const distanceFromSpawn = Math.hypot(x, z);
   // Flat spawn zone: spawnFade and farRelief are both exactly 0 here, so skip
@@ -210,8 +230,50 @@ export function getTerrainHeight(x: number, z: number): number {
 
   const valleys = -smoothstep(0.55, 0.95, Math.sin(x * 0.0011 - 0.4) * Math.sin(z * 0.0013 + 2.0)) * 16;
 
+  const canyonPath =
+    Math.sin(x * 0.00037 + Math.sin(z * 0.00022) * 2.1) +
+    Math.cos(z * 0.00031 + Math.sin(x * 0.00018) * 1.7);
+  const canyonRegion = smoothstep(0.25, 0.75, Math.sin(x * 0.00011 - 2.0) * Math.sin(z * 0.00009 + 1.1));
+  const canyonWall = 1 - smoothstep(0, 0.22, Math.abs(canyonPath));
+  const canyons = -canyonWall * canyonWall * 55 * canyonRegion;
+
   const farRelief = Math.sin(distanceFromSpawn * 0.00016) * 18 * smoothstep(12_000, 90_000, distanceFromSpawn);
-  return (hills + mountains + valleys) * spawnFade + farRelief;
+  const base = (hills + mountains + valleys + canyons) * spawnFade + farRelief;
+
+  const lakeField = Math.sin(x * LAKE_KX + LAKE_PX) * Math.sin(z * LAKE_KZ + LAKE_PZ);
+  const lakeMask = smoothstep(0.93, 0.985, lakeField) * smoothstep(LAKE_MIN_DIST, LAKE_FULL_DIST, distanceFromSpawn);
+  return base * (1 - lakeMask) + LAKE_BED_Y * lakeMask;
+}
+
+/**
+ * Lake centres within `radius` of a point — the analytic +1 peaks of the lake
+ * lattice (both sines +1, or both −1), filtered to where lakes actually carve
+ * (past LAKE_MIN_DIST). Used by LakeWaters to stream water discs; the disc is
+ * oversized and the terrain simply occludes it beyond the actual shoreline.
+ */
+export function computeNearbyLakes(cx: number, cz: number, radius: number): Array<{ x: number; z: number }> {
+  const out: Array<{ x: number; z: number }> = [];
+  const stepX = (2 * Math.PI) / LAKE_KX;
+  const stepZ = (2 * Math.PI) / LAKE_KZ;
+  // Family A: sin = +1 at (π/2 − P)/K + n·2π/K; family B: sin = −1 (offset π/K).
+  for (const fam of [0, 1] as const) {
+    const baseX = ((Math.PI / 2) * (fam === 0 ? 1 : -1) - LAKE_PX) / LAKE_KX;
+    const baseZ = ((Math.PI / 2) * (fam === 0 ? 1 : -1) - LAKE_PZ) / LAKE_KZ;
+    const nx0 = Math.floor((cx - radius - baseX) / stepX);
+    const nx1 = Math.ceil((cx + radius - baseX) / stepX);
+    const nz0 = Math.floor((cz - radius - baseZ) / stepZ);
+    const nz1 = Math.ceil((cz + radius - baseZ) / stepZ);
+    for (let nx = nx0; nx <= nx1; nx += 1) {
+      for (let nz = nz0; nz <= nz1; nz += 1) {
+        const x = baseX + nx * stepX;
+        const z = baseZ + nz * stepZ;
+        if (Math.hypot(x - cx, z - cz) > radius) continue;
+        if (Math.hypot(x, z) < LAKE_MIN_DIST) continue;
+        out.push({ x, z });
+      }
+    }
+  }
+  return out;
 }
 
 export function getTerrainBiome(x: number, z: number): TerrainBiome {

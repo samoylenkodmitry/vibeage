@@ -14,6 +14,7 @@ import { CozyWorldArt } from './world-art/CozyWorldArt';
 import { chooseWorldArtQuality } from './world-art/quality';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
+import { LakeWaters } from './world-art/LakeWaters';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 
 // Sand only hugs the coast waterline; the meadow inland stays grass. A
@@ -124,6 +125,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {/* Water is anchored to the starter coast waterline (visible from inland);
           the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
+      {/* Procedural lakes: streamed discs at the terrain's analytic lake
+          centres; terrain occludes each disc beyond its true shoreline. */}
+      {worldArtQuality !== 'low' && <LakeWaters focus={focus} />}
       {mountedScene && <CozyWorldArt scene={mountedScene} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" sandRegion={STARTER_COAST_SAND} />
       <WorldFeatures focus={focus} />

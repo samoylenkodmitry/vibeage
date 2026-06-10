@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { getTerrainBiome, getTerrainHeight, sampleTerrain } from '../packages/content/terrain';
+import {
+  computeNearbyLakes,
+  getTerrainBiome,
+  getTerrainHeight,
+  LAKE_BED_Y,
+  LAKE_WATER_Y,
+  sampleTerrain,
+} from '../packages/content/terrain';
 
 describe('world terrain contract', () => {
   test('keeps the starter area nearly flat but not globally flat', () => {
@@ -41,5 +48,38 @@ describe('world terrain contract', () => {
     expect(first.groundColor).toMatch(/^#[0-9a-f]{6}$/i);
     expect(first.treeDensity).toBeGreaterThanOrEqual(0);
     expect(first.grassDensity).toBeGreaterThanOrEqual(0);
+  });
+
+  test('lakes: analytic centres sit at the bed and have a real shoreline', () => {
+    const lakes = computeNearbyLakes(0, 0, 8000);
+    expect(lakes.length).toBeGreaterThan(3);
+    for (const lake of lakes.slice(0, 8)) {
+      const centre = getTerrainHeight(lake.x, lake.z);
+      // Centre carved to the bed, well below the waterline…
+      expect(centre).toBeLessThan(LAKE_WATER_Y - 3);
+      expect(Math.abs(centre - LAKE_BED_Y)).toBeLessThan(2.5);
+      // …and the terrain must rise back through the waterline within 700 m
+      // (that crossing IS the shoreline; the water disc hides beyond it).
+      let crossed = false;
+      for (let r = 50; r <= 700; r += 10) {
+        if (getTerrainHeight(lake.x + r, lake.z) > LAKE_WATER_Y) { crossed = true; break; }
+      }
+      expect(crossed).toBe(true);
+    }
+    // No lake may carve inside the authored-zone ring.
+    for (const lake of lakes) {
+      expect(Math.hypot(lake.x, lake.z)).toBeGreaterThanOrEqual(900);
+    }
+  });
+
+  test('canyons: deep gorges exist beyond the spawn ring', () => {
+    let deepest = 0;
+    for (let x = 900; x <= 6000; x += 31) {
+      for (let z = -6000; z <= 6000; z += 37) {
+        const h = getTerrainHeight(x, z);
+        if (h < deepest) deepest = h;
+      }
+    }
+    expect(deepest).toBeLessThan(-30);
   });
 });
