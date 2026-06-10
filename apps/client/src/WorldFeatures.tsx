@@ -11,6 +11,7 @@ import {
 } from '../../../packages/content/worldFeatures';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
+import { seededRandom } from './world-art/foliageScatter';
 
 type TravelLaneSegment = ReturnType<typeof getTravelLaneSegments>[number];
 
@@ -147,6 +148,12 @@ function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolea
   }
   if (landmark.kind === 'crystal') {
     return renderCrystalLandmark(landmark, color, fog);
+  }
+  if (landmark.kind === 'town') {
+    return <TownLandmark landmark={landmark} fog={fog} />;
+  }
+  if (landmark.kind === 'castle') {
+    return <CastleLandmark landmark={landmark} color={color} fog={fog} />;
   }
   return (
     <mesh position={[0, landmark.height * 0.5, 0]} castShadow={!landmark.mega}>
@@ -350,6 +357,132 @@ function distanceToPointSq(x: number, z: number, pointX: number, pointZ: number)
   return dx * dx + dz * dz;
 }
 
+const HOUSE_WALL_COLORS = ['#d9c6a3', '#cdb791', '#e2d2b4', '#c4ad85'];
+const HOUSE_ROOF_COLORS = ['#a0522d', '#8c4a2f', '#7d5a3c', '#9b6b43'];
+
+/**
+ * Procedural hamlet — ~16 seeded houses (box + 4-sided pyramid roof) ringing
+ * a central well, leaving an open square. Deterministic from the landmark's
+ * position, so the town never reshuffles. The ground beneath is a
+ * TOWN_PLATEAUS flat disc (terrain.ts) and the grass density bake clears the
+ * plaza, so houses stand level on trodden ground.
+ */
+function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: boolean }) {
+  const houses = useMemo(() => {
+    const random = seededRandom(Math.round(landmark.position.x), Math.round(landmark.position.z));
+    const count = 16;
+    return Array.from({ length: count }, (_, i) => {
+      const angle = (i / count) * Math.PI * 2 + (random() - 0.5) * 0.5;
+      const ring = landmark.radius * (0.32 + random() * 0.52);
+      const w = 5 + random() * 4;
+      const d = 5 + random() * 4;
+      const h = 3.2 + random() * 2.2;
+      return {
+        x: Math.cos(angle) * ring,
+        z: Math.sin(angle) * ring,
+        w, d, h,
+        yaw: angle + Math.PI / 2 + (random() - 0.5) * 0.6,
+        wall: HOUSE_WALL_COLORS[Math.floor(random() * HOUSE_WALL_COLORS.length)],
+        roof: HOUSE_ROOF_COLORS[Math.floor(random() * HOUSE_ROOF_COLORS.length)],
+      };
+    });
+  }, [landmark]);
+  return (
+    <>
+      {houses.map((house, i) => (
+        <group key={i} position={[house.x, 0, house.z]} rotation={[0, house.yaw, 0]}>
+          <mesh position={[0, house.h / 2, 0]} castShadow>
+            <boxGeometry args={[house.w, house.h, house.d]} />
+            <meshStandardMaterial color={house.wall} roughness={0.85} fog={fog} />
+          </mesh>
+          {/* 4-sided cone rotated 45° = pyramid roof over the square-ish box */}
+          <mesh position={[0, house.h + house.h * 0.42, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <coneGeometry args={[Math.max(house.w, house.d) * 0.8, house.h * 0.85, 4]} />
+            <meshStandardMaterial color={house.roof} roughness={0.8} fog={fog} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.7, 0]} castShadow>
+        <cylinderGeometry args={[1.6, 1.8, 1.4, 10]} />
+        <meshStandardMaterial color="#8d8478" roughness={0.9} fog={fog} />
+      </mesh>
+      <mesh position={[0, 2.3, 0]} castShadow>
+        <coneGeometry args={[2.1, 1.4, 6]} />
+        <meshStandardMaterial color="#7a5b3a" roughness={0.85} fog={fog} />
+      </mesh>
+    </>
+  );
+}
+
+/**
+ * Procedural castle — square curtain wall with crenellated corner towers, a
+ * gatehouse, and a two-tier central keep flying a banner cone. Sits on its
+ * TOWN_PLATEAUS crest so the silhouette reads against the sky from far off.
+ */
+function CastleLandmark({ landmark, color, fog }: { landmark: WorldLandmark; color: string; fog: boolean }) {
+  const r = landmark.radius;
+  const h = landmark.height;
+  const half = r * 0.66;
+  const wallH = h * 0.2;
+  const towerH = h * 0.34;
+  const towerR = r * 0.13;
+  const stone = color;
+  const roof = '#3f4c63';
+  const corners: [number, number][] = [[-half, -half], [-half, half], [half, -half], [half, half]];
+  return (
+    <>
+      {/* curtain walls */}
+      {[
+        { x: 0, z: -half, yaw: 0 },
+        { x: 0, z: half, yaw: 0 },
+        { x: -half, z: 0, yaw: Math.PI / 2 },
+        { x: half, z: 0, yaw: Math.PI / 2 },
+      ].map((wall, i) => (
+        <mesh key={i} position={[wall.x, wallH / 2, wall.z]} rotation={[0, wall.yaw, 0]} castShadow>
+          <boxGeometry args={[half * 2, wallH, 3.5]} />
+          <meshStandardMaterial color={stone} roughness={0.82} fog={fog} />
+        </mesh>
+      ))}
+      {/* corner towers with conical roofs */}
+      {corners.map(([cx, cz]) => (
+        <group key={`${cx}:${cz}`} position={[cx, 0, cz]}>
+          <mesh position={[0, towerH / 2, 0]} castShadow>
+            <cylinderGeometry args={[towerR, towerR * 1.12, towerH, 10]} />
+            <meshStandardMaterial color={stone} roughness={0.8} fog={fog} />
+          </mesh>
+          <mesh position={[0, towerH + towerR * 0.9, 0]} castShadow>
+            <coneGeometry args={[towerR * 1.3, towerR * 1.8, 10]} />
+            <meshStandardMaterial color={roof} roughness={0.7} fog={fog} />
+          </mesh>
+        </group>
+      ))}
+      {/* gatehouse on the south wall */}
+      <mesh position={[0, wallH * 0.75, -half]} castShadow>
+        <boxGeometry args={[r * 0.3, wallH * 1.5, 6]} />
+        <meshStandardMaterial color={stone} roughness={0.8} fog={fog} />
+      </mesh>
+      {/* two-tier central keep */}
+      <mesh position={[0, h * 0.27, 0]} castShadow>
+        <boxGeometry args={[r * 0.62, h * 0.54, r * 0.62]} />
+        <meshStandardMaterial color={stone} roughness={0.78} fog={fog} />
+      </mesh>
+      <mesh position={[0, h * 0.54 + h * 0.14, 0]} castShadow>
+        <boxGeometry args={[r * 0.4, h * 0.28, r * 0.4]} />
+        <meshStandardMaterial color={stone} roughness={0.78} fog={fog} />
+      </mesh>
+      <mesh position={[0, h * 0.82 + h * 0.07, 0]} castShadow>
+        <coneGeometry args={[r * 0.26, h * 0.14, 8]} />
+        <meshStandardMaterial color={roof} emissive={roof} emissiveIntensity={0.1} roughness={0.7} fog={fog} />
+      </mesh>
+      {/* banner */}
+      <mesh position={[0, h * 0.97, 0]}>
+        <coneGeometry args={[r * 0.05, h * 0.1, 4]} />
+        <meshStandardMaterial color="#c1442e" emissive="#c1442e" emissiveIntensity={0.25} roughness={0.6} fog={fog} />
+      </mesh>
+    </>
+  );
+}
+
 function getLaneColor(lane: WorldTravelLane): string {
   if (lane.kind === 'river') {
     return '#4fc3e8';
@@ -373,6 +506,10 @@ function getLandmarkColor(landmark: WorldLandmark): string {
       return '#a7b0c0';
     case 'ruin':
       return '#b8a38a';
+    case 'town':
+      return '#e0b67a';
+    case 'castle':
+      return '#9aa3b2';
     default:
       return '#f59e0b';
   }
