@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import type * as THREE from 'three';
@@ -31,7 +33,26 @@ import type { WorldArtQuality } from './world-art/quality';
  * bloom — lit terrain + props stay crisp, they don't smear.
  */
 export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null }) {
+  // GPU CONTEXT-LOSS GUARD: when the WebGL context dies, the postprocessing
+  // EffectComposer reads `gl.getContextAttributes()` (null on a dead context)
+  // during construction — `.alpha` then crashed the whole client behind the
+  // GameErrorBoundary on remount. Unmount the composer while the context is
+  // lost; remount when the browser restores it.
+  const gl = useThree((state) => state.gl);
+  const [contextLost, setContextLost] = useState(false);
+  useEffect(() => {
+    const el = gl.domElement;
+    const onLost = () => setContextLost(true);
+    const onRestored = () => setContextLost(false);
+    el.addEventListener('webglcontextlost', onLost);
+    el.addEventListener('webglcontextrestored', onRestored);
+    return () => {
+      el.removeEventListener('webglcontextlost', onLost);
+      el.removeEventListener('webglcontextrestored', onRestored);
+    };
+  }, [gl]);
   if (quality === 'low') return null;
+  if (contextLost || gl.getContext()?.getContextAttributes?.() == null) return null;
   const high = quality === 'high';
   return (
     <EffectComposer enableNormalPass={false} multisampling={high ? 4 : 0}>
@@ -47,7 +68,7 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
       {sunMesh && (
         <GodRays
           sun={sunMesh}
-          samples={high ? 56 : 32}
+          samples={high ? 44 : 26}
           density={0.92}
           decay={0.94}
           weight={0.24}
