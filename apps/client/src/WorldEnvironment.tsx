@@ -14,6 +14,9 @@ type WorldEnvironmentProps = {
    *  WorldScene passes the far vista range when the HorizonTerrainShell is
    *  mounted to carry the distance. Read once on mount (quality is static). */
   fog?: { near: number; far: number };
+  /** Hands the sun disc mesh up so ScenePostFX can anchor GodRays on it
+   *  (the effect needs the actual mesh at construction). */
+  onSunMesh?: (mesh: THREE.Mesh | null) => void;
 };
 
 // Day-phase palette recompute cadence. 0.2s ≈ 5Hz — far below
@@ -39,17 +42,19 @@ type DayCycleRefs = {
   ambient: React.MutableRefObject<THREE.AmbientLight | null>;
   directional: React.MutableRefObject<THREE.DirectionalLight | null>;
   sunGroup: React.MutableRefObject<THREE.Group | null>;
+  sunDisc: React.MutableRefObject<THREE.Mesh | null>;
   sunPointLight: React.MutableRefObject<THREE.PointLight | null>;
   moonGroup: React.MutableRefObject<THREE.Group | null>;
   moonLight: React.MutableRefObject<THREE.PointLight | null>;
 };
 
-export function WorldEnvironment({ focus, fog = SCENE_FOG }: WorldEnvironmentProps) {
+export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnvironmentProps) {
   const refs: DayCycleRefs = {
     hemisphere: useRef<THREE.HemisphereLight>(null),
     ambient: useRef<THREE.AmbientLight>(null),
     directional: useRef<THREE.DirectionalLight>(null),
     sunGroup: useRef<THREE.Group>(null),
+    sunDisc: useRef<THREE.Mesh>(null),
     sunPointLight: useRef<THREE.PointLight>(null),
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
@@ -103,7 +108,13 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG }: WorldEnvironmentPro
         castShadow
       />
       <group ref={refs.sunGroup}>
-        <mesh material={sunMaterial}>
+        <mesh
+          material={sunMaterial}
+          ref={(mesh: THREE.Mesh | null) => {
+            refs.sunDisc.current = mesh;
+            onSunMesh?.(mesh);
+          }}
+        >
           <sphereGeometry args={[34, 24, 16]} />
         </mesh>
         {/* Warm halo behind the sun disc — gives golden bloom feel
@@ -206,6 +217,10 @@ function applyDayPhaseToScene({ refs, sunMaterial, scene, focus, palette }: {
   if (refs.sunGroup.current) {
     refs.sunGroup.current.position.set(sunX, sunY, sunZ);
     refs.sunGroup.current.visible = palette.sunDir.y > -0.05;
+    // Mirror onto the disc itself: GodRaysEffect checks the sun MESH's own
+    // `.visible` (Object3D.visible doesn't inherit), so without this the
+    // shafts keep rendering from below the horizon all night.
+    if (refs.sunDisc.current) refs.sunDisc.current.visible = refs.sunGroup.current.visible;
   }
   if (refs.sunPointLight.current) {
     refs.sunPointLight.current.color.set(palette.sunColor);
