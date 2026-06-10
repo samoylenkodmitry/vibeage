@@ -1,4 +1,4 @@
-import { useMemo, useRef, type MutableRefObject } from 'react';
+import { useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, StatsGl } from '@react-three/drei';
 import * as THREE from 'three';
@@ -81,6 +81,13 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   // everywhere. The cozy hero scene only contributes anchored geometry
   // (water, shore, dock, foliage) on top of that — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
+  // Sun disc mesh handed up by WorldEnvironment → anchors GodRays in
+  // ScenePostFX (the effect needs the real mesh at construction; state makes
+  // the composer rebuild once when it arrives).
+  const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
+  const handleSunMesh = useCallback((mesh: THREE.Mesh | null) => {
+    setSunMesh((prev) => (prev === mesh ? prev : mesh));
+  }, []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
   // Keep the cozy scene mounted once entered — re-crossing the radius would
   // otherwise re-clone ~310 GLB instances (multi-second hitch). Swap only on a new scene.
@@ -104,7 +111,13 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {/* Medium/high carry the relief to ±4 km with the horizon shell, so fog
           sits far out and mountains read as a hazy vista; low keeps the close
           frontier-hiding fog (no shell → nothing past 1 km to show). */}
-      <WorldEnvironment focus={focus} fog={worldArtQuality === 'low' ? undefined : VISTA_FOG} />
+      {/* onSunMesh only when the composer will mount — low tier has no postFX,
+          so skip the state update (and its full re-render) entirely. */}
+      <WorldEnvironment
+        focus={focus}
+        fog={worldArtQuality === 'low' ? undefined : VISTA_FOG}
+        onSunMesh={worldArtQuality === 'low' ? undefined : handleSunMesh}
+      />
       {worldArtQuality !== 'low' && <HorizonTerrainShell focus={focus} />}
       <WorldFoliage focus={focus} quality={worldArtQuality} />
       {worldArtQuality !== 'low' && <WorldShaderGrass focus={focus} quality={worldArtQuality} />}
@@ -148,7 +161,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         cameraControlsRef={cameraControlsRef}
         touchClaimRef={touchClaimRef}
       />
-      <ScenePostFX quality={worldArtQuality} />
+      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} />
     </Canvas>
   );
 }
