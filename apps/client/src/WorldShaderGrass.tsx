@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS } from '../../../packages/content/terrain';
+import { distanceBeyondNearestLane } from '../../../packages/content/worldFeatures';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
 import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
@@ -254,10 +255,14 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // No grass under lake water: fade out as the terrain dips below the
     // waterline (LAKE_WATER_Y = -4) so shores keep grass and beds go bare.
     const dry = smoothstep(-5.5, -3.5, getTerrainHeight(x, z));
-    // Settlement plazas are trodden ground — grass fades inside the plateau.
+    // Settlement plateaus are trodden ground — fully bare across the whole
+    // plateau (houses + plaza), grass returns just past the rim.
     let plaza = 1;
-    for (const p of TOWN_PLATEAUS) plaza *= smoothstep(p.r * 0.55, p.r, Math.hypot(x - p.x, z - p.z));
-    return sampleGrassDensity(x, z) * coast * dry * plaza;
+    for (const p of TOWN_PLATEAUS) plaza *= smoothstep(p.r, p.r * 1.18, Math.hypot(x - p.x, z - p.z));
+    // Roads and rivers are bare too — grass used to grow straight through
+    // the travel-lane slabs.
+    const lane = smoothstep(0, 4, distanceBeyondNearestLane(x, z));
+    return sampleGrassDensity(x, z) * coast * dry * plaza * lane;
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the

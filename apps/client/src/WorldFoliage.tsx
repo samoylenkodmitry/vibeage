@@ -65,7 +65,10 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ }: { originX:
       {co.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.6} wind={TREE_WIND} />}
       {ac.evenMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />}
       {ac.oddMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={ac.oddMatrices} colors={ac.oddColors} baseScale={0.6} />}
-      {bu.matrices.length > 0 && <InstancedGltf src={BUSH_GLB} matrices={bu.matrices} colors={bu.colors} baseScale={1.0} wind={BUSH_WIND} />}
+      {/* recenter: the tuft GLB bakes a ~63 m world offset into its vertices
+          (FBX2glTF export) — without it every bush renders far from its
+          matrix position and "flies" over slopes. */}
+      {bu.matrices.length > 0 && <InstancedGltf src={BUSH_GLB} matrices={bu.matrices} colors={bu.colors} baseScale={1.0} wind={BUSH_WIND} recenter />}
     </Suspense>
   );
 });
