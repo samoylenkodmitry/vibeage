@@ -93,6 +93,7 @@ const VERT = /* glsl */`
   uniform float uDayBright;
   uniform vec3  uSunDir;    // normalised direction to the sun (world)
   uniform vec3  uSunColor;
+  uniform vec3  uFogColor;  // day-phase sky tint — also the night tip-light
   attribute vec2 aOffset;   // per-instance cell offset, [-patch/2, patch/2]
   attribute vec4 aRand;     // per-instance (heightScale, yaw, hueRand, leanRand)
   varying vec3 vColor;
@@ -151,11 +152,22 @@ const VERT = /* glsl */`
     vec2  duv  = (world - uDensityCenter) / (2.0 * uDensityHalf) + 0.5;
     float biome = texture2D(uDensityMap, duv).r; // 0 bare .. ~0.9 lush meadow
     float inner = mix(1.0, smoothstep(0.0, max(uInnerFade, 1.0), dist), step(0.5, uInnerFade));
-    float present = step(hash(world*1.7), fall * inner * biome);
+    // Meadow patchiness (~45 m noise): without it the field fills 100% and
+    // reads as a uniform fur wall — real meadows have thin spots where the
+    // ground breathes through and overfull swells (chance saturates at 1).
+    float patchy = 0.55 + 0.65*smoothstep(0.30, 0.75, vnoise(world*0.022 + 13.0));
+    float present = step(hash(world*1.7), fall * inner * biome * patchy);
 
-    float clump = 0.6 + 0.4*smoothstep(0.25, 0.70, vnoise(world*0.04 + 7.0));
+    // Same family of noise drives height, widened (0.45..1.0) so sparse
+    // patches also grow SHORTER blades — gaps look grazed, not glitchy.
+    float clump = 0.45 + 0.55*smoothstep(0.25, 0.70, vnoise(world*0.04 + 7.0));
     float yaw   = aRand.y * 6.2831853;
     float h     = uBladeH * uHScale * (0.6 + aRand.x*0.85) * clump;
+    // Trampled ring around the character: blades within ~1 m crush to 30%
+    // and recover by ~2.4 m — keeps the player readable inside tall grass
+    // and makes the field react to them. (uPlayer, not the camera — layout
+    // must never depend on the camera.)
+    h *= mix(0.3, 1.0, smoothstep(0.9, 2.4, dist));
     float width = uBladeH * uWScale * 0.09 * (1.0 - t*t*0.8); // wide base, rounded taper
     vec2 facing = vec2(cos(yaw), sin(yaw));
     vec2 sideAx = vec2(-facing.y, facing.x);
@@ -176,7 +188,11 @@ const VERT = /* glsl */`
     vec3 midCol  = vec3(0.18, 0.36, 0.11);
     vec3 tipCol  = vec3(0.42, 0.62, 0.24);
     vec3 col = t < 0.5 ? mix(baseCol, midCol, t*2.0) : mix(midCol, tipCol, t*2.0 - 1.0);
-    col *= 0.82 + 0.36*aRand.z;        // per-blade hue/value variation
+    // Per-blade variation, WIDE (±28% value) — the old ±18% compressed into
+    // an indistinguishable mass at dusk brightness; plus ~20% of blades dry
+    // to straw, which breaks the green monotone the way real meadows do.
+    col *= 0.70 + 0.55*aRand.z;
+    col = mix(col, col * vec3(1.25, 1.05, 0.55), step(0.80, aRand.z) * 0.75);
     col *= 0.45 + 0.55*t;              // baked AO — dark at the root
 
     // Sun-direction shading: blades facing the sun catch warm light, those
@@ -189,6 +205,10 @@ const VERT = /* glsl */`
     float shade = mix(1.0, 0.72 + 0.46*ndl, sunUp);
     vec3  sunTint = mix(vec3(1.0), uSunColor*1.4, ndl*0.30*sunUp);
     col *= clamp(uDayBright, 0.05, 1.10) * shade * sunTint; // floor low; the JS night base is the real knob
+    // Faint sky catch on the tips when the sun is down, so dusk/night grass
+    // reads as a moonlit field instead of a black mass (uFogColor tracks the
+    // day-phase sky tint).
+    col += uFogColor * (1.0 - sunUp) * 0.07 * t * t;
     vColor = col;
 
     vec4 mv = viewMatrix * vec4(pos, 1.0);
