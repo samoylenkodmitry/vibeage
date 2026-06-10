@@ -97,6 +97,7 @@ const VERT = /* glsl */`
   // both together or blades float/sink against the ground mesh.
   float terrainH(vec2 p){
     float d = length(p);
+    if (d <= 430.0) return 0.0; // flat spawn zone — mirrors the JS early-out
     float spawnFade = smoothstep(430.0, 900.0, d);
     float hills = sin(p.x*0.009 + p.y*0.006)*9.0
                 + sin(p.x*0.0042 - p.y*0.0051 + 1.7)*14.0

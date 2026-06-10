@@ -193,6 +193,9 @@ function rgbHex(r: number, g: number, b: number): string {
  */
 export function getTerrainHeight(x: number, z: number): number {
   const distanceFromSpawn = Math.hypot(x, z);
+  // Flat spawn zone: spawnFade and farRelief are both exactly 0 here, so skip
+  // the trig entirely (same early-out in the GLSL mirror).
+  if (distanceFromSpawn <= 430) return 0;
   const spawnFade = smoothstep(430, 900, distanceFromSpawn);
 
   const hills =
