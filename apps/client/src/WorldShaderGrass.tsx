@@ -157,6 +157,12 @@ const VERT = /* glsl */`
     // ground breathes through and overfull swells (chance saturates at 1).
     float patchy = 0.55 + 0.65*smoothstep(0.30, 0.75, vnoise(world*0.022 + 13.0));
     float present = step(hash(world*1.7), fall * inner * biome * patchy);
+    // EARLY-OUT for culled blades: skip clump/height/wind and — critically —
+    // the ~45-transcendental terrainH below. Most far-layer blades are culled
+    // by the distance fade, so this saves a large slice of the vertex budget.
+    // All 7 verts of a blade take the same branch (present is per-instance),
+    // and a constant clip position outside the volume rasterises nothing.
+    if (present < 0.5) { vColor = vec3(0.0); vViewZ = 0.0; gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
 
     // Same family of noise drives height, widened (0.45..1.0) so sparse
     // patches also grow SHORTER blades — gaps look grazed, not glitchy.
@@ -182,7 +188,6 @@ const VERT = /* glsl */`
     float w  = vnoise(world*0.05 + uTime*0.22)*2.0 - 1.0;
     float w2 = sin(world.x*0.25 + world.y*0.2 + uTime*1.6);
     pos.xz += vec2(0.72, 0.3) * (w*0.55 + w2*0.45) * h * 0.4 * t * t;
-    if (present < 0.5) pos = vec3(0.0, -10000.0, 0.0); // hide culled blades
 
     vec3 baseCol = vec3(0.05, 0.13, 0.04);
     vec3 midCol  = vec3(0.18, 0.36, 0.11);
