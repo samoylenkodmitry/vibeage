@@ -10,6 +10,10 @@ import { SkyAtmosphere } from './world-art/SkyAtmosphere';
 
 type WorldEnvironmentProps = {
   focus: Vec3D;
+  /** Scene fog range. Defaults to SCENE_FOG (the close, frontier-hiding fog);
+   *  WorldScene passes the far vista range when the HorizonTerrainShell is
+   *  mounted to carry the distance. Read once on mount (quality is static). */
+  fog?: { near: number; far: number };
 };
 
 // Day-phase palette recompute cadence. 0.2s ≈ 5Hz — far below
@@ -20,10 +24,14 @@ const PALETTE_REFRESH_S = 0.2;
 // Atmospheric scene fog. Without it scene.fog is null — the streaming foliage
 // frontier (~960 m, see WorldFoliage) and the terrain view edge (1024 m) pop
 // against a perfectly clear 9 km camera as the player crosses chunk lines.
-// `far` sits just past the foliage frontier so chunks mount/unmount fully
-// inside the mist; mega landmarks render fog={false} (WorldFeatures) and still
-// pierce it as horizon beacons. Distinct from WORLD_SETTINGS.fogFar (5400),
-// which is only a landmark-visibility cull distance, not real fog.
+// This close range is the LOW-tier default: `far` sits just past the foliage
+// frontier so chunks mount/unmount fully inside the mist. Medium/high tiers
+// mount the HorizonTerrainShell (±4 km relief) and pass VISTA_FOG via the
+// `fog` prop instead — the shell carries the ground past the frontier, so the
+// fog can sit far out and the mountains read as a hazy vista. Mega landmarks
+// render fog={false} (WorldFeatures) and still pierce it as horizon beacons.
+// Distinct from WORLD_SETTINGS.fogFar (5400), which is only a
+// landmark-visibility cull distance, not real fog.
 const SCENE_FOG = { near: 450, far: 1120 } as const;
 
 type DayCycleRefs = {
@@ -36,7 +44,7 @@ type DayCycleRefs = {
   moonLight: React.MutableRefObject<THREE.PointLight | null>;
 };
 
-export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
+export function WorldEnvironment({ focus, fog = SCENE_FOG }: WorldEnvironmentProps) {
   const refs: DayCycleRefs = {
     hemisphere: useRef<THREE.HemisphereLight>(null),
     ambient: useRef<THREE.AmbientLight>(null),
@@ -71,7 +79,7 @@ export function WorldEnvironment({ focus }: WorldEnvironmentProps) {
   const paletteRef = useRef(computeDayPhase(Date.now()));
   const paletteAccumRef = useRef(0);
   useInitSceneBackground(scene, paletteRef.current.backgroundColor);
-  useInitSceneFog(scene, paletteRef.current.fogColor);
+  useInitSceneFog(scene, paletteRef.current.fogColor, fog);
 
   useFrame((_, delta) => {
     paletteAccumRef.current += delta;
@@ -150,14 +158,15 @@ function useInitSceneBackground(scene: THREE.Scene, initialColor: string): void 
  * so without this there is no fog at all and the streaming frontier pops. Owns
  * the fog; restores the previous value on unmount.
  */
-function useInitSceneFog(scene: THREE.Scene, initialColor: string): void {
-  // Capture the colour once on mount. applyDayPhaseToScene recolours the fog
-  // every frame, so re-running this effect on each palette tick would needlessly
-  // recreate the THREE.Fog (object churn / uniform updates) for no visual gain.
-  const initialColorRef = useRef(initialColor);
+function useInitSceneFog(scene: THREE.Scene, initialColor: string, range: { near: number; far: number }): void {
+  // Capture the colour/range once on mount. applyDayPhaseToScene recolours the
+  // fog every frame, so re-running this effect on each palette tick would
+  // needlessly recreate the THREE.Fog (object churn / uniform updates) for no
+  // visual gain; the range comes from the static quality tier anyway.
+  const initialRef = useRef({ color: initialColor, range });
   useLayoutEffect(() => {
     const previous = scene.fog;
-    scene.fog = new THREE.Fog(initialColorRef.current, SCENE_FOG.near, SCENE_FOG.far);
+    scene.fog = new THREE.Fog(initialRef.current.color, initialRef.current.range.near, initialRef.current.range.far);
     return () => {
       scene.fog = previous;
     };
