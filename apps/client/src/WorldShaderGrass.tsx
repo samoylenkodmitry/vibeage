@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { sampleGrassDensity } from '../../../packages/content/terrain';
+import { getTerrainHeight, sampleGrassDensity } from '../../../packages/content/terrain';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
 import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
@@ -107,8 +107,16 @@ const VERT = /* glsl */`
     float mountainMask = smoothstep(0.3, 0.8, sin(p.x*0.00093 + 1.3)*cos(p.y*0.00078 - 0.7));
     float mountains = ridgeShape*ridgeShape*48.0*mountainMask;
     float valleys = -smoothstep(0.55, 0.95, sin(p.x*0.0011 - 0.4)*sin(p.y*0.0013 + 2.0))*16.0;
+    float canyonPath = sin(p.x*0.00037 + sin(p.y*0.00022)*2.1)
+                     + cos(p.y*0.00031 + sin(p.x*0.00018)*1.7);
+    float canyonRegion = smoothstep(0.25, 0.75, sin(p.x*0.00011 - 2.0)*sin(p.y*0.00009 + 1.1));
+    float canyonWall = 1.0 - smoothstep(0.0, 0.22, abs(canyonPath));
+    float canyons = -canyonWall*canyonWall*55.0*canyonRegion;
     float far = sin(d*0.00016)*18.0*smoothstep(12000.0,90000.0,d);
-    return (hills + mountains + valleys)*spawnFade + far;
+    float base = (hills + mountains + valleys + canyons)*spawnFade + far;
+    float lakeField = sin(p.x*0.0013 + 0.9)*sin(p.y*0.00117 - 1.6);
+    float lakeMask = smoothstep(0.93, 0.985, lakeField)*smoothstep(900.0, 1300.0, d);
+    return base*(1.0 - lakeMask) + (-11.0)*lakeMask;
   }
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -237,7 +245,10 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
   if (!field.current) field.current = new GrassDensityField();
   const densityFn = useMemo(() => (x: number, z: number) => {
     const coast = smoothstep(SAND.r * 0.6, SAND.r, Math.hypot(x - SAND.x, z - SAND.z)); // 0 on sand
-    return sampleGrassDensity(x, z) * coast;
+    // No grass under lake water: fade out as the terrain dips below the
+    // waterline (LAKE_WATER_Y = -4) so shores keep grass and beds go bare.
+    const dry = smoothstep(-5.5, -3.5, getTerrainHeight(x, z));
+    return sampleGrassDensity(x, z) * coast * dry;
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the
