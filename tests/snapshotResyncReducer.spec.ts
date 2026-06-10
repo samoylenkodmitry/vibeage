@@ -209,4 +209,49 @@ describe('gameClientReducer — snapshot resync, region + identity', () => {
     expect(after.connectionState).toBe('online');
     expect(after.myPlayerId).toBe(ME);
   });
+
+  it('heals a degraded self snapshot (relogin race ships self through the public filter)', () => {
+    // A zombie session can briefly own the player during a relogin, so the
+    // server snapshots YOUR player via PUBLIC_PLAYER_FIELDS — owner-only
+    // fields (unlockedSkills, skillLevels, inventory, …) vanish. This
+    // crashed the whole client (unlockedSkills.length). The reducer must
+    // keep the fresh public fields and fill owner fields from the previous
+    // self.
+    const before: GameClientState = {
+      ...initialGameClientState,
+      myPlayerId: ME,
+      connectionState: 'online' as const,
+      players: { [ME]: makePlayer(ME, { unlockedSkills: ['fireball'], level: 7 } as Partial<PlayerEntity>) },
+    };
+    const publicSelf = makePlayer(ME, { level: 8 });
+    delete (publicSelf as Record<string, unknown>).unlockedSkills;
+    delete (publicSelf as Record<string, unknown>).skillLevels;
+    delete (publicSelf as Record<string, unknown>).inventory;
+
+    const after = dispatchSnapshot(before, { players: { [ME]: publicSelf }, enemies: {} });
+
+    expect(after.players[ME].unlockedSkills).toEqual(['fireball']); // owner field healed
+    expect(after.players[ME].level).toBe(8); // fresh public field kept
+    expect(after.players[ME].skillLevels).toEqual({});
+  });
+
+  it('a degraded self snapshot with NO previous self falls back to safe defaults', () => {
+    // The race can hit the very first gameState after welcome — there is no
+    // previous self to heal from, so required owner fields get safe defaults.
+    const before: GameClientState = {
+      ...initialGameClientState,
+      myPlayerId: ME,
+      connectionState: 'online' as const,
+      players: {},
+    };
+    const publicSelf = makePlayer(ME, { level: 5 });
+    delete (publicSelf as Record<string, unknown>).unlockedSkills;
+
+    const after = dispatchSnapshot(before, { players: { [ME]: publicSelf }, enemies: {} });
+
+    expect(after.players[ME].unlockedSkills).toEqual([]);
+    expect(after.players[ME].skillCooldownEndTs).toEqual({});
+    expect(after.players[ME].castingSkill).toBeNull();
+    expect(after.players[ME].level).toBe(5);
+  });
 });
