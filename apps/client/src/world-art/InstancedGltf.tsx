@@ -42,11 +42,17 @@ type InstancedGltfProps = {
   /** Subtle wind sway on canopies. Trunks stay still because the
    * displacement scales with the vertex's Y coordinate. */
   wind?: WindParams;
+  /** Recentre the GLB so its bounds sit centred on the origin in XZ with the
+   * base at y=0. Some assets (FBX2glTF exports like grass_tuft) bake a large
+   * world offset into the vertex positions — instances then render tens of
+   * metres away from their matrix position (and float over slopes). Off by
+   * default so hand-tuned placements of well-pivoted assets don't shift. */
+  recenter?: boolean;
 };
 
 type SubMesh = { geometry: THREE.BufferGeometry; material: THREE.Material; localMatrix: THREE.Matrix4 };
 
-function collectSubMeshes(root: THREE.Object3D): SubMesh[] {
+function collectSubMeshes(root: THREE.Object3D, recenter: boolean): SubMesh[] {
   const out: SubMesh[] = [];
   root.updateMatrixWorld(true);
   root.traverse((child) => {
@@ -57,14 +63,31 @@ function collectSubMeshes(root: THREE.Object3D): SubMesh[] {
     const mat = Array.isArray(material) ? material[0] : material;
     out.push({ geometry, material: mat, localMatrix });
   });
+  if (recenter && out.length > 0) {
+    // Bounds of the whole asset in its root space (geometry bounds pushed
+    // through each leaf's matrix), then prepend one shared correction so the
+    // asset stands centred at the origin with its base at y=0.
+    const bounds = new THREE.Box3();
+    const tmp = new THREE.Box3();
+    for (const sub of out) {
+      if (!sub.geometry.boundingBox) sub.geometry.computeBoundingBox();
+      tmp.copy(sub.geometry.boundingBox as THREE.Box3).applyMatrix4(sub.localMatrix);
+      bounds.union(tmp);
+    }
+    const centre = bounds.getCenter(new THREE.Vector3());
+    const correction = new THREE.Matrix4().makeTranslation(-centre.x, -bounds.min.y, -centre.z);
+    for (const sub of out) {
+      sub.localMatrix = new THREE.Matrix4().multiplyMatrices(correction, sub.localMatrix);
+    }
+  }
   return out;
 }
 
 export function InstancedGltf({
-  src, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false, wind,
+  src, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false, wind, recenter = false,
 }: InstancedGltfProps) {
   const gltf = useGLTF(src);
-  const subMeshes = useMemo(() => collectSubMeshes(gltf.scene), [gltf]);
+  const subMeshes = useMemo(() => collectSubMeshes(gltf.scene, recenter), [gltf, recenter]);
   if (matrices.length === 0 || subMeshes.length === 0) return null;
   return (
     <>

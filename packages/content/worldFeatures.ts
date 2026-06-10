@@ -340,3 +340,23 @@ export function getTravelLaneSegments(lanes: readonly WorldTravelLane[] = WORLD_
   }
   return segments;
 }
+
+const ALL_LANE_SEGMENTS = getTravelLaneSegments();
+
+/**
+ * Distance from a point to the EDGE of the nearest travel lane (0 = on the
+ * lane surface). Used to keep grass/foliage off roads and rivers — blades
+ * used to grow straight through the lane slabs.
+ */
+export function distanceBeyondNearestLane(x: number, z: number): number {
+  let best = Infinity;
+  for (const { lane, from, to } of ALL_LANE_SEGMENTS) {
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const lenSq = dx * dx + dz * dz;
+    const t = lenSq > 0 ? Math.max(0, Math.min(1, ((x - from.x) * dx + (z - from.z) * dz) / lenSq)) : 0;
+    const d = Math.hypot(x - (from.x + dx * t), z - (from.z + dz * t)) - lane.width / 2;
+    if (d < best) best = d;
+  }
+  return Math.max(0, best);
+}

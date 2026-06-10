@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { sampleTerrain, TOWN_PLATEAUS, type TerrainBiome } from '../../../../packages/content/terrain';
+import { distanceBeyondNearestLane } from '../../../../packages/content/worldFeatures';
 
 /**
  * Position-stable foliage scatter. Every tree / rock / grass tuft is a
@@ -132,7 +133,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
           rotation: random() * Math.PI * 2,
           color: jitterFoliageColor(isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor, random),
         };
-        if (height < DRY_MIN_Y || insideSettlement(tx, tz)) return; // lakebed/town
+        if (height < DRY_MIN_Y || insideSettlement(tx, tz) || distanceBeyondNearestLane(tx, tz) < 1.5) return; // lakebed/town/road
         (isConifer ? conifers : trees).push(inst);
       };
       if (random() < sample.treeDensity * TREE_DENSITY_SCALE_A) {
@@ -156,7 +157,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
             scale: 1.5 + random() * 1.6, rotation: random() * Math.PI * 2,
             color: jitterFoliageColor(darkenForConifer(sample.foliageColor), random),
           };
-          if (uy < DRY_MIN_Y || insideSettlement(ux, uz)) continue;
+          if (uy < DRY_MIN_Y || insideSettlement(ux, uz) || distanceBeyondNearestLane(ux, uz) < 1.5) continue;
           bushes.push(inst);
         }
       }
