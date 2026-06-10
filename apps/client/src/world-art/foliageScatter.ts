@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sampleTerrain, type TerrainBiome } from '../../../../packages/content/terrain';
+import { sampleTerrain, TOWN_PLATEAUS, type TerrainBiome } from '../../../../packages/content/terrain';
 
 /**
  * Position-stable foliage scatter. Every tree / rock / grass tuft is a
@@ -69,6 +69,14 @@ const BUSH_GRASS_WEIGHT = 0.3;
 // lakebeds stay bare instead of growing drowned pines.
 const DRY_MIN_Y = -3.5;
 
+/** No trees/bushes inside a settlement plateau (houses live there). */
+function insideSettlement(x: number, z: number): boolean {
+  for (const p of TOWN_PLATEAUS) {
+    if (Math.hypot(x - p.x, z - p.z) < p.r) return true;
+  }
+  return false;
+}
+
 export const BROADLEAF_GLB = '/models/trees/pine_b.glb';
 export const CONIFER_GLB = '/models/trees/pine_a.glb';
 export const TREE_GLB_ALT = '/models/trees/pine_c.glb';
@@ -124,7 +132,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
           rotation: random() * Math.PI * 2,
           color: jitterFoliageColor(isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor, random),
         };
-        if (height < DRY_MIN_Y) return; // lakebed — no trees under water
+        if (height < DRY_MIN_Y || insideSettlement(tx, tz)) return; // lakebed/town
         (isConifer ? conifers : trees).push(inst);
       };
       if (random() < sample.treeDensity * TREE_DENSITY_SCALE_A) {
@@ -148,7 +156,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
             scale: 1.5 + random() * 1.6, rotation: random() * Math.PI * 2,
             color: jitterFoliageColor(darkenForConifer(sample.foliageColor), random),
           };
-          if (uy < DRY_MIN_Y) continue;
+          if (uy < DRY_MIN_Y || insideSettlement(ux, uz)) continue;
           bushes.push(inst);
         }
       }

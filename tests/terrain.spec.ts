@@ -6,6 +6,7 @@ import {
   LAKE_BED_Y,
   LAKE_WATER_Y,
   sampleTerrain,
+  TOWN_PLATEAUS,
 } from '../packages/content/terrain';
 
 describe('world terrain contract', () => {
@@ -69,6 +70,17 @@ describe('world terrain contract', () => {
     // No lake may carve inside the authored-zone ring.
     for (const lake of lakes) {
       expect(Math.hypot(lake.x, lake.z)).toBeGreaterThanOrEqual(900);
+    }
+  });
+
+  test('settlement plateaus are level where the houses stand', () => {
+    for (const plateau of TOWN_PLATEAUS) {
+      // Inside ~0.7r the blend is fully the plateau level (smoothstep starts
+      // at 0.7r), so every building footprint is flat.
+      for (const [dx, dz] of [[0, 0], [0.5, 0], [-0.4, 0.4], [0, -0.6], [0.45, 0.45]] as const) {
+        const h = getTerrainHeight(plateau.x + dx * plateau.r, plateau.z + dz * plateau.r);
+        expect(Math.abs(h - plateau.y)).toBeLessThan(0.01);
+      }
     }
   });
 

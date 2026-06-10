@@ -1,5 +1,5 @@
-import { Suspense, useMemo } from 'react';
-import { useLoader } from '@react-three/fiber';
+import { Suspense, useEffect, useMemo } from 'react';
+import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js';
 import { sampleTerrain } from '../../../packages/content/terrain';
@@ -11,6 +11,7 @@ import {
 } from '../../../packages/content/worldFeatures';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
+import { seededRandom } from './world-art/foliageScatter';
 
 type TravelLaneSegment = ReturnType<typeof getTravelLaneSegments>[number];
 
@@ -23,6 +24,12 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
     lanes: ALL_TRAVEL_LANE_SEGMENTS.filter((segment) => isSegmentNearFocus(segment, focus)),
     landmarks: WORLD_LANDMARKS.filter((landmark) => isLandmarkNearFocus(landmark, focus)),
   }), [focus.x, focus.z]);
+  // One animated material shared by every river slab; ticked once here.
+  const riverMaterial = useMemo(() => makeRiverMaterial(), []);
+  useEffect(() => () => riverMaterial.dispose(), [riverMaterial]);
+  useFrame(({ clock }) => {
+    riverMaterial.uniforms.uTime.value = clock.elapsedTime;
+  });
 
   return (
     <group>
@@ -31,6 +38,7 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
           key={`${segment.lane.id}:${segment.from.x}:${segment.from.z}`}
           segment={segment}
           focus={focus}
+          riverMaterial={riverMaterial}
         />
       ))}
       {visibleFeatures.landmarks.map((landmark) => (
@@ -40,12 +48,13 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
   );
 }
 
-function TravelLaneMesh({ segment, focus }: { segment: TravelLaneSegment; focus: Vec3D }) {
+function TravelLaneMesh({ segment, focus, riverMaterial }: { segment: TravelLaneSegment; focus: Vec3D; riverMaterial: THREE.ShaderMaterial }) {
   const color = getLaneColor(segment.lane);
   const slabs = useMemo(
     () => buildVisibleLaneSlabs(segment, focus),
     [segment, focus.x, focus.z],
   );
+  const river = segment.lane.kind === 'river';
 
   return (
     <group>
@@ -54,24 +63,77 @@ function TravelLaneMesh({ segment, focus }: { segment: TravelLaneSegment; focus:
           key={index}
           position={[slab.x, slab.y, slab.z]}
           rotation={[-Math.PI / 2, 0, slab.rotY]}
-          receiveShadow
+          receiveShadow={!river}
+          material={river ? riverMaterial : undefined}
         >
           <planeGeometry args={[segment.lane.width, slab.length]} />
-          <meshStandardMaterial
-            color={color}
-            roughness={0.96}
-            metalness={0.01}
-            transparent
-            opacity={0.78}
-            polygonOffset
-            polygonOffsetFactor={-2}
-            polygonOffsetUnits={-2}
-            side={THREE.DoubleSide}
-          />
+          {!river && (
+            <meshStandardMaterial
+              color={color}
+              roughness={0.96}
+              metalness={0.01}
+              transparent
+              opacity={0.78}
+              polygonOffset
+              polygonOffsetFactor={-2}
+              polygonOffsetUnits={-2}
+              side={THREE.DoubleSide}
+            />
+          )}
         </mesh>
       ))}
     </group>
   );
+}
+
+/**
+ * Living river water — replaces the flat blue slab the 'river' travel lane
+ * used to render. Shared by all river slabs (one uTime tick in
+ * WorldFeatures): flowing ripple bands drift along the slab's length in
+ * world units (vLocal.y is metres along the lane regardless of slab length),
+ * with a shimmering sparkle and a brighter mid-stream. Depth-tested against
+ * terrain like the lakes; polygon offset keeps it floating over the ground
+ * the way the old slab did.
+ */
+function makeRiverMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+    side: THREE.DoubleSide,
+    uniforms: {
+      uTime: { value: 0 },
+      uDeep: { value: new THREE.Color('#1d5b7c') },
+      uShallow: { value: new THREE.Color('#4fc3e8') },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vLocal;   // x: metres across the lane, y: metres along it
+      void main() {
+        vLocal = position.xy;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec2 vLocal;
+      uniform float uTime;
+      uniform vec3 uDeep;
+      uniform vec3 uShallow;
+      void main() {
+        // Downstream-drifting ripple bands + a cross shimmer.
+        float flow = sin(vLocal.y * 0.55 - uTime * 2.4) * 0.5
+                   + sin(vLocal.y * 1.7 - uTime * 3.6 + vLocal.x * 0.8) * 0.5;
+        vec3 color = mix(uDeep, uShallow, 0.45 + flow * 0.25);
+        // Brighter, more opaque mid-stream; soft edges toward the banks.
+        // 9.0 = half of the Silverwood River's 18 m lane width (the only
+        // river lane); widen if a broader river is ever authored.
+        float edge = smoothstep(1.0, 0.35, abs(vLocal.x) / 9.0);
+        color += vec3(0.06) * edge;
+        gl_FragColor = vec4(color, mix(0.45, 0.82, edge));
+      }
+    `,
+  });
 }
 
 function buildVisibleLaneSlabs(
@@ -147,6 +209,12 @@ function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolea
   }
   if (landmark.kind === 'crystal') {
     return renderCrystalLandmark(landmark, color, fog);
+  }
+  if (landmark.kind === 'town') {
+    return <TownLandmark landmark={landmark} fog={fog} />;
+  }
+  if (landmark.kind === 'castle') {
+    return <CastleLandmark landmark={landmark} color={color} fog={fog} />;
   }
   return (
     <mesh position={[0, landmark.height * 0.5, 0]} castShadow={!landmark.mega}>
@@ -350,6 +418,132 @@ function distanceToPointSq(x: number, z: number, pointX: number, pointZ: number)
   return dx * dx + dz * dz;
 }
 
+const HOUSE_WALL_COLORS = ['#d9c6a3', '#cdb791', '#e2d2b4', '#c4ad85'];
+const HOUSE_ROOF_COLORS = ['#a0522d', '#8c4a2f', '#7d5a3c', '#9b6b43'];
+
+/**
+ * Procedural hamlet — ~16 seeded houses (box + 4-sided pyramid roof) ringing
+ * a central well, leaving an open square. Deterministic from the landmark's
+ * position, so the town never reshuffles. The ground beneath is a
+ * TOWN_PLATEAUS flat disc (terrain.ts) and the grass density bake clears the
+ * plaza, so houses stand level on trodden ground.
+ */
+function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: boolean }) {
+  const houses = useMemo(() => {
+    const random = seededRandom(Math.round(landmark.position.x), Math.round(landmark.position.z));
+    const count = 16;
+    return Array.from({ length: count }, (_, i) => {
+      const angle = (i / count) * Math.PI * 2 + (random() - 0.5) * 0.5;
+      const ring = landmark.radius * (0.32 + random() * 0.52);
+      const w = 5 + random() * 4;
+      const d = 5 + random() * 4;
+      const h = 3.2 + random() * 2.2;
+      return {
+        x: Math.cos(angle) * ring,
+        z: Math.sin(angle) * ring,
+        w, d, h,
+        yaw: angle + Math.PI / 2 + (random() - 0.5) * 0.6,
+        wall: HOUSE_WALL_COLORS[Math.floor(random() * HOUSE_WALL_COLORS.length)],
+        roof: HOUSE_ROOF_COLORS[Math.floor(random() * HOUSE_ROOF_COLORS.length)],
+      };
+    });
+  }, [landmark]);
+  return (
+    <>
+      {houses.map((house, i) => (
+        <group key={i} position={[house.x, 0, house.z]} rotation={[0, house.yaw, 0]}>
+          <mesh position={[0, house.h / 2, 0]} castShadow>
+            <boxGeometry args={[house.w, house.h, house.d]} />
+            <meshStandardMaterial color={house.wall} roughness={0.85} fog={fog} />
+          </mesh>
+          {/* 4-sided cone rotated 45° = pyramid roof over the square-ish box */}
+          <mesh position={[0, house.h + house.h * 0.42, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <coneGeometry args={[Math.max(house.w, house.d) * 0.8, house.h * 0.85, 4]} />
+            <meshStandardMaterial color={house.roof} roughness={0.8} fog={fog} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.7, 0]} castShadow>
+        <cylinderGeometry args={[1.6, 1.8, 1.4, 10]} />
+        <meshStandardMaterial color="#8d8478" roughness={0.9} fog={fog} />
+      </mesh>
+      <mesh position={[0, 2.3, 0]} castShadow>
+        <coneGeometry args={[2.1, 1.4, 6]} />
+        <meshStandardMaterial color="#7a5b3a" roughness={0.85} fog={fog} />
+      </mesh>
+    </>
+  );
+}
+
+/**
+ * Procedural castle — square curtain wall with crenellated corner towers, a
+ * gatehouse, and a two-tier central keep flying a banner cone. Sits on its
+ * TOWN_PLATEAUS crest so the silhouette reads against the sky from far off.
+ */
+function CastleLandmark({ landmark, color, fog }: { landmark: WorldLandmark; color: string; fog: boolean }) {
+  const r = landmark.radius;
+  const h = landmark.height;
+  const half = r * 0.66;
+  const wallH = h * 0.2;
+  const towerH = h * 0.34;
+  const towerR = r * 0.13;
+  const stone = color;
+  const roof = '#3f4c63';
+  const corners: [number, number][] = [[-half, -half], [-half, half], [half, -half], [half, half]];
+  return (
+    <>
+      {/* curtain walls */}
+      {[
+        { x: 0, z: -half, yaw: 0 },
+        { x: 0, z: half, yaw: 0 },
+        { x: -half, z: 0, yaw: Math.PI / 2 },
+        { x: half, z: 0, yaw: Math.PI / 2 },
+      ].map((wall, i) => (
+        <mesh key={i} position={[wall.x, wallH / 2, wall.z]} rotation={[0, wall.yaw, 0]} castShadow>
+          <boxGeometry args={[half * 2, wallH, 3.5]} />
+          <meshStandardMaterial color={stone} roughness={0.82} fog={fog} />
+        </mesh>
+      ))}
+      {/* corner towers with conical roofs */}
+      {corners.map(([cx, cz]) => (
+        <group key={`${cx}:${cz}`} position={[cx, 0, cz]}>
+          <mesh position={[0, towerH / 2, 0]} castShadow>
+            <cylinderGeometry args={[towerR, towerR * 1.12, towerH, 10]} />
+            <meshStandardMaterial color={stone} roughness={0.8} fog={fog} />
+          </mesh>
+          <mesh position={[0, towerH + towerR * 0.9, 0]} castShadow>
+            <coneGeometry args={[towerR * 1.3, towerR * 1.8, 10]} />
+            <meshStandardMaterial color={roof} roughness={0.7} fog={fog} />
+          </mesh>
+        </group>
+      ))}
+      {/* gatehouse on the south wall */}
+      <mesh position={[0, wallH * 0.75, -half]} castShadow>
+        <boxGeometry args={[r * 0.3, wallH * 1.5, 6]} />
+        <meshStandardMaterial color={stone} roughness={0.8} fog={fog} />
+      </mesh>
+      {/* two-tier central keep */}
+      <mesh position={[0, h * 0.27, 0]} castShadow>
+        <boxGeometry args={[r * 0.62, h * 0.54, r * 0.62]} />
+        <meshStandardMaterial color={stone} roughness={0.78} fog={fog} />
+      </mesh>
+      <mesh position={[0, h * 0.54 + h * 0.14, 0]} castShadow>
+        <boxGeometry args={[r * 0.4, h * 0.28, r * 0.4]} />
+        <meshStandardMaterial color={stone} roughness={0.78} fog={fog} />
+      </mesh>
+      <mesh position={[0, h * 0.82 + h * 0.07, 0]} castShadow>
+        <coneGeometry args={[r * 0.26, h * 0.14, 8]} />
+        <meshStandardMaterial color={roof} emissive={roof} emissiveIntensity={0.1} roughness={0.7} fog={fog} />
+      </mesh>
+      {/* banner */}
+      <mesh position={[0, h * 0.97, 0]}>
+        <coneGeometry args={[r * 0.05, h * 0.1, 4]} />
+        <meshStandardMaterial color="#c1442e" emissive="#c1442e" emissiveIntensity={0.25} roughness={0.6} fog={fog} />
+      </mesh>
+    </>
+  );
+}
+
 function getLaneColor(lane: WorldTravelLane): string {
   if (lane.kind === 'river') {
     return '#4fc3e8';
@@ -373,6 +567,10 @@ function getLandmarkColor(landmark: WorldLandmark): string {
       return '#a7b0c0';
     case 'ruin':
       return '#b8a38a';
+    case 'town':
+      return '#e0b67a';
+    case 'castle':
+      return '#9aa3b2';
     default:
       return '#f59e0b';
   }

@@ -15,7 +15,7 @@ export type WorldTravelLane = {
   points: WorldPoint[];
 };
 
-export type WorldLandmarkKind = 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep' | 'ancient_tree';
+export type WorldLandmarkKind = 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep' | 'ancient_tree' | 'town' | 'castle';
 
 export type WorldLandmark = {
   id: string;
@@ -179,6 +179,36 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     position: { x: 640, z: -480 },
     radius: 36,
     height: 130,
+  },
+  // Settlements — each sits on a TOWN_PLATEAUS flat disc (terrain.ts) so the
+  // houses/walls stand on level ground; WorldFeatures renders them as seeded
+  // procedural structures (renderTownLandmark / renderCastleLandmark).
+  {
+    id: 'lakeshire-town',
+    name: 'Lakeshire',
+    kind: 'town',
+    zoneId: 'starter_meadow',
+    position: { x: -1_450, z: 80 },
+    radius: 110,
+    height: 14,
+  },
+  {
+    id: 'southmere-town',
+    name: 'Southmere',
+    kind: 'town',
+    zoneId: 'starter_meadow',
+    position: { x: 560, z: -2_080 },
+    radius: 100,
+    height: 14,
+  },
+  {
+    id: 'crestfall-castle',
+    name: 'Crestfall Castle',
+    kind: 'castle',
+    zoneId: 'starter_meadow',
+    position: { x: 3_600, z: -2_520 },
+    radius: 78,
+    height: 96,
   },
   {
     id: 'mega-skyspire-of-aetheris',

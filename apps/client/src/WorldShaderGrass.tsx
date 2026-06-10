@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { getTerrainHeight, sampleGrassDensity } from '../../../packages/content/terrain';
+import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS } from '../../../packages/content/terrain';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
 import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
@@ -116,7 +116,13 @@ const VERT = /* glsl */`
     float base = (hills + mountains + valleys + canyons)*spawnFade + far;
     float lakeField = sin(p.x*0.0013 + 0.9)*sin(p.y*0.00117 - 1.6);
     float lakeMask = smoothstep(0.93, 0.985, lakeField)*smoothstep(900.0, 1300.0, d);
-    return base*(1.0 - lakeMask) + (-11.0)*lakeMask;
+    float h = base*(1.0 - lakeMask) + (-11.0)*lakeMask;
+    // Settlement plateaus — mirrors TOWN_PLATEAUS in terrain.ts exactly.
+    float tm;
+    tm = 1.0 - smoothstep(84.0, 168.0, length(p - vec2(-1450.0, 80.0)));   h = mix(h, 16.0, max(tm, 0.0));
+    tm = 1.0 - smoothstep(77.0, 154.0, length(p - vec2(560.0, -2080.0)));  h = mix(h, 3.0, max(tm, 0.0));
+    tm = 1.0 - smoothstep(56.0, 112.0, length(p - vec2(3600.0, -2520.0))); h = mix(h, 26.0, max(tm, 0.0));
+    return h;
   }
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -248,7 +254,10 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // No grass under lake water: fade out as the terrain dips below the
     // waterline (LAKE_WATER_Y = -4) so shores keep grass and beds go bare.
     const dry = smoothstep(-5.5, -3.5, getTerrainHeight(x, z));
-    return sampleGrassDensity(x, z) * coast * dry;
+    // Settlement plazas are trodden ground — grass fades inside the plateau.
+    let plaza = 1;
+    for (const p of TOWN_PLATEAUS) plaza *= smoothstep(p.r * 0.55, p.r, Math.hypot(x - p.x, z - p.z));
+    return sampleGrassDensity(x, z) * coast * dry * plaza;
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the

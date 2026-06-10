@@ -211,6 +211,20 @@ const LAKE_FULL_DIST = 1300;
 export const LAKE_BED_Y = -11;
 export const LAKE_WATER_Y = -4;
 
+/**
+ * Settlement plateaus — small flat discs blended into the relief so towns and
+ * castles sit on level ground instead of a 20 % hillside. `y` is chosen near
+ * the natural terrain height at the spot so the blend reads as terracing, not
+ * a floating pedestal. MIRRORED in the grass GLSL terrainH — keep ≤ a handful
+ * and update both together. Settlement structures themselves are landmarks
+ * (kind 'town' / 'castle' in worldFeatures.ts) rendered by WorldFeatures.
+ */
+export const TOWN_PLATEAUS = [
+  { id: 'lakeshire', x: -1450, z: 80, y: 16, r: 120 },   // rise overlooking the west lake
+  { id: 'southmere', x: 560, z: -2080, y: 3, r: 110 },   // lakefront deck, ~7 m above the water
+  { id: 'crestfall', x: 3600, z: -2520, y: 26, r: 80 },  // castle crest on the mountain belt
+] as const;
+
 export function getTerrainHeight(x: number, z: number): number {
   const distanceFromSpawn = Math.hypot(x, z);
   // Flat spawn zone: spawnFade and farRelief are both exactly 0 here, so skip
@@ -242,7 +256,13 @@ export function getTerrainHeight(x: number, z: number): number {
 
   const lakeField = Math.sin(x * LAKE_KX + LAKE_PX) * Math.sin(z * LAKE_KZ + LAKE_PZ);
   const lakeMask = smoothstep(0.93, 0.985, lakeField) * smoothstep(LAKE_MIN_DIST, LAKE_FULL_DIST, distanceFromSpawn);
-  return base * (1 - lakeMask) + LAKE_BED_Y * lakeMask;
+  let height = base * (1 - lakeMask) + LAKE_BED_Y * lakeMask;
+
+  for (const plateau of TOWN_PLATEAUS) {
+    const m = 1 - smoothstep(plateau.r * 0.7, plateau.r * 1.4, Math.hypot(x - plateau.x, z - plateau.z));
+    if (m > 0) height = height * (1 - m) + plateau.y * m;
+  }
+  return height;
 }
 
 /**
