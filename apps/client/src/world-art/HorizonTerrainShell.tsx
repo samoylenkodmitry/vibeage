@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../../packages/content/terrain';
 import { heightTint, normalizeTintLuminance } from '../WorldGround';
+import { patchMaterialWithCloudShadow } from './cloudShadows';
 
 /**
  * Far-horizon terrain — a single coarse mesh carrying the world's relief out
@@ -97,7 +98,12 @@ export function HorizonTerrainShell({ focus }: { focus: { x: number; z: number }
       receiveShadow={false}
       raycast={() => null}
     >
-      <meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />
+      <meshStandardMaterial
+        ref={(m: THREE.MeshStandardMaterial | null) => { if (m && !m.userData.cloudPatched) { m.userData.cloudPatched = true; patchMaterialWithCloudShadow(m); } }}
+        vertexColors
+        roughness={0.98}
+        metalness={0.02}
+      />
     </mesh>
   );
 }

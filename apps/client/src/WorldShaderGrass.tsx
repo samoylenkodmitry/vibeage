@@ -6,6 +6,7 @@ import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS } from '../../../pa
 import { distanceBeyondNearestLane } from '../../../packages/content/worldFeatures';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
+import { CLOUD_UNIFORMS } from './world-art/cloudShadows';
 import { STARTER_COZY_COAST } from './world-art/worldArtScenes';
 
 /**
@@ -96,6 +97,8 @@ const VERT = /* glsl */`
   uniform vec3  uHemiSky;     // hemisphere sky color × intensity
   uniform vec3  uHemiGround;  // hemisphere ground color × intensity
   uniform vec3  uAmbientLight;// ambient color × intensity
+  uniform float uCloudTime;
+  uniform float uCloudStrength;
   attribute vec2 aOffset;   // per-instance cell offset, [-patch/2, patch/2]
   attribute vec4 aRand;     // per-instance (heightScale, yaw, hueRand, leanRand)
   varying vec3 vColor;
@@ -216,7 +219,12 @@ const VERT = /* glsl */`
     vec3 irradiance = uAmbientLight
                     + mix(uHemiGround, uHemiSky, hemiW)
                     + uSunLight * max(dot(N, uSunDir), 0.0);
-    vColor = alb * irradiance;
+    // Drifting cloud shadows — same field as the terrain patch, so the
+    // shade patches line up across ground and blades.
+    vec2 ccp = (world + vec2(uCloudTime*9.0, uCloudTime*3.5)) * 0.0055;
+    float cc = vnoise(ccp)*0.65 + vnoise(ccp*2.7)*0.35;
+    float cloudMul = 1.0 - smoothstep(0.55, 0.82, cc) * 0.22 * uCloudStrength;
+    vColor = alb * irradiance * cloudMul;
 
     vec4 mv = viewMatrix * vec4(pos, 1.0);
     vViewZ = -mv.z;
@@ -270,6 +278,7 @@ function buildMaterial(layer: Layer, field: GrassDensityField): THREE.ShaderMate
       uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunLight: { value: new THREE.Color(0, 0, 0) },
       uHemiSky: { value: new THREE.Color(0.5, 0.55, 0.6) }, uHemiGround: { value: new THREE.Color(0.2, 0.25, 0.2) },
       uAmbientLight: { value: new THREE.Color(0.2, 0.2, 0.22) },
+      uCloudTime: CLOUD_UNIFORMS.uCloudTime, uCloudStrength: CLOUD_UNIFORMS.uCloudStrength,
     },
   });
 }
