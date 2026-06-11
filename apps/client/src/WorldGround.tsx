@@ -12,6 +12,7 @@ import {
   TOUCH_MOVE_THROTTLE_MS,
 } from './touchMovement';
 import { useTerrainTextures } from './world-art/useTerrainTextures';
+import { CloudShadowDriver, patchMaterialWithCloudShadow } from './world-art/cloudShadows';
 
 /**
  * Render modes for the clickable terrain chunks.
@@ -135,6 +136,7 @@ export function WorldGround({ focus, onMove, cameraControlsRef, touchClaimRef, v
 
   return (
     <group>
+      <CloudShadowDriver />
       {chunks.map((chunk) => (
         <TerrainChunk
           key={`${chunk.x}:${chunk.z}`}
@@ -390,12 +392,20 @@ function TerrainMaterial({ visualMode, palette }: { visualMode: TerrainVisualMod
     // detail-pop, not a brightness flip — normalized tints made the bare
     // fallback BRIGHTER than the textured result.
     return (
-      <Suspense fallback={<meshStandardMaterial vertexColors color="#6f6d62" roughness={0.98} metalness={0.02} />}>
+      <Suspense fallback={<meshStandardMaterial ref={cloudPatchRef} vertexColors color="#6f6d62" roughness={0.98} metalness={0.02} />}>
         <TexturedTerrainMaterial palette={palette} />
       </Suspense>
     );
   }
-  return <meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />;
+  return <meshStandardMaterial ref={cloudPatchRef} vertexColors roughness={0.98} metalness={0.02} />;
+}
+
+// Ref callback: attach the cloud-shadow patch before first compile.
+function cloudPatchRef(material: THREE.MeshStandardMaterial | null): void {
+  if (material && !material.userData.cloudPatched) {
+    material.userData.cloudPatched = true;
+    patchMaterialWithCloudShadow(material);
+  }
 }
 
 function TexturedTerrainMaterial({ palette }: { palette: TerrainPalette }) {
@@ -415,6 +425,7 @@ function TexturedTerrainMaterial({ palette }: { palette: TerrainPalette }) {
   const normalMap = palette === 'sand' ? tex.sandNormal : palette === 'grass' ? tex.grassNormal : undefined;
   return (
     <meshStandardMaterial
+      ref={cloudPatchRef}
       map={map}
       normalMap={normalMap}
       vertexColors
