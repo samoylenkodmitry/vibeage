@@ -22,6 +22,8 @@ export type CameraControls = {
 };
 
 const CAMERA_FOCUS_HEIGHT = 0.6;
+// Any focus jump beyond this can't be walking — snap instead of gliding.
+const CAMERA_SNAP_DISTANCE_SQ = 40 * 40;
 const CAMERA_GROUND_BUFFER = 1.4;
 const SKY_LOOKUP_PITCH_MIN = 0.06;
 const SKY_LOOKUP_GAIN = 3.0;
@@ -87,7 +89,10 @@ export function CameraRig({
       presentationFocus?.z ?? focus.z,
     );
     if (hasMeaningfulCameraFocusDelta(focusRef.current, focusTargetRef.current)) {
-      focusRef.current.lerp(focusTargetRef.current, smoothingAlpha(CAMERA_FOCUS_RESPONSE, delta));
+      // Hard-snap big jumps (login far away, respawn, teleports) — the glide
+      // read as "camera stuck" for minutes. Walking deltas still smooth.
+      if (focusRef.current.distanceToSquared(focusTargetRef.current) > CAMERA_SNAP_DISTANCE_SQ) focusRef.current.copy(focusTargetRef.current);
+      else focusRef.current.lerp(focusTargetRef.current, smoothingAlpha(CAMERA_FOCUS_RESPONSE, delta));
     }
 
     const orbitPitch = Math.max(SKY_LOOKUP_PITCH_MIN, pitchRef.current);
@@ -102,7 +107,8 @@ export function CameraRig({
       cameraTargetRef.current.y = cameraTerrainY + CAMERA_GROUND_BUFFER;
     }
     const alpha = smoothingAlpha(CAMERA_POSITION_RESPONSE, delta);
-    camera.position.lerp(cameraTargetRef.current, alpha);
+    if (camera.position.distanceToSquared(cameraTargetRef.current) > CAMERA_SNAP_DISTANCE_SQ) camera.position.copy(cameraTargetRef.current);
+    else camera.position.lerp(cameraTargetRef.current, alpha);
 
     const skyDeficit = SKY_LOOKUP_PITCH_MIN - pitchRef.current;
     const skyOffset = skyDeficit > 0
