@@ -1,5 +1,5 @@
-import { Suspense, memo, useEffect, useMemo, useState } from 'react';
-import type * as THREE from 'three';
+import { Suspense, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import * as THREE from 'three';
 import { scheduleChunkBuild } from './world-art/chunkBuildQueue';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { InstancedGltf } from './world-art/InstancedGltf';
@@ -7,7 +7,7 @@ import type { WorldArtQuality } from './world-art/quality';
 import {
   scatterChunkFoliage, splitByParity, foliageChunkOf, visibleFoliageChunks, FOLIAGE_CHUNK_SIZE,
   BROADLEAF_GLB, CONIFER_GLB, TREE_GLB_ALT, ACCENT_GLB_SMALL, ACCENT_GLB_MEDIUM, BUSH_GLB, TREE_WIND, BUSH_WIND,
-  instanceMatrix, instanceColor,
+  instanceMatrix, instanceColor, type FoliageInstance,
 } from './world-art/foliageScatter';
 
 /**
@@ -49,7 +49,43 @@ export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldA
   );
 }
 
-const EMPTY_CHUNK = { trees: [], conifers: [], grass: [], accents: [], bushes: [] } as ReturnType<typeof scatterChunkFoliage>;
+const EMPTY_CHUNK = { trees: [], conifers: [], grass: [], accents: [], bushes: [], flowers: [], reeds: [] } as ReturnType<typeof scatterChunkFoliage>;
+
+// Procedural geometry for the tiny scatter layers — no GLB payload at all.
+// Flower head: a squashed pastel bead the shader grass nestles around.
+const FLOWER_GEOMETRY = new THREE.SphereGeometry(0.085, 6, 4);
+FLOWER_GEOMETRY.scale(1, 0.55, 1);
+// Reed: a thin tall 4-sided blade, origin at its base so y = ground height.
+const REED_GEOMETRY = new THREE.ConeGeometry(0.05, 1.7, 4);
+REED_GEOMETRY.translate(0, 0.85, 0);
+
+/**
+ * One instanced draw for a chunk's worth of small scatter (flowers/reeds).
+ * `raw` keeps the authored colors (pastel flower heads must NOT go through
+ * the luminance normalization the vegetation tints use).
+ */
+const InstancedScatter = memo(function InstancedScatter({ instances, geometry, raw }: {
+  instances: FoliageInstance[];
+  geometry: THREE.BufferGeometry;
+  raw?: boolean;
+}) {
+  const setRef = useCallback((mesh: THREE.InstancedMesh | null) => {
+    if (!mesh) return;
+    const rawColor = new THREE.Color();
+    for (let i = 0; i < instances.length; i += 1) {
+      mesh.setMatrixAt(i, instanceMatrix(instances[i]));
+      mesh.setColorAt(i, raw ? rawColor.set(instances[i].color) : instanceColor(instances[i]));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.count = instances.length;
+  }, [instances, raw]);
+  return (
+    <instancedMesh ref={setRef} args={[geometry, undefined, instances.length]} frustumCulled={false} raycast={() => null}>
+      <meshStandardMaterial roughness={0.92} metalness={0} />
+    </instancedMesh>
+  );
+});
 
 const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { originX: number; originZ: number; lean: boolean }) {
   // Scattered through the shared queue — see chunkBuildQueue: a teleport
@@ -60,7 +96,7 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { or
     const cancel = scheduleChunkBuild(() => setScattered(scatterChunkFoliage(originX, originZ, CHUNK, false)));
     return cancel;
   }, [originX, originZ]);
-  const { trees, conifers, accents, bushes } = scattered ?? EMPTY_CHUNK;
+  const { trees, conifers, accents, bushes, flowers, reeds } = scattered ?? EMPTY_CHUNK;
   const t = useMemo(() => splitByParity(trees), [trees]);
   const co = useMemo(() => splitByParity(conifers), [conifers]);
   // lean (phones) never renders rocks/bushes — skip building their
@@ -85,6 +121,9 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { or
           (FBX2glTF export) — without it every bush renders far from its
           matrix position and "flies" over slopes. */}
       {!lean && bu.matrices.length > 0 && <InstancedGltf src={BUSH_GLB} matrices={bu.matrices} colors={bu.colors} baseScale={1.0} wind={BUSH_WIND} recenter />}
+      {/* small scatter: wildflower drifts + water-edge reeds, one draw each */}
+      {!lean && flowers.length > 0 && <InstancedScatter instances={flowers} geometry={FLOWER_GEOMETRY} raw />}
+      {!lean && reeds.length > 0 && <InstancedScatter instances={reeds} geometry={REED_GEOMETRY} />}
     </Suspense>
   );
 });

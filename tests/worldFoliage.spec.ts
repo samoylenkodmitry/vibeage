@@ -119,6 +119,40 @@ describe('foliage chunk streaming window', () => {
   });
 });
 
+describe('small scatter layers (flowers + reeds)', () => {
+  it('flowers are deterministic and never sit on lanes or underwater', async () => {
+    const { distanceBeyondNearestLane } = await import('../packages/content/worldFeatures');
+    const a = scatterChunkFoliage(0, 0, FOLIAGE_CHUNK_SIZE, false);
+    expect(scatterChunkFoliage(0, 0, FOLIAGE_CHUNK_SIZE, false).flowers).toEqual(a.flowers);
+    for (const f of a.flowers) {
+      expect(f.y).toBeGreaterThanOrEqual(-3.5);
+      expect(distanceBeyondNearestLane(f.x, f.z)).toBeGreaterThanOrEqual(1.2);
+    }
+  });
+
+  it('reeds only grow at water edges (shore band or river bank)', async () => {
+    const { distanceBeyondNearestRiver } = await import('../packages/content/worldFeatures');
+    // The Silverwood River leaves spawn heading north-west — scan a chunk it
+    // crosses plus a lakes-band chunk; every reed must be shore or riverbank.
+    for (const [ox, oz] of [[-1280, 1280], [960, 960], [0, 0]] as const) {
+      const f = scatterChunkFoliage(ox, oz, FOLIAGE_CHUNK_SIZE, false);
+      for (const reed of f.reeds) {
+        const shore = reed.y >= -4.3 && reed.y <= -2.4;
+        const river = distanceBeyondNearestRiver(reed.x, reed.z) < 5;
+        expect(shore || river).toBe(true);
+      }
+    }
+  });
+
+  it('meadow chunks actually bloom — the drift field is not all zero', () => {
+    // Across a few chunks of the spawn meadow at least one should carry a
+    // meaningful flower drift (the patch field peaks somewhere).
+    const total = [[0, 0], [320, 0], [0, 320], [320, 320], [-320, 0]]
+      .reduce((sum, [x, z]) => sum + scatterChunkFoliage(x, z, FOLIAGE_CHUNK_SIZE, false).flowers.length, 0);
+    expect(total).toBeGreaterThan(30);
+  });
+});
+
 describe('foliage richness (L2/Crysis overhaul)', () => {
   it('grows a bush understory in vegetated areas', () => {
     // Bushes fill the layer between blade-grass and trees; a vegetated
