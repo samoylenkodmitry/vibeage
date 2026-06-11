@@ -67,7 +67,7 @@ function grassLayers(q: WorldArtQuality): Layer[] {
   }
   // 'low' = phones: one small layer, sized for battery silicon (the medium
   // config overheated a Pixel 9 Pro and crashed the tab).
-  return [{ patch: 150, count: 45000, hScale: 1.1, wScale: 1.1, innerFade: 0 }];
+  return [{ patch: 150, count: 32000, hScale: 1.1, wScale: 1.1, innerFade: 0 }];
 }
 
 // One blade template: rows at t = 0, 1/3, 2/3 are 2 wide (side ±1), tip is a

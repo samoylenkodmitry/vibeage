@@ -30,6 +30,13 @@ const STARTER_COAST_SAND = {
 // (medium/high tiers): far enough that mountain ridges read as a vista,
 // near enough that the 960 m foliage frontier still mounts inside haze.
 const VISTA_FOG = { near: 500, far: 2600 } as const;
+
+// antialias:false — the default canvas 4xMSAA framebuffer is huge (~150 MB at
+// phone DPR; a prime mobile OOM suspect) and on med/high it's pure waste: the
+// EffectComposer does its own AA (4x MSAA target on high, SMAA on medium) and
+// the canvas is just the blit target. Low accepts mild jaggies — physically
+// tiny on dense phone screens.
+const CANVAS_GL_OPTIONS = { antialias: false, powerPreference: 'high-performance' } as const;
 import {
   CastMarker,
   EnemyMarker,
@@ -72,9 +79,9 @@ type WorldSceneProps = {
 };
 
 function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof chooseWorldArtQuality>): void {
-  // Low = phones: 1.2 keeps the fill-rate (and the SoC temperature) sane on
-  // 3x-DPR screens; the UI stays crisp because it's DOM, not canvas.
-  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1.2));
+  // Low = phones: DPR 1 keeps fill-rate (and SoC temperature) sane on 3x-DPR
+  // screens; the UI stays crisp because it's DOM, not canvas.
+  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1));
   // Without preventDefault the browser treats a GPU context loss as permanent
   // and never fires webglcontextrestored — three.js can recover automatically
   // once restoration is allowed (ScenePostFX unmounts its composer for the
@@ -115,17 +122,15 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       /* PCF-soft shadow mapping — the renderer never enabled shadows before,
          so every castShadow flag was inert (a big part of the flat toy look). */
       shadows={worldArtQuality !== 'low' ? 'soft' : false}
+      gl={CANVAS_GL_OPTIONS}
       onCreated={({ gl }) => setUpRenderer(gl, worldArtQuality)}
     >
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
       <Preload all />
       <DynamicLightPool focus={focus} />
       {import.meta.env.DEV && <StatsGl />}
-      {/* Medium/high carry the relief to ±4 km with the horizon shell, so fog
-          sits far out and mountains read as a hazy vista; low keeps the close
-          frontier-hiding fog (no shell → nothing past 1 km to show). */}
-      {/* onSunMesh only when the composer will mount — low tier has no postFX,
-          so skip the state update (and its full re-render) entirely. */}
+      {/* Med/high: vista fog + horizon shell; low keeps close fog. onSunMesh
+          only when the composer will mount (low has no postFX). */}
       <WorldEnvironment
         focus={focus}
         fog={worldArtQuality === 'low' ? undefined : VISTA_FOG}

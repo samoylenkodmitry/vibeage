@@ -38,13 +38,13 @@ export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldA
   return (
     <group>
       {chunks.map((chunk) => (
-        <FoliageChunk key={`${chunk.x}:${chunk.z}`} originX={chunk.x} originZ={chunk.z} />
+        <FoliageChunk key={`${chunk.x}:${chunk.z}`} originX={chunk.x} originZ={chunk.z} lean={quality === 'low'} />
       ))}
     </group>
   );
 }
 
-const FoliageChunk = memo(function FoliageChunk({ originX, originZ }: { originX: number; originZ: number }) {
+const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { originX: number; originZ: number; lean: boolean }) {
   const { trees, conifers, accents, bushes } = useMemo(
     () => scatterChunkFoliage(originX, originZ, CHUNK, false),
     [originX, originZ],
@@ -63,12 +63,14 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ }: { originX:
       {t.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={t.oddMatrices} colors={t.oddColors} baseScale={1.4} wind={TREE_WIND} castShadow />}
       {co.evenMatrices.length > 0 && <InstancedGltf src={CONIFER_GLB} matrices={co.evenMatrices} colors={co.evenColors} baseScale={1.6} wind={TREE_WIND} castShadow />}
       {co.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.6} wind={TREE_WIND} castShadow />}
-      {ac.evenMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />}
-      {ac.oddMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={ac.oddMatrices} colors={ac.oddColors} baseScale={0.6} />}
+      {/* lean (phones): trees only — rocks + bushes cost ~5 extra instanced
+          draws per chunk, which adds up across 25 chunks on mobile GPUs. */}
+      {!lean && ac.evenMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />}
+      {!lean && ac.oddMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_MEDIUM} matrices={ac.oddMatrices} colors={ac.oddColors} baseScale={0.6} />}
       {/* recenter: the tuft GLB bakes a ~63 m world offset into its vertices
           (FBX2glTF export) — without it every bush renders far from its
           matrix position and "flies" over slopes. */}
-      {bu.matrices.length > 0 && <InstancedGltf src={BUSH_GLB} matrices={bu.matrices} colors={bu.colors} baseScale={1.0} wind={BUSH_WIND} recenter />}
+      {!lean && bu.matrices.length > 0 && <InstancedGltf src={BUSH_GLB} matrices={bu.matrices} colors={bu.colors} baseScale={1.0} wind={BUSH_WIND} recenter />}
     </Suspense>
   );
 });
