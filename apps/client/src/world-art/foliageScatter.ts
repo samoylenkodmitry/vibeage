@@ -227,7 +227,9 @@ function scatterCellSmall(
     if (roll >= flowerChance) continue;
     const fy = sampleTerrain(fx, fz).height;
     if (fy < DRY_MIN_Y || insideSettlement(fx, fz) || distanceBeyondNearestLane(fx, fz) < 1.2) continue;
-    flowers.push({ x: fx, y: fy + 0.14, z: fz, scale, rotation: 0, color });
+    // y = ground; the flower geometry carries its own stem so the head
+    // clears the ~0.4 m grass blades instead of hiding inside them.
+    flowers.push({ x: fx, y: fy, z: fz, scale, rotation: 0, color });
   }
   const onShore = cellHeight >= REED_SHORE_MIN_Y && cellHeight <= REED_SHORE_MAX_Y;
   const nearRiver = distanceBeyondNearestRiver(x, z) < REED_RIVER_BAND;
