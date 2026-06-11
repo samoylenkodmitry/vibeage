@@ -16,6 +16,13 @@ import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { LakeWaters } from './world-art/LakeWaters';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
+import {
+  CastMarker,
+  EnemyMarker,
+  NpcMarkers,
+  LootMarker,
+  PlayerMarker,
+} from './WorldEntities';
 
 // Sand only hugs the coast waterline; the meadow inland stays grass. A
 // chunk-local region (not a global flip) so the ground texture is fixed
@@ -37,13 +44,6 @@ const VISTA_FOG = { near: 500, far: 2600 } as const;
 // the canvas is just the blit target. Low accepts mild jaggies — physically
 // tiny on dense phone screens.
 const CANVAS_GL_OPTIONS = { antialias: false, powerPreference: 'high-performance' } as const;
-import {
-  CastMarker,
-  EnemyMarker,
-  NpcMarkers,
-  LootMarker,
-  PlayerMarker,
-} from './WorldEntities';
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
 import { WorldShaderGrass } from './WorldShaderGrass';
