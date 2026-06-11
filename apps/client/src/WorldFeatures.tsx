@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js';
@@ -51,7 +51,7 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
       ))}
       {visibleFeatures.landmarks.map((landmark) => (
         <Suspense key={landmark.id} fallback={null}>
-          <LandmarkMesh landmark={landmark} />
+          <LandmarkMesh landmark={landmark} focus={focus} />
         </Suspense>
       ))}
     </group>
@@ -181,7 +181,7 @@ function buildVisibleLaneSlabs(
   return slabs;
 }
 
-function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
+function LandmarkMesh({ landmark, focus }: { landmark: WorldLandmark; focus: Vec3D }) {
   const terrain = sampleTerrain(landmark.position.x, landmark.position.z);
   // Stone for the built landmarks (keep/gate/spire) — the flat-colour
   // primitives read as plastic toys (user feedback).
@@ -204,9 +204,56 @@ function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
           <meshBasicMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.34} depthWrite={false} />
         </mesh>
       )}
-      {renderLandmarkShape(landmark, color, fog, stone)}
+      <GhostGroup opacity={landmarkGhostOpacity(landmark, focus)}>
+        {renderLandmarkShape(landmark, color, fog, stone)}
+      </GhostGroup>
     </group>
   );
+}
+
+// Past the vista fog every landmark is 100% fog-saturated — a SOLID slab of
+// fog colour against a brighter sky gradient. The mega spires read as flat
+// purple skyscrapers at dawn/dusk (user screenshots). Atmospheric perspective
+// needs them to thin out, not just tint: fade opacity from solid inside the
+// vista (≤2.6 km) down to a ghostly floor by 6 km, so distant silhouettes let
+// the sky through like real far-off objects in haze.
+const GHOST_NEAR = 2_600;
+const GHOST_FAR = 6_000;
+const GHOST_FLOOR = 0.3;
+
+function landmarkGhostOpacity(landmark: WorldLandmark, focus: Vec3D): number {
+  const dist = Math.hypot(landmark.position.x - focus.x, landmark.position.z - focus.z);
+  const t = THREE.MathUtils.clamp((dist - GHOST_NEAR) / (GHOST_FAR - GHOST_NEAR), 0, 1);
+  // Quantized so walking doesn't churn material writes every frame.
+  return Math.round((1 - t * (1 - GHOST_FLOOR)) * 50) / 50;
+}
+
+/**
+ * Applies a uniform opacity to every material under it (multiplied into each
+ * material's own base opacity). The effect runs after every render — children
+ * can mount late through Suspense — but writes only when a material's applied
+ * value actually changes. Restores base opacity/transparency at opacity 1.
+ */
+function GhostGroup({ opacity, children }: { opacity: number; children: ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useEffect(() => {
+    ref.current?.traverse((object) => {
+      const material = (object as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      if (!material) return;
+      for (const mat of Array.isArray(material) ? material : [material]) {
+        if (mat.userData.ghostBaseOpacity === undefined) {
+          mat.userData.ghostBaseOpacity = mat.opacity;
+          mat.userData.ghostBaseTransparent = mat.transparent;
+        }
+        if (mat.userData.ghostApplied === opacity) continue;
+        mat.userData.ghostApplied = opacity;
+        const solid = opacity >= 0.999;
+        mat.transparent = solid ? mat.userData.ghostBaseTransparent === true : true;
+        mat.opacity = mat.userData.ghostBaseOpacity * (solid ? 1 : opacity);
+      }
+    });
+  });
+  return <group ref={ref}>{children}</group>;
 }
 
 function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
