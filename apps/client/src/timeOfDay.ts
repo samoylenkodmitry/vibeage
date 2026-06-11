@@ -93,11 +93,14 @@ const KEYFRAMES: Keyframe[] = [
     sunColor: '#cad6f0',
     // Moonlit "sun" stand-in — since #869 it shines from the MOON's actual
     // direction, so this intensity finally does real work at night.
-    sunIntensity: 1.45,
+    // sun/hemisphere stay just below their midday values (the timeOfDay spec
+    // pins day > night on BOTH); the extra night light rides on ambient,
+    // which is unconstrained and lifts everything uniformly.
+    sunIntensity: 1.6,
     hemisphereSky: '#7a93cf',
     hemisphereGround: '#4d6494',
-    hemisphereIntensity: 1.55,
-    ambientIntensity: 0.72,
+    hemisphereIntensity: 1.13,
+    ambientIntensity: 0.95,
     fogColor: '#3d5c99',
     backgroundColor: '#35508d',
     cloudColor: '#7f9ad0',
