@@ -34,7 +34,12 @@ type LayerSpec = {
   turnChance: number;
 };
 
-const BUTTERFLY_SPEC: LayerSpec = { count: BUTTERFLY_COUNT, range: 30, heightMin: 0.4, heightMax: 2.4, speed: 1.4, turnChance: 0.04 };
+// One slice per butterfly colour — a static per-slice spec keeps MoteLayer
+// props reference-stable across the per-tick re-renders (review).
+const BUTTERFLY_SLICE_SPEC: LayerSpec = {
+  count: Math.ceil(BUTTERFLY_COUNT / BUTTERFLY_COLORS.length),
+  range: 30, heightMin: 0.4, heightMax: 2.4, speed: 1.4, turnChance: 0.04,
+};
 const FIREFLY_SPEC: LayerSpec = { count: FIREFLY_COUNT, range: 28, heightMin: 0.5, heightMax: 2.4, speed: 0.8, turnChance: 0.02 };
 const POLLEN_SPEC: LayerSpec = { count: POLLEN_COUNT, range: 18, heightMin: 0.3, heightMax: 3.2, speed: 0.35, turnChance: 0.06 };
 
@@ -45,7 +50,12 @@ export function AmbientLife({ focus }: { focus: Vec3 }) {
   focusRef.current = focus;
   const daynessRef = useRef(1);
   const nightnessRef = useRef(0);
+  const lastPhaseAtRef = useRef(0);
   useFrame(() => {
+    // The day phase moves over minutes — sampling it at 4 Hz is plenty.
+    const now = performance.now();
+    if (now - lastPhaseAtRef.current < 250) return;
+    lastPhaseAtRef.current = now;
     const sunY = computeDayPhase(Date.now()).sunDir.y;
     daynessRef.current = smoothstep(-0.05, 0.2, sunY);
     nightnessRef.current = 1 - daynessRef.current;
@@ -55,7 +65,7 @@ export function AmbientLife({ focus }: { focus: Vec3 }) {
       {BUTTERFLY_COLORS.map((color, i) => (
         <MoteLayer
           key={`bf-${i}`}
-          spec={{ ...BUTTERFLY_SPEC, count: Math.ceil(BUTTERFLY_COUNT / BUTTERFLY_COLORS.length) }}
+          spec={BUTTERFLY_SLICE_SPEC}
           seed={4441 + i * 131}
           color={color}
           fadeRef={daynessRef}
@@ -114,7 +124,8 @@ function MoteLayer({ spec, seed, color, fadeRef, focusRef, size, flutterHz, puls
       m.x += m.vx * dt;
       m.y += m.vy * dt;
       m.z += m.vz * dt;
-      if (rand() < spec.turnChance) {
+      // dt-scaled so the turn frequency is framerate-independent (review).
+      if (rand() < spec.turnChance * 60 * dt) {
         const a = rand() * Math.PI * 2;
         m.vx = Math.cos(a) * spec.speed;
         m.vz = Math.sin(a) * spec.speed;
@@ -143,6 +154,12 @@ function MoteLayer({ spec, seed, color, fadeRef, focusRef, size, flutterHz, puls
     }
   });
 
+  // Stable uniforms object — recreating it per render churns material state.
+  const uniforms = useMemo(() => ({
+    uColor: { value: new THREE.Color(color) },
+    uSize: { value: size },
+  }), [color, size]);
+
   return (
     <points frustumCulled={false} raycast={() => null}>
       <bufferGeometry ref={geometryRef}>
@@ -153,7 +170,7 @@ function MoteLayer({ spec, seed, color, fadeRef, focusRef, size, flutterHz, puls
         transparent
         depthWrite={false}
         blending={additive ? THREE.AdditiveBlending : THREE.NormalBlending}
-        uniforms={{ uColor: { value: new THREE.Color(color) }, uSize: { value: size } }}
+        uniforms={uniforms}
         vertexShader={moteVertexShader}
         fragmentShader={moteFragmentShader}
       />
