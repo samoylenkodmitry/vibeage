@@ -83,23 +83,27 @@ const KEYFRAMES: Keyframe[] = [
   },
   {
     phase: 0.86,
-    // Night was unplayably dim — players reported they couldn't see
-    // their character or nearby mobs. Bump hemisphere + sun (moonlit-
-    // sky stand-in) intensities and lift the sky/ground colours toward
-    // a moonlit blue rather than near-black, so the world stays
-    // legible while still feeling like night.
+    // Night brightness is INTRINSIC now — round three of "night is black"
+    // (user, on a phone with no HDR headroom). Earlier rounds leaned on the
+    // adaptive tone map to lift the scene; that proved unreliable across
+    // devices, so the night keyframe itself carries a bright moonlit-blue
+    // base: stronger hemisphere + ambient, lighter sky/ground tints. Still
+    // clearly night (cool, blue, below day), but everything is readable
+    // with NO tone-mapping help at all.
     sunColor: '#cad6f0',
-    // Moonlit "sun" stand-in, pushed up hard: players reported night was
-    // unplayably dark. Kept just under midday so the "day brighter than
-    // night" invariant holds, but the ratio is now small by design.
-    sunIntensity: 1.45,
-    hemisphereSky: '#5a73b4',
-    hemisphereGround: '#384f7a',
-    hemisphereIntensity: 1.1,
-    ambientIntensity: 0.42,
-    fogColor: '#33508a',
-    backgroundColor: '#2e4880',
-    cloudColor: '#6f8cc0',
+    // Moonlit "sun" stand-in — since #869 it shines from the MOON's actual
+    // direction, so this intensity finally does real work at night.
+    // sun/hemisphere stay just below their midday values (the timeOfDay spec
+    // pins day > night on BOTH); the extra night light rides on ambient,
+    // which is unconstrained and lifts everything uniformly.
+    sunIntensity: 1.6,
+    hemisphereSky: '#7a93cf',
+    hemisphereGround: '#4d6494',
+    hemisphereIntensity: 1.13,
+    ambientIntensity: 0.95,
+    fogColor: '#3d5c99',
+    backgroundColor: '#35508d',
+    cloudColor: '#7f9ad0',
     cloudOpacity: 0.5,
   },
 ];

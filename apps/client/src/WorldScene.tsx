@@ -51,7 +51,7 @@ import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from 
 import { ScenePostFX } from './ScenePostFX';
 import { hasActiveEffect } from './hud/effectMeta';
 import { getTerrainY } from './worldSceneConfig';
-import { DynamicLightPool } from './dynamicLights';
+import { DynamicLightPool, GlowEmitter } from './dynamicLights';
 import { isCastInActiveTimeField, isPointInActiveTimeField } from './timeFreeze';
 
 /** Anchor for a target-delivered cast (deluge): the targeted entity's LIVE
@@ -100,16 +100,13 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   // everywhere. The cozy hero scene only contributes anchored geometry
   // (water, shore, dock, foliage) on top of that — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
-  // Sun disc mesh handed up by WorldEnvironment → anchors GodRays in
-  // ScenePostFX (the effect needs the real mesh at construction; state makes
-  // the composer rebuild once when it arrives).
+  // Sun disc handed up by WorldEnvironment → anchors GodRays in ScenePostFX.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
   const handleSunMesh = useCallback((mesh: THREE.Mesh | null) => {
     setSunMesh((prev) => (prev === mesh ? prev : mesh));
   }, []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
-  // Keep the cozy scene mounted once entered — re-crossing the radius would
-  // otherwise re-clone ~310 GLB instances (multi-second hitch). Swap only on a new scene.
+  // Keep the cozy scene mounted once entered (remount = multi-second hitch).
   const mountedSceneRef = useRef(activeCozyScene);
   if (activeCozyScene && activeCozyScene !== mountedSceneRef.current) {
     mountedSceneRef.current = activeCozyScene;
@@ -128,6 +125,10 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
       <Preload all />
       <DynamicLightPool focus={focus} />
+      {/* Personal moonlamp — character readable at night. Pool-routed. */}
+      <group position={[focus.x, getTerrainY(focus.x, focus.z) + 2.2, focus.z]}>
+        <GlowEmitter color="#d9e6ff" intensity={1.3} distance={15} priority={2} />
+      </group>
       {import.meta.env.DEV && <StatsGl />}
       {/* Med/high: vista fog + horizon shell; low keeps close fog. onSunMesh
           only when the composer will mount (low has no postFX). */}
