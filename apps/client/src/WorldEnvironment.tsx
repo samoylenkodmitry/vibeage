@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -76,8 +76,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
   };
-  // Lazy useRef (not useMemo) for the disposable materials: useMemo can be evicted
-  // under memory pressure, which would orphan the GPU resource without dispose().
+  // Lazy useRef (not useMemo, which can be evicted and orphan the GPU material).
   const moonMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#dde6ff' });
   const moonMaterial = moonMaterialRef.current;
@@ -85,6 +84,15 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
   if (!sunMaterialRef.current) sunMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#fff1a6' });
   const sunMaterial = sunMaterialRef.current;
   const { scene } = useThree();
+
+  // Latest-ref keeps setSunDiscRef 100% stable (even if a parent passes an unstable onSunMesh) so the inline-ref churn that rebuilt the post-FX composer every frame — a ~100 render-target/sec VRAM leak — can never return.
+  const onSunMeshRef = useRef(onSunMesh);
+  onSunMeshRef.current = onSunMesh;
+  const { sunDisc } = refs;
+  const setSunDiscRef = useCallback((mesh: THREE.Mesh | null) => {
+    sunDisc.current = mesh;
+    onSunMeshRef.current?.(mesh);
+  }, [sunDisc]);
 
   useEffect(() => {
     return () => {
@@ -126,13 +134,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
         {...SUN_SHADOW_PROPS}
       />
       <group ref={refs.sunGroup}>
-        <mesh
-          material={sunMaterial}
-          ref={(mesh: THREE.Mesh | null) => {
-            refs.sunDisc.current = mesh;
-            onSunMesh?.(mesh);
-          }}
-        >
+        <mesh material={sunMaterial} ref={setSunDiscRef}>
           <sphereGeometry args={[34, 24, 16]} />
         </mesh>
         {/* Warm halo behind the sun disc — gives golden bloom feel
