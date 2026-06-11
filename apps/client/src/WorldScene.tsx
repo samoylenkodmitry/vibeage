@@ -81,7 +81,7 @@ type WorldSceneProps = {
 function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof chooseWorldArtQuality>): void {
   // Low = phones: DPR 1 keeps fill-rate (and SoC temperature) sane on 3x-DPR
   // screens; the UI stays crisp because it's DOM, not canvas.
-  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1));
+  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1.15));
   // Without preventDefault the browser treats a GPU context loss as permanent
   // and never fires webglcontextrestored — three.js can recover automatically
   // once restoration is allowed (ScenePostFX unmounts its composer for the
