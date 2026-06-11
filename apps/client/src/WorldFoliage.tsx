@@ -1,5 +1,6 @@
-import { Suspense, memo, useMemo } from 'react';
+import { Suspense, memo, useEffect, useMemo, useState } from 'react';
 import type * as THREE from 'three';
+import { scheduleChunkBuild } from './world-art/chunkBuildQueue';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { InstancedGltf } from './world-art/InstancedGltf';
 import type { WorldArtQuality } from './world-art/quality';
@@ -48,11 +49,18 @@ export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldA
   );
 }
 
+const EMPTY_CHUNK = { trees: [], conifers: [], grass: [], accents: [], bushes: [] } as ReturnType<typeof scatterChunkFoliage>;
+
 const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { originX: number; originZ: number; lean: boolean }) {
-  const { trees, conifers, accents, bushes } = useMemo(
-    () => scatterChunkFoliage(originX, originZ, CHUNK, false),
-    [originX, originZ],
-  );
+  // Scattered through the shared queue — see chunkBuildQueue: a teleport
+  // mounts every visible chunk at once and the synchronous scatter froze
+  // the main thread.
+  const [scattered, setScattered] = useState<ReturnType<typeof scatterChunkFoliage> | null>(null);
+  useEffect(() => {
+    const cancel = scheduleChunkBuild(() => setScattered(scatterChunkFoliage(originX, originZ, CHUNK, false)));
+    return cancel;
+  }, [originX, originZ]);
+  const { trees, conifers, accents, bushes } = scattered ?? EMPTY_CHUNK;
   const t = useMemo(() => splitByParity(trees), [trees]);
   const co = useMemo(() => splitByParity(conifers), [conifers]);
   // lean (phones) never renders rocks/bushes — skip building their
