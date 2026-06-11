@@ -241,7 +241,7 @@ function scatterCellSmall(
     const tint = jitterFoliageColor('#7f8b51', random);
     const ry = sampleTerrain(rx, rz).height;
     const inBand = (ry >= REED_SHORE_MIN_Y && ry <= REED_SHORE_MAX_Y)
-      || (distanceBeyondNearestRiver(rx, rz) < REED_RIVER_BAND - 1 && ry >= DRY_MIN_Y);
+      || (nearRiver && distanceBeyondNearestRiver(rx, rz) < REED_RIVER_BAND - 1 && ry >= DRY_MIN_Y);
     if (!inBand || insideSettlement(rx, rz)) continue;
     reeds.push({ x: rx, y: ry, z: rz, scale, rotation, color: tint });
   }
