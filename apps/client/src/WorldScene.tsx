@@ -50,6 +50,7 @@ const VISTA_FOG_LOW = { near: 420, far: 1600 } as const;
 const CANVAS_GL_OPTIONS = { antialias: false, powerPreference: 'high-performance' } as const;
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
+import { AmbientLife } from './world-art/AmbientLife';
 import { WorldShaderGrass } from './WorldShaderGrass';
 import { BossTelegraphRing, TargetDestinationMarker, castAnchorsAtTarget } from './SceneVfx';
 import { ScenePostFX } from './ScenePostFX';
@@ -143,8 +144,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {/* One draw call + a one-off 47 ms bake — phones can afford mountains. */}
       <HorizonTerrainShell focus={focus} />
       <WorldFoliage focus={focus} quality={worldArtQuality} />
-      {/* All tiers get grass; low = the single cheap phone layer. */}
       <WorldShaderGrass focus={focus} quality={worldArtQuality} />
+      {worldArtQuality !== 'low' && <AmbientLife focus={focus} />}
       {/* Water anchored to the starter coast waterline (visible from inland); the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
       {/* Procedural lakes: streamed discs at the terrain's analytic lake
