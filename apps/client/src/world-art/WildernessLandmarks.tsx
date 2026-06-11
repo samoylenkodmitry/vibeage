@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import * as THREE from 'three';
 import type { WorldLandmark } from '../../../../packages/content/worldFeatures';
 import { seededRandom } from './foliageScatter';
 import { useSettlementTextures } from './SettlementLandmarks';
