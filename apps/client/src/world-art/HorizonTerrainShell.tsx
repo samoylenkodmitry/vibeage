@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { sampleTerrain } from '../../../../packages/content/terrain';
-import { heightTint } from '../WorldGround';
+import { heightTint, normalizeTintLuminance } from '../WorldGround';
 
 /**
  * Far-horizon terrain — a single coarse mesh carrying the world's relief out
@@ -117,9 +117,14 @@ function bakeRows(positions: Float32Array, colors: Float32Array, anchorX: number
       positions[base + 1] = terrain.height + Y_OFFSET;
       positions[base + 2] = wz;
       BAKE_COLOR.set(terrain.groundColor).lerp(BAKE_ACCENT.set(terrain.accentColor), heightTint(terrain.height));
-      colors[base] = BAKE_COLOR.r;
-      colors[base + 1] = BAKE_COLOR.g;
-      colors[base + 2] = BAKE_COLOR.b;
+      // Match the near chunks' albedo model: normalized tint × a constant
+      // standing in for the ground texture's mean colour (the shell has no
+      // map). Keeps the 1 km seam consistent now that near-terrain tints are
+      // luminance-normalized.
+      normalizeTintLuminance(BAKE_COLOR);
+      colors[base] = BAKE_COLOR.r * 0.42;
+      colors[base + 1] = BAKE_COLOR.g * 0.44;
+      colors[base + 2] = BAKE_COLOR.b * 0.38;
     }
   }
 }
