@@ -62,7 +62,9 @@ const FLOWER_GEOMETRY = (() => {
   const head = new THREE.SphereGeometry(0.105, 6, 4);
   head.scale(1, 0.6, 1);
   head.translate(0, 0.45, 0);
-  return mergeGeometries([stem, head]);
+  // mergeGeometries is typed nullable; same-attribute primitives can't fail,
+  // but fall back to the bare head rather than crash the chunk.
+  return mergeGeometries([stem, head]) ?? head;
 })();
 // Reed: a thin tall 4-sided blade, origin at its base so y = ground height.
 const REED_GEOMETRY = new THREE.ConeGeometry(0.05, 1.7, 4);
