@@ -12,6 +12,7 @@ import { describeOffense, describeReactions, describeSkillPlayPattern } from './
 import { skillMechanicLabels } from '../../../../packages/content/skillMechanics';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
+import { useHasMousePointer } from './useHasMousePointer';
 import {
   getSpecializationsForClass,
   PROFICIENCY_LEVEL,
@@ -122,6 +123,7 @@ function SkillRow({
 }) {
   const skill = SKILLS[row.skillId];
   const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const hasMouse = useHasMousePointer();
   const isPassive = isPassiveSkill(row.skillId);
   const canDragToBar = row.status === 'unlocked' && !isPassive;
   // Self-buff = a beneficial-only active skill (Bless, Shield Wall,
@@ -150,7 +152,11 @@ function SkillRow({
           }
           onToggleExpand();
         }}
-        draggable={canDragToBar}
+        /* draggable must be MOUSE-ONLY (like every other bar source): on
+           Android, Chrome starts its NATIVE drag on long-press of a draggable
+           element and fires pointercancel — killing the touch drag controller
+           right as it activates, so the bar never received the skill. */
+        draggable={canDragToBar && hasMouse}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'copy';
           e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: row.skillId }));
