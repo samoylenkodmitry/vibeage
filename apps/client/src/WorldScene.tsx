@@ -15,7 +15,7 @@ import { chooseWorldArtQuality } from './world-art/quality';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { LakeWaters } from './world-art/LakeWaters';
-import { WebGLGate } from './world-art/webglSupport';
+import { WebGLGate, RendererContextLossGuard, RendererContextLostOverlay } from './world-art/webglSupport';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 import {
   CastMarker,
@@ -100,10 +100,10 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const activeTimeFields = state.activePhysicsFields;
   const now = Date.now();
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  // WorldEnvironment owns the sky/sun/moon/clouds/day-night palette
-  // everywhere. The cozy hero scene only contributes anchored geometry
-  // (water, shore, dock, foliage) on top of that — never atmosphere.
+  // WorldEnvironment owns sky/sun/moon/clouds/day-night; the cozy scene only adds anchored geometry on top — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
+  const [contextLost, setContextLost] = useState(false); // GPU dropped the render context → overlay below
+
   // Sun disc handed up by WorldEnvironment → anchors GodRays in ScenePostFX.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
   const handleSunMesh = useCallback((mesh: THREE.Mesh | null) => setSunMesh((prev) => (prev === mesh ? prev : mesh)), []);
@@ -119,22 +119,22 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
     <WebGLGate>
     <Canvas
       camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
-      /* Plain PCF shadows — three deprecated PCFSoftShadowMap and r3f's
-         'soft' re-applied it per frame (500+ console warnings). */
-      shadows={worldArtQuality !== 'low'}
+      /* 'percentage' = PCFShadowMap; both `true` and 'soft' pick the DEPRECATED
+         PCFSoftShadowMap, which three re-warns about every frame (500+ lines). */
+      shadows={worldArtQuality === 'low' ? false : 'percentage'}
       gl={CANVAS_GL_OPTIONS}
       onCreated={({ gl }) => setUpRenderer(gl, worldArtQuality)}
     >
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
       <Preload all />
+      <RendererContextLossGuard onChange={setContextLost} />
       <DynamicLightPool focus={focus} />
       {/* Personal moonlamp — character readable at night. Pool-routed. */}
       <group position={[focus.x, getTerrainY(focus.x, focus.z) + 2.2, focus.z]}>
         <GlowEmitter color="#d9e6ff" intensity={1.3} distance={15} priority={2} />
       </group>
       {import.meta.env.DEV && <StatsGl />}
-      {/* Med/high: vista fog + horizon shell; low keeps close fog. onSunMesh
-          only when the composer will mount (low has no postFX). */}
+      {/* Med/high: vista fog + horizon shell; low keeps close fog. onSunMesh only when the composer mounts (low has no postFX). */}
       <WorldEnvironment
         focus={focus}
         fog={worldArtQuality === 'low' ? VISTA_FOG_LOW : VISTA_FOG}
@@ -145,8 +145,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <WorldFoliage focus={focus} quality={worldArtQuality} />
       {/* All tiers get grass; low = the single cheap phone layer. */}
       <WorldShaderGrass focus={focus} quality={worldArtQuality} />
-      {/* Water is anchored to the starter coast waterline (visible from inland);
-          the rest of the cozy art is scene-bound. */}
+      {/* Water anchored to the starter coast waterline (visible from inland); the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
       {/* Procedural lakes: streamed discs at the terrain's analytic lake
           centres; terrain occludes each disc beyond its true shoreline. */}
@@ -190,6 +189,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       />
       <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} />
     </Canvas>
+    {contextLost && <RendererContextLostOverlay />}
     </WebGLGate>
   );
 }
