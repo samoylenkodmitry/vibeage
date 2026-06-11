@@ -76,8 +76,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
   };
-  // Lazy useRef (not useMemo) for the disposable materials: useMemo can be evicted
-  // under memory pressure, which would orphan the GPU resource without dispose().
+  // Lazy useRef (not useMemo, which can be evicted and orphan the GPU material).
   const moonMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#dde6ff' });
   const moonMaterial = moonMaterialRef.current;
@@ -86,13 +85,14 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
   const sunMaterial = sunMaterialRef.current;
   const { scene } = useThree();
 
-  // STABLE ref: an inline ref re-fires onSunMesh every render → churns `sunMesh`
-  // → rebuilds the post-FX composer EVERY FRAME (leaked ~100 render targets/sec).
+  // Latest-ref keeps setSunDiscRef 100% stable (even if a parent passes an unstable onSunMesh) so the inline-ref churn that rebuilt the post-FX composer every frame — a ~100 render-target/sec VRAM leak — can never return.
+  const onSunMeshRef = useRef(onSunMesh);
+  onSunMeshRef.current = onSunMesh;
   const { sunDisc } = refs;
   const setSunDiscRef = useCallback((mesh: THREE.Mesh | null) => {
     sunDisc.current = mesh;
-    onSunMesh?.(mesh);
-  }, [sunDisc, onSunMesh]);
+    onSunMeshRef.current?.(mesh);
+  }, [sunDisc]);
 
   useEffect(() => {
     return () => {
