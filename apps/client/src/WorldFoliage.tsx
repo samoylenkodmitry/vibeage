@@ -1,4 +1,5 @@
 import { Suspense, memo, useMemo } from 'react';
+import type * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { InstancedGltf } from './world-art/InstancedGltf';
 import type { WorldArtQuality } from './world-art/quality';
@@ -21,6 +22,9 @@ import {
  * `grassOn=false` so the scatter skips the old sparse tree-grid grass entirely.
  */
 const CHUNK = FOLIAGE_CHUNK_SIZE;
+
+const EMPTY_SPLIT = { evenMatrices: [], oddMatrices: [], evenColors: [], oddColors: [] } as ReturnType<typeof splitByParity>;
+const EMPTY_POOL = { matrices: [], colors: [] } as { matrices: THREE.Matrix4[]; colors: THREE.Color[] };
 
 function foliageRadius(quality: WorldArtQuality): number {
   // Frontier MUST land in the fog band, else crossing a chunk line pops a
@@ -51,12 +55,14 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { or
   );
   const t = useMemo(() => splitByParity(trees), [trees]);
   const co = useMemo(() => splitByParity(conifers), [conifers]);
-  const ac = useMemo(() => splitByParity(accents), [accents]);
+  // lean (phones) never renders rocks/bushes — skip building their
+  // matrices/colors too, not just the draws (saves per-chunk allocations).
+  const ac = useMemo(() => (lean ? EMPTY_SPLIT : splitByParity(accents)), [accents, lean]);
   // Bushes are one model — no parity split, just matrices + tints.
-  const bu = useMemo(() => ({
+  const bu = useMemo(() => (lean ? EMPTY_POOL : {
     matrices: bushes.map(instanceMatrix),
     colors: bushes.map(instanceColor),
-  }), [bushes]);
+  }), [bushes, lean]);
   return (
     <Suspense fallback={null}>
       {t.evenMatrices.length > 0 && <InstancedGltf src={BROADLEAF_GLB} matrices={t.evenMatrices} colors={t.evenColors} baseScale={1.4} wind={TREE_WIND} castShadow />}
