@@ -47,9 +47,13 @@ const KEYFRAMES: Keyframe[] = [
     sunColor: '#ffb27a',
     sunIntensity: 1.25,
     hemisphereSky: '#ffd1a5',
-    hemisphereGround: '#5b4a42',
-    hemisphereIntensity: 1.05,
-    ambientIntensity: 0.5,
+    hemisphereGround: '#6b5a50',
+    hemisphereIntensity: 1.12,
+    // Twilight ground legibility is INTRINSIC (same lesson as night): at
+    // dawn/dusk the sun grazes the horizon and lights nothing, and the moon
+    // is exactly at the opposite horizon — ambient/hemisphere are the only
+    // sources, so they carry a readable warm base on their own.
+    ambientIntensity: 0.78,
     fogColor: '#5e4768',
     backgroundColor: '#473652',
     cloudColor: '#ffd9b8',
@@ -73,9 +77,10 @@ const KEYFRAMES: Keyframe[] = [
     sunColor: '#ff8a4d',
     sunIntensity: 1.35,
     hemisphereSky: '#ff9e72',
-    hemisphereGround: '#5c4350',
-    hemisphereIntensity: 1.0,
-    ambientIntensity: 0.5,
+    hemisphereGround: '#6b5260',
+    hemisphereIntensity: 1.12,
+    // See dawn note — twilight ground lives on ambient/hemisphere alone.
+    ambientIntensity: 0.82,
     fogColor: '#6e4a5a',
     backgroundColor: '#4a3050',
     cloudColor: '#ff9466',
