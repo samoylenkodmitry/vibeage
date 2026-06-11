@@ -43,12 +43,9 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
   return (
     <group>
       {visibleFeatures.lanes.map((segment) => (
-        <TravelLaneMesh
-          key={`${segment.lane.id}:${segment.from.x}:${segment.from.z}`}
-          segment={segment}
-          focus={focus}
-          riverMaterial={riverMaterial}
-        />
+        <Suspense key={`${segment.lane.id}:${segment.from.x}:${segment.from.z}`} fallback={null}>
+          <TravelLaneMesh segment={segment} focus={focus} riverMaterial={riverMaterial} />
+        </Suspense>
       ))}
       {visibleFeatures.landmarks.map((landmark) => (
         <Suspense key={landmark.id} fallback={null}>
@@ -60,12 +57,37 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
 }
 
 function TravelLaneMesh({ segment, focus, riverMaterial }: { segment: TravelLaneSegment; focus: Vec3D; riverMaterial: THREE.ShaderMaterial }) {
-  const color = getLaneColor(segment.lane);
   const slabs = useMemo(
     () => buildVisibleLaneSlabs(segment, focus),
     [segment, focus.x, focus.z],
   );
   const river = segment.lane.kind === 'river';
+  // ONE material per segment (the old per-slab inline material allocated ~50
+  // materials each). Trodden-dirt texture instead of the flat tint — the
+  // painted-yellow-ribbon look was the worst offender in walk screenshots.
+  // The clone (repeat along the slab) is ours to dispose; useLoader owns the
+  // original. Dirt is seamless noise, so per-slab UV restarts don't read.
+  const dirt = useSettlementTextures().dirt;
+  const roadMaterial = useMemo(() => {
+    const map = dirt.clone();
+    map.repeat.set(1, 2);
+    return new THREE.MeshStandardMaterial({
+      map,
+      color: getLaneColor(segment.lane),
+      roughness: 0.98,
+      metalness: 0.01,
+      transparent: true,
+      opacity: 0.9,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      side: THREE.DoubleSide,
+    });
+  }, [dirt, segment.lane]);
+  useEffect(() => () => {
+    roadMaterial.map?.dispose();
+    roadMaterial.dispose();
+  }, [roadMaterial]);
 
   return (
     <group>
@@ -75,22 +97,9 @@ function TravelLaneMesh({ segment, focus, riverMaterial }: { segment: TravelLane
           position={[slab.x, slab.y, slab.z]}
           rotation={[-Math.PI / 2, 0, slab.rotY]}
           receiveShadow={!river}
-          material={river ? riverMaterial : undefined}
+          material={river ? riverMaterial : roadMaterial}
         >
           <planeGeometry args={[segment.lane.width, slab.length]} />
-          {!river && (
-            <meshStandardMaterial
-              color={color}
-              roughness={0.96}
-              metalness={0.01}
-              transparent
-              opacity={0.78}
-              polygonOffset
-              polygonOffsetFactor={-2}
-              polygonOffsetUnits={-2}
-              side={THREE.DoubleSide}
-            />
-          )}
         </mesh>
       ))}
     </group>
