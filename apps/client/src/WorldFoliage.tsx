@@ -1,5 +1,6 @@
 import { Suspense, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { scheduleChunkBuild } from './world-art/chunkBuildQueue';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { InstancedGltf } from './world-art/InstancedGltf';
@@ -52,9 +53,17 @@ export function WorldFoliage({ focus, quality }: { focus: Vec3D; quality: WorldA
 const EMPTY_CHUNK = { trees: [], conifers: [], grass: [], accents: [], bushes: [], flowers: [], reeds: [] } as ReturnType<typeof scatterChunkFoliage>;
 
 // Procedural geometry for the tiny scatter layers — no GLB payload at all.
-// Flower head: a squashed pastel bead the shader grass nestles around.
-const FLOWER_GEOMETRY = new THREE.SphereGeometry(0.085, 6, 4);
-FLOWER_GEOMETRY.scale(1, 0.55, 1);
+// Flower = thin stem + squashed pastel head merged into ONE geometry (one
+// draw): heads at +0.14 m drowned inside the ~0.4 m shader-grass blades, so
+// the stem lifts the head to ~0.45 m where it reads over the field.
+const FLOWER_GEOMETRY = (() => {
+  const stem = new THREE.ConeGeometry(0.02, 0.42, 4);
+  stem.translate(0, 0.21, 0);
+  const head = new THREE.SphereGeometry(0.105, 6, 4);
+  head.scale(1, 0.6, 1);
+  head.translate(0, 0.45, 0);
+  return mergeGeometries([stem, head]);
+})();
 // Reed: a thin tall 4-sided blade, origin at its base so y = ground height.
 const REED_GEOMETRY = new THREE.ConeGeometry(0.05, 1.7, 4);
 REED_GEOMETRY.translate(0, 0.85, 0);
