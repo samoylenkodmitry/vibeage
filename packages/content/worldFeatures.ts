@@ -93,6 +93,53 @@ export const WORLD_TRAVEL_LANES: WorldTravelLane[] = [
       { x: 260_000, z: -120_000 },
     ],
   },
+  // Settlement roads — the towns/castle shipped without any path leading to
+  // them; these connect the spawn ring to each plateau. Grass and trees are
+  // cleared along every lane automatically (distanceBeyondNearestLane).
+  {
+    id: 'lakeshire-road',
+    name: 'Lakeshire Road',
+    kind: 'road',
+    zoneIds: ['starter_meadow'],
+    width: 5,
+    safe: true,
+    points: [
+      { x: -260, z: 320 },
+      { x: -640, z: 290 },
+      { x: -1_050, z: 190 },
+      { x: -1_330, z: 110 },
+      { x: -1_445, z: 82 },
+    ],
+  },
+  {
+    id: 'southmere-road',
+    name: 'Southmere Track',
+    kind: 'road',
+    zoneIds: ['starter_meadow'],
+    width: 5,
+    safe: true,
+    points: [
+      { x: 120, z: 24 },
+      { x: 300, z: -620 },
+      { x: 450, z: -1_320 },
+      { x: 545, z: -1_960 },
+      { x: 558, z: -2_070 },
+    ],
+  },
+  {
+    id: 'crestfall-spur',
+    name: 'Crestfall Ascent',
+    kind: 'road',
+    zoneIds: ['starter_meadow'],
+    width: 4.5,
+    safe: false,
+    points: [
+      { x: 3_550, z: -1_700 },
+      { x: 3_590, z: -2_080 },
+      { x: 3_600, z: -2_360 },
+      { x: 3_600, z: -2_500 },
+    ],
+  },
   {
     id: 'moonfall-pass',
     name: 'Moonfall Pass',
