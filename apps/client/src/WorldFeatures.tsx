@@ -231,13 +231,21 @@ function landmarkGhostOpacity(landmark: WorldLandmark, focus: Vec3D): number {
 /**
  * Applies a uniform opacity to every material under it (multiplied into each
  * material's own base opacity). The effect runs after every render — children
- * can mount late through Suspense — but writes only when a material's applied
- * value actually changes. Restores base opacity/transparency at opacity 1.
+ * can mount late through an inner Suspense (towns/castles) — but it traverses
+ * ONLY when the quantized opacity or the direct child count actually changed,
+ * so the per-frame re-render costs two comparisons, not a scene-graph walk
+ * (review: the walk per landmark per frame was real CPU churn). Restores base
+ * opacity/transparency at opacity 1.
  */
 function GhostGroup({ opacity, children }: { opacity: number; children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
+  const appliedRef = useRef({ opacity: -1, childCount: -1 });
   useEffect(() => {
-    ref.current?.traverse((object) => {
+    const group = ref.current;
+    if (!group) return;
+    if (appliedRef.current.opacity === opacity && appliedRef.current.childCount === group.children.length) return;
+    appliedRef.current = { opacity, childCount: group.children.length };
+    group.traverse((object) => {
       const material = (object as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
       if (!material) return;
       for (const mat of Array.isArray(material) ? material : [material]) {
@@ -245,8 +253,6 @@ function GhostGroup({ opacity, children }: { opacity: number; children: ReactNod
           mat.userData.ghostBaseOpacity = mat.opacity;
           mat.userData.ghostBaseTransparent = mat.transparent;
         }
-        if (mat.userData.ghostApplied === opacity) continue;
-        mat.userData.ghostApplied = opacity;
         const solid = opacity >= 0.999;
         mat.transparent = solid ? mat.userData.ghostBaseTransparent === true : true;
         mat.opacity = mat.userData.ghostBaseOpacity * (solid ? 1 : opacity);
