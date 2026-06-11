@@ -161,7 +161,7 @@ const TravelLaneSchema = z.object({
 const LandmarkSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  kind: z.enum(['spire', 'ruin', 'tree', 'gate', 'crystal', 'keep', 'ancient_tree', 'town', 'castle']),
+  kind: z.enum(['spire', 'ruin', 'tree', 'gate', 'crystal', 'keep', 'ancient_tree', 'town', 'castle', 'shrine', 'stones', 'camp', 'obelisk']),
   zoneId: z.string().min(1),
   position: WorldPointSchema,
   radius: positiveNumber,
