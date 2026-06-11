@@ -63,6 +63,10 @@ export function RendererContextLossGuard({ onChange }: { onChange: (lost: boolea
     const el = gl.domElement;
     const onLost = () => onChange(true);
     const onRestored = () => onChange(false);
+    // If the context was ALREADY lost before this guard mounted (or remounted),
+    // webglcontextlost won't fire again — catch that initial state directly so
+    // the overlay still shows. Optional chaining keeps JSDOM/tests happy.
+    if (gl.getContext?.()?.isContextLost?.()) onChange(true);
     el.addEventListener('webglcontextlost', onLost);
     el.addEventListener('webglcontextrestored', onRestored);
     return () => {
