@@ -145,12 +145,13 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
       </group>
       <group ref={refs.moonGroup}>
         <mesh material={moonMaterial}>
-          {/* Big disc so the moon reads as a major sky landmark, not a hint. */}
-          <sphereGeometry args={[72, 28, 18]} />
+          {/* Stylized-large but believable (~3.5° across). The old 72 m disc
+              filled a third of a phone screen — planetary, not lunar. */}
+          <sphereGeometry args={[30, 28, 18]} />
         </mesh>
         {/* Soft bluish "moonlit haze" halo behind the disc (no postprocessing). */}
         <mesh>
-          <sphereGeometry args={[96, 18, 12]} />
+          <sphereGeometry args={[42, 18, 12]} />
           <meshBasicMaterial color="#cfd9ff" transparent opacity={0.16} depthWrite={false} fog={false} />
         </mesh>
         <pointLight ref={refs.moonLight} color="#bcd0ff" intensity={0.0} distance={2_200} />

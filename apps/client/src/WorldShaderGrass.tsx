@@ -199,14 +199,16 @@ const VERT = /* glsl */`
     // + sun, fed from the live scene lights each frame) — grass brightness
     // tracks the ground beneath it in every day phase by construction, and the
     // tone-map scales both together.
-    vec3 baseAlb = vec3(0.06, 0.10, 0.045);
-    vec3 midAlb  = vec3(0.11, 0.18, 0.07);
-    vec3 tipAlb  = vec3(0.18, 0.27, 0.11);
+    vec3 baseAlb = vec3(0.07, 0.12, 0.055);
+    vec3 midAlb  = vec3(0.13, 0.21, 0.085);
+    vec3 tipAlb  = vec3(0.21, 0.31, 0.13);
     vec3 alb = t < 0.5 ? mix(baseAlb, midAlb, t*2.0) : mix(midAlb, tipAlb, t*2.0 - 1.0);
     // Per-blade variation (±28%) + ~20% dry-straw blades keep the meadow alive.
     alb *= 0.72 + 0.55*aRand.z;
     alb = mix(alb, alb * vec3(1.6, 1.25, 0.6), step(0.80, aRand.z) * 0.8);
-    alb *= 0.45 + 0.55*t;              // baked AO — dark at the root
+    // Softer root AO (was 0.45): top-down views see mostly roots, and the
+    // hard darkening read as a black mass with speckled tips at night.
+    alb *= 0.58 + 0.42*t;
     // Blade pseudo-normal: its facing yaw tilted up — per-blade yaw gives the
     // dappled meadow under directional sun.
     vec3 N = normalize(vec3(facing.x, 0.6, facing.y));
