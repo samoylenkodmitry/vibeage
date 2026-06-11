@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, FXAA, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
@@ -32,7 +32,14 @@ import type { WorldArtQuality } from './world-art/quality';
  * `luminanceThreshold` is high-ish so only genuinely bright/emissive pixels
  * bloom — lit terrain + props stay crisp, they don't smear.
  */
-export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null }) {
+// memo: the EffectComposer rebuilds ALL its EffectPasses (and their render
+// targets) whenever its `children` JSX changes identity — its pass-building
+// effect lists `children` in its deps. WorldScene re-renders every game tick,
+// so without memo this component re-rendered every frame, handing the composer
+// fresh children each time → it leaked ~100 viewport render targets/sec until
+// VRAM filled and the GPU context died. Props (quality, sunMesh) are stable, so
+// memo pins the render → children identity holds → the composer builds once.
+export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null }) {
   // GPU CONTEXT-LOSS GUARD: when the WebGL context dies, the postprocessing
   // EffectComposer reads `gl.getContextAttributes()` (null on a dead context)
   // during construction — `.alpha` then crashed the whole client behind the
@@ -123,4 +130,4 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
       )}
     </EffectComposer>
   );
-}
+});
