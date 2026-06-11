@@ -3,6 +3,7 @@ import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldLandmark } from '../../../../packages/content/worldFeatures';
 import { seededRandom } from './foliageScatter';
+import { GlowEmitter } from '../dynamicLights';
 
 /**
  * Procedural settlements — towns (seeded hamlets around a well) and castles
@@ -182,6 +183,12 @@ export function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
             <sphereGeometry args={[0.32, 10, 8]} />
             <meshStandardMaterial color="#ffe2a0" emissive="#ffc25e" emissiveIntensity={1.2} roughness={0.3} fog={fog} />
           </mesh>
+          {/* Real warm light pool on the plaza at night, via the shared
+              dynamic-light pool (never a raw <pointLight/> — that recompiles
+              every shader). Invisible against daylight, alive after dark. */}
+          <group position={[0, 3.3, 0]}>
+            <GlowEmitter color="#ffc25e" intensity={1.6} distance={17} />
+          </group>
         </group>
       ))}
     </>
