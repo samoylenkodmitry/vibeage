@@ -61,7 +61,18 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
     return (
       <EffectComposer enableNormalPass={false} multisampling={0}>
         <FXAA />
-        <ToneMapping mode={ToneMappingMode.REINHARD2} whitePoint={8.0} middleGrey={0.6} />
+        {/* ADAPTIVE, like med/high — the fixed operator rendered night at true
+            scene luminance ≈ black ("at night nothing is visible"); adaptation
+            is what lifts dark scenes into legibility. 128px luminance chain
+            keeps it phone-cheap. */}
+        <ToneMapping
+          mode={ToneMappingMode.REINHARD2_ADAPTIVE}
+          resolution={128}
+          adaptationRate={1.5}
+          middleGrey={0.6}
+          whitePoint={8.0}
+          minLuminance={0.08}
+        />
       </EffectComposer>
     );
   }
