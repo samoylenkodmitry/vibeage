@@ -123,12 +123,11 @@ function SkillRow({
 }) {
   const skill = SKILLS[row.skillId];
   const { beginDrag, consumeDragClick } = useActionBarDrag();
-  const hasMouse = useHasMousePointer();
+  const hasMouse = useHasMousePointer(); // gates draggable to desktop
   const isPassive = isPassiveSkill(row.skillId);
   const canDragToBar = row.status === 'unlocked' && !isPassive;
-  // Self-buff = a beneficial-only active skill (Bless, Shield Wall,
-  // Evade…) that lands on you. Tagged so it reads as a buff, not an
-  // attack, in the tree.
+  // Self-buff = beneficial-only active skill (Bless, Shield Wall…) that
+  // lands on you — tagged so it reads as a buff, not an attack.
   const isSelfBuff = !isPassive && !!skill?.effects?.length && classifySkill(skill.effects) === 'beneficial';
   // maxLevel = base level 1 + N upgrade tiers (each tier description
   // lives in SKILLS[id].upgrades[i] and bumps the level by one).
@@ -152,11 +151,7 @@ function SkillRow({
           }
           onToggleExpand();
         }}
-        /* draggable must be MOUSE-ONLY (like every other bar source): on
-           Android, Chrome starts its NATIVE drag on long-press of a draggable
-           element and fires pointercancel — killing the touch drag controller
-           right as it activates, so the bar never received the skill. */
-        draggable={canDragToBar && hasMouse}
+        draggable={canDragToBar && hasMouse /* mouse-only: Android native long-press drag fires pointercancel */}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'copy';
           e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: row.skillId }));
