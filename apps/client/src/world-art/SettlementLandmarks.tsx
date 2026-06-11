@@ -21,7 +21,7 @@ const HOUSE_ROOF_COLORS = ['#a0522d', '#8c4a2f', '#7d5a3c', '#9b6b43'];
  * shingle roofs, castle granite, trodden plaza dirt. Tinted per-house by the
  * existing palettes (map × color), so variety survives the texturing.
  */
-function useSettlementTextures() {
+export function useSettlementTextures() {
   const [timber, shingles, stone, dirt] = useLoader(THREE.TextureLoader, [
     '/textures/timber_wall_color.jpg',
     '/textures/roof_shingles_color.jpg',

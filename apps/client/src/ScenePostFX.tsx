@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useThree } from '@react-three/fiber';
-import { EffectComposer, Bloom, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, FXAA, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import type * as THREE from 'three';
 import type { WorldArtQuality } from './world-art/quality';
@@ -51,8 +51,20 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
       el.removeEventListener('webglcontextrestored', onRestored);
     };
   }, [gl]);
-  if (quality === 'low') return null;
   if (contextLost || gl.getContext()?.getContextAttributes?.() == null) return null;
+  // Low (phones): a composer-LITE — FXAA (one cheap pass; the canvas has no
+  // MSAA anymore, so without it phone edges staircase) + a fixed Reinhard2
+  // tone map (the composer disables renderer tone mapping, and low otherwise
+  // renders the HDR-ish sky raw — the washed-out giant sun). No bloom, no
+  // adaptive exposure, no god rays: one full-res FBO + two fragment passes.
+  if (quality === 'low') {
+    return (
+      <EffectComposer enableNormalPass={false} multisampling={0}>
+        <FXAA />
+        <ToneMapping mode={ToneMappingMode.REINHARD2} whitePoint={8.0} middleGrey={0.6} />
+      </EffectComposer>
+    );
+  }
   const high = quality === 'high';
   return (
     <EffectComposer enableNormalPass={false} multisampling={high ? 4 : 0}>
