@@ -60,19 +60,14 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
   if (quality === 'low') {
     return (
       <EffectComposer enableNormalPass={false} multisampling={0}>
+        {/* FIXED tone map (Khronos PBR Neutral): the adaptive operator's
+            half-float luminance chain misbehaves on mobile GPUs/software GL —
+            measured 42/255 world luminance at MIDDAY (vs ~140 modeled), i.e.
+            the phone day looked like overcast dusk. Every day phase carries
+            intrinsic lighting now, so low needs no adaptation at all.
+            FXAA runs AFTER tone mapping — it expects LDR input. */}
+        <ToneMapping mode={ToneMappingMode.NEUTRAL} />
         <FXAA />
-        {/* ADAPTIVE, like med/high — the fixed operator rendered night at true
-            scene luminance ≈ black ("at night nothing is visible"); adaptation
-            is what lifts dark scenes into legibility. 128px luminance chain
-            keeps it phone-cheap. */}
-        <ToneMapping
-          mode={ToneMappingMode.REINHARD2_ADAPTIVE}
-          resolution={128}
-          adaptationRate={1.5}
-          middleGrey={0.6}
-          whitePoint={8.0}
-          minLuminance={0.08}
-        />
       </EffectComposer>
     );
   }
