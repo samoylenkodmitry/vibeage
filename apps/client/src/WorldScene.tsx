@@ -72,7 +72,9 @@ type WorldSceneProps = {
 };
 
 function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof chooseWorldArtQuality>): void {
-  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : 1.5));
+  // Low = phones: 1.2 keeps the fill-rate (and the SoC temperature) sane on
+  // 3x-DPR screens; the UI stays crisp because it's DOM, not canvas.
+  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1.2));
   // Without preventDefault the browser treats a GPU context loss as permanent
   // and never fires webglcontextrestored — three.js can recover automatically
   // once restoration is allowed (ScenePostFX unmounts its composer for the
@@ -131,7 +133,8 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       />
       {worldArtQuality !== 'low' && <HorizonTerrainShell focus={focus} />}
       <WorldFoliage focus={focus} quality={worldArtQuality} />
-      {worldArtQuality !== 'low' && <WorldShaderGrass focus={focus} quality={worldArtQuality} />}
+      {/* All tiers get grass; low = the single cheap phone layer. */}
+      <WorldShaderGrass focus={focus} quality={worldArtQuality} />
       {/* Water is anchored to the starter coast waterline (visible from inland);
           the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />

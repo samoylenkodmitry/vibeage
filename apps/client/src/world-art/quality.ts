@@ -22,6 +22,14 @@ export function chooseWorldArtQuality(): WorldArtQuality {
     deviceMemory?: number;
   };
 
+  // Phones/tablets ALWAYS get the low tier. Their high devicePixelRatio used
+  // to land them in 'medium' — the Retina-MacBook tier — which melted a
+  // Pixel 9 Pro (hot GPU/CPU, Chrome tab crashes): half a million grass
+  // blades, PCF-soft shadows, god rays, bloom, adaptive tone mapping. Low is
+  // the tier sized for battery-powered silicon.
+  const coarseTouch = nav.maxTouchPoints > 1 && window.matchMedia?.('(pointer: coarse)')?.matches;
+  if (/Android|iPhone|iPad|Mobile/i.test(nav.userAgent) || coarseTouch) return 'low';
+
   if (nav.connection?.saveData) return 'low';
   if (nav.connection?.effectiveType === '2g' || nav.connection?.effectiveType === '3g') return 'low';
   if (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4) return 'medium';
