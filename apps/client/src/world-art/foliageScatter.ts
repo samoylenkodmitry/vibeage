@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { sampleTerrain, TOWN_PLATEAUS, type TerrainBiome } from '../../../../packages/content/terrain';
-import { distanceBeyondNearestLane } from '../../../../packages/content/worldFeatures';
+import { distanceBeyondNearestLane, distanceBeyondNearestRiver } from '../../../../packages/content/worldFeatures';
 import { normalizeTintLuminance } from '../WorldGround';
 
 /**
@@ -94,7 +94,28 @@ export type ChunkFoliage = {
   grass: FoliageInstance[];
   accents: FoliageInstance[];
   bushes: FoliageInstance[];
+  flowers: FoliageInstance[];
+  reeds: FoliageInstance[];
 };
+
+// Wildflower drifts: pastel heads dotting the grass. Gated by a world-space
+// patch field so blooms come in waves with plain meadow between — uniform
+// confetti reads fake. Colors stay RAW (not luminance-normalized): pastels
+// are the point.
+export const FLOWER_COLORS = ['#f2a9c4', '#f7e07a', '#f4f1e6', '#b88ee0'] as const;
+
+function flowerPatchField(x: number, z: number): number {
+  const wave = Math.sin(x * 0.013 + 1.7) * Math.sin(z * 0.011 - 0.6);
+  const drift = Math.sin(x * 0.0031 - 0.8) * Math.sin(z * 0.0042 + 1.9);
+  return Math.max(0, wave * 0.5 + drift * 0.5);
+}
+
+// Reeds stand at water edges: the shore band just above the lake waterline
+// (LAKE_WATER_Y −4) and along river banks. They're allowed BELOW the dry
+// limit — shallow standing water is exactly where reeds live.
+const REED_SHORE_MIN_Y = -4.3;
+const REED_SHORE_MAX_Y = -2.4;
+const REED_RIVER_BAND = 5;
 
 /**
  * Scatter foliage for one square chunk `[originX, originX+size) ×
@@ -108,6 +129,8 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
   const grass: FoliageInstance[] = [];
   const accents: FoliageInstance[] = [];
   const bushes: FoliageInstance[] = [];
+  const flowers: FoliageInstance[] = [];
+  const reeds: FoliageInstance[] = [];
   const cell = FOLIAGE_CELL_SIZE;
   const cell0X = Math.floor(originX / cell);
   const cell0Z = Math.floor(originZ / cell);
@@ -174,9 +197,54 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
           scale: 0.45 + random() * 0.9, rotation: random() * Math.PI * 2, color: sample.accentColor,
         });
       }
+      scatterCellSmall(x, z, cell, sample, random, { flowers, reeds });
     }
   }
-  return { trees, conifers, grass, accents, bushes };
+  return { trees, conifers, grass, accents, bushes, flowers, reeds };
+}
+
+/**
+ * The cell's small-scatter pass: wildflower drifts + water-edge reeds.
+ * Continues the cell's PRNG stream (consume-then-guard discipline holds);
+ * the reed gate predicates are pure functions of the cell position, so
+ * conditioning consumption on them stays deterministic per cell.
+ */
+function scatterCellSmall(
+  x: number, z: number, cell: number,
+  sample: { grassDensity: number; height: number },
+  random: () => number,
+  out: { flowers: FoliageInstance[]; reeds: FoliageInstance[] },
+): void {
+  const { flowers, reeds } = out;
+  const cellHeight = sample.height;
+  const flowerChance = sample.grassDensity * flowerPatchField(x, z) * 1.6;
+  for (let slot = 0; slot < 3; slot += 1) {
+    const fx = x + (random() - 0.5) * cell * 0.9;
+    const fz = z + (random() - 0.5) * cell * 0.9;
+    const color = FLOWER_COLORS[Math.floor(random() * FLOWER_COLORS.length)];
+    const scale = 0.7 + random() * 0.7;
+    const roll = random();
+    if (roll >= flowerChance) continue;
+    const fy = sampleTerrain(fx, fz).height;
+    if (fy < DRY_MIN_Y || insideSettlement(fx, fz) || distanceBeyondNearestLane(fx, fz) < 1.2) continue;
+    flowers.push({ x: fx, y: fy + 0.14, z: fz, scale, rotation: 0, color });
+  }
+  const onShore = cellHeight >= REED_SHORE_MIN_Y && cellHeight <= REED_SHORE_MAX_Y;
+  const nearRiver = distanceBeyondNearestRiver(x, z) < REED_RIVER_BAND;
+  if (!onShore && !nearRiver) return;
+  const count = 3 + Math.floor(random() * 4);
+  for (let i = 0; i < count; i += 1) {
+    const rx = x + (random() - 0.5) * cell * 0.6;
+    const rz = z + (random() - 0.5) * cell * 0.6;
+    const scale = 0.75 + random() * 0.6;
+    const rotation = random() * Math.PI * 2;
+    const tint = jitterFoliageColor('#7f8b51', random);
+    const ry = sampleTerrain(rx, rz).height;
+    const inBand = (ry >= REED_SHORE_MIN_Y && ry <= REED_SHORE_MAX_Y)
+      || (distanceBeyondNearestRiver(rx, rz) < REED_RIVER_BAND - 1 && ry >= DRY_MIN_Y);
+    if (!inBand || insideSettlement(rx, rz)) continue;
+    reeds.push({ x: rx, y: ry, z: rz, scale, rotation, color: tint });
+  }
 }
 
 /**
