@@ -15,6 +15,7 @@ import { chooseWorldArtQuality } from './world-art/quality';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { LakeWaters } from './world-art/LakeWaters';
+import { WebGLGate } from './world-art/webglSupport';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 import {
   CastMarker,
@@ -105,9 +106,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
   // Sun disc handed up by WorldEnvironment → anchors GodRays in ScenePostFX.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
-  const handleSunMesh = useCallback((mesh: THREE.Mesh | null) => {
-    setSunMesh((prev) => (prev === mesh ? prev : mesh));
-  }, []);
+  const handleSunMesh = useCallback((mesh: THREE.Mesh | null) => setSunMesh((prev) => (prev === mesh ? prev : mesh)), []);
   const activeCozyScene = pickActiveScene(focus.x, focus.z);
   // Keep the cozy scene mounted once entered (remount = multi-second hitch).
   const mountedSceneRef = useRef(activeCozyScene);
@@ -117,6 +116,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const mountedScene = mountedSceneRef.current;
 
   return (
+    <WebGLGate>
     <Canvas
       camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
       /* PCF-soft shadow mapping — the renderer never enabled shadows before,
@@ -190,6 +190,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       />
       <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} />
     </Canvas>
+    </WebGLGate>
   );
 }
 
