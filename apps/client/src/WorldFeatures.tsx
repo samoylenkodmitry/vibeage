@@ -11,7 +11,7 @@ import {
 } from '../../../packages/content/worldFeatures';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { CastleLandmark, TownLandmark } from './world-art/SettlementLandmarks';
+import { CastleLandmark, TownLandmark, useSettlementTextures } from './world-art/SettlementLandmarks';
 
 type TravelLaneSegment = ReturnType<typeof getTravelLaneSegments>[number];
 
@@ -42,7 +42,9 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
         />
       ))}
       {visibleFeatures.landmarks.map((landmark) => (
-        <LandmarkMesh key={landmark.id} landmark={landmark} />
+        <Suspense key={landmark.id} fallback={null}>
+          <LandmarkMesh landmark={landmark} />
+        </Suspense>
       ))}
     </group>
   );
@@ -170,8 +172,14 @@ function buildVisibleLaneSlabs(
 
 function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
   const terrain = sampleTerrain(landmark.position.x, landmark.position.z);
+  // Stone for the built landmarks (keep/gate/spire) — the flat-colour
+  // primitives read as plastic toys (user feedback).
+  const stone = useSettlementTextures().stone;
   const color = getLandmarkColor(landmark);
-  const fog = !landmark.mega;
+  // Fog applies to EVERY landmark now — the unfogged mega "beacons" read as
+  // glowing toy cones floating over the horizon (user feedback). They still
+  // loom inside the vista haze; they just obey the same air as the world.
+  const fog = true;
   const baseY = landmark.mega ? terrain.height - landmark.height * 0.04 : terrain.height;
 
   // Settlements draw their own dirt plaza; the glowing boundary ring read as
@@ -185,12 +193,12 @@ function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
           <meshBasicMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.34} depthWrite={false} />
         </mesh>
       )}
-      {renderLandmarkShape(landmark, color, fog)}
+      {renderLandmarkShape(landmark, color, fog, stone)}
     </group>
   );
 }
 
-function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolean) {
+function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
   if (landmark.kind === 'ancient_tree') {
     return (
       <Suspense fallback={renderTreeLandmark(landmark, color, fog)}>
@@ -202,13 +210,13 @@ function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolea
     return renderTreeLandmark(landmark, color, fog);
   }
   if (landmark.kind === 'gate') {
-    return renderGateLandmark(landmark, color, fog);
+    return renderGateLandmark(landmark, color, fog, stone);
   }
   if (landmark.kind === 'keep') {
-    return renderKeepLandmark(landmark, color, fog);
+    return renderKeepLandmark(landmark, color, fog, stone);
   }
   if (landmark.kind === 'spire') {
-    return renderSpireLandmark(landmark, color, fog);
+    return renderSpireLandmark(landmark, color, fog, stone);
   }
   if (landmark.kind === 'crystal') {
     return renderCrystalLandmark(landmark, color, fog);
@@ -230,7 +238,7 @@ function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolea
   return (
     <mesh position={[0, landmark.height * 0.5, 0]} castShadow={!landmark.mega}>
       <coneGeometry args={[landmark.radius * 0.54, landmark.height, landmark.mega ? 10 : 6]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={landmark.mega ? 0.24 : 0.16} roughness={0.55} fog={fog} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.04} roughness={0.55} fog={fog} />
     </mesh>
   );
 }
@@ -251,7 +259,7 @@ function renderTreeLandmark(landmark: WorldLandmark, color: string, fog: boolean
         return (
           <mesh key={index} position={[0, y, 0]} castShadow={!landmark.mega}>
             <coneGeometry args={[r, h, landmark.mega ? 14 : 9]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.08 + t * 0.06} roughness={0.82} fog={fog} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.04} roughness={0.82} fog={fog} />
           </mesh>
         );
       })}
@@ -259,30 +267,30 @@ function renderTreeLandmark(landmark: WorldLandmark, color: string, fog: boolean
   );
 }
 
-function renderGateLandmark(landmark: WorldLandmark, color: string, fog: boolean) {
+function renderGateLandmark(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
   return (
     <>
       <mesh position={[-landmark.radius * 0.42, landmark.height * 0.32, 0]} castShadow={!landmark.mega}>
         <boxGeometry args={[landmark.radius * 0.2, landmark.height * 0.64, landmark.radius * 0.22]} />
-        <meshStandardMaterial color={color} roughness={0.76} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} roughness={0.76} fog={fog} />
       </mesh>
       <mesh position={[landmark.radius * 0.42, landmark.height * 0.32, 0]} castShadow={!landmark.mega}>
         <boxGeometry args={[landmark.radius * 0.2, landmark.height * 0.64, landmark.radius * 0.22]} />
-        <meshStandardMaterial color={color} roughness={0.76} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} roughness={0.76} fog={fog} />
       </mesh>
       <mesh position={[0, landmark.height * 0.66, 0]} castShadow={!landmark.mega}>
         <boxGeometry args={[landmark.radius * 1.08, landmark.height * 0.14, landmark.radius * 0.28]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.12} roughness={0.7} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} emissive={color} emissiveIntensity={0.04} roughness={0.7} fog={fog} />
       </mesh>
       <mesh position={[0, landmark.height * 0.82, 0]} castShadow={!landmark.mega}>
         <coneGeometry args={[landmark.radius * 0.36, landmark.height * 0.18, 6]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.16} roughness={0.7} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} emissive={color} emissiveIntensity={0.04} roughness={0.7} fog={fog} />
       </mesh>
     </>
   );
 }
 
-function renderKeepLandmark(landmark: WorldLandmark, color: string, fog: boolean) {
+function renderKeepLandmark(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
   const baseHeight = landmark.height * 0.42;
   const innerHeight = landmark.height * 0.32;
   const towerHeight = landmark.height * 0.46;
@@ -299,37 +307,37 @@ function renderKeepLandmark(landmark: WorldLandmark, color: string, fog: boolean
     <>
       <mesh position={[0, baseHeight * 0.5, 0]} castShadow={!landmark.mega}>
         <boxGeometry args={[landmark.radius * 1.4, baseHeight, landmark.radius * 1.4]} />
-        <meshStandardMaterial color={color} roughness={0.78} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} roughness={0.78} fog={fog} />
       </mesh>
       <mesh position={[0, baseHeight + innerHeight * 0.5, 0]} castShadow={!landmark.mega}>
         <boxGeometry args={[landmark.radius * 0.96, innerHeight, landmark.radius * 0.96]} />
-        <meshStandardMaterial color={color} roughness={0.78} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} roughness={0.78} fog={fog} />
       </mesh>
       <mesh position={[0, baseHeight + innerHeight + towerHeight * 0.5, 0]} castShadow={!landmark.mega}>
         <cylinderGeometry args={[landmark.radius * 0.42, landmark.radius * 0.46, towerHeight, 12]} />
-        <meshStandardMaterial color={color} roughness={0.78} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} roughness={0.78} fog={fog} />
       </mesh>
       <mesh position={[0, baseHeight + innerHeight + towerHeight + landmark.height * 0.04, 0]} castShadow={false}>
         <coneGeometry args={[landmark.radius * 0.5, landmark.height * 0.18, 8]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.22} roughness={0.7} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} emissive={color} emissiveIntensity={0.05} roughness={0.7} fog={fog} />
       </mesh>
       {corners.map(([cx, cz]) => (
         <mesh key={`${cx}:${cz}`} position={[cx, cornerHeight * 0.5, cz]} castShadow={!landmark.mega}>
           <cylinderGeometry args={[cornerSize, cornerSize, cornerHeight, 8]} />
-          <meshStandardMaterial color={color} roughness={0.74} fog={fog} />
+          <meshStandardMaterial map={stone} color={color} roughness={0.74} fog={fog} />
         </mesh>
       ))}
     </>
   );
 }
 
-function renderSpireLandmark(landmark: WorldLandmark, color: string, fog: boolean) {
+function renderSpireLandmark(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
   const tiers = landmark.mega ? 5 : 3;
   return (
     <>
       <mesh position={[0, landmark.height * 0.05, 0]} castShadow={!landmark.mega}>
         <cylinderGeometry args={[landmark.radius * 0.7, landmark.radius * 0.85, landmark.height * 0.1, 12]} />
-        <meshStandardMaterial color={color} roughness={0.7} fog={fog} />
+        <meshStandardMaterial map={stone} color={color} roughness={0.7} fog={fog} />
       </mesh>
       {Array.from({ length: tiers }).map((_, index) => {
         const t = index / Math.max(1, tiers);
@@ -339,7 +347,7 @@ function renderSpireLandmark(landmark: WorldLandmark, color: string, fog: boolea
         return (
           <mesh key={index} position={[0, y, 0]} castShadow={!landmark.mega}>
             <coneGeometry args={[r, h, landmark.mega ? 14 : 8]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.12 + t * 0.08} roughness={0.6} fog={fog} />
+            <meshStandardMaterial map={stone} color={color} emissive={color} emissiveIntensity={0.05} roughness={0.6} fog={fog} />
           </mesh>
         );
       })}
@@ -389,7 +397,7 @@ function renderCrystalLandmark(landmark: WorldLandmark, color: string, fog: bool
             castShadow={!landmark.mega}
           >
             <octahedronGeometry args={[size, landmark.mega ? 2 : 1]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={landmark.mega ? 0.32 : 0.18} roughness={0.5} fog={fog} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={landmark.mega ? 0.26 : 0.16} roughness={0.5} fog={fog} />
           </mesh>
         );
       })}
