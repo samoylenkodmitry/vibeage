@@ -199,9 +199,9 @@ const VERT = /* glsl */`
     // + sun, fed from the live scene lights each frame) — grass brightness
     // tracks the ground beneath it in every day phase by construction, and the
     // tone-map scales both together.
-    vec3 baseAlb = vec3(0.07, 0.12, 0.055);
-    vec3 midAlb  = vec3(0.13, 0.21, 0.085);
-    vec3 tipAlb  = vec3(0.21, 0.31, 0.13);
+    vec3 baseAlb = vec3(0.06, 0.13, 0.05);
+    vec3 midAlb  = vec3(0.11, 0.22, 0.075);
+    vec3 tipAlb  = vec3(0.17, 0.32, 0.11);
     vec3 alb = t < 0.5 ? mix(baseAlb, midAlb, t*2.0) : mix(midAlb, tipAlb, t*2.0 - 1.0);
     // Per-blade variation (±28%) + ~20% dry-straw blades keep the meadow alive.
     alb *= 0.72 + 0.55*aRand.z;
