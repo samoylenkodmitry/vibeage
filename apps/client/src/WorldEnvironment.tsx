@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
@@ -86,6 +86,14 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
   const sunMaterial = sunMaterialRef.current;
   const { scene } = useThree();
 
+  // STABLE ref: an inline ref re-fires onSunMesh every render → churns `sunMesh`
+  // → rebuilds the post-FX composer EVERY FRAME (leaked ~100 render targets/sec).
+  const { sunDisc } = refs;
+  const setSunDiscRef = useCallback((mesh: THREE.Mesh | null) => {
+    sunDisc.current = mesh;
+    onSunMesh?.(mesh);
+  }, [sunDisc, onSunMesh]);
+
   useEffect(() => {
     return () => {
       sunMaterialRef.current?.dispose();
@@ -126,13 +134,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
         {...SUN_SHADOW_PROPS}
       />
       <group ref={refs.sunGroup}>
-        <mesh
-          material={sunMaterial}
-          ref={(mesh: THREE.Mesh | null) => {
-            refs.sunDisc.current = mesh;
-            onSunMesh?.(mesh);
-          }}
-        >
+        <mesh material={sunMaterial} ref={setSunDiscRef}>
           <sphereGeometry args={[34, 24, 16]} />
         </mesh>
         {/* Warm halo behind the sun disc — gives golden bloom feel
