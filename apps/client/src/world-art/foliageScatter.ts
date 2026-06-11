@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { sampleTerrain, TOWN_PLATEAUS, type TerrainBiome } from '../../../../packages/content/terrain';
 import { distanceBeyondNearestLane } from '../../../../packages/content/worldFeatures';
+import { normalizeTintLuminance } from '../WorldGround';
 
 /**
  * Position-stable foliage scatter. Every tree / rock / grass tuft is a
@@ -233,6 +234,11 @@ export function instanceColor(instance: FoliageInstance): THREE.Color {
   let cached = FOLIAGE_COLOR_CACHE.get(instance.color);
   if (!cached) {
     cached = new THREE.Color(instance.color);
+    // Same albedo rule as the terrain (see normalizeTintLuminance): the
+    // instance colour MULTIPLIES the GLB's own texture, and the raw biome
+    // hexes are dark — trees rendered near-BLACK in daylight once the
+    // adaptive exposure stopped masking it. Tint the hue, not the brightness.
+    normalizeTintLuminance(cached);
     FOLIAGE_COLOR_CACHE.set(instance.color, cached);
   }
   return cached;
