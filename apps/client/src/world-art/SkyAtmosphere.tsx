@@ -44,13 +44,21 @@ function makeSky(): Sky {
   // Match with a whitespace-flexible regex so a three.js shader reformat doesn't
   // silently leave the horizon blown.
   u.skyExposure = { value: SKY_EXPOSURE };
+  // Night floor: the scattering goes to ~zero with the sun below the horizon,
+  // leaving a PITCH-BLACK dome over a moonlit world (it covers the scene's
+  // navy background entirely). Blend toward the day-phase night colour as the
+  // sun sinks — deep blue night sky, smooth through dusk, stars on top.
+  u.nightSky = { value: new THREE.Color('#35508d') };
   const target = /gl_FragColor\s*=\s*vec4\(\s*texColor\s*,\s*1\.0\s*\);/;
   if (!target.test(mat.fragmentShader)) {
     console.warn('SkyAtmosphere: could not patch the Sky shader for exposure — horizon may blow out.');
   }
-  mat.fragmentShader = 'uniform float skyExposure;\n' + mat.fragmentShader.replace(
+  mat.fragmentShader = 'uniform float skyExposure;\nuniform vec3 nightSky;\n' + mat.fragmentShader.replace(
     target,
-    'vec3 _sky = texColor * skyExposure; _sky = _sky / ( 1.0 + _sky ); gl_FragColor = vec4( _sky, 1.0 );',
+    `vec3 _sky = texColor * skyExposure; _sky = _sky / ( 1.0 + _sky );
+     float _nightF = clamp( -sunPosition.y / max(length(sunPosition), 1e-4) * 5.0, 0.0, 1.0 );
+     _sky = mix( _sky, max(_sky, nightSky), _nightF );
+     gl_FragColor = vec4( _sky, 1.0 );`,
   );
   mat.depthWrite = false;
   return s;
@@ -70,7 +78,9 @@ export function SkyAtmosphere({ focus, palette }: { focus: { x: number; y: numbe
     sky.position.set(focus.x, focus.y, focus.z);
     // sunPosition is a direction (the shader normalises it). sunDir.y < 0 at
     // night → the scattering goes dark, matching the day/night cycle.
-    (sky.material as THREE.ShaderMaterial).uniforms.sunPosition.value.set(p.sunDir.x, p.sunDir.y, p.sunDir.z);
+    const uniforms = (sky.material as THREE.ShaderMaterial).uniforms;
+    uniforms.sunPosition.value.set(p.sunDir.x, p.sunDir.y, p.sunDir.z);
+    uniforms.nightSky.value.set(p.backgroundColor);
   });
 
   return <primitive object={sky} />;

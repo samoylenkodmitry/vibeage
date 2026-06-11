@@ -386,8 +386,11 @@ function TerrainMaterial({ visualMode, palette }: { visualMode: TerrainVisualMod
     return <meshBasicMaterial colorWrite={false} depthWrite={false} transparent opacity={0} />;
   }
   if (visualMode === 'textured') {
+    // Fallback pre-darkened (~mean map colour) so the texture-load swap is a
+    // detail-pop, not a brightness flip — normalized tints made the bare
+    // fallback BRIGHTER than the textured result.
     return (
-      <Suspense fallback={<meshStandardMaterial vertexColors roughness={0.98} metalness={0.02} />}>
+      <Suspense fallback={<meshStandardMaterial vertexColors color="#6f6d62" roughness={0.98} metalness={0.02} />}>
         <TexturedTerrainMaterial palette={palette} />
       </Suspense>
     );
