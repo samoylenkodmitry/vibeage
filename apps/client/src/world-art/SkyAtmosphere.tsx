@@ -56,7 +56,7 @@ function makeSky(): Sky {
   mat.fragmentShader = 'uniform float skyExposure;\nuniform vec3 nightSky;\n' + mat.fragmentShader.replace(
     target,
     `vec3 _sky = texColor * skyExposure; _sky = _sky / ( 1.0 + _sky );
-     float _nightF = clamp( -sunPosition.y / max(length(sunPosition), 1e-4) * 5.0, 0.0, 1.0 );
+     float _nightF = clamp( -vSunDirection.y * 5.0, 0.0, 1.0 );
      _sky = mix( _sky, max(_sky, nightSky), _nightF );
      gl_FragColor = vec4( _sky, 1.0 );`,
   );
