@@ -229,8 +229,19 @@ function applyDayPhaseToScene({ refs, sunMaterial, scene, focus, palette }: {
   }
   if (refs.directional.current) {
     const light = refs.directional.current;
-    light.position.set(sunX, sunY, sunZ);
-    light.color.set(palette.sunColor);
+    // Once the sun sets, the directional light becomes MOONLIGHT: it follows
+    // the moon (above the horizon) instead of tracking the sun underground —
+    // where it lit nothing (N·L < 0 for the whole world) and night collapsed
+    // to flat ambient ("at night nothing is visible"). Cool tint; the night
+    // keyframe's sunIntensity was always meant to be the moonlit stand-in.
+    const sunIsUp = palette.sunDir.y > -0.05;
+    if (sunIsUp) {
+      light.position.set(sunX, sunY, sunZ);
+      light.color.set(palette.sunColor);
+    } else {
+      light.position.set(moonX, moonY, moonZ);
+      light.color.set('#b9c8ff');
+    }
     light.intensity = palette.sunIntensity;
     // The shadow camera looks at light.target — keep it on the player or the
     // shadow box stays parked at the world origin. The target isn't in the
