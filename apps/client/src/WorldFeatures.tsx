@@ -13,6 +13,7 @@ import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { computeDayPhase } from './timeOfDay';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { CastleLandmark, TownLandmark, useSettlementTextures } from './world-art/SettlementLandmarks';
+import { seededRandom } from './world-art/foliageScatter';
 
 type TravelLaneSegment = ReturnType<typeof getTravelLaneSegments>[number];
 
@@ -254,25 +255,43 @@ function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolea
 }
 
 function renderTreeLandmark(landmark: WorldLandmark, color: string, fog: boolean) {
-  const tiers = landmark.mega ? 4 : 2;
+  // Organic low-poly canopy instead of the old stacked cones (which read as
+  // green toy triangles — user feedback): a seeded cluster of squashed
+  // icosahedron blobs with tint variation around the crown, flat-shaded for
+  // the stylized look. Deterministic from the landmark position.
+  const random = seededRandom(Math.round(landmark.position.x) ^ 0x5f3759df, Math.round(landmark.position.z));
+  const blobCount = landmark.mega ? 7 : 5;
+  const crownY = landmark.height * 0.62;
+  const crownR = landmark.radius * 0.85;
+  const blobs = Array.from({ length: blobCount }, (_, index) => {
+    const angle = (index / blobCount) * Math.PI * 2 + random() * 0.8;
+    const ring = index === 0 ? 0 : crownR * (0.35 + random() * 0.4);
+    return {
+      x: Math.cos(angle) * ring,
+      y: crownY + (index === 0 ? landmark.height * 0.12 : (random() - 0.3) * landmark.height * 0.18),
+      z: Math.sin(angle) * ring,
+      r: crownR * (index === 0 ? 0.85 : 0.45 + random() * 0.3),
+      squash: 0.62 + random() * 0.22,
+      shade: 0.82 + random() * 0.35,
+    };
+  });
   return (
     <>
-      <mesh position={[0, landmark.height * 0.22, 0]} castShadow={!landmark.mega}>
-        <cylinderGeometry args={[landmark.radius * 0.22, landmark.radius * 0.34, landmark.height * 0.44, 10]} />
-        <meshStandardMaterial color="#6b4a2f" roughness={0.9} fog={fog} />
+      <mesh position={[0, landmark.height * 0.3, 0]} castShadow={!landmark.mega}>
+        <cylinderGeometry args={[landmark.radius * 0.16, landmark.radius * 0.3, landmark.height * 0.6, 8]} />
+        <meshStandardMaterial color="#6b4a2f" roughness={0.9} fog={fog} flatShading />
       </mesh>
-      {Array.from({ length: tiers }).map((_, index) => {
-        const t = index / Math.max(1, tiers - 1);
-        const y = landmark.height * (0.4 + t * 0.55);
-        const r = landmark.radius * (0.95 - t * 0.55);
-        const h = landmark.height * (0.34 - t * 0.06);
-        return (
-          <mesh key={index} position={[0, y, 0]} castShadow={!landmark.mega}>
-            <coneGeometry args={[r, h, landmark.mega ? 14 : 9]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.04} roughness={0.82} fog={fog} />
-          </mesh>
-        );
-      })}
+      {blobs.map((blob, index) => (
+        <mesh key={index} position={[blob.x, blob.y, blob.z]} scale={[1, blob.squash, 1]} castShadow={!landmark.mega}>
+          <icosahedronGeometry args={[blob.r, 1]} />
+          <meshStandardMaterial
+            color={new THREE.Color(color).multiplyScalar(blob.shade)}
+            roughness={0.85}
+            fog={fog}
+            flatShading
+          />
+        </mesh>
+      ))}
     </>
   );
 }
