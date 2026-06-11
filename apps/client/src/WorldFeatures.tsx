@@ -13,6 +13,7 @@ import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { computeDayPhase } from './timeOfDay';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { CastleLandmark, TownLandmark, useSettlementTextures } from './world-art/SettlementLandmarks';
+import { CampLandmark, ObeliskLandmark, RuinLandmark, ShrineLandmark, StonesLandmark } from './world-art/WildernessLandmarks';
 import { seededRandom } from './world-art/foliageScatter';
 
 type TravelLaneSegment = ReturnType<typeof getTravelLaneSegments>[number];
@@ -194,11 +195,13 @@ function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
   const baseY = landmark.mega ? terrain.height - landmark.height * 0.04 : terrain.height;
 
   // Settlements draw their own dirt plaza; the glowing boundary ring read as
-  // a huge ugly band across the town (and grass poked through it).
+  // a huge ugly band across the town (and grass poked through it). Wilderness
+  // POIs skip it too — a glowing circle under a ruin breaks the "found it in
+  // the wild" feel.
   const settlement = landmark.kind === 'town' || landmark.kind === 'castle';
   return (
     <group position={[landmark.position.x, baseY, landmark.position.z]}>
-      {!landmark.mega && !settlement && (
+      {!landmark.mega && !settlement && !WILDS_KINDS.has(landmark.kind) && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
           <ringGeometry args={[landmark.radius * 0.82, landmark.radius, 48]} />
           <meshBasicMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.34} depthWrite={false} />
@@ -209,7 +212,20 @@ function LandmarkMesh({ landmark }: { landmark: WorldLandmark }) {
   );
 }
 
+const WILDS_LANDMARKS = {
+  ruin: RuinLandmark,
+  shrine: ShrineLandmark,
+  stones: StonesLandmark,
+  camp: CampLandmark,
+  obelisk: ObeliskLandmark,
+} as const;
+const WILDS_KINDS = new Set<string>(Object.keys(WILDS_LANDMARKS));
+
 function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
+  const Wilds = WILDS_LANDMARKS[landmark.kind as keyof typeof WILDS_LANDMARKS];
+  if (Wilds) {
+    return <Wilds landmark={landmark} fog={fog} />;
+  }
   if (landmark.kind === 'ancient_tree') {
     return (
       <Suspense fallback={renderTreeLandmark(landmark, color, fog)}>
@@ -442,9 +458,13 @@ function isSegmentNearFocus(segment: TravelLaneSegment, focus: Vec3D): boolean {
 function isLandmarkNearFocus(landmark: WorldLandmark, focus: Vec3D): boolean {
   const dx = landmark.position.x - focus.x;
   const dz = landmark.position.z - focus.z;
+  // Wilderness POIs are small and numerous — mount them only inside the vista
+  // fog range (2.6 km); past that they'd be fully fog-hidden draws anyway.
   const visibleDistance = landmark.mega
     ? 40_000 + landmark.radius
-    : WORLD_SETTINGS.fogFar * 1.5 + landmark.radius;
+    : WILDS_KINDS.has(landmark.kind)
+      ? 2_800 + landmark.radius
+      : WORLD_SETTINGS.fogFar * 1.5 + landmark.radius;
   return dx * dx + dz * dz <= visibleDistance * visibleDistance;
 }
 
