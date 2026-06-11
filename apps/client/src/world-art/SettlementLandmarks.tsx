@@ -41,7 +41,7 @@ export function useSettlementTextures() {
     castleWall.repeat.set(8, 2);
     const plazaDirt = dirt.clone();
     plazaDirt.repeat.set(12, 12);
-    return { timber, shingles, stone, castleWall, plazaDirt };
+    return { timber, shingles, stone, castleWall, plazaDirt, dirt };
   }, [timber, shingles, stone, dirt]);
   // The clones are OURS to free (useLoader caches and owns the originals);
   // settlements mount/unmount as the player walks in and out of landmark
