@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getTerrainBiome, sampleTerrain } from '../../../packages/content/terrain';
@@ -12,6 +12,7 @@ import {
   TOUCH_MOVE_THROTTLE_MS,
 } from './touchMovement';
 import { useTerrainTextures } from './world-art/useTerrainTextures';
+import { scheduleChunkBuild } from './world-art/chunkBuildQueue';
 import { CloudShadowDriver, patchMaterialWithCloudShadow } from './world-art/cloudShadows';
 
 /**
@@ -365,11 +366,16 @@ type TerrainChunkProps = {
 };
 
 function TerrainChunk({ originX, originZ, visualMode, palette, onPointerDown, onPointerMove, onPointerUp }: TerrainChunkProps) {
-  const geometry = useMemo(
-    () => createTerrainGeometry(originX, originZ),
-    [originX, originZ],
-  );
+  // Built through the shared queue, NOT synchronously in render: a teleport
+  // replaces all ~50 visible chunks at once, and building them in one commit
+  // froze the main thread for seconds (stuck camera, dead UI, white frames).
+  const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+  useEffect(() => {
+    const cancel = scheduleChunkBuild(() => setGeometry(createTerrainGeometry(originX, originZ)));
+    return cancel;
+  }, [originX, originZ]);
 
+  if (!geometry) return null;
   return (
     <mesh
       geometry={geometry}
