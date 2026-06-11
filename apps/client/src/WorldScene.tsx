@@ -37,6 +37,9 @@ const STARTER_COAST_SAND = {
 // (medium/high tiers): far enough that mountain ridges read as a vista,
 // near enough that the 960 m foliage frontier still mounts inside haze.
 const VISTA_FOG = { near: 500, far: 2600 } as const;
+// Phones get the vista too, just closer: shell to the horizon, fog tighter so
+// the 640 m foliage frontier still mounts inside meaningful haze.
+const VISTA_FOG_LOW = { near: 420, far: 1600 } as const;
 
 // antialias:false — the default canvas 4xMSAA framebuffer is huge (~150 MB at
 // phone DPR; a prime mobile OOM suspect) and on med/high it's pure waste: the
@@ -134,10 +137,11 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
           only when the composer will mount (low has no postFX). */}
       <WorldEnvironment
         focus={focus}
-        fog={worldArtQuality === 'low' ? undefined : VISTA_FOG}
+        fog={worldArtQuality === 'low' ? VISTA_FOG_LOW : VISTA_FOG}
         onSunMesh={worldArtQuality === 'low' ? undefined : handleSunMesh}
       />
-      {worldArtQuality !== 'low' && <HorizonTerrainShell focus={focus} />}
+      {/* One draw call + a one-off 47 ms bake — phones can afford mountains. */}
+      <HorizonTerrainShell focus={focus} />
       <WorldFoliage focus={focus} quality={worldArtQuality} />
       {/* All tiers get grass; low = the single cheap phone layer. */}
       <WorldShaderGrass focus={focus} quality={worldArtQuality} />

@@ -27,7 +27,7 @@ import type { DayPhasePalette } from '../timeOfDay';
  * fallback that WorldEnvironment owns, and the sun disc / moon / stars compose
  * on top.
  */
-const SKY_EXPOSURE = 0.32;
+const SKY_EXPOSURE = 0.26; // lowered with the vibrance boost — deeper day blue
 
 function makeSky(): Sky {
   const s = new Sky();
@@ -56,6 +56,10 @@ function makeSky(): Sky {
   mat.fragmentShader = 'uniform float skyExposure;\nuniform vec3 nightSky;\n' + mat.fragmentShader.replace(
     target,
     `vec3 _sky = texColor * skyExposure; _sky = _sky / ( 1.0 + _sky );
+     // Reinhard skews bright sky toward grey-white; restore saturation so the
+     // day sky reads BLUE (phone shots showed a washed white-grey dome).
+     float _lum = dot(_sky, vec3(0.2126, 0.7152, 0.0722));
+     _sky = clamp(mix(vec3(_lum), _sky, 1.35), 0.0, 1.0);
      float _nightF = clamp( -vSunDirection.y * 5.0, 0.0, 1.0 );
      _sky = mix( _sky, max(_sky, nightSky), _nightF );
      gl_FragColor = vec4( _sky, 1.0 );`,
