@@ -177,10 +177,16 @@ function installDragListeners(
   };
   const onUp = (event: PointerEvent) => finish(event, true);
   const onCancel = (event: PointerEvent) => finish(event, false);
+  // Long-press is the drag gesture — keep Android's long-press context menu
+  // (text selection / link menu) from hijacking it mid-hold.
+  const onContextMenu = (event: Event) => {
+    if (candidateRef.current) event.preventDefault();
+  };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('touchmove', onTouchMove, { passive: false });
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onCancel);
+  window.addEventListener('contextmenu', onContextMenu);
   return () => {
     // Drag armed but not finished at unmount: clear the pending long-press so
     // it can't fire setGhost on a gone component or leave touchAction stuck.
@@ -190,6 +196,7 @@ function installDragListeners(
     window.removeEventListener('touchmove', onTouchMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onCancel);
+    window.removeEventListener('contextmenu', onContextMenu);
   };
 }
 

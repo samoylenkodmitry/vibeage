@@ -12,6 +12,7 @@ import { describeOffense, describeReactions, describeSkillPlayPattern } from './
 import { skillMechanicLabels } from '../../../../packages/content/skillMechanics';
 import { SKILL_DRAG_MIME } from './useActionBar';
 import { useActionBarDrag } from './actionBarDrag';
+import { useHasMousePointer } from './useHasMousePointer';
 import {
   getSpecializationsForClass,
   PROFICIENCY_LEVEL,
@@ -122,11 +123,11 @@ function SkillRow({
 }) {
   const skill = SKILLS[row.skillId];
   const { beginDrag, consumeDragClick } = useActionBarDrag();
+  const hasMouse = useHasMousePointer(); // gates draggable to desktop
   const isPassive = isPassiveSkill(row.skillId);
   const canDragToBar = row.status === 'unlocked' && !isPassive;
-  // Self-buff = a beneficial-only active skill (Bless, Shield Wall,
-  // Evade…) that lands on you. Tagged so it reads as a buff, not an
-  // attack, in the tree.
+  // Self-buff = beneficial-only active skill (Bless, Shield Wall…) that
+  // lands on you — tagged so it reads as a buff, not an attack.
   const isSelfBuff = !isPassive && !!skill?.effects?.length && classifySkill(skill.effects) === 'beneficial';
   // maxLevel = base level 1 + N upgrade tiers (each tier description
   // lives in SKILLS[id].upgrades[i] and bumps the level by one).
@@ -150,7 +151,7 @@ function SkillRow({
           }
           onToggleExpand();
         }}
-        draggable={canDragToBar}
+        draggable={canDragToBar && hasMouse /* mouse-only: Android native long-press drag fires pointercancel */}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'copy';
           e.dataTransfer.setData(SKILL_DRAG_MIME, JSON.stringify({ skillId: row.skillId }));
