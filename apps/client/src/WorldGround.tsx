@@ -478,6 +478,14 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
       positions[base + 1] = terrain.height;
       positions[base + 2] = worldZ;
       color.set(terrain.groundColor).lerp(accentColor.set(terrain.accentColor), heightTint(terrain.height));
+      // NORMALIZE the tint to ~unit luminance (hue preserved). The raw biome
+      // hexes are dark (#2f6f45 ≈ 0.16 linear) and MULTIPLY with the ground
+      // texture (~0.1 linear) — effective albedo ~1-2%, darker than coal.
+      // Desktop only ever looked right because adaptive exposure cranked
+      // 5-10x to rescue it; on the phone tier (broken adaptation, then a
+      // fixed tone map) the world rendered its true near-black self. The
+      // texture now carries the brightness; the vertex colour only tints.
+      normalizeTintLuminance(color);
       color.toArray(colors, base);
       // 0..1 across the chunk; the material applies `repeat` on
       // top so a single 1K texture tiles enough times to read at
@@ -504,6 +512,19 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
+}
+
+/** Scale a colour so its (linear) luminance ≈ TARGET_TINT_LUMINANCE while
+ *  keeping its hue — vertex colours must TINT the ground texture, not
+ *  darken it (see createTerrainGeometry). Clamped so saturated hues can't
+ *  blow out a single channel. */
+const TARGET_TINT_LUMINANCE = 0.62;
+export function normalizeTintLuminance(color: THREE.Color): void {
+  const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const scale = TARGET_TINT_LUMINANCE / Math.max(luminance, 0.04);
+  color.r = Math.min(1, color.r * scale);
+  color.g = Math.min(1, color.g * scale);
+  color.b = Math.min(1, color.b * scale);
 }
 
 // Exported so HorizonTerrainShell tints its far vertices the same way the
