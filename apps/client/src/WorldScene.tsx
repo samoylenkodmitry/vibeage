@@ -119,9 +119,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
     <WebGLGate>
     <Canvas
       camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
-      /* PCF-soft shadow mapping — the renderer never enabled shadows before,
-         so every castShadow flag was inert (a big part of the flat toy look). */
-      shadows={worldArtQuality !== 'low' ? 'soft' : false}
+      /* Plain PCF shadows — three deprecated PCFSoftShadowMap and r3f's
+         'soft' re-applied it per frame (500+ console warnings). */
+      shadows={worldArtQuality !== 'low'}
       gl={CANVAS_GL_OPTIONS}
       onCreated={({ gl }) => setUpRenderer(gl, worldArtQuality)}
     >
