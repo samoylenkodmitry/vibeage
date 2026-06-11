@@ -566,6 +566,7 @@ export function getTravelLaneSegments(lanes: readonly WorldTravelLane[] = WORLD_
 }
 
 const ALL_LANE_SEGMENTS = getTravelLaneSegments();
+const RIVER_LANE_SEGMENTS = ALL_LANE_SEGMENTS.filter((segment) => segment.lane.kind === 'river');
 
 /**
  * Distance from a point to the EDGE of the nearest travel lane (0 = on the
@@ -573,8 +574,21 @@ const ALL_LANE_SEGMENTS = getTravelLaneSegments();
  * used to grow straight through the lane slabs.
  */
 export function distanceBeyondNearestLane(x: number, z: number): number {
+  return distanceBeyondSegments(x, z, ALL_LANE_SEGMENTS);
+}
+
+/** Same, but rivers only — reed banks hug water, never roads. */
+export function distanceBeyondNearestRiver(x: number, z: number): number {
+  return distanceBeyondSegments(x, z, RIVER_LANE_SEGMENTS);
+}
+
+function distanceBeyondSegments(
+  x: number,
+  z: number,
+  segments: ReadonlyArray<{ lane: WorldTravelLane; from: WorldPoint; to: WorldPoint }>,
+): number {
   let best = Infinity;
-  for (const { lane, from, to } of ALL_LANE_SEGMENTS) {
+  for (const { lane, from, to } of segments) {
     const dx = to.x - from.x;
     const dz = to.z - from.z;
     const lenSq = dx * dx + dz * dz;
