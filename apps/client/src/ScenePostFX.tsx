@@ -101,14 +101,12 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
         luminanceSmoothing={0.16}
         mipmapBlur
       />
-      <ToneMapping
-        mode={ToneMappingMode.REINHARD2_ADAPTIVE}
-        resolution={256}
-        adaptationRate={1.5}
-        middleGrey={0.6}
-        whitePoint={8.0}
-        minLuminance={0.08}
-      />
+      {/* FIXED tone map on every tier now. The adaptive operator's half-float
+          luminance chain is fragile: it rendered phones near-black (#874) and
+          blew DESKTOP to a pure-white world under GPU pressure (NaN-class
+          exposure at night). Lighting is intrinsic in every phase since
+          #871/#872/#875 — adaptation has nothing left to do. */}
+      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
       <HueSaturation hue={0} saturation={high ? 0.12 : 0.09} />
       <BrightnessContrast brightness={0.0} contrast={high ? 0.08 : 0.06} />
       {high ? (
