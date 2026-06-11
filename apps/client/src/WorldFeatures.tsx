@@ -459,7 +459,7 @@ function isLandmarkNearFocus(landmark: WorldLandmark, focus: Vec3D): boolean {
   const dx = landmark.position.x - focus.x;
   const dz = landmark.position.z - focus.z;
   // Wilderness POIs are small and numerous — mount them only inside the vista
-  // fog range (2.6 km); past that they'd be fully fog-hidden draws anyway.
+  // fog range (2.8 km); past that they'd be fully fog-hidden draws anyway.
   const visibleDistance = landmark.mega
     ? 40_000 + landmark.radius
     : WILDS_KINDS.has(landmark.kind)

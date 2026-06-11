@@ -69,11 +69,15 @@ export function RuinLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
           </mesh>
         </group>
       ) : (
-        // toppled column half-sunk into the grass
-        <mesh key={i} position={[col.x, 0.35, col.z]} rotation={[Math.PI / 2, 0, col.yaw]} castShadow>
-          <cylinderGeometry args={[0.5, 0.58, col.h, 9]} />
-          <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.9} fog={fog} />
-        </mesh>
+        // toppled column half-sunk into the grass; outer group sets the
+        // ground heading, inner rotation lays the cylinder down (a single
+        // XYZ Euler would only spin it around its own length)
+        <group key={i} position={[col.x, 0.35, col.z]} rotation={[0, col.yaw, 0]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.5, 0.58, col.h, 9]} />
+            <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.9} fog={fog} />
+          </mesh>
+        </group>
       ))}
       {layout.walls.map((wall, i) => (
         <mesh key={`w${i}`} position={[wall.x, wall.h / 2, wall.z]} rotation={[0, wall.yaw, 0]} castShadow>
@@ -143,15 +147,15 @@ export function StonesLandmark({ landmark, fog }: { landmark: WorldLandmark; fog
   return (
     <>
       {stones.map((stone, i) => (
-        <mesh
-          key={i}
-          position={[stone.x, stone.fallen ? stone.w * 0.4 : stone.h * 0.46, stone.z]}
-          rotation={stone.fallen ? [Math.PI / 2 - 0.08, stone.yaw, 0] : [stone.tiltX, stone.yaw, stone.tiltZ]}
-          castShadow
-        >
-          <boxGeometry args={[stone.w, stone.h, stone.d]} />
-          <meshStandardMaterial map={tex.stone} color={stone.tint} roughness={0.92} fog={fog} />
-        </mesh>
+        // fallen menhirs lie on their face: yaw on the outer group, the
+        // tip-over inside; rest height = half the slab DEPTH (the dimension
+        // that becomes vertical once it falls), not its width
+        <group key={i} position={[stone.x, stone.fallen ? stone.d * 0.55 : stone.h * 0.46, stone.z]} rotation={[0, stone.yaw, 0]}>
+          <mesh rotation={stone.fallen ? [Math.PI / 2 - 0.08, 0, 0] : [stone.tiltX, 0, stone.tiltZ]} castShadow>
+            <boxGeometry args={[stone.w, stone.h, stone.d]} />
+            <meshStandardMaterial map={tex.stone} color={stone.tint} roughness={0.92} fog={fog} />
+          </mesh>
+        </group>
       ))}
       <mesh position={[0, 0.35, 0]} castShadow>
         <boxGeometry args={[2.6, 0.7, 1.7]} />
@@ -210,10 +214,13 @@ export function CampLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
       <group position={[0, 0.8, 0]}>
         <GlowEmitter color="#ff9a4d" intensity={2.0} distance={15} />
       </group>
-      <mesh position={[landmark.radius * 0.3, 0.32, landmark.radius * 0.18]} rotation={[Math.PI / 2, 0, layout.logYaw]} castShadow>
-        <cylinderGeometry args={[0.3, 0.34, 2.6, 8]} />
-        <meshStandardMaterial color="#6b4a2f" roughness={0.95} fog={fog} />
-      </mesh>
+      {/* sitting log by the fire: heading on the group, lay-down inside */}
+      <group position={[landmark.radius * 0.3, 0.32, landmark.radius * 0.18]} rotation={[0, layout.logYaw, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.3, 0.34, 2.6, 8]} />
+          <meshStandardMaterial color="#6b4a2f" roughness={0.95} fog={fog} />
+        </mesh>
+      </group>
     </>
   );
 }
