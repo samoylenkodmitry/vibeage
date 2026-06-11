@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js';
@@ -10,6 +10,7 @@ import {
   type WorldTravelLane,
 } from '../../../packages/content/worldFeatures';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
+import { computeDayPhase } from './timeOfDay';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { CastleLandmark, TownLandmark, useSettlementTextures } from './world-art/SettlementLandmarks';
 
@@ -27,8 +28,14 @@ export function WorldFeatures({ focus }: { focus: Vec3D }) {
   // One animated material shared by every river slab; ticked once here.
   const riverMaterial = useMemo(() => makeRiverMaterial(), []);
   useEffect(() => () => riverMaterial.dispose(), [riverMaterial]);
+  const lastPhaseRef = useRef(0);
   useFrame(({ clock }) => {
     riverMaterial.uniforms.uTime.value = clock.elapsedTime;
+    // The river mirrors the day-phase atmosphere like the lakes/coast.
+    if (clock.elapsedTime - lastPhaseRef.current > 0.25) {
+      lastPhaseRef.current = clock.elapsedTime;
+      riverMaterial.uniforms.uPhaseTint.value.set(computeDayPhase(Date.now()).fogColor);
+    }
   });
 
   return (
@@ -109,6 +116,7 @@ function makeRiverMaterial(): THREE.ShaderMaterial {
       uTime: { value: 0 },
       uDeep: { value: new THREE.Color('#1d5b7c') },
       uShallow: { value: new THREE.Color('#4fc3e8') },
+      uPhaseTint: { value: new THREE.Color('#a4d2e3') },
     },
     vertexShader: /* glsl */ `
       varying vec2 vLocal;   // x: metres across the lane, y: metres along it
@@ -122,11 +130,13 @@ function makeRiverMaterial(): THREE.ShaderMaterial {
       uniform float uTime;
       uniform vec3 uDeep;
       uniform vec3 uShallow;
+      uniform vec3 uPhaseTint;
       void main() {
         // Downstream-drifting ripple bands + a cross shimmer.
         float flow = sin(vLocal.y * 0.55 - uTime * 2.4) * 0.5
                    + sin(vLocal.y * 1.7 - uTime * 3.6 + vLocal.x * 0.8) * 0.5;
         vec3 color = mix(uDeep, uShallow, 0.45 + flow * 0.25);
+        color = mix(color, uPhaseTint, 0.2); // day-phase sky reflection
         // Brighter, more opaque mid-stream; soft edges toward the banks.
         // 9.0 = half of the Silverwood River's 18 m lane width (the only
         // river lane); widen if a broader river is ever authored.

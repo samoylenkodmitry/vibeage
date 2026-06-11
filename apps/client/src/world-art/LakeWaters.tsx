@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { computeNearbyLakes, LAKE_WATER_Y } from '../../../../packages/content/terrain';
+import { computeDayPhase } from '../timeOfDay';
 
 /**
  * Streamed lake water. Lake positions are the analytic peaks of the terrain's
@@ -35,8 +36,14 @@ export function LakeWaters({ focus }: { focus: { x: number; z: number } }) {
   const snapZ = Math.round(focus.z / SNAP) * SNAP;
   const lakes = useMemo(() => computeNearbyLakes(snapX, snapZ, LAKE_STREAM_RADIUS), [snapX, snapZ]);
 
+  const lastPhaseRef = useRef(0);
   useFrame(({ clock }) => {
     material.uniforms.uTime.value = clock.elapsedTime;
+    // Lakes mirror the day-phase atmosphere (sunset/dusk/night tints).
+    if (clock.elapsedTime - lastPhaseRef.current > 0.25) {
+      lastPhaseRef.current = clock.elapsedTime;
+      material.uniforms.uPhaseTint.value.set(computeDayPhase(Date.now()).fogColor);
+    }
   });
 
   return (
@@ -64,6 +71,7 @@ function makeLakeMaterial(): THREE.ShaderMaterial {
       uTime: { value: 0 },
       uDeep: { value: new THREE.Color('#123e58') },
       uShallow: { value: new THREE.Color('#3f8d96') },
+      uPhaseTint: { value: new THREE.Color('#a4d2e3') },
       fogColor: { value: new THREE.Color('#a4d2e3') },
       fogNear: { value: 500 },
       fogFar: { value: 2600 },
@@ -84,6 +92,7 @@ function makeLakeMaterial(): THREE.ShaderMaterial {
       uniform float uTime;
       uniform vec3 uDeep;
       uniform vec3 uShallow;
+      uniform vec3 uPhaseTint;
       uniform vec3 fogColor;
       uniform float fogNear;
       uniform float fogFar;
@@ -94,6 +103,7 @@ function makeLakeMaterial(): THREE.ShaderMaterial {
         float ripple = sin(r * 60.0 - uTime * 1.6) * 0.02
                      + sin((vUv.x + vUv.y) * 80.0 + uTime * 2.1) * 0.012;
         vec3 color = mix(uDeep, uShallow, clamp(r * 0.9 + ripple, 0.0, 1.0));
+        color = mix(color, uPhaseTint, 0.24); // day-phase sky reflection
         float alpha = mix(0.88, 0.62, r);
         float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
         color = mix(color, fogColor, fogFactor);

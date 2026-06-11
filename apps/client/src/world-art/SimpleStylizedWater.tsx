@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldArtScene } from './worldArtScenes';
+import { computeDayPhase } from '../timeOfDay';
 
 /**
  * Stylized coast water — cheap, mobile-safe, anchored to the scene's
@@ -21,6 +22,7 @@ import type { WorldArtScene } from './worldArtScenes';
  */
 export function SimpleStylizedWater({ scene }: { scene: WorldArtScene }) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const lastPhaseRef = useRef(0);
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
@@ -32,7 +34,16 @@ export function SimpleStylizedWater({ scene }: { scene: WorldArtScene }) {
     [],
   );
   useFrame(({ clock }) => {
-    if (materialRef.current) materialRef.current.uniforms.uTime.value = clock.elapsedTime;
+    const material = materialRef.current;
+    if (!material) return;
+    material.uniforms.uTime.value = clock.elapsedTime;
+    // The fresnel rim reflects the SKY — track the day phase (sunset oranges,
+    // night navy) instead of a fixed daylight blue. fogColor is the
+    // atmosphere's tint and interpolates smoothly across the whole cycle.
+    if (clock.elapsedTime - lastPhaseRef.current > 0.25) {
+      lastPhaseRef.current = clock.elapsedTime;
+      material.uniforms.uSky.value.set(computeDayPhase(Date.now()).fogColor);
+    }
   });
   return (
     <mesh
