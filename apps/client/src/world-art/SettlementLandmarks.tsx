@@ -187,7 +187,7 @@ export function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
               dynamic-light pool (never a raw <pointLight/> — that recompiles
               every shader). Invisible against daylight, alive after dark. */}
           <group position={[0, 3.3, 0]}>
-            <GlowEmitter color="#ffc25e" intensity={1.6} distance={17} />
+            <GlowEmitter color="#ffc25e" intensity={2.4} distance={22} />
           </group>
         </group>
       ))}
