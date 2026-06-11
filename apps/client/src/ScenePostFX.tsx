@@ -72,11 +72,17 @@ export function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; su
     );
   }
   const high = quality === 'high';
+  // multisampling={0} + stencilBuffer={false} on BOTH tiers. High used 4× MSAA,
+  // but resolving a multisampled target that also feeds a DEPTH-reading effect
+  // (GodRays) forces a depth/stencil blitFramebuffer that some GPUs/drivers
+  // reject: `glBlitFramebuffer: Depth/stencil buffer format combination not
+  // allowed for blit`. It flooded every frame → Chrome hit "too many errors"
+  // → it KILLED the context every few seconds (white screen, Lost/Restored
+  // loop) even on an idle RTX 2070. Single-sampled = no resolve blit; SMAA
+  // cleans the silhouettes on both tiers instead.
   return (
-    <EffectComposer enableNormalPass={false} multisampling={high ? 4 : 0}>
-      {/* Medium has no MSAA — SMAA cleans the silhouettes (grass blades, tree
-          edges) for cheap. High already has 4× MSAA, so skip the extra pass. */}
-      {high ? <></> : <SMAA />}
+    <EffectComposer enableNormalPass={false} multisampling={0} stencilBuffer={false}>
+      <SMAA />
       {/* Crysis-style crepuscular shafts radiating from the sun disc. The mesh
           arrives via state one frame after WorldEnvironment mounts (the effect
           needs the real mesh at construction), so the composer rebuilds once.
