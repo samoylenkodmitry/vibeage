@@ -65,8 +65,9 @@ function grassLayers(q: WorldArtQuality): Layer[] {
       { patch: 1100, count: 110000, hScale: 2.8, wScale: 2.2, innerFade: 150 },
     ];
   }
-  // 'low' isn't mounted today (WorldScene gates on quality !== 'low').
-  return [{ patch: 150, count: 70000, hScale: 1.0, wScale: 1.0, innerFade: 0 }];
+  // 'low' = phones: one small layer, sized for battery silicon (the medium
+  // config overheated a Pixel 9 Pro and crashed the tab).
+  return [{ patch: 150, count: 45000, hScale: 1.1, wScale: 1.1, innerFade: 0 }];
 }
 
 // One blade template: rows at t = 0, 1/3, 2/3 are 2 wide (side ±1), tip is a
@@ -90,10 +91,11 @@ const VERT = /* glsl */`
   uniform sampler2D uDensityMap; // baked biome grass density × coast mask
   uniform vec2  uDensityCenter;
   uniform float uDensityHalf;
-  uniform float uDayBright;
-  uniform vec3  uSunDir;    // normalised direction to the sun (world)
-  uniform vec3  uSunColor;
-  uniform vec3  uFogColor;  // day-phase sky tint — also the night tip-light
+  uniform vec3  uSunDir;      // normalised direction to the sun (world)
+  uniform vec3  uSunLight;    // sun color × intensity, gated to elevation
+  uniform vec3  uHemiSky;     // hemisphere sky color × intensity
+  uniform vec3  uHemiGround;  // hemisphere ground color × intensity
+  uniform vec3  uAmbientLight;// ambient color × intensity
   attribute vec2 aOffset;   // per-instance cell offset, [-patch/2, patch/2]
   attribute vec4 aRand;     // per-instance (heightScale, yaw, hueRand, leanRand)
   varying vec3 vColor;
@@ -189,32 +191,30 @@ const VERT = /* glsl */`
     float w2 = sin(world.x*0.25 + world.y*0.2 + uTime*1.6);
     pos.xz += vec2(0.72, 0.3) * (w*0.55 + w2*0.45) * h * 0.4 * t * t;
 
-    vec3 baseCol = vec3(0.05, 0.13, 0.04);
-    vec3 midCol  = vec3(0.18, 0.36, 0.11);
-    vec3 tipCol  = vec3(0.42, 0.62, 0.24);
-    vec3 col = t < 0.5 ? mix(baseCol, midCol, t*2.0) : mix(midCol, tipCol, t*2.0 - 1.0);
-    // Per-blade variation, WIDE (±28% value) — the old ±18% compressed into
-    // an indistinguishable mass at dusk brightness; plus ~20% of blades dry
-    // to straw, which breaks the green monotone the way real meadows do.
-    col *= 0.70 + 0.55*aRand.z;
-    col = mix(col, col * vec3(1.25, 1.05, 0.55), step(0.80, aRand.z) * 0.75);
-    col *= 0.45 + 0.55*t;              // baked AO — dark at the root
-
-    // Sun-direction shading: blades facing the sun catch warm light, those
-    // turned away fall into deeper shade — only while the sun is up, so night is
-    // unchanged. The blade is a near-vertical ribbon, so its broad-face normal is
-    // ~its facing direction tilted up; per-blade yaw gives a dappled meadow.
-    float sunUp = clamp(uSunDir.y * 2.2, 0.0, 1.0);
-    vec3  N     = normalize(vec3(facing.x, 0.55, facing.y));
-    float ndl   = max(dot(N, uSunDir), 0.0);
-    float shade = mix(1.0, 0.72 + 0.46*ndl, sunUp);
-    vec3  sunTint = mix(vec3(1.0), uSunColor*1.4, ndl*0.30*sunUp);
-    col *= clamp(uDayBright, 0.05, 1.10) * shade * sunTint; // floor low; the JS night base is the real knob
-    // Faint sky catch on the tips when the sun is down, so dusk/night grass
-    // reads as a moonlit field instead of a black mass (uFogColor tracks the
-    // day-phase sky tint).
-    col += uFogColor * (1.0 - sunUp) * 0.07 * t * t;
-    vColor = col;
+    // SCENE-LIT SHADING (rebuilt). The old pipeline self-lit the blades from a
+    // hand-tuned brightness knob — it could never match the world: at night the
+    // adaptive tone-map amplified the mismatch and the field GLOWED green over
+    // a dark scene, no matter how the knob was tuned. Now blades are ALBEDO ×
+    // the exact lambert irradiance the terrain receives (ambient + hemisphere
+    // + sun, fed from the live scene lights each frame) — grass brightness
+    // tracks the ground beneath it in every day phase by construction, and the
+    // tone-map scales both together.
+    vec3 baseAlb = vec3(0.06, 0.10, 0.045);
+    vec3 midAlb  = vec3(0.11, 0.18, 0.07);
+    vec3 tipAlb  = vec3(0.18, 0.27, 0.11);
+    vec3 alb = t < 0.5 ? mix(baseAlb, midAlb, t*2.0) : mix(midAlb, tipAlb, t*2.0 - 1.0);
+    // Per-blade variation (±28%) + ~20% dry-straw blades keep the meadow alive.
+    alb *= 0.72 + 0.55*aRand.z;
+    alb = mix(alb, alb * vec3(1.6, 1.25, 0.6), step(0.80, aRand.z) * 0.8);
+    alb *= 0.45 + 0.55*t;              // baked AO — dark at the root
+    // Blade pseudo-normal: its facing yaw tilted up — per-blade yaw gives the
+    // dappled meadow under directional sun.
+    vec3 N = normalize(vec3(facing.x, 0.6, facing.y));
+    float hemiW = 0.5 + 0.5*N.y;
+    vec3 irradiance = uAmbientLight
+                    + mix(uHemiGround, uHemiSky, hemiW)
+                    + uSunLight * max(dot(N, uSunDir), 0.0);
+    vColor = alb * irradiance;
 
     vec4 mv = viewMatrix * vec4(pos, 1.0);
     vViewZ = -mv.z;
@@ -263,14 +263,20 @@ function buildMaterial(layer: Layer, field: GrassDensityField): THREE.ShaderMate
       uBladeH: { value: 0.55 }, uHScale: { value: layer.hScale }, uWScale: { value: layer.wScale },
       uInnerFade: { value: layer.innerFade },
       uDensityMap: { value: field.texture }, uDensityCenter: { value: new THREE.Vector2() }, uDensityHalf: { value: field.half },
-      uDayBright: { value: 1 }, uFogColor: { value: new THREE.Color('#cdd9e6') },
+      uFogColor: { value: new THREE.Color('#cdd9e6') },
       uFogNear: { value: 600 }, uFogFar: { value: 5400 },
-      uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color('#fff1d0') },
+      uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunLight: { value: new THREE.Color(0, 0, 0) },
+      uHemiSky: { value: new THREE.Color(0.5, 0.55, 0.6) }, uHemiGround: { value: new THREE.Color(0.2, 0.25, 0.2) },
+      uAmbientLight: { value: new THREE.Color(0.2, 0.2, 0.22) },
     },
   });
 }
 
 const TMP_SUNDIR = new THREE.Vector3();
+const TMP_SUNLIGHT = new THREE.Color();
+const TMP_HEMI_SKY = new THREE.Color();
+const TMP_HEMI_GROUND = new THREE.Color();
+const TMP_AMBIENT = new THREE.Color();
 
 export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: WorldArtQuality }) {
   const layers = useMemo(() => grassLayers(quality), [quality]);
@@ -307,14 +313,20 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
   }, [meshes]);
 
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
+  const hemiRef = useRef<THREE.HemisphereLight | null>(null);
+  const ambientRef = useRef<THREE.AmbientLight | null>(null);
   const frameRef = useRef(0);
 
   useFrame(({ scene }, dt) => {
     // Find the sun once (retry every ~30 frames), read fog, re-bake the density
     // map, then push the shared values into every layer's uniforms.
     frameRef.current += 1;
-    if (!sunRef.current && frameRef.current % 30 === 1) {
-      scene.traverse((o) => { if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight; });
+    if ((!sunRef.current || !hemiRef.current || !ambientRef.current) && frameRef.current % 30 === 1) {
+      scene.traverse((o) => {
+        if ((o as THREE.DirectionalLight).isDirectionalLight) sunRef.current = o as THREE.DirectionalLight;
+        if ((o as THREE.HemisphereLight).isHemisphereLight) hemiRef.current = o as THREE.HemisphereLight;
+        if ((o as THREE.AmbientLight).isAmbientLight) ambientRef.current = o as THREE.AmbientLight;
+      });
     }
     const fog = scene.fog as THREE.Fog | null;
     const sun = sunRef.current;
@@ -324,15 +336,19 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // Sun direction: WorldEnvironment offsets the sun's X/Z by focus but its Y is
     // absolute (sunDir.y·distance), so don't subtract focus.y from Y.
     if (sun) TMP_SUNDIR.set(sun.position.x - focus.x, sun.position.y, sun.position.z - focus.z).normalize();
-    // The grass is SELF-LIT (custom shader, no scene lights), so its brightness
-    // must track the sun's ELEVATION, not just the keyframe intensity — the
-    // dawn/dusk keyframes keep intensity high (~1.25) while the lit terrain
-    // around goes dark (horizon sun ⇒ tiny diffuse), which made the grass
-    // read as GLOWING (and pushed it over the bloom threshold). Night base
-    // 0.26 (was the floor before too); full brightness only with the sun
-    // well above the horizon.
-    const sunElevation = sun ? smoothstep(0.02, 0.45, TMP_SUNDIR.y) : 1;
-    const dayBright = sun ? 0.26 + sun.intensity * 0.53 * sunElevation : 1;
+    // Mirror the EXACT lights the terrain is lit by (color × intensity). The
+    // sun term is gated to elevation: below the horizon the terrain (normal
+    // up) gets no directional light, but tilted blade normals could still
+    // catch the under-horizon "moon stand-in" — the gate keeps night parity.
+    const sunGate = sun ? smoothstep(0.0, 0.12, TMP_SUNDIR.y) : 0;
+    if (sun) TMP_SUNLIGHT.copy(sun.color).multiplyScalar(sun.intensity * sunGate);
+    const hemi = hemiRef.current;
+    if (hemi) {
+      TMP_HEMI_SKY.copy(hemi.color).multiplyScalar(hemi.intensity);
+      TMP_HEMI_GROUND.copy(hemi.groundColor).multiplyScalar(hemi.intensity);
+    }
+    const ambient = ambientRef.current;
+    if (ambient) TMP_AMBIENT.copy(ambient.color).multiplyScalar(ambient.intensity);
 
     for (const { material } of meshes) {
       const u = material.uniforms;
@@ -340,7 +356,9 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
       u.uPlayer.value.set(focus.x, focus.z);
       u.uDensityCenter.value.set(cx, cz);
       if (fog?.color) { u.uFogColor.value.copy(fog.color); u.uFogNear.value = fog.near; u.uFogFar.value = fog.far; }
-      if (sun) { u.uDayBright.value = dayBright; u.uSunDir.value.copy(TMP_SUNDIR); u.uSunColor.value.copy(sun.color); }
+      if (sun) { u.uSunDir.value.copy(TMP_SUNDIR); u.uSunLight.value.copy(TMP_SUNLIGHT); }
+      if (hemi) { u.uHemiSky.value.copy(TMP_HEMI_SKY); u.uHemiGround.value.copy(TMP_HEMI_GROUND); }
+      if (ambient) u.uAmbientLight.value.copy(TMP_AMBIENT);
     }
   });
 
