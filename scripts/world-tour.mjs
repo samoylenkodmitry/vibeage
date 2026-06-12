@@ -23,7 +23,7 @@ const browser = await chromium.launch({
   headless: false, // SwiftShader can't rasterize med/high tiers — needs the real GPU
   // System chromium by default (bundled headless = SwiftShader); override on
   // other machines via CHROME_PATH, or set it empty to use the bundled one.
-  executablePath: process.env.CHROME_PATH ?? '/usr/bin/chromium',
+  executablePath: process.env.CHROME_PATH === '' ? undefined : (process.env.CHROME_PATH ?? '/usr/bin/chromium'),
   args: ['--window-size=660,440', '--window-position=20,20'],
 });
 const page = await browser.newPage({ viewport: { width: 660, height: 440 } });
@@ -61,7 +61,7 @@ try {
 
   // wait for a good daylight window (phase 0.12..0.55 of the 12-min cycle);
   // SKIP_DAYLIGHT_WAIT=1 shoots whatever the current light is (debug runs)
-  while (!process.env.SKIP_DAYLIGHT_WAIT && (phaseNow() < 0.12 || phaseNow() > 0.55)) {
+  while (process.env.SKIP_DAYLIGHT_WAIT !== '1' && (phaseNow() < 0.12 || phaseNow() > 0.55)) {
     log(`waiting for daylight (phase ${phaseNow().toFixed(2)})`);
     await page.waitForTimeout(20_000);
   }
