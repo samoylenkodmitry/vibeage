@@ -7,6 +7,7 @@ import {
   type ReactElement,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
+import { GmMapTravel } from './GmMapTravel';
 import { listMiniBosses, type MiniBossSpec } from '../../../../packages/content/miniBosses';
 import { GAME_ZONES, type Zone } from '../../../../packages/content/zones';
 import { zoneIconPath } from '../../../../packages/content/zoneIcons';
@@ -112,9 +113,8 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         {navigationMarker && (
           <button type="button" onClick={() => onSetNavigationMarker?.(null)}>Clear pin</button>
         )}
-        {/* GM travel: jump straight to the pin. Server re-checks GM. */}
-        {navigationMarker && player?.isGm && onGmTeleport && (
-          <button type="button" onClick={() => onGmTeleport(navigationMarker)}>Teleport</button>
+        {player?.isGm && onGmTeleport && (
+          <GmMapTravel pin={navigationMarker ?? null} px={px} pz={pz} onGmTeleport={onGmTeleport} />
         )}
         <span className="map-toolbar-hint">click: drop pin · drag: pan · wheel: zoom · right-click: clear</span>
       </div>
