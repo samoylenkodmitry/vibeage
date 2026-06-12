@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MutableRefObject,
@@ -112,9 +113,8 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         {navigationMarker && (
           <button type="button" onClick={() => onSetNavigationMarker?.(null)}>Clear pin</button>
         )}
-        {/* GM travel: jump straight to the pin. Server re-checks GM. */}
-        {navigationMarker && player?.isGm && onGmTeleport && (
-          <button type="button" onClick={() => onGmTeleport(navigationMarker)}>Teleport</button>
+        {player?.isGm && onGmTeleport && (
+          <GmMapTravel pin={navigationMarker ?? null} px={px} pz={pz} onGmTeleport={onGmTeleport} />
         )}
         <span className="map-toolbar-hint">click: drop pin · drag: pan · wheel: zoom · right-click: clear</span>
       </div>
@@ -156,6 +156,51 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
       </ol>
     </section>
   );
+}
+
+/**
+ * GM map travel — teleport to the dropped pin, or pick any named place from
+ * the dropdown (nearest first). The server re-checks GM on every teleport.
+ */
+function GmMapTravel({ pin, px, pz, onGmTeleport }: {
+  pin: Marker | null;
+  px: number;
+  pz: number;
+  onGmTeleport: (target: Marker) => void;
+}) {
+  // Quantize the sort anchor so the list doesn't reshuffle every step.
+  const qx = Math.round(px / 100) * 100;
+  const qz = Math.round(pz / 100) * 100;
+  const places = useMemo(() => [...WORLD_LANDMARKS].sort((a, b) =>
+    Math.hypot(a.position.x - qx, a.position.z - qz) - Math.hypot(b.position.x - qx, b.position.z - qz)), [qx, qz]);
+  return (
+    <>
+      {pin && (
+        <button type="button" onClick={() => onGmTeleport(pin)}>Teleport</button>
+      )}
+      <select
+        aria-label="Teleport to place"
+        value=""
+        onChange={(event) => {
+          const place = WORLD_LANDMARKS.find((lm) => lm.id === event.target.value);
+          if (place) onGmTeleport(landingPointFor(place));
+        }}
+      >
+        <option value="">Places…</option>
+        {places.map((lm) => (
+          <option key={lm.id} value={lm.id}>{lm.mega ? '◆ ' : ''}{lm.name}</option>
+        ))}
+      </select>
+    </>
+  );
+}
+
+/** Land just outside the footprint so you arrive LOOKING at the place, not
+ *  standing inside its geometry. Towns: straight onto the open plaza. */
+function landingPointFor(place: WorldLandmark): Marker {
+  if (place.kind === 'town') return { x: place.position.x + 9, z: place.position.z + 9 };
+  const offset = (place.radius * (place.mega ? 1.3 : 1.05) + 6) * 0.71;
+  return { x: place.position.x + offset, z: place.position.z + offset };
 }
 
 function useSvgPxSize(svgRef: React.MutableRefObject<SVGSVGElement | null>): { w: number; h: number } {
