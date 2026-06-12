@@ -1620,9 +1620,16 @@ input {
    explaining the disabled state ("Pick target", "Dead", cooldown
    timer), so losing hover-tooltip on them doesn't cost signal. */
 .actions-panel,
-.actions-panel-grid,
-.actions-panel .panel-title {
+.actions-panel-grid {
   pointer-events: none;
+}
+/* EXCEPT the title — it's the drag handle (useDraggablePanel). With it in
+   the fall-through set, drags hit nothing and the touch went to the world
+   beneath (mobile report: "can't move actions panel, it just clicks
+   through"). The strip is thin, and a draggable panel lets the player
+   resolve any bag overlap themselves by moving it. */
+.actions-panel .panel-title {
+  pointer-events: auto;
 }
 /* Action buttons stay interactive even when cast-disabled (aria-disabled)
    so they can still be dragged onto the action bar. Only the panel chrome
