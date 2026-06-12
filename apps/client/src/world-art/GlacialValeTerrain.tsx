@@ -109,6 +109,7 @@ function useValeBake(): Bake | null {
           tex.wrapT = THREE.ClampToEdgeWrapping;
           tex.needsUpdate = true;
           if (!cancelled) setBake({ tex, grid: h });
+          else tex.dispose(); // unmount raced the last bake step
         }, 0);
       }, 0);
     };
