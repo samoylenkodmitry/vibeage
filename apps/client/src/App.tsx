@@ -71,6 +71,7 @@ export default function App() {
         cameraAngleRef={cameraAngleRef}
         navigationMarker={navigationMarker}
         onSetNavigationMarker={setNavigationMarker}
+        onGmTeleport={client.devTeleport}
         onDisconnect={client.disconnect}
         onCastSkill={client.castSkill}
         onLearnSkill={client.learnSkill}

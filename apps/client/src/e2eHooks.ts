@@ -93,12 +93,13 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
     },
     useItem: api.useItem,
     respawn: api.respawn,
-    // Test-only — grants `count` of an item to the player via the
-    // server's GmCommand path. Requires VIBEAGE_ENABLE_DEV_COMMANDS=1
-    // on the server (the Vite e2e config sets it). No-op in
-    // production builds (the server rejects the command).
+    // Test-only — grants via the server's GmCommand path (GM-gated there).
     grantItem: (itemId: string, count: number) => {
       api.gmCommand({ verb: 'grantItem', value: itemId, quantity: count });
+    },
+    // GM map travel — works on prod for logged-in accounts (GM-gated).
+    gmTeleport: (x: number, z: number) => {
+      api.devTeleport({ x, z });
     },
   };
 }
@@ -153,6 +154,7 @@ declare global {
       useItem: (slotIndex: number) => void;
       respawn: () => void;
       grantItem: (itemId: string, count: number) => void;
+      gmTeleport: (x: number, z: number) => void;
     };
   }
 }

@@ -24,6 +24,8 @@ type MapPanelProps = {
   cameraAngleRef?: MutableRefObject<number>;
   navigationMarker?: Marker | null;
   onSetNavigationMarker?: (marker: Marker | null) => void;
+  /** GM map travel — teleport to the dropped pin (server gates by GM). */
+  onGmTeleport?: (target: Marker) => void;
   enemies?: Record<string, EnemyEntity>;
 };
 
@@ -57,7 +59,7 @@ type ViewState = {
   centerZ: number;
 };
 
-export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNavigationMarker, enemies }: MapPanelProps) {
+export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNavigationMarker, onGmTeleport, enemies }: MapPanelProps) {
   const px = player?.position.x ?? 0;
   const pz = player?.position.z ?? 0;
   const cameraYaw = useCameraYaw(cameraAngleRef);
@@ -109,6 +111,10 @@ export function MapPanel({ player, cameraAngleRef, navigationMarker, onSetNaviga
         </button>
         {navigationMarker && (
           <button type="button" onClick={() => onSetNavigationMarker?.(null)}>Clear pin</button>
+        )}
+        {/* GM travel: jump straight to the pin. Server re-checks GM. */}
+        {navigationMarker && player?.isGm && onGmTeleport && (
+          <button type="button" onClick={() => onGmTeleport(navigationMarker)}>Teleport</button>
         )}
         <span className="map-toolbar-hint">click: drop pin · drag: pan · wheel: zoom · right-click: clear</span>
       </div>
