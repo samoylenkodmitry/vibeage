@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLACIAL_VALE, VALE_TARN_WATER_Y, getTerrainHeight } from '../../../../packages/content/terrain';
-import { computeDayPhase } from '../timeOfDay';
 import { seededRandom } from './foliageScatter';
+import { GlacialValeTerrain } from './GlacialValeTerrain';
 
 /**
  * Glacial Vale dressing (after deedy/glacial-valley): the turquoise tarn,
@@ -18,7 +18,6 @@ import { seededRandom } from './foliageScatter';
  *  - snowfall: slow drifting flakes with per-flake sway, wrapped vertically.
  */
 const MOUNT_DISTANCE = 1_600;
-const TARN_DISC_RADIUS = 240;
 const PEBBLE_COUNT = 1_200;
 const SNOW_COUNT = 340;
 const SNOW_TOP = 60;
@@ -30,26 +29,10 @@ export function GlacialValeDressing({ focus }: { focus: { x: number; z: number }
 }
 
 function ValeInner() {
-  const water = useMemo(() => makeTarnMaterial(), []);
-  useEffect(() => () => water.dispose(), [water]);
-  const lastPhaseRef = useRef(0);
-  useFrame(({ clock }) => {
-    water.uniforms.uTime.value = clock.elapsedTime;
-    if (clock.elapsedTime - lastPhaseRef.current > 0.25) {
-      lastPhaseRef.current = clock.elapsedTime;
-      water.uniforms.uPhaseTint.value.set(computeDayPhase(Date.now()).fogColor);
-    }
-  });
   return (
     <group>
-      <mesh
-        position={[GLACIAL_VALE.x, VALE_TARN_WATER_Y + 0.04, GLACIAL_VALE.z]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        material={water}
-        raycast={() => null}
-      >
-        <circleGeometry args={[TARN_DISC_RADIUS, 72]} />
-      </mesh>
+      {/* per-pixel ground/water/boulders ported from the reference */}
+      <GlacialValeTerrain />
       <PebbleShore />
       <Snowfall />
     </group>
@@ -151,44 +134,3 @@ function Snowfall() {
   );
 }
 
-function makeTarnMaterial(): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    uniforms: {
-      uTime: { value: 0 },
-      uDeep: { value: new THREE.Color('#0b5e63') },
-      uShallow: { value: new THREE.Color('#8af0dd') },
-      uPhaseTint: { value: new THREE.Color('#a4d2e3') },
-    },
-    vertexShader: /* glsl */ `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      varying vec2 vUv;
-      uniform float uTime;
-      uniform vec3 uDeep;
-      uniform vec3 uShallow;
-      uniform vec3 uPhaseTint;
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      void main() {
-        // Rock-flour turquoise: milky shallow rim, saturated teal middle.
-        float r = length(vUv - 0.5) * 2.0;
-        float ripple = sin(r * 52.0 - uTime * 1.4) * 0.025
-                     + sin((vUv.x + vUv.y) * 70.0 + uTime * 1.9) * 0.015;
-        vec3 color = mix(uDeep, uShallow, clamp(r * 1.05 + ripple, 0.0, 1.0));
-        color = mix(color, uPhaseTint, 0.16);
-        // drifting sun glitter (the reference's water sparkle)
-        vec2 gp = vUv * 900.0 + vec2(uTime * 4.0, -uTime * 3.0);
-        float cellHash = hash(floor(gp));
-        float sparkle = step(0.987, cellHash) * (0.5 + 0.5 * sin(uTime * 5.0 + cellHash * 40.0));
-        color += sparkle * 0.22;
-        gl_FragColor = vec4(color, mix(0.92, 0.7, r));
-      }
-    `,
-  });
-}
