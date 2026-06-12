@@ -465,7 +465,7 @@ export function GlacialValeTerrain() {
       >
         <circleGeometry args={[240, 72]} />
       </mesh>
-      <mesh geometry={rockGeometry} material={rockMaterial} frustumCulled={false} raycast={() => null} />
+      <mesh geometry={rockGeometry} material={rockMaterial} raycast={() => null} />
     </group>
   );
 }
