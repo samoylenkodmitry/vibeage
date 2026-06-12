@@ -135,7 +135,8 @@ const waterFragmentShader = `
     // CAPPED, and the reflection keeps a share of the water's own deep blue:
     // viewed from inland the whole sheet sits at grazing angle, and a full
     // 45% pale-sky wash made it read as a flat white wedge on the horizon.
-    float fres = pow(1.0 - max(dot(N, viewDir), 0.0), 3.0);
+    float fresBase = 1.0 - max(dot(N, viewDir), 0.0);
+    float fres = fresBase * fresBase * fresBase;
     vec3 skyTint = mix(uSky, uDeep, 0.35);
     color = mix(color, skyTint, min(fres, 0.62) * 0.4);
 
