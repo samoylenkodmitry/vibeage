@@ -16,8 +16,11 @@ export function GmMapTravel({ pin, px, pz, onGmTeleport }: {
   // Quantize the sort anchor so the list doesn't reshuffle every step.
   const qx = Math.round(px / 100) * 100;
   const qz = Math.round(pz / 100) * 100;
-  const places = useMemo(() => [...WORLD_LANDMARKS].sort((a, b) =>
-    Math.hypot(a.position.x - qx, a.position.z - qz) - Math.hypot(b.position.x - qx, b.position.z - qz)), [qx, qz]);
+  // Squared distances — same ordering, no sqrt per comparison (review).
+  const places = useMemo(() => {
+    const distSq = (lm: WorldLandmark) => (lm.position.x - qx) ** 2 + (lm.position.z - qz) ** 2;
+    return [...WORLD_LANDMARKS].sort((a, b) => distSq(a) - distSq(b));
+  }, [qx, qz]);
   return (
     <>
       {pin && (
