@@ -3,11 +3,12 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { scheduleChunkBuild } from './world-art/chunkBuildQueue';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { InstancedGltf } from './world-art/InstancedGltf';
+import { InstancedGltf, InstancedModel } from './world-art/InstancedGltf';
+import { BROADLEAF_TREE_A, BROADLEAF_TREE_B, CONIFER_TREE_A, CONIFER_TREE_B } from './world-art/proceduralTrees';
 import type { WorldArtQuality } from './world-art/quality';
 import {
   scatterChunkFoliage, splitByParity, foliageChunkOf, visibleFoliageChunks, FOLIAGE_CHUNK_SIZE,
-  BROADLEAF_GLB, CONIFER_GLB, TREE_GLB_ALT, ACCENT_GLB_SMALL, ACCENT_GLB_MEDIUM, BUSH_GLB, TREE_WIND, BUSH_WIND,
+  ACCENT_GLB_SMALL, ACCENT_GLB_MEDIUM, BUSH_GLB, TREE_WIND, BUSH_WIND,
   instanceMatrix, instanceColor, type FoliageInstance,
 } from './world-art/foliageScatter';
 
@@ -131,10 +132,12 @@ const FoliageChunk = memo(function FoliageChunk({ originX, originZ, lean }: { or
   }), [bushes, lean]);
   return (
     <Suspense fallback={null}>
-      {t.evenMatrices.length > 0 && <InstancedGltf src={BROADLEAF_GLB} matrices={t.evenMatrices} colors={t.evenColors} baseScale={1.4} wind={TREE_WIND} castShadow />}
-      {t.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={t.oddMatrices} colors={t.oddColors} baseScale={1.4} wind={TREE_WIND} castShadow />}
-      {co.evenMatrices.length > 0 && <InstancedGltf src={CONIFER_GLB} matrices={co.evenMatrices} colors={co.evenColors} baseScale={1.6} wind={TREE_WIND} castShadow />}
-      {co.oddMatrices.length > 0 && <InstancedGltf src={TREE_GLB_ALT} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.6} wind={TREE_WIND} castShadow />}
+      {/* Procedural painterly trees (proceduralTrees.ts) — the pine GLBs read
+          as toy lollipops. Taller: base ~5 m × scale 0.65-1.75 × baseScale. */}
+      {t.evenMatrices.length > 0 && <InstancedModel object={BROADLEAF_TREE_A} matrices={t.evenMatrices} colors={t.evenColors} baseScale={1.7} wind={TREE_WIND} castShadow />}
+      {t.oddMatrices.length > 0 && <InstancedModel object={BROADLEAF_TREE_B} matrices={t.oddMatrices} colors={t.oddColors} baseScale={1.55} wind={TREE_WIND} castShadow />}
+      {co.evenMatrices.length > 0 && <InstancedModel object={CONIFER_TREE_A} matrices={co.evenMatrices} colors={co.evenColors} baseScale={1.85} wind={TREE_WIND} castShadow />}
+      {co.oddMatrices.length > 0 && <InstancedModel object={CONIFER_TREE_B} matrices={co.oddMatrices} colors={co.oddColors} baseScale={1.7} wind={TREE_WIND} castShadow />}
       {/* lean (phones): trees only — rocks + bushes cost ~5 extra instanced
           draws per chunk, which adds up across 25 chunks on mobile GPUs. */}
       {!lean && ac.evenMatrices.length > 0 && <InstancedGltf src={ACCENT_GLB_SMALL} matrices={ac.evenMatrices} colors={ac.evenColors} baseScale={0.8} />}
