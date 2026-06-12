@@ -1,7 +1,7 @@
 import type { ClientMessage } from '../../../packages/protocol/messages.js';
 import type { CommandRejectionReason } from '../../../packages/protocol/commandRejections.js';
 import { debug, LOG_CATEGORIES, warn } from '../../logger.js';
-import { applyDevTeleport, isDevCommandsEnabled } from '../../movement/devTeleport.js';
+import { applyDevTeleport } from '../../movement/devTeleport.js';
 import { applyGmCommand, getGmCommandRejectionReason } from '../../players/gmCommand.js';
 import { findPlayerIdBySocket } from '../../players/playerSession.js';
 import { sendCommandRejected } from '../../transport/commandRejected.js';
@@ -17,11 +17,8 @@ export function onDevTeleport(
   state: GameState,
   msg: Extract<ClientMessage, { type: 'DevTeleport' }>,
 ): void {
-  if (!isDevCommandsEnabled()) {
-    warn(LOG_CATEGORIES.MOVEMENT, `DevTeleport rejected (VIBEAGE_ENABLE_DEV_COMMANDS not set) for ${msg.id}`);
-    return;
-  }
-
+  // No env pre-gate here: applyDevTeleport itself admits dev mode OR a GM
+  // account (the map-pin teleport), and rejects everyone else as 'disabled'.
   const result = applyDevTeleport(state, socket.id, msg, Date.now());
 
   if (result.ok === false) {

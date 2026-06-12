@@ -40,6 +40,8 @@ type GameHudProps = {
   cameraAngleRef?: MutableRefObject<number>;
   navigationMarker?: { x: number; z: number } | null;
   onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
+  /** GM map travel — teleport to the dropped pin (server gates by GM). */
+  onGmTeleport?: (target: { x: number; z: number }) => void;
   onDisconnect: () => void;
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
@@ -105,7 +107,7 @@ function buildBuiltinBarActions(
 
 export function GameHud(props: GameHudProps) {
   const {
-    state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onDisconnect,
+    state, cameraAngleRef, navigationMarker, onSetNavigationMarker, onGmTeleport, onDisconnect,
     onCastSkill, onLearnSkill, onSelectSpecialization, onUseItem, onDropItem, onDestroyItem, onMoveItem, onCraftItem, onEquipItem, onUnequipItem,
     onUpgradeSkill, onTalkNpc, onAcceptQuest, onCancelQuest, onAdvanceQuest,
     onClaimQuestReward, onSetTrackedQuest, onBuyFromVendor, onSellToVendor, onGmCommand, onRespawn,
@@ -125,9 +127,8 @@ export function GameHud(props: GameHudProps) {
     (slotIndex: number, itemId: string) => setSlot(slotIndex, { kind: 'item', id: itemId }), [setSlot]);
   useSlotHotkeysFor(player, actionBar, state.inventory, onUseItem, { onCastSkill, onCycleTarget, onPickupNearest, onMove });
 
-  // Wiki nav bus: when a chip outside the Wiki (PlayerPanel stat
-  // tooltips, SkillBar buttons) calls openWikiAt, force the Wiki
-  // panel open so the navigation lands somewhere visible.
+  // Wiki nav bus: chips outside the Wiki (stat tooltips, SkillBar) call
+  // openWikiAt — force the panel open so the navigation lands visibly.
   useEffect(() => {
     return subscribeWikiOpen(() => panels.openWiki());
   }, [panels]);
@@ -156,6 +157,7 @@ export function GameHud(props: GameHudProps) {
         cameraAngleRef={cameraAngleRef}
         navigationMarker={navigationMarker}
         onSetNavigationMarker={onSetNavigationMarker}
+        onGmTeleport={onGmTeleport}
         onCastSkill={onCastSkill}
         onLearnSkill={onLearnSkill}
         onSelectSpecialization={onSelectSpecialization}

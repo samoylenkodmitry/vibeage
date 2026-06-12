@@ -38,6 +38,8 @@ export type HudPanelsProps = {
   cameraAngleRef?: MutableRefObject<number>;
   navigationMarker?: { x: number; z: number } | null;
   onSetNavigationMarker?: (marker: { x: number; z: number } | null) => void;
+  /** GM map travel — teleport to the dropped pin (server gates by GM). */
+  onGmTeleport?: (target: { x: number; z: number }) => void;
   onCastSkill: (skillId: SkillId) => void;
   onLearnSkill: (skillId: SkillId) => void;
   onSelectSpecialization: (specializationId: string) => void;
@@ -76,7 +78,7 @@ export type HudPanelsProps = {
 
 export function HudPanels({
   panels, state, player, hasSelectedTarget, hasLootNearby,
-  cameraAngleRef, navigationMarker, onSetNavigationMarker,
+  cameraAngleRef, navigationMarker, onSetNavigationMarker, onGmTeleport,
   onCastSkill, onLearnSkill, onSelectSpecialization, onUseItem, onDropItem, onDestroyItem, onMoveItem,
   onCraftItem, onEquipItem, onUnequipItem, onUpgradeSkill,
   onCancelQuest, onAdvanceQuest, onClaimQuestReward, onSetTrackedQuest, selectedPlayerTargetId, onGmCommand,
@@ -128,6 +130,7 @@ export function HudPanels({
           cameraAngleRef={cameraAngleRef}
           navigationMarker={navigationMarker ?? null}
           onSetNavigationMarker={onSetNavigationMarker}
+          onGmTeleport={onGmTeleport}
           enemies={state.enemies}
         />
       )}

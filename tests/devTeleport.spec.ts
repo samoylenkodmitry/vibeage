@@ -126,6 +126,53 @@ describe('applyDevTeleport', () => {
   });
 });
 
+// GM map travel: a GM account may teleport WITHOUT the dev env flag — the
+// production map-pin teleport. Same isGmAccount gate as GmCommand
+// (authenticated account = GM during the testing phase).
+describe('GM teleport (no dev flag)', () => {
+  const disabledEnv = {};
+
+  test('allows a GM account to teleport without the dev flag', () => {
+    const state = createGameState();
+    state.players.player1 = { ...makePlayer(), accountLogin: 'hello' };
+
+    const result = applyDevTeleport(
+      state,
+      'socket1',
+      { type: 'DevTeleport', id: 'player1', targetPos: { x: 240, z: 150 }, clientTs: 1 },
+      1,
+      disabledEnv,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(state.players.player1.position.x).toBe(240);
+    expect(state.players.player1.position.z).toBe(150);
+  });
+
+  test('still validates target bounds and socket ownership for GM teleports', () => {
+    const state = createGameState();
+    state.players.player1 = { ...makePlayer(), accountLogin: 'hello' };
+
+    const offWorld = applyDevTeleport(
+      state,
+      'socket1',
+      { type: 'DevTeleport', id: 'player1', targetPos: { x: WORLD_SETTINGS.playableRadius + 1, z: 0 }, clientTs: 1 },
+      1,
+      disabledEnv,
+    );
+    expect(offWorld.ok).toBe(false);
+
+    const wrongSocket = applyDevTeleport(
+      state,
+      'someoneElse',
+      { type: 'DevTeleport', id: 'player1', targetPos: { x: 100, z: 100 }, clientTs: 1 },
+      1,
+      disabledEnv,
+    );
+    expect(wrongSocket.ok).toBe(false);
+  });
+});
+
 describe('client message router DevTeleport gating', () => {
   test('drops DevTeleport silently when dev commands are not enabled', () => {
     const state = createGameState();

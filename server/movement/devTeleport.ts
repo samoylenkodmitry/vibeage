@@ -1,5 +1,6 @@
 import type { DevTeleport } from '../../packages/protocol/messages.js';
 import type { GameState } from '../gameState.js';
+import { isGmAccount } from '../players/gmMode.js';
 import { isValidPosition } from './worldMovement.js';
 
 export type DevTeleportResult =
@@ -23,14 +24,17 @@ export function applyDevTeleport(
 ): DevTeleportResult {
   const playerId = msg.id;
 
-  if (!isDevCommandsEnabled(env)) {
-    return { ok: false, reason: 'disabled', playerId };
-  }
-
   const player = state.players[playerId];
 
   if (!player) {
     return { ok: false, reason: 'playerNotFound', playerId };
+  }
+
+  // GM teleport: the dev-env flag still unlocks everything locally, and GM
+  // accounts (same gate as GmCommand) may teleport in production — it's the
+  // map-pin travel tool for world inspection.
+  if (!isDevCommandsEnabled(env) && !isGmAccount(player, env)) {
+    return { ok: false, reason: 'disabled', playerId };
   }
 
   if (player.socketId !== socketId) {
