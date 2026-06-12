@@ -135,6 +135,21 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     ar += a.r * w; ag += a.g * w; ab += a.b * w;
     grass += v.grassDensity * w; tree += v.treeDensity * w; rough += v.roughness * w;
   }
+  const height = getTerrainHeight(x, z);
+  // Glacial Vale grading: snow above the (height-driven) snowline, scree
+  // below; bare rock-and-ice floor — blade grass doesn't grow here.
+  const vale = glacialValeMask(x, z);
+  if (vale > 0.01) {
+    const snow = vale * smoothstep(35, 95, height);
+    const scree = vale * (1 - snow) * 0.45;
+    const mixTo = (c: number, target: number, t: number) => c + (target - c) * t;
+    gr = mixTo(mixTo(gr, 230, snow), 148, scree);
+    gg = mixTo(mixTo(gg, 235, snow), 143, scree);
+    gb = mixTo(mixTo(gb, 245, snow), 135, scree);
+    fr = mixTo(fr, 94, vale); fg = mixTo(fg, 122, vale); fb = mixTo(fb, 99, vale);
+    grass *= 1 - vale;
+    tree = tree * (1 - vale) + 0.05 * vale;
+  }
   return {
     groundColor: rgbHex(gr, gg, gb),
     foliageColor: rgbHex(fr, fg, fb),
@@ -143,7 +158,7 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     treeDensity: tree,
     roughness: rough,
     biome,
-    height: getTerrainHeight(x, z),
+    height,
   };
 }
 
@@ -156,7 +171,9 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
 export function sampleGrassDensity(x: number, z: number): number {
   let grass = 0;
   for (const [b, w] of biomeWeights(x, z)) grass += TERRAIN_BIOME_VISUALS[b].grassDensity * w;
-  return grass;
+  // Bare rock and snow in the Glacial Vale — also keeps the expensive vale
+  // branch of the grass shader's terrainH on culled (skipped) blades.
+  return grass * (1 - glacialValeMask(x, z));
 }
 
 function hexRgb(hex: string): { r: number; g: number; b: number } {
@@ -225,6 +242,51 @@ export const TOWN_PLATEAUS = [
   { id: 'crestfall', x: 3600, z: -2520, y: 26, r: 80 },  // castle crest on the mountain belt
 ] as const;
 
+// ── Glacial Vale ────────────────────────────────────────────────────────────
+// A hand-carved alpine pocket NW of spawn (after deedy/glacial-valley): a
+// U-shaped valley holding a turquoise tarn between ridged snow walls. Pure
+// sines + smoothsteps so the grass GLSL terrainH mirrors it 1:1 (the #857
+// discipline). The ridge math is a 2-term cut-down of the reference's ridged
+// multifractal — (1-|sin|)² crests with a sine domain warp.
+export const GLACIAL_VALE = {
+  x: -2_650, z: -2_350,
+  cos: Math.cos(0.65), sin: Math.sin(0.65), // valley axis heading
+  L: 620, W: 420,                            // ellipse half-extents
+} as const;
+export const VALE_TARN_WATER_Y = LAKE_WATER_Y; // shares the lattice waterline
+
+/** 1 inside the vale, 0 outside; soft edge blends override into base relief. */
+export function glacialValeMask(x: number, z: number): number {
+  const dx = x - GLACIAL_VALE.x;
+  const dz = z - GLACIAL_VALE.z;
+  const u = dx * GLACIAL_VALE.cos + dz * GLACIAL_VALE.sin;
+  const v = -dx * GLACIAL_VALE.sin + dz * GLACIAL_VALE.cos;
+  const e = (u / GLACIAL_VALE.L) ** 2 + (v / GLACIAL_VALE.W) ** 2;
+  return 1 - smoothstep(0.55, 1, e);
+}
+
+function glacialValeHeight(x: number, z: number): number {
+  const dx = x - GLACIAL_VALE.x;
+  const dz = z - GLACIAL_VALE.z;
+  const u = dx * GLACIAL_VALE.cos + dz * GLACIAL_VALE.sin;
+  const v = -dx * GLACIAL_VALE.sin + dz * GLACIAL_VALE.cos;
+  // Valley floor with a gentle moraine ripple; the tarn dips below the
+  // waterline so the water disc reads as a real glacial lake.
+  let floorY = 2.5 + Math.sin(u * 0.05) * Math.sin(v * 0.047) * 0.8;
+  const tarnE = (u / 190) ** 2 + (v / 75) ** 2;
+  const tarn = 1 - smoothstep(0.45, 1, tarnE);
+  floorY = floorY * (1 - tarn) + (-9) * tarn;
+  // Ridged walls: domain-warped crest lines, squared for sharp alpine spines.
+  const r1 = 1 - Math.abs(Math.sin(u * 0.006 + Math.sin(v * 0.004) * 1.3));
+  const r2 = 1 - Math.abs(Math.sin((u + v) * 0.011 + 0.9));
+  const wSide = smoothstep(85, 360, Math.abs(v));
+  const wEnd = smoothstep(380, 600, Math.abs(u));
+  const wallRamp = Math.max(wSide, wEnd * 0.85);
+  const wall = Math.pow(wallRamp, 1.6) * (80 + 120 * r1 * r1 + 50 * r2 * r2)
+    + Math.sin(u * 0.03) * Math.sin(v * 0.027) * 6 * wallRamp;
+  return floorY + wall;
+}
+
 export function getTerrainHeight(x: number, z: number): number {
   const distanceFromSpawn = Math.hypot(x, z);
   // Flat spawn zone: spawnFade and farRelief are both exactly 0 here, so skip
@@ -262,6 +324,8 @@ export function getTerrainHeight(x: number, z: number): number {
     const m = 1 - smoothstep(plateau.r * 0.7, plateau.r * 1.4, Math.hypot(x - plateau.x, z - plateau.z));
     if (m > 0) height = height * (1 - m) + plateau.y * m;
   }
+  const vale = glacialValeMask(x, z);
+  if (vale > 0) height = height * (1 - vale) + glacialValeHeight(x, z) * vale;
   return height;
 }
 
@@ -304,6 +368,9 @@ export function getTerrainBiome(x: number, z: number): TerrainBiome {
   // scale, so the whole playable area read as meadow + a ruins ring.)
   const zoneBiome = biomeAtZone(x, z);
   if (zoneBiome) return zoneBiome;
+
+  // The Glacial Vale is alpine regardless of the surrounding climate field.
+  if (glacialValeMask(x, z) > 0.4) return 'tundra';
 
   const distance = Math.hypot(x, z);
   if (distance < 420) {
