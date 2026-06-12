@@ -234,10 +234,11 @@ function scatterCellSmall(
   const onShore = cellHeight >= REED_SHORE_MIN_Y && cellHeight <= REED_SHORE_MAX_Y;
   const nearRiver = distanceBeyondNearestRiver(x, z) < REED_RIVER_BAND;
   if (!onShore && !nearRiver) return;
-  const count = 3 + Math.floor(random() * 4);
+  // Denser, tighter clusters — reed BEDS, not lone stalks (tour finding).
+  const count = 6 + Math.floor(random() * 5);
   for (let i = 0; i < count; i += 1) {
-    const rx = x + (random() - 0.5) * cell * 0.6;
-    const rz = z + (random() - 0.5) * cell * 0.6;
+    const rx = x + (random() - 0.5) * cell * 0.45;
+    const rz = z + (random() - 0.5) * cell * 0.45;
     const scale = 0.75 + random() * 0.6;
     const rotation = random() * Math.PI * 2;
     const tint = jitterFoliageColor('#7f8b51', random);

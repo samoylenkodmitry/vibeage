@@ -66,9 +66,20 @@ const FLOWER_GEOMETRY = (() => {
   // but fall back to the bare head rather than crash the chunk.
   return mergeGeometries([stem, head]) ?? head;
 })();
-// Reed: a thin tall 4-sided blade, origin at its base so y = ground height.
-const REED_GEOMETRY = new THREE.ConeGeometry(0.05, 1.7, 4);
-REED_GEOMETRY.translate(0, 0.85, 0);
+// Reed tuft: three splayed blades merged into one geometry — a single 5 cm
+// cone was ~2 px at camera range, invisible (teleport-tour finding). Origin
+// at the base so y = ground height.
+const REED_GEOMETRY = (() => {
+  const blades: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 3; i += 1) {
+    const blade = new THREE.ConeGeometry(0.09, 2.1 - i * 0.3, 4);
+    blade.translate(0, (2.1 - i * 0.3) / 2, 0);
+    blade.rotateZ((i - 1) * 0.18);
+    blade.rotateY(i * 2.1);
+    blades.push(blade);
+  }
+  return mergeGeometries(blades) ?? blades[0];
+})();
 
 /**
  * One instanced draw for a chunk's worth of small scatter (flowers/reeds).
