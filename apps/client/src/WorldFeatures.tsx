@@ -210,7 +210,7 @@ function LandmarkMesh({ landmark, focus }: { landmark: WorldLandmark; focus: Vec
   const settlement = landmark.kind === 'town' || landmark.kind === 'castle';
   return (
     <group position={[landmark.position.x, baseY, landmark.position.z]}>
-      {!landmark.mega && !settlement && !WILDS_KINDS.has(landmark.kind) && (
+      {!landmark.mega && !settlement && !WILDS_KINDS.has(landmark.kind) && landmark.kind !== 'vista' && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
           <ringGeometry args={[landmark.radius * 0.82, landmark.radius, 48]} />
           <meshBasicMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.34} depthWrite={false} />
@@ -284,6 +284,8 @@ const WILDS_LANDMARKS = {
 const WILDS_KINDS = new Set<string>(Object.keys(WILDS_LANDMARKS));
 
 function renderLandmarkShape(landmark: WorldLandmark, color: string, fog: boolean, stone?: THREE.Texture) {
+  // Vistas: the terrain itself is the landmark (map dot + teleport only).
+  if (landmark.kind === 'vista') return null;
   const Wilds = WILDS_LANDMARKS[landmark.kind as keyof typeof WILDS_LANDMARKS];
   if (Wilds) {
     return <Wilds landmark={landmark} fog={fog} />;

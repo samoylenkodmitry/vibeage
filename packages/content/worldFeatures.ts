@@ -17,7 +17,7 @@ export type WorldTravelLane = {
 
 export type WorldLandmarkKind =
   | 'spire' | 'ruin' | 'tree' | 'gate' | 'crystal' | 'keep' | 'ancient_tree' | 'town' | 'castle'
-  | 'shrine' | 'stones' | 'camp' | 'obelisk';
+  | 'shrine' | 'stones' | 'camp' | 'obelisk' | 'vista';
 
 export type WorldLandmark = {
   id: string;
@@ -433,6 +433,17 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     position: { x: 2_800, z: -900 },
     radius: 11,
     height: 7.5,
+  },
+  // Vistas — places where the TERRAIN is the landmark; rendered by the
+  // height field itself (kind 'vista' draws nothing, it's map + teleport).
+  {
+    id: 'glacial-vale',
+    name: 'Glacial Vale',
+    kind: 'vista',
+    zoneId: 'starter_meadow',
+    position: { x: -2_650, z: -2_350 },
+    radius: 420,
+    height: 250,
   },
   {
     id: 'mega-skyspire-of-aetheris',
