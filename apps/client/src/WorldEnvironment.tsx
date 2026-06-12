@@ -76,9 +76,9 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
   };
-  // Lazy useRef (not useMemo, which can be evicted and orphan the GPU material).
+  // Lazy useRef (useMemo can be evicted → orphaned GPU material); crater map.
   const moonMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#dde6ff' });
+  if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#e7ecff', map: makeMoonTexture() });
   const moonMaterial = moonMaterialRef.current;
   const sunMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   if (!sunMaterialRef.current) sunMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#fff1a6' });
@@ -97,7 +97,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
   useEffect(() => {
     return () => {
       sunMaterialRef.current?.dispose();
-      moonMaterialRef.current?.dispose();
+      moonMaterialRef.current?.map?.dispose(); moonMaterialRef.current?.dispose();
     };
   }, []);
 
@@ -154,7 +154,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
         {/* Soft bluish "moonlit haze" halo behind the disc (no postprocessing). */}
         <mesh>
           <sphereGeometry args={[42, 18, 12]} />
-          <meshBasicMaterial color="#cfd9ff" transparent opacity={0.16} depthWrite={false} fog={false} />
+          <meshBasicMaterial color="#cfd9ff" transparent opacity={0.1} depthWrite={false} fog={false} />
         </mesh>
         <pointLight ref={refs.moonLight} color="#bcd0ff" intensity={0.0} distance={2_200} />
       </group>
@@ -174,6 +174,50 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
  * (most obvious in daylight). WorldEnvironment owns the sky; it restores the
  * previous value on unmount.
  */
+/** Procedural lunar surface — seeded maria blobs + craters with limb
+ *  darkening, drawn once to a small canvas. */
+function makeMoonTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  if (!ctx) return texture; // headless/JSDOM: plain disc beats a crash
+  ctx.fillStyle = '#dfe5f3';
+  ctx.fillRect(0, 0, size, size);
+  let seed = 0xa11ce;
+  const rand = () => {
+    seed = (seed * 1_664_525 + 1_013_904_223) >>> 0;
+    return seed / 4_294_967_296;
+  };
+  // Maria: a few large soft dark patches.
+  for (let i = 0; i < 6; i += 1) {
+    ctx.fillStyle = `rgba(112, 122, 152, ${0.16 + rand() * 0.1})`;
+    ctx.beginPath();
+    ctx.ellipse(rand() * size, rand() * size, 26 + rand() * 44, 20 + rand() * 34, rand() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Craters: small rings — darker floor, faint bright rim.
+  for (let i = 0; i < 34; i += 1) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const r = 3 + rand() * 9;
+    ctx.fillStyle = `rgba(96, 106, 138, ${0.12 + rand() * 0.14})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.10)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function useInitSceneBackground(scene: THREE.Scene, initialColor: string): void {
   useLayoutEffect(() => {
     const previous = scene.background;
