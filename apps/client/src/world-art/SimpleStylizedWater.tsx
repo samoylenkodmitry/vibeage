@@ -132,8 +132,13 @@ const waterFragmentShader = `
     vec3 color = mix(uShallow, uDeep, clamp(depth + ripple, 0.0, 1.0));
 
     // Fresnel: at grazing angles the surface mirrors the sky and brightens.
-    float fres = pow(1.0 - max(dot(N, viewDir), 0.0), 3.0);
-    color = mix(color, uSky, fres * 0.45);
+    // CAPPED, and the reflection keeps a share of the water's own deep blue:
+    // viewed from inland the whole sheet sits at grazing angle, and a full
+    // 45% pale-sky wash made it read as a flat white wedge on the horizon.
+    float fresBase = 1.0 - max(dot(N, viewDir), 0.0);
+    float fres = fresBase * fresBase * fresBase;
+    vec3 skyTint = mix(uSky, uDeep, 0.35);
+    color = mix(color, skyTint, min(fres, 0.62) * 0.4);
 
     // Drifting specular glints riding the crests — a fake sun sparkle that
     // moves with the waves and the view, so the surface never looks static.
@@ -149,7 +154,7 @@ const waterFragmentShader = `
 
     // Depth-based alpha: clearer at the shore, more opaque further out;
     // the Fresnel rim adds a touch of body so the horizon edge reads.
-    float alpha = clamp(mix(0.58, 0.9, depth) + fres * 0.16, 0.0, 0.96);
+    float alpha = clamp(mix(0.58, 0.9, depth) + fres * 0.1, 0.0, 0.94);
     gl_FragColor = vec4(color, alpha);
   }
 `;
