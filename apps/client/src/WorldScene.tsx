@@ -15,6 +15,7 @@ import { chooseWorldArtQuality } from './world-art/quality';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { LakeWaters } from './world-art/LakeWaters';
+import { GlacialValeDressing } from './world-art/GlacialValeDressing';
 import { WebGLGate, RendererContextLossGuard, RendererContextLostOverlay } from './world-art/webglSupport';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 import {
@@ -148,9 +149,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {worldArtQuality !== 'low' && <AmbientLife focus={focus} />}
       {/* Water anchored to the starter coast waterline (visible from inland); the rest of the cozy art is scene-bound. */}
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
-      {/* Procedural lakes: streamed discs at the terrain's analytic lake
-          centres; terrain occludes each disc beyond its true shoreline. */}
+      {/* Lakes: discs at the analytic lattice peaks; terrain buries the rim. */}
       {worldArtQuality !== 'low' && <LakeWaters focus={focus} />}
+      <GlacialValeDressing focus={focus} />
       {mountedScene && <CozyWorldArt scene={mountedScene} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" sandRegion={STARTER_COAST_SAND} />
       <WorldFeatures focus={focus} />
