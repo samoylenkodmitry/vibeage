@@ -124,7 +124,7 @@ const GROUND_FRAG = /* glsl */ `
     snowM = max(snowM, smoothstep(snowLine - 12.0, snowLine + 6.0, relH)*smoothstep(0.20, 0.06, slope)*0.7);
 
     // granite: triplanar detail + warped strata bands (verbatim palette)
-    vec3 aw = pow(abs(N), vec3(3.0)); aw /= (aw.x + aw.y + aw.z);
+    vec3 aw = pow(abs(N) + 1e-4, vec3(3.0)); aw /= (aw.x + aw.y + aw.z);
     float strata = fbm(vec2(vWp.y*0.055 + fbm(vWp.xz*0.004)*6.0, (vWp.x + vWp.z)*0.002));
     float rdet = fbm(vWp.zy*0.11)*aw.x + fbm(vWp.xz*0.11)*aw.y + fbm(vWp.xy*0.11)*aw.z;
     vec3 rockCol = mix(vec3(0.235, 0.225, 0.215), vec3(0.34, 0.325, 0.30), rdet);
@@ -224,8 +224,8 @@ const WATER_FRAG = /* glsl */ `
 
     // bed colour stands in for the refraction pass: cool gravel + caustics
     vec3 bed = mix(vec3(0.30, 0.33, 0.36), vec3(0.42, 0.45, 0.48), vnoise(p*1.8));
-    float ca = pow(1.0 - vor(p*0.9 + vec2(-t*0.9, t*0.25)), 5.0)
-             + pow(1.0 - vor(p*1.4 + vec2(-t*1.3, -t*0.30)), 5.0);
+    float ca = pow(max(1.0 - vor(p*0.9 + vec2(-t*0.9, t*0.25)), 0.0), 5.0)
+             + pow(max(1.0 - vor(p*1.4 + vec2(-t*1.3, -t*0.30)), 0.0), 5.0);
     bed *= 1.0 + ca * 1.1 * exp(-depth0*1.2);
 
     // glacial water: fast red absorption + rock-flour scattering (verbatim)
@@ -238,13 +238,13 @@ const WATER_FRAG = /* glsl */ `
 
     // sky reflection + fresnel
     vec3 refl = mix(uFogColor, uHemiSky, 0.45) * 1.15;
-    float fres = 0.02 + 0.98*pow(1.0 - max(dot(N, -vd), 0.0), 5.0);
+    float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
     vec3 col = mix(under, refl, clamp(fres, 0.0, 1.0));
 
     // sun glitter (reference's double-lobe highlight)
     vec3 hv = normalize(uSunDir - vd);
     float ndh = max(dot(N, hv), 0.0);
-    col += uSunLight * (pow(ndh, 750.0)*1.6 + pow(ndh, 90.0)*0.07);
+    col += uSunLight * (pow(max(ndh, 1e-4), 750.0)*1.6 + pow(max(ndh, 1e-4), 90.0)*0.07);
 
     // shoreline foam
     float foamN = fbm(vec2(p.x*0.35 + t*1.2, p.y*1.3));
@@ -301,7 +301,7 @@ const ROCK_FRAG = /* glsl */ `
     float dist = length(toP);
     vec3 N = normalize(vNrm);
 
-    vec3 aw = pow(abs(N), vec3(3.0)); aw /= (aw.x + aw.y + aw.z);
+    vec3 aw = pow(abs(N) + 1e-4, vec3(3.0)); aw /= (aw.x + aw.y + aw.z);
     float det = fbm(vWp.zy*1.4 + vSeed)*aw.x + fbm(vWp.xz*1.4 + vSeed)*aw.y + fbm(vWp.xy*1.4 + vSeed)*aw.z;
     float hue = hash12(vec2(vSeed, vSeed*1.7));
     vec3 alb = mix(vec3(0.30, 0.29, 0.28), vec3(0.46, 0.43, 0.39), det);
