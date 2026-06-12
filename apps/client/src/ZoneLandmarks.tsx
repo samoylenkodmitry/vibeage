@@ -30,21 +30,25 @@ function isLandmarkNearFocus(landmark: ZoneLandmarkVisual, focus: Vec3D): boolea
 }
 
 function ZoneLandmark({ landmark }: { landmark: ZoneLandmarkVisual }) {
+  // Lambert (lit), not basic: the unlit rings rendered at full brightness at
+  // midnight — neon arcade arcs cutting across the night meadow. Lit + lower
+  // opacity keeps them as subtle painted boundary lines that follow the
+  // scene's day/night brightness.
   return (
     <group position={[landmark.position.x, 0, landmark.position.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.035, 0]}>
         <ringGeometry args={[Math.max(1, landmark.radius - RING_THICKNESS), landmark.radius, 96]} />
-        <meshBasicMaterial
+        <meshLambertMaterial
           color={landmark.ringColor}
           side={THREE.DoubleSide}
           transparent
-          opacity={0.28}
+          opacity={0.17}
           depthWrite={false}
         />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.045, 0]}>
         <circleGeometry args={[Math.max(1, landmark.beaconRadius * 1.8), 32]} />
-        <meshBasicMaterial color={landmark.accentColor} transparent opacity={0.16} depthWrite={false} />
+        <meshLambertMaterial color={landmark.accentColor} transparent opacity={0.1} depthWrite={false} />
       </mesh>
       {landmark.showBeacon && <ZoneBeacon landmark={landmark} />}
     </group>
@@ -59,7 +63,7 @@ function ZoneBeacon({ landmark }: { landmark: ZoneLandmarkVisual }) {
         <meshStandardMaterial
           color={landmark.accentColor}
           emissive={landmark.accentColor}
-          emissiveIntensity={0.22}
+          emissiveIntensity={0.08}
           roughness={0.72}
         />
       </mesh>
