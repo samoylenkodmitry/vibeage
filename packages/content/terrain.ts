@@ -143,8 +143,11 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     // Saturate the grading early: the outer mask band still carries tall
     // walls, so even 10% vale influence must read alpine, not olive.
     const valeT = smoothstep(0.04, 0.5, vale);
-    const snow = valeT * (0.45 + 0.55 * smoothstep(15, 65, height));
-    const scree = valeT * (1 - snow) * 0.5;
+    // The vale's hue is ALWAYS neutral: grey glacial scree below, white snow
+    // above. Leaving any of the neighbour blend's olive under a partial snow
+    // mix read as mustard walls (tour rounds 1-2).
+    const snow = valeT * (0.30 + 0.70 * smoothstep(12, 60, height));
+    const scree = valeT * (1 - snow) * 0.95;
     const mixTo = (c: number, target: number, t: number) => c + (target - c) * t;
     gr = mixTo(mixTo(gr, 230, snow), 148, scree);
     gg = mixTo(mixTo(gg, 235, snow), 143, scree);
