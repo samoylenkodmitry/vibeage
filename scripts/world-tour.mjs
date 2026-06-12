@@ -26,7 +26,7 @@ try {
   await page.locator('#login-input').fill(process.env.TOUR_LOGIN ?? 'a');
   await page.locator('#password-input').fill(process.env.TOUR_PASSWORD ?? 'a');
   await page.getByRole('button', { name: /^Continue$/i }).click();
-  try { if (process.env.TOUR_CHARACTER) await page.getByText(new RegExp('^' + process.env.TOUR_CHARACTER + '$')).first().click({ timeout: 6000 }); } catch {}
+  try { if (process.env.TOUR_CHARACTER) await page.getByText(new RegExp('^' + process.env.TOUR_CHARACTER + '$')).first().click({ timeout: 6000 }); } catch { /* no character select screen */ }
   await page.getByRole('button', { name: /Enter World/i }).first().click({ timeout: 20_000 });
   await page.locator('canvas').waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForFunction(() => {
@@ -34,7 +34,7 @@ try {
     return s?.connectionState === 'online' && Boolean(s.myPlayerId);
   }, undefined, { timeout: 30_000 });
   log('online');
-  try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 3000 }); } catch {}
+  try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 3000 }); } catch { /* no welcome toast */ }
   const respawn = page.getByRole('button', { name: /^Respawn$/i });
   for (let i = 0; i < 3 && await respawn.isVisible().catch(() => false); i += 1) {
     await respawn.click(); await page.waitForTimeout(2500);
