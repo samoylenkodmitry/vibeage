@@ -568,14 +568,17 @@ function getLandmarkColor(landmark: WorldLandmark): string {
       return '#67d982';
     case 'gate':
       return '#facc15';
+    // Stone kinds tint NEAR-WHITE: the colour MULTIPLIES the mid-grey stone
+    // texture, so mid tints land at ~0.2 albedo and the shade side of a keep
+    // reads pitch black in daylight (the #875 double-darkening rule).
     case 'keep':
-      return '#a7b0c0';
+      return '#dde3ec';
     case 'ruin':
-      return '#b8a38a';
+      return '#e0d3bd';
     case 'town':
       return '#e0b67a';
     case 'castle':
-      return '#9aa3b2';
+      return '#d3dae4';
     default:
       return '#f59e0b';
   }

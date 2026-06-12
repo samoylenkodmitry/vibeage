@@ -270,7 +270,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 240, z: 150 },
     radius: 12,
-    height: 7,
+    height: 11,
   },
   {
     id: 'poi-dawnstone-circle',
@@ -279,7 +279,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -340, z: -60 },
     radius: 10,
-    height: 4.5,
+    height: 7,
   },
   {
     id: 'poi-brookside-shrine',
@@ -288,7 +288,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -120, z: 480 },
     radius: 4,
-    height: 4,
+    height: 6,
   },
   {
     id: 'poi-ring-road-waycamp',
@@ -297,7 +297,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 246, z: 355 },
     radius: 8,
-    height: 3.5,
+    height: 5,
   },
   {
     id: 'poi-eldan-colonnade',
@@ -306,7 +306,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -700, z: 300 },
     radius: 14,
-    height: 8,
+    height: 12,
   },
   {
     id: 'poi-wayfarers-shrine',
@@ -315,7 +315,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -1_060, z: 225 },
     radius: 4,
-    height: 4,
+    height: 6,
   },
   {
     id: 'poi-lakeshire-milestone',
@@ -324,7 +324,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -1_320, z: 140 },
     radius: 3,
-    height: 9,
+    height: 13,
   },
   {
     id: 'poi-sleeping-sisters',
@@ -333,7 +333,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 370, z: -680 },
     radius: 12,
-    height: 5.5,
+    height: 8.5,
   },
   {
     id: 'poi-southmere-waycamp',
@@ -342,7 +342,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 508, z: -1_534 },
     radius: 9,
-    height: 3.5,
+    height: 5,
   },
   {
     id: 'poi-broken-watch',
@@ -351,7 +351,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 600, z: -1_800 },
     radius: 12,
-    height: 10,
+    height: 14,
   },
   {
     id: 'poi-crestfall-gate-ruins',
@@ -360,7 +360,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 3_573, z: -2_026 },
     radius: 13,
-    height: 9,
+    height: 13,
   },
   {
     id: 'poi-pilgrims-overlook',
@@ -369,7 +369,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 3_650, z: -1_900 },
     radius: 4,
-    height: 4,
+    height: 6,
   },
   {
     id: 'poi-sunken-amphitheatre',
@@ -378,7 +378,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 1_850, z: 620 },
     radius: 16,
-    height: 6,
+    height: 9,
   },
   {
     id: 'poi-giants-teeth',
@@ -387,7 +387,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -1_025, z: -1_200 },
     radius: 14,
-    height: 7,
+    height: 10,
   },
   {
     id: 'poi-hunters-bluff-camp',
@@ -396,7 +396,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 1_061, z: -581 },
     radius: 8,
-    height: 3.5,
+    height: 5,
   },
   {
     id: 'poi-quiet-star-glade',
@@ -405,7 +405,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -1_636, z: -537 },
     radius: 5,
-    height: 4.5,
+    height: 6.5,
   },
   {
     id: 'poi-fallen-star-marker',
@@ -414,7 +414,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 2_255, z: 399 },
     radius: 3,
-    height: 11,
+    height: 15,
   },
   {
     id: 'poi-old-bastion',
@@ -423,7 +423,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: -2_143, z: 852 },
     radius: 18,
-    height: 12,
+    height: 16,
   },
   {
     id: 'poi-whisperwind-ring',
@@ -432,7 +432,7 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     zoneId: 'starter_meadow',
     position: { x: 2_800, z: -900 },
     radius: 11,
-    height: 5,
+    height: 7.5,
   },
   {
     id: 'mega-skyspire-of-aetheris',
