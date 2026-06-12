@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import * as THREE from 'three';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import type { Vec3D } from '../../../packages/protocol/messages';
 import { getZoneLandmarks, type ZoneLandmarkVisual } from './worldVisuals';
@@ -40,7 +39,6 @@ function ZoneLandmark({ landmark }: { landmark: ZoneLandmarkVisual }) {
         <ringGeometry args={[Math.max(1, landmark.radius - RING_THICKNESS), landmark.radius, 96]} />
         <meshLambertMaterial
           color={landmark.ringColor}
-          side={THREE.DoubleSide}
           transparent
           opacity={0.17}
           depthWrite={false}
