@@ -140,8 +140,11 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
   // below; bare rock-and-ice floor — blade grass doesn't grow here.
   const vale = glacialValeMask(x, z);
   if (vale > 0.01) {
-    const snow = vale * (0.45 + 0.55 * smoothstep(15, 65, height));
-    const scree = vale * (1 - snow) * 0.5;
+    // Saturate the grading early: the outer mask band still carries tall
+    // walls, so even 10% vale influence must read alpine, not olive.
+    const valeT = smoothstep(0.04, 0.5, vale);
+    const snow = valeT * (0.45 + 0.55 * smoothstep(15, 65, height));
+    const scree = valeT * (1 - snow) * 0.5;
     const mixTo = (c: number, target: number, t: number) => c + (target - c) * t;
     gr = mixTo(mixTo(gr, 230, snow), 148, scree);
     gg = mixTo(mixTo(gg, 235, snow), 143, scree);
@@ -370,7 +373,7 @@ export function getTerrainBiome(x: number, z: number): TerrainBiome {
   if (zoneBiome) return zoneBiome;
 
   // The Glacial Vale is alpine regardless of the surrounding climate field.
-  if (glacialValeMask(x, z) > 0.4) return 'tundra';
+  if (glacialValeMask(x, z) > 0.05) return 'tundra';
 
   const distance = Math.hypot(x, z);
   if (distance < 420) {
