@@ -11,8 +11,12 @@ import { GlowEmitter } from '../dynamicLights';
  * Every layout is deterministic from the landmark position (seededRandom), so
  * a place always looks the same on every visit and for every player.
  */
-const MOSSY_STONE = '#959c87';
-const PALE_STONE = '#a8a294';
+// NEAR-WHITE tints: they MULTIPLY the stone texture, which already carries
+// the brightness (~0.5 grey). Mid-grey tint × mid-grey map ≈ 0.22 albedo —
+// the first POI batch rendered as black sticks in daylight (same double-
+// darkening as the #875 terrain-albedo bug). Tint the hue, not brightness.
+const MOSSY_STONE = '#c3cab2';
+const PALE_STONE = '#ddd7c9';
 
 function landmarkSeed(landmark: WorldLandmark, salt: number) {
   return seededRandom(Math.round(landmark.position.x) ^ salt, Math.round(landmark.position.z));
@@ -60,11 +64,11 @@ export function RuinLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
       {layout.columns.map((col, i) => col.standing ? (
         <group key={i} position={[col.x, 0, col.z]}>
           <mesh position={[0, col.h / 2, 0]} castShadow>
-            <cylinderGeometry args={[0.52, 0.62, col.h, 9]} />
+            <cylinderGeometry args={[0.66, 0.78, col.h, 9]} />
             <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.85} fog={fog} />
           </mesh>
           <mesh position={[0, 0.25, 0]} castShadow>
-            <boxGeometry args={[1.5, 0.5, 1.5]} />
+            <boxGeometry args={[2.0, 0.5, 2.0]} />
             <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.9} fog={fog} />
           </mesh>
         </group>
@@ -74,7 +78,7 @@ export function RuinLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
         // XYZ Euler would only spin it around its own length)
         <group key={i} position={[col.x, 0.35, col.z]} rotation={[0, col.yaw, 0]}>
           <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.5, 0.58, col.h, 9]} />
+            <cylinderGeometry args={[0.62, 0.72, col.h, 9]} />
             <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.9} fog={fog} />
           </mesh>
         </group>
@@ -95,26 +99,26 @@ export function ShrineLandmark({ landmark, fog }: { landmark: WorldLandmark; fog
   const h = landmark.height;
   return (
     <>
-      <mesh position={[0, 0.3, 0]} castShadow>
-        <boxGeometry args={[2.4, 0.6, 2.4]} />
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <boxGeometry args={[3.4, 0.7, 3.4]} />
         <meshStandardMaterial map={tex.stone} color={PALE_STONE} roughness={0.88} fog={fog} />
       </mesh>
-      {[[-0.9, -0.9], [-0.9, 0.9], [0.9, -0.9], [0.9, 0.9]].map(([px, pz]) => (
-        <mesh key={`${px}:${pz}`} position={[px, 0.6 + h * 0.32, pz]} castShadow>
-          <cylinderGeometry args={[0.14, 0.17, h * 0.64, 7]} />
+      {[[-1.25, -1.25], [-1.25, 1.25], [1.25, -1.25], [1.25, 1.25]].map(([px, pz]) => (
+        <mesh key={`${px}:${pz}`} position={[px, 0.7 + h * 0.32, pz]} castShadow>
+          <cylinderGeometry args={[0.2, 0.24, h * 0.64, 7]} />
           <meshStandardMaterial map={tex.stone} color={PALE_STONE} roughness={0.85} fog={fog} />
         </mesh>
       ))}
-      <mesh position={[0, 0.6 + h * 0.64 + h * 0.14, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[2.1, h * 0.32, 4]} />
+      <mesh position={[0, 0.7 + h * 0.64 + h * 0.14, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[2.9, h * 0.32, 4]} />
         <meshStandardMaterial map={tex.stone} color={MOSSY_STONE} roughness={0.8} fog={fog} />
       </mesh>
       {/* the quiet star — gentle cool glow, alive at night via the light pool */}
-      <mesh position={[0, 0.6 + h * 0.3, 0]}>
-        <octahedronGeometry args={[0.34, 0]} />
+      <mesh position={[0, 0.7 + h * 0.3, 0]}>
+        <octahedronGeometry args={[0.45, 0]} />
         <meshStandardMaterial color="#cfe9ff" emissive="#8fc8ff" emissiveIntensity={1.6} roughness={0.3} fog={fog} />
       </mesh>
-      <group position={[0, 0.6 + h * 0.3, 0]}>
+      <group position={[0, 0.7 + h * 0.3, 0]}>
         <GlowEmitter color="#8fc8ff" intensity={1.8} distance={16} />
       </group>
     </>
@@ -133,7 +137,7 @@ export function StonesLandmark({ landmark, fog }: { landmark: WorldLandmark; fog
       return {
         x: Math.cos(angle) * ring,
         z: Math.sin(angle) * ring,
-        w: 0.9 + random() * 0.6,
+        w: 1.3 + random() * 0.9,
         h: landmark.height * (0.55 + random() * 0.45),
         d: 0.6 + random() * 0.3,
         yaw: angle + (random() - 0.5) * 0.5,
