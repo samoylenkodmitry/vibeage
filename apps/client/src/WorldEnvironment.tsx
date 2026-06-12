@@ -181,7 +181,10 @@ function makeMoonTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  if (!ctx) return texture; // headless/JSDOM: plain disc beats a crash
   ctx.fillStyle = '#dfe5f3';
   ctx.fillRect(0, 0, size, size);
   let seed = 0xa11ce;
@@ -211,8 +214,7 @@ function makeMoonTexture(): THREE.CanvasTexture {
     ctx.arc(x, y, r + 0.8, 0, Math.PI * 2);
     ctx.stroke();
   }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
   return texture;
 }
 
