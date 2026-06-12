@@ -87,13 +87,33 @@ export function InstancedGltf({
   src, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false, wind, recenter = false,
 }: InstancedGltfProps) {
   const gltf = useGLTF(src);
-  const subMeshes = useMemo(() => collectSubMeshes(gltf.scene, recenter), [gltf, recenter]);
+  return (
+    <InstancedModel
+      object={gltf.scene}
+      matrices={matrices}
+      colors={colors}
+      baseScale={baseScale}
+      castShadow={castShadow}
+      receiveShadow={receiveShadow}
+      wind={wind}
+      recenter={recenter}
+    />
+  );
+}
+
+/** Same instancing machinery for an in-memory object (procedural trees etc.)
+ *  instead of a loaded GLB — one InstancedMesh per (geometry, material) leaf,
+ *  with the same tint/wind support. */
+export function InstancedModel({
+  object, matrices, colors, baseScale = 1, castShadow = false, receiveShadow = false, wind, recenter = false,
+}: Omit<InstancedGltfProps, 'src'> & { object: THREE.Object3D }) {
+  const subMeshes = useMemo(() => collectSubMeshes(object, recenter), [object, recenter]);
   if (matrices.length === 0 || subMeshes.length === 0) return null;
   return (
     <>
-      {subMeshes.map((sub, idx) => (
+      {subMeshes.map((sub) => (
         <InstancedSub
-          key={`${src}#${idx}`}
+          key={sub.geometry.uuid}
           sub={sub}
           matrices={matrices}
           colors={colors}
