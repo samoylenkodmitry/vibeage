@@ -152,9 +152,11 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     const scree = (1 - snowT) * valeT;
     const snow = (snowT * valeT) / (1 - scree);
     const mixTo = (c: number, target: number, t: number) => c + (target - c) * t;
-    gr = mixTo(mixTo(gr, 230, snow), 148, scree);
-    gg = mixTo(mixTo(gg, 235, snow), 143, scree);
-    gb = mixTo(mixTo(gb, 245, snow), 135, scree);
+    // COOL grey scree: the previous warm grey (148,143,135) survived the
+    // hue-preserving tint normalization and painted the whole floor beige.
+    gr = mixTo(mixTo(gr, 230, snow), 132, scree);
+    gg = mixTo(mixTo(gg, 235, snow), 139, scree);
+    gb = mixTo(mixTo(gb, 245, snow), 150, scree);
     fr = mixTo(fr, 94, vale); fg = mixTo(fg, 122, vale); fb = mixTo(fb, 99, vale);
     grass *= 1 - vale;
     tree = tree * (1 - vale) + 0.05 * vale;
