@@ -133,27 +133,6 @@ const VERT = /* glsl */`
     tm = 1.0 - smoothstep(84.0, 168.0, length(p - vec2(-1450.0, 80.0)));   h = mix(h, 16.0, max(tm, 0.0));
     tm = 1.0 - smoothstep(77.0, 154.0, length(p - vec2(560.0, -2080.0)));  h = mix(h, 3.0, max(tm, 0.0));
     tm = 1.0 - smoothstep(56.0, 112.0, length(p - vec2(3600.0, -2520.0))); h = mix(h, 26.0, max(tm, 0.0));
-    // Glacial Vale — mirrors glacialValeMask/glacialValeHeight (terrain.ts).
-    // The density bake zeroes blades inside, so the branch stays cold.
-    vec2 vd = p - vec2(-2650.0, -2350.0);
-    float vu = vd.x*0.79608 + vd.y*0.60519;   // cos(0.65), sin(0.65)
-    float vv = -vd.x*0.60519 + vd.y*0.79608;
-    float ve = (vu/620.0)*(vu/620.0) + (vv/420.0)*(vv/420.0);
-    float vmask = 1.0 - smoothstep(0.55, 1.0, ve);
-    if (vmask > 0.001){
-      float floorY = 2.5 + sin(vu*0.05)*sin(vv*0.047)*0.8;
-      float tarnE = (vu/190.0)*(vu/190.0) + (vv/75.0)*(vv/75.0);
-      float tarn = 1.0 - smoothstep(0.45, 1.0, tarnE);
-      floorY = mix(floorY, -9.0, tarn);
-      float r1 = 1.0 - abs(sin(vu*0.006 + sin(vv*0.004)*1.3));
-      float r2 = 1.0 - abs(sin((vu+vv)*0.011 + 0.9));
-      float wSide = smoothstep(85.0, 360.0, abs(vv));
-      float wEnd = smoothstep(380.0, 600.0, abs(vu));
-      float wallRamp = max(wSide, wEnd*0.85);
-      float wall = pow(wallRamp, 1.6)*(130.0 + 190.0*r1*r1 + 60.0*r2*r2)
-                 + sin(vu*0.03)*sin(vv*0.027)*6.0*wallRamp;
-      h = mix(h, floorY + wall, vmask);
-    }
     return h;
   }
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
