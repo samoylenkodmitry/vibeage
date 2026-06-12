@@ -150,7 +150,7 @@ const VERT = /* glsl */`
       float wSide = smoothstep(85.0, 360.0, abs(vv));
       float wEnd = smoothstep(380.0, 600.0, abs(vu));
       float wallRamp = max(wSide, wEnd*0.85);
-      float wall = pow(wallRamp, 1.6)*(80.0 + 120.0*r1*r1 + 50.0*r2*r2)
+      float wall = pow(wallRamp, 1.6)*(130.0 + 190.0*r1*r1 + 60.0*r2*r2)
                  + sin(vu*0.03)*sin(vv*0.027)*6.0*wallRamp;
       h = mix(h, floorY + wall, vmask);
     }
