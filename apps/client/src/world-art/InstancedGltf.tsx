@@ -111,9 +111,9 @@ export function InstancedModel({
   if (matrices.length === 0 || subMeshes.length === 0) return null;
   return (
     <>
-      {subMeshes.map((sub, idx) => (
+      {subMeshes.map((sub) => (
         <InstancedSub
-          key={idx}
+          key={sub.geometry.uuid}
           sub={sub}
           matrices={matrices}
           colors={colors}

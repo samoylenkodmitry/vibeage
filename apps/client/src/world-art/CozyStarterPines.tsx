@@ -18,7 +18,7 @@ const PINE_TINTS = ['#5d7a52', '#54734e', '#688258'].map((hex) => new THREE.Colo
 export function CozyStarterPines({ scene, quality }: { scene: WorldArtScene; quality: WorldArtQuality }) {
   const trees = useMemo(() => makeCozyTreeScatter(scene, quality), [scene, quality]);
   const matrices = useMemo(() => trees.map((tree) => treeMatrix(tree)), [trees]);
-  const colors = useMemo(() => trees.map((tree) => PINE_TINTS[tree.variant]), [trees]);
+  const colors = useMemo(() => trees.map((tree) => PINE_TINTS[tree.variant % PINE_TINTS.length] ?? PINE_TINTS[0]), [trees]);
   return (
     <InstancedModel
       object={CONIFER_TREE_A}
