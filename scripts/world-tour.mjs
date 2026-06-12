@@ -80,7 +80,7 @@ try {
   }
 } catch (err) {
   log(`FAILED: ${err.message.split('\n')[0]}`);
-  await page.screenshot({ path: `${prefix}-fail.png` }).catch(() => {});
+  await page.screenshot({ path: `${prefix}-fail.png` }).catch(() => undefined);
 } finally {
   await browser.close();
 }
