@@ -184,7 +184,8 @@ function makeTarnMaterial(): THREE.ShaderMaterial {
         color = mix(color, uPhaseTint, 0.16);
         // drifting sun glitter (the reference's water sparkle)
         vec2 gp = vUv * 900.0 + vec2(uTime * 4.0, -uTime * 3.0);
-        float sparkle = step(0.987, hash(floor(gp))) * (0.5 + 0.5 * sin(uTime * 5.0 + hash(floor(gp)) * 40.0));
+        float cellHash = hash(floor(gp));
+        float sparkle = step(0.987, cellHash) * (0.5 + 0.5 * sin(uTime * 5.0 + cellHash * 40.0));
         color += sparkle * 0.22;
         gl_FragColor = vec4(color, mix(0.92, 0.7, r));
       }
