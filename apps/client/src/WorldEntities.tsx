@@ -186,12 +186,15 @@ function AnimatedPlayerBody({
 // small skinned meshes is not what strains phones (the real costs — canvas
 // MSAA, DPR, postFX, grass — are tier-gated elsewhere); primitives remain
 // only as the load/error fallback inside AnimatedEnemyBody.
-const ANIMATED_ENEMY_FAMILIES: ReadonlySet<EnemyTemplate['family']> = new Set([
-  'humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct',
-]);
+// Exhaustive over EnemyFamily (review): adding a family to the content union
+// forces an entry here instead of silently boxing the new mob.
+const ANIMATED_ENEMY_FAMILIES: Record<EnemyTemplate['family'], boolean> = {
+  humanoid: true, undead: true, beast: true, elemental: true, dragon: true,
+  aberration: true, fey: true, spirit: true, plant: true, construct: true,
+};
 
 function usesAnimatedEnemyModel(family: EnemyTemplate['family']): boolean {
-  return ANIMATED_ENEMY_FAMILIES.has(family);
+  return ANIMATED_ENEMY_FAMILIES[family];
 }
 
 function enemyAnim(enemy: EnemyEntity, speedSq: number): CharacterAnim {
