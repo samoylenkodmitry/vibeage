@@ -30,7 +30,6 @@ import { AssetErrorBoundary } from './world-art/AssetErrorBoundary';
 import { smoothingAlpha } from './cameraRig';
 import { getEnemyVisual } from './worldVisuals';
 import { getEnemyTemplate, type EnemyTemplate } from '../../../packages/content/enemies';
-import { chooseWorldArtQuality } from './world-art/quality';
 import { getTerrainY } from './worldSceneConfig';
 import { advanceSmoothedGroup } from './entitySmoothing';
 import { GlowEmitter } from './dynamicLights';
@@ -180,16 +179,19 @@ function AnimatedPlayerBody({
 }
 
 // Every family now has a rigged model (KayKit humanoids + Quaternius monsters),
-// so all of them animate; only the low-quality tier falls back to primitives.
+// so all of them animate ON EVERY TIER. The low tier used to keep primitive
+// boxes "for the frame budget" — but phones force 'low', so mobile players
+// fought literal cubes (user report: "goblins are cubes, not matching wiki")
+// while the wiki rendered the same GLB on the same device. A handful of
+// small skinned meshes is not what strains phones (the real costs — canvas
+// MSAA, DPR, postFX, grass — are tier-gated elsewhere); primitives remain
+// only as the load/error fallback inside AnimatedEnemyBody.
 const ANIMATED_ENEMY_FAMILIES: ReadonlySet<EnemyTemplate['family']> = new Set([
   'humanoid', 'undead', 'beast', 'elemental', 'dragon', 'aberration', 'fey', 'spirit', 'plant', 'construct',
 ]);
-// Resolve the device quality once (SSR-safe); low-end devices keep
-// primitives for enemies to protect the frame budget.
-const ENTITY_QUALITY = chooseWorldArtQuality();
 
 function usesAnimatedEnemyModel(family: EnemyTemplate['family']): boolean {
-  return ENTITY_QUALITY !== 'low' && ANIMATED_ENEMY_FAMILIES.has(family);
+  return ANIMATED_ENEMY_FAMILIES.has(family);
 }
 
 function enemyAnim(enemy: EnemyEntity, speedSq: number): CharacterAnim {
