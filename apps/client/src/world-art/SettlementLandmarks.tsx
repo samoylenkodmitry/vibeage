@@ -102,42 +102,67 @@ function TownHouse({ house, fog, tex }: { house: TownHouseSpec; fog: boolean; te
   );
 }
 
+function buildTownLayout(landmark: WorldLandmark) {
+  const random = seededRandom(Math.round(landmark.position.x), Math.round(landmark.position.z));
+  const count = 18;
+  const houses = Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * Math.PI * 2 + (random() - 0.5) * 0.45;
+    const ring = landmark.radius * (0.34 + random() * 0.48);
+    const w = 5.5 + random() * 4;
+    const d = 5.5 + random() * 4;
+    const h = 3.4 + random() * 2.4;
+    const angleToCentre = Math.atan2(-Math.sin(angle), -Math.cos(angle));
+    return {
+      x: Math.cos(angle) * ring,
+      z: Math.sin(angle) * ring,
+      w, d, h,
+      // Face the square (door side toward the centre), slight jitter.
+      yaw: angleToCentre + Math.PI / 2 + (random() - 0.5) * 0.4,
+      twoStory: random() < 0.25,
+      chimneySide: random() < 0.5 ? 1 : -1,
+      wall: HOUSE_WALL_COLORS[Math.floor(random() * HOUSE_WALL_COLORS.length)],
+      roof: HOUSE_ROOF_COLORS[Math.floor(random() * HOUSE_ROOF_COLORS.length)],
+    };
+  });
+  const lamps = Array.from({ length: 5 }, (_, i) => {
+    const a = (i / 5) * Math.PI * 2 + 0.5;
+    const r = landmark.radius * 0.2;
+    return { x: Math.cos(a) * r, z: Math.sin(a) * r };
+  });
+  const stalls = Array.from({ length: 4 }, (_, i) => {
+    const a = (i / 4) * Math.PI * 2 + 1.2 + random() * 0.4;
+    const r = landmark.radius * (0.13 + (i % 2) * 0.08);
+    return { x: Math.cos(a) * r, z: Math.sin(a) * r, yaw: random() * Math.PI * 2 };
+  });
+  // Plaza clutter — the square interior read as a bare dirt disc. Benches
+  // ring the well; crate/barrel piles and a hay cart fill the mid ring.
+  const benches = Array.from({ length: 4 }, (_, i) => {
+    const a = (i / 4) * Math.PI * 2 + 0.2 + random() * 0.3;
+    const r = landmark.radius * 0.07;
+    return { x: Math.cos(a) * r, z: Math.sin(a) * r, yaw: a + Math.PI / 2 };
+  });
+  const piles = Array.from({ length: 5 }, () => {
+    const a = random() * Math.PI * 2;
+    const r = landmark.radius * (0.18 + random() * 0.16);
+    return {
+      x: Math.cos(a) * r, z: Math.sin(a) * r,
+      yaw: random() * Math.PI * 2,
+      barrel: random() < 0.5,
+      twin: random() < 0.6,
+    };
+  });
+  const cartAngle = 2.4 + random() * 0.8;
+  const cart = {
+    x: Math.cos(cartAngle) * landmark.radius * 0.24,
+    z: Math.sin(cartAngle) * landmark.radius * 0.24,
+    yaw: random() * Math.PI * 2,
+  };
+  return { houses, lamps, stalls, benches, piles, cart };
+}
+
 export function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: boolean }) {
   const tex = useSettlementTextures();
-  const town = useMemo(() => {
-    const random = seededRandom(Math.round(landmark.position.x), Math.round(landmark.position.z));
-    const count = 18;
-    const houses = Array.from({ length: count }, (_, i) => {
-      const angle = (i / count) * Math.PI * 2 + (random() - 0.5) * 0.45;
-      const ring = landmark.radius * (0.34 + random() * 0.48);
-      const w = 5.5 + random() * 4;
-      const d = 5.5 + random() * 4;
-      const h = 3.4 + random() * 2.4;
-      const angleToCentre = Math.atan2(-Math.sin(angle), -Math.cos(angle));
-      return {
-        x: Math.cos(angle) * ring,
-        z: Math.sin(angle) * ring,
-        w, d, h,
-        // Face the square (door side toward the centre), slight jitter.
-        yaw: angleToCentre + Math.PI / 2 + (random() - 0.5) * 0.4,
-        twoStory: random() < 0.25,
-        chimneySide: random() < 0.5 ? 1 : -1,
-        wall: HOUSE_WALL_COLORS[Math.floor(random() * HOUSE_WALL_COLORS.length)],
-        roof: HOUSE_ROOF_COLORS[Math.floor(random() * HOUSE_ROOF_COLORS.length)],
-      };
-    });
-    const lamps = Array.from({ length: 5 }, (_, i) => {
-      const a = (i / 5) * Math.PI * 2 + 0.5;
-      const r = landmark.radius * 0.2;
-      return { x: Math.cos(a) * r, z: Math.sin(a) * r };
-    });
-    const stalls = Array.from({ length: 2 }, (_, i) => {
-      const a = (i / 2) * Math.PI * 2 + 1.2 + random() * 0.4;
-      const r = landmark.radius * 0.13;
-      return { x: Math.cos(a) * r, z: Math.sin(a) * r, yaw: random() * Math.PI * 2 };
-    });
-    return { houses, lamps, stalls };
-  }, [landmark]);
+  const town = useMemo(() => buildTownLayout(landmark), [landmark]);
 
   return (
     <>
@@ -172,6 +197,14 @@ export function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
           </mesh>
         </group>
       ))}
+      {/* plaza clutter: benches by the well, goods piles, a hay cart */}
+      {town.benches.map((bench, i) => (
+        <PlazaBench key={`bench-${i}`} bench={bench} fog={fog} />
+      ))}
+      {town.piles.map((pile, i) => (
+        <GoodsPile key={`pile-${i}`} pile={pile} fog={fog} />
+      ))}
+      <HayCart cart={town.cart} fog={fog} />
       {/* lamp posts around the square — warm emissive heads */}
       {town.lamps.map((lamp, i) => (
         <group key={`lamp-${i}`} position={[lamp.x, 0, lamp.z]}>
@@ -192,6 +225,75 @@ export function TownLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
         </group>
       ))}
     </>
+  );
+}
+
+/** Wooden bench facing the well: seat plank on two leg blocks. */
+function PlazaBench({ bench, fog }: { bench: { x: number; z: number; yaw: number }; fog: boolean }) {
+  return (
+    <group position={[bench.x, 0, bench.z]} rotation={[0, bench.yaw, 0]}>
+      <mesh position={[0, 0.48, 0]} castShadow>
+        <boxGeometry args={[2.0, 0.12, 0.55]} />
+        <meshStandardMaterial color="#8a6a44" roughness={0.9} fog={fog} />
+      </mesh>
+      {[-0.75, 0.75].map((side) => (
+        <mesh key={side} position={[side, 0.21, 0]} castShadow>
+          <boxGeometry args={[0.18, 0.42, 0.5]} />
+          <meshStandardMaterial color="#6d5234" roughness={0.92} fog={fog} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Market goods — a crate (or two stacked) or a lidded barrel. */
+function GoodsPile({ pile, fog }: { pile: { x: number; z: number; yaw: number; barrel: boolean; twin: boolean }; fog: boolean }) {
+  return (
+    <group position={[pile.x, 0, pile.z]} rotation={[0, pile.yaw, 0]}>
+      {pile.barrel ? (
+        <mesh position={[0, 0.55, 0]} castShadow>
+          <cylinderGeometry args={[0.42, 0.48, 1.1, 10]} />
+          <meshStandardMaterial color="#7d5f3e" roughness={0.88} fog={fog} />
+        </mesh>
+      ) : (
+        <mesh position={[0, 0.45, 0]} castShadow>
+          <boxGeometry args={[0.9, 0.9, 0.9]} />
+          <meshStandardMaterial color="#97744b" roughness={0.9} fog={fog} />
+        </mesh>
+      )}
+      {pile.twin && (
+        <mesh position={[0.75, 0.32, 0.2]} rotation={[0, 0.6, 0]} castShadow>
+          <boxGeometry args={[0.64, 0.64, 0.64]} />
+          <meshStandardMaterial color="#8a6a44" roughness={0.9} fog={fog} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+/** Hay cart: plank bed on two wheels, hay mound on top, tipped drawbars. */
+function HayCart({ cart, fog }: { cart: { x: number; z: number; yaw: number }; fog: boolean }) {
+  return (
+    <group position={[cart.x, 0, cart.z]} rotation={[0, cart.yaw, 0]}>
+      <mesh position={[0, 0.8, 0]} castShadow>
+        <boxGeometry args={[2.6, 0.18, 1.5]} />
+        <meshStandardMaterial color="#7a5b3a" roughness={0.9} fog={fog} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[0, 0.55, side * 0.82]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.55, 0.55, 0.14, 12]} />
+          <meshStandardMaterial color="#5d4730" roughness={0.85} fog={fog} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.25, 0]} scale={[1.5, 0.7, 1]} castShadow>
+        <icosahedronGeometry args={[0.75, 1]} />
+        <meshStandardMaterial color="#d3b25f" roughness={0.95} fog={fog} />
+      </mesh>
+      <mesh position={[1.7, 0.55, 0]} rotation={[0, 0, -0.35]} castShadow>
+        <cylinderGeometry args={[0.06, 0.06, 1.4, 6]} />
+        <meshStandardMaterial color="#6d5234" roughness={0.9} fog={fog} />
+      </mesh>
+    </group>
   );
 }
 
