@@ -158,8 +158,8 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     gg = mixTo(mixTo(gg, 235, snow), 139, scree);
     gb = mixTo(mixTo(gb, 245, snow), 150, scree);
     fr = mixTo(fr, 94, vale); fg = mixTo(fg, 122, vale); fb = mixTo(fb, 99, vale);
-    grass *= 1 - vale;
-    tree = tree * (1 - vale) + 0.05 * vale;
+    grass = vale > 0.001 ? 0 : grass;
+    tree *= 1 - valeT; // the ref valley core is treeless; its banks get THEIR grass
   }
   return {
     groundColor: rgbHex(gr, gg, gb),
@@ -182,9 +182,10 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
 export function sampleGrassDensity(x: number, z: number): number {
   let grass = 0;
   for (const [b, w] of biomeWeights(x, z)) grass += TERRAIN_BIOME_VISUALS[b].grassDensity * w;
-  // Bare rock and snow in the Glacial Vale — also keeps the expensive vale
-  // branch of the grass shader's terrainH on culled (skipped) blades.
-  return grass * (1 - glacialValeMask(x, z));
+  // HARD zero inside any vale influence: blades never render there, so the
+  // grass shader's GLSL terrainH carries NO vale mirror (the ref-ported
+  // fbm/ridged math is JS-only; see GlacialValeTerrain).
+  return glacialValeMask(x, z) > 0.001 ? 0 : grass;
 }
 
 function hexRgb(hex: string): { r: number; g: number; b: number } {
@@ -264,7 +265,7 @@ export const GLACIAL_VALE = {
   cos: Math.cos(0.65), sin: Math.sin(0.65), // valley axis heading
   L: 620, W: 420,                            // ellipse half-extents
 } as const;
-export const VALE_TARN_WATER_Y = LAKE_WATER_Y; // shares the lattice waterline
+export const VALE_TARN_WATER_Y = 0; // their WATER_Y — the braided river line
 
 /** 1 inside the vale, 0 outside; soft edge blends override into base relief. */
 export function glacialValeMask(x: number, z: number): number {
@@ -276,26 +277,122 @@ export function glacialValeMask(x: number, z: number): number {
   return 1 - smoothstep(0.55, 1, e);
 }
 
+// Their terrain math, copied from deedy/glacial-valley main.js (user ask:
+// use that code). Value noise with analytic derivatives; fbmE damps octaves
+// by accumulated gradient (erosion); ridged is a gradient-damped ridged
+// multifractal. Evaluated in VALE-LOCAL coordinates (u along the valley,
+// v across) — their river valley becomes ours, braided gravel bars and all.
+let ND_n = 0;
+let ND_dx = 0;
+let ND_dz = 0;
+function gvH2(ix: number, iz: number): number {
+  let h = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) * (1 / 4294967296);
+}
+function gvVnoised(x: number, z: number): void {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+  const uz = fz * fz * fz * (fz * (fz * 6 - 15) + 10);
+  const dux = 30 * fx * fx * (fx * (fx - 2) + 1);
+  const duz = 30 * fz * fz * (fz * (fz - 2) + 1);
+  const a = gvH2(ix, iz);
+  const b = gvH2(ix + 1, iz);
+  const c = gvH2(ix, iz + 1);
+  const d = gvH2(ix + 1, iz + 1);
+  const k1 = b - a;
+  const k2 = c - a;
+  const k4 = a - b - c + d;
+  ND_n = a + k1 * ux + k2 * uz + k4 * ux * uz;
+  ND_dx = (k1 + k4 * uz) * dux;
+  ND_dz = (k2 + k4 * ux) * duz;
+}
+function gvFbmE(x: number, z: number, oct: number): number {
+  let a = 0; let w = 0.5; let f = 1; let dx = 0; let dz = 0;
+  for (let i = 0; i < oct; i += 1) {
+    gvVnoised(x * f + i * 13.7, z * f + i * 7.3);
+    dx += ND_dx * w * f; dz += ND_dz * w * f;
+    a += w * (ND_n * 2 - 1) / (1 + 0.7 * (dx * dx + dz * dz));
+    w *= 0.5; f *= 2.02;
+  }
+  return a;
+}
+function gvRidged(x: number, z: number, oct: number): number {
+  let a = 0; let w = 0.5; let f = 1; let prev = 1; let dx = 0; let dz = 0;
+  for (let i = 0; i < oct; i += 1) {
+    gvVnoised(x * f + i * 5.2, z * f + i * 11.8);
+    const n = ND_n * 2 - 1;
+    dx += ND_dx * w * f; dz += ND_dz * w * f;
+    let r = 1 - Math.abs(n); r = r * r;
+    a += r * w * prev / (1 + 0.35 * (dx * dx + dz * dz));
+    prev = r;
+    w *= 0.5; f *= 2.07;
+  }
+  return a;
+}
+function gvMeanderC(x: number): number {
+  return 40 * Math.sin(x * 0.0042 + 1.3) + 15 * Math.sin(x * 0.0126 + 0.4) + 6 * Math.sin(x * 0.031);
+}
+function gvHalfWidth(x: number): number {
+  return 62 + 24 * Math.sin(x * 0.006 + 2.0) + 8 * Math.sin(x * 0.017);
+}
+/** Their terrainH (lod 0), verbatim minus the camera-bank rivulets. */
+function gvTerrainH(x: number, z: number): number {
+  const m = gvMeanderC(x);
+  const dz = z - m;
+  const ad = Math.abs(dz);
+  const hw = gvHalfWidth(x);
+  const tBed = smoothstep(hw * 0.8, hw * 1.3, ad);
+  let bed = 0;
+  let plain = 0;
+  if (tBed < 0.999) {
+    const q = ad / hw;
+    const cross = Math.max(0, 1 - q * q);
+    const bars = gvFbmE(x * 0.0062, dz * 0.030, 4);
+    bed = -1.7 * Math.pow(cross, 0.7) + bars * 1.9 + 0.55;
+    bed = Math.min(bed, 0.75);
+  }
+  if (tBed > 0.001) {
+    plain = 0.9 + 5.5 * smoothstep(hw, hw + 230, ad)
+      + 1.8 * gvFbmE(x * 0.013, z * 0.013, 4)
+      + 0.5 * gvFbmE(x * 0.10, z * 0.10, 3);
+    plain = Math.max(plain, 0.35);
+  }
+  let h = bed * (1 - tBed) + plain * tBed;
+  const tw = smoothstep(hw + 130, 1700, ad);
+  const tp = smoothstep(500, 2900, ad);
+  if (tw > 0.001) {
+    gvVnoised(x * 0.00031 + 9.7, z * 0.00031 + 3.1); const w1 = ND_n;
+    gvVnoised(x * 0.00027 + 1.2, z * 0.00027 + 7.7); const w2 = ND_n;
+    const wx = x + (w1 - 0.5) * 1400;
+    const wz = z + (w2 - 0.5) * 1400;
+    const ridge = gvRidged(wx * 0.00055, wz * 0.00055, 6);
+    const ridge2 = gvRidged(wx * 0.0011, wz * 0.0011, 4);
+    h += Math.pow(tw, 1.5) * 640 * (0.55 + 0.9 * ridge2);
+    h += Math.pow(Math.max(ridge * 1.45, 0), 1.4) * 2150 * tp;
+    h += gvRidged(wx * 0.0021, wz * 0.0021, 4) * 340 * Math.max(tp, tw * 0.5);
+    h += gvFbmE(x * 0.0035, z * 0.0035, 4) * 160 * tw;
+  }
+  return h;
+}
+export const VALE_RIVER_WATER_Y = 0; // their WATER_Y, in vale-local height
+
+// Their valley spans ±1.7 km of wall ramp; our vale ellipse is ±620×420 m.
+// Evaluate their function on a stretched domain (sXZ) and rescale heights
+// (sH) so the river stays swimmable-deep and the walls reach ~180 m.
+const GV_SCALE_XZ = 0.42;
+const GV_SCALE_H = 0.8;
+
 function glacialValeHeight(x: number, z: number): number {
   const dx = x - GLACIAL_VALE.x;
   const dz = z - GLACIAL_VALE.z;
   const u = dx * GLACIAL_VALE.cos + dz * GLACIAL_VALE.sin;
   const v = -dx * GLACIAL_VALE.sin + dz * GLACIAL_VALE.cos;
-  // Valley floor with a gentle moraine ripple; the tarn dips below the
-  // waterline so the water disc reads as a real glacial lake.
-  let floorY = 2.5 + Math.sin(u * 0.05) * Math.sin(v * 0.047) * 0.8;
-  const tarnE = (u / 190) ** 2 + (v / 75) ** 2;
-  const tarn = 1 - smoothstep(0.45, 1, tarnE);
-  floorY = floorY * (1 - tarn) + (-9) * tarn;
-  // Ridged walls: domain-warped crest lines, squared for sharp alpine spines.
-  const r1 = 1 - Math.abs(Math.sin(u * 0.006 + Math.sin(v * 0.004) * 1.3));
-  const r2 = 1 - Math.abs(Math.sin((u + v) * 0.011 + 0.9));
-  const wSide = smoothstep(85, 360, Math.abs(v));
-  const wEnd = smoothstep(380, 600, Math.abs(u));
-  const wallRamp = Math.max(wSide, wEnd * 0.85);
-  const wall = Math.pow(wallRamp, 1.6) * (130 + 190 * r1 * r1 + 60 * r2 * r2)
-    + Math.sin(u * 0.03) * Math.sin(v * 0.027) * 6 * wallRamp;
-  return floorY + wall;
+  return gvTerrainH(u / GV_SCALE_XZ, v / GV_SCALE_XZ) * GV_SCALE_H;
 }
 
 export function getTerrainHeight(x: number, z: number): number {
