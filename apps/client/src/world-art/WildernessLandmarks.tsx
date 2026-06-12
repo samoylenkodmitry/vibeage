@@ -68,7 +68,7 @@ export function RuinLandmark({ landmark, fog }: { landmark: WorldLandmark; fog: 
             <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.85} fog={fog} />
           </mesh>
           <mesh position={[0, 0.25, 0]} castShadow>
-            <boxGeometry args={[1.5, 0.5, 1.5]} />
+            <boxGeometry args={[2.0, 0.5, 2.0]} />
             <meshStandardMaterial map={tex.stone} color={col.tint} roughness={0.9} fog={fog} />
           </mesh>
         </group>

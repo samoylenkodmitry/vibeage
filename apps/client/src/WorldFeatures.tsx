@@ -566,11 +566,12 @@ function getLandmarkColor(landmark: WorldLandmark): string {
     case 'tree':
     case 'ancient_tree':
       return '#67d982';
-    case 'gate':
-      return '#facc15';
-    // Stone kinds tint NEAR-WHITE: the colour MULTIPLIES the mid-grey stone
+    // Stone kinds tint LIGHT: the colour MULTIPLIES the mid-grey stone
     // texture, so mid tints land at ~0.2 albedo and the shade side of a keep
-    // reads pitch black in daylight (the #875 double-darkening rule).
+    // reads pitch black in daylight (the #875 double-darkening rule). Gate
+    // and spire keep their gold/sandstone hue, just lifted.
+    case 'gate':
+      return '#f2dca0';
     case 'keep':
       return '#dde3ec';
     case 'ruin':
@@ -580,6 +581,6 @@ function getLandmarkColor(landmark: WorldLandmark): string {
     case 'castle':
       return '#d3dae4';
     default:
-      return '#f59e0b';
+      return '#f0c684';
   }
 }
