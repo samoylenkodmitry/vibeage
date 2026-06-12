@@ -136,6 +136,8 @@ const VERT = /* glsl */`
     // Glacial Vale — mirrors glacialValeMask/glacialValeHeight (terrain.ts).
     // The density bake zeroes blades inside, so the branch stays cold.
     vec2 vd = p - vec2(-2650.0, -2350.0);
+    // Bounding-square fast reject mirrors glacialValeMask's early-out.
+    if (abs(vd.x) < 620.0 && abs(vd.y) < 620.0){
     float vu = vd.x*0.79608 + vd.y*0.60519;   // cos(0.65), sin(0.65)
     float vv = -vd.x*0.60519 + vd.y*0.79608;
     float ve = (vu/620.0)*(vu/620.0) + (vv/420.0)*(vv/420.0);
@@ -153,6 +155,7 @@ const VERT = /* glsl */`
       float wall = pow(wallRamp, 1.6)*(80.0 + 120.0*r1*r1 + 50.0*r2*r2)
                  + sin(vu*0.03)*sin(vv*0.027)*6.0*wallRamp;
       h = mix(h, floorY + wall, vmask);
+    }
     }
     return h;
   }

@@ -147,6 +147,7 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     gg = mixTo(mixTo(gg, 235, snow), 143, scree);
     gb = mixTo(mixTo(gb, 245, snow), 135, scree);
     fr = mixTo(fr, 94, vale); fg = mixTo(fg, 122, vale); fb = mixTo(fb, 99, vale);
+    rough = mixTo(rough, 0.85, vale); // snow/scree is matte, not forest-glossy
     grass *= 1 - vale;
     tree = tree * (1 - vale) + 0.05 * vale;
   }
@@ -248,6 +249,8 @@ export const TOWN_PLATEAUS = [
 // sines + smoothsteps so the grass GLSL terrainH mirrors it 1:1 (the #857
 // discipline). The ridge math is a 2-term cut-down of the reference's ridged
 // multifractal — (1-|sin|)² crests with a sine domain warp.
+// MIRRORED in apps/client/src/WorldShaderGrass.tsx terrainH() ("Glacial
+// Vale" block) — change both together or blades float/sink.
 export const GLACIAL_VALE = {
   x: -2_650, z: -2_350,
   cos: Math.cos(0.65), sin: Math.sin(0.65), // valley axis heading
@@ -259,6 +262,9 @@ export const VALE_TARN_WATER_Y = LAKE_WATER_Y; // shares the lattice waterline
 export function glacialValeMask(x: number, z: number): number {
   const dx = x - GLACIAL_VALE.x;
   const dz = z - GLACIAL_VALE.z;
+  // Fast reject: outside the ellipse's bounding square the mask is 0 —
+  // skips the rotation/ellipse math for almost every call in the world.
+  if (Math.abs(dx) > GLACIAL_VALE.L || Math.abs(dz) > GLACIAL_VALE.L) return 0;
   const u = dx * GLACIAL_VALE.cos + dz * GLACIAL_VALE.sin;
   const v = -dx * GLACIAL_VALE.sin + dz * GLACIAL_VALE.cos;
   const e = (u / GLACIAL_VALE.L) ** 2 + (v / GLACIAL_VALE.W) ** 2;
