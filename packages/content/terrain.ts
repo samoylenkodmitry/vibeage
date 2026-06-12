@@ -144,10 +144,13 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     // walls, so even 10% vale influence must read alpine, not olive.
     const valeT = smoothstep(0.04, 0.5, vale);
     // The vale's hue is ALWAYS neutral: grey glacial scree below, white snow
-    // above. Leaving any of the neighbour blend's olive under a partial snow
-    // mix read as mustard walls (tour rounds 1-2).
-    const snow = valeT * (0.30 + 0.70 * smoothstep(12, 60, height));
-    const scree = valeT * (1 - snow) * 0.95;
+    // above. Exact nested-lerp solve (review): with weights below, the
+    // neighbour blend's hue carries weight exactly (1 - valeT) — zero inside
+    // the vale — instead of bleeding ~23% olive through sequential mixes.
+    // (Tint grading is JS-only; the GLSL mirror carries height, not colour.)
+    const snowT = 0.30 + 0.70 * smoothstep(12, 60, height);
+    const scree = (1 - snowT) * valeT;
+    const snow = (snowT * valeT) / (1 - scree);
     const mixTo = (c: number, target: number, t: number) => c + (target - c) * t;
     gr = mixTo(mixTo(gr, 230, snow), 148, scree);
     gg = mixTo(mixTo(gg, 235, snow), 143, scree);
