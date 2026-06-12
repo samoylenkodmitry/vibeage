@@ -48,7 +48,7 @@ function ValeInner() {
         material={water}
         raycast={() => null}
       >
-        <circleGeometry args={[TARN_DISC_RADIUS, 48]} />
+        <circleGeometry args={[TARN_DISC_RADIUS, 72]} />
       </mesh>
       <PebbleShore />
       <Snowfall />

@@ -140,8 +140,8 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
   // below; bare rock-and-ice floor — blade grass doesn't grow here.
   const vale = glacialValeMask(x, z);
   if (vale > 0.01) {
-    const snow = vale * smoothstep(35, 95, height);
-    const scree = vale * (1 - snow) * 0.45;
+    const snow = vale * (0.45 + 0.55 * smoothstep(15, 65, height));
+    const scree = vale * (1 - snow) * 0.5;
     const mixTo = (c: number, target: number, t: number) => c + (target - c) * t;
     gr = mixTo(mixTo(gr, 230, snow), 148, scree);
     gg = mixTo(mixTo(gg, 235, snow), 143, scree);
@@ -282,7 +282,7 @@ function glacialValeHeight(x: number, z: number): number {
   const wSide = smoothstep(85, 360, Math.abs(v));
   const wEnd = smoothstep(380, 600, Math.abs(u));
   const wallRamp = Math.max(wSide, wEnd * 0.85);
-  const wall = Math.pow(wallRamp, 1.6) * (80 + 120 * r1 * r1 + 50 * r2 * r2)
+  const wall = Math.pow(wallRamp, 1.6) * (130 + 190 * r1 * r1 + 60 * r2 * r2)
     + Math.sin(u * 0.03) * Math.sin(v * 0.027) * 6 * wallRamp;
   return floorY + wall;
 }

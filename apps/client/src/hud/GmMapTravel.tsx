@@ -47,6 +47,11 @@ export function GmMapTravel({ pin, px, pz, onGmTeleport }: {
  *  standing inside its geometry. Towns: straight onto the open plaza. */
 function landingPointFor(place: WorldLandmark): Marker {
   if (place.kind === 'town') return { x: place.position.x + 9, z: place.position.z + 9 };
+  // Vistas: land INSIDE on the viewing floor (the rim is a long walk down);
+  // half-radius south-east puts you at the tarn shore in the Glacial Vale.
+  if (place.kind === 'vista') {
+    return { x: place.position.x + place.radius * 0.4, z: place.position.z + place.radius * 0.4 };
+  }
   const offset = (place.radius * (place.mega ? 1.3 : 1.05) + 6) * 0.71;
   return { x: place.position.x + offset, z: place.position.z + offset };
 }
