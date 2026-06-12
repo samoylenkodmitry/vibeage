@@ -76,8 +76,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
     moonGroup: useRef<THREE.Group>(null),
     moonLight: useRef<THREE.PointLight>(null),
   };
-  // Lazy useRef (not useMemo, which can be evicted and orphan the GPU material).
-  // Crater texture: the flat full-white disc read as a cartoon sticker.
+  // Lazy useRef (useMemo can be evicted → orphaned GPU material); crater map.
   const moonMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   if (!moonMaterialRef.current) moonMaterialRef.current = new THREE.MeshBasicMaterial({ color: '#e7ecff', map: makeMoonTexture() });
   const moonMaterial = moonMaterialRef.current;
@@ -98,8 +97,7 @@ export function WorldEnvironment({ focus, fog = SCENE_FOG, onSunMesh }: WorldEnv
   useEffect(() => {
     return () => {
       sunMaterialRef.current?.dispose();
-      moonMaterialRef.current?.map?.dispose();
-      moonMaterialRef.current?.dispose();
+      moonMaterialRef.current?.map?.dispose(); moonMaterialRef.current?.dispose();
     };
   }, []);
 
