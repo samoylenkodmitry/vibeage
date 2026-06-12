@@ -224,8 +224,8 @@ const WATER_FRAG = /* glsl */ `
 
     // bed colour stands in for the refraction pass: cool gravel + caustics
     vec3 bed = mix(vec3(0.30, 0.33, 0.36), vec3(0.42, 0.45, 0.48), vnoise(p*1.8));
-    float ca = pow(max(1.0 - vor(p*0.9 + vec2(-t*0.9, t*0.25)), 0.0), 5.0)
-             + pow(max(1.0 - vor(p*1.4 + vec2(-t*1.3, -t*0.30)), 0.0), 5.0);
+    float ca = pow(max(1.0 - vor(p*0.9 + vec2(-t*0.9, t*0.25)), 1e-4), 5.0)
+             + pow(max(1.0 - vor(p*1.4 + vec2(-t*1.3, -t*0.30)), 1e-4), 5.0);
     bed *= 1.0 + ca * 1.1 * exp(-depth0*1.2);
 
     // glacial water: fast red absorption + rock-flour scattering (verbatim)
