@@ -6,17 +6,24 @@
 import { chromium } from '@playwright/test';
 
 const prefix = process.argv[2] || '/tmp/tour';
-const stops = process.argv.slice(3).map((s) => {
-  const [name, coords] = s.split(':');
-  const [x, z] = coords.split(',').map(Number);
-  return { name, x, z };
+const stops = process.argv.slice(3).map((arg) => {
+  const match = /^(.+):(-?[\d.]+),(-?[\d.]+)$/.exec(arg);
+  if (!match) {
+    console.error(`[tour] bad stop "${arg}" — expected "name:x,z"`);
+    process.exit(1);
+  }
+  // Sanitize the name: it becomes part of the screenshot filename.
+  const name = match[1].replace(/[^a-zA-Z0-9_-]/g, '_');
+  return { name, x: Number(match[2]), z: Number(match[3]) };
 });
 const DAY_MS = 12 * 60 * 1000;
 const phaseNow = () => (Date.now() % DAY_MS) / DAY_MS;
 
 const browser = await chromium.launch({
   headless: false, // SwiftShader can't rasterize med/high tiers — needs the real GPU
-  executablePath: '/usr/bin/chromium',
+  // System chromium by default (bundled headless = SwiftShader); override on
+  // other machines via CHROME_PATH, or set it empty to use the bundled one.
+  executablePath: process.env.CHROME_PATH === '' ? undefined : (process.env.CHROME_PATH ?? '/usr/bin/chromium'),
   args: ['--window-size=660,440', '--window-position=20,20'],
 });
 const page = await browser.newPage({ viewport: { width: 660, height: 440 } });
@@ -26,7 +33,7 @@ try {
   await page.locator('#login-input').fill(process.env.TOUR_LOGIN ?? 'a');
   await page.locator('#password-input').fill(process.env.TOUR_PASSWORD ?? 'a');
   await page.getByRole('button', { name: /^Continue$/i }).click();
-  try { if (process.env.TOUR_CHARACTER) await page.getByText(new RegExp('^' + process.env.TOUR_CHARACTER + '$')).first().click({ timeout: 6000 }); } catch { /* no character select screen */ }
+  try { if (process.env.TOUR_CHARACTER) await page.getByText(process.env.TOUR_CHARACTER, { exact: true }).first().click({ timeout: 6000 }); } catch { /* no character select screen */ }
   await page.getByRole('button', { name: /Enter World/i }).first().click({ timeout: 20_000 });
   await page.locator('canvas').waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForFunction(() => {
@@ -52,12 +59,13 @@ try {
   await page.mouse.move(cx, cy - 14, { steps: 6 });
   await page.mouse.up({ button: 'right' });
 
-  // wait for a good daylight window (phase 0.12..0.55 of the 12-min cycle)
-  while (phaseNow() < 0.12 || phaseNow() > 0.55) {
+  // wait for a good daylight window (phase 0.12..0.55 of the 12-min cycle);
+  // SKIP_DAYLIGHT_WAIT=1 shoots whatever the current light is (debug runs)
+  while (process.env.SKIP_DAYLIGHT_WAIT !== '1' && (phaseNow() < 0.12 || phaseNow() > 0.55)) {
     log(`waiting for daylight (phase ${phaseNow().toFixed(2)})`);
     await page.waitForTimeout(20_000);
   }
-  log(`daylight (phase ${phaseNow().toFixed(2)})`);
+  log(`shooting (phase ${phaseNow().toFixed(2)})`);
 
   for (const stop of stops) {
     await page.evaluate(([x, z]) => window.__VIBEAGE_VITE_E2E__?.gmTeleport(x, z), [stop.x, stop.z]);
