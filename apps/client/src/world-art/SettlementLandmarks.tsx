@@ -289,7 +289,9 @@ function HayCart({ cart, fog }: { cart: { x: number; z: number; yaw: number }; f
         <icosahedronGeometry args={[0.75, 1]} />
         <meshStandardMaterial color="#d3b25f" roughness={0.95} fog={fog} />
       </mesh>
-      <mesh position={[1.7, 0.55, 0]} rotation={[0, 0, -0.35]} castShadow>
+      {/* drawbar slopes from the bed's front edge down to rest on the
+          ground (review: the old tilt pointed it into the sky / underground) */}
+      <mesh position={[1.9, 0.35, 0]} rotation={[0, 0, -2.09]} castShadow>
         <cylinderGeometry args={[0.06, 0.06, 1.4, 6]} />
         <meshStandardMaterial color="#6d5234" roughness={0.9} fog={fog} />
       </mesh>
