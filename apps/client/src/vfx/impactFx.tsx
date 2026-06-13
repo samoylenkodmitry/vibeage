@@ -18,6 +18,10 @@ const SPARK_GEO = new THREE.SphereGeometry(1, 6, 6);
 // along +Z so a Y-rotation aims it outward along the shard's flight direction.
 const SHARD_GEO = (() => { const g = new THREE.ConeGeometry(0.4, 2.2, 4); g.translate(0, 1.1, 0); g.rotateX(Math.PI / 2); return g; })();
 const FLASH_GEO = new THREE.SphereGeometry(0.78, 18, 18);
+// Soft element-coloured bloom — bigger and slower than the white core flash, so
+// the AFTERMATH carries the element's colour (fire stays orange, ice cyan, …)
+// instead of every impact reading as the same white-hot pop at MMO range.
+const GLOW_GEO = new THREE.SphereGeometry(1.5, 18, 18);
 const PILLAR_GEO = new THREE.CylinderGeometry(0.16, 0.42, 3.4, 12, 1, true);
 const GAS_GEO = new THREE.CircleGeometry(1, 24);
 const RING_GEO = new THREE.RingGeometry(0.5, 0.7, 32);
@@ -28,7 +32,7 @@ const FLAME_GEO = (() => { const g = new THREE.ConeGeometry(0.34, 1.5, 5); g.tra
 const NOVA_FLAMES = Array.from({ length: 14 }, (_, i) => ({ a: (i / 14) * Math.PI * 2, ph: (i % 5) * 0.7 }));
 
 // Deterministic spread: azimuth by golden angle, per-particle speed/rise jitter.
-const IMPACT_DIRS = Array.from({ length: 18 }, (_, i) => ({
+const IMPACT_DIRS = Array.from({ length: 24 }, (_, i) => ({
   az: i * 2.399963,
   sj: 0.75 + (i % 4) * 0.18,
   rj: 0.85 + ((i * 7) % 5) * 0.07,
@@ -37,18 +41,25 @@ const IMPACT_DIRS = Array.from({ length: 18 }, (_, i) => ({
 type BurstConfig = {
   count: number; speed: number; rise: number; gravity: number;
   scale: number; additive: boolean; elongate: boolean; duration: number;
+  /** Element-coloured bloom: peak scale + how long it lingers (s). */
+  glowScale: number; glowDur: number;
 };
+// Punchier + bigger than before so they read as MASS at the MMO camera, and each
+// keeps its own character: fire fountains embers, ice shatters shards outward,
+// poison splatters a fat lingering glob, arcane implodes a dense spark cloud,
+// holy flares a tall column.
 const IMPACT_BURST: Record<SpellElement, BurstConfig> = {
-  fire: { count: 16, speed: 2.4, rise: 3.4, gravity: 5.5, scale: 0.17, additive: true, elongate: false, duration: 0.7 },
-  ice: { count: 14, speed: 4.2, rise: 0.7, gravity: 6.5, scale: 0.16, additive: false, elongate: true, duration: 0.6 },
-  poison: { count: 14, speed: 2.0, rise: 1.7, gravity: 4.0, scale: 0.16, additive: false, elongate: false, duration: 1.1 },
-  arcane: { count: 18, speed: 3.0, rise: 1.3, gravity: 1.6, scale: 0.14, additive: true, elongate: false, duration: 0.7 },
-  holy: { count: 12, speed: 1.6, rise: 4.2, gravity: 3.2, scale: 0.15, additive: true, elongate: false, duration: 0.8 },
+  fire: { count: 22, speed: 3.0, rise: 4.2, gravity: 5.5, scale: 0.28, additive: true, elongate: false, duration: 0.8, glowScale: 2.4, glowDur: 0.55 },
+  ice: { count: 20, speed: 5.4, rise: 0.9, gravity: 6.5, scale: 0.24, additive: false, elongate: true, duration: 0.6, glowScale: 1.7, glowDur: 0.4 },
+  poison: { count: 18, speed: 2.4, rise: 1.8, gravity: 3.6, scale: 0.30, additive: false, elongate: false, duration: 1.2, glowScale: 1.8, glowDur: 0.9 },
+  arcane: { count: 24, speed: 3.6, rise: 1.4, gravity: 1.4, scale: 0.22, additive: true, elongate: false, duration: 0.75, glowScale: 2.2, glowDur: 0.5 },
+  holy: { count: 16, speed: 1.9, rise: 4.8, gravity: 3.0, scale: 0.24, additive: true, elongate: false, duration: 0.85, glowScale: 2.6, glowDur: 0.6 },
 };
 
 export function ElementImpact({ element, core, glow, accent }: { element: SpellElement; core: string; glow: string; accent: string }) {
   const cfg = IMPACT_BURST[element];
   const flashRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
   const sparks = useRef<THREE.Group>(null);
   const extra = useRef<THREE.Mesh>(null);
   const start = useRef<number | null>(null);
@@ -57,23 +68,40 @@ export function ElementImpact({ element, core, glow, accent }: { element: SpellE
   // an aborted concurrent render can't orphan a material before its dispose runs.
   const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }), []);
   const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const glowMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
   const extraMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }), []);
   useEffect(() => {
     sparkMat.blending = cfg.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
     extraMat.blending = element === 'poison' ? THREE.NormalBlending : THREE.AdditiveBlending;
-    sparkMat.color.set(glow); flashMat.color.set(core); extraMat.color.set(element === 'poison' ? glow : accent);
-  }, [glow, core, accent, element, cfg.additive, sparkMat, flashMat, extraMat]);
+    sparkMat.color.set(glow); flashMat.color.set(core); glowMat.color.set(glow); extraMat.color.set(element === 'poison' ? glow : accent);
+  }, [glow, core, accent, element, cfg.additive, sparkMat, flashMat, glowMat, extraMat]);
   useEffect(() => () => sparkMat.dispose(), [sparkMat]);
   useEffect(() => () => flashMat.dispose(), [flashMat]);
+  useEffect(() => () => glowMat.dispose(), [glowMat]);
   useEffect(() => () => extraMat.dispose(), [extraMat]);
 
   useFrame(({ clock }) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
+    // Animation over (everything has faded to opacity 0) but the cast lingers
+    // until pruned — hide the meshes and skip the per-frame work until unmount,
+    // same as NovaImpact.
+    if (age >= cfg.duration) {
+      if (flashRef.current) flashRef.current.visible = false;
+      if (glowRef.current) glowRef.current.visible = false;
+      if (sparks.current) sparks.current.visible = false;
+      if (extra.current) extra.current.visible = false;
+      return;
+    }
     const t = Math.min(1, age / cfg.duration);
-    // Flash: a fast bright pop that shrinks + fades.
+    // White-hot core flash: a fast bright pop that shrinks + fades.
     if (flashRef.current) flashRef.current.scale.setScalar(1.1 + age * 0.6);
     flashMat.opacity = Math.max(0, (1 - t) * 0.6) * (age < 0.08 ? age / 0.08 : 1);
+    // Element-coloured bloom: blooms wider and lingers past the white flash, so
+    // the impact's AFTERMATH carries the element colour (fire orange, ice cyan…).
+    const gt = Math.min(1, age / cfg.glowDur);
+    if (glowRef.current) glowRef.current.scale.setScalar(0.5 + cfg.glowScale * (1 - (1 - gt) * (1 - gt)));
+    glowMat.opacity = Math.max(0, (1 - gt) * (1 - gt)) * 0.85 * (age < 0.05 ? age / 0.05 : 1);
     // Particle burst: ballistic fountain, each element shaped by its config.
     sparkMat.opacity = (1 - t);
     if (sparks.current) {
@@ -101,6 +129,7 @@ export function ElementImpact({ element, core, glow, accent }: { element: SpellE
   return (
     <group>
       <GroundShockwave color={glow} accent={accent} />
+      <mesh ref={glowRef} geometry={GLOW_GEO} material={glowMat} />
       <mesh ref={flashRef} geometry={FLASH_GEO} material={flashMat} />
       <group ref={sparks}>
         {IMPACT_DIRS.slice(0, cfg.count).map((d, i) => (
