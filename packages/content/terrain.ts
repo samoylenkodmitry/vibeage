@@ -353,8 +353,10 @@ function gvTerrainH(x: number, z: number): number {
     const q = ad / hw;
     const cross = Math.max(0, 1 - q * q);
     const bars = gvFbmE(x * 0.0062, dz * 0.030, 4);
-    bed = -1.7 * Math.pow(cross, 0.7) + bars * 1.9 + 0.55;
-    bed = Math.min(bed, 0.75);
+    // Deeper channel + tamer gravel bars than their wide braided river
+    // (our valley is scaled down ~2.4×, so their bars puddled the water).
+    bed = -2.6 * Math.pow(cross, 0.7) + bars * 0.7 + 0.1;
+    bed = Math.min(bed, 0.55);
   }
   if (tBed > 0.001) {
     plain = 0.9 + 5.5 * smoothstep(hw, hw + 230, ad)

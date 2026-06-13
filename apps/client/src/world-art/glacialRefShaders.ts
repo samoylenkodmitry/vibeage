@@ -153,7 +153,7 @@ vec3 litSurface(vec3 albedo, vec3 N, vec3 wp, vec3 vd, float specAmt, float roug
 // washed. This pre-grade widens the histogram (contrast around a low pivot)
 // and re-saturates so the NEUTRAL pass receives a rich, alpine image.
 vec3 valeGrade(vec3 c){
-  c = (c - 0.46) * 1.4 + 0.46;
+  c = (c - 0.46) * 1.3 + 0.46;
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(vec3(l), c, 1.32);
   return max(c, 0.0);
@@ -248,7 +248,7 @@ void main(){
 
   float peb = 1.0 - vor(uvw*17.0);
   float cracks = 1.0 - smoothstep(0.0, 0.10, vorEdge(uvw*2.6));
-  vec3 siltCol = mix(vec3(0.30, 0.255, 0.205), vec3(0.40, 0.36, 0.30), vnoise(uvw*7.0));
+  vec3 siltCol = mix(vec3(0.34, 0.33, 0.30), vec3(0.50, 0.49, 0.46), vnoise(uvw*7.0));
   siltCol = mix(siltCol, vec3(0.34, 0.31, 0.27), smoothstep(0.45, 0.85, peb)*0.45);
   siltCol *= 1.0 - cracks*0.45*smoothstep(0.35, 1.0, relH)*nearW;
 
