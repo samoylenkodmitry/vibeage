@@ -287,8 +287,8 @@ void main(){
     col += uSunColor * g * sparkM * 0.5 * 0.5;
   }
 
-  col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(valeGrade(col), smoothstep(0.02, 0.2, vMask));
+  col = applyAtmo(valeGrade(col), vWp);
+  gl_FragColor = vec4(col, smoothstep(0.02, 0.2, vMask));
 }
 `;
 
@@ -384,8 +384,8 @@ void main(){
   vec3 foamCol = vec3(0.9) * (uSunColor*0.12*sv + uSkyZenith*0.7);
   col = mix(col, foamCol, foam*0.85);
 
-  col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(valeGrade(col), clamp(depth0*3.0 + foam, 0.0, 0.97));
+  col = applyAtmo(valeGrade(col), vWp);
+  gl_FragColor = vec4(col, clamp(depth0*3.0 + foam, 0.0, 0.97));
 }
 `;
 
@@ -400,7 +400,7 @@ varying float vHue;
 void main(){
   float scale = aParam.x, yaw = aParam.y, phase = aParam.z;
   scale *= 1.0 + 0.45*uGreen;
-  scale *= 1.0 - smoothstep(110.0, 150.0, length(aOffset - cameraPosition));
+  scale *= 1.0 - smoothstep(130.0, 175.0, length(aOffset.xz - cameraPosition.xz));
   vHue = aParam.w;
   float cy = cos(yaw), sy = sin(yaw);
   vec3 lp = vec3(position.x*cy, position.y, -position.x*sy);
@@ -451,8 +451,8 @@ void main(){
   col += alb * mix(uGroundBounce, uSkyZenith*1.3, 0.75);
   float back = pow(max(dot(vd, uSunDir), 1e-4), 4.0);
   col += alb * uSunColor * back * sv * (0.5 + 0.4*vT);
-  col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(valeGrade(col), 1.0);
+  col = applyAtmo(valeGrade(col), vWp);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -530,7 +530,7 @@ void main(){
   float fres = 0.04 + 0.96*pow(max(1.0 - max(dot(dN, -vd), 0.0), 1e-4), 5.0);
   col += uSunColor * sv * ndl * specAmt * fres * pow(max(dot(dN, hv), 1e-4), pw) * (pw + 8.0)*0.04;
 
-  col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(valeGrade(col), 1.0);
+  col = applyAtmo(valeGrade(col), vWp);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
