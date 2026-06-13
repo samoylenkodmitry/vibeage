@@ -355,7 +355,7 @@ function gvTerrainH(x: number, z: number): number {
     const bars = gvFbmE(x * 0.0062, dz * 0.030, 4);
     // Deeper channel + tamer gravel bars than their wide braided river
     // (our valley is scaled down ~2.4×, so their bars puddled the water).
-    bed = -2.6 * Math.pow(cross, 0.7) + bars * 0.4 + 0.05;
+    bed = -2.6 * Math.pow(cross, 0.7) + bars * 0.15;
     bed = Math.min(bed, 0.55);
   }
   if (tBed > 0.001) {
