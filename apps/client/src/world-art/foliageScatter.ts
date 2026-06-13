@@ -8,9 +8,17 @@ import { normalizeTintLuminance } from '../WorldGround';
 // lime cones at night ("non light respecting toys"). Broadleaf crowns sit a
 // touch brighter. Both still read as healthy green by day (the strong day sun
 // lifts the lit faces) but go to proper dark silhouettes at night.
-const CONIFER_TINT_LUMINANCE = 0.3;
-const BROADLEAF_TINT_LUMINANCE = 0.42;
-const BUSH_TINT_LUMINANCE = 0.4;
+const CONIFER_TINT_LUMINANCE = 0.27;
+const BROADLEAF_TINT_LUMINANCE = 0.4;
+const BUSH_TINT_LUMINANCE = 0.38;
+// Pull canopy tints toward their own grey so SATURATED biome greens don't
+// still bloom lime at night: the bloom pass keys on luminance (heavily green-
+// weighted), so a vivid green canopy crosses the threshold even at a low
+// luminance target (the lowered targets above weren't enough in the saturated-
+// green biomes). Real conifers are a muted blue-green, not neon — this
+// desaturation is both physically truer and what kills the residual glow.
+// Luminance-preserving (lerp toward the luma grey) so it darkens nothing.
+const CANOPY_SATURATION = 0.6;
 
 /**
  * Position-stable foliage scatter. Every tree / rock / grass tuft is a
@@ -321,6 +329,15 @@ export function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
   );
 }
 
+/** Lerp a colour toward its own luminance grey (sat=1 keeps it, sat=0 greys
+ *  it out). Luminance-preserving, so it desaturates without darkening. */
+function desaturateToLuma(color: THREE.Color, sat: number): void {
+  const luma = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  color.r = luma + (color.r - luma) * sat;
+  color.g = luma + (color.g - luma) * sat;
+  color.b = luma + (color.b - luma) * sat;
+}
+
 const FOLIAGE_COLOR_CACHE = new Map<string, THREE.Color>();
 export function instanceColor(instance: FoliageInstance): THREE.Color {
   // Cache by colour AND target luminance — the same biome hex normalizes to a
@@ -329,6 +346,9 @@ export function instanceColor(instance: FoliageInstance): THREE.Color {
   let cached = FOLIAGE_COLOR_CACHE.get(key);
   if (!cached) {
     cached = new THREE.Color(instance.color);
+    // Canopies (lum set) get desaturated toward their own luma grey first, so
+    // a vivid biome green can't bloom lime at night — see CANOPY_SATURATION.
+    if (instance.lum !== undefined) desaturateToLuma(cached, CANOPY_SATURATION);
     // Same albedo rule as the terrain (see normalizeTintLuminance): the
     // instance colour MULTIPLIES the GLB's own texture, and the raw biome
     // hexes are dark — trees rendered near-BLACK in daylight once the
