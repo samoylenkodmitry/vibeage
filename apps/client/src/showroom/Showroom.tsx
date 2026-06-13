@@ -10,6 +10,7 @@ import { ToneMappingMode } from 'postprocessing';
 import { GlacialValeTerrain } from '../world-art/GlacialValeTerrain';
 import { GLACIAL_VALE } from '../../../../packages/content/terrain';
 import { ValeHD } from './ValeHD';
+import { VfxScene } from './VfxScene';
 
 const VALE_DAY_MS = 12 * 60 * 1000;
 
@@ -145,6 +146,7 @@ export function Showroom() {
   // unconditional — `?scene=vale` swaps the whole tree for the vale preview.
   const scene = new URLSearchParams(window.location.search).get('scene');
   if (scene === 'valeHD') return <ValeHDScene />;
+  if (scene === 'vfx') return <VfxScene />;
   return scene === 'vale' ? <ValeScene /> : <ModelGrid />;
 }
 
