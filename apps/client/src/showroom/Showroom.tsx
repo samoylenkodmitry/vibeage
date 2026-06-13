@@ -1,10 +1,59 @@
-import { Suspense, useMemo } from 'react';
+import { Suspense, useLayoutEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { WorldEnvironment } from '../WorldEnvironment';
 import { AnimatedCharacter } from '../AnimatedCharacter';
 import { CHARACTER_MODELS, enemyModel, type CharacterAnim, type CharacterModelId } from '../characterModels';
+import { GlacialValeTerrain } from '../world-art/GlacialValeTerrain';
+import { GLACIAL_VALE } from '../../../../packages/content/terrain';
+
+const VALE_DAY_MS = 12 * 60 * 1000;
+
+/**
+ * Glacial Vale preview — mounts the real ported vale terrain/water under the
+ * game's WorldEnvironment, no backend. A local screenshot target so world-art /
+ * shader changes can be iterated against `pnpm dev` instead of a full deploy.
+ *
+ *   /showroom.html?scene=vale&phase=0.35
+ *   &cx,cy,cz = camera pos   &tx,ty,tz = orbit target
+ *
+ * `phase` pins the sun by freezing Date.now() (the day-phase clock) so shots
+ * across edits are comparable; R3F's performance.now clock keeps animating the
+ * water/clouds. Dev-only page, not linked from the game.
+ */
+function ValeScene() {
+  const params = new URLSearchParams(window.location.search);
+  const phase = Number(params.get('phase') ?? 0.35);
+  // Pin the day-phase clock by freezing Date.now to a phase-derived timestamp,
+  // restoring the real one on unmount (effect, not a side effect in render).
+  // R3F's performance.now clock is untouched, so water/clouds keep animating.
+  useLayoutEffect(() => {
+    const real = Date.now;
+    const base = Math.floor(real() / VALE_DAY_MS) * VALE_DAY_MS + phase * VALE_DAY_MS;
+    Date.now = () => base;
+    return () => { Date.now = real; };
+  }, [phase]);
+
+  const num = (k: string, d: number) => { const v = Number(params.get(k)); return Number.isFinite(v) && params.get(k) !== null ? v : d; };
+  const focus = useMemo(() => ({ x: GLACIAL_VALE.x, y: 0, z: GLACIAL_VALE.z }), []);
+  const camPos: [number, number, number] = [num('cx', GLACIAL_VALE.x - 45), num('cy', 11), num('cz', GLACIAL_VALE.z + 45)];
+  const target: [number, number, number] = [num('tx', GLACIAL_VALE.x), num('ty', 1.5), num('tz', GLACIAL_VALE.z)];
+
+  return (
+    <Canvas
+      shadows
+      camera={{ position: camPos, fov: 55, near: 0.1, far: 4000 }}
+      onCreated={({ gl }) => gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))}
+    >
+      <WorldEnvironment focus={focus} />
+      <Suspense fallback={null}>
+        <GlacialValeTerrain />
+      </Suspense>
+      <OrbitControls target={target} enableDamping />
+    </Canvas>
+  );
+}
 
 /**
  * In-engine asset showroom — renders any registry model under the game's real
@@ -51,6 +100,13 @@ function Pedestal({ modelId, state, label }: { modelId: CharacterModelId; state:
 }
 
 export function Showroom() {
+  // Pure router (no hooks of its own) so each scene keeps its hooks
+  // unconditional — `?scene=vale` swaps the whole tree for the vale preview.
+  const scene = new URLSearchParams(window.location.search).get('scene');
+  return scene === 'vale' ? <ValeScene /> : <ModelGrid />;
+}
+
+function ModelGrid() {
   const params = new URLSearchParams(window.location.search);
   const state = (params.get('anim') as CharacterAnim) || 'idle';
   const only = params.get('only') as CharacterModelId | null;
