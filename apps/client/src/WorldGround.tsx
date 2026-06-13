@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { getTerrainBiome, sampleTerrain, glacialValeMask } from '../../../packages/content/terrain';
+import { getTerrainBiome, sampleTerrain, glacialValeMask, GLACIAL_VALE } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type Vec3D, type VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
@@ -489,6 +489,14 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
   const color = new THREE.Color();
   const accentColor = new THREE.Color();
 
+  // Chunk-level gate for the vale sink (below): glacialValeMask is non-zero only
+  // within the vale ellipse (max half-extent L), so any chunk whose CENTRE is
+  // farther than L + the chunk half-diagonal can skip the per-vertex mask call
+  // entirely — that's every chunk in the world bar the handful over the vale.
+  const valeDx = originX + size / 2 - GLACIAL_VALE.x;
+  const valeDz = originZ + size / 2 - GLACIAL_VALE.z;
+  const chunkNearVale = valeDx * valeDx + valeDz * valeDz < (GLACIAL_VALE.L + size * 0.7071) ** 2;
+
   for (let zIndex = 0; zIndex < verticesPerSide; zIndex += 1) {
     for (let xIndex = 0; xIndex < verticesPerSide; xIndex += 1) {
       const vertexIndex = zIndex * verticesPerSide + xIndex;
@@ -510,7 +518,7 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
       // (whose footprint is larger than the ellipse, so the sink fades to 0 well
       // inside the opaque region — no seam). Height functions/collision are
       // untouched; the player still stands on the vale mesh.
-      const valeMask = glacialValeMask(worldX, worldZ);
+      const valeMask = chunkNearVale ? glacialValeMask(worldX, worldZ) : 0;
       positions[base + 1] = terrain.height - VALE_BASE_SINK * valeMask;
       positions[base + 2] = worldZ;
       color.set(terrain.groundColor).lerp(accentColor.set(terrain.accentColor), heightTint(terrain.height));
