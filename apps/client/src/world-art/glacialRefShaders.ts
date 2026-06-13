@@ -348,7 +348,7 @@ void main(){
   refr *= 1.0 + ca * sv * 1.2 * exp(-depth*1.8);
 
   vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
-  float scA = 1.0 - exp(-path*0.45);
+  float scA = 1.0 - exp(-path*1.3);
   vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55;
   vec3 under = refr * trans + vec3(0.176, 0.832, 0.768) * scA * sunAmb;
 
