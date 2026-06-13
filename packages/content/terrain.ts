@@ -265,7 +265,7 @@ export const GLACIAL_VALE = {
   cos: Math.cos(0.65), sin: Math.sin(0.65), // valley axis heading
   L: 620, W: 420,                            // ellipse half-extents
 } as const;
-export const VALE_TARN_WATER_Y = 0; // their WATER_Y — the braided river line
+export const VALE_TARN_WATER_Y = 0.9; // raised so the channel + low floodplain dips flood into one connected wide river/lake (their braided bed puddled at our scale)
 
 /** 1 inside the vale, 0 outside; soft edge blends override into base relief. */
 export function glacialValeMask(x: number, z: number): number {
