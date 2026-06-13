@@ -225,10 +225,12 @@ void main(){
   vec3 aw = pow(abs(N) + 1e-4, vec3(3.0)); aw /= (aw.x + aw.y + aw.z);
   float strata = fbm(vec2(vWp.y*0.055 + fbm(vWp.xz*0.004)*6.0, (vWp.x + vWp.z)*0.002));
   float rdet = fbm(vWp.zy*0.11)*aw.x + fbm(vWp.xz*0.11)*aw.y + fbm(vWp.xy*0.11)*aw.z;
-  vec3 rockCol = mix(vec3(0.235, 0.225, 0.215), vec3(0.34, 0.325, 0.30), rdet);
-  rockCol *= 0.78 + 0.5*strata;
-  rockCol *= 1.0 - 0.35*smoothstep(0.32, 0.20, strata);
-  rockCol = mix(rockCol, vec3(0.50, 0.47, 0.43), smoothstep(0.62, 0.72, strata)*0.5);
+  // Lighter alpine granite (was ~0.22 → read near-black as exposed rock on the
+  // bright snow under the lower-sun exposure). Grey rock, not black holes.
+  vec3 rockCol = mix(vec3(0.34, 0.33, 0.31), vec3(0.47, 0.45, 0.42), rdet);
+  rockCol *= 0.86 + 0.36*strata;
+  rockCol *= 1.0 - 0.16*smoothstep(0.32, 0.20, strata);
+  rockCol = mix(rockCol, vec3(0.56, 0.53, 0.49), smoothstep(0.62, 0.72, strata)*0.5);
 
   float lich = smoothstep(0.55, 0.62, vnoise(vWp.xz*1.4 + vWp.y*0.9)) * smoothstep(0.7, 0.5, rdet);
   vec3 lichCol = mix(vec3(0.45, 0.46, 0.18), vec3(0.55, 0.33, 0.12), vnoise(vWp.xz*0.8));
