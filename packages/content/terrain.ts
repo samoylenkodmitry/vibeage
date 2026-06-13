@@ -359,10 +359,13 @@ function gvTerrainH(x: number, z: number): number {
     bed = Math.min(bed, 0.55);
   }
   if (tBed > 0.001) {
-    plain = 0.9 + 5.5 * smoothstep(hw, hw + 230, ad)
-      + 1.8 * gvFbmE(x * 0.013, z * 0.013, 4)
-      + 0.5 * gvFbmE(x * 0.10, z * 0.10, 3);
-    plain = Math.max(plain, 0.35);
+    // Lower + flatter floor than their wide braided river so it floods cleanly
+    // (their bumpy floodplain straddled the waterline → scattered puddles).
+    // The 5.5·smoothstep WALL RAMP still lifts the banks dry farther out.
+    plain = 0.0 + 5.5 * smoothstep(hw, hw + 230, ad)
+      + 0.45 * gvFbmE(x * 0.013, z * 0.013, 4)
+      + 0.12 * gvFbmE(x * 0.10, z * 0.10, 3);
+    plain = Math.max(plain, -0.6);
   }
   let h = bed * (1 - tBed) + plain * tBed;
   const tw = smoothstep(hw + 130, 1700, ad);
