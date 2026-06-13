@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import type { WorldArtScene } from './worldArtScenes';
 import { computeDayPhase } from '../timeOfDay';
 
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
 /**
  * Stylized coast water — cheap, mobile-safe, anchored to the scene's
  * waterline (NOT the player's position; we don't want water sliding
@@ -30,6 +32,8 @@ export function SimpleStylizedWater({ scene }: { scene: WorldArtScene }) {
       uShallow: { value: new THREE.Color('#74efd6') },
       uFoam: { value: new THREE.Color('#e6fff5') },
       uSky: { value: new THREE.Color('#cfeffb') },
+      uMoonDir: { value: new THREE.Vector3(0, 1, 0) }, // world dir to the moon
+      uMoonStr: { value: 0 }, // moon-glade strength: up at night, 0 by day
     }),
     [],
   );
@@ -42,7 +46,13 @@ export function SimpleStylizedWater({ scene }: { scene: WorldArtScene }) {
     // atmosphere's tint and interpolates smoothly across the whole cycle.
     if (clock.elapsedTime - lastPhaseRef.current > 0.25) {
       lastPhaseRef.current = clock.elapsedTime;
-      material.uniforms.uSky.value.set(computeDayPhase(Date.now()).fogColor);
+      const phase = computeDayPhase(Date.now());
+      material.uniforms.uSky.value.set(phase.fogColor);
+      // Moon glade: a reflection streak toward the moon, like the sun's by day.
+      // Strong only when the sun is down AND the moon is up.
+      const m = phase.moonDir;
+      material.uniforms.uMoonDir.value.set(m.x, m.y, m.z);
+      material.uniforms.uMoonStr.value = clamp01(-phase.sunDir.y * 3) * clamp01(m.y * 4);
     }
   });
   return (
@@ -115,6 +125,8 @@ const waterFragmentShader = `
   uniform vec3 uShallow;
   uniform vec3 uFoam;
   uniform vec3 uSky;
+  uniform vec3 uMoonDir;
+  uniform float uMoonStr;
 
   // Cheap hash for sparkle scatter.
   float hash(vec2 p) {
@@ -146,6 +158,17 @@ const waterFragmentShader = `
     float sparkle = hash(floor(gp));
     sparkle = step(0.985, sparkle) * (0.5 + 0.5 * sin(uTime * 6.0 + sparkle * 30.0));
     color += sparkle * (0.35 + fres * 0.4);
+
+    // Moon glade — a reflection streak toward the moon, broken up by the wave
+    // normals so it shimmers like the real thing. The half-vector specular puts
+    // it under the moon's screen position; the wave normals scatter it into a
+    // streak. Cool moonlight colour, only at night (uMoonStr).
+    if (uMoonStr > 0.001) {
+      vec3 hMoon = normalize(viewDir + uMoonDir);
+      float glade = pow(max(dot(N, hMoon), 0.0), 90.0) * 1.4
+                  + pow(max(dot(N, hMoon), 0.0), 14.0) * 0.18;
+      color += uMoonStr * glade * vec3(0.62, 0.70, 0.92);
+    }
 
     // Breathing foam band hugging the shore edge.
     float foamEdge = abs(vUv.x - 0.14) - 0.018 * sin(vUv.y * 40.0 + uTime * 1.5);
