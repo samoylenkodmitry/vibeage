@@ -98,11 +98,20 @@ function useValeBake(): Bake | null {
         setTimeout(() => {
           if (cancelled) return;
           const visE = bakeShadows(h, res, step, new THREE.Vector3(-0.8, 0.42, -0.2).normalize());
-          const data = new Float32Array(res * res * 4);
+          // HALF-float, not float: the water/sunVis shaders sample this with
+          // LINEAR filtering, and 32-bit-float linear filtering needs
+          // OES_texture_float_linear (absent on many GPUs) → garbage samples,
+          // which is why the river read as fixed garbage puddles regardless of
+          // the terrain. RGBA16F linear filtering is core WebGL2; heights
+          // (≤~250) sit well inside half-float range/precision.
+          const data = new Uint16Array(res * res * 4);
           for (let i = 0; i < res * res; i += 1) {
-            data[i * 4] = h[i]; data[i * 4 + 1] = visM[i]; data[i * 4 + 2] = visE[i]; data[i * 4 + 3] = 1;
+            data[i * 4] = THREE.DataUtils.toHalfFloat(h[i]);
+            data[i * 4 + 1] = THREE.DataUtils.toHalfFloat(visM[i]);
+            data[i * 4 + 2] = THREE.DataUtils.toHalfFloat(visE[i]);
+            data[i * 4 + 3] = THREE.DataUtils.toHalfFloat(1);
           }
-          const tex = new THREE.DataTexture(data, res, res, THREE.RGBAFormat, THREE.FloatType);
+          const tex = new THREE.DataTexture(data, res, res, THREE.RGBAFormat, THREE.HalfFloatType);
           tex.magFilter = THREE.LinearFilter;
           tex.minFilter = THREE.LinearFilter;
           tex.wrapS = THREE.ClampToEdgeWrapping;
