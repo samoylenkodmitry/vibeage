@@ -5456,7 +5456,9 @@ button.character-option {
   flex-direction: column;
   gap: 10px;
   width: min(320px, calc(100vw - 24px));
-  max-height: calc(100vh - 80px);
+  /* clamp (not bare calc) so a short/landscape viewport keeps a usable floor
+     instead of collapsing the scroll area to a sliver. */
+  max-height: clamp(220px, calc(100vh - 80px), 720px);
   overflow-y: auto;
 }
 .gfx-row { display: flex; flex-direction: column; gap: 4px; }
@@ -5505,6 +5507,6 @@ button.character-option {
 @media (max-width: 560px) {
   /* Phones: span the width, hug the top, scroll — the segmented buttons stay
      comfortably tappable. */
-  .gfx-panel { top: 52px; left: 8px; right: 8px; width: auto; max-height: calc(100vh - 64px); }
+  .gfx-panel { top: 52px; left: 8px; right: 8px; width: auto; max-height: clamp(200px, calc(100vh - 64px), 100vh); }
   .gfx-seg__btn { padding: 9px 4px; }
 }
