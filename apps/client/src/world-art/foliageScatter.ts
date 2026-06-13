@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sampleTerrain, TOWN_PLATEAUS, type TerrainBiome } from '../../../../packages/content/terrain';
+import { sampleTerrain, inValeMeshFootprint, TOWN_PLATEAUS, type TerrainBiome } from '../../../../packages/content/terrain';
 import { distanceBeyondNearestLane, distanceBeyondNearestRiver } from '../../../../packages/content/worldFeatures';
 import { normalizeTintLuminance } from '../WorldGround';
 
@@ -143,6 +143,11 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
       const random = seededRandom(cellX, cellZ);
       const x = (cellX + random()) * cell;
       const z = (cellZ + random()) * cell;
+      // The glacial vale has its own dressing and a displaced mesh; global
+      // foliage (grass tufts/reeds/flowers/trees) placed here roots at the base
+      // height and floats over the vale → skip the whole mesh footprint (a
+      // square, larger than the vale mask ellipse — same gap the shader grass hit).
+      if (inValeMeshFootprint(x, z)) continue;
       const sample = sampleTerrain(x, z);
       const coniferShare = getConiferShare(sample.biome);
 

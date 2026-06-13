@@ -147,6 +147,17 @@ const VERT = /* glsl */`
     // Copy of this blade's cell nearest the player → world-fixed (never depends
     // on the camera) + tiles to fill the field.
     vec2 world = aOffset + uPatch * floor((uPlayer - aOffset)/uPatch + 0.5);
+
+    // The glacial vale has its OWN grass + a displaced mesh, and this terrainH
+    // has no vale mirror — so a global blade here roots at the base height and
+    // flies above the carved-down lake. Hard-cull every blade inside the vale's
+    // square mesh footprint (matches inValeMeshFootprint in terrain.ts: centre
+    // (-2650,-2350), axis 0.65 rad, half-extent 665). Density-map culling alone
+    // wasn't reliable at this boundary.
+    vec2 vrel = world - vec2(-2650.0, -2350.0);
+    vec2 vuv = vec2(vrel.x*0.79608 + vrel.y*0.60519, -vrel.x*0.60519 + vrel.y*0.79608);
+    if (abs(vuv.x) < 665.0 && abs(vuv.y) < 665.0) { vColor = vec3(0.0); vViewZ = 0.0; gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
+
     float dist = length(world - uPlayer);
 
     // One smooth dithered falloff (dense to ~0.30·patch, gone by ~0.47·patch),

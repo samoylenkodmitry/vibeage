@@ -185,7 +185,9 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
 // ellipse — or blades render over the mesh corners while rooting at the base
 // height (the grass GLSL terrainH has no vale mirror) and appear to fly.
 const VALE_MESH_HALF = 665;
-function inValeMeshFootprint(x: number, z: number): boolean {
+// MIRRORED in GLSL in apps/client/src/WorldShaderGrass.tsx (vertex shader) —
+// keep the centre/axis/half-extent in sync with this function.
+export function inValeMeshFootprint(x: number, z: number): boolean {
   const dx = x - GLACIAL_VALE.x;
   const dz = z - GLACIAL_VALE.z;
   const u = dx * GLACIAL_VALE.cos + dz * GLACIAL_VALE.sin;
