@@ -342,7 +342,10 @@ void main(){
   vec3 rdir = refract(vd, vec3(0.0, 1.0, 0.0), 0.752);
   float depth = max(uWaterY - groundH(p + N.xz*depth0*1.5), 0.02);
   float path = depth / max(0.30, -rdir.y);
-  vec3 bedAlb = mix(vec3(0.30, 0.255, 0.205), vec3(0.40, 0.36, 0.30), vnoise((p + N.xz*depth*2.0)*7.0));
+  // The SUBMERGED bed is pale rock-flour silt (cool blue-white), NOT the warm
+  // tan of the dry beach: deedy's tRefr captures that bright pale bed directly,
+  // and it's what makes the shallow shore read milky pale-BLUE, not grey.
+  vec3 bedAlb = mix(vec3(0.54, 0.62, 0.66), vec3(0.70, 0.78, 0.80), vnoise((p + N.xz*depth*2.0)*7.0));
   vec3 refr = bedAlb * (uSunColor*0.55*sv + uSkyZenith*1.1);
 
   vec2 cuv = (p + N.xz*depth*2.0)*1.05;
@@ -358,7 +361,9 @@ void main(){
   vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
   float scA = 1.0 - exp(-path*0.30);
   vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55;
-  vec3 under = refr * trans + vec3(0.07, 0.38, 0.36) * scA * sunAmb;
+  // scatter ×2.4: deedy's value is calibrated for ACES + adaptive exposure; under
+  // our NEUTRAL tonemap the deep turquoise reads dim, so lift it to match.
+  vec3 under = refr * trans + vec3(0.07, 0.38, 0.36) * scA * sunAmb * 2.4;
 
   vec3 rd = reflect(vd, N);
   rd.y = max(rd.y, 0.02);
