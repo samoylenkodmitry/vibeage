@@ -16,6 +16,8 @@ import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { LakeWaters } from './world-art/LakeWaters';
 import { GlacialValeDressing } from './world-art/GlacialValeDressing';
+import { VALE_HD } from './world-art/GlacialValeTerrain';
+import { GLACIAL_VALE } from '../../../packages/content/terrain';
 import { WebGLGate, RendererContextLossGuard, RendererContextLostOverlay } from './world-art/webglSupport';
 import { pickActiveScene, STARTER_COZY_COAST } from './world-art/worldArtScenes';
 import {
@@ -95,6 +97,25 @@ function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof choos
   gl.domElement.addEventListener('webglcontextlost', (event) => event.preventDefault());
 }
 
+/**
+ * True when the camera is inside the vale (where the HD vale mounts — not on
+ * low/phones), so ScenePostFX resolves with ACES (deedy's renderer). Hysteresis
+ * band (enter <1400, leave >1750) so a player lingering at the boundary can't
+ * thrash the composer rebuild the ACES↔NEUTRAL swap triggers. WorldScene
+ * re-renders every tick, so the ref's flips propagate on the next render.
+ */
+function useValeHD(focus: { x: number; z: number }, quality: ReturnType<typeof chooseWorldArtQuality>): boolean {
+  const ref = useRef(false);
+  if (!VALE_HD || quality === 'low') {
+    ref.current = false;
+  } else {
+    const d = Math.hypot(focus.x - GLACIAL_VALE.x, focus.z - GLACIAL_VALE.z);
+    if (d < 1400) ref.current = true;
+    else if (d > 1750) ref.current = false;
+  }
+  return ref.current;
+}
+
 export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
@@ -102,9 +123,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const activeTimeFields = state.activePhysicsFields;
   const now = Date.now();
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  // WorldEnvironment owns sky/sun/moon/clouds/day-night; the cozy scene only adds anchored geometry on top — never atmosphere.
   const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
   const [contextLost, setContextLost] = useState(false); // GPU dropped the render context → overlay below
+  const valeHD = useValeHD(focus, worldArtQuality);
 
   // Sun disc handed up by WorldEnvironment → anchors GodRays in ScenePostFX.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
@@ -189,7 +210,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         cameraControlsRef={cameraControlsRef}
         touchClaimRef={touchClaimRef}
       />
-      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} />
+      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} />
     </Canvas>
     {contextLost && <RendererContextLostOverlay />}
     </WebGLGate>

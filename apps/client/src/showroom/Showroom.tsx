@@ -1,14 +1,47 @@
-import { Suspense, useLayoutEffect, useMemo } from 'react';
+import { Suspense, useLayoutEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { WorldEnvironment } from '../WorldEnvironment';
 import { AnimatedCharacter } from '../AnimatedCharacter';
 import { CHARACTER_MODELS, enemyModel, type CharacterAnim, type CharacterModelId } from '../characterModels';
+import { EffectComposer, ToneMapping } from '@react-three/postprocessing';
+import { ToneMappingMode } from 'postprocessing';
 import { GlacialValeTerrain } from '../world-art/GlacialValeTerrain';
 import { GLACIAL_VALE } from '../../../../packages/content/terrain';
+import { ValeHD } from './ValeHD';
 
 const VALE_DAY_MS = 12 * 60 * 1000;
+
+/**
+ * PROTOTYPE (/showroom.html?scene=valeHD) — deedy's renderer (refraction +
+ * exposure/ACES post) in our engine, our low camera, with a live FPS overlay.
+ * Local feasibility/perf spike; NoToneMapping (the post does the tonemap).
+ */
+function ValeHDScene() {
+  const params = new URLSearchParams(window.location.search);
+  const num = (k: string, d: number) => { const v = Number(params.get(k)); return params.get(k) !== null && Number.isFinite(v) ? v : d; };
+  const camPos: [number, number, number] = [num('cx', GLACIAL_VALE.x - 45), num('cy', 6), num('cz', GLACIAL_VALE.z + 45)];
+  const target: [number, number, number] = [num('tx', GLACIAL_VALE.x), num('ty', 2), num('tz', GLACIAL_VALE.z)];
+  const [fps, setFps] = useState(0);
+  return (
+    <>
+      <Canvas
+        gl={{ antialias: true, toneMapping: THREE.NoToneMapping, outputColorSpace: THREE.LinearSRGBColorSpace }}
+        camera={{ position: camPos, fov: 55, near: 0.1, far: 4000 }}
+        onCreated={({ gl }) => { gl.setClearColor(new THREE.Color(0.5, 0.55, 0.72)); gl.setPixelRatio(Math.min(window.devicePixelRatio, 2)); }}
+      >
+        <Suspense fallback={null}>
+          <ValeHD onFps={setFps} />
+        </Suspense>
+        <OrbitControls target={target} enableDamping />
+      </Canvas>
+      <div style={{ position: 'fixed', top: 8, left: 8, font: '600 14px ui-monospace,monospace', color: '#dff', background: 'rgba(0,0,0,0.55)', padding: '4px 9px', borderRadius: 6, pointerEvents: 'none' }}>
+        {fps ? `${fps.toFixed(0)} fps` : 'baking…'}
+      </div>
+    </>
+  );
+}
 
 /**
  * Glacial Vale preview — mounts the real ported vale terrain/water under the
@@ -51,6 +84,12 @@ function ValeScene() {
         <GlacialValeTerrain />
       </Suspense>
       <OrbitControls target={target} enableDamping />
+      {/* Faithful to the game: ScenePostFX resolves the vale with a fullscreen
+          ACES tonemap pass (ShaderMaterials ignore the renderer's gl.toneMapping,
+          so the vale ONLY tonemaps through a composer pass like this one). */}
+      <EffectComposer enableNormalPass={false} multisampling={0}>
+        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      </EffectComposer>
     </Canvas>
   );
 }
@@ -103,6 +142,7 @@ export function Showroom() {
   // Pure router (no hooks of its own) so each scene keeps its hooks
   // unconditional — `?scene=vale` swaps the whole tree for the vale preview.
   const scene = new URLSearchParams(window.location.search).get('scene');
+  if (scene === 'valeHD') return <ValeHDScene />;
   return scene === 'vale' ? <ValeScene /> : <ModelGrid />;
 }
 

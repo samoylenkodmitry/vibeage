@@ -179,13 +179,28 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
  * build the grass-density map so blades thin out / clear over low-grass biomes
  * (sand, scorched, dirt) instead of rendering patchily over their brown ground.
  */
+// Vale mesh half-extent (GlacialValeTerrain GRID_HALF) + a small margin: the
+// displaced vale mesh is a square this wide, LARGER than the mask ellipse, so
+// global grass must be zeroed across the whole mesh footprint — not just the
+// ellipse — or blades render over the mesh corners while rooting at the base
+// height (the grass GLSL terrainH has no vale mirror) and appear to fly.
+const VALE_MESH_HALF = 665;
+function inValeMeshFootprint(x: number, z: number): boolean {
+  const dx = x - GLACIAL_VALE.x;
+  const dz = z - GLACIAL_VALE.z;
+  const u = dx * GLACIAL_VALE.cos + dz * GLACIAL_VALE.sin;
+  const v = -dx * GLACIAL_VALE.sin + dz * GLACIAL_VALE.cos;
+  return Math.abs(u) < VALE_MESH_HALF && Math.abs(v) < VALE_MESH_HALF;
+}
+
 export function sampleGrassDensity(x: number, z: number): number {
   let grass = 0;
   for (const [b, w] of biomeWeights(x, z)) grass += TERRAIN_BIOME_VISUALS[b].grassDensity * w;
-  // HARD zero inside any vale influence: blades never render there, so the
-  // grass shader's GLSL terrainH carries NO vale mirror (the ref-ported
-  // fbm/ridged math is JS-only; see GlacialValeTerrain).
-  return glacialValeMask(x, z) > 0.001 ? 0 : grass;
+  // HARD zero anywhere the vale mesh sits (its full square footprint, not just
+  // the mask ellipse): blades never render there, so the grass shader's GLSL
+  // terrainH carries NO vale mirror (the ref-ported fbm/ridged math is JS-only;
+  // see GlacialValeTerrain).
+  return glacialValeMask(x, z) > 0.001 || inValeMeshFootprint(x, z) ? 0 : grass;
 }
 
 function hexRgb(hex: string): { r: number; g: number; b: number } {
