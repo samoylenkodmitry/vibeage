@@ -39,7 +39,7 @@ import type { WorldArtQuality } from './world-art/quality';
 // fresh children each time → it leaked ~100 viewport render targets/sec until
 // VRAM filled and the GPU context died. Props (quality, sunMesh) are stable, so
 // memo pins the render → children identity holds → the composer builds once.
-export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD = false }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null; valeHD?: boolean }) {
+export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD = false, bloom = true, godRays = true, antialias = true }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null; valeHD?: boolean; bloom?: boolean; godRays?: boolean; antialias?: boolean }) {
   // Local dev only: near the glacial vale, resolve with ACES (deedy's renderer)
   // instead of the global NEUTRAL tonemap. Toggles rarely (entering/leaving the
   // vale), so the composer rebuild it triggers is acceptable.
@@ -78,7 +78,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
             intrinsic lighting now, so low needs no adaptation at all.
             FXAA runs AFTER tone mapping — it expects LDR input. */}
         <ToneMapping mode={tmMode} />
-        <FXAA />
+        {antialias ? <FXAA /> : null}
       </EffectComposer>
     );
   }
@@ -94,14 +94,14 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
   // SMAA uses the stencil to mask its blend-weight pass to edge pixels (perf).
   return (
     <EffectComposer enableNormalPass={false} multisampling={0}>
-      <SMAA />
+      {antialias ? <SMAA /> : null}
       {/* Crysis-style crepuscular shafts radiating from the sun disc. The mesh
           arrives via state one frame after WorldEnvironment mounts (the effect
           needs the real mesh at construction), so the composer rebuilds once.
           Subtle weight/exposure: shafts read through trees and over ridges at
           low sun without washing out midday. Below the horizon the disc is
           fully occluded → the rays vanish on their own at night. */}
-      {sunMesh && (
+      {godRays && sunMesh && (
         <GodRays
           sun={sunMesh}
           samples={high ? 44 : 26}
@@ -113,12 +113,14 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
           blur
         />
       )}
-      <Bloom
-        intensity={high ? 0.62 : 0.42}
-        luminanceThreshold={0.62}
-        luminanceSmoothing={0.16}
-        mipmapBlur
-      />
+      {bloom ? (
+        <Bloom
+          intensity={high ? 0.62 : 0.42}
+          luminanceThreshold={0.62}
+          luminanceSmoothing={0.16}
+          mipmapBlur
+        />
+      ) : null}
       {/* FIXED tone map on every tier now. The adaptive operator's half-float
           luminance chain is fragile: it rendered phones near-black (#874) and
           blew DESKTOP to a pure-white world under GPU pressure (NaN-class
@@ -127,11 +129,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
       <ToneMapping mode={tmMode} />
       <HueSaturation hue={0} saturation={high ? 0.12 : 0.09} />
       <BrightnessContrast brightness={0.0} contrast={high ? 0.08 : 0.06} />
-      {high ? (
-        <Vignette offset={0.55} darkness={0.26} eskil={false} />
-      ) : (
-        <></>
-      )}
+      {high ? <Vignette offset={0.55} darkness={0.26} eskil={false} /> : null}
     </EffectComposer>
   );
 });
