@@ -534,14 +534,16 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
   return geometry;
 }
 
-/** Scale a colour so its (linear) luminance ≈ TARGET_TINT_LUMINANCE while
- *  keeping its hue — vertex colours must TINT the ground texture, not
- *  darken it (see createTerrainGeometry). Clamped so saturated hues can't
- *  blow out a single channel. */
-const TARGET_TINT_LUMINANCE = 0.62;
-export function normalizeTintLuminance(color: THREE.Color): void {
+/** Scale a colour so its (linear) luminance ≈ `target` (default
+ *  TARGET_TINT_LUMINANCE) while keeping its hue — vertex colours must TINT the
+ *  ground texture, not darken it (see createTerrainGeometry). Clamped so
+ *  saturated hues can't blow out a single channel. Foliage passes a LOWER
+ *  target for tree canopies (real conifers are deep green, and a 0.62 albedo
+ *  bloomed lime under the bright night keyframe — the "glowing toy" look). */
+export const TARGET_TINT_LUMINANCE = 0.62;
+export function normalizeTintLuminance(color: THREE.Color, target: number = TARGET_TINT_LUMINANCE): void {
   const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-  const scale = TARGET_TINT_LUMINANCE / Math.max(luminance, 0.04);
+  const scale = target / Math.max(luminance, 0.04);
   color.r = Math.min(1, color.r * scale);
   color.g = Math.min(1, color.g * scale);
   color.b = Math.min(1, color.b * scale);

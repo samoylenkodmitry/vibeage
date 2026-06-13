@@ -3,6 +3,15 @@ import { sampleTerrain, inValeMeshFootprint, TOWN_PLATEAUS, type TerrainBiome } 
 import { distanceBeyondNearestLane, distanceBeyondNearestRiver } from '../../../../packages/content/worldFeatures';
 import { normalizeTintLuminance } from '../WorldGround';
 
+// Canopy albedo targets, below the 0.62 ground tint. Conifers (spruce/pine)
+// are the darkest foliage in nature; a 0.62 tint made them bloom into glowing
+// lime cones at night ("non light respecting toys"). Broadleaf crowns sit a
+// touch brighter. Both still read as healthy green by day (the strong day sun
+// lifts the lit faces) but go to proper dark silhouettes at night.
+const CONIFER_TINT_LUMINANCE = 0.3;
+const BROADLEAF_TINT_LUMINANCE = 0.42;
+const BUSH_TINT_LUMINANCE = 0.4;
+
 /**
  * Position-stable foliage scatter. Every tree / rock / grass tuft is a
  * pure function of its own world cell — `seededRandom(absCellX, absCellZ)`
@@ -21,6 +30,11 @@ export type FoliageInstance = {
   scale: number;
   rotation: number;
   color: string;
+  /** Target luminance for the albedo tint (see instanceColor). Trees/bushes
+   *  set this BELOW the 0.62 ground default so canopies read as deep foliage
+   *  instead of glowing lime under the bright night keyframe. Undefined = the
+   *  ground default (raw scatter like flowers/grass keep their authored value). */
+  lum?: number;
 };
 
 export const FOLIAGE_CELL_SIZE = 32; // world metres per scatter cell
@@ -161,6 +175,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
           scale: isConifer ? 0.72 + random() * 0.95 : 0.65 + random() * 1.1,
           rotation: random() * Math.PI * 2,
           color: jitterFoliageColor(isConifer ? darkenForConifer(sample.foliageColor) : sample.foliageColor, random),
+          lum: isConifer ? CONIFER_TINT_LUMINANCE : BROADLEAF_TINT_LUMINANCE,
         };
         if (height < DRY_MIN_Y || insideSettlement(tx, tz) || distanceBeyondNearestLane(tx, tz) < 1.5) return; // lakebed/town/road
         (isConifer ? conifers : trees).push(inst);
@@ -185,6 +200,7 @@ export function scatterChunkFoliage(originX: number, originZ: number, size: numb
             x: ux, y: uy, z: uz,
             scale: 1.5 + random() * 1.6, rotation: random() * Math.PI * 2,
             color: jitterFoliageColor(darkenForConifer(sample.foliageColor), random),
+            lum: BUSH_TINT_LUMINANCE,
           };
           if (uy < DRY_MIN_Y || insideSettlement(ux, uz) || distanceBeyondNearestLane(ux, uz) < 1.5) continue;
           bushes.push(inst);
@@ -307,15 +323,19 @@ export function instanceMatrix(instance: FoliageInstance): THREE.Matrix4 {
 
 const FOLIAGE_COLOR_CACHE = new Map<string, THREE.Color>();
 export function instanceColor(instance: FoliageInstance): THREE.Color {
-  let cached = FOLIAGE_COLOR_CACHE.get(instance.color);
+  // Cache by colour AND target luminance — the same biome hex normalizes to a
+  // different albedo for a conifer (0.30) vs a broadleaf crown (0.42).
+  const key = instance.lum === undefined ? instance.color : `${instance.color}|${instance.lum}`;
+  let cached = FOLIAGE_COLOR_CACHE.get(key);
   if (!cached) {
     cached = new THREE.Color(instance.color);
     // Same albedo rule as the terrain (see normalizeTintLuminance): the
     // instance colour MULTIPLIES the GLB's own texture, and the raw biome
     // hexes are dark — trees rendered near-BLACK in daylight once the
     // adaptive exposure stopped masking it. Tint the hue, not the brightness.
-    normalizeTintLuminance(cached);
-    FOLIAGE_COLOR_CACHE.set(instance.color, cached);
+    // Trees/bushes pass a lower target so canopies don't bloom lime at night.
+    normalizeTintLuminance(cached, instance.lum);
+    FOLIAGE_COLOR_CACHE.set(key, cached);
   }
   return cached;
 }
