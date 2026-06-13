@@ -381,7 +381,6 @@ function gvTerrainH(x: number, z: number): number {
   }
   return h;
 }
-export const VALE_RIVER_WATER_Y = 0; // their WATER_Y, in vale-local height
 
 // Their valley spans ±1.7 km of wall ramp; our vale ellipse is ±620×420 m.
 // Evaluate their function on a stretched domain (sXZ) and rescale heights
