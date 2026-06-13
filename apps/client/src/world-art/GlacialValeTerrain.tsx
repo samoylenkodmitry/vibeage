@@ -1,15 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useFBO } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLACIAL_VALE, VALE_TARN_WATER_Y, getTerrainHeight } from '../../../../packages/content/terrain';
 import { computeDayPhase } from '../timeOfDay';
 import { seededRandom } from './foliageScatter';
 import {
   REF_TERRAIN_VERT, REF_TERRAIN_FRAG,
-  REF_WATER_VERT, REF_WATER_FRAG,
+  REF_WATER_VERT, REF_WATER_FRAG, REF_WATER_FRAG_HD,
   REF_GRASS_VERT, REF_GRASS_FRAG,
   REF_ROCK_VERT, REF_ROCK_FRAG,
 } from './glacialRefShaders';
+
+/**
+ * VALE_HD: render the vale with deedy/glacial-valley's actual renderer — a
+ * screen-space refraction pass for the water (samples the lit bed → milky
+ * turquoise) under his HDR palette driven by our day phase, resolved by an ACES
+ * post (ScenePostFX swaps NEUTRAL→ACES near the vale). The refraction renders
+ * the vale (a half-res pass via a camera layer, water excluded), so the cost is
+ * a second pass over just the vale geometry. Only runs where the vale mounts
+ * (worldArtQuality !== 'low'), i.e. never on phones. (A per-user graphics
+ * setting to toggle it is the planned follow-up.)
+ */
+export const VALE_HD = true;
+const VALE_BED_LAYER = 11; // ground + rocks render here too, for the refraction pass
 
 /**
  * The Glacial Vale, running deedy/glacial-valley's actual pipeline (the
@@ -24,14 +38,14 @@ import {
  * rescaled for the NEUTRAL tonemap (theirs assumed ACES at 10.5).
  */
 const GRID_RES = 768;            // bake resolution over the vale (≈1.7 m/texel)
-const GRID_HALF = 660;
+export const GRID_HALF = 660;
 const MESH_SEG = 360;            // mesh density (≈3.7 m; per-pixel shading on top)
 const GRASS_COUNT = 120_000;     // dense bank carpet (their 85k was a r=95 disc)
-const PEBBLE_COUNT = 6_000;
-const BOULDER_COUNT = 64;
-const WATER_Y = VALE_TARN_WATER_Y; // 0 — their WATER_Y
+export const PEBBLE_COUNT = 6_000;
+export const BOULDER_COUNT = 64;
+export const WATER_Y = VALE_TARN_WATER_Y; // 0 — their WATER_Y
 
-type Bake = { tex: THREE.DataTexture; grid: Float32Array };
+export type Bake = { tex: THREE.DataTexture; grid: Float32Array };
 
 /** Their bakeShadows, verbatim (sun-visibility ray-march over the grid). */
 function bakeShadows(h: Float32Array, res: number, step: number, sunDir: THREE.Vector3): Float32Array {
@@ -70,7 +84,7 @@ function bakeShadows(h: Float32Array, res: number, step: number, sunDir: THREE.V
 }
 
 /** Async (row-chunked) bake of the height grid + two shadow maps. */
-function useValeBake(): Bake | null {
+export function useValeBake(): Bake | null {
   const [bake, setBake] = useState<Bake | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -131,7 +145,7 @@ function useValeBake(): Bake | null {
   return bake;
 }
 
-function refUniforms(tex: THREE.DataTexture) {
+export function refUniforms(tex: THREE.DataTexture) {
   return {
     uTime: { value: 0 },
     uSunDir: { value: new THREE.Vector3(0, 1, 0) },
@@ -145,6 +159,7 @@ function refUniforms(tex: THREE.DataTexture) {
     uWaterY: { value: WATER_Y },
     uWindDir: { value: new THREE.Vector2(0.83, 0.55) },
     uVisW: { value: new THREE.Vector2(1, 0) },
+    uGrade: { value: 1 }, // 1 = NEUTRAL valeGrade; HD path sets 0 (raw linear → ACES post)
     uGreen: { value: 0.45 },
     uAutumn: { value: 0.35 },
   };
@@ -152,8 +167,20 @@ function refUniforms(tex: THREE.DataTexture) {
 
 type RefUniforms = ReturnType<typeof refUniforms>;
 
-/** Drives their palette uniforms from OUR day phase (their line-968 uVisW). */
-function useRefUniformDriver(sets: RefUniforms[]) {
+/** One-time static HD uniforms; the day-phase palette is driven each tick. */
+function applyHDPalette(u: RefUniforms) {
+  u.uGrade.value = 0; // raw linear HDR out; the ACES post grades it
+  u.uGreen.value = 0.55;
+  u.uAutumn.value = 0.0;
+}
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+/** Drives their palette uniforms from OUR day phase (their line-968 uVisW).
+ *  HD path: deedy's HDR magnitudes (sun ~×10) driven by the day phase so the
+ *  vale follows the cycle — warm at sunrise/sunset, bright at noon, dark at
+ *  night — and the ACES post resolves it. Non-HD: the lower NEUTRAL palette. */
+function useRefUniformDriver(sets: RefUniforms[], hd = false) {
   const lastRef = useRef(0);
   useFrame((_, dt) => {
     for (const u of sets) u.uTime.value += dt;
@@ -162,9 +189,26 @@ function useRefUniformDriver(sets: RefUniforms[]) {
     lastRef.current = now;
     const phase = computeDayPhase(Date.now());
     const s = phase.sunDir;
-    const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
     const lowSun = 1 - clamp01((s.y - 0.45) / 0.3);
     const east = s.x > 0 ? 1 : 0;
+    if (hd) {
+      const elN = clamp01(s.y);                        // 0 horizon .. 1 zenith
+      const day = clamp01((s.y + 0.06) / 0.12);        // 0 deep night .. 1 sun up
+      const warm = clamp01(1.0 - elN * 2.2);           // warm low, white high
+      const sunG = 0.95 - warm * 0.43;
+      const sunB = 0.85 - warm * 0.58;
+      const mag = 10.5 * day * (0.45 + 0.55 * elN);
+      for (const u of sets) {
+        u.uSunDir.value.set(s.x, Math.max(s.y, 0.02), s.z).normalize();
+        u.uSunColor.value.set(1.0, sunG, sunB).multiplyScalar(mag);
+        u.uSkyZenith.value.set(0.21, 0.36, 0.65).multiplyScalar(0.10 + 0.90 * day);
+        u.uHorizonCold.value.set(0.46, 0.55, 0.72).multiplyScalar(0.12 + 0.88 * day);
+        u.uHorizonWarm.value.set(1.16, 0.55, 0.22).multiplyScalar(0.20 + 0.80 * day);
+        u.uGroundBounce.value.set(0.10, 0.085, 0.07).multiplyScalar(0.10 + 0.90 * day);
+        u.uVisW.value.set(lowSun * east, lowSun * (1 - east));
+      }
+      return;
+    }
     const dayGate = clamp01((s.y + 0.05) / 0.15);
     const warm = 1 - clamp01((s.y - 0.12) / 0.3) * 0.55;
     for (const u of sets) {
@@ -177,7 +221,7 @@ function useRefUniformDriver(sets: RefUniforms[]) {
   });
 }
 
-function buildMeshGeometry(grid: Float32Array): THREE.BufferGeometry {
+export function buildMeshGeometry(grid: Float32Array): THREE.BufferGeometry {
   const res = GRID_RES;
   const step = (2 * GRID_HALF) / (res - 1);
   const geometry = new THREE.PlaneGeometry(GRID_HALF * 2, GRID_HALF * 2, MESH_SEG, MESH_SEG);
@@ -254,7 +298,7 @@ function valeValueNoise(x: number, z: number): number {
  * low-slope valley floor/banks above the waterline, gated by a coherent noise
  * for dry patches (their exact placement rules). y = h-0.01 (rooted).
  */
-function buildGrassGeometry(grid: Float32Array): THREE.InstancedBufferGeometry {
+export function buildGrassGeometry(grid: Float32Array): THREE.InstancedBufferGeometry {
   const blade = makeBladeGeometry();
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.index = blade.index;
@@ -302,7 +346,7 @@ function buildGrassGeometry(grid: Float32Array): THREE.InstancedBufferGeometry {
 }
 
 /** Their pebbles (icosa 1) on the shore band / boulders (icosa 3) anywhere. */
-function buildRocks(grid: Float32Array, count: number, big: boolean): THREE.InstancedBufferGeometry {
+export function buildRocks(grid: Float32Array, count: number, big: boolean): THREE.InstancedBufferGeometry {
   const base = new THREE.IcosahedronGeometry(1, big ? 3 : 1);
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.index = base.index;
@@ -356,10 +400,51 @@ type BuiltVale = {
   uniforms: RefUniforms[];
 };
 
+/**
+ * HD refraction pass (local dev only). Each frame, before the EffectComposer
+ * renders, draw ONLY the vale bed (ground + rocks; the grass + everything else
+ * is excluded by layer) to a half-res target and feed it to the water as tRefr
+ * — deedy's screen-space refraction of the lit riverbed.
+ */
+const HD_REFR_CLEAR = new THREE.Color(0.5, 0.55, 0.72); // sky-ish: what grazing water refracts above the terrain
+function ValeRefraction({ waterMat }: { waterMat: THREE.ShaderMaterial }) {
+  const { gl, scene, camera, size } = useThree();
+  // Half-res: the water blurs the refraction, so half the pixels is plenty and ~4x cheaper.
+  const refrRT = useFBO(Math.max(2, size.width >> 1), Math.max(2, size.height >> 1), { type: THREE.HalfFloatType });
+  const clearSave = useMemo(() => new THREE.Color(), []);
+  useFrame(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const savedMask = cam.layers.mask;
+    const savedTarget = gl.getRenderTarget();
+    const savedAuto = gl.shadowMap.autoUpdate;
+    const savedAlpha = gl.getClearAlpha();
+    gl.getClearColor(clearSave);
+    cam.layers.set(VALE_BED_LAYER); // render the whole vale (ground+grass+rocks); water is excluded
+    gl.shadowMap.autoUpdate = false;
+    gl.setRenderTarget(refrRT);
+    gl.setClearColor(HD_REFR_CLEAR, 1);
+    gl.clear(true, true, false);
+    gl.render(scene, cam);
+    // restore
+    gl.setRenderTarget(savedTarget);
+    gl.setClearColor(clearSave, savedAlpha);
+    gl.shadowMap.autoUpdate = savedAuto;
+    cam.layers.mask = savedMask;
+    const wu = waterMat.uniforms as { tRefr: { value: THREE.Texture | null }; uResolution: { value: THREE.Vector2 } };
+    wu.tRefr.value = refrRT.texture;
+    wu.uResolution.value.set(gl.domElement.width, gl.domElement.height);
+  }, 0); // priority 0 → runs before the EffectComposer's render (priority 1)
+  return null;
+}
+
 function ValeMeshes({ bake }: { bake: Bake }) {
   const builtRef = useRef<BuiltVale | null>(null);
   if (!builtRef.current) {
     const uniforms = [refUniforms(bake.tex), refUniforms(bake.tex), refUniforms(bake.tex), refUniforms(bake.tex)];
+    if (VALE_HD) uniforms.forEach(applyHDPalette);
+    const waterUniforms = VALE_HD
+      ? Object.assign(uniforms[1], { tRefr: { value: null as THREE.Texture | null }, uResolution: { value: new THREE.Vector2(1, 1) } })
+      : uniforms[1];
     builtRef.current = {
       ground: buildMeshGeometry(bake.grid),
       grass: buildGrassGeometry(bake.grid),
@@ -367,28 +452,33 @@ function ValeMeshes({ bake }: { bake: Bake }) {
       boulders: buildRocks(bake.grid, BOULDER_COUNT, true),
       uniforms,
       materials: [
-        new THREE.ShaderMaterial({ uniforms: uniforms[0], vertexShader: REF_TERRAIN_VERT, fragmentShader: REF_TERRAIN_FRAG, transparent: true }),
-        new THREE.ShaderMaterial({ uniforms: uniforms[1], vertexShader: REF_WATER_VERT, fragmentShader: REF_WATER_FRAG, transparent: true, depthWrite: false }),
+        new THREE.ShaderMaterial({ uniforms: uniforms[0], vertexShader: REF_TERRAIN_VERT, fragmentShader: REF_TERRAIN_FRAG, transparent: !VALE_HD }),
+        new THREE.ShaderMaterial({ uniforms: waterUniforms, vertexShader: REF_WATER_VERT, fragmentShader: VALE_HD ? REF_WATER_FRAG_HD : REF_WATER_FRAG, transparent: true, depthWrite: false }),
         new THREE.ShaderMaterial({ uniforms: uniforms[2], vertexShader: REF_GRASS_VERT, fragmentShader: REF_GRASS_FRAG, side: THREE.DoubleSide }),
         new THREE.ShaderMaterial({ uniforms: uniforms[3], vertexShader: REF_ROCK_VERT, fragmentShader: REF_ROCK_FRAG }),
       ],
     };
   }
   const b = builtRef.current;
-  useRefUniformDriver(b.uniforms);
+  useRefUniformDriver(b.uniforms, VALE_HD);
   useEffect(() => () => {
     b.ground.dispose(); b.grass.dispose(); b.pebbles.dispose(); b.boulders.dispose();
     for (const m of b.materials) m.dispose();
   }, [b]);
+  // HD: every vale mesh EXCEPT the water also renders on the bed layer, so the
+  // refraction pass captures the full vale (ground+grass+rocks) the way deedy's
+  // whole-scene refraction does — what the water samples at grazing angles.
+  const onBed = VALE_HD ? (m: THREE.Mesh | null) => { if (m) m.layers.enable(VALE_BED_LAYER); } : undefined;
   return (
     <group>
-      <mesh geometry={b.ground} material={b.materials[0]} position={[GLACIAL_VALE.x, 0, GLACIAL_VALE.z]} raycast={() => null} />
+      <mesh ref={onBed} geometry={b.ground} material={b.materials[0]} position={[GLACIAL_VALE.x, 0, GLACIAL_VALE.z]} raycast={() => null} />
       <mesh position={[GLACIAL_VALE.x, WATER_Y, GLACIAL_VALE.z]} rotation={[-Math.PI / 2, 0, 0]} material={b.materials[1]} raycast={() => null}>
         <planeGeometry args={[GRID_HALF * 1.7, GRID_HALF * 1.7, 1, 1]} />
       </mesh>
-      <mesh geometry={b.grass} material={b.materials[2]} raycast={() => null} />
-      <mesh geometry={b.pebbles} material={b.materials[3]} raycast={() => null} />
-      <mesh geometry={b.boulders} material={b.materials[3]} raycast={() => null} />
+      <mesh ref={onBed} geometry={b.grass} material={b.materials[2]} raycast={() => null} />
+      <mesh ref={onBed} geometry={b.pebbles} material={b.materials[3]} raycast={() => null} />
+      <mesh ref={onBed} geometry={b.boulders} material={b.materials[3]} raycast={() => null} />
+      {VALE_HD && <ValeRefraction waterMat={b.materials[1]} />}
     </group>
   );
 }

@@ -20,6 +20,7 @@ uniform vec3  uRegFine;         // center x, center z, half extent
 uniform float uWaterY;
 uniform vec2  uWindDir;
 uniform vec2  uVisW;            // morning / evening shadow-map weights
+uniform float uGrade;           // 1 = valeGrade for NEUTRAL tonemap; 0 = raw linear (HD/ACES path)
 uniform float uGreen;
 uniform float uAutumn;
 
@@ -153,6 +154,7 @@ vec3 litSurface(vec3 albedo, vec3 N, vec3 wp, vec3 vd, float specAmt, float roug
 // washed. This pre-grade widens the histogram (contrast around a low pivot)
 // and re-saturates so the NEUTRAL pass receives a rich, alpine image.
 vec3 valeGrade(vec3 c){
+  if (uGrade < 0.5) return c; // HD path: raw linear HDR out, the ACES post grades it
   c = (c - 0.46) * 1.3 + 0.46;
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(vec3(l), c, 1.32);
@@ -550,5 +552,132 @@ void main(){
 
   col = applyAtmo(valeGrade(col), vWp);
   gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+/**
+ * PROTOTYPE ONLY (showroom ?scene=valeHD): deedy's verbatim water fragment with
+ * the screen-space refraction pass (tRefr). Renders the real lit riverbed seen
+ * through the water — the milky pale shore that the shipped REF_WATER_FRAG fakes
+ * with a bed estimate. Pair with the deedy 3-pass pipeline + exposure/ACES post.
+ */
+export const REF_WATER_FRAG_HD = /* glsl */ `
+${REF_COMMON}
+varying vec3 vWp;
+uniform sampler2D tRefr;
+uniform vec2 uResolution;
+
+float wH(vec2 p, float t){
+  float h = 0.0;
+  h += vnoise(p*vec2(1.1, 2.6) + vec2(-t*1.35, t*0.18))*0.034;
+  h += vnoise(p*vec2(2.6, 6.0) + vec2(-t*2.30, -t*0.32))*0.016;
+  h += vnoise(p*vec2(5.6, 12.0) + vec2(-t*3.60, t*0.55))*0.008;
+  h += vnoise(p*vec2(10.0, 22.0) + vec2(-t*5.20, t*0.90))*0.0045;
+  h += vnoise(p*0.45 + vec2(-t*0.50, 0.0))*0.050;
+  return h;
+}
+
+void main(){
+  float t = uTime;
+  vec3 toP = vWp - cameraPosition;
+  float dist = length(toP);
+  vec3 vd = toP / max(dist, 0.001);
+  vec2 p = vWp.xz;
+
+  float depth0 = max(uWaterY - groundH(p), 0.0);
+  float sv = sunVis(p) * cloudShadow(p);
+
+  float gA = groundH(p + vec2(2.0, 0.0));
+  float gB = groundH(p - vec2(2.0, 0.0));
+  float rapid = smoothstep(0.10, 0.45, abs(gA - gB)*0.5) * smoothstep(0.60, 0.12, depth0);
+
+  float e = 0.045;
+  float h0 = wH(p, t);
+  float hx = wH(p + vec2(e, 0.0), t);
+  float hz = wH(p + vec2(0.0, e), t);
+  float nscale = (1.0 + rapid*1.4)/(1.0 + dist*0.010);
+  vec3 N = normalize(vec3(-(hx - h0)/e*nscale, 1.0, -(hz - h0)/e*nscale));
+
+  // screen-space refraction of the real riverbed (deedy's tRefr)
+  vec2 suv = gl_FragCoord.xy / uResolution;
+  vec2 ruv = suv + N.xz * 0.07 * clamp(depth0*2.0, 0.10, 1.0) / (1.0 + dist*0.06);
+  ruv = clamp(ruv, vec2(0.002), vec2(0.998));
+  vec3 refr = texture2D(tRefr, ruv).rgb;
+
+  vec3 rdir = refract(vd, vec3(0.0, 1.0, 0.0), 0.752);
+  float depth = max(uWaterY - groundH(p + N.xz*depth0*1.5), 0.02);
+  float path = depth / max(0.30, -rdir.y);
+
+  vec2 cuv = (p + N.xz*depth*2.0)*1.05;
+  float ca = pow(max(1.0 - vor(cuv*2.0 + vec2(-t*0.9, t*0.25)), 1e-4), 5.0)
+           + pow(max(1.0 - vor(cuv*3.1 + vec2(-t*1.3, -t*0.30)), 1e-4), 5.0);
+  refr *= 1.0 + ca * sv * 1.2 * exp(-depth*1.8);
+
+  vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
+  float scA = 1.0 - exp(-path*0.30);
+  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55;
+  vec3 under = refr * trans + vec3(0.07, 0.38, 0.36) * scA * sunAmb;
+
+  vec3 rd = reflect(vd, N);
+  rd.y = max(rd.y, 0.02);
+  vec3 refl = skyRadiance(rd);
+  if (rd.y < 0.32){
+    float tt = 25.0; vec3 hp = vWp; float hit = 0.0;
+    for (int i = 0; i < 5; i++){
+      hp = vWp + rd*tt;
+      if (hp.y < groundH(hp.xz)){ hit = 1.0; break; }
+      tt *= 2.3;
+    }
+    if (hit > 0.5){
+      vec3 mcol = vec3(0.30, 0.295, 0.29) * (uSkyZenith*0.9 + uSunColor*0.22*sunVis(hp.xz));
+      refl = mix(refl, applyAtmo(mcol, hp), 0.85);
+    }
+  }
+  float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
+  // Cap reflection: deedy's full fresnel is for an elevated camera; the MMO
+  // third-person camera is LOW, so at grazing the sky reflection would grey the
+  // surface. Capping lets the milky rock-flour body (the refracted bed + scatter)
+  // dominate from our low viewpoint.
+  vec3 col = mix(under, refl, min(fres, 0.36));
+
+  vec3 hv = normalize(uSunDir - vd);
+  float ndh = max(dot(N, hv), 0.0);
+  col += uSunColor * sv * (pow(ndh, 750.0)*1.6 + pow(ndh, 90.0)*0.07);
+
+  float foamN = fbm(vec2(p.x*0.35 + t*1.2, p.y*1.3));
+  float shore = smoothstep(0.16, 0.03, depth0);
+  float streak = smoothstep(0.55, 0.80, fbm(vec2(p.x*0.10 + t*0.55, p.y*0.9)));
+  float rapidN = smoothstep(0.35, 0.75, fbm(vec2(p.x*0.7 + t*2.8, p.y*2.2)));
+  float foam = clamp(shore*(0.55 + 0.45*foamN)
+             + streak*smoothstep(0.5, 0.15, depth0)*0.5
+             + rapid*rapidN*0.9, 0.0, 1.0);
+  vec3 foamCol = vec3(0.9) * (uSunColor*0.12*sv + uSkyZenith*0.7);
+  col = mix(col, foamCol, foam*0.85);
+
+  col = applyAtmo(col, vWp);
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+/** PROTOTYPE post pass: deedy's exposure + ACES tonemap + grade + vignette. */
+export const POST_VERT_HD = /* glsl */ `
+varying vec2 vUv;
+void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`;
+export const POST_FRAG_HD = /* glsl */ `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D tScene;
+uniform float uExposure;
+vec3 aces(vec3 x){ return clamp(x*(2.51*x + 0.03)/(x*(2.43*x + 0.59) + 0.14), 0.0, 1.0); }
+void main(){
+  vec3 c = texture2D(tScene, vUv).rgb;
+  c *= uExposure;
+  c = aces(c);
+  c = pow(c, vec3(1.02, 1.0, 0.985));
+  float r = length(vUv - 0.5);
+  c *= 1.0 - 0.30*r*r;
+  c = pow(max(c, vec3(0.0)), vec3(1.0/2.2));
+  gl_FragColor = vec4(c, 1.0);
 }
 `;

@@ -39,7 +39,11 @@ import type { WorldArtQuality } from './world-art/quality';
 // fresh children each time → it leaked ~100 viewport render targets/sec until
 // VRAM filled and the GPU context died. Props (quality, sunMesh) are stable, so
 // memo pins the render → children identity holds → the composer builds once.
-export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null }) {
+export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD = false }: { quality: WorldArtQuality; sunMesh?: THREE.Mesh | null; valeHD?: boolean }) {
+  // Local dev only: near the glacial vale, resolve with ACES (deedy's renderer)
+  // instead of the global NEUTRAL tonemap. Toggles rarely (entering/leaving the
+  // vale), so the composer rebuild it triggers is acceptable.
+  const tmMode = valeHD ? ToneMappingMode.ACES_FILMIC : ToneMappingMode.NEUTRAL;
   // GPU CONTEXT-LOSS GUARD: when the WebGL context dies, the postprocessing
   // EffectComposer reads `gl.getContextAttributes()` (null on a dead context)
   // during construction — `.alpha` then crashed the whole client behind the
@@ -73,7 +77,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh }: { qua
             the phone day looked like overcast dusk. Every day phase carries
             intrinsic lighting now, so low needs no adaptation at all.
             FXAA runs AFTER tone mapping — it expects LDR input. */}
-        <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+        <ToneMapping mode={tmMode} />
         <FXAA />
       </EffectComposer>
     );
@@ -120,7 +124,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh }: { qua
           blew DESKTOP to a pure-white world under GPU pressure (NaN-class
           exposure at night). Lighting is intrinsic in every phase since
           #871/#872/#875 — adaptation has nothing left to do. */}
-      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+      <ToneMapping mode={tmMode} />
       <HueSaturation hue={0} saturation={high ? 0.12 : 0.09} />
       <BrightnessContrast brightness={0.0} contrast={high ? 0.08 : 0.06} />
       {high ? (
