@@ -158,7 +158,9 @@ function useRefUniformDriver(sets: RefUniforms[]) {
     const warm = 1 - clamp01((s.y - 0.12) / 0.3) * 0.55;
     for (const u of sets) {
       u.uSunDir.value.set(s.x, Math.max(s.y, 0.02), s.z).normalize();
-      u.uSunColor.value.set(2.6, 2.6 - warm * 1.1, 2.6 - warm * 1.7).multiplyScalar(dayGate);
+      // Lower than the ref's HDR (the valeGrade pre-grade adds the contrast
+      // back) so the NEUTRAL tonemap doesn't blow the lit ground to white.
+      u.uSunColor.value.set(2.0, 2.0 - warm * 0.85, 2.0 - warm * 1.3).multiplyScalar(dayGate);
       u.uVisW.value.set(lowSun * east, lowSun * (1 - east));
     }
   });
