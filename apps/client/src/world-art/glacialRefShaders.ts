@@ -381,7 +381,11 @@ void main(){
     }
   }
   float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
-  vec3 col = mix(under, refl, clamp(fres, 0.0, 1.0));
+  // Cap the reflection: deedy's full fresnel is for an elevated camera, but the
+  // MMO third-person camera is LOW, so at grazing angle full fresnel reflects the
+  // bright sky and greys out the whole surface. Capping at 0.34 lets the milky
+  // rock-flour turquoise body show through from our low viewpoint.
+  vec3 col = mix(under, refl, min(fres, 0.34));
 
   vec3 hv = normalize(uSunDir - vd);
   float ndh = max(dot(N, hv), 1e-4);
