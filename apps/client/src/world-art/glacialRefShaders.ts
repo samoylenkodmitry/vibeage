@@ -385,8 +385,8 @@ void main(){
   col = mix(col, foamCol, foam*0.85);
 
   col = applyAtmo(valeGrade(col), vWp);
-  float wcover = smoothstep(0.0, 0.05, depth0);
-  gl_FragColor = vec4(col, clamp(max(wcover*0.6 + depth0*1.6, foam*0.85), 0.0, 0.97));
+  float wcover = smoothstep(0.0, 0.02, depth0);
+  gl_FragColor = vec4(col, clamp(max(wcover*0.72 + depth0*1.2, foam*0.85), 0.0, 0.97));
 }
 `;
 
