@@ -26,7 +26,7 @@ import {
 const GRID_RES = 768;            // bake resolution over the vale (≈1.7 m/texel)
 const GRID_HALF = 660;
 const MESH_SEG = 360;            // mesh density (≈3.7 m; per-pixel shading on top)
-const GRASS_COUNT = 26_000;
+const GRASS_COUNT = 120_000;     // dense floor carpet (their 85k was a r=95 disc)
 const PEBBLE_COUNT = 6_000;
 const BOULDER_COUNT = 64;
 const WATER_Y = VALE_TARN_WATER_Y; // 0 — their WATER_Y
@@ -194,38 +194,90 @@ function buildMeshGeometry(grid: Float32Array): THREE.BufferGeometry {
   return geometry;
 }
 
-/** Their grass blade: thin tapered plane, bent + gusted in the vert shader. */
+/** Their grass blade verbatim: a 4-row plane tapering w0·(1-0.85t), y = t. */
+function makeBladeGeometry(): THREE.BufferGeometry {
+  const segs = 3;
+  const w0 = 0.045;
+  const bp: number[] = [];
+  const bn: number[] = [];
+  const bi: number[] = [];
+  for (let s = 0; s <= segs; s += 1) {
+    const t = s / segs;
+    const w = w0 * (1 - t * 0.85);
+    bp.push(-w, t, 0, w, t, 0);
+    bn.push(0, 0, 1, 0, 0, 1);
+  }
+  for (let s = 0; s < segs; s += 1) {
+    const a = s * 2;
+    bi.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bp), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(bn), 3));
+  g.setIndex(bi);
+  return g;
+}
+
+/** Coherent value noise for the patchy grass gate (their `vnoised` gate). */
+function valeValueNoise(x: number, z: number): number {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uz = fz * fz * (3 - 2 * fz);
+  const h = (i: number, j: number) => {
+    let v = Math.imul(i, 374761393) ^ Math.imul(j, 668265263);
+    v = Math.imul(v ^ (v >>> 13), 1274126177); v ^= v >>> 16;
+    return (v >>> 0) / 4294967296;
+  };
+  const a = h(ix, iz) + (h(ix + 1, iz) - h(ix, iz)) * ux;
+  const b = h(ix, iz + 1) + (h(ix + 1, iz + 1) - h(ix, iz + 1)) * ux;
+  return a + (b - a) * uz;
+}
+
+/**
+ * Their grass field: tiny tapered blades (scale 0.14–0.46), placed on the
+ * low-slope valley floor/banks above the waterline, gated by a coherent noise
+ * for dry patches (their exact placement rules). y = h-0.01 (rooted).
+ */
 function buildGrassGeometry(grid: Float32Array): THREE.InstancedBufferGeometry {
-  const blade = new THREE.PlaneGeometry(0.055, 1, 1, 3);
-  blade.translate(0, 0.5, 0);
+  const blade = makeBladeGeometry();
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.index = blade.index;
   geometry.attributes.position = blade.attributes.position;
   geometry.attributes.normal = blade.attributes.normal;
-  geometry.attributes.uv = blade.attributes.uv;
   const res = GRID_RES;
   const step = (2 * GRID_HALF) / (res - 1);
+  const slopeAt = (ix: number, iz: number) => {
+    const gx = (grid[iz * res + Math.min(res - 1, ix + 1)] - grid[iz * res + Math.max(0, ix - 1)]) / (2 * step);
+    const gz = (grid[Math.min(res - 1, iz + 1) * res + ix] - grid[Math.max(0, iz - 1) * res + ix]) / (2 * step);
+    return Math.hypot(gx, gz);
+  };
   const random = seededRandom(0x6a55, 0xb1ad);
   const offsets = new Float32Array(GRASS_COUNT * 3);
   const params = new Float32Array(GRASS_COUNT * 4);
   let n = 0;
   let tries = 0;
-  while (n < GRASS_COUNT && tries < GRASS_COUNT * 10) {
+  while (n < GRASS_COUNT && tries < GRASS_COUNT * 12) {
     tries += 1;
     const lx = (random() - 0.5) * 2 * (GRID_HALF - 30);
     const lz = (random() - 0.5) * 2 * (GRID_HALF - 30);
-    const i0 = Math.min(res - 2, Math.floor((lz + GRID_HALF) / step)) * res
-      + Math.min(res - 2, Math.floor((lx + GRID_HALF) / step));
-    const h = grid[i0];
+    const ix = Math.min(res - 2, Math.max(1, Math.floor((lx + GRID_HALF) / step)));
+    const iz = Math.min(res - 2, Math.max(1, Math.floor((lz + GRID_HALF) / step)));
+    const h = grid[iz * res + ix];
     const relH = h - WATER_Y;
-    if (relH < 0.3 || relH > 26) continue;      // banks → lower slopes, like theirs
-    if (random() > Math.max(0.15, 1 - relH / 30)) continue;
-    offsets[n * 3] = GLACIAL_VALE.x + lx;
-    offsets[n * 3 + 1] = h;
-    offsets[n * 3 + 2] = GLACIAL_VALE.z + lz;
-    params[n * 4] = 0.5 + random() * 0.65;
+    if (relH < 0.32 || relH > 30) continue;
+    if (slopeAt(ix, iz) > 0.45) continue;
+    const wx = GLACIAL_VALE.x + lx;
+    const wz = GLACIAL_VALE.z + lz;
+    if (valeValueNoise(wx * 0.045 + 7, wz * 0.045 + 7) < 0.40) continue; // dry patches
+    offsets[n * 3] = wx;
+    offsets[n * 3 + 1] = h - 0.01;
+    offsets[n * 3 + 2] = wz;
+    params[n * 4] = 0.14 + random() * 0.32;
     params[n * 4 + 1] = random() * Math.PI * 2;
-    params[n * 4 + 2] = random() * 100;
+    params[n * 4 + 2] = random() * 20;
     params[n * 4 + 3] = random();
     n += 1;
   }
