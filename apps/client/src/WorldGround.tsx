@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { getTerrainBiome, sampleTerrain } from '../../../packages/content/terrain';
+import { getTerrainBiome, sampleTerrain, glacialValeMask } from '../../../packages/content/terrain';
 import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type Vec3D, type VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
@@ -471,6 +471,12 @@ export function getVisibleTerrainChunks(
   return chunks;
 }
 
+// How far to drop the base ground mesh beneath the vale mesh at full vale mask.
+// Must exceed the worst coarse-vs-fine chord poke-through on the steep vale
+// walls (a few metres); 26 m is comfortably clear and still hidden under the
+// opaque vale mesh.
+const VALE_BASE_SINK = 26;
+
 export function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGeometry {
   const size = WORLD_SETTINGS.terrainChunkSize;
   const segments = WORLD_SETTINGS.terrainChunkSegments;
@@ -495,7 +501,17 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
       const uvBase = vertexIndex * 2;
 
       positions[base] = worldX;
-      positions[base + 1] = terrain.height;
+      // SINK the base ground mesh below the glacial vale's own mesh inside the
+      // vale: both surfaces sit at getTerrainHeight (the vale carve is baked in)
+      // but the vale mesh is ~3x finer (3.7 m vs the 10.7 m base quad), so the
+      // coarse base chords poke several metres ABOVE the vale on convex walls —
+      // showing as dark/tan "polygons" through the snow. Dropping the base mesh
+      // by the smooth vale mask keeps it hidden under the opaque vale mesh
+      // (whose footprint is larger than the ellipse, so the sink fades to 0 well
+      // inside the opaque region — no seam). Height functions/collision are
+      // untouched; the player still stands on the vale mesh.
+      const valeMask = glacialValeMask(worldX, worldZ);
+      positions[base + 1] = terrain.height - VALE_BASE_SINK * valeMask;
       positions[base + 2] = worldZ;
       color.set(terrain.groundColor).lerp(accentColor.set(terrain.accentColor), heightTint(terrain.height));
       // NORMALIZE the tint to ~unit luminance (hue preserved). The raw biome
