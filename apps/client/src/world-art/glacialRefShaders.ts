@@ -349,9 +349,10 @@ void main(){
 
   vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
   float scA = 1.0 - exp(-path*1.3);
-  // milky floor: suspended rock flour scatters ambient even with no direct sun,
-  // so deep water reads luminous turquoise instead of going dark.
-  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55 + vec3(0.07, 0.11, 0.12);
+  // milky scatter: suspended rock flour scatters the sky's ambient, so deep
+  // water reads luminous turquoise. Scaled by uSkyZenith (not a constant floor)
+  // so it follows the day/night cycle and goes dark at night.
+  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith * vec3(0.88, 0.86, 0.73);
   // milkier, brighter glacial body colour (was a saturated neon cyan)
   vec3 under = refr * trans + vec3(0.40, 0.82, 0.80) * scA * sunAmb;
 
