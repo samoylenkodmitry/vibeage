@@ -34,7 +34,17 @@ export const CLOUD_GLSL = /* glsl */ `
 /** Patch a MeshStandardMaterial so its output is modulated by the cloud
  *  field. Per-vertex (terrain verts are ≤11 m apart; clouds are ~180 m) —
  *  smooth, and the fragment cost is one varying multiply. */
-export function patchMaterialWithCloudShadow(material: THREE.Material): void {
+/**
+ * `valeSinkDepth` (base terrain only): drop the rendered vertex by
+ * `aValeMask * depth` inside the glacial vale so the coarse base mesh hides
+ * BENEATH the finer vale mesh (no z-fight poke-through) — but ONLY in the shader,
+ * so the GEOMETRY stays at the true height and click-to-move raycasts still land
+ * on the real surface (sinking the geometry parallax-shifted the click target).
+ * The `aValeMask` attribute is supplied per terrain chunk (createTerrainGeometry);
+ * other callers (HorizonTerrainShell) omit the option and need no attribute.
+ */
+export function patchMaterialWithCloudShadow(material: THREE.Material, opts?: { valeSinkDepth?: number }): void {
+  const valeSink = opts?.valeSinkDepth ?? 0;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uCloudTime = CLOUD_UNIFORMS.uCloudTime;
     shader.uniforms.uCloudStrength = CLOUD_UNIFORMS.uCloudStrength;
@@ -42,10 +52,12 @@ export function patchMaterialWithCloudShadow(material: THREE.Material): void {
       uniform float uCloudTime;
       uniform float uCloudStrength;
       varying float vCloudShadow;
+      ${valeSink > 0 ? 'attribute float aValeMask;' : ''}
       ${CLOUD_GLSL}
     ` + shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
+       ${valeSink > 0 ? `transformed.y -= aValeMask * ${valeSink.toFixed(1)};` : ''}
        vec4 _cloudWorld = modelMatrix * vec4(transformed, 1.0);
        vCloudShadow = cloudShadow(_cloudWorld.xz);`,
     );

@@ -410,7 +410,9 @@ function TerrainMaterial({ visualMode, palette }: { visualMode: TerrainVisualMod
 function cloudPatchRef(material: THREE.MeshStandardMaterial | null): void {
   if (material && !material.userData.cloudPatched) {
     material.userData.cloudPatched = true;
-    patchMaterialWithCloudShadow(material);
+    // valeSinkDepth: the base mesh renders sunk inside the vale (hidden under
+    // the vale mesh) while its geometry stays put so clicks raycast true.
+    patchMaterialWithCloudShadow(material, { valeSinkDepth: VALE_BASE_SINK });
   }
 }
 
@@ -471,10 +473,10 @@ export function getVisibleTerrainChunks(
   return chunks;
 }
 
-// How far to drop the base ground mesh beneath the vale mesh at full vale mask.
-// Must exceed the worst coarse-vs-fine chord poke-through on the steep vale
-// walls (a few metres); 26 m is comfortably clear and still hidden under the
-// opaque vale mesh.
+// How far the terrain SHADER drops the rendered base vertex beneath the vale
+// mesh at full vale mask (geometry/raycast unaffected). Must exceed the worst
+// coarse-vs-fine chord poke-through on the steep vale walls (a few metres);
+// 26 m is comfortably clear and still hidden under the opaque vale mesh.
 const VALE_BASE_SINK = 26;
 
 export function createTerrainGeometry(originX: number, originZ: number): THREE.BufferGeometry {
@@ -485,14 +487,21 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
   const uvs = new Float32Array(vertexCount * 2);
+  // Per-vertex glacial-vale mask. The terrain SHADER sinks the rendered vertex
+  // by this (see patchMaterialWithCloudShadow valeSinkDepth) so the coarse base
+  // mesh hides beneath the finer vale mesh — but the GEOMETRY stays at the true
+  // height, so click-to-move raycasts (the terrain mesh owns onPointer*) land on
+  // the real surface. (#941 sank the geometry itself and parallax-shifted the
+  // click target under the low MMO camera.)
+  const valeMaskAttr = new Float32Array(vertexCount);
   const indices: number[] = [];
   const color = new THREE.Color();
   const accentColor = new THREE.Color();
 
-  // Chunk-level gate for the vale sink (below): glacialValeMask is non-zero only
-  // within the vale ellipse (max half-extent L), so any chunk whose CENTRE is
-  // farther than L + the chunk half-diagonal can skip the per-vertex mask call
-  // entirely — that's every chunk in the world bar the handful over the vale.
+  // Chunk-level gate: glacialValeMask is non-zero only within the vale ellipse
+  // (max half-extent L), so any chunk whose CENTRE is farther than L + the chunk
+  // half-diagonal can skip the per-vertex mask call entirely — that's every
+  // chunk in the world bar the handful over the vale.
   const valeDx = originX + size / 2 - GLACIAL_VALE.x;
   const valeDz = originZ + size / 2 - GLACIAL_VALE.z;
   const chunkNearVale = valeDx * valeDx + valeDz * valeDz < (GLACIAL_VALE.L + size * 0.7071) ** 2;
@@ -509,18 +518,10 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
       const uvBase = vertexIndex * 2;
 
       positions[base] = worldX;
-      // SINK the base ground mesh below the glacial vale's own mesh inside the
-      // vale: both surfaces sit at getTerrainHeight (the vale carve is baked in)
-      // but the vale mesh is ~3x finer (3.7 m vs the 10.7 m base quad), so the
-      // coarse base chords poke several metres ABOVE the vale on convex walls —
-      // showing as dark/tan "polygons" through the snow. Dropping the base mesh
-      // by the smooth vale mask keeps it hidden under the opaque vale mesh
-      // (whose footprint is larger than the ellipse, so the sink fades to 0 well
-      // inside the opaque region — no seam). Height functions/collision are
-      // untouched; the player still stands on the vale mesh.
-      const valeMask = chunkNearVale ? glacialValeMask(worldX, worldZ) : 0;
-      positions[base + 1] = terrain.height - VALE_BASE_SINK * valeMask;
+      positions[base + 1] = terrain.height;
       positions[base + 2] = worldZ;
+      // Vale mask (shader sinks the render by this; geometry/raycast stays true).
+      valeMaskAttr[vertexIndex] = chunkNearVale ? glacialValeMask(worldX, worldZ) : 0;
       color.set(terrain.groundColor).lerp(accentColor.set(terrain.accentColor), heightTint(terrain.height));
       // NORMALIZE the tint to ~unit luminance (hue preserved). The raw biome
       // hexes are dark (#2f6f45 ≈ 0.16 linear) and MULTIPLY with the ground
@@ -553,6 +554,7 @@ export function createTerrainGeometry(originX: number, originZ: number): THREE.B
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geometry.setAttribute('aValeMask', new THREE.BufferAttribute(valeMaskAttr, 1));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
