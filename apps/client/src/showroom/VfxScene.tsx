@@ -3,7 +3,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import { EffectComposer, Bloom, ToneMapping, HueSaturation, BrightnessContrast } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import * as THREE from 'three';
 import { CastMarker } from '../WorldEntities';
 import { CastState, type CastSnapshot } from '../../../../packages/protocol/common';
 
