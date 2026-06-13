@@ -5440,3 +5440,71 @@ button.character-option {
 @media (prefers-reduced-motion: reduce) {
   .low-health-vignette { animation: none; }
 }
+
+/* Video / graphics settings panel — tri-state segmented controls. */
+.gfx-panel {
+  /* .hud is position:absolute; without an anchor the panel flows off the
+     bottom of the viewport. Pin it to the right and cap its height so it
+     scrolls instead of overflowing a short/phone screen. Draggable from the
+     title like every other panel. */
+  position: absolute;
+  top: 64px;
+  right: 8px;
+  left: auto;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+.gfx-row { display: flex; flex-direction: column; gap: 4px; }
+.gfx-row__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gfx-row__label { font-size: 13px; font-weight: 600; }
+.gfx-row__reload { margin-left: 5px; color: #fbbf24; cursor: help; }
+.gfx-row__hint { font-size: 11px; opacity: 0.55; white-space: nowrap; }
+.gfx-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 8px;
+}
+.gfx-seg__btn {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 12px;
+  font-family: inherit;
+  color: rgba(226, 232, 240, 0.7);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.gfx-seg__btn:hover { background: rgba(255, 255, 255, 0.06); }
+.gfx-seg__btn--active {
+  background: rgba(110, 231, 183, 0.22);
+  color: #6ee7b7;
+  font-weight: 600;
+}
+.gfx-reload-banner {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.gfx-reload-banner:hover { background: rgba(251, 191, 36, 0.22); }
+.gfx-reset { align-self: flex-start; margin-top: 2px; }
+@media (max-width: 560px) {
+  /* Phones: span the width, hug the top, scroll — the segmented buttons stay
+     comfortably tappable. */
+  .gfx-panel { top: 52px; left: 8px; right: 8px; width: auto; max-height: calc(100vh - 64px); }
+  .gfx-seg__btn { padding: 9px 4px; }
+}

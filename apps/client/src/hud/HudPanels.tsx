@@ -7,6 +7,7 @@ import { CraftPanel } from './CraftPanel';
 import { InventoryPanel } from './InventoryPanel';
 import { PaperdollPanel } from './PaperdollPanel';
 import { WikiPanel } from './WikiPanel';
+import { GraphicsPanel } from './GraphicsPanel';
 import { MapPanel } from './MapPanel';
 import { SkillTreePanel } from './SkillTreePanel';
 import { QuestPanel } from './QuestPanel';
@@ -22,6 +23,7 @@ type HudPanelToggleState = {
   treeOpen: boolean;
   actionsOpen: boolean;
   wikiOpen: boolean;
+  videoOpen: boolean;
   gmOpen: boolean;
   /** PR AA — slot index of the recipe whose CraftPanel is open; null when none. */
   craftRecipeSlot: number | null;
@@ -164,6 +166,7 @@ export function HudPanels({
         />
       )}
       {panels.wikiOpen && <WikiPanel onShowMarker={(pos) => onSetNavigationMarker?.(pos)} />}
+      {panels.videoOpen && <GraphicsPanel />}
       {panels.gmOpen && player?.isGm && (
         <GmPanel player={player} selectedPlayerId={selectedPlayerTargetId} onGmCommand={onGmCommand} />
       )}
