@@ -153,9 +153,9 @@ vec3 litSurface(vec3 albedo, vec3 N, vec3 wp, vec3 vd, float specAmt, float roug
 // washed. This pre-grade widens the histogram (contrast around a low pivot)
 // and re-saturates so the NEUTRAL pass receives a rich, alpine image.
 vec3 valeGrade(vec3 c){
-  c = (c - 0.30) * 1.32 + 0.30;
+  c = (c - 0.46) * 1.4 + 0.46;
   float l = dot(c, vec3(0.299, 0.587, 0.114));
-  c = mix(vec3(l), c, 1.24);
+  c = mix(vec3(l), c, 1.32);
   return max(c, 0.0);
 }
 `;
@@ -348,9 +348,9 @@ void main(){
   refr *= 1.0 + ca * sv * 1.2 * exp(-depth*1.8);
 
   vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
-  float scA = 1.0 - exp(-path*0.30);
+  float scA = 1.0 - exp(-path*0.45);
   vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55;
-  vec3 under = refr * trans + vec3(0.07, 0.38, 0.36) * scA * sunAmb;
+  vec3 under = refr * trans + vec3(0.11, 0.52, 0.48) * scA * sunAmb * 1.6;
 
   vec3 rd = reflect(vd, N);
   rd.y = max(rd.y, 0.02);
@@ -368,7 +368,7 @@ void main(){
     }
   }
   float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
-  vec3 col = mix(under, refl, clamp(fres, 0.0, 1.0));
+  vec3 col = mix(under, refl, clamp(fres, 0.0, 0.62));
 
   vec3 hv = normalize(uSunDir - vd);
   float ndh = max(dot(N, hv), 1e-4);

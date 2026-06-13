@@ -160,7 +160,7 @@ function useRefUniformDriver(sets: RefUniforms[]) {
       u.uSunDir.value.set(s.x, Math.max(s.y, 0.02), s.z).normalize();
       // Lower than the ref's HDR (the valeGrade pre-grade adds the contrast
       // back) so the NEUTRAL tonemap doesn't blow the lit ground to white.
-      u.uSunColor.value.set(2.0, 2.0 - warm * 0.85, 2.0 - warm * 1.3).multiplyScalar(dayGate);
+      u.uSunColor.value.set(1.5, 1.5 - warm * 0.62, 1.5 - warm * 0.98).multiplyScalar(dayGate);
       u.uVisW.value.set(lowSun * east, lowSun * (1 - east));
     }
   });
