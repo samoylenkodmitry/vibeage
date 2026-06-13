@@ -105,11 +105,13 @@ function useValeBake(): Bake | null {
           // the terrain. RGBA16F linear filtering is core WebGL2; heights
           // (≤~250) sit well inside half-float range/precision.
           const data = new Uint16Array(res * res * 4);
+          const toHalf = THREE.DataUtils.toHalfFloat;
+          const oneHalf = toHalf(1);
           for (let i = 0; i < res * res; i += 1) {
-            data[i * 4] = THREE.DataUtils.toHalfFloat(h[i]);
-            data[i * 4 + 1] = THREE.DataUtils.toHalfFloat(visM[i]);
-            data[i * 4 + 2] = THREE.DataUtils.toHalfFloat(visE[i]);
-            data[i * 4 + 3] = THREE.DataUtils.toHalfFloat(1);
+            data[i * 4] = toHalf(h[i]);
+            data[i * 4 + 1] = toHalf(visM[i]);
+            data[i * 4 + 2] = toHalf(visE[i]);
+            data[i * 4 + 3] = oneHalf;
           }
           const tex = new THREE.DataTexture(data, res, res, THREE.RGBAFormat, THREE.HalfFloatType);
           tex.magFilter = THREE.LinearFilter;
