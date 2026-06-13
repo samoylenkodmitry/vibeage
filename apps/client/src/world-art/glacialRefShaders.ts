@@ -350,7 +350,8 @@ void main(){
   // strong, red-biased extinction: milky rock-flour water hides its grey gravel
   // bed in very little depth, so the wide shallow flood reads turquoise instead
   // of letting the bed show through grey (only deep scour-holes were turquoise).
-  vec3 trans = exp(-path * vec3(1.15, 0.48, 0.36) * 2.4);
+  // pre-folded vec3(1.15,0.48,0.36)*2.4. GLSL-only; no TS mirror.
+  vec3 trans = exp(-path * vec3(2.76, 1.152, 0.864));
   // scatter saturates ~2x faster too, so thin water reads like deep water.
   float scA = 1.0 - exp(-path*2.6);
   // milky scatter: suspended rock flour scatters the sky's ambient, so deep
