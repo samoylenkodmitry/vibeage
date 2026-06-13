@@ -78,7 +78,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
             intrinsic lighting now, so low needs no adaptation at all.
             FXAA runs AFTER tone mapping — it expects LDR input. */}
         <ToneMapping mode={tmMode} />
-        {antialias ? <FXAA /> : <></>}
+        {antialias ? <FXAA /> : null}
       </EffectComposer>
     );
   }
@@ -94,7 +94,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
   // SMAA uses the stencil to mask its blend-weight pass to edge pixels (perf).
   return (
     <EffectComposer enableNormalPass={false} multisampling={0}>
-      {antialias ? <SMAA /> : <></>}
+      {antialias ? <SMAA /> : null}
       {/* Crysis-style crepuscular shafts radiating from the sun disc. The mesh
           arrives via state one frame after WorldEnvironment mounts (the effect
           needs the real mesh at construction), so the composer rebuilds once.
@@ -120,9 +120,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
           luminanceSmoothing={0.16}
           mipmapBlur
         />
-      ) : (
-        <></>
-      )}
+      ) : null}
       {/* FIXED tone map on every tier now. The adaptive operator's half-float
           luminance chain is fragile: it rendered phones near-black (#874) and
           blew DESKTOP to a pure-white world under GPU pressure (NaN-class
@@ -131,11 +129,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
       <ToneMapping mode={tmMode} />
       <HueSaturation hue={0} saturation={high ? 0.12 : 0.09} />
       <BrightnessContrast brightness={0.0} contrast={high ? 0.08 : 0.06} />
-      {high ? (
-        <Vignette offset={0.55} darkness={0.26} eskil={false} />
-      ) : (
-        <></>
-      )}
+      {high ? <Vignette offset={0.55} darkness={0.26} eskil={false} /> : null}
     </EffectComposer>
   );
 });

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { chooseWorldArtQuality, type WorldArtQuality } from './world-art/quality';
 
 /**
@@ -74,8 +74,11 @@ export const DEFAULT_SETTINGS: GraphicsSettings = {
   antialias: 'auto', valeHD: 'auto', fog: 'auto', viewDistance: 'auto', foliageDensity: 'auto', grassDensity: 'auto',
 };
 
-/** Settings that only take full effect after a reload (set at canvas creation). */
-export const NEEDS_RELOAD: ReadonlySet<keyof GraphicsSettings> = new Set(['tier', 'resolutionScale', 'shadows', 'antialias']);
+/** Settings that only take full effect after a reload — they're read once at
+ *  Canvas/WebGLRenderer creation (tier freezes the scene graph; resolutionScale
+ *  is gl.setPixelRatio; shadows is the Canvas shadow map). Everything else
+ *  (valeHD, bloom, godRays, antialias, fog) is read live each frame. */
+export const NEEDS_RELOAD: ReadonlySet<keyof GraphicsSettings> = new Set(['tier', 'resolutionScale', 'shadows']);
 
 const STORAGE_KEY = 'vibeage.graphics.v1';
 
@@ -92,7 +95,19 @@ function loadSettings(): GraphicsSettings {
 }
 
 let current: GraphicsSettings = loadSettings();
+// Snapshot at module load ≈ the values the renderer/canvas was created with.
+// The panel diffs against it to show "reload to apply" for NEEDS_RELOAD knobs.
+const MOUNT_SETTINGS: GraphicsSettings = { ...current };
 const listeners = new Set<() => void>();
+
+/** True when a reload-gated setting (tier/resolutionScale/shadows) has changed
+ *  since page load and so hasn't fully taken effect yet. */
+export function graphicsNeedsReload(): boolean {
+  for (const key of NEEDS_RELOAD) {
+    if (current[key] !== MOUNT_SETTINGS[key]) return true;
+  }
+  return false;
+}
 
 function persist(): void {
   try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); } catch { /* best-effort */ }
@@ -127,9 +142,18 @@ export function useGraphicsSettings(): GraphicsSettings {
 
 const pick = <T,>(v: Tri<T>, fallback: T): T => (v === 'auto' ? fallback : v);
 
+// chooseWorldArtQuality probes the user agent (regex) + matchMedia; the device
+// can't change mid-session, and WorldScene resolves graphics every frame, so
+// cache the detection after the first call instead of re-probing per frame.
+let cachedAutoTier: Tier | undefined;
+function autoTier(): Tier {
+  if (cachedAutoTier === undefined) cachedAutoTier = chooseWorldArtQuality();
+  return cachedAutoTier;
+}
+
 /** Resolve the raw settings into concrete values the render path consumes. */
 export function resolveGraphics(s: GraphicsSettings): ResolvedGraphics {
-  const tier: Tier = s.tier === 'auto' ? chooseWorldArtQuality() : s.tier;
+  const tier: Tier = s.tier === 'auto' ? autoTier() : s.tier;
   const p = TIER_PRESETS[tier];
   return {
     tier,
@@ -146,7 +170,10 @@ export function resolveGraphics(s: GraphicsSettings): ResolvedGraphics {
   };
 }
 
-/** Reactive resolved graphics — the render path's single source of truth. */
+/** Reactive resolved graphics — the render path's single source of truth.
+ *  Memoised on the settings object (stable until a setting changes) so the
+ *  every-frame WorldScene render doesn't re-resolve or re-allocate. */
 export function useResolvedGraphics(): ResolvedGraphics {
-  return resolveGraphics(useGraphicsSettings());
+  const settings = useGraphicsSettings();
+  return useMemo(() => resolveGraphics(settings), [settings]);
 }
