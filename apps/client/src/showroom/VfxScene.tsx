@@ -52,12 +52,14 @@ function cellPos(index: number): { x: number; z: number } {
   };
 }
 
-function CastLoopCell({ cell, index }: { cell: Cell; index: number }) {
+function CastLoopCell({ cell, index, sync }: { cell: Cell; index: number; sync: boolean }) {
   const { x, z } = useMemo(() => cellPos(index), [index]);
   // Cast travels along +Z within the cell so the projectile flies in view.
   const origin = useMemo(() => ({ x, z: z - 3.2 }), [x, z]);
   const target = useMemo(() => ({ x, z: z + 3.2 }), [x, z]);
-  const stagger = (index * 260) % CYCLE; // desync impacts for readability
+  // ?sync=1 fires every cell in lockstep (all impacts at once — for capturing a
+  // single comparison frame); otherwise stagger so the grid reads as alive.
+  const stagger = sync ? 0 : (index * 260) % CYCLE;
   const [snap, setSnap] = useState<CastSnapshot | null>(null);
   const acc = useRef(0);
 
@@ -104,6 +106,7 @@ function CastLoopCell({ cell, index }: { cell: Cell; index: number }) {
 }
 
 export function VfxScene() {
+  const sync = new URLSearchParams(window.location.search).has('sync');
   return (
     <Canvas
       camera={{ position: [0, 42, 54], fov: 48, near: 0.1, far: 500 }}
@@ -121,7 +124,7 @@ export function VfxScene() {
         <meshStandardMaterial color="#15171d" roughness={1} metalness={0} />
       </mesh>
       {CELLS.map((cell, index) => (
-        <CastLoopCell key={cell.skillId} cell={cell} index={index} />
+        <CastLoopCell key={cell.skillId} cell={cell} index={index} sync={sync} />
       ))}
       <OrbitControls target={[0, 1.5, 0]} enableDamping />
       <EffectComposer enableNormalPass={false} multisampling={0}>
