@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { WorldEnvironment } from '../WorldEnvironment';
 import { AnimatedCharacter } from '../AnimatedCharacter';
 import { CHARACTER_MODELS, enemyModel, type CharacterAnim, type CharacterModelId } from '../characterModels';
-import { EffectComposer, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, ToneMapping, Bloom, HueSaturation, BrightnessContrast } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { GlacialValeTerrain } from '../world-art/GlacialValeTerrain';
 import { GLACIAL_VALE } from '../../../../packages/content/terrain';
@@ -84,11 +84,13 @@ function ValeScene() {
         <GlacialValeTerrain />
       </Suspense>
       <OrbitControls target={target} enableDamping />
-      {/* Faithful to the game: ScenePostFX resolves the vale with a fullscreen
-          ACES tonemap pass (ShaderMaterials ignore the renderer's gl.toneMapping,
-          so the vale ONLY tonemaps through a composer pass like this one). */}
+      {/* Faithful to the game's ScenePostFX (bloom → ACES → grade) so the preview
+          shows the same exposure/blowout the in-game vale gets. */}
       <EffectComposer enableNormalPass={false} multisampling={0}>
+        <Bloom intensity={0.62} luminanceThreshold={0.62} luminanceSmoothing={0.16} mipmapBlur />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+        <HueSaturation hue={0} saturation={0.12} />
+        <BrightnessContrast brightness={0} contrast={0.08} />
       </EffectComposer>
     </Canvas>
   );

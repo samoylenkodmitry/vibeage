@@ -197,7 +197,12 @@ function useRefUniformDriver(sets: RefUniforms[], hd = false) {
       const warm = clamp01(1.0 - elN * 2.2);           // warm low, white high
       const sunG = 0.95 - warm * 0.43;
       const sunB = 0.85 - warm * 0.58;
-      const mag = 10.5 * day * (0.45 + 0.55 * elN);
+      // Stop the aperture DOWN at high sun (the ref has adaptive exposure; we
+      // don't, and the game adds bloom). At noon the sun is overhead so flat
+      // surfaces get full N·L — a fixed magnitude blows them to white. Scaling
+      // the magnitude down as the sun climbs keeps lit-surface brightness ~flat
+      // across the day: dim warm sun at dawn/dusk, modest at noon.
+      const mag = day * Math.max(1.0, 5.0 - 4.3 * elN);
       for (const u of sets) {
         u.uSunDir.value.set(s.x, Math.max(s.y, 0.02), s.z).normalize();
         u.uSunColor.value.set(1.0, sunG, sunB).multiplyScalar(mag);
