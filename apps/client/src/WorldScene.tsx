@@ -121,6 +121,21 @@ function useValeHD(focus: { x: number; z: number }, valeHDEnabled: boolean): boo
   return ref.current;
 }
 
+/**
+ * Resolve the user graphics settings (graphicsSettings) for the render path.
+ * The renderer/canvas knobs (tier, resolutionScale, shadows) are FROZEN at
+ * mount — they're set once at Canvas creation and changing them needs a reload
+ * (the settings panel flags this). The cheap per-frame knobs (valeHD, bloom,
+ * godRays, antialias, fog) read live so toggling them takes effect immediately.
+ * Defaults (all 'auto') resolve to the old per-tier behaviour, bit-for-bit.
+ */
+function useWorldGraphics(focus: { x: number; z: number }) {
+  const mountGraphics = useMemo(() => resolveGraphics(getGraphicsSettings()), []);
+  const liveGraphics = useResolvedGraphics();
+  const valeHD = useValeHD(focus, liveGraphics.valeHD);
+  return { mountGraphics, liveGraphics, valeHD };
+}
+
 export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPickUpLoot, cameraAngleRef, cameraControlsRef, touchClaimRef, navigationMarker }: WorldSceneProps) {
   const myPlayer = state.myPlayerId ? state.players[state.myPlayerId] ?? null : null;
   const focus = myPlayer?.position ?? { x: 0, y: 0.5, z: 0 };
@@ -128,17 +143,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const activeTimeFields = state.activePhysicsFields;
   const now = Date.now();
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  // User-configurable graphics (graphicsSettings). The renderer/canvas-level
-  // knobs (tier, resolutionScale, shadows) are set once at Canvas creation and
-  // can't change live, so freeze them at mount — a change to those needs a
-  // reload (the settings panel says so). The cheap per-frame knobs (valeHD,
-  // bloom, godRays, antialias, fog) read live so toggling them takes effect
-  // immediately. Defaults (all 'auto') resolve to the old per-tier behaviour.
-  const mountGraphics = useMemo(() => resolveGraphics(getGraphicsSettings()), []);
-  const liveGraphics = useResolvedGraphics();
+  const { mountGraphics, liveGraphics, valeHD } = useWorldGraphics(focus);
   const worldArtQuality: WorldArtQuality = mountGraphics.tier;
   const [contextLost, setContextLost] = useState(false); // GPU dropped the render context → overlay below
-  const valeHD = useValeHD(focus, liveGraphics.valeHD);
 
   // Sun disc handed up by WorldEnvironment → anchors GodRays in ScenePostFX.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
