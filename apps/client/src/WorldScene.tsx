@@ -11,7 +11,8 @@ import { WorldFeatures } from './WorldFeatures';
 import { ZoneLandmarks } from './ZoneLandmarks';
 import { CameraRig, type CameraControls } from './CameraRig';
 import { CozyWorldArt } from './world-art/CozyWorldArt';
-import { chooseWorldArtQuality } from './world-art/quality';
+import type { WorldArtQuality } from './world-art/quality';
+import { resolveGraphics, getGraphicsSettings, useResolvedGraphics } from './graphicsSettings';
 import { SimpleStylizedWater } from './world-art/SimpleStylizedWater';
 import { HorizonTerrainShell } from './world-art/HorizonTerrainShell';
 import { LakeWaters } from './world-art/LakeWaters';
@@ -44,6 +45,9 @@ const VISTA_FOG = { near: 500, far: 2600 } as const;
 // Phones get the vista too, just closer: shell to the horizon, fog tighter so
 // the 640 m foliage frontier still mounts inside meaningful haze.
 const VISTA_FOG_LOW = { near: 420, far: 1600 } as const;
+// Fog off (user setting): push the band past the camera-far so scene.fog never
+// tints a fragment — the foliage frontier will pop, the player's choice.
+const FOG_DISABLED = { near: 50_000, far: 100_000 } as const;
 
 // antialias:false — the default canvas 4xMSAA framebuffer is huge (~150 MB at
 // phone DPR; a prime mobile OOM suspect) and on med/high it's pure waste: the
@@ -86,10 +90,11 @@ type WorldSceneProps = {
   navigationMarker?: VecXZ | null;
 };
 
-function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof chooseWorldArtQuality>): void {
-  // Low = phones: DPR 1 keeps fill-rate (and SoC temperature) sane on 3x-DPR
-  // screens; the UI stays crisp because it's DOM, not canvas.
-  gl.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1.15));
+function setUpRenderer(gl: THREE.WebGLRenderer, resolutionScale: number): void {
+  // Low = phones: DPR cap keeps fill-rate (and SoC temperature) sane on 3x-DPR
+  // screens; the UI stays crisp because it's DOM, not canvas. The cap is the
+  // resolved graphics setting (per-tier preset by default; user-overridable).
+  gl.setPixelRatio(Math.min(window.devicePixelRatio, resolutionScale));
   // Without preventDefault the browser treats a GPU context loss as permanent
   // and never fires webglcontextrestored — three.js can recover automatically
   // once restoration is allowed (ScenePostFX unmounts its composer for the
@@ -104,9 +109,9 @@ function setUpRenderer(gl: THREE.WebGLRenderer, quality: ReturnType<typeof choos
  * thrash the composer rebuild the ACES↔NEUTRAL swap triggers. WorldScene
  * re-renders every tick, so the ref's flips propagate on the next render.
  */
-function useValeHD(focus: { x: number; z: number }, quality: ReturnType<typeof chooseWorldArtQuality>): boolean {
+function useValeHD(focus: { x: number; z: number }, valeHDEnabled: boolean): boolean {
   const ref = useRef(false);
-  if (!VALE_HD || quality === 'low') {
+  if (!VALE_HD || !valeHDEnabled) {
     ref.current = false;
   } else {
     const d = Math.hypot(focus.x - GLACIAL_VALE.x, focus.z - GLACIAL_VALE.z);
@@ -123,9 +128,17 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
   const activeTimeFields = state.activePhysicsFields;
   const now = Date.now();
   const cameraAnchorRef = useRef<THREE.Vector3 | null>(null) as MutableRefObject<THREE.Vector3 | null>;
-  const worldArtQuality = useMemo(() => chooseWorldArtQuality(), []);
+  // User-configurable graphics (graphicsSettings). The renderer/canvas-level
+  // knobs (tier, resolutionScale, shadows) are set once at Canvas creation and
+  // can't change live, so freeze them at mount — a change to those needs a
+  // reload (the settings panel says so). The cheap per-frame knobs (valeHD,
+  // bloom, godRays, antialias, fog) read live so toggling them takes effect
+  // immediately. Defaults (all 'auto') resolve to the old per-tier behaviour.
+  const mountGraphics = useMemo(() => resolveGraphics(getGraphicsSettings()), []);
+  const liveGraphics = useResolvedGraphics();
+  const worldArtQuality: WorldArtQuality = mountGraphics.tier;
   const [contextLost, setContextLost] = useState(false); // GPU dropped the render context → overlay below
-  const valeHD = useValeHD(focus, worldArtQuality);
+  const valeHD = useValeHD(focus, liveGraphics.valeHD);
 
   // Sun disc handed up by WorldEnvironment → anchors GodRays in ScenePostFX.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null);
@@ -144,9 +157,9 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       camera={{ position: [0, 14, 20], fov: 52, near: 0.1, far: WORLD_SETTINGS.cameraFar }}
       /* 'percentage' = PCFShadowMap; both `true` and 'soft' pick the DEPRECATED
          PCFSoftShadowMap, which three re-warns about every frame (500+ lines). */
-      shadows={worldArtQuality === 'low' ? false : 'percentage'}
+      shadows={mountGraphics.shadows ? 'percentage' : false}
       gl={CANVAS_GL_OPTIONS}
-      onCreated={({ gl }) => setUpRenderer(gl, worldArtQuality)}
+      onCreated={({ gl }) => setUpRenderer(gl, mountGraphics.resolutionScale)}
     >
       {/* Warm up shaders up front so the WebGL link stall (getProgramInfoLog) doesn't freeze a gameplay frame; foliage materials are shared across biomes so one pass covers later sectors. */}
       <Preload all />
@@ -160,7 +173,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       {/* Med/high: vista fog + horizon shell; low keeps close fog. onSunMesh only when the composer mounts (low has no postFX). */}
       <WorldEnvironment
         focus={focus}
-        fog={worldArtQuality === 'low' ? VISTA_FOG_LOW : VISTA_FOG}
+        fog={liveGraphics.fog ? (worldArtQuality === 'low' ? VISTA_FOG_LOW : VISTA_FOG) : FOG_DISABLED}
         onSunMesh={worldArtQuality === 'low' ? undefined : handleSunMesh}
       />
       {/* One draw call + a one-off 47 ms bake — phones can afford mountains. */}
@@ -210,7 +223,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         cameraControlsRef={cameraControlsRef}
         touchClaimRef={touchClaimRef}
       />
-      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} />
+      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} bloom={liveGraphics.bloom} godRays={liveGraphics.godRays} antialias={liveGraphics.antialias} />
     </Canvas>
     {contextLost && <RendererContextLostOverlay />}
     </WebGLGate>
