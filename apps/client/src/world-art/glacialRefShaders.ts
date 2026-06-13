@@ -335,28 +335,30 @@ void main(){
   float nscale = (1.0 + rapid*1.4)/(1.0 + dist*0.010);
   vec3 N = normalize(vec3(-(hx - h0)/e*nscale, 1.0, -(hz - h0)/e*nscale));
 
-  // refraction-pass substitute: lit bed estimate (no second render pass)
+  // The reference reads the real lit riverbed via a screen-space refraction
+  // pass (tRefr). We have no second pass, so we substitute a lit bed estimate —
+  // brightened to mimic their exposure-lifted bed, since the pale milky shore is
+  // that bright bed seen through near-transparent shallow water.
   vec3 rdir = refract(vd, vec3(0.0, 1.0, 0.0), 0.752);
   float depth = max(uWaterY - groundH(p + N.xz*depth0*1.5), 0.02);
   float path = depth / max(0.30, -rdir.y);
   vec3 bedAlb = mix(vec3(0.30, 0.255, 0.205), vec3(0.40, 0.36, 0.30), vnoise((p + N.xz*depth*2.0)*7.0));
-  vec3 refr = bedAlb * (uSunColor*0.35*sv + uSkyZenith*0.8);
+  vec3 refr = bedAlb * (uSunColor*0.55*sv + uSkyZenith*1.1);
 
   vec2 cuv = (p + N.xz*depth*2.0)*1.05;
   float ca = pow(max(1.0 - vor(cuv*2.0 + vec2(-t*0.9, t*0.25)), 1e-4), 5.0)
            + pow(max(1.0 - vor(cuv*3.1 + vec2(-t*1.3, -t*0.30)), 1e-4), 5.0);
   refr *= 1.0 + ca * sv * 1.2 * exp(-depth*1.8);
 
+  // glacial water, deedy's verbatim values: fast red absorption + suspended
+  // rock-flour scattering that builds up SLOWLY with depth (scA *0.30). So
+  // shallow water is near-transparent (the bright bed → milky pale shore) and
+  // only deep water tints turquoise. (My earlier blind tuning cranked scA and
+  // the scatter colour, which muddied the whole river — reverted to theirs.)
   vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
-  float scA = 1.0 - exp(-path*1.3);
-  // milky scatter: suspended rock flour scatters the sky's ambient, so deep
-  // water reads luminous turquoise. Scaled by uSkyZenith (not a constant floor)
-  // so it follows the day/night cycle and goes dark at night.
-  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith * vec3(0.88, 0.86, 0.73);
-  // milkier, brighter glacial body colour (was a saturated neon cyan). 1.45x so
-  // deep water glows turquoise instead of going dim; brightest spots read milky
-  // pale turquoise (on-reference) rather than neon.
-  vec3 under = refr * trans + vec3(0.40, 0.82, 0.80) * scA * sunAmb * 1.45;
+  float scA = 1.0 - exp(-path*0.30);
+  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55;
+  vec3 under = refr * trans + vec3(0.07, 0.38, 0.36) * scA * sunAmb;
 
   vec3 rd = reflect(vd, N);
   rd.y = max(rd.y, 0.02);
@@ -374,10 +376,7 @@ void main(){
     }
   }
   float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
-  // cap reflection hard: rock-flour water is so scattering the turquoise body
-  // dominates the sky sheen even at grazing — steep-view turquoise is gorgeous,
-  // this makes grazing read the same instead of washing to grey sky reflection.
-  vec3 col = mix(under, refl, min(fres, 0.24));
+  vec3 col = mix(under, refl, clamp(fres, 0.0, 1.0));
 
   vec3 hv = normalize(uSunDir - vd);
   float ndh = max(dot(N, hv), 1e-4);
