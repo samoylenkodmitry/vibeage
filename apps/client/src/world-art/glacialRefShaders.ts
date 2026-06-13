@@ -349,8 +349,12 @@ void main(){
 
   vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
   float scA = 1.0 - exp(-path*1.3);
-  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith*0.55;
-  vec3 under = refr * trans + vec3(0.176, 0.832, 0.768) * scA * sunAmb;
+  // milky scatter: suspended rock flour scatters the sky's ambient, so deep
+  // water reads luminous turquoise. Scaled by uSkyZenith (not a constant floor)
+  // so it follows the day/night cycle and goes dark at night.
+  vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith * vec3(0.88, 0.86, 0.73);
+  // milkier, brighter glacial body colour (was a saturated neon cyan)
+  vec3 under = refr * trans + vec3(0.40, 0.82, 0.80) * scA * sunAmb;
 
   vec3 rd = reflect(vd, N);
   rd.y = max(rd.y, 0.02);
@@ -368,7 +372,9 @@ void main(){
     }
   }
   float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
-  vec3 col = mix(under, refl, min(fres, 0.62));
+  // cap reflection low: rock-flour water is so scattering the turquoise body
+  // dominates over the sky sheen even at grazing angles (was 0.62 → grey ribbon).
+  vec3 col = mix(under, refl, min(fres, 0.42));
 
   vec3 hv = normalize(uSunDir - vd);
   float ndh = max(dot(N, hv), 1e-4);
