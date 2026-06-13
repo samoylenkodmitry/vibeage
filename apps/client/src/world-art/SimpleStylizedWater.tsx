@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import type { WorldArtScene } from './worldArtScenes';
 import { computeDayPhase } from '../timeOfDay';
 
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
 /**
  * Stylized coast water — cheap, mobile-safe, anchored to the scene's
  * waterline (NOT the player's position; we don't want water sliding
@@ -48,9 +50,9 @@ export function SimpleStylizedWater({ scene }: { scene: WorldArtScene }) {
       material.uniforms.uSky.value.set(phase.fogColor);
       // Moon glade: a reflection streak toward the moon, like the sun's by day.
       // Strong only when the sun is down AND the moon is up.
-      material.uniforms.uMoonDir.value.copy(phase.moonDir);
-      const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-      material.uniforms.uMoonStr.value = clamp01(-phase.sunDir.y * 3) * clamp01(phase.moonDir.y * 4);
+      const m = phase.moonDir;
+      material.uniforms.uMoonDir.value.set(m.x, m.y, m.z);
+      material.uniforms.uMoonStr.value = clamp01(-phase.sunDir.y * 3) * clamp01(m.y * 4);
     }
   });
   return (
