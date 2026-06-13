@@ -83,6 +83,16 @@ export function ElementImpact({ element, core, glow, accent }: { element: SpellE
   useFrame(({ clock }) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
+    // Animation over (everything has faded to opacity 0) but the cast lingers
+    // until pruned — hide the meshes and skip the per-frame work until unmount,
+    // same as NovaImpact.
+    if (age >= cfg.duration) {
+      if (flashRef.current) flashRef.current.visible = false;
+      if (glowRef.current) glowRef.current.visible = false;
+      if (sparks.current) sparks.current.visible = false;
+      if (extra.current) extra.current.visible = false;
+      return;
+    }
     const t = Math.min(1, age / cfg.duration);
     // White-hot core flash: a fast bright pop that shrinks + fades.
     if (flashRef.current) flashRef.current.scale.setScalar(1.1 + age * 0.6);
