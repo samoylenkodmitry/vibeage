@@ -151,7 +151,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
       <SimpleStylizedWater scene={STARTER_COZY_COAST} />
       {/* Lakes: discs at the analytic lattice peaks; terrain buries the rim. */}
       {worldArtQuality !== 'low' && <LakeWaters focus={focus} />}
-      <GlacialValeDressing focus={focus} />
+      {worldArtQuality !== 'low' && <GlacialValeDressing focus={focus} />}
       {mountedScene && <CozyWorldArt scene={mountedScene} />}
       <WorldGround focus={focus} onMove={onMove} cameraControlsRef={cameraControlsRef} touchClaimRef={touchClaimRef} visualMode="textured" sandRegion={STARTER_COAST_SAND} />
       <WorldFeatures focus={focus} />
