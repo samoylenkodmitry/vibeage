@@ -347,8 +347,12 @@ void main(){
            + pow(max(1.0 - vor(cuv*3.1 + vec2(-t*1.3, -t*0.30)), 1e-4), 5.0);
   refr *= 1.0 + ca * sv * 1.2 * exp(-depth*1.8);
 
-  vec3 trans = exp(-path * vec3(0.62, 0.18, 0.14) * 1.5);
-  float scA = 1.0 - exp(-path*1.3);
+  // strong, red-biased extinction: milky rock-flour water hides its grey gravel
+  // bed in very little depth, so the wide shallow flood reads turquoise instead
+  // of letting the bed show through grey (only deep scour-holes were turquoise).
+  vec3 trans = exp(-path * vec3(1.15, 0.48, 0.36) * 2.4);
+  // scatter saturates ~2x faster too, so thin water reads like deep water.
+  float scA = 1.0 - exp(-path*2.6);
   // milky scatter: suspended rock flour scatters the sky's ambient, so deep
   // water reads luminous turquoise. Scaled by uSkyZenith (not a constant floor)
   // so it follows the day/night cycle and goes dark at night.
