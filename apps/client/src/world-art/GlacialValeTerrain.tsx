@@ -26,7 +26,7 @@ import {
 const GRID_RES = 768;            // bake resolution over the vale (≈1.7 m/texel)
 const GRID_HALF = 660;
 const MESH_SEG = 360;            // mesh density (≈3.7 m; per-pixel shading on top)
-const GRASS_COUNT = 150_000;     // dense bank carpet (their 85k was a r=95 disc)
+const GRASS_COUNT = 120_000;     // dense bank carpet (their 85k was a r=95 disc)
 const PEBBLE_COUNT = 6_000;
 const BOULDER_COUNT = 64;
 const WATER_Y = VALE_TARN_WATER_Y; // 0 — their WATER_Y
@@ -272,7 +272,7 @@ function buildGrassGeometry(grid: Float32Array): THREE.InstancedBufferGeometry {
   const params = new Float32Array(GRASS_COUNT * 4);
   let n = 0;
   let tries = 0;
-  while (n < GRASS_COUNT && tries < GRASS_COUNT * 12) {
+  while (n < GRASS_COUNT && tries < GRASS_COUNT * 5) {
     tries += 1;
     const lx = (random() - 0.5) * 2 * (GRID_HALF - 30);
     const lz = (random() - 0.5) * 2 * (GRID_HALF - 30);
