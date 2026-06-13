@@ -26,7 +26,7 @@ import {
 const GRID_RES = 768;            // bake resolution over the vale (≈1.7 m/texel)
 const GRID_HALF = 660;
 const MESH_SEG = 360;            // mesh density (≈3.7 m; per-pixel shading on top)
-const GRASS_COUNT = 120_000;     // dense floor carpet (their 85k was a r=95 disc)
+const GRASS_COUNT = 150_000;     // dense bank carpet (their 85k was a r=95 disc)
 const PEBBLE_COUNT = 6_000;
 const BOULDER_COUNT = 64;
 const WATER_Y = VALE_TARN_WATER_Y; // 0 — their WATER_Y
@@ -280,11 +280,11 @@ function buildGrassGeometry(grid: Float32Array): THREE.InstancedBufferGeometry {
     const iz = Math.min(res - 2, Math.max(1, Math.floor((lz + GRID_HALF) / step)));
     const h = grid[iz * res + ix];
     const relH = h - WATER_Y;
-    if (relH < 0.32 || relH > 30) continue;
+    if (relH < 0.18 || relH > 30) continue;
     if (slopeAt(ix, iz) > 0.45) continue;
     const wx = GLACIAL_VALE.x + lx;
     const wz = GLACIAL_VALE.z + lz;
-    if (valeValueNoise(wx * 0.045 + 7, wz * 0.045 + 7) < 0.40) continue; // dry patches
+    if (valeValueNoise(wx * 0.045 + 7, wz * 0.045 + 7) < 0.24) continue; // dry patches
     offsets[n * 3] = wx;
     offsets[n * 3 + 1] = h - 0.01;
     offsets[n * 3 + 2] = wz;
