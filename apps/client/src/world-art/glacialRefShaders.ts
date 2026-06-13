@@ -147,6 +147,17 @@ vec3 litSurface(vec3 albedo, vec3 N, vec3 wp, vec3 vd, float specAmt, float roug
   }
   return col;
 }
+// The reference outputs linear HDR and resolves it with ACES + adaptive
+// exposure in a post pass; VibeAge's post is a fixed NEUTRAL tonemap that
+// barely compresses sub-1.0 values, so the ported shaders read flat and
+// washed. This pre-grade widens the histogram (contrast around a low pivot)
+// and re-saturates so the NEUTRAL pass receives a rich, alpine image.
+vec3 valeGrade(vec3 c){
+  c = (c - 0.30) * 1.32 + 0.30;
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(vec3(l), c, 1.24);
+  return max(c, 0.0);
+}
 `;
 
 export const REF_TERRAIN_VERT = /* glsl */ `
@@ -277,7 +288,7 @@ void main(){
   }
 
   col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(col, smoothstep(0.02, 0.2, vMask));
+  gl_FragColor = vec4(valeGrade(col), smoothstep(0.02, 0.2, vMask));
 }
 `;
 
@@ -374,7 +385,7 @@ void main(){
   col = mix(col, foamCol, foam*0.85);
 
   col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(col, clamp(depth0*3.0 + foam, 0.0, 0.97));
+  gl_FragColor = vec4(valeGrade(col), clamp(depth0*3.0 + foam, 0.0, 0.97));
 }
 `;
 
@@ -389,6 +400,7 @@ varying float vHue;
 void main(){
   float scale = aParam.x, yaw = aParam.y, phase = aParam.z;
   scale *= 1.0 + 0.45*uGreen;
+  scale *= 1.0 - smoothstep(110.0, 150.0, length(aOffset - cameraPosition));
   vHue = aParam.w;
   float cy = cos(yaw), sy = sin(yaw);
   vec3 lp = vec3(position.x*cy, position.y, -position.x*sy);
@@ -440,7 +452,7 @@ void main(){
   float back = pow(max(dot(vd, uSunDir), 1e-4), 4.0);
   col += alb * uSunColor * back * sv * (0.5 + 0.4*vT);
   col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(valeGrade(col), 1.0);
 }
 `;
 
@@ -519,6 +531,6 @@ void main(){
   col += uSunColor * sv * ndl * specAmt * fres * pow(max(dot(dN, hv), 1e-4), pw) * (pw + 8.0)*0.04;
 
   col = applyAtmo(col, vWp);
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(valeGrade(col), 1.0);
 }
 `;
