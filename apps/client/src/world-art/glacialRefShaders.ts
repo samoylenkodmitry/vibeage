@@ -353,8 +353,10 @@ void main(){
   // water reads luminous turquoise. Scaled by uSkyZenith (not a constant floor)
   // so it follows the day/night cycle and goes dark at night.
   vec3 sunAmb = uSunColor*0.10*sv + uSkyZenith * vec3(0.88, 0.86, 0.73);
-  // milkier, brighter glacial body colour (was a saturated neon cyan)
-  vec3 under = refr * trans + vec3(0.40, 0.82, 0.80) * scA * sunAmb;
+  // milkier, brighter glacial body colour (was a saturated neon cyan). 1.45x so
+  // deep water glows turquoise instead of going dim; brightest spots read milky
+  // pale turquoise (on-reference) rather than neon.
+  vec3 under = refr * trans + vec3(0.40, 0.82, 0.80) * scA * sunAmb * 1.45;
 
   vec3 rd = reflect(vd, N);
   rd.y = max(rd.y, 0.02);
@@ -372,9 +374,10 @@ void main(){
     }
   }
   float fres = 0.02 + 0.98*pow(max(1.0 - max(dot(N, -vd), 0.0), 1e-4), 5.0);
-  // cap reflection low: rock-flour water is so scattering the turquoise body
-  // dominates over the sky sheen even at grazing angles (was 0.62 → grey ribbon).
-  vec3 col = mix(under, refl, min(fres, 0.42));
+  // cap reflection hard: rock-flour water is so scattering the turquoise body
+  // dominates the sky sheen even at grazing — steep-view turquoise is gorgeous,
+  // this makes grazing read the same instead of washing to grey sky reflection.
+  vec3 col = mix(under, refl, min(fres, 0.24));
 
   vec3 hv = normalize(uSunDir - vd);
   float ndh = max(dot(N, hv), 1e-4);
