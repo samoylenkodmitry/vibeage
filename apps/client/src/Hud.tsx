@@ -381,6 +381,7 @@ function PanelToggleStrip({
           <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
           <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
           <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
+          <PanelToggleButton open={panels.videoOpen} label="Video" onClick={panels.toggleVideo} />
           {isGm && <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />}
         </>
       )}
@@ -398,14 +399,10 @@ type PanelState = ReturnType<typeof usePanelState>;
 
 function usePanelState() {
   // §52 polish — panel open/closed state persists across reloads via
-  // `usePersistedToggle`. The default (3rd arg) only matches the
-  // pre-PR behavior for first-ever joins; returning players see the
-  // panel set they left open. Mirrors the existing
-  // `useDismissibleHint` pattern + `vibeage.trackedQuest.v1` storage.
-  // Stats + Actions default OPEN on desktop (room for them) but CLOSED on phones,
-  // where two always-open top panels otherwise bury the game view. Computed once
-  // (matchMedia) so it doesn't re-probe every render. Returning players who
-  // toggled keep their stored choice.
+  // `usePersistedToggle` (the 3rd-arg default only applies to first-ever joins;
+  // returning players see the set they left open). Stats + Actions default OPEN
+  // on desktop but CLOSED on phones, where two always-open top panels otherwise
+  // bury the game view; `defaultRailOpen` (matchMedia) is computed once.
   const [desktopDefault] = useState(defaultRailOpen);
   const [statsOpen, , toggleStats] = usePersistedToggle('stats', desktopDefault);
   const [questOpen, setQuestOpen, toggleQuest] = usePersistedToggle('quest', false);
@@ -418,6 +415,7 @@ function usePanelState() {
   // works, and it's a tap on the ☰ rail away).
   const [actionsOpen, , toggleActions] = usePersistedToggle('actions', desktopDefault);
   const [wikiOpen, setWikiOpen, toggleWiki] = usePersistedToggle('wiki', false);
+  const [videoOpen, , toggleVideo] = usePersistedToggle('video', false);
   const [gmOpen, , toggleGm] = usePersistedToggle('gm', false);
   // PR AA — the craft panel opens when the player taps a recipe in
   // their bag. Holds the slot index so we can find the recipe again
@@ -432,6 +430,7 @@ function usePanelState() {
     treeOpen,
     actionsOpen,
     wikiOpen,
+    videoOpen,
     gmOpen,
     craftRecipeSlot,
     toggleStats,
@@ -445,6 +444,7 @@ function usePanelState() {
     toggleActions,
     toggleWiki,
     openWiki: () => setWikiOpen(true),
+    toggleVideo,
     toggleGm,
     openCraft: (slotIndex: number) => setCraftRecipeSlot(slotIndex),
     closeCraft: () => setCraftRecipeSlot(null),
