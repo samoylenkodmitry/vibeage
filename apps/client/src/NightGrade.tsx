@@ -1,4 +1,4 @@
-import { useRef, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { HueSaturationEffect } from 'postprocessing';
 import { computeDayPhase, nightFactorFromSunDir } from './timeOfDay';
@@ -25,6 +25,9 @@ export function NightGrade({ hueSat, daySaturation }: {
   hueSat: RefObject<HueSaturationEffect | null>;
   daySaturation: number;
 }) {
+  // Restore the day saturation on unmount (tier change / nograde toggle) so the
+  // shared effect isn't left stuck at the last night value.
+  useEffect(() => () => { if (hueSat.current) hueSat.current.saturation = daySaturation; }, [hueSat, daySaturation]);
   const acc = useRef(0.2); // run on the first frame
   useFrame((_, dt) => {
     acc.current += dt;
