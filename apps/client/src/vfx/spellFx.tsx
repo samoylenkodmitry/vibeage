@@ -441,7 +441,7 @@ export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y
 // 'projectile' flies straight A→B. 'arc' lobs in a parabola, 'spiral' corkscrews
 // around the travel axis, 'lance' is a fast elongated bolt — all still travel
 // (rendered while Traveling), unlike strike/erupt/deluge which deliver at impact.
-export type SpellMechanic = 'projectile' | 'arc' | 'spiral' | 'lance' | 'strike' | 'erupt' | 'deluge' | 'nova';
+export type SpellMechanic = 'projectile' | 'arc' | 'spiral' | 'lance' | 'strike' | 'erupt' | 'deluge' | 'nova' | 'meteor';
 
 /** Mechanics whose projectile flies and is drawn during the Traveling phase. */
 export const FLYING_MECHANICS: ReadonlySet<SpellMechanic> = new Set(['projectile', 'arc', 'spiral', 'lance']);
