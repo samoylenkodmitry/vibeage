@@ -29,7 +29,7 @@ import {
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
-import { MeteorImpact, InfernoImpact, ArcaneImplodeImpact } from './vfx/signatureFx';
+import { MeteorImpact, InfernoImpact, ArcaneImplodeImpact, ArcaneVortexCast } from './vfx/signatureFx';
 import { getCastEffectRadius, getTimeStopDurationMs } from './vfx/castVfxConfig';
 import { skillThemeFor, type SkillTheme } from './vfx/skillThemeConfig';
 import { TimeSphereDome } from './vfx/timeSphereFx';
@@ -241,12 +241,15 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
   if (snapshot.state === CastState.Casting) {
     // Deluge gathers its water cloud above the target DURING the cast windup.
     if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} radius={radius} />;
+    // Arcane opens a spinning hurricane over the target that spins up as it charges.
+    if (theme.mechanic === 'implode') return <ArcaneVortexCast progress={progress} glow={theme.glow} radius={radius} />;
     return <CastingChargeVfx progress={progress} theme={theme} frozen={frozen} />;
   }
 
-  // Traveling phase: deluge holds the gathered cloud until impact; the other
-  // non-projectile mechanics show nothing (they're delivered at impact).
+  // Traveling phase: deluge / arcane hold their gathered windup until impact; the
+  // other non-projectile mechanics show nothing (they're delivered at impact).
   if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} radius={radius} />;
+  if (theme.mechanic === 'implode') return <ArcaneVortexCast progress={1} glow={theme.glow} radius={radius} />;
   if (theme.mechanic && !FLYING_MECHANICS.has(theme.mechanic)) return null;
   return <ProjectileVfx snapshot={snapshot} theme={theme} frozen={frozen} />;
 }

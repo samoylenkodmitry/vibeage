@@ -203,6 +203,38 @@ const IMPLODE_MOTES = Array.from({ length: 18 }, (_, i) => ({
 const IMPLODE_DUR = 1.15;
 const COLLAPSE_AT = 0.44;
 
+/** Arcane vortex windup — a big swirling hurricane opens over the target and
+ *  SPINS UP for the whole cast: it grows, the disc spin accelerates and the
+ *  internal flow churns faster as the cast charges, so the player actually SEES
+ *  the storm gathering (not a one-frame impact flash). Held at full through the
+ *  brief travel, then ArcaneImplodeImpact detonates it. */
+export function ArcaneVortexCast({ progress, glow, radius }: { progress: number; glow: string; radius: number }) {
+  const pRef = useRef(progress);
+  pRef.current = progress;
+  const grp = useRef<THREE.Group>(null);
+  const size = Math.max(3.6, radius * 2.6);
+  useFrame(({ clock }) => {
+    // Grows as it charges, with a gentle bob so it reads as alive, not pinned.
+    if (grp.current) {
+      grp.current.scale.setScalar(0.5 + pRef.current * 0.85);
+      grp.current.position.y = Math.sin(clock.elapsedTime * 2.0) * 0.12;
+    }
+  });
+  return (
+    <group position={[0, 1.5, 0]}>
+      <group ref={grp}>
+        <FractalBurst
+          color={glow}
+          size={size}
+          getAlpha={() => Math.min(1, pRef.current * 2.4) * 0.92}
+          getSpinRate={() => 1.5 + pRef.current * 6.0}
+          getSwirl={() => 1.0 + pRef.current * 2.6}
+        />
+      </group>
+    </group>
+  );
+}
+
 /** Arcane implosion — motes spiral INWARD and the energy gathers into a churning
  *  fractal SINGULARITY (the raymarched reference look), which then DETONATES:
  *  the fractal flares and blooms outward, an arcane ring expands, motes fling out.
@@ -269,9 +301,11 @@ export function ArcaneImplodeImpact({ glow, accent, radius }: { glow: string; ac
   });
 
   return (
-    <group position={[0, 0.6, 0]}>
-      <group ref={center}><FractalBurst color={glow} size={1.8} getAlpha={() => fade.current} /></group>
-      <mesh ref={ring} geometry={RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.48, 0]} />
+    <group position={[0, 0.9, 0]}>
+      <group ref={center}>
+        <FractalBurst color={glow} size={2.6} getAlpha={() => fade.current} getSpinRate={() => 5.0} getSwirl={() => 2.4} />
+      </group>
+      <mesh ref={ring} geometry={RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.78, 0]} />
       <group ref={motes}>{IMPLODE_MOTES.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={moteMat} />))}</group>
     </group>
   );
