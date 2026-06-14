@@ -32,6 +32,14 @@ import { NightGrade } from './NightGrade';
  *
  * `luminanceThreshold` is high-ish so only genuinely bright/emissive pixels
  * bloom — lit terrain + props stay crisp, they don't smear.
+ *
+ * NIGHT GRADE: the HueSaturation effect's saturation is driven down after dark
+ * by <NightGrade> via `setHueSat`. That MUST be a CALLBACK ref, never an object
+ * ref — @react-three/postprocessing's effect wrapper does
+ * `useMemo(..., [JSON.stringify(props)])` each render, and under React 19 the ref
+ * is a prop; an object ref serialises the effect (which back-references the
+ * scene) → "circular structure to JSON" crashes the whole post stack. A function
+ * ref is dropped by JSON.stringify, so it's safe.
  */
 // memo: the EffectComposer rebuilds ALL its EffectPasses (and their render
 // targets) whenever its `children` JSX changes identity — its pass-building
@@ -52,13 +60,8 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
   // lost; remount when the browser restores it.
   const gl = useThree((state) => state.gl);
   const [contextLost, setContextLost] = useState(false);
-  const hueSatRef = useRef<HueSaturationEffect | null>(null); // night grade drives its saturation
-  // CALLBACK ref, never an object ref: @react-three/postprocessing's effect
-  // wrapper does `useMemo(..., [JSON.stringify(props)])`, and under React 19 the
-  // ref is passed as a prop. An OBJECT ref serialises the effect (which
-  // back-references the scene) → "circular structure to JSON" crashes the whole
-  // post stack. A function ref is dropped by JSON.stringify, so it's safe.
-  const setHueSat = useCallback((e: HueSaturationEffect | null) => { hueSatRef.current = e; }, []);
+  const hueSatRef = useRef<HueSaturationEffect | null>(null);
+  const setHueSat = useCallback((e: HueSaturationEffect | null) => { hueSatRef.current = e; }, []); // callback ref ONLY — see header
   useEffect(() => {
     const el = gl.domElement;
     const onLost = () => setContextLost(true);
