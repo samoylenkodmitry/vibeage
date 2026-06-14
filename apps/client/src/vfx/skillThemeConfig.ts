@@ -41,7 +41,7 @@ const SKILL_THEME_OVERRIDES: Partial<Record<string, SkillTheme>> = {
   volley: { ...SCHOOL_THEMES.physical, mechanic: 'lance' },
   poisonBlade: { ...SCHOOL_THEMES.poison, mechanic: 'arc' },
   holyLight: { ...SCHOOL_THEMES.holy, mechanic: 'strike' },
-  arcane_blast: { ...SCHOOL_THEMES.arcane, mechanic: 'spiral' },
+  arcane_blast: { ...SCHOOL_THEMES.arcane, mechanic: 'implode' },
   time_sphere: { core: '#ddd6fe', glow: '#8b5cf6', accent: '#67e8f9', shape: 'sphere', element: 'arcane', form: 'orb' },
   meteor: { ...SCHOOL_THEMES.fire, mechanic: 'meteor' },
   inferno_aura: { ...SCHOOL_THEMES.fire, mechanic: 'inferno' },
