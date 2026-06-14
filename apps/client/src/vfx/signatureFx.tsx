@@ -1,8 +1,32 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { FireCore, GroundShockwave, CORE_VERT, FIRE_FRAG } from './spellFx';
+import { FireCore, GroundShockwave, CORE_VERT, FIRE_FRAG, NOISE_GLSL } from './spellFx';
 import { FractalBurst } from './fractalFx';
+
+// Fire-explosion shader: the shared FIRE_FRAG's turbulent blackbody flame, but
+// with a uFade alpha multiplier so the detonation can fade out (additive fire
+// has no opacity otherwise). Local copy so the shared cores can't break.
+const FIRE_BURST_FRAG = NOISE_GLSL + /* glsl */ `
+  uniform float uTime; uniform float uFade;
+  varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
+  void main() {
+    vec3 p = vPos * 3.1; p.y -= uTime * 2.3;
+    vec3 q = vec3(fbm(p), fbm(p + 4.7), fbm(p + 9.2));
+    float n = fbm(p + q * 1.9);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.4);
+    float heat = clamp(n * 1.45 + (1.0 - fres) * 0.4 - vPos.y * 0.28, 0.0, 1.25);
+    vec3 col = vec3(0.05, 0.0, 0.0);
+    col = mix(col, vec3(0.85, 0.07, 0.0), smoothstep(0.10, 0.34, heat));
+    col = mix(col, vec3(1.0, 0.42, 0.04), smoothstep(0.32, 0.55, heat));
+    col = mix(col, vec3(1.0, 0.86, 0.30), smoothstep(0.55, 0.80, heat));
+    col = mix(col, vec3(1.0, 0.98, 0.88), smoothstep(0.82, 1.06, heat));
+    col *= 0.8 + heat * 0.45;                 // tamer emission so turbulence reads (not a white blob under bloom)
+    float a = smoothstep(0.10, 0.46, heat + fres * 0.2);
+    gl_FragColor = vec4(col, a * uFade);
+  }
+`;
+const FIRE_BALL_GEO = new THREE.IcosahedronGeometry(1, 3);
 
 /**
  * Per-skill SIGNATURE mechanics — bespoke choreography for marquee spells so they
@@ -121,6 +145,90 @@ export function MeteorImpact({ color, glow, accent }: { color: string; glow: str
       <group ref={smoke} position={[0, -0.6, 0]}>
         {SMOKE.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={smokeMat} />))}
       </group>
+    </group>
+  );
+}
+
+const FB_DUR = 1.0;
+const FB_LICKS = 7;
+
+/** Fireball detonation — a turbulent fire ball bursts out and rolls over, a ring
+ *  of flames licks upward, embers fountain out and dark smoke rises. Its OWN fire
+ *  character (rising turbulent flame), not a reused flash or the arcane swirl. */
+export function FireballImpact({ glow, accent, radius }: { glow: string; accent: string; radius: number }) {
+  const r = Math.max(1.3, radius);
+  const blast = useRef<THREE.Mesh>(null);
+  const flash = useRef<THREE.Mesh>(null);
+  const licks = useRef<THREE.Group>(null);
+  const embers = useRef<THREE.Group>(null);
+  const smoke = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+
+  // One fire material for the ball + the licks (same compiled program); uFade
+  // burns the whole thing out at the end so nothing hard-pops.
+  const fireMat = useMemo(() => new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 }, uFade: { value: 1 } }, vertexShader: CORE_VERT, fragmentShader: FIRE_BURST_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const emberMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const smokeMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color('#241c16') }), []);
+  useEffect(() => { flashMat.color.set('#ffd9a0'); emberMat.color.set(accent); }, [accent, flashMat, emberMat]);
+  useEffect(() => () => fireMat.dispose(), [fireMat]);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
+  useEffect(() => () => emberMat.dispose(), [emberMat]);
+  useEffect(() => () => smokeMat.dispose(), [smokeMat]);
+
+  useFrame(({ clock }, delta) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    fireMat.uniforms.uTime.value += delta;
+    const age = clock.elapsedTime - start.current;
+    const t = Math.min(1, age / FB_DUR);
+    if (age >= FB_DUR) {
+      for (const rf of [blast, flash, licks, embers, smoke]) if (rf.current) rf.current.visible = false;
+      return;
+    }
+    // Whole-burst burn-out (held bright, then fades over the last ~30%).
+    fireMat.uniforms.uFade.value = 1 - Math.max(0, (t - 0.7) / 0.3);
+    // Fire ball: bursts out fast, then settles + shrinks as it cools.
+    const bt = Math.min(1, age / 0.3);
+    if (blast.current) blast.current.scale.setScalar(r * (0.3 + bt * 0.55) * (1 - t * 0.3));
+    // White-hot flash: a fast, contained bright pop.
+    if (flash.current) flash.current.scale.setScalar(r * (0.4 + bt * 0.7));
+    flashMat.opacity = Math.max(0, (1 - bt) * (1 - bt)) * 0.55 * (age < 0.05 ? age / 0.05 : 1);
+    // Flame licks: erupt upward then drop back as the fire dies.
+    const rise = Math.min(1, age / 0.18);
+    const fall = 1 - Math.max(0, (t - 0.4) / 0.6);
+    if (licks.current) licks.current.children.forEach((c, i) => {
+      const flick = 0.8 + Math.sin(age * 15.0 + i * 1.9) * 0.25;
+      c.scale.set(0.4 * fall + 0.15, Math.max(0.02, rise * flick * fall * 0.7), 0.4 * fall + 0.15);
+    });
+    // Ember fountain + rising smoke.
+    emberMat.opacity = 1 - t;
+    if (embers.current) embers.current.children.forEach((c, i) => {
+      const d = EMBER_DIRS[i]; if (!d) return;
+      const rr = r * 1.5 * d.sj * t;
+      c.position.set(Math.cos(d.az) * rr, r * 1.6 * d.rj * t - 4.2 * t * t, Math.sin(d.az) * rr);
+      c.scale.setScalar(Math.max(0.02, 0.22 * (1 - t * 0.7)));
+    });
+    smokeMat.opacity = (1 - t) * 0.5;
+    if (smoke.current) smoke.current.children.forEach((c, i) => {
+      const s = SMOKE[i]; if (!s) return;
+      c.position.set(Math.cos(s.a) * s.r * (0.5 + t), 0.4 + t * 2.6, Math.sin(s.a) * s.r * (0.5 + t));
+      c.scale.setScalar(0.8 + t * 1.8);
+    });
+  });
+
+  return (
+    <group position={[0, 0.2, 0]}>
+      <GroundShockwave color={glow} accent={accent} size={r * 2.4} durationMs={780} y={-0.18} />
+      <mesh ref={flash} geometry={BALL_GEO} material={flashMat} />
+      <mesh ref={blast} geometry={FIRE_BALL_GEO} material={fireMat} />
+      <group ref={licks}>
+        {Array.from({ length: FB_LICKS }).map((_, i) => {
+          const a = (i / FB_LICKS) * Math.PI * 2;
+          return <mesh key={i} geometry={FLAME_CONE} material={fireMat} position={[Math.cos(a) * r * 0.7, -0.3, Math.sin(a) * r * 0.7]} scale={[0.5, 0.02, 0.5]} />;
+        })}
+      </group>
+      <group ref={embers}>{EMBER_DIRS.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={emberMat} />))}</group>
+      <group ref={smoke}>{SMOKE.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={smokeMat} />))}</group>
     </group>
   );
 }
