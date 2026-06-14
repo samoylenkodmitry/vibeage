@@ -24,8 +24,9 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset, type SpellMechanic,
+  SpellCore, SpellProjectile, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset, type SpellMechanic,
 } from './vfx/spellFx';
+import { StrikeImpact, StrikeCast } from './vfx/holyFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
@@ -246,13 +247,16 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
     if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} radius={radius} />;
     // Arcane opens a spinning hurricane over the target that spins up as it charges.
     if (theme.mechanic === 'implode') return <ArcaneVortexCast progress={progress} glow={theme.glow} radius={radius} />;
+    // Holy strike calls a beam down from the heavens toward the target.
+    if (theme.mechanic === 'strike') return <StrikeCast progress={progress} color={theme.glow} accent={theme.accent} />;
     return <CastingChargeVfx progress={progress} theme={theme} frozen={frozen} />;
   }
 
-  // Traveling phase: deluge / arcane hold their gathered windup until impact; the
-  // other non-projectile mechanics show nothing (they're delivered at impact).
+  // Traveling phase: deluge / arcane / strike hold their gathered windup until
+  // impact; the other non-projectile mechanics show nothing (delivered at impact).
   if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} radius={radius} />;
   if (theme.mechanic === 'implode') return <ArcaneVortexCast progress={1} glow={theme.glow} radius={radius} />;
+  if (theme.mechanic === 'strike') return <StrikeCast progress={1} color={theme.glow} accent={theme.accent} />;
   if (theme.mechanic && !FLYING_MECHANICS.has(theme.mechanic)) return null;
   return <ProjectileVfx snapshot={snapshot} theme={theme} frozen={frozen} />;
 }
