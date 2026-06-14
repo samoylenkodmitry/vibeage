@@ -41,6 +41,25 @@ const smoothstep = (e0: number, e1: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+// Lush-vale grass factor: 0 on the river (would float over the water), a LUSH
+// boost (~1.9×, saturates → fills the meadow-patchiness thin-spots) elsewhere,
+// and bare on the steep rock-strata banks (slope gate mirrors sampleTerrain).
+function lushValeGrassFactor(x: number, z: number): number {
+  const lm = lushValeMask(x, z);
+  if (lm <= 0.05) return 1;
+  const dx = x - LUSH_VALE.x, dz = z - LUSH_VALE.z;
+  const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
+  const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
+  const river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
+  const dd = 3;
+  const slope = Math.hypot(
+    getTerrainHeight(x + dd, z) - getTerrainHeight(x - dd, z),
+    getTerrainHeight(x, z + dd) - getTerrainHeight(x, z - dd),
+  ) / (2 * dd);
+  const lush = (1 + lm * 0.9) * (1 - smoothstep(0.45, 0.9, slope) * 0.85);
+  return river * lush;
+}
+
 type Layer = { patch: number; count: number; hScale: number; wScale: number; innerFade: number };
 
 function grassLayers(q: WorldArtQuality): Layer[] {
@@ -334,26 +353,7 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // Roads and rivers are bare too — grass used to grow straight through
     // the travel-lane slabs.
     const lane = smoothstep(0, 4, distanceBeyondNearestLane(x, z));
-    // No grass on the lush vale river (it would float over the water surface);
-    // and a LUSH boost elsewhere in the vale so the carpet reads continuous (the
-    // density saturates in the shader, filling the meadow patchiness thin-spots).
-    let river = 1, lush = 1;
-    const lm = lushValeMask(x, z);
-    if (lm > 0.05) {
-      const dx = x - LUSH_VALE.x, dz = z - LUSH_VALE.z;
-      const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
-      const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
-      river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
-      lush = 1 + lm * 0.9; // up to ~1.9× toward the vale centre
-      // Bare the steep rock-strata banks (mirrors the rock grading in sampleTerrain).
-      const dd = 3;
-      const slope = Math.hypot(
-        getTerrainHeight(x + dd, z) - getTerrainHeight(x - dd, z),
-        getTerrainHeight(x, z + dd) - getTerrainHeight(x, z - dd),
-      ) / (2 * dd);
-      lush *= 1 - smoothstep(0.45, 0.9, slope) * 0.85;
-    }
-    return sampleGrassDensity(x, z) * coast * dry * plaza * lane * river * lush;
+    return sampleGrassDensity(x, z) * coast * dry * plaza * lane * lushValeGrassFactor(x, z);
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the
