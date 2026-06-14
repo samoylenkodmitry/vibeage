@@ -229,7 +229,7 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
     }
     if (theme.mechanic === 'meteor') return <MeteorImpact color={theme.core} glow={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'inferno') return <InfernoImpact glow={theme.glow} accent={theme.accent} radius={radius} />;
-    if (theme.mechanic === 'implode') return <ArcaneImplodeImpact core={theme.core} glow={theme.glow} accent={theme.accent} radius={radius} />;
+    if (theme.mechanic === 'implode') return <ArcaneImplodeImpact glow={theme.glow} accent={theme.accent} radius={radius} />;
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
     if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} radius={radius} />;

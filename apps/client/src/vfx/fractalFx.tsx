@@ -1,0 +1,90 @@
+import { useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Billboard } from '@react-three/drei';
+import * as THREE from 'three';
+
+/**
+ * FractalBurst — a localised swirling energy orb that captures the "absolutely
+ * amazing" reference aesthetic (flowing, iridescent, intricate filaments) but,
+ * unlike the raymarched folding fractal (gorgeous fullscreen, yet sparse and
+ * off-centre on a small billboard), is built CENTRED and SYMMETRIC so it reads
+ * as a cohesive orb at skill scale: a polar vortex domain-warped by fbm
+ * turbulence, an iridescent exp(cos) palette (the reference's trick) pulled
+ * toward the element, and a hot core with a clean radial fade.
+ *
+ * Camera-facing billboard. Cheaper than a per-pixel raymarch (2D fbm, ~5 octaves)
+ * so it can run a tier lower, but callers still gate it to the richer tiers.
+ * One shared GL program (module-level GLSL); per-instance material disposed on
+ * unmount; uTime drives the churn, uAlpha lets a caller ramp/decay it.
+ */
+const VERT = /* glsl */ `
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+`;
+const FRAG = /* glsl */ `
+  precision highp float;
+  uniform float uTime;
+  uniform vec3 uColor;
+  uniform float uAlpha;
+  varying vec2 vUv;
+
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(41.31, 289.17))) * 43758.5453); }
+  float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+  float fbm(vec2 p) {
+    float f = 0.0, a = 0.5;
+    for (int k = 0; k < 5; k++) { f += a * noise(p); p = p * 2.0 + 1.3; a *= 0.5; }
+    return f;
+  }
+
+  void main() {
+    vec2 uv = (vUv - 0.5) * 2.0;
+    float r = length(uv);
+    float ang = atan(uv.y, uv.x);
+    // Vortex: angle winds up faster toward the core; the whole field drifts.
+    float swirl = ang + 1.7 / (r + 0.18) - uTime * 1.1;
+    vec2 q = vec2(swirl, r * 3.0 - uTime * 0.7);
+    // Domain-warped turbulence → flowing, branching filaments. A finer second
+    // band adds crisp sub-detail so the ribbons don't read as a soft blur.
+    float w = fbm(q + fbm(q * 1.4));
+    float fil = pow(0.5 + 0.5 * sin(w * 6.2832 + r * 6.0 - uTime * 2.0), 2.2);
+    fil *= 0.62 + 0.38 * pow(0.5 + 0.5 * sin(w * 13.0 - uTime * 3.3), 2.0);
+    // Iridescent palette (the reference's exp(cos) trick), pulled to the element.
+    vec3 irid = exp(cos(w * 3.0 + r * 3.5 - vec3(0.0, 1.0, 2.0))) * 0.4;
+    vec3 col = mix(irid, uColor, 0.38);
+    // Bright filaments fading radially + a hot element core + a white-hot spark.
+    float energy = fil * smoothstep(1.0, 0.12, r);
+    float coreHot = smoothstep(0.42, 0.0, r);
+    col = col * energy * 1.8 + uColor * coreHot * 0.95 + vec3(1.0) * smoothstep(0.13, 0.0, r) * 0.7;
+    float a = clamp(energy + coreHot * 0.95, 0.0, 1.0);
+    float edge = smoothstep(1.0, 0.82, r); // kill the square corners
+    gl_FragColor = vec4(col, a * edge * uAlpha);
+  }
+`;
+
+/**
+ * Camera-facing swirling energy disc, tinted to `color`.
+ * `getAlpha` (read per-frame) lets a caller ramp/decay it over an animation
+ * without re-rendering React; defaults to fully opaque.
+ */
+export function FractalBurst({ color, size = 2.4, getAlpha }: { color: string; size?: number; getAlpha?: () => number }) {
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: Math.random() * 10 }, uColor: { value: new THREE.Color(color) }, uAlpha: { value: 1 } },
+    vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }), []);
+  useEffect(() => { mat.uniforms.uColor.value.set(color); }, [color, mat]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  useFrame((_, dt) => {
+    mat.uniforms.uTime.value += dt;
+    if (getAlpha) mat.uniforms.uAlpha.value = getAlpha();
+  });
+  return (
+    <Billboard>
+      <mesh material={mat}><planeGeometry args={[size, size]} /></mesh>
+    </Billboard>
+  );
+}
