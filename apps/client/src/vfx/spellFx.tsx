@@ -122,7 +122,7 @@ export const NOISE_GLSL = /* glsl */ `
   float fbm(vec3 p){ float a = 0.5, v = 0.0; for (int i = 0; i < 4; i++){ v += a * vnoise(p); p *= 2.02; a *= 0.5; } return v; }
 `;
 
-const CORE_VERT = /* glsl */ `
+export const CORE_VERT = /* glsl */ `
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
     vPos = position;
@@ -133,7 +133,7 @@ const CORE_VERT = /* glsl */ `
   }
 `;
 
-const FIRE_FRAG = NOISE_GLSL + /* glsl */ `
+export const FIRE_FRAG = NOISE_GLSL + /* glsl */ `
   uniform float uTime;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
@@ -441,7 +441,7 @@ export function GroundShockwave({ color, accent, size = 3.2, durationMs = 750, y
 // 'projectile' flies straight A→B. 'arc' lobs in a parabola, 'spiral' corkscrews
 // around the travel axis, 'lance' is a fast elongated bolt — all still travel
 // (rendered while Traveling), unlike strike/erupt/deluge which deliver at impact.
-export type SpellMechanic = 'projectile' | 'arc' | 'spiral' | 'lance' | 'strike' | 'erupt' | 'deluge' | 'nova' | 'meteor';
+export type SpellMechanic = 'projectile' | 'arc' | 'spiral' | 'lance' | 'strike' | 'erupt' | 'deluge' | 'nova' | 'meteor' | 'inferno';
 
 /** Mechanics whose projectile flies and is drawn during the Traveling phase. */
 export const FLYING_MECHANICS: ReadonlySet<SpellMechanic> = new Set(['projectile', 'arc', 'spiral', 'lance']);

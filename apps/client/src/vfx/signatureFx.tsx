@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { FireCore } from './spellFx';
+import { FireCore, GroundShockwave, CORE_VERT, FIRE_FRAG } from './spellFx';
 
 /**
  * Per-skill SIGNATURE mechanics — bespoke choreography for marquee spells so they
@@ -17,6 +17,8 @@ import { FireCore } from './spellFx';
 
 const ROCK_GEO = new THREE.IcosahedronGeometry(0.42, 0); // jagged molten rock
 const BALL_GEO = new THREE.SphereGeometry(1, 8, 8);
+// Flame column: base at y=0 so scaling Y erupts it up from the ground.
+const FLAME_CONE = (() => { const g = new THREE.ConeGeometry(0.5, 2.7, 7); g.translate(0, 1.35, 0); return g; })();
 const RING_GEO = new THREE.RingGeometry(0.62, 1.0, 48);
 // Deterministic ember spread: azimuth by golden angle, per-ember speed/rise.
 const EMBER_DIRS = Array.from({ length: 20 }, (_, i) => ({
@@ -118,6 +120,78 @@ export function MeteorImpact({ color, glow, accent }: { color: string; glow: str
       <group ref={smoke} position={[0, -0.6, 0]}>
         {SMOKE.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={smokeMat} />))}
       </group>
+    </group>
+  );
+}
+
+const INFERNO_COLUMNS = 11;
+const INFERNO_DUR = 1.2;
+const INFERNO_EMBERS = Array.from({ length: 16 }, (_, i) => ({
+  az: i * 2.399963, sj: 0.65 + (i % 4) * 0.2, rj: 0.8 + ((i * 5) % 4) * 0.1,
+}));
+
+/** Inferno — a fierce blaze: a ring of fire-shader flame columns erupts up out
+ *  of the ground around the caster, with an expanding fire ring + rising embers,
+ *  then dies down. (Replaces the generic nova for inferno-type auras.) */
+export function InfernoImpact({ glow, accent, radius }: { glow: string; accent: string; radius: number }) {
+  const r = Math.max(1.6, radius);
+  const cols = useRef<THREE.Group>(null);
+  const embers = useRef<THREE.Group>(null);
+  const flash = useRef<THREE.Mesh>(null);
+  const start = useRef<number | null>(null);
+
+  // One shared fire material for every column (same compiled program); uTime
+  // drives the upward flame flow.
+  const fireMat = useMemo(() => new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 } }, vertexShader: CORE_VERT, fragmentShader: FIRE_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const emberMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  useEffect(() => { emberMat.color.set(glow); flashMat.color.set(glow); }, [glow, emberMat, flashMat]);
+  useEffect(() => () => fireMat.dispose(), [fireMat]);
+  useEffect(() => () => emberMat.dispose(), [emberMat]);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
+
+  useFrame(({ clock }, delta) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    fireMat.uniforms.uTime.value += delta;
+    const age = clock.elapsedTime - start.current;
+    const t = Math.min(1, age / INFERNO_DUR);
+    if (age >= INFERNO_DUR) {
+      if (cols.current) cols.current.visible = false;
+      if (embers.current) embers.current.visible = false;
+      if (flash.current) flash.current.visible = false;
+      return;
+    }
+    // Columns erupt (rise), flicker, then die down.
+    const rise = Math.min(1, age / 0.18);
+    const die = 1 - Math.max(0, (t - 0.55) / 0.45);
+    if (cols.current) cols.current.children.forEach((c, i) => {
+      const flick = 0.85 + Math.sin(age * 16.0 + i * 1.7) * 0.25;
+      const h = Math.max(0.02, rise * flick * die * (0.85 + (i % 3) * 0.14));
+      const w = 0.7 * die + 0.25;
+      c.scale.set(w, h, w);
+    });
+    flashMat.opacity = Math.max(0, (1 - t) * (1 - t)) * 0.8 * (age < 0.1 ? age / 0.1 : 1);
+    if (flash.current) flash.current.scale.setScalar(r * (0.4 + t * 0.7));
+    emberMat.opacity = 1 - t;
+    if (embers.current) embers.current.children.forEach((c, i) => {
+      const d = INFERNO_EMBERS[i]; if (!d) return;
+      const rr = r * (0.45 + d.sj * 0.5);
+      c.position.set(Math.cos(d.az) * rr, 0.3 + 5.0 * d.rj * t - 4.0 * t * t, Math.sin(d.az) * rr);
+      c.scale.setScalar(Math.max(0.04, 0.42 * (1 - t * 0.7)));
+    });
+  });
+
+  return (
+    <group position={[0, -0.9, 0]}>
+      <GroundShockwave color={glow} accent={accent} size={r * 2.4} durationMs={950} y={0.02} />
+      <mesh ref={flash} geometry={BALL_GEO} material={flashMat} position={[0, 0.4, 0]} />
+      <group ref={cols}>
+        {Array.from({ length: INFERNO_COLUMNS }).map((_, i) => {
+          const a = (i / INFERNO_COLUMNS) * Math.PI * 2;
+          return <mesh key={i} geometry={FLAME_CONE} material={fireMat} position={[Math.cos(a) * r * 0.82, 0, Math.sin(a) * r * 0.82]} scale={[0.7, 0.02, 0.7]} />;
+        })}
+      </group>
+      <group ref={embers}>{INFERNO_EMBERS.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={emberMat} />))}</group>
     </group>
   );
 }
