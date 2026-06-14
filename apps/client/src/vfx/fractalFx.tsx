@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard } from '@react-three/drei';
 import * as THREE from 'three';
@@ -26,6 +26,7 @@ const FRAG = /* glsl */ `
   uniform float uTime;
   uniform vec3 uColor;
   uniform float uAlpha;
+  uniform float uSwirl; // angular flow-speed multiplier (ramps as it charges)
   varying vec2 vUv;
 
   // Sine-less hash — a large-multiplier sin() loses precision on mobile mediump
@@ -51,13 +52,14 @@ const FRAG = /* glsl */ `
     vec2 uv = (vUv - 0.5) * 2.0;
     float r = length(uv);
     float ang = atan(uv.y, uv.x);
-    // Vortex: angle winds up faster toward the core; the whole field drifts.
-    float swirl = ang + 1.7 / (r + 0.18) - uTime * 1.1;
-    vec2 q = vec2(swirl, r * 3.0 - uTime * 0.7);
+    // Vortex: angle winds up faster toward the core; the whole field drifts. The
+    // flow speed scales with uSwirl so the storm can visibly spin UP as it charges.
+    float swirl = ang + 1.7 / (r + 0.18) - uTime * 1.1 * uSwirl;
+    vec2 q = vec2(swirl, r * 3.0 - uTime * 0.7 * uSwirl);
     // Domain-warped turbulence → flowing, branching filaments. A finer second
     // band adds crisp sub-detail so the ribbons don't read as a soft blur.
     float w = fbm(q + fbm(q * 1.4));
-    float fil = pow(0.5 + 0.5 * sin(w * 6.2832 + r * 6.0 - uTime * 2.0), 2.2);
+    float fil = pow(0.5 + 0.5 * sin(w * 6.2832 + r * 6.0 - uTime * 2.0 * uSwirl), 2.2);
     fil *= 0.62 + 0.38 * pow(0.5 + 0.5 * sin(w * 13.0 - uTime * 3.3), 2.0);
     // Iridescent palette (the reference's exp(cos) trick), pulled to the element.
     vec3 irid = exp(cos(w * 3.0 + r * 3.5 - vec3(0.0, 1.0, 2.0))) * 0.4;
@@ -73,24 +75,35 @@ const FRAG = /* glsl */ `
 `;
 
 /**
- * Camera-facing swirling energy disc, tinted to `color`.
- * `getAlpha` (read per-frame) lets a caller ramp/decay it over an animation
- * without re-rendering React; defaults to fully opaque.
+ * Camera-facing swirling energy disc, tinted to `color`. Always faces the camera
+ * (never edge-on, so it stays readable from the game's 3/4 view) but visibly
+ * SPINS in its own plane — like looking into the eye of a hurricane.
+ *
+ * All animation hooks are read per-frame so a caller can drive a whole
+ * cast→impact lifecycle (grow, spin up, flare, decay) without re-rendering React:
+ *  - `getAlpha`     0..1 opacity (default 1)
+ *  - `getSpinRate`  disc spin in rad/s (default 0.9; accelerate it to "spin up")
+ *  - `getSwirl`     internal flow-speed multiplier (default 1; >1 = faster churn)
  */
-export function FractalBurst({ color, size = 2.4, getAlpha }: { color: string; size?: number; getAlpha?: () => number }) {
+export function FractalBurst({ color, size = 2.4, getAlpha, getSpinRate, getSwirl }: {
+  color: string; size?: number; getAlpha?: () => number; getSpinRate?: () => number; getSwirl?: () => number;
+}) {
   const mat = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: Math.random() * 10 }, uColor: { value: new THREE.Color(color) }, uAlpha: { value: 1 } },
+    uniforms: { uTime: { value: Math.random() * 10 }, uColor: { value: new THREE.Color(color) }, uAlpha: { value: 1 }, uSwirl: { value: 1 } },
     vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }), []);
+  const meshRef = useRef<THREE.Mesh>(null);
   useEffect(() => { mat.uniforms.uColor.value.set(color); }, [color, mat]);
   useEffect(() => () => mat.dispose(), [mat]);
   useFrame((_, dt) => {
     mat.uniforms.uTime.value += dt;
     if (getAlpha) mat.uniforms.uAlpha.value = getAlpha();
+    if (getSwirl) mat.uniforms.uSwirl.value = getSwirl();
+    if (meshRef.current) meshRef.current.rotation.z += dt * (getSpinRate ? getSpinRate() : 0.9);
   });
   return (
     <Billboard>
-      <mesh material={mat}><planeGeometry args={[size, size]} /></mesh>
+      <mesh ref={meshRef} material={mat}><planeGeometry args={[size, size]} /></mesh>
     </Billboard>
   );
 }
