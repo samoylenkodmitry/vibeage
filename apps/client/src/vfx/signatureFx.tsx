@@ -47,10 +47,17 @@ export function MeteorImpact({ color, glow, accent }: { color: string; glow: str
   useEffect(() => {
     emberMat.color.set(glow); trailMat.color.set(accent); flashMat.color.set(glow); ringMat.color.set(accent);
   }, [glow, accent, emberMat, trailMat, flashMat, ringMat]);
-  useEffect(() => () => { rockMat.dispose(); emberMat.dispose(); trailMat.dispose(); flashMat.dispose(); ringMat.dispose(); smokeMat.dispose(); },
-    [rockMat, emberMat, trailMat, flashMat, ringMat, smokeMat]);
+  // One dispose per material — a combined effect keyed on all of them would,
+  // when rockMat is recreated (colour change), dispose the OTHER five (still
+  // live, never recreated) too.
+  useEffect(() => () => rockMat.dispose(), [rockMat]);
+  useEffect(() => () => emberMat.dispose(), [emberMat]);
+  useEffect(() => () => trailMat.dispose(), [trailMat]);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
+  useEffect(() => () => ringMat.dispose(), [ringMat]);
+  useEffect(() => () => smokeMat.dispose(), [smokeMat]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
     const falling = age < FALL_DUR;
@@ -64,7 +71,7 @@ export function MeteorImpact({ color, glow, accent }: { color: string; glow: str
       // Accelerating plunge from the sky, tumbling as it comes.
       const p = age / FALL_DUR;
       const h = head.current;
-      if (h) { h.position.y = START_Y * (1.0 - p * p); h.rotation.x += 0.45; h.rotation.z += 0.32; }
+      if (h) { h.position.y = START_Y * (1.0 - p * p); h.rotation.x += 12.0 * delta; h.rotation.z += 9.0 * delta; }
       return;
     }
     // Slam: bright flash, expanding ground ring, ember fountain, rising smoke.
