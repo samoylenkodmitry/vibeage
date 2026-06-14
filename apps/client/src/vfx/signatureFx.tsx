@@ -45,6 +45,8 @@ const BALL_GEO = new THREE.SphereGeometry(1, 8, 8);
 const SHARD_GEO = new THREE.OctahedronGeometry(0.5, 0); // crystal shard (scaled elongated)
 const CRYSTAL_GEO = new THREE.IcosahedronGeometry(0.55, 0); // faceted central crystal
 const FROST_RING_GEO = new THREE.RingGeometry(0.5, 0.78, 6); // hexagonal frost ring
+const POOL_GEO = new THREE.CircleGeometry(1, 28); // toxic ground pool
+const GAS_GEO = new THREE.SphereGeometry(1, 16, 12); // smooth gas puff (BALL_GEO is too faceted)
 // Flame column: base at y=0 so scaling Y erupts it up from the ground.
 const FLAME_CONE = (() => { const g = new THREE.ConeGeometry(0.5, 2.7, 7); g.translate(0, 1.35, 0); return g; })();
 const RING_GEO = new THREE.RingGeometry(0.62, 1.0, 48);
@@ -323,6 +325,87 @@ export function IceShatterImpact({ core, glow, accent, radius }: { core: string;
       <mesh ref={ring} geometry={FROST_RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.18, 0]} />
       <group ref={shards}>{ICE_SHARDS.map((_, i) => (<mesh key={i} geometry={SHARD_GEO} material={crystalMat} />))}</group>
       <group ref={mist}>{[0, 1, 2, 3].map((i) => (<mesh key={i} geometry={BALL_GEO} material={mistMat} />))}</group>
+    </group>
+  );
+}
+
+const POISON_DUR = 1.2;
+const POISON_PUFFS = Array.from({ length: 7 }, (_, i) => ({ az: i * 0.92 + 0.3, off: 0.25 + (i % 3) * 0.22, ph: i * 1.3, rise: 0.4 + (i % 2) * 0.5, sz: 0.8 + (i % 3) * 0.2 }));
+const POISON_BUBBLES = Array.from({ length: 11 }, (_, i) => ({ az: i * 2.399963, off: 0.2 + (i % 4) * 0.18, t0: (i % 5) * 0.16, rise: 0.9 + (i % 3) * 0.22 }));
+const POISON_DRIPS = Array.from({ length: 6 }, (_, i) => ({ az: i * 1.05 + 0.5, sp: 0.85 + (i % 3) * 0.22, rise: 1.1 + (i % 2) * 0.3 }));
+
+/** Poison burst — a roiling toxic gas cloud bubbles up and spreads, bubbles rise
+ *  and pop, globs of venom arc out and splatter, leaving a spreading ground pool.
+ *  Sickly opaque gas (normal blend) with a faint toxic glow — its own noxious
+ *  character, distinct from the additive fire/ice/holy/arcane bursts. */
+export function PoisonBurstImpact({ core, glow, accent, radius }: { core: string; glow: string; accent: string; radius: number }) {
+  const r = Math.max(1.1, radius);
+  const cloud = useRef<THREE.Group>(null);
+  const bubbles = useRef<THREE.Group>(null);
+  const drips = useRef<THREE.Group>(null);
+  const pool = useRef<THREE.Mesh>(null);
+  const start = useRef<number | null>(null);
+  const done = useRef(false);
+
+  // Gas: opaque sickly green (normal blend) so it reads as a noxious cloud, not a
+  // glow; bubbles get a brighter additive toxic sheen.
+  const gasMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color(core) }), [core]);
+  const bubbleMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: new THREE.Color(accent) }), [accent]);
+  const dripMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color(glow) }), [glow]);
+  const poolMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.FrontSide, color: new THREE.Color(core) }), [core]);
+  useEffect(() => () => gasMat.dispose(), [gasMat]);
+  useEffect(() => () => bubbleMat.dispose(), [bubbleMat]);
+  useEffect(() => () => dripMat.dispose(), [dripMat]);
+  useEffect(() => () => poolMat.dispose(), [poolMat]);
+
+  useFrame(({ clock }) => {
+    if (done.current) return;
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    const t = Math.min(1, age / POISON_DUR);
+    if (age >= POISON_DUR) {
+      for (const rf of [cloud, bubbles, drips, pool]) if (rf.current) rf.current.visible = false;
+      done.current = true;
+      return;
+    }
+    // Cloud: bursts dense quickly (so it reads even in a short impact window),
+    // then rises + spreads, each puff roiling (pulsing) on its own phase; fades late.
+    gasMat.opacity = Math.min(1, age / 0.08) * (1 - Math.max(0, (t - 0.5) / 0.5)) * 0.66;
+    if (cloud.current) cloud.current.children.forEach((c, i) => {
+      const p = POISON_PUFFS[i]; if (!p) return;
+      const roil = 1 + Math.sin(age * 4.0 + p.ph) * 0.16;
+      const rr = r * p.off * (0.8 + t * 1.1);
+      c.position.set(Math.cos(p.az) * rr, 0.10 + p.rise * (0.4 + t * 1.4), Math.sin(p.az) * rr);
+      c.scale.setScalar(r * p.sz * (0.7 + t * 0.5) * roil);
+    });
+    // Bubbles: rise and pop (grow then vanish) on staggered cycles.
+    bubbleMat.opacity = (1 - t) * 0.5;
+    if (bubbles.current) bubbles.current.children.forEach((c, i) => {
+      const b = POISON_BUBBLES[i]; if (!b) return;
+      const bt = ((age * 0.8 + b.t0) % 0.5) / 0.5; // 0..1 pop cycle
+      const rr = r * b.off;
+      c.position.set(Math.cos(b.az) * rr, 0.05 + b.rise * (0.3 + bt * 1.4), Math.sin(b.az) * rr);
+      c.scale.setScalar(Math.max(0.01, 0.16 * Math.sin(bt * Math.PI)) * (1 - t * 0.5));
+    });
+    // Venom globs arc out and fall.
+    dripMat.opacity = (1 - t) * 0.85;
+    if (drips.current) drips.current.children.forEach((c, i) => {
+      const d = POISON_DRIPS[i]; if (!d) return;
+      const rr = r * 1.8 * d.sp * t;
+      c.position.set(Math.cos(d.az) * rr, 0.15 + r * 1.4 * d.rise * t - 4.4 * t * t, Math.sin(d.az) * rr);
+      c.scale.setScalar(Math.max(0.02, 0.18 * (1 - t * 0.5)));
+    });
+    // Ground pool spreads then soaks away.
+    poolMat.opacity = (1 - Math.max(0, (t - 0.3) / 0.7)) * 0.5;
+    if (pool.current) pool.current.scale.setScalar(r * (0.6 + t * 1.5));
+  });
+
+  return (
+    <group position={[0, 0.2, 0]}>
+      <mesh ref={pool} geometry={POOL_GEO} material={poolMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.18, 0]} />
+      <group ref={cloud}>{POISON_PUFFS.map((_, i) => (<mesh key={i} geometry={GAS_GEO} material={gasMat} />))}</group>
+      <group ref={bubbles}>{POISON_BUBBLES.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={bubbleMat} />))}</group>
+      <group ref={drips}>{POISON_DRIPS.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={dripMat} />))}</group>
     </group>
   );
 }
