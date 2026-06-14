@@ -42,6 +42,9 @@ const FIRE_BALL_GEO = new THREE.IcosahedronGeometry(1, 3);
 
 const ROCK_GEO = new THREE.IcosahedronGeometry(0.42, 0); // jagged molten rock
 const BALL_GEO = new THREE.SphereGeometry(1, 8, 8);
+const SHARD_GEO = new THREE.OctahedronGeometry(0.5, 0); // crystal shard (scaled elongated)
+const CRYSTAL_GEO = new THREE.IcosahedronGeometry(0.55, 0); // faceted central crystal
+const FROST_RING_GEO = new THREE.RingGeometry(0.5, 0.78, 6); // hexagonal frost ring
 // Flame column: base at y=0 so scaling Y erupts it up from the ground.
 const FLAME_CONE = (() => { const g = new THREE.ConeGeometry(0.5, 2.7, 7); g.translate(0, 1.35, 0); return g; })();
 const RING_GEO = new THREE.RingGeometry(0.62, 1.0, 48);
@@ -229,6 +232,97 @@ export function FireballImpact({ glow, accent, radius }: { glow: string; accent:
       </group>
       <group ref={embers}>{EMBER_DIRS.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={emberMat} />))}</group>
       <group ref={smoke}>{SMOKE.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={smokeMat} />))}</group>
+    </group>
+  );
+}
+
+const ICE_DUR = 0.95;
+const ICE_SHATTER_AT = 0.13;
+const ICE_SHARDS = Array.from({ length: 13 }, (_, i) => ({
+  az: i * 2.399963, sp: 0.75 + (i % 4) * 0.2, rise: 0.9 + ((i * 5) % 4) * 0.12,
+  spin: (i % 2 ? 1 : -1) * (4 + (i % 3) * 2), tilt: ((i % 5) - 2) * 0.3,
+}));
+
+/** Ice shatter — a faceted crystal forms at the strike then SHATTERS: sharp ice
+ *  shards burst outward spinning and fall, over a frost flash, a hexagonal frost
+ *  ring and lingering cold mist. Crystalline (faceted, solid) character — not a
+ *  glow bloom, not the arcane swirl. */
+export function IceShatterImpact({ core, glow, accent, radius }: { core: string; glow: string; accent: string; radius: number }) {
+  const r = Math.max(1.1, radius);
+  const crystal = useRef<THREE.Mesh>(null);
+  const shards = useRef<THREE.Group>(null);
+  const flash = useRef<THREE.Mesh>(null);
+  const ring = useRef<THREE.Mesh>(null);
+  const mist = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+  const done = useRef(false);
+
+  // Crystals: faceted, semi-transparent, lit (MeshStandard) + an emissive ice
+  // tint so they glint without washing to a bloom blob.
+  const crystalMat = useMemo(() => new THREE.MeshStandardMaterial({ color: core, emissive: new THREE.Color(glow), emissiveIntensity: 0.5, roughness: 0.15, metalness: 0.0, transparent: true, opacity: 0.92 }), [core, glow]);
+  const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  // FrontSide: the ring lies flat (normal up) and is only seen from above.
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.FrontSide, blending: THREE.AdditiveBlending }), []);
+  const mistMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color('#cfe9ff') }), []);
+  useEffect(() => { flashMat.color.set(accent); ringMat.color.set(accent); }, [accent, flashMat, ringMat]);
+  useEffect(() => () => crystalMat.dispose(), [crystalMat]);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
+  useEffect(() => () => ringMat.dispose(), [ringMat]);
+  useEffect(() => () => mistMat.dispose(), [mistMat]);
+
+  useFrame(({ clock }, delta) => {
+    if (done.current) return;
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    const t = Math.min(1, age / ICE_DUR);
+    if (age >= ICE_DUR) {
+      for (const rf of [crystal, shards, flash, ring, mist]) if (rf.current) rf.current.visible = false;
+      done.current = true; // animation over — stop the per-frame work until unmount
+      return;
+    }
+    const forming = age < ICE_SHATTER_AT;
+    if (crystal.current) crystal.current.visible = forming;
+    if (shards.current) shards.current.visible = !forming;
+    // Frost flash on impact.
+    if (flash.current) flash.current.scale.setScalar(r * (0.4 + t * 1.1));
+    flashMat.opacity = Math.max(0, (1 - t) * (1 - t)) * 0.6 * (age < 0.04 ? age / 0.04 : 1);
+    // Hexagonal frost ring spreads on the ground.
+    if (ring.current) ring.current.scale.setScalar(r * (0.6 + t * 2.0));
+    ringMat.opacity = (1 - t) * 0.7;
+    if (forming) {
+      // The crystal stabs up fast before it bursts.
+      const p = age / ICE_SHATTER_AT;
+      if (crystal.current) { crystal.current.scale.setScalar(r * (0.3 + p * 0.7)); crystal.current.rotation.y += delta * 5.0; }
+      return;
+    }
+    // Shatter: shards fly out, spinning, rising then falling under gravity, fading.
+    const st = (age - ICE_SHATTER_AT) / (ICE_DUR - ICE_SHATTER_AT);
+    crystalMat.opacity = 0.92 * (1 - st);
+    if (shards.current) shards.current.children.forEach((c, i) => {
+      const d = ICE_SHARDS[i]; if (!d) return;
+      const rr = r * 2.2 * d.sp * st;
+      c.position.set(Math.cos(d.az) * rr, 0.3 + r * 1.7 * d.rise * st - 4.6 * st * st, Math.sin(d.az) * rr);
+      c.rotation.set(d.tilt + st * d.spin, d.az + st * d.spin, st * d.spin * 0.5);
+      const s = Math.max(0.06, (0.7 - i % 3 * 0.08) * (1 - st * 0.45));
+      c.scale.set(s * 0.55, s * 1.7, s * 0.55); // elongated shards
+    });
+    // Cold mist: low subtle ground fog (kept small so the shards stay the hero).
+    mistMat.opacity = Math.max(0, (1 - st)) * 0.16;
+    if (mist.current) mist.current.children.forEach((c, i) => {
+      const a = i * 2.1;
+      c.position.set(Math.cos(a) * r * (0.6 + st * 0.7), -0.3 + st * 0.25, Math.sin(a) * r * (0.6 + st * 0.7));
+      c.scale.setScalar(0.4 + st * 0.7);
+    });
+  });
+
+  return (
+    <group position={[0, 0.2, 0]}>
+      <GroundShockwave color={glow} accent={accent} size={r * 2.2} durationMs={720} y={-0.18} />
+      <mesh ref={flash} geometry={BALL_GEO} material={flashMat} />
+      <mesh ref={crystal} geometry={CRYSTAL_GEO} material={crystalMat} />
+      <mesh ref={ring} geometry={FROST_RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.18, 0]} />
+      <group ref={shards}>{ICE_SHARDS.map((_, i) => (<mesh key={i} geometry={SHARD_GEO} material={crystalMat} />))}</group>
+      <group ref={mist}>{[0, 1, 2, 3].map((i) => (<mesh key={i} geometry={BALL_GEO} material={mistMat} />))}</group>
     </group>
   );
 }

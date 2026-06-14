@@ -30,7 +30,7 @@ import { StrikeImpact, StrikeCast } from './vfx/holyFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
-import { MeteorImpact, InfernoImpact, ArcaneImplodeImpact, ArcaneVortexCast, FireballImpact } from './vfx/signatureFx';
+import { MeteorImpact, InfernoImpact, ArcaneImplodeImpact, ArcaneVortexCast, FireballImpact, IceShatterImpact } from './vfx/signatureFx';
 import { getCastEffectRadius, getTimeStopDurationMs } from './vfx/castVfxConfig';
 import { skillThemeFor, type SkillTheme } from './vfx/skillThemeConfig';
 import { TimeSphereDome } from './vfx/timeSphereFx';
@@ -238,6 +238,7 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
     // Fire projectiles (fireball & co.) detonate as a turbulent fire explosion,
     // not the generic element flash. (meteor/inferno fire skills are handled above.)
     if (theme.element === 'fire') return <FireballImpact glow={theme.glow} accent={theme.accent} radius={radius} />;
+    if (theme.element === 'ice') return <IceShatterImpact core={theme.core} glow={theme.glow} accent={theme.accent} radius={radius} />;
     if (theme.element) return <ElementImpact element={theme.element} core={theme.core} glow={theme.glow} accent={theme.accent} />;
     return <GenericImpact glow={theme.glow} accent={theme.accent} />;
   }
