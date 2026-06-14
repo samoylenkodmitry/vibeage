@@ -52,8 +52,9 @@ function cellPos(index: number): { x: number; z: number } {
   };
 }
 
-function CastLoopCell({ cell, index, sync }: { cell: Cell; index: number; sync: boolean }) {
-  const { x, z } = useMemo(() => cellPos(index), [index]);
+function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sync: boolean; at?: { x: number; z: number } }) {
+  const base = useMemo(() => cellPos(index), [index]);
+  const { x, z } = at ?? base;
   // Cast travels along +Z within the cell so the projectile flies in view.
   const origin = useMemo(() => ({ x, z: z - 3.2 }), [x, z]);
   const target = useMemo(() => ({ x, z: z + 3.2 }), [x, z]);
@@ -106,10 +107,17 @@ function CastLoopCell({ cell, index, sync }: { cell: Cell; index: number; sync: 
 }
 
 export function VfxScene() {
-  const sync = new URLSearchParams(window.location.search).has('sync');
+  const params = new URLSearchParams(window.location.search);
+  const sync = params.has('sync');
+  // ?solo=<skillId> — one effect at origin, camera close, to inspect the shader
+  // detail (the grid framing is too far to read turbulence/runes/iridescence).
+  const solo = params.get('solo');
+  const soloCell = solo ? CELLS.find((c) => c.skillId === solo) : undefined;
+  const camera: [number, number, number] = soloCell ? [0, 1.6, 6] : [0, 42, 54];
+  const target: [number, number, number] = soloCell ? [0, 1, 0] : [0, 1.5, 0];
   return (
     <Canvas
-      camera={{ position: [0, 42, 54], fov: 48, near: 0.1, far: 500 }}
+      camera={{ position: camera, fov: soloCell ? 42 : 48, near: 0.1, far: 500 }}
       onCreated={({ gl }) => gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))}
     >
       <color attach="background" args={[0.04, 0.05, 0.08]} />
@@ -123,10 +131,14 @@ export function VfxScene() {
         <planeGeometry args={[200, 200]} />
         <meshStandardMaterial color="#15171d" roughness={1} metalness={0} />
       </mesh>
-      {CELLS.map((cell, index) => (
-        <CastLoopCell key={cell.skillId} cell={cell} index={index} sync={sync} />
-      ))}
-      <OrbitControls target={[0, 1.5, 0]} enableDamping />
+      {soloCell ? (
+        <CastLoopCell key={soloCell.skillId} cell={soloCell} index={0} sync at={{ x: 0, z: 0 }} />
+      ) : (
+        CELLS.map((cell, index) => (
+          <CastLoopCell key={cell.skillId} cell={cell} index={index} sync={sync} />
+        ))
+      )}
+      <OrbitControls target={target} enableDamping />
       <EffectComposer enableNormalPass={false} multisampling={0}>
         <Bloom intensity={0.7} luminanceThreshold={0.5} luminanceSmoothing={0.16} mipmapBlur />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
