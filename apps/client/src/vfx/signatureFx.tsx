@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { FireCore, GroundShockwave, CORE_VERT, FIRE_FRAG } from './spellFx';
+import { FireCore, ArcaneCore, GroundShockwave, CORE_VERT, FIRE_FRAG } from './spellFx';
 
 /**
  * Per-skill SIGNATURE mechanics — bespoke choreography for marquee spells so they
@@ -192,6 +192,83 @@ export function InfernoImpact({ glow, accent, radius }: { glow: string; accent: 
         })}
       </group>
       <group ref={embers}>{INFERNO_EMBERS.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={emberMat} />))}</group>
+    </group>
+  );
+}
+
+const IMPLODE_MOTES = Array.from({ length: 18 }, (_, i) => ({
+  az: i * 2.399963, el: ((i % 5) - 2) * 0.32, sp: 0.8 + (i % 3) * 0.25,
+}));
+const IMPLODE_DUR = 1.15;
+const COLLAPSE_AT = 0.44;
+
+/** Arcane implosion — motes spiral INWARD and collapse to a tense singularity,
+ *  which then DETONATES: a flash, an expanding ring, motes flung outward. */
+export function ArcaneImplodeImpact({ core, glow, accent, radius }: { core: string; glow: string; accent: string; radius: number }) {
+  const r = Math.max(1.4, radius);
+  const motes = useRef<THREE.Group>(null);
+  const center = useRef<THREE.Group>(null);
+  const flash = useRef<THREE.Mesh>(null);
+  const ring = useRef<THREE.Mesh>(null);
+  const start = useRef<number | null>(null);
+
+  const moteMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }), []);
+  useEffect(() => { moteMat.color.set(glow); flashMat.color.set('#ffffff'); ringMat.color.set(accent); }, [glow, accent, moteMat, flashMat, ringMat]);
+  useEffect(() => () => moteMat.dispose(), [moteMat]);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
+  useEffect(() => () => ringMat.dispose(), [ringMat]);
+
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.elapsedTime;
+    const age = clock.elapsedTime - start.current;
+    if (age >= IMPLODE_DUR) {
+      if (motes.current) motes.current.visible = false;
+      if (center.current) center.current.visible = false;
+      if (flash.current) flash.current.visible = false;
+      if (ring.current) ring.current.visible = false;
+      return;
+    }
+    const imploding = age < COLLAPSE_AT;
+    if (flash.current) flash.current.visible = !imploding;
+    if (ring.current) ring.current.visible = !imploding;
+    if (imploding) {
+      const p = age / COLLAPSE_AT;
+      moteMat.opacity = 0.45 + p * 0.5;
+      if (motes.current) motes.current.children.forEach((c, i) => {
+        const m = IMPLODE_MOTES[i]; if (!m) return;
+        const rr = r * (1 - p * p);                    // accelerate inward
+        const spin = age * 3.2 * m.sp;
+        c.position.set(Math.cos(m.az + spin) * rr, m.el * rr * 0.6 + 0.35, Math.sin(m.az + spin) * rr);
+        c.scale.setScalar(0.10 + p * 0.12);
+      });
+      if (center.current) center.current.scale.setScalar(0.18 + p * p * 0.55); // tightens as it collapses
+      return;
+    }
+    // Detonation.
+    const bt = (age - COLLAPSE_AT) / (IMPLODE_DUR - COLLAPSE_AT);
+    if (flash.current) flash.current.scale.setScalar(0.7 + bt * 5.0);
+    flashMat.opacity = Math.max(0, (1 - bt) * (1 - bt)) * 0.95 * (bt < 0.1 ? bt / 0.1 : 1);
+    if (ring.current) ring.current.scale.setScalar(1.0 + bt * (r * 2.0));
+    ringMat.opacity = (1 - bt) * 0.85;
+    moteMat.opacity = 1 - bt;
+    if (motes.current) motes.current.children.forEach((c, i) => {
+      const m = IMPLODE_MOTES[i]; if (!m) return;
+      const rr = r * 1.5 * bt * m.sp;
+      const spin = age * 2.0 * m.sp;
+      c.position.set(Math.cos(m.az + spin) * rr, m.el * rr * 0.5 + 0.35 + bt * 1.1, Math.sin(m.az + spin) * rr);
+      c.scale.setScalar(Math.max(0.03, 0.22 * (1 - bt)));
+    });
+    if (center.current) center.current.scale.setScalar(Math.max(0.01, 0.75 * (1 - bt)));
+  });
+
+  return (
+    <group position={[0, 0.4, 0]}>
+      <group ref={center}><ArcaneCore core={core} glow={glow} radius={0.5} spin={3} /></group>
+      <mesh ref={flash} geometry={BALL_GEO} material={flashMat} />
+      <mesh ref={ring} geometry={RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.28, 0]} />
+      <group ref={motes}>{IMPLODE_MOTES.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={moteMat} />))}</group>
     </group>
   );
 }
