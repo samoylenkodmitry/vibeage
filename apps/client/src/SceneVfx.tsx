@@ -24,7 +24,7 @@ import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
 import { GlowEmitter } from './dynamicLights';
 import {
-  SpellCore, SpellProjectile, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset,
+  SpellCore, SpellProjectile, StrikeImpact, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset, type SpellMechanic,
 } from './vfx/spellFx';
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
@@ -201,12 +201,19 @@ export function TargetDestinationMarker({ target }: { target: Vec3 | null }) {
   );
 }
 
+// Mechanics delivered AT the target rather than flying there: their snapshot.pos
+// stays at the caster (non-flying), so the effect must be anchored at the target
+// or it erupts/slams/implodes on the CASTER. (Auras — nova/inferno — are
+// self-centred on the caster, so they're deliberately NOT here.)
+const TARGET_DELIVERED: ReadonlySet<SpellMechanic> = new Set(['deluge', 'strike', 'erupt', 'meteor', 'implode']);
+
 /** True when a skill's effect should anchor at the cast's TARGET for the whole
- *  cast (e.g. deluge gathers its cloud above the target during the windup),
- *  rather than at the caster where the snapshot's pos sits while charging. */
+ *  cast (deluge gathers its cloud above the target; strike/erupt/meteor/implode
+ *  land on the target), rather than at the caster where the snapshot's pos sits
+ *  while charging. */
 export function castAnchorsAtTarget(skillId: CastSnapshot['skillId']): boolean {
   if (skillId === 'time_sphere') return true;
-  return skillThemeFor(skillId).mechanic === 'deluge';
+  return TARGET_DELIVERED.has(skillThemeFor(skillId).mechanic ?? 'projectile');
 }
 
 export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; frozen?: boolean }) {
@@ -282,6 +289,7 @@ function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnap
   const yaw = Math.atan2(dir?.x ?? 0, dir?.z ?? 1);
   const mechanic = theme.mechanic ?? 'projectile';
   const pathRef = useRef<THREE.Group>(null);   // arc lift (world-Y under Y-only yaw)
+  const pitchRef = useRef<THREE.Group>(null);   // tilt to the arc's velocity so the tail follows the curve
   const weaveRef = useRef<THREE.Group>(null);   // spiral corkscrew
   const coreRef = useRef<THREE.Group>(null);
 
@@ -304,6 +312,14 @@ function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnap
     }
     // Arc: lob in a parabola that peaks mid-flight (0 lift at both ends).
     if (pathRef.current) pathRef.current.position.y = mechanic === 'arc' ? arcLift(p) : 0;
+    // Pitch the projectile + tail to the arc's VELOCITY tangent (nose up on the
+    // way out, down on the way in) so the tail follows the curve instead of
+    // pointing flat-back-and-up regardless of trajectory. dy/dp of arcLift =
+    // 9.6*(1-2p) (height 2.4); horizontal span is `total`. -pitch tilts +Z up.
+    if (pitchRef.current) {
+      pitchRef.current.rotation.x = mechanic === 'arc' && total > 0.5
+        ? -Math.atan2(9.6 * (1 - 2 * p), total) : 0;
+    }
     // Spiral: corkscrew around the travel axis (local X horiz-perp, local Y vertical).
     if (weaveRef.current) {
       if (mechanic === 'spiral') {
@@ -318,6 +334,7 @@ function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnap
   return (
     <group ref={pathRef}>
       <group rotation={[0, yaw, 0]}>
+        <group ref={pitchRef}>
         <group ref={weaveRef}>
           <group ref={coreRef}>
             {/* form silhouette; inner group elongates it for the lance mechanic. */}
@@ -331,6 +348,7 @@ function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnap
             </mesh>
           ))}
           <ProjectileTrail theme={theme} longZ={longZ} frozen={frozen} />
+        </group>
         </group>
       </group>
     </group>

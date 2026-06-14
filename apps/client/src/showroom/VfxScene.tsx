@@ -3,7 +3,11 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import { EffectComposer, Bloom, ToneMapping, HueSaturation, BrightnessContrast } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
+import * as THREE from 'three';
 import { CastMarker } from '../WorldEntities';
+import { castAnchorsAtTarget } from '../SceneVfx';
+import { FLYING_MECHANICS } from '../vfx/spellFx';
+import { skillThemeFor } from '../vfx/skillThemeConfig';
 import { CastState, type CastSnapshot } from '../../../../packages/protocol/common';
 
 /**
@@ -55,11 +59,22 @@ function cellPos(index: number): { x: number; z: number } {
 function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sync: boolean; at?: { x: number; z: number } }) {
   const base = useMemo(() => cellPos(index), [index]);
   const { x, z } = at ?? base;
-  // Cast travels along +Z within the cell so the projectile flies in view.
-  const origin = useMemo(() => ({ x, z: z - 3.2 }), [x, z]);
-  const target = useMemo(() => ({ x, z: z + 3.2 }), [x, z]);
-  // ?sync=1 fires every cell in lockstep (all impacts at once — for capturing a
-  // single comparison frame); otherwise stagger so the grid reads as alive.
+  // DIAGONAL travel (caster → target) so a trajectory bug (a tail that ignores
+  // the travel direction) is visible — a straight +Z path would hide it.
+  const origin = useMemo(() => ({ x: x - 3.5, z: z - 3.5 }), [x, z]);
+  const target = useMemo(() => ({ x: x + 3.5, z: z + 3.5 }), [x, z]);
+  const dir = useMemo(() => {
+    const dx = target.x - origin.x, dz = target.z - origin.z; const l = Math.hypot(dx, dz) || 1;
+    return { x: dx / l, z: dz / l };
+  }, [origin, target]);
+  // FAITHFUL to the live game: only flying mechanics move snapshot.pos toward
+  // the target; non-flying ones keep pos at the CASTER (the server never moves
+  // it), so a target-delivered impact MUST come from the anchorPos path — the
+  // same resolveCastAnchor(castAnchorsAtTarget) the world uses. The old preview
+  // faked pos=target at impact and so hid the caster-vs-target anchoring bugs.
+  const skillId = cell.skillId as CastSnapshot['skillId'];
+  const flying = FLYING_MECHANICS.has(skillThemeFor(cell.skillId).mechanic ?? 'projectile');
+  const anchorPos = castAnchorsAtTarget(skillId) ? target : undefined;
   const stagger = sync ? 0 : (index * 260) % CYCLE;
   const [snap, setSnap] = useState<CastSnapshot | null>(null);
   const acc = useRef(0);
@@ -69,27 +84,23 @@ function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sy
     if (acc.current < 0.06) return; // ~16 Hz snapshot cadence (server-tick-ish)
     acc.current = 0;
     const ph = (state.clock.elapsedTime * 1000 + stagger) % CYCLE;
-    const base = {
+    const baseSnap = {
       castId: `preview-${cell.skillId}`,
       casterId: 'preview',
       skillId: cell.skillId as CastSnapshot['skillId'],
-      origin,
-      target,
-      dir: { x: 0, z: 1 },
+      origin, target, dir,
       startedAt: 0,
       castTimeMs: PHASE.cast,
     };
     let next: CastSnapshot | null;
     if (ph < PHASE.cast) {
-      next = { ...base, state: CastState.Casting, pos: origin, progressMs: ph };
+      next = { ...baseSnap, state: CastState.Casting, pos: origin, progressMs: ph };
     } else if (ph < PHASE.cast + PHASE.travel) {
       const p = (ph - PHASE.cast) / PHASE.travel;
-      next = {
-        ...base, state: CastState.Traveling, progressMs: PHASE.cast,
-        pos: { x: origin.x + (target.x - origin.x) * p, z: origin.z + (target.z - origin.z) * p },
-      };
+      const pos = flying ? { x: origin.x + (target.x - origin.x) * p, z: origin.z + (target.z - origin.z) * p } : origin;
+      next = { ...baseSnap, state: CastState.Traveling, pos, progressMs: PHASE.cast };
     } else if (ph < PHASE.cast + PHASE.travel + PHASE.impact) {
-      next = { ...base, state: CastState.Impact, pos: target, progressMs: PHASE.cast };
+      next = { ...baseSnap, state: CastState.Impact, pos: flying ? target : origin, progressMs: PHASE.cast };
     } else {
       next = null; // rest gap so each cycle reads as a fresh cast
     }
@@ -98,10 +109,13 @@ function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sy
 
   return (
     <group>
-      <Html position={[x, 0.05, z + 6.4]} center distanceFactor={26} occlude={false}>
+      <Html position={[x, 0.05, z + 7]} center distanceFactor={26} occlude={false}>
         <div style={{ color: '#e2e8f0', font: '600 13px system-ui', whiteSpace: 'nowrap', textShadow: '0 1px 3px #000', pointerEvents: 'none' }}>{cell.label}</div>
       </Html>
-      {snap && <CastMarker cast={{ snapshot: snap, seenAt: 0 }} />}
+      {/* caster (grey dot) + target (grey ring) markers so anchoring is visible */}
+      <mesh position={[origin.x, -0.8, origin.z]}><sphereGeometry args={[0.16, 8, 8]} /><meshBasicMaterial color="#64748b" /></mesh>
+      <mesh position={[target.x, -0.92, target.z]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.55, 0.7, 28]} /><meshBasicMaterial color="#94a3b8" transparent opacity={0.7} side={THREE.DoubleSide} /></mesh>
+      {snap && <CastMarker cast={{ snapshot: snap, seenAt: 0 }} anchorPos={anchorPos} />}
     </group>
   );
 }
