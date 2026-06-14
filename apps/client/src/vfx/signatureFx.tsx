@@ -350,10 +350,9 @@ export function PoisonBurstImpact({ core, glow, accent, radius }: { core: string
   // Gas: opaque sickly green (normal blend) so it reads as a noxious cloud, not a
   // glow; bubbles get a brighter additive toxic sheen.
   const gasMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color(core) }), [core]);
-  const bubbleMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const bubbleMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: new THREE.Color(accent) }), [accent]);
   const dripMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color(glow) }), [glow]);
   const poolMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.FrontSide, color: new THREE.Color(core) }), [core]);
-  useEffect(() => { bubbleMat.color.set(accent); }, [accent, bubbleMat]);
   useEffect(() => () => gasMat.dispose(), [gasMat]);
   useEffect(() => () => bubbleMat.dispose(), [bubbleMat]);
   useEffect(() => () => dripMat.dispose(), [dripMat]);
@@ -376,7 +375,7 @@ export function PoisonBurstImpact({ core, glow, accent, radius }: { core: string
       const p = POISON_PUFFS[i]; if (!p) return;
       const roil = 1 + Math.sin(age * 4.0 + p.ph) * 0.16;
       const rr = r * p.off * (0.8 + t * 1.1);
-      c.position.set(Math.cos(p.az) * rr, 0.25 + p.rise * (0.4 + t * 1.4), Math.sin(p.az) * rr);
+      c.position.set(Math.cos(p.az) * rr, 0.10 + p.rise * (0.4 + t * 1.4), Math.sin(p.az) * rr);
       c.scale.setScalar(r * p.sz * (0.7 + t * 0.5) * roil);
     });
     // Bubbles: rise and pop (grow then vanish) on staggered cycles.
@@ -385,7 +384,7 @@ export function PoisonBurstImpact({ core, glow, accent, radius }: { core: string
       const b = POISON_BUBBLES[i]; if (!b) return;
       const bt = ((age * 0.8 + b.t0) % 0.5) / 0.5; // 0..1 pop cycle
       const rr = r * b.off;
-      c.position.set(Math.cos(b.az) * rr, 0.2 + b.rise * (0.3 + bt * 1.4), Math.sin(b.az) * rr);
+      c.position.set(Math.cos(b.az) * rr, 0.05 + b.rise * (0.3 + bt * 1.4), Math.sin(b.az) * rr);
       c.scale.setScalar(Math.max(0.01, 0.16 * Math.sin(bt * Math.PI)) * (1 - t * 0.5));
     });
     // Venom globs arc out and fall.
@@ -393,7 +392,7 @@ export function PoisonBurstImpact({ core, glow, accent, radius }: { core: string
     if (drips.current) drips.current.children.forEach((c, i) => {
       const d = POISON_DRIPS[i]; if (!d) return;
       const rr = r * 1.8 * d.sp * t;
-      c.position.set(Math.cos(d.az) * rr, 0.3 + r * 1.4 * d.rise * t - 4.4 * t * t, Math.sin(d.az) * rr);
+      c.position.set(Math.cos(d.az) * rr, 0.15 + r * 1.4 * d.rise * t - 4.4 * t * t, Math.sin(d.az) * rr);
       c.scale.setScalar(Math.max(0.02, 0.18 * (1 - t * 0.5)));
     });
     // Ground pool spreads then soaks away.
@@ -402,8 +401,8 @@ export function PoisonBurstImpact({ core, glow, accent, radius }: { core: string
   });
 
   return (
-    <group position={[0, 0.05, 0]}>
-      <mesh ref={pool} geometry={POOL_GEO} material={poolMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.22, 0]} />
+    <group position={[0, 0.2, 0]}>
+      <mesh ref={pool} geometry={POOL_GEO} material={poolMat} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.18, 0]} />
       <group ref={cloud}>{POISON_PUFFS.map((_, i) => (<mesh key={i} geometry={GAS_GEO} material={gasMat} />))}</group>
       <group ref={bubbles}>{POISON_BUBBLES.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={bubbleMat} />))}</group>
       <group ref={drips}>{POISON_DRIPS.map((_, i) => (<mesh key={i} geometry={BALL_GEO} material={dripMat} />))}</group>
