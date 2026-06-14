@@ -161,6 +161,23 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     grass = vale > 0.001 ? 0 : grass;
     tree *= 1 - valeT; // the ref valley core is treeless; its banks get THEIR grass
   }
+  // Lush Vale grading: paint the carved river valley FOREST (dark-green ground,
+  // dense woodland) over the surrounding meadow climate, so it reads lush instead
+  // of yellow-accented + sparse. biomeWeights can't see it (it's GAME_ZONE-bound),
+  // so override the blend here — mirroring the glacial-vale block above.
+  const lush = lushValeMask(x, z);
+  if (lush > 0.05) {
+    const lt = smoothstep(0.05, 0.55, lush);
+    const fv = TERRAIN_BIOME_VISUALS.forest;
+    const fg2 = hexRgb(fv.groundColor), ff2 = hexRgb(fv.foliageColor), fa2 = hexRgb(fv.accentColor);
+    const mixL = (c: number, t: number) => c + (t - c) * lt;
+    gr = mixL(gr, fg2.r); gg = mixL(gg, fg2.g); gb = mixL(gb, fg2.b);
+    fr = mixL(fr, ff2.r); fg = mixL(fg, ff2.g); fb = mixL(fb, ff2.b);
+    ar = mixL(ar, fa2.r); ag = mixL(ag, fa2.g); ab = mixL(ab, fa2.b);
+    tree = mixL(tree, fv.treeDensity * 1.7); // denser woodland than plain forest
+    grass = mixL(grass, 0.95);                // lush base (WorldShaderGrass boosts more)
+    rough = mixL(rough, fv.roughness);
+  }
   return {
     groundColor: rgbHex(gr, gg, gb),
     foliageColor: rgbHex(fr, fg, fb),

@@ -334,15 +334,19 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // Roads and rivers are bare too — grass used to grow straight through
     // the travel-lane slabs.
     const lane = smoothstep(0, 4, distanceBeyondNearestLane(x, z));
-    // No grass on the lush vale river (it would float over the water surface).
-    let river = 1;
-    if (lushValeMask(x, z) > 0.05) {
+    // No grass on the lush vale river (it would float over the water surface);
+    // and a LUSH boost elsewhere in the vale so the carpet reads continuous (the
+    // density saturates in the shader, filling the meadow patchiness thin-spots).
+    let river = 1, lush = 1;
+    const lm = lushValeMask(x, z);
+    if (lm > 0.05) {
       const dx = x - LUSH_VALE.x, dz = z - LUSH_VALE.z;
       const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
       const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
       river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
+      lush = 1 + lm * 0.9; // up to ~1.9× toward the vale centre
     }
-    return sampleGrassDensity(x, z) * coast * dry * plaza * lane * river;
+    return sampleGrassDensity(x, z) * coast * dry * plaza * lane * river * lush;
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the
