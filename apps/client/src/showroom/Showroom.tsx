@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -72,7 +72,10 @@ function ValeScene() {
   }, [phase]);
 
   const num = (k: string, d: number) => { const v = Number(params.get(k)); return Number.isFinite(v) && params.get(k) !== null ? v : d; };
-  const hueSatRef = useRef<HueSaturationEffect>(null);
+  const hueSatRef = useRef<HueSaturationEffect | null>(null);
+  // Callback ref (not an object ref) — see ScenePostFX: an object ref makes the
+  // postprocessing wrapper's JSON.stringify(props) serialise the effect → crash.
+  const setHueSat = useCallback((e: HueSaturationEffect | null) => { hueSatRef.current = e; }, []);
   const focus = useMemo(() => ({ x: GLACIAL_VALE.x, y: 0, z: GLACIAL_VALE.z }), []);
   const camPos: [number, number, number] = [num('cx', GLACIAL_VALE.x - 45), num('cy', 11), num('cz', GLACIAL_VALE.z + 45)];
   const target: [number, number, number] = [num('tx', GLACIAL_VALE.x), num('ty', 1.5), num('tz', GLACIAL_VALE.z)];
@@ -93,7 +96,7 @@ function ValeScene() {
       <EffectComposer enableNormalPass={false} multisampling={0}>
         <Bloom intensity={0.62} luminanceThreshold={0.62} luminanceSmoothing={0.16} mipmapBlur />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        <HueSaturation ref={hueSatRef} hue={0} saturation={0.12} />
+        <HueSaturation ref={setHueSat} hue={0} saturation={0.12} />
         <BrightnessContrast brightness={0} contrast={0.08} />
       </EffectComposer>
       {/* Preview the game's night grade here too (phase is pinned above, so

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, FXAA, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode, type HueSaturationEffect } from 'postprocessing';
@@ -32,6 +32,14 @@ import { NightGrade } from './NightGrade';
  *
  * `luminanceThreshold` is high-ish so only genuinely bright/emissive pixels
  * bloom — lit terrain + props stay crisp, they don't smear.
+ *
+ * NIGHT GRADE: the HueSaturation effect's saturation is driven down after dark
+ * by <NightGrade> via `setHueSat`. That MUST be a CALLBACK ref, never an object
+ * ref — @react-three/postprocessing's effect wrapper does
+ * `useMemo(..., [JSON.stringify(props)])` each render, and under React 19 the ref
+ * is a prop; an object ref serialises the effect (which back-references the
+ * scene) → "circular structure to JSON" crashes the whole post stack. A function
+ * ref is dropped by JSON.stringify, so it's safe.
  */
 // memo: the EffectComposer rebuilds ALL its EffectPasses (and their render
 // targets) whenever its `children` JSX changes identity — its pass-building
@@ -52,7 +60,8 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
   // lost; remount when the browser restores it.
   const gl = useThree((state) => state.gl);
   const [contextLost, setContextLost] = useState(false);
-  const hueSatRef = useRef<HueSaturationEffect>(null); // night grade drives its saturation
+  const hueSatRef = useRef<HueSaturationEffect | null>(null);
+  const setHueSat = useCallback((e: HueSaturationEffect | null) => { hueSatRef.current = e; }, []); // callback ref ONLY — see header
   useEffect(() => {
     const el = gl.domElement;
     const onLost = () => setContextLost(true);
@@ -130,7 +139,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
           exposure at night). Lighting is intrinsic in every phase since
           #871/#872/#875 — adaptation has nothing left to do. */}
       <ToneMapping mode={tmMode} />
-      <HueSaturation ref={hueSatRef} hue={0} saturation={high ? 0.12 : 0.09} />
+      <HueSaturation ref={setHueSat} hue={0} saturation={high ? 0.12 : 0.09} />
       <BrightnessContrast brightness={0.0} contrast={high ? 0.08 : 0.06} />
       {high ? <Vignette offset={0.55} darkness={0.26} eskil={false} /> : null}
     </EffectComposer>
