@@ -335,20 +335,20 @@ function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnap
     <group ref={pathRef}>
       <group rotation={[0, yaw, 0]}>
         <group ref={pitchRef}>
-        <group ref={weaveRef}>
-          <group ref={coreRef}>
-            {/* form silhouette; inner group elongates it for the lance mechanic. */}
-            <group scale={[1, 1, longZ]}>
-              <SpellProjectile form={theme.form} element={theme.element} core={theme.core} glow={theme.glow} />
+          <group ref={weaveRef}>
+            <group ref={coreRef}>
+              {/* form silhouette; inner group elongates it for the lance mechanic. */}
+              <group scale={[1, 1, longZ]}>
+                <SpellProjectile form={theme.form} element={theme.element} core={theme.core} glow={theme.glow} />
+              </group>
             </group>
+            {[0.5, 0.86, 1.2].map((offset, index) => (
+              <mesh key={offset} geometry={TRAIL_GEOMETRY} position={[0, 0, -offset * longZ]} scale={(1 - index * 0.22) * 0.17}>
+                <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
+              </mesh>
+            ))}
+            <ProjectileTrail theme={theme} longZ={longZ} frozen={frozen} />
           </group>
-          {[0.5, 0.86, 1.2].map((offset, index) => (
-            <mesh key={offset} geometry={TRAIL_GEOMETRY} position={[0, 0, -offset * longZ]} scale={(1 - index * 0.22) * 0.17}>
-              <meshBasicMaterial color={theme.accent} transparent opacity={0.34 - index * 0.08} depthWrite={false} />
-            </mesh>
-          ))}
-          <ProjectileTrail theme={theme} longZ={longZ} frozen={frozen} />
-        </group>
         </group>
       </group>
     </group>
