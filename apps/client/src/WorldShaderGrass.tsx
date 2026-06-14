@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS } from '../../../packages/content/terrain';
+import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS, LUSH_VALE, lushValeMask, lushValeRiverV } from '../../../packages/content/terrain';
 import { distanceBeyondNearestLane } from '../../../packages/content/worldFeatures';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
@@ -133,6 +133,21 @@ const VERT = /* glsl */`
     tm = 1.0 - smoothstep(84.0, 168.0, length(p - vec2(-1450.0, 80.0)));   h = mix(h, 16.0, max(tm, 0.0));
     tm = 1.0 - smoothstep(77.0, 154.0, length(p - vec2(560.0, -2080.0)));  h = mix(h, 3.0, max(tm, 0.0));
     tm = 1.0 - smoothstep(56.0, 112.0, length(p - vec2(3600.0, -2520.0))); h = mix(h, 26.0, max(tm, 0.0));
+    // Lush vale — mirror lushValeMask + lushValeHeight from terrain.ts (centre
+    // (2600,-2400), axis -0.4 rad: cos 0.921061 / sin -0.389418, L=600 W=440) so
+    // blades root on the carved river valley instead of flying above it. Keep in
+    // sync with lushValeHeight in terrain.ts.
+    vec2 lr = p - vec2(2600.0, -2400.0);
+    float lu = lr.x*0.921061 - lr.y*0.389418;
+    float lv = lr.x*0.389418 + lr.y*0.921061;
+    float lmask = 1.0 - smoothstep(0.55, 1.0, (lu/600.0)*(lu/600.0) + (lv/440.0)*(lv/440.0));
+    if (lmask > 0.0) {
+      float lhills = sin(lu*0.018)*cos(lv*0.015)*11.0 + sin((lu+lv)*0.045 + 0.7)*3.5;
+      float lriverV = sin(lu*0.006)*72.0 + sin(lu*0.021 + 1.1)*16.0;
+      float lcarve = 1.0 - smoothstep(6.0, 22.0, abs(lv - lriverV));
+      float lh = (8.0 + lhills)*(1.0 - lcarve) + (-3.9)*lcarve;
+      h = mix(h, lh, lmask);
+    }
     return h;
   }
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -319,7 +334,15 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // Roads and rivers are bare too — grass used to grow straight through
     // the travel-lane slabs.
     const lane = smoothstep(0, 4, distanceBeyondNearestLane(x, z));
-    return sampleGrassDensity(x, z) * coast * dry * plaza * lane;
+    // No grass on the lush vale river (it would float over the water surface).
+    let river = 1;
+    if (lushValeMask(x, z) > 0.05) {
+      const dx = x - LUSH_VALE.x, dz = z - LUSH_VALE.z;
+      const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
+      const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
+      river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
+    }
+    return sampleGrassDensity(x, z) * coast * dry * plaza * lane * river;
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the
