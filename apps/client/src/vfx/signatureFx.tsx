@@ -213,9 +213,12 @@ export function ArcaneVortexCast({ progress, glow, radius }: { progress: number;
   pRef.current = progress;
   const grp = useRef<THREE.Group>(null);
   const size = Math.max(3.6, radius * 2.6);
-  useFrame(() => {
-    // Grows as it charges; a gentle bob so it reads as alive, not pinned.
-    if (grp.current) grp.current.scale.setScalar(0.5 + pRef.current * 0.85);
+  useFrame(({ clock }) => {
+    // Grows as it charges, with a gentle bob so it reads as alive, not pinned.
+    if (grp.current) {
+      grp.current.scale.setScalar(0.5 + pRef.current * 0.85);
+      grp.current.position.y = Math.sin(clock.elapsedTime * 2.0) * 0.12;
+    }
   });
   return (
     <group position={[0, 1.5, 0]}>
