@@ -1,3 +1,5 @@
+<img width="2514" height="1563" alt="VibeAge gameplay screenshot" src="https://github.com/user-attachments/assets/caa4572f-fd88-431e-9cde-792b2e806d06" />
+
 # VibeAge
 
 A browser-first multiplayer 3D action RPG prototype: pick a race, pick a class, level up, specialize, fight mobs and bosses, drag through dungeons, drop loot for your party, and read the in-game wiki to plan your build.
