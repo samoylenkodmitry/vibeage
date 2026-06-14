@@ -354,7 +354,7 @@ export function applyCastSnapshotVisualState(
     return nextState;
   }
 
-  return addSkillImpactVisualEvent(nextState, snapshot.skillId, normalizeVec3(snapshot.pos), now);
+  return addSkillImpactVisualEvent(nextState, snapshot.skillId, normalizeVec3(snapshot.target ?? snapshot.pos), now);
 }
 
 export function applyInstantHitVisualState(

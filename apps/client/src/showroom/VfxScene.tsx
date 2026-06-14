@@ -5,9 +5,13 @@ import { EffectComposer, Bloom, ToneMapping, HueSaturation, BrightnessContrast }
 import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 import { CastMarker } from '../WorldEntities';
+import { WorldEventVfx } from '../SceneEventVfx';
+import { applyCastSnapshotVisualState } from '../clientVisualState';
+import { pruneVisualEvents } from '../visualEventState';
 import { castAnchorsAtTarget } from '../SceneVfx';
 import { FLYING_MECHANICS } from '../vfx/spellFx';
 import { skillThemeFor } from '../vfx/skillThemeConfig';
+import type { GameClientState, VisualEvent } from '../gameTypes';
 import { CastState, type CastSnapshot } from '../../../../packages/protocol/common';
 
 /**
@@ -78,12 +82,19 @@ function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sy
   const stagger = sync ? 0 : (index * 260) % CYCLE;
   const [snap, setSnap] = useState<CastSnapshot | null>(null);
   const acc = useRef(0);
+  // Drive the REAL client visual-event reducer (clientVisualState) — petrify /
+  // waterSplash render a separate VisualEvent (WorldEventVfx) whose POSITION the
+  // old preview never exercised, so a caster-vs-target bug there was invisible.
+  const evRef = useRef<GameClientState>({ casts: {}, visualEvents: {}, nextVisualEventSeq: 0 } as unknown as GameClientState);
+  const emittedCycleRef = useRef(-1);
+  const [events, setEvents] = useState<VisualEvent[]>([]);
 
   useFrame((state, dt) => {
     acc.current += dt;
     if (acc.current < 0.06) return; // ~16 Hz snapshot cadence (server-tick-ish)
     acc.current = 0;
-    const ph = (state.clock.elapsedTime * 1000 + stagger) % CYCLE;
+    const nowMs = state.clock.elapsedTime * 1000;
+    const ph = (nowMs + stagger) % CYCLE;
     const baseSnap = {
       castId: `preview-${cell.skillId}`,
       casterId: 'preview',
@@ -105,6 +116,17 @@ function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sy
       next = null; // rest gap so each cycle reads as a fresh cast
     }
     setSnap(next);
+
+    // Emit the impact's VisualEvent ONCE per cycle through the real reducer, then
+    // prune — so WorldEventVfx (e.g. the petrify stone) renders at exactly the
+    // position the live client computes. A bug there now shows on the markers.
+    const cycle = Math.floor((nowMs + stagger) / CYCLE);
+    if (next && next.state === CastState.Impact && emittedCycleRef.current !== cycle) {
+      emittedCycleRef.current = cycle;
+      evRef.current = applyCastSnapshotVisualState(evRef.current, next, nowMs);
+    }
+    evRef.current = { ...evRef.current, visualEvents: pruneVisualEvents(evRef.current.visualEvents, nowMs) };
+    setEvents(Object.values(evRef.current.visualEvents));
   });
 
   return (
@@ -116,6 +138,7 @@ function CastLoopCell({ cell, index, sync, at }: { cell: Cell; index: number; sy
       <mesh position={[origin.x, -0.8, origin.z]}><sphereGeometry args={[0.16, 8, 8]} /><meshBasicMaterial color="#64748b" /></mesh>
       <mesh position={[target.x, -0.92, target.z]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.55, 0.7, 28]} /><meshBasicMaterial color="#94a3b8" transparent opacity={0.7} side={THREE.DoubleSide} /></mesh>
       {snap && <CastMarker cast={{ snapshot: snap, seenAt: 0 }} anchorPos={anchorPos} />}
+      {events.map((ev) => (<WorldEventVfx key={ev.id} event={ev} />))}
     </group>
   );
 }
