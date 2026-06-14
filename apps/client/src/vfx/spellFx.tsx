@@ -29,7 +29,7 @@ const ORB_FRAG = /* glsl */ `
   varying vec3 vNormal;
   varying vec3 vViewDir;
   void main() {
-    float fres = pow(1.0 - clamp(dot(vNormal, vViewDir), 0.0, 1.0), 2.4);
+    float fres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewDir)), 0.0, 1.0), 2.4);
     float pulse = 0.82 + 0.18 * sin(uTime * 9.0);
     vec3 col = mix(uCore, uGlow, fres) * pulse;
     float a = clamp(0.5 + fres * 0.6, 0.0, 1.0) * pulse;
@@ -137,13 +137,22 @@ const FIRE_FRAG = NOISE_GLSL + /* glsl */ `
   uniform float uTime;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    vec3 p = vPos * 2.6; p.y -= uTime * 1.7;        // flames flow upward
-    float n = fbm(p);
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.5);
-    float heat = clamp(n * 1.25 + (1.0 - fres) * 0.35, 0.0, 1.0);
-    vec3 col = mix(vec3(0.70,0.10,0.0), vec3(1.0,0.46,0.05), smoothstep(0.18, 0.5, heat)); // ember→orange
-    col = mix(col, vec3(1.0,0.95,0.72), smoothstep(0.55, 0.9, heat));                       // →white-hot
-    float a = smoothstep(0.10, 0.42, heat + fres * 0.25);                                   // wispy edges
+    vec3 p = vPos * 3.1; p.y -= uTime * 2.3;        // flames flow upward
+    // Domain-warp the noise field by itself → churning, licking turbulence
+    // instead of a static blob (the thing that made fire read "alive").
+    vec3 q = vec3(fbm(p), fbm(p + 4.7), fbm(p + 9.2));
+    float n = fbm(p + q * 1.9);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.4);
+    // Hotter at the (lower) core, cooler + wispier toward the rising tips.
+    float heat = clamp(n * 1.45 + (1.0 - fres) * 0.4 - vPos.y * 0.28, 0.0, 1.25);
+    // Blackbody ramp: ember red → orange → yellow → white-hot.
+    vec3 col = vec3(0.05, 0.0, 0.0);
+    col = mix(col, vec3(0.85, 0.07, 0.0), smoothstep(0.10, 0.34, heat));
+    col = mix(col, vec3(1.0, 0.42, 0.04), smoothstep(0.32, 0.55, heat));
+    col = mix(col, vec3(1.0, 0.86, 0.30), smoothstep(0.55, 0.80, heat));
+    col = mix(col, vec3(1.0, 0.98, 0.88), smoothstep(0.82, 1.06, heat));
+    col *= 1.0 + heat * 0.7;                          // boost emission so the core blooms
+    float a = smoothstep(0.07, 0.40, heat + fres * 0.25);
     gl_FragColor = vec4(col, a);
   }
 `;
@@ -152,11 +161,17 @@ const ICE_FRAG = /* glsl */ `
   uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    float fres = pow(1.0 - clamp(dot(vNormal, vViewDir), 0.0, 1.0), 1.3); // sharp rim on flat facets
-    float g = fract(sin(dot(floor(vPos * 11.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453 + uTime * 1.4);
-    float sparkle = smoothstep(0.9, 1.0, g);                              // icy glints
-    vec3 col = mix(uCore, uGlow, fres) + sparkle * 0.7;
-    float a = clamp(0.42 + fres * 0.7 + sparkle * 0.5, 0.0, 1.0);
+    float ndv = clamp(dot(normalize(vNormal), normalize(vViewDir)), 0.0, 1.0);
+    float fres = pow(1.0 - ndv, 1.2);                                     // sharp rim on flat facets
+    // Per-facet glints that twinkle (flat normals on the non-indexed geo).
+    float g = fract(sin(dot(floor(vPos * 13.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    float sparkle = smoothstep(0.90, 1.0, g) * (0.55 + 0.45 * sin(uTime * 18.0 + g * 40.0));
+    // Iridescent rim: the grazing edge shifts toward a cold cyan-white, the
+    // body keeps a deeper frozen tint — reads as a faceted crystal, not a ball.
+    vec3 irid = mix(uGlow, vec3(0.82, 0.95, 1.0), fres);
+    vec3 col = mix(uCore * 0.45, irid, fres) + sparkle * 0.95;
+    col += vec3(0.70, 0.86, 1.0) * pow(fres, 3.0) * 0.85;                 // bright crystalline edge
+    float a = clamp(0.33 + fres * 0.78 + sparkle * 0.6, 0.0, 1.0);
     gl_FragColor = vec4(col, a);
   }
 `;
@@ -166,12 +181,15 @@ const HOLY_FRAG = /* glsl */ `
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
     float ang = atan(vPos.y, vPos.x + 1e-6); // epsilon avoids atan(0,0) NaN at the poles
-    float rays = pow(abs(sin(ang * 8.0 + uTime * 1.1)), 6.0);   // 8 rotating god-rays
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.5);
-    float pulse = 0.85 + 0.15 * sin(uTime * 6.0);
-    float b = ((1.0 - fres) * 0.8 + rays * 0.7 * fres + 0.2) * pulse;
-    vec3 col = mix(vec3(1.0, 0.86, 0.40), vec3(1.0, 1.0, 0.92), clamp(b, 0.0, 1.0)); // gold→white
-    gl_FragColor = vec4(col * b, clamp(b, 0.0, 1.0));
+    float rad = length(vPos);
+    float rays  = pow(abs(sin(ang * 10.0 + uTime * 1.3)), 5.0);  // rotating god-rays
+    float rays2 = pow(abs(sin(ang * 6.0  - uTime * 0.8)), 9.0);  // counter-rotating, sharper
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.4);
+    float pulse = 0.85 + 0.15 * sin(uTime * 7.0);
+    float halo = smoothstep(0.88, 1.0, abs(sin(rad * 9.0 - uTime * 2.2))); // breathing halo ring
+    float b = ((1.0 - fres) * 0.65 + (rays * 0.6 + rays2 * 0.5) * (0.4 + fres * 0.6) + halo * 0.55 + 0.22) * pulse;
+    vec3 col = mix(vec3(1.0, 0.80, 0.32), vec3(1.0, 1.0, 0.96), clamp(b, 0.0, 1.0)); // gold→white
+    gl_FragColor = vec4(col * b * 1.2, clamp(b, 0.0, 1.0));
   }
 `;
 
@@ -179,13 +197,17 @@ const POISON_FRAG = NOISE_GLSL + /* glsl */ `
   uniform float uTime;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    vec3 p = vPos * 3.0 + vec3(0.0, -uTime * 0.5, uTime * 0.3);
+    vec3 p = vPos * 3.4 + vec3(0.0, -uTime * 0.7, uTime * 0.35);          // slow downward drip
     float n = fbm(p);
-    float bubble = smoothstep(0.55, 0.75, n);
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.6);
-    vec3 col = mix(vec3(0.05, 0.22, 0.04), vec3(0.40, 0.95, 0.20), smoothstep(0.30, 0.70, n)); // murk→toxic
-    col = mix(col, vec3(0.80, 1.0, 0.40), bubble * 0.6);                                        // bubble glints
-    float a = smoothstep(0.15, 0.5, n + fres * 0.3);
+    // Bubbles: rounded caps from a higher-frequency field that rise + pop.
+    float b1 = fbm(p * 2.3 + vec3(11.0, uTime * 0.6, 4.0));
+    float bubble = smoothstep(0.60, 0.78, b1);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.5);
+    vec3 murk = mix(vec3(0.03, 0.13, 0.02), vec3(0.16, 0.52, 0.07), smoothstep(0.24, 0.6, n));
+    vec3 col = mix(murk, vec3(0.52, 1.0, 0.22), smoothstep(0.50, 0.78, n)); // murk → toxic green
+    col = mix(col, vec3(0.85, 1.0, 0.38), bubble * 0.85);                    // bright bubble caps
+    col += vec3(0.40, 0.90, 0.20) * pow(fres, 2.0) * 0.55;                   // sickly acid rim
+    float a = smoothstep(0.12, 0.5, n + fres * 0.3 + bubble * 0.3);
     gl_FragColor = vec4(col, a);
   }
 `;
@@ -194,11 +216,20 @@ const ARCANE_FRAG = /* glsl */ `
   uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.4);
-    float bands = sin(atan(vPos.z, vPos.x + 1e-6) * 6.0 + uTime * 2.0 + vPos.y * 8.0); // swirling bands (epsilon avoids pole NaN)
-    float runes = smoothstep(0.7, 1.0, abs(bands));
-    vec3 col = mix(uCore, uGlow, fres) + runes * 0.5;
-    float a = clamp(0.4 + fres * 0.7 + runes * 0.4, 0.0, 1.0);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.3);
+    float ang = atan(vPos.z, vPos.x + 1e-6);   // epsilon avoids pole NaN
+    float rad = length(vPos.xz);
+    // Swirling spiral arms wound around the axis.
+    float arms = smoothstep(0.55, 1.0, abs(sin(ang * 5.0 + uTime * 2.2 + rad * 14.0 - vPos.y * 6.0)));
+    // Concentric magic-circle rings rippling outward.
+    float rings = smoothstep(0.85, 1.0, abs(sin(rad * 26.0 - uTime * 3.0)));
+    // Rune glyphs flicker on/off on a coarse cell grid.
+    float runes = step(0.92, fract(sin(dot(floor(vPos * 9.0), vec3(7.1, 13.7, 19.3))) * 4391.0 + floor(uTime * 4.0) * 0.37));
+    // Chromatic shimmer: hue drifts violet↔cyan with angle + view.
+    vec3 chroma = mix(uCore, uGlow, 0.5 + 0.5 * sin(ang * 2.0 + uTime + fres * 3.0));
+    vec3 col = mix(chroma, vec3(0.85, 0.95, 1.0), fres * 0.6);
+    col += arms * 0.5 + rings * 0.75 + runes * 0.95;
+    float a = clamp(0.32 + fres * 0.7 + arms * 0.3 + rings * 0.45 + runes * 0.55, 0.0, 1.0);
     gl_FragColor = vec4(col, a);
   }
 `;
