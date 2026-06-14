@@ -144,8 +144,8 @@ const VERT = /* glsl */`
     if (lmask > 0.0) {
       float lhills = sin(lu*0.018)*cos(lv*0.015)*11.0 + sin((lu+lv)*0.045 + 0.7)*3.5;
       float lriverV = sin(lu*0.006)*72.0 + sin(lu*0.021 + 1.1)*16.0;
-      float lcarve = 1.0 - smoothstep(6.0, 22.0, abs(lv - lriverV));
-      float lh = (8.0 + lhills)*(1.0 - lcarve) + (-3.9)*lcarve;
+      float lcarve = 1.0 - smoothstep(4.0, 12.0, abs(lv - lriverV));
+      float lh = (8.0 + lhills)*(1.0 - lcarve) + (-5.0)*lcarve;
       h = mix(h, lh, lmask);
     }
     return h;
@@ -345,6 +345,13 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
       const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
       river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
       lush = 1 + lm * 0.9; // up to ~1.9× toward the vale centre
+      // Bare the steep rock-strata banks (mirrors the rock grading in sampleTerrain).
+      const dd = 3;
+      const slope = Math.hypot(
+        getTerrainHeight(x + dd, z) - getTerrainHeight(x - dd, z),
+        getTerrainHeight(x, z + dd) - getTerrainHeight(x, z - dd),
+      ) / (2 * dd);
+      lush *= 1 - smoothstep(0.45, 0.9, slope) * 0.85;
     }
     return sampleGrassDensity(x, z) * coast * dry * plaza * lane * river * lush;
   }, []);

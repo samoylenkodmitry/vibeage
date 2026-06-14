@@ -177,6 +177,24 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     tree = mixL(tree, fv.treeDensity * 1.7); // denser woodland than plain forest
     grass = mixL(grass, 0.95);                // lush base (WorldShaderGrass boosts more)
     rough = mixL(rough, fv.roughness);
+    // Rock-strata canyon walls: the carved river's banks are steep, so where the
+    // slope is high, paint LAYERED GREY ROCK (horizontal strata banded by height)
+    // and pull trees/grass off the cliff — the valley's defining feature.
+    const d = 3;
+    const slope = Math.hypot(
+      getTerrainHeight(x + d, z) - getTerrainHeight(x - d, z),
+      getTerrainHeight(x, z + d) - getTerrainHeight(x, z - d),
+    ) / (2 * d);
+    const rockF = smoothstep(0.45, 0.95, slope) * lt;
+    if (rockF > 0.001) {
+      const band = 0.5 + 0.5 * Math.sin(height * 1.5 + Math.sin(x * 0.05) * 0.6);
+      const rr = 96 + band * 58, rg = 98 + band * 56, rb = 100 + band * 52; // cool grey strata
+      const mixR = (c: number, t: number) => c + (t - c) * rockF;
+      gr = mixR(gr, rr); gg = mixR(gg, rg); gb = mixR(gb, rb);
+      tree *= 1 - rockF * 0.92;
+      grass *= 1 - rockF * 0.85;
+      rough = mixR(rough, 0.9);
+    }
   }
   return {
     groundColor: rgbHex(gr, gg, gb),
@@ -345,10 +363,12 @@ function lushValeHeight(x: number, z: number): number {
     Math.sin(u * 0.018) * Math.cos(v * 0.015) * 11 +
     Math.sin((u + v) * 0.045 + 0.7) * 3.5;
   const base = 8 + hills;
-  // Carve the river into a canyon: flat bed at the centreline, steep banks.
+  // Carve the river into a CANYON: a flat bed at the centreline, then steep rock
+  // walls over a short span (≈8 m horizontal for an ≈11 m drop → ~55° → the rock
+  // strata grading triggers). Keep in sync with the GLSL mirror in WorldShaderGrass.
   const d = Math.abs(v - lushValeRiverV(u));
-  const carve = 1 - smoothstep(6, 22, d);
-  const bed = LUSH_VALE_WATER_Y - 2.4;
+  const carve = 1 - smoothstep(4, 12, d);
+  const bed = LUSH_VALE_WATER_Y - 3.5;
   return base * (1 - carve) + bed * carve;
 }
 
