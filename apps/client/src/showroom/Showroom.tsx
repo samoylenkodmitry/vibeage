@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useMemo, useState } from 'react';
+import { Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,7 +6,8 @@ import { WorldEnvironment } from '../WorldEnvironment';
 import { AnimatedCharacter } from '../AnimatedCharacter';
 import { CHARACTER_MODELS, enemyModel, type CharacterAnim, type CharacterModelId } from '../characterModels';
 import { EffectComposer, ToneMapping, Bloom, HueSaturation, BrightnessContrast } from '@react-three/postprocessing';
-import { ToneMappingMode } from 'postprocessing';
+import { ToneMappingMode, type HueSaturationEffect } from 'postprocessing';
+import { NightGrade } from '../NightGrade';
 import { GlacialValeTerrain } from '../world-art/GlacialValeTerrain';
 import { GLACIAL_VALE } from '../../../../packages/content/terrain';
 import { ValeHD } from './ValeHD';
@@ -71,6 +72,7 @@ function ValeScene() {
   }, [phase]);
 
   const num = (k: string, d: number) => { const v = Number(params.get(k)); return Number.isFinite(v) && params.get(k) !== null ? v : d; };
+  const hueSatRef = useRef<HueSaturationEffect>(null);
   const focus = useMemo(() => ({ x: GLACIAL_VALE.x, y: 0, z: GLACIAL_VALE.z }), []);
   const camPos: [number, number, number] = [num('cx', GLACIAL_VALE.x - 45), num('cy', 11), num('cz', GLACIAL_VALE.z + 45)];
   const target: [number, number, number] = [num('tx', GLACIAL_VALE.x), num('ty', 1.5), num('tz', GLACIAL_VALE.z)];
@@ -91,9 +93,13 @@ function ValeScene() {
       <EffectComposer enableNormalPass={false} multisampling={0}>
         <Bloom intensity={0.62} luminanceThreshold={0.62} luminanceSmoothing={0.16} mipmapBlur />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        <HueSaturation hue={0} saturation={0.12} />
+        <HueSaturation ref={hueSatRef} hue={0} saturation={0.12} />
         <BrightnessContrast brightness={0} contrast={0.08} />
       </EffectComposer>
+      {/* Preview the game's night grade here too (phase is pinned above, so
+          ?phase=0.86 shows the muted moonlit vale). ?nograde=1 disables it for a
+          before/after A–B. */}
+      {params.get('nograde') === null && <NightGrade hueSat={hueSatRef} daySaturation={0.12} />}
     </Canvas>
   );
 }

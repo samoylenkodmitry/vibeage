@@ -113,6 +113,20 @@ const KEYFRAMES: Keyframe[] = [
   },
 ];
 
+/**
+ * 0 in daylight → 1 in deep night, eased from the sun's elevation (`sunDir.y`).
+ * The sun grazes the horizon (`y≈0`) at dawn/dusk and sits at `y≈±0.92` at
+ * noon/midnight, so this reads ~0.3 through twilight and 1 once it's fully down.
+ * Drives the post night grade (desaturate + cool the world after dark) so the
+ * scene mutes to moonlight instead of staying daytime-vivid under the blue night.
+ */
+export function nightFactorFromSunDir(sunDirY: number): number {
+  const day = 0.15;   // sun this high or higher → full daylight (factor 0)
+  const night = -0.25; // sun this low or lower → full night (factor 1)
+  const t = Math.max(0, Math.min(1, (day - sunDirY) / (day - night)));
+  return t * t * (3 - 2 * t); // smoothstep
+}
+
 export function normalizePhase(timestampMs: number, dayDurationMs: number = DEFAULT_DAY_DURATION_MS): number {
   if (dayDurationMs <= 0 || !Number.isFinite(timestampMs)) {
     return 0;

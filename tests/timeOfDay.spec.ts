@@ -3,6 +3,7 @@ import {
   computeDayPhase,
   computeSunDirection,
   DEFAULT_DAY_DURATION_MS,
+  nightFactorFromSunDir,
   normalizePhase,
 } from '../apps/client/src/timeOfDay';
 
@@ -80,5 +81,24 @@ describe('time of day cycle', () => {
     const a = computeDayPhase(123_456_789);
     const b = computeDayPhase(123_456_789);
     expect(a).toEqual(b);
+  });
+
+  test('night factor: 0 at midday, 1 at midnight, partial through twilight, monotonic', () => {
+    // Sun overhead → full day; well below horizon → full night.
+    expect(nightFactorFromSunDir(computeSunDirection(0.32).y)).toBe(0);
+    expect(nightFactorFromSunDir(computeSunDirection(0.86).y)).toBe(1);
+    // Dawn/dusk: sun on the horizon (y≈0) reads as partial night, not either extreme.
+    const dusk = nightFactorFromSunDir(computeSunDirection(0.7).y);
+    expect(dusk).toBeGreaterThan(0);
+    expect(dusk).toBeLessThan(1);
+    // Monotonic in darkness: lower sun ⇒ stronger night factor; always in [0,1].
+    let prev = nightFactorFromSunDir(1);
+    for (let y = 0.9; y >= -0.9; y -= 0.1) {
+      const nf = nightFactorFromSunDir(y);
+      expect(nf).toBeGreaterThanOrEqual(0);
+      expect(nf).toBeLessThanOrEqual(1);
+      expect(nf).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = nf;
+    }
   });
 });
