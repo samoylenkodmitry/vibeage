@@ -40,12 +40,19 @@ const LOOT_SPARKS = [
   { angle: 4.6, height: 0.52, radius: 0.5 },
 ];
 
-const PROJECTILE_TRAIL_POINTS = [
-  { offset: 0.38, radius: 0.16, opacity: 0.48, drift: 0.03 },
-  { offset: 0.74, radius: 0.12, opacity: 0.36, drift: -0.04 },
-  { offset: 1.06, radius: 0.09, opacity: 0.28, drift: 0.05 },
-  { offset: 1.34, radius: 0.07, opacity: 0.2, drift: -0.02 },
-];
+// Element-distinct projectile tail. `rise` drifts each bead up (fire heat /
+// holy light) or down (poison drip); `grow` billows the tail wider (smoke);
+// `flicker` makes it breathe. Tuned per element so a fireball leaves a churning
+// ember-smoke wake while an ice shard leaves a tight crystalline streak.
+type TrailCfg = { beads: number; baseR: number; spacing: number; taper: number; rise: number; grow: number; flicker: number; additive: boolean };
+const TRAIL_CFG: Record<string, TrailCfg> = {
+  fire: { beads: 7, baseR: 0.20, spacing: 0.30, taper: 0.022, rise: 0.085, grow: 0.020, flicker: 0.28, additive: true },
+  ice: { beads: 5, baseR: 0.12, spacing: 0.30, taper: 0.020, rise: -0.015, grow: -0.004, flicker: 0.16, additive: false },
+  arcane: { beads: 6, baseR: 0.14, spacing: 0.32, taper: 0.018, rise: 0.0, grow: 0.0, flicker: 0.34, additive: true },
+  poison: { beads: 6, baseR: 0.16, spacing: 0.28, taper: 0.016, rise: -0.075, grow: 0.016, flicker: 0.12, additive: false },
+  holy: { beads: 6, baseR: 0.15, spacing: 0.33, taper: 0.020, rise: 0.05, grow: 0.0, flicker: 0.22, additive: true },
+  default: { beads: 4, baseR: 0.15, spacing: 0.34, taper: 0.026, rise: 0.0, grow: 0.0, flicker: 0.12, additive: true },
+};
 
 /**
  * PR Q — Boss signature telegraph. A ring on the ground that grows
@@ -327,24 +334,42 @@ function ProjectileVfx({ snapshot, theme, frozen = false }: { snapshot: CastSnap
 }
 
 function ProjectileTrail({ theme, longZ = 1, frozen = false }: { theme: SkillTheme; longZ?: number; frozen?: boolean }) {
+  const cfg = TRAIL_CFG[theme.element ?? 'default'] ?? TRAIL_CFG.default;
   const groupRef = useRef<THREE.Group>(null);
+  // Per-bead materials so each can fade independently; built once per config and
+  // disposed on unmount. Colour tracks the theme without rebuilding.
+  const mats = useMemo(
+    () => Array.from({ length: cfg.beads }, () => new THREE.MeshBasicMaterial({
+      transparent: true, depthWrite: false, blending: cfg.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    })),
+    [cfg],
+  );
+  useEffect(() => {
+    mats.forEach((m, i) => { m.color.set(theme.glow); m.opacity = (1 - i / cfg.beads) * 0.55; });
+  }, [mats, theme.glow, cfg]);
+  useEffect(() => () => mats.forEach((m) => m.dispose()), [mats]);
 
   useFrame(({ clock }) => {
     if (frozen) return;
-    if (groupRef.current) {
-      groupRef.current.rotation.z = Math.sin(clock.elapsedTime * 8) * 0.1;
-    }
+    const g = groupRef.current; if (!g) return;
+    const t = clock.elapsedTime;
+    g.children.forEach((c, i) => {
+      const flick = 1.0 + Math.sin(t * 12.0 + i * 0.8) * cfg.flicker;
+      const r = Math.max(0.02, cfg.baseR - cfg.taper * i + cfg.grow * i) * flick;
+      c.scale.setScalar(r);
+      // Trail behind (-Z, stretched by longZ for lances); drift up/down per
+      // element + a gentle weave so the tail isn't a dead straight line.
+      c.position.set(
+        Math.sin(t * 4.0 + i * 1.3) * 0.035,
+        cfg.rise * i + Math.sin(t * 6.0 + i) * 0.02,
+        -cfg.spacing * (i + 1) * longZ,
+      );
+    });
   });
 
-  // longZ stretches the trail lengthwise so its beads trail the elongated lance.
   return (
-    <group ref={groupRef} scale={[1, 1, longZ]}>
-      {PROJECTILE_TRAIL_POINTS.map((point, index) => (
-        <mesh key={point.offset} position={[point.drift, Math.sin(index) * 0.05, -point.offset]}>
-          <sphereGeometry args={[point.radius, 8, 8]} />
-          <meshBasicMaterial color={theme.glow} transparent opacity={point.opacity} depthWrite={false} />
-        </mesh>
-      ))}
+    <group ref={groupRef}>
+      {mats.map((m, i) => (<mesh key={i} geometry={TRAIL_GEOMETRY} material={m} />))}
     </group>
   );
 }
