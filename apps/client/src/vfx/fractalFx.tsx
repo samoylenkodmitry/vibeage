@@ -28,7 +28,13 @@ const FRAG = /* glsl */ `
   uniform float uAlpha;
   varying vec2 vUv;
 
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(41.31, 289.17))) * 43758.5453); }
+  // Sine-less hash — a large-multiplier sin() loses precision on mobile mediump
+  // GPUs (blocky/banded noise); this stays stable across platforms.
+  float hash(vec2 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * (p.x + p.y));
+  }
   float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
     vec2 u = f * f * (3.0 - 2.0 * f);

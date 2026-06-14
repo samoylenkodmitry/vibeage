@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing';
@@ -56,6 +56,7 @@ function FractalQuad() {
     uniforms: { uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) } },
     vertexShader: VERT, fragmentShader: FRAG, depthTest: false, depthWrite: false,
   }), []);
+  useEffect(() => () => mat.dispose(), [mat]);
   useFrame((_, dt) => {
     mat.uniforms.uTime.value += dt;
     mat.uniforms.uRes.value.set(size.width * viewport.dpr, size.height * viewport.dpr);
