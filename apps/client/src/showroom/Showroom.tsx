@@ -13,6 +13,7 @@ import { GLACIAL_VALE } from '../../../../packages/content/terrain';
 import { ValeHD } from './ValeHD';
 import { VfxScene } from './VfxScene';
 import { FractalTest } from './FractalTest';
+import { LushVale } from './LushVale';
 
 const VALE_DAY_MS = 12 * 60 * 1000;
 
@@ -155,6 +156,7 @@ export function Showroom() {
   if (scene === 'valeHD') return <ValeHDScene />;
   if (scene === 'vfx') return <VfxScene />;
   if (scene === 'fractal') return <FractalTest />;
+  if (scene === 'lushvale') return <LushVale />;
   return scene === 'vale' ? <ValeScene /> : <ModelGrid />;
 }
 
