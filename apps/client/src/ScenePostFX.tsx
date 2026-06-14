@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, FXAA, GodRays, Vignette, HueSaturation, BrightnessContrast, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode, type HueSaturationEffect } from 'postprocessing';
@@ -52,7 +52,13 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
   // lost; remount when the browser restores it.
   const gl = useThree((state) => state.gl);
   const [contextLost, setContextLost] = useState(false);
-  const hueSatRef = useRef<HueSaturationEffect>(null); // night grade drives its saturation
+  const hueSatRef = useRef<HueSaturationEffect | null>(null); // night grade drives its saturation
+  // CALLBACK ref, never an object ref: @react-three/postprocessing's effect
+  // wrapper does `useMemo(..., [JSON.stringify(props)])`, and under React 19 the
+  // ref is passed as a prop. An OBJECT ref serialises the effect (which
+  // back-references the scene) → "circular structure to JSON" crashes the whole
+  // post stack. A function ref is dropped by JSON.stringify, so it's safe.
+  const setHueSat = useCallback((e: HueSaturationEffect | null) => { hueSatRef.current = e; }, []);
   useEffect(() => {
     const el = gl.domElement;
     const onLost = () => setContextLost(true);
@@ -130,7 +136,7 @@ export const ScenePostFX = memo(function ScenePostFX({ quality, sunMesh, valeHD 
           exposure at night). Lighting is intrinsic in every phase since
           #871/#872/#875 — adaptation has nothing left to do. */}
       <ToneMapping mode={tmMode} />
-      <HueSaturation ref={hueSatRef} hue={0} saturation={high ? 0.12 : 0.09} />
+      <HueSaturation ref={setHueSat} hue={0} saturation={high ? 0.12 : 0.09} />
       <BrightnessContrast brightness={0.0} contrast={high ? 0.08 : 0.06} />
       {high ? <Vignette offset={0.55} darkness={0.26} eskil={false} /> : null}
     </EffectComposer>
