@@ -116,7 +116,9 @@ export function VfxScene() {
   // Stable refs (mode is fixed for the session — chosen from the URL at mount,
   // never switched at runtime, so the Canvas init camera is always correct).
   const isSolo = Boolean(soloCell);
-  const camera = useMemo<[number, number, number]>(() => (isSolo ? [0, 1.6, 6] : [0, 42, 54]), [isSolo]);
+  // Solo: a 3/4 side view so the projectile's travel (along the cell's +Z) and
+  // its trail read from the side, not down the barrel.
+  const camera = useMemo<[number, number, number]>(() => (isSolo ? [5.5, 2.6, 4.5] : [0, 42, 54]), [isSolo]);
   const target = useMemo<[number, number, number]>(() => (isSolo ? [0, 1, 0] : [0, 1.5, 0]), [isSolo]);
   return (
     <Canvas
