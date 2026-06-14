@@ -118,8 +118,8 @@ export function VfxScene() {
   const isSolo = Boolean(soloCell);
   // Solo: a 3/4 side view so the projectile's travel (along the cell's +Z) and
   // its trail read from the side, not down the barrel.
-  const camera = useMemo<[number, number, number]>(() => (isSolo ? [5.5, 2.6, 4.5] : [0, 42, 54]), [isSolo]);
-  const target = useMemo<[number, number, number]>(() => (isSolo ? [0, 1, 0] : [0, 1.5, 0]), [isSolo]);
+  const camera = useMemo<[number, number, number]>(() => (isSolo ? [8, 5, 7] : [0, 42, 54]), [isSolo]);
+  const target = useMemo<[number, number, number]>(() => (isSolo ? [0, 2.5, 0] : [0, 1.5, 0]), [isSolo]);
   return (
     <Canvas
       camera={{ position: camera, fov: soloCell ? 42 : 48, near: 0.1, far: 500 }}

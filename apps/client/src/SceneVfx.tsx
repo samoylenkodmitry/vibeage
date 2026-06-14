@@ -29,6 +29,7 @@ import {
 import { DelugeImpact, DelugeCast } from './vfx/delugeFx';
 import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
+import { MeteorImpact } from './vfx/signatureFx';
 import { getCastEffectRadius, getTimeStopDurationMs } from './vfx/castVfxConfig';
 import { skillThemeFor, type SkillTheme } from './vfx/skillThemeConfig';
 import { TimeSphereDome } from './vfx/timeSphereFx';
@@ -219,6 +220,7 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
     if (snapshot.skillId === 'time_sphere') {
       return <TimeSphereDome radius={radius} durationMs={getTimeStopDurationMs(snapshot.skillId)} />;
     }
+    if (theme.mechanic === 'meteor') return <MeteorImpact color={theme.core} glow={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'strike') return <StrikeImpact color={theme.glow} accent={theme.accent} />;
     if (theme.mechanic === 'erupt') return <EruptImpact color={theme.core} accent={theme.glow} />;
     if (theme.mechanic === 'deluge') return <DelugeImpact color={theme.core} accent={theme.glow} radius={radius} />;
