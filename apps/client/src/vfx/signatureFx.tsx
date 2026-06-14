@@ -255,12 +255,14 @@ export function IceShatterImpact({ core, glow, accent, radius }: { core: string;
   const ring = useRef<THREE.Mesh>(null);
   const mist = useRef<THREE.Group>(null);
   const start = useRef<number | null>(null);
+  const done = useRef(false);
 
   // Crystals: faceted, semi-transparent, lit (MeshStandard) + an emissive ice
   // tint so they glint without washing to a bloom blob.
   const crystalMat = useMemo(() => new THREE.MeshStandardMaterial({ color: core, emissive: new THREE.Color(glow), emissiveIntensity: 0.5, roughness: 0.15, metalness: 0.0, transparent: true, opacity: 0.92 }), [core, glow]);
   const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), []);
-  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }), []);
+  // FrontSide: the ring lies flat (normal up) and is only seen from above.
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.FrontSide, blending: THREE.AdditiveBlending }), []);
   const mistMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, color: new THREE.Color('#cfe9ff') }), []);
   useEffect(() => { flashMat.color.set(accent); ringMat.color.set(accent); }, [accent, flashMat, ringMat]);
   useEffect(() => () => crystalMat.dispose(), [crystalMat]);
@@ -269,11 +271,13 @@ export function IceShatterImpact({ core, glow, accent, radius }: { core: string;
   useEffect(() => () => mistMat.dispose(), [mistMat]);
 
   useFrame(({ clock }, delta) => {
+    if (done.current) return;
     if (start.current === null) start.current = clock.elapsedTime;
     const age = clock.elapsedTime - start.current;
     const t = Math.min(1, age / ICE_DUR);
     if (age >= ICE_DUR) {
       for (const rf of [crystal, shards, flash, ring, mist]) if (rf.current) rf.current.visible = false;
+      done.current = true; // animation over — stop the per-frame work until unmount
       return;
     }
     const forming = age < ICE_SHATTER_AT;
