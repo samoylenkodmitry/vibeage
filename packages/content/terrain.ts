@@ -294,6 +294,47 @@ export function glacialValeMask(x: number, z: number): number {
   return 1 - smoothstep(0.55, 1, e);
 }
 
+// Lush forest river valley (recreating Braffolk/fable5-world-demo's look — its
+// WebGPU engine can't be ported into our WebGL stack, so we rebuild the region:
+// a winding river carved into rolling hills, themed FOREST so the world's own
+// grass + tree systems fill it lush). A separate location from the glacial vale.
+export const LUSH_VALE = {
+  x: 2_600, z: -2_400,
+  cos: Math.cos(-0.4), sin: Math.sin(-0.4), // valley axis heading
+  L: 600, W: 440,                           // ellipse half-extents
+} as const;
+export const LUSH_VALE_WATER_Y = -1.5; // river surface in the carved channel
+
+export function lushValeMask(x: number, z: number): number {
+  const dx = x - LUSH_VALE.x;
+  const dz = z - LUSH_VALE.z;
+  const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
+  const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
+  const e = (u / LUSH_VALE.L) ** 2 + (v / LUSH_VALE.W) ** 2;
+  return 1 - smoothstep(0.55, 1, e);
+}
+
+/** River centreline offset (across-valley) as a function of along-valley u. */
+export function lushValeRiverV(u: number): number {
+  return Math.sin(u * 0.006) * 72 + Math.sin(u * 0.021 + 1.1) * 16;
+}
+
+function lushValeHeight(x: number, z: number): number {
+  const dx = x - LUSH_VALE.x;
+  const dz = z - LUSH_VALE.z;
+  const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;  // along the valley
+  const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos; // across the valley
+  const hills =
+    Math.sin(u * 0.018) * Math.cos(v * 0.015) * 11 +
+    Math.sin((u + v) * 0.045 + 0.7) * 3.5;
+  const base = 8 + hills;
+  // Carve the river into a canyon: flat bed at the centreline, steep banks.
+  const d = Math.abs(v - lushValeRiverV(u));
+  const carve = 1 - smoothstep(6, 22, d);
+  const bed = LUSH_VALE_WATER_Y - 2.4;
+  return base * (1 - carve) + bed * carve;
+}
+
 // Their terrain math, copied from deedy/glacial-valley main.js (user ask:
 // use that code). Value noise with analytic derivatives; fbmE damps octaves
 // by accumulated gradient (erosion); ridged is a gradient-damped ridged
@@ -455,6 +496,8 @@ export function getTerrainHeight(x: number, z: number): number {
   }
   const vale = glacialValeMask(x, z);
   if (vale > 0) height = height * (1 - vale) + glacialValeHeight(x, z) * vale;
+  const lush = lushValeMask(x, z);
+  if (lush > 0) height = height * (1 - lush) + lushValeHeight(x, z) * lush;
   return height;
 }
 
@@ -500,6 +543,8 @@ export function getTerrainBiome(x: number, z: number): TerrainBiome {
 
   // The Glacial Vale is alpine regardless of the surrounding climate field.
   if (glacialValeMask(x, z) > 0.05) return 'tundra';
+  // The Lush Vale is forest — dense trees + grass fill the carved river valley.
+  if (lushValeMask(x, z) > 0.05) return 'forest';
 
   const distance = Math.hypot(x, z);
   if (distance < 420) {
