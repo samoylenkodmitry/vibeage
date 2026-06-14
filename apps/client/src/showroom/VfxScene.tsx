@@ -113,8 +113,11 @@ export function VfxScene() {
   // detail (the grid framing is too far to read turbulence/runes/iridescence).
   const solo = params.get('solo');
   const soloCell = solo ? CELLS.find((c) => c.skillId === solo) : undefined;
-  const camera: [number, number, number] = soloCell ? [0, 1.6, 6] : [0, 42, 54];
-  const target: [number, number, number] = soloCell ? [0, 1, 0] : [0, 1.5, 0];
+  // Stable refs (mode is fixed for the session — chosen from the URL at mount,
+  // never switched at runtime, so the Canvas init camera is always correct).
+  const isSolo = Boolean(soloCell);
+  const camera = useMemo<[number, number, number]>(() => (isSolo ? [0, 1.6, 6] : [0, 42, 54]), [isSolo]);
+  const target = useMemo<[number, number, number]>(() => (isSolo ? [0, 1, 0] : [0, 1.5, 0]), [isSolo]);
   return (
     <Canvas
       camera={{ position: camera, fov: soloCell ? 42 : 48, near: 0.1, far: 500 }}

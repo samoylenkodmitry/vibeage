@@ -29,7 +29,7 @@ const ORB_FRAG = /* glsl */ `
   varying vec3 vNormal;
   varying vec3 vViewDir;
   void main() {
-    float fres = pow(1.0 - clamp(dot(vNormal, vViewDir), 0.0, 1.0), 2.4);
+    float fres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewDir)), 0.0, 1.0), 2.4);
     float pulse = 0.82 + 0.18 * sin(uTime * 9.0);
     vec3 col = mix(uCore, uGlow, fres) * pulse;
     float a = clamp(0.5 + fres * 0.6, 0.0, 1.0) * pulse;
@@ -142,7 +142,7 @@ const FIRE_FRAG = NOISE_GLSL + /* glsl */ `
     // instead of a static blob (the thing that made fire read "alive").
     vec3 q = vec3(fbm(p), fbm(p + 4.7), fbm(p + 9.2));
     float n = fbm(p + q * 1.9);
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.4);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.4);
     // Hotter at the (lower) core, cooler + wispier toward the rising tips.
     float heat = clamp(n * 1.45 + (1.0 - fres) * 0.4 - vPos.y * 0.28, 0.0, 1.25);
     // Blackbody ramp: ember red → orange → yellow → white-hot.
@@ -161,7 +161,7 @@ const ICE_FRAG = /* glsl */ `
   uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    float ndv = clamp(dot(vNormal, vViewDir), 0.0, 1.0);
+    float ndv = clamp(dot(normalize(vNormal), normalize(vViewDir)), 0.0, 1.0);
     float fres = pow(1.0 - ndv, 1.2);                                     // sharp rim on flat facets
     // Per-facet glints that twinkle (flat normals on the non-indexed geo).
     float g = fract(sin(dot(floor(vPos * 13.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -184,7 +184,7 @@ const HOLY_FRAG = /* glsl */ `
     float rad = length(vPos);
     float rays  = pow(abs(sin(ang * 10.0 + uTime * 1.3)), 5.0);  // rotating god-rays
     float rays2 = pow(abs(sin(ang * 6.0  - uTime * 0.8)), 9.0);  // counter-rotating, sharper
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.4);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.4);
     float pulse = 0.85 + 0.15 * sin(uTime * 7.0);
     float halo = smoothstep(0.88, 1.0, abs(sin(rad * 9.0 - uTime * 2.2))); // breathing halo ring
     float b = ((1.0 - fres) * 0.65 + (rays * 0.6 + rays2 * 0.5) * (0.4 + fres * 0.6) + halo * 0.55 + 0.22) * pulse;
@@ -202,7 +202,7 @@ const POISON_FRAG = NOISE_GLSL + /* glsl */ `
     // Bubbles: rounded caps from a higher-frequency field that rise + pop.
     float b1 = fbm(p * 2.3 + vec3(11.0, uTime * 0.6, 4.0));
     float bubble = smoothstep(0.60, 0.78, b1);
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.5);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.5);
     vec3 murk = mix(vec3(0.03, 0.13, 0.02), vec3(0.16, 0.52, 0.07), smoothstep(0.24, 0.6, n));
     vec3 col = mix(murk, vec3(0.52, 1.0, 0.22), smoothstep(0.50, 0.78, n)); // murk → toxic green
     col = mix(col, vec3(0.85, 1.0, 0.38), bubble * 0.85);                    // bright bubble caps
@@ -216,7 +216,7 @@ const ARCANE_FRAG = /* glsl */ `
   uniform float uTime; uniform vec3 uCore; uniform vec3 uGlow;
   varying vec3 vPos; varying vec3 vNormal; varying vec3 vViewDir;
   void main() {
-    float fres = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 1.3);
+    float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 1.3);
     float ang = atan(vPos.z, vPos.x + 1e-6);   // epsilon avoids pole NaN
     float rad = length(vPos.xz);
     // Swirling spiral arms wound around the axis.
