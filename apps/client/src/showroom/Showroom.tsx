@@ -11,6 +11,7 @@ import { GlacialValeTerrain } from '../world-art/GlacialValeTerrain';
 import { GLACIAL_VALE } from '../../../../packages/content/terrain';
 import { ValeHD } from './ValeHD';
 import { VfxScene } from './VfxScene';
+import { FractalTest } from './FractalTest';
 
 const VALE_DAY_MS = 12 * 60 * 1000;
 
@@ -147,6 +148,7 @@ export function Showroom() {
   const scene = new URLSearchParams(window.location.search).get('scene');
   if (scene === 'valeHD') return <ValeHDScene />;
   if (scene === 'vfx') return <VfxScene />;
+  if (scene === 'fractal') return <FractalTest />;
   return scene === 'vale' ? <ValeScene /> : <ModelGrid />;
 }
 
