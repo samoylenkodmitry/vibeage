@@ -462,39 +462,6 @@ export function spiralOffset(p: number, amp = 0.55, turns = 8): { x: number; y: 
 }
 
 /** Holy strike — a column of light slams down from the sky onto the target. */
-export function StrikeImpact({ color, accent }: { color: string; accent: string }) {
-  // Own the materials (not inline JSX props): CastVfx re-renders on snapshot
-  // updates, which would reset inline opacity/colour and flicker the strike.
-  const pillarMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }), []);
-  const flashMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }), []);
-  useEffect(() => { pillarMat.color.set(accent); }, [accent, pillarMat]);
-  useEffect(() => { flashMat.color.set(color); }, [color, flashMat]);
-  useEffect(() => () => pillarMat.dispose(), [pillarMat]);
-  useEffect(() => () => flashMat.dispose(), [flashMat]);
-  const pillar = useRef<THREE.Mesh>(null);
-  const flash = useRef<THREE.Mesh>(null);
-  const start = useRef<number | null>(null);
-  useFrame(({ clock }) => {
-    if (start.current === null) start.current = clock.elapsedTime;
-    const t = Math.min(1, (clock.elapsedTime - start.current) / 0.55);
-    pillarMat.opacity = (1 - t) * 0.85;
-    flashMat.opacity = (1 - t) * 0.7;
-    if (pillar.current) { const s = 1 - t * 0.45; pillar.current.scale.set(s, 1, s); }
-    flash.current?.scale.setScalar(0.6 + t * 1.6);
-  });
-  return (
-    <group>
-      <GroundShockwave color={color} accent={accent} size={4.5} durationMs={550} />
-      <mesh ref={pillar} position={[0, 3.5, 0]} material={pillarMat}>
-        <cylinderGeometry args={[0.5, 0.85, 9, 18, 1, true]} />
-      </mesh>
-      <mesh ref={flash} position={[0, -0.7, 0]} material={flashMat}>
-        <sphereGeometry args={[0.7, 18, 18]} />
-      </mesh>
-    </group>
-  );
-}
-
 // Spike geometry: base translated to y=0 so scaling Y grows it up from the ground.
 const SPIKE_GEOMETRY = (() => { const g = new THREE.ConeGeometry(0.16, 1.3, 6); g.translate(0, 0.65, 0); return g; })();
 const ERUPT_SPIKES = [
