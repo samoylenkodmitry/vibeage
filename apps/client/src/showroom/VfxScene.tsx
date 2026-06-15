@@ -42,6 +42,9 @@ const CELLS: Cell[] = [
   { skillId: 'meteor', label: 'Meteor (fire·strike)' },
   { skillId: 'holyLight', label: 'Holy Light (holy·strike)' },
   { skillId: 'time_sphere', label: 'Time Sphere' },
+  { skillId: 'greater_heal', label: 'Greater Heal (heal)' },
+  { skillId: 'bless', label: 'Bless (buff)' },
+  { skillId: 'taunt', label: 'Taunt (curse)' },
 ];
 
 const COLS = 4;

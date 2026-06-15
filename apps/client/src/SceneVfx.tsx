@@ -32,7 +32,8 @@ import { ElementImpact, GenericImpact, NovaImpact } from './vfx/impactFx';
 import { ElementCharge } from './vfx/castFx';
 import { MeteorImpact, InfernoImpact, ArcaneImplodeImpact, ArcaneVortexCast, FireballImpact, IceShatterImpact, PoisonBurstImpact } from './vfx/signatureFx';
 import { getCastEffectRadius, getTimeStopDurationMs } from './vfx/castVfxConfig';
-import { skillThemeFor, type SkillTheme } from './vfx/skillThemeConfig';
+import { skillThemeFor, skillArchetype, type SkillTheme } from './vfx/skillThemeConfig';
+import { ArchetypeImpact } from './vfx/archetypeFx';
 import { TimeSphereDome } from './vfx/timeSphereFx';
 
 const LOOT_SPARKS = [
@@ -214,6 +215,11 @@ const TARGET_DELIVERED: ReadonlySet<SpellMechanic> = new Set(['deluge', 'strike'
  *  while charging. */
 export function castAnchorsAtTarget(skillId: CastSnapshot['skillId']): boolean {
   if (skillId === 'time_sphere') return true;
+  // Heals land on the ally and curses on the enemy — both at the TARGET. Buffs
+  // resolve on the caster, so they stay at the caster's position.
+  const arch = skillArchetype(skillId);
+  if (arch === 'heal' || arch === 'curse') return true;
+  if (arch === 'buff') return false;
   return TARGET_DELIVERED.has(skillThemeFor(skillId).mechanic ?? 'projectile');
 }
 
@@ -224,7 +230,11 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
   // World-space radius the skill affects — sizes the AoE VFX.
   const radius = getCastEffectRadius(snapshot.skillId);
 
+  // Support archetype (heal/buff/curse, from EFFECTS) short-circuits the damage dispatch in every phase — never an attack.
+  const arch = skillArchetype(snapshot.skillId);
+
   if (snapshot.state === CastState.Impact) {
+    if (arch) return <ArchetypeImpact arch={arch} glow={theme.glow} accent={theme.accent} radius={radius} />;
     if (snapshot.skillId === 'time_sphere') {
       return <TimeSphereDome radius={radius} durationMs={getTimeStopDurationMs(snapshot.skillId)} />;
     }
@@ -245,6 +255,7 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
   }
 
   if (snapshot.state === CastState.Casting) {
+    if (arch) return <CastingChargeVfx progress={progress} theme={theme} frozen={frozen} />; // gentle gather, not an attack windup
     // Deluge gathers its water cloud above the target DURING the cast windup.
     if (theme.mechanic === 'deluge') return <DelugeCast progress={progress} color={theme.core} accent={theme.glow} radius={radius} />;
     // Arcane opens a spinning hurricane over the target that spins up as it charges.
@@ -254,8 +265,8 @@ export function CastVfx({ snapshot, frozen = false }: { snapshot: CastSnapshot; 
     return <CastingChargeVfx progress={progress} theme={theme} frozen={frozen} />;
   }
 
-  // Traveling phase: deluge / arcane / strike hold their gathered windup until
-  // impact; the other non-projectile mechanics show nothing (delivered at impact).
+  // Traveling: heal/buff/curse resolve at impact; deluge/arcane/strike hold their windup; others show nothing.
+  if (arch) return null;
   if (theme.mechanic === 'deluge') return <DelugeCast progress={1} color={theme.core} accent={theme.glow} radius={radius} />;
   if (theme.mechanic === 'implode') return <ArcaneVortexCast progress={1} glow={theme.glow} radius={radius} />;
   if (theme.mechanic === 'strike') return <StrikeCast progress={1} color={theme.glow} accent={theme.accent} />;

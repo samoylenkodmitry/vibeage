@@ -53,6 +53,32 @@ const SKILL_THEME_OVERRIDES: Partial<Record<string, SkillTheme>> = {
   mobPoisonBite: { ...SCHOOL_THEMES.poison, mechanic: 'arc' },
 };
 
+export type SkillArchetype = 'heal' | 'buff' | 'curse';
+const SELF_BUFF_EFFECTS = new Set(['shield', 'bless', 'evasion', 'attackSpeed', 'invisible']);
+const DEBUFF_EFFECTS = new Set(['slow', 'stun', 'dot', 'poison', 'burn', 'marked', 'taunt', 'waterWeakness', 'knockback', 'aggroReset']);
+
+/**
+ * The SUPPORT archetype of a skill, from its EFFECTS (not its delivery) — so a
+ * heal looks restorative, a self-buff uplifting, a pure debuff noxious, no matter
+ * how it's delivered. Returns null for damage skills (they keep the element /
+ * mechanic dispatch). A damage skill with an incidental debuff (a poison bolt)
+ * stays damage — a curse must carry NO direct damage.
+ */
+export function skillArchetype(skillId: string): SkillArchetype | null {
+  const skill = Object.prototype.hasOwnProperty.call(SKILLS, skillId)
+    ? SKILLS[skillId as keyof typeof SKILLS] as SkillDef
+    : undefined;
+  if (!skill) return null;
+  const types = new Set((skill.effects ?? []).map((e) => e.type));
+  if (types.has('heal')) return 'heal';
+  const hasDamage = types.has('damage') || (skill.dmg ?? 0) > 0;
+  if (hasDamage) return null;
+  const list = [...types];
+  if (list.some((t) => SELF_BUFF_EFFECTS.has(t))) return 'buff';
+  if (list.some((t) => DEBUFF_EFFECTS.has(t))) return 'curse';
+  return null;
+}
+
 export function skillThemeFor(skillId: string): SkillTheme {
   const override = SKILL_THEME_OVERRIDES[skillId];
   if (override) return override;
