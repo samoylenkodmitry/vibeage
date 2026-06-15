@@ -54,8 +54,9 @@ const SKILL_THEME_OVERRIDES: Partial<Record<string, SkillTheme>> = {
 };
 
 export type SkillArchetype = 'heal' | 'buff' | 'curse';
-const SELF_BUFF_EFFECTS = new Set(['shield', 'bless', 'evasion', 'attackSpeed', 'invisible']);
-const DEBUFF_EFFECTS = new Set(['slow', 'stun', 'dot', 'poison', 'burn', 'marked', 'taunt', 'waterWeakness', 'knockback', 'aggroReset']);
+const SELF_BUFF_EFFECTS = new Set(['shield', 'bless', 'evasion', 'attackSpeed', 'invisible', 'damageReflect', 'arcaneCharge', 'dispel', 'aggroReset']);
+// NB: NOT 'timeStop' — time_sphere is timeStop-only and keeps its bespoke dome.
+const DEBUFF_EFFECTS = new Set(['slow', 'stun', 'dot', 'poison', 'burn', 'marked', 'taunt', 'waterWeakness', 'knockback', 'freeze', 'silence']);
 
 /**
  * The SUPPORT archetype of a skill, from its EFFECTS (not its delivery) — so a

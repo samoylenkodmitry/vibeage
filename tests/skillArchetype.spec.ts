@@ -29,6 +29,13 @@ describe('skill archetype (support VFX dispatch)', () => {
     expect(skillArchetype('arrowShot')).toBeNull();
   });
 
+  test('bespoke skills are NOT reclassified as support (keep their own VFX)', () => {
+    // time_sphere is timeStop-only — must keep its dome, so timeStop is NOT a debuff.
+    expect(skillArchetype('time_sphere')).toBeNull();
+    // petrify is damage + stun → damage path (keeps its stone-erupt), not curse.
+    expect(skillArchetype('petrify')).toBeNull();
+  });
+
   test('unknown skill ids are null (no crash)', () => {
     expect(skillArchetype('not_a_real_skill')).toBeNull();
   });

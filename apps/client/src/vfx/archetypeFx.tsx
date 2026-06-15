@@ -142,15 +142,15 @@ export function CurseVfx({ glow, accent, radius }: { glow: string; accent: strin
   useEffect(() => () => sigilMat.dispose(), [sigilMat]);
   useEffect(() => () => moteMat.dispose(), [moteMat]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     if (done.current) return;
     if (start.current === null) start.current = clock.elapsedTime;
     const t = Math.min(1, (clock.elapsedTime - start.current) / CURSE_DUR);
     if (t >= 1) { for (const m of [sigil, motes]) if (m.current) m.current.visible = false; done.current = true; return; }
-    // Hex sigil snaps in, rotates, then sinks + fades into the target.
+    // Hex sigil snaps in, rotates (delta-scaled), then sinks + fades into the target.
     if (sigil.current) {
       sigil.current.scale.setScalar(r * (1.4 - Math.min(1, t * 2.5) * 0.6));
-      sigil.current.rotation.z += 0.05;
+      sigil.current.rotation.z += delta * 2.5;
       sigil.current.position.y = 0.05 - Math.max(0, (t - 0.5)) * 0.6;
     }
     sigilMat.opacity = (t < 0.15 ? t / 0.15 : 1) * (1 - Math.max(0, (t - 0.4) / 0.6)) * 0.85;
