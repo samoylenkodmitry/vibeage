@@ -1,4 +1,4 @@
-import { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom, ToneMapping, HueSaturation, BrightnessContrast } from '@react-three/postprocessing';
@@ -56,6 +56,7 @@ function riverGeometry(): THREE.BufferGeometry {
 function River() {
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
   const geom = useMemo(() => riverGeometry(), []);
+  useEffect(() => () => geom.dispose(), [geom]);
   useFrame(({ clock }) => {
     if (matRef.current) matRef.current.opacity = 0.84 + Math.sin(clock.elapsedTime * 0.7) * 0.04;
   });

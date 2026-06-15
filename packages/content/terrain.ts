@@ -180,10 +180,13 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     // Rock-strata canyon walls: the carved river's banks are steep, so where the
     // slope is high, paint LAYERED GREY ROCK (horizontal strata banded by height)
     // and pull trees/grass off the cliff — the valley's defining feature.
+    // Slope from lushValeHeight (not getTerrainHeight): inside the vale the relief
+    // IS the carve, and lushValeHeight is a handful of sin/cos vs getTerrainHeight's
+    // full ~45-transcendental world eval — and this runs 4× per terrain vertex.
     const d = 3;
     const slope = Math.hypot(
-      getTerrainHeight(x + d, z) - getTerrainHeight(x - d, z),
-      getTerrainHeight(x, z + d) - getTerrainHeight(x, z - d),
+      lushValeHeight(x + d, z) - lushValeHeight(x - d, z),
+      lushValeHeight(x, z + d) - lushValeHeight(x, z - d),
     ) / (2 * d);
     const rockF = smoothstep(0.45, 0.95, slope) * lt;
     if (rockF > 0.001) {
@@ -354,7 +357,7 @@ export function lushValeRiverV(u: number): number {
   return Math.sin(u * 0.006) * 72 + Math.sin(u * 0.021 + 1.1) * 16;
 }
 
-function lushValeHeight(x: number, z: number): number {
+export function lushValeHeight(x: number, z: number): number {
   const dx = x - LUSH_VALE.x;
   const dz = z - LUSH_VALE.z;
   const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;  // along the valley

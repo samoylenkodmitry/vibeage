@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS, LUSH_VALE, lushValeMask, lushValeRiverV } from '../../../packages/content/terrain';
+import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS, LUSH_VALE, lushValeMask, lushValeRiverV, lushValeHeight } from '../../../packages/content/terrain';
 import { distanceBeyondNearestLane } from '../../../packages/content/worldFeatures';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
@@ -51,10 +51,12 @@ function lushValeGrassFactor(x: number, z: number): number {
   const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
   const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
   const river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
+  // Slope from the cheap lushValeHeight (the carve dominates here), not the full
+  // getTerrainHeight world eval — this is sampled 4× per density-grid cell.
   const dd = 3;
   const slope = Math.hypot(
-    getTerrainHeight(x + dd, z) - getTerrainHeight(x - dd, z),
-    getTerrainHeight(x, z + dd) - getTerrainHeight(x, z - dd),
+    lushValeHeight(x + dd, z) - lushValeHeight(x - dd, z),
+    lushValeHeight(x, z + dd) - lushValeHeight(x, z - dd),
   ) / (2 * dd);
   const lush = (1 + lm * 0.9) * (1 - smoothstep(0.45, 0.9, slope) * 0.85);
   return river * lush;
