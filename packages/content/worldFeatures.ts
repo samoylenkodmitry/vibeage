@@ -446,6 +446,15 @@ export const WORLD_LANDMARKS: WorldLandmark[] = [
     height: 250,
   },
   {
+    id: 'lush-vale',
+    name: 'Lush Vale',
+    kind: 'vista',
+    zoneId: 'starter_meadow',
+    position: { x: 2_600, z: -2_400 },
+    radius: 440,
+    height: 60,
+  },
+  {
     id: 'mega-skyspire-of-aetheris',
     name: 'Skyspire of Aetheris',
     kind: 'spire',

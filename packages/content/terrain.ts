@@ -161,6 +161,41 @@ export function sampleTerrain(x: number, z: number): TerrainSample {
     grass = vale > 0.001 ? 0 : grass;
     tree *= 1 - valeT; // the ref valley core is treeless; its banks get THEIR grass
   }
+  // Lush Vale grading: paint the carved river valley FOREST (dark-green ground,
+  // dense woodland) over the surrounding meadow climate, so it reads lush instead
+  // of yellow-accented + sparse. biomeWeights can't see it (it's GAME_ZONE-bound),
+  // so override the blend here — mirroring the glacial-vale block above.
+  const lush = lushValeMask(x, z);
+  if (lush > 0.05) {
+    const lt = smoothstep(0.05, 0.55, lush);
+    const fv = TERRAIN_BIOME_VISUALS.forest;
+    const fg2 = hexRgb(fv.groundColor), ff2 = hexRgb(fv.foliageColor), fa2 = hexRgb(fv.accentColor);
+    const mixL = (c: number, t: number) => c + (t - c) * lt;
+    gr = mixL(gr, fg2.r); gg = mixL(gg, fg2.g); gb = mixL(gb, fg2.b);
+    fr = mixL(fr, ff2.r); fg = mixL(fg, ff2.g); fb = mixL(fb, ff2.b);
+    ar = mixL(ar, fa2.r); ag = mixL(ag, fa2.g); ab = mixL(ab, fa2.b);
+    tree = mixL(tree, fv.treeDensity * 1.7); // denser woodland than plain forest
+    grass = mixL(grass, 0.95);                // lush base (WorldShaderGrass boosts more)
+    rough = mixL(rough, fv.roughness);
+    // Rock-strata canyon walls: the carved river's banks are steep, so where the
+    // slope is high, paint LAYERED GREY ROCK (horizontal strata banded by height)
+    // and pull trees/grass off the cliff — the valley's defining feature.
+    const d = 3;
+    const slope = Math.hypot(
+      getTerrainHeight(x + d, z) - getTerrainHeight(x - d, z),
+      getTerrainHeight(x, z + d) - getTerrainHeight(x, z - d),
+    ) / (2 * d);
+    const rockF = smoothstep(0.45, 0.95, slope) * lt;
+    if (rockF > 0.001) {
+      const band = 0.5 + 0.5 * Math.sin(height * 1.5 + Math.sin(x * 0.05) * 0.6);
+      const rr = 96 + band * 58, rg = 98 + band * 56, rb = 100 + band * 52; // cool grey strata
+      const mixR = (c: number, t: number) => c + (t - c) * rockF;
+      gr = mixR(gr, rr); gg = mixR(gg, rg); gb = mixR(gb, rb);
+      tree *= 1 - rockF * 0.92;
+      grass *= 1 - rockF * 0.85;
+      rough = mixR(rough, 0.9);
+    }
+  }
   return {
     groundColor: rgbHex(gr, gg, gb),
     foliageColor: rgbHex(fr, fg, fb),
@@ -292,6 +327,49 @@ export function glacialValeMask(x: number, z: number): number {
   const v = -dx * GLACIAL_VALE.sin + dz * GLACIAL_VALE.cos;
   const e = (u / GLACIAL_VALE.L) ** 2 + (v / GLACIAL_VALE.W) ** 2;
   return 1 - smoothstep(0.55, 1, e);
+}
+
+// Lush forest river valley (recreating Braffolk/fable5-world-demo's look — its
+// WebGPU engine can't be ported into our WebGL stack, so we rebuild the region:
+// a winding river carved into rolling hills, themed FOREST so the world's own
+// grass + tree systems fill it lush). A separate location from the glacial vale.
+export const LUSH_VALE = {
+  x: 2_600, z: -2_400,
+  cos: Math.cos(-0.4), sin: Math.sin(-0.4), // valley axis heading
+  L: 600, W: 440,                           // ellipse half-extents
+} as const;
+export const LUSH_VALE_WATER_Y = -1.5; // river surface in the carved channel
+
+export function lushValeMask(x: number, z: number): number {
+  const dx = x - LUSH_VALE.x;
+  const dz = z - LUSH_VALE.z;
+  const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
+  const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
+  const e = (u / LUSH_VALE.L) ** 2 + (v / LUSH_VALE.W) ** 2;
+  return 1 - smoothstep(0.55, 1, e);
+}
+
+/** River centreline offset (across-valley) as a function of along-valley u. */
+export function lushValeRiverV(u: number): number {
+  return Math.sin(u * 0.006) * 72 + Math.sin(u * 0.021 + 1.1) * 16;
+}
+
+function lushValeHeight(x: number, z: number): number {
+  const dx = x - LUSH_VALE.x;
+  const dz = z - LUSH_VALE.z;
+  const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;  // along the valley
+  const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos; // across the valley
+  const hills =
+    Math.sin(u * 0.018) * Math.cos(v * 0.015) * 11 +
+    Math.sin((u + v) * 0.045 + 0.7) * 3.5;
+  const base = 8 + hills;
+  // Carve the river into a CANYON: a flat bed at the centreline, then steep rock
+  // walls over a short span (≈8 m horizontal for an ≈11 m drop → ~55° → the rock
+  // strata grading triggers). Keep in sync with the GLSL mirror in WorldShaderGrass.
+  const d = Math.abs(v - lushValeRiverV(u));
+  const carve = 1 - smoothstep(4, 12, d);
+  const bed = LUSH_VALE_WATER_Y - 3.5;
+  return base * (1 - carve) + bed * carve;
 }
 
 // Their terrain math, copied from deedy/glacial-valley main.js (user ask:
@@ -455,6 +533,8 @@ export function getTerrainHeight(x: number, z: number): number {
   }
   const vale = glacialValeMask(x, z);
   if (vale > 0) height = height * (1 - vale) + glacialValeHeight(x, z) * vale;
+  const lush = lushValeMask(x, z);
+  if (lush > 0) height = height * (1 - lush) + lushValeHeight(x, z) * lush;
   return height;
 }
 
@@ -500,6 +580,8 @@ export function getTerrainBiome(x: number, z: number): TerrainBiome {
 
   // The Glacial Vale is alpine regardless of the surrounding climate field.
   if (glacialValeMask(x, z) > 0.05) return 'tundra';
+  // The Lush Vale is forest — dense trees + grass fill the carved river valley.
+  if (lushValeMask(x, z) > 0.05) return 'forest';
 
   const distance = Math.hypot(x, z);
   if (distance < 420) {
