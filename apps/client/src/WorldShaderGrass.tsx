@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Vec3D } from '../../../packages/protocol/messages';
-import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS } from '../../../packages/content/terrain';
+import { getTerrainHeight, sampleGrassDensity, TOWN_PLATEAUS, LUSH_VALE, lushValeMask, lushValeRiverV, lushValeHeight } from '../../../packages/content/terrain';
 import { distanceBeyondNearestLane } from '../../../packages/content/worldFeatures';
 import type { WorldArtQuality } from './world-art/quality';
 import { GrassDensityField } from './world-art/grassDensityField';
@@ -40,6 +40,27 @@ const smoothstep = (e0: number, e1: number, x: number): number => {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
 };
+
+// Lush-vale grass factor: 0 on the river (would float over the water), a LUSH
+// boost (~1.9×, saturates → fills the meadow-patchiness thin-spots) elsewhere,
+// and bare on the steep rock-strata banks (slope gate mirrors sampleTerrain).
+function lushValeGrassFactor(x: number, z: number): number {
+  const lm = lushValeMask(x, z);
+  if (lm <= 0.05) return 1;
+  const dx = x - LUSH_VALE.x, dz = z - LUSH_VALE.z;
+  const u = dx * LUSH_VALE.cos + dz * LUSH_VALE.sin;
+  const v = -dx * LUSH_VALE.sin + dz * LUSH_VALE.cos;
+  const river = smoothstep(8, 13, Math.abs(v - lushValeRiverV(u)));
+  // Slope from the cheap lushValeHeight (the carve dominates here), not the full
+  // getTerrainHeight world eval — this is sampled 4× per density-grid cell.
+  const dd = 3;
+  const slope = Math.hypot(
+    lushValeHeight(x + dd, z) - lushValeHeight(x - dd, z),
+    lushValeHeight(x, z + dd) - lushValeHeight(x, z - dd),
+  ) / (2 * dd);
+  const lush = (1 + lm * 0.9) * (1 - smoothstep(0.45, 0.9, slope) * 0.85);
+  return river * lush;
+}
 
 type Layer = { patch: number; count: number; hScale: number; wScale: number; innerFade: number };
 
@@ -133,6 +154,21 @@ const VERT = /* glsl */`
     tm = 1.0 - smoothstep(84.0, 168.0, length(p - vec2(-1450.0, 80.0)));   h = mix(h, 16.0, max(tm, 0.0));
     tm = 1.0 - smoothstep(77.0, 154.0, length(p - vec2(560.0, -2080.0)));  h = mix(h, 3.0, max(tm, 0.0));
     tm = 1.0 - smoothstep(56.0, 112.0, length(p - vec2(3600.0, -2520.0))); h = mix(h, 26.0, max(tm, 0.0));
+    // Lush vale — mirror lushValeMask + lushValeHeight from terrain.ts (centre
+    // (2600,-2400), axis -0.4 rad: cos 0.921061 / sin -0.389418, L=600 W=440) so
+    // blades root on the carved river valley instead of flying above it. Keep in
+    // sync with lushValeHeight in terrain.ts.
+    vec2 lr = p - vec2(2600.0, -2400.0);
+    float lu = lr.x*0.921061 - lr.y*0.389418;
+    float lv = lr.x*0.389418 + lr.y*0.921061;
+    float lmask = 1.0 - smoothstep(0.55, 1.0, (lu/600.0)*(lu/600.0) + (lv/440.0)*(lv/440.0));
+    if (lmask > 0.0) {
+      float lhills = sin(lu*0.018)*cos(lv*0.015)*11.0 + sin((lu+lv)*0.045 + 0.7)*3.5;
+      float lriverV = sin(lu*0.006)*72.0 + sin(lu*0.021 + 1.1)*16.0;
+      float lcarve = 1.0 - smoothstep(4.0, 12.0, abs(lv - lriverV));
+      float lh = (8.0 + lhills)*(1.0 - lcarve) + (-5.0)*lcarve;
+      h = mix(h, lh, lmask);
+    }
     return h;
   }
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -319,7 +355,7 @@ export function WorldShaderGrass({ focus, quality }: { focus: Vec3D; quality: Wo
     // Roads and rivers are bare too — grass used to grow straight through
     // the travel-lane slabs.
     const lane = smoothstep(0, 4, distanceBeyondNearestLane(x, z));
-    return sampleGrassDensity(x, z) * coast * dry * plaza * lane;
+    return sampleGrassDensity(x, z) * coast * dry * plaza * lane * lushValeGrassFactor(x, z);
   }, []);
 
   // One geometry + material per layer, built once. Everything is mutated in the
