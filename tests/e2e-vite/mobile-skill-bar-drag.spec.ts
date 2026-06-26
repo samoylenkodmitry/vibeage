@@ -32,6 +32,9 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
 
   const slot = page.locator('.skill-bar-slot').filter({ hasText: /empty/i }).first();
   await expect(slot, 'need an empty bar slot to drop onto').toBeVisible();
+  // Pin which slot we drop onto — `slot` is a lazy "first empty" locator, so once
+  // the drop fills it the final assert would re-resolve to the NEXT empty slot.
+  const slotKey = await slot.getAttribute('data-bar-slot');
 
   const sb = (await source.boundingBox())!;
   const tb = (await slot.boundingBox())!;
@@ -48,5 +51,5 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
   await page.waitForTimeout(60);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 
-  await expect(slot).not.toContainText('Empty', { timeout: 3_000 });
+  await expect(page.locator(`.skill-bar-slot[data-bar-slot="${slotKey}"]`)).not.toContainText('Empty', { timeout: 3_000 });
 });
