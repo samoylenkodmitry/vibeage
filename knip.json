@@ -3,6 +3,7 @@
   "entry": [
     "server/server.ts",
     "packages/*/index.ts",
+    "apps/client/src/showroom/main.tsx",
     "scripts/*.{mjs,ts}",
     "playwright*.config.ts",
     "tests/**/*.ts",
@@ -19,6 +20,7 @@
   ],
   "ignoreBinaries": [
     "scripts/backup-postgres.sh",
+    "scripts/codex-imagegen-subagent.sh",
     "scripts/deploy-from-local.sh",
     "scripts/health-production.sh",
     "scripts/pull-postgres-backup-local.sh",
