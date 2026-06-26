@@ -178,7 +178,11 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Browser smoke (shard ${{ matrix.shard }}/3)
-        run: pnpm run test:e2e -- --shard=${{ matrix.shard }}/3
+        # Invoke playwright directly (not the `test:e2e` script) so the --shard
+        # flag reaches it cleanly — `pnpm run test:e2e -- --shard` injects a
+        # stray `--` that playwright reads as a test-path filter ("No tests
+        # found"). env -u NO_COLOR mirrors the test:e2e script.
+        run: env -u NO_COLOR pnpm exec playwright test -c playwright.vite.config.ts --shard=${{ matrix.shard }}/3
 
       # Archwork item #1 follow-up — when the browser smoke fails, the
       # Playwright trace.zip / error-context.md per failing test is the

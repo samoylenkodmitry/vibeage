@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
@@ -16,6 +16,28 @@ import { useGameClient } from './useGameClient';
 // in quality/performance-budgets.json (measured as the initial entry graph).
 const WorldScene = lazy(() => import('./WorldScene').then((m) => ({ default: m.WorldScene })));
 
+// Prefetch the lazy world chunk while the player is still in the lobby, so it
+// streams in the background (overlapping the connect handshake) and entering the
+// world is instant — without pulling WorldScene back into the initial bundle (a
+// dynamic import() stays a separate async chunk). Also warms the chunk for the
+// e2e dev server before the first interaction.
+function useWorldChunkPrefetch(): void {
+  useEffect(() => {
+    void import('./WorldScene');
+  }, []);
+}
+
+// Lazy boundary for the world. Kept out of App's body so the connect branch
+// stays small; the fallback is null because GameHud renders immediately and the
+// world fades in a beat later once its chunk resolves.
+function LazyWorldScene(props: ComponentProps<typeof WorldScene>) {
+  return (
+    <Suspense fallback={null}>
+      <WorldScene {...props} />
+    </Suspense>
+  );
+}
+
 export default function App() {
   const client = useGameClient();
   const { state } = client;
@@ -26,15 +48,7 @@ export default function App() {
   useAutoMarkerOnQuestAccept(state, setNavigationMarker);
 
   useRehydrateTrackedQuest(client.setTrackedQuest);
-
-  // Prefetch the lazy world chunk while the player is still in the lobby, so it
-  // streams in the background (overlapping the connect handshake) and entering
-  // the world is instant. This keeps WorldScene out of the *initial* bundle —
-  // it stays a separate async chunk — while avoiding a stall on connect. It
-  // also warms the chunk for the e2e dev server before the first interaction.
-  useEffect(() => {
-    void import('./WorldScene');
-  }, []);
+  useWorldChunkPrefetch();
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -71,19 +85,17 @@ export default function App() {
 
   return (
     <main className="app-shell" {...worldDropHandlers}>
-      <Suspense fallback={null}>
-        <WorldScene
-          state={state}
-          onMove={client.sendMoveIntent}
-          onSelectTarget={client.selectTarget}
-          onAttackTarget={client.attackTarget}
-          onPickUpLoot={client.pickUpLoot}
-          cameraAngleRef={cameraAngleRef}
-          cameraControlsRef={cameraControlsRef}
-          touchClaimRef={touchClaimRef}
-          navigationMarker={navigationMarker}
-        />
-      </Suspense>
+      <LazyWorldScene
+        state={state}
+        onMove={client.sendMoveIntent}
+        onSelectTarget={client.selectTarget}
+        onAttackTarget={client.attackTarget}
+        onPickUpLoot={client.pickUpLoot}
+        cameraAngleRef={cameraAngleRef}
+        cameraControlsRef={cameraControlsRef}
+        touchClaimRef={touchClaimRef}
+        navigationMarker={navigationMarker}
+      />
       <GameHud
         state={state}
         cameraAngleRef={cameraAngleRef}
