@@ -33,7 +33,7 @@ test('touch: long-press dragging a bag item onto an empty bar slot binds it', as
 
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: sx, y: sy, id: 0 }] });
-  // Auto-retrying assertion waits out the 350ms long-press for us — no fixed sleep.
+  await page.waitForTimeout(480); // past the 350ms long-press threshold (matches mobile-skill-bar-drag)
   await expect(page.locator('.action-bar-drag-ghost')).toBeVisible(); // item picked up
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: Math.round((sx + tx) / 2), y: Math.round((sy + ty) / 2), id: 0 }] });
   await page.waitForTimeout(60);

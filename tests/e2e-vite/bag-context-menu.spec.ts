@@ -28,7 +28,7 @@ async function seedAndOpenBag(page: import('@playwright/test').Page, label: stri
 test('hover on a populated bag slot opens the ItemTooltip with action buttons', async ({ page }) => {
   await seedAndOpenBag(page, `BagTooltip${Date.now()}`);
 
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await expect(populated).toBeVisible();
   await populated.hover();
 
@@ -47,7 +47,7 @@ test('hover on a populated bag slot opens the ItemTooltip with action buttons', 
 test('drop → pickup via the actions-panel Pickup (F) button', async ({ page }) => {
   await seedAndOpenBag(page, `BagBtnPickup${Date.now()}`);
 
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await populated.hover();
   await expect(page.locator('.item-tooltip')).toBeVisible({ timeout: 5_000 });
   await page.locator('.item-tooltip').getByRole('button', { name: /^Drop on ground$/i }).click();
@@ -70,7 +70,7 @@ test('drop → pickup via the actions-panel Pickup (F) button', async ({ page })
 test('drop → pickup round-trip via the in-world loot pile click', async ({ page }) => {
   await seedAndOpenBag(page, `BagClickPickup${Date.now()}`);
 
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await populated.hover();
   await expect(page.locator('.item-tooltip')).toBeVisible({ timeout: 5_000 });
   await page.locator('.item-tooltip').getByRole('button', { name: /^Drop on ground$/i }).click();
@@ -96,7 +96,7 @@ test('drop → pickup round-trip via the in-world loot pile click', async ({ pag
 test('drop → pickup round-trip via the tooltip Drop button + F hotkey', async ({ page }) => {
   await seedAndOpenBag(page, `BagDropPickup${Date.now()}`);
 
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await populated.hover();
   const tooltip = page.locator('.item-tooltip');
   await expect(tooltip).toBeVisible({ timeout: 5_000 });
@@ -126,7 +126,7 @@ test('drop → pickup round-trip via the tooltip Drop button + F hotkey', async 
 test('clicking the Destroy button removes the stack from the bag', async ({ page }) => {
   await seedAndOpenBag(page, `BagDestroy${Date.now()}`);
 
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await populated.hover();
 
   const tooltip = page.locator('.item-tooltip');

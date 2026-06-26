@@ -19,7 +19,7 @@ async function seedAndOpenBag(page: Page, label: string): Promise<void> {
 
 test('click on a bag slot opens a sticky ItemTooltip that survives pointer-leave', async ({ page }) => {
   await seedAndOpenBag(page, `BagClickSticky${Date.now()}`);
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await expect(populated).toBeVisible();
 
   // Plain click → sticky tooltip
@@ -40,7 +40,7 @@ test('click on a bag slot opens a sticky ItemTooltip that survives pointer-leave
 
 test('sticky tooltip exposes Use button for a consumable', async ({ page }) => {
   await seedAndOpenBag(page, `BagClickUse${Date.now()}`);
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await populated.click();
   const tooltip = page.locator('.item-tooltip');
   await expect(tooltip).toBeVisible({ timeout: 3_000 });
@@ -49,7 +49,7 @@ test('sticky tooltip exposes Use button for a consumable', async ({ page }) => {
 
 test('dragging a bag slot onto the world drops the stack at the player\'s feet', async ({ page }) => {
   await seedAndOpenBag(page, `BagDragToWorld${Date.now()}`);
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await expect(populated).toBeVisible();
 
   // Native HTML5 drag-and-drop via Playwright. Playwright supports
@@ -66,7 +66,7 @@ test('dragging a bag slot onto the world drops the stack at the player\'s feet',
 
 test('dragging a bag slot onto a skill-bar slot binds the item and 1-key uses it', async ({ page }) => {
   await seedAndOpenBag(page, `BagDragToBar${Date.now()}`);
-  const populated = page.locator('.inventory-slot').filter({ hasText: /^H/i }).first();
+  const populated = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await expect(populated).toBeVisible();
   const emptySlot = page.locator('.skill-bar-slot').nth(1); // slot index 1 ('2' key)
   await expect(emptySlot).toBeVisible();
