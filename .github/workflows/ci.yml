@@ -140,21 +140,21 @@ jobs:
   # Browser e2e smoke — the Playwright suite against a real Vite dev server +
   # game server (persistence off). SHARDED across parallel jobs: each shard
   # starts its OWN servers (an isolated world, so concurrent tests can't steal
-  # each other's enemies) and runs ~1/3 of the specs serially. This keeps the
-  # whole suite under ~12 min wall-clock instead of ~30+ serial.
+  # each other's enemies) and runs ~1/5 of the specs serially. This keeps the
+  # whole suite well under wall-clock instead of ~30+ min serial.
   #
   # Headless CI has no GPU, so Chromium renders WebGL via SwiftShader; the e2e
   # helper (tests/e2e-helpers/gameClient.ts) pins the lowest graphics tier so
   # the software renderer doesn't crash on world mount. Nightly/dispatch only.
   e2e-smoke:
-    name: Browser smoke (e2e ${{ matrix.shard }}/3)
+    name: Browser smoke (e2e ${{ matrix.shard }}/5)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5]
 
     steps:
       - name: Checkout
@@ -177,12 +177,12 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Browser smoke (shard ${{ matrix.shard }}/3)
+      - name: Browser smoke (shard ${{ matrix.shard }}/5)
         # Invoke playwright directly (not the `test:e2e` script) so the --shard
         # flag reaches it cleanly — `pnpm run test:e2e -- --shard` injects a
         # stray `--` that playwright reads as a test-path filter ("No tests
         # found"). env -u NO_COLOR mirrors the test:e2e script.
-        run: env -u NO_COLOR pnpm exec playwright test -c playwright.vite.config.ts --shard=${{ matrix.shard }}/3
+        run: env -u NO_COLOR pnpm exec playwright test -c playwright.vite.config.ts --shard=${{ matrix.shard }}/5
 
       # Archwork item #1 follow-up — when the browser smoke fails, the
       # Playwright trace.zip / error-context.md per failing test is the
