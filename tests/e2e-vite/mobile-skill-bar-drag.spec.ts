@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { enterWorld } from '../e2e-helpers/gameClient';
+import { enterWorld, openPanelRail } from '../e2e-helpers/gameClient';
 
 /**
  * Regression: on a touch device the system chat panel used to sit ON TOP of the
@@ -15,6 +15,10 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
   await enterWorld(page, `MobBarDrag${Date.now()}`);
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 5_000 }); } catch { /* no welcome */ }
 
+  // Phones collapse the action buttons (Attack/Move/…) behind the panel rail.
+  // Open it and show the Actions panel so there's a drag source.
+  await openPanelRail(page);
+  await page.getByRole('button', { name: /show actions/i }).click();
   const source = page.locator('.actions-panel .action-button').first();
   await expect(source).toBeVisible();
 

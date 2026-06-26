@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { enterWorld } from '../e2e-helpers/gameClient';
+import { enterWorld, openPanelRail } from '../e2e-helpers/gameClient';
 
 /**
  * Touch parity with the skill bar: a bag item can't use native HTML5 drag on a
@@ -18,6 +18,7 @@ test('touch: long-press dragging a bag item onto an empty bar slot binds it', as
   await enterWorld(page, `MobInvDrag${Date.now()}`);
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 5_000 }); } catch { /* no welcome */ }
 
+  await openPanelRail(page); // phones: reveal the collapsed toggle rail first
   await page.getByRole('button', { name: /\bbag\b/i }).click(); // "Show Bag" toggle
   const source = page.locator('.inventory-slot:not(.inventory-slot--empty)').first();
   await expect(source).toBeVisible();

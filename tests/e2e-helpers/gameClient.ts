@@ -76,6 +76,17 @@ export async function getClientState(page: Page) {
   return page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.getState() ?? null);
 }
 
+// The panel-toggle rail (Show Bag / Show Actions / Show Stats / …) starts
+// COLLAPSED on phones (≤680px; Hud.tsx railDefaultOpen) — the toggles only
+// render once it's opened. Tap "Open menu" to reach them. No-op on desktop,
+// where the rail is already expanded.
+export async function openPanelRail(page: Page): Promise<void> {
+  const openButton = page.getByRole('button', { name: 'Open menu' });
+  if (await openButton.count()) {
+    await openButton.click();
+  }
+}
+
 export async function movePlayerNear(page: Page, offset: Offset = DEFAULT_SMOKE_MOVE_OFFSET): Promise<Offset> {
   const initialPosition = await waitForPlayerPosition(page);
 
