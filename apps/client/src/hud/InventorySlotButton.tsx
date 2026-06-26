@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type HTMLAttributes,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { getEffectiveMinLevel, getGradeSpec } from '../../../../packages/content/equipmentTypes';
 import { ITEMS, getItemGrade, isUsableConsumable } from '../../../../packages/content/items';
@@ -107,6 +108,13 @@ export function InventorySlotButton({
     ? `${itemName} (${slot.quantity})${action ? ` — ${action}` : ''} · click for actions${hasMouse ? ' · drag to ground to drop' : ' · hold to add to bar'}`
     : 'Empty slot';
   const triggerProps = slot ? callbacks.tooltipTriggerProps(index, slot.itemId) : undefined;
+  // beginDrag must be applied AFTER the tooltip trigger's handlers (both spread
+  // onto the button below) — otherwise the trigger's own onPointerDown shadows
+  // it and touch drag-to-bar never starts. The ActionsPanel action button orders
+  // it the same way. beginDrag itself no-ops for mouse pointers.
+  const dragHandlers = slot
+    ? { onPointerDown: (event: ReactPointerEvent) => beginDrag({ kind: 'item', id: slot.itemId }, event, itemName) }
+    : {};
   const slotStyle = slot && grade !== 'none'
     ? { ['--slot-grade-color' as string]: gradeColor } as CSSProperties
     : undefined;
@@ -121,12 +129,6 @@ export function InventorySlotButton({
       draggable={Boolean(slot) && hasMouse}
       onDragOver={handleBagDragOver}
       onDrop={(event) => handleBagDrop(event, index, callbacks.onMoveItem)}
-      onPointerDown={(event) => {
-        // Touch long-press → pick the item up for the action bar. No-op for
-        // mouse (beginDrag bails on pointerType 'mouse'), empty slots, or a
-        // locked bar.
-        if (slot) beginDrag({ kind: 'item', id: slot.itemId }, event, itemName);
-      }}
       onDragStart={(event) => {
         if (!slot) return;
         event.dataTransfer.effectAllowed = 'move';
@@ -163,6 +165,7 @@ export function InventorySlotButton({
         });
       }}
       {...(triggerProps ?? {})}
+      {...dragHandlers}
     >
       {slot && (item?.icon
         ? <img className="inventory-slot-icon" src={item.icon} alt="" aria-hidden="true" />

@@ -169,7 +169,10 @@ function installDragListeners(
       justDraggedRef.current = false;
     }, 0);
     if (!drop) return;
-    const action = resolveBarDrop(c.payload, slotUnderPoint(event.clientX, event.clientY));
+    // Resolve the drop against the last tracked move position, not the pointerup
+    // event's coords: a touch-end can land at (0,0) (e.g. synthetic CDP touch),
+    // which would miss the slot. lastX/lastY is the finger's release point.
+    const action = resolveBarDrop(c.payload, slotUnderPoint(c.lastX, c.lastY));
     const cb = cbRef.current;
     if (action.type === 'set') cb.setSlot(action.slot, action.ref);
     else if (action.type === 'swap') cb.swapSlots(action.from, action.to);
