@@ -23,13 +23,19 @@ export default defineConfig({
   use: {
     baseURL: clientUrl,
     trace: "retain-on-failure",
-    // The world is a real WebGL scene; CI has no GPU, so Chromium renders it
-    // through SwiftShader. Chromium 119+ refuses the SwiftShader WebGL fallback
-    // unless --enable-unsafe-swiftshader is set (otherwise the context dies and
-    // the canvas vanishes mid-test). --disable-dev-shm-usage avoids the 64 MB
-    // /dev/shm exhaustion that crashes the renderer under load in CI containers.
+    // The world is a real WebGL scene. On a GPU-backed runner (E2E_HEADED=1,
+    // DISPLAY set) we run the FULL Chromium against the real display so it uses
+    // hardware GL (Mesa/Intel) — stable, no crashes. Without a GPU (local
+    // headless / GitHub-hosted) Chromium falls back to SwiftShader, which needs
+    // --enable-unsafe-swiftshader (Chrome 119+) and still crashes under load —
+    // hence the dedicated self-hosted GPU runner. --disable-dev-shm-usage +
+    // --no-sandbox keep Chromium happy in both.
+    headless: process.env.E2E_HEADED !== "1",
+    channel: process.env.E2E_HEADED === "1" ? "chromium" : undefined,
     launchOptions: {
-      args: ["--enable-unsafe-swiftshader", "--disable-dev-shm-usage"]
+      args: process.env.E2E_HEADED === "1"
+        ? ["--no-sandbox", "--disable-dev-shm-usage"]
+        : ["--enable-unsafe-swiftshader", "--disable-dev-shm-usage"]
     }
   },
   webServer: [

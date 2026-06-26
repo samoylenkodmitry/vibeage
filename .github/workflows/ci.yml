@@ -138,23 +138,23 @@ jobs:
         run: BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 pnpm run measure:baseline
 
   # Browser e2e smoke — the Playwright suite against a real Vite dev server +
-  # game server (persistence off). SHARDED across parallel jobs: each shard
-  # starts its OWN servers (an isolated world, so concurrent tests can't steal
-  # each other's enemies) and runs ~1/5 of the specs serially. This keeps the
-  # whole suite well under wall-clock instead of ~30+ min serial.
-  #
-  # Headless CI has no GPU, so Chromium renders WebGL via SwiftShader; the e2e
-  # helper (tests/e2e-helpers/gameClient.ts) pins the lowest graphics tier so
-  # the software renderer doesn't crash on world mount. Nightly/dispatch only.
+  # game server (persistence off). Runs on a SELF-HOSTED runner (label `gpu`)
+  # with an Intel iGPU: GitHub-hosted runners have no GPU, so Chromium renders
+  # WebGL through SwiftShader, which crashes the heavy world mid-session. Here we
+  # drive the FULL Chromium against the host's real X display (:0) via
+  # E2E_HEADED=1, so it uses hardware GL (Mesa/Intel) — stable and fast. One
+  # runner runs jobs serially, so the whole suite is a single job (no sharding).
+  # Nightly/dispatch only.
   e2e-smoke:
-    name: Browser smoke (e2e ${{ matrix.shard }}/5)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: Browser smoke (e2e, GPU runner)
+    runs-on: [self-hosted, linux, gpu]
+    timeout-minutes: 25
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4, 5]
+    env:
+      # Drive Chromium on the host's logged-in XFCE session so it gets the GPU.
+      E2E_HEADED: "1"
+      DISPLAY: ":0"
+      XAUTHORITY: /home/s/.Xauthority
 
     steps:
       - name: Checkout
@@ -175,26 +175,19 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+        # No --with-deps: the runner is Arch (no apt); the Chromium runtime libs
+        # are already present (it runs a full desktop).
+        run: pnpm exec playwright install chromium
 
-      - name: Browser smoke (shard ${{ matrix.shard }}/5)
-        # Invoke playwright directly (not the `test:e2e` script) so the --shard
-        # flag reaches it cleanly — `pnpm run test:e2e -- --shard` injects a
-        # stray `--` that playwright reads as a test-path filter ("No tests
-        # found"). env -u NO_COLOR mirrors the test:e2e script.
-        run: env -u NO_COLOR pnpm exec playwright test -c playwright.vite.config.ts --shard=${{ matrix.shard }}/5
+      - name: Browser smoke
+        run: pnpm run test:e2e
 
-      # Archwork item #1 follow-up — when the browser smoke fails, the
-      # Playwright trace.zip / error-context.md per failing test is the
-      # only way to triage without standing up Chromium locally. The
-      # workflow previously dropped them on the runner and they
-      # disappeared with it. Upload on failure only so green runs stay
-      # cheap.
+      # Upload the per-test trace.zip / error-context.md on failure for triage.
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-trace-${{ github.run_id }}-shard${{ matrix.shard }}
+          name: playwright-trace-${{ github.run_id }}
           path: |
             test-results/**
             playwright-report/**
