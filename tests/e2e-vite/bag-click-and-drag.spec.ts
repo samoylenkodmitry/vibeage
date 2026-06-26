@@ -81,7 +81,8 @@ test('dragging a bag slot onto a skill-bar slot binds the item and 1-key uses it
     // inventory also contains a Worn Sword, and picking just "first
     // non-disabled slot" would grab that instead.
     const slots = Array.from(document.querySelectorAll<HTMLElement>('.inventory-slot'));
-    const source = slots.find((el) => /^H/i.test(el.textContent ?? ''));
+    // The slot shows an icon, not the name — match on the aria-label.
+    const source = slots.find((el) => /^Health Potion/i.test(el.getAttribute('aria-label') ?? ''));
     const target = document.querySelectorAll<HTMLElement>('.skill-bar-slot')[1];
     if (!source || !target) throw new Error('source/target missing');
     const dt = new DataTransfer();

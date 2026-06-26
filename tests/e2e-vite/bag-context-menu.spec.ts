@@ -57,6 +57,10 @@ test('drop → pickup via the actions-panel Pickup (F) button', async ({ page })
     return lootIds.length >= 1;
   }, undefined, { timeout: 10_000 });
 
+  // The open bag panel overlaps the actions panel and intercepts the click on
+  // Pickup (F); the item's already on the ground, so close the bag first.
+  await page.getByRole('button', { name: /hide bag/i }).click();
+
   const pickupBtn = page.getByRole('button', { name: /Pickup \(F\)/i });
   await expect(pickupBtn).toBeEnabled();
   await pickupBtn.click();
