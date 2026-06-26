@@ -98,12 +98,10 @@ jobs:
   nightly-checks:
     name: Nightly checks (heavy)
     runs-on: ubuntu-latest
-    # Docker build + full frontend build + perf smoke + Chromium install + a
-    # ~10-spec Playwright e2e suite run serially (workers: 1). 20 min was never
-    # actually validated — the job died at the dead-code gate for 30+ nightlies
-    # before reaching the browser smoke — and the e2e suite alone needs most of
-    # it. 30 gives honest headroom without masking a hang.
-    timeout-minutes: 30
+    # Dead-code gate + docker build + full frontend build + perf smoke. The
+    # Playwright e2e suite moved to the dedicated sharded `e2e-smoke` job below
+    # (it dominated wall-time and is independent of these build artifacts).
+    timeout-minutes: 15
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
@@ -139,11 +137,48 @@ jobs:
       - name: Performance budget smoke
         run: BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 pnpm run measure:baseline
 
+  # Browser e2e smoke — the Playwright suite against a real Vite dev server +
+  # game server (persistence off). SHARDED across parallel jobs: each shard
+  # starts its OWN servers (an isolated world, so concurrent tests can't steal
+  # each other's enemies) and runs ~1/3 of the specs serially. This keeps the
+  # whole suite under ~12 min wall-clock instead of ~30+ serial.
+  #
+  # Headless CI has no GPU, so Chromium renders WebGL via SwiftShader; the e2e
+  # helper (tests/e2e-helpers/gameClient.ts) pins the lowest graphics tier so
+  # the software renderer doesn't crash on world mount. Nightly/dispatch only.
+  e2e-smoke:
+    name: Browser smoke (e2e ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.5
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Browser smoke
-        run: pnpm run test:e2e
+      - name: Browser smoke (shard ${{ matrix.shard }}/3)
+        run: pnpm run test:e2e -- --shard=${{ matrix.shard }}/3
 
       # Archwork item #1 follow-up — when the browser smoke fails, the
       # Playwright trace.zip / error-context.md per failing test is the
@@ -155,7 +190,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-trace-${{ github.run_id }}
+          name: playwright-trace-${{ github.run_id }}-shard${{ matrix.shard }}
           path: |
             test-results/**
             playwright-report/**
