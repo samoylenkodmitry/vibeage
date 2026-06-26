@@ -18,9 +18,19 @@ test('touch: long-press dragging a bag item onto an empty bar slot binds it', as
   await enterWorld(page, `MobInvDrag${Date.now()}`);
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 5_000 }); } catch { /* no welcome */ }
 
+  // Grant a health potion to drag: the first starter slot is the Worn Sword
+  // (equipment), which isn't bar-bindable, so a long-press there never starts a
+  // drag. Target the potion specifically by its aria-label.
+  await page.waitForFunction(() => Boolean(window.__VIBEAGE_VITE_E2E__));
+  await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.grantItem('health_potion', 3));
+  await page.waitForFunction(
+    () => (window.__VIBEAGE_VITE_E2E__?.getState().inventoryItems ?? []).some((s) => s.itemId === 'health_potion'),
+    undefined, { timeout: 20_000 },
+  );
+
   await openPanelRail(page); // phones: reveal the collapsed toggle rail first
   await page.getByRole('button', { name: /\bbag\b/i }).click(); // "Show Bag" toggle
-  const source = page.locator('.inventory-slot:not(.inventory-slot--empty)').first();
+  const source = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await expect(source).toBeVisible();
 
   const slot = page.locator('.skill-bar-slot').filter({ hasText: /empty/i }).first();
