@@ -99,7 +99,12 @@ export async function ensurePlayerAlive(page: Page): Promise<void> {
 }
 
 async function waitForConnectedGame(page: Page): Promise<void> {
-  await expect(page.locator('canvas')).toBeVisible();
+  // The 3D world is a lazy chunk (App.tsx code-splits WorldScene out of the
+  // initial bundle), so the <canvas> mounts only after that chunk loads and
+  // r3f initialises. Against the unbundled e2e dev server that first load can
+  // exceed the default 10s expect timeout, so wait explicitly. App prefetches
+  // the chunk from the lobby to keep this fast; the headroom is just insurance.
+  await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
     return state?.connectionState === 'online'

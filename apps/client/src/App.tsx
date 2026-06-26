@@ -27,6 +27,15 @@ export default function App() {
 
   useRehydrateTrackedQuest(client.setTrackedQuest);
 
+  // Prefetch the lazy world chunk while the player is still in the lobby, so it
+  // streams in the background (overlapping the connect handshake) and entering
+  // the world is instant. This keeps WorldScene out of the *initial* bundle —
+  // it stays a separate async chunk — while avoiding a stall on connect. It
+  // also warms the chunk for the e2e dev server before the first interaction.
+  useEffect(() => {
+    void import('./WorldScene');
+  }, []);
+
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
   // pending casts / pickups / auto-attack on its own.

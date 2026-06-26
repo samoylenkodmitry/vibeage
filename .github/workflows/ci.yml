@@ -98,7 +98,12 @@ jobs:
   nightly-checks:
     name: Nightly checks (heavy)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Docker build + full frontend build + perf smoke + Chromium install + a
+    # ~10-spec Playwright e2e suite run serially (workers: 1). 20 min was never
+    # actually validated — the job died at the dead-code gate for 30+ nightlies
+    # before reaching the browser smoke — and the e2e suite alone needs most of
+    # it. 30 gives honest headroom without masking a hang.
+    timeout-minutes: 30
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
