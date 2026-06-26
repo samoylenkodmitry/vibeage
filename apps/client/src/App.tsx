@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
@@ -7,7 +7,14 @@ import { listActiveQuestMarkers } from './hud/questMarkers';
 import { useWorldDropTarget } from './hud/useWorldDropTarget';
 import { useRehydrateTrackedQuest } from './trackedQuestStorage';
 import { useGameClient } from './useGameClient';
-import { WorldScene } from './WorldScene';
+
+// The entire 3D engine (three / r3f / drei / postprocessing / world-art) lives
+// under WorldScene and is only mounted once the player connects — the lobby
+// before it is pure DOM. Loading it lazily keeps the whole three.js stack out
+// of the initial bundle: the page boots into the lobby fast, and the ~540 kB
+// world chunk streams in during the connect handshake. See the bundle budget
+// in quality/performance-budgets.json (measured as the initial entry graph).
+const WorldScene = lazy(() => import('./WorldScene').then((m) => ({ default: m.WorldScene })));
 
 export default function App() {
   const client = useGameClient();
@@ -55,17 +62,19 @@ export default function App() {
 
   return (
     <main className="app-shell" {...worldDropHandlers}>
-      <WorldScene
-        state={state}
-        onMove={client.sendMoveIntent}
-        onSelectTarget={client.selectTarget}
-        onAttackTarget={client.attackTarget}
-        onPickUpLoot={client.pickUpLoot}
-        cameraAngleRef={cameraAngleRef}
-        cameraControlsRef={cameraControlsRef}
-        touchClaimRef={touchClaimRef}
-        navigationMarker={navigationMarker}
-      />
+      <Suspense fallback={null}>
+        <WorldScene
+          state={state}
+          onMove={client.sendMoveIntent}
+          onSelectTarget={client.selectTarget}
+          onAttackTarget={client.attackTarget}
+          onPickUpLoot={client.pickUpLoot}
+          cameraAngleRef={cameraAngleRef}
+          cameraControlsRef={cameraControlsRef}
+          touchClaimRef={touchClaimRef}
+          navigationMarker={navigationMarker}
+        />
+      </Suspense>
       <GameHud
         state={state}
         cameraAngleRef={cameraAngleRef}
