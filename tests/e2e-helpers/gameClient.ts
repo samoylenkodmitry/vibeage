@@ -23,6 +23,10 @@ const E2E_GRAPHICS_SETTINGS = JSON.stringify({
   bloom: false,
   godRays: false,
   antialias: false,
+  // The decisive one for CI: no EffectComposer at all. Its per-frame render
+  // targets are what exhaust SwiftShader and kill the WebGL context ~13s into a
+  // session; the scene renders straight to the canvas instead.
+  postProcessing: false,
   valeHD: false,
   fog: false,
   viewDistance: 0.6,
@@ -127,7 +131,10 @@ async function waitForConnectedGame(page: Page): Promise<void> {
   // r3f initialises. Against the unbundled e2e dev server that first load can
   // exceed the default 10s expect timeout, so wait explicitly. App prefetches
   // the chunk from the lobby to keep this fast; the headroom is just insurance.
-  await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
+  // `#root canvas` = the r3f world canvas specifically. A bare `canvas` also
+  // matches the dev-only StatsGl FPS/MS overlay canvases (2 more), which trips
+  // Playwright strict mode once the world is alive long enough for them to mount.
+  await expect(page.locator('#root canvas')).toBeVisible({ timeout: 30_000 });
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
     return state?.connectionState === 'online'

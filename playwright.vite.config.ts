@@ -22,7 +22,15 @@ export default defineConfig({
   },
   use: {
     baseURL: clientUrl,
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
+    // The world is a real WebGL scene; CI has no GPU, so Chromium renders it
+    // through SwiftShader. Chromium 119+ refuses the SwiftShader WebGL fallback
+    // unless --enable-unsafe-swiftshader is set (otherwise the context dies and
+    // the canvas vanishes mid-test). --disable-dev-shm-usage avoids the 64 MB
+    // /dev/shm exhaustion that crashes the renderer under load in CI containers.
+    launchOptions: {
+      args: ["--enable-unsafe-swiftshader", "--disable-dev-shm-usage"]
+    }
   },
   webServer: [
     {

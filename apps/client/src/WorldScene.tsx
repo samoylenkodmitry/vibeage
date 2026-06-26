@@ -230,7 +230,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         cameraControlsRef={cameraControlsRef}
         touchClaimRef={touchClaimRef}
       />
-      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} bloom={liveGraphics.bloom} godRays={liveGraphics.godRays} antialias={liveGraphics.antialias} />
+      {liveGraphics.postProcessing && <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} bloom={liveGraphics.bloom} godRays={liveGraphics.godRays} antialias={liveGraphics.antialias} />}
     </Canvas>
     {contextLost && <RendererContextLostOverlay />}
     </WebGLGate>
