@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { enterWorld } from "../e2e-helpers/gameClient";
+import { enterWorld, openPanelRail } from "../e2e-helpers/gameClient";
 
 test.setTimeout(150_000);
 
@@ -36,19 +36,21 @@ for (const viewport of HUD_VIEWPORTS) {
     // for it below after we click the hero plate.
     const corePanels = [
       panel("Connection", page.locator(".hud-top")),
-      panel("Player status", page.locator(".player-panel")),
       panel("Skills", page.locator(".skill-bar")),
       panel("Panel toggles", page.locator(".panel-toggles")),
     ];
 
     if (viewport.infoPanelsVisible) {
       corePanels.push(
+        panel("Player status", page.locator(".player-panel")),
         panel("World status", page.locator(".hud-stats")),
         panel("Location", page.locator(".location-panel")),
       );
     } else {
-      // Mobile hides hud-stats + location-panel to save vertical
-      // real estate. Zone name is still on the world map.
+      // Mobile collapses the stats/info panels by default (rail closed +
+      // statsOpen false) to save vertical space — the compact .vitals-strip
+      // carries player health. Zone name is still on the world map.
+      await expect(page.locator(".player-panel")).toBeHidden();
       await expect(page.locator(".hud-stats")).toBeHidden();
       await expect(page.locator(".location-panel")).toBeHidden();
     }
@@ -76,12 +78,20 @@ for (const viewport of HUD_VIEWPORTS) {
     // and the SkillTooltip on hover/long-press reveals full names.
     await expectWorldVisible(page, corePanels, viewport.minWorldVisibilityRatio);
 
+    await openPanelRail(page); // phones: the toggle rail starts collapsed
     await page.getByRole("button", { name: /show bag/i }).click();
     await expect(page.locator(".inventory-panel")).toBeVisible();
     await page.getByRole("button", { name: /show quest/i }).click();
     await expect(page.locator(".quest-panel")).toBeVisible();
-    await page.getByRole("button", { name: /hide stats/i }).click();
-    await expect(page.locator(".player-panel")).toBeHidden();
+    if (viewport.infoPanelsVisible) {
+      // Desktop starts with stats shown, so the toggle reads "Hide Stats".
+      await page.getByRole("button", { name: /hide stats/i }).click();
+      await expect(page.locator(".player-panel")).toBeHidden();
+    } else {
+      // Mobile starts with stats collapsed; the toggle reads "Show Stats".
+      await page.getByRole("button", { name: /show stats/i }).click();
+      await expect(page.locator(".player-panel")).toBeVisible();
+    }
   });
 }
 

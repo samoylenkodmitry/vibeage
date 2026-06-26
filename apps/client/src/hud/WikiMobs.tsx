@@ -1,12 +1,18 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { listMobTemplates, getMobZones } from '../../../../packages/content/mobLocations';
 import { ENEMY_BASE_SCALING, resolveEnemyCombat } from '../../../../packages/content/enemies';
 import { SKILLS } from '../../../../packages/content/skills';
 import { getMiniBossesByMobType } from '../../../../packages/content/miniBosses';
 import { LootDropsForTable } from './WikiLoot';
-import { MobModelViewer } from './MobModelViewer';
 import { FocusableLi, filterMatch, type WikiNav } from './WikiPanel';
 import { WikiFilters, type WikiFilterChip } from './WikiFilters';
+
+// MobModelViewer mounts a live r3f <Canvas> + the character-model stack — the
+// only piece of three.js reachable from the HUD's static graph. Loading it
+// lazily keeps three out of the initial bundle; the bestiary 3D preview streams
+// in when the wiki's mob page is opened. (Placeholder keeps its slot to avoid
+// a layout shift.)
+const MobModelViewer = lazy(() => import('./MobModelViewer').then((m) => ({ default: m.MobModelViewer })));
 
 type MobSortId = 'name' | 'level' | 'family';
 const MOB_SORTS: ReadonlyArray<{ id: MobSortId; label: string }> = [
@@ -91,7 +97,9 @@ function MobLi({
   return (
     <FocusableLi isFocus={tpl.type === focusId} focusKey={focusKey}>
       <div className="wiki-mob-head">
-        <MobModelViewer family={tpl.family} type={tpl.type} />
+        <Suspense fallback={<div className="wiki-mob-model" aria-hidden="true" />}>
+          <MobModelViewer family={tpl.family} type={tpl.type} />
+        </Suspense>
         <div className="wiki-mob-head-text">
           <header>
             <strong>{tpl.displayName}</strong>

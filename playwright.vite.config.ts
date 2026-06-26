@@ -22,7 +22,20 @@ export default defineConfig({
   },
   use: {
     baseURL: clientUrl,
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
+    // The world is a real WebGL scene. On the GPU runner (E2E_GPU=1) we run NEW
+    // headless Chromium with ANGLE-over-Vulkan on the Intel iGPU — hardware GL,
+    // no display or window manager needed, stable. Verified: WEBGL_RENDERER =
+    // "ANGLE (Intel, Vulkan ... Intel(R) UHD Graphics 730, Intel open-source
+    // Mesa driver)". Without a GPU (local / GitHub-hosted) Chromium uses
+    // SwiftShader, which needs --enable-unsafe-swiftshader (Chrome 119+) and
+    // crashes the heavy world under load — hence the dedicated GPU runner.
+    channel: process.env.E2E_GPU === "1" ? "chromium" : undefined,
+    launchOptions: {
+      args: process.env.E2E_GPU === "1"
+        ? ["--use-angle=vulkan", "--enable-features=Vulkan", "--ignore-gpu-blocklist", "--no-sandbox", "--disable-dev-shm-usage"]
+        : ["--enable-unsafe-swiftshader", "--disable-dev-shm-usage"]
+    }
   },
   webServer: [
     {

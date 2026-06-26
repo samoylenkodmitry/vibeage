@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
 import type { VecXZ } from '../../../packages/protocol/messages';
@@ -7,7 +7,36 @@ import { listActiveQuestMarkers } from './hud/questMarkers';
 import { useWorldDropTarget } from './hud/useWorldDropTarget';
 import { useRehydrateTrackedQuest } from './trackedQuestStorage';
 import { useGameClient } from './useGameClient';
-import { WorldScene } from './WorldScene';
+
+// The entire 3D engine (three / r3f / drei / postprocessing / world-art) lives
+// under WorldScene and is only mounted once the player connects — the lobby
+// before it is pure DOM. Loading it lazily keeps the whole three.js stack out
+// of the initial bundle: the page boots into the lobby fast, and the ~540 kB
+// world chunk streams in during the connect handshake. See the bundle budget
+// in quality/performance-budgets.json (measured as the initial entry graph).
+const WorldScene = lazy(() => import('./WorldScene').then((m) => ({ default: m.WorldScene })));
+
+// Prefetch the lazy world chunk while the player is still in the lobby, so it
+// streams in the background (overlapping the connect handshake) and entering the
+// world is instant — without pulling WorldScene back into the initial bundle (a
+// dynamic import() stays a separate async chunk). Also warms the chunk for the
+// e2e dev server before the first interaction.
+function useWorldChunkPrefetch(): void {
+  useEffect(() => {
+    void import('./WorldScene');
+  }, []);
+}
+
+// Lazy boundary for the world. Kept out of App's body so the connect branch
+// stays small; the fallback is null because GameHud renders immediately and the
+// world fades in a beat later once its chunk resolves.
+function LazyWorldScene(props: ComponentProps<typeof WorldScene>) {
+  return (
+    <Suspense fallback={null}>
+      <WorldScene {...props} />
+    </Suspense>
+  );
+}
 
 export default function App() {
   const client = useGameClient();
@@ -19,6 +48,7 @@ export default function App() {
   useAutoMarkerOnQuestAccept(state, setNavigationMarker);
 
   useRehydrateTrackedQuest(client.setTrackedQuest);
+  useWorldChunkPrefetch();
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -55,7 +85,7 @@ export default function App() {
 
   return (
     <main className="app-shell" {...worldDropHandlers}>
-      <WorldScene
+      <LazyWorldScene
         state={state}
         onMove={client.sendMoveIntent}
         onSelectTarget={client.selectTarget}

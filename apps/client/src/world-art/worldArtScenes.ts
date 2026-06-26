@@ -11,10 +11,10 @@
  * looking left, and forest silhouettes occupy positive X.
  */
 /**
- * Authored prop placement inside a scene. Unlike the scatter
- * tables (`cozyScatter.ts`) these are individually positioned —
- * the dock, the rowboat, the bonfire — so the coast reads as
- * composed rather than randomly populated.
+ * Authored prop placement inside a scene. Unlike procedurally
+ * scattered foliage these are individually positioned — the dock,
+ * the rowboat, the bonfire — so the coast reads as composed rather
+ * than randomly populated.
  */
 export type AnchoredProp = {
   id: 'dock' | 'rowboat' | 'bonfire' | 'lantern';

@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { enterWorld } from '../e2e-helpers/gameClient';
+import { enterWorld, openPanelRail } from '../e2e-helpers/gameClient';
 
 /**
  * Touch parity with the skill bar: a bag item can't use native HTML5 drag on a
@@ -18,12 +18,26 @@ test('touch: long-press dragging a bag item onto an empty bar slot binds it', as
   await enterWorld(page, `MobInvDrag${Date.now()}`);
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 5_000 }); } catch { /* no welcome */ }
 
+  // Grant a health potion to drag: the first starter slot is the Worn Sword
+  // (equipment), which isn't bar-bindable, so a long-press there never starts a
+  // drag. Target the potion specifically by its aria-label.
+  await page.waitForFunction(() => Boolean(window.__VIBEAGE_VITE_E2E__));
+  await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.grantItem('health_potion', 3));
+  await page.waitForFunction(
+    () => (window.__VIBEAGE_VITE_E2E__?.getState().inventoryItems ?? []).some((s) => s.itemId === 'health_potion'),
+    undefined, { timeout: 20_000 },
+  );
+
+  await openPanelRail(page); // phones: reveal the collapsed toggle rail first
   await page.getByRole('button', { name: /\bbag\b/i }).click(); // "Show Bag" toggle
-  const source = page.locator('.inventory-slot:not(.inventory-slot--empty)').first();
+  const source = page.locator('.inventory-slot[aria-label^="Health Potion"]').first();
   await expect(source).toBeVisible();
 
   const slot = page.locator('.skill-bar-slot').filter({ hasText: /empty/i }).first();
   await expect(slot, 'need an empty bar slot to drop onto').toBeVisible();
+  // Pin which slot we drop onto — `slot` is a lazy "first empty" locator, so once
+  // the drop fills it the final assert would re-resolve to the NEXT empty slot.
+  const slotKey = await slot.getAttribute('data-bar-slot');
 
   const sb = (await source.boundingBox())!;
   const tb = (await slot.boundingBox())!;
@@ -32,7 +46,7 @@ test('touch: long-press dragging a bag item onto an empty bar slot binds it', as
 
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: sx, y: sy, id: 0 }] });
-  // Auto-retrying assertion waits out the 350ms long-press for us — no fixed sleep.
+  await page.waitForTimeout(480); // past the 350ms long-press threshold (matches mobile-skill-bar-drag)
   await expect(page.locator('.action-bar-drag-ghost')).toBeVisible(); // item picked up
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: Math.round((sx + tx) / 2), y: Math.round((sy + ty) / 2), id: 0 }] });
   await page.waitForTimeout(60);
@@ -40,5 +54,5 @@ test('touch: long-press dragging a bag item onto an empty bar slot binds it', as
   await page.waitForTimeout(60);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 
-  await expect(slot).not.toContainText('Empty', { timeout: 3_000 });
+  await expect(page.locator(`.skill-bar-slot[data-bar-slot="${slotKey}"]`)).not.toContainText('Empty', { timeout: 3_000 });
 });

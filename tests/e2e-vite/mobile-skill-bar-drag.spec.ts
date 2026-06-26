@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { enterWorld } from '../e2e-helpers/gameClient';
+import { enterWorld, openPanelRail } from '../e2e-helpers/gameClient';
 
 /**
  * Regression: on a touch device the system chat panel used to sit ON TOP of the
@@ -15,6 +15,10 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
   await enterWorld(page, `MobBarDrag${Date.now()}`);
   try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 5_000 }); } catch { /* no welcome */ }
 
+  // Phones collapse the action buttons (Attack/Move/…) behind the panel rail.
+  // Open it and show the Actions panel so there's a drag source.
+  await openPanelRail(page);
+  await page.getByRole('button', { name: /show actions/i }).click();
   const source = page.locator('.actions-panel .action-button').first();
   await expect(source).toBeVisible();
 
@@ -28,6 +32,9 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
 
   const slot = page.locator('.skill-bar-slot').filter({ hasText: /empty/i }).first();
   await expect(slot, 'need an empty bar slot to drop onto').toBeVisible();
+  // Pin which slot we drop onto — `slot` is a lazy "first empty" locator, so once
+  // the drop fills it the final assert would re-resolve to the NEXT empty slot.
+  const slotKey = await slot.getAttribute('data-bar-slot');
 
   const sb = (await source.boundingBox())!;
   const tb = (await slot.boundingBox())!;
@@ -44,5 +51,5 @@ test('touch: dragging a skill onto an empty bar slot binds it', async ({ page })
   await page.waitForTimeout(60);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 
-  await expect(slot).not.toContainText('Empty', { timeout: 3_000 });
+  await expect(page.locator(`.skill-bar-slot[data-bar-slot="${slotKey}"]`)).not.toContainText('Empty', { timeout: 3_000 });
 });

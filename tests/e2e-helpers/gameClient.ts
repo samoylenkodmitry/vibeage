@@ -25,6 +25,9 @@ export async function enterWorld(page: Page, playerName: string): Promise<void> 
       'vibeage:session',
       JSON.stringify({ token: t, login }),
     );
+    // No graphics override: the GPU runner renders the real per-device tier
+    // (desktop → high w/ post-FX + shadows, mobile/Pixel-5 → low), so the specs
+    // validate what players actually see, not a forced-degraded mode.
   }, [token, playerName]);
   await page.route('**/api/account/characters', async (route) => {
     const method = route.request().method();
@@ -47,6 +50,17 @@ export async function enterWorld(page: Page, playerName: string): Promise<void> 
 
 export async function getClientState(page: Page) {
   return page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.getState() ?? null);
+}
+
+// The panel-toggle rail (Show Bag / Show Actions / Show Stats / …) starts
+// COLLAPSED on phones (≤680px; Hud.tsx railDefaultOpen) — the toggles only
+// render once it's opened. Tap "Open menu" to reach them. No-op on desktop,
+// where the rail is already expanded.
+export async function openPanelRail(page: Page): Promise<void> {
+  const openButton = page.getByRole('button', { name: 'Open menu' });
+  if (await openButton.count()) {
+    await openButton.click();
+  }
 }
 
 export async function movePlayerNear(page: Page, offset: Offset = DEFAULT_SMOKE_MOVE_OFFSET): Promise<Offset> {
@@ -99,7 +113,15 @@ export async function ensurePlayerAlive(page: Page): Promise<void> {
 }
 
 async function waitForConnectedGame(page: Page): Promise<void> {
-  await expect(page.locator('canvas')).toBeVisible();
+  // The 3D world is a lazy chunk (App.tsx code-splits WorldScene out of the
+  // initial bundle), so the <canvas> mounts only after that chunk loads and
+  // r3f initialises. Against the unbundled e2e dev server that first load can
+  // exceed the default 10s expect timeout, so wait explicitly. App prefetches
+  // the chunk from the lobby to keep this fast; the headroom is just insurance.
+  // `#root canvas` = the r3f world canvas specifically. A bare `canvas` also
+  // matches the dev-only StatsGl FPS/MS overlay canvases (2 more), which trips
+  // Playwright strict mode once the world is alive long enough for them to mount.
+  await expect(page.locator('#root canvas')).toBeVisible({ timeout: 30_000 });
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
     return state?.connectionState === 'online'

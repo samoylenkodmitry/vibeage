@@ -35,6 +35,11 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 1500,
+    // Emit .vite/manifest.json so the perf budget can measure the *initial*
+    // entry graph (index.html → main, static imports only) rather than the
+    // sum of every chunk — the 3D world is a lazy chunk and the showroom is a
+    // separate dev entry, neither of which a player downloads to reach the lobby.
+    manifest: true,
     rollupOptions: {
       input: { main: indexHtml, showroom: showroomHtml },
     },

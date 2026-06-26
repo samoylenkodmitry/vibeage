@@ -48,7 +48,8 @@ try {
 }
 
 function measureBundle() {
-  const distDir = join(root, 'apps/client/dist/assets');
+  const distRoot = join(root, 'apps/client/dist');
+  const distDir = join(distRoot, 'assets');
   if (!existsSync(distDir)) {
     return { available: false, reason: 'run pnpm run build first' };
   }
@@ -60,12 +61,56 @@ function measureBundle() {
       return { fileName, bytes: body.length, gzipBytes: gzipSync(body).length };
     });
 
-  return {
+  const result = {
     available: true,
     assets,
     totalBytes: sum(assets, 'bytes'),
     totalGzipBytes: sum(assets, 'gzipBytes'),
   };
+
+  // Initial critical-path payload: the static import graph of the game entry
+  // (index.html → main). This is what a player actually downloads to reach an
+  // interactive lobby — it excludes async chunks (the 3D world is lazy-loaded
+  // on connect) and the standalone dev showroom (its own entry, never shipped).
+  // `totalGzipBytes` above stays as an informational ceiling; this is the gate.
+  const manifestPath = join(distRoot, '.vite/manifest.json');
+  if (existsSync(manifestPath)) {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const gameEntry = Object.values(manifest).find((entry) => entry.isEntry && entry.src === 'index.html');
+    if (gameEntry) {
+      const initialFiles = collectInitialChunkFiles(manifest, gameEntry);
+      const initialAssets = [...initialFiles].map((file) => {
+        const body = readFileSync(join(distRoot, file));
+        return { file, bytes: body.length, gzipBytes: gzipSync(body).length };
+      });
+      result.initialFiles = initialAssets.map((asset) => asset.file);
+      result.initialBytes = sum(initialAssets, 'bytes');
+      result.initialGzipBytes = sum(initialAssets, 'gzipBytes');
+    }
+  }
+
+  return result;
+}
+
+// Walk the manifest from an entry chunk over *static* imports only (never
+// `dynamicImports`), collecting each chunk's emitted JS file plus its CSS.
+// The result is the set of files the browser must fetch before the entry runs.
+function collectInitialChunkFiles(manifest, entry) {
+  const files = new Set();
+  const visited = new Set();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (!node || visited.has(node.file)) continue;
+    visited.add(node.file);
+    if (node.file) files.add(node.file);
+    for (const css of node.css ?? []) files.add(css);
+    for (const importKey of node.imports ?? []) {
+      const imported = manifest[importKey];
+      if (imported) queue.push(imported);
+    }
+  }
+  return files;
 }
 
 async function measureTickCost() {
@@ -272,6 +317,15 @@ function evaluateBudgets(report, budgets) {
   }
 
   collectAvailabilityIssues(failures, report, budgets);
+  // Primary gate: the initial entry-graph payload (what reaches the lobby).
+  // Falls back to the all-chunks total on older builds without a manifest.
+  const initialGzipBytes = report.bundle.initialGzipBytes ?? report.bundle.totalGzipBytes;
+  evaluateMaxBudget(warnings, failures, 'bundle.initialGzipBytes', initialGzipBytes, {
+    warning: budgets.bundle?.warningInitialGzipBytes,
+    failure: budgets.bundle?.maxInitialGzipBytes,
+  });
+  // Loose ceiling on everything shipped (initial + async world chunk) so the
+  // deferred 3D bundle can't balloon unbounded behind the lazy boundary.
   evaluateMaxBudget(warnings, failures, 'bundle.totalGzipBytes', report.bundle.totalGzipBytes, {
     warning: budgets.bundle?.warningTotalGzipBytes,
     failure: budgets.bundle?.maxTotalGzipBytes,

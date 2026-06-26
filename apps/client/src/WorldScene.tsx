@@ -54,7 +54,12 @@ const FOG_DISABLED = { near: 50_000, far: 100_000 } as const;
 // EffectComposer does its own AA (4x MSAA target on high, SMAA on medium) and
 // the canvas is just the blit target. Low accepts mild jaggies — physically
 // tiny on dense phone screens.
-const CANVAS_GL_OPTIONS = { antialias: false, powerPreference: 'high-performance' } as const;
+// preserveDrawingBuffer only in dev: the e2e "non-trivial frame" check reads
+// pixels off the canvas asynchronously (page.evaluate, between frames), which
+// reads black on the default non-preserved buffer. The flag retains the last
+// frame so the read is reliable. Off in production — it blocks the browser's
+// swap-vs-copy optimisation, a real cost we don't want players to pay.
+const CANVAS_GL_OPTIONS = { antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: import.meta.env.DEV } as const;
 import { WorldGround } from './WorldGround';
 import { WorldFoliage } from './WorldFoliage';
 import { AmbientLife } from './world-art/AmbientLife';
@@ -230,7 +235,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
         cameraControlsRef={cameraControlsRef}
         touchClaimRef={touchClaimRef}
       />
-      <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} bloom={liveGraphics.bloom} godRays={liveGraphics.godRays} antialias={liveGraphics.antialias} />
+      {liveGraphics.postProcessing && <ScenePostFX quality={worldArtQuality} sunMesh={sunMesh} valeHD={valeHD} bloom={liveGraphics.bloom} godRays={liveGraphics.godRays} antialias={liveGraphics.antialias} />}
     </Canvas>
     {contextLost && <RendererContextLostOverlay />}
     </WebGLGate>

@@ -30,6 +30,12 @@ export interface GraphicsSettings {
   bloom: Tri<boolean>;
   godRays: Tri<boolean>;
   antialias: Tri<boolean>;
+  // Master post-processing toggle. Off = no EffectComposer at all (the scene
+  // renders straight to the canvas with the renderer's own tone mapping). The
+  // composer's per-frame render targets are the heaviest GPU path; turning it
+  // off is the cheapest, most context-stable mode — used by the headless e2e,
+  // whose software-WebGL renderer dies under the composer's FBO churn.
+  postProcessing: Tri<boolean>;
   valeHD: Tri<boolean>; // glacial vale: deedy's refraction + ACES renderer
   fog: Tri<boolean>;
   viewDistance: Tri<number>; // multiplier on fog/foliage reach, 0.6..1.4
@@ -44,6 +50,7 @@ export interface ResolvedGraphics {
   bloom: boolean;
   godRays: boolean;
   antialias: boolean;
+  postProcessing: boolean;
   valeHD: boolean;
   fog: boolean;
   viewDistance: number;
@@ -64,14 +71,14 @@ export interface ResolvedGraphics {
  * user dials them as an override (0.5..1.4) to trade detail for frame-rate.
  */
 const TIER_PRESETS: Record<Tier, Omit<ResolvedGraphics, 'tier'>> = {
-  low: { resolutionScale: 1.15, shadows: false, bloom: false, godRays: false, antialias: true, valeHD: false, fog: true, viewDistance: 1.0, foliageDensity: 1.0, grassDensity: 1.0 },
-  medium: { resolutionScale: 1.5, shadows: true, bloom: true, godRays: true, antialias: true, valeHD: true, fog: true, viewDistance: 1.0, foliageDensity: 1.0, grassDensity: 1.0 },
-  high: { resolutionScale: 2.0, shadows: true, bloom: true, godRays: true, antialias: true, valeHD: true, fog: true, viewDistance: 1.0, foliageDensity: 1.0, grassDensity: 1.0 },
+  low: { resolutionScale: 1.15, shadows: false, bloom: false, godRays: false, antialias: true, postProcessing: true, valeHD: false, fog: true, viewDistance: 1.0, foliageDensity: 1.0, grassDensity: 1.0 },
+  medium: { resolutionScale: 1.5, shadows: true, bloom: true, godRays: true, antialias: true, postProcessing: true, valeHD: true, fog: true, viewDistance: 1.0, foliageDensity: 1.0, grassDensity: 1.0 },
+  high: { resolutionScale: 2.0, shadows: true, bloom: true, godRays: true, antialias: true, postProcessing: true, valeHD: true, fog: true, viewDistance: 1.0, foliageDensity: 1.0, grassDensity: 1.0 },
 };
 
 export const DEFAULT_SETTINGS: GraphicsSettings = {
   tier: 'auto', resolutionScale: 'auto', shadows: 'auto', bloom: 'auto', godRays: 'auto',
-  antialias: 'auto', valeHD: 'auto', fog: 'auto', viewDistance: 'auto', foliageDensity: 'auto', grassDensity: 'auto',
+  antialias: 'auto', postProcessing: 'auto', valeHD: 'auto', fog: 'auto', viewDistance: 'auto', foliageDensity: 'auto', grassDensity: 'auto',
 };
 
 /** Settings that only take full effect after a reload — they're read once at
@@ -162,6 +169,7 @@ export function resolveGraphics(s: GraphicsSettings): ResolvedGraphics {
     bloom: pick(s.bloom, p.bloom),
     godRays: pick(s.godRays, p.godRays),
     antialias: pick(s.antialias, p.antialias),
+    postProcessing: pick(s.postProcessing, p.postProcessing),
     valeHD: pick(s.valeHD, p.valeHD),
     fog: pick(s.fog, p.fog),
     viewDistance: pick(s.viewDistance, p.viewDistance),

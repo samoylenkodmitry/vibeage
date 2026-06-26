@@ -24,7 +24,7 @@ test.setTimeout(120_000);
  */
 test('cozy starter coast: canvas mounts and click-to-move works', async ({ page }) => {
   await enterWorld(page, `CozyCoast${Date.now()}`);
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#root canvas')).toBeVisible();
   const beforePos = await page.evaluate(() => {
     return window.__VIBEAGE_VITE_E2E__?.getState().lastKnownPlayerPosition ?? null;
   });
@@ -45,7 +45,7 @@ test('cozy starter coast: no fatal console errors during mount', async ({ page }
     if (msg.type() === 'error') errors.push(msg.text());
   });
   await enterWorld(page, `CozyConsole${Date.now()}`);
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#root canvas')).toBeVisible();
   // Give Suspense + GLB loaders a chance to settle. If a GLB
   // path is wrong the AssetErrorBoundary will fire here.
   await page.waitForTimeout(2_500);
@@ -64,20 +64,20 @@ test('cozy starter coast: HUD stays visible above the canvas', async ({ page }) 
   // The skill bar and player stats live in the HUD layer. Both
   // should remain visible — a regression that put the cozy
   // canvas above them would hide hotkeys and player health.
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#root canvas')).toBeVisible();
   const hud = page.locator('[data-testid="player-stats"], .hud, [class*="hud"], [class*="HUD"]').first();
   await expect(hud).toBeVisible({ timeout: 8_000 });
 });
 
 test('cozy starter coast: canvas paints a non-trivial frame', async ({ page }) => {
   await enterWorld(page, `CozyPaint${Date.now()}`);
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#root canvas')).toBeVisible();
   await page.waitForTimeout(1_500);
   // Read a few pixels off the WebGL canvas. If everything is
   // black or fully transparent, the cozy slice didn't paint —
   // sky, water, fog, and sand should all be coloured.
   const result = await page.evaluate(() => {
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+    const canvas = document.querySelector('#root canvas') as HTMLCanvasElement | null;
     if (!canvas) return { ok: false, reason: 'no canvas' };
     const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
     if (!gl) return { ok: false, reason: 'no gl context' };

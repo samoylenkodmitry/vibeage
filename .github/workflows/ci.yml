@@ -98,7 +98,10 @@ jobs:
   nightly-checks:
     name: Nightly checks (heavy)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Dead-code gate + docker build + full frontend build + perf smoke. The
+    # Playwright e2e suite moved to the dedicated sharded `e2e-smoke` job below
+    # (it dominated wall-time and is independent of these build artifacts).
+    timeout-minutes: 15
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
@@ -134,18 +137,48 @@ jobs:
       - name: Performance budget smoke
         run: BASELINE_START_LOCAL=1 BASELINE_ENFORCE=1 BASELINE_SKIP_BROWSER_FPS=1 pnpm run measure:baseline
 
+  # Browser e2e smoke — the Playwright suite against a real Vite dev server +
+  # game server (persistence off). Runs on a SELF-HOSTED runner (label `gpu`)
+  # with an Intel iGPU: GitHub-hosted runners have no GPU, so Chromium renders
+  # WebGL through SwiftShader, which crashes the heavy world mid-session. Here
+  # E2E_GPU=1 makes Playwright run new-headless Chromium with ANGLE-over-Vulkan
+  # on the Intel iGPU — hardware GL, no display/WM, stable and fast. One runner
+  # runs jobs serially, so the whole suite is a single job. Nightly/dispatch only.
+  e2e-smoke:
+    name: Browser smoke (e2e, GPU runner)
+    runs-on: [self-hosted, linux, gpu]
+    timeout-minutes: 25
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    env:
+      E2E_GPU: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.5
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+        # No --with-deps: the runner is Arch (no apt); the Chromium runtime libs
+        # are already present (it runs a full desktop).
+        run: pnpm exec playwright install chromium
 
       - name: Browser smoke
         run: pnpm run test:e2e
 
-      # Archwork item #1 follow-up — when the browser smoke fails, the
-      # Playwright trace.zip / error-context.md per failing test is the
-      # only way to triage without standing up Chromium locally. The
-      # workflow previously dropped them on the runner and they
-      # disappeared with it. Upload on failure only so green runs stay
-      # cheap.
+      # Upload the per-test trace.zip / error-context.md on failure for triage.
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4

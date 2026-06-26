@@ -1,8 +1,10 @@
 {
   "bundle": {
-    "warningTotalGzipBytes": 525000,
-    "maxTotalGzipBytes": 560000,
-    "comment": "Bumped 470/500 kB → 525/560 kB in cozy-coast PR 5 to fit @react-three/drei + postprocessing + GLTF loader. Headroom for PR 6 codesplit."
+    "warningInitialGzipBytes": 300000,
+    "maxInitialGzipBytes": 340000,
+    "warningTotalGzipBytes": 820000,
+    "maxTotalGzipBytes": 900000,
+    "comment": "PRIMARY gate = initialGzipBytes: the static entry graph of index.html -> main (what a player downloads to reach the lobby). The three.js/r3f/world stack is a lazy chunk loaded on connect (App.tsx lazy-loads WorldScene; WikiMobs lazy-loads MobModelViewer), so it is NOT counted here. Measured ~268 kB after the codesplit (was ~527 kB when three.js was pinned to the HUD static graph via MobModelViewer); 300/340 kB leaves headroom while still catching a regression that drags three.js back into the initial bundle. totalGzipBytes (initial + async, ~724 kB) is a loose ceiling so the deferred world chunk cannot balloon unbounded. This realises the 'PR 6 codesplit' the previous 525/560 kB total-bundle budget was holding headroom for."
   },
   "tickCost": {
     "warningAverageTickMs": 0.1,

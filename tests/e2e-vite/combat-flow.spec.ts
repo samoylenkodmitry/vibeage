@@ -74,10 +74,11 @@ test('skill bar Basic Attack button: cast snapshot lands', async ({ page }) => {
   const targetId = await selectFirstEnemy(page);
   expect(targetId).toBeTruthy();
 
-  // Basic Attack lives on the dedicated `.skill-bar-anchor` row above
-  // the F-key grid. The button's aria-label is "Cast Attack" (the
-  // SKILLS['basicAttack'].name is "Attack").
-  await page.getByRole('button', { name: 'Cast Attack' }).click();
+  // Since the action-bar rework (#674) Basic Attack is a built-in action
+  // button labelled "Attack (A)" (action name + hotkey hint), not a skill-bar
+  // "Cast Attack" slot. Clicking it auto-attacks the selected target through
+  // the basicAttack cast pipeline (asserted below).
+  await page.getByRole('button', { name: /^Attack \(/ }).click();
 
   await page.waitForFunction(() => {
     const state = window.__VIBEAGE_VITE_E2E__?.getState();
