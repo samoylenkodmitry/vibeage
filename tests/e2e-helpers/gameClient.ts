@@ -8,6 +8,28 @@ type Offset = {
 
 const DEFAULT_SMOKE_MOVE_OFFSET = { x: 12, z: -8 } satisfies Offset;
 
+// Headless CI has no GPU, so Chromium renders WebGL through SwiftShader. The
+// full graphics stack (shadows, bloom, god-rays, full-DPR instanced grass +
+// foliage) overwhelms the software renderer and crashes the page on world
+// mount — the game never finishes connecting, so every world-entering spec
+// timed out. Pin the lowest graphics tier (the real user-facing setting in
+// graphicsSettings.ts, key 'vibeage.graphics.v1') so the world renders cheaply
+// and the renderer stays alive. These specs assert game logic via the state
+// bridge, not pixels, so visual fidelity is irrelevant here.
+const E2E_GRAPHICS_SETTINGS = JSON.stringify({
+  tier: 'low',
+  resolutionScale: 0.5,
+  shadows: false,
+  bloom: false,
+  godRays: false,
+  antialias: false,
+  valeHD: false,
+  fog: false,
+  viewDistance: 0.6,
+  foliageDensity: 0,
+  grassDensity: 0,
+});
+
 // PR M: Lobby (PR I) gates the world behind login + character roster
 // fetched from /api/account/characters. CI runs with persistence off,
 // so the DB-backed auth endpoints would 500. We mint a valid session
@@ -20,12 +42,13 @@ export async function enterWorld(page: Page, playerName: string): Promise<void> 
     secret: CI_AUTH_SECRET,
     accountId: `e2e-${playerName}`,
   });
-  await page.addInitScript(([t, login]) => {
+  await page.addInitScript(([t, login, graphics]) => {
     window.localStorage.setItem(
       'vibeage:session',
       JSON.stringify({ token: t, login }),
     );
-  }, [token, playerName]);
+    window.localStorage.setItem('vibeage.graphics.v1', graphics);
+  }, [token, playerName, E2E_GRAPHICS_SETTINGS]);
   await page.route('**/api/account/characters', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
