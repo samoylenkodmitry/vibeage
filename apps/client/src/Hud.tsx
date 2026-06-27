@@ -29,7 +29,7 @@ import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePane
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
   BASIC_ATTACK_SKILL_ID,
-  activeSkillsFor,
+  actionBarSeedSkills,
   getSkillSlotIndexForKeyboardCode,
   isBasicAttackKeyboardCode,
   isEditableTarget,
@@ -121,7 +121,7 @@ export function GameHud(props: GameHudProps) {
     ? `${state.worldPublicState.activeRegionCount}/${state.worldPublicState.regionCount}`
     : '-';
   const panels = usePanelState();
-  const activeSkills = useMemo(() => activeSkillsFor(player), [player?.unlockedSkills]);
+  const activeSkills = useMemo(() => actionBarSeedSkills(player), [player?.unlockedSkills]);
   const { actionBar, setSlot, swapSlots, clearSlot, locked, toggleLocked } = useActionBar(activeSkills);
   const bindItemToSlot = useCallback(
     (slotIndex: number, itemId: string) => setSlot(slotIndex, { kind: 'item', id: itemId }), [setSlot]);

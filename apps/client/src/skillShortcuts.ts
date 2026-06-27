@@ -35,6 +35,24 @@ export function activeSkillsFor(player: PlayerEntity | null): SkillId[] {
   );
 }
 
+/**
+ * Skills used to seed a fresh action bar. Same as {@link activeSkillsFor},
+ * except a classless Nameless guest seeds the basic Attack so the bar isn't
+ * blank and they can fight from the first slot.
+ *
+ * Crucially, this returns `[]` while the player is still streaming in (no
+ * unlocked skills yet) — the bar seeds exactly once, so seeding the Attack
+ * before the real class skills arrive would pin a blank-ish bar for everyone.
+ * The Attack fallback only fires when the player IS loaded but has no class
+ * skills (a true guest).
+ */
+export function actionBarSeedSkills(player: PlayerEntity | null): SkillId[] {
+  const active = activeSkillsFor(player);
+  if (active.length > 0) return active;
+  const loaded = (player?.unlockedSkills?.length ?? 0) > 0;
+  return loaded ? [BASIC_ATTACK_SKILL_ID] : [];
+}
+
 function isUniversalSkill(skillId: string): boolean {
   return (UNIVERSAL_SKILLS as readonly string[]).includes(skillId);
 }

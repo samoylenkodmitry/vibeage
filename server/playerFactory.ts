@@ -9,6 +9,7 @@ import {
   DEFAULT_AVAILABLE_SKILL_POINTS,
   starterSkillsFor,
 } from './players/playerProgression.js';
+import { UNIVERSAL_SKILLS } from '../packages/content/skills.js';
 import { createInitialPlayerStarterProgress } from './progression/starterPath.js';
 
 const PLAYER_INVENTORY_LIMITS = {
@@ -33,8 +34,17 @@ const STARTER_SPAWN_YAW = (() => {
   return Math.atan2(dx, dz);
 })();
 
-export function createTransientPlayer(socketId: string, name: string): PlayerState {
+export function createTransientPlayer(
+  socketId: string,
+  name: string,
+  options: { guest?: boolean } = {},
+): PlayerState {
   const playerId = `player-${hash(socketId + Date.now().toString())}`;
+  // The Nameless guest is deliberately classless: it carries only the
+  // universal kit (basic Attack + Escape), no class skills like fireball. It
+  // can still fight — it just hasn't chosen a prophecy yet. Picking a class via
+  // the in-world Awakening flow grants the real starter skills.
+  const startingSkills = options.guest ? [...UNIVERSAL_SKILLS] : starterSkillsFor('mage');
   const player: PlayerState = {
     id: playerId,
     socketId,
@@ -55,11 +65,11 @@ export function createTransientPlayer(socketId: string, name: string): PlayerSta
     isAlive: true,
     className: 'mage',
     race: DEFAULT_RACE,
-    unlockedSkills: starterSkillsFor('mage'),
+    unlockedSkills: startingSkills,
     availableSkillPoints: DEFAULT_AVAILABLE_SKILL_POINTS,
     starterProgress: createInitialPlayerStarterProgress({
       level: 1,
-      unlockedSkills: starterSkillsFor('mage'),
+      unlockedSkills: startingSkills,
     }),
     specializationId: null,
     skillLevels: {},
