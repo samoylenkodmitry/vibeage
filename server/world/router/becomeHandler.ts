@@ -1,5 +1,4 @@
 import type { ClientMessage } from '../../../packages/protocol/messages.js';
-import type { PlayerState } from '../../../packages/sim/entities.js';
 import type { GameState } from '../../gameState.js';
 import type { OutboundEventSink } from '../../transport/outboundEvents.js';
 import type { WorldClient } from './commandContext.js';
@@ -7,9 +6,8 @@ import { findPlayerIdBySocket } from '../../players/playerSession.js';
 import { applyBecomeIdentity } from '../../players/playerIdentity.js';
 import { isGmAccount } from '../../players/gmMode.js';
 import { verifySessionToken } from '../../auth/sessionTokens.js';
-import { buildStablePlayerPersistenceData, isPersistenceDisabled } from '../../persistence.js';
-import { playerRepository } from '../../persistence/playerRepository.js';
-import { log, warn, LOG_CATEGORIES } from '../../logger.js';
+import { promotePendingGuest } from '../../persistence.js';
+import { warn, LOG_CATEGORIES } from '../../logger.js';
 
 const NAME_RE = /^[A-Za-z0-9._-]+$/;
 
@@ -57,24 +55,10 @@ export function onBecomeCharacter(
   }
   player.accountId = session.accountId;
   player.isGm = isGmAccount(player);
-  void persistPromotedGuest(player, session.accountId, name);
-}
-
-async function persistPromotedGuest(player: PlayerState, accountId: string, name: string): Promise<void> {
-  // Persistence-off (e2e): identity is applied in-memory; nothing to write.
-  if (isPersistenceDisabled()) return;
-  try {
-    const { id } = await playerRepository.insertPlayerForAccount(
-      accountId,
-      name,
-      buildStablePlayerPersistenceData(player),
-    );
-    player.persistentId = id;
-    log(LOG_CATEGORIES.PLAYER, `Promoted guest ${player.id} -> character row ${id} on account ${accountId}`);
-  } catch (err) {
-    // Most likely the unique (account_id, name) collision — the client
-    // pre-checks the name, so this is a forged/edge case. The player keeps the
-    // chosen identity in-memory for this session; nothing persists.
-    console.error(`Become promotion failed for "${name}":`, err);
-  }
+  // Mark for promotion and kick the first insert. If it fails (DB hiccup), the
+  // flag stays set and the persist loop retries — the carried-forward progress
+  // is never silently dropped. Persistence-off (e2e) no-ops; the identity is
+  // applied in memory regardless.
+  player.pendingPersistentInsert = true;
+  void promotePendingGuest(player);
 }

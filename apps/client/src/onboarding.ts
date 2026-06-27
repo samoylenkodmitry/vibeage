@@ -74,7 +74,14 @@ export async function becomeCharacter(input: BecomeInput, fetchFn: FetchFn = fet
   }
 
   if (!auth.created) {
-    const roster = await fetchRoster(auth.session.token, fetchFn);
+    let roster: Awaited<ReturnType<typeof fetchRoster>>;
+    try {
+      roster = await fetchRoster(auth.session.token, fetchFn);
+    } catch (err) {
+      // A roster fetch failure must resolve (not throw) — otherwise the panel's
+      // submit handler never clears its "Awakening…" busy state.
+      return { ok: false, error: err instanceof Error ? err.message : 'Network error', stage: 'auth' };
+    }
     if (roster !== 'unauthorized' && roster.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
       return { ok: false, error: 'You already have a hero with that name.', stage: 'nameTaken' };
     }

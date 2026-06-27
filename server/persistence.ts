@@ -144,6 +144,31 @@ export async function upsertPlayerSession(socketId: string, name: string, accoun
 }
 
 /**
+ * Insert the character row for a just-Become'd guest, carrying its current
+ * state. Idempotent-ish: only runs while `pendingPersistentInsert` is set, and
+ * clears it (and sets `persistentId`) on success. If the insert fails (DB
+ * hiccup), the flag stays set so the next persist retries — the carried-forward
+ * progress is never silently dropped. A genuine (account, name) collision keeps
+ * failing harmlessly without ever overwriting the existing character.
+ */
+export async function promotePendingGuest(player: PlayerState): Promise<void> {
+  if (isPersistenceDisabled() || !player.accountId || !player.pendingPersistentInsert) {
+    return;
+  }
+  try {
+    const { id } = await playerRepository.insertPlayerForAccount(
+      player.accountId,
+      player.name,
+      buildStablePlayerPersistenceData(player),
+    );
+    player.persistentId = id;
+    player.pendingPersistentInsert = false;
+  } catch (error) {
+    console.error(`Failed to insert promoted-guest row for "${player.name}":`, error);
+  }
+}
+
+/**
  * Persists player state to the database
  */
 export async function persistPlayer(player: PlayerState) {
@@ -152,6 +177,12 @@ export async function persistPlayer(player: PlayerState) {
   }
 
   try {
+    // A Become'd guest whose row insert hasn't landed yet: (re)try the insert
+    // rather than UPDATE a non-existent guest id.
+    if (player.pendingPersistentInsert && player.accountId) {
+      await promotePendingGuest(player);
+      return;
+    }
     // A promoted guest keeps its runtime id but persists to the real DB row.
     await playerRepository.updatePlayer(player.persistentId ?? player.id, buildStablePlayerPersistenceData(player));
   } catch (error) {

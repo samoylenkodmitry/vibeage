@@ -93,14 +93,19 @@ function BecomeForm({ onBecome }: { onBecome: (input: BecomeInput) => Promise<{ 
     if (!valid || busy) return;
     setBusy(true);
     setError(null);
-    const result = await onBecome({ login, password, name, race, className });
-    if (!result.ok) {
-      setError(result.error ?? 'Could not awaken — try again.');
+    try {
+      const result = await onBecome({ login, password, name, race, className });
+      if (!result.ok) {
+        setError(result.error ?? 'Could not awaken — try again.');
+        setBusy(false);
+        return;
+      }
+      // Success: the live guest becomes this hero in place (no reconnect), the
+      // session is saved, and the panel unmounts — leave `busy` set.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not awaken — try again.');
       setBusy(false);
-      return;
     }
-    // Success: the live guest becomes this hero in place (no reconnect), the
-    // session is saved, and the panel unmounts — leave `busy` set.
   }
 
   return (
