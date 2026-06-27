@@ -88,6 +88,13 @@ describe('applyInventoryRejectedVisualState — craft / use / drop / destroy cop
   });
 });
 
+describe('applyInventoryRejectedVisualState — prominent flash', () => {
+  it('also flashes the failure above the action bar (actionFeedback)', () => {
+    const next = applyInventoryRejectedVisualState(emptyState(), reject('BuyFromVendor', 'notEnoughGold'), 555);
+    expect(next.actionFeedback).toEqual({ text: "You don't have enough gold for that.", at: 555 });
+  });
+});
+
 describe('applyInventoryRejectedVisualState — unknown-reason fall-through', () => {
   it('falls through to generic per-commandType copy for an unknown vendor reason', () => {
     const next = applyInventoryRejectedVisualState(emptyState(), reject('BuyFromVendor', 'weirdNewReason'), 0);
