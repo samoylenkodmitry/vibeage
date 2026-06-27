@@ -1,13 +1,17 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { type CharacterClass } from '../../../packages/content/classes';
+import { RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
+import { RaceClassPicker } from './RaceClassPicker';
 import {
-  CLASS_DIFFICULTY,
-  CLASS_SKILL_TREES,
-  getStarterSkillForClass,
-  type CharacterClass,
-} from '../../../packages/content/classes';
-import { CHARACTER_RACES, getRaceStatTendency, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
-import { raceIconPath } from '../../../packages/content/raceIcons';
-import { SKILLS } from '../../../packages/content/skills';
+  deleteCharacter,
+  fetchRoster,
+  humanReadableAuthError,
+  loadSession,
+  revokeSessionToken,
+  saveSession,
+  type LobbySession,
+  type SavedCharacter,
+} from './accountSession';
 
 /**
  * Pre-game lobby. Login + password flow against the server-side
@@ -19,65 +23,12 @@ import { SKILLS } from '../../../packages/content/skills';
  * reload doesn't kick the player back to the login screen. Tokens
  * are server-signed HMAC and expire — a 401 from the roster fetch
  * drops the cache and shows the login form again.
+ *
+ * Session storage, the auth/roster/create HTTP helpers, and the
+ * race/class picker all live in shared modules (`accountSession`,
+ * `RaceClassPicker`) so the in-world Awakening flow reuses the exact
+ * same plumbing.
  */
-export type SavedCharacter = {
-  name: string;
-  race: CharacterRace;
-  className: CharacterClass;
-};
-
-export type LobbySession = { token: string; login: string };
-
-const SESSION_KEY = 'vibeage:session';
-
-function loadSession(): LobbySession | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.token === 'string' && typeof parsed?.login === 'string') return parsed;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(s: LobbySession | null): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (s) window.localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    else window.localStorage.removeItem(SESSION_KEY);
-  } catch { /* best-effort */ }
-}
-
-async function revokeSessionToken(token: string): Promise<void> {
-  try {
-    await fetch('/api/auth/logout', { method: 'POST', headers: { authorization: `Bearer ${token}` } });
-  } catch { /* swallow — local clear still runs */ }
-}
-
-async function deleteCharacter(token: string, name: string): Promise<void> {
-  await fetch(`/api/account/characters/${encodeURIComponent(name)}`, {
-    method: 'DELETE',
-    headers: { authorization: `Bearer ${token}` },
-  });
-}
-
-async function fetchRoster(token: string): Promise<SavedCharacter[] | 'unauthorized'> {
-  const res = await fetch('/api/account/characters', {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  if (res.status === 401) return 'unauthorized';
-  if (!res.ok) throw new Error(`Roster fetch failed: ${res.status}`);
-  const body = (await res.json()) as { characters: Array<{ name: string; race: string; class_name: string }> };
-  return body.characters.map((c) => ({
-    name: c.name,
-    race: c.race as CharacterRace,
-    className: c.class_name as CharacterClass,
-  }));
-}
-
 export function Lobby({
   onEnter,
 }: {
@@ -310,15 +261,6 @@ function AuthForm({ onAuth }: { onAuth: (s: LobbySession) => void }) {
   );
 }
 
-function humanReadableAuthError(code: string | undefined, status: number): string {
-  switch (code) {
-    case 'wrongCredentials': return 'Wrong password for this login.';
-    case 'invalidLogin': return 'Login may only contain letters, digits, ".", "_", "-" (max 24 chars).';
-    case 'invalidPassword': return 'Password is too long (max 128 chars).';
-    default: return `Auth failed (${status})`;
-  }
-}
-
 function CreateCharacterForm({
   session,
   existingNames,
@@ -336,11 +278,6 @@ function CreateCharacterForm({
   const [className, setClassName] = useState<CharacterClass>(allowed[0] ?? 'mage');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const next = RACE_PROFILES[race]?.allowedClasses ?? [];
-    if (next.length > 0 && !next.includes(className)) setClassName(next[0]);
-  }, [race, className]);
 
   const trimmed = name.trim();
   const conflict = trimmed.length > 0 && existingNames.has(trimmed.toLowerCase());
@@ -377,37 +314,7 @@ function CreateCharacterForm({
         <label htmlFor="player-name">Character Name</label>
         <input id="player-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your character name" autoComplete="off" />
         {conflict && <small className="lobby-error">Name already taken locally.</small>}
-        <fieldset className="character-fieldset">
-          <legend>Race</legend>
-          <div className="character-grid character-grid--portraits">
-            {CHARACTER_RACES.map((option) => (
-              <label key={option} className={`character-option character-option--race${race === option ? ' character-option--active' : ''}`}>
-                <input type="radio" name="race" value={option} checked={race === option} onChange={() => setRace(option)} />
-                <img className="character-option-portrait" src={raceIconPath(option)} alt="" aria-hidden="true" />
-                <span>{RACE_PROFILES[option].name}</span>
-              </label>
-            ))}
-          </div>
-          <small className="character-blurb">{RACE_PROFILES[race]?.description ?? ''}</small>
-          <RaceDetail race={race} />
-        </fieldset>
-        <fieldset className="character-fieldset">
-          <legend>Class</legend>
-          <div className="character-grid">
-            {allowed.map((option) => {
-              const classIcon = CLASS_SKILL_TREES[option]?.icon;
-              return (
-                <label key={option} className={`character-option${className === option ? ' character-option--active' : ''}`}>
-                  <input type="radio" name="className" value={option} checked={className === option} onChange={() => setClassName(option)} />
-                  {classIcon && <img className="character-option-icon" src={classIcon} alt="" aria-hidden="true" />}
-                  <span>{option}</span>
-                </label>
-              );
-            })}
-          </div>
-          <small className="character-blurb">{CLASS_SKILL_TREES[className]?.description ?? ''}</small>
-          <ClassDetail classKey={className} />
-        </fieldset>
+        <RaceClassPicker race={race} className={className} onRace={setRace} onClassName={setClassName} />
         {error && <small className="lobby-error">{error}</small>}
         <div className="lobby-form-actions">
           <button type="button" onClick={onCancel}>Back to Lobby</button>
@@ -415,60 +322,5 @@ function CreateCharacterForm({
         </div>
       </form>
     </main>
-  );
-}
-
-/**
- * §49/M2 — second-line detail under the class picker. Shows the
- * starter skill (so a fresh player knows what they'll press at
- * spawn) + a one-word difficulty hint. Kept separate from
- * \`character-blurb\` so the existing CSS layout stays intact and
- * the JSX block in CreateCharacterForm doesn't balloon.
- */
-function ClassDetail({ classKey }: { classKey: CharacterClass }) {
-  const starter = getStarterSkillForClass(classKey);
-  const starterSkill = starter ? SKILLS[starter] : null;
-  const difficulty = CLASS_DIFFICULTY[classKey];
-  return (
-    <div className="character-meta">
-      {starterSkill && (
-        <small className="character-meta-line">
-          Starter: <strong>{starterSkill.name}</strong>
-        </small>
-      )}
-      {difficulty && (
-        <small className="character-meta-line">
-          Difficulty: <strong>{difficulty}</strong>
-        </small>
-      )}
-    </div>
-  );
-}
-
-/**
- * §49/M2 — race tendency line under the race picker. Shows the
- * top attributes (strong: …) and where the race is weakest
- * (weak: …). Balanced races (human) show 'Balanced — no
- * specialty' so we don't invent a strength.
- */
-function RaceDetail({ race }: { race: CharacterRace }) {
-  const tendency = getRaceStatTendency(race);
-  return (
-    <div className="character-meta">
-      {tendency.balanced ? (
-        <small className="character-meta-line">Balanced — no clear specialty</small>
-      ) : (
-        <>
-          <small className="character-meta-line">
-            Strong: <strong>{tendency.strong.join(', ').toUpperCase()}</strong>
-          </small>
-          {tendency.weak.length > 0 && (
-            <small className="character-meta-line">
-              Weak: <strong>{tendency.weak.join(', ').toUpperCase()}</strong>
-            </small>
-          )}
-        </>
-      )}
-    </div>
   );
 }

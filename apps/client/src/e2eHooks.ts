@@ -3,15 +3,19 @@ import type { VecXZ } from '../../../packages/protocol/messages';
 import type { ClientActions } from './clientActions';
 import type { GameClientState, Vec3 } from './gameTypes';
 
-export function installE2EHooks(state: GameClientState, api: ClientActions) {
-  window.__VIBEAGE_VITE_E2E__ = {
-    getState: () => ({
+function buildE2EState(state: GameClientState) {
+  return {
       connectionState: state.connectionState,
       reconnectState: {
         connectionState: state.connectionState,
         message: state.message,
       },
       myPlayerId: state.myPlayerId,
+      // Identity — lets the onboarding e2e assert a Nameless guest actually
+      // became the race/prophecy/name they picked in the Awakening panel.
+      playerName: state.myPlayerId ? state.players[state.myPlayerId]?.name ?? null : null,
+      playerRace: state.myPlayerId ? state.players[state.myPlayerId]?.race ?? null : null,
+      playerClass: state.myPlayerId ? state.players[state.myPlayerId]?.className ?? null : null,
       enemyIds: Object.values(state.enemies).filter((enemy) => enemy.isAlive).map((enemy) => enemy.id),
       streamedRegionIds: state.streamedRegionIds,
       visibleEntityCounts: {
@@ -51,7 +55,12 @@ export function installE2EHooks(state: GameClientState, api: ClientActions) {
       liveProjectileSkillIds: Object.values(state.casts)
         .filter((cast) => cast.snapshot.state !== 2)
         .map((cast) => cast.snapshot.skillId),
-    }),
+  };
+}
+
+export function installE2EHooks(state: GameClientState, api: ClientActions) {
+  window.__VIBEAGE_VITE_E2E__ = {
+    getState: () => buildE2EState(state),
     sendMoveIntent: api.sendMoveIntent,
     selectFirstEnemy: () => {
       // Archwork item #1 — skip mini-bosses. The starter zone spawns
@@ -114,6 +123,9 @@ declare global {
           message: string;
         };
         myPlayerId: string | null;
+        playerName: string | null;
+        playerRace: string | null;
+        playerClass: string | null;
         enemyIds: string[];
         streamedRegionIds: string[];
         visibleEntityCounts: {

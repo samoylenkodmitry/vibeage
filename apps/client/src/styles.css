@@ -5510,3 +5510,99 @@ button.character-option {
   .gfx-panel { top: 52px; left: 8px; right: 8px; width: auto; max-height: clamp(200px, calc(100vh - 64px), 100vh); }
   .gfx-seg__btn { padding: 9px 4px; }
 }
+
+/* ── In-world Awakening (seamless onboarding) ──────────────────────────────
+   A Nameless guest claims a real hero — pick race/prophecy/name or log into an
+   existing account — without ever leaving the live 3D world. The CTA floats
+   over the HUD; the panel is a centred overlay reusing the lobby's
+   `.start-panel` chrome (mystical wood-texture `::before`). */
+.awaken-cta {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  border-radius: 999px;
+  background: rgba(12, 18, 28, 0.82);
+  color: #f4e7c3;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 0 18px rgba(250, 204, 21, 0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: awaken-cta-pulse 2.6s ease-in-out infinite;
+}
+.awaken-cta strong { color: #ffe9a8; font-weight: 800; }
+.awaken-cta:hover { border-color: rgba(250, 204, 21, 0.85); color: #fff6df; }
+.awaken-cta-spark { font-size: 16px; color: #ffd866; }
+@keyframes awaken-cta-pulse {
+  0%, 100% { box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 14px rgba(250,204,21,0.14); }
+  50%      { box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 26px rgba(250,204,21,0.30); }
+}
+@media (prefers-reduced-motion: reduce) { .awaken-cta { animation: none; } }
+
+.awakening-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at 50% 40%, rgba(4,9,14,0.55) 20%, rgba(4,9,14,0.85) 90%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  overflow: auto;
+}
+.awakening-panel {
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+.awakening-header,
+.awakening-tabs,
+.awakening-form,
+.awakening-roster { position: relative; z-index: 1; }
+.awakening-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.awakening-header h1 { font-size: 30px; }
+.awakening-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1;
+}
+.awakening-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.awakening-tab {
+  padding: 9px 8px;
+  border: 1px solid rgba(141, 233, 215, 0.22);
+  border-radius: 8px;
+  background: rgba(5, 14, 18, 0.5);
+  color: #9dded3;
+  font-weight: 700;
+  cursor: pointer;
+}
+.awakening-tab--active {
+  border-color: rgba(250, 204, 21, 0.55);
+  background: rgba(30, 26, 12, 0.6);
+  color: #ffe9a8;
+}
+.awakening-form,
+.awakening-roster { display: grid; gap: 12px; }
+.awakening-credential-note { margin: 0 0 4px; }
+.awaken-submit { font-weight: 800; letter-spacing: 0.04em; }

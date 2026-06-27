@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
+import { AwakeningPanel } from './AwakeningPanel';
+import { hasSavedSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
 import { listActiveQuestMarkers } from './hud/questMarkers';
@@ -38,15 +40,6 @@ function LazyWorldScene(props: ComponentProps<typeof WorldScene>) {
   );
 }
 
-const SESSION_KEY = 'vibeage:session';
-function hasSavedSession(): boolean {
-  try {
-    return typeof window !== 'undefined' && Boolean(window.localStorage.getItem(SESSION_KEY));
-  } catch {
-    return false;
-  }
-}
-
 // Instant world: a brand-new visitor (no saved session) is joined as a Nameless
 // guest the instant the page loads — no lobby, no login wall. The server spawns
 // a transient guest for the tokenless join; from inside the world they later
@@ -81,18 +74,59 @@ function InstantWorldLoader() {
 
 // Pre-connection screen. A returning visitor (saved session) still goes through
 // the lobby for now; a new visitor sees only the loader while they auto-join.
-function EntryView({ client }: { client: ReturnType<typeof useGameClient> }) {
+function EntryView({ onEnter }: { onEnter: (character: SavedCharacter, session: LobbySession) => void }) {
   if (!hasSavedSession()) return <InstantWorldLoader />;
+  return <Lobby onEnter={onEnter} />;
+}
+
+// A fresh visitor with no saved session plays as the Nameless guest until the
+// in-world Awakening flow (Become / Return) binds them to a real hero.
+function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
+  const [isGuest, setIsGuest] = useState(() => !hasSavedSession());
+  const [showAwakening, setShowAwakening] = useState(false);
+  // Single entry point shared by the lobby and the Awakening panel: persist the
+  // session, leave guest mode, and connect as the chosen hero.
+  const enterWorld = useCallback((character: SavedCharacter, session: LobbySession) => {
+    saveSession(session);
+    setIsGuest(false);
+    setShowAwakening(false);
+    client.connect(character.name, {
+      race: character.race,
+      className: character.className,
+      sessionToken: session.token,
+    });
+  }, [client]);
+  return { isGuest, showAwakening, setShowAwakening, enterWorld };
+}
+
+// In-world onboarding affordance: a floating "Awaken" prompt over the live HUD
+// and, when opened, the Awakening panel. Renders nothing for real heroes.
+function GuestAwakeningLayer({
+  isGuest,
+  online,
+  showAwakening,
+  onOpen,
+  onClose,
+  onEnter,
+}: {
+  isGuest: boolean;
+  online: boolean;
+  showAwakening: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onEnter: (character: SavedCharacter, session: LobbySession) => void;
+}) {
+  if (!isGuest) return null;
   return (
-    <Lobby
-      onEnter={(character, session) => {
-        client.connect(character.name, {
-          race: character.race,
-          className: character.className,
-          sessionToken: session.token,
-        });
-      }}
-    />
+    <>
+      {online && !showAwakening && (
+        <button type="button" className="awaken-cta" onClick={onOpen}>
+          <span className="awaken-cta-spark" aria-hidden="true">✦</span>
+          You are <strong>Nameless</strong> — Awaken to claim your fate
+        </button>
+      )}
+      {showAwakening && <AwakeningPanel onEnter={onEnter} onClose={onClose} />}
+    </>
   );
 }
 
@@ -108,6 +142,7 @@ export default function App() {
   useRehydrateTrackedQuest(client.setTrackedQuest);
   useWorldChunkPrefetch();
   useInstantGuestJoin(client);
+  const { isGuest, showAwakening, setShowAwakening, enterWorld } = useGuestAwakening(client);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -125,7 +160,7 @@ export default function App() {
   const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
-    return <EntryView client={client} />;
+    return <EntryView onEnter={enterWorld} />;
   }
 
   return (
@@ -174,6 +209,14 @@ export default function App() {
         onPickupNearest={client.pickupNearest}
         onMove={onMove}
         onSendChat={client.sendChat}
+      />
+      <GuestAwakeningLayer
+        isGuest={isGuest}
+        online={state.connectionState === 'online'}
+        showAwakening={showAwakening}
+        onOpen={() => setShowAwakening(true)}
+        onClose={() => setShowAwakening(false)}
+        onEnter={enterWorld}
       />
       {state.connectionState !== 'online' && (
         <div className="joining-overlay" role="status">
