@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { EnemyEntity, VisualEvent } from '../gameTypes';
-import { playSpatial } from '../audio/spatial';
-import { hitVoice, killVoice } from '../audio/spatialVoices';
+import { playSampleAt } from '../audio/samples';
+import { HIT_SAMPLES, KILL_SAMPLES, SAMPLE_GAIN } from '../audio/sampleMap';
 
 type CombatSfxBridgeProps = {
   enemies: Record<string, EnemyEntity>;
@@ -36,7 +36,7 @@ export function CombatSfxBridge({ enemies, visualEvents }: CombatSfxBridgeProps)
       next.set(id, enemy.isAlive);
       const wasAlive = prev.get(id);
       if (wasAlive === true && !enemy.isAlive && now - lastKillAtRef.current > KILL_COOLDOWN_MS) {
-        playSpatial(killVoice, enemy.position.x, enemy.position.z);
+        playSampleAt(KILL_SAMPLES, enemy.position.x, enemy.position.z, SAMPLE_GAIN.default);
         lastKillAtRef.current = now;
       }
     }
@@ -50,7 +50,7 @@ export function CombatSfxBridge({ enemies, visualEvents }: CombatSfxBridgeProps)
       if (seen.has(id)) continue;
       seen.add(id);
       if (event.kind === 'damage' && now - lastHitAtRef.current > HIT_COOLDOWN_MS) {
-        playSpatial(hitVoice, event.position.x, event.position.z);
+        playSampleAt(HIT_SAMPLES, event.position.x, event.position.z, SAMPLE_GAIN.default);
         lastHitAtRef.current = now;
       }
     }

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { computeDayPhase, nightFactorFromSunDir } from '../timeOfDay';
 import { setSoundscapeNightFactor, startSoundscape, stopSoundscape } from '../audio/soundscape';
+import { preloadSamples } from '../audio/samples';
+import { ALL_SFX_URLS } from '../audio/sampleMap';
 
 /**
  * Drives the procedural ambient soundscape. Headless:
@@ -16,6 +18,9 @@ export function AmbientSoundBridge() {
       if (started) return;
       started = true;
       startSoundscape();
+      // The AudioContext is unlocked now — decode the combat SFX up front so the
+      // first hit/impact isn't silent while it loads.
+      preloadSamples(ALL_SFX_URLS);
       window.removeEventListener('pointerdown', start, { capture: true });
       window.removeEventListener('keydown', start, { capture: true });
     };

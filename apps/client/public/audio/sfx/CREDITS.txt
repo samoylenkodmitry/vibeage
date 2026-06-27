@@ -1,0 +1,10 @@
+Sound effects in this folder are from Kenney (kenney.nl), released under
+Creative Commons CC0 1.0 (public domain) — free for any use, no attribution
+required. Credit kept here as good practice.
+
+Packs used:
+  - Impact Sounds   — https://kenney.nl/assets/impact-sounds
+  - Sci-Fi Sounds   — https://kenney.nl/assets/sci-fi-sounds
+  - RPG Audio       — https://kenney.nl/assets/rpg-audio
+
+License: https://creativecommons.org/publicdomain/zero/1.0/
