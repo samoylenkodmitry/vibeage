@@ -135,7 +135,7 @@ export function GameHud(props: GameHudProps) {
 
   return (
     <ActionBarDragProvider locked={locked} setSlot={setSlot} swapSlots={swapSlots} clearSlot={clearSlot}>
-      <HudOverlays state={state} player={player} />
+      <HudOverlays state={state} player={player} cameraAngleRef={cameraAngleRef} />
       <HudTopStrips
         state={state}
         player={player}

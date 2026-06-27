@@ -1,6 +1,9 @@
+import type { MutableRefObject } from 'react';
 import type { GameClientState, PlayerEntity } from '../gameTypes';
 import { AmbientSoundBridge } from './AmbientSoundBridge';
 import { AutoAttackChip } from './AutoAttackChip';
+import { SkillSfxBridge } from './SkillSfxBridge';
+import { SpatialListenerBridge } from './SpatialListenerBridge';
 import { BossDefeatBanner } from './BossDefeatBanner';
 import { BossEncounterBanner } from './BossEncounterBanner';
 import { BossTelegraphBar } from './BossTelegraphBar';
@@ -22,6 +25,7 @@ import { SfxMuteButton } from './SfxMuteButton';
 type HudOverlaysProps = {
   state: GameClientState;
   player: PlayerEntity | null;
+  cameraAngleRef?: MutableRefObject<number>;
 };
 
 /**
@@ -37,11 +41,13 @@ type HudOverlaysProps = {
  * shared world state mount unconditionally; vitals-driven bursts
  * only mount once a player exists.
  */
-export function HudOverlays({ state, player }: HudOverlaysProps) {
+export function HudOverlays({ state, player, cameraAngleRef }: HudOverlaysProps) {
   return (
     <>
       <SfxMuteButton />
       <AmbientSoundBridge />
+      <SpatialListenerBridge player={player} cameraAngleRef={cameraAngleRef} />
+      <SkillSfxBridge casts={state.casts} />
       <KeybindCheatsheet />
       <CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />
       <BossEncounterBanner enemies={state.enemies} />
