@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { playCue } from '../sfx';
 import type { EnemyEntity, VisualEvent } from '../gameTypes';
+import { playSpatial } from '../audio/spatial';
+import { hitVoice, killVoice } from '../audio/spatialVoices';
 
 type CombatSfxBridgeProps = {
   enemies: Record<string, EnemyEntity>;
@@ -35,7 +36,7 @@ export function CombatSfxBridge({ enemies, visualEvents }: CombatSfxBridgeProps)
       next.set(id, enemy.isAlive);
       const wasAlive = prev.get(id);
       if (wasAlive === true && !enemy.isAlive && now - lastKillAtRef.current > KILL_COOLDOWN_MS) {
-        playCue('kill');
+        playSpatial(killVoice, enemy.position.x, enemy.position.z);
         lastKillAtRef.current = now;
       }
     }
@@ -49,7 +50,7 @@ export function CombatSfxBridge({ enemies, visualEvents }: CombatSfxBridgeProps)
       if (seen.has(id)) continue;
       seen.add(id);
       if (event.kind === 'damage' && now - lastHitAtRef.current > HIT_COOLDOWN_MS) {
-        playCue('hit');
+        playSpatial(hitVoice, event.position.x, event.position.z);
         lastHitAtRef.current = now;
       }
     }
