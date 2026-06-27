@@ -179,6 +179,46 @@ describe('Colyseus room adapter join and command handling', () => {
   });
 });
 
+describe('Colyseus room adapter guest onboarding', () => {
+  beforeEach(() => {
+    runtimeMetrics.resetForTests();
+  });
+
+  test('a tokenless join enters as a Nameless guest (instant-world onboarding)', async () => {
+    const port = makePort({ players: {}, enemies: {} } as ReturnType<AuthoritativeRoomPort['getStateSnapshot']>);
+    const client = makeClient('socket-guest');
+    const adapter = new ColyseusAuthoritativeRoomAdapter(port);
+
+    await expect(adapter.handleJoin(client, {
+      playerName: 'Nameless',
+      clientProtocolVersion: 2,
+    })).resolves.toEqual({ playerId: 'player1' });
+
+    expect(port.joinClient).toHaveBeenCalledWith('socket-guest', 'Nameless', expect.anything(), { guest: true });
+    expect(client.send).not.toHaveBeenCalled();
+    expect(runtimeMetrics.snapshot().counters['room.joins.guest']).toBe(1);
+  });
+
+  test('an invalid/expired token is rejected, not silently downgraded to a guest', async () => {
+    const port = makePort({ players: {}, enemies: {} } as ReturnType<AuthoritativeRoomPort['getStateSnapshot']>);
+    const client = makeClient('socket-bad');
+    const adapter = new ColyseusAuthoritativeRoomAdapter(port);
+
+    await expect(adapter.handleJoin(client, {
+      playerName: 'Ghost',
+      clientProtocolVersion: 2,
+      sessionToken: 'not.a.valid.token',
+    })).rejects.toThrow(/invalid or expired session token/);
+
+    expect(port.joinClient).not.toHaveBeenCalled();
+    expect(client.send).toHaveBeenCalledWith('connectionRejected', {
+      reason: 'unauthorized',
+      message: 'Your session expired — please log in again.',
+    });
+    expect(runtimeMetrics.snapshot().counters['room.joinRejected.unauthorized']).toBe(1);
+  });
+});
+
 function makeClient(sessionId: string): ColyseusClientLike & { send: ReturnType<typeof vi.fn> } {
   return {
     sessionId,

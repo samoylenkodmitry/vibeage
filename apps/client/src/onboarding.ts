@@ -61,8 +61,8 @@ export async function becomeCharacter(input: BecomeInput, fetchFn: FetchFn = fet
   }
 
   const auth = await authenticate(input.login, input.password, fetchFn);
-  if (!auth.ok) {
-    return { ok: false, error: auth.error, stage: 'auth' };
+  if (!auth.ok || !auth.session) {
+    return { ok: false, error: auth.error ?? 'Authentication failed', stage: 'auth' };
   }
 
   const created = await createCharacter(

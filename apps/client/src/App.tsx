@@ -43,14 +43,22 @@ function LazyWorldScene(props: ComponentProps<typeof WorldScene>) {
 // Instant world: a brand-new visitor (no saved session) is joined as a Nameless
 // guest the instant the page loads — no lobby, no login wall. The server spawns
 // a transient guest for the tokenless join; from inside the world they later
-// pick race/class/name ("Become") or log in ("Return"). Runs once on mount.
+// pick race/class/name ("Become") or log in ("Return").
+//
+// The ref makes this a strict once-ever join: without it, a guest who hits
+// Disconnect drops to `idle` and (still session-less) would be auto-rejoined
+// on the spot — an unbreakable reconnect loop. roomConnection owns its own
+// reconnect on transient drops, so we only need to seed the very first join.
 function useInstantGuestJoin(client: ReturnType<typeof useGameClient>): void {
+  const hasJoinedRef = useRef(false);
+  const { connect, state: { connectionState } } = client;
   useEffect(() => {
-    if (client.state.connectionState === 'idle' && !hasSavedSession()) {
-      client.connect('Nameless');
+    if (hasJoinedRef.current) return;
+    if (connectionState === 'idle' && !hasSavedSession()) {
+      hasJoinedRef.current = true;
+      connect('Nameless');
     }
-    // Once-on-mount: a fresh visitor enters instantly.
-  }, [client]);
+  }, [connect, connectionState]);
 }
 
 // While the guest connection + world chunk stream in (a beat), show a loader,
@@ -84,18 +92,20 @@ function EntryView({ onEnter }: { onEnter: (character: SavedCharacter, session: 
 function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
   const [isGuest, setIsGuest] = useState(() => !hasSavedSession());
   const [showAwakening, setShowAwakening] = useState(false);
+  const { connect } = client;
   // Single entry point shared by the lobby and the Awakening panel: persist the
-  // session, leave guest mode, and connect as the chosen hero.
+  // session, leave guest mode, and connect as the chosen hero. Depends only on
+  // the stable `connect` so it isn't rebuilt every render.
   const enterWorld = useCallback((character: SavedCharacter, session: LobbySession) => {
     saveSession(session);
     setIsGuest(false);
     setShowAwakening(false);
-    client.connect(character.name, {
+    connect(character.name, {
       race: character.race,
       className: character.className,
       sessionToken: session.token,
     });
-  }, [client]);
+  }, [connect]);
   return { isGuest, showAwakening, setShowAwakening, enterWorld };
 }
 

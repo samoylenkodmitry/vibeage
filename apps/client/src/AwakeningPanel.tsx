@@ -121,8 +121,8 @@ function ReturnForm({ onEnter }: { onEnter: (character: SavedCharacter, session:
     setBusy(true);
     setError(null);
     const auth = await authenticate(login, password);
-    if (!auth.ok) {
-      setError(auth.error);
+    if (!auth.ok || !auth.session) {
+      setError(auth.error ?? 'Authentication failed');
       setBusy(false);
       return;
     }

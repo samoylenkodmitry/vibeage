@@ -33,11 +33,14 @@ export function RaceClassPicker({
 }) {
   const allowed = RACE_PROFILES[race]?.allowedClasses ?? [];
 
+  // Depend on `race`, not the freshly-built `allowed` array — otherwise the
+  // new array identity reruns this on every render.
   useEffect(() => {
-    if (allowed.length > 0 && !allowed.includes(className)) {
-      onClassName(allowed[0]);
+    const allowedClasses = RACE_PROFILES[race]?.allowedClasses ?? [];
+    if (allowedClasses.length > 0 && !allowedClasses.includes(className)) {
+      onClassName(allowedClasses[0]);
     }
-  }, [allowed, className, onClassName]);
+  }, [race, className, onClassName]);
 
   return (
     <>
