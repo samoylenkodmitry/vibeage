@@ -48,4 +48,8 @@ describe('castFailCopy via applyCastRejected', () => {
     const next = applyCastRejected(emptyState(), reject('some_future_reason'), 0);
     expect(next.combatLog[0].text).toBe('Cast failed: some_future_reason');
   });
+  it('also flashes the failure prominently above the action bar (actionFeedback)', () => {
+    const next = applyCastRejected(emptyState(), reject('outofrange'), 12345);
+    expect(next.actionFeedback).toEqual({ text: 'Cast failed: target out of range.', at: 12345 });
+  });
 });

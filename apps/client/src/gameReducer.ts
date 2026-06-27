@@ -66,6 +66,7 @@ export const initialGameClientState: GameClientState = {
   combatLog: [],
   chatLines: [],
   lastChatError: null,
+  actionFeedback: null,
   starterProgress: createInitialStarterProgress(),
   worldPublicState: null,
   streamedRegionIds: [],

@@ -253,6 +253,12 @@ export type GameClientState = {
    * chat message broadcasts back (success).
    */
   lastChatError: { reason: string; at: number } | null;
+  /**
+   * Last action that couldn't fire (cast/attack: out of range, no target, no
+   * mana, on cooldown). Flashed briefly above the action bar so a new player
+   * pressing a skill that does nothing sees WHY, not just a combat-log line.
+   */
+  actionFeedback: { text: string; at: number } | null;
   starterProgress: StarterProgress;
   worldPublicState: WorldPublicState | null;
   streamedRegionIds: string[];

@@ -50,7 +50,8 @@ export function AwakeningPanel({
         ) : (
           <>
             <p className="lobby-note">
-              You walk the world as the Nameless. Choose your fate — or return to a hero you already are.
+              Play and explore freely as the Nameless — when you Awaken, everything you've done so
+              far carries into your new hero. Or return to a hero you already have.
             </p>
             <div className="awakening-tabs" role="tablist">
               <button
