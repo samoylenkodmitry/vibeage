@@ -50,6 +50,18 @@ export const selectClassSchema = z.object({
   clientSeq: z.number().int().nonnegative().optional(),
 }).strict();
 
+// Promote the live Nameless guest into a saved hero, carrying its current
+// progress. The server verifies the token, applies the picked identity, and
+// persists the guest's state into a new character row on the account.
+export const becomeCharacterSchema = z.object({
+  type: z.literal('BecomeCharacter'),
+  name: z.string(),
+  race: z.string(),
+  className: z.string(),
+  sessionToken: z.string(),
+  clientSeq: z.number().int().nonnegative().optional(),
+}).strict();
+
 export const selectRaceSchema = z.object({
   type: z.literal('SelectRace'),
   race: z.string(),
@@ -248,6 +260,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   castReqSchema,
   learnSkillSchema,
   selectClassSchema,
+  becomeCharacterSchema,
   respawnRequestSchema,
   lootPickupSchema,
   dropItemSchema,
@@ -304,6 +317,15 @@ export type LearnSkill = {
 export type SelectClass = {
   type: 'SelectClass';
   className: string;
+  clientSeq?: number;
+};
+
+export type BecomeCharacter = {
+  type: 'BecomeCharacter';
+  name: string;
+  race: string;
+  className: string;
+  sessionToken: string;
   clientSeq?: number;
 };
 
@@ -441,6 +463,7 @@ export type ClientMessage =
   | CastReq
   | LearnSkill
   | SelectClass
+  | BecomeCharacter
   | RespawnRequest
   | LootPickup
   | DropItem

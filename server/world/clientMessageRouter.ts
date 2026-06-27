@@ -23,6 +23,7 @@ import {
 import { bucketForCommand, sharedRateLimiter } from './rateLimiter.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
 import { onCastReq, createWorldCombatBridge } from './router/castHandlers.js';
+import { onBecomeCharacter } from './router/becomeHandler.js';
 import { onChatRequest } from './router/chatHandlers.js';
 import type { WorldClient } from './router/commandContext.js';
 import { onDevTeleport, onGmCommand } from './router/devHandlers.js';
@@ -108,6 +109,8 @@ export function handleClientMessage(
       return onRequestInventory(socket, direct, state);
     case 'SelectClass':
       return onSelectClass(socket, direct, state, msg, outbound);
+    case 'BecomeCharacter':
+      return onBecomeCharacter(socket, state, msg, outbound);
     case 'SelectRace':
       return onSelectRace(socket, direct, state, msg, outbound);
     case 'DevTeleport':

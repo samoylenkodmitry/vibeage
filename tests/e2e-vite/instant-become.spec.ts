@@ -2,16 +2,17 @@ import { expect, test } from '@playwright/test';
 import { CI_AUTH_SECRET, mintCiSessionToken } from '../../scripts/ci-session-token.mjs';
 
 /**
- * Phase 2 of the seamless start: a Nameless guest "Becomes" a real hero
- * entirely inside the 3D world — pick race → prophecy(class) → name, set a
- * login — and continues playing as that hero. No web screen, ever.
+ * The seamless start: a Nameless guest "Becomes" a real hero entirely inside
+ * the 3D world — pick race → prophecy(class) → name, set a login — and keeps
+ * playing as that hero IN PLACE, carrying its progress forward. No web screen,
+ * no reconnect.
  *
  * The e2e server runs persistence-off, so the DB-backed accounts API can't
- * truly resolve. We stand in for it the same way the lobby helper does: stub
- * /api/auth to mint a CI-signed token (the server's VIBEAGE_AUTH_SECRET matches
- * CI_AUTH_SECRET) and accept the character create. The world join then flows
- * through transient-player creation, which applies the chosen race/class/name —
- * so the assertion that the guest became the picked identity is real.
+ * truly resolve. We stub /api/auth to mint a CI-signed token (the server's
+ * VIBEAGE_AUTH_SECRET matches CI_AUTH_SECRET) — the in-world BecomeCharacter
+ * command verifies it and promotes the live guest in place (the DB insert is
+ * skipped under persistence-off, but the identity is applied), so the assertion
+ * that the SAME player became the picked identity is real.
  */
 test('a Nameless guest Becomes a chosen hero — all in-world, no login wall', async ({ page }) => {
   const token = mintCiSessionToken({ secret: CI_AUTH_SECRET, accountId: 'e2e-become' });
@@ -39,6 +40,10 @@ test('a Nameless guest Becomes a chosen hero — all in-world, no login wall', a
     const s = window.__VIBEAGE_VITE_E2E__?.getState();
     return s?.connectionState === 'online' && Boolean(s.myPlayerId) && s.playerName === 'Nameless';
   }, undefined, { timeout: 25_000 });
+  // Remember the guest's player id — Become must keep it (in place), not mint a
+  // fresh one (which a reconnect would).
+  const guestId = await page.evaluate(() => window.__VIBEAGE_VITE_E2E__?.getState().myPlayerId ?? null);
+  expect(guestId).toBeTruthy();
 
   // Open the in-world Awakening flow from the floating prompt — never a form.
   const cta = page.getByRole('button', { name: /Awaken to claim your fate/ });
@@ -53,15 +58,16 @@ test('a Nameless guest Becomes a chosen hero — all in-world, no login wall', a
   await page.locator('#awaken-password').fill('passw0rd');
   await page.getByRole('button', { name: 'Awaken', exact: true }).click();
 
-  // Reconnects seamlessly as the chosen hero — online as an elf ranger named
-  // Arinthel, and the guest prompt is gone for good.
-  await page.waitForFunction(() => {
+  // Becomes the chosen hero IN PLACE — the SAME player id, now an elf ranger
+  // named Arinthel — and the guest prompt is gone for good.
+  await page.waitForFunction((gid) => {
     const s = window.__VIBEAGE_VITE_E2E__?.getState();
     return s?.connectionState === 'online'
+      && s.myPlayerId === gid
       && s.playerName === 'Arinthel'
       && s.playerRace === 'elf'
       && s.playerClass === 'ranger';
-  }, undefined, { timeout: 25_000 });
+  }, guestId, { timeout: 25_000 });
   await expect(page.getByRole('button', { name: /Awaken to claim your fate/ })).toHaveCount(0);
 
   // A returning visit drops straight back into the chosen hero — no web form,

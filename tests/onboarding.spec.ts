@@ -67,10 +67,9 @@ describe('firstAllowedClass', () => {
 });
 
 describe('becomeCharacter', () => {
-  it('registers/logs in then creates the character, returning the chosen identity', async () => {
+  it('a fresh register returns the chosen identity without a roster round-trip', async () => {
     const { fetchFn, calls } = stubFetch([
-      { match: '/api/auth', reply: { status: 200, body: { token: 'tok-123', login: 'arin' } } },
-      { match: '/api/account/characters', reply: { status: 200, body: {} } },
+      { match: '/api/auth', reply: { status: 200, body: { token: 'tok-123', login: 'arin', created: true } } },
     ]);
 
     const outcome = await becomeCharacter(VALID, fetchFn);
@@ -78,15 +77,36 @@ describe('becomeCharacter', () => {
     expect(outcome.ok).toBe(true);
     expect(outcome.character).toEqual({ name: 'Arin', race: 'elf', className: 'ranger' });
     expect(outcome.session).toEqual({ token: 'tok-123', login: 'arin' });
-
-    // Auth first, then a token-authenticated character create.
+    // No HTTP character create (the in-world command does that, carrying
+    // progress) and no roster check on a brand-new account.
+    expect(calls).toHaveLength(1);
     expect(calls[0].url).toContain('/api/auth');
-    expect(calls[0].method).toBe('POST');
     expect(calls[0].body).toEqual({ login: 'arin', password: 'secret' });
+  });
+
+  it('an existing account checks the roster and succeeds when the name is free', async () => {
+    const { fetchFn, calls } = stubFetch([
+      { match: '/api/auth', reply: { status: 200, body: { token: 'tok', login: 'arin', created: false } } },
+      { match: '/api/account/characters', reply: { status: 200, body: { characters: [{ name: 'Borin', race: 'orc', class_name: 'warrior' }] } } },
+    ]);
+
+    const outcome = await becomeCharacter(VALID, fetchFn);
+
+    expect(outcome.ok).toBe(true);
     expect(calls[1].url).toContain('/api/account/characters');
-    expect(calls[1].method).toBe('POST');
-    expect(calls[1].headers.authorization).toBe('Bearer tok-123');
-    expect(calls[1].body).toEqual({ name: 'Arin', race: 'elf', className: 'ranger' });
+    expect(calls[1].method).toBe('GET');
+    expect(calls[1].headers.authorization).toBe('Bearer tok');
+  });
+
+  it('an existing account fails with nameTaken when the hero name is already used', async () => {
+    const { fetchFn } = stubFetch([
+      { match: '/api/auth', reply: { status: 200, body: { token: 'tok', login: 'arin', created: false } } },
+      { match: '/api/account/characters', reply: { status: 200, body: { characters: [{ name: 'Arin', race: 'elf', class_name: 'ranger' }] } } },
+    ]);
+    const outcome = await becomeCharacter(VALID, fetchFn);
+    expect(outcome.ok).toBe(false);
+    expect(outcome.stage).toBe('nameTaken');
+    expect(outcome.error).toMatch(/already have a hero/i);
   });
 
   it('fails at the validate stage on a bad name without touching the network', async () => {
@@ -106,7 +126,7 @@ describe('becomeCharacter', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('surfaces an auth failure (wrong password) without creating a character', async () => {
+  it('surfaces an auth failure (wrong password)', async () => {
     const { fetchFn, calls } = stubFetch([
       { match: '/api/auth', reply: { status: 401, body: { error: 'wrongCredentials' } } },
     ]);
@@ -114,17 +134,6 @@ describe('becomeCharacter', () => {
     expect(outcome.ok).toBe(false);
     expect(outcome.stage).toBe('auth');
     expect(outcome.error).toMatch(/wrong password/i);
-    expect(calls).toHaveLength(1); // never reached the create call
-  });
-
-  it('surfaces a name-taken create failure after a good auth', async () => {
-    const { fetchFn } = stubFetch([
-      { match: '/api/auth', reply: { status: 200, body: { token: 'tok', login: 'arin' } } },
-      { match: '/api/account/characters', reply: { status: 409, body: { error: 'nameTaken' } } },
-    ]);
-    const outcome = await becomeCharacter(VALID, fetchFn);
-    expect(outcome.ok).toBe(false);
-    expect(outcome.stage).toBe('create');
-    expect(outcome.error).toMatch(/already have a hero/i);
+    expect(calls).toHaveLength(1);
   });
 });

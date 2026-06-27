@@ -152,7 +152,8 @@ export async function persistPlayer(player: PlayerState) {
   }
 
   try {
-    await playerRepository.updatePlayer(player.id, buildStablePlayerPersistenceData(player));
+    // A promoted guest keeps its runtime id but persists to the real DB row.
+    await playerRepository.updatePlayer(player.persistentId ?? player.id, buildStablePlayerPersistenceData(player));
   } catch (error) {
     console.error(`Failed to persist player ${player.id} in periodic update:`, error);
   }

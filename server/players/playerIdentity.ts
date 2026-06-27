@@ -168,6 +168,50 @@ export function applyRaceChange(
 }
 
 /**
+ * Become: stamp a chosen race + prophecy(class) + name onto the live Nameless
+ * guest, granting the class starter kit (the guest carried only universal
+ * skills). Unlike applyClassChange/applyRaceChange, this is unconditional — it
+ * fires even when the picked race/class equal the guest's hidden human/mage
+ * default, so a human-mage Become still gets the mage starter (fireball). The
+ * carried progress (level/xp/gold/inventory/quests/position) is untouched.
+ */
+export function applyBecomeIdentity(
+  player: PlayerState,
+  rawRace: string,
+  rawClassName: string,
+  name: string,
+  outbound: OutboundEventSink,
+): { ok: true } | { ok: false; reason: 'invalidRace' | 'invalidClass' | 'invalidIdentity' } {
+  if (!VALID_RACES.has(rawRace as CharacterRace)) return { ok: false, reason: 'invalidRace' };
+  const race = rawRace as CharacterRace;
+  if (!VALID_CLASSES.has(rawClassName as CharacterClass)) return { ok: false, reason: 'invalidClass' };
+  const className = rawClassName as CharacterClass;
+  if (!isClassAllowedForRace(race, className)) return { ok: false, reason: 'invalidIdentity' };
+  player.name = name;
+  player.race = race;
+  player.className = className;
+  player.specializationId = null;
+  resetSkillsForClassChange(player);
+  recomputePlayerStats(player);
+  log(LOG_CATEGORIES.PLAYER, `Player ${player.id} became ${race} ${className} "${name}"`);
+  emitPlayerUpdated(outbound, {
+    id: player.id,
+    name,
+    race,
+    className,
+    maxHealth: player.maxHealth,
+    maxMana: player.maxMana,
+    health: player.health,
+    mana: player.mana,
+    unlockedSkills: player.unlockedSkills,
+    availableSkillPoints: player.availableSkillPoints,
+    specializationId: player.specializationId,
+    stats: player.stats,
+  });
+  return { ok: true };
+}
+
+/**
  * Player picks a specialization at SPECIALIZATION_UNLOCK_LEVEL (20).
  * Validates: the spec exists, matches the player's base class, the
  * player has hit the unlock level, and isn't already specialized.
