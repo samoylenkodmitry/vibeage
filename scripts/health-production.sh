@@ -61,8 +61,34 @@ check_expected_status() {
 check_game_socket() {
   log "Game room"
 
+  # Production world-join requires a signed session token (PR I) AND a real
+  # character (persistence on). A dedicated low-priv account (login `healthsmoke`,
+  # character `HealthSmoke`) is provisioned once via /api/auth + /api/account;
+  # its creds live untracked in ~/.vibeage-deploy/smoke-creds.env. Log in here to
+  # mint a fresh token. No creds on this machine → skip (can't run, not a fail).
+  local creds="$HOME/.vibeage-deploy/smoke-creds.env"
+  local token="${SMOKE_SESSION_TOKEN:-}"
+  local player="${SMOKE_PLAYER_NAME:-}"
+  if [[ -z "$token" ]]; then
+    if [[ ! -f "$creds" ]]; then
+      log "Skipping world-room smoke: no SMOKE_SESSION_TOKEN and no $creds (prod join needs an authenticated session)"
+      return
+    fi
+    # shellcheck disable=SC1090
+    source "$creds"
+    player="${SMOKE_PLAYER_NAME:-$player}"
+    token=$(curl -fsS -m 15 -X POST "https://$DOMAIN/api/auth/login" \
+      -H 'Content-Type: application/json' \
+      -d "{\"login\":\"${SMOKE_LOGIN}\",\"password\":\"${SMOKE_PASSWORD}\"}" 2>/dev/null \
+      | grep -oE '"token":"[^"]+"' | sed 's/"token":"//;s/"//')
+    if [[ -z "$token" ]]; then
+      fail_check "Smoke account login failed (POST /api/auth/login) — can't run the world-room smoke"
+      return
+    fi
+  fi
+
   local output
-  if output=$(DOMAIN="$DOMAIN" node scripts/smoke-production.mjs); then
+  if output=$(DOMAIN="$DOMAIN" SMOKE_SESSION_TOKEN="$token" SMOKE_PLAYER_NAME="$player" node scripts/smoke-production.mjs); then
     printf '%s\n' "$output"
     pass "Colyseus world room sends joinGame and gameState through public HTTPS"
   else
