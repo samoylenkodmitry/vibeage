@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const FLASH_TTL_MS = 1700;
 
@@ -8,24 +8,25 @@ const FLASH_TTL_MS = 1700;
  * the combat log, but a new player who presses a skill that does nothing needs
  * feedback where they're looking — not in a panel they may not have open.
  *
- * Re-mounts on each new feedback (keyed by `at`) so the fade animation replays,
- * and a timer forces the hide even when nothing else re-renders.
+ * Visibility is driven purely by the feedback CHANGING (new `at`), then hidden
+ * by a timer — never by comparing `at` to `Date.now()`, which would be fragile
+ * to clock skew. The `at` value only keys the element so the fade replays.
  */
 export function ActionFeedbackFlash({ feedback }: { feedback: { text: string; at: number } | null }) {
-  const [, tick] = useState(0);
-  const at = feedback?.at ?? 0;
+  const [shown, setShown] = useState<{ text: string; at: number } | null>(null);
+  const lastAt = useRef<number | null>(null);
   useEffect(() => {
-    if (!feedback) return;
-    const remaining = FLASH_TTL_MS - (Date.now() - at);
-    if (remaining <= 0) return;
-    const timer = setTimeout(() => tick((n) => n + 1), remaining + 40);
+    if (!feedback || feedback.at === lastAt.current) return;
+    lastAt.current = feedback.at;
+    setShown(feedback);
+    const timer = setTimeout(() => setShown(null), FLASH_TTL_MS);
     return () => clearTimeout(timer);
-  }, [feedback, at]);
+  }, [feedback]);
 
-  if (!feedback || Date.now() - feedback.at > FLASH_TTL_MS) return null;
+  if (!shown) return null;
   return (
-    <div className="action-feedback-flash" role="status" aria-live="assertive" key={feedback.at}>
-      {feedback.text}
+    <div className="action-feedback-flash" role="status" aria-live="assertive" key={shown.at}>
+      {shown.text}
     </div>
   );
 }
