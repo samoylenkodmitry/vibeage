@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import { setMuted, setVolume } from '../sfx';
+import { setAmbientEnabled } from '../audio/soundscape';
 import { openKeybindCheatsheet } from './keybindBus';
 
 const MUTE_STORAGE_KEY = 'vibeage.sfx.muted';
 const VOLUME_STORAGE_KEY = 'vibeage.sfx.volume';
+const AMBIENT_STORAGE_KEY = 'vibeage.ambient.on';
 const HELP_SEEN_KEY = 'vibeage.help.seen';
+
+function loadAmbientOn(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.localStorage.getItem(AMBIENT_STORAGE_KEY) !== '0';
+}
 
 function loadHelpSeen(): boolean {
   if (typeof window === 'undefined') return true;
@@ -36,6 +43,7 @@ function loadStoredVolume(): number {
 export function SfxMuteButton() {
   const [muted, setMutedState] = useState(loadStoredMute);
   const [volume, setVolumeState] = useState(loadStoredVolume);
+  const [ambientOn, setAmbientOn] = useState(loadAmbientOn);
   const [helpSeen, setHelpSeen] = useState(loadHelpSeen);
   const markHelpSeen = () => {
     setHelpSeen(true);
@@ -57,6 +65,13 @@ export function SfxMuteButton() {
       window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
     }
   }, [volume]);
+
+  useEffect(() => {
+    setAmbientEnabled(ambientOn);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AMBIENT_STORAGE_KEY, ambientOn ? '1' : '0');
+    }
+  }, [ambientOn]);
 
   const icon = muted ? '🔇' : volume < 0.34 ? '🔈' : volume < 0.67 ? '🔉' : '🔊';
   const title = muted
@@ -83,6 +98,16 @@ export function SfxMuteButton() {
         onClick={() => setMutedState((m) => !m)}
       >
         {icon}
+      </button>
+      <button
+        type="button"
+        className={`sfx-mute-button${ambientOn ? '' : ' sfx-mute-button--off'}`}
+        aria-pressed={ambientOn}
+        aria-label={ambientOn ? 'Turn off ambient sound' : 'Turn on ambient sound'}
+        title={ambientOn ? 'Ambient sound on (wind, crickets) — click to mute' : 'Ambient sound off — click to enable'}
+        onClick={() => setAmbientOn((a) => !a)}
+      >
+        🌿
       </button>
       <input
         type="range"
