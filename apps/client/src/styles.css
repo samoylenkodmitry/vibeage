@@ -5685,3 +5685,7 @@ button.character-option {
 @media (prefers-reduced-motion: reduce) {
   .action-feedback-flash { animation: none; opacity: 1; }
 }
+
+/* Ambient-sound toggle (the 🌿 button) reads dimmed when off. */
+.sfx-mute-button--off { opacity: 0.4; }
+.sfx-mute-button--off:hover { opacity: 0.7; }

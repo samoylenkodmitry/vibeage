@@ -1,4 +1,5 @@
 import type { GameClientState, PlayerEntity } from '../gameTypes';
+import { AmbientSoundBridge } from './AmbientSoundBridge';
 import { AutoAttackChip } from './AutoAttackChip';
 import { BossDefeatBanner } from './BossDefeatBanner';
 import { BossEncounterBanner } from './BossEncounterBanner';
@@ -40,6 +41,7 @@ export function HudOverlays({ state, player }: HudOverlaysProps) {
   return (
     <>
       <SfxMuteButton />
+      <AmbientSoundBridge />
       <KeybindCheatsheet />
       <CombatSfxBridge enemies={state.enemies} visualEvents={state.visualEvents} />
       <BossEncounterBanner enemies={state.enemies} />
