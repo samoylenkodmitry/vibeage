@@ -207,6 +207,20 @@ export interface PlayerState {
   socketId: string;
   accountId?: string;
   accountLogin?: string;
+  /**
+   * DB row id to persist into, when it differs from the runtime `id`. Set when
+   * a transient guest is promoted to a saved character in place (Become): the
+   * runtime `id` stays `player-<hash>` (re-keying the live map/spatial is
+   * risky), but `persistPlayer` writes to this real row id.
+   */
+  persistentId?: string;
+  /**
+   * Set when a guest has been Become'd but its character row hasn't been
+   * inserted yet (the first insert failed, e.g. a DB hiccup). The persist loop
+   * retries the insert until it succeeds, so a transient failure can't silently
+   * drop the carried-forward progress. Cleared once `persistentId` is set.
+   */
+  pendingPersistentInsert?: boolean;
   isGm?: boolean;
   name: string;
   position: { x: number; y: number; z: number };

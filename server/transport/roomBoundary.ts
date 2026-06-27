@@ -18,6 +18,7 @@ export const WORLD_CLIENT_COMMAND_TYPES = [
   'CastReq',
   'LearnSkill',
   'SelectClass',
+  'BecomeCharacter',
   'SelectRace',
   'RespawnRequest',
   'LootPickup',

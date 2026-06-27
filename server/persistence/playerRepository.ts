@@ -39,6 +39,12 @@ type PersistenceDatabase = Pick<typeof database, 'insertInto' | 'updateTable' | 
 export interface PlayerRepository {
   upsertSession(socketId: string, name: string, loginTime: Date, accountId?: string): Promise<Selectable<PlayersTable> | null>;
   updatePlayer(playerId: string, data: StablePlayerPersistenceData): Promise<void>;
+  /**
+   * Insert a brand-new character row on an account, seeded with full stable
+   * state (used by Become to carry a guest's progress forward). Returns the
+   * generated row id. Throws on the unique (account_id, name) violation.
+   */
+  insertPlayerForAccount(accountId: string, name: string, data: StablePlayerPersistenceData): Promise<{ id: string }>;
   insertServerEvent(eventType: string, playerId: string | null, eventData: unknown, timestamp: number): Promise<void>;
 }
 
@@ -69,6 +75,20 @@ function createKyselyPlayerRepository(db: PersistenceDatabase): PlayerRepository
       } finally {
         runtimeMetrics.recordHistogram('db.updatePlayer.durationMs', performance.now() - startedAt);
       }
+    },
+
+    async insertPlayerForAccount(accountId, name, data) {
+      const row = await db
+        .insertInto('players')
+        .values({
+          ...toPlayerPersistencePatch(data),
+          account_id: accountId,
+          name,
+          last_login: new Date(),
+        } as Insertable<PlayersTable>)
+        .returning(['id'])
+        .executeTakeFirstOrThrow();
+      return { id: row.id };
     },
 
     async insertServerEvent(eventType, playerId, eventData, timestamp) {

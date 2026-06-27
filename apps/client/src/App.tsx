@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
 import { AwakeningPanel } from './AwakeningPanel';
-import { hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
+import { createCharacter, hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
+import { becomeCharacter, type BecomeInput } from './onboarding';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
 import { listActiveQuestMarkers } from './hud/questMarkers';
@@ -96,16 +97,18 @@ function InstantWorldLoader() {
 // first connection attempt has ended back at `idle`. No web form, ever.
 function EntryView({
   onEnter,
+  onBecome,
   onLogout,
   hasAttempted,
 }: {
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  onBecome: (input: BecomeInput) => Promise<{ ok: boolean; error?: string }>;
   onLogout: () => void;
   hasAttempted: boolean;
 }) {
   const session = loadSession();
   if ((session && !session.character) || hasAttempted) {
-    return <AwakeningPanel initialSession={session} onEnter={onEnter} onLogout={onLogout} />;
+    return <AwakeningPanel initialSession={session} onEnter={onEnter} onBecome={onBecome} onLogout={onLogout} />;
   }
   return <InstantWorldLoader />;
 }
@@ -115,11 +118,10 @@ function EntryView({
 function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
   const [isGuest, setIsGuest] = useState(() => !hasSavedSession());
   const [showAwakening, setShowAwakening] = useState(false);
-  const { connect } = client;
-  // Single entry point shared by the lobby and the Awakening panel: persist the
-  // session WITH the chosen hero (so the next visit drops straight back into it,
-  // no web form), leave guest mode, and connect. Depends only on the stable
-  // `connect` so it isn't rebuilt every render.
+  const { connect, becomeCharacter: sendBecome } = client;
+  // Single entry point shared by the panel's Return/roster: persist the session
+  // WITH the chosen hero (so the next visit drops straight back into it, no web
+  // form), leave guest mode, and connect (reconnect as that saved hero).
   const enterWorld = useCallback((character: SavedCharacter, session: LobbySession) => {
     saveSession({ token: session.token, login: session.login, character });
     setIsGuest(false);
@@ -130,6 +132,28 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
       sessionToken: session.token,
     });
   }, [connect]);
+  // Become: authenticate, then — if we're an in-world guest — promote in place
+  // so the trial's progress carries into the saved hero (no reconnect). If
+  // we're not currently a live guest (rare: a disconnected/pre-connection
+  // state), fall back to creating a fresh character and connecting into it.
+  const handleBecome = useCallback(async (input: BecomeInput): Promise<{ ok: boolean; error?: string }> => {
+    const outcome = await becomeCharacter(input);
+    if (!outcome.ok || !outcome.character || !outcome.session) {
+      return { ok: false, error: outcome.error };
+    }
+    const { character, session } = outcome;
+    if (client.state.connectionState === 'online') {
+      sendBecome({ name: character.name, race: character.race, className: character.className, sessionToken: session.token });
+      saveSession({ token: session.token, login: session.login, character });
+      setIsGuest(false);
+      setShowAwakening(false);
+      return { ok: true };
+    }
+    const created = await createCharacter(session.token, character);
+    if (!created.ok) return { ok: false, error: created.error };
+    enterWorld(character, session);
+    return { ok: true };
+  }, [client, sendBecome, enterWorld]);
   // Logging out drops the player back to a Nameless guest: clear the saved
   // session and reconnect anonymously, all without leaving the world.
   const handleLogout = useCallback(() => {
@@ -138,7 +162,7 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
     setShowAwakening(false);
     connect('Nameless');
   }, [connect]);
-  return { isGuest, showAwakening, setShowAwakening, enterWorld, handleLogout };
+  return { isGuest, showAwakening, setShowAwakening, enterWorld, handleBecome, handleLogout };
 }
 
 // True once we've *attempted* the first connection (left `idle`). The auto-join
@@ -165,6 +189,7 @@ function IdentityLayer({
   onOpen,
   onClose,
   onEnter,
+  onBecome,
   onLogout,
 }: {
   isGuest: boolean;
@@ -173,6 +198,7 @@ function IdentityLayer({
   onOpen: () => void;
   onClose: () => void;
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  onBecome: (input: BecomeInput) => Promise<{ ok: boolean; error?: string }>;
   onLogout: () => void;
 }) {
   // Read the saved session only when the identity actually changes (isGuest
@@ -196,6 +222,7 @@ function IdentityLayer({
         <AwakeningPanel
           initialSession={heroSession}
           onEnter={onEnter}
+          onBecome={onBecome}
           onClose={onClose}
           onLogout={onLogout}
         />
@@ -216,7 +243,7 @@ export default function App() {
   useRehydrateTrackedQuest(client.setTrackedQuest);
   useWorldChunkPrefetch();
   useAutoEnter(client);
-  const { isGuest, showAwakening, setShowAwakening, enterWorld, handleLogout } = useGuestAwakening(client);
+  const { isGuest, showAwakening, setShowAwakening, enterWorld, handleBecome, handleLogout } = useGuestAwakening(client);
   const hasAttempted = useHasAttempted(state.connectionState);
 
   // Move action: walk to the selected target if any, else to the map
@@ -235,7 +262,7 @@ export default function App() {
   const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
-    return <EntryView onEnter={enterWorld} onLogout={handleLogout} hasAttempted={hasAttempted} />;
+    return <EntryView onEnter={enterWorld} onBecome={handleBecome} onLogout={handleLogout} hasAttempted={hasAttempted} />;
   }
 
   return (
@@ -292,6 +319,7 @@ export default function App() {
         onOpen={() => setShowAwakening(true)}
         onClose={() => setShowAwakening(false)}
         onEnter={enterWorld}
+        onBecome={handleBecome}
         onLogout={handleLogout}
       />
       {state.connectionState !== 'online' && (

@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { RaceClassPicker } from './RaceClassPicker';
 import { authenticate, type LobbySession, type SavedCharacter } from './accountSession';
-import { becomeCharacter, firstAllowedClass, isValidIdentityName } from './onboarding';
+import { firstAllowedClass, isValidIdentityName, type BecomeInput } from './onboarding';
 import { HeroRoster } from './HeroRoster';
 import type { CharacterClass } from '../../../packages/content/classes';
 import type { CharacterRace } from '../../../packages/content/races';
@@ -23,11 +23,13 @@ import type { CharacterRace } from '../../../packages/content/races';
 export function AwakeningPanel({
   initialSession = null,
   onEnter,
+  onBecome,
   onClose,
   onLogout,
 }: {
   initialSession?: LobbySession | null;
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  onBecome: (input: BecomeInput) => Promise<{ ok: boolean; error?: string }>;
   onClose?: () => void;
   onLogout: () => void;
 }) {
@@ -66,7 +68,7 @@ export function AwakeningPanel({
                 onClick={() => setMode('return')}
               >Return to a hero</button>
             </div>
-            {mode === 'become' ? <BecomeForm onEnter={onEnter} /> : <ReturnForm onAuthed={setSession} />}
+            {mode === 'become' ? <BecomeForm onBecome={onBecome} /> : <ReturnForm onAuthed={setSession} />}
           </>
         )}
       </section>
@@ -74,7 +76,7 @@ export function AwakeningPanel({
   );
 }
 
-function BecomeForm({ onEnter }: { onEnter: (character: SavedCharacter, session: LobbySession) => void }) {
+function BecomeForm({ onBecome }: { onBecome: (input: BecomeInput) => Promise<{ ok: boolean; error?: string }> }) {
   const [name, setName] = useState('');
   const [race, setRace] = useState<CharacterRace>('human');
   const [className, setClassName] = useState<CharacterClass>(firstAllowedClass('human'));
@@ -91,15 +93,19 @@ function BecomeForm({ onEnter }: { onEnter: (character: SavedCharacter, session:
     if (!valid || busy) return;
     setBusy(true);
     setError(null);
-    const outcome = await becomeCharacter({ login, password, name, race, className });
-    if (!outcome.ok) {
-      setError(outcome.error);
+    try {
+      const result = await onBecome({ login, password, name, race, className });
+      if (!result.ok) {
+        setError(result.error ?? 'Could not awaken — try again.');
+        setBusy(false);
+        return;
+      }
+      // Success: the live guest becomes this hero in place (no reconnect), the
+      // session is saved, and the panel unmounts — leave `busy` set.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not awaken — try again.');
       setBusy(false);
-      return;
     }
-    // onEnter reconnects as the new hero and unmounts the panel, so we
-    // deliberately leave `busy` set — the inputs vanish before the next paint.
-    onEnter(outcome.character, outcome.session);
   }
 
   return (

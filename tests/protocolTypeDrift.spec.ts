@@ -36,6 +36,7 @@ const CLIENT_MESSAGE_TYPES: Record<ClientMessage['type'], true> = {
   CastReq: true,
   LearnSkill: true,
   SelectClass: true,
+  BecomeCharacter: true,
   SelectRace: true,
   RespawnRequest: true,
   LootPickup: true,

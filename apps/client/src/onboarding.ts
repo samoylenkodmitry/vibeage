@@ -2,7 +2,7 @@ import type { CharacterClass } from '../../../packages/content/classes';
 import { isClassAllowedForRace, RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
 import {
   authenticate,
-  createCharacter,
+  fetchRoster,
   type FetchFn,
   type LobbySession,
   type SavedCharacter,
@@ -34,7 +34,7 @@ export type BecomeOutcome = {
   character?: SavedCharacter;
   session?: LobbySession;
   error?: string;
-  stage?: 'validate' | 'auth' | 'create';
+  stage?: 'validate' | 'auth' | 'nameTaken';
 };
 
 export function firstAllowedClass(race: CharacterRace): CharacterClass {
@@ -51,6 +51,14 @@ export function isValidIdentityName(name: string): boolean {
   return trimmed.length >= 1 && trimmed.length <= 24 && /^[A-Za-z0-9._-]+$/.test(trimmed);
 }
 
+/**
+ * Authenticate + clear the way for an in-place Become. Unlike the old flow,
+ * this does NOT create a character over HTTP — the caller sends the in-world
+ * `BecomeCharacter` command, which promotes the live guest in place and carries
+ * its progress forward. Here we just register/login and, for an existing
+ * account, make sure the chosen hero name isn't already taken (a fresh register
+ * has no heroes, so we skip the round-trip).
+ */
 export async function becomeCharacter(input: BecomeInput, fetchFn: FetchFn = fetch): Promise<BecomeOutcome> {
   const name = input.name.trim();
   if (!isValidIdentityName(name)) {
@@ -65,13 +73,18 @@ export async function becomeCharacter(input: BecomeInput, fetchFn: FetchFn = fet
     return { ok: false, error: auth.error ?? 'Authentication failed', stage: 'auth' };
   }
 
-  const created = await createCharacter(
-    auth.session.token,
-    { name, race: input.race, className: input.className },
-    fetchFn,
-  );
-  if (!created.ok) {
-    return { ok: false, error: created.error, stage: 'create' };
+  if (!auth.created) {
+    let roster: Awaited<ReturnType<typeof fetchRoster>>;
+    try {
+      roster = await fetchRoster(auth.session.token, fetchFn);
+    } catch (err) {
+      // A roster fetch failure must resolve (not throw) — otherwise the panel's
+      // submit handler never clears its "Awakening…" busy state.
+      return { ok: false, error: err instanceof Error ? err.message : 'Network error', stage: 'auth' };
+    }
+    if (roster !== 'unauthorized' && roster.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      return { ok: false, error: 'You already have a hero with that name.', stage: 'nameTaken' };
+    }
   }
 
   return {

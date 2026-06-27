@@ -60,7 +60,9 @@ export function hasSavedSession(): boolean {
 // with strictNullChecks off, where `if (!x.ok)` does not narrow a union, so
 // every consumer would hit TS2339 reaching for `.error`. Optional fields keep
 // the call sites simple and honest under the project's compiler settings.
-export type AuthOutcome = { ok: boolean; session?: LobbySession; error?: string };
+// `created` is true when the login registered a brand-new account (vs logging
+// into an existing one) — Become uses it to skip the name-collision pre-check.
+export type AuthOutcome = { ok: boolean; session?: LobbySession; created?: boolean; error?: string };
 
 /**
  * Single-button auth against POST /api/auth: registers a brand-new login,
@@ -81,11 +83,11 @@ export async function authenticate(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Network error' };
   }
-  const body = (await res.json().catch(() => ({}))) as { token?: string; login?: string; error?: string };
+  const body = (await res.json().catch(() => ({}))) as { token?: string; login?: string; created?: boolean; error?: string };
   if (!res.ok || !body.token) {
     return { ok: false, error: humanReadableAuthError(body.error, res.status) };
   }
-  return { ok: true, session: { token: body.token, login: body.login ?? login } };
+  return { ok: true, session: { token: body.token, login: body.login ?? login }, created: Boolean(body.created) };
 }
 
 export async function fetchRoster(
