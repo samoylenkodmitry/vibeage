@@ -38,6 +38,64 @@ function LazyWorldScene(props: ComponentProps<typeof WorldScene>) {
   );
 }
 
+const SESSION_KEY = 'vibeage:session';
+function hasSavedSession(): boolean {
+  try {
+    return typeof window !== 'undefined' && Boolean(window.localStorage.getItem(SESSION_KEY));
+  } catch {
+    return false;
+  }
+}
+
+// Instant world: a brand-new visitor (no saved session) is joined as a Nameless
+// guest the instant the page loads — no lobby, no login wall. The server spawns
+// a transient guest for the tokenless join; from inside the world they later
+// pick race/class/name ("Become") or log in ("Return"). Runs once on mount.
+function useInstantGuestJoin(client: ReturnType<typeof useGameClient>): void {
+  useEffect(() => {
+    if (client.state.connectionState === 'idle' && !hasSavedSession()) {
+      client.connect('Nameless');
+    }
+    // Once-on-mount: a fresh visitor enters instantly.
+  }, [client]);
+}
+
+// While the guest connection + world chunk stream in (a beat), show a loader,
+// never a form — the whole onboarding happens in-world.
+function InstantWorldLoader() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+        background: '#0b1020', color: '#e8eaf2', letterSpacing: '0.04em',
+      }}
+    >
+      <strong style={{ fontSize: '2rem', letterSpacing: '0.18em' }}>VibeAge</strong>
+      <span style={{ opacity: 0.65 }}>Awakening…</span>
+    </div>
+  );
+}
+
+// Pre-connection screen. A returning visitor (saved session) still goes through
+// the lobby for now; a new visitor sees only the loader while they auto-join.
+function EntryView({ client }: { client: ReturnType<typeof useGameClient> }) {
+  if (!hasSavedSession()) return <InstantWorldLoader />;
+  return (
+    <Lobby
+      onEnter={(character, session) => {
+        client.connect(character.name, {
+          race: character.race,
+          className: character.className,
+          sessionToken: session.token,
+        });
+      }}
+    />
+  );
+}
+
 export default function App() {
   const client = useGameClient();
   const { state } = client;
@@ -49,6 +107,7 @@ export default function App() {
 
   useRehydrateTrackedQuest(client.setTrackedQuest);
   useWorldChunkPrefetch();
+  useInstantGuestJoin(client);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -66,21 +125,7 @@ export default function App() {
   const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
-    return (
-      <Lobby
-        onEnter={(character, session) => {
-          // World join verifies the session token + looks up the
-          // character by (accountId, name). race/className aren't
-          // applied on the join path anymore (character row was
-          // created by the lobby's POST), but kept for back-compat.
-          client.connect(character.name, {
-            race: character.race,
-            className: character.className,
-            sessionToken: session.token,
-          });
-        }}
-      />
-    );
+    return <EntryView client={client} />;
   }
 
   return (

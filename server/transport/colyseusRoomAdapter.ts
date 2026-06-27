@@ -78,17 +78,19 @@ export class ColyseusAuthoritativeRoomAdapter {
     // accidentally let an unauthenticated socket spawn a player.
     const session = options.sessionToken ? verifySessionToken(options.sessionToken) : null;
     if (!session) {
-      client.send(SOCKET_SESSION_EVENTS.connectionRejected, {
-        reason: 'unauthorized',
-        message: 'Please log in to enter the world.',
-      });
-      runtimeMetrics.increment('room.joinRejected.unauthorized');
-      void recordAuthAuditEvent({
-        type: 'ownership.suspicious',
-        characterName: playerName,
-        reason: options.sessionToken ? 'invalidToken' : 'missingToken',
-      });
-      throw new Error('Rejected join: missing or invalid session token');
+      // Instant-world onboarding: no valid token → enter as a transient
+      // "Nameless" guest. They Become (pick race/class/name) or Return (log in)
+      // from inside the world. A guest is never persisted and is scoped to its
+      // own socket — it can't read or touch any real account/character — so an
+      // unauthenticated join is cheap and griefer-bounded.
+      const result = await this.port.joinClient(
+        client.sessionId,
+        playerName,
+        makeColyseusClient(client),
+        { guest: true },
+      );
+      runtimeMetrics.increment('room.joins.guest');
+      return result;
     }
     let accountLogin: string | undefined;
     try {
