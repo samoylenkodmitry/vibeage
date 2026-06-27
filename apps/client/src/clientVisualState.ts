@@ -58,10 +58,9 @@ export function applyCastRejected(
   now: number,
 ): GameClientState {
   const text = castFailCopy(message.reason);
-  return addCombatLine(
-    state,
-    { id: makeCombatLineId(`fail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now), text, tone: 'fail' },
-  );
+  const id = makeCombatLineId(`fail-${message.requestId ?? 'n'}-${message.reason}`, state.combatLog.length, now);
+  // Flash it prominently above the action bar too — the combat log is easy to miss.
+  return { ...addCombatLine(state, { id, text, tone: 'fail' }), actionFeedback: { text, at: now } };
 }
 
 function castFailCopy(reason: string): string {

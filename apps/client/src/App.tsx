@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
+import { ActionFeedbackFlash } from './hud/ActionFeedbackFlash';
 import { AwakeningPanel } from './AwakeningPanel';
 import { createCharacter, hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
 import { becomeCharacter, type BecomeInput } from './onboarding';
@@ -322,6 +323,7 @@ export default function App() {
         onBecome={handleBecome}
         onLogout={handleLogout}
       />
+      <ActionFeedbackFlash feedback={state.actionFeedback} />
       {state.connectionState !== 'online' && (
         <div className="joining-overlay" role="status">
           <strong>{state.message}</strong>
