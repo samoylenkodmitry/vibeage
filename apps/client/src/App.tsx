@@ -93,17 +93,17 @@ function InstantWorldLoader() {
 // Pre-connection screen. On the first load we show only the loader while we
 // auto-enter (straight into a remembered hero, or as a guest). We fall back to
 // the lobby — to pick a hero, switch, log out, or manage the account — only
-// when there's a session with no remembered hero, or after the player has been
-// in the world and disconnected (`hasEntered`).
+// when there's a session with no remembered hero, or after a first connection
+// attempt has ended back at `idle` (manual disconnect, or a failed connect).
 function EntryView({
   onEnter,
-  hasEntered,
+  hasAttempted,
 }: {
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
-  hasEntered: boolean;
+  hasAttempted: boolean;
 }) {
   const session = loadSession();
-  if ((session && !session.character) || hasEntered) return <Lobby onEnter={onEnter} />;
+  if ((session && !session.character) || hasAttempted) return <Lobby onEnter={onEnter} />;
   return <InstantWorldLoader />;
 }
 
@@ -130,16 +130,18 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
   return { isGuest, showAwakening, setShowAwakening, enterWorld };
 }
 
-// Once the player has been online, a later `idle` means a manual disconnect —
-// the entry view then shows the lobby (re-enter / switch hero / log out)
-// instead of the auto-entry loader, which would otherwise hang (the auto-join
-// fires only once).
-function useHasEntered(connectionState: ReturnType<typeof useGameClient>['state']['connectionState']): boolean {
-  const [hasEntered, setHasEntered] = useState(false);
+// True once we've *attempted* the first connection (left `idle`). The auto-join
+// fires only once, so if that first attempt drops back to `idle` — a manual
+// disconnect OR a failed connect — the entry view must show the lobby (re-enter
+// / switch hero / log out) rather than the auto-entry loader, which would
+// otherwise hang forever. Keying on "attempted" (not "reached online") covers
+// the failed-connect case too.
+function useHasAttempted(connectionState: ReturnType<typeof useGameClient>['state']['connectionState']): boolean {
+  const [attempted, setAttempted] = useState(false);
   useEffect(() => {
-    if (connectionState === 'online') setHasEntered(true);
+    if (connectionState !== 'idle') setAttempted(true);
   }, [connectionState]);
-  return hasEntered;
+  return attempted;
 }
 
 // In-world onboarding affordance: a floating "Awaken" prompt over the live HUD
@@ -186,7 +188,7 @@ export default function App() {
   useWorldChunkPrefetch();
   useAutoEnter(client);
   const { isGuest, showAwakening, setShowAwakening, enterWorld } = useGuestAwakening(client);
-  const hasEntered = useHasEntered(state.connectionState);
+  const hasAttempted = useHasAttempted(state.connectionState);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -204,7 +206,7 @@ export default function App() {
   const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
-    return <EntryView onEnter={enterWorld} hasEntered={hasEntered} />;
+    return <EntryView onEnter={enterWorld} hasAttempted={hasAttempted} />;
   }
 
   return (
