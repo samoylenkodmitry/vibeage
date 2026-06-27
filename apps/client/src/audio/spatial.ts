@@ -68,4 +68,12 @@ export function playSpatial(
   panner.pan.value = spatialPanFor(dx, dz, listener.yaw);
   gain.connect(panner).connect(master);
   build(ctx, gain);
+  // The per-voice sources tear themselves down on `ended`, but these wrapper
+  // nodes stay connected to the master bus (and thus alive) until we drop them.
+  // Every voice is well under a second; disconnect a beat after the longest one.
+  setTimeout(() => {
+    try { gain.disconnect(); panner.disconnect(); } catch { /* already gone */ }
+  }, VOICE_TEARDOWN_MS);
 }
+
+const VOICE_TEARDOWN_MS = 1500;
