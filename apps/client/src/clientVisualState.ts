@@ -89,11 +89,11 @@ export function applyInventoryRejectedVisualState(
   message: ServerMessage & { type: 'CommandRejected' },
   now: number,
 ): GameClientState {
-  return addCombatLine(state, {
-    id: makeCombatLineId(`invreject-${message.commandType}-${message.reason}-${message.requestId ?? 'n'}`, state.combatLog.length, now),
-    text: inventoryActionFailCopy(message.commandType, message.reason),
-    tone: 'fail',
-  });
+  const text = inventoryActionFailCopy(message.commandType, message.reason);
+  const id = makeCombatLineId(`invreject-${message.commandType}-${message.reason}-${message.requestId ?? 'n'}`, state.combatLog.length, now);
+  // Flash it above the action bar too (same as cast failures) — "can't afford",
+  // "bag full", "need to be closer" are all "why did nothing happen?" moments.
+  return { ...addCombatLine(state, { id, text, tone: 'fail' }), actionFeedback: { text, at: now } };
 }
 
 function inventoryActionFailCopy(commandType: string, reason: string): string {
