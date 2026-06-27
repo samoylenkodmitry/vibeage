@@ -15,6 +15,12 @@ type JoinClientOptions = {
   accountId?: string;
   /** Authenticated account login; server-only, used for GM allowlist checks. */
   accountLogin?: string;
+  /**
+   * Sessionless "Nameless" guest join (instant-world onboarding): no token, no
+   * account. Always a transient player even when persistence is on — nothing is
+   * saved until they bind an account in-world. See playerSession.addPlayerSession.
+   */
+  guest?: boolean;
 };
 
 export type SocketBackedWorldApi = {

@@ -293,6 +293,12 @@ export type AddPlayerSessionOptions = {
   accountId?: string;
   /** Authenticated account login; server-only, used for GM allowlist checks. */
   accountLogin?: string;
+  /**
+   * Sessionless "Nameless" guest (instant-world onboarding). Always a transient
+   * player even when persistence is on — never touches the DB and never needs a
+   * pre-created character. Nothing persists until they bind an account in-world.
+   */
+  guest?: boolean;
 };
 
 class CharacterNotFoundError extends Error {
@@ -347,7 +353,7 @@ export async function addPlayerSession(
     applySessionAccount(applyInitialIdentity(createTransientPlayer(socketId, name), options), options),
   );
 
-  if (isPersistenceDisabled()) {
+  if (isPersistenceDisabled() || options.guest) {
     return addTransientPlayer();
   }
 
