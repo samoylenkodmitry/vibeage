@@ -63,4 +63,18 @@ test('a Nameless guest Becomes a chosen hero — all in-world, no login wall', a
       && s.playerClass === 'ranger';
   }, undefined, { timeout: 25_000 });
   await expect(page.getByRole('button', { name: /Awaken to claim your fate/ })).toHaveCount(0);
+
+  // A returning visit drops straight back into the chosen hero — no web form,
+  // no lobby, no Awaken prompt. The hero was remembered in the session.
+  await page.reload();
+  await expect(page.locator('#root canvas')).toBeVisible({ timeout: 30_000 });
+  await page.waitForFunction(() => {
+    const s = window.__VIBEAGE_VITE_E2E__?.getState();
+    return s?.connectionState === 'online'
+      && s.playerName === 'Arinthel'
+      && s.playerRace === 'elf'
+      && s.playerClass === 'ranger';
+  }, undefined, { timeout: 25_000 });
+  await expect(page.getByRole('button', { name: 'Enter World' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Awaken to claim your fate/ })).toHaveCount(0);
 });

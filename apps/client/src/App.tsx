@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type Componen
 import { GameHud } from './Hud';
 import { Lobby } from './Lobby';
 import { AwakeningPanel } from './AwakeningPanel';
-import { hasSavedSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
+import { hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
 import { listActiveQuestMarkers } from './hud/questMarkers';
@@ -40,24 +40,34 @@ function LazyWorldScene(props: ComponentProps<typeof WorldScene>) {
   );
 }
 
-// Instant world: a brand-new visitor (no saved session) is joined as a Nameless
-// guest the instant the page loads — no lobby, no login wall. The server spawns
-// a transient guest for the tokenless join; from inside the world they later
-// pick race/class/name ("Become") or log in ("Return").
+// Instant world: on the first page load we connect immediately — no lobby, no
+// login wall. A returning player with a remembered hero drops straight into it;
+// everyone else enters as a Nameless guest and picks an identity in-world.
 //
-// The ref makes this a strict once-ever join: without it, a guest who hits
-// Disconnect drops to `idle` and (still session-less) would be auto-rejoined
-// on the spot — an unbreakable reconnect loop. roomConnection owns its own
-// reconnect on transient drops, so we only need to seed the very first join.
-function useInstantGuestJoin(client: ReturnType<typeof useGameClient>): void {
+// The ref makes this a strict once-ever auto-join: without it, a player who
+// hits Disconnect drops to `idle` and would be auto-rejoined on the spot — an
+// unbreakable loop. roomConnection owns reconnect on transient drops, so we
+// only seed the very first entry; a manual disconnect lands on the lobby.
+function useAutoEnter(client: ReturnType<typeof useGameClient>): void {
   const hasJoinedRef = useRef(false);
   const { connect, state: { connectionState } } = client;
   useEffect(() => {
     if (hasJoinedRef.current) return;
-    if (connectionState === 'idle' && !hasSavedSession()) {
+    if (connectionState !== 'idle') return;
+    const session = loadSession();
+    if (session?.character) {
+      hasJoinedRef.current = true;
+      connect(session.character.name, {
+        race: session.character.race,
+        className: session.character.className,
+        sessionToken: session.token,
+      });
+    } else if (!session) {
       hasJoinedRef.current = true;
       connect('Nameless');
     }
+    // A session with a token but no remembered hero (just logged in, or a
+    // legacy save) falls through to the lobby to pick / create a character.
   }, [connect, connectionState]);
 }
 
@@ -80,11 +90,21 @@ function InstantWorldLoader() {
   );
 }
 
-// Pre-connection screen. A returning visitor (saved session) still goes through
-// the lobby for now; a new visitor sees only the loader while they auto-join.
-function EntryView({ onEnter }: { onEnter: (character: SavedCharacter, session: LobbySession) => void }) {
-  if (!hasSavedSession()) return <InstantWorldLoader />;
-  return <Lobby onEnter={onEnter} />;
+// Pre-connection screen. On the first load we show only the loader while we
+// auto-enter (straight into a remembered hero, or as a guest). We fall back to
+// the lobby — to pick a hero, switch, log out, or manage the account — only
+// when there's a session with no remembered hero, or after the player has been
+// in the world and disconnected (`hasEntered`).
+function EntryView({
+  onEnter,
+  hasEntered,
+}: {
+  onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  hasEntered: boolean;
+}) {
+  const session = loadSession();
+  if ((session && !session.character) || hasEntered) return <Lobby onEnter={onEnter} />;
+  return <InstantWorldLoader />;
 }
 
 // A fresh visitor with no saved session plays as the Nameless guest until the
@@ -94,10 +114,11 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
   const [showAwakening, setShowAwakening] = useState(false);
   const { connect } = client;
   // Single entry point shared by the lobby and the Awakening panel: persist the
-  // session, leave guest mode, and connect as the chosen hero. Depends only on
-  // the stable `connect` so it isn't rebuilt every render.
+  // session WITH the chosen hero (so the next visit drops straight back into it,
+  // no web form), leave guest mode, and connect. Depends only on the stable
+  // `connect` so it isn't rebuilt every render.
   const enterWorld = useCallback((character: SavedCharacter, session: LobbySession) => {
-    saveSession(session);
+    saveSession({ token: session.token, login: session.login, character });
     setIsGuest(false);
     setShowAwakening(false);
     connect(character.name, {
@@ -107,6 +128,18 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
     });
   }, [connect]);
   return { isGuest, showAwakening, setShowAwakening, enterWorld };
+}
+
+// Once the player has been online, a later `idle` means a manual disconnect —
+// the entry view then shows the lobby (re-enter / switch hero / log out)
+// instead of the auto-entry loader, which would otherwise hang (the auto-join
+// fires only once).
+function useHasEntered(connectionState: ReturnType<typeof useGameClient>['state']['connectionState']): boolean {
+  const [hasEntered, setHasEntered] = useState(false);
+  useEffect(() => {
+    if (connectionState === 'online') setHasEntered(true);
+  }, [connectionState]);
+  return hasEntered;
 }
 
 // In-world onboarding affordance: a floating "Awaken" prompt over the live HUD
@@ -151,8 +184,9 @@ export default function App() {
 
   useRehydrateTrackedQuest(client.setTrackedQuest);
   useWorldChunkPrefetch();
-  useInstantGuestJoin(client);
+  useAutoEnter(client);
   const { isGuest, showAwakening, setShowAwakening, enterWorld } = useGuestAwakening(client);
+  const hasEntered = useHasEntered(state.connectionState);
 
   // Move action: walk to the selected target if any, else to the map
   // pin. Sends a raw MoveIntent (no auto-attack), which cleans up
@@ -170,7 +204,7 @@ export default function App() {
   const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
-    return <EntryView onEnter={enterWorld} />;
+    return <EntryView onEnter={enterWorld} hasEntered={hasEntered} />;
   }
 
   return (

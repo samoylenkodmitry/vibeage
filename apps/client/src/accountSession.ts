@@ -11,13 +11,19 @@ import type { CharacterRace } from '../../../packages/content/races';
  * `onboarding.ts` is unit-testable without a real server or DB (the e2e env
  * runs persistence-off, so these endpoints only truly resolve in prod).
  */
-export type LobbySession = { token: string; login: string };
-
 export type SavedCharacter = {
   name: string;
   race: CharacterRace;
   className: CharacterClass;
 };
+
+/**
+ * `character` is the last hero the player entered the world as. When present we
+ * reconnect straight into it on the next visit — no web form, no lobby — which
+ * is the whole point of the in-world flow. Absent for a freshly-minted session
+ * (just logged in, hasn't picked yet) or a legacy session saved before this.
+ */
+export type LobbySession = { token: string; login: string; character?: SavedCharacter };
 
 export type FetchFn = typeof fetch;
 

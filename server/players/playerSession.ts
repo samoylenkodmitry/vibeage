@@ -350,7 +350,10 @@ export async function addPlayerSession(
   const addTransientPlayer = () => upsertActivePlayerSession(
     state,
     spatial,
-    applySessionAccount(applyInitialIdentity(createTransientPlayer(socketId, name), options), options),
+    applySessionAccount(
+      applyInitialIdentity(createTransientPlayer(socketId, name, { guest: options.guest }), options),
+      options,
+    ),
   );
 
   if (isPersistenceDisabled() || options.guest) {

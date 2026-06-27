@@ -35,6 +35,16 @@ export function activeSkillsFor(player: PlayerEntity | null): SkillId[] {
   );
 }
 
+/**
+ * Skills used to seed a fresh action bar. Same as {@link activeSkillsFor},
+ * except a classless Nameless guest (no active skills) seeds the basic Attack
+ * so the bar isn't blank and they can fight from the first slot.
+ */
+export function actionBarSeedSkills(player: PlayerEntity | null): SkillId[] {
+  const active = activeSkillsFor(player);
+  return active.length > 0 ? active : [BASIC_ATTACK_SKILL_ID];
+}
+
 function isUniversalSkill(skillId: string): boolean {
   return (UNIVERSAL_SKILLS as readonly string[]).includes(skillId);
 }
