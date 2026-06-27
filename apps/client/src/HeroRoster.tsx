@@ -64,21 +64,7 @@ export function HeroRoster({
       {characters?.length === 0 && <p className="lobby-empty">No heroes yet. Create one to begin.</p>}
       <ul className="lobby-list">
         {(characters ?? []).map((c) => (
-          <li key={c.name} className="lobby-card">
-            <div className="lobby-card-main">
-              <strong>{c.name}</strong>
-              <small>{RACE_PROFILES[c.race]?.name ?? c.race} · {c.className}</small>
-            </div>
-            <div className="lobby-card-actions">
-              <button type="button" onClick={() => onEnter(c, session)}>Enter</button>
-              <button
-                type="button"
-                className="lobby-card-delete"
-                onClick={async () => { await deleteCharacter(session.token, c.name); void refresh(); }}
-                title="Delete hero"
-              >Delete</button>
-            </div>
-          </li>
+          <HeroCard key={c.name} character={c} session={session} onEnter={onEnter} onDeleted={() => void refresh()} />
         ))}
       </ul>
       <button type="button" className="lobby-create" onClick={() => setCreating(true)}>+ Create New Hero</button>
@@ -91,6 +77,66 @@ export function HeroRoster({
         <DeleteAccountButton session={session} onDeleted={onLogout} />
       </div>
     </div>
+  );
+}
+
+// A single hero in the roster: Enter, or a two-step Delete (one click arms a
+// "Confirm?" state for 5s) so a hero — possibly hours of progress — can't be
+// wiped by a stray tap. The delete is guarded; a failure surfaces inline.
+function HeroCard({
+  character,
+  session,
+  onEnter,
+  onDeleted,
+}: {
+  character: SavedCharacter;
+  session: LobbySession;
+  onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  onDeleted: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armed || busy) return;
+    const t = setTimeout(() => setArmed(false), 5_000);
+    return () => clearTimeout(t);
+  }, [armed, busy]);
+
+  const onDelete = async () => {
+    if (!armed) { setArmed(true); setError(null); return; }
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteCharacter(session.token, character.name);
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+      setArmed(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <li className="lobby-card">
+      <div className="lobby-card-main">
+        <strong>{character.name}</strong>
+        <small>{RACE_PROFILES[character.race]?.name ?? character.race} · {character.className}</small>
+        {error && <small className="lobby-error" role="alert">{error}</small>}
+      </div>
+      <div className="lobby-card-actions">
+        <button type="button" onClick={() => onEnter(character, session)}>Enter</button>
+        <button
+          type="button"
+          className={armed ? 'lobby-card-delete lobby-card-delete--armed' : 'lobby-card-delete'}
+          disabled={busy}
+          onClick={onDelete}
+          title="Delete hero"
+        >{busy ? '…' : armed ? 'Confirm?' : 'Delete'}</button>
+      </div>
+    </li>
   );
 }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
 import { AwakeningPanel } from './AwakeningPanel';
 import { hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
@@ -175,6 +175,10 @@ function IdentityLayer({
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
   onLogout: () => void;
 }) {
+  // Read the saved session only when the identity actually changes (isGuest
+  // flips on enter/logout), not on every game-state tick — App re-renders
+  // constantly, and loadSession() is synchronous localStorage I/O + JSON.parse.
+  const heroSession = useMemo(() => (isGuest ? null : loadSession()), [isGuest]);
   if (!online) return null;
   return (
     <>
@@ -190,7 +194,7 @@ function IdentityLayer({
       ))}
       {showAwakening && (
         <AwakeningPanel
-          initialSession={isGuest ? null : loadSession()}
+          initialSession={heroSession}
           onEnter={onEnter}
           onClose={onClose}
           onLogout={onLogout}
