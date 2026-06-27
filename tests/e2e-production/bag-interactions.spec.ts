@@ -10,17 +10,25 @@ test.setTimeout(180_000);
  * directly so we don't depend on CI_AUTH_SECRET being mirrored.
  */
 async function loginAndEnterWorld(page: Page): Promise<void> {
+  // Everything happens in-world now (no web lobby): land as a Nameless guest,
+  // open the identity panel, Return with the a/a account, pick the first hero.
   await page.goto("/");
-  await page.locator("#login-input").fill("a");
-  await page.locator("#password-input").fill("a");
-  await page.getByRole("button", { name: /^Continue$/i }).click();
-  // The character roster appears after auth — pick the first
-  // character on the account and tap Enter World.
-  await page.getByRole("button", { name: /Enter World/i }).first().click();
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });
   await page.waitForFunction(() => {
     const s = window.__VIBEAGE_VITE_E2E__?.getState();
     return s?.connectionState === "online" && Boolean(s.myPlayerId);
+  }, undefined, { timeout: 30_000 });
+  await page.getByRole("button", { name: /Awaken to claim your fate/i }).click();
+  await page.getByRole("button", { name: /Return to a hero/i }).click();
+  await page.locator("#return-login").fill("a");
+  await page.locator("#return-password").fill("a");
+  await page.getByRole("button", { name: /^Continue$/i }).click();
+  // The hero roster appears after auth — enter the first hero on the account.
+  await page.getByRole("button", { name: /^Enter$/i }).first().click();
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 30_000 });
+  // Wait for the real hero (account 'a' is Lv 13) to load, not the guest (Lv 1).
+  await page.waitForFunction(() => {
+    const s = window.__VIBEAGE_VITE_E2E__?.getState();
+    return s?.connectionState === "online" && (s.playerVitals?.level ?? 1) >= 2;
   }, undefined, { timeout: 30_000 });
 }
 
