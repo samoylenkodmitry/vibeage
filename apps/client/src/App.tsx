@@ -1,6 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
-import { Lobby } from './Lobby';
 import { AwakeningPanel } from './AwakeningPanel';
 import { hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
 import type { VecXZ } from '../../../packages/protocol/messages';
@@ -91,19 +90,23 @@ function InstantWorldLoader() {
 }
 
 // Pre-connection screen. On the first load we show only the loader while we
-// auto-enter (straight into a remembered hero, or as a guest). We fall back to
-// the lobby — to pick a hero, switch, log out, or manage the account — only
-// when there's a session with no remembered hero, or after a first connection
-// attempt has ended back at `idle` (manual disconnect, or a failed connect).
+// auto-enter (straight into a remembered hero, or as a guest). We show the
+// in-world identity panel — to pick a hero, switch, log out, or manage the
+// account — only when there's a session with no remembered hero, or after a
+// first connection attempt has ended back at `idle`. No web form, ever.
 function EntryView({
   onEnter,
+  onLogout,
   hasAttempted,
 }: {
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  onLogout: () => void;
   hasAttempted: boolean;
 }) {
   const session = loadSession();
-  if ((session && !session.character) || hasAttempted) return <Lobby onEnter={onEnter} />;
+  if ((session && !session.character) || hasAttempted) {
+    return <AwakeningPanel initialSession={session} onEnter={onEnter} onLogout={onLogout} />;
+  }
   return <InstantWorldLoader />;
 }
 
@@ -127,7 +130,15 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
       sessionToken: session.token,
     });
   }, [connect]);
-  return { isGuest, showAwakening, setShowAwakening, enterWorld };
+  // Logging out drops the player back to a Nameless guest: clear the saved
+  // session and reconnect anonymously, all without leaving the world.
+  const handleLogout = useCallback(() => {
+    saveSession(null);
+    setIsGuest(true);
+    setShowAwakening(false);
+    connect('Nameless');
+  }, [connect]);
+  return { isGuest, showAwakening, setShowAwakening, enterWorld, handleLogout };
 }
 
 // True once we've *attempted* the first connection (left `idle`). The auto-join
@@ -144,15 +155,17 @@ function useHasAttempted(connectionState: ReturnType<typeof useGameClient>['stat
   return attempted;
 }
 
-// In-world onboarding affordance: a floating "Awaken" prompt over the live HUD
-// and, when opened, the Awakening panel. Renders nothing for real heroes.
-function GuestAwakeningLayer({
+// In-world identity affordance over the live HUD: a glowing "Awaken" prompt for
+// a Nameless guest, or a quiet "Heroes" button for a logged-in hero — both open
+// the one identity panel (guest → Become/Return; hero → roster + account).
+function IdentityLayer({
   isGuest,
   online,
   showAwakening,
   onOpen,
   onClose,
   onEnter,
+  onLogout,
 }: {
   isGuest: boolean;
   online: boolean;
@@ -160,17 +173,33 @@ function GuestAwakeningLayer({
   onOpen: () => void;
   onClose: () => void;
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
+  onLogout: () => void;
 }) {
-  if (!isGuest) return null;
+  // Read the saved session only when the identity actually changes (isGuest
+  // flips on enter/logout), not on every game-state tick — App re-renders
+  // constantly, and loadSession() is synchronous localStorage I/O + JSON.parse.
+  const heroSession = useMemo(() => (isGuest ? null : loadSession()), [isGuest]);
+  if (!online) return null;
   return (
     <>
-      {online && !showAwakening && (
+      {!showAwakening && (isGuest ? (
         <button type="button" className="awaken-cta" onClick={onOpen}>
           <span className="awaken-cta-spark" aria-hidden="true">✦</span>
           You are <strong>Nameless</strong> — Awaken to claim your fate
         </button>
+      ) : (
+        <button type="button" className="account-button" onClick={onOpen} aria-label="Heroes and account">
+          <span aria-hidden="true">⚜</span> Heroes
+        </button>
+      ))}
+      {showAwakening && (
+        <AwakeningPanel
+          initialSession={heroSession}
+          onEnter={onEnter}
+          onClose={onClose}
+          onLogout={onLogout}
+        />
       )}
-      {showAwakening && <AwakeningPanel onEnter={onEnter} onClose={onClose} />}
     </>
   );
 }
@@ -187,7 +216,7 @@ export default function App() {
   useRehydrateTrackedQuest(client.setTrackedQuest);
   useWorldChunkPrefetch();
   useAutoEnter(client);
-  const { isGuest, showAwakening, setShowAwakening, enterWorld } = useGuestAwakening(client);
+  const { isGuest, showAwakening, setShowAwakening, enterWorld, handleLogout } = useGuestAwakening(client);
   const hasAttempted = useHasAttempted(state.connectionState);
 
   // Move action: walk to the selected target if any, else to the map
@@ -206,7 +235,7 @@ export default function App() {
   const worldDropHandlers = useWorldDropTarget(client.dropItem);
 
   if (state.connectionState === 'idle') {
-    return <EntryView onEnter={enterWorld} hasAttempted={hasAttempted} />;
+    return <EntryView onEnter={enterWorld} onLogout={handleLogout} hasAttempted={hasAttempted} />;
   }
 
   return (
@@ -256,13 +285,14 @@ export default function App() {
         onMove={onMove}
         onSendChat={client.sendChat}
       />
-      <GuestAwakeningLayer
+      <IdentityLayer
         isGuest={isGuest}
         online={state.connectionState === 'online'}
         showAwakening={showAwakening}
         onOpen={() => setShowAwakening(true)}
         onClose={() => setShowAwakening(false)}
         onEnter={enterWorld}
+        onLogout={handleLogout}
       />
       {state.connectionState !== 'online' && (
         <div className="joining-overlay" role="status">

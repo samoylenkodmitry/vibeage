@@ -8,13 +8,12 @@ type Offset = {
 
 const DEFAULT_SMOKE_MOVE_OFFSET = { x: 12, z: -8 } satisfies Offset;
 
-// PR M: Lobby (PR I) gates the world behind login + character roster
-// fetched from /api/account/characters. CI runs with persistence off,
-// so the DB-backed auth endpoints would 500. We mint a valid session
-// token locally, seed it into localStorage, and route-stub the roster
-// endpoint to return the requested character. The world join then
-// flows through transient-player creation (persistence disabled),
-// which already accepts any account id the token signs over.
+// The world join needs an HMAC-signed session token (PR I). CI runs with
+// persistence off, so the DB-backed auth endpoints would 500 — we mint a valid
+// token locally and seed it into localStorage *with a remembered hero*, so the
+// client drops straight into that hero on load (the in-world entry flow; no
+// lobby, no "Enter World" click). The join flows through transient-player
+// creation (persistence disabled), which applies the seeded race/class.
 export async function enterWorld(page: Page, playerName: string): Promise<void> {
   const token = mintCiSessionToken({
     secret: CI_AUTH_SECRET,
@@ -23,12 +22,14 @@ export async function enterWorld(page: Page, playerName: string): Promise<void> 
   await page.addInitScript(([t, login]) => {
     window.localStorage.setItem(
       'vibeage:session',
-      JSON.stringify({ token: t, login }),
+      JSON.stringify({ token: t, login, character: { name: login, race: 'human', className: 'mage' } }),
     );
     // No graphics override: the GPU runner renders the real per-device tier
     // (desktop → high w/ post-FX + shadows, mobile/Pixel-5 → low), so the specs
     // validate what players actually see, not a forced-degraded mode.
   }, [token, playerName]);
+  // Roster stub kept harmless — direct entry doesn't fetch it, but the in-world
+  // identity panel would if it were opened.
   await page.route('**/api/account/characters', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
@@ -44,7 +45,6 @@ export async function enterWorld(page: Page, playerName: string): Promise<void> 
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Enter World' }).click();
   await waitForConnectedGame(page);
 }
 

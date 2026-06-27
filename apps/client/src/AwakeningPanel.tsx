@@ -1,53 +1,74 @@
 import { FormEvent, useState } from 'react';
-import { RACE_PROFILES, type CharacterRace } from '../../../packages/content/races';
-import type { CharacterClass } from '../../../packages/content/classes';
 import { RaceClassPicker } from './RaceClassPicker';
-import { authenticate, fetchRoster, type LobbySession, type SavedCharacter } from './accountSession';
+import { authenticate, type LobbySession, type SavedCharacter } from './accountSession';
 import { becomeCharacter, firstAllowedClass, isValidIdentityName } from './onboarding';
+import { HeroRoster } from './HeroRoster';
+import type { CharacterClass } from '../../../packages/content/classes';
+import type { CharacterRace } from '../../../packages/content/races';
 
 /**
- * In-world onboarding. The Nameless guest opens this over the live 3D world
- * (never a separate web screen) to either "Become" a brand-new hero — pick
- * race → prophecy(class) → name, set a login so the hero is saved — or
- * "Return" to a hero already on an account. On success the panel hands the
- * chosen character + session up to App, which `connect()`s as that hero and
- * drops the guest. All endpoints are the same ones the lobby uses.
+ * The one in-world identity surface — no web screens, ever. It renders both as
+ * a full pre-connection screen (its own backdrop) and as an overlay above the
+ * live world.
+ *
+ * - No session → "Become" a brand-new hero, or "Return" (log in) to an account.
+ * - A session (just logged in, opened by a real hero, or a remembered account
+ *   that hasn't picked a hero) → the hero roster: enter / switch / create /
+ *   delete / log out / delete account.
+ *
+ * `onClose` is provided only when there's a world to go back to (the overlay
+ * case); omitted, the ✕ is hidden. `onLogout` clears the session and drops the
+ * player back to a Nameless guest.
  */
 export function AwakeningPanel({
+  initialSession = null,
   onEnter,
   onClose,
+  onLogout,
 }: {
+  initialSession?: LobbySession | null;
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
-  onClose: () => void;
+  onClose?: () => void;
+  onLogout: () => void;
 }) {
+  const [session, setSession] = useState<LobbySession | null>(initialSession);
   const [mode, setMode] = useState<'become' | 'return'>('become');
+
   return (
-    <div className="awakening-overlay" role="dialog" aria-modal="true" aria-label="The Awakening">
+    <div className="awakening-overlay" role="dialog" aria-modal="true" aria-label="Heroes & account">
       <section className="start-panel awakening-panel">
         <header className="awakening-header">
-          <h1>The Awakening</h1>
-          <button type="button" className="ghost-button awakening-close" onClick={onClose} aria-label="Back to the world">✕</button>
+          <h1>{session ? 'Your Heroes' : 'The Awakening'}</h1>
+          {onClose && (
+            <button type="button" className="ghost-button awakening-close" onClick={onClose} aria-label="Back to the world">✕</button>
+          )}
         </header>
-        <p className="lobby-note">
-          You walk the world as the Nameless. Choose your fate — or return to a hero you already are.
-        </p>
-        <div className="awakening-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'become'}
-            className={mode === 'become' ? 'awakening-tab awakening-tab--active' : 'awakening-tab'}
-            onClick={() => setMode('become')}
-          >Become someone new</button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'return'}
-            className={mode === 'return' ? 'awakening-tab awakening-tab--active' : 'awakening-tab'}
-            onClick={() => setMode('return')}
-          >Return to a hero</button>
-        </div>
-        {mode === 'become' ? <BecomeForm onEnter={onEnter} /> : <ReturnForm onEnter={onEnter} />}
+        {session ? (
+          <HeroRoster session={session} onEnter={onEnter} onLogout={() => { setSession(null); onLogout(); }} />
+        ) : (
+          <>
+            <p className="lobby-note">
+              You walk the world as the Nameless. Choose your fate — or return to a hero you already are.
+            </p>
+            <div className="awakening-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'become'}
+                className={mode === 'become' ? 'awakening-tab awakening-tab--active' : 'awakening-tab'}
+                onClick={() => setMode('become')}
+              >Become someone new</button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'return'}
+                className={mode === 'return' ? 'awakening-tab awakening-tab--active' : 'awakening-tab'}
+                onClick={() => setMode('return')}
+              >Return to a hero</button>
+            </div>
+            {mode === 'become' ? <BecomeForm onEnter={onEnter} /> : <ReturnForm onAuthed={setSession} />}
+          </>
+        )}
       </section>
     </div>
   );
@@ -107,13 +128,11 @@ function BecomeForm({ onEnter }: { onEnter: (character: SavedCharacter, session:
   );
 }
 
-function ReturnForm({ onEnter }: { onEnter: (character: SavedCharacter, session: LobbySession) => void }) {
+function ReturnForm({ onAuthed }: { onAuthed: (session: LobbySession) => void }) {
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [session, setSession] = useState<LobbySession | null>(null);
-  const [characters, setCharacters] = useState<SavedCharacter[] | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -126,45 +145,8 @@ function ReturnForm({ onEnter }: { onEnter: (character: SavedCharacter, session:
       setBusy(false);
       return;
     }
-    try {
-      const roster = await fetchRoster(auth.session.token);
-      if (roster === 'unauthorized') {
-        setError('That session expired — try again.');
-        return;
-      }
-      setSession(auth.session);
-      setCharacters(roster);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (session && characters) {
-    return (
-      <div className="awakening-roster">
-        {characters.length === 0 && (
-          <p className="lobby-empty">No heroes on this account yet. Use “Become someone new”.</p>
-        )}
-        <ul className="lobby-list">
-          {characters.map((c) => (
-            <li key={c.name} className="lobby-card">
-              <div className="lobby-card-main">
-                <strong>{c.name}</strong>
-                <small>{RACE_PROFILES[c.race]?.name ?? c.race} · {c.className}</small>
-              </div>
-              <div className="lobby-card-actions">
-                <button type="button" onClick={() => onEnter(c, session)}>Enter as this hero</button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <button type="button" className="ghost-button" onClick={() => { setSession(null); setCharacters(null); }}>
-          Use a different login
-        </button>
-      </div>
-    );
+    // Hand the session up — the panel switches to the hero roster.
+    onAuthed(auth.session);
   }
 
   return (
