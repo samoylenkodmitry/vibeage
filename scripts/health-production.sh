@@ -77,10 +77,13 @@ check_game_socket() {
     # shellcheck disable=SC1090
     source "$creds"
     player="${SMOKE_PLAYER_NAME:-$player}"
+    # `|| true`: under `set -Eeuo pipefail` a curl/grep failure in this pipe
+    # would exit the whole script before the empty-token check below; swallow it
+    # so a login failure is recorded via fail_check instead of aborting health.
     token=$(curl -fsS -m 15 -X POST "https://$DOMAIN/api/auth/login" \
       -H 'Content-Type: application/json' \
       -d "{\"login\":\"${SMOKE_LOGIN}\",\"password\":\"${SMOKE_PASSWORD}\"}" 2>/dev/null \
-      | grep -oE '"token":"[^"]+"' | sed 's/"token":"//;s/"//')
+      | grep -oE '"token":"[^"]+"' | sed 's/"token":"//;s/"//' || true)
     if [[ -z "$token" ]]; then
       fail_check "Smoke account login failed (POST /api/auth/login) — can't run the world-room smoke"
       return
