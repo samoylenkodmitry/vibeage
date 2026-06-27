@@ -36,12 +36,22 @@ export function impactSamplesFor(element: SpellElement | undefined): string[] {
   return ELEMENT_IMPACT[element ?? 'physical'];
 }
 
-/** Per-set gain so explosions don't dwarf clicks. */
-export const SAMPLE_GAIN: Record<string, number> = {
+/** Per-element impact gain so the loud clips (explosion, laser) don't dwarf the rest. */
+const IMPACT_GAIN: Record<SpellElement | 'physical', number> = {
   fire: 0.7,
   arcane: 0.55,
-  default: 0.85,
+  ice: 0.85,
+  holy: 0.85,
+  poison: 0.85,
+  physical: 0.85,
 };
+
+export function impactGainFor(element: SpellElement | undefined): number {
+  return IMPACT_GAIN[element ?? 'physical'];
+}
+
+/** Gain for the generic combat clips (hit / kill). */
+export const COMBAT_GAIN = 0.85;
 
 /** Every sample url — preload on the first gesture so the first hit isn't silent. */
 export const ALL_SFX_URLS: readonly string[] = [

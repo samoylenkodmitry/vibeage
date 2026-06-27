@@ -10,17 +10,18 @@ import { playSpatial } from './spatial';
  */
 const buffers = new Map<string, AudioBuffer>();
 const inflight = new Set<string>();
+const failed = new Set<string>(); // 404 / decode error — don't retry forever
 
 function decode(url: string): void {
-  if (buffers.has(url) || inflight.has(url)) return;
+  if (buffers.has(url) || inflight.has(url) || failed.has(url)) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   inflight.add(url);
   fetch(url)
-    .then((res) => res.arrayBuffer())
+    .then((res) => { if (!res.ok) throw new Error(`${res.status}`); return res.arrayBuffer(); })
     .then((data) => ctx.decodeAudioData(data))
     .then((buf) => { buffers.set(url, buf); inflight.delete(url); })
-    .catch(() => { inflight.delete(url); });
+    .catch(() => { inflight.delete(url); failed.add(url); });
 }
 
 export function preloadSamples(urls: readonly string[]): void {
@@ -28,11 +29,18 @@ export function preloadSamples(urls: readonly string[]): void {
 }
 
 function pickReady(urls: readonly string[]): AudioBuffer | null {
-  const url = urls[Math.floor(Math.random() * urls.length)] ?? urls[0];
-  if (!url) return null;
-  const buf = buffers.get(url);
-  if (!buf) { decode(url); return null; }
-  return buf;
+  if (urls.length === 0) return null;
+  const pick = urls[Math.floor(Math.random() * urls.length)];
+  const buf = buffers.get(pick);
+  if (buf) return buf;
+  decode(pick);
+  // Fall back to any already-decoded variant so the sound doesn't drop out
+  // while the chosen one is still loading.
+  for (const url of urls) {
+    const ready = buffers.get(url);
+    if (ready) return ready;
+  }
+  return null;
 }
 
 function source(ctx: AudioContext, buf: AudioBuffer, dest: AudioNode, gain: number): void {

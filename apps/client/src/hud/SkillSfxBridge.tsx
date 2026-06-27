@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { CastState } from '../../../../packages/protocol/messages';
 import type { VisibleCast } from '../gameTypes';
 import { playSampleAt } from '../audio/samples';
-import { impactSamplesFor, SAMPLE_GAIN } from '../audio/sampleMap';
+import { impactGainFor, impactSamplesFor } from '../audio/sampleMap';
 import { skillThemeFor } from '../vfx/skillThemeConfig';
 
 /**
@@ -22,10 +22,7 @@ export function SkillSfxBridge({ casts }: { casts: Record<string, VisibleCast> }
       if (snap.state === CastState.Impact && !impactedRef.current.has(id)) {
         impactedRef.current.add(id);
         const element = skillThemeFor(snap.skillId).element;
-        const gain = element === 'fire' ? SAMPLE_GAIN.fire
-          : element === 'arcane' ? SAMPLE_GAIN.arcane
-          : SAMPLE_GAIN.default;
-        playSampleAt(impactSamplesFor(element), snap.pos.x, snap.pos.z, gain);
+        playSampleAt(impactSamplesFor(element), snap.pos.x, snap.pos.z, impactGainFor(element));
       }
     }
     if (impactedRef.current.size > Object.keys(casts).length + 32) {
