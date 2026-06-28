@@ -1,3 +1,4 @@
+import { getAudioContext, getMasterGain, isMuted } from '../sfx';
 import { playSpatial } from './spatial';
 
 /**
@@ -88,4 +89,13 @@ function buildWindup(ctx: AudioContext, dest: AudioNode, p: WindupParams): void 
 /** Play an element-tinted, per-skill-pitched cast windup at a world point. */
 export function playWindupAt(p: WindupParams, worldX: number, worldZ: number): void {
   playSpatial((ctx, dest) => buildWindup(ctx, dest, p), worldX, worldZ);
+}
+
+/** Play a windup straight under the master volume (no spatialization) — for previews (wiki Sounds page). */
+export function playWindup(p: WindupParams): void {
+  if (isMuted()) return;
+  const ctx = getAudioContext();
+  const master = getMasterGain();
+  if (!ctx || !master || ctx.state !== 'running') return;
+  buildWindup(ctx, master, p);
 }
