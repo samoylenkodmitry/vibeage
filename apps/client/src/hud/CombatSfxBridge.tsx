@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { EnemyEntity, VisualEvent } from '../gameTypes';
-import { playSampleAt } from '../audio/samples';
+import { playSampleAt, playSampleLayersAt } from '../audio/samples';
 import { COMBAT_GAIN, HIT_SAMPLES, KILL_BODY_SAMPLES, KILL_SAMPLES } from '../audio/sampleMap';
 
 type CombatSfxBridgeProps = {
@@ -36,8 +36,15 @@ export function CombatSfxBridge({ enemies, visualEvents }: CombatSfxBridgeProps)
       next.set(id, enemy.isAlive);
       const wasAlive = prev.get(id);
       if (wasAlive === true && !enemy.isAlive && now - lastKillAtRef.current > KILL_COOLDOWN_MS) {
-        playSampleAt(KILL_SAMPLES, enemy.position.x, enemy.position.z, 0.55);
-        playSampleAt(KILL_BODY_SAMPLES, enemy.position.x, enemy.position.z, COMBAT_GAIN);
+        // A deep boom under a soft body thud — one spatial voice, layered.
+        playSampleLayersAt(
+          [
+            { urls: KILL_SAMPLES, gain: 0.55 },
+            { urls: KILL_BODY_SAMPLES, gain: COMBAT_GAIN },
+          ],
+          enemy.position.x,
+          enemy.position.z,
+        );
         lastKillAtRef.current = now;
       }
     }

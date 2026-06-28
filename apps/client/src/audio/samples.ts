@@ -43,9 +43,10 @@ function pickReady(urls: readonly string[]): AudioBuffer | null {
   return null;
 }
 
-function source(ctx: AudioContext, buf: AudioBuffer, dest: AudioNode, gain: number): void {
+function source(ctx: AudioContext, buf: AudioBuffer, dest: AudioNode, gain: number, rate = 1): void {
   const src = ctx.createBufferSource();
   src.buffer = buf;
+  if (rate !== 1) src.playbackRate.value = rate;
   if (gain === 1) {
     src.connect(dest);
     src.onended = () => src.disconnect();
@@ -63,6 +64,24 @@ export function playSampleAt(urls: readonly string[], worldX: number, worldZ: nu
   const buf = pickReady(urls);
   if (!buf) return;
   playSpatial((ctx, dest) => source(ctx, buf, dest, gain), worldX, worldZ);
+}
+
+/**
+ * One spatial voice layering several sample sets at the same point — a deep
+ * boom under a body thud, a charge under a whoosh. Sharing a single gain+panner
+ * (vs N `playSampleAt` calls) keeps the audio graph small and the layers
+ * perfectly co-located. `rate` pitch-shifts a layer for per-cast variety.
+ */
+export type SampleLayer = { urls: readonly string[]; gain?: number; rate?: number };
+
+export function playSampleLayersAt(layers: readonly SampleLayer[], worldX: number, worldZ: number): void {
+  const ready = layers
+    .map((l) => ({ buf: pickReady(l.urls), gain: l.gain ?? 1, rate: l.rate ?? 1 }))
+    .filter((l): l is { buf: AudioBuffer; gain: number; rate: number } => l.buf !== null);
+  if (ready.length === 0) return;
+  playSpatial((ctx, dest) => {
+    for (const l of ready) source(ctx, l.buf, dest, l.gain, l.rate);
+  }, worldX, worldZ);
 }
 
 /** Non-positional one-shot (UI / "you" events) under the master volume. */
