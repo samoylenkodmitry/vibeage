@@ -37,7 +37,7 @@ const ELEMENT_IMPACT: Record<SpellElement | 'physical', string[]> = {
   physical: [`${BASE}/impactPunch_medium_000.ogg`, `${BASE}/impactPunch_medium_001.ogg`, `${BASE}/impactPunch_medium_002.ogg`],
 };
 
-export function impactSamplesFor(element: SpellElement | undefined): string[] {
+export function impactSamplesFor(element: SpellElement | 'physical' | undefined): string[] {
   return ELEMENT_IMPACT[element ?? 'physical'];
 }
 
@@ -51,9 +51,56 @@ const IMPACT_GAIN: Record<SpellElement | 'physical', number> = {
   physical: 0.85,
 };
 
-export function impactGainFor(element: SpellElement | undefined): number {
+export function impactGainFor(element: SpellElement | 'physical' | undefined): number {
   return IMPACT_GAIN[element ?? 'physical'];
 }
+
+/**
+ * Element → in-flight "whoosh" clip set, played while a projectile travels
+ * (CastState.Traveling): fire roars, arcane zaps, ice/holy shimmer, poison
+ * hisses, physical swings. Per-skill pitch is applied at the call site.
+ */
+const ELEMENT_TRAVEL: Record<SpellElement | 'physical', string[]> = {
+  fire: [`${BASE}/thrusterFire_000.ogg`, `${BASE}/thrusterFire_001.ogg`],
+  ice: [`${BASE}/forceField_000.ogg`, `${BASE}/forceField_001.ogg`],
+  holy: [`${BASE}/forceField_000.ogg`, `${BASE}/forceField_001.ogg`],
+  poison: [`${BASE}/slime_000.ogg`, `${BASE}/slime_001.ogg`],
+  arcane: [`${BASE}/laserSmall_000.ogg`, `${BASE}/laserSmall_001.ogg`],
+  physical: [`${BASE}/knifeSlice.ogg`, `${BASE}/knifeSlice2.ogg`],
+};
+
+export function travelSamplesFor(element: SpellElement | 'physical' | undefined): string[] {
+  return ELEMENT_TRAVEL[element ?? 'physical'];
+}
+
+const TRAVEL_GAIN: Record<SpellElement | 'physical', number> = {
+  fire: 0.4,
+  ice: 0.45,
+  holy: 0.45,
+  poison: 0.5,
+  arcane: 0.4,
+  physical: 0.55,
+};
+
+export function travelGainFor(element: SpellElement | 'physical' | undefined): number {
+  return TRAVEL_GAIN[element ?? 'physical'];
+}
+
+/** A deep sub-boom layered under heavy-skill impacts for weight (same deep boom as a kill). */
+export const SUB_BOOM_SAMPLES = [
+  `${BASE}/lowFrequency_explosion_000.ogg`,
+  `${BASE}/lowFrequency_explosion_001.ogg`,
+];
+
+/**
+ * A gentle high "sparkle" for support skills landing on an ally/self — a heal or
+ * buff shouldn't slam down like a damage hit. Played quiet + pitched up.
+ */
+export const SUPPORT_SPARKLE_SAMPLES = [
+  `${BASE}/impactGlass_medium_000.ogg`,
+  `${BASE}/impactGlass_medium_001.ogg`,
+  `${BASE}/impactGlass_medium_002.ogg`,
+];
 
 /** Gain for the generic combat clips (hit / kill). */
 export const COMBAT_GAIN = 0.85;
@@ -62,4 +109,5 @@ export const COMBAT_GAIN = 0.85;
 export const ALL_SFX_URLS: readonly string[] = [
   ...HIT_SAMPLES, ...KILL_SAMPLES, ...KILL_BODY_SAMPLES, ...LOOT_SAMPLES, ...UI_SAMPLES,
   ...Object.values(ELEMENT_IMPACT).flat(),
+  ...Object.values(ELEMENT_TRAVEL).flat(),
 ];

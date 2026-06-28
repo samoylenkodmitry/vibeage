@@ -1,33 +1,52 @@
 import { useEffect, useRef } from 'react';
 import { CastState } from '../../../../packages/protocol/messages';
 import type { VisibleCast } from '../gameTypes';
-import { playSampleAt } from '../audio/samples';
-import { impactGainFor, impactSamplesFor } from '../audio/sampleMap';
-import { skillThemeFor } from '../vfx/skillThemeConfig';
+import { playSampleLayersAt } from '../audio/samples';
+import { playWindupAt } from '../audio/spellVoices';
+import { impactLayersFor, travelLayersFor, windupFor } from '../audio/skillAudio';
 
 /**
- * Plays an element-flavoured impact (Kenney CC0 samples) where a spell lands —
- * fire explodes, ice shatters glass, holy rings a bell, poison thuds soft,
- * arcane zaps — positioned in the world via playSampleAt. Headless; watches the
- * same cast state the VFX renders from. Basic attacks are skipped (their hit
- * already plays via CombatSfxBridge).
+ * Three-phase, per-skill spell audio — headless, watching the same cast state
+ * the VFX render from. Every cast moves through up to three distinct sounds,
+ * each positioned in the world via the spatial bus:
+ *
+ *   - CASTING   → a synth windup charge (element-tinted, per-skill pitch)
+ *   - TRAVELING → an in-flight whoosh sample (projectiles only)
+ *   - IMPACT    → layered landing samples (element + heavy sub-boom; heals sparkle)
+ *
+ * A bitmask per cast id fires each phase exactly once. Basic attacks are skipped
+ * (their hit already plays via CombatSfxBridge).
  */
+const PHASE_CAST = 1;
+const PHASE_TRAVEL = 2;
+const PHASE_IMPACT = 4;
+
 export function SkillSfxBridge({ casts }: { casts: Record<string, VisibleCast> }) {
-  const impactedRef = useRef<Set<string>>(new Set());
+  const phasesRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
+    const phases = phasesRef.current;
     for (const [id, cast] of Object.entries(casts)) {
       const snap = cast.snapshot;
       if (snap.skillId === 'basicAttack') continue;
-      if (snap.state === CastState.Impact && !impactedRef.current.has(id)) {
-        impactedRef.current.add(id);
-        const element = skillThemeFor(snap.skillId).element;
-        playSampleAt(impactSamplesFor(element), snap.pos.x, snap.pos.z, impactGainFor(element));
+      const done = phases.get(id) ?? 0;
+
+      if (snap.state === CastState.Casting && !(done & PHASE_CAST)) {
+        phases.set(id, done | PHASE_CAST);
+        playWindupAt(windupFor(snap.skillId), snap.pos.x, snap.pos.z);
+      } else if (snap.state === CastState.Traveling && !(done & PHASE_TRAVEL)) {
+        phases.set(id, done | PHASE_TRAVEL);
+        playSampleLayersAt(travelLayersFor(snap.skillId), snap.pos.x, snap.pos.z);
+      } else if (snap.state === CastState.Impact && !(done & PHASE_IMPACT)) {
+        phases.set(id, done | PHASE_IMPACT);
+        playSampleLayersAt(impactLayersFor(snap.skillId), snap.pos.x, snap.pos.z);
       }
     }
-    if (impactedRef.current.size > Object.keys(casts).length + 32) {
-      for (const id of impactedRef.current) {
-        if (!(id in casts)) impactedRef.current.delete(id);
+
+    // Prune ids that have dropped out of the cast set so the map can't grow.
+    if (phases.size > Object.keys(casts).length + 32) {
+      for (const id of phases.keys()) {
+        if (!(id in casts)) phases.delete(id);
       }
     }
   }, [casts]);
